@@ -1,0 +1,4564 @@
+schema_version: 1
+cadence: weekly
+week_start: '2026-10-26'
+week_end: '2026-11-01'
+generated_at: '2026-11-02T00:47:56+00:00'
+summary:
+  daily_files: 7
+  total_items: 147
+  newsletter_ready_items: 30
+  user_facing_items: 49
+  dev_only_items: 69
+  unknown_release_items: 0
+  themes: 9
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: embed:web:browse
+    kind: embed
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:web
+    source: backend/apps/web/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: skill:events:search
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:events
+    source: backend/apps/events/app.yml
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:travel:get_flight
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:travel
+    source: backend/apps/travel/app.yml
+  - id: skill:web:browse
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:web
+    source: backend/apps/web/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+daily_summaries:
+- date: '2026-10-26'
+  total_commits: 60
+  newsletter_ready_items: 21
+  dev_only_items: 0
+- date: '2026-10-27'
+  total_commits: 20
+  newsletter_ready_items: 9
+  dev_only_items: 2
+- date: '2026-10-28'
+  total_commits: 45
+  newsletter_ready_items: 0
+  dev_only_items: 45
+- date: '2026-10-29'
+  total_commits: 6
+  newsletter_ready_items: 0
+  dev_only_items: 6
+- date: '2026-10-30'
+  total_commits: 3
+  newsletter_ready_items: 0
+  dev_only_items: 3
+- date: '2026-10-31'
+  total_commits: 0
+  newsletter_ready_items: 0
+  dev_only_items: 0
+- date: '2026-11-01'
+  total_commits: 13
+  newsletter_ready_items: 0
+  dev_only_items: 13
+themes:
+- theme: cli_sdk
+  item_count: 43
+  newsletter_ready_count: 2
+  dev_only_count: 23
+  source_items:
+  - date: '2026-10-26'
+    title: 'ci: admit guarded Rust browser previews and preserve SDK checks'
+    commits:
+    - 1c973f272
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'ci: attribute native SDK first-page failures safely'
+    commits:
+    - de1e16940
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'ci: bind private-safe first-page output assertion'
+    commits:
+    - 15437a8a2
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'ci: register portable Rust test inputs and corrected SDK fixtures'
+    commits:
+    - 590b0d2a0
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'ci: register selected Rust recovery without inventory authority'
+    commits:
+    - db23c04c8
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'feat: add bounded E2B Browse execution and JSON results'
+    commits:
+    - eedefb69c
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:web:browse
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - date: '2026-10-26'
+    title: 'fix: correct Python SDK test surface registration'
+    commits:
+    - 562c2c854
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: pin Browse HTTPS transport and account native usage'
+    commits:
+    - bd333ac5d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-10-26'
+    title: 'fix: preserve SDK compiler diagnostics and register binding test fixes'
+    commits:
+    - 7ab11940f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: register reviewed native full-read and SDK conformance source'
+    commits:
+    - f942fed84
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'test: bind SDK version coordinator results to exact fixtures'
+    commits:
+    - 7dfe99894
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'test: enable recovery for authored result CLI checks'
+    commits:
+    - 7a47fbcd1
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'test: keep SDK result witness outside secret ignore pattern'
+    commits:
+    - 533ca5f90
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'test: register bounded shared Rust browser storage core'
+    commits:
+    - 26e0fb588
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'test: require cache policy conformance in all three SDKs'
+    commits:
+    - ec2427013
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'test: seed encrypted SDK cache settlement peers'
+    commits:
+    - 3bee7b31f
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'test: verify built browser clients against the real Rust Worker'
+    commits:
+    - 5c3930870
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-27'
+    title: 'fix: preserve production route parity and resolved Caddy merges'
+    commits:
+    - 6b2b796b0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-27'
+    title: 'fix: register Rust client compiler and publication guard repairs'
+    commits:
+    - 0190d5733
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-27'
+    title: 'test: include production app origin in upload Caddy expectations'
+    commits:
+    - 6d7a7ab3e
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'docs: record Specification storage and client handoff'
+    commits:
+    - 9d8d23c32
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'feat: enforce synchronized Rust client SDK conformance'
+    commits:
+    - 960c2433c
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: bind Rust client verification to current source'
+    commits:
+    - a81c3318e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: keep Rust migration verification aligned with corrected clients'
+    commits:
+    - 11339e919
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: register strict shared SDK runtime corrections'
+    commits:
+    - 78b250ae3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-29'
+    title: 'test: isolate explicit fixture SDK sessions safely'
+    commits:
+    - 8a6daea2f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-29'
+    title: 'test: register optimized Rust checkpoint authority'
+    commits:
+    - c5d903d4c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-29'
+    title: 'test: repair current Rust checkpoint verification'
+    commits:
+    - ab460083d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-29'
+    title: 'test: use managed E2E lifecycle for memory readiness'
+    commits:
+    - d0153ed2c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-30'
+    title: 'fix(ci): register verified Rust Core checkpoint for testing'
+    commits:
+    - 7541a8d1d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-30'
+    title: 'test: verify contained client memory accounting and admit the tested SDK snapshot'
+    commits:
+    - 1fcce6bbf
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-11-01'
+    title: 'test: admit the verified native checkpoint source for isolated CI'
+    commits:
+    - e1ce3722b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-11-01'
+    title: 'test: include exact legacy crypto fixture in Rust compiler inputs'
+    commits:
+    - da3a118e2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-11-01'
+    title: 'test: isolate contained memory probe attempts and preserve diagnostics'
+    commits:
+    - 0d5e68741
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-11-01'
+    title: 'test: keep memory probe retries inside owned launch state'
+    commits:
+    - 533d2685d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-11-01'
+    title: 'test: provision recorder dependencies and register Rust checkpoint'
+    commits:
+    - a6043df4f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-11-01'
+    title: 'test: record bounded RSS counter diagnostics without changing acceptance'
+    commits:
+    - 36f392171
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-11-01'
+    title: 'test: register attributable SDK packaging diagnostic checkpoint'
+    commits:
+    - 26dfe317c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-11-01'
+    title: 'test: register coherent Rust core workflow checkpoint'
+    commits:
+    - 1fccb9559
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-11-01'
+    title: 'test: register exact coherent Rust client checkpoint source'
+    commits:
+    - 6b1ff7204
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-11-01'
+    title: 'test: register integrated runnable Rust checkpoint'
+    commits:
+    - 5e243ffce
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-11-01'
+    title: 'test: register repaired Rust checkpoint and report memory provenance'
+    commits:
+    - 8cc36149a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-11-01'
+    title: 'test: register the integrated Rust workflow checkpoint source'
+    commits:
+    - f3897e1e8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: infrastructure
+  item_count: 41
+  newsletter_ready_count: 4
+  dev_only_count: 17
+  source_items:
+  - date: '2026-10-26'
+    title: 'docs: plan assistant-authored rich result embeds'
+    commits:
+    - a648aa1bd
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'feat: prepare isolated one-owner Browse sessions for fast startup'
+    commits:
+    - 612c62f6d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - date: '2026-10-26'
+    title: 'fix: distinguish fixture publication from delivery failure'
+    commits:
+    - de336c074
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: extract verified Browse answers when no output schema is supplied'
+    commits:
+    - 46e7c36a2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: locate the E2B browser at runtime'
+    commits:
+    - c96894ed5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: log closed migration CI failure stages'
+    commits:
+    - 2e50fd0ed
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: preserve Browse controllers through idle pause'
+    commits:
+    - '510799976'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: restore web bootstrap on hosted Node runtime'
+    commits:
+    - 3a4f7aa97
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:tv
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/tv/app.yml
+  - date: '2026-10-26'
+    title: 'fix: retain bounded final delivery diagnostics'
+    commits:
+    - 5511bf068
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: retain safe transport classes in authoring diagnostics'
+    commits:
+    - bd81f9166
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: settle Browse windows and resume paused sessions'
+    commits:
+    - 5a6e9244a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-10-26'
+    title: 'fix: verify browse answers against separate completion criteria'
+    commits:
+    - 29836d6a6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: verify quoted Browse results against checked page evidence'
+    commits:
+    - 5d2048a5f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: wait for resumed Browse ingress and stable observations'
+    commits:
+    - aada32299
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'test: classify isolated Rust production browser dependencies'
+    commits:
+    - '981296499'
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'test: enable isolated authored-result web and image flows'
+    commits:
+    - 4f8630503
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'test: evaluate Redact from Rust and document licensing privacy'
+    commits:
+    - a11c8a3e9
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'test: isolate the approved empty call cleanup case'
+    commits:
+    - e7cb2acd4
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'test: retain authored result recovery failure diagnostics'
+    commits:
+    - 1e1e71d99
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'test: retain nested voice cleanup failure windows'
+    commits:
+    - 3d7a10156
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-27'
+    title: 'chore: reconcile main hotfixes and prepare v0.28 release'
+    commits:
+    - d6004bc1b
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-27'
+    title: 'fix: distinguish native setup failures from disk refusals'
+    commits:
+    - 07f1b80e6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-27'
+    title: 'fix: retain image viewing for conversational upload requests'
+    commits:
+    - 49190d5a7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-10-27'
+    title: 'test: preserve image prompts and inspect completed activity'
+    commits:
+    - d448d6bb8
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'chore: measure Browse transport setup and response latency'
+    commits:
+    - 56005cefa
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'docs: cover queued workflow email retirement during rollout'
+    commits:
+    - ff04e5b3b
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'docs: plan one useful daily workflow email'
+    commits:
+    - a5587c057
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'docs: record deployed Browse timings and pricing audit'
+    commits:
+    - 9c5172a58
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'docs: record verified Specification storage delivery'
+    commits:
+    - cade33da8
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix(ai): load memories on demand for native diagrams'
+    commits:
+    - 7d260a053
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-10-28'
+    title: 'fix(ai): recover native diagrams from text sketch output'
+    commits:
+    - '338395380'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-10-28'
+    title: 'fix: finish disk recovery rollout and verified Task continuation'
+    commits:
+    - a9620edbf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: harden Browse model JSON and missing screenshots'
+    commits:
+    - d29e12de1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - date: '2026-10-28'
+    title: 'fix: preserve assistant code execution bundles'
+    commits:
+    - 4ed830279
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: preserve credentialed CORS for Browse sessions'
+    commits:
+    - c7df34334
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: provision Task sync fixture in its isolated CI job'
+    commits:
+    - 91e4576c7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: reliably resume assistant Code Run results'
+    commits:
+    - 454a24a30
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - date: '2026-10-28'
+    title: 'fix: verify shared Rust recovery WASM module outputs'
+    commits:
+    - afeae0649
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'test: add isolated formula worker runtime'
+    commits:
+    - 564e9d9e4
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-29'
+    title: 'fix(ci): validate node-only memory readiness evidence'
+    commits:
+    - 8a6dc98e5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-11-01'
+    title: 'test: classify native fetch failures with bounded diagnostics'
+    commits:
+    - 55e049ae7
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: chat
+  item_count: 37
+  newsletter_ready_count: 22
+  dev_only_count: 11
+  source_items:
+  - date: '2026-10-26'
+    title: 'ci: enforce synchronized SDK and Rust browser migration checks'
+    commits:
+    - 94db0f73e
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'feat: add source-independent typed result authoring'
+    commits:
+    - c5831accf
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: app:design
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/design/app.yml
+    - id: app:electronics
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/electronics/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:hosting
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/hosting/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:nutrition
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/nutrition/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: app:social_media
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/social_media/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:tv
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/tv/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - date: '2026-10-26'
+    title: 'feat: trial offline Redact detection in the dev web composer'
+    commits:
+    - d0b63e7fc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: authorize empty voice call cleanup atomically'
+    commits:
+    - dc7a29241
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: enforce Brotli protection without blocking web startup'
+    commits:
+    - cd3704074
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: fade the compact recording waveform at its left edge'
+    commits:
+    - b29af1873
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: guard Redact trials against vulnerable Brotli decoders'
+    commits:
+    - 8cd2ec444
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: initialize voice call cleanup schema'
+    commits:
+    - 871960ea2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: keep audio recording composer minimized'
+    commits:
+    - 7119a78e9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: keep mobile attachment controls visible and add camera shortcut'
+    commits:
+    - 3b54b1d06
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: match timeline icon color to More button'
+    commits:
+    - d6ad5a53b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: minimize image sends and render viewed image previews'
+    commits:
+    - 0da8c0c6d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: preserve draft content during voice recording'
+    commits:
+    - 2ed54c9f5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: preserve photo drafts after send failures'
+    commits:
+    - 77b3ebf9f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: preserve voice thinking pauses and improve call delivery'
+    commits:
+    - 09d92f332
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+  - date: '2026-10-26'
+    title: 'fix: remove empty failed call chats with guarded sync'
+    commits:
+    - 24dd88b5e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: restore iPhone voice calls and standard error notifications'
+    commits:
+    - 810626d47
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: resume voice capture after permission and correct credit notices'
+    commits:
+    - 8ec508077
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-27'
+    title: 'docs: limit Redact trial to message inputs'
+    commits:
+    - a157e9b50
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-27'
+    title: 'feat: add Browse session embeds and user takeover'
+    commits:
+    - 970c0d679
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: skill:web:browse
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - date: '2026-10-27'
+    title: 'feat: coordinate disk admission cleanup and chat recovery'
+    commits:
+    - ccd62432a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-27'
+    title: 'fix: align new-chat voice-call controls and remove helper text'
+    commits:
+    - fbeb72011
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-27'
+    title: 'fix: match composer attachment icons to microphone gradient'
+    commits:
+    - 95ad8b8ba
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-27'
+    title: 'fix: preserve chat retry identity and encrypted code context'
+    commits:
+    - 2548fa408
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-27'
+    title: 'fix: shorten PII labels and unblock protected follow-up sends'
+    commits:
+    - d78c3f640
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-27'
+    title: 'fix: unblock CLI publication and restore public audio files'
+    commits:
+    - a38d9a0a8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-28'
+    title: 'feat: enable enhanced personal data protection with privacy controls'
+    commits:
+    - 0c629e21b
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-10-28'
+    title: 'feat: verify Browse embeds and expose metered pricing'
+    commits:
+    - 00c1f01cb
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - date: '2026-10-28'
+    title: 'fix(chat): recover follow-up messages after interruption'
+    commits:
+    - f216b1bbd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-10-28'
+    title: 'fix: bound enhanced input redaction latency'
+    commits:
+    - d6f46f56f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: enable Browse controls for private owner chats'
+    commits:
+    - f1b780948
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - date: '2026-10-28'
+    title: 'fix: enable budget-protected guest audio transcription'
+    commits:
+    - ec7fc9797
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: prevent stale URL conversion from corrupting drafts'
+    commits:
+    - ddcbc307d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: recover disk-blocked chats and expire stale workspaces safely'
+    commits:
+    - 56a7a6e41
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: remove load-earlier action from chat timeline'
+    commits:
+    - a38a39e20
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: stabilize enhanced privacy initialization'
+    commits:
+    - 5d72b3325
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-10-29'
+    title: 'test: verify exact Rust migration checkpoint sources'
+    commits:
+    - ebb29de09
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: docs
+  item_count: 7
+  newsletter_ready_count: 0
+  dev_only_count: 5
+  source_items:
+  - date: '2026-10-26'
+    title: 'docs: plan cloud-first agentic project development'
+    commits:
+    - 4dd5d8a05
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'docs: record Browse startup isolation cost and reliability qualification'
+    commits:
+    - c6b71740f
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'docs: close reminder email gateway verification'
+    commits:
+    - 59e99b386
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'docs: record Browse connection profiling and standalone architecture'
+    commits:
+    - a06faf0fb
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'docs: record verified diagram Memory recovery'
+    commits:
+    - dae864ee7
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'docs: record verified disk coordination rollout'
+    commits:
+    - 1573e854b
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: keep disk admission responsive during bounded cleanup'
+    commits:
+    - 0238c3b19
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: other
+  item_count: 7
+  newsletter_ready_count: 0
+  dev_only_count: 6
+  source_items:
+  - date: '2026-10-27'
+    title: 'Merge pull request #532 from glowingkitty/dev'
+    commits:
+    - 8a10d4730
+    section: other
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-27'
+    title: 'chore: add isolated preview SSH helper'
+    commits:
+    - bbd57013f
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: classify pinned LiteRT startup diagnostics'
+    commits:
+    - 28de0f4c9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: complete disk recovery routing and verified workspace inspection'
+    commits:
+    - d6eec8a39
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: recognize legacy managed integration paths during cleanup'
+    commits:
+    - d75d0215d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: release queue priority for paused and approval-blocked disk requests'
+    commits:
+    - 1928874ad
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'test: await production anonymous startup status'
+    commits:
+    - 431f25047
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: security
+  item_count: 6
+  newsletter_ready_count: 1
+  dev_only_count: 4
+  source_items:
+  - date: '2026-10-26'
+    title: 'docs: record the managed Brotli runtime security blocker'
+    commits:
+    - f98d62f3f
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: expose safe runtime versions in Brotli startup failures'
+    commits:
+    - 929203c44
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-27'
+    title: 'fix: reconcile production routing and release security fixes'
+    commits:
+    - 0b3715746
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: expose closed WASM dependency refusal diagnostics'
+    commits:
+    - 03386334d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: resolve compatible Python dependencies in Code Run'
+    commits:
+    - ac1145c66
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - date: '2026-10-30'
+    title: 'fix: verify observed WASM shim comment metadata without widening dependency guards'
+    commits:
+    - b3c1209fe
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: self_hosting
+  item_count: 3
+  newsletter_ready_count: 0
+  dev_only_count: 2
+  source_items:
+  - date: '2026-10-27'
+    title: 'fix: update satellite system Brotli and guard native decoder'
+    commits:
+    - '375289718'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'feat: persist encrypted Project Specifications'
+    commits:
+    - 7fbec0f34
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: reclaim aged dangling images under disk pressure'
+    commits:
+    - 3d231e001
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: product
+  item_count: 2
+  newsletter_ready_count: 1
+  dev_only_count: 1
+  source_items:
+  - date: '2026-10-27'
+    title: 'fix: clarify selected authored-result correction guidance'
+    commits:
+    - 2c3c25cad
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-10-28'
+    title: 'fix: keep Code Run file bundles atomic'
+    commits:
+    - 43cf88b8b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+- theme: apple
+  item_count: 1
+  newsletter_ready_count: 0
+  dev_only_count: 0
+  source_items:
+  - date: '2026-10-26'
+    title: 'perf: evaluate parallel Redact scans and adaptive native limits'
+    commits:
+    - fced40d29
+    section: improvements
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - date: '2026-10-26'
+    title: 'feat: add source-independent typed result authoring'
+    commits:
+    - c5831accf
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: app:design
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/design/app.yml
+    - id: app:electronics
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/electronics/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:hosting
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/hosting/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:nutrition
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/nutrition/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: app:social_media
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/social_media/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:tv
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/tv/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - date: '2026-10-26'
+    title: 'feat: prepare isolated one-owner Browse sessions for fast startup'
+    commits:
+    - 612c62f6d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - date: '2026-10-26'
+    title: 'feat: trial offline Redact detection in the dev web composer'
+    commits:
+    - d0b63e7fc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: authorize empty voice call cleanup atomically'
+    commits:
+    - dc7a29241
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: enforce Brotli protection without blocking web startup'
+    commits:
+    - cd3704074
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: expose safe runtime versions in Brotli startup failures'
+    commits:
+    - 929203c44
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: fade the compact recording waveform at its left edge'
+    commits:
+    - b29af1873
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: guard Redact trials against vulnerable Brotli decoders'
+    commits:
+    - 8cd2ec444
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: keep audio recording composer minimized'
+    commits:
+    - 7119a78e9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: keep mobile attachment controls visible and add camera shortcut'
+    commits:
+    - 3b54b1d06
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: match timeline icon color to More button'
+    commits:
+    - d6ad5a53b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: minimize image sends and render viewed image previews'
+    commits:
+    - 0da8c0c6d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: pin Browse HTTPS transport and account native usage'
+    commits:
+    - bd333ac5d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-10-26'
+    title: 'fix: preserve draft content during voice recording'
+    commits:
+    - 2ed54c9f5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: preserve photo drafts after send failures'
+    commits:
+    - 77b3ebf9f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: preserve voice thinking pauses and improve call delivery'
+    commits:
+    - 09d92f332
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+  - date: '2026-10-26'
+    title: 'fix: remove empty failed call chats with guarded sync'
+    commits:
+    - 24dd88b5e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: restore iPhone voice calls and standard error notifications'
+    commits:
+    - 810626d47
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: restore web bootstrap on hosted Node runtime'
+    commits:
+    - 3a4f7aa97
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:tv
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/tv/app.yml
+  - date: '2026-10-26'
+    title: 'fix: resume voice capture after permission and correct credit notices'
+    commits:
+    - 8ec508077
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: settle Browse windows and resume paused sessions'
+    commits:
+    - 5a6e9244a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-10-27'
+    title: 'feat: coordinate disk admission cleanup and chat recovery'
+    commits:
+    - ccd62432a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-27'
+    title: 'fix: align new-chat voice-call controls and remove helper text'
+    commits:
+    - fbeb72011
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-27'
+    title: 'fix: clarify selected authored-result correction guidance'
+    commits:
+    - 2c3c25cad
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-10-27'
+    title: 'fix: match composer attachment icons to microphone gradient'
+    commits:
+    - 95ad8b8ba
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-27'
+    title: 'fix: preserve chat retry identity and encrypted code context'
+    commits:
+    - 2548fa408
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-27'
+    title: 'fix: preserve production route parity and resolved Caddy merges'
+    commits:
+    - 6b2b796b0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-27'
+    title: 'fix: retain image viewing for conversational upload requests'
+    commits:
+    - 49190d5a7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-10-27'
+    title: 'fix: shorten PII labels and unblock protected follow-up sends'
+    commits:
+    - d78c3f640
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-27'
+    title: 'fix: unblock CLI publication and restore public audio files'
+    commits:
+    - a38d9a0a8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  social_or_video:
+  - date: '2026-10-26'
+    title: 'feat: add bounded E2B Browse execution and JSON results'
+    commits:
+    - eedefb69c
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:web:browse
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - date: '2026-10-26'
+    title: 'feat: add source-independent typed result authoring'
+    commits:
+    - c5831accf
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: app:design
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/design/app.yml
+    - id: app:electronics
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/electronics/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:hosting
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/hosting/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:nutrition
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/nutrition/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: app:social_media
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/social_media/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:tv
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/tv/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - date: '2026-10-26'
+    title: 'feat: prepare isolated one-owner Browse sessions for fast startup'
+    commits:
+    - 612c62f6d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - date: '2026-10-26'
+    title: 'feat: trial offline Redact detection in the dev web composer'
+    commits:
+    - d0b63e7fc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: authorize empty voice call cleanup atomically'
+    commits:
+    - dc7a29241
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: enforce Brotli protection without blocking web startup'
+    commits:
+    - cd3704074
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: expose safe runtime versions in Brotli startup failures'
+    commits:
+    - 929203c44
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: fade the compact recording waveform at its left edge'
+    commits:
+    - b29af1873
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: guard Redact trials against vulnerable Brotli decoders'
+    commits:
+    - 8cd2ec444
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: keep audio recording composer minimized'
+    commits:
+    - 7119a78e9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: keep mobile attachment controls visible and add camera shortcut'
+    commits:
+    - 3b54b1d06
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: match timeline icon color to More button'
+    commits:
+    - d6ad5a53b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: minimize image sends and render viewed image previews'
+    commits:
+    - 0da8c0c6d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: pin Browse HTTPS transport and account native usage'
+    commits:
+    - bd333ac5d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-10-26'
+    title: 'fix: preserve draft content during voice recording'
+    commits:
+    - 2ed54c9f5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: preserve photo drafts after send failures'
+    commits:
+    - 77b3ebf9f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: preserve voice thinking pauses and improve call delivery'
+    commits:
+    - 09d92f332
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+  - date: '2026-10-26'
+    title: 'fix: remove empty failed call chats with guarded sync'
+    commits:
+    - 24dd88b5e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: restore iPhone voice calls and standard error notifications'
+    commits:
+    - 810626d47
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: restore web bootstrap on hosted Node runtime'
+    commits:
+    - 3a4f7aa97
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:tv
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/tv/app.yml
+  - date: '2026-10-26'
+    title: 'fix: resume voice capture after permission and correct credit notices'
+    commits:
+    - 8ec508077
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-26'
+    title: 'fix: settle Browse windows and resume paused sessions'
+    commits:
+    - 5a6e9244a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-10-27'
+    title: 'feat: add Browse session embeds and user takeover'
+    commits:
+    - 970c0d679
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: skill:web:browse
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - date: '2026-10-27'
+    title: 'feat: coordinate disk admission cleanup and chat recovery'
+    commits:
+    - ccd62432a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-27'
+    title: 'fix: align new-chat voice-call controls and remove helper text'
+    commits:
+    - fbeb72011
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-27'
+    title: 'fix: clarify selected authored-result correction guidance'
+    commits:
+    - 2c3c25cad
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-10-27'
+    title: 'fix: match composer attachment icons to microphone gradient'
+    commits:
+    - 95ad8b8ba
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-27'
+    title: 'fix: preserve chat retry identity and encrypted code context'
+    commits:
+    - 2548fa408
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-27'
+    title: 'fix: preserve production route parity and resolved Caddy merges'
+    commits:
+    - 6b2b796b0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-27'
+    title: 'fix: retain image viewing for conversational upload requests'
+    commits:
+    - 49190d5a7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-10-27'
+    title: 'fix: shorten PII labels and unblock protected follow-up sends'
+    commits:
+    - d78c3f640
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-27'
+    title: 'fix: unblock CLI publication and restore public audio files'
+    commits:
+    - a38d9a0a8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-10-28'
+    title: 'feat: enable enhanced personal data protection with privacy controls'
+    commits:
+    - 0c629e21b
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-10-28'
+    title: 'feat: persist encrypted Project Specifications'
+    commits:
+    - 7fbec0f34
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-10-28'
+    title: 'feat: verify Browse embeds and expose metered pricing'
+    commits:
+    - 00c1f01cb
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - date: '2026-10-28'
+    title: 'fix(ai): load memories on demand for native diagrams'
+    commits:
+    - 7d260a053
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-10-28'
+    title: 'fix(ai): recover native diagrams from text sketch output'
+    commits:
+    - '338395380'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-10-28'
+    title: 'fix(chat): recover follow-up messages after interruption'
+    commits:
+    - f216b1bbd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-10-28'
+    title: 'fix: bound enhanced input redaction latency'
+    commits:
+    - d6f46f56f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: enable Browse controls for private owner chats'
+    commits:
+    - f1b780948
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - date: '2026-10-28'
+    title: 'fix: enable budget-protected guest audio transcription'
+    commits:
+    - ec7fc9797
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: harden Browse model JSON and missing screenshots'
+    commits:
+    - d29e12de1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - date: '2026-10-28'
+    title: 'fix: keep Code Run file bundles atomic'
+    commits:
+    - 43cf88b8b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-10-28'
+    title: 'fix: preserve credentialed CORS for Browse sessions'
+    commits:
+    - c7df34334
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: prevent stale URL conversion from corrupting drafts'
+    commits:
+    - ddcbc307d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: reliably resume assistant Code Run results'
+    commits:
+    - 454a24a30
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - date: '2026-10-28'
+    title: 'fix: remove load-earlier action from chat timeline'
+    commits:
+    - a38a39e20
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: resolve compatible Python dependencies in Code Run'
+    commits:
+    - ac1145c66
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - date: '2026-10-28'
+    title: 'fix: stabilize enhanced privacy initialization'
+    commits:
+    - 5d72b3325
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+unreleased_progress:
+  dev_only:
+  - date: '2026-10-27'
+    title: 'chore: add isolated preview SSH helper'
+    commits:
+    - bbd57013f
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-27'
+    title: 'fix: reconcile production routing and release security fixes'
+    commits:
+    - 0b3715746
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'chore: measure Browse transport setup and response latency'
+    commits:
+    - 56005cefa
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'docs: close reminder email gateway verification'
+    commits:
+    - 59e99b386
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'docs: cover queued workflow email retirement during rollout'
+    commits:
+    - ff04e5b3b
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'docs: plan one useful daily workflow email'
+    commits:
+    - a5587c057
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'docs: record Browse connection profiling and standalone architecture'
+    commits:
+    - a06faf0fb
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'docs: record Specification storage and client handoff'
+    commits:
+    - 9d8d23c32
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'docs: record deployed Browse timings and pricing audit'
+    commits:
+    - 9c5172a58
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'docs: record verified Specification storage delivery'
+    commits:
+    - cade33da8
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'docs: record verified diagram Memory recovery'
+    commits:
+    - dae864ee7
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'docs: record verified disk coordination rollout'
+    commits:
+    - 1573e854b
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'feat: enable enhanced personal data protection with privacy controls'
+    commits:
+    - 0c629e21b
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-10-28'
+    title: 'feat: enforce synchronized Rust client SDK conformance'
+    commits:
+    - 960c2433c
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'feat: persist encrypted Project Specifications'
+    commits:
+    - 7fbec0f34
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-10-28'
+    title: 'feat: verify Browse embeds and expose metered pricing'
+    commits:
+    - 00c1f01cb
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - date: '2026-10-28'
+    title: 'fix(ai): load memories on demand for native diagrams'
+    commits:
+    - 7d260a053
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-10-28'
+    title: 'fix(ai): recover native diagrams from text sketch output'
+    commits:
+    - '338395380'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-10-28'
+    title: 'fix(chat): recover follow-up messages after interruption'
+    commits:
+    - f216b1bbd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-10-28'
+    title: 'fix: bind Rust client verification to current source'
+    commits:
+    - a81c3318e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: bound enhanced input redaction latency'
+    commits:
+    - d6f46f56f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: classify pinned LiteRT startup diagnostics'
+    commits:
+    - 28de0f4c9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: complete disk recovery routing and verified workspace inspection'
+    commits:
+    - d6eec8a39
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: enable Browse controls for private owner chats'
+    commits:
+    - f1b780948
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - date: '2026-10-28'
+    title: 'fix: enable budget-protected guest audio transcription'
+    commits:
+    - ec7fc9797
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: expose closed WASM dependency refusal diagnostics'
+    commits:
+    - 03386334d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: finish disk recovery rollout and verified Task continuation'
+    commits:
+    - a9620edbf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: harden Browse model JSON and missing screenshots'
+    commits:
+    - d29e12de1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - date: '2026-10-28'
+    title: 'fix: keep Code Run file bundles atomic'
+    commits:
+    - 43cf88b8b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-10-28'
+    title: 'fix: keep Rust migration verification aligned with corrected clients'
+    commits:
+    - 11339e919
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: keep disk admission responsive during bounded cleanup'
+    commits:
+    - 0238c3b19
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: preserve assistant code execution bundles'
+    commits:
+    - 4ed830279
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: preserve credentialed CORS for Browse sessions'
+    commits:
+    - c7df34334
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: prevent stale URL conversion from corrupting drafts'
+    commits:
+    - ddcbc307d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: provision Task sync fixture in its isolated CI job'
+    commits:
+    - 91e4576c7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: reclaim aged dangling images under disk pressure'
+    commits:
+    - 3d231e001
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: recognize legacy managed integration paths during cleanup'
+    commits:
+    - d75d0215d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: recover disk-blocked chats and expire stale workspaces safely'
+    commits:
+    - 56a7a6e41
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: register strict shared SDK runtime corrections'
+    commits:
+    - 78b250ae3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: release queue priority for paused and approval-blocked disk requests'
+    commits:
+    - 1928874ad
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: reliably resume assistant Code Run results'
+    commits:
+    - 454a24a30
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - date: '2026-10-28'
+    title: 'fix: remove load-earlier action from chat timeline'
+    commits:
+    - a38a39e20
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: resolve compatible Python dependencies in Code Run'
+    commits:
+    - ac1145c66
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - date: '2026-10-28'
+    title: 'fix: stabilize enhanced privacy initialization'
+    commits:
+    - 5d72b3325
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-10-28'
+    title: 'fix: verify shared Rust recovery WASM module outputs'
+    commits:
+    - afeae0649
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'test: add isolated formula worker runtime'
+    commits:
+    - 564e9d9e4
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-28'
+    title: 'test: await production anonymous startup status'
+    commits:
+    - 431f25047
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-29'
+    title: 'fix(ci): validate node-only memory readiness evidence'
+    commits:
+    - 8a6dc98e5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-29'
+    title: 'test: isolate explicit fixture SDK sessions safely'
+    commits:
+    - 8a6daea2f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-29'
+    title: 'test: register optimized Rust checkpoint authority'
+    commits:
+    - c5d903d4c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-29'
+    title: 'test: repair current Rust checkpoint verification'
+    commits:
+    - ab460083d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-29'
+    title: 'test: use managed E2E lifecycle for memory readiness'
+    commits:
+    - d0153ed2c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-29'
+    title: 'test: verify exact Rust migration checkpoint sources'
+    commits:
+    - ebb29de09
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-30'
+    title: 'fix(ci): register verified Rust Core checkpoint for testing'
+    commits:
+    - 7541a8d1d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-30'
+    title: 'fix: verify observed WASM shim comment metadata without widening dependency guards'
+    commits:
+    - b3c1209fe
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-10-30'
+    title: 'test: verify contained client memory accounting and admit the tested SDK snapshot'
+    commits:
+    - 1fcce6bbf
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-11-01'
+    title: 'test: admit the verified native checkpoint source for isolated CI'
+    commits:
+    - e1ce3722b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-11-01'
+    title: 'test: classify native fetch failures with bounded diagnostics'
+    commits:
+    - 55e049ae7
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-11-01'
+    title: 'test: include exact legacy crypto fixture in Rust compiler inputs'
+    commits:
+    - da3a118e2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-11-01'
+    title: 'test: isolate contained memory probe attempts and preserve diagnostics'
+    commits:
+    - 0d5e68741
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-11-01'
+    title: 'test: keep memory probe retries inside owned launch state'
+    commits:
+    - 533d2685d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-11-01'
+    title: 'test: provision recorder dependencies and register Rust checkpoint'
+    commits:
+    - a6043df4f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-11-01'
+    title: 'test: record bounded RSS counter diagnostics without changing acceptance'
+    commits:
+    - 36f392171
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-11-01'
+    title: 'test: register attributable SDK packaging diagnostic checkpoint'
+    commits:
+    - 26dfe317c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-11-01'
+    title: 'test: register coherent Rust core workflow checkpoint'
+    commits:
+    - 1fccb9559
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-11-01'
+    title: 'test: register exact coherent Rust client checkpoint source'
+    commits:
+    - 6b1ff7204
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-11-01'
+    title: 'test: register integrated runnable Rust checkpoint'
+    commits:
+    - 5e243ffce
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-11-01'
+    title: 'test: register repaired Rust checkpoint and report memory provenance'
+    commits:
+    - 8cc36149a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-11-01'
+    title: 'test: register the integrated Rust workflow checkpoint source'
+    commits:
+    - f3897e1e8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  unknown_release_status: []
+risks:
+  communication:
+  - Use weekly themes for PR/release/newsletter drafting; do not list every daily item one-by-one.
+  - Keep dev_only and unknown_release_status items out of public newsletters until released on main.
+sources:
+  daily_files:
+  - docs/releases/daily/2026-10-26.yml
+  - docs/releases/daily/2026-10-27.yml
+  - docs/releases/daily/2026-10-28.yml
+  - docs/releases/daily/2026-10-29.yml
+  - docs/releases/daily/2026-10-30.yml
+  - docs/releases/daily/2026-10-31.yml
+  - docs/releases/daily/2026-11-01.yml
+llm_summary:
+  overview: OpenMates introduced a major architectural update for structured AI result authoring and significantly optimized
+    web browsing startup. The week also saw a heavy focus on voice call reliability, mobile composer stability, and the introduction
+    of a disk coordinator to improve chat recovery. The latter half of the week shifted toward hardening internal CI pipelines
+    and testing infrastructure for Rust-based components and memory diagnostics.
+  released_changes:
+  - text: OpenMates added a source-independent typed result authoring system, allowing the assistant to generate structured,
+      rich-media embeds across various categories.
+    evidence:
+      commits:
+      - c5831accf
+    release_status: released_main
+  - text: The project now supports isolated, one-owner browsing sessions designed for fast startup, reducing wait times for
+      web-based skills.
+    evidence:
+      commits:
+      - 612c62f6d
+    release_status: released_main
+  - text: A new disk coordinator was introduced to manage admission cleanup and improve the reliability of chat session recovery.
+    evidence:
+      commits:
+      - ccd62432a
+    release_status: released_main
+  - text: Voice conversations now preserve natural thinking pauses, making interactions with the assistant feel more human.
+    evidence:
+      commits:
+      - 09d92f332
+    release_status: released_main
+  - text: The mobile composer was updated with a dedicated camera shortcut and more consistent attachment controls.
+    evidence:
+      commits:
+      - 3b54b1d06
+    release_status: released_main
+  - text: UI refinements include aligned voice-call controls, icon gradients matching the microphone button, and a new fade
+      effect for audio recording waveforms.
+    evidence:
+      commits:
+      - 95ad8b8ba
+      - fbeb72011
+      - b29af1873
+      - d6ad5a53b
+    release_status: released_main
+  - text: A trial for offline personal data detection was added to the developer web composer for local privacy checks.
+    evidence:
+      commits:
+      - d0b63e7fc
+    release_status: released_main
+  - text: Guidance for correcting authored results within the AI application was clarified for better user control.
+    evidence:
+      commits:
+      - 2c3c25cad
+    release_status: released_main
+  bug_fixes:
+  - text: Voice call reliability was improved with specific fixes for iPhone connectivity, microphone permission handling,
+      and standard error notifications.
+    evidence:
+      commits:
+      - 09d92f332
+      - 810626d47
+      - 8ec508077
+    release_status: released_main
+  - text: The message composer now preserves draft content and photo attachments during voice recording or after send failures
+      to prevent data loss.
+    evidence:
+      commits:
+      - 2ed54c9f5
+      - 77b3ebf9f
+    release_status: released_main
+  - text: OpenMates implemented atomic cleanup for empty failed call sessions to maintain a cleaner chat timeline.
+    evidence:
+      commits:
+      - 24dd88b5e
+      - dc7a29241
+    release_status: released_main
+  - text: Web application bootstrap was restored for hosted Node runtimes, and production routing parity was corrected in
+      Caddy configurations.
+    evidence:
+      commits:
+      - 3a4f7aa97
+      - 6b2b796b0
+    release_status: released_main
+  - text: Security protections for the Brotli runtime were enforced to guard against vulnerable decoders without blocking
+      application startup.
+    evidence:
+      commits:
+      - cd3704074
+      - 8cd2ec444
+      - 929203c44
+    release_status: released_main
+  - text: Web browsing stability was enhanced by ensuring browser windows settle correctly and sessions resume properly after
+      being paused.
+    evidence:
+      commits:
+      - 5a6e9244a
+      - bd333ac5d
+    release_status: released_main
+  - text: Chat continuity was improved by preserving retry identity and encrypted code context during session handoffs.
+    evidence:
+      commits:
+      - d78c3f640
+      - 2548fa408
+    release_status: released_main
+  - text: The CLI publication process was unblocked and public audio file access was restored.
+    evidence:
+      commits:
+      - a38d9a0a8
+    release_status: released_main
+  unreleased_progress:
+  - text: Work is progressing on bounded E2B Browse execution to provide safer, structured JSON results from web searches.
+    evidence:
+      commits:
+      - eedefb69c
+    release_status: released_main
+  - text: Development continued on Browse session embeds and user takeover capabilities, though these remain disabled in production.
+    evidence:
+      commits:
+      - 970c0d679
+    release_status: released_main
+  - text: Enhanced personal data protection is in development, including a runtime manifest for PII detection and new privacy
+      settings.
+    evidence:
+      commits:
+      - 0c629e21b
+      - 5d72b3325
+    release_status: dev_only
+  - text: Diagram generation is being hardened with support for on-demand memory loading and better recovery from text-based
+      sketches.
+    evidence:
+      commits:
+      - 7d260a053
+    release_status: dev_only
+  - text: Encrypted persistence for Project Specifications was added to the backend and database schemas.
+    evidence:
+      commits:
+      - 7fbec0f34
+    release_status: dev_only
+  - text: Guest audio transcription now includes budget protection and improved transcript correction in development.
+    evidence:
+      commits:
+      - ec7fc9797
+    release_status: dev_only
+  - text: Architectural planning is underway for cloud-first agentic projects and further enhancements to rich result embeds.
+    evidence:
+      commits:
+      - c6b71740f
+      - 4dd5d8a05
+      - f98d62f3f
+      - a648aa1bd
+    release_status: released_main
+  - text: Testing infrastructure for Rust migration checkpoints was expanded to include verification of source closures and
+      optimized authorities.
+    evidence:
+      commits:
+      - 8a6dc98e5
+      - ab460083d
+      - ebb29de09
+    release_status: dev_only
+  internal_progress:
+  - text: Extensive updates were made to the CI pipeline and SDK conformance suites, focusing on Rust browser previews, encrypted
+      cache settlement, and build consistency across multiple SDKs.
+    evidence:
+      commits:
+      - 2e50fd0ed
+      - 7ab11940f
+      - f942fed84
+      - 0190d5733
+      - 960c2433c
+      - 7541a8d1d
+      - 1fccb9559
+    release_status: released_main
+  - text: Internal memory diagnostic tools were refined, including improvements to RSS counter recording and isolated memory
+      probe retries for client processes.
+    evidence:
+      commits:
+      - 533d2685d
+      - 36f392171
+      - 0d5e68741
+    release_status: dev_only
+  newsletter_recommendation:
+    include:
+    - text: New source-independent typed result authoring for structured AI responses.
+      evidence:
+        commits:
+        - c5831accf
+      reason: This is a major architectural addition that enables richer, more structured AI responses across all apps.
+    - text: Fast-startup isolated web browsing sessions.
+      evidence:
+        commits:
+        - 612c62f6d
+      reason: Directly improves the user experience by making web browsing features start up significantly faster.
+    - text: Preservation of natural thinking pauses in voice conversations.
+      evidence:
+        commits:
+        - 09d92f332
+      reason: Improves the natural feel of voice interactions, a key part of the assistant experience.
+    - text: Coordinated disk admission cleanup for improved chat recovery.
+      evidence:
+        commits:
+        - ccd62432a
+      reason: Significant improvement to system reliability and chat persistence.
+    - text: Mobile composer enhancements including a new camera shortcut.
+      evidence:
+        commits:
+        - 3b54b1d06
+      reason: Provides immediate utility for mobile users with a new camera shortcut and better UI stability.
+    - text: Refined chat UI with aligned voice-call controls and matching icon gradients.
+      evidence:
+        commits:
+        - 95ad8b8ba
+        - fbeb72011
+      reason: User-facing UI refinements that improve the visual consistency of the chat interface.
+    exclude:
+    - text: Bounded E2B Browse execution and JSON results.
+      evidence:
+        commits:
+        - eedefb69c
+      reason: This feature is explicitly marked as an unreleased_feature and relates to disabled components.
+    - text: Browse session embeds and user takeover functionality.
+      evidence:
+        commits:
+        - 970c0d679
+      reason: The Web Browse skill and associated embeds are currently disabled in the feature configuration.
+    - text: Enhanced personal data protection and privacy controls.
+      evidence:
+        commits:
+        - 0c629e21b
+        - 5d72b3325
+      reason: These privacy features are currently in dev-only status and not yet released to the main branch.
+    - text: Encrypted Project Specifications.
+      evidence:
+        commits:
+        - 7fbec0f34
+      reason: Internal persistence work for project specifications is not yet ready for public release and relates to a disabled
+        feature.
+    rationale: The selected items represent significant new capabilities (AI authoring) and high-impact quality-of-life improvements
+      for browsing, voice, and mobile usage that are fully released and ready for communication.
+  social_video_recommendations:
+  - idea: Showcase the new 'Typed Results' by asking the assistant for information that triggers rich embeds (e.g., a travel
+      itinerary or a fitness plan) to demonstrate the structured UI.
+    priority: high
+    reason: This is a highly visual feature that demonstrates the assistant's increasing sophistication.
+    evidence:
+      commits:
+      - c5831accf
+  - idea: A side-by-side audio comparison of a voice call with and without the preserved thinking pauses to show how much
+      more natural the interaction feels.
+    priority: medium
+    reason: Voice features are best demonstrated through audio/video, and this fix significantly improves the 'human' feel
+      of the AI.
+    evidence:
+      commits:
+      - 09d92f332
+  - idea: A short clip showing the refined chat UI, highlighting the new icon gradients and streamlined voice-call controls.
+    priority: low
+    reason: These are visual changes that demonstrate product polish.
+    evidence:
+      commits:
+      - fbeb72011
+      - 95ad8b8ba
+  quality_notes:
+  - A high volume of bug fixes (over 40) indicates a strong focus on stabilizing the voice and composer experiences.
+  - The introduction of typed result authoring (c5831accf) marks a shift toward more structured and reliable AI interactions.
+  - Infrastructure changes ensure better parity between development and production routing environments.
+  validation_warnings: []

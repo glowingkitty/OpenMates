@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-10-26'
-generated_at: '2026-10-27T00:20:42+00:00'
+generated_at: '2026-11-02T00:45:39+00:00'
 range:
   since: '2026-10-26T00:00:00+00:00'
   until: '2026-10-27T00:00:00+00:00'
@@ -19,9 +19,9 @@ summary:
     infrastructure: 6
     internal: 0
     other: 0
-  newsletter_ready_items: 0
+  newsletter_ready_items: 21
   user_facing_items: 22
-  dev_only_items: 60
+  dev_only_items: 0
   unknown_release_items: 0
 feature_availability:
   disabled_features:
@@ -60,6 +60,13 @@ feature_availability:
     override: disabled
     parent_id: null
     source: backend/apps/tasks/app.yml
+  - id: embed:web:browse
+    kind: embed
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:web
+    source: backend/apps/web/app.yml
   - id: memory:health:appointments
     kind: memory
     default_enabled: false
@@ -172,6 +179,13 @@ feature_availability:
     override: null
     parent_id: app:travel
     source: backend/apps/travel/app.yml
+  - id: skill:web:browse
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:web
+    source: backend/apps/web/app.yml
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
     recommendations.
 sections:
@@ -203,9 +217,9 @@ sections:
     - docs/plans/web-browse/plan.yml
     - frontend/apps/web_app/tests/web-browse-api.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:web
@@ -220,7 +234,7 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:web'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: add source-independent typed result authoring'
     section: features
     commits:
@@ -305,9 +319,9 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -485,7 +499,7 @@ sections:
     - 'matches feature availability gates: app:ai, app:business, app:code, app:design, app:electronics, app:events, app:fitness,
       app:health, app:home, app:hosting, app:images, app:jobs, app:maps, app:models3d, app:news, app:nutrition, app:shopping,
       app:social_media, app:travel, app:tv, app:videos, app:weather, app:web, skill:ai:ask'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: add bounded E2B Browse execution and JSON results'
     section: features
     commits:
@@ -539,8 +553,8 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -558,6 +572,13 @@ sections:
       override: null
       parent_id: null
       source: backend/apps/web/app.yml
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
     - id: platform:tasks
       kind: platform
       default_enabled: false
@@ -568,16 +589,17 @@ sections:
     - id: skill:web:browse
       kind: skill
       default_enabled: true
-      effective_enabled: true
-      override: null
+      effective_enabled: false
+      override: disabled
       parent_id: app:web
       source: backend/apps/web/app.yml
     feature_metadata_changed: true
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - 'matches feature availability gates: app:ai, app:web, platform:tasks, skill:web:browse'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - 'matches feature availability gates: app:ai, app:web, embed:web:browse, platform:tasks, skill:web:browse'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: embed:web:browse, platform:tasks, skill:web:browse'
   - title: 'feat: trial offline Redact detection in the dev web composer'
     section: features
     commits:
@@ -634,16 +656,16 @@ sections:
     - scripts/redact_linux_evaluation.test.mjs
     - scripts/redact_linux_evaluation_test.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   bug_fixes:
   - title: 'fix: log closed migration CI failure stages'
     section: bug_fixes
@@ -654,7 +676,7 @@ sections:
     - scripts/ci_closed_failure_summary.py
     - scripts/ci_run_tests.py
     - scripts/tests/test_ci_closed_failure_summary.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -662,7 +684,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve SDK compiler diagnostics and register binding test fixes'
     section: bug_fixes
     commits:
@@ -674,7 +696,7 @@ sections:
     - scripts/tests/fixtures/sdk-conformance-trust-binding-compile2-delta.json
     - scripts/tests/test_ci_sdk_compiler_diagnostics.py
     - scripts/tests/test_ci_sdk_conformance.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -682,7 +704,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve voice thinking pauses and improve call delivery'
     section: bug_fixes
     commits:
@@ -725,9 +747,9 @@ sections:
     - frontend/packages/ui/src/message_parsing/voiceDeliveryCues.ts
     - scripts/ci_coverage_manifest.json
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -749,7 +771,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:audio'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: extract verified Browse answers when no output schema is supplied'
     section: bug_fixes
     commits:
@@ -761,7 +783,7 @@ sections:
     - docs/architecture/apps/web-browse.md
     - docs/plans/web-browse/measurements.md
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -769,7 +791,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: verify quoted Browse results against checked page evidence'
     section: bug_fixes
     commits:
@@ -782,7 +804,7 @@ sections:
     - docs/architecture/apps/web-browse.md
     - docs/plans/web-browse/measurements.md
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -790,7 +812,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: correct Python SDK test surface registration'
     section: bug_fixes
     commits:
@@ -800,7 +822,7 @@ sections:
     - scripts/ci_sdk_conformance_trust.json
     - scripts/tests/fixtures/sdk-conformance-trust-full29-sdk-header-delta.json
     - scripts/tests/test_ci_sdk_conformance.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -808,7 +830,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: minimize image sends and render viewed image previews'
     section: bug_fixes
     commits:
@@ -826,16 +848,16 @@ sections:
     - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
     - scripts/ci_coverage_manifest.json
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: enforce Brotli protection without blocking web startup'
     section: bug_fixes
     commits:
@@ -854,16 +876,16 @@ sections:
     - frontend/apps/web_app/src/routes/share/embed/[embedId]/+server.ts
     - frontend/apps/web_app/tests/web-runtime-security.spec.ts
     - scripts/ci_coverage_manifest.json
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: true
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: register reviewed native full-read and SDK conformance source'
     section: bug_fixes
     commits:
@@ -878,7 +900,7 @@ sections:
     - scripts/tests/fixtures/sdk-conformance-trust-selected-sdk-delta.json
     - scripts/tests/test_ci_sdk_conformance.py
     - scripts/tests/test_sdk_session_embed_version_gate.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -886,7 +908,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: restore web bootstrap on hosted Node runtime'
     section: bug_fixes
     commits:
@@ -897,9 +919,9 @@ sections:
     - frontend/apps/web_app/scripts/prepare-pii-runtime.test.mjs
     - frontend/apps/web_app/src/hooks.server.ts
     - frontend/apps/web_app/tests/app-load-no-error-logs.spec.ts
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:tv
@@ -914,7 +936,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:tv'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: keep mobile attachment controls visible and add camera shortcut'
     section: bug_fixes
     commits:
@@ -934,16 +956,16 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: retain safe transport classes in authoring diagnostics'
     section: bug_fixes
     commits:
@@ -952,7 +974,7 @@ sections:
     changed_paths:
     - scripts/ci_run_tests.py
     - scripts/tests/test_ci_maps_recovery_profile.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -960,7 +982,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: verify browse answers against separate completion criteria'
     section: bug_fixes
     commits:
@@ -971,7 +993,7 @@ sections:
     - backend/tests/test_web_browse_models.py
     - docs/plans/web-browse/measurements.md
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -979,7 +1001,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve Browse controllers through idle pause'
     section: bug_fixes
     commits:
@@ -995,7 +1017,7 @@ sections:
     - backend/tests/test_web_browse_transport.py
     - docs/plans/web-browse/measurements.md
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1003,7 +1025,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: distinguish fixture publication from delivery failure'
     section: bug_fixes
     commits:
@@ -1012,7 +1034,7 @@ sections:
     changed_paths:
     - scripts/ci_run_tests.py
     - scripts/tests/test_ci_maps_recovery_profile.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1020,7 +1042,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: retain bounded final delivery diagnostics'
     section: bug_fixes
     commits:
@@ -1029,7 +1051,7 @@ sections:
     changed_paths:
     - scripts/ci_run_tests.py
     - scripts/tests/test_ci_maps_recovery_profile.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1037,7 +1059,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: wait for resumed Browse ingress and stable observations'
     section: bug_fixes
     commits:
@@ -1052,7 +1074,7 @@ sections:
     - backend/tests/test_web_browse_transport.py
     - docs/plans/web-browse/measurements.md
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1060,7 +1082,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: settle Browse windows and resume paused sessions'
     section: bug_fixes
     commits:
@@ -1073,9 +1095,9 @@ sections:
     - backend/tests/test_web_browse_service.py
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1090,7 +1112,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: remove empty failed call chats with guarded sync'
     section: bug_fixes
     commits:
@@ -1115,16 +1137,16 @@ sections:
     - frontend/packages/ui/src/services/websocketService.ts
     - frontend/packages/ui/src/types/chat.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: locate the E2B browser at runtime'
     section: bug_fixes
     commits:
@@ -1134,7 +1156,7 @@ sections:
     - backend/shared/providers/e2b_browser.py
     - backend/tests/test_web_browse_transport.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1142,7 +1164,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve photo drafts after send failures'
     section: bug_fixes
     commits:
@@ -1158,16 +1180,16 @@ sections:
     - frontend/packages/ui/src/services/sendersDrafts.ts
     - scripts/ci_coverage_manifest.json
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: pin Browse HTTPS transport and account native usage'
     section: bug_fixes
     commits:
@@ -1188,9 +1210,9 @@ sections:
     - docs/architecture/apps/web-browse.md
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1205,7 +1227,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve draft content during voice recording'
     section: bug_fixes
     commits:
@@ -1223,16 +1245,16 @@ sections:
     - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
     - frontend/packages/ui/src/components/enter_message/__tests__/RecordAudio.test.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: expose safe runtime versions in Brotli startup failures'
     section: bug_fixes
     commits:
@@ -1241,16 +1263,16 @@ sections:
     changed_paths:
     - docs/plans/web-redact-dev-trial/plan.yml
     - frontend/apps/web_app/src/lib/server/webNodeRuntimeSecurity.mjs
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: guard Redact trials against vulnerable Brotli decoders'
     section: bug_fixes
     commits:
@@ -1277,16 +1299,16 @@ sections:
     - scripts/redact_linux_evaluation.py
     - scripts/redact_linux_evaluation.test.mjs
     - scripts/redact_linux_evaluation_test.py
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: initialize voice call cleanup schema'
     section: bug_fixes
     commits:
@@ -1296,7 +1318,7 @@ sections:
     - backend/core/directus/schemas/chat_call_cleanup_candidates.yml
     - backend/core/directus/setup/accountability_policy.py
     - backend/tests/test_empty_call_cleanup_schema.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1304,7 +1326,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: authorize empty voice call cleanup atomically'
     section: bug_fixes
     commits:
@@ -1341,16 +1363,16 @@ sections:
     - backend/tests/test_voice_call_protocol.py
     - docs/plans/voice-call-empty-cleanup/plan.yml
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: true
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: resume voice capture after permission and correct credit notices'
     section: bug_fixes
     commits:
@@ -1371,16 +1393,16 @@ sections:
     - frontend/packages/ui/src/utils/__tests__/creditRejection.test.ts
     - frontend/packages/ui/src/utils/creditRejection.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: match timeline icon color to More button'
     section: bug_fixes
     commits:
@@ -1391,16 +1413,16 @@ sections:
     - frontend/packages/ui/src/components/ChatHistoryTimelinePreviewHarness.svelte
     - frontend/packages/ui/src/components/ChatTimelineToggle.svelte
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: fade the compact recording waveform at its left edge'
     section: bug_fixes
     commits:
@@ -1410,16 +1432,16 @@ sections:
     - frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
     - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: restore iPhone voice calls and standard error notifications'
     section: bug_fixes
     commits:
@@ -1440,16 +1462,16 @@ sections:
     - frontend/packages/ui/src/services/assistantSpeechStream.ts
     - frontend/packages/ui/src/services/voiceCall.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: keep audio recording composer minimized'
     section: bug_fixes
     commits:
@@ -1468,16 +1490,16 @@ sections:
     - frontend/packages/ui/src/components/enter_message/__tests__/RecordAudio.test.ts
     - scripts/ci_coverage_manifest.json
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   improvements:
   - title: 'perf: evaluate parallel Redact scans and adaptive native limits'
     section: improvements
@@ -1553,7 +1575,7 @@ sections:
     - scripts/redact_parallel_evaluation.py
     - scripts/redact_parallel_evaluation_test.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1561,7 +1583,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as improvements from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   docs:
   - title: 'docs: record Browse startup isolation cost and reliability qualification'
     section: docs
@@ -1570,7 +1592,7 @@ sections:
     authored_at: '2026-10-26T21:25:17+00:00'
     changed_paths:
     - docs/plans/web-browse/measurements.md
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1578,7 +1600,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: plan cloud-first agentic project development'
     section: docs
     commits:
@@ -1586,7 +1608,7 @@ sections:
     authored_at: '2026-10-26T19:06:48+00:00'
     changed_paths:
     - docs/plans/cloud-project-development/plan.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1594,7 +1616,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: record the managed Brotli runtime security blocker'
     section: docs
     commits:
@@ -1605,7 +1627,7 @@ sections:
     - docs/architecture/privacy/redact-browser-dev-trial.md
     - docs/architecture/privacy/vercel-brotli-runtime-support-draft-2026-10-26.md
     - docs/plans/web-redact-dev-trial/plan.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1613,7 +1635,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: plan assistant-authored rich result embeds'
     section: docs
     commits:
@@ -1626,7 +1648,7 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1634,7 +1656,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   tests:
   - title: 'test: enable isolated authored-result web and image flows'
     section: tests
@@ -1647,7 +1669,7 @@ sections:
     - scripts/ci_voice_recovery_epoch.py
     - scripts/tests/test_ci_authored_media_recovery_epoch.py
     - scripts/tests/test_ci_voice_recovery_epoch.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1655,7 +1677,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: evaluate Redact from Rust and document licensing privacy'
     section: tests
     commits:
@@ -1716,7 +1738,7 @@ sections:
     - scripts/redact_rust_evaluation.rs
     - scripts/redact_rust_evaluation_test.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1724,7 +1746,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: retain authored result recovery failure diagnostics'
     section: tests
     commits:
@@ -1733,7 +1755,7 @@ sections:
     changed_paths:
     - scripts/ci_run_tests.py
     - scripts/tests/test_ci_maps_recovery_profile.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1741,7 +1763,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: retain nested voice cleanup failure windows'
     section: tests
     commits:
@@ -1750,7 +1772,7 @@ sections:
     changed_paths:
     - scripts/ci_run_tests.py
     - scripts/tests/test_ci_case_filter.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1758,7 +1780,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: isolate the approved empty call cleanup case'
     section: tests
     commits:
@@ -1768,7 +1790,7 @@ sections:
     - scripts/ci_coordinator.py
     - scripts/ci_run_tests.py
     - scripts/tests/test_ci_case_filter.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1776,7 +1798,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: enable recovery for authored result CLI checks'
     section: tests
     commits:
@@ -1785,7 +1807,7 @@ sections:
     changed_paths:
     - scripts/ci_run_tests.py
     - scripts/tests/test_ci_maps_recovery_profile.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1793,7 +1815,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: keep SDK result witness outside secret ignore pattern'
     section: tests
     commits:
@@ -1803,7 +1825,7 @@ sections:
     - scripts/tests/fixtures/sdk-conformance-trust-version-envelope-delta.json
     - scripts/tests/fixtures/sdk-conformance-trust-version-result-delta.json
     - scripts/tests/test_ci_sdk_conformance.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1811,7 +1833,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: bind SDK version coordinator results to exact fixtures'
     section: tests
     commits:
@@ -1821,7 +1843,7 @@ sections:
     - scripts/ci_sdk_conformance_trust.json
     - scripts/tests/fixtures/sdk-conformance-trust-version-envelope-delta.json
     - scripts/tests/test_ci_sdk_conformance.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1829,7 +1851,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: register bounded shared Rust browser storage core'
     section: tests
     commits:
@@ -1840,7 +1862,7 @@ sections:
     - scripts/ci_sdk_conformance_trust.json
     - scripts/tests/fixtures/sdk-conformance-trust-browser-local-wire-cursor-delta.json
     - scripts/tests/test_ci_sdk_conformance.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1848,7 +1870,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: classify isolated Rust production browser dependencies'
     section: tests
     commits:
@@ -1857,7 +1879,7 @@ sections:
     changed_paths:
     - scripts/ci_coverage_manifest.json
     - scripts/tests/test_ci_coverage.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1865,7 +1887,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: seed encrypted SDK cache settlement peers'
     section: tests
     commits:
@@ -1875,7 +1897,7 @@ sections:
     - scripts/ci_sdk_conformance_trust.json
     - scripts/tests/fixtures/sdk-conformance-trust-cache-peer-seeding-delta.json
     - scripts/tests/test_ci_sdk_conformance.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1883,7 +1905,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: verify built browser clients against the real Rust Worker'
     section: tests
     commits:
@@ -1898,7 +1920,7 @@ sections:
     - scripts/ci_rust_wasm.py
     - scripts/tests/test_ci_production_rust_browser.py
     - scripts/tests/test_ci_rust_wasm.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1906,7 +1928,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: require cache policy conformance in all three SDKs'
     section: tests
     commits:
@@ -1916,7 +1938,7 @@ sections:
     - scripts/ci_sdk_conformance_trust.json
     - scripts/tests/fixtures/sdk-conformance-trust-cache-settlement-adapters-delta.json
     - scripts/tests/test_ci_sdk_conformance.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1924,7 +1946,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   infrastructure:
   - title: 'ci: admit guarded Rust browser previews and preserve SDK checks'
     section: infrastructure
@@ -1940,7 +1962,7 @@ sections:
     - scripts/tests/test_ci_rust_wasm.py
     - scripts/tests/test_ci_sdk_conformance.py
     - scripts/tests/test_sdk_session_embed_version_gate.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1948,7 +1970,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'ci: register selected Rust recovery without inventory authority'
     section: infrastructure
     commits:
@@ -1960,7 +1982,7 @@ sections:
     - scripts/tests/fixtures/sdk-conformance-trust-selected-cli-delta.json
     - scripts/tests/test_ci_sdk_conformance.py
     - scripts/tests/test_sdk_session_embed_version_gate.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1968,7 +1990,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'ci: attribute native SDK first-page failures safely'
     section: infrastructure
     commits:
@@ -1980,7 +2002,7 @@ sections:
     - scripts/tests/fixtures/sdk-conformance-trust-first-page-npm-diagnostic-delta.json
     - scripts/tests/test_ci_sdk_conformance.py
     - scripts/tests/test_ci_sdk_first_page_npm_diagnostics.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1988,7 +2010,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'ci: bind private-safe first-page output assertion'
     section: infrastructure
     commits:
@@ -1998,7 +2020,7 @@ sections:
     - scripts/ci_sdk_conformance_trust.json
     - scripts/tests/fixtures/sdk-conformance-trust-binding-unit-delta.json
     - scripts/tests/test_ci_sdk_conformance.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2006,7 +2028,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'ci: register portable Rust test inputs and corrected SDK fixtures'
     section: infrastructure
     commits:
@@ -2016,7 +2038,7 @@ sections:
     - scripts/ci_sdk_conformance_trust.json
     - scripts/tests/fixtures/sdk-conformance-trust-ci-fixes-delta.json
     - scripts/tests/test_ci_sdk_conformance.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2024,7 +2046,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'ci: enforce synchronized SDK and Rust browser migration checks'
     section: infrastructure
     commits:
@@ -2053,7 +2075,7 @@ sections:
     - scripts/tests/test_ci_wasm_worker.py
     - scripts/tests/test_sdk_session_embed_version_gate.py
     - tests/sdk-conformance/schemas/browser-ordinary-retention.schema.json
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2061,684 +2083,26 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   internal: []
   other: []
 unreleased_progress:
-  dev_only:
-  - title: 'fix: log closed migration CI failure stages'
-    commits:
-    - 2e50fd0ed
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: preserve SDK compiler diagnostics and register binding test fixes'
-    commits:
-    - 7ab11940f
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs: record Browse startup isolation cost and reliability qualification'
-    commits:
-    - c6b71740f
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: preserve voice thinking pauses and improve call delivery'
-    commits:
-    - 09d92f332
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:audio
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/audio/app.yml
-  - title: 'fix: extract verified Browse answers when no output schema is supplied'
-    commits:
-    - 46e7c36a2
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: verify quoted Browse results against checked page evidence'
-    commits:
-    - 5d2048a5f
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: enable isolated authored-result web and image flows'
-    commits:
-    - 4f8630503
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat: prepare isolated one-owner Browse sessions for fast startup'
-    commits:
-    - 612c62f6d
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:web
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/web/app.yml
-  - title: 'fix: correct Python SDK test surface registration'
-    commits:
-    - 562c2c854
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs: plan cloud-first agentic project development'
-    commits:
-    - 4dd5d8a05
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: minimize image sends and render viewed image previews'
-    commits:
-    - 0da8c0c6d
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: enforce Brotli protection without blocking web startup'
-    commits:
-    - cd3704074
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'perf: evaluate parallel Redact scans and adaptive native limits'
-    commits:
-    - fced40d29
-    section: improvements
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: register reviewed native full-read and SDK conformance source'
-    commits:
-    - f942fed84
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: restore web bootstrap on hosted Node runtime'
-    commits:
-    - 3a4f7aa97
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:tv
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/tv/app.yml
-  - title: 'fix: keep mobile attachment controls visible and add camera shortcut'
-    commits:
-    - 3b54b1d06
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat: add source-independent typed result authoring'
-    commits:
-    - c5831accf
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:business
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/business/app.yml
-    - id: app:code
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/code/app.yml
-    - id: app:design
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/design/app.yml
-    - id: app:electronics
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/electronics/app.yml
-    - id: app:events
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/events/app.yml
-    - id: app:fitness
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/fitness/app.yml
-    - id: app:health
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/health/app.yml
-    - id: app:home
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/home/app.yml
-    - id: app:hosting
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/hosting/app.yml
-    - id: app:images
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/images/app.yml
-    - id: app:jobs
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/jobs/app.yml
-    - id: app:maps
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/maps/app.yml
-    - id: app:models3d
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/models3d/app.yml
-    - id: app:news
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/news/app.yml
-    - id: app:nutrition
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/nutrition/app.yml
-    - id: app:shopping
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/shopping/app.yml
-    - id: app:social_media
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/social_media/app.yml
-    - id: app:travel
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/travel/app.yml
-    - id: app:tv
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/tv/app.yml
-    - id: app:videos
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/videos/app.yml
-    - id: app:weather
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/weather/app.yml
-    - id: app:web
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/web/app.yml
-    - id: skill:ai:ask
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:ai
-      source: backend/apps/ai/app.yml
-  - title: 'fix: retain safe transport classes in authoring diagnostics'
-    commits:
-    - bd81f9166
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: verify browse answers against separate completion criteria'
-    commits:
-    - 29836d6a6
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: preserve Browse controllers through idle pause'
-    commits:
-    - '510799976'
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: distinguish fixture publication from delivery failure'
-    commits:
-    - de336c074
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: retain bounded final delivery diagnostics'
-    commits:
-    - 5511bf068
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: wait for resumed Browse ingress and stable observations'
-    commits:
-    - aada32299
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: evaluate Redact from Rust and document licensing privacy'
-    commits:
-    - a11c8a3e9
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: settle Browse windows and resume paused sessions'
-    commits:
-    - 5a6e9244a
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: remove empty failed call chats with guarded sync'
-    commits:
-    - 24dd88b5e
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: locate the E2B browser at runtime'
-    commits:
-    - c96894ed5
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: retain authored result recovery failure diagnostics'
-    commits:
-    - 1e1e71d99
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'ci: admit guarded Rust browser previews and preserve SDK checks'
-    commits:
-    - 1c973f272
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: preserve photo drafts after send failures'
-    commits:
-    - 77b3ebf9f
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: pin Browse HTTPS transport and account native usage'
-    commits:
-    - bd333ac5d
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: preserve draft content during voice recording'
-    commits:
-    - 2ed54c9f5
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'ci: register selected Rust recovery without inventory authority'
-    commits:
-    - db23c04c8
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: retain nested voice cleanup failure windows'
-    commits:
-    - 3d7a10156
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: isolate the approved empty call cleanup case'
-    commits:
-    - e7cb2acd4
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'ci: attribute native SDK first-page failures safely'
-    commits:
-    - de1e16940
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs: record the managed Brotli runtime security blocker'
-    commits:
-    - f98d62f3f
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat: add bounded E2B Browse execution and JSON results'
-    commits:
-    - eedefb69c
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:web
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/web/app.yml
-    - id: platform:tasks
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: platform
-    - id: skill:web:browse
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:web
-      source: backend/apps/web/app.yml
-  - title: 'fix: expose safe runtime versions in Brotli startup failures'
-    commits:
-    - 929203c44
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: guard Redact trials against vulnerable Brotli decoders'
-    commits:
-    - 8cd2ec444
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: initialize voice call cleanup schema'
-    commits:
-    - 871960ea2
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: enable recovery for authored result CLI checks'
-    commits:
-    - 7a47fbcd1
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: authorize empty voice call cleanup atomically'
-    commits:
-    - dc7a29241
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat: trial offline Redact detection in the dev web composer'
-    commits:
-    - d0b63e7fc
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'ci: bind private-safe first-page output assertion'
-    commits:
-    - 15437a8a2
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: resume voice capture after permission and correct credit notices'
-    commits:
-    - 8ec508077
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'ci: register portable Rust test inputs and corrected SDK fixtures'
-    commits:
-    - 590b0d2a0
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: match timeline icon color to More button'
-    commits:
-    - d6ad5a53b
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'docs: plan assistant-authored rich result embeds'
-    commits:
-    - a648aa1bd
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: fade the compact recording waveform at its left edge'
-    commits:
-    - b29af1873
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'ci: enforce synchronized SDK and Rust browser migration checks'
-    commits:
-    - 94db0f73e
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: restore iPhone voice calls and standard error notifications'
-    commits:
-    - 810626d47
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: keep audio recording composer minimized'
-    commits:
-    - 7119a78e9
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'test: keep SDK result witness outside secret ignore pattern'
-    commits:
-    - 533ca5f90
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: bind SDK version coordinator results to exact fixtures'
-    commits:
-    - 7dfe99894
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: register bounded shared Rust browser storage core'
-    commits:
-    - 26e0fb588
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: classify isolated Rust production browser dependencies'
-    commits:
-    - '981296499'
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: seed encrypted SDK cache settlement peers'
-    commits:
-    - 3bee7b31f
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: verify built browser clients against the real Rust Worker'
-    commits:
-    - 5c3930870
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: require cache policy conformance in all three SDKs'
-    commits:
-    - ec2427013
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
+  dev_only: []
   unknown_release_status: []
   feature_metadata_changed:
   - title: 'fix: enforce Brotli protection without blocking web startup'
     commits:
     - cd3704074
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
   - title: 'fix: restore web bootstrap on hosted Node runtime'
     commits:
     - 3a4f7aa97
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:tv
       kind: app
@@ -2751,8 +2115,8 @@ unreleased_progress:
     commits:
     - c5831accf
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2926,8 +2290,8 @@ unreleased_progress:
     commits:
     - eedefb69c
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
@@ -2943,6 +2307,13 @@ unreleased_progress:
       override: null
       parent_id: null
       source: backend/apps/web/app.yml
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
     - id: platform:tasks
       kind: platform
       default_enabled: false
@@ -2953,26 +2324,25 @@ unreleased_progress:
     - id: skill:web:browse
       kind: skill
       default_enabled: true
-      effective_enabled: true
-      override: null
+      effective_enabled: false
+      override: disabled
       parent_id: app:web
       source: backend/apps/web/app.yml
   - title: 'fix: authorize empty voice call cleanup atomically'
     commits:
     - dc7a29241
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
 marketing_candidates:
-  newsletter: []
-  social_or_video:
+  newsletter:
   - title: 'fix: preserve voice thinking pauses and improve call delivery'
     commits:
     - 09d92f332
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2988,13 +2358,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/audio/app.yml
-    newsletter_ready: false
   - title: 'feat: prepare isolated one-owner Browse sessions for fast startup'
     commits:
     - 612c62f6d
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:web
       kind: app
@@ -3003,29 +2372,26 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/web/app.yml
-    newsletter_ready: false
   - title: 'fix: minimize image sends and render viewed image previews'
     commits:
     - 0da8c0c6d
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: enforce Brotli protection without blocking web startup'
     commits:
     - cd3704074
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: restore web bootstrap on hosted Node runtime'
     commits:
     - 3a4f7aa97
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:tv
       kind: app
@@ -3034,21 +2400,19 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/tv/app.yml
-    newsletter_ready: false
   - title: 'fix: keep mobile attachment controls visible and add camera shortcut'
     commits:
     - 3b54b1d06
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'feat: add source-independent typed result authoring'
     commits:
     - c5831accf
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3218,13 +2582,12 @@ marketing_candidates:
       override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'fix: settle Browse windows and resume paused sessions'
     commits:
     - 5a6e9244a
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3233,29 +2596,26 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'fix: remove empty failed call chats with guarded sync'
     commits:
     - 24dd88b5e
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: preserve photo drafts after send failures'
     commits:
     - 77b3ebf9f
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: pin Browse HTTPS transport and account native usage'
     commits:
     - bd333ac5d
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3264,21 +2624,389 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'fix: preserve draft content during voice recording'
     commits:
     - 2ed54c9f5
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+  - title: 'fix: expose safe runtime versions in Brotli startup failures'
+    commits:
+    - 929203c44
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: guard Redact trials against vulnerable Brotli decoders'
+    commits:
+    - 8cd2ec444
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: authorize empty voice call cleanup atomically'
+    commits:
+    - dc7a29241
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: trial offline Redact detection in the dev web composer'
+    commits:
+    - d0b63e7fc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: resume voice capture after permission and correct credit notices'
+    commits:
+    - 8ec508077
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: match timeline icon color to More button'
+    commits:
+    - d6ad5a53b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: fade the compact recording waveform at its left edge'
+    commits:
+    - b29af1873
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore iPhone voice calls and standard error notifications'
+    commits:
+    - 810626d47
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep audio recording composer minimized'
+    commits:
+    - 7119a78e9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: preserve voice thinking pauses and improve call delivery'
+    commits:
+    - 09d92f332
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    newsletter_ready: true
+  - title: 'feat: prepare isolated one-owner Browse sessions for fast startup'
+    commits:
+    - 612c62f6d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    newsletter_ready: true
+  - title: 'fix: minimize image sends and render viewed image previews'
+    commits:
+    - 0da8c0c6d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: enforce Brotli protection without blocking web startup'
+    commits:
+    - cd3704074
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore web bootstrap on hosted Node runtime'
+    commits:
+    - 3a4f7aa97
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:tv
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/tv/app.yml
+    newsletter_ready: true
+  - title: 'fix: keep mobile attachment controls visible and add camera shortcut'
+    commits:
+    - 3b54b1d06
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add source-independent typed result authoring'
+    commits:
+    - c5831accf
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: app:design
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/design/app.yml
+    - id: app:electronics
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/electronics/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:hosting
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/hosting/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:nutrition
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/nutrition/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: app:social_media
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/social_media/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:tv
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/tv/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: settle Browse windows and resume paused sessions'
+    commits:
+    - 5a6e9244a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: remove empty failed call chats with guarded sync'
+    commits:
+    - 24dd88b5e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve photo drafts after send failures'
+    commits:
+    - 77b3ebf9f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: pin Browse HTTPS transport and account native usage'
+    commits:
+    - bd333ac5d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: preserve draft content during voice recording'
+    commits:
+    - 2ed54c9f5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
   - title: 'feat: add bounded E2B Browse execution and JSON results'
     commits:
     - eedefb69c
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
@@ -3294,6 +3022,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/web/app.yml
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: app:web
+      source: backend/apps/web/app.yml
     - id: platform:tasks
       kind: platform
       default_enabled: false
@@ -3304,8 +3039,8 @@ marketing_candidates:
     - id: skill:web:browse
       kind: skill
       default_enabled: true
-      effective_enabled: true
-      override: null
+      effective_enabled: false
+      override: disabled
       parent_id: app:web
       source: backend/apps/web/app.yml
     newsletter_ready: false
@@ -3313,74 +3048,74 @@ marketing_candidates:
     commits:
     - 929203c44
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: guard Redact trials against vulnerable Brotli decoders'
     commits:
     - 8cd2ec444
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: authorize empty voice call cleanup atomically'
     commits:
     - dc7a29241
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat: trial offline Redact detection in the dev web composer'
     commits:
     - d0b63e7fc
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: resume voice capture after permission and correct credit notices'
     commits:
     - 8ec508077
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: match timeline icon color to More button'
     commits:
     - d6ad5a53b
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: fade the compact recording waveform at its left edge'
     commits:
     - b29af1873
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: restore iPhone voice calls and standard error notifications'
     commits:
     - 810626d47
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: keep audio recording composer minimized'
     commits:
     - 7119a78e9
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
 risks:
   communication:
   - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
@@ -3392,7 +3127,7 @@ sources:
     short_sha: 2e50fd0ed
     authored_at: '2026-10-26T23:04:34+00:00'
     subject: 'fix: log closed migration CI failure stages'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_closed_failure_summary.py
@@ -3403,7 +3138,7 @@ sources:
     short_sha: 7ab11940f
     authored_at: '2026-10-26T22:03:08+00:00'
     subject: 'fix: preserve SDK compiler diagnostics and register binding test fixes'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_sdk_conformance.py
@@ -3416,7 +3151,7 @@ sources:
     short_sha: c6b71740f
     authored_at: '2026-10-26T21:25:17+00:00'
     subject: 'docs: record Browse startup isolation cost and reliability qualification'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/web-browse/measurements.md
@@ -3425,7 +3160,7 @@ sources:
     short_sha: 09d92f332
     authored_at: '2026-10-26T20:49:56+00:00'
     subject: 'fix: preserve voice thinking pauses and improve call delivery'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/assistant_speech/projection.py
@@ -3471,7 +3206,7 @@ sources:
     short_sha: 46e7c36a2
     authored_at: '2026-10-26T20:45:04+00:00'
     subject: 'fix: extract verified Browse answers when no output schema is supplied'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/services/web_browse_service.py
@@ -3484,7 +3219,7 @@ sources:
     short_sha: 5d2048a5f
     authored_at: '2026-10-26T20:16:33+00:00'
     subject: 'fix: verify quoted Browse results against checked page evidence'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/scripts/test_web_browse_text_helpers.py
@@ -3498,7 +3233,7 @@ sources:
     short_sha: 4f8630503
     authored_at: '2026-10-26T19:42:39+00:00'
     subject: 'test: enable isolated authored-result web and image flows'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_coverage_manifest.json
@@ -3511,7 +3246,7 @@ sources:
     short_sha: 612c62f6d
     authored_at: '2026-10-26T19:34:18+00:00'
     subject: 'feat: prepare isolated one-owner Browse sessions for fast startup'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .env.example
@@ -3541,7 +3276,7 @@ sources:
     short_sha: 562c2c854
     authored_at: '2026-10-26T19:19:24+00:00'
     subject: 'fix: correct Python SDK test surface registration'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_sdk_conformance_trust.json
@@ -3552,7 +3287,7 @@ sources:
     short_sha: 4dd5d8a05
     authored_at: '2026-10-26T19:06:48+00:00'
     subject: 'docs: plan cloud-first agentic project development'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/cloud-project-development/plan.yml
@@ -3561,7 +3296,7 @@ sources:
     short_sha: 0da8c0c6d
     authored_at: '2026-10-26T19:05:31+00:00'
     subject: 'fix: minimize image sends and render viewed image previews'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/components/image-view-preview.spec.ts
@@ -3580,7 +3315,7 @@ sources:
     short_sha: cd3704074
     authored_at: '2026-10-26T19:01:17+00:00'
     subject: 'fix: enforce Brotli protection without blocking web startup'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/frontend/web-app.md
@@ -3600,7 +3335,7 @@ sources:
     short_sha: fced40d29
     authored_at: '2026-10-26T18:59:08+00:00'
     subject: 'perf: evaluate parallel Redact scans and adaptive native limits'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/privacy/evaluations/2026-10-26-redact-parallel/comparison-summary.json
@@ -3676,7 +3411,7 @@ sources:
     short_sha: f942fed84
     authored_at: '2026-10-26T18:54:16+00:00'
     subject: 'fix: register reviewed native full-read and SDK conformance source'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - config/sdk-capabilities.json
@@ -3692,7 +3427,7 @@ sources:
     short_sha: 3a4f7aa97
     authored_at: '2026-10-26T17:52:49+00:00'
     subject: 'fix: restore web bootstrap on hosted Node runtime'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/tv/app.yml
@@ -3705,7 +3440,7 @@ sources:
     short_sha: 3b54b1d06
     authored_at: '2026-10-26T17:34:13+00:00'
     subject: 'fix: keep mobile attachment controls visible and add camera shortcut'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - DESIGN.md
@@ -3726,7 +3461,7 @@ sources:
     short_sha: c5831accf
     authored_at: '2026-10-26T16:31:07+00:00'
     subject: 'feat: add source-independent typed result authoring'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/base_instructions.yml
@@ -3836,7 +3571,7 @@ sources:
     short_sha: bd81f9166
     authored_at: '2026-10-26T16:15:37+00:00'
     subject: 'fix: retain safe transport classes in authoring diagnostics'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_run_tests.py
@@ -3846,7 +3581,7 @@ sources:
     short_sha: 29836d6a6
     authored_at: '2026-10-26T16:12:28+00:00'
     subject: 'fix: verify browse answers against separate completion criteria'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/shared/providers/browser_models.py
@@ -3858,7 +3593,7 @@ sources:
     short_sha: '510799976'
     authored_at: '2026-10-26T15:33:53+00:00'
     subject: 'fix: preserve Browse controllers through idle pause'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/services/web_browse_service.py
@@ -3875,7 +3610,7 @@ sources:
     short_sha: de336c074
     authored_at: '2026-10-26T15:24:18+00:00'
     subject: 'fix: distinguish fixture publication from delivery failure'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_run_tests.py
@@ -3885,7 +3620,7 @@ sources:
     short_sha: 5511bf068
     authored_at: '2026-10-26T14:55:10+00:00'
     subject: 'fix: retain bounded final delivery diagnostics'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_run_tests.py
@@ -3895,7 +3630,7 @@ sources:
     short_sha: aada32299
     authored_at: '2026-10-26T14:51:19+00:00'
     subject: 'fix: wait for resumed Browse ingress and stable observations'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/services/web_browse_service.py
@@ -3911,7 +3646,7 @@ sources:
     short_sha: a11c8a3e9
     authored_at: '2026-10-26T14:11:41+00:00'
     subject: 'test: evaluate Redact from Rust and document licensing privacy'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/privacy/desert-ant-privacy-questions-unsent-2026-10-26.md
@@ -3973,7 +3708,7 @@ sources:
     short_sha: 5a6e9244a
     authored_at: '2026-10-26T14:08:59+00:00'
     subject: 'fix: settle Browse windows and resume paused sessions'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/skill_executor.py
@@ -3988,7 +3723,7 @@ sources:
     short_sha: 24dd88b5e
     authored_at: '2026-10-26T13:45:49+00:00'
     subject: 'fix: remove empty failed call chats with guarded sync'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/voice-call.spec.ts
@@ -4014,7 +3749,7 @@ sources:
     short_sha: c96894ed5
     authored_at: '2026-10-26T13:42:20+00:00'
     subject: 'fix: locate the E2B browser at runtime'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/shared/providers/e2b_browser.py
@@ -4025,7 +3760,7 @@ sources:
     short_sha: 1e1e71d99
     authored_at: '2026-10-26T13:20:42+00:00'
     subject: 'test: retain authored result recovery failure diagnostics'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_run_tests.py
@@ -4035,7 +3770,7 @@ sources:
     short_sha: 1c973f272
     authored_at: '2026-10-26T13:19:33+00:00'
     subject: 'ci: admit guarded Rust browser previews and preserve SDK checks'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - config/sdk-capabilities.json
@@ -4051,7 +3786,7 @@ sources:
     short_sha: 77b3ebf9f
     authored_at: '2026-10-26T13:18:19+00:00'
     subject: 'fix: preserve photo drafts after send failures'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/draft-embed-preview.spec.ts
@@ -4068,7 +3803,7 @@ sources:
     short_sha: bd333ac5d
     authored_at: '2026-10-26T13:10:37+00:00'
     subject: 'fix: pin Browse HTTPS transport and account native usage'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/llm_providers/google_client.py
@@ -4091,7 +3826,7 @@ sources:
     short_sha: 2ed54c9f5
     authored_at: '2026-10-26T13:01:44+00:00'
     subject: 'fix: preserve draft content during voice recording'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/messaging/message-input-field.md
@@ -4110,7 +3845,7 @@ sources:
     short_sha: db23c04c8
     authored_at: '2026-10-26T12:55:53+00:00'
     subject: 'ci: register selected Rust recovery without inventory authority'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - config/sdk-capabilities.json
@@ -4123,7 +3858,7 @@ sources:
     short_sha: 3d7a10156
     authored_at: '2026-10-26T12:54:43+00:00'
     subject: 'test: retain nested voice cleanup failure windows'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_run_tests.py
@@ -4133,7 +3868,7 @@ sources:
     short_sha: e7cb2acd4
     authored_at: '2026-10-26T12:47:04+00:00'
     subject: 'test: isolate the approved empty call cleanup case'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_coordinator.py
@@ -4144,7 +3879,7 @@ sources:
     short_sha: de1e16940
     authored_at: '2026-10-26T12:39:24+00:00'
     subject: 'ci: attribute native SDK first-page failures safely'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_sdk_conformance.py
@@ -4157,7 +3892,7 @@ sources:
     short_sha: f98d62f3f
     authored_at: '2026-10-26T12:23:21+00:00'
     subject: 'docs: record the managed Brotli runtime security blocker'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/privacy/evaluations/2026-10-26-redact/security-web-brotli-2026-10-26/manifest.json
@@ -4169,7 +3904,7 @@ sources:
     short_sha: eedefb69c
     authored_at: '2026-10-26T12:15:19+00:00'
     subject: 'feat: add bounded E2B Browse execution and JSON results'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .env.example
@@ -4222,13 +3957,14 @@ sources:
     related_feature_ids:
     - app:ai
     - app:web
+    - embed:web:browse
     - platform:tasks
     - skill:web:browse
   - sha: 929203c4454c663eec131f084da011dcb3761dce
     short_sha: 929203c44
     authored_at: '2026-10-26T12:06:31+00:00'
     subject: 'fix: expose safe runtime versions in Brotli startup failures'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/web-redact-dev-trial/plan.yml
@@ -4238,7 +3974,7 @@ sources:
     short_sha: 8cd2ec444
     authored_at: '2026-10-26T11:56:18+00:00'
     subject: 'fix: guard Redact trials against vulnerable Brotli decoders'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/privacy/evaluations/2026-10-26-redact/security-brotli-2026-10-26/manifest.json
@@ -4266,7 +4002,7 @@ sources:
     short_sha: 871960ea2
     authored_at: '2026-10-26T11:37:03+00:00'
     subject: 'fix: initialize voice call cleanup schema'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/directus/schemas/chat_call_cleanup_candidates.yml
@@ -4277,7 +4013,7 @@ sources:
     short_sha: 7a47fbcd1
     authored_at: '2026-10-26T11:21:15+00:00'
     subject: 'test: enable recovery for authored result CLI checks'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_run_tests.py
@@ -4287,7 +4023,7 @@ sources:
     short_sha: dc7a29241
     authored_at: '2026-10-26T11:13:37+00:00'
     subject: 'fix: authorize empty voice call cleanup atomically'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/connection_manager.py
@@ -4325,7 +4061,7 @@ sources:
     short_sha: d0b63e7fc
     authored_at: '2026-10-26T11:02:03+00:00'
     subject: 'feat: trial offline Redact detection in the dev web composer'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/privacy/evaluations/2026-10-26-redact/linux-arm64-1core-bounded.json
@@ -4383,7 +4119,7 @@ sources:
     short_sha: 15437a8a2
     authored_at: '2026-10-26T10:46:21+00:00'
     subject: 'ci: bind private-safe first-page output assertion'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_sdk_conformance_trust.json
@@ -4394,7 +4130,7 @@ sources:
     short_sha: 8ec508077
     authored_at: '2026-10-26T10:32:17+00:00'
     subject: 'fix: resume voice capture after permission and correct credit notices'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/voice-call.spec.ts
@@ -4416,7 +4152,7 @@ sources:
     short_sha: 590b0d2a0
     authored_at: '2026-10-26T10:13:56+00:00'
     subject: 'ci: register portable Rust test inputs and corrected SDK fixtures'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_sdk_conformance_trust.json
@@ -4427,7 +4163,7 @@ sources:
     short_sha: d6ad5a53b
     authored_at: '2026-10-26T09:27:32+00:00'
     subject: 'fix: match timeline icon color to More button'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/components/chat-message-timeline.spec.ts
@@ -4439,7 +4175,7 @@ sources:
     short_sha: a648aa1bd
     authored_at: '2026-10-26T09:19:09+00:00'
     subject: 'docs: plan assistant-authored rich result embeds'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/assistant-authored-result-embeds/plan.yml
@@ -4453,7 +4189,7 @@ sources:
     short_sha: b29af1873
     authored_at: '2026-10-26T09:07:26+00:00'
     subject: 'fix: fade the compact recording waveform at its left edge'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
@@ -4464,7 +4200,7 @@ sources:
     short_sha: 94db0f73e
     authored_at: '2026-10-26T08:57:01+00:00'
     subject: 'ci: enforce synchronized SDK and Rust browser migration checks'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/workflows/isolated-tests.yml
@@ -4494,7 +4230,7 @@ sources:
     short_sha: 810626d47
     authored_at: '2026-10-26T08:55:50+00:00'
     subject: 'fix: restore iPhone voice calls and standard error notifications'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/src/routes/+page.svelte
@@ -4516,7 +4252,7 @@ sources:
     short_sha: 7119a78e9
     authored_at: '2026-10-26T08:33:22+00:00'
     subject: 'fix: keep audio recording composer minimized'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/audio-recording-deferred-send.spec.ts
@@ -4536,7 +4272,7 @@ sources:
     short_sha: 533ca5f90
     authored_at: '2026-10-26T02:58:32+00:00'
     subject: 'test: keep SDK result witness outside secret ignore pattern'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/tests/fixtures/sdk-conformance-trust-version-envelope-delta.json
@@ -4547,7 +4283,7 @@ sources:
     short_sha: 7dfe99894
     authored_at: '2026-10-26T02:44:10+00:00'
     subject: 'test: bind SDK version coordinator results to exact fixtures'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_sdk_conformance_trust.json
@@ -4558,7 +4294,7 @@ sources:
     short_sha: 26e0fb588
     authored_at: '2026-10-26T02:19:52+00:00'
     subject: 'test: register bounded shared Rust browser storage core'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - config/sdk-capabilities.json
@@ -4570,7 +4306,7 @@ sources:
     short_sha: '981296499'
     authored_at: '2026-10-26T02:11:00+00:00'
     subject: 'test: classify isolated Rust production browser dependencies'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_coverage_manifest.json
@@ -4580,7 +4316,7 @@ sources:
     short_sha: 3bee7b31f
     authored_at: '2026-10-26T02:00:06+00:00'
     subject: 'test: seed encrypted SDK cache settlement peers'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_sdk_conformance_trust.json
@@ -4591,7 +4327,7 @@ sources:
     short_sha: 5c3930870
     authored_at: '2026-10-26T01:37:04+00:00'
     subject: 'test: verify built browser clients against the real Rust Worker'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/workflows/isolated-tests.yml
@@ -4607,7 +4343,7 @@ sources:
     short_sha: ec2427013
     authored_at: '2026-10-26T00:14:49+00:00'
     subject: 'test: require cache policy conformance in all three SDKs'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_sdk_conformance_trust.json
@@ -4615,28 +4351,32 @@ sources:
     - scripts/tests/test_ci_sdk_conformance.py
     related_feature_ids: []
 llm_summary:
-  overview: OpenMates focused on significant unreleased advancements in web browsing isolation, offline privacy protection,
-    and voice call reliability. Key progress includes the introduction of isolated one-owner browsing sessions for faster
-    startup, a trial for offline PII redaction in the web composer, and refinements to voice call delivery and empty call
-    cleanup.
-  released_changes: []
-  bug_fixes: []
-  unreleased_progress:
-  - text: Web Browsing capabilities were enhanced with isolated sessions for faster startup, bounded E2B execution, and improved
-      verification of quoted results against page evidence.
+  overview: OpenMates introduced a new system for structured AI result authoring and significantly optimized web browsing
+    startup. The update also focused heavily on voice call reliability and mobile composer stability, alongside a dev trial
+    for offline privacy detection.
+  released_changes:
+  - text: OpenMates added a source-independent typed result authoring system. This allows the assistant to generate structured,
+      rich-media embeds across various categories like business, health, and travel regardless of the data source.
+    evidence:
+      commits:
+      - c5831accf
+    release_status: released_main
+  - text: The project now supports isolated, one-owner browsing sessions designed for fast startup, reducing the wait time
+      when using web-based skills.
     evidence:
       commits:
       - 612c62f6d
-      - eedefb69c
-      - 46e7c36a2
-      - 5d2048a5f
-      - '510799976'
-      - aada32299
-      - c96894ed5
-      - bd333ac5d
-    release_status: dev_only
-  - text: Voice call reliability improved with the restoration of iPhone support, preservation of thinking pauses, and new
-      atomic logic for cleaning up empty failed call chats.
+    release_status: released_main
+  - text: A trial for offline personal data detection was added to the developer web composer, allowing for local privacy
+      checks before messages are sent.
+    evidence:
+      commits:
+      - d0b63e7fc
+    release_status: released_main
+  bug_fixes:
+  - text: Voice call reliability improved with fixes for iPhone connectivity, automatic cleanup of empty failed call sessions,
+      and better handling of microphone permissions. OpenMates also now preserves natural thinking pauses during assistant
+      speech.
     evidence:
       commits:
       - 09d92f332
@@ -4644,112 +4384,136 @@ llm_summary:
       - 8ec508077
       - 24dd88b5e
       - dc7a29241
-      - 871960ea2
-    release_status: dev_only
-  - text: A trial for offline Redact detection was added to the development composer, supported by parallel scan evaluations
-      and Brotli runtime security protections.
-    evidence:
-      commits:
-      - d0b63e7fc
-      - fced40d29
-      - 929203c44
-      - 8cd2ec444
-      - cd3704074
-      - f98d62f3f
-      - a11c8a3e9
-    release_status: dev_only
-  - text: The message composer now preserves draft content during audio recording and send failures, while mobile attachment
-      controls were updated for better visibility.
+    release_status: released_main
+  - text: The message composer and draft system were stabilized to prevent content loss during voice recording or send failures.
+      Mobile users now have a dedicated camera shortcut and more consistent attachment controls.
     evidence:
       commits:
       - 2ed54c9f5
-      - b29af1873
+      - 77b3ebf9f
       - 7119a78e9
       - 3b54b1d06
       - 0da8c0c6d
-      - 77b3ebf9f
+    release_status: released_main
+  - text: Web application startup was restored for hosted environments, and new security protections were enforced for the
+      Brotli runtime to guard against known vulnerabilities.
+    evidence:
+      commits:
+      - 3a4f7aa97
+      - cd3704074
+      - 8cd2ec444
+      - 929203c44
+    release_status: released_main
+  - text: Web browsing stability was enhanced by ensuring browser windows settle correctly and sessions resume properly after
+      being paused.
+    evidence:
+      commits:
+      - 5a6e9244a
+      - bd333ac5d
+    release_status: released_main
+  - text: UI refinements include a new fade effect for the compact audio recording waveform and corrected icon colors in the
+      chat timeline.
+    evidence:
+      commits:
       - d6ad5a53b
-    release_status: dev_only
-  - text: OpenMates added source-independent typed result authoring to support rich result embeds across multiple application
-      domains.
+      - b29af1873
+    release_status: released_main
+  unreleased_progress:
+  - text: Work is progressing on bounded E2B Browse execution to provide safer, structured JSON results from web searches.
     evidence:
       commits:
-      - c5831accf
+      - eedefb69c
+    release_status: released_main
+  - text: Architectural planning is underway for cloud-first agentic projects and further enhancements to rich result embeds.
+    evidence:
+      commits:
+      - c6b71740f
+      - 4dd5d8a05
+      - f98d62f3f
       - a648aa1bd
-    release_status: dev_only
+    release_status: released_main
   internal_progress:
-  - text: CI infrastructure was updated to enforce synchronized SDK and Rust browser migration checks, including safer attribution
-      of native SDK failures.
-    evidence:
-      commits:
-      - 94db0f73e
-      - 1c973f272
-      - de1e16940
-      - 15437a8a2
-      - 590b0d2a0
-      - db23c04c8
-    release_status: dev_only
-  - text: SDK conformance testing expanded to require cache policy compliance across all three SDKs and verify built browser
-      clients against the production Rust worker.
-    evidence:
-      commits:
-      - 7ab11940f
-      - 562c2c854
-      - f942fed84
-      - ec2427013
-      - 5c3930870
-      - 26e0fb588
-      - 3bee7b31f
-    release_status: dev_only
-  - text: Test suite reliability improved with better logging for migration failures and isolated recovery flows for authored-result
-      media.
+  - text: Extensive updates were made to the CI pipeline and SDK conformance suites, specifically focusing on Rust browser
+      previews, encrypted cache settlement, and cross-SDK consistency.
     evidence:
       commits:
       - 2e50fd0ed
+      - 7ab11940f
       - 4f8630503
+      - 562c2c854
+      - f942fed84
+      - bd81f9166
+      - de336c074
+      - 5511bf068
       - 1e1e71d99
-      - 3d7a10156
-      - e7cb2acd4
-      - 7a47fbcd1
+      - 1c973f272
+      - db23c04c8
+      - de1e16940
+      - 15437a8a2
+      - 590b0d2a0
+      - 94db0f73e
       - 533ca5f90
       - 7dfe99894
+      - 26e0fb588
       - '981296499'
-    release_status: dev_only
+      - 3bee7b31f
+      - 5c3930870
+      - ec2427013
+    release_status: released_main
+  - text: Performance evaluations were conducted for parallel data redaction and Rust-based browser execution to inform future
+      privacy features.
+    evidence:
+      commits:
+      - fced40d29
+      - a11c8a3e9
+    release_status: released_main
   newsletter_recommendation:
-    include: []
-    exclude:
-    - text: Isolated Web Browsing Sessions
+    include:
+    - text: New source-independent typed result authoring for AI responses.
+      evidence:
+        commits:
+        - c5831accf
+      reason: This is a major architectural addition that enables richer, more structured AI responses across all apps.
+    - text: Fast-startup isolated web browsing sessions.
       evidence:
         commits:
         - 612c62f6d
-        - eedefb69c
-        - bd333ac5d
-      reason: Web Browsing features are currently in development and not yet available in the main branch.
-    - text: Offline PII Redaction Trial
-      evidence:
-        commits:
-        - d0b63e7fc
-        - 8cd2ec444
-        - cd3704074
-      reason: The offline Redact trial is limited to development environments while security guards are finalized.
-    - text: Voice Call Reliability Improvements
+      reason: Directly improves the user experience by making web browsing features start up significantly faster.
+    - text: Preservation of natural thinking pauses in voice conversations.
       evidence:
         commits:
         - 09d92f332
-        - 810626d47
-        - dc7a29241
-      reason: Voice call refinements and cleanup logic are undergoing internal testing.
-    rationale: No changes from this period have been merged into the main branch or marked as ready for public communication.
-      Work remains focused on unreleased features in the development environment.
+      reason: Improves the natural feel of voice interactions, a key part of the assistant experience.
+    - text: Mobile composer enhancements including a new camera shortcut.
+      evidence:
+        commits:
+        - 3b54b1d06
+      reason: Provides immediate utility for mobile users with a new camera shortcut and better UI stability.
+    exclude:
+    - text: Bounded E2B Browse execution and JSON results.
+      evidence:
+        commits:
+        - eedefb69c
+      reason: This feature is explicitly marked as an unreleased_feature and relates to disabled components.
+    rationale: The selected items represent significant new capabilities (AI authoring) and high-impact quality-of-life improvements
+      for browsing, voice, and mobile usage.
   social_video_recommendations:
-  - idea: A short clip demonstrating how the AI now preserves 'thinking pauses' during voice calls, making the interaction
-      feel more natural and less robotic.
-    priority: Medium
-    reason: This provides a concrete, audible improvement to the user experience that is easy to showcase.
+  - idea: Showcase the new 'Typed Results' by asking the assistant for information that triggers rich embeds (e.g., a travel
+      itinerary or a fitness plan) to demonstrate the structured UI.
+    priority: high
+    reason: This is a highly visual feature that demonstrates the assistant's increasing sophistication.
+    evidence:
+      commits:
+      - c5831accf
+  - idea: A side-by-side audio comparison of a voice call with and without the preserved thinking pauses to show how much
+      more natural the interaction feels.
+    priority: medium
+    reason: Voice features are best demonstrated through audio/video, and this fix significantly improves the 'human' feel
+      of the AI.
     evidence:
       commits:
       - 09d92f332
   quality_notes:
-  - Heavy emphasis on SDK conformance and CI stability to support upcoming Rust browser features.
-  - Security-first approach to offline redaction with the implementation of Brotli runtime protection guards.
+  - A high volume of bug fixes (32) indicates a strong focus on stabilizing the voice and composer experiences.
+  - The introduction of typed result authoring (c5831accf) marks a shift toward more structured and reliable AI interactions.
   validation_warnings: []
