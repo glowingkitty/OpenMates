@@ -374,8 +374,9 @@ fn ordinary_with_root_keys(
     render(&mut out, value, 0, root_keys)?;
     Ok(out)
 }
-#[cfg(test)]
-fn ordinary(value: &Value) -> Result<String, CliError> {
+/// The legacy `printGenericObject` rendering (printSettingsResult) for any
+/// settings/billing response, shared by the other account settings commands.
+pub(super) fn ordinary(value: &Value) -> Result<String, CliError> {
     ordinary_with_root_keys(value, None)
 }
 #[cfg(test)]

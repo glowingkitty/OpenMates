@@ -10,7 +10,10 @@ use tokio_util::sync::CancellationToken;
 const DOCS_HELP: &str = "Docs commands:\n  openmates docs list [--json]                   List all documentation\n  openmates docs search <query> [--json]         Search docs by keyword\n  openmates docs show <slug>                     Display a doc in the terminal\n  openmates docs download <slug> [--output <p>]  Download a doc as .md file\n  openmates docs download --all [--output <dir>] Download all docs\n\nNo login required — docs are public.\n\nExamples:\n  openmates docs list\n  openmates docs search \"encryption\"\n  openmates docs show user-guide/getting-started\n  openmates docs download architecture/core/security\n  openmates docs download --all --output ./docs\n\nNative downloads refuse existing files and symlinked directories. Choose a new --output path.";
 const WIKI_HELP: &str = "Wikipedia commands:\n  openmates wiki search <query> [--language en] [--json]\n  openmates wiki show <canonical-title> [--language en] [--json]";
 pub fn is_public(i: &Invocation) -> bool {
-    i.path.first().is_some_and(|name| name == "docs") || wiki_help(i)
+    i.path.first().is_some_and(|name| name == "docs")
+        || wiki_help(i)
+        // Informational settings answers (web-only notices) need no account.
+        || super::account::is_info(i)
 }
 fn wiki_help(i: &Invocation) -> bool {
     i.path.first().is_some_and(|name| name == "wiki")
@@ -122,6 +125,9 @@ pub async fn execute(
 ) -> Result<CliOutput, CliError> {
     if let Some(help) = public_help(i) {
         return help;
+    }
+    if let Some(notice) = super::account::web_only(i, &client.application_url()) {
+        return notice;
     }
     client.set_operation_cancel(cancel.clone());
     if cancel.is_cancelled() {

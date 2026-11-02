@@ -2,10 +2,17 @@
 //! These operations use the existing first-party session transport only.
 //! No credentials, profile files, environment, or interactive input are read.
 //! API-key management uses explicit confirmation and server-verified strong proof.
-//! Credential changes, account deletion, signup, and payments are not exposed.
+//! Credential changes, account deletion, signup, and payment checkout are not exposed;
+//! gift-card redemption and fixed billing/export reads are explicit operations.
 //! Command consumers choose the supported operation and output representation.
 mod api_keys;
+mod memories;
+mod settings_ops;
 mod settings_read;
+#[cfg(test)]
+mod test_support;
+pub use memories::{MemoryField, MemoryType, memory_types, validate_memory};
+pub use settings_ops::StoredFileDeletion;
 pub use settings_read::{SettingsReadError, SettingsReadResponse};
 use crate::{Client, Error, Result, crypto};
 pub use api_keys::{

@@ -19359,12 +19359,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_ops",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_more.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
+        "Integration against a live backend and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -19398,12 +19399,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "account::web_only",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Informational web-only notice (legacy SETTINGS_INFO_COMMANDS); needs no credentials. Human text layout differs slightly from the npm header formatting."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -19462,7 +19463,15 @@
       "usages": [
         "account export accept-partial"
       ],
-      "positionals": [],
+      "positionals": [
+        {
+          "name": "export-id",
+          "required": true,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "<export-id>"
+        }
+      ],
       "flags": [
         "api-key",
         "api-url",
@@ -19479,12 +19488,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_ops",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_more.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
+        "Integration against a live backend and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -19502,7 +19512,15 @@
       "usages": [
         "account export cancel"
       ],
-      "positionals": [],
+      "positionals": [
+        {
+          "name": "export-id",
+          "required": true,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "<export-id>"
+        }
+      ],
       "flags": [
         "api-key",
         "api-url",
@@ -19519,12 +19537,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_ops",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_more.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
+        "Integration against a live backend and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -19542,7 +19561,15 @@
       "usages": [
         "account export chunks"
       ],
-      "positionals": [],
+      "positionals": [
+        {
+          "name": "export-id",
+          "required": true,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "<export-id>"
+        }
+      ],
       "flags": [
         "api-key",
         "api-url",
@@ -19559,12 +19586,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_ops",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_more.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
+        "Integration against a live backend and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -19582,7 +19610,15 @@
       "usages": [
         "account export data"
       ],
-      "positionals": [],
+      "positionals": [
+        {
+          "name": "export-id",
+          "required": false,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "[export-id]"
+        }
+      ],
       "flags": [
         "api-key",
         "api-url",
@@ -19599,12 +19635,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_ops",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_more.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
+        "Integration against a live backend and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -19622,7 +19659,15 @@
       "usages": [
         "account export manifest"
       ],
-      "positionals": [],
+      "positionals": [
+        {
+          "name": "export-id",
+          "required": false,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "[export-id]"
+        }
+      ],
       "flags": [
         "api-key",
         "api-url",
@@ -19639,12 +19684,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_ops",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_more.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
+        "Integration against a live backend and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -19703,7 +19749,15 @@
       "usages": [
         "account export status"
       ],
-      "positionals": [],
+      "positionals": [
+        {
+          "name": "export-id",
+          "required": true,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "<export-id>"
+        }
+      ],
       "flags": [
         "api-key",
         "api-url",
@@ -19720,12 +19774,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_ops",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_more.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
+        "Integration against a live backend and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -20189,7 +20244,15 @@
       "usages": [
         "account storage delete"
       ],
-      "positionals": [],
+      "positionals": [
+        {
+          "name": "file-id",
+          "required": false,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "[file-id]"
+        }
+      ],
       "flags": [
         "api-key",
         "api-url",
@@ -20207,12 +20270,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_ops",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_more.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
+        "Integration against a live backend and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -51198,12 +51262,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_ops",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_more.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
+        "Integration against a live backend and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -51238,12 +51303,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "account::web_only",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Informational web-only notice (legacy SETTINGS_INFO_COMMANDS); needs no credentials. Human text layout differs slightly from the npm header formatting."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -51304,7 +51369,15 @@
       "usages": [
         "settings account export accept-partial"
       ],
-      "positionals": [],
+      "positionals": [
+        {
+          "name": "export-id",
+          "required": true,
+          "variadic": false,
+          "at": 4,
+          "synopsis": "<export-id>"
+        }
+      ],
       "flags": [
         "api-key",
         "api-url",
@@ -51321,12 +51394,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_ops",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_more.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
+        "Integration against a live backend and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -51345,7 +51419,15 @@
       "usages": [
         "settings account export cancel"
       ],
-      "positionals": [],
+      "positionals": [
+        {
+          "name": "export-id",
+          "required": true,
+          "variadic": false,
+          "at": 4,
+          "synopsis": "<export-id>"
+        }
+      ],
       "flags": [
         "api-key",
         "api-url",
@@ -51362,12 +51444,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_ops",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_more.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
+        "Integration against a live backend and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -51386,7 +51469,15 @@
       "usages": [
         "settings account export chunks"
       ],
-      "positionals": [],
+      "positionals": [
+        {
+          "name": "export-id",
+          "required": true,
+          "variadic": false,
+          "at": 4,
+          "synopsis": "<export-id>"
+        }
+      ],
       "flags": [
         "api-key",
         "api-url",
@@ -51403,12 +51494,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_ops",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_more.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
+        "Integration against a live backend and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -51427,7 +51519,15 @@
       "usages": [
         "settings account export data"
       ],
-      "positionals": [],
+      "positionals": [
+        {
+          "name": "export-id",
+          "required": false,
+          "variadic": false,
+          "at": 4,
+          "synopsis": "[export-id]"
+        }
+      ],
       "flags": [
         "api-key",
         "api-url",
@@ -51444,12 +51544,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_ops",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_more.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
+        "Integration against a live backend and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -51468,7 +51569,15 @@
       "usages": [
         "settings account export manifest"
       ],
-      "positionals": [],
+      "positionals": [
+        {
+          "name": "export-id",
+          "required": false,
+          "variadic": false,
+          "at": 4,
+          "synopsis": "[export-id]"
+        }
+      ],
       "flags": [
         "api-key",
         "api-url",
@@ -51485,12 +51594,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_ops",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_more.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
+        "Integration against a live backend and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -51551,7 +51661,15 @@
       "usages": [
         "settings account export status"
       ],
-      "positionals": [],
+      "positionals": [
+        {
+          "name": "export-id",
+          "required": true,
+          "variadic": false,
+          "at": 4,
+          "synopsis": "<export-id>"
+        }
+      ],
       "flags": [
         "api-key",
         "api-url",
@@ -51568,12 +51686,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_ops",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_more.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
+        "Integration against a live backend and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -52049,7 +52168,15 @@
       "usages": [
         "settings account storage delete"
       ],
-      "positionals": [],
+      "positionals": [
+        {
+          "name": "file-id",
+          "required": false,
+          "variadic": false,
+          "at": 4,
+          "synopsis": "[file-id]"
+        }
+      ],
       "flags": [
         "api-key",
         "api-url",
@@ -52067,12 +52194,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_ops",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_more.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
+        "Integration against a live backend and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -52487,12 +52615,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "account::web_only",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Informational web-only notice (legacy SETTINGS_INFO_COMMANDS); needs no credentials. Human text layout differs slightly from the npm header formatting."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -52528,12 +52656,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_ops",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_more.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
+        "Integration against a live backend and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -52609,12 +52738,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "account::web_only",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Informational web-only notice (legacy SETTINGS_INFO_COMMANDS); needs no credentials. Human text layout differs slightly from the npm header formatting."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -52692,12 +52821,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "account::web_only",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Informational web-only notice (legacy SETTINGS_INFO_COMMANDS); needs no credentials. Human text layout differs slightly from the npm header formatting."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -52776,12 +52905,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_ops",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_more.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
+        "Integration against a live backend and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -52882,7 +53012,15 @@
       "usages": [
         "settings billing gift-card redeem"
       ],
-      "positionals": [],
+      "positionals": [
+        {
+          "name": "code",
+          "required": true,
+          "variadic": false,
+          "at": 4,
+          "synopsis": "<code>"
+        }
+      ],
       "flags": [
         "api-key",
         "api-url",
@@ -52899,12 +53037,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_ops",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_more.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
+        "Integration against a live backend and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -53024,12 +53163,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_ops",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_more.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
+        "Integration against a live backend and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -53622,12 +53762,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "account::web_only",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Informational web-only notice (legacy SETTINGS_INFO_COMMANDS); needs no credentials. Human text layout differs slightly from the npm header formatting."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -53662,12 +53802,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_ops",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_more.rs"
       },
       "gaps": [
-        "Original runtime grammar is reviewed; native handling of this spelling has not been implemented or verified."
+        "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
+        "Integration against a live backend and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -53727,12 +53868,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_ops",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_more.rs"
       },
       "gaps": [
-        "Original runtime grammar is reviewed; native handling of this spelling has not been implemented or verified."
+        "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
+        "Integration against a live backend and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -53784,12 +53926,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "account::web_only",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Informational web-only notice (legacy SETTINGS_INFO_COMMANDS); needs no credentials. Human text layout differs slightly from the npm header formatting."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54113,12 +54255,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.memories",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/memories.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal context only; Team Memories fail explicitly.",
+        "Account Memory documents (account-memory-*) are listed read-only; editing/deleting them is not ported.",
+        "Human output renders data fields in sorted key order and timestamps in UTC; JSON keeps the npm shape."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54136,7 +54280,15 @@
       "usages": [
         "settings memories delete --id <entry-id>"
       ],
-      "positionals": [],
+      "positionals": [
+        {
+          "name": "entry-id",
+          "required": false,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "[entry-id]"
+        }
+      ],
       "flags": [
         "api-key",
         "api-url",
@@ -54154,12 +54306,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.memories",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/memories.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal context only; Team Memories fail explicitly.",
+        "Account Memory documents (account-memory-*) are listed read-only; editing/deleting them is not ported.",
+        "Human output renders data fields in sorted key order and timestamps in UTC; JSON keeps the npm shape."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54196,12 +54350,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.memories",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/memories.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal context only; Team Memories fail explicitly.",
+        "Account Memory documents (account-memory-*) are listed read-only; editing/deleting them is not ported.",
+        "Human output renders data fields in sorted key order and timestamps in UTC; JSON keeps the npm shape."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54237,12 +54393,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.memories",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/memories.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal context only; Team Memories fail explicitly.",
+        "Account Memory documents (account-memory-*) are listed read-only; editing/deleting them is not ported.",
+        "Human output renders data fields in sorted key order and timestamps in UTC; JSON keeps the npm shape."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54282,12 +54440,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.memories",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/memories.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal context only; Team Memories fail explicitly.",
+        "Account Memory documents (account-memory-*) are listed read-only; editing/deleting them is not ported.",
+        "Human output renders data fields in sorted key order and timestamps in UTC; JSON keeps the npm shape."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54863,12 +55023,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "account::web_only",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Informational web-only notice (legacy SETTINGS_INFO_COMMANDS); needs no credentials. Human text layout differs slightly from the npm header formatting."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54886,7 +55046,15 @@
       "usages": [
         "settings reminders delete"
       ],
-      "positionals": [],
+      "positionals": [
+        {
+          "name": "reminder-id",
+          "required": true,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "<reminder-id>"
+        }
+      ],
       "flags": [
         "api-key",
         "api-url",
@@ -54904,12 +55072,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_ops",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_more.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
+        "Integration against a live backend and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54967,7 +55136,15 @@
       "usages": [
         "settings reminders update"
       ],
-      "positionals": [],
+      "positionals": [
+        {
+          "name": "reminder-id",
+          "required": true,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "<reminder-id>"
+        }
+      ],
       "flags": [
         "api-key",
         "api-url",
@@ -54985,12 +55162,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_ops",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_more.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
+        "Integration against a live backend and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -55111,12 +55289,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "account::web_only",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Informational web-only notice (legacy SETTINGS_INFO_COMMANDS); needs no credentials. Human text layout differs slightly from the npm header formatting."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -55151,12 +55329,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "account::web_only",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Original runtime grammar is reviewed; native handling of this spelling has not been implemented or verified."
+        "Informational web-only notice (legacy SETTINGS_INFO_COMMANDS); needs no credentials. Human text layout differs slightly from the npm header formatting."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -55208,12 +55386,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "account::web_only",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Informational web-only notice (legacy SETTINGS_INFO_COMMANDS); needs no credentials. Human text layout differs slightly from the npm header formatting."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -55248,12 +55426,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "account::web_only",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Informational web-only notice (legacy SETTINGS_INFO_COMMANDS); needs no credentials. Human text layout differs slightly from the npm header formatting."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -55288,12 +55466,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "account::web_only",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Informational web-only notice (legacy SETTINGS_INFO_COMMANDS); needs no credentials. Human text layout differs slightly from the npm header formatting."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -55368,12 +55546,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "account::web_only",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Informational web-only notice (legacy SETTINGS_INFO_COMMANDS); needs no credentials. Human text layout differs slightly from the npm header formatting."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -55408,12 +55586,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "account::web_only",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Informational web-only notice (legacy SETTINGS_INFO_COMMANDS); needs no credentials. Human text layout differs slightly from the npm header formatting."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -55447,12 +55625,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "account::web_only",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Informational web-only notice (legacy SETTINGS_INFO_COMMANDS); needs no credentials. Human text layout differs slightly from the npm header formatting."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -61484,8 +61662,8 @@
   "coverage": {
     "command_patterns": 720,
     "flags": 597,
-    "native_handlers_partial": 493,
-    "unsupported": 227,
+    "native_handlers_partial": 538,
+    "unsupported": 182,
     "feature_complete": false
   },
   "maintenance": {

@@ -46,6 +46,44 @@ impl Client {
         original.check(self)?;
         Ok(original)
     }
+
+    /// One Personal app-settings/memories WebSocket mutation and its receipt
+    /// (`store_app_settings_memories_entry` / `delete_app_settings_memories_entry`).
+    /// Waits like the legacy CLI: 15 seconds for the matching `entry_id`.
+    /// Ciphertext is prepared by the caller; this never decrypts or retries.
+    pub(crate) async fn settings_memory_exchange(
+        &mut self,
+        kind: &str,
+        payload: Value,
+        reply: &str,
+        entry_id: &str,
+    ) -> Result<Value> {
+        self.require_session()?;
+        if self.team()?.is_some() {
+            return Err(Error::Unavailable {
+                code: "team_memories_unavailable",
+                reason: "Team Memories require an explicitly scoped native flow.",
+            });
+        }
+        if self.operation_cancel.is_cancelled() {
+            return Err(Error::Cancelled);
+        }
+        let mut ws = self.socket_with_task_jobs(false).await?;
+        super::transport::send(&mut ws, kind, payload).await?;
+        let deadline = crate::platform::time::Instant::now() + std::time::Duration::from_secs(15);
+        let receipt = crate::platform::time::timeout_at(
+            deadline,
+            super::transport::wait(&mut ws, reply, "entry_id", entry_id),
+        )
+        .await
+        .map_err(|_| Error::Offline);
+        let _ = ws.close(None).await;
+        let receipt = receipt??;
+        if receipt.get("success") == Some(&Value::Bool(false)) {
+            return Err(Error::Protocol);
+        }
+        Ok(receipt)
+    }
 }
 
 #[cfg(test)]

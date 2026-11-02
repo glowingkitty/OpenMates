@@ -4,7 +4,9 @@
 //! API-key mutations require explicit confirmation and server-verified strong proof.
 //! Other credentials, payments and account destruction retain their dedicated gates.
 //! Public support and assistant feedback remain in the existing public handler.
+mod memories;
 mod reminders;
+mod settings_more;
 
 use super::{CliError, CliOutput, Invocation, handlers};
 use crate::client::Client;
@@ -27,7 +29,11 @@ fn path(invocation: &Invocation) -> String {
     parts.join(" ")
 }
 pub(super) fn supported(invocation: &Invocation) -> bool {
-    reminders::supported(invocation) || matches!(
+    reminders::supported(invocation)
+        || settings_more::supported(invocation)
+        || memories::supported(invocation)
+        || is_info(invocation)
+        || matches!(
         path(invocation).as_str(),
         "whoami"
             | "credits"
@@ -143,36 +149,59 @@ fn interest_timestamp() -> Result<String, CliError> {
         .format(&time::format_description::well_known::Rfc3339)
         .map_err(|_| CliError::Client(crate::error::Error::Io))
 }
+/// Legacy SETTINGS_INFO_COMMANDS: (path, description, web section, reason,
+/// examples). Informational only, never an SDK operation or approval.
+const INFO: &[(&str, &str, Option<&str>, &str, &[&str])] = &[
+    ("account email", "Email changes are web-only", Some("account/email"), "Email changes require a guided identity verification flow.", &["openmates settings account email"]),
+    ("security", "Security settings are web-only", Some("account/security"), "Security settings require browser APIs or high-risk reauthentication.", &["openmates settings security"]),
+    ("security passkeys", "Passkeys are web-only", Some("account/security/passkeys"), "Passkeys require WebAuthn browser APIs.", &["openmates settings security passkeys"]),
+    ("security password", "Password changes are web-only", Some("account/security/password"), "The CLI never asks for account credentials.", &["openmates settings security password"]),
+    ("security 2fa", "2FA setup and changes are web-only", Some("account/security/2fa"), "2FA setup requires a guided browser verification flow.", &["openmates settings security 2fa"]),
+    ("security recovery-key", "Recovery key settings are web-only", Some("account/security/recovery-key"), "Recovery keys are a high-risk account recovery surface.", &["openmates settings security recovery-key"]),
+    ("security sessions", "Session management is web-only", Some("account/security/sessions"), "The CLI is a paired restricted session; approval and revocation stay in the browser.", &["openmates settings security sessions"]),
+    ("billing buy-credits", "Credit purchase is web-only", Some("billing/buy-credits"), "Payment checkout must use the browser/payment provider UI.", &["openmates settings billing buy-credits"]),
+    ("billing gift-card buy", "Gift card purchase is web-only", Some("billing/gift-cards/buy"), "Payment checkout must use the browser/payment provider UI.", &["openmates settings billing gift-card buy"]),
+    ("billing auto-topup monthly", "Monthly auto top-up is web-only for now", Some("billing/auto-topup/monthly"), "Recurring payment setup needs a payment-flow audit before CLI support.", &["openmates settings billing auto-topup monthly"]),
+    ("privacy personal-data", "Personal data management is not CLI-ready yet", Some("privacy/hide-personal-data"), "The CLI needs a dedicated encrypted personal-data UX before exposing writes.", &["openmates settings privacy personal-data"]),
+    ("shared tip", "Tips are web-only", Some("shared/tip"), "Payment checkout must use the browser/payment provider UI.", &["openmates settings shared tip"]),
+    ("developers devices", "Developer devices are web-only", Some("developers/devices"), "Device approvals and revocations are sensitive.", &["openmates settings developers devices"]),
+    ("developers webhooks", "Developer webhooks are not CLI-ready yet", Some("developers/webhooks"), "Webhook CRUD needs a backend/API audit before CLI support.", &["openmates settings developers webhooks"]),
+    ("support", "Support payments are web-only", Some("support"), "Payment flows must use the browser/payment provider UI.", &["openmates settings support"]),
+    ("incognito info", "Explain incognito mode", None, "Incognito chats are sent without saving chat history. The CLI stores no incognito transcript.", &["openmates chats incognito \"Private question\""]),
+    ("server", "Server admin settings are web/admin-only", Some("server"), "Use `openmates server --help` for self-hosted terminal server management.", &["openmates server status"]),
+];
+fn info(invocation: &Invocation) -> Option<&'static (&'static str, &'static str, Option<&'static str>, &'static str, &'static [&'static str])> {
+    // Only the settings namespace (and the `account email` alias) is
+    // informational; top-level `support`/`server` keep their own commands.
+    let settings = invocation.path.first().is_some_and(|p| p == "settings");
+    let command = path(invocation);
+    INFO.iter()
+        .find(|entry| entry.0 == command && (settings || command == "account email"))
+}
+/// Informational settings commands need no credentials or network.
+pub(super) fn is_info(invocation: &Invocation) -> bool {
+    info(invocation).is_some()
+}
 /// Browser-only legacy responses are successful informational output, never
 /// SDK operations that imply device/session approval or revocation occurred.
 pub(super) fn web_only(
     invocation: &Invocation,
     app_url: &str,
 ) -> Option<Result<CliOutput, CliError>> {
-    let command = path(invocation);
-    let (description, reason, section) = match command.as_str() {
-        "developers devices" => (
-            "Developer devices are web-only",
-            "Device approvals and revocations are sensitive.",
-            "developers/devices",
-        ),
-        "security sessions" => (
-            "Session management is web-only",
-            "The CLI is a paired restricted session; approval and revocation stay in the browser.",
-            "account/security/sessions",
-        ),
-        _ => return None,
-    };
+    let (command, description, section, reason, examples) = info(invocation)?;
     Some((|| {
         arguments(invocation, 0, &[])?;
-        let example = format!("openmates settings {command}");
-        let web_url = format!("{}/#settings/{section}", app_url.trim_end_matches('/'));
+        let web_url = section
+            .map(|section| format!("{}/#settings/{section}", app_url.trim_end_matches('/')));
+        let mut text = format!("{description}\n\n{reason}");
+        if let Some(url) = &web_url {
+            text.push_str(&format!("\n\nOpen in web app:\n  {url}"));
+        }
+        text.push_str(&format!("\n\nExamples:\n  {}", examples.join("\n  ")));
         handlers::output(
             invocation,
-            json!({"command":example,"supported_in_cli":false,"description":description,"reason":reason,"web_url":web_url,"examples":[example]}),
-            format!(
-                "{description}\n\n{reason}\n\nOpen in web app:\n  {web_url}\n\nExamples:\n  {example}"
-            ),
+            json!({"command":format!("openmates settings {command}"),"supported_in_cli":false,"description":description,"reason":reason,"web_url":web_url,"examples":examples}),
+            text,
         )
     })())
 }
@@ -211,6 +240,12 @@ pub(super) async fn execute(
 ) -> Result<CliOutput, CliError> {
     if reminders::supported(invocation) {
         return reminders::execute(invocation, client).await;
+    }
+    if settings_more::supported(invocation) {
+        return settings_more::execute(invocation, client).await;
+    }
+    if memories::supported(invocation) {
+        return memories::execute(invocation, client).await;
     }
     let command = path(invocation);
     if let Some(result) = web_only(invocation, &client.application_url()) {
@@ -441,15 +476,17 @@ mod tests {
             "settings developers api-keys revoke",
             "settings developers devices",
             "settings security sessions",
+            "settings account delete preview",
+            "settings memories list",
+            "settings billing invoices list",
+            "settings security password",
         ] {
             assert!(supported(&invocation(command, &[], &[])), "{command}");
         }
         for command in [
             "account delete",
-            "settings account delete preview",
             "account export",
             "account import chatgpt",
-            "settings security password",
             "settings get",
             "signup",
         ] {

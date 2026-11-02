@@ -9,7 +9,7 @@
     {
       "path": "assets/cli-command-catalog.json",
       "source": "config/cli-command-catalog.json",
-      "sha256": "d8d4bd05afa2b57743530e41a7d04dcde740ddd1a345777c5c7b73a2a84e1e4d"
+      "sha256": "429420964c8f7719da3224d48cb952cc32b675ce28e8714ddd6b6c11fe7883d8"
     },
     {
       "path": "assets/licenses/legacy-cli-MIT.txt",
