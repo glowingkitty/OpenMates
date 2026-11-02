@@ -385,7 +385,7 @@ impl Client {
                 "Check the required App input fields and their types.",
             ));
         }
-        self.validate_session().await?;
+        self.validate_session_for_request().await?;
         let scope = AsyncCryptoScope::begin(self)?;
         let owner = Plain::new(required_owner(&self.user)?.to_owned());
         let generation = self.generation;
@@ -417,7 +417,7 @@ impl Client {
         self.save_app_run(&request, &json!({}), "processing")
             .await?;
         // Recheck account and local privacy immediately before the billable POST.
-        self.validate_session().await?;
+        self.validate_session_for_request().await?;
         self.app_owner(&request, generation)?;
         original.check(self)?;
         scope.check(self)?;

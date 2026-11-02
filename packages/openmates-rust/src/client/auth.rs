@@ -63,6 +63,14 @@ impl PasswordUnwrapScope {
     }
 }
 
+/// Reuse window for a native client's own successful session validation.
+const VALIDATION_REUSE_WINDOW: std::time::Duration = std::time::Duration::from_secs(20);
+/// (session id, credential revision, operation epoch) at a successful validation.
+pub(super) struct RecentValidation {
+    at: crate::platform::time::Instant,
+    key: (String, u64, u64),
+}
+
 /// Server cookie lifetime preference only. This does not select local key storage.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct PasswordLoginOptions {
@@ -71,12 +79,49 @@ pub struct PasswordLoginOptions {
 
 impl Client {
     /// Ordinary and detached validation share the exact fixed auth algorithm.
+    /// Always contacts the server (sockets, recovery and browser lanes).
     pub async fn validate_session(&mut self) -> Result<()> {
+        self.validate_session_with_server().await
+    }
+    /// For HTTP command handlers only (app skills, workspace reads): a native
+    /// client reuses its own successful validation for a few seconds while
+    /// the session, credential revision and operation epoch are unchanged, so
+    /// one command does not re-validate before every request. Sockets and
+    /// recovery admission keep `validate_session`; the server still enforces
+    /// owner, Team and expiry on every authenticated request.
+    pub(crate) async fn validate_session_for_request(&mut self) -> Result<()> {
+        if self.reusable_validation() {
+            return Ok(());
+        }
+        self.validate_session_with_server().await
+    }
+    pub(super) async fn validate_session_with_server(&mut self) -> Result<()> {
+        self.recent_validation = None;
         let prepared=self.prepare_session_validation(None)?;
         let headers=send_owned_session_validation_headers(prepared).await;
         let body=self.apply_owned_session_validation_headers(headers)?;
         let completed=drive_owned_session_validation_body(body).await;
-        self.finish_session_validation(completed).map(|_| ())
+        self.finish_session_validation(completed)?;
+        self.recent_validation = self.native_validation_key().map(|key| RecentValidation {
+            at: crate::platform::time::Instant::now(),
+            key,
+        });
+        Ok(())
+    }
+    fn native_validation_key(&self) -> Option<(String, u64, u64)> {
+        if self.browser_cookies() || self.browser_authority.is_some() || self.browser_credentials.is_some() {
+            return None;
+        }
+        let session = self.session.as_ref()?;
+        session.ws_token.as_ref()?;
+        Some((session.session_id.clone(), self.credential_revision, self.fresh_auth.operation_epoch()))
+    }
+    fn reusable_validation(&self) -> bool {
+        !self.operation_cancel.is_cancelled()
+            && self.recent_validation.as_ref().is_some_and(|recent| {
+                recent.at.elapsed() < VALIDATION_REUSE_WINDOW
+                    && self.native_validation_key().as_ref() == Some(&recent.key)
+            })
     }
     fn begin_session_validation(&self, original: Option<&std::sync::Arc<owned_operation::OwnedOperationScope>>) -> Result<owned_session_validation::ValidationContext> {
         let browser=self.browser_cookies();
@@ -513,3 +558,7 @@ mod session_validation_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "owned_session_validation_tests.rs"]
 mod owned_session_validation_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "validation_reuse_tests.rs"]
+mod validation_reuse_tests;

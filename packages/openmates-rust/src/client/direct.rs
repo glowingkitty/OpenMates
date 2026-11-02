@@ -32,7 +32,7 @@ impl Client {
             return Ok(());
         }
         self.direct_identity = None;
-        self.validate_session().await?;
+        self.validate_session_for_request().await?;
         let owner = self.user["id"]
             .as_str()
             .or_else(|| self.user["user_id"].as_str())

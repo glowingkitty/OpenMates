@@ -42,7 +42,7 @@ impl Client {
             },
             Workspace::Tasks => self.list_tasks().await,
             Workspace::Settings => {
-                self.validate_session().await?;
+                self.validate_session_for_request().await?;
                 self.require_canonical_read_profile()?;
                 let scope=AsyncCryptoScope::begin(self)?;let mut items=PlainItems(self.settings_items());scope.check(self)?;
                 Ok(std::mem::take(&mut items.0))
@@ -89,7 +89,7 @@ impl Client {
             return Ok(item.into_inner());
         }
         if workspace == Workspace::Settings {
-            self.validate_session().await?;
+            self.validate_session_for_request().await?;
             self.require_canonical_read_profile()?;
             let scope=AsyncCryptoScope::begin(self)?;let mut items=PlainItems(self.settings_items());
             let index=items.0.iter().position(|item|item.id==id).ok_or(Error::Invalid("Unknown settings section."))?;

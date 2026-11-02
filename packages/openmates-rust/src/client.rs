@@ -536,6 +536,8 @@ pub struct Client {
     completion_recovery_mode: Option<CancellationToken>,
     completion_recovery_jobs: BTreeMap<String, CompletionRecoveryJob>,
     metadata_recovery_jobs: BTreeMap<String, CompletionRecoveryJob>,
+    /// Last successful native session validation (see auth.rs reuse rules).
+    recent_validation: Option<auth::RecentValidation>,
 }
 impl Client {
     /// Explicit validated application origin selected for this client.
@@ -591,6 +593,7 @@ impl Client {
             browser_password_stay_logged_in: None,
             credential_revision: 1,
             credential_ack: 0,
+            recent_validation: None,
             fresh_auth: Default::default(),
             inventory_network: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
             credential_updates: None,
