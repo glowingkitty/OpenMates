@@ -1,7 +1,9 @@
 """Shared scoped-decision receipts for workflow completion and continuation.
 
 The existing session/Plan owns receipts; there is no separate approval store.
-Original messages are read only to validate user provenance and content hashes.
+Original messages are read only to validate user provenance and content hashes:
+Claude Code transcripts (``~/.claude/projects/<slug>/<session>.jsonl``, message
+id = the turn's ``uuid``) and, for historical receipts, Codex session logs.
 Only exact target, surface and revision matches may suppress selected work.
 See docs/architecture/agent-workflow-decisions.md for scope and rollback.
 """
@@ -17,10 +19,81 @@ DECISIONS = {"accept", "stop", "waive", "resume"}
 SURFACES = {"appearance", "proof", "task", "specification-approval-prompt"}
 
 
+PROVIDERS = ("claude", "codex")
+_UUID = r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}"
+
+
+def _claude_transcript(session_id: str) -> Path:
+    """Locate one Claude Code transcript by its session UUID (never a free path)."""
+    import re
+
+    if not re.fullmatch(_UUID, session_id or ""):
+        raise ValueError("invalid Claude session id")
+    home = Path(os.environ.get("CLAUDE_CONFIG_DIR", str(Path.home() / ".claude")))
+    paths = sorted((home / "projects").glob(f"*/{session_id}.jsonl"))
+    if len(paths) != 1:
+        raise ValueError("original Claude session is unavailable or ambiguous")
+    return paths[0]
+
+
+def _claude_human_messages(session_id: str):
+    """Yield (uuid, text) for typed human turns; tool results and injected context are skipped."""
+    with _claude_transcript(session_id).open() as handle:
+        for line in handle:
+            row = json.loads(line)
+            message = row.get("message") or {}
+            if (
+                row.get("type") != "user"
+                or message.get("role") != "user"
+                or row.get("isMeta")
+                or row.get("isSidechain")
+                or row.get("sessionId", session_id) != session_id
+            ):
+                continue
+            origin = row.get("origin")
+            if isinstance(origin, dict):
+                if origin.get("kind") != "human":
+                    continue
+            elif row.get("promptSource") == "system":
+                continue
+            content = message.get("content")
+            if isinstance(content, str):
+                text = content
+            elif isinstance(content, list) and all(
+                isinstance(part, dict) and part.get("type") == "text" for part in content
+            ):
+                text = "\n".join(part.get("text", "") for part in content)
+            else:
+                continue
+            if row.get("uuid") and text.strip():
+                yield row["uuid"], text
+
+
+def find_user_message_id(source: dict, quote: str) -> str:
+    """Return the newest human message in a Claude session containing ``quote``."""
+    if source.get("provider") != "claude":
+        raise ValueError("message lookup by quote is only supported for Claude sessions")
+    if not quote.strip():
+        raise ValueError("decision needs an exact quote")
+    found = ""
+    for message_id, text in _claude_human_messages(source.get("session_id", "")):
+        if quote in text:
+            found = message_id
+    if not found:
+        raise ValueError("no original Claude user message contains the quote")
+    return found
+
+
 def read_user_message(source: dict) -> dict:
     """Read one original user message without modifying either agent's storage."""
     provider = source.get("provider")
+    if provider == "claude":
+        for message_id, text in _claude_human_messages(source.get("session_id", "")):
+            if message_id == source.get("message_id"):
+                return {"role": "user", "text": text}
+        raise ValueError("original Claude message is unavailable")
     if provider == "codex":
+        # Historical receipts recorded by the retired Codex workflow.
         root = (
             Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))) / "sessions"
         )

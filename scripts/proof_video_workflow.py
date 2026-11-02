@@ -139,13 +139,13 @@ def _commit_matches(candidate: str, expected: str) -> bool:
 def resolve_current_context(
     sessions: dict[str, Any],
     *,
-    codex_task_id: str = "",
+    agent_task_id: str = "",
     repository_session_id: str = "",
     subject_commit: str,
     spec_name: str,
     test_runs: list[dict[str, Any]],
 ) -> ProofContext:
-    session_id, _session = resolve_current_session(sessions, codex_task_id=codex_task_id, repository_session_id=repository_session_id)
+    session_id, _session = resolve_current_session(sessions, agent_task_id=agent_task_id, repository_session_id=repository_session_id)
     passing_runs = [
         record
         for record in test_runs
@@ -171,7 +171,7 @@ def resolve_current_context(
 
 def resolve_current_session(
     sessions: dict[str, Any], *,
-    codex_task_id: str = "", repository_session_id: str = "",
+    agent_task_id: str = "", repository_session_id: str = "",
 ) -> tuple[str, dict[str, Any]]:
     """Resolve one real repository record without translating provider identities."""
     records = sessions.get("sessions") or {}
@@ -180,12 +180,13 @@ def resolve_current_session(
         if not isinstance(record, dict):
             raise WorkflowError(f"unknown repository session {repository_session_id}; run sessions.py status")
         return repository_session_id, record
-    identity_field = "codex_task_id"
-    identity = codex_task_id
+    identity = agent_task_id
     matches = [
         (session_id, record)
         for session_id, record in records.items()
-        if isinstance(record, dict) and identity and record.get(identity_field) == identity
+        if isinstance(record, dict) and identity
+        # Records written before the agent_* rename keep codex_task_id.
+        and (record.get("agent_task_id") or record.get("codex_task_id")) == identity
     ]
     if len(matches) != 1:
         raise WorkflowError(f"current agent identity matches {len(matches)} repository sessions; use --session with an existing repository session")
@@ -1401,35 +1402,42 @@ def _review_result_path(run_dir: Path, correction_round: int) -> Path:
     return run_dir / f"review-result-round-{correction_round}.json"
 
 
+# Claude Code sessions; codex://threads/ remains valid for historical receipts.
+REVIEWER_IDENTITY_PREFIXES = ("claude:", "codex://threads/")
+
+
 def _default_reviewer_runner(
     prompt_path: Path,
     *,
     run_dir: Path,
     correction_round: int,
 ) -> tuple[dict[str, Any], str]:
-    """Consume an explicit Codex review without starting or messaging an agent.
+    """Consume an explicit agent review without starting or messaging an agent.
 
     The existing review pipeline still validates every frame, assertion and
-    publication receipt. New reviews identify the real Codex conversation;
-    historical cached receipts keep their original provider identity.
+    publication receipt. New reviews identify the real Claude Code session as
+    ``claude:<session-uuid>``; historical receipts keep ``codex://threads/<uuid>``.
     """
     result_path = _review_result_path(run_dir, correction_round)
     receipt = _load_json(result_path)
     session_url = str(receipt.get("reviewer_session_id") or "")
-    prefix = "codex://threads/"
     try:
-        if not session_url.startswith(prefix):
-            raise ValueError("missing Codex thread URL")
+        prefix = next((p for p in REVIEWER_IDENTITY_PREFIXES if session_url.startswith(p)), None)
+        if prefix is None:
+            raise ValueError("missing agent session identity")
         uuid.UUID(session_url.removeprefix(prefix))
     except ValueError as exc:
-        raise WorkflowError("reviewer_session_id must be the actual codex://threads/<uuid> URL") from exc
+        raise WorkflowError(
+            "reviewer_session_id must be the actual agent session: claude:<uuid> "
+            "(legacy codex://threads/<uuid>)"
+        ) from exc
     prompt = _load_json(prompt_path)
     try:
         from scripts.spec_demo import review_request_hash
     except ModuleNotFoundError:
         from spec_demo import review_request_hash
     if receipt.get("review_request_hash") != review_request_hash(prompt["review_request"]):
-        raise WorkflowError("Codex review result does not match the prepared review request")
+        raise WorkflowError("Agent review result does not match the prepared review request")
     return receipt, session_url
 
 
@@ -1560,7 +1568,7 @@ def review_run(
             "in the JSON response."
         ),
         "required_output": {
-            "reviewer_session_id": "actual codex://threads/<uuid> URL",
+            "reviewer_session_id": "claude:<CLAUDE_CODE_SESSION_ID>",
             "review_request_hash": review_request_hash(prompt_request),
             "status": "passed|capture_defect|render_defect|product_defect|uncertain",
             "confidence": "number from 0 to 1",
@@ -1589,7 +1597,7 @@ def review_run(
             "status": "awaiting_review",
             "prompt_path": str(prompt_path),
             "result_path": str(result_path),
-            "next_action": "Review every prepared frame and caption in an existing Codex conversation, write the required JSON result, then rerun review. No agent was launched.",
+            "next_action": "Review every prepared frame and caption in an existing Claude Code session, write the required JSON result, then rerun review. No agent was launched.",
         }
     budget = reserve_persisted_review_budget(
         budget_path,
@@ -1802,9 +1810,9 @@ def _restore_file_snapshots(snapshots: dict[Path, bytes | None]) -> None:
 
 
 def start_current(spec_name: str, *, run_id: str = "", session_id: str = "") -> dict[str, Any]:
-    codex_task_id = agent_thread_id()
+    agent_task_id = agent_thread_id()
     sessions = _load_json(SESSIONS_FILE)
-    _session_id, session = resolve_current_session(sessions, codex_task_id=codex_task_id, repository_session_id=session_id)
+    _session_id, session = resolve_current_session(sessions, agent_task_id=agent_task_id, repository_session_id=session_id)
     runs = _local_test_runs() + _ci_test_runs(run_id)
     if run_id:
         runs = [
@@ -1902,7 +1910,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Prepare a focused, bounded proof-video workflow.")
     subparsers = parser.add_subparsers(dest="command", required=True)
     start = subparsers.add_parser("start", help="Resolve current proof context and prepare the contract boundary.")
-    start.add_argument("--current", action="store_true", help="Infer the repository session from the current Codex or legacy agent identity.")
+    start.add_argument("--current", action="store_true", help="Infer the repository session from the current Claude Code session (or legacy Codex) identity.")
     start.add_argument("--session", default="", help="Use an existing repository session ID explicitly.")
     start.add_argument("--spec", required=True, help="Passing Playwright spec filename.")
     start.add_argument("--run-id", default="", help="Disambiguate matching passing runs when necessary.")
@@ -1910,7 +1918,7 @@ def main(argv: list[str] | None = None) -> int:
     approve.add_argument("--session", required=True)
     approve.add_argument("--spec", required=True)
     approve.add_argument("--contract", type=Path, required=True)
-    review = subparsers.add_parser("review", help="Prepare or validate an explicit bounded Codex frame review.")
+    review = subparsers.add_parser("review", help="Prepare or validate an explicit bounded agent frame review.")
     review.add_argument("--run-dir", type=Path, required=True)
     review.add_argument("--correction-round", type=int, choices=range(MAX_AUTOMATIC_CORRECTION_ROUNDS + 1), default=0)
     review.add_argument(

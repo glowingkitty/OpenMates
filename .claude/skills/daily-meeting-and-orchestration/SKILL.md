@@ -22,16 +22,16 @@ git, CI, sessions or Tasks before the answer (reading this skill and resolving t
 timezone is setup). If the opening message already states today's priorities,
 use them. Never substitute yesterday's goals.
 
-Save the answer verbatim: `python3 scripts/codex_meeting.py --timezone <zone>
+Save the answer verbatim: `python3 scripts/daily_meeting.py --timezone <zone>
 --meeting-thread "$CLAUDE_CODE_SESSION_ID" --record priorities --text-file <file>
 --message-id "user-$(date -u +%Y%m%dT%H%M%SZ)"`. Claude exposes no message IDs, so
 `priorities`, `answer` and `approve` records use a timestamped ID taken when the
-user's reply arrives. (The collector name is historical; records are tool-neutral.)
+user's reply arrives. `--meeting-thread` defaults to `$CLAUDE_CODE_SESSION_ID`.
 
 ### 2. Research the full picture
-- `python3 scripts/codex_meeting.py --timezone <zone> --meeting-thread
-  "$CLAUDE_CODE_SESSION_ID" --output <private-local-json>` for Tasks, CI and the
-  dated meeting records. Ignore its "Codex inventory unavailable" note.
+- `python3 scripts/daily_meeting.py --timezone <zone> --meeting-thread
+  "$CLAUDE_CODE_SESSION_ID" --output <private-local-json>` for Tasks, commits, CI
+  and the dated meeting records. It does not collect agent chat history.
 - Agent work: `python3 scripts/sessions.py status --all`, `git log --since=<day>
   --oneline origin/dev`, and (when available) the `list_sessions` /
   `list_events` tools for recent Claude sessions. Read only what a decision needs.

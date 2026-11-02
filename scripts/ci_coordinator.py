@@ -1522,6 +1522,9 @@ def print_receipt(value, *, as_json=False):
             "receipt_path",
             "result_command",
             "directory",
+            "ci_evidence",
+            "ci_evidence_command",
+            # Receipts saved before the ci_evidence rename.
             "codex_evidence",
             "codex_evidence_command",
         ):

@@ -8,6 +8,8 @@ They never call Docker, Directus, or the privileged debug.py issue backend.
 
 from __future__ import annotations
 
+# contract-test-file: tooling
+
 import importlib.util
 import sys
 from pathlib import Path
@@ -103,7 +105,7 @@ def test_findings_note_creation_redacts_url_and_uses_year_path(tmp_path, monkeyp
     assert "status: open" in note
     assert "#key=<redacted>" in note
     assert "secret-value" not in note
-    assert "linear: [OPE-512]" in note
+    assert "linear:" not in note
 
 
 def test_mark_and_link_update_findings_frontmatter(tmp_path, monkeypatch, capsys):
@@ -114,14 +116,13 @@ def test_mark_and_link_update_findings_frontmatter(tmp_path, monkeypatch, capsys
 
     assert issues_cli.main(["findings", issue["id"], "--env", "prod"]) == 0
     assert issues_cli.main(["mark", issue["id"], "--env", "prod", "--status", "verified"]) == 0
-    assert issues_cli.main(["link", issue["id"], "--env", "prod", "--github", "#123", "--linear", "OPE-999"]) == 0
+    assert issues_cli.main(["link", issue["id"], "--env", "prod", "--github", "#123"]) == 0
     capsys.readouterr()
 
     path = issues_cli.findings_path(issue, "prod")
     note = path.read_text(encoding="utf-8")
     assert "status: verified" in note
     assert "github: [#123]" in note
-    assert "linear: [OPE-512, OPE-999]" in note
 
 
 def test_issue_table_and_show_prefer_short_issue_id(tmp_path, monkeypatch, capsys):

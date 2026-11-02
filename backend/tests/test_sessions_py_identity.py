@@ -117,6 +117,8 @@ def test_resolver_ignores_sessions_with_null_zellij(sessions_module, monkeypatch
 
 
 def test_cmd_track_uses_zellij_identity(sessions_module, monkeypatch, tmp_path, capsys):
+    for name in ("CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID", "CODEX_SESSION_ID"):
+        monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("ZELLIJ_SESSION_NAME", "claude3")
     _seed(sessions_module, {
         "aaaa": {"zellij_session": "claude3", "task": "right session", "modified_files": []},
@@ -254,11 +256,6 @@ def test_cmd_start_captures_zellij_session_name(sessions_module, monkeypatch):
     monkeypatch.setenv("ZELLIJ_SESSION_NAME", "claude7")
     _seed(sessions_module, {})
 
-    # Stub out the Linear and Zellij side effects so cmd_start is just a write.
-    monkeypatch.setattr(
-        sessions_module, "_linear_start_integration", lambda *a, **kw: None
-    )
-
     # cmd_start does a lot — print contexts, lookup tags, etc. We only need
     # it to reach the session_record dict creation. The simplest way is to
     # invoke it with a minimal Namespace and accept whatever it prints.
@@ -277,7 +274,6 @@ def test_cmd_start_captures_zellij_session_name(sessions_module, monkeypatch):
         chat=None,
         issue=None,
         task_id=None,
-        linear_issue=None,
     )
     try:
         sessions_module.cmd_start(args)

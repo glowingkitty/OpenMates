@@ -99,7 +99,9 @@ TASKS_META_FILE = TASKS_DIR / ".meta.json"
 AGENT_WORKTREES_DIR = CONTROL_PLANE_ROOT / ".openmates-agent-worktrees"
 WORKTREE_PATH_PREFIX_RE = re.compile(r"^(?:\.openmates-agent-worktrees|\.agent-worktrees)/agent-[^/]+/")
 PROJECT_INDEX_FILE = CONTROL_PLANE_ROOT / ".claude" / "project-index.json"
-CONTROL_PLANE_DEPLOY_PROTOCOL_FILE = ".codex/deploy-protocol-version"
+CONTROL_PLANE_DEPLOY_PROTOCOL_FILE = "scripts/deploy-protocol-version"
+# Older origin/dev refs (and older checkouts) only carry the legacy marker.
+LEGACY_CONTROL_PLANE_DEPLOY_PROTOCOL_FILE = ".codex/deploy-protocol-version"
 CONTROL_PLANE_DEPLOY_PROTOCOL_VERSION = 3
 CODE_MAPPING_FILE = PROJECT_ROOT / "docs" / "architecture" / "code-mapping.yml"
 STALE_SESSION_HOURS = 24
@@ -198,6 +200,7 @@ WORKTREE_AUTO_INTEGRATION_SENSITIVE_PREFIXES = (
     ".claude/",
     ".codex/",
     ".github/workflows/",
+    "scripts/deploy-protocol-version",
 
     "apple/",
     "backend/core/api/app/routes/auth",
@@ -649,7 +652,7 @@ def _format_write_claim_conflict(filepath: str, session_id: str, session_info: d
     """Return an agent-actionable explanation for a live manual write claim."""
     task = session_info.get("task") or "No task description recorded"
     zellij = session_info.get("zellij_session") or "unknown"
-    task_id = session_info.get("codex_task_id") or "manual"
+    task_id = session_info.get("agent_task_id") or "manual"
     last_active = session_info.get("last_active") or ""
     try:
         age = f"{_minutes_since(last_active):.1f} minutes ago" if last_active else "unknown"
@@ -659,7 +662,7 @@ def _format_write_claim_conflict(filepath: str, session_id: str, session_info: d
     return (
         f"BLOCKED: Another live agent has a manual WRITING claim on '{filepath}'.\n"
         f"Task: {task}\n"
-        f"Last active: {age}; terminal: {zellij}; Codex task: {task_id}; diagnostic id: {session_id}.\n"
+        f"Last active: {age}; terminal: {zellij}; agent task: {task_id}; diagnostic id: {session_id}.\n"
         "Agent next step: do not ask the user to interpret this id. Work on non-conflicting files, "
         "check `python3 scripts/sessions.py status`, or retry after the claim is released. "
         "Ask the user only if this exact file blocks all useful progress."
@@ -2406,7 +2409,7 @@ def validate_product_session_deploy_paths(paths: list[str], session: dict | None
     raise RuntimeError(
         "CONTROL-PLANE DEPLOY BLOCKED — unbound sessions cannot deploy "
         f"shared orchestration files: {rendered}. Preserve the worktree and move these changes "
-        "to the dedicated Codex control-plane recovery branch for review."
+        "to a dedicated control-plane recovery branch for review."
     )
 
 
@@ -2621,9 +2624,30 @@ def _canonical_stored_repo_path(path_value: str | Path) -> str:
     return normalized
 
 
+# Session records written before the Claude Code migration used Codex field names.
+LEGACY_AGENT_TASK_FIELDS = (
+    ("codex_task_id", "agent_task_id"),
+    ("codex_host", "agent_host"),
+    ("codex_adopted_at", "agent_adopted_at"),
+)
+
+
+def _migrate_agent_task_fields(sessions: dict) -> None:
+    """Rename legacy ``codex_*`` binding fields to tool-neutral ``agent_*`` names."""
+    for session in sessions.values():
+        if not isinstance(session, dict):
+            continue
+        for legacy, current in LEGACY_AGENT_TASK_FIELDS:
+            if legacy in session:
+                value = session.pop(legacy)
+                if session.get(current) is None:
+                    session[current] = value
+
+
 def _normalize_session_state_paths(data: dict) -> None:
     """Canonicalize persisted path keys created by legacy nested-worktree hooks."""
     sessions = data.setdefault("sessions", {})
+    _migrate_agent_task_fields(sessions)
     for session in sessions.values():
         if not isinstance(session, dict):
             continue
@@ -2662,12 +2686,12 @@ def _normalize_session_state_paths(data: dict) -> None:
 
 
 def _resolve_session_id(data: dict, *, session_id: str = "", **retired) -> str:
-    """Resolve only explicit identity, host-scoped Codex binding or exact workspace."""
+    """Resolve only explicit identity, host-scoped agent binding or exact workspace."""
     try:
         from scripts.session_binding import resolve_session
     except ModuleNotFoundError:
         from session_binding import resolve_session
-    return resolve_session(data, session_id=session_id, thread_id=_codex_task_identity(),
+    return resolve_session(data, session_id=session_id, thread_id=_agent_task_identity(),
                            host=socket.gethostname(), cwd=PROJECT_ROOT, repo_id=DEFAULT_REPO_ID)
 
 
@@ -2720,7 +2744,7 @@ def _format_edit_lease_conflict(filepath: str, lease: dict, sessions: dict) -> s
     owner = str(lease.get("session_id") or "unknown")
     info = sessions.get(owner, {}) if isinstance(sessions, dict) else {}
     task = info.get("task") or "No task description recorded"
-    task_id = info.get("codex_task_id") or "manual"
+    task_id = info.get("agent_task_id") or "manual"
     last_updated = lease.get("last_updated") or lease.get("since") or ""
     try:
         age = f"{_minutes_since(str(last_updated)):.1f} minutes ago" if last_updated else "unknown"
@@ -2729,7 +2753,7 @@ def _format_edit_lease_conflict(filepath: str, lease: dict, sessions: dict) -> s
     return (
         f"BLOCKED: Another live agent has an edit lease on '{filepath}'.\n"
         f"Task: {task}\n"
-        f"Last active: {age}; Codex task: {task_id}; diagnostic id: {owner}.\n"
+        f"Last active: {age}; agent task: {task_id}; diagnostic id: {owner}.\n"
         "Agent next step: do not ask the user to interpret this id. Work on non-conflicting files, "
         "check `python3 scripts/sessions.py status`, or retry after the lease expires/releases. "
         "Ask the user only if this exact file blocks all useful progress."
@@ -4779,27 +4803,13 @@ def _expiry_worktree_has_runtime_references(path: Path) -> bool:
         return True
 
 
-def _expiry_codex_thread_is_live(session: dict) -> bool:
-    """Use fresh foreground-adapter presence for bound Codex workspaces."""
-    thread = str(session.get("codex_thread_id") or session.get("codex_task_id") or "")
-    if not thread:
-        return False
-    if thread == _codex_task_identity():
-        return True
-    try:
-        try:
-            from scripts.codex_task_adapter import adapter_path
-        except ModuleNotFoundError:
-            from codex_task_adapter import adapter_path
-        state_path = adapter_path(CONTROL_PLANE_ROOT)
-        presence = json.loads(state_path.read_text())["presence"]
-        fresh = time.time() - _parse_iso(presence["checked_at"]).timestamp() < 120
-        if not fresh or presence.get("connection") != "connected" or presence.get("complete") is not True:
-            return True
-        row = presence["threads"].get(thread)
-        return bool(row and row.get("status") not in {"idle", "notLoaded"})
-    except (OSError, ValueError, TypeError, KeyError):
-        return True
+def _expiry_agent_task_is_live(session: dict) -> bool:
+    """A workspace bound to the agent conversation running this command is live.
+
+    Other bound conversations are judged by activity and runtime references only.
+    """
+    thread = str(session.get("agent_task_id") or "")
+    return bool(thread) and thread == _agent_task_identity()
 
 
 def _hard_expiry_record_is_live(
@@ -4836,7 +4846,7 @@ def _hard_expiry_record_is_live(
             return True
     # A write marker is only historical intent, not a heartbeat. Even unbound
     # orphan worktrees need live process/container inspection before expiry.
-    return _expiry_codex_thread_is_live(session) or _expiry_worktree_has_runtime_references(
+    return _expiry_agent_task_is_live(session) or _expiry_worktree_has_runtime_references(
         Path(str(record.get("path") or worktree.get("path") or ""))
     )
 
@@ -5403,9 +5413,9 @@ def _prune_stale(data: dict) -> list[str]:
     pruned = []
     to_remove = []
     for sid, session in data.get("sessions", {}).items():
-        # Disconnects do not retire durable Codex ownership. A missing workspace
+        # Disconnects do not retire durable agent ownership. A missing workspace
         # needs explicit repair, never a new session allocated by stale pruning.
-        if session.get("codex_task_id"):
+        if session.get("agent_task_id"):
             continue
         worktree = session.get("worktree")
         if (
@@ -7190,185 +7200,6 @@ asyncio.run(main())
     return stdout.strip()
 
 
-# ── Linear integration helpers ────────────────────────────────────────────
-
-
-def _linear_start_integration(
-    sid: str,
-    data: dict,
-    mode: str,
-    task: str | None,
-    linear_issue_arg: str | None,
-) -> None:
-    """
-    Handle Linear issue linking at session start.
-
-    If --linear-issue is given, fetches the issue and marks it In Progress.
-    If omitted but --task is set and LINEAR_API_KEY exists, auto-creates an issue.
-    All failures are non-fatal (prints warnings, never blocks session start).
-    """
-    try:
-        # Ensure scripts/ is on sys.path for the sibling module import
-        _scripts_dir = str(Path(__file__).parent)
-        if _scripts_dir not in sys.path:
-            sys.path.insert(0, _scripts_dir)
-        from _linear_client import (
-            get_api_key, get_issue,
-            update_issue_status, add_label, post_comment,
-        )
-    except ImportError:
-        if linear_issue_arg:
-            print("Warning: _linear_client.py not found; skipping Linear integration.", file=sys.stderr)
-        return
-
-    if not get_api_key():
-        if linear_issue_arg:
-            print("Warning: LINEAR_API_KEY not set; skipping Linear integration.", file=sys.stderr)
-        return
-
-    issue_data = None
-    linear_issue_id = None  # UUID for mutations
-
-    if linear_issue_arg:
-        # User provided an existing issue identifier (e.g., OPE-42)
-        issue_data = get_issue(linear_issue_arg)
-        if not issue_data:
-            print(f"Warning: Could not fetch Linear issue {linear_issue_arg}; continuing without it.", file=sys.stderr)
-            return
-        linear_issue_id = issue_data["id"]
-    elif task and task != "(pending)":
-        # Reminder for the running Claude session to follow the Linear task workflow
-        # in .claude/rules/linear-tasks.md (search for existing task before creating)
-        print("  Linear: No issue linked to this session. Pass --issue OPE-XX next time to link one.", file=sys.stderr)
-        return
-
-    if not linear_issue_id:
-        return
-
-    # Store in session record
-    identifier = issue_data.get("identifier", linear_issue_arg or "")
-    data["sessions"][sid]["linear_issue_id"] = identifier
-    data["sessions"][sid]["linear_uuid"] = linear_issue_id
-
-    def store_linear_binding(current: dict) -> None:
-        if sid not in current.get("sessions", {}):
-            raise RuntimeError(f"Session {sid} ended before Linear linking completed")
-        current["sessions"][sid]["linear_issue_id"] = identifier
-        current["sessions"][sid]["linear_uuid"] = linear_issue_id
-
-    _mutate_sessions(store_linear_binding)
-
-    # Mark In Progress + add label
-    update_issue_status(linear_issue_id, "In Progress")
-    label_ids = issue_data.get("label_ids", [])
-    add_label(linear_issue_id, current_label_ids=label_ids)
-
-    # Post pickup comment with current agent-era resume guidance.
-    post_comment(
-        linear_issue_id,
-        f"Picked up by repository session `{sid}`. Continue in the owning Codex task.",
-    )
-
-    # Display issue context in session output
-    display_lines = [f"  Issue:    {identifier}"]
-    if issue_data.get("title"):
-        display_lines.append(f"  Title:    {issue_data['title']}")
-    if issue_data.get("url"):
-        display_lines.append(f"  URL:      {issue_data['url']}")
-    if issue_data.get("assignee"):
-        display_lines.append(f"  Assignee: {issue_data['assignee']}")
-    if issue_data.get("description"):
-        # Show first 3 lines of description
-        desc_lines = issue_data["description"].strip().splitlines()[:3]
-        display_lines.append(f"  Desc:     {desc_lines[0]}")
-        for dl in desc_lines[1:]:
-            display_lines.append(f"            {dl}")
-    display_lines.append("  Status:   → In Progress (auto-updated)")
-
-    print(_box_section("LINEAR ISSUE", display_lines))
-
-
-def _linear_complete_session(
-    sid: str,
-    session: dict,
-    commit_sha: str | None = None,
-) -> None:
-    """
-    Handle Linear issue completion at session end or deploy --end.
-
-    Posts a summary comment, removes claude-is-working label, and updates
-    status to In Review (code changes) or Done (docs/question).
-    All failures are non-fatal.
-    """
-    linear_id = session.get("linear_issue_id")
-    if not linear_id:
-        return
-
-    try:
-        _scripts_dir = str(Path(__file__).parent)
-        if _scripts_dir not in sys.path:
-            sys.path.insert(0, _scripts_dir)
-        from _linear_client import (
-            get_api_key, get_issue, update_issue_status,
-            remove_label, post_comment,
-        )
-    except ImportError:
-        return
-
-    if not get_api_key():
-        return
-
-    # Fetch current issue state to get UUID and current labels
-    issue_data = get_issue(linear_id)
-    if not issue_data:
-        # Fallback: try using stored UUID directly
-        linear_uuid = session.get("linear_uuid")
-        if not linear_uuid:
-            print(f"Warning: Could not fetch Linear issue {linear_id} for completion.", file=sys.stderr)
-            return
-        # Proceed with UUID but no label context
-        issue_data = {"id": linear_uuid, "label_ids": []}
-
-    issue_uuid = issue_data["id"]
-    modified = session.get("modified_files", [])
-    mode = session.get("mode", "feature")
-
-    # Build summary comment
-    summary_lines = [f"Session `{sid}` completed."]
-    if commit_sha:
-        summary_lines.append(f"Commit: `{commit_sha}` on `dev`")
-    if modified:
-        summary_lines.append(f"Files changed: {len(modified)}")
-        for f in modified[:10]:
-            summary_lines.append(f"- `{f}`")
-        if len(modified) > 10:
-            summary_lines.append(f"- ... and {len(modified) - 10} more")
-
-    post_comment(issue_uuid, "\n".join(summary_lines))
-
-    # Remove claude-is-working label
-    label_ids = issue_data.get("label_ids", [])
-    remove_label(issue_uuid, current_label_ids=label_ids)
-
-    # Update status based on mode
-    if mode in ("docs", "question"):
-        update_issue_status(issue_uuid, "Done")
-    else:
-        update_issue_status(issue_uuid, "In Review")
-
-    print(f"  Linear: {linear_id} → {'Done' if mode in ('docs', 'question') else 'In Review'}")
-
-
-
-
-
-
-
-
-
-
-
-
 def refresh_worktree_base_after_fast_forward(worktree: dict) -> str:
     """Align deploy metadata after a managed worktree is safely fast-forwarded."""
     worktree_path = str(worktree.get("path") or "")
@@ -7453,7 +7284,7 @@ def refresh_session_worktree_base(session_id: str) -> dict[str, str]:
 
 
 
-def session_for_codex(
+def session_for_agent_task(
     data: dict, task_id: str, *, host: str = "", repo_id: str = ""
 ) -> tuple[str, dict] | None:
     """Resolve a host-scoped task without borrowing a sibling's session.
@@ -7462,27 +7293,27 @@ def session_for_codex(
     See docs/plans/codex-session-runtime-isolation/plan.yml.
     """
     if not re.fullmatch(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", task_id):
-        raise ValueError("Invalid Codex task ID")
+        raise ValueError("Invalid agent task ID")
     host = host or socket.gethostname()
     matches = [
         (sid, info) for sid, info in data.get("sessions", {}).items()
-        if info.get("codex_task_id") == task_id
-        and info.get("codex_host") == host
+        if info.get("agent_task_id") == task_id
+        and info.get("agent_host") == host
         and (not repo_id or _session_repo_id(info) == repo_id)
     ]
     if len(matches) > 1:
-        raise RuntimeError("Codex task matches multiple repository sessions; use an explicit session")
+        raise RuntimeError("Agent task matches multiple repository sessions; use an explicit session")
     return matches[0] if matches else None
 
 
-def bind_codex_session(
+def bind_agent_task_session(
     session_id: str, task_id: str, *, expected_worktree: str,
     previous_owner_stopped: bool,
 ) -> dict:
     """Adopt reviewed stopped work without changing its files or historic lineage.
 
     The caller explicitly attests the previous owner stopped; process discovery
-    alone cannot establish ownership across remote hosts. A conflicting Codex
+    alone cannot establish ownership across remote hosts. A conflicting agent
     binding is never stolen, even when this attestation is supplied.
     """
     if not previous_owner_stopped:
@@ -7495,29 +7326,29 @@ def bind_codex_session(
     def bind(data: dict) -> dict:
         sid = _resolve_session_id(data, session_id=session_id)
         record = data["sessions"][sid]
-        current = session_for_codex(data, task_id, host=host, repo_id=_session_repo_id(record))
+        current = session_for_agent_task(data, task_id, host=host, repo_id=_session_repo_id(record))
         if current and current[0] != sid:
-            raise RuntimeError("Codex task already owns another repository session")
-        if record.get("codex_task_id") and (
-            record["codex_task_id"] != task_id or record.get("codex_host") != host
+            raise RuntimeError("Agent task already owns another repository session")
+        if record.get("agent_task_id") and (
+            record["agent_task_id"] != task_id or record.get("agent_host") != host
         ):
-            raise RuntimeError("Session is already bound to another Codex task")
+            raise RuntimeError("Session is already bound to another agent task")
         metadata = record.get("worktree") or {}
         if not metadata.get("path") or Path(metadata["path"]).resolve() != expected:
             raise RuntimeError("Expected worktree does not match preserved session")
-        record.update(codex_task_id=task_id, codex_host=host, execution_owner_tool="codex")
-        record.setdefault("codex_adopted_at", _now_iso())
-        return {"session_id": sid, "codex_task_id": task_id, "host": host, "worktree": str(expected)}
+        record.update(agent_task_id=task_id, agent_host=host, execution_owner_tool="claude-code")
+        record.setdefault("agent_adopted_at", _now_iso())
+        return {"session_id": sid, "agent_task_id": task_id, "host": host, "worktree": str(expected)}
 
     return _mutate_sessions(bind)
 
 
-def _session_zellij_owner(codex_task: str | None) -> str | None:
+def _session_zellij_owner(agent_task: str | None) -> str | None:
     """A shared task host is not a task-owned terminal."""
-    return None if codex_task else os.environ.get("ZELLIJ_SESSION_NAME")
+    return None if agent_task else os.environ.get("ZELLIJ_SESSION_NAME")
 
 
-def _codex_task_identity() -> str:
+def _agent_task_identity() -> str:
     """Return the owning agent conversation (Claude Code session, or legacy Codex thread)."""
     # Same precedence as scripts/agent_identity.py; inlined so sessions.py stays
     # importable when copied without its sibling modules.
@@ -7529,11 +7360,11 @@ def _codex_task_identity() -> str:
 
 
 def register_session_record(session_record: dict) -> tuple[str, list[str], list[str], dict, bool]:
-    """Atomically register a workspace, reusing an existing Codex task binding."""
+    """Atomically register a workspace, reusing an existing agent task binding."""
     def register(data):
-        task = session_record.get("codex_task_id")
+        task = session_record.get("agent_task_id")
         if task:
-            existing = session_for_codex(data, task, host=session_record["codex_host"],
+            existing = session_for_agent_task(data, task, host=session_record["agent_host"],
                                          repo_id=str(session_record.get("repo_id") or ""))
             if existing:
                 existing[1]["last_active"] = _now_iso()
@@ -7554,9 +7385,9 @@ def cmd_start(args: argparse.Namespace) -> None:
     mode = args.mode
     tags = [tag.strip() for tag in (getattr(args, "tags", "") or "").split(",") if tag.strip()]
     tags = tags or _infer_tags(args.task or "")
-    task_id = _codex_task_identity()
+    task_id = _agent_task_identity()
     data = _load_sessions()
-    existing = session_for_codex(data, task_id, repo_id=repo["repo_id"]) if task_id else None
+    existing = session_for_agent_task(data, task_id, repo_id=repo["repo_id"]) if task_id else None
     if not task_id:
         try:
             sid = _resolve_session_id(data)
@@ -7577,11 +7408,11 @@ def cmd_start(args: argparse.Namespace) -> None:
     else:
         record = {**repo, "task": args.task or "(pending)", "mode": mode, "tags": tags,
                   "started": _now_iso(), "last_active": _now_iso(), "modified_files": [],
-                  "writing": None, "task_id": None, "linear_issue_id": None,
+                  "writing": None, "task_id": None,
                   "proof_video_required": bool(getattr(args, "require_proof_video", False)),
                   "zellij_session": _session_zellij_owner(task_id),
-                  "codex_task_id": task_id or None,
-                  "codex_host": socket.gethostname() if task_id else None,
+                  "agent_task_id": task_id or None,
+                  "agent_host": socket.gethostname() if task_id else None,
                   "binding_mode": "legacy_grandfathered", "auto_integration_policy": "disabled"}
         sid, _, _, _, created = register_session_record(record)
     if mode != "question" and repo["repo_kind"] == "control_plane":
@@ -7672,9 +7503,6 @@ def cmd_end(args: argparse.Namespace) -> None:
             print("Deploy all residual worktree changes or let 48-hour reconciliation classify the stale work.", file=sys.stderr)
             sys.exit(1)
 
-    # ── Linear completion ─────────────────────────────────────────────────
-    _linear_complete_session(sid, session)
-
     # ── Zellij cleanup ───────────────────────────────────────────────────
     # NEVER kill the zellij session the current process is attached to —
     # that would destroy the user's own terminal. Only kill spawned sub-sessions.
@@ -7682,7 +7510,7 @@ def cmd_end(args: argparse.Namespace) -> None:
     candidate_zellij_name = session.get("zellij_session")
     # Historical shared-host metadata is read only to prevent accidentally closing it.
     zellij_name = None if (
-        session.get("codex_task_id") or candidate_zellij_name == "code"
+        session.get("agent_task_id") or candidate_zellij_name == "code"
     ) else candidate_zellij_name
     if zellij_name:
         current_zellij = os.environ.get("ZELLIJ_SESSION_NAME")
@@ -8434,7 +8262,7 @@ def _resolve_session_identity(sessions: dict) -> Optional[str]:
     try:
         return _resolve_session_id({"sessions": sessions})
     except RuntimeError:
-        return None if _codex_task_identity() else _resolve_session_from_zellij(sessions)
+        return None if _agent_task_identity() else _resolve_session_from_zellij(sessions)
 
 
 def cmd_track(args: argparse.Namespace) -> None:
@@ -8817,22 +8645,27 @@ def cmd_decision(args: argparse.Namespace) -> None:
     if not session_id:
         raise RuntimeError("Decision requires an existing owning session")
     session = data["sessions"][session_id]
-    source_session = args.source_session or _codex_task_identity()
+    source_session = args.source_session or _agent_task_identity()
+    if args.provider == "claude" and source_session != os.environ.get("CLAUDE_CODE_SESSION_ID"):
+        raise RuntimeError(
+            "Claude decision source must match the current CLAUDE_CODE_SESSION_ID"
+        )
     if args.provider == "codex" and source_session != os.environ.get("CODEX_THREAD_ID"):
         raise RuntimeError(
             "Codex decision source must match the current CODEX_THREAD_ID"
         )
+    source = {"provider": args.provider, "session_id": source_session, "message_id": args.message_id}
+    if not source["message_id"]:
+        if args.provider != "claude":
+            raise RuntimeError("--message-id is required for Codex decision sources")
+        source["message_id"] = workflow_decisions.find_user_message_id(source, args.quote)
     receipt = make_receipt(
         target=args.target,
         surface=args.surface,
         revision=args.revision,
         decision=args.decision,
         quote=args.quote,
-        source={
-            "provider": args.provider,
-            "session_id": source_session,
-            "message_id": args.message_id,
-        },
+        source=source,
     )
     plan_path = None
     if args.plan:
@@ -11695,10 +11528,17 @@ def _fetch_origin_dev_commit() -> str:
 
 def _required_control_plane_deploy_protocol_version(origin_ref: str) -> int:
     """Read the deploy protocol required by origin/dev, defaulting legacy refs to v1."""
+    marker = CONTROL_PLANE_DEPLOY_PROTOCOL_FILE
     rc, stdout, stderr = _run_cmd(
-        ["git", "show", f"{origin_ref}:{CONTROL_PLANE_DEPLOY_PROTOCOL_FILE}"],
+        ["git", "show", f"{origin_ref}:{marker}"],
         cwd=str(CONTROL_PLANE_ROOT),
     )
+    if rc != 0:
+        marker = LEGACY_CONTROL_PLANE_DEPLOY_PROTOCOL_FILE
+        rc, stdout, stderr = _run_cmd(
+            ["git", "show", f"{origin_ref}:{marker}"],
+            cwd=str(CONTROL_PLANE_ROOT),
+        )
     if rc != 0:
         commit_rc, _commit_stdout, commit_stderr = _run_cmd(
             ["git", "cat-file", "-e", f"{origin_ref}^{{commit}}"],
@@ -11711,11 +11551,11 @@ def _required_control_plane_deploy_protocol_version(origin_ref: str) -> int:
         version = int(stdout.strip())
     except ValueError as exc:
         raise RuntimeError(
-            f"Malformed control-plane deploy protocol in {CONTROL_PLANE_DEPLOY_PROTOCOL_FILE}: {stdout!r}"
+            f"Malformed control-plane deploy protocol in {marker}: {stdout!r}"
         ) from exc
     if version < 1:
         raise RuntimeError(
-            f"Malformed control-plane deploy protocol in {CONTROL_PLANE_DEPLOY_PROTOCOL_FILE}: {stdout!r}"
+            f"Malformed control-plane deploy protocol in {marker}: {stdout!r}"
         )
     return version
 
@@ -12231,7 +12071,6 @@ def _deploy_native_worktree(
             print(f"DEPLOYED BUT SESSION FINALIZATION BLOCKED — {exc}", file=sys.stderr)
             print(f"Retry after resolving residual work: python3 scripts/sessions.py end --session {sid}", file=sys.stderr)
             sys.exit(1)
-        _linear_complete_session(sid, latest_session, commit_sha=commit_hash)
         print(f"\nSession {sid} ended.")
     else:
         latest_data = _load_sessions()
@@ -12617,7 +12456,6 @@ def cmd_deploy(args: argparse.Namespace) -> None:
                     print(f"DEPLOYED BUT SESSION FINALIZATION BLOCKED — {exc}", file=sys.stderr)
                     print(f"Retry after resolving residual work: python3 scripts/sessions.py end --session {sid}", file=sys.stderr)
                     sys.exit(1)
-                _linear_complete_session(sid, latest_session, commit_sha=commit_hash)
                 print(f"Session {sid} ended.")
             else:
                 latest_data = _load_sessions()
@@ -12934,7 +12772,6 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             print(f"DEPLOYED BUT SESSION FINALIZATION BLOCKED — {exc}", file=sys.stderr)
             print(f"Retry after resolving residual work: python3 scripts/sessions.py end --session {sid}", file=sys.stderr)
             sys.exit(1)
-        _linear_complete_session(sid, latest_session, commit_sha=commit_hash)
         print(f"\nSession {sid} ended.")
     else:
         latest_data = _load_sessions()
@@ -12949,10 +12786,10 @@ def cmd_deploy(args: argparse.Namespace) -> None:
 
 def cmd_worktree(args: argparse.Namespace) -> None:
     """Manage automatic local session worktrees."""
-    if args.worktree_action == "bind-codex":
+    if args.worktree_action in {"bind-task", "bind-codex"}:
         try:
-            result = bind_codex_session(
-                args.session, args.codex_task, expected_worktree=args.expected_worktree,
+            result = bind_agent_task_session(
+                args.session, args.agent_task, expected_worktree=args.expected_worktree,
                 previous_owner_stopped=args.previous_owner_stopped,
             )
         except (OSError, RuntimeError, ValueError) as exc:
@@ -13135,9 +12972,14 @@ def cmd_specification(args: argparse.Namespace) -> None:
                 output = Path(args.output).resolve()
                 if not (output.is_relative_to(root / ".runtime") or output.is_relative_to(CONTROL_PLANE_ROOT / "logs")):
                     raise ValueError("Human evidence export must stay in private runtime/log storage")
+                source = {"provider": args.provider, "session_id": args.source_session,
+                          "message_id": args.message_id}
+                if not source["message_id"]:
+                    if args.provider != "claude":
+                        raise ValueError("--message-id is required for Codex waiver sources")
+                    source["message_id"] = waiver.decisions.find_user_message_id(source, args.quote)
                 value = waiver.build_export(root, session_id, session, plan=args.plan,
-                    specifications=args.specification, source={"provider": "codex",
-                        "session_id": args.source_session, "message_id": args.message_id}, quote=args.quote)
+                    specifications=args.specification, source=source, quote=args.quote)
                 encoded = (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
                 waiver.write_private(output, encoded)
                 print(json.dumps({"waiver_export": str(output), "sha256": hashlib.sha256(encoded).hexdigest(),
@@ -14516,7 +14358,6 @@ def cmd_debug_vercel(args: argparse.Namespace) -> None:
         run_id=None,
         since_last_deploy=False,
         task_id=None,
-        linear_issue=None,
 
     )
     cmd_start(start_args)
@@ -14571,7 +14412,6 @@ def _maybe_start_verification_session(args: argparse.Namespace, source_session_i
         run_id=None,
         since_last_deploy=False,
         task_id=None,
-        linear_issue=None,
 
     ))
     print(f"Next test commands should use --expected-commit {commit_sha or '<commit>'}.")
@@ -14908,9 +14748,11 @@ def main() -> None:
 
     p_decision = sub.add_parser("decision", help="Record exact scoped user acceptance, stop or waiver")
     p_decision.add_argument("--session", required=True)
-    p_decision.add_argument("--provider", choices=["codex"], default="codex")
+    p_decision.add_argument("--provider", choices=["claude", "codex"], default="claude",
+                            help="Transcript provider; codex only for historical Codex threads")
     p_decision.add_argument("--source-session", default="")
-    p_decision.add_argument("--message-id", required=True)
+    p_decision.add_argument("--message-id", default="",
+                            help="Original user-message id (Claude turn uuid); Claude defaults to the newest message containing --quote")
     p_decision.add_argument("--quote", required=True, help="Exact original user text; not persisted")
     p_decision.add_argument("--target", required=True, help="Exact Task or Plan id")
     p_decision.add_argument("--surface", choices=["appearance", "proof", "task"], required=True)
@@ -14993,11 +14835,18 @@ def main() -> None:
 
     p_worktree = sub.add_parser("worktree", help="Manage automatic local session worktrees")
     p_worktree_sub = p_worktree.add_subparsers(dest="worktree_action", required=True)
-    p_codex_bind = p_worktree_sub.add_parser("bind-codex", help="Adopt a reviewed stopped session without replacing its worktree")
-    p_codex_bind.add_argument("--session", required=True)
-    p_codex_bind.add_argument("--codex-task", required=True)
-    p_codex_bind.add_argument("--expected-worktree", required=True)
-    p_codex_bind.add_argument("--previous-owner-stopped", action="store_true", help="Attest the previous execution owner has stopped")
+    # "bind-codex" and "--codex-task" remain as undocumented legacy spellings.
+    for bind_action, bind_help in (
+        ("bind-task", {"help": "Adopt a reviewed stopped session without replacing its worktree"}),
+        ("bind-codex", {}),
+    ):
+        p_task_bind = p_worktree_sub.add_parser(bind_action, **bind_help)
+        p_task_bind.add_argument("--session", required=True)
+        bind_task = p_task_bind.add_mutually_exclusive_group(required=True)
+        bind_task.add_argument("--agent-task", dest="agent_task", help="Agent conversation (Claude Code session) ID")
+        bind_task.add_argument("--codex-task", dest="agent_task", help=argparse.SUPPRESS)
+        p_task_bind.add_argument("--expected-worktree", required=True)
+        p_task_bind.add_argument("--previous-owner-stopped", action="store_true", help="Attest the previous execution owner has stopped")
     p_worktree_root_dirty = p_worktree_sub.add_parser(
         "root-dirty", help="List safe dirty files in the canonical root without exposing contents"
     )
@@ -15082,8 +14931,10 @@ def main() -> None:
     p_waiver_export.add_argument("--session", required=True)
     p_waiver_export.add_argument("--plan", required=True)
     p_waiver_export.add_argument("--specification", action="append", required=True, help="Exact referenced Specification id; repeat to scope")
-    p_waiver_export.add_argument("--source-session", required=True, help="Original bound human Codex thread")
-    p_waiver_export.add_argument("--message-id", required=True, help="Existing original user-message identity")
+    p_waiver_export.add_argument("--provider", choices=["claude", "codex"], default="claude",
+                                 help="Transcript provider; codex only for historical Codex threads")
+    p_waiver_export.add_argument("--source-session", required=True, help="Original bound human agent session (Claude Code session ID)")
+    p_waiver_export.add_argument("--message-id", default="", help="Existing original user-message identity; Claude defaults to the newest message containing --quote")
     p_waiver_export.add_argument("--quote", required=True, help="Exact existing instruction; retained only in private evidence")
     p_waiver_export.add_argument("--output", required=True, help="Private runtime/log evidence artifact")
     p_waiver_import = p_specification_sub.add_parser("import-prompt-waiver", help="Carry verified private evidence into the same Task's explicit session")

@@ -2007,14 +2007,14 @@ def upload_response_media_video(
         command.append("--dry-run")
     result = subprocess.run(command, cwd=PROJECT_ROOT, check=False, capture_output=True, text=True)
     if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or result.stdout.strip() or "Codex response-media upload failed")
+        raise RuntimeError(result.stderr.strip() or result.stdout.strip() or "Response-media upload failed")
     try:
         payload = json.loads(result.stdout)
     except json.JSONDecodeError as exc:
-        raise RuntimeError("Codex response-media upload returned invalid JSON") from exc
+        raise RuntimeError("Response-media upload returned invalid JSON") from exc
     snippets = payload.get("snippets") if isinstance(payload, dict) else None
     if not isinstance(snippets, dict) or not snippets.get("html"):
-        raise RuntimeError("Codex response-media upload returned no embeddable HTML snippet")
+        raise RuntimeError("Response-media upload returned no embeddable HTML snippet")
     return payload
 
 
@@ -2061,7 +2061,7 @@ def publish_latest_playwright_response_media(
     latest = read_json(RESPONSE_MEDIA_LATEST_FILE, {})
     latest["playwright_spec"] = record
     write_json(RESPONSE_MEDIA_LATEST_FILE, latest)
-    print("Codex response-media video for latest Playwright spec run:")
+    print("Response-media video for latest Playwright spec run:")
     print(str(record["response_media_html"] or record["response_media_markdown"] or upload.get("url") or ""))
     return record
 
@@ -4030,10 +4030,10 @@ def _require_active_worker_session_owns_group(group_key: str) -> None:
     group_worker_claims = [claim for claim in active_worker_claims if claim.get("debug_group_key") == group_key]
     if not group_worker_claims:
         if env_worker_claims:
-            raise RuntimeError(f"Codex session {env_session} does not own debug group {group_key}")
+            raise RuntimeError(f"Agent session {env_session} does not own debug group {group_key}")
         return
     if not env_session:
-        raise RuntimeError(f"Codex session is required to mutate active debug group {group_key}")
+        raise RuntimeError(f"Agent session is required to mutate active debug group {group_key}")
     owner_sessions = {
         session
         for claim in group_worker_claims
@@ -4041,7 +4041,7 @@ def _require_active_worker_session_owns_group(group_key: str) -> None:
     }
     owner_sessions.discard("")
     if env_session not in owner_sessions:
-        raise RuntimeError(f"Codex session {env_session} does not own debug group {group_key}")
+        raise RuntimeError(f"Agent session {env_session} does not own debug group {group_key}")
 
 
 def prepare_debug_group(group_key: str, expected_behavior: str, acceptance_criteria: list[str]) -> dict[str, Any]:
@@ -4172,7 +4172,7 @@ def _require_active_debug_lease(
         if not env_session:
             raise RuntimeError("Worker lifecycle commands require an agent session ID (CLAUDE_CODE_SESSION_ID)")
         if not lease_session or env_session != lease_session:
-            raise RuntimeError(f"Codex session {env_session} does not own debug lease {lease_id}")
+            raise RuntimeError(f"Agent session {env_session} does not own debug lease {lease_id}")
     expires_at = parse_utc(str(lease.get("expires_at") or ""))
     if expires_at is not None and expires_at <= datetime.now(timezone.utc):
         raise RuntimeError(f"Debug lease {lease_id} is expired")
@@ -4436,7 +4436,7 @@ def _worker_harvest_metadata(group: dict[str, Any], lease: dict[str, Any], chang
         repository_id = worker_session_id if worker_session_id in data.get("sessions", {}) else ""
         if not repository_id:
             try:
-                matched = session_control.session_for_codex(data, worker_session_id)
+                matched = session_control.session_for_agent_task(data, worker_session_id)
                 repository_id = matched[0] if matched else ""
             except (RuntimeError, ValueError):
                 pass
@@ -4461,7 +4461,7 @@ def _known_worker_modified_files(worker_session_id: str) -> list[str]:
     sessions = data.get("sessions") or {}
     session = sessions.get(worker_session_id)
     if not isinstance(session, dict):
-        matched = session_control.session_for_codex(data, worker_session_id)
+        matched = session_control.session_for_agent_task(data, worker_session_id)
         session = matched[1] if matched else None
     if not isinstance(session, dict):
         return []
@@ -5076,9 +5076,9 @@ def active_lease_for_session(session_id: str = "", lease_id: str = "") -> dict[s
 
 
 def resolve_worker_task_id(task_id: str) -> str:
-    """Resolve an exact registered Codex worker, without title or transcript polling."""
+    """Resolve an exact registered agent worker, without title or transcript polling."""
     try:
-        matched = session_control.session_for_codex(session_control._load_sessions(), task_id)
+        matched = session_control.session_for_agent_task(session_control._load_sessions(), task_id)
     except (RuntimeError, ValueError):
         return ""
     return task_id if matched else ""
@@ -5097,9 +5097,9 @@ def _bind_pending_worker_lease_session(lease: dict[str, Any], session_id: str) -
         return lease
     resolved_session_id = resolve_worker_task_id(worker_id)
     if not resolved_session_id:
-        raise RuntimeError(f"Pending worker lease {lease_id} cannot be bound until Codex session {worker_id} resolves; retry lease-required")
+        raise RuntimeError(f"Pending worker lease {lease_id} cannot be bound until Agent session {worker_id} resolves; retry lease-required")
     if resolved_session_id != session_id:
-        raise RuntimeError(f"Codex session {session_id} does not match spawned worker chat {worker_id}")
+        raise RuntimeError(f"Agent session {session_id} does not match spawned worker chat {worker_id}")
     entry = _claim_entry_with_launch(
         lease,
         status="confirmed_by_worker",
@@ -5381,7 +5381,7 @@ def _require_debug_lease_release_identity(lease: dict[str, Any], action: str) ->
     if campaign_key:
         _require_campaign_coordinator_for_campaign(campaign_key, env_session, action)
         return
-    raise RuntimeError(f"Codex session {env_session} does not own debug lease {lease.get('lease_id') or lease.get('claim_key')}")
+    raise RuntimeError(f"Agent session {env_session} does not own debug lease {lease.get('lease_id') or lease.get('claim_key')}")
 
 
 def complete_lease(lease_id: str, commit: str = "", require_passing: bool = False) -> dict[str, Any]:

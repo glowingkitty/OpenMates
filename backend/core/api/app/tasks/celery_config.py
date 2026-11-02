@@ -230,7 +230,6 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.app_analytics_tasks'},  # App analytics daily aggregation tasks
     {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.software_update_tasks'},  # Software update auto-check tasks
     {'name': 'push',        'module': 'backend.core.api.app.tasks.push_notification_task'},  # Browser Web Push notifications
-    {'name': 'email',       'module': 'backend.core.api.app.tasks.linear_issue_task'},  # Auto-create Linear issues from user reports (routed to email queue)
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.ephemeral_log_promotion_tasks'},  # Promote ephemeral client logs on error to long-retention stream
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.workflow_tasks'},  # Workflows V1 scheduled/cleanup tasks
     {'name': 'workflow',    'module': 'backend.core.api.app.tasks.workflow_tasks'},  # Workflows V1 manual run tasks
@@ -1303,7 +1302,6 @@ _EXPLICIT_TASK_ROUTES = {
     "app.tasks.email_tasks.bank_transfer_reminder_email_task.send_bank_transfer_reminder": "email",
     "app.tasks.email_tasks.bank_transfer_amount_notice_email_task.send_bank_transfer_amount_notice": "email",
     "app.tasks.email_tasks.bank_transfer_duplicate_reference_email_task.send_bank_transfer_duplicate_reference": "email",
-    "app.tasks.linear_issue_task.create_linear_issue_for_report": "email",
     
     # Persistence tasks (custom names starting with app.tasks.persistence_tasks.*)
     "app.tasks.persistence_tasks.persist_chat_title": "persistence",

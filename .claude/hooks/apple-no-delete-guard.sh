@@ -2,7 +2,7 @@
 # Canonical Mac deletion-stop hook: every tool checks the same durable latch.
 # A stop is a terminal response, not a retry hint or permission prompt.
 # The Python helper never accepts a transcript, approval flag or timeout as a
-# human confirmation. Shared Codex adapters must preserve this result.
+# human confirmation. Shared agent adapters must preserve this result.
 set -u
 HOOK_ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd) || exit 2
 RESULT=$(python3 "$HOOK_ROOT/scripts/apple_no_delete_guard.py" hook)

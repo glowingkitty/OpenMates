@@ -93,12 +93,13 @@ def build_export(root: Path, session_id: str, session: dict, *, plan: str,
     selected = sorted(set(specifications))
     if not selected or not set(selected).issubset(context["referenced_specifications"]):
         raise ValueError("Waiver scope must name only explicitly referenced Specifications")
-    if task_id(session) != context["task_id"] or source.get("session_id") != session.get("codex_task_id"):
+    owner = session.get("agent_task_id") or session.get("codex_task_id")
+    if task_id(session) != context["task_id"] or source.get("session_id") != owner:
         raise ValueError("Human source and Plan must belong to the owning session and Task")
     message = (read_message or decisions.read_user_message)(source)
     if message.get("role") != "user" or not quote.strip() or quote not in message.get("text", ""):
         raise ValueError("Waiver needs the exact original human instruction")
-    if hashlib.sha256(message["text"].encode()).hexdigest() != source.get("message_id"):
+    if not _message_identity_matches(source, message["text"]):
         raise ValueError("Original human message identity does not match")
     scope = {"originating_session": session_id, "task_id": context["task_id"],
              "plan_path": context["plan_path"], "plan_id": context["plan_id"],
@@ -110,6 +111,15 @@ def build_export(root: Path, session_id: str, session: dict, *, plan: str,
             "evidence": {"role": "user", "text": message["text"], "quote": quote},
             "meaning": "Standing approval-prompt waiver only; no exact-fingerprint approval or proof claimed"}
 
+
+def _message_identity_matches(source: dict, text: str) -> bool:
+    """Codex ids are the text digest; Claude ids are the transcript turn UUID."""
+    if source.get("provider") == "codex":
+        return hashlib.sha256(text.encode()).hexdigest() == source.get("message_id")
+    if source.get("provider") == "claude":
+        return bool(re.fullmatch(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}",
+                                 str(source.get("message_id") or "")))
+    return False
 
 def validate_export(value: dict) -> dict:
     if value.get("schema_version") != 1 or value.get("kind") != KIND:
@@ -125,11 +135,11 @@ def validate_export(value: dict) -> dict:
             or scope["specification_ids"] != sorted(set(scope["specification_ids"]))):
         raise ValueError("Invalid waiver scope")
     source = record.get("source", {})
-    if (source.get("provider") != "codex" or evidence.get("role") != "user"
+    if (source.get("provider") not in decisions.PROVIDERS or evidence.get("role") != "user"
             or not isinstance(evidence.get("text"), str) or not isinstance(evidence.get("quote"), str)
             or not evidence["quote"].strip() or evidence["quote"] not in evidence["text"]
-            or hashlib.sha256(evidence["text"].encode()).hexdigest() != source.get("message_id")
-            or source.get("text_sha256") != source.get("message_id")):
+            or not _message_identity_matches(source, evidence["text"])
+            or hashlib.sha256(evidence["text"].encode()).hexdigest() != source.get("text_sha256")):
         raise ValueError("Invalid original human evidence")
     expected = decisions.make_receipt(target=scope["task_id"], surface=SURFACE,
         revision=digest(scope), decision="waive", source=source, quote=evidence["quote"],

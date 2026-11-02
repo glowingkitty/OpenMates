@@ -17,7 +17,7 @@ You are integrating a new external API provider. This is a research-first workfl
 
 ### Step 0: Confirm Permitted Access
 
-Follow the provider-specific data integration policy in `AGENTS.md`. Use only:
+Follow the provider-specific data integration policy in `.claude/rules/provider-integrations.md`. Use only:
 
 - A provider-supported documented API whose published terms permit the intended use.
 - An explicitly licensed open-data feed permitting the intended use.
@@ -37,7 +37,7 @@ controls or implement platform-specific scraping without the required written
 authorization.
 
 General on-demand public-page reading follows the separate `web.read` boundary
-in `AGENTS.md` and the guide: honor applicable crawler exclusions, use no proxy
+in `.claude/rules/provider-integrations.md` and the guide: honor applicable crawler exclusions, use no proxy
 or access-control bypass, and preserve complete extracted text in saved embeds.
 That boundary does not authorize a provider-specific connector or hidden API.
 

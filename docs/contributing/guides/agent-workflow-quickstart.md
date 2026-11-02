@@ -11,7 +11,7 @@ stacks and E2E runs. Repository helpers own workspace safety and scoped publishi
    `ci_coordinator.py submit`, and wait with `ci_coordinator.py wait <id>` or use
    existing completion events. JSON is opt-in when another program needs it.
    Retrieve existing web/CLI E2E recordings and run the selected run receipt's
-   `codex_evidence_command`. A failed/cancelled run with a run ID needs
+   `ci_evidence_command`. A failed/cancelled run with a run ID needs
    `ci_coordinator.py result <id>` first. Final chat links only the latest successful
    recording per requested check/flow across retries/reruns, or its latest available
    failed recording if that request never succeeded. Include distinct required
@@ -41,5 +41,6 @@ changed hook definitions with `/hooks`. Rules use `paths:` frontmatter so they
 load only for matching files; keep `CLAUDE.md` short because it always loads.
 
 Legacy conversation records are historical data, not executable workflow rules.
-See `docs/architecture/codex-task-cache.md` for task transport and recovery.
+See `openmates-tasks-dev-login.md` for the engineering Tasks login and recovery,
+and `docs/architecture/cli-codex-adapter.md` for the CLI's Codex Task adapter.
 

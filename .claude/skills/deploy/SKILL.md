@@ -17,7 +17,7 @@ and isolated CI. Retrieve existing web/CLI E2E recordings and link only the late
 successful recording per requested check/flow in the final chat; if that request
 never succeeded, link only its latest available failed recording. Include distinct
 required views, omit duplicate captures, and never append all attempts. Run the
-receipt's `codex_evidence_command` and select from its inventory under the testing
+receipt's `ci_evidence_command` and select from its inventory under the testing
 rule; report missing capture/upload failure for selected evidence explicitly.
 Extra edited/captioned proof production follows the
 accepted scope. Preserve explicitly required product-contract checks.

@@ -4,7 +4,7 @@
 # Frontend invariant: OpenMates is on Svelte 5. Mixing Svelte 4 reactive
 # syntax ($:, export let, <slot/>) with Svelte 5 runes ($state, $derived,
 # $effect, $props, {@render children()}) causes silent reactivity bugs
-# that surface as "weird UI glitch" Linear tasks.
+# that surface as "weird UI glitch" bug reports.
 #
 # Detects new additions of:
 #   - $:  reactive statements

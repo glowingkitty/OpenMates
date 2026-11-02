@@ -3,7 +3,7 @@
 Uses daemon discovery and the supported Unix WebSocket transport, never storage
 edits or server startup. Requests use unique IDs and explicit timeouts; an
 uncertain mutation must be reconciled by its caller, never retried blindly.
-See docs/architecture/codex-orchestration.md.
+See docs/architecture/cli-codex-adapter.md.
 """
 
 from __future__ import annotations

@@ -1,6 +1,6 @@
 # Concurrent work
 
-Each independent Codex task owns an isolated repository workspace. Child agents
+Each independent Claude Code session owns an isolated repository workspace. Child agents
 reuse the parent's binding unless explicitly assigned separate ownership. Do not
 spawn workers without authorization. Use `sessions.py start` once before editing;
 it reuses the current task binding. Never infer an owner from the newest activity.

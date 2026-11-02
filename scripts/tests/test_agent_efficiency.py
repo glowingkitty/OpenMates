@@ -16,9 +16,9 @@ from scripts.session_binding import resolve_session
 
 
 def test_session_binding_is_exact_host_scoped_and_never_falls_back_on_wrong_task(tmp_path):
-    state = {"sessions": {"one": {"codex_task_id": "thread", "codex_host": "host",
+    state = {"sessions": {"one": {"agent_task_id": "thread", "agent_host": "host",
                                   "worktree": {"path": str(tmp_path)}},
-                          "two": {"codex_task_id": "thread", "codex_host": "other"}}}
+                          "two": {"agent_task_id": "thread", "agent_host": "other"}}}
     assert resolve_session(state, thread_id="thread", host="host") == "one"
     assert resolve_session(state, cwd=tmp_path) == "one"
     with pytest.raises(RuntimeError, match="No session"):
@@ -132,7 +132,7 @@ def test_start_reuses_workspace_with_short_text_and_explicit_json(monkeypatch, c
     monkeypatch.setattr(sessions, "_resolve_repo_id", lambda value: "openmates")
     monkeypatch.setattr(sessions, "_repo_metadata", lambda value: {"repo_id": value, "repo_kind": "control_plane"})
     monkeypatch.setattr(sessions, "_validate_session_repo", lambda repo: None)
-    monkeypatch.setattr(sessions, "_codex_task_identity", lambda: "")
+    monkeypatch.setattr(sessions, "_agent_task_identity", lambda: "")
     monkeypatch.setattr(sessions, "_resolve_session_id", lambda state: "one")
     monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
     monkeypatch.setattr(sessions, "ensure_session_worktree", lambda sid: data["sessions"][sid]["worktree"])
@@ -160,7 +160,7 @@ def test_long_diagnostics_keep_complete_evidence(tmp_path):
 
 
 def test_task_binding_is_scoped_to_repository():
-    state = {"sessions": {"one": {"codex_task_id": "thread", "codex_host": "host", "repo_id": "openmates"},
-                          "two": {"codex_task_id": "thread", "codex_host": "host", "repo_id": "openmatescloud"}}}
+    state = {"sessions": {"one": {"agent_task_id": "thread", "agent_host": "host", "repo_id": "openmates"},
+                          "two": {"agent_task_id": "thread", "agent_host": "host", "repo_id": "openmatescloud"}}}
     assert resolve_session(state, thread_id="thread", host="host", repo_id="openmates") == "one"
     assert resolve_session(state, thread_id="thread", host="host", repo_id="openmatescloud") == "two"

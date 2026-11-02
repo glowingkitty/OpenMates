@@ -130,7 +130,7 @@ def _result(root: Path, name: str, source: str, *, state="success", delivery="de
     (path / "test-results" / "ci-artifacts.json").write_text("{}")
     (path / "receipt.json").write_text(json.dumps({"id": name, "source_commit": source,
                                                      "state": state, "cleanup": {"run_id": "1"}}))
-    (path / "codex-evidence.json").write_text(json.dumps({"records": {
+    (path / "ci-evidence.json").write_text(json.dumps({"records": {
         "evidence": {"recording": "available", "upload": "uploaded", "delivery": delivery}
     }}))
     old = time.time() - budget.RESULT_AGE_SECONDS - 3600
@@ -203,7 +203,7 @@ def test_cleanup_requires_reviewed_manifest_and_keeps_pending_and_failure(tmp_pa
     result = budget.cleanup(tmp_path, manifest=manifest)
     assert result["removed"] == [str(good)]
     assert (good / "receipt.json").exists()
-    assert (good / "codex-evidence.json").exists()
+    assert (good / "ci-evidence.json").exists()
     assert not (good / "test-results/large.webm").exists()
     assert (good / "test-results/ci-startup-phases.json").exists()
     assert (good / "test-results/ci-runtime-images.json").exists()
@@ -405,3 +405,10 @@ def test_inventory_counts_shared_worktree_inode_once(tmp_path):
                 + (second / "own.bin").stat().st_blocks) * 512
     assert report["totals"]["worktrees"] == expected
     assert all(item["action"] == "retain" for item in report["entries"])
+
+
+def test_legacy_evidence_inventory_still_counts_as_delivered(tmp_path):
+    (tmp_path / "codex-evidence.json").write_text(json.dumps({"records": {
+        "evidence": {"recording": "available", "upload": "uploaded", "delivery": "delivered"}
+    }}))
+    assert budget._evidence_complete(tmp_path)

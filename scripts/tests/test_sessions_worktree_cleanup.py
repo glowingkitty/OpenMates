@@ -41,7 +41,7 @@ def load_sessions_module():
     # Expiry unit tests own a synthetic runtime; dedicated tests below exercise
     # the real probes without consulting host services during filesystem tests.
     module._expiry_worktree_has_runtime_references = lambda _path: False
-    module._expiry_codex_thread_is_live = lambda _session: False
+    module._expiry_agent_task_is_live = lambda _session: False
     module._queue_coordinated_worktree_cleanup = lambda: False
     return module
 
@@ -450,7 +450,7 @@ def test_seven_day_expiry_ignores_stale_lifecycle_and_task_bindings(monkeypatch,
         path = managed / f"agent-{session_id}"
         path.mkdir(parents=True)
         session = {
-            "codex_task_id": "task-id",
+            "agent_task_id": "task-id",
             "last_active": last_active,
             "lifecycle": {"version": sessions.WORKSPACE_LIFECYCLE_VERSION},
             "worktree": {"path": str(path), "status": status},
@@ -1040,7 +1040,7 @@ def test_deploy_sync_never_captures_or_rewrites_unselected_staged_work(monkeypat
     assert _git(source, "status", "--porcelain").splitlines() == ["M deployed.txt", "M  remaining.txt"]
 
 
-@pytest.mark.parametrize("guard", ["none", "recent_activity", "valid_lease", "process", "codex"])
+@pytest.mark.parametrize("guard", ["none", "recent_activity", "valid_lease", "process", "agent"])
 def test_hard_expiry_stale_write_marker_requires_current_liveness(monkeypatch, tmp_path, guard):
     sessions = load_sessions_module()
     now = time.time()
@@ -1052,7 +1052,7 @@ def test_hard_expiry_stale_write_marker_requires_current_liveness(monkeypatch, t
     if guard == "valid_lease":
         data["edit_leases"]["source.py"]["since"] = sessions._now_iso()
     monkeypatch.setattr(sessions, "_expiry_worktree_has_runtime_references", lambda _p: guard == "process")
-    monkeypatch.setattr(sessions, "_expiry_codex_thread_is_live", lambda _s: guard == "codex")
+    monkeypatch.setattr(sessions, "_expiry_agent_task_is_live", lambda _s: guard == "agent")
     assert sessions._hard_expiry_record_is_live(
         {"session_id": "old", "path": str(tmp_path)}, data, now_timestamp=now, idle_hours=96,
     ) is (guard != "none")
@@ -1111,25 +1111,16 @@ def test_expiry_runtime_probe_preserves_uninspectable_process(monkeypatch, tmp_p
     assert sessions._expiry_worktree_has_runtime_references(tmp_path)
 
 
-@pytest.mark.parametrize('status,age,complete,expected', [
-    ('active', 0, True, True),
-    ('idle', 0, True, False),
-    ('notLoaded', 0, True, False),
-    ('idle', 300, True, True),
-    ('idle', 0, False, True),
-    ('unknown', 0, True, True),
+@pytest.mark.parametrize('current,bound,expected', [
+    ('bound-thread', 'bound-thread', True),
+    ('other-thread', 'bound-thread', False),
+    ('', 'bound-thread', False),
+    ('bound-thread', '', False),
 ])
-def test_expiry_codex_presence_requires_fresh_complete_idle_inventory(monkeypatch, tmp_path, status, age, complete, expected):
+def test_expiry_agent_task_is_live_only_for_the_running_conversation(monkeypatch, current, bound, expected):
     sessions = _real_runtime_probe()
-    from scripts import codex_task_adapter
-    state = tmp_path / 'adapter.json'
-    state.write_text(json.dumps({'presence': {
-        'checked_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(time.time() - age)),
-        'complete': complete, 'connection': 'connected',
-        'threads': {'bound-thread': {'status': status}},
-    }}))
-    monkeypatch.setattr(codex_task_adapter, 'adapter_path', lambda _root: state)
-    assert sessions._expiry_codex_thread_is_live({'codex_thread_id': 'bound-thread'}) is expected
+    monkeypatch.setattr(sessions, '_agent_task_identity', lambda: current)
+    assert sessions._expiry_agent_task_is_live({'agent_task_id': bound}) is expected
 
 
 @pytest.mark.parametrize('outcome', ['reference', 'none', 'denied', 'error', 'reused'])

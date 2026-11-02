@@ -329,7 +329,7 @@ def dispatch_email() -> None:
     normalized_payload = _build_test_run_payload(results_dir, environment)
 
     # Include Codex analysis session ID if one was produced during this run.
-    codex_task_id = agent_thread_id().strip() or None
+    agent_task_id = agent_thread_id().strip() or None
 
     # Dispatch via internal API endpoint.
     # When running on the host (via crontab), use localhost:8000 since
@@ -341,7 +341,7 @@ def dispatch_email() -> None:
     payload = {
         "recipient_email": admin_email,
         **normalized_payload,
-        "claude_session_id": codex_task_id,
+        "claude_session_id": agent_task_id,
     }
 
     try:

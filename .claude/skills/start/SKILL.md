@@ -10,4 +10,4 @@ Use the returned workspace; subsequent commands infer the binding from
 this Claude conversation (`CLAUDE_CODE_SESSION_ID`).
 SSH/manual commands use the returned `--session`. Repeated starts reuse the
 binding. Child agents reuse their parent's binding. Use `--full` only for a
-deliberate context/diagnostic inspection. Shared policy is in `AGENTS.md`.
+deliberate context/diagnostic inspection. Shared policy is in `CLAUDE.md`.

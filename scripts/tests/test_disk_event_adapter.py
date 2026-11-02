@@ -2,7 +2,6 @@
 import copy
 import pytest
 from scripts import codex_task_adapter as adapter
-from scripts.codex_cached_context import render_event
 
 OWNER = "00000000-0000-0000-0000-000000000001"
 
@@ -206,12 +205,6 @@ def test_missing_task_identity_notifies_thread_and_binds_only_a_unique_task():
     assert not adapter.disk_delivery_valid(notice, state, tasks, {OWNER}, ledger)
     assert any(item["data"].get("task_id") == "task" for item in state["deliveries"].values())
     assert ledger.bindings == [("request", OWNER, "task")]
-
-
-# contract-test: tooling
-def test_disk_context_clearly_distinguishes_wait_and_reserved_ready():
-    assert "Waiting for disk" in render_event({"kind": "disk_wait", "data": {"id": "request"}})
-    assert "must claim" in render_event({"kind": "disk_ready", "data": {"id": "request", "grant_id": "grant"}})
 
 
 # contract-test: tooling

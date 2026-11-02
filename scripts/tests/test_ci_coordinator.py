@@ -261,8 +261,8 @@ def test_text_receipts_expose_retained_evidence_and_upload_action(tmp_path, caps
     print_receipt(receipt)
     output = capsys.readouterr().out
     assert f"directory: {tmp_path}" in output
-    assert f"codex_evidence: {tmp_path / 'codex-evidence.json'}" in output
-    assert f"codex_evidence_command: python3 scripts/codex_evidence.py {tmp_path} --upload" in output
+    assert f"ci_evidence: {tmp_path / 'ci-evidence.json'}" in output
+    assert f"ci_evidence_command: python3 scripts/ci_evidence.py {tmp_path} --upload" in output
     assert "private.example.test" not in output
 
 
@@ -804,3 +804,16 @@ def test_source_coverage_manifest_rejects_missing_or_malformed_source(tmp_path, 
         monkeypatch.setattr("scripts.ci_coordinator.subprocess.check_output", git_show)
         with pytest.raises(RuntimeError, match="Source coverage manifest unavailable or malformed"):
             partition_source_specs(["candidate-only.spec.ts"], "c" * 40, tmp_path)
+
+
+def test_text_receipts_still_print_legacy_evidence_keys(capsys):
+    from scripts.ci_coordinator import print_receipt
+
+    print_receipt({
+        "id": "check", "state": "success",
+        "codex_evidence": "/results/codex-evidence.json",
+        "codex_evidence_command": "python3 scripts/ci_evidence.py /results --upload",
+    })
+    output = capsys.readouterr().out
+    assert "codex_evidence: /results/codex-evidence.json" in output
+    assert "codex_evidence_command: python3 scripts/ci_evidence.py /results --upload" in output

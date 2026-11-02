@@ -10,5 +10,5 @@ ownership is unknown. Reuse the binding and preserved changes. Do not launch a
 replacement terminal, invoke a retired restore command, or redo completed work.
 Ask only if an unresolved decision blocks the remaining work. Ownership transfer
 requires confirmation that the prior owner has stopped, then
-`sessions.py worktree bind-codex --session <id> --codex-task "$CLAUDE_CODE_SESSION_ID"
---expected-worktree <path> --previous-owner-stopped` (binds it to this conversation). Follow `AGENTS.md` and `.claude/rules/testing.md`.
+`sessions.py worktree bind-task --session <id> --agent-task "$CLAUDE_CODE_SESSION_ID"
+--expected-worktree <path> --previous-owner-stopped` (binds it to this conversation). Follow `CLAUDE.md` and `.claude/rules/testing.md`.

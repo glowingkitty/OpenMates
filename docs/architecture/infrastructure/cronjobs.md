@@ -73,7 +73,6 @@ Automatic agent launches were turned off and their obsolete scheduling implement
 | `release-intelligence-cron.sh` | Daily, weekly and monthly changelog collection |
 | `update_obsidian_daily_note.py` | Daily-note statistics and activity |
 | Managed GitHub test schedules | Separate CI ownership; scheduler removal does not dispatch or relocate tests |
-| Linear archive and artifact maintenance | Retained installer: `linear-cron-setup.sh` |
 | `sessions.py` routing/deploy and worktree reconciliation | Shared repository lifecycle, separate from retired automatic chat scheduling |
 | `_daily_meeting_helper.py dry-run` | Manual data gathering and prompt preview without launching AI |
 | Manual transcript/review tools and Claude compatibility | Preserved for existing records and explicit use |
@@ -84,9 +83,11 @@ The `sessions.py monitor` command, cadence helper, `monitor_ready` operation and
 
 The Vercel failure-to-repair launcher, deep AI security review and legal/compliance AI review launchers are removed; their prompt/folder requirements and historical findings remain for TASK-8338.
 
+The Linear agent workflow is retired: the `linear-archive` and `linear-cleanup` user timers, `linear-cron-setup.sh`, `scripts/linear.py`, `_linear_client.py` and the Linear skills/hook were removed. The `session-cleanup` timer remains and only enforces the Zellij session cap.
+
 The Linear label poller, host trigger watcher, weekday meeting launcher, nightly issue review, codebase audit, nightly quick-win/pattern/code-structure/UI/Apple/SEO launchers and weekly AI recommendation helpers are retired. Their historical reports, original task/worktree records and prompt requirements remain available. Removing a launcher does not remove its deterministic scanner. EU vulnerability entry points retain deterministic collection and reporting, without remediation chats or legacy dispatch tracking. The Dependabot launcher tail is removed; its automatic schedule stays off and deterministic digest collection stays intact. Security audit/red-team entry points ingest existing snapshots through the digest adapter, which retains missing/stale snapshot checks; they do not create a fresh AI review.
 
-Retired runtime registrations were removed after inspecting their actual definitions and dependencies. Recoverable local unit/crontab copies are in `logs/codex-orchestration/2026-09-07-6989/scheduler-registration-backup/`. No product service or shared work-life `allowed` guard is part of this removal.
+Retired runtime registrations were removed after inspecting their actual definitions and dependencies. Recoverable local unit/crontab copies are in `logs/codex-orchestration/2026-09-07-6989/scheduler-registration-backup/` (a historical directory named after the retired Codex agent workflow). No product service or shared work-life `allowed` guard is part of this removal.
 
 ## Future workflow requirements — TASK-8338
 

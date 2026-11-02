@@ -1,6 +1,6 @@
 ---
 name: main-processor-guru
-description: Diagnose bugs in the AI inference pipeline — tool call parsing, hallucinated skills, streaming phases, PII placeholders, embed_ref generation, skill_executor dispatch. Use for any main_processor.py or skill_executor.py issue, any `app:ai` Linear label, or errors mentioning "tool call", "skill not found", "streaming stuck", "budget exceeded". Pre-loaded with the 6-phase pipeline map and recent contract rules.
+description: Diagnose bugs in the AI inference pipeline — tool call parsing, hallucinated skills, streaming phases, PII placeholders, embed_ref generation, skill_executor dispatch. Use for any main_processor.py or skill_executor.py issue, or errors mentioning "tool call", "skill not found", "streaming stuck", "budget exceeded". Pre-loaded with the 6-phase pipeline map and recent contract rules.
 tools: Read, Grep, Glob, Bash
 model: sonnet
 maxTurns: 30

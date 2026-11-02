@@ -9,7 +9,7 @@ argument-hint: "<spec.ts | CLI command> [visible claim]"
 
 Existing web/CLI E2E recording delivery is always required by
 `.claude/rules/testing.md`: download the run artifact, run its
-`codex_evidence_command` and select final links from its inventory: only the latest
+`ci_evidence_command` and select final links from its inventory: only the latest
 successful recording per requested check/flow, or its latest available failed
 recording if that request never succeeded. Include distinct required views; omit
 duplicates and superseded attempts, with no appendix of all recordings.

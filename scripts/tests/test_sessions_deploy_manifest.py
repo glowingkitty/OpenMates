@@ -118,6 +118,30 @@ def test_missing_deploy_protocol_marker_defaults_to_legacy_v1(monkeypatch):
     assert sessions._required_control_plane_deploy_protocol_version("origin/dev") == 1
 
 
+def test_deploy_protocol_marker_reads_neutral_path_then_legacy_codex_path(monkeypatch):
+    sessions = load_sessions_module()
+    shown = []
+
+    def fake_run_cmd(command, **_kwargs):
+        assert command[:2] == ["git", "show"]
+        shown.append(command[2])
+        if command[2].endswith(":scripts/deploy-protocol-version"):
+            return 128, "", "path missing"
+        return 0, "3", ""
+
+    monkeypatch.setattr(sessions, "_run_cmd", fake_run_cmd)
+
+    assert sessions._required_control_plane_deploy_protocol_version("origin/dev") == 3
+    assert shown == ["origin/dev:scripts/deploy-protocol-version", "origin/dev:.codex/deploy-protocol-version"]
+
+
+def test_checked_in_deploy_protocol_markers_match_runtime():
+    sessions = load_sessions_module()
+    root = Path(sessions.__file__).resolve().parents[1]
+    for marker in (sessions.CONTROL_PLANE_DEPLOY_PROTOCOL_FILE, sessions.LEGACY_CONTROL_PLANE_DEPLOY_PROTOCOL_FILE):
+        assert int((root / marker).read_text().strip()) == sessions.CONTROL_PLANE_DEPLOY_PROTOCOL_VERSION
+
+
 def test_higher_deploy_protocol_marker_blocks_stale_runtime(monkeypatch):
     sessions = load_sessions_module()
     monkeypatch.setattr(sessions, "CONTROL_PLANE_DEPLOY_PROTOCOL_VERSION", 2)

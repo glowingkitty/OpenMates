@@ -6,19 +6,24 @@ unresolved decision, and pause the work that depends on it. A test execution wai
 does not waive maintaining coverage unless the user says so.
 
 `_workflow_decisions.py` retains optional scoped receipts for exact target,
-surface and revision. New receipts validate original Codex user-message provenance
-through the thread's JSONL. Missing history cannot grant a pass or silently resume
+surface and revision. New receipts validate original user-message provenance in
+the Claude Code session transcript (`~/.claude/projects/<slug>/<session>.jsonl`;
+the message id is the human turn's `uuid`, and the source session must be the
+current `CLAUDE_CODE_SESSION_ID`). Historical receipts with provider `codex`
+are still verified against Codex session JSONL. Missing history cannot grant a pass or silently resume
 stopped work. Historical receipt/provider fields remain preserved as data.
 Ordinary authorized work does not require manufacturing an approval artifact.
 
-A repository session binds a Codex task UUID, host and repository to a workspace.
+A repository session binds an agent task UUID (the Claude Code session ID), host
+and repository to a workspace (`agent_task_id`/`agent_host`; legacy `codex_*`
+fields are migrated on load).
 Resolve exact identity, never the most recently active session. Supported hook
 payloads are anchored to that workspace. Explicit write claims/edit leases retain
 shared-operation ownership; a hook is routing assistance, not an OS sandbox.
 
 For an approved transfer from a stopped owner, use canonical `sessions.py worktree
-bind-codex` with `--session`, `--codex-task`, `--expected-worktree` and
-`--previous-owner-stopped`. It preserves the workspace and historical metadata.
+bind-task` with `--session`, `--agent-task`, `--expected-worktree` and
+`--previous-owner-stopped` (`bind-codex`/`--codex-task` remain accepted aliases). It preserves the workspace and historical metadata.
 Never reset or recreate a workspace simply to resolve a routing mismatch.
 
 Deployment protocol 3 uses admission before preparation and the existing short

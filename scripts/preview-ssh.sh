@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # scripts/preview-ssh.sh
 #
-# Codex-friendly wrapper around SSH to the isolated preview server. It mirrors
+# Agent-friendly wrapper around SSH to the isolated preview server. It mirrors
 # scripts/prod-ssh.sh but targets preview.openmates.org and uses a separate
 # ControlMaster socket so preview access cannot collide with core or upload.
 # Resolves the private .env from the canonical checkout when used in a worktree.

@@ -308,8 +308,6 @@ def format_note(issue: dict[str, Any], env: str) -> str:
     created = (issue_timestamp(issue) or datetime.now(timezone.utc)).strftime("%Y-%m-%dT%H:%M:%SZ")
     url = redact_url(related_url(issue))
     key = cluster_key(issue)
-    linear = issue.get("linear_issue_identifier") or ""
-    linear_items = f"[{linear}]" if linear else "[]"
     return f"""---
 issue_id: {issue_id}
 short_issue_id: {short_issue_id or 'null'}
@@ -318,7 +316,6 @@ status: open
 title: {json.dumps(title, ensure_ascii=False)}
 reported_at: {created}
 github: []
-linear: {linear_items}
 cluster_key: {key}
 resolved_by: []
 verified_by: []
@@ -372,9 +369,8 @@ def print_issue_table(issues: list[dict[str, Any]]) -> None:
         display_id = display_issue_id(issue)
         title = str(issue.get("title") or "")
         env = str(issue.get("_env") or "?")
-        linear = issue.get("linear_issue_identifier") or "-"
         processed = "processed" if issue.get("processed") else "open"
-        print(f"{index:>3}. [{env}] {display_id}  {created_text}  {processed}  Linear:{linear}")
+        print(f"{index:>3}. [{env}] {display_id}  {created_text}  {processed}")
         print(f"     {title}")
         url = redact_url(related_url(issue))
         if url:
@@ -424,7 +420,6 @@ def command_show(args: argparse.Namespace) -> int:
     print(f"Title: {issue.get('title') or ''}")
     print(f"Reported: {issue.get('created_at') or issue.get('timestamp') or ''}")
     print(f"Processed: {issue.get('processed', 'unknown')}")
-    print(f"Linear: {issue.get('linear_issue_identifier') or '-'}")
     url = redact_url(str(decrypted.get("chat_or_embed_url") or issue.get("chat_or_embed_url") or ""))
     print(f"Cluster: {cluster_key(issue)}")
     if url:
@@ -505,8 +500,6 @@ def command_link(args: argparse.Namespace) -> int:
     note = path.read_text(encoding="utf-8")
     if args.github:
         note = append_list_frontmatter_value(note, "github", str(args.github))
-    if args.linear:
-        note = append_list_frontmatter_value(note, "linear", str(args.linear))
     path.write_text(note, encoding="utf-8")
     print(path.relative_to(PROJECT_ROOT))
     return 0
@@ -568,11 +561,10 @@ def build_parser() -> argparse.ArgumentParser:
     mark_parser.add_argument("--status", required=True)
     mark_parser.set_defaults(func=command_mark)
 
-    link_parser = subparsers.add_parser("link", help="Add GitHub or Linear references to findings note")
+    link_parser = subparsers.add_parser("link", help="Add GitHub references to findings note")
     link_parser.add_argument("issue_id")
     link_parser.add_argument("--env", default="prod", choices=["prod", "production", "dev", "development"])
     link_parser.add_argument("--github")
-    link_parser.add_argument("--linear")
     link_parser.set_defaults(func=command_link)
 
     return parser

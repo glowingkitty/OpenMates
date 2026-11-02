@@ -45,12 +45,17 @@ if [ -f "$SESSIONS_FILE" ]; then
   # Get relative path for matching against session tracked files.
   REL_FILE=$(normalize_repo_relative "$FILE")
 
-  # Codex identity is host-scoped; Claude retains its unique terminal fallback.
-  if [ -n "${CODEX_THREAD_ID:-${CODEX_SESSION_ID:-}}" ]; then
-    CURRENT_SESSION=$(jq -r --arg id "${CODEX_THREAD_ID:-$CODEX_SESSION_ID}" --arg host "$(hostname)" \
-      '[.sessions | to_entries[] | select(.value.codex_task_id == $id and .value.codex_host == $host) | .key] | if length == 1 then .[0] else empty end' \
+  # Agent identity is host-scoped: the hook payload's Claude session first, then
+  # the environment (legacy Codex variables last); unbound terminals keep the
+  # unique zellij fallback. Records may still carry legacy codex_* field names.
+  AGENT_ID=$(echo "$INPUT" | jq -r '.session_id // empty')
+  AGENT_ID="${AGENT_ID:-${CLAUDE_CODE_SESSION_ID:-${CODEX_THREAD_ID:-${CODEX_SESSION_ID:-}}}}"
+  if [ -n "$AGENT_ID" ]; then
+    CURRENT_SESSION=$(jq -r --arg id "$AGENT_ID" --arg host "$(hostname)" \
+      '[.sessions | to_entries[] | select((.value.agent_task_id // .value.codex_task_id) == $id and (.value.agent_host // .value.codex_host) == $host) | .key] | if length == 1 then .[0] else empty end' \
       "$SESSIONS_FILE" 2>/dev/null)
-  else
+  fi
+  if [ -z "$CURRENT_SESSION" ]; then
     CURRENT_SESSION=$(jq -r --arg z "${ZELLIJ_SESSION_NAME:-}" \
       '[.sessions | to_entries[] | select($z != "" and .value.zellij_session == $z) | .key] | if length == 1 then .[0] else empty end' \
       "$SESSIONS_FILE" 2>/dev/null)

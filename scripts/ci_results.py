@@ -1618,12 +1618,12 @@ def attach_visual_evidence(result, directory):
     # Collect immutable delivery obligations on both green and failed retrievals.
     # Upload is an explicit separate command: it cannot change the test verdict.
     try:
-        from scripts.codex_evidence import prepare
+        from scripts.ci_evidence import prepare
     except ModuleNotFoundError:
-        from codex_evidence import prepare
-    result["codex_evidence"] = str(prepare(directory, result))
-    result["codex_evidence_command"] = (
-        f"python3 scripts/codex_evidence.py {directory} --upload"
+        from ci_evidence import prepare
+    result["ci_evidence"] = str(prepare(directory, result))
+    result["ci_evidence_command"] = (
+        f"python3 scripts/ci_evidence.py {directory} --upload"
     )
     return result
 

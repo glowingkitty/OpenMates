@@ -73,7 +73,7 @@ Active work, unfinished source, containers, archives and undelivered proof remai
 protected. Managed payloads retain reviewed opt-in and receipt revalidation.
 Worktrees use existing 96-hour expiry and verified recovery snapshots. A stale
 writing marker is not a permanent lease: recent activity, live edit leases,
-foreground Codex activity, process references and container mounts protect work.
+the running agent session's own binding, process references and container mounts protect work.
 Unavailable relevant runtime inspection retains the worktree. Docker removes unused
 build cache and aged dangling images, preserving every tagged rollback candidate,
 container, volume and network.

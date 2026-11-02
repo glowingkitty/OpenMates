@@ -35,7 +35,9 @@ MAX_USED_PERCENT = 85
 RESULT_AGE_SECONDS = 14 * 24 * 3600
 RESULT_ID = re.compile(r"[A-Za-z0-9_-]{6,100}")
 RETAINED_RESULT_NAMES = frozenset({
-    "receipt.json", "ci-cleanup.json", "codex-evidence.json", "codex-evidence.lock",
+    "receipt.json", "ci-cleanup.json", "ci-evidence.json", "ci-evidence.lock",
+    # Inventories written before the ci_evidence rename.
+    "codex-evidence.json", "codex-evidence.lock",
     "ci-environment.json", "ci-results.json", "ci-startup-phases.json",
     "ci-runtime-images.json", "ci-artifacts.json",
 })
@@ -338,7 +340,10 @@ def _payload_snapshot(paths: list[Path], base: Path) -> str:
 
 
 def _evidence_complete(directory: Path) -> bool:
-    path = directory / "codex-evidence.json"
+    path = directory / "ci-evidence.json"
+    if not path.is_file():
+        # Inventories written before the ci_evidence rename.
+        path = directory / "codex-evidence.json"
     if not path.is_file():
         return False
     try:

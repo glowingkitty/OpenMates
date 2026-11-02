@@ -1,6 +1,6 @@
 # Agent workflow
 
-`AGENTS.md` is the shared policy root. Use Codex and the installed OpenMates CLI.
+`CLAUDE.md` and `.claude/rules/` hold policy. Use Claude Code and the installed OpenMates CLI.
 Read only relevant source, tests and domain guidance. Read-only work needs no
 repository session; before mutation use `sessions.py start --mode <mode> --task
 <outcome>` and its returned workspace. Repeated starts reuse the task binding.

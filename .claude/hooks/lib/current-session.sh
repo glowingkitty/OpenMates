@@ -9,7 +9,7 @@ current_session_id() {
   [ -f "$sessions_file" ] || return 0
   jq -r --arg id "$claude_id" --arg cwd "$cwd" '
     (.sessions // {}) | to_entries as $all
-    | ([$all[] | select($id != "" and .value.codex_task_id == $id) | .key]) as $byid
+    | ([$all[] | select($id != "" and ((.value.agent_task_id // .value.codex_task_id) == $id)) | .key]) as $byid
     | if ($byid | length) == 1 then $byid[0]
       else
         [$all[] | select((.value.worktree.path // "") as $p

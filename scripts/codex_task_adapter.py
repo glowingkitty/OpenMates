@@ -109,6 +109,16 @@ def repository_checkout(root, location):
     return presence.repository_checkout(root, location)
 
 
+def record_task_id(record):
+    """Bound agent task of a sessions.json record (legacy ``codex_task_id`` too)."""
+    return record.get("agent_task_id") or record.get("codex_task_id")
+
+
+def record_host(record):
+    """Execution host of a sessions.json record (legacy ``codex_host`` too)."""
+    return record.get("agent_host") or record.get("codex_host")
+
+
 def execution_threads(root, config, disk_requests=()):
     """Explicit pilots or actual local repository bindings, never cache visibility."""
     host = socket.gethostname()
@@ -121,7 +131,7 @@ def execution_threads(root, config, disk_requests=()):
     if config.get("all_threads") and path.exists():
         sessions = json.loads(path.read_text()).get("sessions", {})
         for session_id, record in sessions.items():
-            thread = record.get("codex_task_id")
+            thread = record_task_id(record)
             worktree = record.get("worktree") or {}
             location = worktree.get("path")
             provisioning_wait = (
@@ -143,7 +153,7 @@ def execution_threads(root, config, disk_requests=()):
             )
             if (
                 thread
-                and record.get("codex_host") == host
+                and record_host(record) == host
                 and worktree.get("status") != "removed"
                 and ((worktree.get("status") != "merged" and
                       ((location and repository_checkout(root, location)) or provisioning_wait)) or merged_wait)
@@ -192,10 +202,10 @@ def observe_ci(root, config, state, allowed):
         return
     sessions = json.loads(sessions_path.read_text()).get("sessions", {})
     owners = {
-        sid: record.get("codex_task_id")
+        sid: record_task_id(record)
         for sid, record in sessions.items()
-        if record.get("codex_host") == socket.gethostname()
-        and record.get("codex_task_id") in allowed
+        if record_host(record) == socket.gethostname()
+        and record_task_id(record) in allowed
     }
     if not owners:
         return

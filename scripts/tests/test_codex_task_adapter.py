@@ -9,7 +9,6 @@ import json
 import io
 import pytest
 from scripts import codex_task_adapter as adapter
-from scripts import codex_orchestration as legacy
 from scripts.ci_coordinator import Queue
 
 OWNER = "00000000-0000-0000-0000-000000000001"
@@ -243,17 +242,6 @@ def test_only_confirmed_delete_of_registered_chat_enqueues_unlink():
     )
     assert next(iter(state["deliveries"].values()))["kind"] == "chat_deleted"
     assert state["threads"][OWNER]["paused"]
-
-
-# contract-test: tooling
-def test_migrated_old_observer_cannot_read_or_start_threads(tmp_path):
-    path = tmp_path / "state.json"
-    with legacy.transaction(path) as state:
-        state.update(enabled=True, adapter_mode="task_cache", coordinator=PARENT)
-    rpc = RPC()
-    legacy.observe_tick(path, rpc)
-    legacy.deliver(path, rpc)
-    assert rpc.calls == []
 
 
 # contract-test: tooling

@@ -7,7 +7,7 @@ paths:
   - "**/test_*.py"
   - "apple/**/*Tests*/**"
   - "scripts/ci_coordinator.py"
-  - "scripts/codex_evidence.py"
+  - "scripts/ci_evidence.py"
   - ".github/workflows/**"
 ---
 # Verification
@@ -48,9 +48,9 @@ behavior or material scope growth; keep the patch and evidence.
 ## E2E recording delivery (web, component, CLI)
 1. `ci_coordinator.py wait <id>` downloads artifacts on success; for failed or
    cancelled runs use `ci_coordinator.py result <id>`.
-2. Run the receipt's evidence command (normally
-   `python3 scripts/codex_evidence.py <dir> --upload`). Its output is an
-   internal inventory; never paste it wholesale.
+2. Run the receipt's `ci_evidence_command` (older receipts name it
+   `codex_evidence_command`; normally `python3 scripts/ci_evidence.py <dir>
+   --upload`). Its output is an internal inventory; never paste it wholesale.
 3. In the final reply link, per requested flow, only the latest successful
    recording (or, if it never passed, the latest failed one), labelled with test
    and result. Include extra device/participant views only when required. No
