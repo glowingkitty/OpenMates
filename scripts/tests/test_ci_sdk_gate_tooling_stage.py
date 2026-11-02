@@ -21,13 +21,17 @@ synthetic_trust = _helpers.synthetic_trust
 UNIT = "scripts/tests/test_sdk_conformance_gate.py"
 ORDER = [
     "rust-toolchain",
+    "wasm-target",
+    "wasm-bindgen-install",
     "python-environment",
     "node-dependencies",
     "python-dependencies",
     "sdk-library-units",
     "binding-library-units",
     "napi-build",
+    "python-native-build",
     "python-binding-build",
+    "wasm-build",
     "sdk-facade-build",
     "sdk-gate-tooling",
     "napi-load",
@@ -137,9 +141,13 @@ def test_actual_recipe_fixed_tooling_stage_is_fenced_and_blocks_later_product_st
         if stage == "napi-build":
             node.parent.mkdir(parents=True)
             node.write_bytes(blob)
-        elif stage == "python-binding-build":
+        elif stage == "python-native-build":
             py.parent.mkdir(parents=True)
             py.write_bytes(blob + b"python")
+        elif stage == "wasm-build":
+            wasm = root / "frontend/packages/openmates-cli/wasm/openmates_sdk_bg.wasm"
+            wasm.parent.mkdir(parents=True)
+            wasm.write_bytes(b"\0asm\x01\0\0\0" + bytes(64))
         elif stage == "sdk-facade-build":
             dist = root / "frontend/packages/openmates-cli/dist"
             dist.mkdir()
@@ -200,13 +208,15 @@ def test_actual_recipe_fixed_tooling_stage_is_fenced_and_blocks_later_product_st
         (root / "test-results/ci-private").iterdir()
     )
     if fault is None:
+        assert ORDER == list(sdk.RECIPE_STAGES)
         assert (
             stages == ORDER
             and evidence["status"] == "passed"
             and results[0]["exit_code"] == 0
         )
         assert (
-            9 in fences and 10 in fences
+            ORDER.index("sdk-gate-tooling") in fences
+            and ORDER.index("sdk-gate-tooling") + 1 in fences
         )  # full real PROGRAM/CONTRACT fences bracket actual stage
     else:
         expected = {

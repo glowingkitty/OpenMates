@@ -216,8 +216,8 @@ def green_sdk_evidence(tmp_path):
     evidence.update(inputs=inputs, inputSetSha256=sdk.sha(json.dumps(inputs, sort_keys=True).encode()),
                     locks={name: inputs[name] for name in sdk.LOCKS}, dist={"frontend/packages/openmates-cli/dist/sdk-entry.js": "d" * 64},
                     steps=[{"stage": stage, "status": "passed", "returncode": 0, "terminatedReturncode": 0, "elapsedSeconds": 1}
-                           for stage in ["rust-toolchain", "python-environment", "node-dependencies", "python-dependencies", "sdk-library-units", "binding-library-units", "napi-build", "python-binding-build", "sdk-facade-build", "napi-load", "python-load", "real-conformance"]])
-    for step in evidence["steps"][4:6]:
+                           for stage in sdk.RECIPE_STAGES])
+    for step in [row for row in evidence["steps"] if row["stage"] in sdk.LIBRARY_UNIT_MANIFESTS]:
         step.update(unitTests={"passed": 1, "failed": 0, "ignored": 0, "measured": 0, "filteredOut": 0},
                     started=True, command={"tool": "cargo", "admission": "strict-owner-mode",
                     "argvSha256": sdk.sha(json.dumps(sdk.library_unit_command(step["stage"]), separators=(",", ":")).encode()),
@@ -253,7 +253,11 @@ def test_retrieved_green_sdk_evidence_requires_all_identity_and_cleanup(tmp_path
     assert not valid_sdk_conformance_receipt(report, changed, job, "b" * 40, **expectation)
 
 
-@pytest.mark.parametrize("index", [4, 5])
+# Positions of the two library-unit stages within the recipe.
+UNIT_INDEXES = [i for i, stage in enumerate(sdk.RECIPE_STAGES) if stage in sdk.LIBRARY_UNIT_MANIFESTS]
+
+
+@pytest.mark.parametrize("index", UNIT_INDEXES)
 @pytest.mark.parametrize("fault", ["missing_stage", "reordered", "faked_stage", "missing_summary", "zero_tests",
                                    "failed", "ignored", "measured", "filteredOut", "boolean_passed",
                                    "missing_command", "fake_tool", "fake_argv", "fake_image", "not_started"])
@@ -263,7 +267,8 @@ def test_retriever_requires_both_actual_whole_library_unit_receipts(tmp_path, in
     if fault == "missing_stage":
         evidence["steps"].pop(index)
     elif fault == "reordered":
-        evidence["steps"][4], evidence["steps"][5] = evidence["steps"][5], evidence["steps"][4]
+        first, second = UNIT_INDEXES
+        evidence["steps"][first], evidence["steps"][second] = evidence["steps"][second], evidence["steps"][first]
     elif fault == "faked_stage":
         step["stage"] = "invented-library-units"
     elif fault == "missing_summary":
@@ -362,11 +367,15 @@ def test_pipeline_uses_fixed_real_commands_private_env_and_source_artifact_fence
         if stage == "napi-build":
             node_artifact.parent.mkdir(parents=True)
             node_artifact.write_bytes(blob)
-        elif stage == "python-binding-build":
+        elif stage == "python-native-build":
             assert (self.private / "napi-preserved.node").read_bytes() == blob
             assert (self.private / "napi-preserved.node").stat().st_mode & 0o777 == 0o600
             python_artifact.parent.mkdir(parents=True)
             python_artifact.write_bytes(blob + b"synthetic-python-feature")
+        elif stage == "wasm-build":
+            wasm = root / "frontend/packages/openmates-cli/wasm/openmates_sdk_bg.wasm"
+            wasm.parent.mkdir(parents=True)
+            wasm.write_bytes(b"\0asm\x01\0\0\0" + bytes(64))
         elif stage == "sdk-facade-build":
             dist = root / "frontend/packages/openmates-cli/dist"
             dist.mkdir()
@@ -395,8 +404,7 @@ def test_pipeline_uses_fixed_real_commands_private_env_and_source_artifact_fence
         assert evidence["artifacts"]["npm"]["sha256"] != evidence["artifacts"]["python"]["sha256"]
         assert evidence["gate"]["openGapCount"] == 1 and evidence["publication"] is False
         assert len(attestations) == 3
-        assert [stage for stage, _ in calls] == ["rust-toolchain", "python-environment", "node-dependencies",
-            "python-dependencies", "sdk-library-units", "binding-library-units", "napi-build", "python-binding-build", "sdk-facade-build", "napi-load", "python-load", "real-conformance"]
+        assert [stage for stage, _ in calls] == list(sdk.RECIPE_STAGES)
     else:
         assert results[0]["exit_code"] == 1 and evidence["status"] == "failed"
         assert evidence["code"] == {"source_change": "source_changed", "artifact_change": "artifact_changed",

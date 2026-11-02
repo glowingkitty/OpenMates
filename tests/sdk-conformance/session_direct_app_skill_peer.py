@@ -162,8 +162,11 @@ class DirectSkillPeer:
                     with peer.lock:
                         peer.validate_input(body)
                         if peer.vector["credential"] == "cookie":
-                            assert peer.counts["auth"] >= 3, (
-                                "initial plus original core auth checks before billable POST"
+                            # The core reuses the command's own fresh session
+                            # validation for HTTP app-skill requests (dafff9b7dc);
+                            # the server still authorizes every request.
+                            assert peer.counts["auth"] >= 1, (
+                                "authenticated owner observation before billable POST"
                             )
                         peer.counts["skill_posts"] += 1
                         assert (

@@ -28,6 +28,15 @@ RESERVE = 2 * 1024**3  # runner artifact/cleanup reserve, not the dev-host capac
 MAX_LOG = 32 * 1024**2
 LIBRARY_UNIT_MANIFESTS = {"sdk-library-units": "packages/openmates-rust/Cargo.toml",
                           "binding-library-units": "packages/openmates-session-bindings/Cargo.toml"}
+BUILD_STAGES = frozenset({*LIBRARY_UNIT_MANIFESTS, "napi-build", "python-native-build",
+                          "python-binding-build", "wasm-build"})
+# The exact ordered stages of one passing lane run; receipts must match it.
+RECIPE_STAGES = ("rust-toolchain", "wasm-target", "wasm-bindgen-install", "python-environment",
+                 "node-dependencies", "python-dependencies", *LIBRARY_UNIT_MANIFESTS, "napi-build",
+                 "python-native-build", "python-binding-build", "wasm-build", "sdk-facade-build",
+                 "sdk-gate-tooling", "napi-load", "python-load", "real-conformance")
+# Locked wasm-bindgen crate version; the CLI must match it byte-for-byte in schema.
+BINDGEN_VERSION = "0.2.129"
 VECTOR_DIAGNOSTIC_CAPABILITY = "session.chat-change-monitor.v1"
 VECTOR_DIAGNOSTIC_PHASES = frozenset({"open", "next", "stage", "durable_save", "commit", "close",
                                      "peer_control", "peer_status", "assertion", "list", "discard",
@@ -257,6 +266,16 @@ def artifact(path):
 
 
 
+def wasm_artifact_identity(path):
+    """Portable npm artifact: a WebAssembly v1 module, not a platform binary."""
+    data = regular(path, 256 * 1024**2)
+    info = path.stat()
+    require(info.st_nlink == 1 and len(data) > 8 and data[:8] == b"\0asm\x01\0\0\0", "invalid_wasm_artifact")
+    return {"sha256": sha(data), "bytes": len(data), "device": info.st_dev, "inode": info.st_ino,
+            "uid": info.st_uid, "mode": stat.S_IMODE(info.st_mode), "nlink": info.st_nlink,
+            "mtimeNs": info.st_mtime_ns, "ctimeNs": info.st_ctime_ns, "format": "wasm32"}
+
+
 # Finite source-owned identifiers only. Never export arbitrary matched ERR_* text.
 PACKAGE_ERROR_IDS = frozenset({
     "ERR_PNPM_OUTDATED_LOCKFILE", "ERR_PNPM_LOCKFILE_CONFIG_MISMATCH", "ERR_PNPM_NO_LOCKFILE",
@@ -302,10 +321,11 @@ def tool_search_path(node, rustup, pnpm, npm, python):
 def command_tool(stage):
     if stage in LIBRARY_UNIT_MANIFESTS:
         return "cargo"
-    tools = {"rust-toolchain": "rustup", "node-dependencies": "pnpm", "sdk-facade-build": "pnpm",
-             "napi-load": "node"}
+    tools = {"rust-toolchain": "rustup", "wasm-target": "rustup", "wasm-bindgen-install": "cargo",
+             "node-dependencies": "pnpm", "sdk-facade-build": "pnpm", "napi-load": "node", "wasm-load": "node"}
     return tools.get(stage, "python" if stage in {"python-environment", "python-dependencies", "napi-build",
-                     "python-binding-build", "python-load", "sdk-gate-tooling", "real-conformance"} else "other")
+                     "python-native-build", "python-binding-build", "wasm-build", "python-load",
+                     "sdk-gate-tooling", "real-conformance"} else "other")
 
 
 def library_unit_command(stage):
@@ -966,7 +986,7 @@ def run(root, results, node, *, verify_node, environ=None):
             def step(name, command, seconds=2400):
                 nonlocal stage
                 stage = name
-                if name in {*LIBRARY_UNIT_MANIFESTS, "napi-build", "python-binding-build"}:
+                if name in BUILD_STAGES:
                     require(snapshot(root) == before, "source_changed")
                 if name == "sdk-gate-tooling":
                     require("scripts/tests/test_sdk_conformance_gate.py" in trust["programs"], "tooling_test_unpinned")
@@ -987,11 +1007,17 @@ def run(root, results, node, *, verify_node, environ=None):
                 if name == "sdk-gate-tooling":
                     verify_programs(root, trust)
                     require(snapshot(root) == before, "source_changed")
-                if name in {*LIBRARY_UNIT_MANIFESTS, "napi-build", "python-binding-build"}:
+                if name in BUILD_STAGES:
                     require(snapshot(root) == before, "source_changed")
                 return result
             try:
                 step("rust-toolchain", [rustup, "toolchain", "install", "1.98.1", "--profile", "minimal", "--component", "rustfmt"], 300)
+                step("wasm-target", [rustup, "target", "add", "--toolchain", "1.98.1", "wasm32-unknown-unknown"], 300)
+                # wasm-bindgen-cli must equal the locked wasm-bindgen crate; private root, never the checkout.
+                bindgen = private / "bindgen"
+                step("wasm-bindgen-install", ["cargo", "+1.98.1", "install", "wasm-bindgen-cli", "--version", "=" + BINDGEN_VERSION,
+                                              "--locked", "--root", str(bindgen), "--target-dir", str(private / "bindgen-target")], 1200)
+                env["PATH"] = str(bindgen / "bin") + os.pathsep + env["PATH"]
                 step("python-environment", [sys.executable, "-m", "venv", str(private / "venv")], 60)
                 python = str(private / "venv/bin/python")
                 env["PYO3_PYTHON"] = python
@@ -1005,13 +1031,18 @@ def run(root, results, node, *, verify_node, environ=None):
                     step(unit_stage, library_unit_command(unit_stage))
                 node_artifact = root / "frontend/packages/openmates-cli/native/linux-x64.node"
                 python_artifact = root / "packages/openmates-python/openmates/_native.abi3.so"
-                require(not node_artifact.exists() and not python_artifact.exists(), "preexisting_native_artifact")
+                wasm_artifact = root / "frontend/packages/openmates-cli/wasm/openmates_sdk_bg.wasm"
+                require(not node_artifact.exists() and not python_artifact.exists() and not wasm_artifact.exists(),
+                        "preexisting_native_artifact")
                 verify_node()
                 step("napi-build", [python, "scripts/build_sdk_native.py", "--language", "npm", "--debug"])
                 node_before = artifact(node_artifact)
                 shutil.copyfile(node_artifact, private / "napi-preserved.node")
                 (private / "napi-preserved.node").chmod(0o600)
                 require(artifact(private / "napi-preserved.node")["sha256"] == node_before["sha256"], "napi_preservation")
+                # The PyPI build backend stays pure setuptools; the PyO3 extension is
+                # built explicitly into the package directory before the editable install.
+                step("python-native-build", [python, "scripts/build_sdk_native.py", "--language", "python", "--debug"])
                 step("python-binding-build", [python, "-m", "pip", "install", "-e", "packages/openmates-python"])
                 # The editable source module must exist independently of the Cargo lib
                 # that was overwritten by the Python feature build.
@@ -1019,6 +1050,9 @@ def run(root, results, node, *, verify_node, environ=None):
                 shutil.copyfile(python_artifact, private / "python-preserved.so")
                 (private / "python-preserved.so").chmod(0o600)
                 require(artifact(private / "python-preserved.so")["sha256"] == python_before["sha256"], "python_preservation")
+                # Portable npm artifact: privacy, task order and embed-version reconstruction.
+                step("wasm-build", [python, "scripts/build_sdk_native.py", "--language", "wasm", "--debug"])
+                wasm_before = wasm_artifact_identity(wasm_artifact)
                 step("sdk-facade-build", [pnpm, "--filter", "openmates", "build:sdk"], 300)
                 dist = {str(path.relative_to(root)): sha(regular(path))
                         for path in sorted((root / "frontend/packages/openmates-cli/dist").rglob("*")) if path.is_file()}
@@ -1034,13 +1068,14 @@ def run(root, results, node, *, verify_node, environ=None):
                 verify_node()
                 verify_programs(root, trust)
                 require(before == snapshot(root) and source == git(root, "rev-parse", "HEAD"), "source_changed")
-                require(node_before == artifact(node_artifact) and python_before == artifact(python_artifact), "artifact_changed")
+                require(node_before == artifact(node_artifact) and python_before == artifact(python_artifact)
+                        and wasm_before == wasm_artifact_identity(wasm_artifact), "artifact_changed")
                 require(dist == {str(path.relative_to(root)): sha(regular(path))
                                  for path in sorted((root / "frontend/packages/openmates-cli/dist").rglob("*")) if path.is_file()}, "dist_changed")
                 gate = gate_receipt(root, json.loads(regular(report, 16 * 1024**2)), trust=trust)
                 require(gate["packagedSdkV1"]["nativeSha256"] == node_before["sha256"], "gate_result_identity")
                 evidence.update(gate=gate,
-                                artifacts={"npm": node_before, "python": python_before}, dist=dist,
+                                artifacts={"npm": node_before, "python": python_before, "wasm": wasm_before}, dist=dist,
                                 loadIdentityVerified=True, sourceHeld=True, status="passed", stage="complete", code=None)
             except Exception:
                 try:

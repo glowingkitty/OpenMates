@@ -147,7 +147,7 @@ async fn actual_direct_positive_retains_structured_bytes_wipes_and_validates_imp
     );
     let status = p.get("/__test/status");
     assert_eq!(status["skill_posts"], 1);
-    assert!(status["auth"].as_u64().unwrap() >= 3);
+    assert!(status["auth"].as_u64().unwrap() >= 1);
     assert_eq!(status["downloads"], 0);
     assert_eq!(status["retention_posts"], 0);
     ok(b.close().await);

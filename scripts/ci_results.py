@@ -1266,12 +1266,14 @@ def valid_sdk_conformance_receipt(
         from scripts.ci_sdk_conformance import (
             LOCKS,
             LIBRARY_UNIT_MANIFESTS,
+            RECIPE_STAGES,
             library_unit_command,
         )
     except ModuleNotFoundError:
         from ci_sdk_conformance import (
             LOCKS,
             LIBRARY_UNIT_MANIFESTS,
+            RECIPE_STAGES,
             library_unit_command,
         )
     if (
@@ -1307,19 +1309,7 @@ def valid_sdk_conformance_receipt(
         or sdk.get("locks") != {name: expected_inputs[name] for name in LOCKS}
     ):
         return False
-    stages = [
-        "rust-toolchain",
-        "python-environment",
-        "node-dependencies",
-        "python-dependencies",
-        *LIBRARY_UNIT_MANIFESTS,
-        "napi-build",
-        "python-binding-build",
-        "sdk-facade-build",
-        "napi-load",
-        "python-load",
-        "real-conformance",
-    ]
+    stages = list(RECIPE_STAGES)
     steps = sdk.get("steps")
     if (
         not isinstance(steps, list)
