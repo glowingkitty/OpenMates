@@ -54621,7 +54621,6 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account/notifications.rs"
       },
       "gaps": [
-        "Newsletter subscribe/confirm/unsubscribe require a signed-in profile natively (npm allows them signed out).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -54666,7 +54665,6 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account/notifications.rs"
       },
       "gaps": [
-        "Newsletter subscribe/confirm/unsubscribe require a signed-in profile natively (npm allows them signed out).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -54715,7 +54713,6 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account/notifications.rs"
       },
       "gaps": [
-        "Newsletter subscribe/confirm/unsubscribe require a signed-in profile natively (npm allows them signed out).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -54766,7 +54763,6 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account/notifications.rs"
       },
       "gaps": [
-        "Newsletter subscribe/confirm/unsubscribe require a signed-in profile natively (npm allows them signed out).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -54815,7 +54811,6 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account/notifications.rs"
       },
       "gaps": [
-        "Newsletter subscribe/confirm/unsubscribe require a signed-in profile natively (npm allows them signed out).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {

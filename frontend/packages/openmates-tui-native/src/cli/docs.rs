@@ -18,6 +18,8 @@ pub fn is_public(i: &Invocation) -> bool {
         || privacy_cmd::supported(i)
         // Revolut consent-url/exchange --dry-run are pure developer fallbacks.
         || super::account::connected_accounts::is_public(i)
+        // Newsletter subscribe/confirm/unsubscribe work signed out (npm).
+        || super::account::is_public(i)
 }
 #[path = "privacy_cmd.rs"]
 mod privacy_cmd;
@@ -137,6 +139,9 @@ pub async fn execute(
     }
     if super::account::connected_accounts::is_public(i) {
         return super::account::connected_accounts::execute_public(i);
+    }
+    if super::account::is_public(i) {
+        return Box::pin(super::account::execute_public(i, client)).await;
     }
     if let Some(notice) = super::account::web_only(i, &client.application_url()) {
         return notice;

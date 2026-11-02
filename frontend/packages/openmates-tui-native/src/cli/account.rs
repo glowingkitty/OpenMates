@@ -198,6 +198,16 @@ fn info(invocation: &Invocation) -> Option<&'static (&'static str, &'static str,
         .find(|entry| entry.0 == command && (settings || command == "account email"))
 }
 /// Informational settings commands need no credentials or network.
+/// Credential-free account commands (npm's signed-out newsletter actions).
+pub(super) fn is_public(invocation: &Invocation) -> bool {
+    notifications::is_public(invocation)
+}
+pub(super) async fn execute_public(
+    invocation: &Invocation,
+    client: &mut Client,
+) -> Result<CliOutput, CliError> {
+    notifications::execute(invocation, client).await
+}
 pub(super) fn is_info(invocation: &Invocation) -> bool {
     info(invocation).is_some()
 }

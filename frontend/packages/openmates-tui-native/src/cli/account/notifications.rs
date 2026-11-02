@@ -21,6 +21,14 @@ const COMMANDS: &[&str] = &[
 pub(super) fn supported(i: &Invocation) -> bool {
     i.path.first().is_some_and(|p| p == "settings") && COMMANDS.contains(&path(i).as_str())
 }
+/// npm runs newsletter subscribe/confirm/unsubscribe signed out too.
+pub(super) fn is_public(i: &Invocation) -> bool {
+    supported(i)
+        && matches!(
+            path(i).as_str(),
+            "newsletter subscribe" | "newsletter confirm" | "newsletter unsubscribe"
+        )
+}
 fn fail(message: impl Into<String>) -> CliError {
     CliError::Invalid(message.into())
 }

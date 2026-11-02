@@ -138,3 +138,17 @@ async fn newsletter_and_notification_reads_route_and_validate_like_npm() {
     assert!(requests[0].starts_with("GET /v1/notifications?limit=10 "));
     assert!(requests[1].ends_with(r#"{"categories":{"daily_inspirations":true,"tips_and_tricks":false,"updates_and_announcements":true}}"#));
 }
+
+#[tokio::test]
+async fn newsletter_actions_run_signed_out_through_the_public_channel() {
+    let (mut client, server) = mock(vec![json!({"success":true})]).await;
+    let api = client.session().unwrap().api_url.clone();
+    client = Client::new(&api, None).unwrap();
+    let subscribe = parsed(&["openmates", "settings", "newsletter", "subscribe", "you@example.com", "--json"]);
+    assert!(is_public(&subscribe) && super::super::super::docs::is_public(&subscribe));
+    assert!(!is_public(&parsed(&["openmates", "settings", "newsletter", "categories"])));
+    let output = execute(&subscribe, &mut client).await.ok().unwrap();
+    assert_eq!(serde_json::from_str::<Value>(&output.stdout).unwrap()["success"], true);
+    let request = &server.await.unwrap()[0];
+    assert!(request.starts_with("POST /v1/newsletter/subscribe ") && !request.to_ascii_lowercase().contains("cookie:"));
+}
