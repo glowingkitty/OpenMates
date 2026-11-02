@@ -1,5 +1,8 @@
 //! Buyer (billing) address routes as the npm client calls them
 //! (getBuyerAddress/saveBuyerAddress, personal or for one Team).
+//! Also personal SEPA bank-transfer credit and gift-card orders, their
+//! status, purchased gift cards, refunds and low-balance auto top-up;
+//! orders and refunds carry the locally derived email key like npm.
 use super::Account;
 use super::settings_ops::segment;
 use crate::{Error, Result};
@@ -66,6 +69,86 @@ impl Account<'_> {
             .request(Method::PUT, &route, Some(json!({"buyer_address":address})))
             .await?;
         Ok(())
+    }
+
+    async fn with_email_key(&mut self, route: &str, mut body: Value) -> Result<Value> {
+        let key = self.email_encryption_key().await?;
+        body["email_encryption_key"] = json!(key.as_str());
+        self.client.request(Method::POST, route, Some(body)).await
+    }
+    /// SEPA bank-transfer order for personal credits (EUR).
+    pub async fn create_bank_transfer_order(
+        &mut self,
+        credits: f64,
+        address: Option<Value>,
+    ) -> Result<Value> {
+        self.client.require_session()?;
+        let mut body = json!({"credits_amount":credits,"currency":"eur"});
+        if let Some(address) = address {
+            body["buyer_address"] = address;
+        }
+        self.with_email_key("/v1/payments/create-bank-transfer-order", body)
+            .await
+    }
+    pub async fn bank_transfer_status(&mut self, order: &str) -> Result<Value> {
+        self.client.require_session()?;
+        let route = format!(
+            "/v1/payments/bank-transfer-status/{}",
+            segment(order, "Invalid order ID.")?
+        );
+        self.client.request(Method::GET, &route, None).await
+    }
+    /// SEPA bank-transfer order for a gift card (EUR).
+    pub async fn create_gift_card_bank_transfer_order(&mut self, credits: f64) -> Result<Value> {
+        self.client.require_session()?;
+        self.with_email_key(
+            "/v1/payments/create-gift-card-bank-transfer-order",
+            json!({"credits_amount":credits,"currency":"eur"}),
+        )
+        .await
+    }
+    pub async fn gift_card_purchase_status(&mut self, order: &str) -> Result<Value> {
+        self.client.require_session()?;
+        let route = format!(
+            "/v1/payments/gift-card-purchase-status/{}",
+            segment(order, "Invalid order ID.")?
+        );
+        self.client.request(Method::GET, &route, None).await
+    }
+    pub async fn purchased_gift_cards(&mut self) -> Result<Value> {
+        self.client.require_session()?;
+        self.client
+            .request(Method::GET, "/v1/payments/purchased-gift-cards", None)
+            .await
+    }
+    /// Refund request for one invoice; the caller owns confirmation.
+    pub async fn request_refund(&mut self, invoice: &str) -> Result<Value> {
+        self.client.require_session()?;
+        let invoice = segment(invoice, "Invalid invoice ID.")?;
+        self.with_email_key("/v1/payments/refund", json!({"invoice_id":invoice}))
+            .await
+    }
+    /// Low-balance auto top-up (npm uses a fixed 100-credit threshold).
+    pub async fn set_low_balance_auto_topup(
+        &mut self,
+        enabled: bool,
+        amount: f64,
+        currency: &str,
+        email: Option<&str>,
+    ) -> Result<Value> {
+        if enabled && email.is_none() {
+            return Err(Error::Invalid(
+                "Provide --email when enabling low-balance auto top-up.",
+            ));
+        }
+        self.client.require_session()?;
+        self.client
+            .request(
+                Method::POST,
+                "/v1/settings/auto-topup/low-balance",
+                Some(json!({"enabled":enabled,"threshold":100,"amount":amount,"currency":currency,"email":email})),
+            )
+            .await
     }
 }
 

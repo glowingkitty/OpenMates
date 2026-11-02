@@ -100,3 +100,61 @@ async fn team_billing_routes_match_npm() {
     );
     assert!(requests[6].contains("\"destination_team_id\":\"team-2\""));
 }
+
+#[tokio::test]
+async fn personal_purchases_carry_the_email_key_and_fixed_routes() {
+    let (api, server) = mock(vec![
+        (200, json!({"order_id":"o-1"})),
+        (200, json!({"status":"pending"})),
+        (200, json!({"order_id":"g-1"})),
+        (200, json!({"status":"paid","gift_card_code":"CODE"})),
+        (200, json!({"gift_cards":[]})),
+        (200, json!({"success":true})),
+        (200, json!({"success":true})),
+    ])
+    .await;
+    let mut client = Client::new(&api, Some(session(&api, Some("email-key")))).unwrap();
+    let mut account = client.account();
+    account
+        .create_bank_transfer_order(110000.0, None)
+        .await
+        .unwrap();
+    account.bank_transfer_status("o-1").await.unwrap();
+    account
+        .create_gift_card_bank_transfer_order(21000.0)
+        .await
+        .unwrap();
+    account.gift_card_purchase_status("g-1").await.unwrap();
+    account.purchased_gift_cards().await.unwrap();
+    account.request_refund("inv-1").await.unwrap();
+    assert_eq!(
+        account
+            .set_low_balance_auto_topup(true, 1000.0, "eur", None)
+            .await,
+        Err(Error::Invalid(
+            "Provide --email when enabling low-balance auto top-up."
+        ))
+    );
+    account
+        .set_low_balance_auto_topup(false, 1000.0, "eur", None)
+        .await
+        .unwrap();
+    let requests = server.await.unwrap();
+    let lines: Vec<&str> = requests.iter().map(|r| r.lines().next().unwrap()).collect();
+    assert_eq!(
+        lines,
+        [
+            "POST /v1/payments/create-bank-transfer-order HTTP/1.1",
+            "GET /v1/payments/bank-transfer-status/o-1 HTTP/1.1",
+            "POST /v1/payments/create-gift-card-bank-transfer-order HTTP/1.1",
+            "GET /v1/payments/gift-card-purchase-status/g-1 HTTP/1.1",
+            "GET /v1/payments/purchased-gift-cards HTTP/1.1",
+            "POST /v1/payments/refund HTTP/1.1",
+            "POST /v1/settings/auto-topup/low-balance HTTP/1.1",
+        ]
+    );
+    for index in [0, 2, 5] {
+        assert!(requests[index].contains("\"email_encryption_key\":\"email-key\""));
+    }
+    assert!(requests[6].contains("\"threshold\":100"));
+}

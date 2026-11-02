@@ -38,7 +38,7 @@ pub(super) fn text_output(stdout: String) -> CliOutput {
     }
 }
 /// printSettingsResult: JSON, else the generic object rendering.
-fn result(i: &Invocation, value: &Value) -> Result<CliOutput, CliError> {
+pub(super) fn result(i: &Invocation, value: &Value) -> Result<CliOutput, CliError> {
     if i.boolean("json") {
         CliOutput::json(value)
     } else {
@@ -46,7 +46,7 @@ fn result(i: &Invocation, value: &Value) -> Result<CliOutput, CliError> {
     }
 }
 /// printSettingsMutationResult: JSON, else a success line and the response.
-fn mutation(i: &Invocation, value: &Value) -> Result<CliOutput, CliError> {
+pub(super) fn mutation(i: &Invocation, value: &Value) -> Result<CliOutput, CliError> {
     if i.boolean("json") {
         return CliOutput::json(value);
     }
@@ -66,7 +66,7 @@ fn positional<'a>(i: &'a Invocation, index: usize) -> Option<&'a str> {
         .filter(|v| !v.trim().is_empty())
 }
 /// Legacy parseOnOff with its exact message.
-fn on_off(value: &str, label: &str) -> Result<bool, CliError> {
+pub(super) fn on_off(value: &str, label: &str) -> Result<bool, CliError> {
     match value {
         "on" | "true" | "1" => Ok(true),
         "off" | "false" | "0" => Ok(false),

@@ -4,6 +4,7 @@
 //! API-key mutations require explicit confirmation and server-verified strong proof.
 //! Other credentials, payments and account destruction retain their dedicated gates.
 //! Public support and assistant feedback remain in the existing public handler.
+mod billing;
 mod export_archive;
 mod export_start;
 mod memories;
@@ -41,6 +42,7 @@ fn path(invocation: &Invocation) -> String {
 }
 pub(super) fn supported(invocation: &Invocation) -> bool {
     reminders::supported(invocation)
+        || billing::supported(invocation)
         || settings_more::supported(invocation)
         || export_start::supported(invocation)
         || notifications::supported(invocation)
@@ -257,6 +259,9 @@ pub(super) async fn execute(
 ) -> Result<CliOutput, CliError> {
     if reminders::supported(invocation) {
         return reminders::execute(invocation, client).await;
+    }
+    if billing::supported(invocation) {
+        return billing::execute(invocation, client).await;
     }
     if settings_more::supported(invocation) {
         return settings_more::execute(invocation, client).await;

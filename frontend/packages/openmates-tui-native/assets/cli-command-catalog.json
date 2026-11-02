@@ -52554,12 +52554,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.billing",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/billing.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -52596,12 +52596,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.billing",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/billing.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -52637,12 +52637,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.billing",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/billing.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -52683,12 +52683,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.billing",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/billing.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -52790,7 +52790,15 @@
       "usages": [
         "settings billing bank-transfer status"
       ],
-      "positionals": [],
+      "positionals": [
+        {
+          "name": "order-id",
+          "required": true,
+          "variadic": false,
+          "at": 4,
+          "synopsis": "<order-id>"
+        }
+      ],
       "flags": [
         "api-key",
         "api-url",
@@ -52807,12 +52815,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.billing",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/billing.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -52875,6 +52883,7 @@
       "flags": [
         "api-key",
         "api-url",
+        "billing-address-file",
         "credits",
         "help",
         "json",
@@ -52889,12 +52898,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.billing",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/billing.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -52973,12 +52982,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.billing",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/billing.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -53039,7 +53048,15 @@
       "usages": [
         "settings billing gift-card purchase-status"
       ],
-      "positionals": [],
+      "positionals": [
+        {
+          "name": "order-id",
+          "required": true,
+          "variadic": false,
+          "at": 4,
+          "synopsis": "<order-id>"
+        }
+      ],
       "flags": [
         "api-key",
         "api-url",
@@ -53056,12 +53073,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.billing",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/billing.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -53097,12 +53114,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.billing",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/billing.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -53297,7 +53314,15 @@
       "usages": [
         "settings billing invoices refund"
       ],
-      "positionals": [],
+      "positionals": [
+        {
+          "name": "invoice-id",
+          "required": true,
+          "variadic": false,
+          "at": 4,
+          "synopsis": "<invoice-id>"
+        }
+      ],
       "flags": [
         "api-key",
         "api-url",
@@ -53315,12 +53340,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.billing",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/billing.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -61865,8 +61890,8 @@
   "coverage": {
     "command_patterns": 720,
     "flags": 599,
-    "native_handlers_partial": 608,
-    "unsupported": 112,
+    "native_handlers_partial": 618,
+    "unsupported": 102,
     "feature_complete": false
   },
   "maintenance": {
