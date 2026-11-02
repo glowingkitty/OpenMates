@@ -1,5 +1,6 @@
 //! Project CLI authoring through the locally encrypted, typed SDK namespace.
 mod ask;
+mod focus;
 mod items;
 mod sources;
 use super::{CliError, CliOutput, Invocation, task_input as input};
@@ -54,6 +55,8 @@ pub(super) fn supported(i: &Invocation) -> bool {
             | "projects items remove"
             | "projects sources list"
             | "projects sources remove"
+            | "projects settings focus activate"
+            | "projects settings focus deactivate"
     )
 }
 fn check(i: &Invocation, allowed: &[&str]) -> Result<(), CliError> {
@@ -364,6 +367,9 @@ async fn execute_service(
     }
     if i.command_path() == "projects sources list" {
         return sources::execute(i, &mut service, &cancel).await;
+    }
+    if i.command_path().starts_with("projects settings focus ") {
+        return focus::execute(i, &mut service).await;
     }
     if i.command_path() == "projects sources remove" {
         return sources::remove(i, &mut service, &cancel).await;

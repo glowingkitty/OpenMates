@@ -48045,12 +48045,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.projects.focus",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/focus.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "--chat accepts the full chat UUID only; short IDs and slugs are not ported.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48097,12 +48098,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.projects.focus",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/focus.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "--chat accepts the full chat UUID only; short IDs and slugs are not ported.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -61708,8 +61710,8 @@
   "coverage": {
     "command_patterns": 720,
     "flags": 597,
-    "native_handlers_partial": 567,
-    "unsupported": 153,
+    "native_handlers_partial": 569,
+    "unsupported": 151,
     "feature_complete": false
   },
   "maintenance": {

@@ -65,6 +65,7 @@ pub struct ProjectSettingsPatch {
 }
 mod ask;
 pub use ask::*;
+mod focus;
 mod items;
 mod workflow_files;
 pub use workflow_files::WorkflowFileSaveStatus;
