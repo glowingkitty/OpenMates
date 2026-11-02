@@ -88,7 +88,7 @@ jobs:
   test:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && fromJSON('["self-hosted","Linux","X64","openmates-capacity"]') || inputs.mode == 'rust-native-dev' && fromJSON('["ubuntu-24.04-arm"]') || fromJSON('["ubuntu-latest"]') }}
-    timeout-minutes: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && 2880 || inputs.mode == 'selfhost' && 120 || (inputs.mode == 'sdk-conformance' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 120 || startsWith(inputs.specs_json, '["rust-core-') && 90 || inputs.mode == 'backend-probe' && 12 || 60 }}
+    timeout-minutes: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && 2880 || inputs.mode == 'selfhost' && 120 || (inputs.mode == 'sdk-conformance' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 120 || (startsWith(inputs.specs_json, '["rust-core-') || startsWith(inputs.specs_json, '["web-rust-core-')) && 90 || inputs.mode == 'backend-probe' && 12 || 60 }}
     defaults:
       run:
         working-directory: subject
@@ -119,6 +119,9 @@ jobs:
       # Rust lane selectors by spec-name pattern instead of closed specs_json
       # allowlists. A new rust-core-* spec joins its lane without a workflow
       # edit; the lane scripts still validate the exact targets they support.
+      # Opt-in shared Rust core in the web app: web-rust-core-* specs build the
+      # WASM package and a VITE_OPENMATES_RUST_CORE=1 web app in the same job.
+      CI_LANE_WEB_RUST_CORE: ${{ inputs.mode == 'e2e' && startsWith(inputs.specs_json, '["web-rust-core-') }}
       CI_LANE_RUST_BROWSER: ${{ inputs.mode == 'e2e' && (startsWith(inputs.specs_json, '["rust-core-') || inputs.specs_json == '["web-essential-startup-performance.spec.ts"]') }}
       CI_LANE_RUST_PRODUCTION_BROWSER: ${{ inputs.mode == 'e2e' && (startsWith(inputs.specs_json, '["rust-core-') || inputs.specs_json == '["web-essential-startup-performance.spec.ts"]') && inputs.specs_json != '["rust-core-browser-session.spec.ts"]' && inputs.specs_json != '["rust-core-browser-password-entry.spec.ts"]' }}
       CI_LANE_RUST_BROWSER_CLI: ${{ inputs.mode == 'e2e' && (startsWith(inputs.specs_json, '["rust-core-') || inputs.specs_json == '["web-essential-startup-performance.spec.ts"]') && inputs.specs_json != '["rust-core-browser-session.spec.ts"]' && inputs.specs_json != '["rust-core-browser-password-entry.spec.ts"]' && !contains(inputs.specs_json, 'rust-core-production-') && !contains(inputs.specs_json, 'rust-core-ordinary-login-retention') }}
@@ -468,11 +471,35 @@ jobs:
         if: env.CI_LANE_RUST_PRODUCTION_BROWSER == 'true'
         timeout-minutes: 60
         run: python3 ../tooling/scripts/ci_production_rust_browser.py prepare
+      - name: Restore web Rust core dependency cache
+        if: env.CI_LANE_WEB_RUST_CORE == 'true'
+        uses: Swatinem/rust-cache@v2
+        env:
+          RUSTUP_TOOLCHAIN: '1.98.1'
+        with:
+          shared-key: isolated-web-rust-core
+          workspaces: subject -> target
+          cache-bin: 'true'
+          cache-on-failure: 'true'
+          save-if: ${{ inputs.candidate_patch_sha256 == '' }}
+      - name: Build opt-in web Rust core package
+        if: env.CI_LANE_WEB_RUST_CORE == 'true'
+        timeout-minutes: 45
+        env:
+          RUSTUP_TOOLCHAIN: '1.98.1'
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal --target wasm32-unknown-unknown
+          if ! wasm-bindgen --version 2>/dev/null | grep -q '0.2.129'; then
+            cargo install wasm-bindgen-cli --version 0.2.129 --locked
+          fi
+          node frontend/apps/web_app/scripts/build-rust-core-web.mjs "$PWD/target/web-rust-core-pkg"
+          echo "OPENMATES_RUST_CORE_PKG=$PWD/target/web-rust-core-pkg" >> "$GITHUB_ENV"
+          echo "VITE_OPENMATES_RUST_CORE=1" >> "$GITHUB_ENV"
       - name: Generate UI build inputs once
         if: >-
           inputs.mode == 'prepare' ||
           ((inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') &&
-           (steps.artifacts.outputs.web != 'true' || steps.images.outputs.api != 'true' || env.CI_LANE_RUST_PRODUCTION_BROWSER == 'true'))
+           (steps.artifacts.outputs.web != 'true' || steps.images.outputs.api != 'true' || env.CI_LANE_RUST_PRODUCTION_BROWSER == 'true' || env.CI_LANE_WEB_RUST_CORE == 'true'))
         run: pnpm --filter @repo/ui build
       - name: Build cached API dependencies and current source
         if: (inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') && steps.images.outputs.api != 'true'
@@ -564,7 +591,7 @@ jobs:
       - name: Build local web app
         if: >-
           inputs.mode == 'prepare' ||
-          ((inputs.mode == 'e2e' && !contains(inputs.specs_json, 'storage-accountability-integration.spec.ts') && inputs.specs_json != '["cli-memory-readiness.spec.ts"]' || inputs.mode == 'visual-smoke') && (steps.artifacts.outputs.web != 'true' || env.CI_LANE_RUST_PRODUCTION_BROWSER == 'true'))
+          ((inputs.mode == 'e2e' && !contains(inputs.specs_json, 'storage-accountability-integration.spec.ts') && inputs.specs_json != '["cli-memory-readiness.spec.ts"]' || inputs.mode == 'visual-smoke') && (steps.artifacts.outputs.web != 'true' || env.CI_LANE_RUST_PRODUCTION_BROWSER == 'true' || env.CI_LANE_WEB_RUST_CORE == 'true'))
         env:
           OPENMATES_CI_PRECOMPRESS: '0'
         run: |
