@@ -38,6 +38,7 @@ pub use plans::execute_sdk_plans_with_delivery;
 pub use projects::execute_sdk_projects_with_delivery;
 pub use workflows::execute_sdk_workflows;
 pub mod trusted_account;
+pub mod private_path;
 use crate::error::Error;
 pub use handlers::{
     ApplicationRecoveryContext, ListReadDiagnosticStage, execute, execute_public, execute_with_delivery,

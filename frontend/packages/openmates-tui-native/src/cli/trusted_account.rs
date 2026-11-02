@@ -150,17 +150,17 @@ fn directory(path: &Path) -> Result<(), CliError> {
     let metadata = fs::symlink_metadata(path)
         .map_err(|_| invalid("The native trusted-account directory is unavailable."))?;
     if metadata.file_type().is_symlink() || !metadata.is_dir() {
-        return Err(invalid(
+        return Err(super::private_path::problem(path, true).map(CliError::Invalid).unwrap_or_else(|| invalid(
             "The trusted-account directory must be a real private directory.",
-        ));
+        )));
     }
     #[cfg(unix)]
     {
         use std::os::unix::fs::MetadataExt;
         if metadata.uid() != rustix::process::geteuid().as_raw() || metadata.mode() & 0o077 != 0 {
-            return Err(invalid(
+            return Err(super::private_path::problem(path, true).map(CliError::Invalid).unwrap_or_else(|| invalid(
                 "The trusted-account directory must be owned by the current user and private.",
-            ));
+            )));
         }
     }
     Ok(())
@@ -202,9 +202,9 @@ pub fn load(path: &Path) -> Result<Option<String>, CliError> {
     {
         use std::os::unix::fs::MetadataExt;
         if metadata.uid() != rustix::process::geteuid().as_raw() || metadata.mode() & 0o077 != 0 {
-            return Err(invalid(
+            return Err(super::private_path::problem(&target, false).map(CliError::Invalid).unwrap_or_else(|| invalid(
                 "The trusted-account marker must be owned by the current user and private.",
-            ));
+            )));
         }
     }
     let mut bytes = vec![];

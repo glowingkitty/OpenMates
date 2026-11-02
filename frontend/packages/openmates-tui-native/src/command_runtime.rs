@@ -133,7 +133,10 @@ async fn run_with_list_stages(
         // Local revocation never needs a keyring/vault unlock or a valid current
         // target override. Remote logout uses only safely loaded original-origin
         // credentials; unavailable credentials cannot block local cleanup.
-        let store = RuntimeStore::new(Some(resolved.state_dir), globals.encrypted_vault).await?;
+        cli::private_path::preflight(&resolved.state_dir)?;
+        let store = RuntimeStore::new(Some(resolved.state_dir.clone()), globals.encrypted_vault)
+            .await
+            .map_err(|error| cli::private_path::explain(&resolved.state_dir, error))?;
         return logout_native(&store, globals.json).await;
     }
     if server_command {
@@ -266,8 +269,10 @@ async fn run_with_list_stages(
         };
     }
     stages.record(Stage::StoreOpenStarted);
-    let store =
-        RuntimeStore::new(Some(resolved.state_dir.clone()), globals.encrypted_vault).await?;
+    cli::private_path::preflight(&resolved.state_dir)?;
+    let store = RuntimeStore::new(Some(resolved.state_dir.clone()), globals.encrypted_vault)
+        .await
+        .map_err(|error| cli::private_path::explain(&resolved.state_dir, error))?;
     stages.record(Stage::StoreOpened);
     let mut passphrase = None;
     let login = invocation.command_path() == "login";
