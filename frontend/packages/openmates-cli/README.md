@@ -384,8 +384,11 @@ launches the CLI and never reads CLI login state. Credentials are explicit:
 log in with `loginPassword()` or import a caller-owned session. If the native
 module for your platform is missing or incompatible, construction throws
 `SessionClientError` with code `native_binding_unavailable` (no TypeScript
-fallback). Prebuilt artifacts are not yet published; from a source checkout run
-`npm run build:sdk:native`.
+fallback). The SDK is moving to one portable WebAssembly build of the core
+(`wasm/openmates_sdk_bg.wasm`, for Node, Deno, Bun, edge and browsers): privacy
+helpers, task ordering and embed-version reconstruction already use it. Prebuilt
+artifacts are not yet published; from a source checkout run
+`npm run build:sdk:wasm` and `npm run build:sdk:native`.
 
 ## Versioning
 

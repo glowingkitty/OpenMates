@@ -28,7 +28,9 @@
     "dist",
     "fixtures",
     "templates",
-    "native/*.node"
+    "native/*.node",
+    "wasm/openmates_sdk.js",
+    "wasm/openmates_sdk_bg.wasm"
   ],
   "scripts": {
     "build": "tsup src/index.ts src/sdk-entry.ts src/sdk-session-v1-entry.ts src/cli.ts src/remoteAccessCrypto.ts src/privacyDaemon.ts --format esm --dts --clean && node scripts/package-remote-command-apparmor.mjs",
@@ -80,7 +82,8 @@
     "test:unit:chat-preparation": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/http.test.ts tests/preparedPrivacy.test.ts tests/ownedTurnMetadata.test.ts tests/foregroundChatRecovery.test.ts tests/taskContextDiscovery.test.ts && node --test --experimental-strip-types --loader ./tests/loader.mjs --test-name-pattern \"CLI saved-chat recovery preflight\" tests/client.test.ts",
     "build:sdk": "tsup src/sdk-entry.ts src/sdk-session-v1-entry.ts --format esm --dts",
     "build:sdk:native": "python3 ../../../scripts/build_sdk_native.py --language npm",
-    "test:unit:sdk-session": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-api-key-rust.test.ts tests/sdk-conformance.test.ts tests/sdk-crypto-legacy-om.test.ts tests/sdk-privacy.test.ts tests/sdk-project-sources.test.ts tests/sdk-project-task-watch-unavailable.test.ts tests/sdk-session-app-skill.test.ts tests/sdk-session-apps-inventory.test.ts tests/sdk-session-chat-details.test.ts tests/sdk-session-drafts.test.ts tests/sdk-session-embed-share.test.ts tests/sdk-session-full-chat-read.test.ts tests/sdk-session-original-dispatch.test.ts tests/sdk-session.test.ts tests/sdk-task-order.test.ts && node --test tests/sdk-v1-package.test.mjs tests/sdk-workflow-file-sync.test.mjs"
+    "test:unit:sdk-session": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-api-key-rust.test.ts tests/sdk-conformance.test.ts tests/sdk-crypto-legacy-om.test.ts tests/sdk-privacy.test.ts tests/sdk-project-sources.test.ts tests/sdk-project-task-watch-unavailable.test.ts tests/sdk-session-app-skill.test.ts tests/sdk-session-apps-inventory.test.ts tests/sdk-session-chat-details.test.ts tests/sdk-session-drafts.test.ts tests/sdk-session-embed-share.test.ts tests/sdk-session-full-chat-read.test.ts tests/sdk-session-original-dispatch.test.ts tests/sdk-session.test.ts tests/sdk-task-order.test.ts && node --test tests/sdk-v1-package.test.mjs tests/sdk-workflow-file-sync.test.mjs tests/sdk-wasm.test.mjs",
+    "build:sdk:wasm": "python3 ../../../scripts/build_sdk_native.py --language wasm"
   },
   "keywords": [
     "openmates",

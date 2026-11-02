@@ -3,7 +3,7 @@
  * at 1 MiB, with growth checked before replacement copies. Values must be plain JSON data, with safe
  * integer-valued numbers, valid Unicode and at most 64 levels of nesting.
  */
-import { createRequire } from "node:module";
+import { loadSdkWasm } from "./sdkWasm.js";
 import { SessionClientError } from "./sdkSession.js";
 
 export interface PreparedPrivacy { text: string; mappings: Record<string, unknown>[] }
@@ -45,11 +45,8 @@ function call(input: Record<string, unknown>): Record<string, unknown> {
     encoded = JSON.stringify(input);
     if (Buffer.byteLength(encoded,"utf8")>16*1024*1024) invalid();
   } catch { return invalid(); }
-  const platform = `${process.platform}-${process.arch}`;
-  let native: {privacy(input:string):string};
-  try { native=createRequire(import.meta.url)(`../native/${platform}.node`); }
-  catch { throw new SessionClientError("native_binding_unavailable", "Install a native SDK build containing privacy operations."); }
-  if (typeof native.privacy!=="function") throw new SessionClientError("native_binding_unavailable", "Install a native SDK build containing privacy operations.");
+  const native = loadSdkWasm();
+  if (!native) throw new SessionClientError("native_binding_unavailable", "Install an OpenMates SDK build containing its WebAssembly module.");
   try {
     const result: unknown=JSON.parse(native.privacy(encoded));
     if (!result || typeof result!=="object" || Array.isArray(result) || typeof (result as {text?:unknown}).text!=="string") throw new SessionClientError("protocol", "The native privacy result is invalid.");

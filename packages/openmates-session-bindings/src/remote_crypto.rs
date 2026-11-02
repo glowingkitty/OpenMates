@@ -22,7 +22,7 @@ impl WipingRemoteValue {
 }
 impl Drop for WipingRemoteValue {
     fn drop(&mut self) {
-        crate::session::wipe_json_value(&mut self.value);
+        crate::wipe::wipe_json_value(&mut self.value);
         #[cfg(test)] if let Some(probe)=&self.probe {
             probe.lock().expect("synthetic wipe probe").push(self.value.is_null());
         }

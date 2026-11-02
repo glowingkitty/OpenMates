@@ -3,22 +3,7 @@
 use super::{work::work_authority, *};
 use zeroize::Zeroize;
 pub(super) fn wipe(value: &mut Value) {
-    match value {
-        Value::String(s) => s.zeroize(),
-        Value::Array(a) => {
-            for v in a {
-                wipe(v)
-            }
-        }
-        Value::Object(o) => {
-            for (mut key, mut v) in std::mem::take(o) {
-                key.zeroize();
-                wipe(&mut v)
-            }
-        }
-        _ => {}
-    }
-    *value = Value::Null;
+    crate::wipe::wipe_json_value(value)
 }
 struct Pending(Value);
 impl Drop for Pending {

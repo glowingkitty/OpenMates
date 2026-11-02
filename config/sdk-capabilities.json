@@ -6310,10 +6310,11 @@
           "api": [],
           "conformance": false,
           "evidence": [
-            "frontend/packages/openmates-cli/tests/sdk-v1-package.test.mjs"
+            "frontend/packages/openmates-cli/tests/sdk-v1-package.test.mjs",
+            "frontend/packages/openmates-cli/tests/sdk-wasm.test.mjs"
           ],
           "gaps": [
-            "Explicit fallback-free loading: the SDK loads only the packaged native artifact (native/<os>-<arch>.node) and raises native_binding_unavailable when it is missing or incompatible; no TypeScript/Python fallback or CLI process. scripts/build_sdk_native.py builds it for the host only. npm `files` ships native/*.node, but the publish pipeline does not yet build or include per-platform artifacts. Clean-install and cross-platform conformance remain unverified."
+            "Migration to one portable WebAssembly artifact (wasm/openmates_sdk_bg.wasm, built by scripts/build_sdk_native.py --language wasm) is in progress: privacy, task ordering and embed-version reconstruction already load it explicitly (typed native_binding_unavailable when absent, no fallback). SessionClient, RustApiKeyClient, remote crypto and ephemeral metadata still load the per-platform Node-API binary until the Node-host WASM platform (fetch/WebSocket with explicit cookies) lands. The publish pipeline does not yet build or include either artifact; clean-install and cross-runtime (Deno/Bun/edge) conformance are unverified."
           ],
           "status": "partial"
         },

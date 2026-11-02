@@ -1,5 +1,5 @@
 /** Stateless task ordering through the shared Rust SDK. No client or auth. */
-import { createRequire } from "node:module";
+import { loadSdkWasm } from "./sdkWasm.js";
 import { SessionClientError } from "./sdkSession.js";
 
 export interface TaskOrderRow {
@@ -14,14 +14,8 @@ function invalid(): never {
   throw new SessionClientError("invalid_argument", "Supply task rows and an explicit locale.");
 }
 function nativeOrder(encoded: string): string {
-  const platform = `${process.platform}-${process.arch}`;
-  if (!new Set(["linux-arm64", "linux-x64", "darwin-arm64", "darwin-x64", "win32-arm64", "win32-x64"]).has(platform)) {
-    throw new SessionClientError("native_binding_unavailable", "Install a native SDK build for this platform.");
-  }
-  let native: { taskOrder(input: string): string };
-  try { native = createRequire(import.meta.url)(`../native/${platform}.node`); }
-  catch { throw new SessionClientError("native_binding_unavailable", "Install a native SDK build for this platform."); }
-  if (typeof native.taskOrder !== "function") throw new SessionClientError("native_binding_unavailable", "Install a native SDK build containing task ordering.");
+  const native = loadSdkWasm();
+  if (!native) throw new SessionClientError("native_binding_unavailable", "Install an OpenMates SDK build containing its WebAssembly module.");
   return native.taskOrder(encoded);
 }
 
