@@ -80,6 +80,13 @@ status_2026_11_02:
     list 295 vs 425 ms, open chat 1,323 vs 2,325 ms; CPU 93-95% lower; RSS about
     33 MB vs 156-180 MB+. Open blocker - first list after `show` 835 vs 451 ms
     (show rewrites the hashed cache snapshot so the next list misses the cache).
+  personal_account_2026_11_02: >-
+    Real dev account (scripts/rust_bench, 20 paired samples, release build fedfbc8,
+    isolated profiles under ~/.local/share/openmates-rust-bench) - Rust vs TS medians:
+    whoami 273 vs 786 ms, CPU 84 vs 815 ms, peak 25 vs 155 MiB; chats list 299 vs
+    524 ms, CPU 104 vs 683 ms, peak 27 vs 125 MiB. chats show fails in Rust
+    (chat_details_projection_unavailable - dev backend lacks the include_read_details
+    opt-in from the unlanded checkpoint backend changes); TS show 9.2 s.
 
 stages:
   - id: land-and-restructure
