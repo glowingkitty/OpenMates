@@ -3,11 +3,25 @@ import {
   awaitPersonalChatPredecessor, bindPersonalChatTurn, clearPersonalChatTurnBarriers,
   completePersonalChatTurn, completePersonalChatMessage, failMatchingPersonalChatTurn, failPersonalChatTurn,
   reservePersonalChatTurn, observePersonalChatCanonicalVersion, hasRecoveryBoundPersonalChatMessage,
+  markPersonalChatTurnLegacy,
 } from '../personalChatTurnBarrier';
 
 afterEach(() => clearPersonalChatTurnBarriers());
 
 describe('personal encrypted chat turn barrier', () => {
+  // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced
+  it('lets an epoch-zero LEGACY turn persist through legacy storage and settle its follow-up', async () => {
+    const first = reservePersonalChatTurn('chat-legacy', 'user-1');
+    bindPersonalChatTurn(first, 'turn-1');
+    expect(hasRecoveryBoundPersonalChatMessage('chat-legacy', 'user-1')).toBe(true);
+    // No sealed recovery job exists at epoch zero; the legacy ACK settles the turn.
+    markPersonalChatTurnLegacy(first);
+    expect(hasRecoveryBoundPersonalChatMessage('chat-legacy', 'user-1')).toBe(false);
+    const followUp = reservePersonalChatTurn('chat-legacy', 'user-2');
+    expect(completePersonalChatMessage('chat-legacy', 'user-1', 3)).toBe(true);
+    expect(await awaitPersonalChatPredecessor(followUp)).toBe(3);
+  });
+
   // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced,chats.message.identity-idempotent
   it('reserves before optimistic writes and queues a rapid follow-up until matching canonical ACK', async () => {
     const first = reservePersonalChatTurn('chat-a', 'user-1');

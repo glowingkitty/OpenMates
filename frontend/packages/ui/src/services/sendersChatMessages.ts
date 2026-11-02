@@ -70,7 +70,7 @@ import { getActiveTeamContextSnapshot } from "../stores/teamStore";
 import { activeChatStore } from "../stores/activeChatStore";
 import { ordinaryTeamPreflightStorageKey, retainOrReuseOrdinaryTeamPreflight } from "./ordinaryTeamPreflightRetry";
 import { PreflightRejectionError, isPreflightAcknowledgementTimeout, waitForPreflightAcknowledgement, recoverTimedOutAdmission } from "./preflightAcknowledgement";
-import { observePersonalChatCanonicalVersion, awaitPersonalChatPredecessor, bindPersonalChatTurn, failPersonalChatTurn, reservePersonalChatTurn, hasRecoveryBoundPersonalChatMessage, type PersonalChatTurn } from "./personalChatTurnBarrier";
+import { observePersonalChatCanonicalVersion, awaitPersonalChatPredecessor, bindPersonalChatTurn, failPersonalChatTurn, reservePersonalChatTurn, hasRecoveryBoundPersonalChatMessage, markPersonalChatTurnLegacy, type PersonalChatTurn } from "./personalChatTurnBarrier";
 import { isDraftContextDispatchActive, reserveDraftContextDispatch } from "./draftContextDispatchBarrier";
 export { isPreflightAcknowledgementTimeout } from "./preflightAcknowledgement";
 
@@ -1528,7 +1528,8 @@ async function dispatchFastPersonalTurn(input: {
 		onUserFrameDispatched?.();
 		// The backend commits the user row before this exact-turn ACK. Prepare and
 		// consume context only then; a rejected frame cannot publish a phase.
-		void admissionAck.then(async () => {
+		void admissionAck.then(async (ack) => {
+			if (ack.state === 'LEGACY') markPersonalChatTurnLegacy(personalTurn);
 			recordSendPreparationPhase('admission_ack');
 			initialChatHistoryGate.acknowledge(message.chat_id, message.message_id, admission.turn_id as string, contextWorkspace);
 			await publishPostAdmissionContext({
@@ -3289,7 +3290,7 @@ export async function sendNewMessageImpl(
 		}
 		try {
 			voiceDiagnostics.enter('preflight_serialization');
-			const { preflight_id } = await runSerializedPreflight(async () => {
+			const { preflight_id, state: preflightState } = await runSerializedPreflight(async () => {
 				if (shouldInvokeTeamAI) assertTeamSendScope();
 				const acknowledgement = waitForPreflightAcknowledgement(
 					turnId, webSocketService, recordPreflightDebugStep, undefined,
@@ -3308,6 +3309,7 @@ export async function sendNewMessageImpl(
 				voiceDiagnostics.enter('preflight_ack');
 				return acknowledgement;
 			});
+			if (usesPersonalRecovery && preflightState === 'LEGACY') markPersonalChatTurnLegacy(personalTurn);
 			initialChatHistoryGate.acknowledge(message.chat_id, message.message_id, turnId, sendWorkspaceIdentity);
 			payload.protocol_version = CHAT_RECOVERY_PROTOCOL_VERSION;
 			payload.preflight_id = preflight_id;

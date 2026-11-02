@@ -10,6 +10,8 @@ export interface PersonalChatTurn {
   readonly predecessor: Promise<TurnResult> | null;
   readonly done: Promise<TurnResult>;
   turnId: string | null;
+  /** Epoch-zero admission: the reply persists through legacy storage, not sealed recovery. */
+  legacy: boolean;
   settled: boolean;
   resolve: (result: TurnResult) => void;
 }
@@ -29,9 +31,17 @@ export function hasPendingPersonalChatTurn(chatId: string): boolean {
   return [...turns.values()].some(turn => turn.chatId === chatId);
 }
 
-/** A bound preflight must finish through sealed recovery, including on Stop. */
+/** A bound preflight must finish through sealed recovery, including on Stop.
+ * LEGACY (epoch-zero) admissions have no recovery job; their reply must use
+ * legacy storage, whose ACK is what settles the turn for the next send. */
 export function hasRecoveryBoundPersonalChatMessage(chatId: string, messageId: string): boolean {
-  return !!turns.get(key(chatId, messageId))?.turnId;
+  const turn = turns.get(key(chatId, messageId));
+  return !!turn?.turnId && !turn.legacy;
+}
+
+/** Record the server's LEGACY preflight ACK for this bound turn. */
+export function markPersonalChatTurnLegacy(turn: PersonalChatTurn): void {
+  turn.legacy = true;
 }
 
 function key(chatId: string, messageId: string): string {
@@ -47,7 +57,7 @@ export function reservePersonalChatTurn(chatId: string, messageId: string): Pers
   const turn: PersonalChatTurn = {
     chatId, messageId, predecessor: tails.get(chatId)?.done
       ?? (settledVersions.has(chatId) ? Promise.resolve({ version: settledVersions.get(chatId)! }) : null),
-    done, turnId: null, settled: false, resolve,
+    done, turnId: null, legacy: false, settled: false, resolve,
   };
   tails.set(chatId, turn);
   turns.set(identity, turn);

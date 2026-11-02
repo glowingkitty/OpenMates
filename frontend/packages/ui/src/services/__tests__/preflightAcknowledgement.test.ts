@@ -72,6 +72,14 @@ describe("durable preflight acknowledgement", () => {
 		await expect(pending).resolves.toEqual({ preflight_id: "matched" });
 	});
 
+	// contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced
+	it("reports an epoch-zero LEGACY admission so its reply uses legacy storage", async () => {
+		const { source, emit } = eventSource();
+		const pending = waitForPreflightAcknowledgement("turn-legacy", source, vi.fn(), undefined, true);
+		emit("chat_turn_preflight_ack", { turn_id: "turn-legacy", preflight_id: "legacy-preflight", state: "LEGACY" });
+		await expect(pending).resolves.toEqual({ preflight_id: "legacy-preflight", state: "LEGACY" });
+	});
+
 	// contract-test: supporting surface=gui.web assertions=chats.send.immediate-admission,message-input.send.ownership
 	it("finishes a pending retry status write before reconnect can mark the row synced", async () => {
 		let releaseWrite!: () => void;

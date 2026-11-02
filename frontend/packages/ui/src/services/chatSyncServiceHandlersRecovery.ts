@@ -373,11 +373,16 @@ function discoverRepliesForSend(): Promise<ReplyDiscovery> {
     const complete = (raw: unknown) => {
       if ((raw as { request_id?: string })?.request_id !== requestId) return;
       if (!acknowledged) return;
-      if (webSocketService.getConnectionForSend() !== connection || (raw as { status?: string })?.status !== 'completed') {
+      const status = (raw as { status?: string })?.status;
+      if (webSocketService.getConnectionForSend() !== connection || (status !== 'completed' && status !== 'disabled')) {
         cancel(new Error('Completed reply discovery did not finish.'));
         return;
       }
-      cleanup(); resolve({ jobs: [...jobs.values()], pending: [...pending.values()] });
+      // Before the recovery protocol epoch is activated the server reports
+      // 'disabled': completions persist through the legacy path, so no recovery
+      // job can exist and the follow-up send must proceed with nothing to restore.
+      cleanup();
+      resolve(status === 'disabled' ? { jobs: [], pending: [] } : { jobs: [...jobs.values()], pending: [...pending.values()] });
     };
     const received = (event: Event) => {
       const frame = (event as CustomEvent<{ type?: string; payload?: unknown }>).detail;
