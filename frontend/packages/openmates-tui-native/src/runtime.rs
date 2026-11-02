@@ -334,6 +334,13 @@ enum Work {
     Live,
 }
 type BootSyncPreempt = std::sync::Arc<std::sync::Mutex<Option<CancellationToken>>>;
+/// Commands the user is waiting on run before the background boot sync.
+fn preempts_boot_sync(command: &UiCommand) -> bool {
+    matches!(
+        command,
+        UiCommand::Open(Workspace::Chats, _) | UiCommand::Refresh(Workspace::Chats) | UiCommand::Send { .. }
+    )
+}
 fn preempt_boot_sync(slot: &BootSyncPreempt) {
     if let Some(token) = slot.lock().ok().and_then(|mut slot| slot.take()) {
         token.cancel();
@@ -650,7 +657,7 @@ async fn run_terminal(args: Args) -> Result<()> {
                     ) {
                         epoch.view = epoch.view.wrapping_add(1);
                     }
-                    if matches!(command, UiCommand::Open(Workspace::Chats, _) | UiCommand::Refresh(Workspace::Chats) | UiCommand::Send { .. }) {
+                    if preempts_boot_sync(&command) {
                         preempt_boot_sync(&boot_sync_preempt);
                     }
                     if matches!(
