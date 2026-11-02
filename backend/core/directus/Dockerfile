@@ -19,6 +19,8 @@ RUN mkdir -p /directus/extensions/personal-privacy-snapshot/dist \
     && cp /directus/extensions/personal-privacy-snapshot/src/*.js /directus/extensions/personal-privacy-snapshot/dist/ \
     && mkdir -p /directus/extensions/project-task-sync/dist \
     && cp /directus/extensions/project-task-sync/src/*.js /directus/extensions/project-task-sync/dist/ \
+    && mkdir -p /directus/extensions/chat-sync/dist \
+    && cp /directus/extensions/chat-sync/src/*.js /directus/extensions/chat-sync/dist/ \
     && mkdir -p /directus/extensions/chat-recovery-transaction/dist \
     && cp /directus/extensions/chat-recovery-transaction/src/*.js \
         /directus/extensions/chat-recovery-transaction/dist/ \

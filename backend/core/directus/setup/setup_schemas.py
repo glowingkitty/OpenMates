@@ -218,6 +218,26 @@ USER_TASK_INDEXES = (
     'user_task_activity_team_created_idx',
     'user_task_archives_owner_archived_idx',
 )
+CHAT_SYNC_FEED_MIGRATION_PATH = os.getenv(
+    'CHAT_SYNC_FEED_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_chat_sync_feed.sql',
+)
+CHAT_SYNC_FEED_TRIGGERS = (
+    ('chats', 'chat_sync_chat_trigger'),
+    ('chats', 'chat_sync_chat_update_trigger'),
+    ('messages', 'chat_sync_message_trigger'),
+    ('messages', 'chat_sync_message_update_trigger'),
+    ('drafts', 'chat_sync_draft_trigger'),
+    ('chat_key_wrappers', 'chat_sync_wrapper_trigger'),
+    ('embeds', 'chat_sync_embed_trigger'),
+    ('embeds', 'chat_sync_embed_update_trigger'),
+    ('embed_keys', 'chat_sync_embed_key_trigger'),
+    ('chat_recovery_chat_deletion_fences', 'chat_sync_deletion_fence_trigger'),
+    ('directus_users', 'chat_sync_last_opened_trigger'),
+    ('reminders', 'chat_sync_reminder_trigger'),
+    ('reminders', 'chat_sync_reminder_update_trigger'),
+    ('user_app_settings_and_memories', 'chat_sync_saved_item_trigger'),
+)
 USER_WORK_CONTROL_MIGRATION_PATH = os.getenv(
     'USER_WORK_CONTROL_MIGRATION_PATH',
     '/usr/src/app/migrations/migrate_user_work_control_indexes.sql',
@@ -1633,6 +1653,30 @@ def apply_and_verify_user_task_indexes():
     print(f"Verified {len(USER_TASK_INDEXES)} user task indexes")
 
 
+def apply_and_verify_chat_sync_feed():
+    """Install the durable chat sync change log before the feed is advertised."""
+    if not os.path.isfile(CHAT_SYNC_FEED_MIGRATION_PATH):
+        raise RuntimeError(f"Required chat sync feed migration is missing: {CHAT_SYNC_FEED_MIGRATION_PATH}")
+    with open(CHAT_SYNC_FEED_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                "SELECT c.relname, t.tgname FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid "
+                "WHERE NOT t.tgisinternal AND t.tgenabled IN ('O','A') AND t.tgname LIKE 'chat_sync_%'"
+            )
+            installed = {(row[0], row[1]) for row in cursor.fetchall()}
+    missing = set(CHAT_SYNC_FEED_TRIGGERS) - installed
+    if missing:
+        raise RuntimeError(
+            "Chat sync feed trigger verification failed: "
+            + ", ".join(sorted(f"{table}.{name}" for table, name in missing))
+        )
+    print(f"Verified {len(CHAT_SYNC_FEED_TRIGGERS)} chat sync feed triggers")
+
+
 def apply_and_verify_user_work_control_indexes():
     """Apply the durable unique edge index before dependency routes are enabled."""
     if not os.path.isfile(USER_WORK_CONTROL_MIGRATION_PATH):
@@ -2104,6 +2148,7 @@ def setup_schemas():
         print("\n--- Applying user task database indexes ---")
         apply_and_verify_user_task_indexes()
         apply_and_verify_personal_privacy_generation()
+        apply_and_verify_chat_sync_feed()
 
         print("\n--- Applying user work-control database indexes ---")
         apply_and_verify_user_work_control_indexes()
