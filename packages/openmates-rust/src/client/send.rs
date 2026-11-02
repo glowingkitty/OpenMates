@@ -513,7 +513,7 @@ impl Client {
         let mut metadata=json!({"encrypted_title":crypto::encrypt_combined(if team.is_some()&&!wait_ai{input}else{""},key)?,"encrypted_chat_key":wrapped,"created_at":created,"updated_at":created});
         match wrapping.native_key(){
             Ok(raw)=>{
-                let slug=match options.slug.as_deref(){Some(slug)=>crypto::normalize_object_slug(slug)?,None=>crypto::normalize_object_slug(input).unwrap_or_else(|_|format!("chat-{}",&id[..8]))};
+                let slug=crypto::normalize_object_slug(&new_chat_slug_value(input,id,options.slug.as_deref()))?;
                 metadata["encrypted_slug"]=json!(crypto::encrypt_combined(&slug,key)?);
                 metadata["slug_lookup_hash"]=json!(crypto::object_slug_lookup_hash(&slug,raw)?);
             }
@@ -674,6 +674,24 @@ mod terminal_receipt_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
+    // contract-test: supporting surface=sdks.rust assertions=cli.slugs.encrypted-stable
+    #[test]
+    fn identical_first_messages_get_distinct_chat_slugs_like_typescript() {
+        let first = "1f0e4c5e-7a3b-4c2d-9e8f-0a1b2c3d4e5f";
+        let second = "AB0E4C5E-7A3B-4C2D-9E8F-0A1B2C3D4E5F";
+        let a = new_chat_slug_value("Capital of Germany?", first, None);
+        let b = new_chat_slug_value("Capital of Germany?", second, None);
+        assert_eq!(a, format!("capital-of-germany-{first}"));
+        assert_eq!(b, "capital-of-germany-ab0e4c5e-7a3b-4c2d-9e8f-0a1b2c3d4e5f");
+        assert_ne!(crypto::normalize_object_slug(&a).unwrap(), crypto::normalize_object_slug(&b).unwrap());
+        // Long prompts keep the UUID inside the 80-character limit.
+        let long = new_chat_slug_value(&"word ".repeat(40), first, None);
+        assert_eq!(crypto::normalize_object_slug(&long).unwrap(), long);
+        assert!(long.len() <= 80 && long.ends_with(first) && !long.contains("--"));
+        // No ASCII after normalization falls back to "chat"; explicit slugs win.
+        assert_eq!(new_chat_slug_value("東京 🗼", first, None), format!("chat-{first}"));
+        assert_eq!(new_chat_slug_value("ignored", first, Some("My Slug")), "My Slug");
+    }
     // contract-test: supporting surface=sdks.rust assertions=sdk.surface.semantic-parity,auth.session.isolation
     #[test]
     fn first_draft_turn_generates_an_independent_chat_key() {
@@ -792,6 +810,21 @@ mod tests {
     }
 }
 
+/// TypeScript `selectNewChatSlugValue`: an explicit slug wins; otherwise the
+/// message-derived prefix (or "chat") is made unique with the chat UUID so two
+/// new chats with the same first message never collide on `slug_lookup_hash`.
+pub(super) fn new_chat_slug_value(message: &str, chat_id: &str, explicit: Option<&str>) -> String {
+    if let Some(slug) = explicit {
+        return slug.to_owned();
+    }
+    const MAX_CHAT_SLUG_LENGTH: usize = 80;
+    let normalized = crypto::normalize_object_slug(message).unwrap_or_else(|_| "chat".into());
+    let chat_id = chat_id.to_lowercase();
+    let prefix_length = MAX_CHAT_SLUG_LENGTH.saturating_sub(chat_id.len() + 1);
+    // normalize_object_slug output is ASCII, so byte slicing is char-safe.
+    let prefix = normalized[..normalized.len().min(prefix_length)].trim_end_matches('-');
+    format!("{prefix}-{chat_id}")
+}
 fn should_wait_for_ai(message: &str, team: Option<&str>) -> bool {
     if team.is_none() {
         return true;

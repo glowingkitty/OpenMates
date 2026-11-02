@@ -120,6 +120,16 @@ impl Presentation {
             // particular cancellation must not tell users to inspect history.
             return CliError::Client(error);
         }
+        // The server explicitly refused the durable preflight: nothing was
+        // admitted, so this is not an uncertain turn needing recovery.
+        if matches!(error, Error::Unavailable { code: "chat_turn_rejected", .. })
+            && !self.pending.as_ref().is_some_and(|(_, _, admitted)| *admitted)
+        {
+            return CliError::Contract {
+                code: "chat_turn_rejected",
+                message: "The server rejected this message before saving it; nothing was admitted. Check the chat with `openmates chats show` before sending it again.".into(),
+            };
+        }
         match self.pending {
             Some((chat_id, message_id, admitted)) => CliError::PendingTurn {
                 chat_id,
@@ -462,6 +472,20 @@ async fn observe_with_writers_mode(
     if text.trim().is_empty() {
         return Err(CliError::Invalid("Provide a message.".into()));
     }
+    // Display mentions (@Gemini-3.8-Flash, @Sophia, @Web-Search) become wire
+    // syntax before encryption; an unknown mention aborts before any dispatch.
+    let text = if interactive {
+        text
+    } else {
+        let resolved = client.resolve_mentions(&text).await?;
+        if let Some(message) = unresolved_mentions_message(&resolved.unresolved) {
+            return Err(CliError::Contract {
+                code: "unknown_mention",
+                message,
+            });
+        }
+        Zeroizing::new(resolved.processed_message)
+    };
     let chat_id = if invocation.path.get(1).is_some_and(|s| s == "new") {
         None
     } else {
@@ -511,10 +535,45 @@ async fn observe_with_writers_mode(
         }
     }
 }
+/// TypeScript CLI wording for unknown mentions (cli.ts sendMessageStreaming).
+pub(crate) fn unresolved_mentions_message(
+    unresolved: &[openmates_sdk::mentions::UnresolvedMention],
+) -> Option<String> {
+    if unresolved.is_empty() {
+        return None;
+    }
+    let mut message = String::new();
+    for (index, mention) in unresolved.iter().enumerate() {
+        if index > 0 {
+            message.push_str("\nError: ");
+        }
+        message.push_str(&format!("Unknown mention {}", terminal_text(&mention.original)));
+        if !mention.suggestions.is_empty() {
+            message.push_str(&format!(
+                "\n  Did you mean: {}?",
+                terminal_text(&mention.suggestions.join(", "))
+            ));
+        }
+    }
+    message.push_str("\n\nNo message was sent. Check the mention name or remove the @.");
+    Some(message)
+}
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::{Value, json};
+    #[test]
+    fn unknown_mentions_are_reported_with_suggestions_and_known_ones_are_silent() {
+        use openmates_sdk::mentions::UnresolvedMention;
+        assert!(unresolved_mentions_message(&[]).is_none());
+        let message = unresolved_mentions_message(&[
+            UnresolvedMention { original: "@Sophie".into(), suggestions: vec!["@Sophia".into()] },
+            UnresolvedMention { original: "@Nope".into(), suggestions: vec![] },
+        ])
+        .unwrap();
+        assert!(message.starts_with("Unknown mention @Sophie\n  Did you mean: @Sophia?"));
+        assert!(message.contains("\nError: Unknown mention @Nope\n\nNo message was sent."));
+    }
     fn invocation(flags: &[(&str, Value)]) -> Invocation {
         Invocation {
             path: vec!["chats".into(), "send".into()],
@@ -1055,6 +1114,18 @@ mod tests {
             Presentation::default().failure(Error::Offline),
             CliError::Client(Error::Offline)
         ));
+    }
+    #[test]
+    fn rejected_preflight_is_a_specific_error_not_turn_recovery() {
+        let rejected = Error::Unavailable { code: "chat_turn_rejected", reason: "SERVER_REJECTED_TURN_BEFORE_ADMISSION" };
+        let submitted = Presentation { pending: Some(("chat".into(), "human".into(), false)), ..Default::default() };
+        let error = submitted.failure(rejected);
+        assert_eq!(error.code(), "chat_turn_rejected");
+        assert_eq!(error.exit_code(), 1);
+        assert!(error.to_string().contains("nothing was admitted"));
+        // An acknowledged turn keeps the recovery guidance.
+        let admitted = Presentation { pending: Some(("chat".into(), "human".into(), true)), ..Default::default() };
+        assert_eq!(admitted.failure(rejected).code(), "turn_recovery_required");
     }
     #[test]
     fn normal_team_submission_never_renders_previous_assistant_response() {

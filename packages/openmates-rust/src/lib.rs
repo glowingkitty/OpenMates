@@ -6,6 +6,7 @@ pub mod account;
 pub mod client;
 pub mod crypto;
 pub mod error;
+pub mod mentions;
 pub mod model;
 pub mod pairing;
 mod platform;

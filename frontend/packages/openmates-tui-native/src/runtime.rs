@@ -2080,6 +2080,15 @@ impl Actor {
                 }),
                 UiCommand::Send { chat_id, text } => Box::pin(async move {
                     let _request_cancel = &cancel;
+                    // Same send-time mention resolution as `chats send`; an
+                    // unknown mention fails before dispatch and restores the draft.
+                    let resolved = self.client.resolve_mentions(&text).await?;
+                    if !resolved.unresolved.is_empty() {
+                        return Err(Error::Invalid(
+                            "Unknown @mention. Nothing was sent; check the mention name.",
+                        ));
+                    }
+                    let text = resolved.processed_message;
                     let (stream, mut updates) = mpsc::channel(64);
                     let output = replies.clone();
                     self.relay = Some(tokio::spawn(async move {

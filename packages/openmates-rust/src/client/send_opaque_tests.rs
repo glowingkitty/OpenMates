@@ -97,14 +97,16 @@ async fn metadata_keeps_raw_team_index_bytes_and_message_codec_but_opaque_defaul
             assert_eq!(value.get("encrypted_slug").is_none(), id_only);
             assert_eq!(value.get("slug_lookup_hash").is_none(), id_only);
             if !id_only {
+                // TypeScript parity: message prefix plus the chat ID, never the bare message.
+                let slug = crypto::normalize_object_slug(&format!("synthetic-input-{}", CHAT.to_lowercase())).unwrap();
                 assert_eq!(
                     value["slug_lookup_hash"],
-                    crypto::object_slug_lookup_hash("synthetic-input", &[7; 32]).unwrap()
+                    crypto::object_slug_lookup_hash(&slug, &[7; 32]).unwrap()
                 );
                 assert_eq!(
                     crypto::decrypt_combined(value["encrypted_slug"].as_str().unwrap(), &[9; 32])
                         .unwrap(),
-                    "synthetic-input"
+                    slug
                 );
             }
             let title = base64::engine::general_purpose::STANDARD

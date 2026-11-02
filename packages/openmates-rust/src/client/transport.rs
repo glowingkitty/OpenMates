@@ -1199,6 +1199,16 @@ pub(super) async fn send(ws: &mut Socket, kind: &str, payload: Value) -> Result<
         .await
         .map_err(|_| Error::Offline)
 }
+/// `chat_turn_preflight_handler.py` rejects a durable preflight (for example a
+/// CMS transaction failure) with this exact frame before anything is admitted.
+/// The ambiguous "temporarily unavailable" variant stays a generic failure.
+pub(super) fn is_turn_preflight_rejection(payload: &Value) -> bool {
+    payload["turn_id"].is_string()
+        && payload.get("message_id").is_none()
+        && payload["code"].is_string()
+        && payload["code"] != "durable_preflight_failed"
+        && payload["message"] == "Encrypted chat preflight was rejected."
+}
 pub(super) async fn receive(ws: &mut Socket) -> Result<(String, Value)> {
     let _original_receive=ws.own_receive()?;
     if let Some(frame) = ws.pop_pending()? {
@@ -1276,6 +1286,12 @@ async fn receive_raw_policy(
                                 | "PermissionError"
                         )
                     );
+                if kind == "error" && is_turn_preflight_rejection(&frame["payload"]) {
+                    return Err(Error::Unavailable {
+                        code: "chat_turn_rejected",
+                        reason: "SERVER_REJECTED_TURN_BEFORE_ADMISSION",
+                    });
+                }
                 if kind == "error"
                     && !ephemeral
                     && frame["payload"]["code"] != "workflow_chat_delivery_rejected"
@@ -1403,6 +1419,21 @@ pub(super) fn test_socket(inner: crate::platform::socket::Stream) -> Socket {
 #[cfg(test)]
 mod tests {
     use super::*;
+    // contract-test: supporting surface=sdks.rust assertions=chats.message.identity-idempotent
+    #[test]
+    fn only_explicit_preflight_rejections_become_turn_rejected() {
+        let rejected = json!({"code":"transaction_failed","message":"Encrypted chat preflight was rejected.","turn_id":"t"});
+        assert!(is_turn_preflight_rejection(&rejected));
+        // A temporary failure may follow a commit; saved-turn errors carry the message ID.
+        let mut temporary = rejected.clone();
+        temporary["code"] = json!("durable_preflight_failed");
+        temporary["message"] = json!("Encrypted chat preflight is temporarily unavailable.");
+        assert!(!is_turn_preflight_rejection(&temporary));
+        let mut saved = rejected.clone();
+        saved["message_id"] = json!("m");
+        assert!(!is_turn_preflight_rejection(&saved));
+        assert!(!is_turn_preflight_rejection(&json!({"code":"x","message":"Encrypted chat preflight was rejected."})));
+    }
     // contract-test: supporting surface=sdks.rust assertions=sdk.surface.semantic-parity,auth.session.isolation
     #[test]
     fn origins() {

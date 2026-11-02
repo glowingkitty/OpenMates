@@ -108,6 +108,7 @@ mod credentials;
 mod cache_policy;
 mod chat_list_freshness;
 mod chat_arrival_order;
+mod mention_context;
 mod search;
 mod send;
 mod send_observations;
