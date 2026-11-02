@@ -64,3 +64,8 @@ when a skill or this file points to it.
   `test-failure-triager`, `e2e-test-investigator`.
   Debug tooling reference: `.claude/rules/debugging.md`.
 - Skills, agents and hooks live in `.claude/`; edit them there directly.
+- Sub-agent budget: sub-agents default to Sonnet (settings `env`); pass
+  `model: "opus"` only for hard implementation or architecture work. Give each
+  one a single bounded deliverable; split long lanes into fresh agents with a
+  short handoff instead of one agent running for hundreds of turns. Ask for
+  terse handbacks (outcome, commit, verification, blockers), no log dumps.
