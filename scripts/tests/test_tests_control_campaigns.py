@@ -1489,7 +1489,7 @@ def test_worker_lifecycle_commands_reject_another_workers_lease(tmp_path, monkey
     )
 
     monkeypatch.delenv("CODEX_THREAD_ID", raising=False)
-    with pytest.raises(RuntimeError, match="require CODEX_THREAD_ID"):
+    with pytest.raises(RuntimeError, match="require an agent session ID"):
         control.submit_worker_fix_intent(
             groups[1]["group_key"],
             second_lease["lease_id"],

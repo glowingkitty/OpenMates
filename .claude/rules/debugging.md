@@ -1,8 +1,9 @@
 ---
-description: Bug investigation and issue resolution workflow
-globs:
+paths:
+  - "backend/scripts/debug.py"
+  - "backend/scripts/debug_*.py"
+  - "backend/core/api/app/routes/admin_debug.py"
 ---
-
 ## Distributed Tracing (OTel)
 
 Use `debug.py trace` **first** for performance issues, error investigation, and request lifecycle debugging. Traces show exact timing and service call chains.

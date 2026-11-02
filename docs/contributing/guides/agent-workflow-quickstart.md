@@ -1,6 +1,6 @@
 # Agent workflow
 
-`AGENTS.md` is the concise entry point. Codex owns conversations; the installed
+`CLAUDE.md` is the concise entry point. Claude Code owns conversations; the installed
 OpenMates CLI owns Tasks and synchronization; GitHub CI owns isolated application
 stacks and E2E runs. Repository helpers own workspace safety and scoped publishing.
 
@@ -25,8 +25,8 @@ stacks and E2E runs. Repository helpers own workspace safety and scoped publishi
 Update OpenMates Tasks only at meaningful changes; successful acknowledged writes
 need no follow-up read. Preserve queued deliveries. Handoffs contain the outcome,
 Task, binding, owned paths, evidence and unresolved decisions in 100–200 words.
-Use canonical `codex_worker.py` and stable operation IDs for authorized dev-host
-workers; preserve explicit per-turn permissions.
+Parallel implementation streams each run in their own Claude Code conversation;
+the workspace binding follows `CLAUDE_CODE_SESSION_ID`.
 
 The repository has exactly two branches: `dev` and `main`. Sessions use detached
 managed worktrees. `ci-source` transports candidate bytes through a private,
@@ -36,12 +36,10 @@ candidate, hotfix, automation, or dependency branches. Audit the invariant with
 
 Read `.claude/rules/testing.md` for E2E maintenance and bounded debugging. Ask
 before a materially broader or uncertain repair. Explicit user waivers persist.
-Keep Claude source skills/agents and run `sync_agent_parity.py` plus `--check` after
-editing them. Hook changes require parity validation and one installed
-`codex_cached_context.py doctor` check; use `/hooks` to review changed definitions.
+Skills, agents and hooks live only in `.claude/`; edit them in place. Review
+changed hook definitions with `/hooks`. Rules use `paths:` frontmatter so they
+load only for matching files; keep `CLAUDE.md` short because it always loads.
 
 Legacy conversation records are historical data, not executable workflow rules.
 See `docs/architecture/codex-task-cache.md` for task transport and recovery.
 
-After editing shared skills/hooks, run `python3 scripts/sync_agent_parity.py --check`
-and `python3 scripts/audit_agent_tooling_parity.py`.

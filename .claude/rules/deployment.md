@@ -1,41 +1,21 @@
 ---
-description: Scoped dev deployment and exact-commit readiness
-globs:
+paths:
+  - "scripts/promote_production_webapp.py"
+  - "scripts/bump_alpha_version_line.py"
+  - "deployment/**"
 ---
+# Deployment
 
-Use `sessions.py deploy` for the isolated task diff. It infers the current binding
-or accepts explicit `--session`, runs relevant checks and publishes to `dev`.
-Keep messages concise and meaningful. Use standard type prefixes; preserve
-contract trailers for contract-governed changes. Deploy-docs is an optional
-reference command, not a prerequisite for each deployment.
-
-Use `sessions.py wait-deploy --commit <sha>` when frontend readiness is needed.
-Wait inside that process; do not run repeated model sleep/status loops. Tests
-run in isolated GitHub CI using the exact candidate/harness, independently of
-Vercel readiness. A manually requested dev-browser check needs the matching Ready
-deployment. A pushed commit is not yet proof that the frontend is live.
-
-If a check fails, inspect its focused error and retain the receipt. Reassess
-after two failed attempts; ask before expanding into unrelated infrastructure
-repair or uncertain behavior. Never bypass a failing relevant safety check.
-Report outcome, commit and relevant verification without a mandatory template.
-
-Alpha version changes use `scripts/bump_alpha_version_line.py`; do not invent
-patch-version trains. For Vercel failure diagnosis use `backend/scripts/debug.py
-vercel --failed`, with full logs only when needed. Routine warnings on a Ready
-build do not warrant a new repair task.
-
-Production web app releases must pass a real browser startup check. Build success,
-Vercel Ready and HTTP 200 are insufficient. Keep automatic production domain
-assignment disabled in the existing app project; build with production settings
-and `--skip-domain`. After backend compatibility checks, use
-`python3 scripts/promote_production_webapp.py --deployment <id> --expected-version <version> --out <private-evidence-dir>`.
-It opens the exact staged deployment in fresh laptop/phone Chromium contexts,
-requires hydrated app controls and an interactive login screen, reloads, fails
-on console errors or unhandled exceptions, then assigns only `app.openmates.org`
-and repeats the check. A failed live check restores the previous alias unless
-another operator has changed it. Retain the version-bound receipt, screenshots
-and recordings. Do not use raw alias/promote commands or re-enable automatic
-assignment to bypass this check. Emergency restoration to a previously verified
-deployment must immediately repeat the live check. Never declare production
-deployment complete with a failed or missing browser receipt.
+- Dev: `sessions.py deploy` publishes the scoped diff to `dev` after checks.
+  Standard type prefixes; preserve contract trailers. For frontend readiness use
+  `sessions.py wait-deploy --commit <sha>`; a pushed commit is not a live frontend.
+- Failed check: inspect the focused error, keep the receipt, never bypass a
+  relevant safety check.
+- Alpha versions: `scripts/bump_alpha_version_line.py`. Vercel failures:
+  `backend/scripts/debug.py vercel --failed`; warnings on a Ready build are fine.
+- Production web releases need a real browser startup check: keep automatic
+  domain assignment disabled, build with `--skip-domain`, then after backend
+  compatibility checks run `python3 scripts/promote_production_webapp.py
+  --deployment <id> --expected-version <version> --out <private-evidence-dir>`.
+  Never use raw alias/promote commands. Emergency restores repeat the check.
+  Production is not done without a passing browser receipt.

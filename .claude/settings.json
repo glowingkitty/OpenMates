@@ -22,7 +22,7 @@
         ]
       },
       {
-        "matcher": "apply_patch|Edit|Write",
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
         "hooks": [
           {
             "type": "command",
@@ -53,6 +53,16 @@
             "type": "command",
             "command": "$(git rev-parse --show-toplevel)/.claude/hooks/native-ios-control-guard.sh",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/provider-registry-sync.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/analytics-sdk-forbidden.sh",
+            "timeout": 5
           }
         ]
       }
@@ -69,7 +79,7 @@
         ]
       },
       {
-        "matcher": "apply_patch|Edit|Write",
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
         "hooks": [
           {
             "type": "command",
@@ -79,19 +89,52 @@
           },
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/skill-embed-registry-guard.sh"
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/auto-rebuild-translations.sh",
+            "timeout": 30,
+            "async": true
           },
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/specification-test-impact.sh"
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/skill-embed-registry-guard.sh",
+            "timeout": 10
           },
           {
             "type": "command",
-            "command": "bash scripts/lint-design-tokens.sh"
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/specification-test-impact.sh",
+            "timeout": 10
           },
           {
             "type": "command",
-            "command": "bash scripts/lint-swift-design-tokens.sh"
+            "command": "bash scripts/lint-design-tokens.sh",
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "bash scripts/lint-swift-design-tokens.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/reinject-session.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/check-uncommitted.sh",
+            "timeout": 10
           }
         ]
       }

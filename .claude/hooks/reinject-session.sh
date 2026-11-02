@@ -1,38 +1,26 @@
 #!/bin/bash
 # Hook: SessionStart (compact)
-# Re-injects active session context after context compaction so Claude
-# doesn't lose track of the session ID, task, and tracked files.
+# Re-injects this conversation's sessions.py context after compaction so Claude
+# keeps the right session ID, task and worktree. Silent when none is bound.
 
+INPUT=$(cat)
 PROJECT_DIR="/home/superdev/projects/OpenMates"
 SESSIONS_FILE="$PROJECT_DIR/.claude/sessions.json"
+# shellcheck source=lib/current-session.sh
+source "$(dirname "$0")/lib/current-session.sh"
 
-if [ ! -f "$SESSIONS_FILE" ]; then
-  echo "No active sessions.py session found."
-  exit 0
-fi
+CLAUDE_ID=$(echo "$INPUT" | jq -r '.session_id // empty')
+CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
+SID=$(current_session_id "${CLAUDE_ID:-$CLAUDE_CODE_SESSION_ID}" "$CWD" "$SESSIONS_FILE")
+[ -z "$SID" ] && exit 0
 
-# Find the most recently active session
-SESSION_DATA=$(jq -r '
-  .sessions | to_entries |
-  sort_by(.value.last_active) | last //empty |
-  if . == "" then empty else
+jq -r --arg sid "$SID" '
+  .sessions[$sid] as $s |
   "SESSION CONTEXT (re-injected after compaction):\n" +
-  "  Session ID: \(.key)\n" +
-  "  Mode: \(.value.mode // "unknown")\n" +
-  "  Task: \(.value.task // "unknown")\n" +
-  "  Tags: \(.value.tags // [] | join(", "))\n" +
-  "  Task ID: \(.value.task_id // "none")\n" +
-  "  Tracked files (\(.value.modified_files | length)):\n" +
-  (.value.modified_files[:20] | map("    - " + .) | join("\n")) +
-  if (.value.modified_files | length) > 20 then "\n    ... and \(.value.modified_files | length - 20) more" else "" end +
-  "\n\nREMINDER: Use session ID \(.key) for all sessions.py commands (track, deploy, end)."
-  end
-' "$SESSIONS_FILE" 2>/dev/null)
-
-if [ -n "$SESSION_DATA" ]; then
-  echo -e "$SESSION_DATA"
-else
-  echo "No active sessions.py session found."
-fi
-
+  "  Session ID: \($sid)\n" +
+  "  Mode: \($s.mode // "unknown")\n" +
+  "  Task: \($s.task // "unknown")\n" +
+  "  Workspace: \($s.worktree.path // "canonical checkout")\n" +
+  "Edit only in that workspace; pass --session \($sid) when a command cannot infer it."
+' "$SESSIONS_FILE" 2>/dev/null
 exit 0

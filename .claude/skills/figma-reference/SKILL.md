@@ -73,7 +73,7 @@ private design JSON.
 ## Failure Handling
 
 - A `403` means the MCP process is not using an authorized token or the token
-  cannot access the file. Verify `.env.figma.local`, then restart Codex because
+  cannot access the file. Verify `.env.figma.local`, then restart Claude Code (or run `/mcp`) because
   MCP configuration is loaded only at startup.
 - A `429` means the current plan/seat or endpoint bucket is exhausted. Run
   `python3 scripts/figma_access_doctor.py --node-id <node-id>`, respect

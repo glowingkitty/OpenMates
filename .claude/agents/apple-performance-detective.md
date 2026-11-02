@@ -1,4 +1,5 @@
 ---
+name: apple-performance-detective
 description: Diagnose Apple app performance regressions with real-account-safe evidence from NativeDiagnostics, NativeSyncPerfLog, MetricKit summaries, Apple UI timing tests, apple_evidence_bundle.py, and web parity baselines. Use for slow startup, chat opening, sync/decryption stalls, streaming jank, scrolling hitches, embed hydration delays, or unexplained native slowness.
 tools: Read, Grep, Glob, Bash
 model: sonnet

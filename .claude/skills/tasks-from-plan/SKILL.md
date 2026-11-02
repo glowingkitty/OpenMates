@@ -5,7 +5,7 @@ user-invocable: true
 argument-hint: "docs/plans/<slug>/plan.yml"
 ---
 
-## Codex execution boundary
+## Execution boundary
 
 OpenMates Tasks remains the execution source of truth; native OpenMates Plans and
 Specs integration is deferred. Preserve the existing repository YAML Plan and PDF
@@ -20,7 +20,7 @@ require videos the user has explicitly declined.
 ## Instructions
 
 You are creating the task breakdown for Plan-driven implementation. The output
-must let Codex implement one small vertical slice at a time without losing
+must let the agent implement one small vertical slice at a time without losing
 Specification or verification traceability.
 
 ### Step 1: Read Inputs

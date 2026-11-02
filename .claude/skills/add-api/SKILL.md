@@ -1,5 +1,5 @@
 ---
-name: openmates:add-api
+name: add-api
 description: Integrate a new external API provider (research, wrapper, test script, docs)
 user-invocable: true
 argument-hint: "<provider-name>"

@@ -1,6 +1,6 @@
 ---
 name: resume-tasks
-description: Resume interrupted Codex work from its existing Task and workspace.
+description: Resume interrupted agent work from its existing Task and workspace.
 user-invocable: true
 ---
 
@@ -9,5 +9,6 @@ Inspect only its known session/workspace; use `sessions.py status --all` once if
 ownership is unknown. Reuse the binding and preserved changes. Do not launch a
 replacement terminal, invoke a retired restore command, or redo completed work.
 Ask only if an unresolved decision blocks the remaining work. Ownership transfer
-requires the existing bind-codex procedure and confirmation that the prior owner
-has stopped. Follow `AGENTS.md` and `.claude/rules/testing.md`.
+requires confirmation that the prior owner has stopped, then
+`sessions.py worktree bind-codex --session <id> --codex-task "$CLAUDE_CODE_SESSION_ID"
+--expected-worktree <path> --previous-owner-stopped` (binds it to this conversation). Follow `AGENTS.md` and `.claude/rules/testing.md`.

@@ -1,5 +1,5 @@
 ---
-name: openmates:triage-recent-bugs
+name: triage-recent-bugs
 description: Discover recent user-reported bugs from retained Linear issues, investigate them in parallel, replicate, fix, deploy, and verify end-to-end — composing issue-forensics, encryption-flow-tracer, and test-failure-triager.
 user-invocable: true
 argument-hint: "[hours=2]"

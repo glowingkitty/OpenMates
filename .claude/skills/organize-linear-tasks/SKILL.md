@@ -1,5 +1,5 @@
 ---
-name: openmates:organize-linear-tasks
+name: organize-linear-tasks
 description: Audit and reorganize all open Linear tasks — detect ghosts, duplicates, stale items, and missing metadata
 user-invocable: true
 argument-hint: "[--quick] [--section N]"

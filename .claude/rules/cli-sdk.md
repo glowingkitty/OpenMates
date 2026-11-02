@@ -1,8 +1,14 @@
 ---
-description: Shared Rust client core, native CLI/TUI and synchronized library SDKs
-globs: frontend/packages/openmates-*/**,packages/openmates-*/**,frontend/apps/web_app/**,frontend/packages/ui/**,apple/**
+paths:
+  - "frontend/packages/openmates-cli/**"
+  - "frontend/packages/openmates-tui-prototype/**"
+  - "packages/openmates-*/**"
+  - "**/*.rs"
+  - "**/Cargo.toml"
+  - "specifications/surfaces/cli/**"
+  - "specifications/surfaces/sdk/**"
+  - "docs/architecture/platforms/cli-package.md"
 ---
-
 The approved architecture is recorded in `docs/architecture/platforms/cli-package.md`,
 `specifications/surfaces/cli/` and `specifications/surfaces/sdk/`. Keep these existing
 contracts authoritative rather than creating another architecture source. Shared

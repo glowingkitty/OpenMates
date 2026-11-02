@@ -1,13 +1,11 @@
 ---
-description: Frontend coding standards for Svelte 5, TypeScript, and CSS
-globs:
+paths:
   - "frontend/**/*.svelte"
   - "frontend/**/*.ts"
   - "frontend/**/*.tsx"
   - "frontend/**/*.css"
 ---
-
-@docs/contributing/standards/frontend.md
+Before non-trivial frontend changes read `docs/contributing/standards/frontend.md` (and `DESIGN.md` for visual work).
 
 ## Additional Frontend Rules
 

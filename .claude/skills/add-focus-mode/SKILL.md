@@ -1,5 +1,5 @@
 ---
-name: openmates:add-focus-mode
+name: add-focus-mode
 description: Create or update OpenMates user-facing focus modes using the existing SKILL.md, app.yml, i18n, docs, and test patterns
 user-invocable: true
 argument-hint: "<appId?> <focusId?>"
@@ -9,7 +9,7 @@ argument-hint: "<appId?> <focusId?>"
 
 Use this skill when the user wants to create or update an OpenMates focus mode.
 OpenMates focus modes are user-facing chat modes that temporarily change how a
-mate thinks and responds for a specific goal. They are not Codex modes,
+mate thinks and responds for a specific goal. They are not agent modes,
 editor modes, OS notification modes, or backend app skills.
 
 ## Arguments

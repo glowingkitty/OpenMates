@@ -7,6 +7,10 @@ schedules cleanup for migrated repositories. Callers never clean on admission.
 """
 
 from __future__ import annotations
+try:
+    from scripts.agent_identity import agent_thread_id
+except ModuleNotFoundError:
+    from agent_identity import agent_thread_id
 
 from contextlib import contextmanager
 from datetime import datetime
@@ -189,7 +193,7 @@ def reserve(root: Path, amount: int, *, min_free: int = MIN_FREE,
     except ModuleNotFoundError:
         from disk_coordinator import canonical_repository, configured
     root = canonical_repository(root)
-    thread = os.environ.get("CODEX_THREAD_ID", "") if thread is None else thread
+    thread = agent_thread_id() if thread is None else thread
     coordinated = _coordinated_reserve(root, amount, min_free=min_free,
         max_used_percent=max_used_percent, operation=operation, thread=thread, task_id=task_id)
     if coordinated:

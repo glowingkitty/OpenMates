@@ -11,6 +11,13 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
+def isolate_claude_conversation_identity(monkeypatch):
+    """Keep the running Claude conversation ID out of tests that set their own identity."""
+    for name in ('CLAUDE_CODE_SESSION_ID', 'CLAUDE_SESSION_ID'):
+        monkeypatch.delenv(name, raising=False)
+
+
+@pytest.fixture(autouse=True)
 def isolate_apple_stop_state(request, tmp_path, monkeypatch):
     name = request.node.path.name
     if not (name.startswith('test_apple_remote') or name == 'test_apple_no_delete_guard.py'):

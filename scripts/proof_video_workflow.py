@@ -8,6 +8,10 @@ unbounded media work; scripts/spec_demo.py remains the media implementation.
 """
 
 from __future__ import annotations
+try:
+    from scripts.agent_identity import agent_thread_id
+except ModuleNotFoundError:
+    from agent_identity import agent_thread_id
 
 import argparse
 from dataclasses import asdict, dataclass
@@ -1798,7 +1802,7 @@ def _restore_file_snapshots(snapshots: dict[Path, bytes | None]) -> None:
 
 
 def start_current(spec_name: str, *, run_id: str = "", session_id: str = "") -> dict[str, Any]:
-    codex_task_id = os.environ.get("CODEX_THREAD_ID") or os.environ.get("CODEX_SESSION_ID", "")
+    codex_task_id = agent_thread_id()
     sessions = _load_json(SESSIONS_FILE)
     _session_id, session = resolve_current_session(sessions, codex_task_id=codex_task_id, repository_session_id=session_id)
     runs = _local_test_runs() + _ci_test_runs(run_id)

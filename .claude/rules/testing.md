@@ -1,142 +1,66 @@
 ---
-description: Maintain relevant E2E coverage and verify within task scope
-globs:
+paths:
+  - "**/tests/**"
+  - "**/__tests__/**"
+  - "**/*.spec.ts"
+  - "**/*.test.ts"
+  - "**/test_*.py"
+  - "apple/**/*Tests*/**"
+  - "scripts/ci_coordinator.py"
+  - "scripts/codex_evidence.py"
+  - ".github/workflows/**"
 ---
-
 # Verification
 
-Every behavior fix or new feature updates the relevant E2E coverage. Extend an
-existing case when appropriate; add a focused case when none covers the intended
-behavior. Do not request separate permission for routine test maintenance within
-an authorized implementation. A purely mechanical/docs change needs no invented
-E2E case. Explicit user instructions override this default.
+## Coverage
+- Every behavior fix/feature updates relevant E2E coverage: extend an existing
+  case or add a focused one. Mechanical/docs changes need no invented case.
+  Routine test maintenance within authorized work needs no extra permission.
+- Keep unit checks for the underlying cause; a fixture-only component test does
+  not prove an end-to-end failure is fixed. Use existing `contract-test`
+  metadata and stable assertion IDs; classify tooling tests as such.
+- Never weaken assertions to force a pass. Do not claim a pass from a queued,
+  cancelled, unrelated or stale run, or from mocks/replays.
+- Honor execution waivers (`skip E2E`) and report what was not run; a waiver
+  does not waive updating coverage unless the user says so.
 
-Confirmed browser observations, logs or existing failing checks are sufficient
-to begin a fix. Investigate only remaining uncertainty; do not require a fresh
-failing baseline or approval to reconfirm a known bug. Preserve useful before
-measurements and verify the affected path after the fix.
-Keep unit checks for the underlying cause; a fixture-only banner/component test
-does not establish that the reported end-to-end failure is fixed. Use existing
-contract-test metadata and stable assertion IDs for product tests; classify
-engineering/tooling tests as such. Never weaken assertions to force a pass.
+## Where checks run
+- Focused unit/lint/build: locally in the worktree.
+- Product REST/WebSocket, CLI/SDK and browser E2E: isolated GitHub CI only (one
+  browser spec per job, disposable backend, fresh accounts). Specs marked
+  `reason=isolated_component_preview` use the Vite-only component profile.
+  Flow: `sessions.py ci-source` → `ci_coordinator.py submit` →
+  `ci_coordinator.py wait <id>`. Never start a second scheduler, deploy before
+  E2E, or use the shared dev stack for these tests.
+- Real AI inference: only on the dev server, never in CI. Deploy the candidate
+  via the session helper first, use disposable accounts/Projects and isolated
+  CLI state, select `@Gemini-3.8-Flash` (unless the user names another model)
+  and fail if the persisted assistant model differs. Record revision + results.
+- Choose checks for the changed behavior and affected clients; a web-only fix
+  does not trigger Apple verification.
 
-Focused unit, lint and build checks run in the isolated checkout. Product
-REST/WebSocket, CLI/SDK and browser E2E run in the existing isolated GitHub CI
-infrastructure, with one browser spec per job. Application E2E uses a disposable
-Docker backend, runner-private localhost web process and fresh accounts. Specs
-marked `reason=isolated_component_preview` use the GitHub Vite-only component
-profile and start no backend, CLI build or production web build. Do not
-launch a second CI scheduler, deploy before E2E, or use the shared dev stack for
-these tests. Publish immutable source with `sessions.py ci-source`, submit with
-`ci_coordinator.py submit`, then use `ci_coordinator.py wait <id>` or existing
-result events. Inspect the scoped receipt on completion. Source and harness
-identity must match the check; mocks and old runs are not new integration proof.
+## Debugging bounds
+Existing browser observations, logs or failing checks suffice to start; do not
+re-reproduce known bugs. After two failed attempts with the same approach,
+reassess. Ask before unrelated infrastructure repair, uncertain expected
+behavior or material scope growth; keep the patch and evidence.
 
-Exception: tests that strictly need real AI inference always run directly on the
-dev server for now, never in CI. Use disposable accounts/Projects, temporary source
-folders outside the repository, and isolated CLI state. Keep relevant non-inference
-checks in CI. Deploy the scoped candidate through the session helper before its
-live-inference verification; shared runtime changes require an explicit target
-and coordinator lease. Record the deployed revision and actual live results.
-Do not add a paid-provider CI profile or substitute replay for real-inference proof.
-
-Real-inference OpenMates tests use Gemini 3.8 Flash unless the user explicitly
-requests another model. Select the supported `@Gemini-3.8-Flash` mention for the
-test chat and verify the persisted assistant model; fail the check if another
-model answered. Do not change account defaults. Deterministic fixtures remain
-provider-free, and tests of a decision provider such as Jev still exercise that
-provider alongside the Gemini assistant.
-
-Choose checks for the actual changed behavior and affected clients. Shared API
-changes need relevant API/client coverage; a web-only fix does not create an
-automatic Apple-verification ladder. Use existing test helpers, fixtures and
-data-testid selectors for reliable UI interaction. Reuse regression coverage.
-
-Keep debugging bounded by the original acceptance criteria. After two failed
-attempts with the same approach, reassess before another attempt. When the cause
-is unrelated infrastructure, expected behavior is uncertain, or repair would
-materially expand the task, explain the finding and ask the user before resuming
-that expanded work. Keep the implementation and test evidence available. Do not
-turn one product fix into a test-infrastructure repair campaign without approval.
-
-Honor execution waivers (`skip E2E`, for example) and report what was not run.
-An execution waiver does not waive updating the relevant E2E coverage unless the
-user says so. Ask if the user instruction itself leaves that distinction unclear.
-Do not claim a pass from a queued, cancelled, unrelated or stale run.
-
-## Required E2E recording delivery
-
-For web/browser, component and OpenMates CLI E2E checks used in this chat, retain
-existing recordings and deliver a concise selection of clickable video links in
-the final response:
-
-- For each requested check/flow, link only its latest successful recording across
-  all attempts, retries and reruns in the chat.
-- If that request never succeeded, link only its latest available failed recording.
-- Include distinct participant/device views only when required to demonstrate
-  the selected flow. Omit duplicate captures and incidental recorded profiles.
-- Never append superseded attempts, earlier failures or an exhaustive recording
-  list, including inside a collapsed section. Keep the full inventory in receipts.
-
-A passing test, GitHub run link, artifact archive or local file path alone does
-not fulfill delivery of the selected recording. This is required by default;
-it does not depend on a Plan, a separate request or `--require-proof-video`.
-Honor an explicit user waiver of recording delivery. Report the current test
-verdict accurately; an earlier successful recording does not turn a later failed
-check or a different source revision into a pass.
-
-1. Wait with `python3 scripts/ci_coordinator.py wait <request-id>`. A successful
-   wait downloads and validates the artifact under `test-results/ci-runs/<id>`.
-   For failed/cancelled runs with a GitHub run ID, run
-   `python3 scripts/ci_coordinator.py result <request-id>` to retrieve available
-   artifacts; `wait` does not download those automatically. Reuse cached receipts
-   instead of downloading them through a second path.
-2. For the selected runs, run the receipt's `codex_evidence_command`, normally
-   `python3 scripts/codex_evidence.py <directory> --upload`. It enumerates browser
-   attachments and real CLI terminal recordings, including attempts/profiles,
-   and uses the existing private, expiring response-media transport. Its complete
-   output is an internal inventory: select final links using the rule above;
-   never paste it wholesale. Label selected links with the test/required view and
-   result. Keep source/run identity attached to the evidence. Unit/lint/tooling
-   checks do not need invented recordings.
-3. If capture never started, a recording is missing, an artifact expired, or an
-   upload fails for selected evidence, report the affected test and concrete
-   reason beside its test result. Failed uploads retain local artifacts for retry.
-   After a confirmed S3 upload and durable receipt save, the evidence uploader
-   removes only the local CI video; images, posters, captions and receipt metadata
-   remain. Repeated inventory runs must reuse the uploaded record, not report the
-   intentionally cleaned video as missing. Use `--retain-local-videos` when an
-   explicitly requested proof-video edit still needs the source recording.
-   Expiring signed links can be renewed from the saved bucket/key and verified
-   remote object while S3 retains it. The bucket's existing retention period is
-   unchanged; if that object has expired, report evidence expiry and the local
-   cleanup rather than claiming a new link or rerunning the test.
-   Report verification and delivery separately; never claim video was delivered
-   from a download/upload alone. Use `--ack` only with an actual delivered chat
-   message ID; leave delivery pending when the client does not expose one.
-4. Keep Playwright video capture enabled for E2E, including passing attempts.
-   CLI E2E must retain actual terminal-screen recordings using the existing
-   `cli-tui-proof-helpers.ts` / `cli_video_capture.py` helpers. A blank browser
-   video from a headless CLI test or replayed stdout is not CLI video proof.
-   For authorized dev-host real-inference runs, apply the same selection rule and
-   deliver the selected recordings with
-   `response_media.py <video-path> --output markdown`; the CI requirement does not
-   move these tests into CI.
-
-Extra proof-video editing, captions, additional device profiles, frame review and
-visual-smoke production follow the accepted task/Plan or explicit request through
-`create-demo-video`. Delivery of the selected existing E2E recordings remains
-required.
-Do not rerun a test solely to repair an upload or refresh an expired media link;
-retry an unuploaded recording or renew an existing S3 object when possible.
-Never publish private production evidence
-or unredacted personal data; report withheld evidence with its reason.
-
-The explicitly authorized real signup-email smoke remains a dev-host check with
-isolated CLI state. It is separate from CI signup and must not replace the global
-engineering Tasks login. Runtime restarts for deployment use the scoped session
-helper and preserve shared-resource leases.
-
-Record an explicitly requested edited/captioned proof-video deliverable with
-`sessions.py update --require-proof-video` (or the same flag on `start`). Ordinary
-E2E recording delivery remains mandatory without this additional workflow gate.
+## E2E recording delivery (web, component, CLI)
+1. `ci_coordinator.py wait <id>` downloads artifacts on success; for failed or
+   cancelled runs use `ci_coordinator.py result <id>`.
+2. Run the receipt's evidence command (normally
+   `python3 scripts/codex_evidence.py <dir> --upload`). Its output is an
+   internal inventory; never paste it wholesale.
+3. In the final reply link, per requested flow, only the latest successful
+   recording (or, if it never passed, the latest failed one), labelled with test
+   and result. Include extra device/participant views only when required. No
+   appendix of attempts.
+4. Report missing capture, expiry or upload failure beside the test result.
+   Retry uploads or renew signed links from S3; never rerun a test just for
+   media. Do not pass `--ack` (Claude has no delivered-message ID).
+5. Keep Playwright video on for all attempts. CLI E2E needs real terminal
+   recordings (`cli-tui-proof-helpers.ts` / `cli_video_capture.py`). Dev-host
+   real-inference recordings: `response_media.py <video> --output markdown`.
+6. Edited/captioned proof videos only when requested (`/create-demo-video`,
+   `sessions.py update --require-proof-video`). Never publish private
+   production evidence or personal data.

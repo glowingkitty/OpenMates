@@ -4784,7 +4784,7 @@ def _expiry_codex_thread_is_live(session: dict) -> bool:
     thread = str(session.get("codex_thread_id") or session.get("codex_task_id") or "")
     if not thread:
         return False
-    if thread == os.environ.get("CODEX_THREAD_ID"):
+    if thread == _codex_task_identity():
         return True
     try:
         try:
@@ -7518,7 +7518,14 @@ def _session_zellij_owner(codex_task: str | None) -> str | None:
 
 
 def _codex_task_identity() -> str:
-    return os.environ.get("CODEX_THREAD_ID") or os.environ.get("CODEX_SESSION_ID") or ""
+    """Return the owning agent conversation (Claude Code session, or legacy Codex thread)."""
+    # Same precedence as scripts/agent_identity.py; inlined so sessions.py stays
+    # importable when copied without its sibling modules.
+    for name in ("CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID", "CODEX_SESSION_ID"):
+        value = os.environ.get(name, "").strip()
+        if value:
+            return value
+    return ""
 
 
 def register_session_record(session_record: dict) -> tuple[str, list[str], list[str], dict, bool]:

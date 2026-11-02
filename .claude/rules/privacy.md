@@ -1,14 +1,11 @@
 ---
-description: Privacy policy update checklist for new third-party providers
-globs:
+paths:
   - "**/privacy*"
-  - "**/legal*"
+  - "**/legal*/**"
   - "shared/docs/privacy_policy.yml"
-  - "frontend/packages/ui/src/i18n/sources/legal/**"
+  - "frontend/packages/ui/src/config/links.ts"
+  - "backend/shared/providers/**"
 ---
-
-## Privacy Policy Updates
-
 ## API Privacy And Encryption Boundaries
 
 When adding or changing REST API or WebSocket behavior, verify and document the endpoint access model before implementation: unauthenticated public REST API, developer API-key REST API, first-party client surface only, or internal-only.
@@ -28,14 +25,12 @@ When adding a new third-party provider, update ALL of these:
 
 Before adding or updating any `privacy_policy:` URL in `privacy_policy.yml` or `links.ts`:
 
-1. **Verify the URL using firecrawl** — check the status code is 200 and the page title confirms it is the privacy policy:
-   ```
-   mcp__firecrawl__firecrawl_scrape(url, formats=["json"], jsonOptions={"prompt": "Status code and page title — is this a valid privacy policy?"})
-   ```
+1. **Verify the URL with WebFetch** — confirm it loads (no 404/redirect to a
+   generic page) and the page title shows it is the privacy policy.
 
 2. **If 404 or wrong page** — search for the correct URL:
    - Try common patterns: `/privacy`, `/legal/privacy`, `/legal#privacy-policy`, `legal.{domain}/terms/privacy-policy`
-   - Or use `mcp__firecrawl__firecrawl_scrape` on the provider's homepage/legal page and follow links
+   - Or fetch the provider's homepage/legal page and follow its links
 
 3. **Add a verification date comment** when the URL is not at an obvious canonical path:
    ```yaml

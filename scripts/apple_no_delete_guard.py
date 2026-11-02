@@ -160,7 +160,7 @@ def task_identity() -> str:
     # These environment variables are routing hints, not authentication. A host
     # integration must bind them independently before claiming bypass resistance.
     codex = os.environ.get('CODEX_THREAD_ID') or os.environ.get('CODEX_SESSION_ID')
-    claude = os.environ.get('CLAUDE_SESSION_ID')
+    claude = os.environ.get('CLAUDE_SESSION_ID') or os.environ.get('CLAUDE_CODE_SESSION_ID')
     if codex:
         return f'codex:{codex}'
     if claude:
