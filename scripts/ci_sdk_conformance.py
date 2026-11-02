@@ -50,12 +50,13 @@ FIRST_PAGE_NPM_DIAGNOSTIC_CODES = frozenset({"assertion", "cancelled", "conflict
 MAX_VECTOR_DIAGNOSTIC_BYTES = 512
 LOCKS = ("packages/openmates-rust/Cargo.lock", "packages/openmates-session-bindings/Cargo.lock",
          "frontend/packages/openmates-tui-native/Cargo.lock")
+TOOLING_INPUTS = ('frontend/apps/web_app/tests/helpers', 'frontend/packages/openmates-tui-native', 'frontend/apps/web_app/package.json', 'frontend/apps/web_app/tests/cli-rust-request-performance.spec.ts', 'frontend/apps/web_app/tests/cli-rust-tui-proof.spec.ts', 'scripts/ci_coverage_manifest.json', 'scripts/ci_environment.py', 'scripts/ci_run_tests.py', 'scripts/cli_video_capture.py', 'scripts/pty_terminal_queries.py', 'scripts/tests/test_ci_native_private_profile.py', 'scripts/tests/test_sdk_conformance_gate.py')
 INPUTS = ("packages/openmates-rust", "packages/openmates-session-bindings", "packages/openmates-python",
           "frontend/packages/openmates-cli", "backend/apps", "backend/tests/fixtures/encryption_compatibility/legacy_layouts.json", "tests/sdk-conformance", "config/sdk-capabilities.json",
           "config/sdk-capabilities.schema.json", "scripts/check_sdk_conformance.py", "scripts/build_sdk_native.py", "scripts/check_packaged_sdk_v1.py",
           "scripts/sdk_rust_inventory.py", "scripts/generate_sdk_app_skills.py", "scripts/generate_rust_sdk_apps.py",
           "pnpm-lock.yaml", "pnpm-workspace.yaml", "package.json", ".npmrc", ".pnpmfile.cjs", ".pnpmfile.mjs", ".cargo", "rust-toolchain.toml",
-          "frontend/packages/pairing-crypto", "frontend/packages/upload-privacy", "shared/config", *LOCKS)
+          "frontend/packages/pairing-crypto", "frontend/packages/upload-privacy", "shared/config", *LOCKS, *TOOLING_INPUTS)
 
 
 class Refused(RuntimeError):
@@ -256,7 +257,7 @@ def command_tool(stage):
     tools = {"rust-toolchain": "rustup", "node-dependencies": "pnpm", "sdk-facade-build": "pnpm",
              "napi-load": "node"}
     return tools.get(stage, "python" if stage in {"python-environment", "python-dependencies", "napi-build",
-                     "python-binding-build", "python-load", "real-conformance"} else "other")
+                     "python-binding-build", "python-load", "sdk-gate-tooling", "real-conformance"} else "other")
 
 
 def library_unit_command(stage):
@@ -919,7 +920,25 @@ def run(root, results, node, *, verify_node, environ=None):
                 stage = name
                 if name in {*LIBRARY_UNIT_MANIFESTS, "napi-build", "python-binding-build"}:
                     require(snapshot(root) == before, "source_changed")
-                result = commands.run(name, command, seconds=seconds)
+                if name == "sdk-gate-tooling":
+                    require("scripts/tests/test_sdk_conformance_gate.py" in trust["programs"], "tooling_test_unpinned")
+                    verify_programs(root, trust)
+                    require(snapshot(root) == before, "source_changed")
+                if name == "sdk-gate-tooling":
+                    previous_plugin_policy = commands.env.get("PYTEST_DISABLE_PLUGIN_AUTOLOAD")
+                    commands.env["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
+                    try:
+                        result = commands.run(name, command, seconds=seconds)
+                    finally:
+                        if previous_plugin_policy is None:
+                            commands.env.pop("PYTEST_DISABLE_PLUGIN_AUTOLOAD", None)
+                        else:
+                            commands.env["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = previous_plugin_policy
+                else:
+                    result = commands.run(name, command, seconds=seconds)
+                if name == "sdk-gate-tooling":
+                    verify_programs(root, trust)
+                    require(snapshot(root) == before, "source_changed")
                 if name in {*LIBRARY_UNIT_MANIFESTS, "napi-build", "python-binding-build"}:
                     require(snapshot(root) == before, "source_changed")
                 return result
@@ -956,6 +975,7 @@ def run(root, results, node, *, verify_node, environ=None):
                 dist = {str(path.relative_to(root)): sha(regular(path))
                         for path in sorted((root / "frontend/packages/openmates-cli/dist").rglob("*")) if path.is_file()}
                 require("frontend/packages/openmates-cli/dist/sdk-entry.js" in dist, "sdk_dist_missing")
+                step("sdk-gate-tooling", [python, "-m", "pytest", "--noconftest", "-q", "-p", "no:cacheprovider", "scripts/tests/test_sdk_conformance_gate.py"], 60)
                 verify_node()
                 step("napi-load", [node, "-e", "const m=require(process.argv[1]);if(typeof m.privacy!=='function'||typeof m.taskOrder!=='function'||typeof m.NativeSessionClient?.prototype.chatMonitorOpen!=='function'||typeof m.NativeSessionClient?.prototype.completionRecoveryEnable!=='function')process.exit(1)", str(node_artifact)], 30)
                 step("python-load", [python, "-c", "import pathlib,sys;import openmates._native as m;assert pathlib.Path(m.__file__).resolve()==pathlib.Path(sys.argv[1]);assert callable(m.privacy) and callable(m.task_order);assert callable(m.NativeSessionClient.chat_monitor_open) and callable(m.NativeSessionClient.completion_recovery_enable)", str(python_artifact)], 30)

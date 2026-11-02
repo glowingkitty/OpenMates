@@ -58,6 +58,24 @@ ALLOWED_PATHS = (
     "images/upload.tar",
 )
 TICKET_PATHS = (*ALLOWED_PATHS, SCHEMA_DIAGNOSTIC_PATH)
+NATIVE_PATH = "native-cli.tar.gz"
+
+
+def _object_paths(source, key, producer=False):
+    try:
+        from scripts.ci_artifacts import native_preparation
+    except ModuleNotFoundError:
+        from ci_artifacts import native_preparation
+    try:
+        native = native_preparation(source, key)
+    except (ValueError, TypeError):
+        raise PreparationTransportError(
+            "Native preparation identity is invalid"
+        ) from None
+    paths = (*ALLOWED_PATHS, NATIVE_PATH) if native else ALLOWED_PATHS
+    return (*paths, SCHEMA_DIAGNOSTIC_PATH) if producer else paths
+
+
 MAX_MANIFEST_BYTES = 1024**2
 MAX_SCHEMA_DIAGNOSTIC_BYTES = 128 * 1024
 MAX_OBJECT_BYTES = 4 * 1024**3
@@ -73,7 +91,7 @@ class PreparationTransportError(RuntimeError):
     """A bounded error that never includes a presigned URL or response body."""
 
 
-INNER_PRESIGN_CODE = r'''
+INNER_PRESIGN_CODE = r"""
 import asyncio
 import json
 import os
@@ -125,7 +143,7 @@ async def main():
 
 
 asyncio.run(main())
-'''
+"""
 
 
 def _utc_now(now: dt.datetime | None = None) -> dt.datetime:
@@ -173,7 +191,9 @@ def _parse_expiry(value: object) -> dt.datetime:
     try:
         expiry = dt.datetime.fromisoformat(str(value))
     except ValueError:
-        raise PreparationTransportError("Preparation transport ticket is invalid") from None
+        raise PreparationTransportError(
+            "Preparation transport ticket is invalid"
+        ) from None
     if expiry.tzinfo is None or expiry.utcoffset() is None:
         raise PreparationTransportError("Preparation transport ticket is invalid")
     return expiry.astimezone(dt.timezone.utc)
@@ -188,7 +208,9 @@ def _validate_url(value: object, *, expected_path: str | None = None) -> str:
         parsed = urllib.parse.urlsplit(value)
         port = parsed.port
     except ValueError:
-        raise PreparationTransportError("Preparation transport URL is invalid") from None
+        raise PreparationTransportError(
+            "Preparation transport URL is invalid"
+        ) from None
     if (
         parsed.scheme != "https"
         or not parsed.hostname
@@ -217,7 +239,9 @@ def _object_key(
 def _object_url_path(
     source: str, preparation_key: str, producer_id: str, relative: str
 ) -> str:
-    return f"/{BUCKET_NAME}/{_object_key(source, preparation_key, producer_id, relative)}"
+    return (
+        f"/{BUCKET_NAME}/{_object_key(source, preparation_key, producer_id, relative)}"
+    )
 
 
 def _validate_ticket(
@@ -238,7 +262,9 @@ def _validate_ticket(
     ):
         raise PreparationTransportError("Preparation transport ticket is unavailable")
     objects = ticket.get("objects")
-    if not isinstance(objects, dict) or set(objects) != set(TICKET_PATHS):
+    if not isinstance(objects, dict) or set(objects) != set(
+        _object_paths(source, preparation_key, True)
+    ):
         raise PreparationTransportError("Preparation transport ticket is invalid")
     for relative, record in objects.items():
         if not isinstance(record, dict):
@@ -246,9 +272,7 @@ def _validate_ticket(
         expected_key = _object_key(source, preparation_key, producer_id, relative)
         if record.get("object_key") != expected_key:
             raise PreparationTransportError("Preparation transport ticket is invalid")
-        expected_path = _object_url_path(
-            source, preparation_key, producer_id, relative
-        )
+        expected_path = _object_url_path(source, preparation_key, producer_id, relative)
         _validate_url(record.get("put_url"), expected_path=expected_path)
         _validate_url(record.get("get_url"), expected_path=expected_path)
     return dict(ticket)
@@ -260,7 +284,9 @@ def _read_ticket(path: Path) -> dict[str, Any]:
     try:
         value = json.loads(path.read_text())
     except (OSError, json.JSONDecodeError):
-        raise PreparationTransportError("Preparation transport ticket is unavailable") from None
+        raise PreparationTransportError(
+            "Preparation transport ticket is unavailable"
+        ) from None
     if not isinstance(value, dict):
         raise PreparationTransportError("Preparation transport ticket is unavailable")
     return value
@@ -281,7 +307,9 @@ def _write_ticket(path: Path, ticket: Mapping[str, Any]) -> None:
         temporary.unlink(missing_ok=True)
 
 
-def reusable_ticket(path: Path, producer: Mapping[str, Any], *, now: dt.datetime) -> bool:
+def reusable_ticket(
+    path: Path, producer: Mapping[str, Any], *, now: dt.datetime
+) -> bool:
     """Check retained capabilities locally; never renew a completed producer.
 
     Renewing URLs cannot prove that lifecycle-managed objects still exist. Leave
@@ -344,7 +372,9 @@ def _presign_objects(
     if result.returncode:
         raise PreparationTransportError("Failed to create preparation transport ticket")
     try:
-        lines = [line for line in result.stdout.splitlines() if line.strip().startswith("{")]
+        lines = [
+            line for line in result.stdout.splitlines() if line.strip().startswith("{")
+        ]
         value = json.loads(lines[-1])
     except (IndexError, json.JSONDecodeError):
         raise PreparationTransportError(
@@ -355,7 +385,9 @@ def _presign_objects(
     validated = {}
     for relative, record in value.items():
         if not isinstance(record, dict):
-            raise PreparationTransportError("Failed to create preparation transport ticket")
+            raise PreparationTransportError(
+                "Failed to create preparation transport ticket"
+            )
         expected_path = f"/{BUCKET_NAME}/{objects[relative]}"
         validated[relative] = {
             "put_url": _validate_url(
@@ -410,7 +442,10 @@ def get_or_create_ticket(
                     now=expiry - dt.timedelta(microseconds=1),
                 )
         prefix = f"{OBJECT_PREFIX}/{source}/{preparation_key}/{producer_id}"
-        object_keys = {path: f"{prefix}/{path}" for path in TICKET_PATHS}
+        object_keys = {
+            path: f"{prefix}/{path}"
+            for path in _object_paths(source, preparation_key, True)
+        }
         signer = presign or _presign_objects
         try:
             signed = signer(object_keys, EXPIRES_SECONDS)
@@ -420,15 +455,21 @@ def get_or_create_ticket(
             raise PreparationTransportError(
                 "Failed to create preparation transport ticket"
             ) from None
-        if not isinstance(signed, Mapping) or set(signed) != set(TICKET_PATHS):
-            raise PreparationTransportError("Failed to create preparation transport ticket")
+        if not isinstance(signed, Mapping) or set(signed) != set(
+            _object_paths(source, preparation_key, True)
+        ):
+            raise PreparationTransportError(
+                "Failed to create preparation transport ticket"
+            )
         created = instant
         expiry = created + dt.timedelta(seconds=EXPIRES_SECONDS)
         objects = {}
         for relative, object_key in object_keys.items():
             record = signed[relative]
             if not isinstance(record, Mapping):
-                raise PreparationTransportError("Failed to create preparation transport ticket")
+                raise PreparationTransportError(
+                    "Failed to create preparation transport ticket"
+                )
             expected_path = f"/{BUCKET_NAME}/{object_key}"
             objects[relative] = {
                 "object_key": object_key,
@@ -455,7 +496,7 @@ def get_or_create_ticket(
 
 def _dispatch_view(ticket: Mapping[str, Any], *, producer: bool) -> dict[str, Any]:
     objects = {}
-    for relative in ALLOWED_PATHS:
+    for relative in _object_paths(ticket["source"], ticket["preparation_key"]):
         record = ticket["objects"][relative]
         objects[relative] = {"get_url": record["get_url"]}
         if producer:
@@ -488,7 +529,9 @@ def dispatch_ticket(
     source = str(values.get("source", ""))
     preparation_key = str(values.get("preparation_key", ""))
     is_producer = values.get("mode") == "prepare"
-    producer_id = str(values.get("id") if is_producer else values.get("preparation_id", ""))
+    producer_id = str(
+        values.get("id") if is_producer else values.get("preparation_id", "")
+    )
     _validate_identity(producer_id, source, preparation_key)
     instant = _utc_now(now)
     if is_producer:
@@ -524,7 +567,12 @@ def _mask_and_validate_urls(
         raise PreparationTransportError("Preparation transport input is invalid")
     objects = ticket.get("objects")
     object_paths = set(objects) if isinstance(objects, dict) else set()
-    if object_paths not in (set(ALLOWED_PATHS), set(TICKET_PATHS)):
+    if object_paths not in (
+        set(ALLOWED_PATHS),
+        set(TICKET_PATHS),
+        set((*ALLOWED_PATHS, NATIVE_PATH)),
+        set((*TICKET_PATHS, NATIVE_PATH)),
+    ):
         raise PreparationTransportError("Preparation transport input is invalid")
     source = ticket.get("source")
     preparation_key = ticket.get("preparation_key")
@@ -538,12 +586,15 @@ def _mask_and_validate_urls(
         or not re.fullmatch(r"[0-9a-f]{64}", producer_id)
     ):
         raise PreparationTransportError("Preparation transport input is invalid")
+    if object_paths not in (
+        set(_object_paths(source, preparation_key)),
+        set(_object_paths(source, preparation_key, True)),
+    ):
+        raise PreparationTransportError("Preparation transport input is invalid")
     for relative, record in objects.items():
         if not isinstance(record, dict):
             raise PreparationTransportError("Preparation transport input is invalid")
-        expected_path = _object_url_path(
-            source, preparation_key, producer_id, relative
-        )
+        expected_path = _object_url_path(source, preparation_key, producer_id, relative)
         for name in ("put_url", "get_url"):
             value = record.get(name)
             if value is not None:
@@ -572,7 +623,9 @@ def event_ticket(
             raise ValueError
         ticket = json.loads(raw)
     except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
-        raise PreparationTransportError("Preparation transport input is invalid") from None
+        raise PreparationTransportError(
+            "Preparation transport input is invalid"
+        ) from None
     if not isinstance(inputs, dict) or not isinstance(ticket, dict):
         raise PreparationTransportError("Preparation transport input is invalid")
     ticket = _mask_and_validate_urls(ticket, mask)
@@ -600,16 +653,20 @@ def validate_event_role(
         raise PreparationTransportError("Preparation transport role is invalid")
 
     producer_id = ticket.get("producer_id")
-    if not isinstance(producer_id, str) or not re.fullmatch(r"[0-9a-f]{64}", producer_id):
+    if not isinstance(producer_id, str) or not re.fullmatch(
+        r"[0-9a-f]{64}", producer_id
+    ):
         raise PreparationTransportError("Preparation transport role is invalid")
     objects = ticket.get("objects")
     if not isinstance(objects, dict):
         raise PreparationTransportError("Preparation transport role is invalid")
-    expected_paths = set(TICKET_PATHS if producer else ALLOWED_PATHS)
+    expected_paths = set(
+        _object_paths(ticket["source"], ticket["preparation_key"], producer)
+    )
     if set(objects) != expected_paths:
         raise PreparationTransportError("Preparation transport role is invalid")
     build_fields = {"get_url", "put_url"} if producer else {"get_url"}
-    for relative in ALLOWED_PATHS:
+    for relative in _object_paths(ticket["source"], ticket["preparation_key"]):
         record = objects.get(relative)
         if not isinstance(record, dict) or set(record) != build_fields:
             raise PreparationTransportError("Preparation transport role is invalid")
@@ -624,7 +681,11 @@ def _safe_relative(value: object) -> str:
     if not isinstance(value, str):
         raise PreparationTransportError("Preparation manifest path is invalid")
     path = PurePosixPath(value)
-    if path.is_absolute() or ".." in path.parts or value not in ALLOWED_PATHS:
+    if (
+        path.is_absolute()
+        or ".." in path.parts
+        or value not in (*ALLOWED_PATHS, NATIVE_PATH)
+    ):
         raise PreparationTransportError("Preparation manifest path is invalid")
     return value
 
@@ -678,7 +739,9 @@ def _manifest_references(manifest: Mapping[str, Any]) -> dict[str, dict[str, Any
             raise PreparationTransportError("Preparation manifest is invalid")
         total += size
         if total > MAX_TOTAL_BYTES:
-            raise PreparationTransportError("Preparation manifest exceeds transport limits")
+            raise PreparationTransportError(
+                "Preparation manifest exceeds transport limits"
+            )
         references[relative] = {"sha256": digest, "size": size}
     if not {
         "web.tar.gz",
@@ -696,7 +759,11 @@ def _load_manifest(
     preparation_key: str,
     producer_run_id: str,
 ) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
-    if not path.is_file() or path.is_symlink() or path.stat().st_size > MAX_MANIFEST_BYTES:
+    if (
+        not path.is_file()
+        or path.is_symlink()
+        or path.stat().st_size > MAX_MANIFEST_BYTES
+    ):
         raise PreparationTransportError("Preparation manifest is unavailable")
     try:
         manifest = json.loads(path.read_text())
@@ -713,7 +780,9 @@ def _load_manifest(
 
 
 def runtime_seed_event(
-    *, event_path: Path | None = None, mask: Callable[[str], None] = print,
+    *,
+    event_path: Path | None = None,
+    mask: Callable[[str], None] = print,
     now: dt.datetime | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Read only the coordinator-issued old-producer runtime identity."""
@@ -723,9 +792,14 @@ def runtime_seed_event(
             raise ValueError
         inputs = json.loads(path.read_text())["inputs"]
         raw = inputs["runtime_seed"]
-        if inputs.get("mode") not in {"backend-probe", "e2e"} or not isinstance(raw, str):
+        if inputs.get("mode") not in {"backend-probe", "e2e"} or not isinstance(
+            raw, str
+        ):
             raise ValueError
-        if inputs.get("mode") == "e2e" and any(inputs.get(name) for name in ("preparation_key", "prepared_run_id", "preparation_transport")):
+        if inputs.get("mode") == "e2e" and any(
+            inputs.get(name)
+            for name in ("preparation_key", "prepared_run_id", "preparation_transport")
+        ):
             raise ValueError
         request = json.loads(raw)
         seed, ticket = request["seed"], request["ticket"]
@@ -735,7 +809,10 @@ def runtime_seed_event(
         _validate_identity(seed["producer_id"], seed["source"], seed["preparation_key"])
         if not re.fullmatch(r"[1-9][0-9]{0,20}", seed["producer_run_id"]):
             raise ValueError
-        if any(ticket.get(name) != seed[name] for name in ("producer_id", "source", "preparation_key")):
+        if any(
+            ticket.get(name) != seed[name]
+            for name in ("producer_id", "source", "preparation_key")
+        ):
             raise ValueError
         if _parse_expiry(ticket.get("expires_at")) <= _utc_now(now):
             raise ValueError
@@ -745,7 +822,9 @@ def runtime_seed_event(
         ):
             raise ValueError
     except Exception:
-        raise PreparationTransportError("Backend runtime seed input is invalid") from None
+        raise PreparationTransportError(
+            "Backend runtime seed input is invalid"
+        ) from None
     return ticket, seed
 
 
@@ -869,7 +948,9 @@ def _ticket_url(ticket: Mapping[str, Any], relative: str, method: str) -> str:
             ),
         )
     except (KeyError, TypeError):
-        raise PreparationTransportError("Preparation transport input is incomplete") from None
+        raise PreparationTransportError(
+            "Preparation transport input is incomplete"
+        ) from None
 
 
 def _load_schema_diagnostic(
@@ -986,7 +1067,9 @@ def upload_directory(
         if path.is_file():
             actual_files.add(path.relative_to(directory).as_posix())
     if actual_files != set(references) | {MANIFEST_PATH}:
-        raise PreparationTransportError("Preparation directory contains unexpected files")
+        raise PreparationTransportError(
+            "Preparation directory contains unexpected files"
+        )
     for relative, identity in references.items():
         path = directory / relative
         if (
@@ -996,7 +1079,11 @@ def upload_directory(
         ):
             raise PreparationTransportError("Preparation object identity mismatch")
     for relative in sorted(references):
-        put(_ticket_url(ticket, relative, "put_url"), directory / relative, references[relative]["size"])
+        put(
+            _ticket_url(ticket, relative, "put_url"),
+            directory / relative,
+            references[relative]["size"],
+        )
     # Atomic publication boundary: consumers fetch this object before any bytes.
     put(
         _ticket_url(ticket, MANIFEST_PATH, "put_url"),
@@ -1023,9 +1110,7 @@ def download_directory(
     current_root: Path | None = None,
 ) -> dict[str, Any]:
     if directory.is_symlink():
-        raise PreparationTransportError(
-            "Preparation destination contains a symlink"
-        )
+        raise PreparationTransportError("Preparation destination contains a symlink")
     directory = directory.resolve()
     directory.parent.mkdir(parents=True, exist_ok=True)
     temporary = Path(tempfile.mkdtemp(prefix="ci-preparation-", dir=directory.parent))
@@ -1048,25 +1133,38 @@ def download_directory(
             except ModuleNotFoundError:
                 import ci_runtime_images as runtime
             if current_root is None:
-                raise PreparationTransportError("Backend runtime seed candidate root is missing")
+                raise PreparationTransportError(
+                    "Backend runtime seed candidate root is missing"
+                )
             runtime_manifest = runtime.load_manifest(manifest_path)
             entries = runtime_manifest["images"]
             kinds = {item.get("kind") for item in entries}
-            if len(entries) != len(kinds) or not {"api", "cms", "setup", "schema"}.issubset(kinds):
-                raise PreparationTransportError("Backend runtime seed images are incomplete")
+            if len(entries) != len(kinds) or not {
+                "api",
+                "cms",
+                "setup",
+                "schema",
+            }.issubset(kinds):
+                raise PreparationTransportError(
+                    "Backend runtime seed images are incomplete"
+                )
             selected = {}
             for entry in entries:
                 kind = entry["kind"]
                 if kind not in {"api", "cms", "setup", "schema"}:
                     continue
                 if entry.get("runtime_key") != runtime.runtime_key(current_root, kind):
-                    raise PreparationTransportError("Backend runtime seed compatibility key mismatch")
+                    raise PreparationTransportError(
+                        "Backend runtime seed compatibility key mismatch"
+                    )
                 if kind == "schema":
                     runtime.validate_schema_metadata(entry)
                 archive = entry.get("archive_path")
                 if archive:
                     if archive != f"images/{kind}.tar" or archive not in references:
-                        raise PreparationTransportError("Backend runtime seed archive is invalid")
+                        raise PreparationTransportError(
+                            "Backend runtime seed archive is invalid"
+                        )
                     selected[archive] = references[archive]
             references = selected
         for relative in sorted(references):
@@ -1081,7 +1179,11 @@ def download_directory(
             if _sha256(target) != identity["sha256"]:
                 raise PreparationTransportError("Preparation object digest mismatch")
         directory.mkdir(parents=True, exist_ok=True)
-        for relative in ([MANIFEST_PATH, *references] if runtime_only else ALLOWED_PATHS):
+        for relative in (
+            [MANIFEST_PATH, *references]
+            if runtime_only
+            else _object_paths(ticket["source"], ticket["preparation_key"])
+        ):
             existing = directory / relative
             if existing.is_symlink():
                 raise PreparationTransportError(
@@ -1122,9 +1224,15 @@ def main() -> int:
     if args.command == "download-runtime":
         ticket, seed = runtime_seed_event()
         root = Path(os.environ["OPENMATES_CI_SOURCE_ROOT"]).resolve()
-        result = download_directory(args.directory.resolve(), ticket, source=seed["source"],
-                                    preparation_key=seed["preparation_key"], prepared_run_id=seed["producer_run_id"],
-                                    runtime_only=True, current_root=root)
+        result = download_directory(
+            args.directory.resolve(),
+            ticket,
+            source=seed["source"],
+            preparation_key=seed["preparation_key"],
+            prepared_run_id=seed["producer_run_id"],
+            runtime_only=True,
+            current_root=root,
+        )
         print(json.dumps(result, sort_keys=True, separators=(",", ":")))
         return 0
     ticket, inputs = event_ticket()

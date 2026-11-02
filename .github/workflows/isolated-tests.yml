@@ -195,7 +195,9 @@ jobs:
         with:
           ref: ${{ inputs.harness_commit || github.sha }}
           path: tooling
-          sparse-checkout: scripts
+          sparse-checkout: |
+            scripts
+            .github/workflows
           persist-credentials: false
       - name: Require private preparation transport ticket
         if: >-
@@ -308,15 +310,45 @@ jobs:
         run: |
           env -u NODE_OPTIONS -u NODE_PATH "$OPENMATES_CI_NODE" ../tooling/scripts/ci_stage_node_runtime.mjs verify
           dirname "$OPENMATES_CI_NODE" >> "$GITHUB_PATH"
+      - name: Resolve optional native capability from exact preparation key
+        if: inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
+        run: |
+          native="$(python3 ../tooling/scripts/ci_artifacts.py native-capability --source "$BUILD_COMMIT_SHA" --key "${{ inputs.preparation_key }}")"
+          test "$native" = true || test "$native" = false
+          echo "CI_NATIVE_PREPARED=$native" >> "$GITHUB_ENV"
       - uses: actions/setup-python@v5
+        id: setup-python
         timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 3 || 360 }}
         with:
+          update-environment: ${{ env.CI_NATIVE_PREPARED != 'true' }}
           python-version: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && '3.12' || '3.13' }}
           cache: ${{ inputs.mode == 'pytest' && 'pip' || '' }}
           cache-dependency-path: |
             subject/backend/requirements-dev.txt
             subject/backend/core/api/requirements.txt
             subject/packages/openmates-python/pyproject.toml
+      - name: Verify clean Python for native preparation and consumption
+        if: env.CI_NATIVE_PREPARED == 'true'
+        env:
+          CI_SETUP_PYTHON: ${{ steps.setup-python.outputs.python-path }}
+        run: |
+          /usr/bin/python3 -I - <<'PYCLEAN'
+          import os, pathlib, subprocess
+          if any(name.startswith('LD_') for name in os.environ):
+              raise SystemExit('native_python_environment_refused')
+          selected = pathlib.Path(os.environ['CI_SETUP_PYTHON'])
+          if not selected.is_absolute() or not selected.is_file():
+              raise SystemExit('native_python_path_refused')
+          try:
+              result = subprocess.run([str(selected), '-I', '-c', 'import sys,ssl;assert sys.version_info[:2]==(3,13)'], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+          except (OSError, subprocess.TimeoutExpired):
+              raise SystemExit('native_python_bootstrap_refused')
+          if result.returncode:
+              raise SystemExit('native_python_bootstrap_refused')
+          with open(os.environ['GITHUB_PATH'], 'a') as stream:
+              stream.write(str(selected.parent) + '\n')
+          print('native_python_clean_verified')
+          PYCLEAN
       - name: Install workspace dependencies
         if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles' && inputs.mode != 'rust-native-dev' && inputs.mode != 'rust-wasm' && inputs.mode != 'sdk-conformance'
         run: pnpm install --frozen-lockfile
@@ -351,6 +383,10 @@ jobs:
         run: >-
           python3 ../tooling/scripts/ci_preparation_transport.py download
           --directory test-results/ci-preparation-download
+      - name: Install exact Rust tools for native preparation identity
+        if: env.CI_NATIVE_PREPARED == 'true'
+        continue-on-error: true
+        run: rustup toolchain install 1.98.1 --profile minimal
       - name: Verify and restore prepared web and CLI bytes
         id: artifacts
         if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
@@ -360,6 +396,7 @@ jobs:
             --candidate-tree "$CI_CANDIDATE_TREE" \
             --include-cli "${{ inputs.prepare_cli }}" \
             --include-upload "${{ inputs.prepare_upload }}" \
+            --include-native-cli "${CI_NATIVE_PREPARED:-false}" \
             --expected-key "${{ inputs.preparation_key }}" \
             --harness-commit "$CI_HARNESS_COMMIT" \
             --input-dir test-results/ci-preparation-download
@@ -663,6 +700,13 @@ jobs:
           (inputs.mode == 'prepare' ||
            (inputs.mode == 'e2e' && steps.artifacts.outputs.cli != 'true'))
         run: pnpm --filter openmates build
+      - name: Build required exact-source native release payload
+        if: inputs.mode == 'prepare' && env.CI_NATIVE_PREPARED == 'true'
+        run: |
+          python3 ../tooling/scripts/ci_artifacts.py native-build \
+            --source "$BUILD_COMMIT_SHA" \
+            --candidate-tree "$CI_CANDIDATE_TREE" \
+            --harness-commit "$CI_HARNESS_COMMIT"
       - name: Export cold runtime images into private preparation bundle
         if: inputs.mode == 'prepare'
         run: |
@@ -675,7 +719,8 @@ jobs:
           actual_key="$(python3 ../tooling/scripts/ci_artifacts.py key \
             --source "$BUILD_COMMIT_SHA" \
             --include-cli "${{ inputs.prepare_cli }}" \
-            --include-upload "${{ inputs.prepare_upload }}")"
+            --include-upload "${{ inputs.prepare_upload }}" \
+            --include-native-cli "${CI_NATIVE_PREPARED:-false}")"
           test "$actual_key" = "${{ inputs.preparation_key }}"
           python3 ../tooling/scripts/ci_artifacts.py create \
             --source "$BUILD_COMMIT_SHA" \
@@ -683,6 +728,7 @@ jobs:
             --harness-commit "$CI_HARNESS_COMMIT" \
             --include-cli "${{ inputs.prepare_cli }}" \
             --include-upload "${{ inputs.prepare_upload }}" \
+            --include-native-cli "${CI_NATIVE_PREPARED:-false}" \
             --runtime-receipt test-results/ci-runtime-images.json \
             --output-dir test-results/ci-preparation
       - name: Upload immutable private preparation bundle
@@ -893,6 +939,14 @@ jobs:
       - name: Remove attested runner Node only when identities still match
         if: always() && env.OPENMATES_CI_NODE_STATE != ''
         run: env -u NODE_OPTIONS -u NODE_PATH "$OPENMATES_CI_NODE" ../tooling/scripts/ci_stage_node_runtime.mjs cleanup
+      - name: Project finite native preparation diagnostic
+        id: native-preparation-diagnostic
+        if: always() && inputs.mode == 'prepare' && env.CI_NATIVE_PREPARED == 'true'
+        run: >-
+          python3 ../tooling/scripts/ci_artifacts.py native-diagnostic
+          --source "$BUILD_COMMIT_SHA"
+          --candidate-tree "$CI_CANDIDATE_TREE"
+          --harness-commit "$CI_HARNESS_COMMIT"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -902,6 +956,7 @@ jobs:
             subject/test-results/ci-environment.json
             subject/test-results/ci-startup-phases.json
             subject/test-results/ci-artifacts.json
+            ${{ steps.native-preparation-diagnostic.outputs.path }}
             subject/test-results/ci-web-production-inventory.json
             subject/test-results/ci-web-performance-binding.json
             subject/test-results/ci-runtime-images.json

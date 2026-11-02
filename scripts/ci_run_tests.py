@@ -127,6 +127,7 @@ TEAM_PORTABILITY_SPEC = "storage-team-portability.spec.ts"
 ARCHIVE_LIFECYCLE_SPEC = "storage-archive-lifecycle.spec.ts"
 MARKER_CHAT_EPOCH_SPECS = frozenset(
     {
+        "cli-rust-request-performance.spec.ts",
         "cli-authored-results.spec.ts",
         "authored-results-flow.spec.ts",
         "stop-new-chat-draft.spec.ts",

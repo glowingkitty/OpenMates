@@ -1580,6 +1580,40 @@ def attach_cleanup(result: dict, job: dict, directory: Path) -> dict:
     return result
 
 
+def attach_native_preparation_diagnostic(result, job, directory):
+    """Closed advisory inventory only; no diagnostic can credit test coverage."""
+    if job.get("mode") != "prepare":
+        return result
+    try:
+        from scripts.ci_artifacts import native_preparation
+        from scripts import ci_native_release as native
+    except ModuleNotFoundError:
+        from ci_artifacts import native_preparation
+        import ci_native_release as native
+    if not native_preparation(job.get("source", ""), job.get("preparation_key", "")):
+        return result  # Original non-native/default result shapes stay unchanged.
+    relative = "tooling/test-results/ci-native-release-diagnostic.json"
+    path = directory / relative
+    unavailable = {"status": "unavailable", "code": "diagnostic_unavailable", "proofAccepted": False}
+    try:
+        info = path.lstat()
+        if (not stat.S_ISREG(info.st_mode) or path.is_symlink() or info.st_size > 8192):
+            result["native_preparation_diagnostic"] = unavailable
+            return result
+        raw = path.read_bytes()
+        value = json.loads(raw)
+        expected = native.diagnostic_identity(job["source"], job.get("candidate_tree", ""),
+                    result.get("harness_commit", ""), str(job["run_id"]))
+        if not all(expected.values()) or not native.diagnostic_valid(value, expected):
+            result["native_preparation_diagnostic"] = unavailable
+            return result
+        result["native_preparation_diagnostic"] = {"status": "retained", "path": relative,
+            "sha256": hashlib.sha256(raw).hexdigest(), "receipt": value, "proofAccepted": False}
+    except (OSError, ValueError, KeyError):
+        result["native_preparation_diagnostic"] = unavailable
+    return result
+
+
 def attach_visual_evidence(result, directory):
     # Collect immutable delivery obligations on both green and failed retrievals.
     # Upload is an explicit separate command: it cannot change the test verdict.
@@ -1674,7 +1708,7 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
             )
             return cached
         return attach_visual_evidence(
-            attach_cleanup(cached, job, destination), destination
+            attach_native_preparation_diagnostic(attach_cleanup(cached, job, destination), job, destination), destination
         )
     if not job["run_id"] or job["state"] not in ("success", "failure", "cancelled"):
         raise RuntimeError("CI job has no terminal result yet")
@@ -2147,6 +2181,7 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
             }
         if private_diagnostics is not None:
             result["private_diagnostics"] = private_diagnostics
+        attach_native_preparation_diagnostic(result, job, extracted)
         attach_cleanup(result, job, extracted)
         (extracted / "receipt.json").write_text(json.dumps(result, indent=2))
         extracted.rename(destination)

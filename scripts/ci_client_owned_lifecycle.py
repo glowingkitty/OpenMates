@@ -96,7 +96,7 @@ def drain(child, term_seconds=3, kill_seconds=3):
     return result
 
 
-def run_owned(argv, *, cwd, env, out, attempt, timeout=1800):
+def run_owned(argv, *, cwd, env, out, attempt, timeout=1800, before_cleanup=None):
     """Handlers are active before launch; cancellation during Popen is deferred.
 
     Only the inherited group is covered. Detached/setsid children are outside this
@@ -159,6 +159,24 @@ def run_owned(argv, *, cwd, env, out, attempt, timeout=1800):
         reason = "interrupted" if cancel else "lifecycle_failed"
         code = 128 + cancel[0] if cancel else 1
     finally:
+        # Optional finite observation never replaces ownership or cleanup.
+        if before_cleanup is not None:
+            observed_code = code if reason != "exited" else None
+            if child is not None and reason == "exited":
+                try:
+                    observed = os.waitid(os.P_PID, child.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+                    if observed is not None:
+                        if observed.si_code == os.CLD_EXITED:
+                            observed_code = observed.si_status
+                        elif observed.si_code in (os.CLD_KILLED, os.CLD_DUMPED):
+                            observed_code = -observed.si_status
+                except (OSError, ChildProcessError):
+                    pass
+            try:
+                before_cleanup({"reason": reason, "returncode": observed_code,
+                                "childStarted": child is not None})
+            except BaseException:
+                pass  # Diagnostic observation is advisory; drain always runs.
         # Repeated signals remain deferred until owned cleanup and terminal receipt.
         if child is not None:
             try:
