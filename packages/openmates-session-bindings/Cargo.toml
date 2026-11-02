@@ -37,3 +37,9 @@ napi-build = { version = "2", optional = true }
 base64 = "0.22"
 futures-util = "0.3"
 tokio-tungstenite = "0.28"
+
+# RUSTSEC-2026-0387: Ristretto255-only voprf/opaque-ke without elliptic-curve/crypto-bigint 0.5.
+# See packages/third_party/README.md. Remove once upstream drops elliptic-curve 0.13.
+[patch.crates-io]
+opaque-ke = { path = "../third_party/opaque-ke" }
+voprf = { path = "../third_party/voprf" }

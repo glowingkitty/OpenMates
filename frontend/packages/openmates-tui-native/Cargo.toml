@@ -76,3 +76,9 @@ lto = "thin"
 inherits = "release"
 lto = false
 opt-level = 1
+
+# RUSTSEC-2026-0387: Ristretto255-only voprf/opaque-ke without elliptic-curve/crypto-bigint 0.5.
+# See packages/third_party/README.md. Remove once upstream drops elliptic-curve 0.13.
+[patch.crates-io]
+opaque-ke = { path = "../../../packages/third_party/opaque-ke" }
+voprf = { path = "../../../packages/third_party/voprf" }
