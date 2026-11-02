@@ -5,6 +5,9 @@
 //! and mates, `/v1/apps?include_unavailable=true` for skills, focus modes and
 //! memory categories. Memory-entry mentions need decrypted memories, which this
 //! client does not list yet; they are reported as unresolved, never guessed.
+//! Update: decrypted Personal memories (`Account::memories`) are now loaded
+//! when a token is still unresolved; entries are the last resolution step, so
+//! earlier matches are identical to TS.
 use super::*;
 use crate::mentions::{self, MentionContext, MentionParseResult};
 
@@ -30,11 +33,25 @@ impl Client {
             // reported as unresolved by the parser below instead of failing.
             Err(_) => vec![],
         };
+        let apps_for_memories = apps.clone();
         result = mentions::parse_mentions(
             message,
             &MentionContext::with_apps(apps),
             &mentions::today_utc(),
         );
+        if !result.unresolved.is_empty() && self.session().is_some() {
+            match self.account().memories().await {
+                Ok(rows) => {
+                    let mut context = MentionContext::with_apps(apps_for_memories);
+                    context.memory_entries = mentions::memory_entries_from_json(&rows);
+                    result = mentions::parse_mentions(message, &context, &mentions::today_utc());
+                }
+                Err(Error::Cancelled) => return Err(Error::Cancelled),
+                // TS buildMentionContext: memories unavailable (Team scope,
+                // offline) leave the unresolved mentions reported as such.
+                Err(_) => {}
+            }
+        }
         // `@openmates` addresses the Team AI and stays literal in Team scope.
         if self.team().ok().flatten().is_some() {
             result

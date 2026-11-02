@@ -88,3 +88,18 @@ fn legacy_models_expire_one_year_after_release_and_at_api_retirement() {
 fn today_utc_is_a_valid_calendar_date() {
     assert!(valid_date(&today_utc()).is_some());
 }
+
+#[test]
+fn decrypted_memory_rows_resolve_memory_entry_mentions() {
+    let data: Value = serde_json::from_str(TS_VECTORS).unwrap();
+    let mut context = MentionContext::with_apps(apps_from_json(&data["apps"]));
+    let rows = vec![
+        json!({"id":"abc123","app_id":"code","item_type":"projects","data":{"title":"MyApp"}}),
+        json!({"id":"","app_id":"code","item_type":"projects","data":{"title":"Ignored"}}),
+    ];
+    context.memory_entries = memory_entries_from_json(&rows);
+    assert_eq!(context.memory_entries.len(), 1);
+    let result = parse_mentions("@Code-Projects-MyApp status", &context, "2026-11-02");
+    assert_eq!(result.processed_message, "@memory-entry:code:projects:abc123 status");
+    assert!(result.unresolved.is_empty());
+}

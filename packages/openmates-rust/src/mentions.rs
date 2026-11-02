@@ -218,6 +218,21 @@ pub fn apps_from_json(data: &Value) -> Vec<AppInfo> {
         .collect()
 }
 
+/// Decrypted memory rows (`Account::memories`) to memory-entry candidates;
+/// the title comes from the decrypted `data.title` like the TS CLI.
+pub fn memory_entries_from_json(rows: &[Value]) -> Vec<MemoryEntryInfo> {
+    rows.iter()
+        .filter_map(|row| {
+            Some(MemoryEntryInfo {
+                id: row.get("id")?.as_str().filter(|id| !id.is_empty())?.into(),
+                app_id: row.get("app_id")?.as_str()?.into(),
+                item_type: row.get("item_type")?.as_str()?.into(),
+                title: row.pointer("/data/title").and_then(Value::as_str).map(Into::into),
+            })
+        })
+        .collect()
+}
+
 /// JavaScript `\s` (ECMAScript WhiteSpace + LineTerminator).
 fn js_space(c: char) -> bool {
     matches!(c, '\u{0009}'..='\u{000d}' | '\u{0020}' | '\u{00a0}' | '\u{1680}' | '\u{2000}'..='\u{200a}'
