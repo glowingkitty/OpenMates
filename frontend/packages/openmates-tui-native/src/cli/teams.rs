@@ -248,9 +248,6 @@ pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOu
     if let Some(normalized) = team_flag_selector(i) {
         return Box::pin(execute(&normalized, client)).await;
     }
-    if matches!(i.command_path().as_str(), "teams list" | "teams show") {
-        return list_or_show_published(i, client).await;
-    }
     let command = i.command_path();
     let allowed: &[&str] = match command.as_str() {
         "teams create" => &["name", "description", "slug", "switch", "activate"],
@@ -288,7 +285,7 @@ pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOu
     match command.as_str() {
         "teams add-credits" => Err(CliError::Invalid("Direct team credit grants are disabled. Use 'openmates teams billing bank-transfer create <team-id> --credits <amount>'.".into())),
         "teams list" => {
-            let teams = client.teams().list().await?;
+            let teams = client.teams().list_published().await?;
             let human = if teams.is_empty() {
                 "No teams.\n".to_owned()
             } else {
@@ -297,13 +294,16 @@ pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOu
             out(i, json!({"teams":teams,"active_team_id":current}), human)
         }
         "teams show" => {
-            let team = client.teams().get(team_id(i)?).await?;
+            let team_id = team_id(i)?;
+            let mut teams = client.teams();
+            teams.ensure_direct_chat_identity().await?;
+            let team = teams.get(team_id).await?;
             let human = record(&team, current.as_deref());
             out(i, json!({"team":team,"active_team_id":current}), human)
         }
         "teams switch" => {
             let target = team_id(i)?;
-            let teams = client.teams().list().await?;
+            let teams = client.teams().list_published().await?;
             let mut matches = teams
                 .iter()
                 .filter(|t| t["team_id"] == target || t["id"] == target || t["slug"] == target)
@@ -537,30 +537,3 @@ fn team_flag_selector(i: &Invocation) -> Option<Invocation> {
     normalized.positionals.insert(0, team);
     Some(normalized)
 }
-/// npm listTeams/getTeam: publish the Direct-chat identity alongside the read.
-async fn list_or_show_published(
-    i: &Invocation,
-    client: &mut Client,
-) -> Result<CliOutput, CliError> {
-    handlers::flags(i, &["team-id"])?;
-    let current = active(client);
-    if i.command_path() == "teams list" {
-        let teams = client.teams().list_published().await?;
-        let human = if teams.is_empty() {
-            "No teams.\n".to_owned()
-        } else {
-            teams.iter().map(|t| record(t, current.as_deref())).collect()
-        };
-        return out(i, json!({"teams":teams,"active_team_id":current}), human);
-    }
-    let team_id = team_id(i)?;
-    let mut teams = client.teams();
-    teams.ensure_direct_chat_identity().await?;
-    let team = teams.get(team_id).await?;
-    let human = record(&team, current.as_deref());
-    out(i, json!({"team":team,"active_team_id":current}), human)
-}
-
-#[cfg(test)]
-#[path = "teams_published_tests.rs"]
-mod published_tests;

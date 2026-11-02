@@ -100,10 +100,10 @@ fn legacy_team_syntax_routes_to_the_native_handler() {
 }
 
 #[tokio::test]
-#[ignore = "superseded: teams list now publishes the Direct-chat identity; see teams_published_tests"]
 async fn list_show_and_members_match_legacy_output() {
     let (mut client, server) = mock(vec![
         json!({"teams":[{"team_id":TEAM,"slug":"eng","role":"owner","status":"active"}]}),
+        json!({"key":{"version":1}}),
         json!({"teams":[]}),
         json!({"members":[{"user_id":"u1","hashed_user_id":"h1","role":"admin","status":"active"}]}),
         json!({"storage":{"total_bytes":2147483648u64,"free_bytes":5368709120u64,"billable_gib":0,"weekly_cost_credits":0,"credits_per_started_excess_gib_per_week":5,"measurement_at":0,"billing_status":"paid"}}),
@@ -153,7 +153,8 @@ async fn list_show_and_members_match_legacy_output() {
     );
     let requests = server.await.unwrap();
     assert!(requests[0].starts_with("GET /v1/teams "));
-    assert!(requests[2].starts_with(&format!("GET /v1/teams/{TEAM}/members ")));
+    assert!(requests[1].starts_with("GET /v1/account/chat-encryption-key "));
+    assert!(requests[3].starts_with(&format!("GET /v1/teams/{TEAM}/members ")));
 }
 
 #[tokio::test]
@@ -243,6 +244,7 @@ async fn validation_and_destructive_guards_fail_before_network() {
 async fn switch_resolves_slugs_and_create_can_activate_the_new_team() {
     let (mut client, server) = mock(vec![
         json!({"teams":[{"team_id":TEAM,"slug":"eng"},{"team_id":"bbbbbbbb-1111-4111-8111-aabbccddeeff","slug":"ops"}]}),
+        json!({"key":{"version":1}}),
         json!({"teams":[]}),
         json!({"approval_token":"approved"}),
         json!({"team":{"team_id":"cccccccc-1111-4111-8111-aabbccddeeff","slug":"new"}}),
@@ -300,5 +302,62 @@ async fn switch_resolves_slugs_and_create_can_activate_the_new_team() {
         value["active_team_id"],
         "cccccccc-1111-4111-8111-aabbccddeeff"
     );
-    assert_eq!(server.await.unwrap().len(), 4);
+    assert_eq!(server.await.unwrap().len(), 5);
+}
+
+#[tokio::test]
+async fn team_flag_selects_the_team_like_npm() {
+    let invocation = parsed(&["openmates", "teams", "show", "--team", TEAM, "--json"]);
+    assert_eq!(
+        team_id(&team_flag_selector(&invocation).unwrap()).ok(),
+        Some(TEAM)
+    );
+    let (mut client, server) = mock(vec![
+        json!({"key":{"version":1}}),
+        json!({"team":{"team_id":TEAM,"slug":"eng"}}),
+    ])
+    .await;
+    let output = execute(&invocation, &mut client).await.ok().unwrap();
+    assert_eq!(
+        serde_json::from_str::<Value>(&output.stdout).unwrap()["team"]["slug"],
+        "eng"
+    );
+    let requests = server.await.unwrap();
+    assert!(requests[0].starts_with("GET /v1/account/chat-encryption-key "));
+    assert!(requests[1].starts_with(&format!("GET /v1/teams/{TEAM} ")));
+}
+
+#[tokio::test]
+async fn list_publishes_the_direct_chat_identity_only_for_team_members() {
+    let (mut client, server) = mock(vec![
+        json!({"teams":[{"team_id":TEAM,"slug":"eng"}]}),
+        json!({"key":{"version":1}}),
+        json!({"teams":[]}),
+    ])
+    .await;
+    execute(&parsed(&["openmates", "teams", "list"]), &mut client)
+        .await
+        .ok()
+        .unwrap();
+    let empty = execute(
+        &parsed(&["openmates", "teams", "list", "--json"]),
+        &mut client,
+    )
+    .await
+    .ok()
+    .unwrap();
+    assert_eq!(
+        serde_json::from_str::<Value>(&empty.stdout).unwrap()["teams"],
+        json!([])
+    );
+    let requests = server.await.unwrap();
+    assert_eq!(requests.len(), 3);
+    assert!(requests[1].starts_with("GET /v1/account/chat-encryption-key "));
+    let flagged =
+        team_flag_selector(&parsed(&["openmates", "teams", "billing", "--team", TEAM])).unwrap();
+    assert_eq!(
+        (flagged.positionals.as_slice(), flagged.has("team")),
+        ([TEAM.to_owned()].as_slice(), false)
+    );
+    assert!(team_flag_selector(&parsed(&["openmates", "teams", "list"])).is_none());
 }
