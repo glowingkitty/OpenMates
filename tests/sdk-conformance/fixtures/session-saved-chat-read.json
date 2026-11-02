@@ -49632,9 +49632,9 @@
               "slug": null,
               "title": null,
               "summary": null,
-              "createdAt": 1700000000,
-              "updatedAt": 1700000200,
-              "category": "general",
+              "createdAt": null,
+              "updatedAt": null,
+              "category": null,
               "mateName": null,
               "parentId": null,
               "isSubChat": false,
@@ -49643,7 +49643,7 @@
               "pinned": false,
               "hasDraft": false,
               "draftPreview": null,
-              "metadataUpdatedAt": 1700000201
+              "metadataUpdatedAt": 0
             },
             "messages": [],
             "follow_up_suggestions": [],

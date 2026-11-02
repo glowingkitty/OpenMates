@@ -1008,7 +1008,29 @@ class StrictFullPreloadPlanTests(unittest.TestCase):
     def test_js_json_extension_preserves_all98_objects_and_raw_typed_numbers(self):
         import hashlib
 
-        old = self.suite["vectors"][:98]
+        old = copy.deepcopy(self.suite["vectors"][:98])
+        # Vector 77 (details-team-empty-one-window) once expected personal-chat
+        # metadata its own team reply never carries. Its corrected expectation
+        # is exactly the reply-derived projection; the original 98 objects are
+        # otherwise byte-identical, so the pin hashes the original value.
+        team = old[77]
+        self.assertEqual(team["id"], "details-team-empty-one-window")
+        corrected = {
+            "createdAt": None,
+            "updatedAt": None,
+            "category": None,
+            "mateName": None,
+            "metadataUpdatedAt": 0,
+        }
+        chat = team["expected_details"]["chat"]
+        self.assertEqual({key: chat[key] for key in corrected}, corrected)
+        self.assertNotIn("created_at", team["requests"][0]["reply"]["chats"][0])
+        chat.update(
+            createdAt=1700000000,
+            updatedAt=1700000200,
+            category="general",
+            metadataUpdatedAt=1700000201,
+        )
         self.assertEqual(
             hashlib.sha256(
                 json.dumps(

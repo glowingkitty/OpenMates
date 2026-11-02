@@ -7,6 +7,12 @@ struct Publication {
     gate: Option<Arc<dyn Fn() -> openmates_sdk::Result<()> + Send + Sync>>,
     core: SavedSendPublicationGuard,
 }
+/// Typed terminal for a driver error without a returned-refusal proof: the
+/// caller's own cancellation stays `cancelled`; otherwise the transport was
+/// lost before the outcome could be proven, which callers see as `offline`.
+fn unproven_drain_error(request: &CancellationToken, context: &CancellationToken) -> Error {
+    if request.is_cancelled() || context.is_cancelled() { Error::Cancelled } else { Error::Offline }
+}
 pub(super) struct SavedStreamScope {
     guard: Arc<essential::EssentialGuard>,
     state: std::sync::Weak<State>,
@@ -380,9 +386,15 @@ impl SessionBridge {
                                     return Err(BindingError::from(error));
                                 }
                             }
-                            // No returned proof: retain driver, keys and lane.
-                            // A scheduler error is never evidence of IO drain.
-                            std::future::pending::<()>().await;
+                            // No returned proof: the drain of this send is
+                            // unknown. Never park the stream (a consumer would
+                            // wait forever). Dropping the driver without a
+                            // returned terminal retires this send through the
+                            // core: its gate refuses every later send on this
+                            // Client (fail closed), so no successor can start
+                            // while old IO might still be in flight.
+                            drop(driver);
+                            return Err(BindingError::from(unproven_drain_error(&request, &context_cancel)));
                         },
                     }
                 };

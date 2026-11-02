@@ -31,6 +31,8 @@ class SavedChatReadPeer(MessageWindowPeer):
         self.details_embeds = 0
         self.exact = 0
         self.next = 0
+        self.used = set()
+        self.unplanned_openers = set()
         self.requests = vector.get("requests_by_language", {}).get(
             identity, vector["requests"]
         )
@@ -40,6 +42,7 @@ class SavedChatReadPeer(MessageWindowPeer):
             **super().status(),
             "exact": self.exact,
             "consumed": self.next,
+            "unplanned_openers": sorted(self.unplanned_openers),
             **(
                 {"details_embeds": self.details_embeds}
                 if self.mode == "details"
@@ -73,7 +76,19 @@ class SavedChatReadPeer(MessageWindowPeer):
                 )
             )
             expected = self.vector.get("cancel_expected_counts", expected)
-            assert self.counts == expected
+            if self.mode == "details":
+                # The held metadata POST's concurrent first window may already
+                # have been requested; the client cannot use it until the held
+                # metadata admits the read.
+                assert self.counts.keys() == expected.keys()
+                assert self.counts["metadata"] == expected["metadata"]
+                assert (
+                    expected["window"]
+                    <= self.counts["window"]
+                    <= expected["window"] + 1
+                )
+            else:
+                assert self.counts == expected
             self.cancel_release.set()
             self.checks.add(
                 "successor-barrier-released"
@@ -82,16 +97,12 @@ class SavedChatReadPeer(MessageWindowPeer):
             )
             return 200, {"released": True}
         self.verify_headers(headers)
-        assert self.next < len(self.requests), "bounded planned IO"
-        step = self.requests[self.next]
-        assert (method, route.path) == (step["method"], step["path"]), (
-            "exact route order"
-        )
-        assert parse_qs(route.query, keep_blank_values=True) == step.get("query", {}), (
-            "exact query"
-        )
-        assert body == step.get("body"), "exact body"
-        self.next += 1
+        index = self.match_planned(method, route, body)
+        if index is None:
+            return self.unplanned_opener(method, route, body)
+        step = self.requests[index]
+        self.used.add(index)
+        self.next = len(self.used)
         self.checks.add("explicit-native-session")
         if self.mode == "details":
             self.checks.add("selected-rich-read")
@@ -116,6 +127,105 @@ class SavedChatReadPeer(MessageWindowPeer):
                 self.failure = "fixture-cancel-barrier-timeout"
                 return 503, {"detail": "SYNTHETIC_CANCEL_BARRIER_TIMEOUT"}
         return step.get("status", 200), planned_reply(step)
+
+    @staticmethod
+    def opener_kind(method, path):
+        """Rich details open with one metadata POST, first messages window and
+        first embeds window issued concurrently (open-chat latency); later
+        continuation pages depend on earlier replies and stay ordered."""
+        if method == "POST" and path == "/v1/chats/metadata/batch":
+            return "metadata"
+        if (
+            method == "GET"
+            and path.startswith("/v1/embeds/chats/")
+            and path.endswith("/window")
+        ):
+            return "embeds"
+        if (
+            method == "GET"
+            and path.startswith("/v1/chats/")
+            and path.endswith("/messages/window")
+        ):
+            return "window"
+        return None
+
+    def match_planned(self, method, route, body):
+        """Exact planned step for this request, or None when it is unplanned.
+
+        Outside details mode the plan is consumed strictly in order. In details
+        mode the first planned step of each opener kind within the current
+        metadata batch may arrive in any order; every other step is still
+        consumed in plan order.
+        """
+        query = parse_qs(route.query, keep_blank_values=True)
+        unused = [i for i in range(len(self.requests)) if i not in self.used]
+        if self.mode == "details" and unused:
+            # Each metadata POST opens a batch; the first step of each opener
+            # kind inside the current batch may arrive in any order.
+            batches, batch = [], 0
+            for step in self.requests:
+                batch += self.opener_kind(step["method"], step["path"]) == "metadata"
+                batches.append(batch)
+            current = batches[unused[0]]
+            first_of_kind = {}
+            for i, step in enumerate(self.requests):
+                kind = self.opener_kind(step["method"], step["path"])
+                if kind is not None and batches[i] == current:
+                    first_of_kind.setdefault(kind, i)
+            candidates = sorted(
+                {unused[0]} | {i for i in first_of_kind.values() if i in unused}
+            )
+        else:
+            candidates = unused[:1]
+        for i in candidates:
+            step = self.requests[i]
+            if (method, route.path) == (step["method"], step["path"]):
+                assert query == step.get("query", {}), "exact query"
+                assert body == step.get("body"), "exact body"
+                return i
+        return None
+
+    def unplanned_opener(self, method, route, body):
+        """A refusal plan stops after metadata, but the concurrent opener may
+        already have requested the first window/embeds page. Answer once per
+        kind with an empty, plaintext-free page; the runner still requires the
+        typed refusal and no output, so the page can never be used."""
+        kind = self.opener_kind(method, route.path)
+        planned = {self.opener_kind(s["method"], s["path"]) for s in self.requests}
+        allowed = (
+            self.mode == "details"
+            and kind in ("window", "embeds")
+            and kind not in planned
+            and kind not in self.unplanned_openers
+            and body is None
+        )
+        if not allowed:
+            unused = len(self.used) < len(self.requests)
+            raise AssertionError(
+                "exact route order" if unused else "bounded planned IO"
+            )
+        self.unplanned_openers.add(kind)
+        chat = route.path.split("/")[3 if kind == "window" else 4]
+        assert chat == self.chat_id, "opener for the selected chat only"
+        self.checks.add("unused-concurrent-opener")
+        if kind == "window":
+            return 200, {
+                "chat_id": chat,
+                "messages": [],
+                "has_more_before": False,
+                "has_more_after": False,
+                "start_cursor": None,
+                "end_cursor": None,
+                "oversized_message": False,
+                "payload_bytes": 0,
+            }
+        return 200, {
+            "chat_id": chat,
+            "embeds": [],
+            "has_more_before": False,
+            "start_cursor": None,
+            "oversized_embed_id": None,
+        }
 
 
 def main():

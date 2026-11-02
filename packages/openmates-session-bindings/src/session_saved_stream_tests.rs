@@ -847,3 +847,20 @@ async fn actual_live_publication_reads_overlap_inside_original_policy_callback()
     drain(&bridge, &id).await;
     ok(bridge.close().await);
 }
+
+// contract-test: supporting surface=sdks.rust assertions=sdk.library.explicit-headless
+#[test]
+fn unproven_driver_drain_ends_the_stream_with_a_typed_terminal() {
+    // A driver error without a returned-refusal proof previously parked the
+    // stream forever (tests/sdk-conformance session-recovery lost_ack vector).
+    // It now terminates: the caller's own cancel stays `cancelled`, otherwise
+    // the lost transport is reported as `offline`.
+    let request = CancellationToken::new();
+    let context = CancellationToken::new();
+    assert!(matches!(unproven_drain_error(&request, &context), Error::Offline));
+    context.cancel();
+    assert!(matches!(unproven_drain_error(&request, &context), Error::Cancelled));
+    let context = CancellationToken::new();
+    request.cancel();
+    assert!(matches!(unproven_drain_error(&request, &context), Error::Cancelled));
+}

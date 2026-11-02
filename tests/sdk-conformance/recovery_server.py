@@ -390,6 +390,18 @@ class RecoveryPeer:
                     self.persist(socket, payload)
                     if self.vector["mode"] == "lost_ack":
                         return
+                elif kind == "cancel_ai_task":
+                    # A caller cancel after admission withdraws only the exact
+                    # admitted server task; nothing is persisted afterwards.
+                    assert self.vector["mode"] == "cancel", "unexpected task withdrawal"
+                    assert payload == {
+                        "chat_id": self.chat_id,
+                        "task_id": "synthetic-task",
+                    }
+                    assert (
+                        self.counts["admissions"] == 1 and self.counts["persists"] == 0
+                    )
+                    self.mark("admitted-task-withdrawn")
                 elif kind == "phased_sync_request":
                     assert payload["phase"] == "all"
                     socket.send(
