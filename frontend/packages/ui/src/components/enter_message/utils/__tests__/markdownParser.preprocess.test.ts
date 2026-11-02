@@ -191,6 +191,62 @@ describe("math delimiters inside code", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
+  it.each([
+    "covering ~$4.4B of subordinated debt in a $35B Apollo-led chip financing",
+    "**more than $800B on computing infrastructure through 2045** — some analyses put obligations near $900B",
+    "raised $1.2M, then $3k, then $2 billion and $5bn",
+  ])("keeps currency amounts with magnitude suffixes as text: %s", (source) => {
+    const doc = parseMarkdownToTiptap(source);
+    const serialized = JSON.stringify(doc);
+
+    expect(serialized).not.toContain("inlineMath");
+    expect(serialized).not.toContain("blockMath");
+    expect(serialized).not.toContain("MATH_");
+    expect(serialized).not.toContain("**");
+    for (const amount of source.match(/\$[\d.,]+[A-Za-z]*/g) ?? []) {
+      expect(serialized).toContain(amount);
+    }
+  });
+
+  it("keeps bold marks around a sentence containing suffixed currency", () => {
+    const doc = parseMarkdownToTiptap("**more than $800B on compute** — near $900B");
+    const boldText = doc.content[0].content.find(
+      (node: { marks?: { type: string }[] }) => node.marks?.some((mark) => mark.type === "bold"),
+    );
+    expect(boldText?.text).toBe("more than $800B on compute");
+  });
+
+  it.each([
+    ["$E=mc^2$ is famous", [
+      { type: "inlineMath", attrs: { latex: "E=mc^2" } },
+      { type: "text", text: " is famous" },
+    ]],
+    ["$x$", [{ type: "inlineMath", attrs: { latex: "x" } }]],
+    ["$a$ then $b$", [
+      { type: "inlineMath", attrs: { latex: "a" } },
+      { type: "text", text: " then " },
+      { type: "inlineMath", attrs: { latex: "b" } },
+    ]],
+  ])("keeps paragraph-leading inline math inside its paragraph: %s", (source, content) => {
+    const doc = parseMarkdownToTiptap(`Intro\n\n${source}`);
+    expect(doc.content.at(-1)).toEqual({ type: "paragraph", content });
+    expect(doc.content.every((node: { type: string }) => node.type === "paragraph")).toBe(true);
+  });
+
+  it.each([
+    ["$2n$ and $3x$", ["2n", "3x"]],
+    ["$3m$ is a length", ["3m"]],
+    ["$2 \\times 10^{32}$", ["2 \\times 10^{32}"]],
+    ["$x$ and $y$", ["x", "y"]],
+  ])("still renders inline math for %s", (source, latex) => {
+    const doc = parseMarkdownToTiptap(source);
+    const nodes = doc.content[0].content.filter(
+      (node: { type: string }) => node.type === "inlineMath",
+    );
+    expect(nodes.map((node: { attrs: { latex: string } }) => node.attrs.latex)).toEqual(latex);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
   it.each(["```svelte", "~~~svelte"])("preserves dollar syntax in %s fences", (fence) => {
     const source = "let count = $state(0);\nlet total = $derived(count * 2);\nconst formula = '$$x^2$$';";
     const doc = parseMarkdownToTiptap(`${fence}\n${source}\n${fence.slice(0, 3)}\n\nMath $x^2$`);
@@ -206,8 +262,8 @@ describe("math delimiters inside code", () => {
     const processed = preprocessMarkdown("    let count = $state(0);\n    let total = $derived(count);\n\nMath $x^2$");
 
     expect(processed).toContain("let count = $state(0);\n    let total = $derived(count);");
-    expect(processed.match(/MATH_INLINE_/g)).toHaveLength(1);
-    expect(processed).toContain("Math <!-- MATH_INLINE_0 -->");
+    expect(processed.match(/<om-inline-math /g)).toHaveLength(1);
+    expect(processed).toContain('Math <om-inline-math data-math-id="0"></om-inline-math>');
   });
 });
 
