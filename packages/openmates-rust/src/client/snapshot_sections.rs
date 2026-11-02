@@ -18,7 +18,9 @@ use serde_json::{Map, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
 /// Top-level snapshot fields that form the Chat-list index section.
-pub fn index_fields() -> [&'static str; 7] {
+/// Cached account display name for the first paint of the home screen.
+pub const DISPLAY_NAME_FIELD: &str = "display_name_hint_v1";
+pub fn index_fields() -> [&'static str; 8] {
     [
         "chats",
         "wrappers",
@@ -28,6 +30,7 @@ pub fn index_fields() -> [&'static str; 7] {
         chat_tombstones::SNAPSHOT_FIELD,
         // architecture.sync@2 feed cursor and overview inputs.
         "chat_sync_feed_v1",
+        DISPLAY_NAME_FIELD,
     ]
 }
 /// Top-level snapshot field carrying the protected list-freshness receipt.

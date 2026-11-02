@@ -256,6 +256,8 @@ impl ChatFirstPageSink for NativeChatFirstPageSink {
     }
 }
 enum View {
+    /// Cached display name for the first paint (before authentication).
+    Greeting(String),
     AdmittedAuth(NativeAuthPublication),
     #[cfg(test)]
     Auth {
@@ -515,6 +517,7 @@ async fn run_terminal(args: Args) -> Result<()> {
                     View::Auth{username,expires_at:deadline}=>{authenticated=true;ui.set_authenticated(true);ui.set_username(&username);expires_at=deadline;pairing=false;membership_check=Some(tokio::time::Instant::now()+Duration::from_secs(30));ui.set_status("Signed in · native encrypted session");},
                     View::SignedOut=>{close_cached_views(&cached_views);authenticated=false;ui.clear_private();ui.set_authenticated(false);ui.set_status("Signed out");expires_at=None;pairing=false;monitor_retry=None;membership_check=None;},
                     View::Unlock=>ui.set_unlock_required(true),
+                    View::Greeting(name)=>ui.set_username_hint(&name),
                     View::Items(workspace,items)=>ui.set_items(workspace,items),
                     View::Chat(chat)=>ui.set_chat(chat),
                     View::CanonicalChat(publication)=>apply_canonical_chat(&mut ui,publication),
@@ -1700,6 +1703,9 @@ impl Actor {
                 .await?
             {
                 self.client.restore_ciphertext_snapshot(&snapshot)?;
+                if let Some(name) = self.client.display_name_hint() {
+                    Self::emit(replies, epoch, View::Greeting(name)).await?;
+                }
                 Self::emit(
                     replies,
                     epoch,

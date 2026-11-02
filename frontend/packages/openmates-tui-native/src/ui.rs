@@ -851,6 +851,12 @@ impl Ui {
     pub fn set_username(&mut self, value: &str) {
         self.username = markdown::clean(value);
     }
+    /// Cached name for the first paint; never replaces an authenticated one.
+    pub fn set_username_hint(&mut self, value: &str) {
+        if self.username.is_empty() {
+            self.username = markdown::clean(value);
+        }
+    }
     pub fn set_unlock_required(&mut self, value: bool) {
         if value {
             self.form = Some(Form::new(

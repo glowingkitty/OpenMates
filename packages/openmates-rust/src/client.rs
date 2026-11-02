@@ -553,6 +553,8 @@ pub struct Client {
     chat_details_cache: BTreeMap<String, chat_details_cache::ChatDetailsCache>,
     /// Incremental chat sync feed cursor and overview inputs (sync_feed.rs).
     chat_sync_feed: sync_feed::FeedState,
+    /// Display name cached in the index section for the first paint (sync.rs).
+    display_name_hint: Option<String>,
 }
 impl Client {
     /// Explicit validated application origin selected for this client.
@@ -613,6 +615,7 @@ impl Client {
             cached_content: Default::default(),
             chat_details_cache: BTreeMap::new(),
             chat_sync_feed: Default::default(),
+            display_name_hint: None,
             fresh_auth: Default::default(),
             inventory_network: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
             credential_updates: None,
@@ -730,6 +733,15 @@ impl Client {
     }
     pub fn user(&self) -> &Value {
         &self.user
+    }
+    /// The account display name: live user data, else the cached index hint.
+    pub fn display_name_hint(&self) -> Option<String> {
+        ["username", "display_name"]
+            .into_iter()
+            .filter_map(|key| self.user[key].as_str())
+            .find(|name| !name.is_empty())
+            .map(str::to_owned)
+            .or_else(|| self.display_name_hint.clone())
     }
     /// Detach credentials and clear all client-owned account state.
     pub fn take_session(&mut self) -> Option<Session> {
@@ -1104,6 +1116,7 @@ impl Client {
         self.embed_keys.clear();
         self.cached_content = Default::default();
         self.chat_details_cache.clear();
+        self.display_name_hint = None;
         crate::model::zeroize_json(&mut self.user);
         self.saved_embed_selectors=None;
         self.saved_embed_cache=saved_embed_selector::SelectorCache::Legacy;

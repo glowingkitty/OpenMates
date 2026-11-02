@@ -947,6 +947,9 @@ impl Client {
             snapshot[chat_arrival_order::SNAPSHOT_FIELD] = json!({"version":1,"ids":order});
         }
         if let Some(data)=self.saved_embed_cache.snapshot(self.saved_embed_unsynced_empty()) { snapshot[super::saved_embed_selector::CACHE_FIELD]=data; }
+        if let Some(name) = self.display_name_hint() {
+            snapshot[super::snapshot_sections::DISPLAY_NAME_FIELD] = json!(name);
+        }
         let selected = self.snapshot_selected_first_pages();
         if !selected.is_empty() { snapshot[super::selected_first_page::SNAPSHOT_FIELD] = json!(selected); }
         let windows = self.snapshot_sync_windows();
@@ -968,6 +971,11 @@ impl Client {
         snapshot
     }
     pub fn restore_ciphertext_snapshot(&mut self, snapshot: &Value) -> Result<()> {
+        self.display_name_hint = snapshot
+            .get(super::snapshot_sections::DISPLAY_NAME_FIELD)
+            .and_then(Value::as_str)
+            .filter(|name| !name.is_empty() && name.len() <= 128)
+            .map(str::to_owned);
         self.cached_content = Default::default();
         self.saved_embed_selectors=None;
         self.saved_embed_cache=super::saved_embed_selector::SelectorCache::Legacy;

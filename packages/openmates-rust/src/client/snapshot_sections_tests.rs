@@ -145,3 +145,20 @@ fn held_content_wins_and_foreign_or_complete_restores_are_inert() {
         .unwrap();
     assert!(complete.ciphertext_snapshot()["history"].as_object().unwrap().is_empty());
 }
+
+#[test]
+fn display_name_hint_lives_in_the_index_and_survives_a_restore() {
+    let mut original = client();
+    original.user = json!({"username": "Synthetic Name"});
+    let sections = split(original.ciphertext_snapshot()).unwrap();
+    assert_eq!(sections.index.get(DISPLAY_NAME_FIELD), Some(&json!("Synthetic Name")));
+    assert!(!sections.shared.contains_key(DISPLAY_NAME_FIELD));
+    let restored_snapshot = assemble(sections.index, Some(sections.shared), sections.chats).unwrap();
+    let mut restored = client();
+    restored.restore_ciphertext_snapshot(&restored_snapshot).unwrap();
+    assert_eq!(restored.display_name_hint().as_deref(), Some("Synthetic Name"));
+    // A later snapshot without any name clears the hint instead of keeping a stale one.
+    let mut cleared = client();
+    cleared.restore_ciphertext_snapshot(&client().ciphertext_snapshot()).unwrap();
+    assert_eq!(cleared.display_name_hint(), None);
+}
