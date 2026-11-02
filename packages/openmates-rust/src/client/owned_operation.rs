@@ -374,6 +374,8 @@ impl OwnedOperationObserver {
         self.lease.check_release(false)?;self.crypto.check_release()
     }
     pub(super) fn cancel(&self){self.lease.cancel();}
+    /// Resolves on original parent, child or request cancellation.
+    pub(super) async fn cancelled(&self){self.lease.cancelled().await}
 }
 // contract-test: supporting surface=sdks.rust assertions=sdk.encryption.local-only,auth.session.isolation,auth.session.authoritative-enforcement
 #[cfg(all(test,not(target_arch="wasm32")))]

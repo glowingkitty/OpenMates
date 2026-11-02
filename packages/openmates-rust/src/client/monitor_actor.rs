@@ -348,6 +348,8 @@ impl MonitorReadReceiver {
                 _ = command.fence.cancel.cancelled() => return Err(Error::Cancelled.into()),
                 _ = command.fence.owner.cancel.cancelled() => return Err(Error::Cancelled.into()),
                 _ = command.original_child.cancelled() => return Err(Error::Cancelled.into()),
+                // The original request token is not linked to the lease child.
+                _ = command.observer.cancelled() => return Err(Error::Cancelled.into()),
                 _ = command.abandoned.cancelled() => return Err(Error::Cancelled.into()),
                 _ = events.closed() => return Err(Error::Cancelled.into()),
                 _ = heartbeat.tick() => None,
