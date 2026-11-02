@@ -22758,8 +22758,8 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   sync.client.shared-rust-policy:
-    specification: architecture.sync@1
-    fingerprint: a8e3c2c23c685abb57f4829e381a4f64b6cc14d01fd175d4b6d53a3526a44042
+    specification: architecture.sync@2
+    fingerprint: 572afc939777a8ad5e639c4b00940b7981893e849835caf1476732dc98af6a1d
     direct_tests: []
     supporting_tests:
     - &id2957
@@ -22776,8 +22776,8 @@ assertions:
         - *id2957
     current_direct_proof: false
   sync.access.first-party-authenticated:
-    specification: architecture.sync@1
-    fingerprint: ebd1daed1d821929f7358579fa719ca1e3fff4e660f6dac110f3588dc0b26d4a
+    specification: architecture.sync@2
+    fingerprint: 25024cd46ec98a6dacd64a8f3dfcaeb46a7b35a9c89dd8b6156a467758a02c3f
     direct_tests: []
     supporting_tests:
     - &id2958
@@ -22906,16 +22906,16 @@ assertions:
         - *id2973
     current_direct_proof: false
   sync.status.startup-window-ready:
-    specification: architecture.sync@1
-    fingerprint: a29274e804955b224af252b5c1daa40337fa1f1273aa578f4287dcb6379eb069
+    specification: architecture.sync@2
+    fingerprint: 2339aea47780b16cd00b47e4dda33ed7da06b53608098df16d1a9f0317eaa694
     direct_tests: []
     supporting_tests: []
     tests: []
     surfaces: {}
     current_direct_proof: false
   sync.status.incomplete-window-rewarms:
-    specification: architecture.sync@1
-    fingerprint: b6fd245f9207764f826cfd19e43f08558f0a3d850fef0f415024c032fa718a73
+    specification: architecture.sync@2
+    fingerprint: 4663db8af86750fd5e3ec1690d12a45e5fabbf74c27f2312f299b441708e062f
     direct_tests: []
     supporting_tests:
     - &id2974
@@ -22939,8 +22939,8 @@ assertions:
         - *id2975
     current_direct_proof: false
   sync.startup.bounded-phases:
-    specification: architecture.sync@1
-    fingerprint: b1d203ab76d3565d33a8a108c25106dd28be8f86e4c0a3b4d9c96c5431a17260
+    specification: architecture.sync@2
+    fingerprint: 1f1c90cbd85635977a29512550cad1c608b8e6a0431d6ab78d2ac06d11f4e3ba
     direct_tests:
     - &id2976
       path: apple/OpenMatesTests/ChatSyncParityTests.swift
@@ -23428,8 +23428,8 @@ assertions:
         - *id3039
     current_direct_proof: false
   sync.phase2.metadata-only:
-    specification: architecture.sync@1
-    fingerprint: 60bfb43a24004131f18a518a8f1e1e4e19a6c886a23a7f7df046c2676c01de3d
+    specification: architecture.sync@2
+    fingerprint: b6ffbb847af572f8bf917b21c13f12624f5abcb37af574b11ad076a35ae79626
     direct_tests:
     - &id3045
       path: frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
@@ -23656,8 +23656,8 @@ assertions:
         - *id3069
     current_direct_proof: false
   sync.phase2.drafts.authoritative-encrypted:
-    specification: architecture.sync@1
-    fingerprint: 1496901c68917178cbb62cfe4497ba7c9e8f7ce4b502a3d735f3c9f77b0596ef
+    specification: architecture.sync@2
+    fingerprint: 6742500e72c783c4ad540847860a38e22b5c97699e2c1594a12251e9ea998144
     direct_tests: []
     supporting_tests:
     - &id3070
@@ -23681,8 +23681,8 @@ assertions:
         - *id3071
     current_direct_proof: false
   sync.deletion.partial-window-not-authoritative:
-    specification: architecture.sync@1
-    fingerprint: 7a204bd151ee6f64bd7edf555cb814d19b54e5fa140e96ee4e620e33b2fa5052
+    specification: architecture.sync@2
+    fingerprint: a65212c39b90a2ec0924918a9e8864e176fd3a934023d804ba7418add74fb9e1
     direct_tests:
     - &id3072
       path: apple/OpenMatesTests/ChatSyncParityTests.swift
@@ -23785,9 +23785,81 @@ assertions:
         supporting_tests:
         - *id3083
     current_direct_proof: false
+  sync.delta.cursor-gap-free:
+    specification: architecture.sync@2
+    fingerprint: 220f0a61d08e40ca6c10cc897dc84689623d545b71f9b71d76b3f42dfad5fbc8
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  sync.delta.metadata-only:
+    specification: architecture.sync@2
+    fingerprint: c348ba4d8d7ffb37f56e4974ad299d7dd649d375625fc89264f389ab412b5574
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  sync.delta.reset:
+    specification: architecture.sync@2
+    fingerprint: 2de4a9bf11e22002ab662a2efceffe9c885aa2ad6194ef7091f9801848b500ef
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  sync.delta.scope-revocation:
+    specification: architecture.sync@2
+    fingerprint: ce0fe4bc12f907e464f8aebc00238409de3956292b04285845cd35de3c9e7e5d
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  sync.delta.live-hint:
+    specification: architecture.sync@2
+    fingerprint: 3a219db1c5f8a7964ded6374ef0dae4200b9be6637972a512f2fe13be9a62bbd
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  sync.open.not-gated:
+    specification: architecture.sync@2
+    fingerprint: abb11aaff85db61e390fed378e1da57b8650c8cb7576936623f5036684e749a2
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  sync.overview.priority-order:
+    specification: architecture.sync@2
+    fingerprint: 81482809e8e61d6e0cb083d2ce289e2c54cc3c4173f1fdd8bfb05d7c6f6e1478
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  sync.overview.cross-device:
+    specification: architecture.sync@2
+    fingerprint: 92c1aea9a57cfbfe197a6e8593d5045f16a4847db83c9bedea6f69676d3331fb
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  sync.overview.ready-fast:
+    specification: architecture.sync@2
+    fingerprint: 933753e9777f7bf82ac2f2b7d7ea90a030e7cdde522397c449249d848c8ff0b6
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
   sync.surface.semantic-parity:
-    specification: architecture.sync@1
-    fingerprint: ec94c669694bd73479a2617bc649c6abb9dbae97fbfd517b58565635e730d96a
+    specification: architecture.sync@2
+    fingerprint: 0190acaf9a2d4ca2259d86a6a319bf2a6619519496b69da0a464dc113a582ab3
     direct_tests:
     - &id3118
       path: apple/OpenMatesTests/ChatSyncParityTests.swift

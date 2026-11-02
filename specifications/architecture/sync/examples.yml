@@ -1,5 +1,5 @@
 schema_version: 1
-specification: architecture.sync@1
+specification: architecture.sync@2
 
 startup_readiness:
   - id: bounded-large-account-ready
@@ -32,6 +32,11 @@ startup_readiness:
       sync_status_response: {is_primed: false, chat_count: 2368}
       primed_flag_restored: false
       rewarm_dispatched: true
+  - id: cold-start-large-account-ready
+    assertion_ids: [sync.status.startup-window-ready]
+    given: A device without a feed cursor cold-starts an account with 2,368 chats; the primed flag is missing but Redis already holds the 100 most recent chat IDs.
+    when: The client asks for cache status before its cold start.
+    then: The server restores the primed flag, reports is_primed true with the full count of 2,368 chats, and dispatches no rewarm.
 
 startup_payloads:
   - id: default-phase-all-boundary
@@ -62,6 +67,16 @@ startup_payloads:
             draft_v: 2
             encrypted_draft_md: cipher-draft
     forbidden_fields: [messages, embeds, embed_keys, chat_key_wrappers, code_run_outputs, compression_checkpoints, plaintext]
+  - id: warm-start-uses-feed-not-phases
+    assertion_ids: [sync.startup.bounded-phases]
+    given: A device has a cached overview and a valid feed cursor from its last session; while it was offline two chats received new messages on another device.
+    when: The workspace opens and the client pulls the feed with its cursor.
+    then: The page lists the two chats with kinds metadata and messages, their new versions and encrypted metadata; no transcript messages, embeds or Phase 1b content are sent, and the transcripts load only when the user opens those chats.
+  - id: cold-start-cursor-read-before-snapshot
+    assertion_ids: [sync.startup.bounded-phases]
+    given: A new device has no cursor; while its cold start reads the 20-chat Phase 1a window, another device renames a chat in that window.
+    when: phased_sync_complete arrives with sync_cursor and the client then pulls the feed.
+    then: The cursor was read before the snapshot, so the rename is replayed by the first feed pull even if the snapshot already contained it; applying it twice changes nothing.
 
 deletion_authority:
   - id: partial-window-retains-local-chats
@@ -92,6 +107,11 @@ deletion_authority:
     expect:
       authoritative: false
       deleted_chat_ids: [tombstoned-chat]
+  - id: gap-free-feed-deletion-prunes
+    assertion_ids: [sync.deletion.partial-window-not-authoritative]
+    given: A device's cursor is at revision 41 and a chat it has cached was deleted on another device at revision 42.
+    when: The device pulls the feed from revision 41 and receives the entry with kind deleted for that chat's hashed ID.
+    then: The device removes that chat locally, because the entry was replayed gap-free from its own cursor; older chats absent from the page stay cached.
 
 draft_metadata:
   - id: personal-authoritative-draft-ciphertext
@@ -124,6 +144,12 @@ draft_metadata:
       team_chat_metadata_synced: true
       draft_only_user_chat_discovered: false
 
+  - id: feed-draft-update-keeps-ciphertext
+    assertion_ids: [sync.phase2.drafts.authoritative-encrypted]
+    given: The user edits the draft of a personal chat on the laptop, then deletes the draft of another chat.
+    when: The phone pulls its feed.
+    then: It receives the edited chat with kind draft, the new draft version and the unchanged encrypted draft text, and the other chat with draft version 0 and empty draft fields; in a Team context, a draft for a chat outside that Team is not delivered.
+
 shared_client_sync:
   - id: same-reconnect-policy-existing-stores
     given: A browser using IndexedDB, an Apple app using SwiftData and the native CLI each reconnect with cached encrypted chats.
@@ -143,3 +169,77 @@ surface_scope:
     given: A developer constructs an npm or Python SDK and explicitly calls a supported encrypted draft operation.
     when: The direct library call completes.
     then: Public conformance and authorization still apply, but construction does not start first-party application sync or silently adopt an application offline queue.
+
+delta_feed:
+  - id: page-replays-every-committed-change
+    assertion_ids: [sync.delta.cursor-gap-free]
+    given: Personal scope revisions 11 to 260 were committed while a device was offline with cursor revision 10.
+    when: The device requests pages of 200 with chat_sync_delta_request.
+    then: The first page covers revisions 11 to 210 with has_more true and the next page covers 211 to 260 with has_more false; no revision is skipped and each chat appears once per page with its combined kinds.
+  - id: feed-page-is-metadata-only
+    assertion_ids: [sync.delta.metadata-only]
+    given: A new message with an embed was added to a cached chat.
+    when: The next feed page describes that chat.
+    then: It carries kinds messages and content, the new messages_v and the encrypted chat metadata, but no message text, no embed, no embed key and no plaintext; the message loads when the chat is opened.
+  - id: live-hint-triggers-pull
+    assertion_ids: [sync.delta.live-hint]
+    given: A phone and a laptop are connected with the chat_sync_feed_v1 capability, and an older web client without it is also connected.
+    when: The phone pins a chat.
+    then: The laptop receives chat_sync_hint with the new revision, waits briefly, pulls the feed and moves the chat into the pinned position; the older web client receives no new event type.
+
+delta_reset:
+  - id: unknown-epoch-resets
+    given: A device presents a cursor from before the scope's change log was re-created with a new epoch.
+    when: It pulls the feed.
+    then: The response has reset true and no changes; the device performs a cold start and keeps its cached chats until the cold start supplies deletion evidence.
+  - id: expired-cursor-resets
+    given: A laptop was offline for 45 days, longer than the 30-day change retention.
+    when: It pulls the feed with its old cursor.
+    then: The response has reset true; the laptop performs the bounded cold start and does not delete any chat just because the feed was reset.
+
+delta_revocation:
+  - id: team-membership-removed
+    given: A user is removed from a Team while a device has that Team's chats cached and a personal cache too.
+    when: The device pulls that Team's feed.
+    then: The request is rejected as forbidden; the device clears only the Team's cached chats and cursor, and the personal chats stay untouched.
+  - id: chat-moved-to-team
+    given: A user moves a personal chat into a Team.
+    when: Devices pull the personal feed and the Team feed.
+    then: The personal feed shows the chat as moved, so it leaves the personal list; the Team feed shows it with metadata, so it appears in the Team list for members.
+
+chat_open:
+  - id: open-during-catch-up
+    given: A device is still pulling feed pages after reconnecting.
+    when: The user opens a cached chat and then an uncached chat.
+    then: The cached chat renders from local data within 300 ms at p95 without waiting for the feed, and the uncached chat fetches its own recent message window and renders within 1 s at p95.
+  - id: one-shot-cli-no-account-sync
+    given: A user runs a one-shot CLI command such as sending one message to an existing chat.
+    when: The command runs.
+    then: It loads only the chat it needs and performs no startup sync or feed pull for the rest of the account.
+
+overview_order:
+  - id: due-item-then-last-opened-then-recent
+    assertion_ids: [sync.overview.priority-order]
+    given: A user has a saved concert starting in 3 hours, a reminder due in 30 minutes for chat A, last opened chat B, and chats C (pinned) and D (edited 5 minutes ago).
+    when: Any of their devices shows the chat workspace overview.
+    then: The order is reminder for chat A, the concert, chat B, chat C, chat D; a chat already shown as a due item is not repeated later.
+  - id: last-opened-synced-across-devices
+    assertion_ids: [sync.overview.cross-device]
+    given: The phone and the laptop show the same overview with chat B as last opened.
+    when: The user opens chat E on the phone.
+    then: The laptop receives the user-lane change, shows chat E first among chats and moves chat B back into its last-change position, without a cold start.
+  - id: due-item-completed-elsewhere
+    assertion_ids: [sync.overview.cross-device]
+    given: A reminder due in 10 minutes is the first overview item on both devices.
+    when: The reminder fires and the user dismisses it on the laptop.
+    then: The phone receives the change through the user lane and drops or reclassifies the item using the same 24-hour and 12-hour windows.
+
+overview_ready:
+  - id: warm-start-renders-cache-first
+    given: A device has a cached overview and cursor.
+    when: The workspace opens while the network is slow.
+    then: The cached overview with its due-soon items appears immediately and later feed changes reorder it in place.
+  - id: cold-start-overview-before-content
+    given: A fresh device signs in to an account with 2,000 chats whose last opened chat is older than the 20 most recent chats.
+    when: The cold start runs.
+    then: The overview appears from Phase 1a metadata and the startup due-soon set, including the last opened chat, before any transcript content arrives.

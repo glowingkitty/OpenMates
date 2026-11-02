@@ -50,12 +50,17 @@ sync and persistence policy also follows `specifications/architecture/sync/` and
   under matching full-application conditions. Do not assume minimal WASM overhead.
   Keep warm/renderer-only measurements separate.
 - Follow `architecture.sync` for bounded startup and on-demand sub-chat messages.
-  The approved startup parent-content budget is 20. Keep existing metadata,
+  The approved cold-start parent-content budget is 20; warm sync uses the cursor
+  feed without transcript content, and one-shot CLI commands perform no account
+  sync. Keep existing metadata,
   pagination, pinned-chat and draft behavior; a client cache count is not an
   authoritative account total. Real personal-dev benchmarks use ordinary bounded
   windows and representative existing chats, without forcing a full-account sync.
-- Primary CLI distribution is `cargo install` of its crates.io application crate;
-  publish the Rust SDK as a separate library crate. Use explicit versioned dev
+- Primary distribution is one crates.io crate `openmates`: `cargo install openmates`
+  installs the CLI/TUI; the SDK is re-exported as `openmates::sdk` (`cargo add
+  openmates --no-default-features` for SDK-only). The SDK core remains an internal
+  member crate. Python uses native PyO3 wheels; the npm SDK loads the portable
+  WASM build of the shared core. Use explicit versioned dev
   prereleases. GitHub prebuilt executable assets are outside this migration scope.
 - Keep the installed npm CLI and command operational during transition. Expose
   verified Rust alongside it early through a separate command or installation path
