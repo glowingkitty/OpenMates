@@ -73,7 +73,7 @@ impl Account<'_> {
 
     /// Account email encryption key: the session copy, else derived locally
     /// from the freshly authenticated master-key-encrypted email.
-    async fn email_encryption_key(&mut self) -> Result<Zeroizing<String>> {
+    pub(crate) async fn email_encryption_key(&mut self) -> Result<Zeroizing<String>> {
         if let Some(key) = self.client.require_session()?.email_encryption_key.clone() {
             return Ok(Zeroizing::new(key));
         }

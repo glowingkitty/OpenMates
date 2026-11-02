@@ -631,6 +631,8 @@ impl Teams<'_> {
 
 #[path = "teams_identity.rs"]
 mod identity;
+#[path = "teams_billing.rs"]
+mod billing;
 
 #[cfg(test)]
 #[path = "teams_tests.rs"]

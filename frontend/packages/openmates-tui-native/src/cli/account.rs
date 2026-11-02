@@ -14,6 +14,8 @@ mod settings_more;
 mod teams;
 #[path = "ideabucket.rs"]
 mod ideabucket;
+#[path = "teams_billing.rs"]
+mod teams_billing;
 #[path = "connected_accounts.rs"]
 pub(super) mod connected_accounts;
 
@@ -47,6 +49,7 @@ pub(super) fn supported(invocation: &Invocation) -> bool {
         || teams::supported(invocation)
         || ideabucket::supported(invocation)
         || connected_accounts::supported(invocation)
+        || teams_billing::supported(invocation)
         || matches!(
         path(invocation).as_str(),
         "whoami"
@@ -272,6 +275,9 @@ pub(super) async fn execute(
     }
     if ideabucket::supported(invocation) {
         return ideabucket::execute(invocation, client).await;
+    }
+    if teams_billing::supported(invocation) {
+        return teams_billing::execute(invocation, client).await;
     }
     if connected_accounts::supported(invocation) {
         return connected_accounts::execute(invocation, client).await;

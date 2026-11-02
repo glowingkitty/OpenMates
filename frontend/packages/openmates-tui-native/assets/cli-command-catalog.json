@@ -57892,7 +57892,7 @@
       ],
       "positionals": [
         {
-          "name": "show",
+          "name": "action",
           "required": true,
           "variadic": false,
           "at": 3,
@@ -57900,9 +57900,9 @@
         },
         {
           "name": "team-id",
-          "required": true,
+          "required": false,
           "variadic": false,
-          "at": 3,
+          "at": 4,
           "synopsis": "<team-id>"
         }
       ],
@@ -57912,7 +57912,9 @@
         "billing-address-file",
         "help",
         "json",
-        "profile"
+        "profile",
+        "team",
+        "team-id"
       ],
       "source_locations": [
         {
@@ -57923,12 +57925,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams_billing.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -57963,7 +57965,9 @@
         "credits",
         "help",
         "json",
-        "profile"
+        "profile",
+        "team",
+        "team-id"
       ],
       "source_locations": [
         {
@@ -57974,12 +57978,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams_billing.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58012,7 +58016,9 @@
         "api-url",
         "help",
         "json",
-        "profile"
+        "profile",
+        "team",
+        "team-id"
       ],
       "source_locations": [
         {
@@ -58023,12 +58029,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams_billing.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58049,18 +58055,18 @@
       ],
       "positionals": [
         {
-          "name": "order-id",
-          "required": true,
-          "variadic": false,
-          "at": 4,
-          "synopsis": "<order-id>"
-        },
-        {
           "name": "team-id",
-          "required": true,
+          "required": false,
           "variadic": false,
           "at": 4,
           "synopsis": "<team-id>"
+        },
+        {
+          "name": "order-id",
+          "required": false,
+          "variadic": false,
+          "at": 5,
+          "synopsis": "<order-id>"
         }
       ],
       "flags": [
@@ -58068,7 +58074,10 @@
         "api-url",
         "help",
         "json",
-        "profile"
+        "order",
+        "profile",
+        "team",
+        "team-id"
       ],
       "source_locations": [
         {
@@ -58079,12 +58088,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams_billing.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58256,7 +58265,9 @@
         "help",
         "json",
         "output",
-        "profile"
+        "profile",
+        "team",
+        "team-id"
       ],
       "source_locations": [
         {
@@ -58267,12 +58278,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams_billing.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58293,6 +58304,7 @@
       "flags": [
         "api-key",
         "api-url",
+        "destination-team",
         "file",
         "help",
         "json",
@@ -58309,12 +58321,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams_billing.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59599,12 +59611,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -61853,8 +61865,8 @@
   "coverage": {
     "command_patterns": 720,
     "flags": 599,
-    "native_handlers_partial": 601,
-    "unsupported": 119,
+    "native_handlers_partial": 608,
+    "unsupported": 112,
     "feature_complete": false
   },
   "maintenance": {

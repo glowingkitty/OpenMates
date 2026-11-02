@@ -11,6 +11,7 @@ const COMMANDS: &[&str] = &[
     "teams list",
     "teams show",
     "teams switch",
+    "teams switch-to",
     "teams create",
     "teams update",
     "teams delete",
@@ -247,6 +248,15 @@ pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOu
     // npm requireTeamId: `--team <team-id>` selects the Team before positionals.
     if let Some(normalized) = team_flag_selector(i) {
         return Box::pin(execute(&normalized, client)).await;
+    }
+    // npm `teams <team-slug-or-id> switch-to` is `teams switch <team>`.
+    if i.command_path() == "teams switch-to" {
+        let alias = Invocation {
+            path: vec!["teams".into(), "switch".into()],
+            positionals: i.positionals.clone(),
+            flags: i.flags.clone(),
+        };
+        return Box::pin(execute(&alias, client)).await;
     }
     let command = i.command_path();
     let allowed: &[&str] = match command.as_str() {
