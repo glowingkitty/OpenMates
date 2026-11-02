@@ -278,6 +278,18 @@ The local serializer exports only the primary event. It validates dates and
 timezones and preserves an unknown end time without inventing a duration.
 Context events are for display only. No calendar account or network call is required.
 
+## Native session SDK (preview)
+
+`openmates.SessionClient`, `RustApiKeyClient`, `prepare_privacy` and
+`sort_tasks` run in the shared OpenMates Rust core through the `openmates._native`
+extension (PyO3). They never launch the CLI or read CLI login state; credentials
+are explicit (`await client.login_password(...)` or `import_session(...)`). If
+the extension is missing, these APIs raise `SessionClientError` with code
+`native_binding_unavailable` (there is no pure-Python fallback). The `OpenMates`
+API-key client above does not need the extension. Published wheels do not include
+it yet; from a source checkout run
+`python3 scripts/build_sdk_native.py --language python`.
+
 ## Versioning
 
 OpenMates shows the short product line, for example `v0.29`, in the web app.

@@ -1,3 +1,8 @@
+import {reconstructEmbedVersionLocal} from "./sdkEmbedVersion.js";
+import {SessionClientError} from "./sdkSession.js";
+import {OpenMatesProjectSourceAuthoringUnavailableError} from "./sdkProjectSources.js";
+import type {SessionProjectSourceCreate,SessionProjectSourceCapabilitiesPatch} from "./sdkProjectSources.js";
+export {OpenMatesProjectSourceAuthoringUnavailableError} from "./sdkProjectSources.js";
 import type { BuyerAddress } from "./billingAddress.js";
 /*
  * OpenMates npm SDK facade.
@@ -8,7 +13,8 @@ import type { BuyerAddress } from "./billingAddress.js";
  * Tests: frontend/packages/openmates-cli/tests/sdk.test.ts
  */
 
-import { shouldWaitForTeamAi, type WikipediaLearningBundle } from "./client.js";
+import type { WikipediaLearningBundle } from "./client.js";
+import { shouldWaitForTeamAi } from "./sdkTeamInvocation.js";
 import { GeneratedAppSkills, type AppSkillRunOptions } from "./generated/appSkills.js";
 import { decode as toonDecode } from "@toon-format/toon";
 import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
@@ -44,17 +50,14 @@ import {
   type ParsedImportChat,
 } from "./accountImport.js";
 import {
-  decryptBytesWithAesGcm,
-  decryptWithAesGcmCombined,
   deriveChatCompletionRecoveryKeypair,
-  encryptBytesWithAesGcm,
-  encryptWithAesGcmCombined,
   hashItemKey,
   openChatCompletionRecoveryEnvelope,
   splitApiKeyCredential,
   type ChatCompletionRecoveryEnvelope,
   unwrapApiKeyMasterKey,
 } from "./crypto.js";
+import { decryptBytesWithAesGcm, decryptWithAesGcmCombined, encryptBytesWithAesGcm, encryptWithAesGcmCombined } from "./sdkCrypto.js";
 import {
   buildChatShareUrl,
   buildEmbedShareUrl,
@@ -3699,7 +3702,19 @@ export class OpenMatesHistory {
   }
 }
 
+/** Cookie-only watch refusal; no request or credential discovery occurs. */
+export class OpenMatesProjectTaskWatchUnavailableError extends Error {
+  readonly code="project_task_watch_unavailable";
+  readonly reason="PROJECT_TASK_WATCH_REQUIRES_COOKIE_SESSION";
+  constructor(){super("PROJECT_TASK_WATCH_REQUIRES_COOKIE_SESSION");this.name="OpenMatesProjectTaskWatchUnavailableError";}
+}
 export class OpenMatesProjects {
+  async createSource(_project:string,_input:SessionProjectSourceCreate,_context:ProjectContextOptions):Promise<never>{throw new OpenMatesProjectSourceAuthoringUnavailableError();}
+  async updateSourceCapabilities(_project:string,_source:string,_input:SessionProjectSourceCapabilitiesPatch,_context:ProjectContextOptions):Promise<never>{throw new OpenMatesProjectSourceAuthoringUnavailableError();}
+  async watchTasks(_project:string,_input:{sourceId:string;checkpoint?:unknown},_filters:ProjectContextOptions):Promise<never>{
+    throw new OpenMatesProjectTaskWatchUnavailableError();
+  }
+
   private readonly client: OpenMates;
 
   constructor(client: OpenMates) {
@@ -5403,6 +5418,30 @@ export class OpenMatesEmbeds {
   }
   async versions(embedId: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/embeds/${encodeURIComponent(embedId)}/versions`); }
   async version(embedId: string, version: number): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/embeds/${encodeURIComponent(embedId)}/versions/${version}`); }
+  /** Additive Personal account-key reconstruction; opaque version() is unchanged.
+   * Uses only the existing SDK owner route. No Project grant, CLI or fallback. */
+  async versionContent(embedId:string,version:number):Promise<Record<string,unknown>> {
+    if(this.client.isAnonymous)throw new SessionClientError("authentication","An explicit API key is required.");
+    if(!Number.isSafeInteger(version)||version<1)throw new SessionClientError("invalid_argument","Supply a positive safe integer version.");
+    const value=await this.version(embedId,version);
+    if(value.embed_id!==embedId||value.version_number!==version)throw new SessionClientError("protocol","Version response does not match the selected version.");
+    if(typeof value.content==="string") {
+      if(Buffer.byteLength(value.content,"utf8")>16*1024*1024)throw new SessionClientError("protocol","Version content exceeds the supported size.");
+      return value;
+    }
+    const rows=value.rows;
+    if(!Array.isArray(rows)||!rows.length||rows.length>10000||rows.at(-1)?.version_number!==version||rows.some(row=>!Number.isSafeInteger(row?.version_number)||row.version_number<1||row.version_number>version))throw new SessionClientError("protocol","Version response does not match the selected version.");
+    const shown=await this.show(embedId);
+    if(!shown.embed||typeof shown.embed!=="object"||(shown.embed as {embed_id?:unknown}).embed_id!==embedId)throw new SessionClientError("forbidden","Embed key response does not match the selected embed.");
+    const keys=Array.isArray(shown.embed_keys)?shown.embed_keys as EmbedKeyRecord[]:[];
+    let key:Uint8Array|null;
+    try {key=await this.client.resolveEmbedKeyForShare(keys,embedId);}
+    catch(error){if(error instanceof OpenMatesConfigError)throw new SessionClientError("forbidden","Unable to resolve the account key for version content.");throw error;}
+    if(!key||key.length!==32)throw new SessionClientError("forbidden","Unable to resolve the owned embed key.");
+    try {return {...value,content:reconstructEmbedVersionLocal(rows,key)};}
+    finally {key.fill(0);}
+  }
+
   async restoreVersion(embedId: string, version: number, options: ConfirmedMutationOptions): Promise<Record<string, unknown>> { requireConfirmed(options, "Restoring an embed version"); return this.client.request<Record<string, unknown>>(`/v1/sdk/embeds/${encodeURIComponent(embedId)}/versions/${version}/restore`); }
 }
 

@@ -13,10 +13,18 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 
 
+# The Python SessionClient source is split across these modules; definitions
+# are extracted from their combined module body without importing the package.
+SESSION_SOURCES = ("session_types.py", "session_facades.py", "session_client.py")
+
+
+def session_source_text(root):
+    package = root / "packages/openmates-python/openmates"
+    return "\n".join((package / name).read_text() for name in SESSION_SOURCES)
+
+
 def extracted_api():
-    source = ast.parse(
-        (ROOT / "packages/openmates-python/openmates/session_client.py").read_bytes()
-    )
+    source = ast.parse(session_source_text(ROOT))
     wanted = {
         "SessionClientError",
         "SessionSettingsReadError",

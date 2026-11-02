@@ -111,7 +111,7 @@ describe("OpenMates npm SDK cleartext boundary", () => {
         assert.equal((project.projects as any[])[0].name, CLEAR_PUBLIC_PROJECT);
         assert.equal((project.projects as any[])[0].description, "project body");
       },
-      `Bearer ${material.apiKey}`,
+      `Bearer ${material.apiKey.split(".")[0]}`,
     );
   });
 });

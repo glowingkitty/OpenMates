@@ -210,7 +210,7 @@ describe("OpenMates SDK user plans", () => {
           assertNoPlaintextMarker(seen, marker);
         }
       },
-      `Bearer ${material.apiKey}`,
+      `Bearer ${material.apiKey.split(".")[0]}`,
     );
   });
 });

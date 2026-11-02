@@ -1,12 +1,165 @@
 """OpenMates Python SDK public exports.
 
-Purpose: expose the ergonomic Python API-key SDK entrypoint.
-Architecture: thin package barrel over openmates.sdk.
-Security: API keys are passed through at request time and never persisted.
-Tests: packages/openmates-python/tests/test_sdk.py.
+Purpose: expose the API-key SDK (``OpenMates``) and the first-party session SDK
+(``SessionClient`` and the local privacy/task-order/crypto helpers).
+Architecture: thin package barrel. ``OpenMates`` is the existing Python API-key
+client; every ``Session*`` operation and local helper calls the shared Rust core
+through the explicitly loaded ``openmates._native`` extension (PyO3). There is
+no Python fallback and no CLI process; a missing extension raises
+``SessionClientError("native_unavailable")`` when such an operation is used.
+Security: credentials are explicit; API keys are never persisted.
+Tests: packages/openmates-python/tests/.
 """
 
-from .sdk import OpenMates, OpenMatesApiError, OpenMatesConfigError, OpenMatesSignupRequiredError, OpenMatesUnavailableError
+from .sdk import (
+    OpenMates,
+    OpenMatesApiError,
+    OpenMatesConfigError,
+    OpenMatesSignupRequiredError,
+    OpenMatesUnavailableError,
+    OpenMatesProjectTaskWatchUnavailableError,
+)
+from .task_order import TaskOrderRow, sort_tasks
+from .privacy import PreparedPrivacy, prepare_privacy, restore_privacy
+from .session_client import (
+    SessionChatDetailsLatestHistory,
+    SessionChatDetailsFullHistory,
+    SessionChatDetailsHistory,
+    SessionChatDetailsOptions,
+    SessionChatDetailsMetadata,
+    SessionChatDetailsMessage,
+    SessionChatDetailsRead,
+    SessionClient,
+    SessionClientError,
+    SessionFullChatRead,
+    SessionDrafts,
+    SessionDraftRecord,
+    SessionSavedChatReadMetadata,
+    SessionSavedChatMessageMetadata,
+    SessionSavedChatReadOptions,
+    SessionSavedChatRead,
+    SessionSavedChatExactOptions,
+    SessionSavedChatExactMessage,
+    SessionMessageWindowCursor,
+    SessionMessageWindowOptions,
+    SessionMessageWindow,
+    SessionTasks,
+    SessionProjects,
+    SessionWorkScope,
+    SessionTaskFilters,
+    SessionProjectFilters,
+    SessionTaskCreate,
+    SessionTaskPatch,
+    SessionProjectCreate,
+    SessionProjectPatch,
+    SessionProjectUnlinkInput,
+    SessionWorkflowFileSyncOptions,
+    SessionWorkflowFileSaveStatus,
+    SessionAnonymousOptions,
+    SessionAnonymousOutcome,
+)
+from .project_sources import (SessionProjectSourceType,SessionProjectSourceCapability,SessionProjectSourceStatus,SessionProjectSourceCreate,SessionProjectSourceCapabilitiesPatch,SessionProjectSource,SessionProjectSourcesDecodedNames,OpenMatesProjectSourceAuthoringUnavailableError)
+from .essential_session import SessionChatMonitor, SessionCompletionRecovery, SessionDurableStore
+from .startup_sync import SessionInitialSyncOperation, SessionInitialSyncMetadata
+from .first_page_session import SessionFirstPageCapacity, SessionFirstPagePublication, SessionFirstPageStore, SessionFirstPageCallback
+from .project_task_watch import (SessionProjectTaskWatch,SessionProjectTaskWatchScope,SessionProjectTaskWatchReceipt,SessionProjectTaskWatchCheckpoint,SessionProjectTaskWatchEvent,SessionProjectTaskWatchSnapshot,SessionProjectTaskWatchState,SessionProjectTaskWatchTask)
+from .rust_api_key import RustApiKeyClient, RustApiKeyClientError
 from .calendar_event import CalendarEvent, CalendarEventDocument, build_calendar_event_file
+from .session_client import SessionAccount, SessionSettingsReadError
+from .remote_crypto import RemoteHandshake,RemoteSession,RemoteCryptoError,RemoteIdentity,RemoteRole,RemoteHandshakeWire,RemoteEnvelope
+from .metadata_ephemeral import MetadataAuthentication,EphemeralMetadataClient,EphemeralMetadataStartup,EphemeralMetadataSnapshot,MetadataEphemeralError,MetadataCookieCredentials,MetadataAuthenticationOptions
 
-__all__ = ["OpenMates", "OpenMatesApiError", "OpenMatesConfigError", "OpenMatesUnavailableError", "OpenMatesSignupRequiredError", "CalendarEvent", "CalendarEventDocument", "build_calendar_event_file"]
+__all__ = [
+    "SessionInitialSyncOperation",
+    "SessionInitialSyncMetadata",
+    "SessionFirstPageCapacity",
+    "SessionFirstPagePublication",
+    "SessionFirstPageStore",
+    "SessionFirstPageCallback",
+    "OpenMates",
+    "OpenMatesApiError",
+    "OpenMatesConfigError",
+    "OpenMatesUnavailableError",
+    "OpenMatesProjectTaskWatchUnavailableError",
+    "OpenMatesSignupRequiredError",
+    "SessionClient",
+    "SessionClientError",
+    "SessionDrafts",
+    "SessionDraftRecord",
+    "SessionSavedChatReadMetadata",
+    "SessionSavedChatMessageMetadata",
+    "SessionSavedChatReadOptions",
+    "SessionSavedChatRead",
+    "SessionSavedChatExactOptions",
+    "SessionSavedChatExactMessage",
+    "SessionMessageWindowCursor",
+    "SessionMessageWindowOptions",
+    "SessionMessageWindow",
+    "SessionTasks",
+    "SessionProjects",
+    "SessionWorkScope",
+    "SessionTaskFilters",
+    "SessionProjectFilters",
+    "SessionWorkflowFileSyncOptions",
+    "SessionWorkflowFileSaveStatus",
+    "SessionTaskCreate",
+    "SessionTaskPatch",
+    "SessionProjectCreate",
+    "SessionProjectPatch",
+    "SessionProjectUnlinkInput",
+    "TaskOrderRow",
+    "sort_tasks",
+    "PreparedPrivacy",
+    "prepare_privacy",
+    "restore_privacy",
+    "SessionAnonymousOptions",
+    "SessionAnonymousOutcome",
+    "SessionProjectTaskWatch",
+    "SessionProjectTaskWatchScope",
+    "SessionProjectTaskWatchReceipt",
+    "SessionProjectTaskWatchCheckpoint",
+    "SessionProjectTaskWatchEvent",
+    "SessionProjectTaskWatchSnapshot",
+    "SessionProjectTaskWatchState",
+    "SessionProjectTaskWatchTask",
+    "SessionProjectSourceType",
+    "SessionProjectSourceCapability",
+    "SessionProjectSourceStatus",
+    "SessionProjectSourceCreate",
+    "SessionProjectSourceCapabilitiesPatch",
+    "SessionProjectSource",
+    "OpenMatesProjectSourceAuthoringUnavailableError",
+    "SessionChatMonitor",
+    "SessionCompletionRecovery",
+    "SessionDurableStore",
+    "SessionFullChatRead",
+    "SessionChatDetailsLatestHistory",
+    "SessionChatDetailsFullHistory",
+    "SessionChatDetailsHistory",
+    "SessionChatDetailsOptions",
+    "SessionChatDetailsMetadata",
+    "SessionChatDetailsMessage",
+    "SessionChatDetailsRead",
+    "RustApiKeyClient",
+    "RustApiKeyClientError",
+    "CalendarEvent",
+    "CalendarEventDocument",
+    "build_calendar_event_file",
+    "SessionProjectSourcesDecodedNames",
+    "SessionAccount",
+    "SessionSettingsReadError",
+    "RemoteHandshake",
+    "RemoteSession",
+    "RemoteCryptoError",
+    "RemoteIdentity",
+    "RemoteRole",
+    "RemoteHandshakeWire",
+    "RemoteEnvelope",
+    "MetadataAuthentication",
+    "EphemeralMetadataClient",
+    "EphemeralMetadataStartup",
+    "EphemeralMetadataSnapshot",
+    "MetadataEphemeralError",
+    "MetadataCookieCredentials",
+    "MetadataAuthenticationOptions",
+]

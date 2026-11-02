@@ -20,6 +20,7 @@ def test_npm_recursive_exports_classes_and_object_type_facades(tmp_path):
         "export class NewPublic { visible() {} static load() {} nested = { visible() {} }; private hidden() {} } export const helpers = { nested: { existing() {} } };"
     )
     (tmp_path / "sdk-entry.ts").write_text('export * from "./sdk.js";')
+    (tmp_path / "sdk-session-v1-entry.ts").write_text("export {};")
     source = """type Text = { set(value: string): void };
 type Check = Text & { addEvidence(id: string): void };
 export class OpenMates { plans!: { checks: Check; context: { artifacts: Text } }; }

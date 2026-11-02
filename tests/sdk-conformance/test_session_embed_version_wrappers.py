@@ -10,11 +10,21 @@ from typing import Any
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+# The Python SessionClient source is split across these modules; definitions
+# are extracted from their combined module body without importing the package.
+SESSION_SOURCES = ("session_types.py", "session_facades.py", "session_client.py")
+
+
+def session_source_text(root):
+    package = root / "packages/openmates-python/openmates"
+    return "\n".join((package / name).read_text() for name in SESSION_SOURCES)
 SOURCE = ROOT / "packages/openmates-python/openmates/session_client.py"
 
 
 def classes():
-    tree = ast.parse(SOURCE.read_text())
+    tree = ast.parse(session_source_text(ROOT))
     selected = [
         n
         for n in tree.body
@@ -51,6 +61,11 @@ class Fake:
 
     async def _essential_call(self, op):
         return await op()
+
+    async def _prepared_call(self, operation, prepare, *, essential=False):
+        # Same contract as SessionClient._prepared_call: owned arguments are
+        # prepared immediately before the single native dispatch.
+        return await operation(*prepare())
 
 
 def test_direct_facade_forwards_only_explicit_id_and_closed_numeric_json():

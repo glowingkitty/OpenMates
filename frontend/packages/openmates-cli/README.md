@@ -375,6 +375,18 @@ Use `chats.send()` for anonymous AI chat with automatic routing; `apps.ai.ask()`
 requires an account. With an API key, use `saveToAccount: true` when you want the
 chat saved to the OpenMates account.
 
+### Native session SDK (preview)
+
+`openmates/sdk/v1` exports `SessionClient`, `RustApiKeyClient` and related
+types. Every operation runs in the shared OpenMates Rust core through a native
+Node-API module loaded from `native/<platform>-<arch>.node`; the SDK never
+launches the CLI and never reads CLI login state. Credentials are explicit:
+log in with `loginPassword()` or import a caller-owned session. If the native
+module for your platform is missing or incompatible, construction throws
+`SessionClientError` with code `native_binding_unavailable` (no TypeScript
+fallback). Prebuilt artifacts are not yet published; from a source checkout run
+`npm run build:sdk:native`.
+
 ## Versioning
 
 OpenMates shows the short product line, for example `v0.29`, in the web app.

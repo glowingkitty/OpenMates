@@ -108,6 +108,7 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `embeds` | `om.embeds.share()` | `om.embeds.share()` | direct | direct |
 | `embeds` | `om.embeds.show()` | `om.embeds.show()` | direct | direct |
 | `embeds` | `om.embeds.version()` | `om.embeds.version()` | direct | direct |
+| `embeds` | `om.embeds.versionContent()` | `om.embeds.version_content()` | namespace smoke: embedRenderers.test.ts, shareEncryption.test.ts | namespace smoke: test_sdk.py |
 | `embeds` | `om.embeds.versions()` | `om.embeds.versions()` | direct | direct |
 | `feedback` | `om.feedback.assistantResponse()` | `om.feedback.assistant_response()` | direct | direct |
 | `finance` | `om.finance.checkAccounts()` | `om.finance.check_accounts()` | direct | direct |
@@ -173,6 +174,7 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `projects` | `om.projects.archive()` | `om.projects.archive()` | direct | direct |
 | `projects` | `om.projects.ask()` | `om.projects.ask()` | direct | direct |
 | `projects` | `om.projects.create()` | `om.projects.create()` | direct | direct |
+| `projects` | `om.projects.createSource()` | `om.projects.create_source()` | direct | direct |
 | `projects` | `om.projects.delete()` | `om.projects.delete()` | direct | direct |
 | `projects` | `om.projects.history()` | `om.projects.history()` | direct | direct |
 | `projects` | `om.projects.list()` | `om.projects.list()` | direct | direct |
@@ -180,6 +182,8 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `projects` | `om.projects.show()` | `om.projects.show()` | direct | direct |
 | `projects` | `om.projects.unarchive()` | `om.projects.unarchive()` | direct | direct |
 | `projects` | `om.projects.update()` | `om.projects.update()` | direct | direct |
+| `projects` | `om.projects.updateSourceCapabilities()` | `om.projects.update_source_capabilities()` | direct | direct |
+| `projects` | `om.projects.watchTasks()` | `om.projects.watch_tasks()` | direct | direct |
 | `reminders` | `om.reminders.delete()` | `om.reminders.delete()` | direct | direct |
 | `reminders` | `om.reminders.list()` | `om.reminders.list()` | direct | direct |
 | `reminders` | `om.reminders.update()` | `om.reminders.update()` | direct | direct |
