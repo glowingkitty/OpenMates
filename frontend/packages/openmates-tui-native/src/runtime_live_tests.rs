@@ -1128,3 +1128,14 @@ async fn actor_dispatch_open_runs_recovery_then_saves_and_queues_warm_settlement
         actor.live_monitor.take();drop(release);server.await.unwrap();
     }).await.unwrap();
 }
+
+// contract-test: supporting surface=cli assertions=cli.runtime.native-rust
+#[test]
+fn chat_open_refresh_and_send_preempt_the_boot_sync_but_background_work_does_not() {
+    assert!(preempts_boot_sync(&UiCommand::Open(Workspace::Chats, CHAT.into())));
+    assert!(preempts_boot_sync(&UiCommand::Refresh(Workspace::Chats)));
+    assert!(preempts_boot_sync(&UiCommand::Send { chat_id: None, text: "synthetic".into() }));
+    assert!(!preempts_boot_sync(&UiCommand::Refresh(Workspace::Apps)));
+    assert!(!preempts_boot_sync(&UiCommand::Open(Workspace::Projects, CHAT.into())));
+    assert!(!preempts_boot_sync(&UiCommand::Logout));
+}
