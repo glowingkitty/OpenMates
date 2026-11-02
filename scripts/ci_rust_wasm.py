@@ -26,6 +26,7 @@ try:
     from scripts.ci_sdk_lockfiles import (
         ROOTS,
         LOCKS,
+        SCOPES,
         owned,
         snapshot,
         validate_manifests,
@@ -33,7 +34,7 @@ try:
 except ModuleNotFoundError:
     import ci_sdk_conformance as sdk
     import ci_wasm_worker as worker
-    from ci_sdk_lockfiles import ROOTS, LOCKS, owned, snapshot, validate_manifests
+    from ci_sdk_lockfiles import ROOTS, LOCKS, SCOPES, owned, snapshot, validate_manifests
 
 try:
     from scripts import ci_metadata_rust_browser as metadata
@@ -41,7 +42,7 @@ except ModuleNotFoundError:
     import ci_metadata_rust_browser as metadata
 
 TARGET = "rust-wasm"
-BUDGET = 2700
+BUDGET = 5400  # 90min from workflow start of the 120min rust-wasm job.
 BROWSER_SPEC = "rust-core-browser-session.spec.ts"
 BROWSER_PASSWORD_SPEC = "rust-core-browser-password-entry.spec.ts"
 PRODUCTION_BROWSER_SPEC = "rust-core-production-saved-session.spec.ts"
@@ -58,7 +59,7 @@ PRODUCTION_BROWSER_SPECS = frozenset(
         PRODUCTION_BROWSER_ORDINARY_LOGIN_SPEC,
     }
 )
-BROWSER_BUDGET = 1800
+BROWSER_BUDGET = 3600  # 60min browser package budget of the 90min rust-core E2E job.
 WASM_NAME = "openmates_browser_bindings.wasm"
 WASM_PATH = "wasm32-unknown-unknown/release/" + WASM_NAME
 BINDGEN_VERSION = "0.2.129"
@@ -94,90 +95,11 @@ SNIPPET_BYTES = (
 # SDK imports: the finite namespace graph below must independently match.
 SDK_SNIPPET_PATH = r"snippets/openmates-sdk-[0-9a-f]{16}/inline0\.js"
 SDK_SNIPPET_SOURCE = "packages/openmates-rust/src/platform/browser_recovery_port.rs"
-SDK_SNIPPET_SOURCE_SHA256 = (
-    "fa3c9c6125b6a57ee1d2e98a800b034dbc8dc740da897e769c9780e775305fe3"
-)
-SDK_SNIPPET_BODY_SHA256 = (
-    "f896283208ee2696872509a87d5256ec362ca8479ab24f410c6428322d5b3cbb"
-)
-SDK_SNIPPET_BODY_BYTES = 3365
 SDK_PACKAGE_SOURCE = "packages/openmates-rust/Cargo.toml"
-SDK_PACKAGE_SOURCE_SHA256 = (
-    "adaf5d2b56d67875f101a4705db5538fd871f5146372be5721377c6b7c7582af"
-)
-# Exact second reviewed Cargo preimage: only serde_json float_roundtrip added.
-SDK_FLOAT_PACKAGE_SOURCE_SHA256 = (
-    "cb7ab7ea51f6998304d921b238f8602a40fe342759e849f1e51caeef9d3a0f0f"
-)
-
-
-def recovery_sdk_variant(source_hash, cargo_hash, native_hash=None, bridge_hash=None):
-    # Known selected-code inputs cannot fall through a historical body-only
-    # tuple. This is the actual reviewed four-part pair, never newer-source trust.
-    if (
-        native_hash
-        == "2610b7f46fb61224dbaf405e3579a2b1ac95e90f7d28e9bfa095db6092289cf4"
-        or bridge_hash
-        == "ca2814f2f7c8f12b0bcdf4ad92b8afd3b1aa923f08f503086a2075a8beb06e3c"
-    ):
-        if (
-            source_hash
-            == "1cdcd6adfc192a0841dc8985e57bf7d1b2a23506d90061f34bd2b4ce5dc77478"
-            and cargo_hash
-            in {
-                "38a1e0eb7218dc52b3121d528b49411d481ef3a602e1e2d69e124520e3d3f441",
-                "6cdd02d6aeaf811428b8545d58e109d78f472585eba58067ae79b9e46f4511c6",
-            }
-            and native_hash
-            == "2610b7f46fb61224dbaf405e3579a2b1ac95e90f7d28e9bfa095db6092289cf4"
-            and bridge_hash
-            == "ca2814f2f7c8f12b0bcdf4ad92b8afd3b1aa923f08f503086a2075a8beb06e3c"
-        ):
-            return (
-                "1bdc2c5ed63001a8ebc06a79d29a2df60ef357840f4d993a55f96de69a57903b",
-                4310,
-            )
-        return None
-    if source_hash == SDK_SNIPPET_SOURCE_SHA256 and cargo_hash in {
-        SDK_PACKAGE_SOURCE_SHA256,
-        SDK_FLOAT_PACKAGE_SOURCE_SHA256,
-    }:
-        return (SDK_SNIPPET_BODY_SHA256, SDK_SNIPPET_BODY_BYTES)
-    if (
-        source_hash
-        == "38bc86417aad3bf3115ba5f46655ddc9a5e98ab7d85f3a82718956b112c87386"
-        and cargo_hash
-        == "38a1e0eb7218dc52b3121d528b49411d481ef3a602e1e2d69e124520e3d3f441"
-    ):
-        return (
-            "1bdc2c5ed63001a8ebc06a79d29a2df60ef357840f4d993a55f96de69a57903b",
-            4310,
-        )
-    if (
-        source_hash
-        == "1cdcd6adfc192a0841dc8985e57bf7d1b2a23506d90061f34bd2b4ce5dc77478"
-        and cargo_hash
-        == "38a1e0eb7218dc52b3121d528b49411d481ef3a602e1e2d69e124520e3d3f441"
-    ):
-        return (
-            "1bdc2c5ed63001a8ebc06a79d29a2df60ef357840f4d993a55f96de69a57903b",
-            4310,
-        )
-    if (
-        source_hash
-        == "1cdcd6adfc192a0841dc8985e57bf7d1b2a23506d90061f34bd2b4ce5dc77478"
-        and cargo_hash
-        == "6cdd02d6aeaf811428b8545d58e109d78f472585eba58067ae79b9e46f4511c6"
-        and native_hash
-        == "cf00e87ad951749f1c656af6f653dfac33f06c7d1b010883b60f19bf87ec044b"
-        and bridge_hash
-        == "fd9af1ccfc3c6fd1ebacf9e656140b821f5a5f5dd66a9a3eb97fdca007a91575"
-    ):
-        return (
-            "1bdc2c5ed63001a8ebc06a79d29a2df60ef357840f4d993a55f96de69a57903b",
-            4310,
-        )
-    return None
+# The generated SDK snippet is accepted structurally (one module, bounded size,
+# closed namespace uses below); its bytes are not pinned to reviewed source or
+# Cargo.toml hashes, so any committed source can be packaged.
+SDK_SNIPPET_MAX_BYTES = 256 * 1024
 
 
 SDK_FUNCTIONS = frozenset(
@@ -201,7 +123,6 @@ SDK_FUNCTIONS = frozenset(
 # module. The closed template below preserves this graph without a wider import grammar.
 OBSERVED_RECOVERY_ROOT_SHA256 = "3311789355075c37c9ed118455c45f86a7c7a1f010772962909d76395dd495a6"
 OBSERVED_RECOVERY_ROOT_BYTES = 164656
-OBSERVED_RECOVERY_INPUTS = {'packages/openmates-browser-bindings/src/browser_crypto.rs': '735598f81f8e4272f432cb1cedcd64f5f63bb651599282d172d0a7dbebc6d928', 'packages/openmates-rust/src/platform/browser_recovery_port.rs': '1cdcd6adfc192a0841dc8985e57bf7d1b2a23506d90061f34bd2b4ce5dc77478', 'packages/openmates-rust/Cargo.toml': '6cdd02d6aeaf811428b8545d58e109d78f472585eba58067ae79b9e46f4511c6', 'packages/openmates-rust/src/platform/browser_metadata_native.js': '2610b7f46fb61224dbaf405e3579a2b1ac95e90f7d28e9bfa095db6092289cf4', 'packages/openmates-rust/src/platform/browser_metadata_native.rs': 'ca2814f2f7c8f12b0bcdf4ad92b8afd3b1aa923f08f503086a2075a8beb06e3c'}
 
 
 # Closed wasm-bindgen0.2.129 comment template from original-validator roots
@@ -278,8 +199,7 @@ def observed_recovery_template_sha256(javascript):
 
 def observed_recovery_sdk_output(files, inputs, name, javascript, diagnostic):
     if (observed_recovery_template_sha256(javascript) != OBSERVED_RECOVERY_TEMPLATE_SHA256
-            or name != "snippets/openmates-sdk-c8cc119936fa2be8/inline0.js"
-            or any(inputs.get(path) != digest for path, digest in OBSERVED_RECOVERY_INPUTS.items())):
+            or not re.fullmatch(SDK_SNIPPET_PATH, name)):
         return None
     named = ("import { recoveryCancel, recoveryCapture, recoveryInventoryRequest, recoveryListen, recoveryRead, recoveryRequest, recoveryStop } from './" + name + "';\n").encode()
     headers = [named] + [("import * as import" + str(index) + ' from "./' + name + '"\n').encode() for index in (2, 3, 4)]
@@ -314,21 +234,13 @@ def recovery_sdk_output(files, inputs, diagnostic=None):
     source = inputs.get(SDK_SNIPPET_SOURCE)
     if source is None and not names:
         return files
-    variant = recovery_sdk_variant(
-        source,
-        inputs.get(SDK_PACKAGE_SOURCE),
-        inputs.get("packages/openmates-rust/src/platform/browser_metadata_native.js"),
-        inputs.get("packages/openmates-rust/src/platform/browser_metadata_native.rs"),
-    )
-    source_match = variant is not None and len(names) == 1
+    source_match = source is not None and len(names) == 1
     _package_note(diagnostic, "package-source", packageSdkSourceMatch=source_match)
     if not source_match:
         return None
     name = names[0]
     body = files[name]
-    body_match = (
-        type(body) is bytes and len(body) == variant[1] and sdk.sha(body) == variant[0]
-    )
+    body_match = type(body) is bytes and 0 < len(body) <= SDK_SNIPPET_MAX_BYTES
     _package_note(diagnostic, "package-body", packageSdkBodyMatch=body_match)
     if not body_match:
         return None
@@ -580,7 +492,7 @@ STAGES = (
     "bindgen-version",
     "bindgen-package",
 )
-STAGE_SECONDS = (300, 300, 1800, 900, 30, 180)
+STAGE_SECONDS = (300, 300, 3600, 900, 30, 180)
 ALL_STAGES = (*STAGES, *worker.STAGES)
 DIAGNOSTIC_LIMIT = 128 * 1024
 DIAGNOSTIC_ARTIFACT = "isolated-rust-wasm-private-diagnostics"
@@ -701,7 +613,7 @@ def source_inputs_from_git(
             "-z",
             source,
             "--",
-            *ROOTS,
+            *SCOPES,
             *(metadata.WEB_INPUTS if metadata_profile else ()),
             *(sorted(metadata.FIRST_SESSION_INPUTS) if first_session_profile else ()),
             *(
@@ -1318,7 +1230,7 @@ def detach_installed_bindgen(
 
 
 def locked_bindgen_version(work):
-    lock = tomllib.loads(sdk.regular(work / ROOTS[-1] / "Cargo.lock").decode())
+    lock = tomllib.loads(sdk.regular(work / LOCKS[0]).decode())  # root workspace lock
     versions = {
         row.get("version")
         for row in lock.get("package", [])

@@ -74,8 +74,13 @@ def test_supplier_requires_existing_isolated_profile_guards(key, value):
 
 def source_fixture(root):
     expected = {}
+    # Root Cargo workspace manifest and its single lock.
+    for name in ("Cargo.toml", "Cargo.lock"):
+        path = root / name
+        path.write_bytes(name.encode())
+        expected[name] = hashlib.sha256(path.read_bytes()).hexdigest()
     for crate in ("packages/openmates-rust", "packages/openmates-browser-bindings"):
-        for name in ("Cargo.toml", "Cargo.lock", "src/lib.rs"):
+        for name in ("Cargo.toml", "src/lib.rs"):
             path = root / crate / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes((crate + name).encode())
@@ -204,17 +209,19 @@ def test_workflow_forces_fresh_build_and_preserves_ordinary_supplier_order_and_l
     )["steps"]
     named = {step.get("name"): step for step in steps}
     prepare = named["Prepare exact production-loader browser package"]
-    assert prepare["if"] == "inputs.mode == 'e2e' && " + production_workflow_predicate()
+    # Lane selection is the rust-core-* pattern flag; the supplier still admits
+    # only its closed target set (require_selector).
+    assert prepare["if"] == "env.CI_LANE_RUST_PRODUCTION_BROWSER == 'true'"
     assert steps.index(prepare) < steps.index(named["Build local web app"])
-    assert supplier.SPEC in named["Build local web app"]["if"]
-    assert supplier.SPEC in named["Generate UI build inputs once"]["if"]
+    assert "env.CI_LANE_RUST_PRODUCTION_BROWSER == 'true'" in named["Build local web app"]["if"]
+    assert "env.CI_LANE_RUST_PRODUCTION_BROWSER == 'true'" in named["Generate UI build inputs once"]["if"]
     assert "ci_production_rust_browser.py build" in named["Build local web app"]["run"]
     assert (
         "pnpm --dir frontend/apps/web_app exec vite build"
         in named["Build local web app"]["run"]
     )
     assert "OPENMATES_RUST_CORE_ASSETS" not in json.dumps(named)
-    assert lane.BROWSER_BUDGET == 1800 and lane.BUDGET == 2700
+    assert lane.BROWSER_BUDGET == 3600 and lane.BUDGET == 5400
     source = (ROOT / "scripts/ci_run_tests.py").read_text()
     run = next(
         node
@@ -294,7 +301,7 @@ def test_reuse_retains_full_existing_package_provenance_without_second_compile(f
                 "receipt-harness": "harness_commit",
                 "receipt-run": "run_id",
                 "receipt-inputs": "inputSetSha256",
-                "receipt-locks": "lock_3",
+                "receipt-locks": "lock_0",
                 "receipt-stages": "steps_missing",
                 "receipt-argv": "argv_2",
                 "receipt-release": "releaseProof",
@@ -436,7 +443,7 @@ COMPILER_REFUSALS = [
     "step_executable_sha",
     "step_executable_bytes",
     "step_executable_kind",
-    *["lock_" + str(i) for i in range(4)],
+    *["lock_" + str(i) for i in range(len(lane.LOCKS))],
     *["stage_" + str(i) for i in range(6)],
     *["argv_" + str(i) for i in range(6)],
     *["elapsed_" + str(i) for i in range(6)],
@@ -865,31 +872,25 @@ def test_workflow_admits_only_closed_orders_at_every_existing_supply_build_and_c
     workflow = yaml.safe_load(
         (ROOT / ".github/workflows/isolated-tests.yml").read_text()
     )
-    steps = next(iter(workflow["jobs"].values()))["steps"]
-    predicate = production_workflow_predicate()
-    guarded = [step for step in steps if predicate in step.get("if", "")]
-    assert len(guarded) == 5
-    named = {step.get("name"): step for step in guarded}
+    job = next(iter(workflow["jobs"].values()))
+    steps = job["steps"]
+    flag = "env.CI_LANE_RUST_PRODUCTION_BROWSER == 'true'"
+    guarded = {step.get("name") for step in steps if flag in step.get("if", "")}
     assert {
-        "Start bounded same-source browser package clock",
         "Prepare exact production-loader browser package",
         "Generate UI build inputs once",
         "Build local web app",
-    } <= set(named)
-    build = named["Build local web app"]["run"]
-    case_line = next(
-        line.strip() for line in build.splitlines() if line.strip().startswith("'e2e:")
-    )
+    } <= guarded
+    clock = next(s for s in steps if s.get("name") == "Start bounded same-source browser package clock")
+    assert clock["if"] == "env.CI_LANE_RUST_BROWSER == 'true'"
+    assert "startsWith(inputs.specs_json, '[\"rust-core-')" in job["env"]["CI_LANE_RUST_PRODUCTION_BROWSER"]
+    for targets in PRODUCTION_SUBSETS:
+        selector = json.dumps(targets, separators=(",", ":"))
+        assert selector.startswith('["rust-core-')
+        supplier.require_selector({**environment(), "CI_SPECS_JSON": selector})
+    build = next(s for s in steps if s.get("name") == "Build local web app")["run"]
+    assert 'if [ "$CI_LANE_RUST_PRODUCTION_BROWSER" = true ]; then' in build
     assert (
-        case_line
-        == "'e2e:[\"rust-core-native-metadata-prototype.spec.ts\"]'|"
-        + "|".join(
-            "'e2e:" + json.dumps(targets, separators=(",", ":")) + "'"
-            for targets in PRODUCTION_SUBSETS
-        )
-        + ")"
-    )
-    assert (
-        "timeout-minutes: 30"
+        "timeout-minutes: 60"
         in (ROOT / ".github/workflows/isolated-tests.yml").read_text()
     )

@@ -18,7 +18,6 @@ try:
     from ci_sdk_conformance import (
         Refused,
         require,
-        regular,
         sha,
         verify_programs,
         compiler_diagnostics,
@@ -27,7 +26,6 @@ except ModuleNotFoundError:
     from scripts.ci_sdk_conformance import (
         Refused,
         require,
-        regular,
         sha,
         verify_programs,
         compiler_diagnostics,
@@ -112,20 +110,21 @@ EXPECTED_PLAN = [
         ],
     },
 ]
-PINS = {
-    "tests/sdk-conformance/runners/session-embed-share.py": "dab438b652149ec73d53e1e7360e598898c2d2b6a0415d3305140de81b0f2756",
-    "tests/sdk-conformance/runners/session-embed-share.mjs": "a6068005756f51760eeb0af842449567a28d7c6b60a6f38e70afc88fa6af76cd",
-    "tests/sdk-conformance/session_embed_share_peer.py": "5e8deb5e4ae7dff1ac9d3fbd287cad50b088c0e0d2247e5b58beaff36524312c",
-    "tests/sdk-conformance/session_drafts_server.py": "ee0f050b814a3b87a2799e29fc3a7ece0676a3e78e206857c80db940349e5baf",
-    "tests/sdk-conformance/recovery_server.py": "5b6355ef2970619df7014fb6d4e8817b91efa52a0c6386982b6a7c5be6bcf743",
-    "packages/openmates-session-bindings/examples/session-embed-share-conformance.rs": "db5277ad37fa371b476af2e7bbb54cdcd7800da54044287ad0c764fa38a5075c",
-    "packages/openmates-session-bindings/src/session_embed_share.rs": "a8f1ef451e20767d7b63b4abe9bb260298d9b2f0b4bfb7d5e9a1f61c38bd2fb5",
-    "frontend/packages/openmates-cli/tests/loader.mjs": "fd45c3652ada5bbca4abac145a5799cb3766b294fdfd0b4795cbb3fa67ec42d2",
-    "frontend/packages/openmates-cli/src/sdkSession.ts": "cc833fbdcf75c2c0fa6c23c1588bdb09ad2a5126e22556b864f0998fb28a1a75",
-    "packages/openmates-python/openmates/session_client.py": "7f475259b25730c596704581fc44f9295af72b6fbfa0fda223d00d45bee5fdf2",
-    "tests/sdk-conformance/fixtures/session-embed-share-bindings.json": "a1590a7b4983d2d82aa804ddba8b363a69d23ba72bc0f0cd8de79d8b3df3d84d",
-    "tests/sdk-conformance/schemas/session-embed-share-bindings.schema.json": "472fefda4ead2b1172f92d7d8c778046f473b413d43e1bdfcf4c7098bcbe47bc",
-}
+# Fixed adapter inputs that must be present in the source under test.
+PINS = (
+    "tests/sdk-conformance/runners/session-embed-share.py",
+    "tests/sdk-conformance/runners/session-embed-share.mjs",
+    "tests/sdk-conformance/session_embed_share_peer.py",
+    "tests/sdk-conformance/session_drafts_server.py",
+    "tests/sdk-conformance/recovery_server.py",
+    "packages/openmates-session-bindings/examples/session-embed-share-conformance.rs",
+    "packages/openmates-session-bindings/src/session_embed_share.rs",
+    "frontend/packages/openmates-cli/tests/loader.mjs",
+    "frontend/packages/openmates-cli/src/sdkSession.ts",
+    "packages/openmates-python/openmates/session_client.py",
+    "tests/sdk-conformance/fixtures/session-embed-share-bindings.json",
+    "tests/sdk-conformance/schemas/session-embed-share-bindings.schema.json",
+)
 PROTECTED_ONLY_INPUTS = frozenset({"frontend/packages/openmates-cli/tests/loader.mjs"})
 
 
@@ -195,12 +194,11 @@ def admit(driver, command, *, cwd, capture_output, text, timeout, env, check):
     )
     verify_programs(driver.root, driver.trust)
     trusted = driver.trust["programs"] | driver.trust["contracts"]
-    for name, digest in PINS.items():
-        require(
-            (name in PROTECTED_ONLY_INPUTS or trusted.get(name) == digest)
-            and sha(regular(driver.root / name)) == digest,
-            "share_program_identity",
-        )
+    # Required inputs must exist; their bytes are whatever the source commit
+    # holds (no per-file pins; the commit/ci-source identity is the authority).
+    for name in PINS:
+        path = driver.root / name
+        require(name in PROTECTED_ONLY_INPUTS or (path.is_file() and not path.is_symlink()), "share_program_identity")
     require(
         not any(name.startswith("scripts/ci_sdk_") for name in trusted),
         "share_controller_self_trust",

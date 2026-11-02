@@ -286,11 +286,14 @@ class MetadataTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
             expected = {}
+            for n in ["Cargo.toml", "Cargo.lock"]:  # root Cargo workspace
+                (root / n).write_bytes(b"synthetic")
+                expected[n] = lane.sdk.sha(b"synthetic")
             for crate in [
                 "packages/openmates-rust",
                 "packages/openmates-browser-bindings",
             ]:
-                for name in ["Cargo.toml", "Cargo.lock", "src/lib.rs"]:
+                for name in ["Cargo.toml", "src/lib.rs"]:
                     n = crate + "/" + name
                     p = root / n
                     p.parent.mkdir(parents=True, exist_ok=True)

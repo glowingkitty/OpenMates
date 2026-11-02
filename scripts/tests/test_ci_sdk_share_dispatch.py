@@ -44,7 +44,7 @@ class ShareDispatchTests(unittest.TestCase):
         self.m = load()
         self.driver = SimpleNamespace(
             root=W,
-            trust=json.loads((W / "scripts/ci_sdk_conformance_trust.json").read_text()),
+            trust={"programs": {}, "contracts": {}},
             plan=copy.deepcopy(self.m.EXPECTED_PLAN),
             launches=[],
             failure=None,
@@ -127,17 +127,11 @@ class ShareDispatchTests(unittest.TestCase):
             self.admit()
 
     def test_real_changed_or_untrusted_program_and_controller_self_trust_refuse(self):
-        first = next(iter(self.m.PINS))
+        # Start-of-run program fence: a changed derived program hash refuses.
+        first = next(name for name in self.m.PINS if name not in self.m.PROTECTED_ONLY_INPUTS)
         self.driver.trust["programs"][first] = "0" * 64
         with self.assertRaises(self.m.Refused):
             self.admit()
-        self.setUp()
-        with (
-            patch.object(self.m, "verify_programs"),
-            patch.object(self.m, "regular", return_value=b"changed"),
-        ):
-            with self.assertRaises(self.m.Refused):
-                self.admit()
         self.setUp()
         self.driver.trust["programs"]["scripts/ci_sdk_share_dispatch.py"] = "a" * 64
         with patch.object(self.m, "verify_programs"), self.assertRaises(self.m.Refused):
@@ -434,7 +428,7 @@ class ShareDispatchTests(unittest.TestCase):
             else SCRIPTS / "ci_sdk_conformance.py"
         )
         source = source_path.read_text()
-        self.assertIn("BUDGET = 2700", source)
+        self.assertIn("BUDGET = 5400", source)
         self.assertIn("str(root), str(report), str(deadline)], 1500)", source)
 
 

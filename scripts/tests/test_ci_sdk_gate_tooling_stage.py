@@ -166,7 +166,7 @@ def test_actual_recipe_fixed_tooling_stage_is_fenced_and_blocks_later_product_st
             assert kwargs == {"seconds": 60} and sdk.command_tool(stage) == "python"
             assert (
                 self.deadline == began + sdk.BUDGET
-                and sdk.BUDGET == 2700
+                and sdk.BUDGET == 5400
                 and sdk.RESERVE == 2 * 1024**3
             )
             if fault in {"child_failed", "stage_deadline"}:

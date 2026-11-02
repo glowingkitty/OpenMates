@@ -704,7 +704,7 @@ def test_actual_optional_producer_scheduler_admission_jobs_deadlines_and_joined_
     elif fault == "unknown_cleanup":
         assert [v["name"] for v in calls] == ["resources"]
     else:
-        assert [v["timeout"] for v in calls] == [15, 120, 30, 540]
+        assert [v["timeout"] for v in calls] == [15, 120, 30, 1500]
         assert (
             calls[-1]["env"]["CARGO_BUILD_JOBS"] == "4"
             and calls[-1]["env"]["CARGO_INCREMENTAL"] == "0"

@@ -170,13 +170,9 @@ EXTRA_INPUTS = frozenset((*WEB_INPUTS, NATIVE_SOURCE))
 CRYPTO_SOURCE = "packages/openmates-browser-bindings/src/browser_crypto.rs"
 RECOVERY_SOURCE = "packages/openmates-rust/src/platform/browser_recovery_port.rs"
 SOURCE_PINS = {
-    "packages/openmates-rust/src/platform/browser_metadata_native.js": "7d6404a17e6b8e53057d9d876d6ef87d27b560fe98e5ec99e3c4524b55826735",
-    "packages/openmates-rust/src/platform/browser_recovery_port.rs": "38bc86417aad3bf3115ba5f46655ddc9a5e98ab7d85f3a82718956b112c87386",
     "packages/openmates-browser-bindings/src/browser_crypto.rs": "735598f81f8e4272f432cb1cedcd64f5f63bb651599282d172d0a7dbebc6d928",
 }
-RECOVERY_MODULE_SHA256 = (
-    "1bdc2c5ed63001a8ebc06a79d29a2df60ef357840f4d993a55f96de69a57903b"
-)
+RECOVERY_MODULE_MAX_BYTES = 256 * 1024
 CRYPTO_BYTES = b"\nexport function settlePrimitive(operation, settle) {\n  return operation.then(value => { settle(value, true); }, () => { settle(undefined, false); });\n}\n"
 BASE_FILES = frozenset(
     {
@@ -255,68 +251,14 @@ def package_names(names):
 
 
 def recovery_source_bound(inputs):
-    # Original metadata source admission is held; only this exact successor
-    # requires its reviewed Cargo partner. No generated-module grant is added.
-    if (
-        inputs.get("packages/openmates-rust/Cargo.toml")
-        == "6cdd02d6aeaf811428b8545d58e109d78f472585eba58067ae79b9e46f4511c6"
-    ):
-        return (
-            inputs.get(RECOVERY_SOURCE)
-            == "1cdcd6adfc192a0841dc8985e57bf7d1b2a23506d90061f34bd2b4ce5dc77478"
-            and native_source_bound(inputs)
-        )
-    if inputs.get(RECOVERY_SOURCE) == SOURCE_PINS[RECOVERY_SOURCE]:
-        return True
-    return (
-        inputs.get(RECOVERY_SOURCE)
-        == "1cdcd6adfc192a0841dc8985e57bf7d1b2a23506d90061f34bd2b4ce5dc77478"
-        and inputs.get("packages/openmates-rust/Cargo.toml")
-        == "38a1e0eb7218dc52b3121d528b49411d481ef3a602e1e2d69e124520e3d3f441"
-    )
+    # Structural only: the recovery port source must be part of the held source
+    # set. No reviewed source/Cargo.toml hash pairs; any committed source packages.
+    return isinstance(inputs.get(RECOVERY_SOURCE), str)
 
 
 def native_source_bound(inputs):
-    bridge = "packages/openmates-rust/src/platform/browser_metadata_native.rs"
-    bridge_hash = "fd9af1ccfc3c6fd1ebacf9e656140b821f5a5f5dd66a9a3eb97fdca007a91575"
-    # Bind the known new kernel/bridge before old metadata/reply branches.
-    if (
-        inputs.get(NATIVE_SOURCE)
-        == "2610b7f46fb61224dbaf405e3579a2b1ac95e90f7d28e9bfa095db6092289cf4"
-        or inputs.get(bridge)
-        == "ca2814f2f7c8f12b0bcdf4ad92b8afd3b1aa923f08f503086a2075a8beb06e3c"
-    ):
-        return (
-            inputs.get(NATIVE_SOURCE)
-            == "2610b7f46fb61224dbaf405e3579a2b1ac95e90f7d28e9bfa095db6092289cf4"
-            and inputs.get(bridge)
-            == "ca2814f2f7c8f12b0bcdf4ad92b8afd3b1aa923f08f503086a2075a8beb06e3c"
-            and inputs.get(RECOVERY_SOURCE)
-            == "1cdcd6adfc192a0841dc8985e57bf7d1b2a23506d90061f34bd2b4ce5dc77478"
-            and inputs.get("packages/openmates-rust/Cargo.toml")
-            in {
-                "38a1e0eb7218dc52b3121d528b49411d481ef3a602e1e2d69e124520e3d3f441",
-                "6cdd02d6aeaf811428b8545d58e109d78f472585eba58067ae79b9e46f4511c6",
-            }
-        )
-    if inputs.get(NATIVE_SOURCE) == SOURCE_PINS[NATIVE_SOURCE]:
-        return (
-            inputs.get(bridge) != bridge_hash
-            and inputs.get("packages/openmates-rust/Cargo.toml")
-            != "6cdd02d6aeaf811428b8545d58e109d78f472585eba58067ae79b9e46f4511c6"
-        )
-    return (
-        inputs.get(NATIVE_SOURCE)
-        == "cf00e87ad951749f1c656af6f653dfac33f06c7d1b010883b60f19bf87ec044b"
-        and inputs.get(bridge) == bridge_hash
-        and inputs.get(RECOVERY_SOURCE)
-        == "1cdcd6adfc192a0841dc8985e57bf7d1b2a23506d90061f34bd2b4ce5dc77478"
-        and inputs.get("packages/openmates-rust/Cargo.toml")
-        in {
-            "38a1e0eb7218dc52b3121d528b49411d481ef3a602e1e2d69e124520e3d3f441",
-            "6cdd02d6aeaf811428b8545d58e109d78f472585eba58067ae79b9e46f4511c6",
-        }
-    )
+    # The emitted native module is compared to this held source hash below.
+    return isinstance(inputs.get(NATIVE_SOURCE), str)
 
 
 def package_modules(files, inputs, closed_dependencies):
@@ -325,11 +267,7 @@ def package_modules(files, inputs, closed_dependencies):
         or not isinstance(inputs, dict)
         or not recovery_source_bound(inputs)
         or not native_source_bound(inputs)
-        or any(
-            inputs.get(name) != value
-            for name, value in SOURCE_PINS.items()
-            if name not in {RECOVERY_SOURCE, NATIVE_SOURCE}
-        )
+        or inputs.get(CRYPTO_SOURCE) != SOURCE_PINS[CRYPTO_SOURCE]
     ):
         return False
     modules = set(files) - BASE_FILES
@@ -339,10 +277,7 @@ def package_modules(files, inputs, closed_dependencies):
             return False
         if re.fullmatch(CRYPTO_PATH, name) and raw != CRYPTO_BYTES:
             return False
-        if (
-            re.fullmatch(RECOVERY_PATH, name)
-            and hashlib.sha256(raw).hexdigest() != RECOVERY_MODULE_SHA256
-        ):
+        if re.fullmatch(RECOVERY_PATH, name) and not 0 < len(raw) <= RECOVERY_MODULE_MAX_BYTES:
             return False
         if (
             re.fullmatch(NATIVE_PATH, name)

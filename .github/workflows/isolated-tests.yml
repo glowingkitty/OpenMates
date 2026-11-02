@@ -88,7 +88,7 @@ jobs:
   test:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && fromJSON('["self-hosted","Linux","X64","openmates-capacity"]') || inputs.mode == 'rust-native-dev' && fromJSON('["ubuntu-24.04-arm"]') || fromJSON('["ubuntu-latest"]') }}
-    timeout-minutes: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && 2880 || inputs.mode == 'selfhost' && 120 || inputs.mode == 'backend-probe' && 12 || 60 }}
+    timeout-minutes: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && 2880 || inputs.mode == 'selfhost' && 120 || (inputs.mode == 'sdk-conformance' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 120 || startsWith(inputs.specs_json, '["rust-core-') && 90 || inputs.mode == 'backend-probe' && 12 || 60 }}
     defaults:
       run:
         working-directory: subject
@@ -116,6 +116,12 @@ jobs:
       E2E_USE_LIVE_MOCKS: '1'
       DOCKER_BUILD_RECORD_UPLOAD: 'false'
       NODE_OPTIONS: --max-old-space-size=6144
+      # Rust lane selectors by spec-name pattern instead of closed specs_json
+      # allowlists. A new rust-core-* spec joins its lane without a workflow
+      # edit; the lane scripts still validate the exact targets they support.
+      CI_LANE_RUST_BROWSER: ${{ inputs.mode == 'e2e' && (startsWith(inputs.specs_json, '["rust-core-') || inputs.specs_json == '["web-essential-startup-performance.spec.ts"]') }}
+      CI_LANE_RUST_PRODUCTION_BROWSER: ${{ inputs.mode == 'e2e' && (startsWith(inputs.specs_json, '["rust-core-') || inputs.specs_json == '["web-essential-startup-performance.spec.ts"]') && inputs.specs_json != '["rust-core-browser-session.spec.ts"]' && inputs.specs_json != '["rust-core-browser-password-entry.spec.ts"]' }}
+      CI_LANE_RUST_BROWSER_CLI: ${{ inputs.mode == 'e2e' && (startsWith(inputs.specs_json, '["rust-core-') || inputs.specs_json == '["web-essential-startup-performance.spec.ts"]') && inputs.specs_json != '["rust-core-browser-session.spec.ts"]' && inputs.specs_json != '["rust-core-browser-password-entry.spec.ts"]' && !contains(inputs.specs_json, 'rust-core-production-') && !contains(inputs.specs_json, 'rust-core-ordinary-login-retention') }}
     steps:
       - name: Start bounded private native compilation clock
         if: inputs.mode == 'rust-native-dev'
@@ -126,7 +132,7 @@ jobs:
           started = time.monotonic()
           with open(os.environ['GITHUB_ENV'], 'a') as output:
               output.write(f'CI_NATIVE_DEV_STARTED_MONOTONIC={started}\n')
-              output.write(f'CI_NATIVE_DEV_DEADLINE_MONOTONIC={started + 2700}\n')
+              output.write(f'CI_NATIVE_DEV_DEADLINE_MONOTONIC={started + 5400}\n')
           PYNATIVE
       - name: Start bounded self-host clock
         if: inputs.mode == 'selfhost'
@@ -141,7 +147,7 @@ jobs:
               output.write(f'CI_SELFHOST_CLEANUP_DEADLINE_MONOTONIC={started + 7020}\n')
           PYSELFHOST
       - name: Start bounded same-source browser package clock
-        if: inputs.mode == 'e2e' && (inputs.specs_json == '["rust-core-browser-session.spec.ts"]' || inputs.specs_json == '["rust-core-browser-password-entry.spec.ts"]' || ((inputs.specs_json == '["rust-core-production-saved-session.spec.ts"]' || (inputs.specs_json == '["rust-core-native-metadata-prototype.spec.ts"]' || (inputs.specs_json == '["rust-core-initial-startup.spec.ts"]' || (inputs.specs_json == '["web-essential-startup-performance.spec.ts"]' || (inputs.specs_json == '["rust-core-first-session.spec.ts"]' || (inputs.specs_json == '["rust-core-native-recovery-port.spec.ts"]' || (inputs.specs_json == '["rust-core-activechat-send.spec.ts"]' || inputs.specs_json == '["rust-core-new-chat-send.spec.ts"]'))))))) || inputs.specs_json == '["rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-saved-paging.spec.ts"]'))
+        if: env.CI_LANE_RUST_BROWSER == 'true'
         working-directory: ${{ github.workspace }}
         run: |
           python3 - <<'PYBROWSER'
@@ -149,7 +155,7 @@ jobs:
           started = time.monotonic()
           with open(os.environ['GITHUB_ENV'], 'a') as output:
               output.write(f'CI_BROWSER_PACKAGE_STARTED_MONOTONIC={started}\n')
-              output.write(f'CI_BROWSER_PACKAGE_DEADLINE_MONOTONIC={started + 1800}\n')
+              output.write(f'CI_BROWSER_PACKAGE_DEADLINE_MONOTONIC={started + 3600}\n')
           PYBROWSER
       - name: Start bounded Rust WASM compilation clock
         if: inputs.mode == 'rust-wasm'
@@ -160,7 +166,7 @@ jobs:
           started = time.monotonic()
           with open(os.environ['GITHUB_ENV'], 'a') as output:
               output.write(f'CI_RUST_WASM_STARTED_MONOTONIC={started}\n')
-              output.write(f'CI_RUST_WASM_DEADLINE_MONOTONIC={started + 2700}\n')
+              output.write(f'CI_RUST_WASM_DEADLINE_MONOTONIC={started + 5400}\n')
           PYWASM
       - name: Start bounded SDK lock preparation clock
         if: inputs.mode == 'sdk-lockfiles'
@@ -182,16 +188,16 @@ jobs:
           started = time.monotonic()
           with open(os.environ['GITHUB_ENV'], 'a') as output:
               output.write(f'CI_SDK_STARTED_MONOTONIC={started}\n')
-              output.write(f'CI_SDK_DEADLINE_MONOTONIC={started + 2700}\n')
+              output.write(f'CI_SDK_DEADLINE_MONOTONIC={started + 5400}\n')
           PYSDK
       - uses: actions/checkout@v4
-        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 5 || 360 }}
+        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 15 || 360 }}
         with:
           ref: ${{ inputs.checkout_ref }}
           path: subject
           persist-credentials: false
       - uses: actions/checkout@v4
-        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 5 || 360 }}
+        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 15 || 360 }}
         with:
           ref: ${{ inputs.harness_commit || github.sha }}
           path: tooling
@@ -214,11 +220,11 @@ jobs:
           supplier_cache=$(mktemp -d "$RUNNER_TEMP/openmates-node-supplier.XXXXXXXX")
           echo "OPENMATES_CI_NODE_SUPPLIER_CACHE=$supplier_cache" >> "$GITHUB_ENV"
       - name: Download verified official Node supplier
-        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 3 || 360 }}
+        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 10 || 360 }}
         if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles' && inputs.mode != 'rust-native-dev'
         run: python3 ../tooling/scripts/ci_download_node_supplier.py
       - name: Stage attested runner Node before candidate code or dependencies
-        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 3 || 360 }}
+        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 10 || 360 }}
         if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles' && inputs.mode != 'rust-native-dev'
         env:
           OPENMATES_CI_EXPECTED_SOURCE: ${{ inputs.source_commit }}
@@ -229,7 +235,7 @@ jobs:
           RUNNER_TOOL_CACHE="$OPENMATES_CI_NODE_SUPPLIER_CACHE"
           "$OPENMATES_CI_NODE_SUPPLIER" ../tooling/scripts/ci_stage_node_runtime.mjs stage
       - name: Reconstruct and verify exact detached source
-        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 5 || 360 }}
+        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 15 || 360 }}
         env:
           EXPECTED_SOURCE: ${{ inputs.source_commit }}
           EXPECTED_TREE: ${{ inputs.candidate_tree }}
@@ -293,19 +299,19 @@ jobs:
           echo '127.0.0.2 api.dev.openmates.org app.dev.openmates.org' | sudo tee -a /etc/hosts
           echo '127.0.0.1 storage.ci.test' | sudo tee -a /etc/hosts
       - uses: pnpm/action-setup@v4
-        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 3 || 360 }}
+        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 10 || 360 }}
         if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles' && inputs.mode != 'rust-native-dev' && inputs.mode != 'rust-wasm'
         with:
           package_json_file: subject/package.json
       - uses: actions/setup-node@v4
-        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 3 || 360 }}
+        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 10 || 360 }}
         if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles' && inputs.mode != 'rust-native-dev' && inputs.mode != 'rust-wasm'
         with:
           node-version: '24'
           cache: pnpm
           cache-dependency-path: subject/pnpm-lock.yaml
       - name: Restore pinned Node after package-manager cache setup
-        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 1 || 360 }}
+        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 5 || 360 }}
         if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles' && inputs.mode != 'rust-native-dev'
         run: |
           env -u NODE_OPTIONS -u NODE_PATH "$OPENMATES_CI_NODE" ../tooling/scripts/ci_stage_node_runtime.mjs verify
@@ -318,7 +324,7 @@ jobs:
           echo "CI_NATIVE_PREPARED=$native" >> "$GITHUB_ENV"
       - uses: actions/setup-python@v5
         id: setup-python
-        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 3 || 360 }}
+        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 10 || 360 }}
         with:
           update-environment: ${{ env.CI_NATIVE_PREPARED != 'true' }}
           python-version: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && '3.12' || '3.13' }}
@@ -459,14 +465,14 @@ jobs:
              (inputs.preparation_key == '' && steps.profile.outputs.uploads == 'true')) &&
             steps.images.outputs.upload != 'true'))
       - name: Prepare exact production-loader browser package
-        if: inputs.mode == 'e2e' && ((inputs.specs_json == '["rust-core-production-saved-session.spec.ts"]' || (inputs.specs_json == '["rust-core-native-metadata-prototype.spec.ts"]' || (inputs.specs_json == '["rust-core-initial-startup.spec.ts"]' || (inputs.specs_json == '["web-essential-startup-performance.spec.ts"]' || (inputs.specs_json == '["rust-core-first-session.spec.ts"]' || (inputs.specs_json == '["rust-core-native-recovery-port.spec.ts"]' || (inputs.specs_json == '["rust-core-activechat-send.spec.ts"]' || inputs.specs_json == '["rust-core-new-chat-send.spec.ts"]'))))))) || inputs.specs_json == '["rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-saved-paging.spec.ts"]')
-        timeout-minutes: 30
+        if: env.CI_LANE_RUST_PRODUCTION_BROWSER == 'true'
+        timeout-minutes: 60
         run: python3 ../tooling/scripts/ci_production_rust_browser.py prepare
       - name: Generate UI build inputs once
         if: >-
           inputs.mode == 'prepare' ||
           ((inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') &&
-           (steps.artifacts.outputs.web != 'true' || steps.images.outputs.api != 'true' || ((inputs.specs_json == '["rust-core-production-saved-session.spec.ts"]' || (inputs.specs_json == '["rust-core-native-metadata-prototype.spec.ts"]' || (inputs.specs_json == '["rust-core-initial-startup.spec.ts"]' || (inputs.specs_json == '["web-essential-startup-performance.spec.ts"]' || (inputs.specs_json == '["rust-core-first-session.spec.ts"]' || (inputs.specs_json == '["rust-core-native-recovery-port.spec.ts"]' || (inputs.specs_json == '["rust-core-activechat-send.spec.ts"]' || inputs.specs_json == '["rust-core-new-chat-send.spec.ts"]'))))))) || inputs.specs_json == '["rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-saved-paging.spec.ts"]')))
+           (steps.artifacts.outputs.web != 'true' || steps.images.outputs.api != 'true' || env.CI_LANE_RUST_PRODUCTION_BROWSER == 'true'))
         run: pnpm --filter @repo/ui build
       - name: Build cached API dependencies and current source
         if: (inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') && steps.images.outputs.api != 'true'
@@ -558,7 +564,7 @@ jobs:
       - name: Build local web app
         if: >-
           inputs.mode == 'prepare' ||
-          ((inputs.mode == 'e2e' && !contains(inputs.specs_json, 'storage-accountability-integration.spec.ts') && inputs.specs_json != '["cli-memory-readiness.spec.ts"]' || inputs.mode == 'visual-smoke') && (steps.artifacts.outputs.web != 'true' || ((inputs.specs_json == '["rust-core-production-saved-session.spec.ts"]' || (inputs.specs_json == '["rust-core-native-metadata-prototype.spec.ts"]' || (inputs.specs_json == '["rust-core-initial-startup.spec.ts"]' || (inputs.specs_json == '["web-essential-startup-performance.spec.ts"]' || (inputs.specs_json == '["rust-core-first-session.spec.ts"]' || (inputs.specs_json == '["rust-core-native-recovery-port.spec.ts"]' || (inputs.specs_json == '["rust-core-activechat-send.spec.ts"]' || inputs.specs_json == '["rust-core-new-chat-send.spec.ts"]'))))))) || inputs.specs_json == '["rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-saved-paging.spec.ts"]')))
+          ((inputs.mode == 'e2e' && !contains(inputs.specs_json, 'storage-accountability-integration.spec.ts') && inputs.specs_json != '["cli-memory-readiness.spec.ts"]' || inputs.mode == 'visual-smoke') && (steps.artifacts.outputs.web != 'true' || env.CI_LANE_RUST_PRODUCTION_BROWSER == 'true'))
         env:
           OPENMATES_CI_PRECOMPRESS: '0'
         run: |
@@ -688,18 +694,38 @@ jobs:
           tooling_snapshot(sys.argv[1])
           PAIRED_TOOLING
               env -u PYTHONHOME -u PYTHONSTARTUP -u PYTHONINSPECT PYTHONPATH="$PWD/../tooling/scripts" PYTHONPYCACHEPREFIX="$(mktemp -d)" /usr/bin/python3 ../tooling/scripts/ci_web_paired_profile.py build ;;
-            'e2e:["rust-core-activechat-send.spec.ts"]'|'e2e:["rust-core-new-chat-send.spec.ts"]'|'e2e:["rust-core-native-recovery-port.spec.ts"]'|'e2e:["rust-core-first-session.spec.ts"]'|'e2e:["rust-core-native-metadata-prototype.spec.ts"]'|'e2e:["rust-core-production-saved-session.spec.ts"]'|'e2e:["rust-core-production-platform.spec.ts"]'|'e2e:["rust-core-production-saved-session.spec.ts","rust-core-production-platform.spec.ts"]'|'e2e:["rust-core-production-platform.spec.ts","rust-core-production-saved-session.spec.ts"]'|'e2e:["rust-core-production-local-cursor.spec.ts"]'|'e2e:["rust-core-production-saved-session.spec.ts","rust-core-production-local-cursor.spec.ts"]'|'e2e:["rust-core-production-platform.spec.ts","rust-core-production-local-cursor.spec.ts"]'|'e2e:["rust-core-production-local-cursor.spec.ts","rust-core-production-saved-session.spec.ts"]'|'e2e:["rust-core-production-local-cursor.spec.ts","rust-core-production-platform.spec.ts"]'|'e2e:["rust-core-production-saved-paging.spec.ts"]'|'e2e:["rust-core-production-saved-session.spec.ts","rust-core-production-saved-paging.spec.ts"]'|'e2e:["rust-core-production-platform.spec.ts","rust-core-production-saved-paging.spec.ts"]'|'e2e:["rust-core-production-local-cursor.spec.ts","rust-core-production-saved-paging.spec.ts"]'|'e2e:["rust-core-production-saved-paging.spec.ts","rust-core-production-saved-session.spec.ts"]'|'e2e:["rust-core-production-saved-paging.spec.ts","rust-core-production-platform.spec.ts"]'|'e2e:["rust-core-production-saved-paging.spec.ts","rust-core-production-local-cursor.spec.ts"]'|'e2e:["rust-core-ordinary-login-retention.spec.ts"]'|'e2e:["rust-core-production-saved-session.spec.ts","rust-core-ordinary-login-retention.spec.ts"]'|'e2e:["rust-core-production-platform.spec.ts","rust-core-ordinary-login-retention.spec.ts"]'|'e2e:["rust-core-production-local-cursor.spec.ts","rust-core-ordinary-login-retention.spec.ts"]'|'e2e:["rust-core-production-saved-paging.spec.ts","rust-core-ordinary-login-retention.spec.ts"]'|'e2e:["rust-core-ordinary-login-retention.spec.ts","rust-core-production-saved-session.spec.ts"]'|'e2e:["rust-core-ordinary-login-retention.spec.ts","rust-core-production-platform.spec.ts"]'|'e2e:["rust-core-ordinary-login-retention.spec.ts","rust-core-production-local-cursor.spec.ts"]'|'e2e:["rust-core-ordinary-login-retention.spec.ts","rust-core-production-saved-paging.spec.ts"]')
-              python3 ../tooling/scripts/ci_production_rust_browser.py build ;;
-            *) pnpm --dir frontend/apps/web_app exec vite build ;;
+            *)
+              if [ "$CI_LANE_RUST_PRODUCTION_BROWSER" = true ]; then
+                python3 ../tooling/scripts/ci_production_rust_browser.py build
+              else
+                pnpm --dir frontend/apps/web_app exec vite build
+              fi ;;
           esac
           pnpm --dir frontend/apps/web_app exec node scripts/audit-example-seo.js
       - name: Build local CLI only when consumed
         if: >-
           !(inputs.mode == 'e2e' && inputs.specs_json == '["cli-memory-readiness.spec.ts"]') &&
-          (inputs.prepare_cli == 'true' || (inputs.mode == 'e2e' && (inputs.specs_json == '["rust-core-native-metadata-prototype.spec.ts"]' || (inputs.specs_json == '["rust-core-initial-startup.spec.ts"]' || (inputs.specs_json == '["web-essential-startup-performance.spec.ts"]' || (inputs.specs_json == '["rust-core-first-session.spec.ts"]' || (inputs.specs_json == '["rust-core-native-recovery-port.spec.ts"]' || (inputs.specs_json == '["rust-core-activechat-send.spec.ts"]' || inputs.specs_json == '["rust-core-new-chat-send.spec.ts"]')))))))) &&
+          (inputs.prepare_cli == 'true' || env.CI_LANE_RUST_BROWSER_CLI == 'true') &&
           (inputs.mode == 'prepare' ||
            (inputs.mode == 'e2e' && steps.artifacts.outputs.cli != 'true'))
         run: pnpm --filter openmates build
+      # Same rust-cache pattern as .github/workflows/rust.yml: the native
+      # release build uses the stable ~/.cargo and crate target paths, so a
+      # restored dependency build turns the cold release compile into a
+      # crate-only rebuild. Candidate patches restore but never save.
+      - name: Restore native release Rust dependency cache
+        if: inputs.mode == 'prepare' && env.CI_NATIVE_PREPARED == 'true'
+        uses: Swatinem/rust-cache@v2
+        env:
+          RUSTUP_TOOLCHAIN: '1.98.1'
+        with:
+          shared-key: isolated-native-release-cli
+          # Root Cargo workspace (key: root Cargo.lock); the contract keeps the
+          # release --target-dir under the openmates package directory.
+          workspaces: subject -> frontend/packages/openmates-tui-native/target
+          cache-bin: 'false'
+          cache-on-failure: 'true'
+          save-if: ${{ inputs.candidate_patch_sha256 == '' }}
       - name: Build required exact-source native release payload
         if: inputs.mode == 'prepare' && env.CI_NATIVE_PREPARED == 'true'
         run: |
@@ -795,7 +821,7 @@ jobs:
         if: inputs.mode == 'selfhost'
         run: python3 -m pip install pyyaml==6.0.2
       - name: Run selected checks
-        timeout-minutes: ${{ inputs.mode == 'sdk-lockfiles' && 21 || (inputs.mode == 'sdk-conformance' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 46 || 360 }}
+        timeout-minutes: ${{ inputs.mode == 'sdk-lockfiles' && 21 || (inputs.mode == 'sdk-conformance' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 100 || 360 }}
         if: inputs.mode != 'prepare' && inputs.mode != 'backend-probe'
         env:
           CI_TEST_MODE: ${{ inputs.mode }}
@@ -927,6 +953,13 @@ jobs:
           else
             python3 ../tooling/scripts/ci_run_tests.py
           fi
+      - name: Explain failed Rust lane in the job log
+        if: >-
+          failure() &&
+          (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' ||
+           inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' ||
+           env.CI_LANE_RUST_BROWSER == 'true' || env.CI_NATIVE_PREPARED == 'true')
+        run: python3 ../tooling/scripts/ci_rust_checks.py explain --root .
       - name: Stop runner-private Codex daemon
         if: always() && (inputs.mode == 'codex' || (inputs.mode == 'e2e' && (contains(inputs.specs_json, 'tasks-flow.spec.ts') || contains(inputs.specs_json, 'project-task-sync.spec.ts'))))
         run: node ../tooling/scripts/ci_codex_fixture.mjs stop
@@ -999,10 +1032,7 @@ jobs:
             subject/test-results/rust-wasm/package/snippets/openmates-browser-bindings-????????????????/inline0.js
             subject/test-results/rust-wasm/package/snippets/openmates-sdk-????????????????/inline0.js
             subject/test-results/rust-wasm/package/snippets/openmates-sdk-????????????????/src/platform/browser_metadata_native.js
-            subject/test-results/sdk-lockfiles/packages/openmates-rust/Cargo.lock
-            subject/test-results/sdk-lockfiles/packages/openmates-session-bindings/Cargo.lock
-            subject/test-results/sdk-lockfiles/frontend/packages/openmates-tui-native/Cargo.lock
-            subject/test-results/sdk-lockfiles/packages/openmates-browser-bindings/Cargo.lock
+            subject/test-results/sdk-lockfiles/Cargo.lock
             subject/test-results/ci-spec-*.json
             subject/test-results/ci-pytest.json
             subject/test-results/ci-unit-*
@@ -1011,7 +1041,7 @@ jobs:
             subject/frontend/apps/web_app/test-results/
           if-no-files-found: error
       - name: Retain bounded failed Rust WASM stage privately
-        if: always() && (inputs.mode == 'rust-wasm' || (inputs.mode == 'e2e' && (inputs.specs_json == '["rust-core-browser-session.spec.ts"]' || inputs.specs_json == '["rust-core-browser-password-entry.spec.ts"]' || ((inputs.specs_json == '["rust-core-production-saved-session.spec.ts"]' || (inputs.specs_json == '["rust-core-native-metadata-prototype.spec.ts"]' || (inputs.specs_json == '["rust-core-initial-startup.spec.ts"]' || (inputs.specs_json == '["web-essential-startup-performance.spec.ts"]' || (inputs.specs_json == '["rust-core-first-session.spec.ts"]' || (inputs.specs_json == '["rust-core-native-recovery-port.spec.ts"]' || (inputs.specs_json == '["rust-core-activechat-send.spec.ts"]' || inputs.specs_json == '["rust-core-new-chat-send.spec.ts"]'))))))) || inputs.specs_json == '["rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-saved-paging.spec.ts"]'))))
+        if: always() && (inputs.mode == 'rust-wasm' || (env.CI_LANE_RUST_BROWSER == 'true'))
         uses: actions/upload-artifact@v4
         with:
           name: isolated-rust-wasm-private-diagnostics

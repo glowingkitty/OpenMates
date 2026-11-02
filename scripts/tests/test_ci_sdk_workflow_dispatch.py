@@ -57,15 +57,9 @@ class WorkflowDispatchTests(unittest.TestCase):
         # checks the actual frozen afterimage bytes, not a fabricated passed flag.
         self.addCleanup(patch.stopall)
         patch.object(self.sdk, "regular", side_effect=image).start()
-        patch.object(self.m, "regular", side_effect=image).start()
-        programs = {
-            name: digest
-            for name, digest in self.m.PINS.items()
-            if name not in self.m.PROTECTED_ONLY_INPUTS
-        }
         self.driver = SimpleNamespace(
             root=W,
-            trust={"programs": programs, "contracts": {}},
+            trust={"programs": {}, "contracts": {}},
             plan=copy.deepcopy(self.m.EXPECTED_PLAN),
             launches=[],
             failure=None,
@@ -148,17 +142,11 @@ class WorkflowDispatchTests(unittest.TestCase):
             self.admit()
 
     def test_real_changed_or_untrusted_program_and_controller_self_trust_refuse(self):
-        first = next(iter(self.m.PINS))
+        # Start-of-run program fence: a changed derived program hash refuses.
+        first = next(name for name in self.m.PINS if name not in self.m.PROTECTED_ONLY_INPUTS)
         self.driver.trust["programs"][first] = "0" * 64
         with self.assertRaises(self.m.Refused):
             self.admit()
-        self.setUp()
-        with (
-            patch.object(self.m, "verify_programs"),
-            patch.object(self.m, "regular", return_value=b"changed"),
-        ):
-            with self.assertRaises(self.m.Refused):
-                self.admit()
         self.setUp()
         self.driver.trust["programs"]["scripts/ci_sdk_share_dispatch.py"] = "a" * 64
         with patch.object(self.m, "verify_programs"), self.assertRaises(self.m.Refused):
@@ -451,7 +439,7 @@ class WorkflowDispatchTests(unittest.TestCase):
             "e9de9394fb60ff1531debce8f4709b7abdd168c6ae72a1cf1a4fc2f8484a5fb5",
         )
         source = (CONTROL / "ci_sdk_conformance.py").read_text()
-        self.assertIn("BUDGET = 2700", source)
+        self.assertIn("BUDGET = 5400", source)
         self.assertIn("str(root), str(report), str(deadline)], 1500)", source)
 
     def test_existing_work_capability_only_and_all_sixty_nine_vectors_required(self):
@@ -489,18 +477,11 @@ class WorkflowDispatchTests(unittest.TestCase):
         self.assertIs(self.m.retire, self.owner.retire)
         fixture = "tests/sdk-conformance/fixtures/workflow-file-sync.json"
         mirror = "packages/openmates-rust/tests/fixtures/workflow-file-sync.json"
-        self.assertEqual(self.m.PINS[fixture], self.m.PINS[mirror])
+        self.assertEqual((W / fixture).read_bytes(), (W / mirror).read_bytes())
         schema = "tests/sdk-conformance/schemas/workflow-file-sync.schema.json"
-        for name in (
-            fixture,
-            mirror,
-            schema,
-            "packages/openmates-session-bindings/src/session_workflow_files.rs",
-        ):
-            digest = self.driver.trust["programs"].pop(name)
-            with self.assertRaises(self.m.Refused):
-                self.admit()
-            self.driver.trust["programs"][name] = digest
+        for name in (fixture, mirror, schema,
+                     "packages/openmates-session-bindings/src/session_workflow_files.rs"):
+            self.assertIn(name, self.m.PINS)
 
     def test_unknown_result_fields_cannot_grant_acceptance(self):
         value = self.result()

@@ -239,7 +239,7 @@ class NewChatProfileTests(unittest.TestCase):
                 env.get("OPENMATES_RUST_METADATA_PROTOTYPE"),
                 "1" if m.targets([target]) else None,
             )
-        self.assertEqual(lane.BROWSER_BUDGET, 1800)
+        self.assertEqual(lane.BROWSER_BUDGET, 3600)
         self.assertEqual(
             lane.commands(metadata_profile=True)[2],
             lane.commands()[2] + ["--features", m.FEATURE],
@@ -548,44 +548,53 @@ class NewChatProfileTests(unittest.TestCase):
         self.assertFalse(m.activechat_targets([m.NEW_CHAT_SPEC]))
         self.assertFalse(m.new_chat_targets([m.ACTIVECHAT_SPEC]))
 
-    def test_actual_workflow_shell_dispatch_selects_only_fixed_production_build(self):
+    def test_actual_workflow_lane_pattern_selects_production_build(self):
+        """The workflow selects the lane by rust-core-* pattern; the lane script
+        still refuses anything outside its closed target set."""
+        import re
         import subprocess
+        import yaml
 
         source = (ROOT / ".github/workflows/isolated-tests.yml").read_text()
-        line = next(
-            line.strip()
-            for line in source.splitlines()
-            if line.strip().startswith("'e2e:[\"rust-core-activechat-send.spec.ts\"]'|")
+        job = next(iter(yaml.safe_load(source)["jobs"].values()))
+        expression = job["env"]["CI_LANE_RUST_PRODUCTION_BROWSER"]
+        body = re.fullmatch(r"\$\{\{(.*)\}\}", expression.strip(), re.S).group(1)
+        python = (
+            body.replace("&&", " and ").replace("||", " or ")
+            .replace("!contains(", "not contains(").replace("inputs.", "inputs_")
         )
-        self.assertTrue(line.endswith(")"))
-        patterns = line[:-1]
-        program = (
-            'case "$1" in '
-            + patterns
-            + ") printf reviewed ;; *) printf refused ;; esac"
-        )
-        for mode, selected, expected in [
-            ("e2e", [m.NEW_CHAT_SPEC], "reviewed"),
-            ("e2e", [m.ACTIVECHAT_SPEC], "reviewed"),
-            ("e2e", [m.NEW_CHAT_SPEC, m.ACTIVECHAT_SPEC], "refused"),
-            ("e2e", ["nested/" + m.NEW_CHAT_SPEC], "refused"),
-            ("component", [m.NEW_CHAT_SPEC], "refused"),
-        ]:
-            result = subprocess.run(
-                [
-                    "bash",
-                    "-c",
-                    program,
-                    "inert-build-selector",
-                    mode + ":" + json.dumps(selected, separators=(",", ":")),
-                ],
-                capture_output=True,
-                text=True,
-                timeout=5,
-                check=True,
-            )
-            self.assertEqual(result.stdout, expected)
+        self.assertNotIn("!", python.replace("!=", ""))
 
+        def selected(mode, specs):
+            names = {
+                "inputs_mode": mode,
+                "inputs_specs_json": json.dumps(specs, separators=(",", ":")),
+                "startsWith": str.startswith,
+                "contains": lambda haystack, needle: needle in haystack,
+            }
+            return eval(python, {"__builtins__": {}}, names)  # noqa: S307 - closed workflow expression under test
+
+        build = next(s for s in job["steps"] if s.get("name") == "Build local web app")["run"]
+        branch = build[build.index('if [ "$CI_LANE_RUST_PRODUCTION_BROWSER" = true ]'):]
+        branch = branch[: branch.index("fi ;;") + 2]
+        branch = branch.replace(
+            "python3 ../tooling/scripts/ci_production_rust_browser.py build", "printf reviewed"
+        ).replace("pnpm --dir frontend/apps/web_app exec vite build", "printf plain")
+        for mode, specs, flag, admitted in [
+            ("e2e", [m.NEW_CHAT_SPEC], True, True),
+            ("e2e", [m.ACTIVECHAT_SPEC], True, True),
+            ("e2e", [m.NEW_CHAT_SPEC, m.ACTIVECHAT_SPEC], True, False),
+            ("e2e", ["nested/" + m.NEW_CHAT_SPEC], False, False),
+            ("component", [m.NEW_CHAT_SPEC], False, False),
+        ]:
+            self.assertIs(selected(mode, specs), flag)
+            self.assertIs(bool(lane.production_browser_e2e_targets(specs)) and mode == "e2e", admitted)
+            result = subprocess.run(
+                ["bash", "-c", branch],
+                env={"PATH": "/usr/bin:/bin", "CI_LANE_RUST_PRODUCTION_BROWSER": str(flag).lower()},
+                capture_output=True, text=True, timeout=5, check=True,
+            )
+            self.assertEqual(result.stdout, "reviewed" if flag else "plain")
 
 if __name__ == "__main__":
     unittest.main()

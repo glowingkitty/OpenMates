@@ -142,8 +142,13 @@ def verified_package(root, ambient):
 def project_receipt(root, manifest, expected, files):
     """Re-encode metadata only; each compiler-produced file remains byte-exact."""
     inputs = {}
+    # Root Cargo workspace manifest and its single lock are build inputs.
+    for name in ("Cargo.toml", "Cargo.lock"):
+        raw = lane.sdk.regular(root / name)
+        lane.sdk.require(name in expected and lane.sdk.sha(raw) == expected[name], "source")
+        inputs[name] = {"sha256": expected[name], "bytes": len(raw)}
     for crate in ("packages/openmates-rust", "packages/openmates-browser-bindings"):
-        names = [crate + "/Cargo.toml", crate + "/Cargo.lock"]
+        names = [crate + "/Cargo.toml"]
         for entry in (root / crate / "src").rglob("*"):
             lane.sdk.require(not entry.is_symlink(), "source")
             if entry.is_file():

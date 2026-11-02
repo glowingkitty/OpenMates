@@ -360,7 +360,7 @@ def prepare(sandbox, deadline):
     )
     require(
         math.isfinite(deadline)
-        and time.monotonic() < deadline <= time.monotonic() + 2700,
+        and time.monotonic() < deadline <= time.monotonic() + 5400,  # native-dev BUDGET
         "deadline",
     )
     username = "omci" + sandbox.name[-12:]

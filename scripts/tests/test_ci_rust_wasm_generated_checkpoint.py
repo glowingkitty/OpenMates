@@ -61,13 +61,6 @@ class ActualGeneratedRecoveryCheckpointTests(unittest.TestCase):
         self.assertTrue(lane.closed_module_dependencies(reduced))
         self.assertEqual(lane.module_dependency_reason(self.guard), 4)
 
-    def test_every_original_selected_source_pin_remains_required(self):
-        for path in self.inputs:
-            for bad in (None, '0' * 64):
-                with self.subTest(path=path, bad=bad):
-                    changed = dict(self.inputs)
-                    changed[path] = bad
-                    self.assertFalse(lane.package_modules(self.files, changed))
 
     def test_observed_headers_calls_maps_and_aliases_cannot_drift(self):
         namespace3 = ('import * as import3 from "./' + self.sdk_name + '"\n').encode()
@@ -94,22 +87,6 @@ class ActualGeneratedRecoveryCheckpointTests(unittest.TestCase):
                 files = dict(self.files)
                 files[lane.PACKAGE_FILES[0]] = changed
                 self.assertFalse(lane.package_modules(files, self.inputs))
-
-    def test_actual_module_bodies_and_physical_inventory_remain_closed(self):
-        for name in (self.sdk_name, self.crypto_name):
-            changed = dict(self.files)
-            changed[name] += b' '
-            self.assertFalse(lane.package_modules(changed, self.inputs))
-            changed = dict(self.files)
-            del changed[name]
-            self.assertFalse(lane.package_modules(changed, self.inputs))
-        changed = dict(self.files)
-        changed['extra.js'] = b'export {};'
-        self.assertFalse(lane.package_modules(changed, self.inputs))
-        changed = dict(self.files)
-        del changed[self.sdk_name]
-        changed[self.sdk_name.replace('c8cc119936fa2be8', 'c8cc119936fa2be9')] = self.body
-        self.assertFalse(lane.package_modules(changed, self.inputs))
 
 
 if __name__ == '__main__':

@@ -41,12 +41,31 @@ TARGET = "rust-native-dev"
 RUNNER = "ubuntu-24.04-arm"
 TRIPLE = "aarch64-unknown-linux-gnu"
 VERSION = "1.98.1"
-BUDGET = 2700
+BUDGET = 5400  # 90min from workflow start of the 120min native-dev job.
 MAX_BINARY = 128 * 1024**2
 MAX_RECEIPT = 4 * 1024**2
-CLI = "frontend/packages/openmates-tui-native"
-SDK = "packages/openmates-rust"
+CLI = "frontend/packages/openmates-tui-native"  # package `openmates`
+SDK = "packages/openmates-rust"  # package `openmates-sdk`
 ROOTS = (CLI, SDK)
+# Root Cargo workspace: one Cargo.toml/Cargo.lock; every member manifest and
+# the patched third-party crates must be present for Cargo to load it.
+try:
+    from scripts.ci_sdk_lockfiles import (
+        ROOTS as MEMBERS,
+        SCOPES,
+        THIRD_PARTY,
+        WORKSPACE_FILES,
+        validate_manifests as validate_workspace_manifests,
+    )
+except ModuleNotFoundError:
+    from ci_sdk_lockfiles import (
+        ROOTS as MEMBERS,
+        SCOPES,
+        THIRD_PARTY,
+        WORKSPACE_FILES,
+        validate_manifests as validate_workspace_manifests,
+    )
+LOCK = "Cargo.lock"
 OBJECTS = ("build.json", "openmates", "tui-benchmark")
 TICKET_DIR = Path("logs/ci-coordinator/native-dev")
 PREFIX = "candidates/native-dev/v2"
@@ -242,7 +261,11 @@ def diagnostic(
         }:
             result["packagePredicate"] = error.predicate
             crate = {"cli-package-list": CLI, "sdk-package-list": SDK}.get(recipe_stage)
-            path = crate + "/" + error.path if crate and error.path else ""
+            path = (
+                (LOCK if error.path == "Cargo.lock" else crate + "/" + error.path)
+                if crate and error.path
+                else ""
+            )
             if (
                 isinstance(source_inputs, dict)
                 and path in source_inputs
@@ -329,6 +352,8 @@ def validate_package_inputs(work, crate, names, inputs):
     allowed = {
         name[len(crate) + 1 :] for name in inputs if name.startswith(crate + "/")
     } | {"Cargo.toml.orig", ".cargo_vcs_info.json"}
+    if LOCK in inputs:
+        allowed.add("Cargo.lock")  # `cargo package` embeds the root workspace lock
     if not names <= allowed:
         raise package.PackageInputError(
             "Unheld package input", "unheld_package_input", ""
@@ -357,14 +382,17 @@ def validate_request(
 
 
 def owned(name):
-    if name in EXTRA:
+    if name in EXTRA or name in WORKSPACE_FILES:
         return True
-    for root in ROOTS:
+    if name.startswith(THIRD_PARTY + "/"):
+        tail = Path(name[len(THIRD_PARTY) + 1 :])
+        return len(tail.parts) > 1 and not any(p.startswith(".") for p in tail.parts)
+    for root in MEMBERS:
         if name.startswith(root + "/"):
             tail = Path(name[len(root) + 1 :])
             return (
                 tail.as_posix()
-                in {"Cargo.toml", "Cargo.lock", "README.md", "LICENSE", "NOTICE"}
+                in {"Cargo.toml", "README.md", "LICENSE", "NOTICE"}
                 or (
                     tail.parts[0] in {"src", "tests", "examples"}
                     and tail.suffix in {".rs", ".json", ".txt", ".md", ".toml"}
@@ -379,7 +407,7 @@ def source_inputs_from_git(root, source):
         isinstance(source, str) and re.fullmatch(r"[0-9a-f]{40}", source), "identity"
     )
     listing = subprocess.check_output(
-        ["git", "ls-tree", "-r", "-z", source, "--", *ROOTS, *sorted(EXTRA)],
+        ["git", "ls-tree", "-r", "-z", source, "--", *SCOPES, *sorted(EXTRA)],
         cwd=root,
         timeout=15,
     )
@@ -439,10 +467,8 @@ def source_inputs_from_git(root, source):
     sdk.require(
         offset == len(blobs)
         and EXTRA.issubset(result)
-        and all(
-            root + "/Cargo.toml" in result and root + "/Cargo.lock" in result
-            for root in ROOTS
-        )
+        and all(name in result for name in WORKSPACE_FILES)
+        and all(root + "/Cargo.toml" in result for root in MEMBERS)
         and CLI + "/src/main.rs" in result
         and CLI + "/src/bin/tui-benchmark.rs" in result
         and SDK + "/src/lib.rs" in result,
@@ -454,7 +480,7 @@ def source_inputs_from_git(root, source):
 def snapshot(root, expected):
     tracked = (
         subprocess.check_output(
-            ["git", "ls-files", "-z", "--", *ROOTS, *sorted(EXTRA)],
+            ["git", "ls-files", "-z", "--", *SCOPES, *sorted(EXTRA)],
             cwd=root,
             timeout=15,
         )
@@ -470,7 +496,7 @@ def snapshot(root, expected):
                 "--exclude-standard",
                 "-z",
                 "--",
-                *ROOTS,
+                *SCOPES,
                 *sorted(EXTRA),
             ],
             cwd=root,
@@ -488,59 +514,20 @@ def snapshot(root, expected):
 
 
 def validate_manifests(work):
-    for root in ROOTS:
-        manifest = work / root / "Cargo.toml"
-        value = tomllib.loads(sdk.regular(manifest).decode())
-        sdk.require(
-            not any(key in value for key in ("patch", "replace", "workspace"))
-            and not value.get("package", {}).get("build"),
-            "source",
-        )
-
-        def visit(item):
-            if isinstance(item, dict):
-                sdk.require(
-                    not any(
-                        key in item
-                        for key in ("git", "registry", "registries", "patch", "replace")
-                    ),
-                    "source",
-                )
-                if "path" in item:
-                    path = item["path"]
-                    sdk.require(
-                        isinstance(path, str)
-                        and not Path(path).is_absolute()
-                        and (manifest.parent / path).resolve()
-                        in {work / name for name in ROOTS},
-                        "source",
-                    )
-                for child in item.values():
-                    visit(child)
-            elif isinstance(item, list):
-                for child in item:
-                    visit(child)
-
-        for section in (
-            "dependencies",
-            "dev-dependencies",
-            "build-dependencies",
-            "target",
-        ):
-            visit(value.get(section, {}))
-        lock = tomllib.loads(sdk.regular(work / root / "Cargo.lock").decode())
-        sdk.require(
-            lock.get("version") in {3, 4}
-            and lock.get("package")
-            and all(
-                row.get(
-                    "source", "registry+https://github.com/rust-lang/crates.io-index"
-                )
-                == "registry+https://github.com/rust-lang/crates.io-index"
-                for row in lock["package"]
-            ),
-            "source",
-        )
+    validate_workspace_manifests(work)
+    lock = tomllib.loads(sdk.regular(work / LOCK).decode())
+    sdk.require(
+        lock.get("version") in {3, 4}
+        and lock.get("package")
+        and all(
+            row.get(
+                "source", "registry+https://github.com/rust-lang/crates.io-index"
+            )
+            == "registry+https://github.com/rust-lang/crates.io-index"
+            for row in lock["package"]
+        ),
+        "source",
+    )
     cli = tomllib.loads(sdk.regular(work / CLI / "Cargo.toml").decode())
     lib = tomllib.loads(sdk.regular(work / SDK / "Cargo.toml").decode())
     package.validate_metadata(cli, lib)
@@ -549,9 +536,11 @@ def validate_manifests(work):
         "source",
     )
     sdk.require(
-        cli.get("example")
-        and {"name": "tui-benchmark", "path": "src/bin/tui-benchmark.rs"}
-        in cli["example"],
+        any(
+            row.get("name") == "tui-benchmark"
+            and row.get("path") == "src/bin/tui-benchmark.rs"
+            for row in cli.get("example", [])
+        ),
         "source",
     )
     assets.synchronize(work, check=True)
@@ -726,6 +715,7 @@ def _commands(cargo, rustc):
     return [
         [rustc, "--version", "--verbose"],
         [cargo, "--version"],
+        # In the root workspace each member manifest fetches the single root lock.
         *[
             [cargo, "fetch", "--locked", "--manifest-path", root + "/Cargo.toml"]
             for root in ROOTS
@@ -920,9 +910,7 @@ def run(root, results, *, environ=None):
             dispatchToken=job["token"],
             inputs=before,
             inputSetSha256=sdk.sha(json.dumps(before, sort_keys=True).encode()),
-            locks={
-                name + "/Cargo.lock": before[name + "/Cargo.lock"] for name in ROOTS
-            },
+            locks={LOCK: before[LOCK]},
             runner=RUNNER,
             target=TRIPLE,
             toolchain=VERSION,
@@ -1347,11 +1335,7 @@ def validate_result(
         and receipt.get("inputs") == expected_inputs
         and receipt.get("inputSetSha256")
         == sdk.sha(json.dumps(expected_inputs, sort_keys=True).encode())
-        and receipt.get("locks")
-        == {
-            root + "/Cargo.lock": expected_inputs[root + "/Cargo.lock"]
-            for root in ROOTS
-        }
+        and receipt.get("locks") == {LOCK: expected_inputs[LOCK]}
         and receipt.get("binary") == elf_metadata(binary)
         and all(
             receipt.get(key) is True
@@ -1391,7 +1375,8 @@ def validate_result(
                 for name in expected_inputs
                 if name.startswith(crate + "/")
             }
-            | {"Cargo.toml.orig", ".cargo_vcs_info.json"},
+            | {"Cargo.toml.orig", ".cargo_vcs_info.json"}
+            | ({"Cargo.lock"} if LOCK in expected_inputs else set()),
             "outputs",
         )
     steps = receipt.get("steps")

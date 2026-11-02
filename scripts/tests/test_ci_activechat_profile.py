@@ -241,7 +241,7 @@ class ActiveChatProfileTests(unittest.TestCase):
                 env.get("OPENMATES_RUST_METADATA_PROTOTYPE"),
                 "1" if m.targets([target]) else None,
             )
-        self.assertEqual(lane.BROWSER_BUDGET, 1800)
+        self.assertEqual(lane.BROWSER_BUDGET, 3600)
         self.assertEqual(
             lane.commands(metadata_profile=True)[2],
             lane.commands()[2] + ["--features", m.FEATURE],

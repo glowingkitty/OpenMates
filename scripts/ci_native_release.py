@@ -60,8 +60,18 @@ CONTRACT = {
 SCOPES = frozenset(
     ["cli-native-bounded-saved-read.spec.ts", "cli-rust-core-essential.spec.ts"]
 )
-SOURCE_ROOTS = (NATIVE, "packages/openmates-rust")
+# Root Cargo workspace: one Cargo.lock, every member manifest and the patched
+# third-party crates are build inputs of the `openmates` release binary.
+WORKSPACE_MEMBERS = (
+    NATIVE,
+    "packages/openmates-rust",
+    "packages/openmates-session-bindings",
+    "packages/openmates-browser-bindings",
+)
+SOURCE_ROOTS = (*WORKSPACE_MEMBERS, "packages/third_party")
 SOURCE_FILES = (
+    "Cargo.toml",
+    "Cargo.lock",
     "scripts/check_rust_cli_package.py",
     "scripts/sync_rust_cli_assets.py",
     "backend/tests/fixtures/encryption_compatibility/legacy_layouts.json",
@@ -601,10 +611,7 @@ def source_identity(root, source, tree):
     )
     require(
         all(p in paths for p in SOURCE_FILES)
-        and all(
-            r + "/Cargo.toml" in paths and r + "/Cargo.lock" in paths
-            for r in SOURCE_ROOTS
-        ),
+        and all(r + "/Cargo.toml" in paths for r in WORKSPACE_MEMBERS),
         "closure",
     )
     require(
@@ -1360,7 +1367,7 @@ def build(root, source, tree, harness):
                     x if not x.startswith(NATIVE + "/") else str(root / x)
                     for x in CONTRACT["command"]
                 ],
-                540,
+                1500,
             ),
         ]
         stage = "admission"

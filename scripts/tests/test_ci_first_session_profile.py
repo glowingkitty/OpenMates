@@ -374,16 +374,20 @@ class FirstSessionProfileTests(unittest.TestCase):
 
         source = (ROOT / ".github/workflows/isolated-tests.yml").read_text()
         steps = next(iter(yaml.safe_load(source)["jobs"].values()))["steps"]
-        marker = "inputs.specs_json == '[\"" + m.FIRST_SESSION_SPEC + "\"]'"
+        # Lane selection is a rust-core-* name pattern; the lane scripts keep
+        # validating the exact closed target set (production_browser_e2e_targets).
+        lane_env = next(iter(yaml.safe_load(source)["jobs"].values()))["env"]
+        self.assertTrue(m.FIRST_SESSION_SPEC.startswith("rust-core-"))
+        for flag in ("CI_LANE_RUST_BROWSER", "CI_LANE_RUST_PRODUCTION_BROWSER", "CI_LANE_RUST_BROWSER_CLI"):
+            self.assertIn("startsWith(inputs.specs_json, '[\"rust-core-')", lane_env[flag])
         clock = next(
             step
             for step in steps
             if step.get("name") == "Start bounded same-source browser package clock"
         )
-        self.assertIn(marker, clock["if"])
-        self.assertIn("started + 1800", clock["run"])
-        self.assertEqual(source.count(marker), 6)
-        self.assertIn("'e2e:[\"" + m.FIRST_SESSION_SPEC + "\"]'|", source)
+        self.assertEqual(clock["if"], "env.CI_LANE_RUST_BROWSER == 'true'")
+        self.assertIn("started + 3600", clock["run"])
+        self.assertIn('if [ "$CI_LANE_RUST_PRODUCTION_BROWSER" = true ]; then', source)
         self.assertIn("ci_production_rust_browser.py prepare", source)
         self.assertIn("ci_production_rust_browser.py build", source)
         self.assertIn("subject/test-results/rust-wasm/package/", source)
@@ -405,7 +409,7 @@ class FirstSessionProfileTests(unittest.TestCase):
             lane.commands(metadata_profile=True)[2],
             lane.commands()[2] + ["--features", m.FEATURE],
         )
-        self.assertEqual(lane.BROWSER_BUDGET, 1800)
+        self.assertEqual(lane.BROWSER_BUDGET, 3600)
 
 
 if __name__ == "__main__":

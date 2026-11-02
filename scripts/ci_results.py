@@ -1178,7 +1178,7 @@ def valid_sdk_lockfiles_receipt(
     ]
     if (
         not isinstance(steps, list)
-        or len(steps) != 5
+        or len(steps) != 1 + len(STAGES)
         or any(not isinstance(row, dict) for row in steps)
         or [row.get("stage") for row in steps] != ["rust-toolchain", *STAGES]
     ):
@@ -1954,7 +1954,7 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
                 [
                     "git",
                     "show",
-                    job["source"] + ":packages/openmates-browser-bindings/Cargo.lock",
+                    job["source"] + ":Cargo.lock",  # root Cargo workspace lock
                 ],
                 cwd=root,
                 timeout=15,

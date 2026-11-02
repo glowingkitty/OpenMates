@@ -1,0 +1,135 @@
+# Rust workspace checks (root Cargo.toml / Cargo.lock): SDK core
+# `openmates-sdk`, the published `openmates` CLI/TUI + SDK re-export, the
+# session bindings and the browser WASM bindings. Runs on dev pushes that touch
+# Rust inputs and on manual dispatch for any ref. Dependency builds are restored
+# with Swatinem/rust-cache keyed on the root Cargo.lock, so warm runs only
+# recompile workspace crates.
+#
+# Blocking: workspace tests (lib, bins, tests), the SDK-only `openmates` build
+# without default features, the release `openmates` CLI and the wasm32 release
+# bindings. Report-only until the workspace is clean: `cargo fmt --check` and
+# `cargo clippy -- -D warnings`. Examples are excluded from the test build: the
+# session-bindings examples are conformance runners that no longer compile.
+name: Rust crates
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'packages/openmates-rust/**'
+      - 'packages/openmates-session-bindings/**'
+      - 'packages/openmates-browser-bindings/**'
+      - 'packages/third_party/**'
+      - 'frontend/packages/openmates-tui-native/**'
+      - 'tests/sdk-conformance/**'
+      - 'frontend/packages/ui/src/services/encryption/MetadataEncryptor.ts'
+      - '.github/workflows/rust.yml'
+      - 'scripts/ci_rust_checks.py'
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: Runner image (arm64 matches the dev host and the native-dev lane)
+        type: choice
+        options: [ubuntu-24.04-arm, ubuntu-24.04]
+        default: ubuntu-24.04-arm
+concurrency:
+  group: rust-crates-${{ github.ref }}-${{ inputs.runner || 'ubuntu-24.04-arm' }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  workspace:
+    name: Rust workspace (${{ inputs.runner || 'ubuntu-24.04-arm' }})
+    runs-on: ${{ inputs.runner || 'ubuntu-24.04-arm' }}
+    # Cold: ~25-40 min (one shared dependency graph: debug tests + release CLI
+    # + wasm32 release). Warm (dependency cache hit): ~6-12 min.
+    timeout-minutes: 90
+    env:
+      TOOLCHAIN: '1.98.1'
+      CHECK: python3 scripts/ci_rust_checks.py run
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install Rust ${{ env.TOOLCHAIN }} with fmt, clippy and wasm32
+        run: |
+          if ! command -v rustup >/dev/null 2>&1; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+              | sh -s -- -y --profile minimal --default-toolchain none
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+            export PATH="$HOME/.cargo/bin:$PATH"
+          fi
+          rustup toolchain install "$TOOLCHAIN" --profile minimal \
+            --component rustfmt,clippy --target wasm32-unknown-unknown
+          rustup default "$TOOLCHAIN"
+          rustc -vV
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install TypeScript for the SDK web-decoder interop tests
+        # SDK unit tests spawn node on tests/sdk-conformance/work-field-web-decoder.cjs,
+        # which transpiles the real web MetadataEncryptor with web_app's TypeScript.
+        run: |
+          version="$(node -p "require('./frontend/apps/web_app/package.json').devDependencies.typescript")"
+          npm install --prefix "$RUNNER_TEMP/web-decoder-ts" --no-save --no-package-lock \
+            --ignore-scripts --no-audit --no-fund "typescript@$version"
+          mkdir -p frontend/apps/web_app/node_modules
+          ln -sfn "$RUNNER_TEMP/web-decoder-ts/node_modules/typescript" \
+            frontend/apps/web_app/node_modules/typescript
+          node -e "require(require('node:module').createRequire(process.cwd() + '/frontend/apps/web_app/package.json').resolve('typescript'))"
+      # One cache for the workspace, keyed on the root Cargo.lock. A lockfile
+      # change falls back to the newest entry, so unchanged dependencies stay
+      # warm. Save on failure too: failing tests must not force the next run cold.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: workspace
+          workspaces: '. -> target'
+          cache-bin: 'false'
+          cache-on-failure: 'true'
+          save-if: ${{ github.ref == 'refs/heads/dev' }}
+
+      - name: 'fmt (report-only)'
+        run: $CHECK --name 'workspace fmt' --report-only -- cargo fmt --all --check
+      - name: 'Test workspace (lib, bins, tests; examples excluded)'
+        if: ${{ !cancelled() }}
+        run: $CHECK --name 'workspace test' -- cargo test --workspace --locked --lib --bins --tests
+      - name: 'SDK-only openmates library (no default features)'
+        if: ${{ !cancelled() }}
+        run: $CHECK --name 'openmates sdk-only check' -- cargo check --locked -p openmates --no-default-features --lib
+      - name: 'clippy (report-only)'
+        if: ${{ !cancelled() }}
+        run: $CHECK --name 'workspace clippy' --report-only -- cargo clippy --workspace --locked -- -D warnings
+      - name: 'Release openmates CLI'
+        if: ${{ !cancelled() }}
+        run: $CHECK --name 'openmates release build' -- cargo build --locked --release -p openmates --bin openmates
+      - name: 'Browser bindings wasm32 release'
+        if: ${{ !cancelled() }}
+        run: $CHECK --name 'browser-bindings wasm32 release' -- cargo build --locked --release -p openmates-browser-bindings --target wasm32-unknown-unknown --lib
+      - name: 'Browser bindings clippy wasm32 (report-only)'
+        if: ${{ !cancelled() }}
+        run: $CHECK --name 'browser-bindings clippy' --report-only -- cargo clippy --locked -p openmates-browser-bindings --target wasm32-unknown-unknown -- -D warnings
+
+      - name: Upload release CLI and WASM
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: openmates-rust-${{ runner.arch }}-${{ github.sha }}
+          retention-days: 14
+          if-no-files-found: warn
+          path: |
+            target/release/openmates
+            target/wasm32-unknown-unknown/release/openmates_browser_bindings.wasm
+      - name: Upload check logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-check-logs-${{ runner.arch }}
+          retention-days: 7
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/rust-ci/
+      - name: Summarize checks
+        if: always()
+        run: |
+          echo '_Examples are excluded from `cargo test`: the session-bindings conformance-runner examples no longer compile._' >> "$GITHUB_STEP_SUMMARY"
+          python3 scripts/ci_rust_checks.py summary

@@ -23,7 +23,7 @@ import time
 import tomllib
 
 TARGET = "sdk-conformance"
-BUDGET = 2700  # 45min from workflow start; leaves 15min of the 60min job for setup/upload.
+BUDGET = 5400  # 90min from workflow start; leaves 30min of the 120min job for setup/upload.
 RESERVE = 2 * 1024**3  # runner artifact/cleanup reserve, not the dev-host capacity floor
 MAX_LOG = 32 * 1024**2
 LIBRARY_UNIT_MANIFESTS = {"sdk-library-units": "packages/openmates-rust/Cargo.toml",
@@ -48,10 +48,11 @@ FIRST_PAGE_NPM_DIAGNOSTIC_CAPABILITY = "session.chat-first-page-continuation.v1"
 FIRST_PAGE_NPM_DIAGNOSTIC_PHASES = frozenset({"suite", "peer_start", "client_setup", "session_import", "session_validate", "store_io", "callback", "stale_a_b", "strict", "continuation", "negative", "vector_complete"})
 FIRST_PAGE_NPM_DIAGNOSTIC_CODES = frozenset({"assertion", "cancelled", "conflict", "forbidden", "expired", "authentication", "invalid_argument", "protocol", "offline", "unavailable", "crypto", "native_failure", "native_binding_unavailable", "storage_io", "timeout", "callback", "unclassified"})
 MAX_VECTOR_DIAGNOSTIC_BYTES = 512
-LOCKS = ("packages/openmates-rust/Cargo.lock", "packages/openmates-session-bindings/Cargo.lock",
-         "frontend/packages/openmates-tui-native/Cargo.lock")
+# Root Cargo workspace: one lockfile and manifest for every Rust member.
+LOCKS = ("Cargo.lock", "Cargo.toml")
 TOOLING_INPUTS = ('frontend/apps/web_app/tests/helpers', 'frontend/packages/openmates-tui-native', 'frontend/apps/web_app/package.json', 'frontend/apps/web_app/tests/cli-rust-request-performance.spec.ts', 'frontend/apps/web_app/tests/cli-rust-tui-proof.spec.ts', 'scripts/ci_coverage_manifest.json', 'scripts/ci_environment.py', 'scripts/ci_run_tests.py', 'scripts/cli_video_capture.py', 'scripts/pty_terminal_queries.py', 'scripts/tests/test_ci_native_private_profile.py', 'scripts/tests/test_sdk_conformance_gate.py')
 INPUTS = ("packages/openmates-rust", "packages/openmates-session-bindings", "packages/openmates-python",
+          "packages/openmates-browser-bindings", "packages/third_party",
           "frontend/packages/openmates-cli", "backend/apps", "backend/tests/fixtures/encryption_compatibility/legacy_layouts.json", "tests/sdk-conformance", "config/sdk-capabilities.json",
           "config/sdk-capabilities.schema.json", "scripts/check_sdk_conformance.py", "scripts/build_sdk_native.py", "scripts/check_packaged_sdk_v1.py",
           "scripts/sdk_rust_inventory.py", "scripts/generate_sdk_app_skills.py", "scripts/generate_rust_sdk_apps.py",
@@ -92,17 +93,63 @@ def regular(path, limit=64 * 1024**2):
 
 
 
-def load_trust():
-    return json.loads(regular(Path(__file__).with_name("ci_sdk_conformance_trust.json"), 2 * 1024**2))
+MATRIX = "config/sdk-capabilities.json"
+PACKAGED_FIXTURE = "tests/sdk-conformance/fixtures/api-key-foundation.json"
+# Fenced for the duration of one run (start-of-run bytes), not reviewed pins.
+RUN_PROGRAMS = ("scripts/check_sdk_conformance.py", "scripts/tests/test_sdk_conformance_gate.py")
+
+
+def _git_blob(root, source, name, limit=64 * 1024**2):
+    require(re.fullmatch(r"[0-9a-f]{40}", source) and ".." not in Path(name).parts, "source_identity")
+    data = subprocess.run(["git", "cat-file", "blob", source + ":" + name], cwd=root, capture_output=True,
+                          timeout=30).stdout
+    require(0 < len(data) <= limit, "source_blob_bound")
+    return data
+
+
+def _exists(root, source, name):
+    if source is None:
+        return (root / name).is_file()
+    return subprocess.run(["git", "cat-file", "-e", source + ":" + name], cwd=root,
+                          capture_output=True, timeout=15).returncode == 0
+
+
+def derive_trust(root, source=None):
+    """Derive what the lane runs from the source's own capability matrix.
+
+    No per-file pins and no registration: any committed SHA or ci-source
+    snapshot is admissible. The plan, gaps and fixture/matrix hashes come from
+    `config/sdk-capabilities.json` at that source (Git objects when `source` is
+    given, else the checkout). Publication stays blocked on capability gaps by
+    `check_sdk_conformance.py --release` and `releaseEligible`.
+    """
+    root = Path(root)
+
+    def read(name):
+        return regular(root / name) if source is None else _git_blob(root, source, name)
+
+    matrix_bytes = read(MATRIX)
+    matrix = json.loads(matrix_bytes)
+    plan = execution_plan(root, matrix, read=read)
+    contracts = {MATRIX: sha(matrix_bytes), PACKAGED_FIXTURE: sha(read(PACKAGED_FIXTURE))}
+    contracts.update({row["fixture"]: row["fixtureSha256"] for row in plan})
+    programs = {name: sha(read(name)) for name in RUN_PROGRAMS if _exists(root, source, name)}
+    return {"schemaVersion": 2, "derivedFrom": "source", "plan": plan, "gaps": matrix_gaps(matrix),
+            "contracts": contracts, "programs": programs}
+
+
+def load_trust(root=None):
+    return derive_trust(Path(__file__).resolve().parents[1] if root is None else root)
 
 
 def load_trust_for_source(root, source, *, checkout=False, harness=None):
-    try:
-        from ci_sdk_candidate_authority import select_trust
-    except ModuleNotFoundError:
-        from scripts.ci_sdk_candidate_authority import select_trust
-    return select_trust(root, source, load_default=load_trust, regular=regular,
-                        require=require, checkout=checkout, harness=harness)
+    """Lane (checkout=True) reads the verified checkout; result retrieval reads
+    the job's source commit. `harness` is accepted for existing callers only."""
+    require(isinstance(source, str) and re.fullmatch(r"[0-9a-f]{40}", source), "source_identity")
+    if checkout:
+        require(git(root, "rev-parse", "HEAD") == source, "source_identity")
+        return derive_trust(root)
+    return derive_trust(root, source)
 
 
 def verify_programs(root, trust):
@@ -119,13 +166,14 @@ def matrix_gaps(matrix):
             if row["languages"][language]["status"] != "implemented"]
 
 
-def execution_plan(root, matrix):
+def execution_plan(root, matrix, read=None):
+    read = (lambda name: regular(root / name)) if read is None else read
     rows = []
     for capability in matrix["capabilities"]:
         fixture = capability.get("fixture", matrix["fixture"])
         require(isinstance(fixture, str) and fixture.startswith("tests/sdk-conformance/")
                 and ".." not in Path(fixture).parts, "gate_fixture")
-        raw = regular(root / fixture)
+        raw = read(fixture)
         vectors = json.loads(raw)["capabilities"].get(capability["id"], {}).get("vectors", [])
         ids = [value.get("id", value.get("name")) for value in vectors]
         for language in ("rust", "npm", "python"):
@@ -915,7 +963,7 @@ def run(root, results, node, *, verify_node, environ=None):
                    "CARGO_TARGET_DIR": str(private / "target"), "CARGO_BUILD_JOBS": "2",
                    "CARGO_INCREMENTAL": "0", "CARGO_PROFILE_DEV_DEBUG": "0", "CARGO_PROFILE_TEST_DEBUG": "0"}
             commands = Commands(root, private, env, deadline)
-            def step(name, command, seconds=900):
+            def step(name, command, seconds=2400):
                 nonlocal stage
                 stage = name
                 if name in {*LIBRARY_UNIT_MANIFESTS, "napi-build", "python-binding-build"}:

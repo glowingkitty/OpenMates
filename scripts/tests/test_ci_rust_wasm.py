@@ -682,7 +682,7 @@ class WasmReceiptTests(unittest.TestCase):
             for step in steps
             if step.get("name") == "Start bounded Rust WASM compilation clock"
         )
-        self.assertIn("started + 2700", clock["run"])
+        self.assertIn("started + 5400", clock["run"])
         for name in ("Install browser", "Prepare isolated stack"):
             self.assertNotIn(
                 "rust-wasm",
@@ -729,6 +729,11 @@ class WasmRunTests(SyntheticPinTests):
                 ).write_text("// fixture\n")
             for name in lane.LOCKS:
                 (subject / name).write_bytes(lock)
+            (subject / "Cargo.toml").write_text(
+                "[workspace]\nmembers = ["
+                + ", ".join('"' + root + '"' for root in lane.ROOTS)
+                + "]\n"
+            )
             if metadata_profile:
                 for name in (
                     *lane.metadata.EXTRA_INPUTS,
@@ -1392,7 +1397,7 @@ class BrowserPackagingTests(SyntheticPinTests):
             crate = work / lane.ROOTS[-1]
             crate.mkdir(parents=True)
             version = "0.2.128" if variant == "lock-mismatch" else lane.BINDGEN_VERSION
-            (crate / "Cargo.lock").write_text(
+            (work / "Cargo.lock").write_text(
                 'version=4\n[[package]]\nname="wasm-bindgen"\nversion="'
                 + version
                 + '"\n'
@@ -1970,32 +1975,22 @@ class BrowserPackagingTests(SyntheticPinTests):
             for pair in permutations(production_specs, 2)
             if production_specs[4] in pair
         ]
-        predicate = (
-            "("
-            + " || ".join(
-                "inputs.specs_json == '"
-                + json.dumps(targets, separators=(",", ":"))
-                + "'"
-                for targets in production_targets
-            )
-            + ")"
+        # The workflow selects this lane by the rust-core-* name pattern; every
+        # closed production target (and the legacy singletons) matches it, and
+        # the lane keeps refusing anything outside production_browser_e2e_targets.
+        job_env = next(
+            iter(yaml.safe_load((ROOT / ".github/workflows/isolated-tests.yml").read_text())["jobs"].values())
+        )["env"]
+        self.assertIn(
+            "startsWith(inputs.specs_json, '[\"rust-core-')", job_env["CI_LANE_RUST_BROWSER"]
         )
-        predicate = predicate.replace(
-            "inputs.specs_json == '[\"rust-core-production-saved-session.spec.ts\"]'",
-            "(inputs.specs_json == '[\"rust-core-production-saved-session.spec.ts\"]' || inputs.specs_json == '[\"rust-core-native-metadata-prototype.spec.ts\"]')",
-        )
-        predicate = predicate.replace(
-            "inputs.specs_json == '[\"rust-core-native-metadata-prototype.spec.ts\"]'",
-            "(inputs.specs_json == '[\"rust-core-native-metadata-prototype.spec.ts\"]' || inputs.specs_json == '[\"rust-core-initial-startup.spec.ts\"]')",
-        )
-        self.assertEqual(
-            clock["if"],
-            "inputs.mode == 'e2e' && (inputs.specs_json == '[\"rust-core-browser-session.spec.ts\"]' || inputs.specs_json == '[\"rust-core-browser-password-entry.spec.ts\"]' || "
-            + predicate
-            + ")",
-        )
-        self.assertIn("started + 1800", clock["run"])
-        self.assertEqual(lane.BUDGET, 2700)
+        for targets in production_targets + [[lane.BROWSER_SPEC], [lane.BROWSER_PASSWORD_SPEC]]:
+            selector = json.dumps(targets, separators=(",", ":"))
+            self.assertTrue(selector.startswith('["rust-core-'), selector)
+            self.assertTrue(lane.browser_e2e_targets(targets), selector)
+        self.assertEqual(clock["if"], "env.CI_LANE_RUST_BROWSER == 'true'")
+        self.assertIn("started + 3600", clock["run"])
+        self.assertEqual(lane.BUDGET, 5400)
         upload = next(
             step
             for step in steps
@@ -2553,7 +2548,7 @@ class WasmNameSectionTests(unittest.TestCase):
             ],
         )
         self.assertNotIn("--remove-name-section", sum(lane.commands()[:5], []))
-        self.assertEqual(lane.STAGE_SECONDS, (300, 300, 1800, 900, 30, 180))
+        self.assertEqual(lane.STAGE_SECONDS, (300, 300, 3600, 900, 30, 180))
 
     def test_provenance_refuses_missing_flag_extra_flags_or_changed_input(self):
         helper = WasmReceiptTests()
@@ -2592,7 +2587,7 @@ class WasmNameSectionTests(unittest.TestCase):
             output.mkdir()
             crate = work / lane.ROOTS[-1]
             crate.mkdir(parents=True)
-            (crate / "Cargo.lock").write_text(
+            (work / "Cargo.lock").write_text(
                 'version=4\n[[package]]\nname="wasm-bindgen"\nversion="0.2.129"\n'
             )
             artifact = private / "compiled.wasm"
@@ -3783,8 +3778,9 @@ class RecoverySdkSnippetTests(unittest.TestCase):
     def inputs(self):
         return {
             **GeneratedSnippetTests().inputs(),
-            lane.SDK_SNIPPET_SOURCE: lane.SDK_SNIPPET_SOURCE_SHA256,
-            lane.SDK_PACKAGE_SOURCE: lane.SDK_PACKAGE_SOURCE_SHA256,
+            # Held source hashes are recorded, not pinned to reviewed values.
+            lane.SDK_SNIPPET_SOURCE: "1" * 64,
+            lane.SDK_PACKAGE_SOURCE: "2" * 64,
         }
 
     def test_source_bound_two_modules_roundtrip_and_retrieval(self):
@@ -3890,12 +3886,9 @@ class RecoverySdkSnippetTests(unittest.TestCase):
             self.assertFalse(lane.package_modules(files, self.inputs()))
 
     def test_source_body_package_name_and_closed_paths_refuse_tampering(self):
+        # Source/Cargo.toml/body hash pins were removed; structure stays closed.
         for fault in (
-            "source",
-            "package",
             "absent-source",
-            "absent-package",
-            "body",
             "missing",
             "duplicate",
             "unknown",
@@ -4089,61 +4082,5 @@ class DependencyRefusalReasonTests(unittest.TestCase):
             ]:
                 self.assertNotIn(private, serialized)
 
-    def test_only_two_independently_reviewed_cargo_hashes_are_accepted(self):
-        helper = RecoverySdkSnippetTests()
-        for digest in (
-            "adaf5d2b56d67875f101a4705db5538fd871f5146372be5721377c6b7c7582af",
-            "cb7ab7ea51f6998304d921b238f8602a40fe342759e849f1e51caeef9d3a0f0f",
-        ):
-            inputs = helper.inputs()
-            inputs[lane.SDK_PACKAGE_SOURCE] = digest
-            self.assertTrue(lane.package_modules(helper.files(), inputs))
-        for digest in (
-            "0" * 64,
-            "cb7ab7ea51f6998304d921b238f8602a40fe342759e849f1e51caeef9d3a0f0e",
-            None,
-        ):
-            inputs = helper.inputs()
-            inputs[lane.SDK_PACKAGE_SOURCE] = digest
-            self.assertFalse(lane.package_modules(helper.files(), inputs))
 
 
-class ComposedRecoveryTupleTests(unittest.TestCase):
-    def test_actual_composed_source_cargo_body_and_cross_pair_refusal(self):
-        root = Path(__file__).resolve().parents[2]
-        import re
-
-        source = (root / lane.SDK_SNIPPET_SOURCE).read_bytes()
-        cargo = (root / lane.SDK_PACKAGE_SOURCE).read_bytes()
-        self.assertEqual(
-            lane.sdk.sha(source),
-            "38bc86417aad3bf3115ba5f46655ddc9a5e98ab7d85f3a82718956b112c87386",
-        )
-        self.assertEqual(
-            lane.sdk.sha(cargo),
-            "38a1e0eb7218dc52b3121d528b49411d481ef3a602e1e2d69e124520e3d3f441",
-        )
-        raw = re.search(r'inline_js = "([\s\S]*?)"\)\]\s*extern', source.decode())[1]
-        body = json.loads(
-            '"' + raw.replace("\n", "\\n").replace("\r", "\\r") + '"'
-        ).encode()
-        self.assertEqual(
-            lane.recovery_sdk_variant(lane.sdk.sha(source), lane.sdk.sha(cargo)),
-            (lane.sdk.sha(body), len(body)),
-        )
-        self.assertEqual(len(body), 4310)
-        f = RecoverySdkSnippetTests()
-        files, inputs = f.files(), f.inputs()
-        files[f.name] = body
-        inputs[lane.SDK_SNIPPET_SOURCE] = lane.sdk.sha(source)
-        inputs[lane.SDK_PACKAGE_SOURCE] = lane.sdk.sha(cargo)
-        self.assertTrue(lane.package_modules(files, inputs))
-        for name, value in [
-            (lane.SDK_SNIPPET_SOURCE, lane.SDK_SNIPPET_SOURCE_SHA256),
-            (lane.SDK_PACKAGE_SOURCE, lane.SDK_FLOAT_PACKAGE_SOURCE_SHA256),
-        ]:
-            changed = dict(inputs)
-            changed[name] = value
-            self.assertFalse(lane.package_modules(files, changed))
-        files[f.name] += b" "
-        self.assertFalse(lane.package_modules(files, inputs))

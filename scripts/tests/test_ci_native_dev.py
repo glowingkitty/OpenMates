@@ -119,7 +119,7 @@ def isolation_fixture(sandbox=Path("/tmp/openmates-native-dev-" + "a" * 32)):
 
 def fixture():
     j = job()
-    inputs = {root + "/Cargo.lock": "d" * 64 for root in lane.ROOTS}
+    inputs = {lane.LOCK: "d" * 64}  # root Cargo workspace lock
     inputs.update(
         {
             lane.CLI + "/src/bin/tui-benchmark.rs": "4" * 64,
@@ -185,9 +185,7 @@ def fixture():
         "toolchain": lane.VERSION,
         "inputs": inputs,
         "inputSetSha256": lane.sdk.sha(json.dumps(inputs, sort_keys=True).encode()),
-        "locks": {
-            root + "/Cargo.lock": inputs[root + "/Cargo.lock"] for root in lane.ROOTS
-        },
+        "locks": {lane.LOCK: inputs[lane.LOCK]},
         "binary": lane.elf_metadata(data),
         "buildLoader": {
             "path": "/usr/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1",
@@ -250,7 +248,7 @@ class NativeFixtureTests(unittest.TestCase):
             lane.validate_renderer(old, renderer)
 
     def test_renderer_reuses_app_recipe_and_absolute_deadline(self):
-        self.assertEqual(lane.BUDGET, 2700)
+        self.assertEqual(lane.BUDGET, 5400)
         self.assertEqual(lane.supervisor.LIMITS[-2:], (2100, 300))
         commands = lane._commands("cargo", "rustc")
         self.assertEqual(commands[-2][-4:], ["--bin", "openmates", "--jobs", "2"])
@@ -277,6 +275,7 @@ class NativeFixtureTests(unittest.TestCase):
             scripts.mkdir()
             for name in (
                 "ci_sdk_conformance.py",
+                "ci_sdk_lockfiles.py",
                 "ci_preparation_transport.py",
                 "ci_candidate_artifact.py",
             ):
@@ -937,10 +936,9 @@ print(json.dumps(sorted({str(pathlib.Path(module.__file__).resolve().relative_to
             loader.chmod(0o700)
             before = {}
             for crate in lane.ROOTS:
-                path = root / crate / "Cargo.lock"
-                path.parent.mkdir(parents=True)
-                path.write_bytes(b"fixture-lock")
-                before[crate + "/Cargo.lock"] = lane.sdk.sha(b"fixture-lock")
+                (root / crate).mkdir(parents=True)
+            (root / lane.LOCK).write_bytes(b"fixture-lock")
+            before[lane.LOCK] = lane.sdk.sha(b"fixture-lock")
             for name in (
                 lane.CLI + "/src/bin/tui-benchmark.rs",
                 lane.CLI + "/scripts/benchmark.py",
@@ -961,7 +959,7 @@ print(json.dumps(sorted({str(pathlib.Path(module.__file__).resolve().relative_to
                 "GITHUB_RUN_ID": j["run_id"],
                 "RUNNER_TEMP": str(runner_temp),
                 "CI_NATIVE_DEV_STARTED_MONOTONIC": "10",
-                "CI_NATIVE_DEV_DEADLINE_MONOTONIC": "2710",
+                "CI_NATIVE_DEV_DEADLINE_MONOTONIC": "5410",
             }
             ticket = {"objects": {name: {"put_url": name} for name in lane.OBJECTS}}
             state = {}
@@ -1159,7 +1157,7 @@ print(json.dumps(sorted({str(pathlib.Path(module.__file__).resolve().relative_to
         self.assertEqual(receipt["code"], "compile")
         self.assertFalse(receipt["compileProof"])
         self.assertEqual(uploads, [])
-        self.assertEqual(lane.BUDGET, 2700)
+        self.assertEqual(lane.BUDGET, 5400)
 
     def test_mocked_producer_exports_only_after_uid_and_sandbox_removal(self):
         self.producer_fixture()
@@ -1186,7 +1184,7 @@ print(json.dumps(sorted({str(pathlib.Path(module.__file__).resolve().relative_to
                 "reason": "package_check_refused",
                 "recipeStage": "cli-package-list",
                 "packagePredicate": "unpackaged_compile_input",
-                "sourcePath": lane.CLI + "/Cargo.lock",
+                "sourcePath": lane.LOCK,
             },
         )
         self.assertNotIn("private error", json.dumps(receipt))
