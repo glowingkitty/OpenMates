@@ -650,7 +650,7 @@ async fn run_terminal(args: Args) -> Result<()> {
                     ) {
                         epoch.view = epoch.view.wrapping_add(1);
                     }
-                    if matches!(command, UiCommand::Open(Workspace::Chats, _) | UiCommand::Send { .. }) {
+                    if matches!(command, UiCommand::Open(Workspace::Chats, _) | UiCommand::Refresh(Workspace::Chats) | UiCommand::Send { .. }) {
                         preempt_boot_sync(&boot_sync_preempt);
                     }
                     if matches!(
@@ -2056,6 +2056,24 @@ impl Actor {
                 }),
                 UiCommand::Refresh(workspace) => Box::pin(async move {
                     let _request_cancel = &cancel;
+                    if workspace == Workspace::Chats
+                        && self.client.has_chat_sync_cursor()
+                        && self.client.supports_cached_default_chat_list()
+                    {
+                        // architecture.sync@2: with a feed cursor and no pending or
+                        // uncertain recovery, one feed catch-up over the cached index
+                        // replaces the global recovery discovery and phased sync.
+                        let idle = completion_recovery_adapter::load_pending(&self.client, &self.store)
+                            .await
+                            .is_ok_and(|pending| pending.is_empty());
+                        if idle {
+                            self.client.set_operation_cancel(cancel.clone());
+                            if let Some(items) = self.client.chat_list_from_feed().await? {
+                                self.persist().await?;
+                                return Self::emit(replies, epoch, View::Items(workspace, items)).await;
+                            }
+                        }
+                    }
                     if workspace == Workspace::Chats {
                         self.recover_before_view(replies, epoch, self.live_selected.clone(), true)
                             .await?;
