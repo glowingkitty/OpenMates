@@ -34,6 +34,22 @@ pub(super) struct FeedState {
     due_soon_generated_at: Option<i64>,
 }
 
+/// First feed page started before session admission completes (see `prefetch_chat_sync_feed`).
+pub(super) struct FeedPrefetch {
+    key: (String, String, String, Option<String>),
+    #[cfg(not(target_arch = "wasm32"))]
+    task: Option<tokio::task::JoinHandle<super::transport::SentRead>>,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl Drop for FeedPrefetch {
+    fn drop(&mut self) {
+        if let Some(task) = &self.task {
+            task.abort();
+        }
+    }
+}
+
 /// Cold-start feed facts observed during one phased sync.
 #[derive(Default)]
 pub(super) struct ColdStartCapture {
@@ -206,6 +222,54 @@ impl Client {
         self.team().ok().is_some_and(|team| self.chat_sync_feed.team.as_deref() == team) && self.chat_sync_feed.cursor.is_some()
     }
 
+    fn feed_page_path(&self, cursor: &str) -> Result<String> {
+        let mut path = self.scoped("/v1/chats/changes")?;
+        path.push(if path.contains('?') { '&' } else { '?' });
+        path.push_str(&format!(
+            "cursor={}&limit={PAGE_LIMIT}",
+            url::form_urlencoded::byte_serialize(cursor.as_bytes()).collect::<String>()
+        ));
+        Ok(path)
+    }
+
+    fn prefetch_key(&self, cursor: &str) -> Result<(String, String, String, Option<String>)> {
+        let session = self.require_session()?;
+        Ok((session.session_id.clone(), session.hashed_email.clone(), cursor.to_owned(), self.team()?.map(str::to_owned)))
+    }
+
+    /// Start the first feed page now, concurrently with the command's session
+    /// admission (the two requests overlap their connection setup). The result
+    /// is used only if, once admission has finished, the session, owner, Team
+    /// and cursor are still the ones it was sent for; otherwise it is dropped
+    /// (aborted) and the ordinary request runs. A no-op without a cursor.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn prefetch_chat_sync_feed(&mut self) {
+        self.feed_prefetch = None;
+        let Some(cursor) = self.chat_sync_feed.cursor.clone().filter(|_| self.has_chat_sync_cursor()) else { return };
+        let (Ok(key), Ok(path)) = (self.prefetch_key(&cursor), self.feed_page_path(&cursor)) else { return };
+        let Ok(prepared) = self.prepare_read(Method::GET, &path, None, false) else { return };
+        self.feed_prefetch = Some(FeedPrefetch { key, task: Some(tokio::spawn(prepared.send())) });
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn prefetch_chat_sync_feed(&mut self) {}
+
+    /// The prefetched first page when it still matches this exact context.
+    #[cfg(not(target_arch = "wasm32"))]
+    async fn take_prefetched_page(&mut self, cursor: &str) -> Option<Result<Value>> {
+        let mut prefetch = self.feed_prefetch.take()?;
+        if self.prefetch_key(cursor).ok().as_ref() != Some(&prefetch.key) {
+            return None;
+        }
+        let sent = prefetch.task.take()?.await.ok()?;
+        Some(self.finish_read(sent).await.and_then(|value| value.ok_or(Error::Protocol)))
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    async fn take_prefetched_page(&mut self, _cursor: &str) -> Option<Result<Value>> {
+        None
+    }
+
     /// Replay every committed change after the stored cursor (warm start).
     /// One authenticated HTTPS request per page over the connection the command
     /// already holds (`GET /v1/chats/changes`): no second session validation and
@@ -221,18 +285,19 @@ impl Client {
         let (mut pages, mut changes) = (0usize, 0usize);
         while pages < MAX_PAGES {
             let cursor = self.chat_sync_feed.cursor.clone().ok_or(Error::Protocol)?;
-            let mut path = self.scoped("/v1/chats/changes")?;
-            path.push(if path.contains('?') { '&' } else { '?' });
-            path.push_str(&format!(
-                "cursor={}&limit={PAGE_LIMIT}",
-                url::form_urlencoded::byte_serialize(cursor.as_bytes()).collect::<String>()
-            ));
-            let response = tokio::select! {
-                biased;
-                _ = cancel.cancelled() => return Err(Error::Cancelled),
-                result = crate::platform::time::timeout(PAGE_TIMEOUT, self.request(Method::GET, &path, None)) => {
-                    result.map_err(|_| Error::Offline)?
-                }
+            let path = self.feed_page_path(&cursor)?;
+            let prefetched = if pages == 0 { self.take_prefetched_page(&cursor).await } else { None };
+            let response = match prefetched {
+                // A prefetch that failed for any non-terminal reason is retried normally.
+                Some(Ok(page)) => Ok(page),
+                Some(Err(error @ (Error::Cancelled | Error::Expired))) => Err(error),
+                Some(Err(_)) | None => tokio::select! {
+                    biased;
+                    _ = cancel.cancelled() => return Err(Error::Cancelled),
+                    result = crate::platform::time::timeout(PAGE_TIMEOUT, self.request(Method::GET, &path, None)) => {
+                        result.map_err(|_| Error::Offline)?
+                    }
+                },
             };
             if cancel.is_cancelled() || self.generation != generation || self.team()? != team.as_deref() {
                 return Err(Error::Cancelled);

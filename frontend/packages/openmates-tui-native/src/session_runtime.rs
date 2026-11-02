@@ -246,6 +246,10 @@ pub fn prepare_command_cache_admission(client: &mut Client, invocation: &crate::
     if !preserve {
         client.invalidate_chat_list_freshness();
     }
+    // Overlap the warm list's feed page with the session admission that follows.
+    if same_personal_chat_list_scope(client, invocation) {
+        client.prefetch_chat_sync_feed();
+    }
 }
 
 /// Explicit --personal is scope-equivalent only while the admitted profile is

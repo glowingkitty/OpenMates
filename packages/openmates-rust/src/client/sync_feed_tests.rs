@@ -267,3 +267,44 @@ async fn revoked_team_prunes_only_that_context_and_keeps_the_error() {
     task.abort();
     task2.abort();
 }
+
+// contract-test: direct surface=sdks.rust assertions=sync.overview.ready-fast,sync.delta.cursor-gap-free
+#[tokio::test]
+async fn prefetched_first_page_is_used_once_and_costs_no_second_request() {
+    let page = delta(false, "e1:8|e2:2", json!([{"hashed_chat_id":super::hashed(A),"kinds":["deleted"]}]), Value::Null);
+    let (api, seen, task) = feed_peer(vec![page]).await;
+    let mut client = client_at(&api);
+    client.chats.insert(A.into(), row(A, 1, 10));
+    client.chat_arrival_order = Some(vec![A.into()]);
+    client.chat_sync_feed.cursor = Some("e1:5|e2:1".into());
+    client.prefetch_chat_sync_feed();
+    assert!(client.feed_prefetch.is_some());
+    // The command's own admission would run here; the page is consumed afterwards.
+    let outcome = client.catch_up_chat_sync_feed().await.unwrap();
+    assert_eq!(outcome, FeedCatchUp::Applied { pages: 1, changes: 1 });
+    assert!(client.feed_prefetch.is_none() && !client.chats.contains_key(A));
+    assert_eq!(seen.lock().unwrap().len(), 1, "exactly the prefetched request");
+    task.abort();
+}
+
+// contract-test: direct surface=sdks.rust assertions=sync.delta.scope-revocation
+#[tokio::test]
+async fn prefetch_for_another_cursor_or_owner_is_discarded() {
+    let page = || delta(false, "e1:9|e2:3", json!([]), Value::Null);
+    let (api, seen, task) = feed_peer(vec![page(), page(), page()]).await;
+    let mut client = client_at(&api);
+    client.chat_sync_feed.cursor = Some("e1:5|e2:1".into());
+    client.prefetch_chat_sync_feed();
+    // The cache was replaced (new cursor) before the page was consumed.
+    client.chat_sync_feed.cursor = Some("e1:6|e2:1".into());
+    client.catch_up_chat_sync_feed().await.unwrap();
+    assert!(seen.lock().unwrap().last().unwrap().contains("cursor=e1%3A6%7Ce2%3A1"), "{:?}", seen.lock().unwrap());
+    assert_eq!(client.chat_sync_feed.cursor.as_deref(), Some("e1:9|e2:3"));
+    // A different session owner never consumes it either.
+    client.chat_sync_feed.cursor = Some("e1:9|e2:3".into());
+    client.prefetch_chat_sync_feed();
+    client.session.as_mut().unwrap().hashed_email = "another-owner".into();
+    client.catch_up_chat_sync_feed().await.unwrap();
+    assert!(client.feed_prefetch.is_none());
+    task.abort();
+}
