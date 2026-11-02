@@ -859,16 +859,10 @@ async fn execute_recovering_saved_read(
             client.set_team(Some(team))?;
         }
         client.set_operation_cancel(cancel.clone());
-        // Like TypeScript, a selected `chats show --json`/`--all` read runs the
-        // same correlated global inventory discovery as `chats list`. The SDK
-        // proof exists only for a complete, entirely empty recovery batch; the
-        // selected read then rebinds the list receipt only when it left every
-        // list input unchanged, so the next list can skip its sync. Bounded
-        // viewing pages and Team/Direct profiles keep selected discovery.
-        let request_inventory = invocation.command_path() == "chats list"
-            || (invocation.command_path() == "chats show"
-                && !bounded_human_show(invocation)
-                && client.supports_cached_default_chat_list());
+        // Only `chats list` runs the global inventory discovery. A selected
+        // `chats show` uses targeted discovery and the concurrent open-chat
+        // requests only; a later list syncs again if no fresh receipt remains.
+        let request_inventory = invocation.command_path() == "chats list";
         let (admission, fresh_inventory) = Box::pin(recover_saved_read(
             client,
             plan,

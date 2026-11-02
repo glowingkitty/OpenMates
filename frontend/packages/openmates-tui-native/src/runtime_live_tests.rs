@@ -196,8 +196,25 @@ async fn live_peer_observed_config_with_cache(
                     .unwrap()["type"],
                     "native_client_lifecycle"
                 );
+                // Selected (chat-open) discovery sends no request: it waits for
+                // the startup offers on its authenticated socket.
+                let next = tokio::time::timeout(Duration::from_millis(400), sync.next()).await;
+                let Ok(next) = next else {
+                    for frame in [
+                        json!({"type":"native_client_lifecycle_ack","payload":{"is_foreground":true}}),
+                        json!({"type":"recovery_outputs_discovery_complete","payload":{"status":"completed"}}),
+                        json!({"type":"recovery_jobs_available","payload":{"jobs":[]}}),
+                        json!({"type":"metadata_jobs_available","payload":{"jobs":[]}}),
+                    ] {
+                        sync.send(Frame::Text(frame.to_string().into())).await.unwrap();
+                    }
+                    while let Some(Ok(frame)) = sync.next().await {
+                        if matches!(frame, Frame::Close(_)) { break; }
+                    }
+                    continue;
+                };
                 let mut request: Value =
-                    serde_json::from_str(&sync.next().await.unwrap().unwrap().into_text().unwrap())
+                    serde_json::from_str(&next.unwrap().unwrap().into_text().unwrap())
                         .unwrap();
                 if request["type"] == "set_active_chat" {
                     request = serde_json::from_str(

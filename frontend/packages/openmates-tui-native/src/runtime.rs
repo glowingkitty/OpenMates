@@ -1351,12 +1351,19 @@ impl Actor {
             // service bounded context backlog, so staying on one chat cannot
             // starve every other recoverable chat indefinitely.
             if let Some(id) = selected {
-                total = completion_recovery_adapter::pump_selected_and_global_completion_recovery(
+                // Opening a chat discovers only that chat's recovery work on
+                // its authenticated socket (like `chats show`), never a global
+                // full sync; boot, refresh and live hints keep global recovery.
+                total = completion_recovery_adapter::pump_completion_recovery_for_saved_read(
                     &mut grant,
                     &store,
-                    id,
+                    CompletionRecoveryPumpOptions {
+                        selected_chat: Some(id),
+                        max_attempts: 2,
+                    },
                     &cancel,
                     &mut canonical,
+                    false,
                 )
                 .await?;
             } else {

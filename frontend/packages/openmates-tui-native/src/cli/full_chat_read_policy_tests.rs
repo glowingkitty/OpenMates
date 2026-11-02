@@ -132,14 +132,10 @@ async fn actual_saved_json_preserves_all_rich_fields_and_default_work_for_person
                 need(client.session().is_some_and(|session| session.active_team_id.is_none()))?;
                 let after = peer.get("/__test/status")?;
                 need(after["failure"].is_null())?;
-                // Personal show runs the TypeScript-equivalent single global
-                // inventory sync; Team keeps selected discovery only.
-                if team {
-                    need(after["phase2_inventory_syncs"] == before["phase2_inventory_syncs"])?;
-                    need(after["inventory_syncs"] == before["inventory_syncs"])?;
-                } else {
-                    need(after["inventory_syncs"].as_u64() == before["inventory_syncs"].as_u64().map(|n| n + 1))?;
-                }
+                // Personal and Team shows use targeted discovery only; neither
+                // runs the global inventory sync.
+                need(after["phase2_inventory_syncs"] == before["phase2_inventory_syncs"])?;
+                need(after["inventory_syncs"] == before["inventory_syncs"])?;
                 need(after["structured_detail_reads"].as_u64().unwrap_or(0) >= 1)?;
                 need(after["structured_embed_reads"].as_u64().unwrap_or(0) >= 1)?;
                 let reads = after["structured_window_reads"].as_array().ok_or("actual selected window work")?;

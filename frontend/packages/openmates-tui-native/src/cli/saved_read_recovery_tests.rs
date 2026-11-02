@@ -1705,19 +1705,18 @@ async fn handoff_settled_show_scope(personal: bool) -> R<()> {
         )?;
         let after = peer.get("/__test/status")?;
         need(after["auth_checks"].as_u64() == before["auth_checks"].as_u64().map(|n| n + 1))?;
-        // Like TypeScript, show runs one correlated global inventory sync on
-        // its single recovery socket (no separate selected discovery socket).
-        need(
-            after["inventory_syncs"].as_u64() == before["inventory_syncs"].as_u64().map(|n| n + 1),
-        )?;
+        // A selected show uses targeted discovery and open-chat requests only;
+        // it never runs the global inventory sync.
+        need(after["inventory_syncs"] == before["inventory_syncs"])?;
         need(after["claims"] == before["claims"] && after["persists"] == before["persists"])?;
-        // The complete empty batch plus a list-neutral selected read rebinds
-        // the inventory's receipt, so the next list needs no network sync.
+        // The targeted discovery socket retires the bootstrap list receipt
+        // (every socket bumps the network revision), so the next list syncs
+        // once; show itself never pays for that global sync.
         need(
             client
                 .try_cached_default_chat_list(false)
                 .map_err(|_| "settled show receipt")?
-                .is_some(),
+                .is_none(),
         )?;
         let saved = store
             .load(secret())
@@ -1786,8 +1785,8 @@ async fn handoff_settled_show_scope(personal: bool) -> R<()> {
         )
         .await
         .map_err(|_| "next list fresh admission")?;
-        // Match command_runtime's real saved-read dispatch. The handoff stays
-        // unused because the warm receipt serves this list without a socket.
+        // Match command_runtime's real saved-read dispatch; the list's own
+        // inventory socket consumes the fresh-auth handoff.
         fresh.prepare_recovery().map_err(|_| "next list durable auth handoff")?;
         let listed = execute_with_foreground_recovery(
             &list,
@@ -1803,7 +1802,10 @@ async fn handoff_settled_show_scope(personal: bool) -> R<()> {
             listed_status["auth_checks"].as_u64()
                 == after_who["auth_checks"].as_u64().map(|n| n + 1),
         )?;
-        need(listed_status["inventory_syncs"] == after["inventory_syncs"])?;
+        need(
+            listed_status["inventory_syncs"].as_u64()
+                == after["inventory_syncs"].as_u64().map(|n| n + 1),
+        )?;
         need(
             listed_status["claims"] == after["claims"]
                 && listed_status["persists"] == after["persists"],
@@ -1815,12 +1817,12 @@ async fn handoff_settled_show_scope(personal: bool) -> R<()> {
 }
 
 #[tokio::test]
-async fn settled_show_uses_one_fresh_command_auth_and_one_sync_then_warm_list() -> R<()> {
+async fn settled_show_uses_one_fresh_command_auth_and_no_sync_then_list_syncs_once() -> R<()> {
     handoff_settled_show_scope(false).await
 }
 
 #[tokio::test]
-async fn explicit_personal_settled_show_uses_one_fresh_command_auth_and_one_sync_then_warm_list() -> R<()>
+async fn explicit_personal_settled_show_uses_one_fresh_command_auth_and_no_sync_then_list_syncs_once() -> R<()>
 {
     handoff_settled_show_scope(true).await
 }
@@ -1859,9 +1861,7 @@ async fn show_observing_a_changed_row_keeps_the_next_list_on_its_sync_path() -> 
         .map_err(|error| error.code())?;
         need(output.exit_code == 0 && serde_json::from_str::<Value>(&output.stdout).is_ok())?;
         let after = peer.get("/__test/status")?;
-        need(
-            after["inventory_syncs"].as_u64() == before["inventory_syncs"].as_u64().map(|n| n + 1),
-        )?;
+        need(after["inventory_syncs"] == before["inventory_syncs"])?;
         need(
             client
                 .try_cached_default_chat_list(false)

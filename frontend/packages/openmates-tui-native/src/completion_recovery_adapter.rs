@@ -278,7 +278,7 @@ pub async fn pump_completion_recovery_with_inventory(
 }
 /// CLI saved reads only: selected calls do not warm an unrelated list. Existing
 /// TUI selected-plus-global scheduling retains its global-discovery semantics.
-pub(crate) async fn pump_completion_recovery_for_saved_read(
+pub async fn pump_completion_recovery_for_saved_read(
     client: &mut Client,
     store: &RuntimeStore,
     options: CompletionRecoveryPumpOptions,
