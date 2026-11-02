@@ -114,6 +114,20 @@
     return () => observer.disconnect();
   });
 
+  // Long action lists (chat More menu) scroll instead of running off-screen.
+  let menuMaxHeight = $state<number | null>(null);
+  $effect(() => {
+    if (!open || !menu) { menuMaxHeight = null; return; }
+    const element = menu;
+    const update = () => {
+      const available = window.innerHeight - element.getBoundingClientRect().top - MENU_SHADOW_CLEARANCE * 2;
+      menuMaxHeight = element.scrollHeight > available ? Math.max(120, available) : null;
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  });
+
   function outside(event: PointerEvent) {
     if (open && event.target instanceof Node && !root.contains(event.target))
       open = false;
@@ -123,7 +137,8 @@
       event.target instanceof Element
         ? event.target.closest('button, a')
         : null;
-    if (action && action !== trigger && !action.matches(':disabled')) {
+    // data-keep-menu-open: two-step actions (delete confirmation) stay in the menu.
+    if (action && action !== trigger && !action.matches(':disabled, [data-keep-menu-open]')) {
       open = false;
     }
   }
@@ -210,6 +225,8 @@
           style:visibility={compactMoreOnly && !compactMenuPositioned ? 'hidden' : undefined}
           style:--menu-hover-scale={MENU_HOVER_SCALE}
           style:top={`calc(100% + ${MENU_GAP}px)`}
+          style:max-height={menuMaxHeight !== null ? `${menuMaxHeight}px` : undefined}
+          class:scrollable={menuMaxHeight !== null}
           transition:fly={{
             y: -8,
             duration: window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -294,6 +311,18 @@
     overflow: visible;
     pointer-events: auto;
   }
+  .more-actions.scrollable {
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    flex-wrap: nowrap;
+    /* Room for pill hover scale and shadows inside the scroll clip. */
+    padding: var(--spacing-4) var(--spacing-8) var(--spacing-4) var(--spacing-2);
+    margin-left: calc(-1 * var(--spacing-2));
+  }
+  .more-actions.scrollable > :global(*) {
+    flex-shrink: 0;
+  }
   .header-action-menu :global(.header-action) {
     all: unset;
     display: flex;
@@ -314,6 +343,13 @@
     outline: 2px solid var(--color-primary);
     outline-offset: 4px;
     border-radius: 24px;
+  }
+  .header-action-menu :global(.header-action.danger),
+  .header-action-menu :global(.header-action.danger .action-label) {
+    color: #E80000;
+  }
+  .header-action-menu :global(.header-action.danger .clickable-icon) {
+    background: #E80000;
   }
   .header-action-menu :global(.header-action:disabled) {
     opacity: 0.5;

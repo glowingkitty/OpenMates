@@ -520,7 +520,8 @@
         "example-chat-removals.spec.ts",
         "components/shopping-product-gallery.spec.ts",
         "components/assistant-speech-action.spec.ts",
-        "task-detail-fullscreen.spec.ts"
+        "task-detail-fullscreen.spec.ts",
+        "components/chat-context-menu-preview.spec.ts"
       ],
       "enabling_work": "Run existing public browser/component/source assertions on the built candidate; report product failures rather than holding execution.",
       "execution": "e2e"
@@ -638,7 +639,8 @@
         "rust-core-ordinary-login-retention.spec.ts",
         "authored-results-flow.spec.ts",
         "authored-results-media.spec.ts",
-        "code-run-dependency-flow.spec.ts"
+        "code-run-dependency-flow.spec.ts",
+        "chat-menu-parity.spec.ts"
       ]
     },
     "external_integration": {

@@ -3933,3 +3933,28 @@ embed_sync.review_chat:
   sv: "Granska chatten"
   he: "בדיקת הצ׳אט"
   verified_by_human: []
+
+context_menu.more_options:
+  context: Accessible label for the arrow at the bottom of the chat context menu that scrolls to more actions
+  en: Show more options
+  de: Weitere Optionen anzeigen
+  zh: 显示更多选项
+  es: Mostrar más opciones
+  fr: Afficher plus d'options
+  pt: Mostrar mais opções
+  ru: Показать больше вариантов
+  ja: その他のオプションを表示
+  ko: 옵션 더 보기
+  it: Mostra altre opzioni
+  tr: Daha fazla seçenek göster
+  vi: Hiển thị thêm tùy chọn
+  id: Tampilkan opsi lainnya
+  pl: Pokaż więcej opcji
+  nl: Meer opties tonen
+  ar: عرض المزيد من الخيارات
+  hi: अधिक विकल्प दिखाएं
+  th: แสดงตัวเลือกเพิ่มเติม
+  cs: Zobrazit další možnosti
+  sv: Visa fler alternativ
+  he: הצג אפשרויות נוספות
+  verified_by_human: []

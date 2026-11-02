@@ -16,6 +16,7 @@ scope:
     link.
   - Flat nested Project sidebar navigation in web, Apple and terminal clients.
   - Explicit chat add/move and AI-named grouping actions.
+  - Chat action menus (context menu and open-chat More menu) and their usage ranking.
   excludes:
   - Public shared-chat browsing and unauthenticated intro/example chat navigation.
   - Message send, AI response generation, or title/summary generation semantics.
@@ -182,6 +183,19 @@ assertions:
     operation.
   depends_on:
   - examples.chat_organization
+- id: chat-navigation.menu.parity-ranked
+  type: behavior
+  must: The web chat context menu and the open chat's More menu offer the same chat
+    actions (projects, open in new tab, download, copy, share, hide, pin, read status,
+    delete) with consistent icons and colours; only destructive actions use a distinct
+    tone. The context menu shows the chat summary, a close button and at most five
+    actions at once; further actions scroll inside the menu behind a down-arrow control,
+    and the menu closes only via the close button, Escape or a tap outside. Actions the
+    user picks more often and more recently are listed first, while Delete stays last.
+    Signed-in usage history is stored only inside the client-encrypted account settings;
+    guest usage stays in the current tab.
+  depends_on:
+  - examples.chat_menus
 applies_to:
   rest_api:
     required: false
@@ -218,3 +232,4 @@ examples:
   - nested_projects
   - running_chats
   - chat_organization
+  - chat_menus

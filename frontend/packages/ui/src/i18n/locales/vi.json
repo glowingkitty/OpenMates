@@ -4157,6 +4157,9 @@
       },
       "remember": {
         "text": "Remember"
+      },
+      "more_options": {
+        "text": "Hiển thị thêm tùy chọn"
       }
     },
     "explain_in_new_chat": {

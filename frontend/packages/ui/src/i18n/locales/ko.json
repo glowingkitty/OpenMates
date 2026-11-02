@@ -4157,6 +4157,9 @@
       },
       "remember": {
         "text": "Remember"
+      },
+      "more_options": {
+        "text": "옵션 더 보기"
       }
     },
     "explain_in_new_chat": {

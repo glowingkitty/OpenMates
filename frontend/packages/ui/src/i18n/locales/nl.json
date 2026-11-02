@@ -4157,6 +4157,9 @@
       },
       "remember": {
         "text": "Remember"
+      },
+      "more_options": {
+        "text": "Meer opties tonen"
       }
     },
     "explain_in_new_chat": {

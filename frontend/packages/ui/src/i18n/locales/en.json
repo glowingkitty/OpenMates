@@ -1508,6 +1508,9 @@
         },
         "cancelling": {
           "text": "Stopping code run..."
+        },
+        "automatic_compatible": {
+          "text": "Automatic (compatible)"
         }
       },
       "run_code": {
@@ -5250,6 +5253,9 @@
       },
       "remember": {
         "text": "Remember"
+      },
+      "more_options": {
+        "text": "Show more options"
       }
     },
     "explain_in_new_chat": {

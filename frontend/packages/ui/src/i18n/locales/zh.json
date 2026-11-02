@@ -4157,6 +4157,9 @@
       },
       "remember": {
         "text": "Remember"
+      },
+      "more_options": {
+        "text": "显示更多选项"
       }
     },
     "explain_in_new_chat": {

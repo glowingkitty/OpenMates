@@ -4,7 +4,7 @@
     import type { Chat } from '../../types/chat';
     import { authStore } from '../../stores/authStore'; // Import authStore to check authentication
     import { canShareChat } from '../../services/chatSharing';
-    import { isDemoChat, isLegalChat, isPublicChat } from '../../demo_chats'; // Import chat type checks
+    import { isDemoChat, isLegalChat } from '../../demo_chats'; // Import chat type checks
     import { chatMetadataCache } from '../../services/chatMetadataCache'; // Import chat metadata cache for decrypted summary
     import { chatDB } from '../../services/db'; // Import chatDB for fresh chat reads
     import { activeChatFocusStore } from '../../stores/activeChatFocusStore';
@@ -12,6 +12,8 @@
     import { chatDebugStore } from '../../stores/chatDebugStore'; // Chat debug mode toggle
     import { userProfile } from '../../stores/userProfile';
     import { requestChatProjectPicker } from '../../services/chatProjectService';
+    import { buildChatMenuItems, type ChatMenuItem } from './chatMenuItems';
+    import { chatMenuUsageStore, hydrateChatMenuUsage, rankChatMenuItems, recordChatMenuUsage } from '../../services/chatMenuUsage';
 
     // Props using Svelte 5 $props()
     interface Props {
@@ -49,7 +51,16 @@
         downloading = false
     }: Props = $props();
 
-    type MenuAction = 'close' | 'delete' | 'download' | 'copy' | 'hide' | 'unhide' | 'enterSelectMode' | 'unselect' | 'selectChat' | 'pin' | 'unpin' | 'markUnread' | 'markRead' | 'share' | 'openNewTab' | 'addToProject' | 'moveToProject' | 'createProject';
+    type MenuAction = 'close' | 'delete' | 'download' | 'copy' | 'hide' | 'unhide' | 'enterSelectMode' | 'unselect' | 'selectChat' | 'pin' | 'unpin' | 'markUnread' | 'markRead' | 'share' | 'openNewTab' | 'addToProject' | 'moveToProject' | 'createProject' | 'toggleDebug';
+
+    /** Number of actions visible before the list scrolls. */
+    const VISIBLE_ITEM_COUNT = 5;
+    /** Legacy per-action CSS classes kept for styling hooks and existing tests. */
+    const ACTION_CLASS: Record<string, string> = {
+        addToProject: 'add-to-project', createProject: 'create-project', moveToProject: 'move-to-project',
+        openNewTab: 'open-new-tab', enterSelectMode: 'select', markUnread: 'mark-unread', markRead: 'mark-read',
+        toggleDebug: 'debug',
+    };
 
     const dispatch: {
         (e: MenuAction, detail: string): void;
@@ -69,6 +80,69 @@
     // Check if the current chat is selected
     let isChatSelected = $derived(chat ? selectedChatIds.has(chat.chat_id) : false);
     let shareAllowed = $derived(canShareChat(chat, $authStore.isAuthenticated));
+
+    // Same catalog as the fullscreen chat More menu, ordered by the user's usage.
+    let menuItems = $derived<ChatMenuItem[]>(rankChatMenuItems(buildChatMenuItems({
+        chat,
+        isAuthenticated: $authStore.isAuthenticated,
+        isAdmin: Boolean($userProfile.is_admin),
+        shareAllowed,
+        isUnread,
+        debugActive: $chatDebugStore.rawTextMode,
+        hide: {
+            delete: hideDelete, download: hideDownload, copy: hideCopy, select: hideSelect,
+            share: hideShare, visibility: hideVisibility, pin: hidePin, readStatus: hideReadStatus,
+        },
+    }), $chatMenuUsageStore));
+
+    let scrollElement = $state<HTMLDivElement>();
+    let scrollMaxHeight = $state<number | null>(null);
+    let canScrollDown = $state(false);
+
+    function updateScrollState() {
+        if (!scrollElement) return;
+        canScrollDown = scrollElement.scrollTop + scrollElement.clientHeight < scrollElement.scrollHeight - 4;
+    }
+
+    // Limit the visible list to VISIBLE_ITEM_COUNT actions; the rest scroll.
+    $effect(() => {
+        void menuItems.length;
+        void selectMode;
+        if (!show || !scrollElement) return;
+        const element = scrollElement;
+        tick().then(() => {
+            const buttons = element.querySelectorAll<HTMLElement>(':scope > .menu-item');
+            const lastVisible = buttons[VISIBLE_ITEM_COUNT - 1];
+            scrollMaxHeight = buttons.length > VISIBLE_ITEM_COUNT && lastVisible
+                ? lastVisible.offsetTop + lastVisible.offsetHeight
+                : null;
+            requestAnimationFrame(updateScrollState);
+        });
+    });
+
+    function scrollDown(event: Event) {
+        event.stopPropagation();
+        event.preventDefault();
+        scrollElement?.scrollBy({ top: scrollElement.clientHeight * 0.8, behavior: 'smooth' });
+    }
+
+    function handleCloseButton(event: Event) {
+        event.stopPropagation();
+        event.preventDefault();
+        if (downloading) return;
+        dispatch('close', 'close');
+    }
+
+    function handleKeydown(event: KeyboardEvent) {
+        if (event.key === 'Escape' && show && !downloading) {
+            event.stopPropagation();
+            dispatch('close', 'close');
+        }
+    }
+
+    $effect(() => {
+        if (show) void hydrateChatMenuUsage();
+    });
     
     // State for decrypted chat summary
     let chatSummary = $state<string | null>(null);
@@ -224,7 +298,7 @@
             // First, calculate with estimated dimensions to prevent visual jump
             // Increased estimates to account for potential chat summary, credits, and focus mode sections
             const estimatedWidth = 200;
-            const estimatedHeight = (chatSummary || chatTotalCredits || activeFocusId) ? 240 : 120;
+            const estimatedHeight = (chatSummary || chatTotalCredits || activeFocusId) ? 420 : 320;
             const initial = calculatePosition(estimatedWidth, estimatedHeight);
             adjustedX = initial.newX;
             adjustedY = initial.newY;
@@ -274,6 +348,17 @@
         if (action === 'share' && !canShareChat(chat, $authStore.isAuthenticated)) return;
 
         console.debug('[ChatContextMenu] Menu action triggered:', action, 'Event type:', event.type);
+
+        // Delete only counts once confirmed (second tap).
+        if (!selectMode && (action !== 'delete' || deleteConfirmMode)) {
+            const item = menuItems.find(candidate => candidate.action === action);
+            if (item) recordChatMenuUsage(item.usageId);
+        }
+
+        if (action === 'toggleDebug') {
+            void chatDebugStore.toggle({ chatId: chat?.chat_id }).then(() => dispatch('close', 'close'));
+            return;
+        }
 
         if ((action === 'addToProject' || action === 'moveToProject' || action === 'createProject') && chat) {
             requestChatProjectPicker([chat], action === 'createProject', action === 'moveToProject' ? 'move' : 'add');
@@ -359,16 +444,11 @@
         event.stopPropagation();
     }
 
-    async function handleToggleDebug(event: Event) {
-        event.stopPropagation();
-        event.preventDefault();
-        await chatDebugStore.toggle({ chatId: chat?.chat_id });
-        dispatch('close', 'close');
-    }
-
     // Add scroll handler - don't close while downloading
-    function handleScroll() {
+    function handleScroll(event: Event) {
         if (Date.now() - openedAt < OPENING_EVENT_SETTLE_MS) return;
+        // Scrolling the action list itself must keep the menu open.
+        if (menuElement && event.target instanceof Node && menuElement.contains(event.target)) return;
         if (show && !downloading) {
             dispatch('close', 'close');
         }
@@ -382,8 +462,10 @@
             document.addEventListener('touchstart', handleClickOutside);
         }, 0);
         document.addEventListener('scroll', handleScroll, true);
+        document.addEventListener('keydown', handleKeydown);
 
         return () => {
+            document.removeEventListener('keydown', handleKeydown);
             clearTimeout(outsideListenerTimer);
             document.removeEventListener('mousedown', handleClickOutside);
             document.removeEventListener('touchstart', handleClickOutside);
@@ -436,311 +518,150 @@
         ontouchstart={stopInsideTouch}
         ontouchend={stopInsideTouch}
     >
-        <!-- Active focus mode indicator (shown at top if a focus mode is active) -->
-        {#if activeFocusId && focusAppId && focusDisplayName}
-            <div class="focus-mode-indicator" data-testid="focus-mode-indicator">
-                <div class="focus-mode-icon" style="background: var(--color-app-{focusAppId});"></div>
-                <span class="focus-mode-label" data-testid="focus-mode-label">{focusDisplayName}</span>
-            </div>
-        {/if}
-        
-        <!-- Chat summary section (shown above buttons if available) -->
-        {#if chatSummary || chatTotalCredits !== null}
-            <div class="chat-info-section">
-                {#if chatSummary}
-                    <div class="chat-summary">
-                        {chatSummary}
-                    </div>
-                {/if}
-                {#if chatTotalCredits !== null && chatTotalCredits > 0}
-                    <div class="chat-credits">
-                        <div class="clickable-icon icon_coins"></div>
-                        {formatCredits(chatTotalCredits)} {$text('common.credits')}
-                    </div>
-                {/if}
-            </div>
-        {/if}
-        
-        {#if selectMode}
-            <!-- In select mode: show different options based on whether this chat is selected -->
-            {#if isChatSelected}
-                <!-- Chat is selected: show bulk actions and unselect -->
-                {#if !hideDownload}
+        <div class="menu-header">
+            <!-- Active focus mode indicator (shown at top if a focus mode is active) -->
+            {#if activeFocusId && focusAppId && focusDisplayName}
+                <div class="focus-mode-indicator" data-testid="focus-mode-indicator">
+                    <div class="focus-mode-icon" style="background: var(--color-app-{focusAppId});"></div>
+                    <span class="focus-mode-label" data-testid="focus-mode-label">{focusDisplayName}</span>
+                </div>
+            {/if}
+
+            <!-- Chat summary section (shown above buttons if available) -->
+            {#if chatSummary || (chatTotalCredits !== null && chatTotalCredits > 0)}
+                <div class="chat-info-section">
+                    {#if chatSummary}
+                        <div class="chat-summary">
+                            {chatSummary}
+                        </div>
+                    {/if}
+                    {#if chatTotalCredits !== null && chatTotalCredits > 0}
+                        <div class="chat-credits">
+                            <div class="clickable-icon icon_coins"></div>
+                            {formatCredits(chatTotalCredits)} {$text('common.credits')}
+                        </div>
+                    {/if}
+                </div>
+            {/if}
+
+            <button
+                class="menu-close"
+                data-testid="chat-context-close"
+                aria-label={$text('common.close')}
+                disabled={downloading}
+                onclick={handleCloseButton}
+                ontouchend={handleCloseButton}
+            >
+                <span class="clickable-icon icon_close" aria-hidden="true"></span>
+            </button>
+        </div>
+
+        <div
+            class="menu-scroll"
+            data-testid="chat-context-scroll"
+            bind:this={scrollElement}
+            onscroll={updateScrollState}
+            style:max-height={scrollMaxHeight !== null ? `${scrollMaxHeight}px` : undefined}
+        >
+            {#if selectMode}
+                <!-- In select mode: show different options based on whether this chat is selected -->
+                {#if isChatSelected}
+                    {#if !hideDownload}
+                        <button
+                            class="menu-item download"
+                            class:downloading={downloading}
+                            disabled={downloading}
+                            onclick={(event) => { if (!downloading) handleButtonClick('download', event); }}
+                            ontouchend={(event) => { if (!downloading) handleButtonClick('download', event); }}
+                        >
+                            <div class="clickable-icon icon_download" class:shimmer={downloading}></div>
+                            <span class:shimmer={downloading}>
+                                {downloading ? $text('chats.context_menu.downloading_selected') : $text('chats.context_menu.download_selected')}
+                            </span>
+                        </button>
+                    {/if}
+                    {#if !hideCopy}
+                        <button
+                            class="menu-item copy"
+                            onclick={(event) => handleButtonClick('copy', event)}
+                            ontouchend={(event) => handleButtonClick('copy', event)}
+                        >
+                            <div class="clickable-icon icon_copy"></div>
+                            {$text('chats.context_menu.copy_selected')}
+                        </button>
+                    {/if}
+                    {#if !hideDelete}
+                        <button
+                            class="menu-item delete"
+                            data-testid="chat-context-delete"
+                            onclick={(event) => handleButtonClick('delete', event)}
+                            ontouchend={(event) => handleButtonClick('delete', event)}
+                        >
+                            <div class="clickable-icon icon_delete"></div>
+                            {deleteConfirmMode ? $text('chats.context_menu.confirm') : $text('chats.context_menu.delete_selected')}
+                        </button>
+                    {/if}
                     <button
-                        class="menu-item download"
-                        class:downloading={downloading}
-                        disabled={downloading}
-                        onclick={(event) => { if (!downloading) handleButtonClick('download', event); }}
-                        ontouchend={(event) => { if (!downloading) handleButtonClick('download', event); }}
+                        class="menu-item unselect"
+                        onclick={(event) => handleButtonClick('unselect', event)}
+                        ontouchend={(event) => handleButtonClick('unselect', event)}
                     >
-                        <div class="clickable-icon icon_download" class:shimmer={downloading}></div>
-                        <span class:shimmer={downloading}>
-                            {downloading ? $text('chats.context_menu.downloading_selected') : $text('chats.context_menu.download_selected')}
+                        <div class="clickable-icon icon_close"></div>
+                        {$text('chats.context_menu.unselect')}
+                    </button>
+                {:else}
+                    <button
+                        class="menu-item select"
+                        onclick={(event) => handleButtonClick('selectChat', event)}
+                        ontouchend={(event) => handleButtonClick('selectChat', event)}
+                    >
+                        <div class="clickable-icon icon_select"></div>
+                        {$text('chats.context_menu.select')}
+                    </button>
+                {/if}
+            {:else}
+                {#each menuItems as item (item.action)}
+                    {@const isDownload = item.action === 'download'}
+                    {@const isDisabled = Boolean(item.disabled) || (isDownload && downloading)}
+                    <button
+                        class="menu-item {ACTION_CLASS[item.action] ?? item.action}"
+                        class:danger={item.tone === 'danger'}
+                        class:muted={item.tone === 'muted'}
+                        class:debug-active={item.action === 'toggleDebug' && $chatDebugStore.rawTextMode}
+                        class:disabled={Boolean(item.disabled)}
+                        class:downloading={isDownload && downloading}
+                        data-testid={item.testId}
+                        data-usage-id={item.usageId}
+                        data-tone={item.tone ?? 'default'}
+                        disabled={isDisabled}
+                        onclick={(event) => { if (!isDisabled) handleButtonClick(item.action, event); }}
+                        ontouchend={(event) => { if (!isDisabled) handleButtonClick(item.action, event); }}
+                    >
+                        <div class="clickable-icon {item.icon}" data-testid="chat-context-icon" class:shimmer={isDownload && downloading}></div>
+                        <span class:shimmer={isDownload && downloading}>
+                            {#if isDownload && downloading}
+                                {$text('chats.context_menu.downloading')}
+                            {:else if item.action === 'delete' && deleteConfirmMode}
+                                {$text('chats.context_menu.confirm')}
+                            {:else}
+                                {$text(item.labelKey)}
+                            {/if}
                         </span>
                     </button>
-                {/if}
-
-                {#if !hideCopy}
-                    <button
-                        class="menu-item copy"
-                        onclick={(event) => handleButtonClick('copy', event)}
-                        ontouchend={(event) => handleButtonClick('copy', event)}
-                    >
-                        <div class="clickable-icon icon_copy"></div>
-                        {$text('chats.context_menu.copy_selected')}
-                    </button>
-                {/if}
-
-                {#if !hideDelete}
-                    <button
-                        class="menu-item delete"
-                        data-testid="chat-context-delete"
-                        onclick={(event) => handleButtonClick('delete', event)}
-                        ontouchend={(event) => handleButtonClick('delete', event)}
-                    >
-                        <div class="clickable-icon icon_delete"></div>
-                        {deleteConfirmMode ? $text('chats.context_menu.confirm') : $text('chats.context_menu.delete_selected')}
-                    </button>
-                {/if}
-
-                <button
-                    class="menu-item unselect"
-                    onclick={(event) => handleButtonClick('unselect', event)}
-                    ontouchend={(event) => handleButtonClick('unselect', event)}
-                >
-                    <div class="clickable-icon icon_close"></div>
-                    {$text('chats.context_menu.unselect')}
-                </button>
-            {:else}
-                <!-- Chat is not selected: show only select option -->
-                <button
-                    class="menu-item select"
-                    onclick={(event) => handleButtonClick('selectChat', event)}
-                    ontouchend={(event) => handleButtonClick('selectChat', event)}
-                >
-                    <div class="clickable-icon icon_select"></div>
-                    {$text('chats.context_menu.select')}
-                </button>
+                {/each}
             {/if}
-        {:else}
-            <!-- Not in select mode: show normal menu with option to enter select mode -->
-            {#if $authStore.isAuthenticated && chat && !chat.is_incognito && !chat.is_shared_by_others && !isDemoChat(chat.chat_id) && !isLegalChat(chat.chat_id) && !isPublicChat(chat.chat_id)}
-                <button class="menu-item" data-testid="chat-context-add-to-project" onclick={event => handleButtonClick('addToProject', event)} ontouchend={event => handleButtonClick('addToProject', event)}>
-                    <div class="clickable-icon icon_folder"></div>{$text('chats.projects.add')}
-                </button>
-                <button class="menu-item" data-testid="chat-context-create-project" onclick={event => handleButtonClick('createProject', event)} ontouchend={event => handleButtonClick('createProject', event)}>
-                    <div class="clickable-icon icon_plus"></div>{$text('chats.projects.create')}
-                </button>
-                <button class="menu-item" data-testid="chat-context-move-to-project" onclick={event => handleButtonClick('moveToProject', event)} ontouchend={event => handleButtonClick('moveToProject', event)}>
-                    <div class="clickable-icon icon_folder"></div>{$text('chats.projects.move')}
-                </button>
-            {/if}
+        </div>
+
+        {#if canScrollDown}
             <button
-                class="menu-item open-new-tab"
-                data-testid="chat-context-open-new-tab"
-                onclick={(event) => handleButtonClick('openNewTab', event)}
-                ontouchend={(event) => handleButtonClick('openNewTab', event)}
+                class="scroll-more"
+                data-testid="chat-context-scroll-more"
+                aria-label={$text('chats.context_menu.more_options')}
+                onclick={scrollDown}
+                ontouchend={scrollDown}
             >
-                <div class="clickable-icon icon_chat"></div>
-                {$text('chats.context_menu.open_new_tab')}
+                <span class="scroll-more-triangle" aria-hidden="true"></span>
             </button>
-
-            {#if !hideSelect}
-                <button
-                    class="menu-item select"
-                    onclick={(event) => handleButtonClick('enterSelectMode', event)}
-                    ontouchend={(event) => handleButtonClick('enterSelectMode', event)}
-                >
-                    <div class="clickable-icon icon_select"></div>
-                    {$text('chats.context_menu.select')}
-                </button>
-            {/if}
-
-            {#if !hideDownload}
-                <button
-                    class="menu-item download"
-                    data-testid="chat-context-download"
-                    class:downloading={downloading}
-                    disabled={downloading}
-                    onclick={(event) => { if (!downloading) handleButtonClick('download', event); }}
-                    ontouchend={(event) => { if (!downloading) handleButtonClick('download', event); }}
-                >
-                    <div class="clickable-icon icon_download" class:shimmer={downloading}></div>
-                    <span class:shimmer={downloading}>
-                        {downloading ? $text('chats.context_menu.downloading') : $text('common.download')}
-                    </span>
-                </button>
-            {/if}
-
-            {#if !hideCopy}
-                <button
-                    class="menu-item copy"
-                    onclick={(event) => handleButtonClick('copy', event)}
-                    ontouchend={(event) => handleButtonClick('copy', event)}
-                >
-                    <div class="clickable-icon icon_copy"></div>
-                    {$text('common.copy')}
-                </button>
-            {/if}
-
-            {#if !hideShare && chat && shareAllowed && !isPublicChat(chat.chat_id)}
-                <button
-                    class="menu-item share"
-                    data-testid="chat-context-share"
-                    onclick={(event) => {
-                        if (shareAllowed) {
-                            handleButtonClick('share', event);
-                        }
-                    }}
-                    ontouchend={(event) => {
-                        if (shareAllowed) {
-                            handleButtonClick('share', event);
-                        }
-                    }}
-                >
-                    <div class="clickable-icon icon_share"></div>
-                    {$text('common.share')}
-                </button>
-            {/if}
-
-            {#if !hideVisibility && chat && !chat.is_incognito && !chat.is_hidden && !isPublicChat(chat.chat_id)}
-                <button
-                    class="menu-item hide"
-                    data-testid="chat-context-hide"
-                    class:disabled={!$authStore.isAuthenticated}
-                    disabled={!$authStore.isAuthenticated}
-                    onclick={(event) => {
-                        if ($authStore.isAuthenticated) {
-                            handleButtonClick('hide', event);
-                        }
-                    }}
-                    ontouchend={(event) => {
-                        if ($authStore.isAuthenticated) {
-                            handleButtonClick('hide', event);
-                        }
-                    }}
-                >
-                    <div class="clickable-icon icon_hidden"></div>
-                    {$text('chats.context_menu.hide')}
-                </button>
-            {/if}
-
-            {#if !hideVisibility && chat && chat.is_hidden}
-                <button
-                    class="menu-item unhide"
-                    data-testid="chat-context-unhide"
-                    class:disabled={!$authStore.isAuthenticated}
-                    disabled={!$authStore.isAuthenticated}
-                    onclick={(event) => {
-                        if ($authStore.isAuthenticated) {
-                            handleButtonClick('unhide', event);
-                        }
-                    }}
-                    ontouchend={(event) => {
-                        if ($authStore.isAuthenticated) {
-                            handleButtonClick('unhide', event);
-                        }
-                    }}
-                >
-                    <div class="clickable-icon icon_unhide"></div>
-                    {$text('chats.context_menu.unhide')}
-                </button>
-            {/if}
-
-            {#if !hidePin && chat && !chat.is_incognito && !isPublicChat(chat.chat_id)}
-                {#if chat.pinned}
-                    <button
-                        class="menu-item unpin"
-                        data-testid="chat-context-unpin"
-                        class:disabled={!$authStore.isAuthenticated}
-                        disabled={!$authStore.isAuthenticated}
-                        onclick={(event) => {
-                            if ($authStore.isAuthenticated) {
-                                handleButtonClick('unpin', event);
-                            }
-                        }}
-                        ontouchend={(event) => {
-                            if ($authStore.isAuthenticated) {
-                                handleButtonClick('unpin', event);
-                            }
-                        }}
-                    >
-                        <div class="clickable-icon icon_pin_off"></div>
-                        {$text('chats.context_menu.unpin')}
-                    </button>
-                {:else}
-                    <button
-                        class="menu-item pin"
-                        data-testid="chat-context-pin"
-                        class:disabled={!$authStore.isAuthenticated}
-                        disabled={!$authStore.isAuthenticated}
-                        onclick={(event) => {
-                            if ($authStore.isAuthenticated) {
-                                handleButtonClick('pin', event);
-                            }
-                        }}
-                        ontouchend={(event) => {
-                            if ($authStore.isAuthenticated) {
-                                handleButtonClick('pin', event);
-                            }
-                        }}
-                    >
-                        <div class="clickable-icon icon_pin"></div>
-                        {$text('chats.context_menu.pin')}
-                    </button>
-                {/if}
-            {/if}
-
-            {#if !hideReadStatus && chat && !chat.is_incognito && !isPublicChat(chat.chat_id)}
-                {#if isUnread}
-                    <button
-                        class="menu-item mark-read"
-                        data-testid="chat-context-mark-read"
-                        onclick={(event) => handleButtonClick('markRead', event)}
-                        ontouchend={(event) => handleButtonClick('markRead', event)}
-                    >
-                        <div class="clickable-icon icon_mail"></div>
-                        {$text('chats.context_menu.mark_read')}
-                    </button>
-                {:else}
-                    <button
-                        class="menu-item mark-unread"
-                        data-testid="chat-context-mark-unread"
-                        onclick={(event) => handleButtonClick('markUnread', event)}
-                        ontouchend={(event) => handleButtonClick('markUnread', event)}
-                    >
-                        <div class="clickable-icon icon_mail"></div>
-                        {$text('chats.context_menu.mark_unread')}
-                    </button>
-                {/if}
-            {/if}
-
-            {#if !hideDelete && !(chat && (isDemoChat(chat.chat_id) || isLegalChat(chat.chat_id)) && !$authStore.isAuthenticated)}
-                <button
-                    class="menu-item delete"
-                    data-testid="chat-context-delete"
-                    onclick={(event) => handleButtonClick('delete', event)}
-                    ontouchend={(event) => handleButtonClick('delete', event)}
-                >
-                    <div class="clickable-icon icon_delete"></div>
-                    {deleteConfirmMode ? $text('chats.context_menu.confirm') : $text('common.delete')}
-                </button>
-            {/if}
-
-            {#if $userProfile.is_admin}
-                <!-- Debug mode toggle: admin only -->
-                <div class="menu-separator"></div>
-                <button
-                    data-testid="context-menu-toggle-debug"
-                    class="menu-item debug"
-                    class:debug-active={$chatDebugStore.rawTextMode}
-                    onclick={handleToggleDebug}
-                    ontouchend={handleToggleDebug}
-                >
-                    <div class="clickable-icon icon_bug"></div>
-                    {$chatDebugStore.rawTextMode ? $text('chats.context_menu.end_debugging') : $text('chats.context_menu.start_debugging')}
-                </button>
-            {/if}
         {/if}
     </div>
 {/if}
@@ -759,8 +680,84 @@
         opacity: 0;
         pointer-events: none;
         transition: opacity var(--duration-normal) var(--easing-in-out);
-        min-width: 120px;
+        min-width: 200px;
         max-width: min(280px, calc(100vw - 32px)); /* Constrain width for readability and mobile */
+        max-height: calc(100dvh - 20px);
+        display: flex;
+        flex-direction: column;
+        box-sizing: border-box;
+    }
+
+    /* Header: focus mode, summary, credits and the close button (top right). */
+    .menu-header {
+        position: relative;
+        flex-shrink: 0;
+        min-height: 36px;
+    }
+
+    .menu-close {
+        all: unset;
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-full);
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .menu-close:hover,
+    .menu-close:focus-visible {
+        background-color: var(--color-grey-20);
+    }
+
+    .menu-close .clickable-icon {
+        width: 14px;
+        height: 14px;
+        background: var(--color-grey-60);
+    }
+
+    /* Scrollable action list; max-height is set inline to fit 5 actions. */
+    .menu-scroll {
+        position: relative;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        min-height: 0;
+        flex: 0 1 auto;
+        scrollbar-width: thin;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Down-pointing triangle that scrolls to the remaining actions. */
+    .scroll-more {
+        all: unset;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 24px;
+        margin-top: var(--spacing-2);
+        border-radius: var(--radius-5);
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .scroll-more:hover,
+    .scroll-more:focus-visible {
+        background-color: var(--color-grey-20);
+    }
+
+    .scroll-more-triangle {
+        width: 0;
+        height: 0;
+        border-left: 7px solid transparent;
+        border-right: 7px solid transparent;
+        border-top: 8px solid var(--color-primary-start);
     }
     
     /* Active focus mode indicator at the top of the context menu */
@@ -768,7 +765,7 @@
         display: flex;
         align-items: center;
         gap: var(--spacing-4);
-        padding: var(--spacing-5) var(--spacing-8) var(--spacing-4);
+        padding: var(--spacing-5) 40px var(--spacing-4) var(--spacing-8);
         border-bottom: 1px solid var(--color-grey-30);
         margin-bottom: var(--spacing-2);
     }
@@ -798,7 +795,7 @@
     
     /* Chat summary displayed above the action buttons */
     .chat-summary {
-        padding: var(--spacing-6) var(--spacing-8) var(--spacing-0);
+        padding: var(--spacing-6) 40px var(--spacing-0) var(--spacing-8);
         color: var(--color-grey-70);
         font-size: var(--font-size-xs);
         line-height: 1.4;
@@ -879,6 +876,7 @@
         transition: background-color var(--duration-normal) var(--easing-default);
         width: 100%;
         box-sizing: border-box;
+        color: var(--color-font-primary);
         /* iOS-specific touch improvements */
         -webkit-tap-highlight-color: transparent;
         -webkit-touch-callout: none;
@@ -899,53 +897,19 @@
         transform: scale(0.98);
     }
 
+    /* All actions share the font colour + gradient icon; only destructive
+       and admin-debug actions use a distinct tone. */
+    .menu-item.danger,
     .menu-item.delete {
         color: #E80000;
     }
 
+    .menu-item.danger .clickable-icon,
     .menu-item.delete .clickable-icon {
         background: #E80000;
     }
 
-    .menu-item.select {
-        color: var(--color-primary-start);
-    }
-
-    .menu-item.select .clickable-icon {
-        background: var(--color-primary);
-    }
-
-    .menu-item.unselect {
-        color: var(--color-grey-60);
-    }
-
     .menu-item.unselect .clickable-icon {
-        background: var(--color-grey-60);
-    }
-
-    .menu-item.share {
-        color: var(--color-primary-start);
-    }
-
-    .menu-item.share .clickable-icon {
-        background: var(--color-primary);
-    }
-
-    /* Hide and unhide buttons use default text and icon colors for better visibility */
-
-    .menu-item.pin {
-        color: var(--color-primary-start);
-    }
-
-    .menu-item.pin .clickable-icon {
-        background: var(--color-primary);
-    }
-
-    .menu-item.unpin {
-        color: var(--color-grey-60);
-    }
-
-    .menu-item.unpin .clickable-icon {
         background: var(--color-grey-60);
     }
 
@@ -983,20 +947,16 @@
         transform: none;
     }
 
-    /* Debug mode button */
-    .menu-item.debug {
+    /* Debug mode button (admin only) */
+    .menu-item.muted {
         color: var(--color-font-secondary);
     }
 
-    .menu-item.debug .clickable-icon {
-        background: var(--color-font-secondary);
-    }
-
-    .menu-item.debug.debug-active {
+    .menu-item.debug-active {
         color: var(--color-warning, #e67e22);
     }
 
-    .menu-item.debug.debug-active .clickable-icon {
+    .menu-item.debug-active .clickable-icon {
         background: var(--color-warning, #e67e22);
     }
 

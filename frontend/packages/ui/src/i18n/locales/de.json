@@ -1492,6 +1492,9 @@
         },
         "cancelling": {
           "text": "Code-Ausführung wird gestoppt..."
+        },
+        "automatic_compatible": {
+          "text": "Automatisch (kompatibel)"
         }
       },
       "run_code": {
@@ -5205,6 +5208,9 @@
       },
       "remember": {
         "text": "Erinnern"
+      },
+      "more_options": {
+        "text": "Weitere Optionen anzeigen"
       }
     },
     "explain_in_new_chat": {

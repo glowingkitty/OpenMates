@@ -4157,6 +4157,9 @@
       },
       "remember": {
         "text": "Remember"
+      },
+      "more_options": {
+        "text": "הצג אפשרויות נוספות"
       }
     },
     "explain_in_new_chat": {
