@@ -363,7 +363,12 @@ pub async fn run(args: Args) -> Result<()> {
 async fn run_terminal(args: Args) -> Result<()> {
     let _guard = TerminalGuard::enter()?;
     let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
-    terminal.clear()?;
+    // Clear the fresh alternate screen directly. ratatui's `Terminal::clear`
+    // first asks the terminal for the cursor position (DSR), which adds a
+    // round trip before the first frame and fails startup after crossterm's
+    // 2 s timeout on terminals that never answer it. The new Terminal's empty
+    // back buffer already forces a complete first draw.
+    execute!(terminal.backend_mut(), terminal::Clear(terminal::ClearType::All))?;
     let mut ui = if args.demo {
         Ui::demo(20, 25)
     } else {
