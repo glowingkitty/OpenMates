@@ -725,6 +725,10 @@ impl Ui {
             self.hits.clear();
         }
     }
+    /// The chat whose turn is still running (TS `runningTuiChatGroups`).
+    fn running_chat_id(&self) -> Option<String> {
+        self.active_turn.as_ref().filter(|_| self.streaming).map(|turn| turn.chat_id.clone())
+    }
     fn visible_chat_streaming(&self) -> bool {
         self.streaming && self.active_turn.as_ref().is_some_and(|turn| {
             self.chat.as_ref().is_some_and(|chat| chat.id == turn.chat_id)
@@ -1994,6 +1998,10 @@ impl Ui {
             "/logout" => vec![UiCommand::Logout],
             "/sidebar" => self.activate(HitAction::Sidebar),
             "/new" => self.activate(HitAction::NewChat),
+            "/active" => match self.running_chat_id() {
+                Some(id) => vec![UiCommand::Open(Workspace::Chats, id)],
+                None => vec![],
+            },
             "/help" => {
                 self.form = Some(Form::new("Keyboard shortcuts", FormPurpose::Help, vec![]));
                 vec![]
@@ -3367,6 +3375,14 @@ impl Ui {
                         .style(Style::default().fg(MUTED)),
                     Rect::new(area.x, area.y + 13, area.width, 1),
                 );
+                if self.running_chat_id().is_some() && area.height > 16 {
+                    frame.render_widget(
+                        Paragraph::new("1 chat active…  /active")
+                            .alignment(ratatui::layout::Alignment::Center)
+                            .style(Style::default().fg(MUTED)),
+                        Rect::new(area.x, area.y + 15, area.width, 1),
+                    );
+                }
             }
         }
     }

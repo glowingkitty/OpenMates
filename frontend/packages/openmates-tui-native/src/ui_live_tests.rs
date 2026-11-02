@@ -167,3 +167,13 @@ fn personal_chat_access_denial_hides_only_that_chat_without_signing_out_owner() 
             .any(|row| row.id == "b")
     );
 }
+
+#[test]
+fn running_turn_is_reachable_through_the_active_pointer() {
+    let mut ui = Ui::new();
+    assert!(ui.running_chat_id().is_none());
+    ui.active_turn = Some(ActiveTurn { chat_id: "a".into(), user_id: "u".into(), assistant: None, expects_reply: true });
+    assert!(ui.running_chat_id().is_none());
+    ui.streaming = true;
+    assert_eq!(ui.running_chat_id().as_deref(), Some("a"));
+}
