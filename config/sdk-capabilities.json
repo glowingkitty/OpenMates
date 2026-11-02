@@ -358,6 +358,20 @@
             "account.AccountRead.UsageOverview",
             "account.AccountRead.UsageSummaries",
             "account.INTEREST_TAG_IDS",
+            "account.billing.Account.bank_transfer_status",
+            "account.billing.Account.create_bank_transfer_order",
+            "account.billing.Account.buyer_address",
+            "account.billing.Account.create_gift_card_bank_transfer_order",
+            "account.billing.Account.gift_card_purchase_status",
+            "account.billing.Account.purchased_gift_cards",
+            "account.billing.Account.request_refund",
+            "account.billing.Account.save_buyer_address",
+            "account.billing.Account.set_low_balance_auto_topup",
+            "account.billing.validate_buyer_address",
+            "account.connected_accounts.Account.import_connected_account",
+            "account.connected_accounts.decrypt_connected_account_transfer",
+            "account.connected_accounts.revolut_business_consent_url",
+            "account.connected_accounts.revolut_business_token_url",
             "account.ideabucket.Account.add_ideabucket_text",
             "account.ideabucket.Account.ideabucket_settings",
             "account.ideabucket.Account.ideabucket_status",
@@ -688,7 +702,8 @@
           ],
           "gaps": [
             "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
-            "Additive Cookie SessionClient temporary direct-skill source and18 shared peer vectors are authored; actual Rust/NAPI/PyO3 compilation/execution is UNRUN. Existing foreign API-key implementations remain maintained, not replaced; their raw failed-task diagnostics and single-array/pending-failed polling differences remain open. Mutable polling concurrency, durable task recovery, complete app/schema/provider/platform/performance parity remain unverified."
+            "Additive Cookie SessionClient temporary direct-skill source and18 shared peer vectors are authored; actual Rust/NAPI/PyO3 compilation/execution is UNRUN. Existing foreign API-key implementations remain maintained, not replaced; their raw failed-task diagnostics and single-array/pending-failed polling differences remain open. Mutable polling concurrency, durable task recovery, complete app/schema/provider/platform/performance parity remain unverified.",
+            "Accepted difference (owner rotation): the client refuses with 'cancelled' and sends no billable request when the owner change is observed at the command's own admission (cookie-owner_rotation). A change between admission and the billable POST inside the same command is not re-checked client-side, because the core reuses that command's fresh session validation for its HTTP requests; the server authorizes and bills every request against the session that sent it. The TypeScript SDK performs no pre-POST validation, so this is not weaker than the original."
           ],
           "status": "partial"
         },
@@ -802,7 +817,8 @@
           ],
           "gaps": [
             "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
-            "Additive Cookie SessionClient temporary direct-skill source and18 shared peer vectors are authored; actual Rust/NAPI/PyO3 compilation/execution is UNRUN. Existing foreign API-key implementations remain maintained, not replaced; their raw failed-task diagnostics and single-array/pending-failed polling differences remain open. Mutable polling concurrency, durable task recovery, complete app/schema/provider/platform/performance parity remain unverified."
+            "Additive Cookie SessionClient temporary direct-skill source and18 shared peer vectors are authored; actual Rust/NAPI/PyO3 compilation/execution is UNRUN. Existing foreign API-key implementations remain maintained, not replaced; their raw failed-task diagnostics and single-array/pending-failed polling differences remain open. Mutable polling concurrency, durable task recovery, complete app/schema/provider/platform/performance parity remain unverified.",
+            "Accepted difference (owner rotation): the client refuses with 'cancelled' and sends no billable request when the owner change is observed at the command's own admission (cookie-owner_rotation). A change between admission and the billable POST inside the same command is not re-checked client-side, because the core reuses that command's fresh session validation for its HTTP requests; the server authorizes and bills every request against the session that sent it. The TypeScript SDK performs no pre-POST validation, so this is not weaker than the original."
           ],
           "status": "partial"
         },
@@ -961,7 +977,8 @@
           "gaps": [
             "Native public APIs exist, but complete cross-language behavioral conformance is not established for this family.",
             "Personal Cookie direct execution and generated-file streaming source added; new shared direct-result/retention vectors and real Rust/npm/Python execution remain unverified. No release/conformance claim.",
-            "Additive Cookie SessionClient temporary direct-skill source and18 shared peer vectors are authored; actual Rust/NAPI/PyO3 compilation/execution is UNRUN. Existing foreign API-key implementations remain maintained, not replaced; their raw failed-task diagnostics and single-array/pending-failed polling differences remain open. Mutable polling concurrency, durable task recovery, complete app/schema/provider/platform/performance parity remain unverified."
+            "Additive Cookie SessionClient temporary direct-skill source and18 shared peer vectors are authored; actual Rust/NAPI/PyO3 compilation/execution is UNRUN. Existing foreign API-key implementations remain maintained, not replaced; their raw failed-task diagnostics and single-array/pending-failed polling differences remain open. Mutable polling concurrency, durable task recovery, complete app/schema/provider/platform/performance parity remain unverified.",
+            "Accepted difference (owner rotation): the client refuses with 'cancelled' and sends no billable request when the owner change is observed at the command's own admission (cookie-owner_rotation). A change between admission and the billable POST inside the same command is not re-checked client-side, because the core reuses that command's fresh session validation for its HTTP requests; the server authorizes and bills every request against the session that sent it. The TypeScript SDK performs no pre-POST validation, so this is not weaker than the original."
           ],
           "status": "partial"
         }
@@ -1262,7 +1279,8 @@
             "OpenMates",
             "RustApiKeyClient",
             "RustApiKeyClient.cancel",
-            "RustApiKeyClient.close"
+            "RustApiKeyClient.close",
+            "SDK_CLI_SESSION_DEPRECATION_CODE"
           ],
           "conformance": true,
           "evidence": [
@@ -1271,7 +1289,7 @@
           ],
           "gaps": [
             "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
-            "Root credential policy v1 is not met by npm: the root `OpenMatesClient` export still loads the stored CLI session from disk; removing that discovery is a pending, versioned breaking change. The `OpenMates` API-key client and `openmates/sdk/v1` never read CLI state."
+            "Root credential policy v1 is not met by npm: the root `OpenMatesClient` export still loads the stored CLI session from disk. Since 0.29.x it emits one DeprecationWarning (SDK_CLI_SESSION_DEPRECATION_CODE = OPENMATES_SDK_CLI_SESSION); removal is a pending, versioned breaking change awaiting approval. The `OpenMates` API-key client and `openmates/sdk/v1` never read CLI state."
           ],
           "status": "partial"
         },
@@ -4267,7 +4285,8 @@
             "Owning-Worker selected browser metadata/message/retained-view/monitor operations remain source-held required partial pending independent core semantic review: preserve original admitted profile/master resource, owner/key/request/private-denial/epoch fences across all awaits, same-store physical readback, exact terminal drain and original final publication. Equivalent direct Rust/npm/Python functional IO adapters and genuine shared executable conformance remain missing or unverified; matching helper/type names are not required and no native Session/key substitution is admitted. The38 merge-policy and8 header cases are pure-policy inputs, not real SDK/WASM/browser execution or new plan authority. Full continuous sync/recovery, absence/tombstone/draft reconciliation, cold/context integration, actual Rust/WASM/Worker/IndexedDB/socket/scheduler/owner/revocation behavior, package/Linux/Mac and matched TS CPU/end-to-end/RAM/size remain incomplete or UNRUN. Cached/retained output grants no canonical incoming-window durability, native ACK, cross-database proof, complete history/inventory or recovery authority; no activation, parity/performance or release waiver follows this source registration.",
             "Reviewed inactive continuous selected-cache and local transaction observer source remains required partial. One Rust application writer per updated context is the boundary; other authorized tabs remain ordinary concurrent clients, with no global exclusion or new backend fencing protocol. Preserve original admitted Rust profile/master resource, owner/key/request/private-denial/epoch fences, exact terminal/readback receipts, original sealed publication and stale-monitor isolation. The observer tracks only identified chats/messages readwrite creation sites in one JavaScript realm and IDBDatabase connection; unknown existing transactions cannot be adopted. It grants no Rust/session authority or full producer/send/recovery/debounce/draft/optimistic/remote handoff. Future facade and genuine coverage packets are excluded. Matching explicit-credential direct Rust/npm/Python functional IO adapters and shared executable conformance, compiled Rust/WASM/Worker/IndexedDB/real transport, Team/Direct/expiry/account switch/cold restart/reconnect, tombstones/absence/full nonselected content/cold headers/inventory/history/foreground recovery and matched CPU/end-to-end/RAM/size/platform proof remain required or UNRUN. Source registration and pure checks grant no activation, runtime, durability, performance, complete sync or release acceptance.",
             "Reviewed serialized saved-send cancellation security source preserves original admitted root/key/owner/denial/policy and opaque final allocation guards. Global cancel targets current work/output; identity/root retirement remains distinct, including malformed replacement entry. Only after actual original driver drain may terminal continuation validate the genuine unchanged parent; old A output still refuses, with no replay or inferred remote cancellation/settlement. Existing10 work vectors remain exact prefix of23 authored vectors on the same Rust/npm/Python adapters; actual compiled23x3 execution and strict original-task cancel_ai_task notification race remain required UNRUN. Uncertain original admission remains bounded wiping memory with100/32MiB backpressure, not canonical encrypted durable journal/reload/settlement. Owned-driver V3/sibling scopes, actual B read/store/readback/publication while A held, writer/producer handoff and matched CPU/end-to-end/RAM/platform evidence remain separate required work. Browser facade/scheduler stays inactive; ordinary authorized tabs remain peers. Pure decode extraction grants no new API/IO/permission. This serialized baseline is no B-progress/durability/performance/release acceptance.",
-            "Rust-only: @mention parsing/resolution (mentions.*, Client.resolve_mentions) is not yet exposed by the npm/Python SessionClient."
+            "Rust-only: @mention parsing/resolution (mentions.*, Client.resolve_mentions) is not yet exposed by the npm/Python SessionClient.",
+            "Rust-only: sectioned encrypted cache snapshots and lazy cached-content restore (client.snapshot_sections, CachedContentLoader, restore_cached_chat_content, partially_restored_chats) back the native CLI/TUI cache-first open; the npm/Python SessionClient have no persistent cache API yet."
           ],
           "status": "partial"
         },
@@ -4309,7 +4328,8 @@
             "Owning-Worker selected browser metadata/message/retained-view/monitor operations remain source-held required partial pending independent core semantic review: preserve original admitted profile/master resource, owner/key/request/private-denial/epoch fences across all awaits, same-store physical readback, exact terminal drain and original final publication. Equivalent direct Rust/npm/Python functional IO adapters and genuine shared executable conformance remain missing or unverified; matching helper/type names are not required and no native Session/key substitution is admitted. The38 merge-policy and8 header cases are pure-policy inputs, not real SDK/WASM/browser execution or new plan authority. Full continuous sync/recovery, absence/tombstone/draft reconciliation, cold/context integration, actual Rust/WASM/Worker/IndexedDB/socket/scheduler/owner/revocation behavior, package/Linux/Mac and matched TS CPU/end-to-end/RAM/size remain incomplete or UNRUN. Cached/retained output grants no canonical incoming-window durability, native ACK, cross-database proof, complete history/inventory or recovery authority; no activation, parity/performance or release waiver follows this source registration.",
             "Reviewed inactive continuous selected-cache and local transaction observer source remains required partial. One Rust application writer per updated context is the boundary; other authorized tabs remain ordinary concurrent clients, with no global exclusion or new backend fencing protocol. Preserve original admitted Rust profile/master resource, owner/key/request/private-denial/epoch fences, exact terminal/readback receipts, original sealed publication and stale-monitor isolation. The observer tracks only identified chats/messages readwrite creation sites in one JavaScript realm and IDBDatabase connection; unknown existing transactions cannot be adopted. It grants no Rust/session authority or full producer/send/recovery/debounce/draft/optimistic/remote handoff. Future facade and genuine coverage packets are excluded. Matching explicit-credential direct Rust/npm/Python functional IO adapters and shared executable conformance, compiled Rust/WASM/Worker/IndexedDB/real transport, Team/Direct/expiry/account switch/cold restart/reconnect, tombstones/absence/full nonselected content/cold headers/inventory/history/foreground recovery and matched CPU/end-to-end/RAM/size/platform proof remain required or UNRUN. Source registration and pure checks grant no activation, runtime, durability, performance, complete sync or release acceptance.",
             "Reviewed serialized saved-send cancellation security source preserves original admitted root/key/owner/denial/policy and opaque final allocation guards. Global cancel targets current work/output; identity/root retirement remains distinct, including malformed replacement entry. Only after actual original driver drain may terminal continuation validate the genuine unchanged parent; old A output still refuses, with no replay or inferred remote cancellation/settlement. Existing10 work vectors remain exact prefix of23 authored vectors on the same Rust/npm/Python adapters; actual compiled23x3 execution and strict original-task cancel_ai_task notification race remain required UNRUN. Uncertain original admission remains bounded wiping memory with100/32MiB backpressure, not canonical encrypted durable journal/reload/settlement. Owned-driver V3/sibling scopes, actual B read/store/readback/publication while A held, writer/producer handoff and matched CPU/end-to-end/RAM/platform evidence remain separate required work. Browser facade/scheduler stays inactive; ordinary authorized tabs remain peers. Pure decode extraction grants no new API/IO/permission. This serialized baseline is no B-progress/durability/performance/release acceptance.",
-            "Rust-only: @mention parsing/resolution (mentions.*, Client.resolve_mentions) is not yet exposed by the npm/Python SessionClient."
+            "Rust-only: @mention parsing/resolution (mentions.*, Client.resolve_mentions) is not yet exposed by the npm/Python SessionClient.",
+            "Rust-only: sectioned encrypted cache snapshots and lazy cached-content restore (client.snapshot_sections, CachedContentLoader, restore_cached_chat_content, partially_restored_chats) back the native CLI/TUI cache-first open; the npm/Python SessionClient have no persistent cache API yet."
           ],
           "status": "partial"
         },
@@ -4363,9 +4383,12 @@
             "client.Client.clear_draft",
             "client.Client.clone_session",
             "client.Client.commit_browser_chat_monitor_metadata",
+            "client.Client.confirm_backup_codes_stored",
+            "client.Client.create_and_confirm_recovery_key",
             "client.Client.credential_snapshot",
             "client.Client.detail",
             "client.Client.download",
+            "client.Client.ensure_cached_content_loaded",
             "client.Client.finish_browser_credential_cas",
             "client.Client.finish_browser_credential_cas_async",
             "client.Client.finish_owned_saved_send",
@@ -4380,6 +4403,7 @@
             "client.Client.open_chat",
             "client.Client.open_chat_with_fresh_chat_inventory",
             "client.Client.options",
+            "client.Client.partially_restored_chats",
             "client.Client.poll_pair",
             "client.Client.prepare_browser_cold_retained_saved_chat_with_io",
             "client.Client.prepare_browser_credential_cas",
@@ -4397,10 +4421,14 @@
             "client.Client.prepare_validated_owned_saved_send",
             "client.Client.prepare_validated_scoped_saved_send",
             "client.Client.refresh_browser_chat_monitor_metadata",
+            "client.Client.request_backup_codes",
+            "client.Client.request_signup_email_code",
             "client.Client.reset",
             "client.Client.resolve_mentions",
+            "client.Client.restore_authenticated_ciphertext_index",
             "client.Client.restore_authenticated_ciphertext_snapshot",
             "client.Client.restore_browser_draft_with_io_json",
+            "client.Client.restore_cached_chat_content",
             "client.Client.restore_ciphertext_snapshot",
             "client.Client.run_prepared_saved_send",
             "client.Client.save_draft",
@@ -4420,9 +4448,12 @@
             "client.Client.set_privacy_options",
             "client.Client.set_private_operation_gate",
             "client.Client.set_team",
+            "client.Client.set_totp_provider",
+            "client.Client.setup_password_account",
             "client.Client.share_chat",
             "client.Client.start_monitor",
             "client.Client.start_owned_saved_send",
+            "client.Client.start_totp_setup",
             "client.Client.submit_pair_pin",
             "client.Client.supports_cached_default_chat_list",
             "client.Client.take_scoped_saved_send_terminal",
@@ -4435,6 +4466,8 @@
             "client.Client.validate_browser_credential_snapshot_async",
             "client.Client.validate_session",
             "client.Client.validate_session_for_recovery",
+            "client.Client.verify_signup_email_code",
+            "client.Client.verify_totp_setup",
             "client.Client.with_options",
             "client.ClientOptions",
             "client.ClientOptions.app_url",
@@ -4481,15 +4514,6 @@
             "client.SavedSendRecoveryIdentity.turn_id",
             "client.SavedSendTerminal",
             "client.SavedSendTerminal.outcome",
-            "client.auth.signup.Client.confirm_backup_codes_stored",
-            "client.auth.signup.Client.create_and_confirm_recovery_key",
-            "client.auth.signup.Client.request_backup_codes",
-            "client.auth.signup.Client.request_signup_email_code",
-            "client.auth.signup.Client.set_totp_provider",
-            "client.auth.signup.Client.setup_password_account",
-            "client.auth.signup.Client.start_totp_setup",
-            "client.auth.signup.Client.verify_signup_email_code",
-            "client.auth.signup.Client.verify_totp_setup",
             "client.auth_handoff.FreshSessionHandoff",
             "client.browser.BrowserPersistence",
             "client.browser.BrowserPersistence.MemoryOnly",
@@ -4775,6 +4799,7 @@
             "client.browser_snapshot.BrowserPreparedCredentialCas.effect",
             "client.browser_snapshot.BrowserPreparedCredentialCas.readback_effect",
             "client.browser_snapshot.BrowserSealedCredentials",
+            "client.cache_policy.CachedContentLoader",
             "client.chat_list_freshness.CacheClockEvidence",
             "client.chat_list_freshness.CacheClockEvidence.from_platform",
             "client.message_window.ChatMessageWindow",
@@ -4921,6 +4946,14 @@
             "client.send_options.SendStatus.Completed",
             "client.send_options.SendStatus.Queued",
             "client.send_options.SendStatus.WaitingForUser",
+            "client.snapshot_sections.CHAT_LIST_FRESHNESS_FIELD",
+            "client.snapshot_sections.SnapshotSections",
+            "client.snapshot_sections.SnapshotSections.chats",
+            "client.snapshot_sections.SnapshotSections.index",
+            "client.snapshot_sections.SnapshotSections.shared",
+            "client.snapshot_sections.assemble",
+            "client.snapshot_sections.index_fields",
+            "client.snapshot_sections.split",
             "crypto.master.MasterCapability",
             "crypto.master.MasterCapability.decrypt_bytes",
             "crypto.master.MasterCapability.decrypt_text",
@@ -4989,6 +5022,7 @@
             "mentions.chat_models",
             "mentions.extract_mention_tokens",
             "mentions.is_available_chat_model",
+            "mentions.memory_entries_from_json",
             "mentions.normalize",
             "mentions.parse_mentions",
             "mentions.today_utc",
@@ -5048,7 +5082,8 @@
             "Owning-Worker selected browser metadata/message/retained-view/monitor operations remain source-held required partial pending independent core semantic review: preserve original admitted profile/master resource, owner/key/request/private-denial/epoch fences across all awaits, same-store physical readback, exact terminal drain and original final publication. Equivalent direct Rust/npm/Python functional IO adapters and genuine shared executable conformance remain missing or unverified; matching helper/type names are not required and no native Session/key substitution is admitted. The38 merge-policy and8 header cases are pure-policy inputs, not real SDK/WASM/browser execution or new plan authority. Full continuous sync/recovery, absence/tombstone/draft reconciliation, cold/context integration, actual Rust/WASM/Worker/IndexedDB/socket/scheduler/owner/revocation behavior, package/Linux/Mac and matched TS CPU/end-to-end/RAM/size remain incomplete or UNRUN. Cached/retained output grants no canonical incoming-window durability, native ACK, cross-database proof, complete history/inventory or recovery authority; no activation, parity/performance or release waiver follows this source registration.",
             "Reviewed inactive continuous selected-cache and local transaction observer source remains required partial. One Rust application writer per updated context is the boundary; other authorized tabs remain ordinary concurrent clients, with no global exclusion or new backend fencing protocol. Preserve original admitted Rust profile/master resource, owner/key/request/private-denial/epoch fences, exact terminal/readback receipts, original sealed publication and stale-monitor isolation. The observer tracks only identified chats/messages readwrite creation sites in one JavaScript realm and IDBDatabase connection; unknown existing transactions cannot be adopted. It grants no Rust/session authority or full producer/send/recovery/debounce/draft/optimistic/remote handoff. Future facade and genuine coverage packets are excluded. Matching explicit-credential direct Rust/npm/Python functional IO adapters and shared executable conformance, compiled Rust/WASM/Worker/IndexedDB/real transport, Team/Direct/expiry/account switch/cold restart/reconnect, tombstones/absence/full nonselected content/cold headers/inventory/history/foreground recovery and matched CPU/end-to-end/RAM/size/platform proof remain required or UNRUN. Source registration and pure checks grant no activation, runtime, durability, performance, complete sync or release acceptance.",
             "Reviewed serialized saved-send cancellation security source preserves original admitted root/key/owner/denial/policy and opaque final allocation guards. Global cancel targets current work/output; identity/root retirement remains distinct, including malformed replacement entry. Only after actual original driver drain may terminal continuation validate the genuine unchanged parent; old A output still refuses, with no replay or inferred remote cancellation/settlement. Existing10 work vectors remain exact prefix of23 authored vectors on the same Rust/npm/Python adapters; actual compiled23x3 execution and strict original-task cancel_ai_task notification race remain required UNRUN. Uncertain original admission remains bounded wiping memory with100/32MiB backpressure, not canonical encrypted durable journal/reload/settlement. Owned-driver V3/sibling scopes, actual B read/store/readback/publication while A held, writer/producer handoff and matched CPU/end-to-end/RAM/platform evidence remain separate required work. Browser facade/scheduler stays inactive; ordinary authorized tabs remain peers. Pure decode extraction grants no new API/IO/permission. This serialized baseline is no B-progress/durability/performance/release acceptance.",
-            "@mention parsing/resolution (mentions.*, Client.resolve_mentions) is Rust-only until the npm/Python SessionClient expose it."
+            "@mention parsing/resolution (mentions.*, Client.resolve_mentions) is Rust-only until the npm/Python SessionClient expose it.",
+            "Rust-only: sectioned encrypted cache snapshots and lazy cached-content restore (client.snapshot_sections, CachedContentLoader, restore_cached_chat_content, partially_restored_chats) back the native CLI/TUI cache-first open; the npm/Python SessionClient have no persistent cache API yet."
           ],
           "status": "partial"
         }
@@ -5600,7 +5635,7 @@
         },
         "rust": {
           "api": [
-            "work.teams.Client.teams",
+            "client.Client.teams",
             "work.teams.TeamCreate",
             "work.teams.TeamCreate.description",
             "work.teams.TeamCreate.name",
@@ -5625,7 +5660,13 @@
             "work.teams.Teams.create",
             "work.teams.Teams.decline_invite",
             "work.teams.Teams.delete",
-            "work.teams.Teams.ensure_direct_chat_identity",
+            "work.teams_billing.Teams.bank_transfer_orders",
+            "work.teams_billing.Teams.bank_transfer_status",
+            "work.teams_billing.Teams.create_bank_transfer",
+            "work.teams_billing.Teams.export",
+            "work.teams_billing.Teams.import",
+            "work.teams_identity.Teams.ensure_direct_chat_identity",
+            "work.teams_identity.Teams.list_published",
             "work.teams.Teams.get",
             "work.teams.Teams.invite",
             "work.teams.Teams.list",
@@ -8768,7 +8809,6 @@
           ],
           "conformance": true,
           "evidence": [
-            "frontend/apps/web_app/tests/cli-rust-core-essential.spec.ts",
             "packages/openmates-session-bindings/examples/workflow-file-sync-conformance.rs"
           ],
           "gaps": [
