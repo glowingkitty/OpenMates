@@ -117,6 +117,14 @@ pub fn command_cache_load(invocation: &crate::cli::Invocation) -> CacheLoad {
         CacheLoad::Deferred { revoke_list_freshness: true }
     } else if path == "chats list" {
         CacheLoad::Index
+    } else if let Some(id) = (matches!(path.as_str(), "chats show" | "chats messages"))
+        .then(|| invocation.positionals.first())
+        .flatten()
+        .filter(|id| uuid::Uuid::parse_str(id).is_ok())
+    {
+        // Cache-first saved read: the index plus only this Chat's section;
+        // other content still loads on demand through the index loader.
+        CacheLoad::Chat(id.clone())
     } else {
         CacheLoad::Full
     }
@@ -424,6 +432,16 @@ pub async fn logout(client: &mut Client, store: &RuntimeStore) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn saved_chat_reads_load_only_their_chat_section() {
+        let id = "22222222-2222-4222-8222-222222222222";
+        let parse = |args: &[&str]| crate::cli::parse_from(args.iter().copied()).unwrap().invocation.unwrap();
+        assert_eq!(command_cache_load(&parse(&["openmates", "chats", "show", id, "--json"])), CacheLoad::Chat(id.into()));
+        assert_eq!(command_cache_load(&parse(&["openmates", "chats", "messages", id])), CacheLoad::Chat(id.into()));
+        // Short IDs resolve through the full cache, as before.
+        assert_eq!(command_cache_load(&parse(&["openmates", "chats", "show", "22222222"])), CacheLoad::Full);
+        assert_eq!(command_cache_load(&parse(&["openmates", "chats", "list"])), CacheLoad::Index);
+    }
     #[tokio::test]
     async fn cleared_sdk_credentials_remove_durable_session_and_owner_cache() {
         let mut builder = tempfile::Builder::new();
