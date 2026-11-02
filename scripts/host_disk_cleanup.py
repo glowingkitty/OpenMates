@@ -105,7 +105,7 @@ def run(tmp_root: Path, recovery_root: Path, *, apply: bool, now: float | None =
     uid = os.getuid() if uid is None else uid
     in_use = _in_use_paths(uid) if in_use is None else in_use
     report = {"apply": apply, "inspected": 0, "deleted": [], "reclaimed_bytes": 0,
-              "skipped": {"recent": 0, "in_use": 0}, "failures": []}
+              "skipped": {"recent": 0, "in_use": 0, "permission": 0}, "failures": []}
     for path, category, cutoff in _candidates(tmp_root, recovery_root, now, uid):
         report["inspected"] += 1
         prefix = str(path)
@@ -122,6 +122,11 @@ def run(tmp_root: Path, recovery_root: Path, *, apply: bool, now: float | None =
                     shutil.rmtree(path)
                 else:
                     path.unlink()
+            except PermissionError:
+                # Root-owned leftovers (e.g. written by containers) cannot be removed
+                # by this user; retrying would never succeed, so do not fail the run.
+                report["skipped"]["permission"] += 1
+                continue
             except OSError as error:
                 report["failures"].append({"path": prefix, "error": type(error).__name__})
                 continue

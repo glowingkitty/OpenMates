@@ -37,7 +37,7 @@ def test_removes_only_stale_unused_unprotected_tmp_entries(tmp_path):
     report = cleanup.run(tmp, recovery, apply=True, in_use=[str(in_use / "data.bin")])
     assert [item["path"] for item in report["deleted"]] == [str(stale)]
     assert report["reclaimed_bytes"] > 0
-    assert report["skipped"] == {"recent": 2, "in_use": 1}
+    assert report["skipped"] == {"recent": 2, "in_use": 1, "permission": 0}
     assert not stale.exists()
     for kept in (recent, deep_recent, protected, in_use):
         assert kept.exists()
@@ -71,3 +71,18 @@ def test_sockets_and_symlinks_in_tmp_are_left_alone(tmp_path):
     report = cleanup.run(tmp, recovery, apply=True, in_use=[])
     assert report["deleted"] == []
     assert link.is_symlink() and target.exists()
+
+
+def test_permission_denied_entries_are_skipped_not_failures(tmp_path, monkeypatch):
+    tmp, recovery = tmp_path / "tmp", tmp_path / "recovery"
+    stale = _make(tmp / "container-owned", 10)
+
+    def denied(_path):
+        raise PermissionError("root-owned child")
+
+    monkeypatch.setattr(cleanup.shutil, "rmtree", denied)
+    report = cleanup.run(tmp, recovery, apply=True, in_use=[])
+    assert report["failures"] == []
+    assert report["deleted"] == []
+    assert report["skipped"]["permission"] == 1
+    assert stale.exists()
