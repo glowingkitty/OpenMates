@@ -226,10 +226,25 @@ async def _change(cache: CacheService, token: str, operation: str, payload: dict
     return result
 
 
-async def _binding(request: Request, cache: CacheService, user: User) -> str:
-    token = request.cookies.get("auth_refresh_token")
-    if not token:
+def _effective_refresh_token(request: Request) -> str:
+    """Use the credential authenticated by the dependency, including rotation.
+
+    The incoming cookie can name a predecessor whose metadata has been moved.
+    A supplied successor is authoritative: never retry the predecessor if that
+    successor or its session-bound metadata is missing or invalid.
+    """
+    state = getattr(request, "state", None)
+    if state is not None and hasattr(state, "auth_refresh_token"):
+        token = state.auth_refresh_token
+    else:
+        token = request.cookies.get("auth_refresh_token")
+    if not isinstance(token, str) or not token:
         raise HTTPException(401, "Session required")
+    return token
+
+
+async def _binding(request: Request, cache: CacheService, user: User) -> str:
+    token = _effective_refresh_token(request)
     tokens = await cache.get(f"user_tokens:{user.id}")
     metadata = tokens.get(hashlib.sha256(token.encode()).hexdigest()) if isinstance(tokens, dict) else None
     binding = metadata.get("pair_auth_binding") if isinstance(metadata, dict) else None
@@ -357,7 +372,7 @@ async def step_up(request: Request, body: StepUp, user: User = Depends(get_curre
             valid = False
         if not valid:
             raise HTTPException(401, "Invalid authentication proof")
-    await mark_recent_strong_proof(directus, cache, request.cookies["auth_refresh_token"], user.id, method="totp")
+    await mark_recent_strong_proof(directus, cache, _effective_refresh_token(request), user.id, method="totp")
     if not await cache.set(_proof_key(binding), "verified", ttl=300):
         raise HTTPException(503, "Authentication proof unavailable")
     return {"success": True, "expires_in": 300}
@@ -367,7 +382,7 @@ async def step_up(request: Request, body: StepUp, user: User = Depends(get_curre
 @limiter.limit("10/hour")
 async def approve(request: Request, token: str, body: Approve, user: User = Depends(get_current_user), cache: CacheService = Depends(get_cache_service), directus: DirectusService = Depends(get_directus_service)):
     binding = await _binding(request, cache, user)
-    await require_recent_strong_proof(directus, cache, request.cookies["auth_refresh_token"], user.id)
+    await require_recent_strong_proof(directus, cache, _effective_refresh_token(request), user.id)
     state = await _change(cache, token, "approve", {"user_id": user.id, "binding": binding,
         "device_name": body.authorizer_device_name or derive_device_name(request.headers.get("user-agent", "")),
         "auto_logout_minutes": body.auto_logout_minutes})
