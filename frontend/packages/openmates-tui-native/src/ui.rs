@@ -1263,6 +1263,10 @@ impl Ui {
             return vec![];
         };
         self.selected[index(self.workspace)] = selected;
+        if self.workspace == Workspace::Chats && item.id.starts_with("embed:") {
+            // A due-soon saved item of the home carousel, like `/embed <id>`.
+            return vec![UiCommand::Open(Workspace::Apps, item.id)];
+        }
         if self.workspace != Workspace::Chats {
             self.detail = Some(item.clone());
             self.detail_tab = 0;
@@ -3067,6 +3071,7 @@ impl Ui {
         for (row, (i, item)) in chats
             .iter()
             .enumerate()
+            .filter(|(_, item)| !item.id.starts_with("embed:"))
             .skip(offset)
             .take(visible)
             .enumerate()
@@ -3167,8 +3172,11 @@ impl Ui {
     }
     fn draw_home(&mut self, frame: &mut Frame, area: Rect) {
         let title = if self.workspace == Workspace::Chats {
-            if self.username.is_empty() {
+            if self.username.is_empty() && !self.authenticated && self.items[0].is_empty() {
                 "Welcome to OpenMates".to_owned()
+            } else if self.username.is_empty() {
+                // Signed in, name not yet known: the TS home's fallback greeting.
+                "Hey there!".to_owned()
             } else {
                 format!("Hey {}!", self.username)
             }
@@ -3265,7 +3273,19 @@ impl Ui {
                     Style::default().fg(task_color(&item.status)),
                 )));
             }
-            frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
+            let mut body = inner;
+            if self.workspace == Workspace::Chats && inner.height > 3 {
+                // TS home footer: due-soon label, else the category, else "Chat".
+                let footer = item.fields.get("footer").and_then(|value| value.as_str()).map(str::to_owned)
+                    .or_else(|| Some(item.category.replace('_', " ")).filter(|category| !category.is_empty()))
+                    .unwrap_or_else(|| "Chat".to_owned());
+                body.height = inner.height - 2;
+                frame.render_widget(
+                    Paragraph::new(Line::from(Span::styled(footer, Style::default().fg(MUTED)))),
+                    Rect::new(inner.x, inner.bottom() - 1, inner.width, 1),
+                );
+            }
+            frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), body);
             self.hit(rect, HitAction::Open(i));
         }
         if area.height > 11 {
@@ -3277,7 +3297,16 @@ impl Ui {
                 false,
             );
             frame.render_widget(
-                Paragraph::new(format!("{} of {}", selected + 1, items.len()))
+                Paragraph::new(format!(
+                    "{}{} of {}",
+                    if self.workspace == Workspace::Chats {
+                        if items.iter().any(|item| item.id.starts_with("embed:")) { "Item " } else { "Chat " }
+                    } else {
+                        ""
+                    },
+                    selected + 1,
+                    items.len()
+                ))
                     .alignment(ratatui::layout::Alignment::Center)
                     .style(Style::default().fg(MUTED)),
                 Rect::new(area.x + 3, area.y + 11, area.width.saturating_sub(6), 1),
@@ -3289,6 +3318,14 @@ impl Ui {
                 HitAction::NextCard(1),
                 false,
             );
+            if self.workspace == Workspace::Chats && area.height > 15 {
+                frame.render_widget(
+                    Paragraph::new("/search Search chats  ·  Ctrl+N New chat")
+                        .alignment(ratatui::layout::Alignment::Center)
+                        .style(Style::default().fg(MUTED)),
+                    Rect::new(area.x, area.y + 13, area.width, 1),
+                );
+            }
         }
     }
     fn draw_tasks(&mut self, frame: &mut Frame, area: Rect) {

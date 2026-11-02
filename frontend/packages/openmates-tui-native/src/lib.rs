@@ -14,6 +14,9 @@ pub mod completion_recovery_adapter;
 #[cfg(feature = "cli")]
 pub mod crypto;
 #[cfg(feature = "cli")]
+#[doc(hidden)]
+pub mod home_items;
+#[cfg(feature = "cli")]
 pub mod error;
 #[cfg(feature = "cli")]
 pub mod local_zone;

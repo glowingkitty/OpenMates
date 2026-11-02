@@ -9,6 +9,8 @@
 //! due / due within 24 h, ongoing saved item, saved item starting within 24 h
 //! or started within the last 12 h; ties go to the item nearest to now.
 //! Labels and presentation stay in the UI adapters.
+#[path = "overview_cards.rs"]
+pub mod cards;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::cmp::Ordering;
@@ -82,6 +84,8 @@ pub struct ReminderInput {
 pub struct SavedItemInput {
     pub entry_id: String,
     pub app_id: String,
+    /// Memory group (`item_type`); selects the saved-item presentation.
+    pub item_type: String,
     pub item_value: Value,
 }
 

@@ -130,9 +130,9 @@ fn due_items_then_last_opened_then_chats_without_duplicates() {
         reminder("r3", NOW + HOUR_MS, "pending", Some("missing-chat"), None),
     ];
     let saved = vec![
-        SavedItemInput { entry_id: "m1".into(), app_id: "events".into(), item_value: json!({"embed_id": "concert", "date_start": iso(NOW + 3 * HOUR_MS)}) },
-        SavedItemInput { entry_id: "m2".into(), app_id: "health".into(), item_value: json!({"embed_id": "embed-without-time"}) },
-        SavedItemInput { entry_id: "m3".into(), app_id: "travel".into(), item_value: json!({"embed_id": "far", "departure": iso(NOW + 72 * HOUR_MS)}) },
+        SavedItemInput { entry_id: "m1".into(), app_id: "events".into(), item_type: String::new(), item_value: json!({"embed_id": "concert", "date_start": iso(NOW + 3 * HOUR_MS)}) },
+        SavedItemInput { entry_id: "m2".into(), app_id: "health".into(), item_type: String::new(), item_value: json!({"embed_id": "embed-without-time"}) },
+        SavedItemInput { entry_id: "m3".into(), app_id: "travel".into(), item_type: String::new(), item_value: json!({"embed_id": "far", "departure": iso(NOW + 72 * HOUR_MS)}) },
     ];
     let inputs = OverviewInputs { chats: &chats, last_opened_chat_id: Some("b"), reminders: &reminders, saved_items: &saved, now_ms: NOW, utc_offset_minutes: 0, include_sub_chats: false };
     let entries = build_overview(&inputs);

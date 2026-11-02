@@ -429,6 +429,29 @@ impl Client {
         self.order_chat_list_items(items, crate::platform::unix_ms() as i64, super::overview::local_utc_offset_minutes())
     }
 
+    /// Decrypted saved-item memories of the due-soon set (rows that do not
+    /// decrypt or are not objects are skipped, like the memories reader).
+    pub fn due_soon_saved_items(&self) -> Vec<SavedItemInput> {
+        let Ok(session) = self.require_session() else { return vec![] };
+        let master = session.master_key.clone();
+        let field = |row: &Value, name: &str| row.get(name).and_then(Value::as_str).unwrap_or_default().to_owned();
+        self.chat_sync_feed
+            .saved_items
+            .iter()
+            .filter_map(|row| {
+                let ciphertext = row.get("encrypted_item_json")?.as_str()?;
+                let plaintext = zeroize::Zeroizing::new(crate::crypto::decrypt_combined(ciphertext, &master).ok()?);
+                let value: Value = serde_json::from_str(&plaintext).ok()?;
+                value.is_object().then(|| SavedItemInput {
+                    entry_id: field(row, "id"),
+                    app_id: field(row, "app_id"),
+                    item_type: field(row, "item_type"),
+                    item_value: value,
+                })
+            })
+            .collect()
+    }
+
     /// Encrypted saved-item memory rows of the due-soon set (decrypt with the memories key).
     pub fn due_soon_saved_item_rows(&self) -> &[Value] {
         &self.chat_sync_feed.saved_items
