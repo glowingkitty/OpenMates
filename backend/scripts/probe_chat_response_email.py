@@ -206,6 +206,35 @@ async def _run(admin: httpx.Client, email: str, user: dict) -> None:
         viewed = str(uuid.uuid4())
         assert await enqueue(viewed, preview="VIEWED-MUST-NOT-EMAIL")
         await mark_message_viewed(cache, user_id, chat_id, viewed)
+        # A noninteractive `chats send` (npm or Rust CLI) declares a foreground
+        # cli socket, selects the chat and awaits the reply. It holds no human
+        # presence lease; the production completion path must still treat the
+        # delivered response as viewed so the initiator gets no email.
+        from types import SimpleNamespace
+        from starlette.websockets import WebSocketState
+        from backend.core.api.app.routes.connection_manager import ConnectionManager
+        from backend.core.api.app.routes.websockets import _send_offline_email_notification
+        await report_presence(cache, user_id, "probe-cli-send", "cli", True, interactive=False, chat_id=chat_id)
+        cli_manager = ConnectionManager()
+        cli_manager.active_connections[user_id] = {
+            "probe-cli-device": SimpleNamespace(application_state=WebSocketState.CONNECTED),
+        }
+        cli_manager.connection_foreground_state[(user_id, "probe-cli-device")] = True
+        cli_manager.active_chat_per_connection[(user_id, "probe-cli-device")] = chat_id
+        cli_awaited = str(uuid.uuid4())
+        candidate_keys.append(candidate_key(user_id, chat_id, cli_awaited))
+        delivery_ids.append(build_delivery_id(build_delivery_key(
+            email_type="chat_response", campaign_key=cli_awaited,
+            recipient_kind="directus_user", recipient_id=user_id, stage=chat_id,
+        )))
+        await _send_offline_email_notification(
+            SimpleNamespace(state=SimpleNamespace(
+                cache_service=cache, directus_service=directus, encryption_service=encryption,
+            )),
+            user_id, chat_id, "CLI-AWAITED-MUST-NOT-EMAIL", message_id=cli_awaited,
+            viewing_connection=cli_manager.has_foreground_connection_for_chat(user_id, chat_id),
+        )
+        await clear_presence(cache, user_id, "probe-cli-send")
         await asyncio.sleep(20)
         assert len(_mailpit_messages(mailpit, email, since)) == 2
 

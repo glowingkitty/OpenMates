@@ -139,7 +139,8 @@ from .handlers.websocket_handlers.delete_new_chat_suggestion_handler import hand
 from .handlers.websocket_handlers.system_message_handler import handle_chat_system_message_added # Handler for system messages (app settings/memories response, etc.)
 from backend.core.api.app.services.chat_email_notification_service import enqueue_chat_email
 from backend.core.api.app.services.notification_presence import (
-    classify_lifecycle_client, clear_presence, refresh_legacy_apple_presence_on_message, report_presence,
+    classify_lifecycle_client, clear_presence, mark_message_viewed, refresh_legacy_apple_presence_on_message,
+    report_presence,
 )
 from backend.core.api.app.routes.handlers.websocket_handlers.notification_preview_handler import (
     handle_team_notification_preview_capabilities, handle_team_notification_preview_stage,
@@ -990,10 +991,18 @@ def email_eligible_completion(payload: dict) -> bool:
 async def _send_offline_email_notification(
     app: FastAPI, user_id: str, chat_id: str, response_preview: str,
     message_id: str | None = None, sender_name: str = "Mate", chat_title: str | None = None,
-    mate_category: str | None = None,
+    mate_category: str | None = None, *, viewing_connection: bool,
 ) -> None:
     if not message_id:
         return
+    if viewing_connection:
+        # The final reply was delivered to a foreground socket with this chat
+        # selected (web tab, Apple app, or a CLI/TUI/SDK send awaiting it, even
+        # if it disconnects right afterwards): the initiator received this exact
+        # response. Record the per-message view so the delayed worker skips the
+        # initiator's email, matching the push gate. Other Team members keep
+        # their own notifications.
+        await mark_message_viewed(app.state.cache_service, user_id, chat_id, message_id)
     from backend.core.api.app.services.team_chat_notification_service import queue_completed_team_mate_response
     if await queue_completed_team_mate_response(
         directus=app.state.directus_service, cache=app.state.cache_service,
@@ -1570,6 +1579,11 @@ async def listen_for_ai_chat_streams(app: FastAPI):
 
                     delivery_limit = asyncio.Semaphore(4)
 
+                    # Devices that received this final reply while the chat was
+                    # selected on a foreground socket (web/Apple viewer or a CLI/SDK
+                    # send awaiting it). Keyed on actual delivery, not later state.
+                    final_viewer_devices: set[str] = set()
+
                     async def deliver_to_device(device_ordinal: int, device_hash: str, websocket_conn: WebSocket) -> None:
                         def connection_ready() -> bool:
                             return (
@@ -1635,6 +1649,8 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                     if redis_payload.get("is_final_chunk", False):
                                         final_sent = sent is True
                                         _trace_final_stream_delivery("final_send", device_ordinal, final_sent)
+                                        if final_sent:
+                                            final_viewer_devices.add(device_hash)
                                     logger.debug(f"AI Stream Listener: Sent 'ai_message_update' to active chat on {user_id_uuid}/{device_hash} (seq: {redis_payload.get('sequence', 'unknown')}).")
                                 else:
                                     # Chat is not active on this device.
@@ -1758,12 +1774,15 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                             sender_name="Mate",
                             chat_title=redis_payload.get("chat_title"),
                             mate_category=redis_payload.get("category"),
+                            viewing_connection=bool(final_viewer_devices),
                         )
                     if is_final_marker and not redis_payload.get("external_request") and not was_interrupted:
                         # Notify unless a foreground client is visibly viewing this chat.
                         # A hidden/background tab may keep its WebSocket open, but it
                         # should not suppress iOS/browser push for completed work.
-                        if not manager.has_foreground_connection_for_chat(user_id_uuid, chat_id_from_payload):
+                        if not final_viewer_devices and not manager.has_foreground_connection_for_chat(
+                            user_id_uuid, chat_id_from_payload,
+                        ):
                             asyncio.create_task(
                                 _check_user_offline_and_send_email(
                                     app=app,

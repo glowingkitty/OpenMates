@@ -315,3 +315,34 @@ async def test_ci_stage_sequence_is_content_free_and_received_precedes_lookup(mo
     caplog.clear()
     await websockets.listen_for_ai_chat_streams(install(monkeypatch, manager, execute, payload(user_id_uuid=None)))
     assert [record.getMessage() for record in caplog.records if record.getMessage().startswith("Final stream delivery stage=")] == traces[:1]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("device_state,viewed", [("awaiting", True), ("other-chat", False), ("not-capable", False)])
+# contract-test: supporting surface=rest_api assertions=notifications.delivery.foreground-chat-suppression
+async def test_final_delivered_to_selected_chat_marks_initiator_view_after_fast_disconnect(monkeypatch, device_state, viewed):
+    # A noninteractive CLI `chats send` closes its socket ~0.5 s after the final
+    # frame, before any later presence check. Only actual delivery counts.
+    class FastDisconnect(Manager):
+        def has_foreground_connection_for_chat(self, owner, chat):
+            return False
+
+    manager = FastDisconnect(["cli-private-canary"])
+    if device_state == "other-chat":
+        manager.background.add("cli-private-canary")
+    elif device_state == "not-capable":
+        manager.capable.clear()
+
+    async def execute(operation, device):
+        return result_for(operation)
+
+    app = install(monkeypatch, manager, execute)
+    offline_push = AsyncMock()
+    monkeypatch.setattr(websockets, "_check_user_offline_and_send_email", offline_push)
+    await websockets.listen_for_ai_chat_streams(app)
+    await asyncio.sleep(0)
+    email = websockets._send_offline_email_notification
+    email.assert_awaited_once()
+    assert email.await_args.kwargs["viewing_connection"] is viewed
+    assert email.await_args.kwargs["message_id"] == "assistant-private-canary"
+    assert offline_push.call_count == (0 if viewed else 1)

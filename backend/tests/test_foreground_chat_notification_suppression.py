@@ -2,6 +2,7 @@
 # contract-test-file: infrastructure
 import sys
 import ast
+import json
 import asyncio
 import logging
 from pathlib import Path
@@ -113,3 +114,75 @@ async def test_foreground_return_during_email_preparation_suppresses_enqueue(del
         user_id='user-a', chat_id='chat-a', message_id='response')
     assert delivery_fixture.cache.redis.values == {}
     assert delivery_fixture.broker == []
+
+
+def offline_email_coroutine(enqueue):
+    """Execute the production completion-email coroutine with real view marking."""
+    source = Path(__file__).resolve().parents[1] / 'core/api/app/routes/websockets.py'
+    node = next(n for n in ast.parse(source.read_text()).body
+                if isinstance(n, ast.AsyncFunctionDef) and n.name == '_send_offline_email_notification')
+    namespace = {'FastAPI': object, 'enqueue_chat_email': enqueue,
+                 'mark_message_viewed': presence.mark_message_viewed}
+    exec(compile(ast.fix_missing_locations(ast.Module(body=[node], type_ignores=[])), str(source), 'exec'), namespace)
+    return namespace[node.name]
+
+
+# A noninteractive `openmates chats send` (npm or Rust CLI) announces
+# client_type=cli, is_foreground=true, interactive=false and selects the chat it
+# is awaiting. It holds no human presence lease, but it received this exact
+# completion on a live foreground socket, so the initiator's email must not send.
+# contract-test: supporting surface=rest_api assertions=notifications.delivery.foreground-chat-suppression
+@pytest.mark.parametrize('state,expected', [
+    ('cli-awaiting-reply', 'viewed'),
+    ('cli-disconnected-no-wait', 'sent'),
+    ('cli-other-chat', 'sent'),
+    ('background-socket', 'sent'),
+    ('retained-in-grace', 'sent'),
+])
+@pytest.mark.asyncio
+async def test_completion_delivered_to_awaiting_cli_socket_suppresses_initiator_email(
+    delivery_fixture, monkeypatch, state, expected,  # noqa: F811
+):
+    from starlette.websockets import WebSocketState
+    from backend.core.api.app.routes.connection_manager import ConnectionManager
+    from backend.core.api.app.services import team_chat_notification_service as team
+
+    manager = ConnectionManager()
+    user, device, chat, message = 'user-a', 'cli-device', 'chat-a', 'message-a'
+    if state != 'cli-disconnected-no-wait':
+        manager.active_connections[user] = {device: SimpleNamespace(application_state=WebSocketState.CONNECTED)}
+        manager.connection_foreground_state[(user, device)] = state != 'background-socket'
+        manager.active_chat_per_connection[(user, device)] = 'chat-b' if state == 'cli-other-chat' else chat
+        if state == 'retained-in-grace':
+            manager.grace_period_tasks[(user, device)] = SimpleNamespace(done=lambda: False)
+    # The noninteractive CLI never holds an account-wide human lease.
+    view_cache = CacheService()
+    await presence.report_presence(view_cache, user, 'cli-socket', 'cli', True, interactive=False, chat_id=chat)
+    assert not await presence.has_active_human(view_cache, user, chat)
+
+    monkeypatch.setattr(team, 'queue_completed_team_mate_response', AsyncMock(return_value=False))
+    async def viewed(_cache, user_id, chat_id, message_id):
+        return await presence.is_message_viewed(view_cache, user_id, chat_id, message_id)
+    monkeypatch.setattr(email, 'is_message_viewed', viewed)
+
+    async def enqueue(**kwargs):
+        kwargs.update(cache_service=delivery_fixture.cache, directus_service=delivery_fixture.directus,
+                      encryption_service=delivery_fixture.encryption)
+        return await email.enqueue_chat_email(**kwargs)
+    app = SimpleNamespace(state=SimpleNamespace(cache_service=view_cache, directus_service=delivery_fixture.directus,
+                                                encryption_service=delivery_fixture.encryption))
+    await offline_email_coroutine(enqueue)(
+        app, user, chat, 'Response', message_id=message,
+        # The listener records actual final delivery to a selected-chat
+        # foreground socket; mirror that capability check here.
+        viewing_connection=manager.has_foreground_connection_for_chat(user, chat),
+    )
+    key = email.candidate_key(user, chat, message)
+    candidate = json.loads(delivery_fixture.cache.redis.values[key])
+    candidate['not_before'] = 0
+    delivery_fixture.cache.redis.values[key] = json.dumps(candidate)
+    guard = sys.modules['backend.core.api.app.services.email_delivery_guard']
+    async def send_once(**kwargs):
+        return (True, 'sent') if await kwargs['before_send']() else (False, 'suppressed')
+    monkeypatch.setattr(guard, 'send_email_once', send_once)
+    assert await email.dispatch_chat_email(delivery_fixture.task, user_id=user, chat_id=chat, message_id=message) == expected
