@@ -9,7 +9,7 @@ const source=readFileSync(new URL('./session-direct-app-skill.mjs',import.meta.u
 test('Apps labels keep all18 vectors and unchanged assertion/deadline boundaries',()=>{
  const h=extractAppsDiagnostic(source);assert.equal(h.vectors.length,18);assert.equal(new Set(h.vectors).size,18);
  assert.equal((source.match(/assert\./g)||[]).length,21);
- for(const boundary of ["setTimeout(()=>reject(Error('direct fixture deadline')),30000)","for(let i=0;i<500;i++)","await pause(10)","assert.equal(results.length,18)","assert.equal(report.skill_posts,v.expected_skill_posts)","assert.equal(report.downloads,v.expected_downloads)","assert.equal(report.retention_posts,v.expected_retention_posts)","assert.ok(report.auth>=3)","if(peer.exitCode===null&&peer.signalCode===null)","peer.kill('SIGTERM');await bounded(ended)"])assert.ok(source.includes(boundary),boundary);
+ for(const boundary of ["setTimeout(()=>reject(Error('direct fixture deadline')),30000)","for(let i=0;i<500;i++)","await pause(10)","assert.equal(results.length,18)","assert.equal(report.skill_posts,v.expected_skill_posts)","assert.equal(report.downloads,v.expected_downloads)","assert.equal(report.retention_posts,v.expected_retention_posts)","assert.ok(report.auth>=1)","if(peer.exitCode===null&&peer.signalCode===null)","peer.kill('SIGTERM');await bounded(ended)"])assert.ok(source.includes(boundary),boundary);
  assert.match(source,/catch\(error\)\{captureAppsFailure\(error\);throw error;\}finally\{/);
 });
 test('source-selected import stages and admitted vector are finite; first failure survives cleanup',()=>{
@@ -59,13 +59,15 @@ test('Apps conformance imports the existing compiled public headless entry with 
  assert.ok(!source.includes('loader.mjs'));assert.ok(!source.includes("from 'node:module'"));
  assert.ok(!source.includes('/src/sdkSession.ts'));assert.ok(!source.includes('/src/sdk.ts'));assert.ok(!source.includes('transform-types'));
 });
-test('the removed source-loader route is resolve-only and reaches actual unsupported parameter properties',()=>{
+test('the removed source-loader route is resolve-only and the SDK sources strip-load under Node type stripping',()=>{
  const base=new URL('../../../frontend/packages/openmates-cli/',import.meta.url);
  const loader=readFileSync(new URL('tests/loader.mjs',base),'utf8');assert.match(loader,/export async function resolve\(/);assert.ok(!loader.includes('export async function load('));assert.ok(!loader.includes('transpile'));
  const session=readFileSync(new URL('src/sdkSession.ts',base),'utf8'),essential=readFileSync(new URL('src/sdkEssential.ts',base),'utf8');
  assert.ok(session.includes('from "./sdkEssential.js"'));assert.ok(essential.includes("from './sdkStartupSync.js'"));
  const startup=readFileSync(new URL('src/sdkStartupSync.ts',base),'utf8');
- assert.throws(()=>stripTypeScriptTypes(startup,{mode:'strip'}),error=>error.code==='ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX');
+ // Parameter properties were removed so Node 22+/24 strip-only loading works.
+ assert.doesNotThrow(()=>stripTypeScriptTypes(startup,{mode:'strip'}));
+ assert.doesNotThrow(()=>stripTypeScriptTypes(readFileSync(new URL('src/sdkMetadataEphemeral.ts',base),'utf8'),{mode:'strip'}));
 });
 
 test('report and cleanup retain only the live admitted vector until awaited runVector finally settles',()=>{

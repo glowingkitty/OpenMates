@@ -133977,7 +133977,7 @@ assertions:
       surface: gui.web
     - &id17156
       path: frontend/packages/openmates-cli/tests/sdk-projects.test.ts
-      line: 170
+      line: 174
       name: links and unlinks embeds, chats, and workflows as OpenMates-only Project
         items
       surface: sdks.npm
@@ -134898,7 +134898,7 @@ assertions:
       surface: sdks.npm
     - &id17352
       path: frontend/packages/openmates-cli/tests/sdk-projects.test.ts
-      line: 170
+      line: 174
       name: links and unlinks embeds, chats, and workflows as OpenMates-only Project
         items
       surface: sdks.npm
@@ -180289,7 +180289,7 @@ assertions:
       surface: sdks.npm
     - &id22982
       path: frontend/packages/openmates-cli/tests/sdk-projects.test.ts
-      line: 170
+      line: 174
       name: links and unlinks embeds, chats, and workflows as OpenMates-only Project
         items
       surface: sdks.npm
@@ -180681,7 +180681,7 @@ assertions:
       surface: sdks.npm
     - &id23091
       path: frontend/packages/openmates-cli/tests/sdk-projects.test.ts
-      line: 170
+      line: 174
       name: links and unlinks embeds, chats, and workflows as OpenMates-only Project
         items
       surface: sdks.npm

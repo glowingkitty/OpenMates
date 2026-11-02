@@ -1574,6 +1574,14 @@ async function buildProjectCreatePayload(wrappingKey: Uint8Array, input: Project
   if (!name) throw new OpenMatesConfigError("Project name is required");
   const projectKey = randomBytes(32);
   const timestamp = Math.floor(Date.now() / 1000);
+  // The backend requires a default focus and encrypted settings for every new
+  // Project (Project create contract); the SDK generates the canonical default.
+  const defaultFocus = {
+    focus_id: randomUUID(),
+    name: `Work on ${name}`,
+    instructions: `Help with work in ${name}. Follow the user's instructions and the Project's connected source guidance.`,
+    source: "generated",
+  };
   const slugMetadata = await buildEncryptedObjectSlugMetadata({
     value: input.slug ?? name,
     encryptionKey: projectKey,
@@ -1593,6 +1601,11 @@ async function buildProjectCreatePayload(wrappingKey: Uint8Array, input: Project
     created_at: timestamp,
     updated_at: timestamp,
     last_opened_at: timestamp,
+    // Existing SDK create inputs have no write-policy option. Require approval
+    // for file changes while preserving the established public call shape.
+    write_mode: "always_ask",
+    default_focus_id: defaultFocus.focus_id,
+    encrypted_settings: await encryptWithAesGcmCombined(JSON.stringify({ default_focus: defaultFocus }), projectKey),
     key_wrappers: teamId ? [{
       key_type: "team",
       hashed_team_id: createHash("sha256").update(teamId).digest("hex"),

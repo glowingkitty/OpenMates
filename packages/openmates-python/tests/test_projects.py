@@ -206,6 +206,10 @@ def test_pip_sdk_projects_explicit_personal_and_team_crud(monkeypatch):
             project_id = clean_path.rsplit("/", 1)[-1]
             return FakeResponse({"project": records[project_id], "folders": [], "items": []})
         if method == "POST" and clean_path == "/v1/projects":
+            assert json["write_mode"] == "always_ask"
+            assert isinstance(json["default_focus_id"], str) and len(json["default_focus_id"]) == 36
+            assert isinstance(json["encrypted_settings"], str) and json["encrypted_settings"]
+            assert "settings" not in json
             records[json["project_id"]] = {**json, "version": 1}
             return FakeResponse({"project": records[json["project_id"]]})
         if method == "PATCH" and clean_path.startswith("/v1/projects/"):

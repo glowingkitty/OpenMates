@@ -2521,6 +2521,14 @@ def _build_project_create_input(wrapping_key: bytes, payload: dict[str, Any], te
         raise OpenMatesConfigError("Project name is required")
     project_key = os.urandom(32)
     now = int(time.time())
+    # The backend requires a default focus and encrypted settings for every new
+    # Project (Project create contract); the SDK generates the canonical default.
+    default_focus = {
+        "focus_id": str(uuid.uuid4()),
+        "name": f"Work on {name}",
+        "instructions": f"Help with work in {name}. Follow the user's instructions and the Project's connected source guidance.",
+        "source": "generated",
+    }
     slug_metadata = _encrypted_object_slug_metadata(
         str(payload.get("slug") or name),
         encryption_key=project_key,
@@ -2540,6 +2548,12 @@ def _build_project_create_input(wrapping_key: bytes, payload: dict[str, Any], te
         "created_at": now,
         "updated_at": now,
         "last_opened_at": now,
+        # Preserve the existing SDK input shape without granting automatic writes.
+        "write_mode": "always_ask",
+        "default_focus_id": default_focus["focus_id"],
+        "encrypted_settings": _encrypt_aes_gcm_text(
+            json.dumps({"default_focus": default_focus}, separators=(",", ":")), project_key
+        ),
     }
     result["key_wrappers"] = [{
         "key_type": "team",
