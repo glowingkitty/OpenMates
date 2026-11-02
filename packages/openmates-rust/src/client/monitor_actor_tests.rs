@@ -466,3 +466,17 @@ async fn replacing_actual_connection_retires_old_initial_intent_and_fresh_connec
     let(socket,mut peer)=sockets().await;let(handle,receiver)=monitor(&client,&socket);let task=spawn(socket,&handle,receiver);let fresh=Arc::new(handle);let server=tokio::spawn(async move{send(&mut peer,"recovery_outputs_discovery_complete",json!({"status":"disabled"})).await;let initial=request(&mut peer).await;let epoch=initial["payload"]["context_epoch"].as_u64().unwrap();startup_boundary(&mut peer,epoch,Some(100)).await;closed(&mut peer).await;});
     let batch=client.prepare_initial_sync(fresh.clone(),CancellationToken::new()).unwrap().wait().await.unwrap().retain(&client).unwrap();assert_eq!(batch.received_metadata_count(&client).unwrap(),0);fresh.close();task.await.unwrap();server.await.unwrap();
 }
+// contract-test: supporting surface=sdks.rust assertions=sync.client.shared-rust-policy,auth.session.isolation
+#[tokio::test]
+async fn request_only_cancel_during_inflight_metadata_read_returns_cancelled_promptly(){
+    let client=fixture();let(socket,mut peer)=sockets().await;let(monitor,receiver)=monitor(&client,&socket);let task=spawn(socket,&monitor,receiver);
+    let request_cancel=CancellationToken::new();let original=OwnedOperationScope::capture(&client,request_cancel.clone()).unwrap();
+    let ticket=client.prepare_monitor_read(&monitor,&original,MonitorReadRequest::RecentSyncWithExpandedMetadata(vec![])).unwrap();
+    send(&mut peer,"recovery_outputs_discovery_complete",json!({"status":"disabled"})).await;let first=request(&mut peer).await;let epoch=first["payload"]["context_epoch"].as_u64().unwrap();
+    startup_boundary(&mut peer,epoch,Some(1234)).await;assert_eq!(request(&mut peer).await["type"],"sync_metadata_chats");
+    // Only the caller's request token is cancelled; the peer stays silent.
+    request_cancel.cancel();
+    let result=tokio::time::timeout(Duration::from_secs(1),ticket.wait()).await.expect("request cancel observed without another frame");
+    assert_eq!(result.err(),Some(Error::Cancelled));assert!(!original.child().is_cancelled());
+    monitor.close();task.await.unwrap();
+}
