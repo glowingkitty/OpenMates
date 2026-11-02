@@ -244,6 +244,13 @@ async fn line(question: &str) -> Result<String, CliError> {
 }
 
 pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOutput, CliError> {
+    // npm requireTeamId: `--team <team-id>` selects the Team before positionals.
+    if let Some(normalized) = team_flag_selector(i) {
+        return Box::pin(execute(&normalized, client)).await;
+    }
+    if matches!(i.command_path().as_str(), "teams list" | "teams show") {
+        return list_or_show_published(i, client).await;
+    }
     let command = i.command_path();
     let allowed: &[&str] = match command.as_str() {
         "teams create" => &["name", "description", "slug", "switch", "activate"],
@@ -496,3 +503,64 @@ pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOu
 #[cfg(test)]
 #[path = "teams_tests.rs"]
 mod tests;
+
+/// Commands whose npm handler resolves the Team with requireTeamId.
+const TEAM_FLAG_COMMANDS: &[&str] = &[
+    "teams show",
+    "teams switch",
+    "teams update",
+    "teams delete",
+    "teams invite",
+    "teams access-requests",
+    "teams approve-access",
+    "teams reject-access",
+    "teams role",
+    "teams remove-member",
+    "teams profile-image generated",
+    "teams billing",
+    "teams storage",
+    "teams storage notice",
+    "teams usage",
+];
+/// Rewrite `--team <id>` into the leading Team positional (flag precedence).
+fn team_flag_selector(i: &Invocation) -> Option<Invocation> {
+    if !TEAM_FLAG_COMMANDS.contains(&i.command_path().as_str()) {
+        return None;
+    }
+    let team = i.text("team")?.to_owned();
+    let mut normalized = Invocation {
+        path: i.path.clone(),
+        positionals: i.positionals.clone(),
+        flags: i.flags.clone(),
+    };
+    normalized.flags.remove("team");
+    normalized.positionals.insert(0, team);
+    Some(normalized)
+}
+/// npm listTeams/getTeam: publish the Direct-chat identity alongside the read.
+async fn list_or_show_published(
+    i: &Invocation,
+    client: &mut Client,
+) -> Result<CliOutput, CliError> {
+    handlers::flags(i, &["team-id"])?;
+    let current = active(client);
+    if i.command_path() == "teams list" {
+        let teams = client.teams().list_published().await?;
+        let human = if teams.is_empty() {
+            "No teams.\n".to_owned()
+        } else {
+            teams.iter().map(|t| record(t, current.as_deref())).collect()
+        };
+        return out(i, json!({"teams":teams,"active_team_id":current}), human);
+    }
+    let team_id = team_id(i)?;
+    let mut teams = client.teams();
+    teams.ensure_direct_chat_identity().await?;
+    let team = teams.get(team_id).await?;
+    let human = record(&team, current.as_deref());
+    out(i, json!({"team":team,"active_team_id":current}), human)
+}
+
+#[cfg(test)]
+#[path = "teams_published_tests.rs"]
+mod published_tests;

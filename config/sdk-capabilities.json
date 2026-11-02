@@ -5575,6 +5575,7 @@
             "work.teams.Teams.create",
             "work.teams.Teams.decline_invite",
             "work.teams.Teams.delete",
+            "work.teams.Teams.ensure_direct_chat_identity",
             "work.teams.Teams.get",
             "work.teams.Teams.invite",
             "work.teams.Teams.list",

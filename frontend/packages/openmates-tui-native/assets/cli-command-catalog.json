@@ -57527,7 +57527,6 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -57548,10 +57547,10 @@
       "positionals": [
         {
           "name": "team-id",
-          "required": true,
+          "required": false,
           "variadic": false,
           "at": 2,
-          "synopsis": "<team-id>"
+          "synopsis": "[team-id]"
         }
       ],
       "flags": [
@@ -57576,7 +57575,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -57624,7 +57623,6 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -57645,10 +57643,10 @@
       "positionals": [
         {
           "name": "team-id",
-          "required": true,
+          "required": false,
           "variadic": false,
           "at": 2,
-          "synopsis": "<team-id>"
+          "synopsis": "[team-id]"
         },
         {
           "name": "access-request-id",
@@ -57680,7 +57678,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -57701,10 +57699,10 @@
       "positionals": [
         {
           "name": "team-id",
-          "required": true,
+          "required": false,
           "variadic": false,
           "at": 2,
-          "synopsis": "<team-id>"
+          "synopsis": "[team-id]"
         }
       ],
       "flags": [
@@ -57728,7 +57726,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -57984,7 +57982,6 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -58032,7 +58029,6 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -58053,10 +58049,10 @@
       "positionals": [
         {
           "name": "team-id",
-          "required": true,
+          "required": false,
           "variadic": false,
           "at": 2,
-          "synopsis": "<team-id>"
+          "synopsis": "[team-id]"
         }
       ],
       "flags": [
@@ -58081,7 +58077,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
         "Interactive 2FA/email verification uses a plain line prompt; real deletion was not exercised against a live account.",
         "Live backend integration and platform verification remain open."
       ],
@@ -58193,10 +58189,10 @@
       "positionals": [
         {
           "name": "team-id",
-          "required": true,
+          "required": false,
           "variadic": false,
           "at": 2,
-          "synopsis": "<team-id>"
+          "synopsis": "[team-id]"
         }
       ],
       "flags": [
@@ -58223,7 +58219,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -58263,9 +58259,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
-        "Does not publish the direct-chat identity or prune local Team artifacts the way the npm client does on list/show.",
-        "Live backend integration and platform verification remain open."
+        "Live backend integration and platform verification remain open.",
+        "Publishes the Direct-chat identity like npm; the native store keeps no local Team-key file, and pruning per-Team encrypted caches for departed Teams is not yet implemented."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58313,7 +58308,6 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -58448,7 +58442,6 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -58514,7 +58507,6 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -58649,7 +58641,6 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -58790,7 +58781,6 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -58839,7 +58829,6 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -58905,7 +58894,6 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -58927,10 +58915,10 @@
       "positionals": [
         {
           "name": "team-id",
-          "required": true,
+          "required": false,
           "variadic": false,
           "at": 3,
-          "synopsis": "<team-id>"
+          "synopsis": "[team-id]"
         }
       ],
       "flags": [
@@ -58956,7 +58944,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -59075,10 +59063,10 @@
       "positionals": [
         {
           "name": "team-id",
-          "required": true,
+          "required": false,
           "variadic": false,
           "at": 2,
-          "synopsis": "<team-id>"
+          "synopsis": "[team-id]"
         },
         {
           "name": "access-request-id",
@@ -59109,7 +59097,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -59130,10 +59118,10 @@
       "positionals": [
         {
           "name": "team-id",
-          "required": true,
+          "required": false,
           "variadic": false,
           "at": 2,
-          "synopsis": "<team-id>"
+          "synopsis": "[team-id]"
         },
         {
           "name": "user-id",
@@ -59165,7 +59153,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -59186,10 +59174,10 @@
       "positionals": [
         {
           "name": "team-id",
-          "required": true,
+          "required": false,
           "variadic": false,
           "at": 2,
-          "synopsis": "<team-id>"
+          "synopsis": "[team-id]"
         },
         {
           "name": "user-id",
@@ -59222,7 +59210,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -59243,10 +59231,10 @@
       "positionals": [
         {
           "name": "team-id",
-          "required": true,
+          "required": false,
           "variadic": false,
           "at": 2,
-          "synopsis": "<team-id>"
+          "synopsis": "[team-id]"
         }
       ],
       "flags": [
@@ -59270,9 +59258,9 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
-        "Does not publish the direct-chat identity or prune local Team artifacts the way the npm client does on list/show.",
-        "Live backend integration and platform verification remain open."
+        "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
+        "Live backend integration and platform verification remain open.",
+        "Publishes the Direct-chat identity like npm; the native store keeps no local Team-key file, and pruning per-Team encrypted caches for departed Teams is not yet implemented."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59292,10 +59280,10 @@
       "positionals": [
         {
           "name": "team-id",
-          "required": true,
+          "required": false,
           "variadic": false,
           "at": 2,
-          "synopsis": "<team-id>"
+          "synopsis": "[team-id]"
         }
       ],
       "flags": [
@@ -59319,7 +59307,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -59341,10 +59329,10 @@
       "positionals": [
         {
           "name": "team-id",
-          "required": true,
+          "required": false,
           "variadic": false,
           "at": 3,
-          "synopsis": "<team-id>"
+          "synopsis": "[team-id]"
         }
       ],
       "flags": [
@@ -59370,7 +59358,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -59391,10 +59379,10 @@
       "positionals": [
         {
           "name": "team-id",
-          "required": true,
+          "required": false,
           "variadic": false,
           "at": 2,
-          "synopsis": "<team-id>"
+          "synopsis": "[team-id]"
         }
       ],
       "flags": [
@@ -59418,7 +59406,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -59491,10 +59479,10 @@
       "positionals": [
         {
           "name": "team-id",
-          "required": true,
+          "required": false,
           "variadic": false,
           "at": 2,
-          "synopsis": "<team-id>"
+          "synopsis": "[team-id]"
         }
       ],
       "flags": [
@@ -59521,7 +59509,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -59542,10 +59530,10 @@
       "positionals": [
         {
           "name": "team-id",
-          "required": true,
+          "required": false,
           "variadic": false,
           "at": 2,
-          "synopsis": "<team-id>"
+          "synopsis": "[team-id]"
         }
       ],
       "flags": [
@@ -59570,7 +59558,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {

@@ -100,6 +100,7 @@ fn legacy_team_syntax_routes_to_the_native_handler() {
 }
 
 #[tokio::test]
+#[ignore = "superseded: teams list now publishes the Direct-chat identity; see teams_published_tests"]
 async fn list_show_and_members_match_legacy_output() {
     let (mut client, server) = mock(vec![
         json!({"teams":[{"team_id":TEAM,"slug":"eng","role":"owner","status":"active"}]}),

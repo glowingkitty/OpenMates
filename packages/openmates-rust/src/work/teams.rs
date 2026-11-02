@@ -629,6 +629,9 @@ impl Teams<'_> {
     }
 }
 
+#[path = "teams_identity.rs"]
+mod identity;
+
 #[cfg(test)]
 #[path = "teams_tests.rs"]
 mod tests;
