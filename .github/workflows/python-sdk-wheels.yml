@@ -1,0 +1,61 @@
+# Build (do not publish) Python SDK platform wheels with the PyO3 Rust core.
+#
+# Manual dispatch only. Produces one abi3 (CPython >= 3.10) wheel per supported
+# platform: Linux x86_64/aarch64 (manylinux_2_28) and macOS x86_64/arm64.
+# The canonical packages/openmates-python/pyproject.toml stays pure setuptools;
+# scripts/build_python_wheels.py assembles the maturin project from it, so
+# `pip install -e packages/openmates-python` and the existing publish workflow
+# are unchanged. Wheels are uploaded as workflow artifacts only. Windows is out
+# of scope.
+name: Python SDK wheels (prepare)
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: python-sdk-wheels-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  wheel:
+    name: wheel (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-24.04, target: x86_64-unknown-linux-gnu, manylinux: "2_28" }
+          - { runner: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu, manylinux: "2_28" }
+          - { runner: macos-13, target: x86_64-apple-darwin, manylinux: "off" }
+          - { runner: macos-14, target: aarch64-apple-darwin, manylinux: "off" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Assemble maturin project from the canonical package metadata
+        run: python3 scripts/build_python_wheels.py --assemble-only .wheel-build/openmates
+      - name: Build wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: .wheel-build/openmates
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          args: --release --locked --out ${{ github.workspace }}/dist/wheels
+      - name: Verify wheel contents (native extension, sources, abi3 tag)
+        run: python3 scripts/build_python_wheels.py --verify dist/wheels/*.whl
+      - name: Smoke-import the native core from the built wheel
+        run: |
+          python3 -m venv /tmp/wheel-venv
+          /tmp/wheel-venv/bin/pip install dist/wheels/*.whl
+          /tmp/wheel-venv/bin/python -c "import openmates._native as m; assert callable(m.privacy) and callable(m.task_order); from openmates import sort_tasks; print(sort_tasks([{'task_id':'a','title':'B'},{'task_id':'b','title':'A'}], locale='en-US'))"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-sdk-wheel-${{ matrix.target }}
+          path: dist/wheels/*.whl
+          if-no-files-found: error
+          retention-days: 14

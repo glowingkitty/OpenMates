@@ -294,13 +294,17 @@ async fn assert_details_read(bridge: &SessionBridge, suite: &Value, vector: &Val
             let mut read:openmates_sdk::client::chat_details::ChatDetailsRead=serde_json::from_str(&raw).map_err(|_|"library JSON")?;
             let mut expected=vector["expected_details"].clone();
             if let Some(units)=vector.get("expected_draft_utf16").and_then(Value::as_array){
-                let leaf=format!("\"{}\"",units.iter().map(|n|format!("\\u{:04x}",n.as_u64().unwrap())).collect::<String>());
-                check(read.chat.draft_preview.as_ref().ok_or("preview leaf")?.encoded_json().map_err(|_|"library JSON")?==leaf)?;read.chat.draft_preview=None;
+                let expected_units:Vec<u16>=units.iter().map(|n|n.as_u64().and_then(|n|u16::try_from(n).ok())).collect::<Option<_>>().ok_or("preview units")?;
+                // Lossless UTF-16 leaf: compare code units, not one escape style.
+                let encoded=read.chat.draft_preview.as_ref().ok_or("preview leaf")?.encoded_json().map_err(|_|"library JSON")?;
+                check(json_string_units(&encoded)==Some(expected_units))?;read.chat.draft_preview=None;
             }
             if let Some(pii)=vector.get("expected_pii_utf16"){
                 let index=pii["index"].as_u64().ok_or("pii index")? as usize;
-                let leaf=format!("[\"{}\"]",pii["units"].as_array().ok_or("pii units")?.iter().map(|n|format!("\\u{:04x}",n.as_u64().unwrap())).collect::<String>());
-                check(read.messages[index].pii_mappings.as_ref().ok_or("pii leaf")?.encoded_json().map_err(|_|"library JSON")?==leaf)?;read.messages[index].pii_mappings=None;
+                let expected_units:Vec<u16>=pii["units"].as_array().ok_or("pii units")?.iter().map(|n|n.as_u64().and_then(|n|u16::try_from(n).ok())).collect::<Option<_>>().ok_or("pii units")?;
+                let encoded=read.messages[index].pii_mappings.as_ref().ok_or("pii leaf")?.encoded_json().map_err(|_|"library JSON")?;
+                let inner=encoded.strip_prefix('[').and_then(|v|v.strip_suffix(']')).ok_or("pii leaf")?;
+                check(json_string_units(inner)==Some(expected_units))?;read.messages[index].pii_mappings=None;
                 expected["messages"][index].as_object_mut().ok_or("pii message")?.remove("piiMappings");
             }
             if let Some(pii)=vector.get("semantic_pii"){
@@ -449,6 +453,24 @@ async fn run() -> Check<Value> {
         json!({"capability":CAPABILITY,"language":"rust","status":"passed","fixtureSha256":format!("{:x}",Sha256::digest(raw)),"results":results}),
     )
 }
+/// UTF-16 code units of one complete JSON string literal, keeping unpaired
+/// surrogates (`\udXXX` escapes) that a Rust `String` cannot represent.
+fn json_string_units(literal:&str)->Option<Vec<u16>>{
+    let body=literal.strip_prefix('"')?.strip_suffix('"')?;
+    let mut units=Vec::new();
+    let mut chars=body.chars();
+    while let Some(c)=chars.next(){
+        if c!='\\'{let mut buf=[0u16;2];units.extend_from_slice(c.encode_utf16(&mut buf));continue}
+        match chars.next()?{
+            '"'=>units.push(0x22),'\\'=>units.push(0x5c),'/'=>units.push(0x2f),
+            'b'=>units.push(0x08),'f'=>units.push(0x0c),'n'=>units.push(0x0a),'r'=>units.push(0x0d),'t'=>units.push(0x09),
+            'u'=>{let hex:String=chars.by_ref().take(4).collect();if hex.len()!=4{return None}units.push(u16::from_str_radix(&hex,16).ok()?)},
+            _=>return None,
+        }
+    }
+    Some(units)
+}
+
 #[tokio::main]
 async fn main() {
     match tokio::time::timeout(Duration::from_secs(240), run()).await {
