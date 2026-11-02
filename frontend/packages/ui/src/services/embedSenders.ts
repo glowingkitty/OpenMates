@@ -165,7 +165,11 @@ async function readEquivalentCanonicalHead(head: StoreEmbedPayload, historical =
       : !same(canonicalVersion, head.version_number ?? 1))
     || (!historical && !same(embed.status, head.status))
     || (head.app_id !== undefined && !same(embed.app_id, head.app_id))
-    || (head.skill_id !== undefined && !same(embed.skill_id, head.skill_id))
+    // Child TOON carries its parent's skill_id, so a replayed child can be
+    // queued with the parent's catalog projection while the canonical row holds
+    // the child's own skill (issue BMKRJ). Content/type/keys/parent are still
+    // proven equal below; the canonical catalog identity is adopted.
+    || (head.skill_id !== undefined && !head.parent_embed_id && !same(embed.skill_id, head.skill_id))
     // Older recovered heads omitted optional task indexing. Missing metadata is
     // compatible only after all scope/key/content checks below; a different
     // non-null task identity still conflicts.
@@ -506,7 +510,8 @@ async function persistCanonicalEmbedOperation(
       createdAt: canonical.embed.created_at,
       updatedAt: canonical.embed.updated_at,
     }, canonical.type as EmbedType, canonical.content, {
-      app_id: head.app_id, skill_id: head.skill_id,
+      app_id: (canonical.embed.app_id as string | undefined) ?? head.app_id,
+      skill_id: (canonical.embed.skill_id as string | undefined) ?? head.skill_id,
     });
   }
   return canonical ? "adopted" : "persisted";

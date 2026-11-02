@@ -692,4 +692,22 @@ describe("guarded initial completion", () => {
     expect(state.sent).toHaveLength(0);
     expect(state.localWrites[0].encrypted_content).toBe("cipher:body:old");
   });
+
+  // Issue BMKRJ: pending-embed replays rebuilt child payloads without the
+  // child's skill_id, so the client queued the parent's skill from the TOON.
+  // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+  it.each([["website"], ["search"]])(
+    "adopts an equivalent replayed child whose queued skill_id is %s",
+    async (queuedSkill) => {
+      state.descriptor = false; state.acknowledged = false; // finished child: no canonical_revision
+      state.canonicalParent = "parent-1";
+      state.canonicalWrappers = [{ hashed_embed_id: "hash:parent-1", hashed_user_id: "hash:user-1",
+        hashed_chat_id: null, key_type: "master", encrypted_embed_key: "wrapper" }];
+      const child = { ...payload, parent_embed_id: "parent-1", skill_id: queuedSkill } as StoreEmbedPayload;
+      const result = await sendStoreEmbedOperationImpl(service, child, undefined, undefined, "stream-completion");
+      expect(result.status).toBe("adopted");
+      expect(state.sent.filter((event) => event.type === "store_embed")).toEqual([]);
+      expect(state.queued.size).toBe(0);
+    },
+  );
 });

@@ -28,3 +28,11 @@ required_keys:
 # API access
 # Recipe Search v2 credentials are stored in Vault under providers/edamam.
 # See backend/apps/nutrition/providers/edamam_recipe_provider.py for integration details.
+
+# Recipe Search v2 request rate. edamam_rate_limit.py spaces every call
+# 60 / requests_per_minute seconds apart across all workers instead of
+# bursting into HTTP 429 ("Limits exceeded"). Measured on the dev key
+# (2026-11-02): back-to-back and 6-8s spacing were rejected after the first
+# one or two calls per minute, so stay conservative until the plan is raised.
+rate_limits:
+  requests_per_minute: 4

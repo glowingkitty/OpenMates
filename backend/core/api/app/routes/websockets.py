@@ -3012,6 +3012,10 @@ async def _deliver_pending_embeds(
                     embed_payload["task_id"] = embed_data["task_id"]
                 if embed_data.get("text_preview") is not None:
                     embed_payload["text_preview"] = embed_data["text_preview"]
+                # Replays must carry the live routing identity (issue BMKRJ).
+                for routing_key in ("app_id", "skill_id"):
+                    if embed_data.get(routing_key) is not None:
+                        embed_payload[routing_key] = embed_data[routing_key]
 
                 # Send directly via WebSocket (not pub/sub)
                 await manager.send_personal_message(

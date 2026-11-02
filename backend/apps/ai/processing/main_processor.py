@@ -1219,10 +1219,15 @@ SOFT_LIMIT_SKILL_CALLS = 3
 HARD_LIMIT_SKILL_CALLS = 5
 
 
-def _limit_news_search_batch_to_budget(
+def _limit_request_batch_to_budget(
     parsed_args: Dict[str, Any], remaining_requests: int
 ) -> Tuple[Dict[str, Any], List[Any]]:
-    """Run the news searches that fit instead of discarding an oversized batch."""
+    """Run the batched requests that fit instead of discarding an oversized batch.
+
+    A single multi-request call (e.g. ten recipe searches) used to be skipped
+    wholesale once it exceeded the remaining research budget, so the user got
+    no results and the model reported an unavailable tool (issue 4VXWM).
+    """
     requests = parsed_args.get("requests") if isinstance(parsed_args, dict) else None
     if remaining_requests <= 0 or not isinstance(requests, list) or len(requests) <= remaining_requests:
         return parsed_args, []
@@ -6293,7 +6298,7 @@ async def handle_main_processing(
     protocol_guard_recovery_started = False
     continue_published_answer = False
     published_answer_text: List[str] = []
-    omitted_news_search_requests = 0
+    omitted_budget_requests = 0
     
     # === SKILL CALL DEDUPLICATION ===
     # Track successfully completed skill calls to prevent duplicate executions.
@@ -6530,7 +6535,7 @@ async def handle_main_processing(
         tool_inference_iterations = int(resume_checkpoint["tool_inference_iterations"])
         budget_warning_injected = bool(resume_checkpoint["budget_warning_injected"])
         images_search_executed = bool(resume_checkpoint["images_search_executed"])
-        omitted_news_search_requests = int(resume_checkpoint.get("omitted_news_search_requests", 0))
+        omitted_budget_requests = int(resume_checkpoint.get("omitted_news_search_requests", 0))
         force_no_tools = bool(resume_checkpoint["force_no_tools"])
         primary_read_checkpoint = resume_checkpoint.get("delegated_primary_read") or {}
         delegated_primary_read.has_source_urls |= bool(primary_read_checkpoint.get("has_source_urls"))
@@ -6667,11 +6672,12 @@ async def handle_main_processing(
         if continue_published_answer:
             iteration_system_prompt += "\n\nContinue only after the already-published answer. Do not repeat it. Add only missing information, or a brief closing sentence if the answer is already complete."
 
-        if omitted_news_search_requests:
+        if omitted_budget_requests:
             iteration_system_prompt += (
-                "\n\nThe news search budget omitted some requested searches. "
-                "Identify those topics as unsearched, and cite only results actually returned by the news tool. "
-                "Never invent a headline, date, source, or embed reference for an omitted search."
+                "\n\nThe research budget omitted some requested tool requests. "
+                "Identify those requests as not executed, and cite only results actually returned by the tools. "
+                "Never invent a headline, date, source, result, or embed reference for an omitted request. "
+                "Do not describe the tool as unavailable; the executed requests succeeded."
             )
 
         # Inject embed preview instruction when images-search was executed
@@ -7505,17 +7511,18 @@ async def handle_main_processing(
                         if reused and not parsed_args["requests"]:
                             continue  # No new card, budget use, reservation or provider request.
 
-                    if app_id == "news" and skill_id == "search" and not getattr(request_data, "is_anonymous", False):
-                        parsed_args, omitted_inline_news_requests = _limit_news_search_batch_to_budget(
+                    if app_id != "system" and not getattr(request_data, "is_anonymous", False):
+                        parsed_args, omitted_inline_budget_requests = _limit_request_batch_to_budget(
                             parsed_args, HARD_LIMIT_SKILL_CALLS - streaming_skill_count
                         )
-                        if omitted_inline_news_requests:
+                        if omitted_inline_budget_requests:
                             logger.info(
-                                "%s INLINE: [SKILL_BUDGET] Limiting news-search placeholder batch to %s requests; "
+                                "%s INLINE: [SKILL_BUDGET] Limiting '%s' placeholder batch to %s requests; "
                                 "%s omitted.",
                                 log_prefix,
+                                tool_name,
                                 len(parsed_args["requests"]),
-                                len(omitted_inline_news_requests),
+                                len(omitted_inline_budget_requests),
                             )
 
                     if app_id == "system" and skill_id in MEMORY_TOOL_NAMES:
@@ -8662,7 +8669,7 @@ async def handle_main_processing(
                 delegated_primary_read.observe_attempt(tool_name)
             omitted_primary_read_requests: List[Any] = []
             tool_result_content_str: str
-            omitted_news_requests_for_call: List[Any] = []
+            omitted_budget_requests_for_call: List[Any] = []
 
             if block_split_workflow_authoring and tool_resolver_map.get(tool_name) == ("workflows", "create-or-modify"):
                 placeholder = inline_placeholder_embeds.get(tool_call_id)
@@ -8943,17 +8950,18 @@ async def handle_main_processing(
                         }),
                     })
                     continue
-                if app_id == "news" and skill_id == "search" and not getattr(request_data, "is_anonymous", False):
-                    parsed_args, omitted_news_requests_for_call = _limit_news_search_batch_to_budget(
+                if app_id != "system" and not getattr(request_data, "is_anonymous", False):
+                    parsed_args, omitted_budget_requests_for_call = _limit_request_batch_to_budget(
                         parsed_args, HARD_LIMIT_SKILL_CALLS - total_skill_calls
                     )
-                    if omitted_news_requests_for_call:
-                        omitted_news_search_requests += len(omitted_news_requests_for_call)
+                    if omitted_budget_requests_for_call:
+                        omitted_budget_requests += len(omitted_budget_requests_for_call)
                         logger.info(
-                            "%s [SKILL_BUDGET] Limiting news-search execution to %s requests; %s omitted.",
+                            "%s [SKILL_BUDGET] Limiting '%s' execution to %s requests; %s omitted.",
                             log_prefix,
+                            tool_name,
                             len(parsed_args["requests"]),
-                            len(omitted_news_requests_for_call),
+                            len(omitted_budget_requests_for_call),
                         )
 
                 requests_in_this_call = 1  # Default: single request
@@ -12140,16 +12148,20 @@ async def handle_main_processing(
                         "instruction": "These requests were not executed. Do not cite or invent results for them.",
                     },
                 })
-            if omitted_news_requests_for_call:
+            if omitted_budget_requests_for_call:
                 omitted_queries = [
-                    request.get("query") for request in omitted_news_requests_for_call
+                    request.get("query") for request in omitted_budget_requests_for_call
                     if isinstance(request, dict) and isinstance(request.get("query"), str)
                 ]
                 tool_result_content_str += "\n\n" + json.dumps({
                     "research_budget": {
                         "status": "partial",
                         "omitted_queries": omitted_queries,
-                        "instruction": "These queries were not searched. Do not cite or invent results for them.",
+                        "omitted_requests": omitted_budget_requests_for_call,
+                        "instruction": (
+                            "These requests exceeded the research limit and were not executed. "
+                            "Do not cite or invent results for them; offer to run them in a follow-up."
+                        ),
                     }
                 })
 
@@ -12192,7 +12204,7 @@ async def handle_main_processing(
                 "tool_inference_iterations": tool_inference_iterations,
                 "budget_warning_injected": budget_warning_injected,
                 "images_search_executed": images_search_executed,
-                "omitted_news_search_requests": omitted_news_search_requests,
+                "omitted_news_search_requests": omitted_budget_requests,
                 "force_no_tools": force_no_tools,
                 "delegated_primary_read": {
                     "has_source_urls": delegated_primary_read.has_source_urls,

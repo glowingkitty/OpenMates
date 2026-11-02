@@ -1102,6 +1102,25 @@ def decrypt_share_key_blob(
         return None, f"Failed to decrypt share key blob: {e}"
 
 
+CLIENT_CIPHERTEXT_MAGIC = b"OM"
+CLIENT_CIPHERTEXT_HEADER_LENGTH = 6  # magic (2) + key fingerprint (4)
+
+
+def _client_key_fingerprint(raw_key: bytes) -> bytes:
+    """FNV-1a fingerprint matching computeKeyFingerprint4Bytes in MessageEncryptor.ts."""
+    value = 0x811C9DC5
+    for byte in raw_key:
+        value = ((value ^ byte) * 0x01000193) & 0xFFFFFFFF
+    return value.to_bytes(4, "big")
+
+
+def _has_client_ciphertext_header(raw_bytes: bytes) -> bool:
+    return (
+        len(raw_bytes) > CLIENT_CIPHERTEXT_HEADER_LENGTH + AES_IV_LENGTH
+        and raw_bytes[:2] == CLIENT_CIPHERTEXT_MAGIC
+    )
+
+
 def decrypt_client_aes_content(
     encrypted_base64: str,
     raw_key: bytes,
@@ -1115,6 +1134,13 @@ def decrypt_client_aes_content(
         return None, "Empty encrypted content"
     try:
         raw_bytes = base64.b64decode(encrypted_base64)
+        if _has_client_ciphertext_header(raw_bytes):
+            # Current web format: "OM" magic + 4-byte key fingerprint + IV + ciphertext.
+            stored_fp = raw_bytes[2:CLIENT_CIPHERTEXT_HEADER_LENGTH].hex()
+            actual_fp = _client_key_fingerprint(raw_key).hex()
+            if stored_fp != actual_fp:
+                return None, f"Key fingerprint mismatch: data fp={stored_fp}, key fp={actual_fp}"
+            raw_bytes = raw_bytes[CLIENT_CIPHERTEXT_HEADER_LENGTH:]
         plaintext_bytes = _aes_gcm_decrypt(raw_bytes, raw_key)
         return plaintext_bytes.decode('utf-8'), None
     except Exception as e:

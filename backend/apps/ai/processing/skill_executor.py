@@ -63,6 +63,10 @@ def get_skill_timeout(app_id: str, skill_id: str, arguments: Dict[str, Any]) -> 
     # location enrichment. The ordinary 20s envelope can cancel valid results.
     if (app_id, skill_id) == ("home", "search"):
         return 75.0
+    # Recipe searches queue for shared, spaced Edamam request slots, so a
+    # parallel batch can wait up to SEARCH_SLOT_BUDGET_SECONDS before its call.
+    if (app_id, skill_id) == ("nutrition", "search_recipes"):
+        return 60.0
     if (app_id, skill_id) != ("shopping", "search_products") or not isinstance(arguments, dict):
         return DEFAULT_SKILL_TIMEOUT
     requests = arguments.get("requests", [arguments])

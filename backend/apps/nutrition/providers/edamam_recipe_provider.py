@@ -11,11 +11,18 @@ from __future__ import annotations
 import logging
 import os
 import re
+import time as time_module
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 from urllib.parse import parse_qsl, urlparse
 
 import httpx
+
+from backend.apps.nutrition.providers.edamam_rate_limit import (
+    acquire_request_slot,
+    configured_min_interval_seconds,
+    resolve_cache_client,
+)
 
 if TYPE_CHECKING:
     from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -30,6 +37,12 @@ EDAMAM_APP_KEY_KEY = "app_key"
 DEFAULT_MAX_RESULTS = 6
 MAX_RESULTS = 10
 MAX_PAGES = 3
+# Total time one search may wait for shared Edamam request slots before failing
+# fast without spending a request; the 60s skill timeout leaves room beyond it.
+SEARCH_SLOT_BUDGET_SECONDS = 45.0
+# Extra pages are best effort: stop paginating rather than queue behind others.
+NEXT_PAGE_MAX_WAIT_SECONDS = 7.0
+MAX_RATE_LIMIT_RETRIES = 1
 
 RECIPE_FIELDS = [
     "uri",
@@ -339,6 +352,7 @@ async def search_recipes(
     calories: Optional[str] = None,
     ingredients: Optional[str] = None,
     max_pages: int = MAX_PAGES,
+    cache_service: Optional[Any] = None,
 ) -> EdamamSearchResult:
     """Search Edamam and return only recipes with usable instructions."""
     query = query.strip()
@@ -370,8 +384,28 @@ async def search_recipes(
     total_available = 0
     next_url: Optional[str] = EDAMAM_API_URL
 
+    cache_client = await resolve_cache_client(cache_service)
+    min_interval_seconds = configured_min_interval_seconds()
+    slot_deadline = time_module.monotonic() + SEARCH_SLOT_BUDGET_SECONDS
+    rate_limit_retries = 0
+
     async with httpx.AsyncClient(timeout=20.0) as client:
         while next_url and pages_requested < max_pages and len(recipes) < max_results:
+            first_page = pages_requested == 0
+            remaining_wait = max(0.0, slot_deadline - time_module.monotonic())
+            slot_acquired = await acquire_request_slot(
+                cache_client,
+                min_interval_seconds=min_interval_seconds,
+                max_wait_seconds=remaining_wait if first_page else min(NEXT_PAGE_MAX_WAIT_SECONDS, remaining_wait),
+            )
+            if not slot_acquired:
+                if first_page:
+                    raise EdamamProviderError(
+                        "Edamam recipe search is busy; no request slot became free in time",
+                        status_code=429,
+                    )
+                logger.info("Edamam pagination stopped after %d page(s): no request slot free", pages_requested)
+                break
             try:
                 response = await client.get(
                     EDAMAM_API_URL,
@@ -382,6 +416,14 @@ async def search_recipes(
             except httpx.HTTPStatusError as exc:
                 status_code = exc.response.status_code
                 if status_code == 429:
+                    if rate_limit_retries < MAX_RATE_LIMIT_RETRIES:
+                        # Another client used the window; wait for the next spaced slot once.
+                        rate_limit_retries += 1
+                        logger.warning("Edamam returned 429 for page %d; retrying in the next slot", pages_requested + 1)
+                        continue
+                    if not first_page:
+                        logger.warning("Edamam returned 429 for page %d; keeping earlier pages", pages_requested + 1)
+                        break
                     raise EdamamProviderError("Edamam rate limit exceeded", status_code=429) from exc
                 if status_code in {401, 403}:
                     raise EdamamProviderError("Edamam credentials are invalid or unauthorized", status_code=status_code) from exc

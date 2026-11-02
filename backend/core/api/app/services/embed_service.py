@@ -6647,9 +6647,17 @@ class EmbedService:
                     or finished_cache_data.get("chat_id", chat_id) != chat_id
                     or finished_cache_data.get("message_id", message_id) != message_id):
                 raise RequiredRecoveryOutputError("Finished embed cache identity mismatch")
+            # Replays (_deliver_pending_embeds, persistence safety nets) rebuild
+            # send_embed_data from this cache. Keep the live routing identity so a
+            # replayed child is not re-queued with its parent's skill_id and
+            # rejected as a canonical revision conflict (issue BMKRJ).
+            routing = {
+                key: data[key] for key in ("app_id", "skill_id")
+                if data.get(key) is not None and finished_cache_data.get(key) is None
+            }
             await self._cache_embed(
-                embed_id, finished_cache_data, chat_id, user_id_hash,
-                finished_cache_vault_key_id, user_id,
+                embed_id, {**finished_cache_data, **routing} if routing else finished_cache_data,
+                chat_id, user_id_hash, finished_cache_vault_key_id, user_id,
             )
 
         # Publish to Redis for WebSocket delivery

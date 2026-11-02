@@ -21,6 +21,7 @@ def _run_production_plan_focus_guard(
     active_focus_id: str | None = None,
     active_project_focus: bool = False,
     relevant_focus_modes: list[str] | None = None,
+    message: str | None = None,
 ) -> str | None:
     """Execute the real task guard without importing the Celery task module."""
     task_path = Path(__file__).resolve().parents[1] / "apps/ai/tasks/ask_skill_task.py"
@@ -45,6 +46,7 @@ def _run_production_plan_focus_guard(
         "I am a fiction writer looking to become a software developer. "
         "Do not create Tasks or save memories."
     )
+    intro = message or intro
     user_overrides = parse_overrides(
         f"@focus:jobs:career_insights {intro}" if explicit_focus else intro
     )
@@ -134,4 +136,49 @@ def test_task_plan_route_preserves_focus_precedence(
         active_focus_id=active_focus_id,
         active_project_focus=active_project_focus,
         relevant_focus_modes=relevant_focus_modes,
+        message=None if explicit_focus else "Plan the software migration with tasks and verification steps.",
     ) == expected_focus_id
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.activation
+@pytest.mark.parametrize(
+    "message",
+    [
+        # Issue BMKRJ: "doesn't plan to" silently activated openmates-plan.
+        "What are the implications for someone building an open-source agent? "
+        "Has not looked for any investment and doesn't plan to do so, but focuses on bootstrapping.",
+        "I am a fiction writer looking to become a software developer. Do not create Tasks or save memories.",
+        "Can you give me an explanation of how planets form?",
+        "Which open-source projects are the most popular this year?",
+        "What's the plan for the latest release?",
+        "Are there tasks that a verification engineer does daily?",
+    ],
+)
+def test_ordinary_messages_do_not_auto_activate_planner(message: str) -> None:
+    route = route_plan_focus(
+        message,
+        plan_requested=False,
+        available_focus_modes={"code-project_planner", "openmates-plan"},
+    )
+    assert route == route.__class__(should_plan=False, active_focus_id=None, reason="no_plan_intent")
+    assert _run_production_plan_focus_guard(explicit_focus=False, relevant_focus_modes=[], message=message) is None
+
+
+@pytest.mark.parametrize(
+    ("message", "expected_focus_id"),
+    [
+        ("Please plan my move to Lisbon next spring.", "openmates-plan"),
+        ("Help me plan out a 60-person community workshop.", "openmates-plan"),
+        ("I need a roadmap for launching the newsletter.", "openmates-plan"),
+        ("Make me a project plan for the API migration.", "code-project_planner"),
+        ("We ship next month. Break down the feature into tasks with tests.", "code-project_planner"),
+    ],
+)
+def test_explicit_requests_for_a_plan_still_auto_route(message: str, expected_focus_id: str) -> None:
+    route = route_plan_focus(
+        message,
+        plan_requested=False,
+        available_focus_modes={"code-project_planner", "openmates-plan"},
+    )
+    assert route.should_plan is True
+    assert route.active_focus_id == expected_focus_id

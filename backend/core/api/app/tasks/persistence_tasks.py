@@ -3328,6 +3328,11 @@ async def _async_persist_embed_fallback(
     if parent_embed_id is not None:
         payload["payload"]["parent_embed_id"] = parent_embed_id
 
+    # Re-sends must carry the live routing identity (issue BMKRJ).
+    for routing_key in ("app_id", "skill_id"):
+        if embed_data.get(routing_key) is not None:
+            payload["payload"][routing_key] = embed_data[routing_key]
+
     task_id_for_payload = embed_data.get("task_id") or embed_data.get("hashed_task_id")
     if task_id_for_payload is not None:
         payload["payload"]["task_id"] = task_id_for_payload
@@ -3583,6 +3588,9 @@ async def _async_process_pending_embeds(task_id: str):
                             payload["payload"]["embed_ids"] = embed_data["embed_ids"]
                         if embed_data.get("parent_embed_id") is not None:
                             payload["payload"]["parent_embed_id"] = embed_data["parent_embed_id"]
+                        for routing_key in ("app_id", "skill_id"):
+                            if embed_data.get(routing_key) is not None:
+                                payload["payload"][routing_key] = embed_data[routing_key]
 
                         channel_key = f"websocket:user:{user_id_hash}"
                         redis_client = await cache_service.client
