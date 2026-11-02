@@ -8,8 +8,10 @@
  * Tests: exercised via CLI and targeted crypto/storage tests.
  */
 
+// SDK root export: implicit stored-CLI-login loading emits a one-time
+// DeprecationWarning (OPENMATES_SDK_CLI_SESSION). The CLI imports ./client.js.
+export { OpenMatesClient, SDK_CLI_SESSION_DEPRECATION_CODE } from "./sdkRootClient.js";
 export {
-  OpenMatesClient,
   deriveAppUrl,
   INTEREST_TAG_IDS,
   MEMORY_TYPE_REGISTRY,

@@ -375,6 +375,16 @@ Use `chats.send()` for anonymous AI chat with automatic routing; `apps.ai.ask()`
 requires an account. With an API key, use `saveToAccount: true` when you want the
 chat saved to the OpenMates account.
 
+### Deprecated: implicit CLI login in the root `OpenMatesClient`
+
+`new OpenMatesClient()` / `OpenMatesClient.load()` from the root `openmates`
+export still load the stored CLI login when no `session` is passed, but this is
+deprecated: SDK credentials must be explicit. It emits one `DeprecationWarning`
+with code `OPENMATES_SDK_CLI_SESSION` per process. Pass `session` explicitly,
+set `loadStoredSession: false`, or use `SessionClient` from `openmates/sdk/v1`.
+A later minor release will require explicit credentials (see `CHANGELOG.md`).
+The `openmates` command line is unaffected.
+
 ### Native session SDK (preview)
 
 `openmates/sdk/v1` exports `SessionClient`, `RustApiKeyClient` and related
