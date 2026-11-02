@@ -434,7 +434,10 @@ where
                 path.join(" ")
             )));
         }
+        // A bare `...` usage token repeats the preceding positional, as in
+        // `chats delete <id1> [id2] [id3] ... [--yes]` (TS accepts any count).
         let open_text = record.skill_schema.is_some()
+            || record.usages.iter().any(|usage| usage.split_whitespace().any(|token| token == "..."))
             || record.positionals.iter().any(|p| {
                 p.variadic || ["message", "text", "query", "prompt"].contains(&p.name.as_str())
             });
@@ -564,6 +567,14 @@ mod tests {
         assert_eq!(error.kind(), ErrorKind::DisplayHelp);
         assert!(parse_from(["openmates", "definitely-unknown"]).is_err());
         assert!(parse_from(["openmates", "tasks", "list", "--definitely-unknown"]).is_err());
+    }
+    #[test]
+    fn chats_delete_accepts_any_number_of_ids_like_typescript() {
+        let ids = ["a1", "b2", "c3", "d4", "e5"];
+        let parsed = parse_from(["openmates", "chats", "delete"].into_iter().chain(ids).chain(["--yes"])).unwrap();
+        assert_eq!(parsed.invocation.unwrap().positionals, ids);
+        // Fixed-arity commands still refuse extra positionals.
+        assert!(parse_from(["openmates", "chats", "show", "a1", "b2"]).is_err());
     }
     #[test]
     fn version_alias_and_profile_are_native() {
