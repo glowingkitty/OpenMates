@@ -122572,7 +122572,7 @@ assertions:
     current_direct_proof: false
   notifications.delivery.foreground-chat-suppression:
     specification: feature.notifications@2
-    fingerprint: a25c95d6dc48a214c658cdfa377f33fb07cb920a077dd9676d71dd6f57c3faa4
+    fingerprint: 972945ed798f22e77185547d218640d33ec1eb2dde35f01c6ed7a2b7b9ad4c14
     direct_tests: []
     supporting_tests:
     - &id15743

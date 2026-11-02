@@ -661,7 +661,7 @@ specifications:
     version: 2
     status: draft
     path: features/notifications
-    fingerprint: 41ff6ab61162e2ca0029fd8602f2cee3358b23e883e4a0f2f1cc1c6f649c2a20
+    fingerprint: f75eb429414a92b2e7dbb8094e6c6e0680388ffde93bb540c2930875fb5e513f
     required_applies_to:
     - rest_api
     - cli
@@ -8283,7 +8283,7 @@ assertions:
     specification: feature.notifications@2
     specification_id: feature.notifications
     type: behavior
-    fingerprint: a25c95d6dc48a214c658cdfa377f33fb07cb920a077dd9676d71dd6f57c3faa4
+    fingerprint: 972945ed798f22e77185547d218640d33ec1eb2dde35f01c6ed7a2b7b9ad4c14
     required_applies_to:
     - rest_api
     - cli

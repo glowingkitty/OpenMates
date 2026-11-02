@@ -189,8 +189,12 @@ assertions:
       web app is in the foreground or a human interactive TUI remains open, including
       new chats before their chat identifier is selected and subsequent responses.
       Presence covers that user's chats and uses fresh per-connection leases; background,
-      closed, disconnected, expired, headless and noninteractive clients do not suppress
-      delivery. Other users' presence never suppresses a recipient's notifications.
+      closed, disconnected, expired, headless and noninteractive clients do not provide
+      that account-wide presence. A completion delivered to a live foreground connection
+      that has the chat selected, such as a CLI or SDK send awaiting its reply, counts as
+      viewing that one message and suppresses the initiating user's email and push for it;
+      a send that does not await the reply still notifies.
+      Other users' presence never suppresses a recipient's notifications.
       Existing Team access, channel preferences and non-chat notification rules remain authoritative.
     depends_on: [models.NotificationEvent]
   - id: notifications.delivery.push-enabled
