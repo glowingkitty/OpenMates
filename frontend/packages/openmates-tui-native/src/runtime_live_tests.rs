@@ -919,7 +919,7 @@ async fn boot_admits_real_username_and_cached_home_before_pending_first_global_s
         actor.persist().await.unwrap();
         let receiver=actor.cached_views.subscribe();
         let (send,mut receive)=mpsc::channel(32);
-        let boot=tokio::spawn(async move {let result=actor.boot(&send,Stamp::default()).await;(actor,result)});
+        let boot=tokio::spawn(async move {let result=match actor.boot(&send,Stamp::default()).await {Ok(())=>actor.boot_sync(&send,Stamp::default()).await,error=>error};(actor,result)});
         started.notified().await;
         assert!(!boot.is_finished(),"canonical global discovery must actually be pending");
         let mut auth_count=0;let mut cached_home=false;
@@ -998,7 +998,7 @@ async fn boot_consumes_one_current_empty_inventory_for_the_same_final_list_witho
         actor.client.restore_ciphertext_snapshot(&owned_cached_snapshot(6)).unwrap();
         let history=actor.client.ciphertext_snapshot()["history"].clone();actor.persist().await.unwrap();
         let (send,mut receive)=mpsc::channel(32);
-        actor.boot(&send,Stamp::default()).await.unwrap();
+        actor.boot(&send,Stamp::default()).await.unwrap();actor.boot_sync(&send,Stamp::default()).await.unwrap();
         let mut auth=0;let mut final_items=None;
         while let Ok(reply)=receive.try_recv(){match reply.view {
             View::AdmittedAuth(publication)=>{auth+=1;assert_eq!(publication.into_auth().unwrap().0,"FixtureOwner");},

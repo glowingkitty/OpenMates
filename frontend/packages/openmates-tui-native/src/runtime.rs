@@ -325,10 +325,19 @@ impl Stamp {
 }
 enum Work {
     Boot,
+    /// The slow part of boot (global recovery + list). Runs only when the
+    /// request queue is idle and yields to a chat Open/Send (preempted).
+    BootSync,
     Command(UiCommand),
     PairPoll,
     Monitor,
     Live,
+}
+type BootSyncPreempt = std::sync::Arc<std::sync::Mutex<Option<CancellationToken>>>;
+fn preempt_boot_sync(slot: &BootSyncPreempt) {
+    if let Some(token) = slot.lock().ok().and_then(|mut slot| slot.take()) {
+        token.cancel();
+    }
 }
 struct Request {
     epoch: Stamp,
@@ -372,9 +381,10 @@ async fn run_terminal(args: Args) -> Result<()> {
     let mut ui = if args.demo {
         Ui::demo(20, 25)
     } else {
-        let mut ui = Ui::new();
-        ui.set_authenticated(false);
-        ui
+        // Boot decides: a stored session paints cached cards at once and an
+        // early Enter must open one; SignedOut/Unlock replies show the forms.
+        // An invisible login form would otherwise swallow those first keys.
+        Ui::new()
     };
     let mut epoch = Stamp::default();
     let mut active = CancellationToken::new();
@@ -385,12 +395,15 @@ async fn run_terminal(args: Args) -> Result<()> {
     let (cached_sender, mut cached_views) = watch::channel(None::<NativeCachedChatViews>);
     let stop = CancellationToken::new();
     let demo = args.demo;
+    // Cancels a running background BootSync so a chat Open/Send runs first.
+    let boot_sync_preempt: BootSyncPreempt = Default::default();
+    let actor_preempt = boot_sync_preempt.clone();
     let worker = if demo {
         None
     } else {
         let shutdown = stop.clone();
         Some(tokio::spawn(async move {
-            actor(args, receiver, controls, decisions, replies, cached_sender, shutdown).await
+            actor(args, receiver, controls, decisions, replies, cached_sender, shutdown, actor_preempt).await
         }))
     };
     if !demo {
@@ -637,6 +650,9 @@ async fn run_terminal(args: Args) -> Result<()> {
                     ) {
                         epoch.view = epoch.view.wrapping_add(1);
                     }
+                    if matches!(command, UiCommand::Open(Workspace::Chats, _) | UiCommand::Send { .. }) {
+                        preempt_boot_sync(&boot_sync_preempt);
+                    }
                     if matches!(
                         command,
                         UiCommand::Logout
@@ -881,6 +897,7 @@ async fn actor(
     replies: mpsc::Sender<Reply>,
     cached_views: watch::Sender<Option<NativeCachedChatViews>>,
     stop: CancellationToken,
+    boot_sync_preempt: BootSyncPreempt,
 ) {
     let initial = async {
         let directories = directories::BaseDirs::new().ok_or(Error::Io)?;
@@ -963,19 +980,39 @@ async fn actor(
     // the keyless SDK task; control/request work always wins actor admission.
     let mut live_tick = tokio::time::interval(Duration::from_millis(250));
     live_tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+    let mut boot_sync: Option<Stamp> = None;
     while let Some(request) = tokio::select! {
         biased;
         _=stop.cancelled()=>None,
         request=controls.recv()=>request,
         request=requests.recv()=>request,
+        // Only when no command is queued: a chat Open never waits behind it.
+        _=std::future::ready(()), if boot_sync.is_some() => {
+            let token = CancellationToken::new();
+            if let Ok(mut slot) = boot_sync_preempt.lock() { *slot = Some(token.clone()); }
+            boot_sync.take().map(|epoch| Request { epoch, work: Work::BootSync, cancel: token })
+        },
         _=live_tick.tick(), if state.live_monitor.as_ref().is_some_and(|m|m.is_valid()) && !state.live_cancel.is_cancelled()
             =>Some(Request{epoch:state.live_epoch,work:Work::Live,cancel:state.live_cancel.clone()}),
     } {
         let background = matches!(&request.work, Work::Live);
+        let booting = matches!(&request.work, Work::Boot);
+        let syncing = matches!(&request.work, Work::BootSync);
         let opening_chat = matches!(&request.work, Work::Command(UiCommand::Open(Workspace::Chats, _)));
         let epoch = request.epoch;
         let cancel = request.cancel.clone();
         let mut result = state.dispatch(request, &replies).await;
+        if syncing {
+            if let Ok(mut slot) = boot_sync_preempt.lock() { slot.take(); }
+            // A preempted background sync resumes once the queue is idle again.
+            if result == Err(Error::Cancelled) && cancel.is_cancelled() && state.client.session().is_some() {
+                boot_sync = Some(epoch);
+                continue;
+            }
+        }
+        if booting && result.is_ok() && state.client.session().is_some() {
+            boot_sync = Some(epoch);
+        }
         if result.is_err() {
             // Retire this optional presentation on every failed read. Known
             // auth/access denial keeps it closed until a new monitor owner
@@ -1154,6 +1191,11 @@ impl Actor {
     }
     async fn authorized_with_inventory(&mut self, replies: &mpsc::Sender<Reply>, epoch: Stamp,
         inventory: bool) -> Result<Option<FreshChatInventory>> {
+        self.authorized_admission(replies, epoch).await?;
+        self.recover_before_view_with_inventory(replies, epoch, None, false, inventory)
+            .await.map(|outcome| outcome.fresh_inventory)
+    }
+    async fn authorized_admission(&mut self, replies: &mpsc::Sender<Reply>, epoch: Stamp) -> Result<()> {
         // This can start monitors and foreground recovery. Remove any restored
         // receipt durably before those effects, including a crash before a
         // recovery checkpoint/final save. Failure refuses their dispatch.
@@ -1205,9 +1247,7 @@ impl Actor {
         let status = if matches!(admission, MonitorAdmission::Offline) {
             "Offline · reconnecting…"
         } else { storage };
-        Self::emit(replies, epoch, View::Status(status)).await?;
-        self.recover_before_view_with_inventory(replies, epoch, None, false, inventory)
-            .await.map(|outcome| outcome.fresh_inventory)
+        Self::emit(replies, epoch, View::Status(status)).await
     }
     async fn monitor(&mut self, replies: &mpsc::Sender<Reply>, epoch: Stamp) -> Result<()> {
         self.monitor_admission(replies, epoch).await.map(|_| ())
@@ -1660,25 +1700,37 @@ impl Actor {
                 )
                 .await?;
             }
-            let generation = self.store.generation_guard();
-            let cancel = self.live_cancel.clone();
-            // Reuse only the same-batch complete empty inventory returned after
-            // actual recovery/journal admission and its existing durable save.
-            // No phase1b/cache/history data is promoted to full selected reads.
-            let proof = self.authorized_with_inventory(replies, epoch, true).await?;
-            if cancel.is_cancelled() || !generation.is_current() { return Err(Error::Cancelled); }
-            let items = if let Some(proof) = proof {
-                self.client.list_with_fresh_chat_inventory(Workspace::Chats, proof, &cancel).await?
-            } else {
-                self.client.list(Workspace::Chats).await?
-            };
-            self.persist().await?;
-            if cancel.is_cancelled() || !generation.is_current() { return Err(Error::Cancelled); }
-            Self::emit(replies, epoch, View::Items(Workspace::Chats, items)).await?;
+            // Authenticate and admit the monitor now; global recovery and the
+            // list refresh follow as a preemptible background BootSync.
+            self.authorized_admission(replies, epoch).await?;
         } else {
             Self::emit(replies, epoch, View::SignedOut).await?;
         }
         Ok(())
+    }
+    /// Background half of boot: global recovery with inventory, then the list.
+    async fn boot_sync(&mut self, replies: &mpsc::Sender<Reply>, epoch: Stamp) -> Result<()> {
+        if self.client.session().is_none() {
+            return Ok(());
+        }
+        let generation = self.store.generation_guard();
+        let cancel = self.live_cancel.clone();
+        // Reuse only the same-batch complete empty inventory returned after
+        // actual recovery/journal admission and its existing durable save.
+        // No phase1b/cache/history data is promoted to full selected reads.
+        let proof = self
+            .recover_before_view_with_inventory(replies, epoch, None, false, true)
+            .await?
+            .fresh_inventory;
+        if cancel.is_cancelled() || !generation.is_current() { return Err(Error::Cancelled); }
+        let items = if let Some(proof) = proof {
+            self.client.list_with_fresh_chat_inventory(Workspace::Chats, proof, &cancel).await?
+        } else {
+            self.client.list(Workspace::Chats).await?
+        };
+        self.persist().await?;
+        if cancel.is_cancelled() || !generation.is_current() { return Err(Error::Cancelled); }
+        Self::emit(replies, epoch, View::Items(Workspace::Chats, items)).await
     }
     async fn pair_poll(
         &mut self,
@@ -1830,11 +1882,14 @@ impl Actor {
                 && matches!(&request.work, Work::Command(UiCommand::Unlock { .. }));
         // process owns the selected command's boxed future; retain that exact
         // operation through the existing admission/cancellation boundary.
+        // A preempted background sync yields at once; its effects are fenced
+        // like any other dropped operation and it reruns from the start.
+        let grace = if matches!(&request.work, Work::BootSync) { Duration::ZERO } else { Duration::from_secs(2) };
         let operation = self.process(request, replies);
         if admission {
             operation.await
         } else {
-            finish_or_cancel(operation, &cancel, Duration::from_secs(2)).await
+            finish_or_cancel(operation, &cancel, grace).await
         }
     }
     // Select one operation before polling. Each action has its own coroutine
@@ -1852,6 +1907,10 @@ impl Actor {
             Work::Boot => Box::pin(async move {
                 let _request_cancel = &cancel;
                 self.boot(replies, epoch).await
+            }),
+            Work::BootSync => Box::pin(async move {
+                let _request_cancel = &cancel;
+                self.boot_sync(replies, epoch).await
             }),
             Work::PairPoll => Box::pin(async move {
                 let _request_cancel = &cancel;

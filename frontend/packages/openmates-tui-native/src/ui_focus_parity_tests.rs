@@ -80,3 +80,14 @@ fn home_starts_on_the_cards_so_enter_opens_the_selected_chat() {
     assert!(ui.focus == Focus::Composer);
     assert_eq!(ui.draft.text.to_string(), "hi");
 }
+
+#[test]
+fn enter_on_cached_cards_before_authentication_still_opens_the_chat() {
+    // Boot paints cached cards before the session is re-validated; no hidden
+    // login form may swallow an early Enter (run_terminal no longer opens one).
+    let mut ui = Ui::new();
+    ui.set_items(Workspace::Chats, vec![chat_item("a")]);
+    assert!(ui.form.is_none());
+    let commands = ui.key(key(KeyCode::Enter));
+    assert!(matches!(&commands[..], [UiCommand::Open(Workspace::Chats, id)] if id == "a"));
+}
