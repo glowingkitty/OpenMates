@@ -7,6 +7,8 @@
 mod memories;
 mod reminders;
 mod settings_more;
+#[path = "teams.rs"]
+mod teams;
 
 use super::{CliError, CliOutput, Invocation, handlers};
 use crate::client::Client;
@@ -33,6 +35,7 @@ pub(super) fn supported(invocation: &Invocation) -> bool {
         || settings_more::supported(invocation)
         || memories::supported(invocation)
         || is_info(invocation)
+        || teams::supported(invocation)
         || matches!(
         path(invocation).as_str(),
         "whoami"
@@ -246,6 +249,9 @@ pub(super) async fn execute(
     }
     if memories::supported(invocation) {
         return memories::execute(invocation, client).await;
+    }
+    if teams::supported(invocation) {
+        return teams::execute(invocation, client).await;
     }
     let command = path(invocation);
     if let Some(result) = web_only(invocation, &client.application_url()) {

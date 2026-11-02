@@ -5548,13 +5548,56 @@
           "status": "partial"
         },
         "rust": {
-          "api": [],
+          "api": [
+            "work.teams.Client.teams",
+            "work.teams.TeamCreate",
+            "work.teams.TeamCreate.description",
+            "work.teams.TeamCreate.name",
+            "work.teams.TeamCreate.slug",
+            "work.teams.TeamInvite",
+            "work.teams.TeamInvite.email",
+            "work.teams.TeamInvite.encrypted_recipient_hint",
+            "work.teams.TeamInvite.expires_at",
+            "work.teams.TeamInvite.role",
+            "work.teams.TeamInvite.user",
+            "work.teams.TeamUpdate",
+            "work.teams.TeamUpdate.description",
+            "work.teams.TeamUpdate.name",
+            "work.teams.TeamUpdate.profile_image",
+            "work.teams.TeamUpdate.slug",
+            "work.teams.Teams",
+            "work.teams.Teams.accept_invite",
+            "work.teams.Teams.access_requests",
+            "work.teams.Teams.approve_access",
+            "work.teams.Teams.auth_methods",
+            "work.teams.Teams.billing",
+            "work.teams.Teams.create",
+            "work.teams.Teams.decline_invite",
+            "work.teams.Teams.delete",
+            "work.teams.Teams.get",
+            "work.teams.Teams.invite",
+            "work.teams.Teams.list",
+            "work.teams.Teams.member",
+            "work.teams.Teams.members",
+            "work.teams.Teams.reject_access",
+            "work.teams.Teams.remove_member",
+            "work.teams.Teams.request_delete_email_code",
+            "work.teams.Teams.set_role",
+            "work.teams.Teams.storage",
+            "work.teams.Teams.storage_notice",
+            "work.teams.Teams.update",
+            "work.teams.Teams.update_own_profile",
+            "work.teams.Teams.usage",
+            "work.teams.Teams.verify_delete_email_code",
+            "work.teams.Teams.verify_totp",
+            "work.teams.generated_profile_image"
+          ],
           "conformance": false,
           "evidence": [],
           "gaps": [
-            "Equivalent public API and cross-language implementation evidence are not yet established."
+            "Cookie-session Team management (list, show, create, update, delete with 2FA/email verification, invites, access requests, roles, members, profiles, billing, storage, usage) is native; move, export/import, profile-image upload/get, billing addresses and bank-transfer orders are not ported. Cross-language conformance is not yet established."
           ],
-          "status": "missing"
+          "status": "partial"
         }
       }
     },

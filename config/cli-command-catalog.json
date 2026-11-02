@@ -17201,7 +17201,10 @@
           "line": 15138,
           "symbol": "printTeamsHelp"
         }
-      ]
+      ],
+      "arity_overrides": {
+        "teams": "switch"
+      }
     },
     {
       "long": "tag",
@@ -57519,12 +57522,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -57567,12 +57571,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -57614,12 +57619,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Native handler not ported; command fails explicitly without another runtime."
+        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -57638,18 +57644,18 @@
       ],
       "positionals": [
         {
-          "name": "access-request-id",
-          "required": true,
-          "variadic": false,
-          "at": 2,
-          "synopsis": "<access-request-id>"
-        },
-        {
           "name": "team-id",
           "required": true,
           "variadic": false,
           "at": 2,
           "synopsis": "<team-id>"
+        },
+        {
+          "name": "access-request-id",
+          "required": true,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "<access-request-id>"
         }
       ],
       "flags": [
@@ -57669,12 +57675,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -57716,12 +57723,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -57971,12 +57979,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58018,12 +58027,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58066,12 +58076,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "Interactive 2FA/email verification uses a plain line prompt; real deletion was not exercised against a live account.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58206,12 +58218,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58245,12 +58258,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "Does not publish the direct-chat identity or prune local Team artifacts the way the npm client does on list/show.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58293,12 +58308,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Original runtime grammar is reviewed; native handling of this spelling has not been implemented or verified."
+        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58427,12 +58443,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Original runtime grammar is reviewed; native handling of this spelling has not been implemented or verified."
+        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58492,12 +58509,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58596,18 +58614,18 @@
       ],
       "positionals": [
         {
-          "name": "member-user-id",
-          "required": true,
-          "variadic": false,
-          "at": 3,
-          "synopsis": "<member-user-id>"
-        },
-        {
           "name": "team-id",
           "required": true,
           "variadic": false,
           "at": 3,
           "synopsis": "<team-id>"
+        },
+        {
+          "name": "member-user-id",
+          "required": true,
+          "variadic": false,
+          "at": 4,
+          "synopsis": "<member-user-id>"
         }
       ],
       "flags": [
@@ -58626,12 +58644,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58766,12 +58785,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58814,12 +58834,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Original runtime grammar is reviewed; native handling of this spelling has not been implemented or verified."
+        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58879,12 +58900,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58929,12 +58951,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59051,18 +59074,18 @@
       ],
       "positionals": [
         {
-          "name": "access-request-id",
-          "required": true,
-          "variadic": false,
-          "at": 2,
-          "synopsis": "<access-request-id>"
-        },
-        {
           "name": "team-id",
           "required": true,
           "variadic": false,
           "at": 2,
           "synopsis": "<team-id>"
+        },
+        {
+          "name": "access-request-id",
+          "required": true,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "<access-request-id>"
         }
       ],
       "flags": [
@@ -59081,12 +59104,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59110,6 +59134,13 @@
           "variadic": false,
           "at": 2,
           "synopsis": "<team-id>"
+        },
+        {
+          "name": "user-id",
+          "required": false,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "[user-id]"
         }
       ],
       "flags": [
@@ -59129,12 +59160,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59158,6 +59190,13 @@
           "variadic": false,
           "at": 2,
           "synopsis": "<team-id>"
+        },
+        {
+          "name": "user-id",
+          "required": false,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "[user-id]"
         }
       ],
       "flags": [
@@ -59178,12 +59217,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59225,12 +59265,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "Does not publish the direct-chat identity or prune local Team artifacts the way the npm client does on list/show.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59272,12 +59314,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59322,12 +59365,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59369,12 +59413,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59471,12 +59516,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59519,12 +59565,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.teams",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal session only; the --team <id> context flag is not accepted as the Team selector (use the positional Team ID).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -61673,8 +61720,8 @@
   "coverage": {
     "command_patterns": 720,
     "flags": 597,
-    "native_handlers_partial": 539,
-    "unsupported": 181,
+    "native_handlers_partial": 566,
+    "unsupported": 154,
     "feature_complete": false
   },
   "maintenance": {

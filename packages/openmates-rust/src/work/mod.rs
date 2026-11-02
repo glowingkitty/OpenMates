@@ -12,6 +12,8 @@ pub use projects::*;
 mod plans;
 pub use plans::*;
 mod task_crypto;
+mod teams;
+pub use teams::*;
 mod tasks;
 pub use tasks::*;
 #[derive(Default, Clone)]
