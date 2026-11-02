@@ -31,7 +31,22 @@ impl PreparedInitialSyncOperation {
                 client.prepare_initial_sync(start.monitor.core.clone(), start.guard.token()).map_err(BindingError::from)?
             };
             // No Client/auth lock is held across socket IO.
-            let read = pending.wait().await.map_err(BindingError::from)?;
+            // The core actor's frame wait observes only the original lease
+            // child, not this request token, so a caller cancel while the
+            // metadata response is in flight would otherwise wait for the
+            // next frame or a socket deadline. Forward it to the core control;
+            // the actor then answers this same pending read with Cancelled.
+            let control = pending.control();
+            let token = start.guard.token();
+            let forward = async {
+                token.cancelled().await;
+                control.cancel();
+                std::future::pending::<()>().await;
+            };
+            let read = tokio::select! { biased;
+                read = pending.wait() => read.map_err(BindingError::from)?,
+                _ = forward => unreachable!("forwarding never completes"),
+            };
             let client = start.bridge.state.client.lock().await;
             start.guard.check()?;
             start.monitor.valid()?;
