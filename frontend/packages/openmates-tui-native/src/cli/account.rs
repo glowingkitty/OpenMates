@@ -4,7 +4,10 @@
 //! API-key mutations require explicit confirmation and server-verified strong proof.
 //! Other credentials, payments and account destruction retain their dedicated gates.
 //! Public support and assistant feedback remain in the existing public handler.
+mod export_archive;
+mod export_start;
 mod memories;
+mod notifications;
 mod reminders;
 mod settings_more;
 #[path = "teams.rs"]
@@ -33,6 +36,8 @@ fn path(invocation: &Invocation) -> String {
 pub(super) fn supported(invocation: &Invocation) -> bool {
     reminders::supported(invocation)
         || settings_more::supported(invocation)
+        || export_start::supported(invocation)
+        || notifications::supported(invocation)
         || memories::supported(invocation)
         || is_info(invocation)
         || teams::supported(invocation)
@@ -246,6 +251,12 @@ pub(super) async fn execute(
     }
     if settings_more::supported(invocation) {
         return settings_more::execute(invocation, client).await;
+    }
+    if export_start::supported(invocation) {
+        return export_start::execute(invocation, client).await;
+    }
+    if notifications::supported(invocation) {
+        return notifications::execute(invocation, client).await;
     }
     if memories::supported(invocation) {
         return memories::execute(invocation, client).await;
@@ -490,8 +501,6 @@ mod tests {
             assert!(supported(&invocation(command, &[], &[])), "{command}");
         }
         for command in [
-            "account delete",
-            "account export",
             "account import chatgpt",
             "settings get",
             "signup",
@@ -689,11 +698,11 @@ mod tests {
         ));
         assert!(matches!(
             execute(
-                &invocation("account delete", &[], &[("yes", json!(true))]),
+                &invocation("account delete", &[], &[("yes", json!(true)), ("email-code", json!("1"))]),
                 &mut client
             )
             .await,
-            Err(CliError::Unsupported { .. })
+            Err(CliError::Invalid(_))
         ));
         assert!(matches!(
             execute(

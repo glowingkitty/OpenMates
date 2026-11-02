@@ -222,6 +222,99 @@ impl Account<'_> {
     }
 }
 
+/// Actions that the legacy settings route confirms with an emailed code.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum VerifiedAction {
+    DeleteAccount,
+    DeleteTeam,
+}
+impl VerifiedAction {
+    fn wire(self) -> &'static str {
+        match self {
+            Self::DeleteAccount => "delete_account",
+            Self::DeleteTeam => "delete_team",
+        }
+    }
+}
+impl Account<'_> {
+    /// `/v1/auth/methods` (`has_2fa` decides how deletion is confirmed).
+    pub async fn auth_methods(&mut self) -> Result<Value> {
+        self.settings(Method::GET, "/v1/auth/methods", None).await
+    }
+    /// Email a confirmation code for a destructive action.
+    pub async fn request_action_email_code(&mut self, action: VerifiedAction) -> Result<Value> {
+        let key = self.email_encryption_key().await?;
+        self.settings(
+            Method::POST,
+            "/v1/settings/request-action-verification",
+            Some(json!({"action":action.wire(),"email_encryption_key":key.as_str()})),
+        )
+        .await
+    }
+    pub async fn verify_action_email_code(&mut self, action: VerifiedAction, code: &str) -> Result<Value> {
+        self.settings(
+            Method::POST,
+            "/v1/settings/verify-action-code",
+            Some(json!({"action":action.wire(),"code":code})),
+        )
+        .await
+    }
+    /// Delete the account after the email code (and 2FA code, when enabled)
+    /// were verified. On success the SDK forgets this session so the caller's
+    /// persistence clears its stored credentials, like npm's purge.
+    pub async fn delete_account(&mut self, totp_code: Option<&str>) -> Result<Value> {
+        let key = self.email_encryption_key().await?;
+        let mut body = json!({"confirm_data_deletion":true,
+            "auth_method":if totp_code.is_some() {"2fa_otp"} else {"email_otp"},
+            "email_encryption_key":key.as_str(),"require_email_verification":true});
+        if let Some(code) = totp_code {
+            body["auth_code"] = json!(code);
+        }
+        let result = self
+            .settings(Method::POST, "/v1/settings/delete-account", Some(body))
+            .await?;
+        self.client.forget_session();
+        Ok(result)
+    }
+}
+
+/// Account Export V1 job options (npm startAccountExport).
+#[derive(Clone, Debug, Default)]
+pub struct AccountExportStart {
+    pub domains: Option<Vec<String>>,
+    pub filters: Value,
+    pub directory_format: bool,
+    pub include_advanced_metadata: bool,
+}
+impl Account<'_> {
+    /// POST /v1/account-exports; returns the server's `{export: ...}` record.
+    pub async fn start_account_export(&mut self, input: AccountExportStart) -> Result<Value> {
+        let filters = if input.filters.is_null() { json!({}) } else { input.filters };
+        if !filters.is_object() {
+            return Err(Error::Invalid("Account export filters must be a JSON object."));
+        }
+        let mut body = json!({"filters":filters,"format":if input.directory_format {"directory"} else {"zip"},
+            "include_advanced_metadata":input.include_advanced_metadata});
+        if let Some(domains) = input.domains {
+            body["domains"] = json!(domains);
+        }
+        self.settings(Method::POST, "/v1/account-exports", Some(body)).await
+    }
+    pub async fn complete_account_export(&mut self, id: &str) -> Result<Value> {
+        let id = segment(id, "Invalid export ID.")?;
+        self.settings(
+            Method::POST,
+            &format!("/v1/account-exports/{id}/complete"),
+            Some(json!({})),
+        )
+        .await
+    }
+}
+
+#[cfg(test)]
+#[path = "settings_delete_tests.rs"]
+mod delete_tests;
+
 #[cfg(test)]
 #[path = "settings_ops_tests.rs"]
 mod tests;

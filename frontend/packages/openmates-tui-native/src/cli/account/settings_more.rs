@@ -27,6 +27,7 @@ const COMMANDS: &[&str] = &[
     "account export accept-partial",
     "account export cancel",
     "account delete preview",
+    "account delete",
     "account storage delete",
 ];
 pub(super) fn text_output(stdout: String) -> CliOutput {
@@ -135,6 +136,7 @@ pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOu
         "reminders update" => &["enabled", "data"],
         "reminders delete" => &["yes"],
         "account storage delete" => &["yes", "category", "all"],
+        "account delete" => &["yes", "email-code", "totp-code"],
         _ => &[],
     };
     handlers::flags(i, flags)?;
@@ -208,6 +210,7 @@ pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOu
             result(i, &value)
         }
         "account delete preview" => result(i, &account.delete_account_preview().await?),
+        "account delete" => delete_account(i, &mut account).await,
         "account storage delete" => {
             let category = i.text("category");
             let (scope, label) = if i.boolean("all") {
@@ -234,6 +237,70 @@ pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOu
         }),
     }
 }
+
+/// npm `settings account delete`: preview, confirmation, emailed code, 2FA
+/// code when enabled, then deletion. Codes are only ever read interactively.
+async fn delete_account(
+    i: &Invocation,
+    account: &mut openmates_sdk::account::Account<'_>,
+) -> Result<CliOutput, CliError> {
+    use openmates_sdk::account::VerifiedAction;
+    if i.has("email-code") || i.has("totp-code") {
+        return Err(CliError::Invalid(
+            "Deletion verification codes must be entered through interactive prompts, not command-line flags.".into(),
+        ));
+    }
+    let preview = account.delete_account_preview().await?;
+    if !i.boolean("json") {
+        use std::io::Write;
+        let mut stdout = std::io::stdout();
+        write!(stdout, "\x1b[1mDelete Account Preview\x1b[0m\n{}", ordinary(&preview)?)
+            .and_then(|()| stdout.flush())
+            .map_err(|_| CliError::Client(crate::error::Error::Io))?;
+    }
+    if !confirm(i, "Delete this account and all associated data? [y/N] ").await? {
+        return Ok(aborted());
+    }
+    account
+        .request_action_email_code(VerifiedAction::DeleteAccount)
+        .await?;
+    let email_code = prompt_line("Enter email verification code: ").await?;
+    account
+        .verify_action_email_code(VerifiedAction::DeleteAccount, email_code.trim())
+        .await?;
+    let totp = if account.auth_methods().await?["has_2fa"] == true {
+        Some(prompt_line("Enter 2FA code: ").await?.trim().to_owned())
+    } else {
+        None
+    };
+    let result = account.delete_account(totp.as_deref()).await?;
+    if i.boolean("json") {
+        CliOutput::json(&result)
+    } else {
+        Ok(text_output(
+            "\x1b[32m✓\x1b[0m Account deletion requested and local CLI session cleared\n".into(),
+        ))
+    }
+}
+/// npm promptLine (question on stdout, one stdin line).
+async fn prompt_line(question: &str) -> Result<String, CliError> {
+    use std::io::Write;
+    let mut stdout = std::io::stdout();
+    write!(stdout, "{question}")
+        .and_then(|()| stdout.flush())
+        .map_err(|_| CliError::Client(crate::error::Error::Io))?;
+    tokio::task::spawn_blocking(|| {
+        let mut line = String::new();
+        std::io::stdin().read_line(&mut line).map(|_| line)
+    })
+    .await
+    .map_err(|_| CliError::Client(crate::error::Error::Io))?
+    .map_err(|_| CliError::Client(crate::error::Error::Io))
+}
+
+#[cfg(test)]
+#[path = "settings_delete_tests.rs"]
+mod delete_tests;
 
 #[cfg(test)]
 #[path = "settings_more_tests.rs"]

@@ -1,5 +1,6 @@
 //! Project CLI authoring through the locally encrypted, typed SDK namespace.
 mod ask;
+mod files;
 mod focus;
 mod items;
 mod sources;
@@ -55,6 +56,9 @@ pub(super) fn supported(i: &Invocation) -> bool {
             | "projects items remove"
             | "projects sources list"
             | "projects sources remove"
+            | "projects files list"
+            | "projects files search"
+            | "projects files read"
             | "projects settings focus activate"
             | "projects settings focus deactivate"
     )
@@ -367,6 +371,9 @@ async fn execute_service(
     }
     if i.command_path() == "projects sources list" {
         return sources::execute(i, &mut service, &cancel).await;
+    }
+    if i.command_path().starts_with("projects files ") {
+        return files::execute(i, &mut service).await;
     }
     if i.command_path().starts_with("projects settings focus ") {
         return focus::execute(i, &mut service).await;

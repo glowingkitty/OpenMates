@@ -7,12 +7,15 @@
 //! Command consumers choose the supported operation and output representation.
 mod api_keys;
 mod memories;
+mod notifications;
 mod settings_ops;
 mod settings_read;
 #[cfg(test)]
 mod test_support;
 pub use memories::{MemoryField, MemoryType, memory_types, validate_memory};
 pub use settings_ops::StoredFileDeletion;
+pub use settings_ops::VerifiedAction;
+pub use settings_ops::AccountExportStart;
 pub use settings_read::{SettingsReadError, SettingsReadResponse};
 use crate::{Client, Error, Result, crypto};
 pub use api_keys::{

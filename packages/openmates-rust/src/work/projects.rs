@@ -66,6 +66,8 @@ pub struct ProjectSettingsPatch {
 mod ask;
 pub use ask::*;
 mod focus;
+mod remote_files;
+pub use remote_files::{ProjectFileOperation, ProjectRequesterError, remote_error_message, safe_relative_path, select_source};
 mod items;
 mod workflow_files;
 pub use workflow_files::WorkflowFileSaveStatus;

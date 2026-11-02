@@ -47,6 +47,35 @@ impl Client {
         Ok(original)
     }
 
+    /// One request/reply settings WebSocket exchange correlated by
+    /// `request_id` (e.g. email notification settings). 30-second wait.
+    pub(crate) async fn settings_request_exchange(
+        &mut self,
+        kind: &str,
+        mut payload: Value,
+        reply: &str,
+    ) -> Result<Value> {
+        self.require_session()?;
+        if self.operation_cancel.is_cancelled() {
+            return Err(Error::Cancelled);
+        }
+        let request_id = uuid::Uuid::new_v4().to_string();
+        payload["request_id"] = json!(request_id);
+        let mut ws = self.socket_with_task_jobs(false).await?;
+        super::transport::send(&mut ws, kind, payload).await?;
+        let deadline = crate::platform::time::Instant::now() + std::time::Duration::from_secs(30);
+        let receipt = crate::platform::time::timeout_at(
+            deadline,
+            super::transport::wait(&mut ws, reply, "request_id", &request_id),
+        )
+        .await
+        .map_err(|_| Error::Offline);
+        let _ = ws.close(None).await;
+        let mut receipt = receipt??;
+        let payload = receipt.get_mut("payload").map(Value::take).unwrap_or(receipt);
+        Ok(payload)
+    }
+
     /// One Personal app-settings/memories WebSocket mutation and its receipt
     /// (`store_app_settings_memories_entry` / `delete_app_settings_memories_entry`).
     /// Waits like the legacy CLI: 15 seconds for the matching `entry_id`.

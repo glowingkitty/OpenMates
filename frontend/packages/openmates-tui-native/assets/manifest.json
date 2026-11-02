@@ -9,7 +9,7 @@
     {
       "path": "assets/cli-command-catalog.json",
       "source": "config/cli-command-catalog.json",
-      "sha256": "dbe0265fc2332215a88e74d345b489cc039ad554fbc2e181e9f511503a879cde"
+      "sha256": "9373e41a9ad14562a8c7b6c19d22f273549998e54e4f818f518b5e0be1c4746c"
     },
     {
       "path": "assets/licenses/legacy-cli-MIT.txt",
@@ -74,7 +74,7 @@
     {
       "path": "tests/crypto_fixtures/session-saved-chat-read.json",
       "source": "tests/sdk-conformance/fixtures/session-saved-chat-read.json",
-      "sha256": "2d1b181b90f7ceb2c00394381395c4a3881b9b6ad660877b02a2f52cdd82cea6"
+      "sha256": "94fb0481fb767d8ebe798a4016136026b7f16f685409b997f9d4b609fb82d35f"
     },
     {
       "path": "tests/fixtures/sdk-embed-version-content.json",

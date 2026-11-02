@@ -1284,7 +1284,11 @@
           "path": "frontend/packages/openmates-cli/src/cli.ts",
           "line": 9455
         }
-      ]
+      ],
+      "arity_overrides": {
+        "account": "switch",
+        "settings": "switch"
+      }
     },
     {
       "long": "accept-task-proposals",
@@ -2202,6 +2206,18 @@
         {
           "path": "frontend/packages/openmates-cli/src/cli.ts",
           "line": 10709
+        }
+      ]
+    },
+    {
+      "long": "backup-reminder",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "frontend/packages/openmates-cli/src/cli.ts",
+          "line": 11367
         }
       ]
     },
@@ -6757,7 +6773,11 @@
           "path": "frontend/packages/openmates-cli/src/cli.ts",
           "line": 9431
         }
-      ]
+      ],
+      "arity_overrides": {
+        "account": "switch",
+        "settings": "switch"
+      }
     },
     {
       "long": "include-airlines",
@@ -6826,11 +6846,14 @@
           "line": 9350,
           "symbol": "SETTINGS_COMMANDS"
         }
-      ]
+      ],
+      "arity_overrides": {
+        "projects": "switch"
+      }
     },
     {
       "long": "include-ignored",
-      "arity": "value",
+      "arity": "switch",
       "repeatable": true,
       "sensitive": false,
       "sources": [
@@ -18735,6 +18758,18 @@
       }
     },
     {
+      "long": "webhook-chats",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "frontend/packages/openmates-cli/src/cli.ts",
+          "line": 11368
+        }
+      ]
+    },
+    {
       "long": "weeks",
       "arity": "value",
       "repeatable": true,
@@ -19308,9 +19343,11 @@
       "flags": [
         "api-key",
         "api-url",
+        "email-code",
         "help",
         "json",
         "profile",
+        "totp-code",
         "yes"
       ],
       "source_locations": [
@@ -19322,12 +19359,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.delete_account",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_more.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Interactive email/2FA prompts read plain stdin lines (as npm); exercised only against loopback doubles, never a real account.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -19426,12 +19464,17 @@
       ],
       "positionals": [],
       "flags": [
+        "accept-partial",
         "api-key",
         "api-url",
         "domains",
+        "filters",
+        "format",
         "help",
+        "include-advanced-metadata",
         "json",
         "output",
+        "password",
         "profile"
       ],
       "source_locations": [
@@ -19443,12 +19486,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "account::export_start",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/export_start.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Zip output is a native deflate writer (not byte-identical to JSZip); the encrypted .zip.enc container and secret scan match npm.",
+        "Exercised against loopback doubles; live backend and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -19713,11 +19757,17 @@
       ],
       "positionals": [],
       "flags": [
+        "accept-partial",
         "api-key",
         "api-url",
+        "domains",
+        "filters",
+        "format",
         "help",
+        "include-advanced-metadata",
         "json",
         "output",
+        "password",
         "profile"
       ],
       "source_locations": [
@@ -19729,12 +19779,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "account::export_start",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/export_start.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Zip output is a native deflate writer (not byte-identical to JSZip); the encrypted .zip.enc container and secret scan match npm.",
+        "Exercised against loopback doubles; live backend and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46831,12 +46882,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.projects.source_file_operation",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/files.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Multiple online sources require --source (npm's interactive source picker is not ported); approved ignored-file reads (--include-ignored) are not ported.",
+        "Exercised against a simulated source host; live source-host integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46866,7 +46918,7 @@
           "name": "relative-path",
           "required": true,
           "variadic": false,
-          "at": 3,
+          "at": 4,
           "synopsis": "<relative-path>"
         }
       ],
@@ -46890,12 +46942,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.projects.source_file_operation",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/files.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Multiple online sources require --source (npm's interactive source picker is not ported); approved ignored-file reads (--include-ignored) are not ported.",
+        "Exercised against a simulated source host; live source-host integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46925,7 +46978,7 @@
           "name": "query",
           "required": true,
           "variadic": false,
-          "at": 3,
+          "at": 4,
           "synopsis": "<query>"
         }
       ],
@@ -46948,12 +47001,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.projects.source_file_operation",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/files.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Multiple online sources require --source (npm's interactive source picker is not ported); approved ignored-file reads (--include-ignored) are not ported.",
+        "Exercised against a simulated source host; live source-host integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -51212,9 +51266,11 @@
       "flags": [
         "api-key",
         "api-url",
+        "email-code",
         "help",
         "json",
         "profile",
+        "totp-code",
         "yes"
       ],
       "source_locations": [
@@ -51226,12 +51282,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.delete_account",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_more.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Interactive email/2FA prompts read plain stdin lines (as npm); exercised only against loopback doubles, never a real account.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -51333,12 +51390,17 @@
       ],
       "positionals": [],
       "flags": [
+        "accept-partial",
         "api-key",
         "api-url",
         "domains",
+        "filters",
+        "format",
         "help",
+        "include-advanced-metadata",
         "json",
         "output",
+        "password",
         "profile"
       ],
       "source_locations": [
@@ -51350,12 +51412,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "account::export_start",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/export_start.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Zip output is a native deflate writer (not byte-identical to JSZip); the encrypted .zip.enc container and secret scan match npm.",
+        "Exercised against loopback doubles; live backend and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -51626,11 +51689,17 @@
       ],
       "positionals": [],
       "flags": [
+        "accept-partial",
         "api-key",
         "api-url",
+        "domains",
+        "filters",
+        "format",
         "help",
+        "include-advanced-metadata",
         "json",
         "output",
+        "password",
         "profile"
       ],
       "source_locations": [
@@ -51642,12 +51711,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "account::export_start",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/export_start.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Zip output is a native deflate writer (not byte-identical to JSZip); the encrypted .zip.enc container and secret scan match npm.",
+        "Exercised against loopback doubles; live backend and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54487,12 +54557,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.notifications",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/notifications.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Newsletter subscribe/confirm/unsubscribe require a signed-in profile natively (npm allows them signed out).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54531,12 +54602,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.notifications",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/notifications.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Newsletter subscribe/confirm/unsubscribe require a signed-in profile natively (npm allows them signed out).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54554,7 +54626,15 @@
       "usages": [
         "settings newsletter confirm"
       ],
-      "positionals": [],
+      "positionals": [
+        {
+          "name": "token",
+          "required": true,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "<token>"
+        }
+      ],
       "flags": [
         "api-key",
         "api-url",
@@ -54571,12 +54651,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.notifications",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/notifications.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Newsletter subscribe/confirm/unsubscribe require a signed-in profile natively (npm allows them signed out).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54594,10 +54675,19 @@
       "usages": [
         "settings newsletter subscribe"
       ],
-      "positionals": [],
+      "positionals": [
+        {
+          "name": "email",
+          "required": true,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "<email>"
+        }
+      ],
       "flags": [
         "api-key",
         "api-url",
+        "darkmode",
         "help",
         "json",
         "language",
@@ -54612,12 +54702,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.notifications",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/notifications.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Newsletter subscribe/confirm/unsubscribe require a signed-in profile natively (npm allows them signed out).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54635,7 +54726,15 @@
       "usages": [
         "settings newsletter unsubscribe"
       ],
-      "positionals": [],
+      "positionals": [
+        {
+          "name": "token",
+          "required": true,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "<token>"
+        }
+      ],
       "flags": [
         "api-key",
         "api-url",
@@ -54652,12 +54751,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.notifications",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/notifications.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Newsletter subscribe/confirm/unsubscribe require a signed-in profile natively (npm allows them signed out).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54680,6 +54780,7 @@
       "flags": [
         "api-key",
         "api-url",
+        "email",
         "enabled",
         "help",
         "interval",
@@ -54695,12 +54796,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.notifications",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/notifications.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Newsletter subscribe/confirm/unsubscribe require a signed-in profile natively (npm allows them signed out).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54736,12 +54838,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.notifications",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/notifications.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Newsletter subscribe/confirm/unsubscribe require a signed-in profile natively (npm allows them signed out).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54765,11 +54868,14 @@
         "ai-responses",
         "api-key",
         "api-url",
+        "backup-reminder",
+        "email",
         "enabled",
         "help",
         "include-content",
         "json",
         "profile",
+        "webhook-chats",
         "workflow-runs"
       ],
       "source_locations": [
@@ -54781,12 +54887,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.notifications",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/notifications.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Newsletter subscribe/confirm/unsubscribe require a signed-in profile natively (npm allows them signed out).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54822,12 +54929,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.notifications",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/notifications.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Newsletter subscribe/confirm/unsubscribe require a signed-in profile natively (npm allows them signed out).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54862,12 +54970,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.notifications",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/notifications.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Newsletter subscribe/confirm/unsubscribe require a signed-in profile natively (npm allows them signed out).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -61709,9 +61818,9 @@
   ],
   "coverage": {
     "command_patterns": 720,
-    "flags": 597,
-    "native_handlers_partial": 569,
-    "unsupported": 151,
+    "flags": 599,
+    "native_handlers_partial": 588,
+    "unsupported": 132,
     "feature_complete": false
   },
   "maintenance": {
