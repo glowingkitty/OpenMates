@@ -37,6 +37,7 @@ from backend.core.api.app.routes import anonymous  # noqa: E402 # Anonymous free
 from backend.core.api.app.routes import reminder_email_preview  # noqa: E402
 from backend.core.api.app.routes import internal_api  # noqa: E402 # Import the new internal API router
 from backend.core.api.app.routes import recent_work_internal  # noqa: E402
+from backend.core.api.app.routes import chat_sync_feed  # noqa: E402 # Chat sync feed (architecture.sync@2)
 from backend.core.api.app.routes import internal_health  # noqa: E402
 from backend.core.api.app.routes import apps_workspace_requests, apps_workspace_recommendations, apps_workspace_public  # noqa: E402
 from backend.core.api.app.routes import apps_workspace  # noqa: E402 # Import after logging/tracing setup
@@ -950,6 +951,11 @@ async def lifespan(app: FastAPI):
     from backend.core.api.app.services.project_task_sync_service import ProjectTaskSyncService
     app.state.project_task_sync = ProjectTaskSyncService(app.state.directus_service, app.state.cache_service)
     app.state.project_task_sync_listener_task = asyncio.create_task(app.state.project_task_sync.listen())
+    from backend.core.api.app.services.chat_sync_feed_service import ChatSyncFeedService
+    app.state.chat_sync_feed = ChatSyncFeedService(
+        app.state.directus_service, app.state.cache_service, app.state.encryption_service,
+    )
+    app.state.chat_sync_feed_listener_task = asyncio.create_task(app.state.chat_sync_feed.listen())
 
     # Start Redis Pub/Sub listener task
     logger.info("Starting Redis Pub/Sub listener for cache events as a background task...")
@@ -1126,6 +1132,13 @@ async def lifespan(app: FastAPI):
         app.state.project_task_sync_listener_task.cancel()
         try:
             await app.state.project_task_sync_listener_task
+        except asyncio.CancelledError:
+            pass
+
+    if hasattr(app.state, 'chat_sync_feed_listener_task'):
+        app.state.chat_sync_feed_listener_task.cancel()
+        try:
+            await app.state.chat_sync_feed_listener_task
         except asyncio.CancelledError:
             pass
 
@@ -1384,11 +1397,13 @@ def create_app() -> FastAPI:
     
     # Web app only routers - excluded from API schema (use web app auth, not API keys)
     app.include_router(websockets.router, include_in_schema=False)  # WebSocket endpoints - web app only
+    app.include_router(chat_sync_feed.router, include_in_schema=False)  # Chat change feed - session-authenticated first-party clients only
     app.include_router(chats.router, include_in_schema=False)  # Encrypted chat reads - session-authenticated first-party clients
     app.include_router(direct_chats.router, include_in_schema=False)  # Client-encrypted Team direct chats and account key enrollment
     app.include_router(storage_routes.router, include_in_schema=False)  # Encrypted cold archive reads - first-party clients only
     app.include_router(internal_api.router, include_in_schema=False)  # Internal API router - service-to-service communication only
     app.include_router(recent_work_internal.router, include_in_schema=False)
+    app.include_router(chat_sync_feed.internal_router, include_in_schema=False)  # Internal chat-sync commit hints
     app.include_router(internal_health.router, include_in_schema=False)
     app.include_router(apps_workspace_requests.router, include_in_schema=False)
     app.include_router(apps_workspace_recommendations.router, include_in_schema=False)

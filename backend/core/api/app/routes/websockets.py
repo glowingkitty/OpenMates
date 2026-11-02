@@ -5123,6 +5123,10 @@ async def websocket_endpoint(
                         f"{user_id}/{device_fingerprint_hash}: {list(payload.keys())}"
                     )
 
+            elif message_type == "chat_sync_delta_request":
+                # architecture.sync@2 feed; rejected unless the socket opted in.
+                websocket.app.state.chat_sync_feed.schedule_ws_request(websocket, user_id, payload)
+
             elif message_type == "project_task_sync_subscribe":
                 try:
                     await websocket.app.state.project_task_sync.subscribe(websocket, user_id, payload)
@@ -5354,6 +5358,8 @@ async def websocket_endpoint(
             initial_task.cancel()
         if hasattr(websocket.app.state, "project_task_sync"):
             websocket.app.state.project_task_sync.disconnect(websocket)
+        if hasattr(websocket.app.state, "chat_sync_feed"):
+            websocket.app.state.chat_sync_feed.disconnect(websocket)
         for task in list(phased_sync_tasks):
             if not task.done():
                 task.cancel()

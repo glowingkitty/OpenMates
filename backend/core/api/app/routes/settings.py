@@ -38,7 +38,6 @@ from backend.core.api.app.utils.device_fingerprint import generate_device_finger
 from backend.core.api.app.utils.config_manager import config_manager
 from backend.shared.python_utils.model_availability import is_model_available
 from backend.core.api.app.schemas.settings import UsernameUpdateRequest, LanguageUpdateRequest, DarkModeUpdateRequest, UiFontUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, period_to_days, AiModelDefaultsRequest, TopicPreferencesEncryptedRequest, StorageOverviewResponse, StorageCategoryBreakdown, StorageFileItem, StorageFilesListResponse, StorageDeleteFilesRequest, StorageDeleteFilesResponse  # Import request/response models
-from backend.apps.reminder.utils import format_reminder_time
 from backend.core.api.app.routes.websockets import manager as ws_manager
 from backend.core.api.app.services.free_testing_credits_service import FreeTestingCreditsService
 from backend.core.api.app.services.anonymous_free_usage_service import AnonymousFreeUsageService
@@ -257,85 +256,19 @@ async def get_active_reminders(
                 total_count=0
             )
         
-        # Process each reminder - decrypt prompts and format for display
-        reminder_list = []
-        
-        current_time = int(time.time())
-        upcoming_cutoff = current_time + upcoming_hours * 3600 if upcoming_hours > 0 else None
-        recent_cutoff = current_time - recent_hours * 3600
-
-        for reminder in reminders:
-            try:
-                reminder_id = reminder.get("id") or reminder.get("reminder_id", "")
-                vault_key_id = reminder.get("vault_key_id")
-                encrypted_prompt = reminder.get("encrypted_prompt", "")
-                trigger_at = reminder.get("trigger_at", 0)
-                timezone = reminder.get("timezone", "UTC")
-                target_type = reminder.get("target_type", "new_chat")
-                target_chat_id = None
-                target_embed_id = None
-                repeat_config = reminder.get("repeat_config")
-                reminder_status = reminder.get("status", "pending")
-
-                if upcoming_cutoff is not None and reminder_status == "pending" and trigger_at > upcoming_cutoff:
-                    continue
-                if include_recent_fired and reminder_status == "fired" and trigger_at < recent_cutoff:
-                    continue
-
-                # Decrypt the target identifier so settings and the welcome carousel can
-                # render the specific chat/embed. This endpoint is authenticated and scoped
-                # to the reminder owner.
-                encrypted_target_chat_id = reminder.get("encrypted_target_chat_id")
-                if encrypted_target_chat_id and vault_key_id:
-                    try:
-                        decrypted_target_id = await encryption_service.decrypt_with_user_key(
-                            ciphertext=encrypted_target_chat_id,
-                            key_id=vault_key_id
-                        )
-                        if target_type == "embed":
-                            target_embed_id = decrypted_target_id
-                        else:
-                            target_chat_id = decrypted_target_id
-                    except Exception as e:
-                        logger.warning(f"Could not decrypt reminder target chat {reminder_id}: {e}")
-                
-                # Decrypt the prompt for preview
-                prompt_preview = ""
-                if encrypted_prompt and vault_key_id:
-                    try:
-                        decrypted_prompt = await encryption_service.decrypt_with_user_key(
-                            ciphertext=encrypted_prompt,
-                            key_id=vault_key_id
-                        )
-                        if decrypted_prompt:
-                            prompt_preview = decrypted_prompt[:100]
-                            if len(decrypted_prompt) > 100:
-                                prompt_preview += "..."
-                    except Exception as e:
-                        logger.warning(f"Could not decrypt reminder prompt {reminder_id}: {e}")
-                        prompt_preview = "[Encrypted]"
-                
-                # Format trigger time
-                trigger_at_formatted = format_reminder_time(trigger_at, timezone)
-                
-                reminder_list.append(ActiveReminderItem(
-                    reminder_id=reminder_id,
-                    prompt_preview=prompt_preview,
-                    trigger_at=trigger_at,
-                    trigger_at_formatted=trigger_at_formatted,
-                    target_type=target_type,
-                    target_chat_id=target_chat_id,
-                    target_embed_id=target_embed_id,
-                    is_repeating=repeat_config is not None,
-                    status=reminder_status
-                ).model_dump())
-                
-            except Exception as e:
-                logger.warning(f"Error processing reminder for settings list: {e}")
-                continue
-        
-        # Sort by trigger_at ascending (soonest first)
-        reminder_list.sort(key=lambda r: r.get("trigger_at", 0))
+        # Decrypt targets/previews and apply the requested windows (shared with
+        # the sync overview's due-soon set).
+        from backend.core.api.app.services.active_reminder_listing import build_active_reminder_items
+        reminder_list = [
+            ActiveReminderItem(**item).model_dump()
+            for item in await build_active_reminder_items(
+                reminders,
+                encryption_service,
+                include_recent_fired=include_recent_fired,
+                upcoming_hours=upcoming_hours,
+                recent_hours=recent_hours,
+            )
+        ]
         
         logger.debug(f"Returning {len(reminder_list)} active reminders for user {user_id}")
         

@@ -40,6 +40,32 @@ def _hash_identifier(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
 
 
+def select_sync_wrapper_window(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Bound newest-first wrapper rows of one chat by count and bytes."""
+    has_more_before = len(rows) > SYNC_WRAPPER_PAGE_LIMIT
+    selected: list[dict[str, Any]] = []
+    payload_bytes = 0
+    oversized_wrapper_id = None
+    for row in rows[:SYNC_WRAPPER_PAGE_LIMIT]:
+        row_bytes = len(json.dumps(row, separators=(",", ":")).encode("utf-8"))
+        if row_bytes > SYNC_WRAPPER_PAGE_MAX_BYTES and not selected:
+            oversized_wrapper_id = row["id"]
+            has_more_before = True
+            break
+        if payload_bytes + row_bytes > SYNC_WRAPPER_PAGE_MAX_BYTES:
+            has_more_before = True
+            break
+        selected.append(row)
+        payload_bytes += row_bytes
+    return {
+        "wrappers": selected,
+        "has_more_before": has_more_before,
+        "start_cursor": selected[-1]["id"] if selected else None,
+        "oversized_wrapper_id": oversized_wrapper_id,
+        "payload_bytes": payload_bytes,
+    }
+
+
 class ChatKeyWrapperMethods:
     def __init__(self, directus_service_instance: "DirectusService") -> None:
         self.directus_service = directus_service_instance
@@ -76,28 +102,7 @@ class ChatKeyWrapperMethods:
         )
         if not isinstance(rows, list):
             raise RuntimeError("Chat key wrapper page unavailable")
-        has_more_before = len(rows) > SYNC_WRAPPER_PAGE_LIMIT
-        selected: list[dict[str, Any]] = []
-        payload_bytes = 0
-        oversized_wrapper_id = None
-        for row in rows[:SYNC_WRAPPER_PAGE_LIMIT]:
-            row_bytes = len(json.dumps(row, separators=(",", ":")).encode("utf-8"))
-            if row_bytes > SYNC_WRAPPER_PAGE_MAX_BYTES and not selected:
-                oversized_wrapper_id = row["id"]
-                has_more_before = True
-                break
-            if payload_bytes + row_bytes > SYNC_WRAPPER_PAGE_MAX_BYTES:
-                has_more_before = True
-                break
-            selected.append(row)
-            payload_bytes += row_bytes
-        return {
-            "wrappers": selected,
-            "has_more_before": has_more_before,
-            "start_cursor": selected[-1]["id"] if selected else None,
-            "oversized_wrapper_id": oversized_wrapper_id,
-            "payload_bytes": payload_bytes,
-        }
+        return select_sync_wrapper_window(rows)
 
     async def get_sync_wrapper_by_id(
         self,
