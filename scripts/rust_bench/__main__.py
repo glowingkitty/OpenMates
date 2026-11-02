@@ -160,7 +160,8 @@ def parser() -> argparse.ArgumentParser:
     run.add_argument("--samples", type=int, default=20)
     run.add_argument("--warmup", type=int, default=1, help="untimed warmup invocations per arm per flow")
     run.add_argument("--timeout", type=float, default=300.0, help="per-invocation timeout seconds")
-    run.add_argument("--message", default=F.DEFAULT_MESSAGE)
+    run.add_argument("--message", default=F.DEFAULT_MESSAGE,
+                     help="`{nonce}` in any message is replaced by a fresh token per invocation")
     run.add_argument("--followup-message", default=F.DEFAULT_FOLLOWUP)
     for arm in ("rust", "ts"):
         run.add_argument(f"--{arm}-message", help=f"override --message for the {arm} arm only (same wire request, "

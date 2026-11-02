@@ -168,5 +168,29 @@ def test_per_arm_messages_and_expected_model_gate_inference_samples(tmp_path):
         assert runner.check("follow-up", ok, {"modelName": "Other"}) == "model_mismatch:Other"
         assert runner.check("send", ok, {"chatId": "c"}) == "model_mismatch:missing"
         assert runner.check("whoami", ok, {"user": {}}) is None  # read flows are not model-gated
+        runner.arm_messages["rust"] = "[bench {nonce}] hi"
+        first, second = runner.args_for("send", "rust")[2], runner.args_for("send", "rust")[2]
+        assert first.startswith("[bench ") and "{nonce}" not in first and first != second
+    finally:
+        runner.close()
+
+
+# contract-test: tooling
+def test_cold_show_runs_untimed_list_before_each_timed_show():
+    from scripts.rust_bench.runner import Runner
+
+    calls = []
+    runner = Runner(None, {}, samples=2, warmup=1, timeout=1, message="m", followup="f", app_skill="math x",
+                    chat_ids={"rust": "c1", "typescript": "c1"})
+    try:
+        def fake_invoke(arm, args, label):
+            calls.append((arm, args[:2], label))
+            return {"timedOut": False, "exitCode": 0, "wallMs": 1.0, "cpuMs": 1.0, "peakMemKiB": 1}, {"chat": {}}
+        runner.invoke = fake_invoke
+        assert F.flow_args("chats-show-cold", chat_id="c1") == ["chats", "show", "c1", "--json"]
+        runner.run_flow("chats-show-cold")
+        timed = [i for i, c in enumerate(calls) if c[2] in ("chats-show-cold", "chats-show-cold-warmup")]
+        assert len(timed) == 6  # 1 warmup + 2 samples per arm
+        assert all(calls[i - 1][1] == ["chats", "list"] and calls[i - 1][2] == "pre-list" for i in timed)
     finally:
         runner.close()

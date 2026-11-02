@@ -7,6 +7,7 @@ import platform
 import shutil
 import sys
 import tempfile
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -85,11 +86,16 @@ class Runner:
                 return f"model_mismatch:{model or 'missing'}"
         return error
 
+    @staticmethod
+    def with_nonce(text: str) -> str:
+        """Replace `{nonce}` with a fresh token per invocation, so repeated prompts stay distinct chats."""
+        return text.replace("{nonce}", uuid.uuid4().hex[:8]) if "{nonce}" in text else text
+
     def message_for(self, arm: str) -> str:
-        return self.arm_messages.get(arm, self.message)
+        return self.with_nonce(self.arm_messages.get(arm, self.message))
 
     def followup_for(self, arm: str) -> str:
-        return self.arm_followups.get(arm, self.followup)
+        return self.with_nonce(self.arm_followups.get(arm, self.followup))
 
     def args_for(self, flow: str, arm: str) -> list[str]:
         return F.flow_args(flow, chat_id=self.chat_ids.get(arm), message=self.message_for(arm),
@@ -101,7 +107,7 @@ class Runner:
         if not spec.needs_chat:
             return None
         for arm in ARMS:
-            if flow == "chats-show" and self.chat_ids.get(arm):
+            if flow in ("chats-show", "chats-show-cold") and self.chat_ids.get(arm):
                 continue
             if flow == "follow-up":
                 # A dedicated chat per arm, created untimed; follow-ups accumulate in it.
@@ -127,6 +133,11 @@ class Runner:
             return F.flow_args(flow, chat_id=self.chat_ids[f"followup:{arm}"], followup=self.followup_for(arm))
         return self.args_for(flow, arm)
 
+    def before_sample(self, flow: str, arm: str) -> None:
+        """Untimed per-invocation setup for flow variants."""
+        if flow == "chats-show-cold":
+            self.invoke(arm, F.flow_args("chats-list"), "pre-list")
+
     def run_flow(self, flow: str) -> dict:
         spec = F.FLOWS[flow]
         record = {"name": flow, "semanticArgv": spec.semantic, "needsInference": spec.needs_inference}
@@ -137,11 +148,13 @@ class Runner:
         warmups = []
         for arm in ARMS:
             for _ in range(self.warmup):
+                self.before_sample(flow, arm)
                 metrics, parsed = self.invoke(arm, self.flow_argv(flow, arm), f"{flow}-warmup")
                 error = self.check(flow, metrics, parsed)
                 warmups.append({"arm": arm, "ok": error is None, "error": error, "wallMs": metrics["wallMs"]})
         samples = []
         for position, (index, arm) in enumerate(paired_order(self.samples)):
+            self.before_sample(flow, arm)
             metrics, parsed = self.invoke(arm, self.flow_argv(flow, arm), flow)
             error = self.check(flow, metrics, parsed)
             samples.append({"index": index, "position": position, "arm": arm, "ok": error is None,

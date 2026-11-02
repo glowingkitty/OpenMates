@@ -22,8 +22,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 READ_FLOWS = ("whoami", "chats-list", "chats-show")
+# Opt-in read variants: chats-show-cold runs an untimed `chats list` before every timed show
+# (first open after a fresh list, instead of back-to-back shows).
+EXTRA_READ_FLOWS = ("chats-show-cold",)
 INFERENCE_FLOWS = ("send", "follow-up", "app-skill")
-ALL_FLOWS = READ_FLOWS + INFERENCE_FLOWS
+ALL_FLOWS = READ_FLOWS + EXTRA_READ_FLOWS + INFERENCE_FLOWS
 DEFAULT_MESSAGE = "Reply with exactly one word: pong"
 DEFAULT_FOLLOWUP = "Reply with exactly one word: ping"
 DEFAULT_APP_SKILL = 'math calculate "sqrt(144)" --mode numeric'
@@ -137,6 +140,8 @@ FLOWS = {
     "whoami": Flow("whoami", "openmates whoami --json"),
     "chats-list": Flow("chats-list", "openmates chats list --limit 100 --json"),
     "chats-show": Flow("chats-show", "openmates chats show <chat-id> --json", needs_chat=True),
+    "chats-show-cold": Flow("chats-show-cold", "openmates chats list (untimed); openmates chats show <chat-id> --json",
+                            needs_chat=True),
     "send": Flow("send", "openmates chats new <message> --json", needs_inference=True),
     "follow-up": Flow("follow-up", "openmates chats send --chat <chat-id> <message> --json",
                       needs_chat=True, needs_inference=True),
@@ -150,7 +155,7 @@ def flow_args(flow: str, chat_id: str | None = None, message: str = DEFAULT_MESS
         return ["whoami", "--json"]
     if flow == "chats-list":
         return ["chats", "list", "--limit", "100", "--json"]
-    if flow == "chats-show":
+    if flow in ("chats-show", "chats-show-cold"):
         if not chat_id:
             raise ValueError("chats-show needs a chat id")
         return ["chats", "show", chat_id, "--json"]
