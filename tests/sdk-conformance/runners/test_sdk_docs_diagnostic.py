@@ -6,7 +6,11 @@ import hashlib
 import json
 import subprocess
 import unittest
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from source_contract import assert_python_contains  # noqa: E402 - sibling helper path set above
 
 SOURCE = (Path(__file__).with_name("sdk-api-key-docs.py")).read_text()
 A = SOURCE.index("# BEGIN CLOSED DOCS DIAGNOSTIC\n")
@@ -111,21 +115,19 @@ class DocsDiagnosticTests(unittest.TestCase):
     ):
         self.assertEqual(len(SCOPE["DOCS_VECTOR_IDS"]), 23)
         self.assertEqual(len(set(SCOPE["DOCS_VECTOR_IDS"])), 23)
-        for text in [
+        # Formatting-independent: each statement/expression must still exist.
+        assert_python_contains(
+            SOURCE,
             "for v in vectors:",
-            "'expected_request_count']*iterations",
+            "vector['expected_request_count']*iterations",
             "observed['value']==vector['response']",
             "120 if c.get('iterations',1)>1 else 20",
             "os.killpg(p.pid,signal.SIGKILL);p.wait(timeout=2)",
             "server.shutdown();server.server_close();thread.join(timeout=2)",
             "'sk-api-docsOwnerA.localSetupSuffix'",
-        ]:
-            self.assertIn(text, SOURCE)
-        self.assertNotIn("--experimental-strip-types", SOURCE)
-        self.assertIn(
             "return ['node',str(ROOT/'tests/sdk-conformance/runners/sdk-api-key-docs.mjs'),'--case']",
-            SOURCE,
         )
+        self.assertNotIn("--experimental-strip-types", SOURCE)
         assertions = sorted(
             ast.dump(node, include_attributes=False)
             for node in ast.walk(ast.parse(SOURCE))

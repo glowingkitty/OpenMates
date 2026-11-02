@@ -17,6 +17,7 @@ from pathlib import Path
 import signal
 import subprocess
 import sys
+import tempfile
 
 import jsonschema
 
@@ -51,6 +52,9 @@ RUST_SESSION_RUNNER = [
     "--",
 ]
 ADAPTER_OVERRIDES = {
+    ("rust", "sdk.configuration"): [sys.executable, "tests/sdk-conformance/runners/api-key-foundation.py", "--language", "rust"],
+    ("npm", "sdk.configuration"): [sys.executable, "tests/sdk-conformance/runners/api-key-foundation.py", "--language", "npm"],
+    ("python", "sdk.configuration"): [sys.executable, "tests/sdk-conformance/runners/api-key-foundation.py", "--language", "python"],
     ("rust", "session.project-source-authoring.v1"): [
         *RUST_SESSION_RUNNER[:-2], "session-project-sources-conformance", "--",
     ],
@@ -249,6 +253,7 @@ ADAPTER_OVERRIDES[("npm", "session.chat-first-page-continuation.v1")] = ["node",
 ADAPTER_OVERRIDES[("python", "session.chat-first-page-continuation.v1")] = [sys.executable, "tests/sdk-conformance/runners/session-chat-first-page-continuation.py"]
 
 FIXTURE_SCHEMAS = {
+    "tests/sdk-conformance/fixtures/api-key-foundation.json": "tests/sdk-conformance/schemas/api-key-foundation.schema.json",
     "tests/sdk-conformance/fixtures/session-work.json":
         "tests/sdk-conformance/schemas/session-work.schema.json",
     "tests/sdk-conformance/fixtures/session-foreground-completion-recovery.json":
@@ -278,6 +283,53 @@ FIXTURE_SCHEMAS = {
 }
 
 
+# Temporary direct skills use the actual library/opaque release runners in all3.
+ADAPTER_OVERRIDES[("rust", "sdk.apps")] = [sys.executable, "tests/sdk-conformance/runners/session-direct-app-skill.py", "--language", "rust"]
+ADAPTER_OVERRIDES[("npm", "sdk.apps")] = ["node", "tests/sdk-conformance/runners/session-direct-app-skill.mjs"]
+ADAPTER_OVERRIDES[("python", "sdk.apps")] = [sys.executable, "tests/sdk-conformance/runners/session-direct-app-skill.py"]
+FIXTURE_SCHEMAS["tests/sdk-conformance/fixtures/session-direct-app-skill.json"] = "tests/sdk-conformance/schemas/session-direct-app-skill.schema.json"
+
+
+# Fixed direct settings adapters; fixture execution remains mandatory.
+ADAPTER_OVERRIDES[("rust", "session.settings-reminders-read")] = [sys.executable, "tests/sdk-conformance/runners/session-settings-reminders-gate.py", "--language", "rust"]
+ADAPTER_OVERRIDES[("npm", "session.settings-reminders-read")] = [sys.executable, "tests/sdk-conformance/runners/session-settings-reminders-gate.py", "--language", "npm"]
+ADAPTER_OVERRIDES[("python", "session.settings-reminders-read")] = [sys.executable, "tests/sdk-conformance/runners/session-settings-reminders-gate.py", "--language", "python"]
+FIXTURE_SCHEMAS["tests/sdk-conformance/fixtures/session-project-sources.json"] = "tests/sdk-conformance/schemas/session-project-sources.schema.json"
+FIXTURE_SCHEMAS["tests/sdk-conformance/fixtures/session-settings-reminders-read.json"] = "tests/sdk-conformance/schemas/session-settings-reminders-read.schema.json"
+FIXTURE_SCHEMAS["tests/sdk-conformance/fixtures/session-settings-reminders-read-gate.json"] = "tests/sdk-conformance/schemas/session-settings-reminders-read-gate.schema.json"
+
+# Fixed future Project remote-crypto gate: three actual libraries, one independent peer.
+ADAPTER_OVERRIDES[("rust", "protocol.project-remote-crypto.v1")] = [sys.executable, "tests/sdk-conformance/runners/project-remote-crypto.py", "--language", "rust"]
+ADAPTER_OVERRIDES[("npm", "protocol.project-remote-crypto.v1")] = [sys.executable, "tests/sdk-conformance/runners/project-remote-crypto.py", "--language", "npm"]
+ADAPTER_OVERRIDES[("python", "protocol.project-remote-crypto.v1")] = [sys.executable, "tests/sdk-conformance/runners/project-remote-crypto.py", "--language", "python"]
+FIXTURE_SCHEMAS["tests/sdk-conformance/fixtures/project-remote-crypto.json"] = "tests/sdk-conformance/schemas/project-remote-crypto.schema.json"
+
+
+ADAPTER_OVERRIDES[('rust', 'session.initial-startup-sync.v1')] = [sys.executable, "tests/sdk-conformance/runners/session-initial-startup-sync-gate.py", "--language", 'rust']
+ADAPTER_OVERRIDES[('npm', 'session.initial-startup-sync.v1')] = [sys.executable, "tests/sdk-conformance/runners/session-initial-startup-sync-gate.py", "--language", 'npm']
+ADAPTER_OVERRIDES[('python', 'session.initial-startup-sync.v1')] = [sys.executable, "tests/sdk-conformance/runners/session-initial-startup-sync-gate.py", "--language", 'python']
+FIXTURE_SCHEMAS['tests/sdk-conformance/fixtures/session-initial-startup-sync.json'] = "tests/sdk-conformance/schemas/session-initial-startup-sync.schema.json"
+
+
+# Fixed ephemeral metadata gate: real direct Rust/NAPI/PyO3 libraries only.
+ADAPTER_OVERRIDES[('rust', 'session.ephemeral-metadata-startup.v1')] = [sys.executable, "tests/sdk-conformance/runners/session-ephemeral-metadata-gate.py", "--language", 'rust']
+ADAPTER_OVERRIDES[('npm', 'session.ephemeral-metadata-startup.v1')] = [sys.executable, "tests/sdk-conformance/runners/session-ephemeral-metadata-gate.py", "--language", 'npm']
+ADAPTER_OVERRIDES[('python', 'session.ephemeral-metadata-startup.v1')] = [sys.executable, "tests/sdk-conformance/runners/session-ephemeral-metadata-gate.py", "--language", 'python']
+FIXTURE_SCHEMAS['tests/sdk-conformance/fixtures/session-ephemeral-metadata.json'] = "tests/sdk-conformance/schemas/session-ephemeral-metadata.schema.json"
+
+
+# Exact authored actual share adapters; protected execution admission is separate.
+FIXTURE_SCHEMAS['tests/sdk-conformance/fixtures/session-embed-share-bindings.json'] = 'tests/sdk-conformance/schemas/session-embed-share-bindings.schema.json'
+ADAPTER_OVERRIDES[("rust", 'session.embeds.admitted-share-url.v1')] = [*RUST_SESSION_RUNNER[:-2], "session-embed-share-conformance", "--"]
+ADAPTER_OVERRIDES[("npm", 'session.embeds.admitted-share-url.v1')] = ["node", "tests/sdk-conformance/runners/session-embed-share.mjs"]
+ADAPTER_OVERRIDES[("python", 'session.embeds.admitted-share-url.v1')] = [sys.executable, "tests/sdk-conformance/runners/session-embed-share.py"]
+
+# Authored Workflow11 direct adapters; partial source, actual executions UNRUN.
+FIXTURE_SCHEMAS['tests/sdk-conformance/fixtures/workflow-file-sync.json']='tests/sdk-conformance/schemas/workflow-file-sync.schema.json'
+ADAPTER_OVERRIDES[("rust",'work.project-workflow-file-sync.v1')]=[*RUST_SESSION_RUNNER[:-2],"workflow-file-sync-conformance","--"]
+ADAPTER_OVERRIDES[("npm",'work.project-workflow-file-sync.v1')]=["node","tests/sdk-conformance/runners/workflow-file-sync.mjs"]
+ADAPTER_OVERRIDES[("python",'work.project-workflow-file-sync.v1')]=[sys.executable,"tests/sdk-conformance/runners/workflow-file-sync.py"]
+
 def validate_fixture_document(name: str, document: dict, root: Path = ROOT) -> None:
     schema_name = FIXTURE_SCHEMAS.get(name)
     if schema_name is not None:
@@ -293,8 +345,79 @@ def repo_file(value: str, root: Path = ROOT) -> Path:
     return candidate
 
 
+def require_direct_skill_adapters(capability: dict) -> None:
+    # This exact new executable slice is synchronized; partial status remains
+    # honest until actual execution and complete family parity are established.
+    if capability.get("id") == "sdk.apps" and capability.get("fixture") == "tests/sdk-conformance/fixtures/session-direct-app-skill.json":
+        if set(capability.get("languages", {})) != set(LANGUAGES) or any(capability["languages"][language].get("conformance") is not True for language in LANGUAGES):
+            raise ValueError("Temporary direct App skills require all three actual SDK adapters")
+
+
+def require_remote_crypto_adapters(capability: dict) -> None:
+    if capability.get("id") != "protocol.project-remote-crypto.v1":
+        return
+    languages = capability.get("languages", {})
+    foreign_api = any(languages.get(language, {}).get("api") for language in ("npm", "python"))
+    if foreign_api or capability.get("fixture") == "tests/sdk-conformance/fixtures/project-remote-crypto.json":
+        if (capability.get("fixture") != "tests/sdk-conformance/fixtures/project-remote-crypto.json"
+                or set(languages) != set(LANGUAGES)
+                or any(languages[language].get("conformance") is not True for language in LANGUAGES)):
+            raise ValueError("Project remote crypto requires all three actual SDK adapters")
+
+
+def require_initial_startup_adapters(capability: dict) -> None:
+    if capability.get("id") != "session.initial-startup-sync.v1":
+        return
+    languages = capability.get("languages", {})
+    if (capability.get("fixture") != "tests/sdk-conformance/fixtures/session-initial-startup-sync.json"
+            or set(languages) != set(LANGUAGES)
+            or any(languages[language].get("conformance") is not True for language in LANGUAGES)):
+        raise ValueError("Initial startup requires all three actual SDK adapters")
+
+
+def require_ephemeral_metadata_adapters(capability: dict) -> None:
+    if capability.get("id") != "session.ephemeral-metadata-startup.v1":
+        return
+    languages = capability.get("languages", {})
+    if (capability.get("fixture") != "tests/sdk-conformance/fixtures/session-ephemeral-metadata.json"
+            or set(languages) != set(LANGUAGES)
+            or any(languages[language].get("conformance") is not True for language in LANGUAGES)):
+        raise ValueError("Ephemeral metadata requires all three actual SDK adapters")
+
+
+def require_admitted_share_adapters(capability: dict) -> None:
+    if capability.get("id") != 'session.embeds.admitted-share-url.v1':
+        return
+    languages = capability.get("languages", {})
+    if (capability.get("fixture") != 'tests/sdk-conformance/fixtures/session-embed-share-bindings.json'
+            or set(languages) != set(LANGUAGES)
+            or any(languages[language].get("conformance") is not True for language in LANGUAGES)):
+        raise ValueError("Admitted embed share requires all three actual SDK adapters")
+
+
+def require_workflow_file_adapters(capability: dict) -> None:
+    if capability.get("id")!='work.project-workflow-file-sync.v1':
+        return
+    languages=capability.get("languages",{})
+    methods={"rust":"work.projects.workflow_files.Projects.sync_workflow_files","npm":"SessionClient.projects.syncWorkflowFiles","python":"SessionClient.projects.sync_workflow_files"}
+    if (capability.get("fixture")!='tests/sdk-conformance/fixtures/workflow-file-sync.json'
+            or set(languages)!=set(LANGUAGES)
+            or any(languages[language].get("conformance") is not True
+                or languages[language].get("status")!="partial"
+                or methods[language] not in languages[language].get("api",[])
+                for language in LANGUAGES)):
+        raise ValueError("Workflow files require all three actual partial SDK adapters")
+
+
 def validate_matrix(matrix: dict, inventory: dict, root: Path = ROOT) -> list[str]:
     """API inventory is discovered independently of matrix support declarations."""
+    for capability in matrix["capabilities"]:
+        require_direct_skill_adapters(capability)
+        require_remote_crypto_adapters(capability)
+        require_initial_startup_adapters(capability)
+        require_ephemeral_metadata_adapters(capability)
+        require_admitted_share_adapters(capability)
+        require_workflow_file_adapters(capability)
     schema = json.loads((root / SCHEMA).read_text())
     jsonschema.Draft202012Validator(schema).validate(matrix)
     if set(inventory) != set(LANGUAGES):
@@ -332,6 +455,13 @@ def validate_matrix(matrix: dict, inventory: dict, root: Path = ROOT) -> list[st
                     "packages/openmates-rust/examples/sdk-embed-version-content-conformance.rs",
                     "packages/openmates-rust/examples/project-create-conformance.rs",
                     "packages/openmates-session-bindings/examples/sdk-conformance.rs",
+                    "packages/openmates-session-bindings/examples/project-remote-crypto-worker.rs",
+                    "packages/openmates-session-bindings/examples/session-initial-startup-sync-conformance.rs",
+                    "packages/openmates-session-bindings/examples/session-ephemeral-metadata-conformance.rs",
+                    "packages/openmates-session-bindings/examples/session-embed-share-conformance.rs",
+                    "packages/openmates-session-bindings/examples/workflow-file-sync-conformance.rs",
+                    "packages/openmates-rust/src/client/browser_metadata_bootstrap_policy.rs",
+                    "packages/openmates-rust/src/client/browser_recovered_reply_policy_tests.rs",
                     "packages/openmates-session-bindings/examples/session-auth-conformance.rs",
                     "packages/openmates-session-bindings/examples/session-message-window-conformance.rs",
                     "packages/openmates-session-bindings/examples/session-saved-chat-read-conformance.rs",
@@ -579,6 +709,56 @@ def check_generated(root: Path = ROOT) -> None:
         )
 
 
+def verified_packaged_sdk_v1_release(root: Path) -> dict:
+    """Publication can succeed only by performing actual isolated-CI work.
+
+    There is no receipt path/JSON/status option. The result file belongs to this
+    fresh subprocess invocation and is never supplied by the public caller.
+    """
+    required = {"CI": "true", "GITHUB_ACTIONS": "true", "OPENMATES_CI_ISOLATED": "1"}
+    if any(os.environ.get(key) != value for key, value in required.items()):
+        raise ValueError("SDK publication requires managed isolated CI packaged openmates/sdk/v1 evidence")
+    with tempfile.TemporaryDirectory(prefix="openmates-sdk-v1-release-proof-") as temp:
+        output = Path(temp) / "actual-packaged-sdk-v1.json"
+        child = subprocess.Popen([sys.executable, str(root / "scripts/check_packaged_sdk_v1.py"),
+            "--pack-built", "--output", str(output)], cwd=root, stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True)
+        try:
+            child.communicate(timeout=420)
+            returncode = child.returncode
+        finally:
+            # Publication calls this outside the protected Driver. Own only
+            # this new process group, including npm/strace/fixture descendants.
+            # The protected SDK Driver/group cleanup remains byte-unchanged.
+            for stopped in (signal.SIGTERM, signal.SIGKILL):
+                try:
+                    os.killpg(child.pid, stopped)
+                except ProcessLookupError:
+                    pass
+                if stopped == signal.SIGTERM:
+                    try:
+                        child.wait(timeout=3)
+                    except subprocess.TimeoutExpired:
+                        pass
+            child.wait(timeout=3)
+        if returncode != 0 or not output.is_file() or output.is_symlink():
+            raise ValueError("SDK publication actual packaged native23 execution failed")
+        value = json.loads(output.read_text())
+        fixture = (root / "tests/sdk-conformance/fixtures/api-key-foundation.json").read_bytes()
+        ids = [item["id"] for item in json.loads(fixture)["capabilities"]["sdk.configuration"]["vectors"]]
+        native = root / "frontend/packages/openmates-cli/native/linux-x64.node"
+        if (not isinstance(value, dict) or value.get("status") != "passed"
+            or value.get("entrypoint") != "openmates/sdk/v1" or value.get("vectorIds") != ids or len(ids) != 23
+            or value.get("fixtureSha256") != hashlib.sha256(fixture).hexdigest()
+            or value.get("nativeSha256") != hashlib.sha256(native.read_bytes()).hexdigest()
+            or value.get("nativeAdapter") != "actual-rust-api-key-library"
+            or value.get("ambientSyntheticCliStateAccess") is not False
+            or value.get("explicitFixtureCredentials") is not True or value.get("cliLauncherObserved") is not False
+            or value.get("rawTracePublished") is not False):
+            raise ValueError("SDK publication actual packaged proof mismatch")
+        return value
+
+
 def run(*, release: bool = False, execute: bool = False, root: Path = ROOT) -> dict:
     check_generated(root)
     matrix_bytes = (root / MATRIX).read_bytes()
@@ -591,6 +771,7 @@ def run(*, release: bool = False, execute: bool = False, root: Path = ROOT) -> d
             "SDK publication blocked by unsynchronized capabilities:\n"
             + "\n".join(gaps)
         )
+    packaged = verified_packaged_sdk_v1_release(root) if release else None
     return {
         "status": "migration-gaps" if gaps else "synchronized",
         "matrixSha256": hashlib.sha256(matrix_bytes).hexdigest(),
@@ -606,7 +787,8 @@ def run(*, release: bool = False, execute: bool = False, root: Path = ROOT) -> d
         "publicApis": {key: len(value) for key, value in inventory.items()},
         "openGaps": gaps,
         "conformance": results,
-        "releaseEligible": not gaps and bool(results),
+        "packagedSdkV1": packaged,
+        "releaseEligible": not gaps and bool(results) and packaged is not None,
     }
 
 

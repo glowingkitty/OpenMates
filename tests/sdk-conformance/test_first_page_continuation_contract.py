@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 import pytest
 import jsonschema
+from source_contract import assert_python_contains, python_index
 
 ROOT = Path(__file__).resolve().parents[2]
 CAP = "session.chat-first-page-continuation.v1"
@@ -183,9 +184,10 @@ def test_real_interfaces_and_failclosed_dispatch_are_authored_not_mock_substitut
         / "packages/openmates-session-bindings/examples/session-chat-first-page-continuation-conformance.rs"
     ).read_text()
     assert "dist/sdk-entry.js" in npm and "client.readChatWithFirstPage(" in npm
-    assert (
-        "read_chat_with_first_page(" in python
-        and "from essential_session import Store,client,refused" in python
+    assert_python_contains(
+        python,
+        "read_chat_with_first_page(",
+        "from essential_session import Store,client,refused",
     )
     assert (
         "use _native::" in rust
@@ -218,12 +220,17 @@ def test_stale_owner_actions_precede_pending_b_ack_in_each_real_adapter():
     stale = npm.index("nativeClient.firstPageReceipt(a,stageA.id,receiptA)", close)
     ack = npm.index("nativeClient.firstPageReceipt(b,stageB.id,receiptB)", stale)
     assert pending < close < stale < ack
-    pending = python.index("stage_b=await next_event(b)")
-    close = python.index("conflict(lambda:native.first_page_close(a))", pending)
-    stale = python.index(
-        "conflict(lambda:native.first_page_receipt(a,stage_a['id'],receipt_a))", close
+    # Canonical (formatting-independent) positions keep the same order proof.
+    pending = python_index(python, "stage_b=await next_event(b)")
+    close = python_index(python, "conflict(lambda:native.first_page_close(a))", pending)
+    stale = python_index(
+        python,
+        "conflict(lambda:native.first_page_receipt(a,stage_a['id'],receipt_a))",
+        close,
     )
-    ack = python.index("native.first_page_receipt(b,stage_b['id'],receipt_b)", stale)
+    ack = python_index(
+        python, "native.first_page_receipt(b,stage_b['id'],receipt_b)", stale
+    )
     assert pending < close < stale < ack
     assert "first_page_close(a.clone()).err().unwrap().code" in rust
 

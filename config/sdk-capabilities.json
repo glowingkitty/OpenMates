@@ -847,7 +847,6 @@
             "generated.FitnessSkills.search_classes",
             "generated.FitnessSkills.search_locations",
             "generated.HealthSkills",
-            "generated.HealthSkills.create_report",
             "generated.HealthSkills.search_appointments",
             "generated.HomeSkills",
             "generated.HomeSkills.search",
@@ -913,7 +912,6 @@
             "generated.WebSkills.read",
             "generated.WebSkills.search",
             "generated.WorkflowsSkills",
-            "generated.WorkflowsSkills.create_or_modify",
             "generated.WorkflowsSkills.search",
             "generated.app_skill_metadata",
             "sdk.OpenMates.apps",
@@ -1233,12 +1231,12 @@
           ],
           "conformance": true,
           "evidence": [
-            "frontend/packages/openmates-cli/tests/sdk-root-credential-boundary.test.ts",
             "tests/sdk-conformance/runners/api-key-foundation.py",
             "tests/sdk-conformance/test_api_key_foundation_contract.py"
           ],
           "gaps": [
-            "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
+            "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+            "Root credential policy v1 is not met by npm: the root `OpenMatesClient` export still loads the stored CLI session from disk; removing that discovery is a pending, versioned breaking change. The `OpenMates` API-key client and `openmates/sdk/v1` never read CLI state."
           ],
           "status": "partial"
         },
@@ -2193,12 +2191,50 @@
             "crypto.hkdf_sha256",
             "crypto.password_proof_v2",
             "crypto.random_key",
-            "crypto.unwrap_password_master_key"
+            "crypto.signup.RecoveryKeyMaterial",
+            "crypto.signup.RecoveryKeyMaterial.key_iv",
+            "crypto.signup.RecoveryKeyMaterial.lookup_hash",
+            "crypto.signup.RecoveryKeyMaterial.recovery_key",
+            "crypto.signup.RecoveryKeyMaterial.salt",
+            "crypto.signup.RecoveryKeyMaterial.wrapped_master_key",
+            "crypto.signup.SignupMaterial",
+            "crypto.signup.SignupMaterial.credential_version",
+            "crypto.signup.SignupMaterial.email_encryption_key",
+            "crypto.signup.SignupMaterial.encrypted_email",
+            "crypto.signup.SignupMaterial.encrypted_email_with_master_key",
+            "crypto.signup.SignupMaterial.encrypted_master_key",
+            "crypto.signup.SignupMaterial.hashed_email",
+            "crypto.signup.SignupMaterial.key_iv",
+            "crypto.signup.SignupMaterial.master_key",
+            "crypto.signup.SignupMaterial.password_auth_key",
+            "crypto.signup.SignupMaterial.salt",
+            "crypto.signup.SignupMaterial.user_email_salt",
+            "crypto.signup.recovery_key_material",
+            "crypto.signup.signup_material",
+            "crypto.unwrap_password_master_key",
+            "crypto.web_formats.MEDIA_ENCRYPTION_V2",
+            "crypto.web_formats.MediaEncryption",
+            "crypto.web_formats.MediaEncryption.aes_nonce",
+            "crypto.web_formats.MediaEncryption.encryption",
+            "crypto.web_formats.MediaEncryption.legacy_nonce",
+            "crypto.web_formats.ShareKeyRefusal",
+            "crypto.web_formats.ShareKeyRefusal.Expired",
+            "crypto.web_formats.ShareKeyRefusal.InvalidPassword",
+            "crypto.web_formats.ShareKeyRefusal.PasswordRequired",
+            "crypto.web_formats.decrypt_chat_share_key_blob",
+            "crypto.web_formats.decrypt_embed_share_key_blob",
+            "crypto.web_formats.decrypt_media_payload",
+            "crypto.web_formats.decrypt_short_url",
+            "crypto.web_formats.hidden_chat_secret",
+            "crypto.web_formats.passkey_wrapping_key",
+            "crypto.web_formats.unwrap_hidden_chat_key",
+            "crypto.web_formats.unwrap_passkey_master_key"
           ],
           "conformance": false,
           "evidence": [],
           "gaps": [
-            "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
+            "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+            "Rust-only: signup/recovery key material (crypto.signup) and web share/media/passkey/hidden-chat formats (crypto.web_formats) have shared crypto vectors in Rust but no npm/Python SDK API yet."
           ],
           "status": "partial"
         }
@@ -4170,7 +4206,8 @@
             "Selected Personal metadata-cache and saved-embed behavior remains required partial: restore/persist only selected existing encrypted metadata with independent monotonic counters, original owner/key/epoch/request/private-denial fences, bounded IO terminal/readback receipts, and no message/history/journal/unknown-field writes or native credential ACK; full-ID Personal Cookie saved-embed reads must retain original publication scope, negative-only source authorization and staged key isolation, fail closed for cached source/hash/global/overflow denial, reject Team/Direct/prefix substitution, and wipe plaintext on release failure. Equivalent direct explicit-credential Rust/npm/Python functionality and inverse/adversarial shared executable fixtures, compiled native/WASM/Worker/IndexedDB/HTTP/WS execution, packaging and matched CPU/end-to-end/RAM/size proof remain unverified; language API shapes may differ and matching helper/enum names are not required. Core synthetic Rust fixtures and source/pure checks grant no runtime, activation, performance or release acceptance.",
             "Owning-Worker selected browser metadata/message/retained-view/monitor operations remain source-held required partial pending independent core semantic review: preserve original admitted profile/master resource, owner/key/request/private-denial/epoch fences across all awaits, same-store physical readback, exact terminal drain and original final publication. Equivalent direct Rust/npm/Python functional IO adapters and genuine shared executable conformance remain missing or unverified; matching helper/type names are not required and no native Session/key substitution is admitted. The38 merge-policy and8 header cases are pure-policy inputs, not real SDK/WASM/browser execution or new plan authority. Full continuous sync/recovery, absence/tombstone/draft reconciliation, cold/context integration, actual Rust/WASM/Worker/IndexedDB/socket/scheduler/owner/revocation behavior, package/Linux/Mac and matched TS CPU/end-to-end/RAM/size remain incomplete or UNRUN. Cached/retained output grants no canonical incoming-window durability, native ACK, cross-database proof, complete history/inventory or recovery authority; no activation, parity/performance or release waiver follows this source registration.",
             "Reviewed inactive continuous selected-cache and local transaction observer source remains required partial. One Rust application writer per updated context is the boundary; other authorized tabs remain ordinary concurrent clients, with no global exclusion or new backend fencing protocol. Preserve original admitted Rust profile/master resource, owner/key/request/private-denial/epoch fences, exact terminal/readback receipts, original sealed publication and stale-monitor isolation. The observer tracks only identified chats/messages readwrite creation sites in one JavaScript realm and IDBDatabase connection; unknown existing transactions cannot be adopted. It grants no Rust/session authority or full producer/send/recovery/debounce/draft/optimistic/remote handoff. Future facade and genuine coverage packets are excluded. Matching explicit-credential direct Rust/npm/Python functional IO adapters and shared executable conformance, compiled Rust/WASM/Worker/IndexedDB/real transport, Team/Direct/expiry/account switch/cold restart/reconnect, tombstones/absence/full nonselected content/cold headers/inventory/history/foreground recovery and matched CPU/end-to-end/RAM/size/platform proof remain required or UNRUN. Source registration and pure checks grant no activation, runtime, durability, performance, complete sync or release acceptance.",
-            "Reviewed serialized saved-send cancellation security source preserves original admitted root/key/owner/denial/policy and opaque final allocation guards. Global cancel targets current work/output; identity/root retirement remains distinct, including malformed replacement entry. Only after actual original driver drain may terminal continuation validate the genuine unchanged parent; old A output still refuses, with no replay or inferred remote cancellation/settlement. Existing10 work vectors remain exact prefix of23 authored vectors on the same Rust/npm/Python adapters; actual compiled23x3 execution and strict original-task cancel_ai_task notification race remain required UNRUN. Uncertain original admission remains bounded wiping memory with100/32MiB backpressure, not canonical encrypted durable journal/reload/settlement. Owned-driver V3/sibling scopes, actual B read/store/readback/publication while A held, writer/producer handoff and matched CPU/end-to-end/RAM/platform evidence remain separate required work. Browser facade/scheduler stays inactive; ordinary authorized tabs remain peers. Pure decode extraction grants no new API/IO/permission. This serialized baseline is no B-progress/durability/performance/release acceptance."
+            "Reviewed serialized saved-send cancellation security source preserves original admitted root/key/owner/denial/policy and opaque final allocation guards. Global cancel targets current work/output; identity/root retirement remains distinct, including malformed replacement entry. Only after actual original driver drain may terminal continuation validate the genuine unchanged parent; old A output still refuses, with no replay or inferred remote cancellation/settlement. Existing10 work vectors remain exact prefix of23 authored vectors on the same Rust/npm/Python adapters; actual compiled23x3 execution and strict original-task cancel_ai_task notification race remain required UNRUN. Uncertain original admission remains bounded wiping memory with100/32MiB backpressure, not canonical encrypted durable journal/reload/settlement. Owned-driver V3/sibling scopes, actual B read/store/readback/publication while A held, writer/producer handoff and matched CPU/end-to-end/RAM/platform evidence remain separate required work. Browser facade/scheduler stays inactive; ordinary authorized tabs remain peers. Pure decode extraction grants no new API/IO/permission. This serialized baseline is no B-progress/durability/performance/release acceptance.",
+            "Rust-only: @mention parsing/resolution (mentions.*, Client.resolve_mentions) is not yet exposed by the npm/Python SessionClient."
           ],
           "status": "partial"
         },
@@ -4211,7 +4248,8 @@
             "Selected Personal metadata-cache and saved-embed behavior remains required partial: restore/persist only selected existing encrypted metadata with independent monotonic counters, original owner/key/epoch/request/private-denial fences, bounded IO terminal/readback receipts, and no message/history/journal/unknown-field writes or native credential ACK; full-ID Personal Cookie saved-embed reads must retain original publication scope, negative-only source authorization and staged key isolation, fail closed for cached source/hash/global/overflow denial, reject Team/Direct/prefix substitution, and wipe plaintext on release failure. Equivalent direct explicit-credential Rust/npm/Python functionality and inverse/adversarial shared executable fixtures, compiled native/WASM/Worker/IndexedDB/HTTP/WS execution, packaging and matched CPU/end-to-end/RAM/size proof remain unverified; language API shapes may differ and matching helper/enum names are not required. Core synthetic Rust fixtures and source/pure checks grant no runtime, activation, performance or release acceptance.",
             "Owning-Worker selected browser metadata/message/retained-view/monitor operations remain source-held required partial pending independent core semantic review: preserve original admitted profile/master resource, owner/key/request/private-denial/epoch fences across all awaits, same-store physical readback, exact terminal drain and original final publication. Equivalent direct Rust/npm/Python functional IO adapters and genuine shared executable conformance remain missing or unverified; matching helper/type names are not required and no native Session/key substitution is admitted. The38 merge-policy and8 header cases are pure-policy inputs, not real SDK/WASM/browser execution or new plan authority. Full continuous sync/recovery, absence/tombstone/draft reconciliation, cold/context integration, actual Rust/WASM/Worker/IndexedDB/socket/scheduler/owner/revocation behavior, package/Linux/Mac and matched TS CPU/end-to-end/RAM/size remain incomplete or UNRUN. Cached/retained output grants no canonical incoming-window durability, native ACK, cross-database proof, complete history/inventory or recovery authority; no activation, parity/performance or release waiver follows this source registration.",
             "Reviewed inactive continuous selected-cache and local transaction observer source remains required partial. One Rust application writer per updated context is the boundary; other authorized tabs remain ordinary concurrent clients, with no global exclusion or new backend fencing protocol. Preserve original admitted Rust profile/master resource, owner/key/request/private-denial/epoch fences, exact terminal/readback receipts, original sealed publication and stale-monitor isolation. The observer tracks only identified chats/messages readwrite creation sites in one JavaScript realm and IDBDatabase connection; unknown existing transactions cannot be adopted. It grants no Rust/session authority or full producer/send/recovery/debounce/draft/optimistic/remote handoff. Future facade and genuine coverage packets are excluded. Matching explicit-credential direct Rust/npm/Python functional IO adapters and shared executable conformance, compiled Rust/WASM/Worker/IndexedDB/real transport, Team/Direct/expiry/account switch/cold restart/reconnect, tombstones/absence/full nonselected content/cold headers/inventory/history/foreground recovery and matched CPU/end-to-end/RAM/size/platform proof remain required or UNRUN. Source registration and pure checks grant no activation, runtime, durability, performance, complete sync or release acceptance.",
-            "Reviewed serialized saved-send cancellation security source preserves original admitted root/key/owner/denial/policy and opaque final allocation guards. Global cancel targets current work/output; identity/root retirement remains distinct, including malformed replacement entry. Only after actual original driver drain may terminal continuation validate the genuine unchanged parent; old A output still refuses, with no replay or inferred remote cancellation/settlement. Existing10 work vectors remain exact prefix of23 authored vectors on the same Rust/npm/Python adapters; actual compiled23x3 execution and strict original-task cancel_ai_task notification race remain required UNRUN. Uncertain original admission remains bounded wiping memory with100/32MiB backpressure, not canonical encrypted durable journal/reload/settlement. Owned-driver V3/sibling scopes, actual B read/store/readback/publication while A held, writer/producer handoff and matched CPU/end-to-end/RAM/platform evidence remain separate required work. Browser facade/scheduler stays inactive; ordinary authorized tabs remain peers. Pure decode extraction grants no new API/IO/permission. This serialized baseline is no B-progress/durability/performance/release acceptance."
+            "Reviewed serialized saved-send cancellation security source preserves original admitted root/key/owner/denial/policy and opaque final allocation guards. Global cancel targets current work/output; identity/root retirement remains distinct, including malformed replacement entry. Only after actual original driver drain may terminal continuation validate the genuine unchanged parent; old A output still refuses, with no replay or inferred remote cancellation/settlement. Existing10 work vectors remain exact prefix of23 authored vectors on the same Rust/npm/Python adapters; actual compiled23x3 execution and strict original-task cancel_ai_task notification race remain required UNRUN. Uncertain original admission remains bounded wiping memory with100/32MiB backpressure, not canonical encrypted durable journal/reload/settlement. Owned-driver V3/sibling scopes, actual B read/store/readback/publication while A held, writer/producer handoff and matched CPU/end-to-end/RAM/platform evidence remain separate required work. Browser facade/scheduler stays inactive; ordinary authorized tabs remain peers. Pure decode extraction grants no new API/IO/permission. This serialized baseline is no B-progress/durability/performance/release acceptance.",
+            "Rust-only: @mention parsing/resolution (mentions.*, Client.resolve_mentions) is not yet exposed by the npm/Python SessionClient."
           ],
           "status": "partial"
         },
@@ -4300,6 +4338,7 @@
             "client.Client.prepare_validated_scoped_saved_send",
             "client.Client.refresh_browser_chat_monitor_metadata",
             "client.Client.reset",
+            "client.Client.resolve_mentions",
             "client.Client.restore_authenticated_ciphertext_snapshot",
             "client.Client.restore_browser_draft_with_io_json",
             "client.Client.restore_ciphertext_snapshot",
@@ -4825,6 +4864,65 @@
             "crypto.master.MasterCrypto.encrypt",
             "crypto.master.MasterCryptoBounds",
             "crypto.master.MasterCryptoFuture",
+            "mentions",
+            "mentions.AppInfo",
+            "mentions.AppInfo.focus_modes",
+            "mentions.AppInfo.id",
+            "mentions.AppInfo.name",
+            "mentions.AppInfo.settings_and_memories",
+            "mentions.AppInfo.skills",
+            "mentions.MATE_NAMES",
+            "mentions.MODEL_ALIASES",
+            "mentions.MemoryEntryInfo",
+            "mentions.MemoryEntryInfo.app_id",
+            "mentions.MemoryEntryInfo.id",
+            "mentions.MemoryEntryInfo.item_type",
+            "mentions.MemoryEntryInfo.title",
+            "mentions.MentionContext",
+            "mentions.MentionContext.apps",
+            "mentions.MentionContext.mates",
+            "mentions.MentionContext.memory_entries",
+            "mentions.MentionContext.models",
+            "mentions.MentionContext.with_apps",
+            "mentions.MentionParseResult",
+            "mentions.MentionParseResult.file_paths",
+            "mentions.MentionParseResult.processed_message",
+            "mentions.MentionParseResult.resolved",
+            "mentions.MentionParseResult.unresolved",
+            "mentions.MentionType",
+            "mentions.MentionType.FocusMode",
+            "mentions.MentionType.Mate",
+            "mentions.MentionType.Model",
+            "mentions.MentionType.ModelAlias",
+            "mentions.MentionType.SettingsMemory",
+            "mentions.MentionType.SettingsMemoryEntry",
+            "mentions.MentionType.Skill",
+            "mentions.ModelInfo",
+            "mentions.ModelInfo.api_retirement_date",
+            "mentions.ModelInfo.id",
+            "mentions.ModelInfo.legacy_model",
+            "mentions.ModelInfo.name",
+            "mentions.ModelInfo.provider_id",
+            "mentions.ModelInfo.release_date",
+            "mentions.NamedEntry",
+            "mentions.NamedEntry.id",
+            "mentions.NamedEntry.kind",
+            "mentions.NamedEntry.name",
+            "mentions.ResolvedMention",
+            "mentions.ResolvedMention.display_name",
+            "mentions.ResolvedMention.kind",
+            "mentions.ResolvedMention.original",
+            "mentions.ResolvedMention.wire_syntax",
+            "mentions.UnresolvedMention",
+            "mentions.UnresolvedMention.original",
+            "mentions.UnresolvedMention.suggestions",
+            "mentions.apps_from_json",
+            "mentions.chat_models",
+            "mentions.extract_mention_tokens",
+            "mentions.is_available_chat_model",
+            "mentions.normalize",
+            "mentions.parse_mentions",
+            "mentions.today_utc",
             "pairing",
             "pairing.PairBundle",
             "pairing.PairBundle.account_context",
@@ -4880,7 +4978,8 @@
             "Selected Personal metadata-cache and saved-embed behavior remains required partial: restore/persist only selected existing encrypted metadata with independent monotonic counters, original owner/key/epoch/request/private-denial fences, bounded IO terminal/readback receipts, and no message/history/journal/unknown-field writes or native credential ACK; full-ID Personal Cookie saved-embed reads must retain original publication scope, negative-only source authorization and staged key isolation, fail closed for cached source/hash/global/overflow denial, reject Team/Direct/prefix substitution, and wipe plaintext on release failure. Equivalent direct explicit-credential Rust/npm/Python functionality and inverse/adversarial shared executable fixtures, compiled native/WASM/Worker/IndexedDB/HTTP/WS execution, packaging and matched CPU/end-to-end/RAM/size proof remain unverified; language API shapes may differ and matching helper/enum names are not required. Core synthetic Rust fixtures and source/pure checks grant no runtime, activation, performance or release acceptance.",
             "Owning-Worker selected browser metadata/message/retained-view/monitor operations remain source-held required partial pending independent core semantic review: preserve original admitted profile/master resource, owner/key/request/private-denial/epoch fences across all awaits, same-store physical readback, exact terminal drain and original final publication. Equivalent direct Rust/npm/Python functional IO adapters and genuine shared executable conformance remain missing or unverified; matching helper/type names are not required and no native Session/key substitution is admitted. The38 merge-policy and8 header cases are pure-policy inputs, not real SDK/WASM/browser execution or new plan authority. Full continuous sync/recovery, absence/tombstone/draft reconciliation, cold/context integration, actual Rust/WASM/Worker/IndexedDB/socket/scheduler/owner/revocation behavior, package/Linux/Mac and matched TS CPU/end-to-end/RAM/size remain incomplete or UNRUN. Cached/retained output grants no canonical incoming-window durability, native ACK, cross-database proof, complete history/inventory or recovery authority; no activation, parity/performance or release waiver follows this source registration.",
             "Reviewed inactive continuous selected-cache and local transaction observer source remains required partial. One Rust application writer per updated context is the boundary; other authorized tabs remain ordinary concurrent clients, with no global exclusion or new backend fencing protocol. Preserve original admitted Rust profile/master resource, owner/key/request/private-denial/epoch fences, exact terminal/readback receipts, original sealed publication and stale-monitor isolation. The observer tracks only identified chats/messages readwrite creation sites in one JavaScript realm and IDBDatabase connection; unknown existing transactions cannot be adopted. It grants no Rust/session authority or full producer/send/recovery/debounce/draft/optimistic/remote handoff. Future facade and genuine coverage packets are excluded. Matching explicit-credential direct Rust/npm/Python functional IO adapters and shared executable conformance, compiled Rust/WASM/Worker/IndexedDB/real transport, Team/Direct/expiry/account switch/cold restart/reconnect, tombstones/absence/full nonselected content/cold headers/inventory/history/foreground recovery and matched CPU/end-to-end/RAM/size/platform proof remain required or UNRUN. Source registration and pure checks grant no activation, runtime, durability, performance, complete sync or release acceptance.",
-            "Reviewed serialized saved-send cancellation security source preserves original admitted root/key/owner/denial/policy and opaque final allocation guards. Global cancel targets current work/output; identity/root retirement remains distinct, including malformed replacement entry. Only after actual original driver drain may terminal continuation validate the genuine unchanged parent; old A output still refuses, with no replay or inferred remote cancellation/settlement. Existing10 work vectors remain exact prefix of23 authored vectors on the same Rust/npm/Python adapters; actual compiled23x3 execution and strict original-task cancel_ai_task notification race remain required UNRUN. Uncertain original admission remains bounded wiping memory with100/32MiB backpressure, not canonical encrypted durable journal/reload/settlement. Owned-driver V3/sibling scopes, actual B read/store/readback/publication while A held, writer/producer handoff and matched CPU/end-to-end/RAM/platform evidence remain separate required work. Browser facade/scheduler stays inactive; ordinary authorized tabs remain peers. Pure decode extraction grants no new API/IO/permission. This serialized baseline is no B-progress/durability/performance/release acceptance."
+            "Reviewed serialized saved-send cancellation security source preserves original admitted root/key/owner/denial/policy and opaque final allocation guards. Global cancel targets current work/output; identity/root retirement remains distinct, including malformed replacement entry. Only after actual original driver drain may terminal continuation validate the genuine unchanged parent; old A output still refuses, with no replay or inferred remote cancellation/settlement. Existing10 work vectors remain exact prefix of23 authored vectors on the same Rust/npm/Python adapters; actual compiled23x3 execution and strict original-task cancel_ai_task notification race remain required UNRUN. Uncertain original admission remains bounded wiping memory with100/32MiB backpressure, not canonical encrypted durable journal/reload/settlement. Owned-driver V3/sibling scopes, actual B read/store/readback/publication while A held, writer/producer handoff and matched CPU/end-to-end/RAM/platform evidence remain separate required work. Browser facade/scheduler stays inactive; ordinary authorized tabs remain peers. Pure decode extraction grants no new API/IO/permission. This serialized baseline is no B-progress/durability/performance/release acceptance.",
+            "@mention parsing/resolution (mentions.*, Client.resolve_mentions) is Rust-only until the npm/Python SessionClient expose it."
           ],
           "status": "partial"
         }
@@ -6098,8 +6197,7 @@
           "api": [],
           "conformance": false,
           "evidence": [
-            "frontend/packages/openmates-cli/tests/sdk-v1-package.test.mjs",
-            "scripts/build_sdk_native.py"
+            "frontend/packages/openmates-cli/tests/sdk-v1-package.test.mjs"
           ],
           "gaps": [
             "Explicit fallback-free loading: the SDK loads only the packaged native artifact (native/<os>-<arch>.node) and raises native_binding_unavailable when it is missing or incompatible; no TypeScript/Python fallback or CLI process. scripts/build_sdk_native.py builds it for the host only. npm `files` ships native/*.node, but the publish pipeline does not yet build or include per-platform artifacts. Clean-install and cross-platform conformance remain unverified."
@@ -6110,8 +6208,7 @@
           "api": [],
           "conformance": false,
           "evidence": [
-            "packages/openmates-python/tests/test_session_client.py",
-            "scripts/build_sdk_native.py"
+            "packages/openmates-python/tests/test_session_client.py"
           ],
           "gaps": [
             "Explicit fallback-free loading: the SDK loads only the packaged native artifact (openmates/_native.abi3.so) and raises native_binding_unavailable when it is missing or incompatible; no TypeScript/Python fallback or CLI process. scripts/build_sdk_native.py builds it for the host only. The PyPI build backend remains setuptools (pure-Python); published wheels do not yet contain the extension, and per-platform maturin/abi3 wheels are not wired into the publish workflow. Clean-install and cross-platform conformance remain unverified."

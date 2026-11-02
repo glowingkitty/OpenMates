@@ -34,6 +34,9 @@ def target():
     peer.saved_messages, peer.checks = {}, set()
     peer.counts = {"admissions": 0}
     peer._lock = threading.Lock()
+    # Mirror SavedStreamPeer.__init__ defaults that admission reads.
+    peer.version_enabled = peer.catalogue_enabled = False
+    peer.release_owned_a = None
     return peer
 
 

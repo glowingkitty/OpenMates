@@ -178380,7 +178380,7 @@ assertions:
       surface: cli
     - &id22812
       path: tests/sdk-conformance/test_saved_stream_contract.py
-      line: 73
+      line: 76
       name: test_schema_requires_saved_selector_terminal_counts_and_rejects_unknown_mode
       surface: sdks.rust
     tests:
@@ -179164,7 +179164,7 @@ assertions:
       surface: sdks.pip
     - &id22859
       path: tests/sdk-conformance/test_saved_stream_contract.py
-      line: 73
+      line: 76
       name: test_schema_requires_saved_selector_terminal_counts_and_rejects_unknown_mode
       surface: sdks.rust
     tests:

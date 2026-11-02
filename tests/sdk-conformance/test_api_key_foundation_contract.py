@@ -7,6 +7,7 @@ import importlib.util
 import json
 import pytest
 import jsonschema
+from source_contract import assert_python_contains, python_contains
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURE = ROOT / "tests/sdk-conformance/fixtures/api-key-foundation.json"
@@ -41,7 +42,8 @@ def test_schema_and_original_app18_four_are_unchanged():
 
 def test_actual_three_fixed_adapters_and_peer_oracle_cannot_skip():
     source = (ROOT / "tests/sdk-conformance/runners/api-key-foundation.py").read_text()
-    for value in [
+    assert_python_contains(
+        source,
         '"rust"',
         '"npm"',
         '"python"',
@@ -52,9 +54,9 @@ def test_actual_three_fixed_adapters_and_peer_oracle_cannot_skip():
         "actual-rust-api-key-library",
         "expected_error",
         "fixtureSha256",
-    ]:
-        assert value in source
-    assert "len(results)==23" in source and "skip" not in source.replace("skip,", "")
+        "len(results)==23",
+    )
+    assert "skip" not in source.replace("skip,", "")
     assert (
         "class ApiKeyFoundationPeer(DirectSkillPeer)"
         in (ROOT / "tests/sdk-conformance/api_key_foundation_peer.py").read_text()
@@ -142,9 +144,9 @@ def test_each_genuine_runner_selects_the_same_registered_fixture_suite():
         ROOT
         / "packages/openmates-session-bindings/examples/api-key-foundation-conformance.rs"
     ).read_text()
-    assert (
-        'suite=json.loads(Path(fixture).read_text())["capabilities"]["sdk.configuration"]'
-        in py
+    assert python_contains(
+        py,
+        'suite=json.loads(Path(fixture).read_text())["capabilities"]["sdk.configuration"]',
     )
     assert '.capabilities["sdk.configuration"]' in npm
     assert 'let suite=&suite["capabilities"]["sdk.configuration"];' in rust
