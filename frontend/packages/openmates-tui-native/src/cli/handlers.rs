@@ -384,6 +384,8 @@ pub enum ListReadDiagnosticStage {
     RecoveryCheckStarted,
     RecoveryChecked { pending_or_uncertain: bool },
     CachedHit,
+    /// Warm list served by one chat sync feed catch-up (architecture.sync@2).
+    FeedHit,
     ForegroundStarted,
     PreDispatchPersisted,
     ForegroundFinished,
@@ -945,6 +947,12 @@ async fn execute_inner(
         None
     };
     if let (Some(context), Some(plan)) = (recovery, recovery_plan.as_ref()) {
+        // architecture.sync@2: with a feed cursor, the cached index plus one
+        // feed catch-up replaces both the time-based receipt and phase=all.
+        // Boxed: keeps the public dispatch future within its stack bound.
+        if let Some(output) = Box::pin(try_feed_chat_list(invocation, client, context, &cancel)).await? {
+            return Ok(output);
+        }
         if let Some(output) = try_warm_default_list(invocation, client, context, &cancel).await? {
             return Ok(output);
         }
@@ -1110,6 +1118,8 @@ async fn execute_context_with_inventory(
             } else {
                 client.list(selected_workspace).await?
             };
+            // Same overview order as the feed path (sync.overview.priority-order).
+            let items = if command == "chats" { client.order_chat_list_items_now(items) } else { items };
             paginated_list_output(invocation, command, items)
         }
         "chats show" | "chats messages" => {
@@ -2028,6 +2038,37 @@ fn paginated_list_output(
         .take(limit)
         .collect::<Vec<_>>();
     list_output(invocation, command, items)
+}
+
+/// Warm `chats list`: replay the feed from the cached cursor instead of a
+/// bounded phased sync. Uncertain recovery state keeps the foreground path.
+async fn try_feed_chat_list(
+    invocation: &Invocation,
+    client: &mut Client,
+    context: &ApplicationRecoveryContext<'_>,
+    cancel: &CancellationToken,
+) -> Result<Option<CliOutput>, CliError> {
+    if !crate::session_runtime::same_personal_chat_list_scope(client, invocation) || !client.has_chat_sync_cursor() {
+        return Ok(None);
+    }
+    let admission = RecoveryReadAdmission::capture(client, context.store, cancel)?;
+    let pending_or_uncertain =
+        match crate::completion_recovery_adapter::load_pending(client, context.store).await {
+            Ok(pending) => !pending.is_empty(),
+            Err(_) => true,
+        };
+    if pending_or_uncertain {
+        return Ok(None);
+    }
+    admission.check(client, context.store, cancel)?;
+    client.set_operation_cancel(cancel.clone());
+    let Some(items) = client.chat_list_from_feed().await? else {
+        return Ok(None);
+    };
+    context.observe_list_stage(ListReadDiagnosticStage::FeedHit);
+    let mut output = paginated_list_output(invocation, "chats", items)?;
+    persist_saved_read_output(&mut output, client, context, &admission, cancel).await?;
+    Ok(Some(output))
 }
 
 async fn try_warm_default_list(

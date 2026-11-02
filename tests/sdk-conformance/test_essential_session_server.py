@@ -222,6 +222,7 @@ class PassiveMonitorPeerTests(unittest.TestCase):
             "canonical_embed_receipts_v1",
             "typed_recovery_outputs_v2",
             "agentic-storage-v2",
+            "chat_sync_feed_v1",
         ]
         capable = base + ["task_update_jobs"]
         for mode in ("monitor_cas", "monitor_data_changed"):
@@ -264,6 +265,7 @@ class PassiveMonitorPeerTests(unittest.TestCase):
             "canonical_embed_receipts_v1",
             "typed_recovery_outputs_v2",
             "agentic-storage-v2",
+            "chat_sync_feed_v1",
             "task_update_jobs",
         ]
         admitted = peer.admit_monitor_socket(capable)

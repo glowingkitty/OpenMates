@@ -239,6 +239,14 @@ def test_cold_start_is_inert_without_capability_and_reads_clock_first_with_it():
         await handle.finish()
         return handle, calls, first_call, manager, feed, sock
 
+    async def other_phase():
+        feed, calls = service()
+        sock = FakeSocket()
+        sock.app = SimpleNamespace(state=SimpleNamespace(chat_sync_feed=feed))
+        handle = await begin_cold_start(sock, SimpleNamespace(), SimpleNamespace(), SimpleNamespace(), USER, "dev", None, 3, "phase3")
+        return handle.completion_fields(), calls
+
+    assert asyncio.run(other_phase()) == ({}, [])
     handle, calls, _, manager, feed, sock = asyncio.run(scenario(False))
     assert handle.completion_fields() == {} and calls == [] and manager.send_personal_message.await_count == 0
     handle, calls, first, manager, feed, sock = asyncio.run(scenario(True))

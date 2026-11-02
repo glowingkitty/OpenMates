@@ -500,6 +500,7 @@ class CliPeer(EssentialPeer):
                         "canonical_embed_receipts_v1",
                         "typed_recovery_outputs_v2",
                         "agentic-storage-v2",
+                        "chat_sync_feed_v1",
                     }
                     # Saved reads use ordinary task-capable sockets after the
                     # explicit recovery pump disables its foreground opt-in.

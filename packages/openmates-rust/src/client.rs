@@ -111,6 +111,9 @@ pub mod snapshot_sections;
 mod chat_list_freshness;
 mod chat_arrival_order;
 mod chat_tombstones;
+// architecture.sync@2 overview order and incremental chat sync feed.
+pub mod overview;
+mod sync_feed;
 mod mention_context;
 mod search;
 mod send;
@@ -545,6 +548,8 @@ pub struct Client {
     deleted_chats: BTreeMap<String, u64>,
     /// Partially restored native cache content (cache_policy.rs).
     cached_content: cache_policy::CachedContentState,
+    /// Incremental chat sync feed cursor and overview inputs (sync_feed.rs).
+    chat_sync_feed: sync_feed::FeedState,
 }
 impl Client {
     /// Explicit validated application origin selected for this client.
@@ -603,6 +608,7 @@ impl Client {
             recent_validation: None,
             deleted_chats: BTreeMap::new(),
             cached_content: Default::default(),
+            chat_sync_feed: Default::default(),
             fresh_auth: Default::default(),
             inventory_network: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
             credential_updates: None,

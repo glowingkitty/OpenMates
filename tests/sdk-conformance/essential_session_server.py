@@ -193,10 +193,11 @@ class EssentialPeer(RecoveryPeer):
             self.ordinary_read_budget == 1
             and self.counts["explicit_foreground_reads"] == 0
         )
-        assert len(capabilities) == 4 and set(capabilities) == {
+        assert len(capabilities) == 5 and set(capabilities) == {
             "canonical_embed_receipts_v1",
             "typed_recovery_outputs_v2",
             "agentic-storage-v2",
+            "chat_sync_feed_v1",
             "task_update_jobs",
         }
         self.ordinary_read_budget = 0

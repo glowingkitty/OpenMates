@@ -577,6 +577,11 @@ fn record_change(changes: &Changes, kind: &str, value: &Value) -> Result<()> {
             next.versions.insert(id.clone(), floor);
             next.chats.insert(id);
         }
+        // Content-free commit hint (architecture.sync@2): pull the feed.
+        "chat_sync_hint" => {
+            value["revision"].as_u64().ok_or(Error::Protocol)?;
+            next.refresh = true;
+        }
         "recovery_jobs_available" | "metadata_jobs_available" => {
             let jobs = value["jobs"].as_array().ok_or(Error::Protocol)?;
             if jobs.len() > MAX_HINTS {
@@ -896,7 +901,13 @@ impl Client {
         // An initial/reconnect snapshot is a bounded recent list, never a set
         // of tombstones. No volatile AI payload enters this transaction.
         if hint.pending.refresh {
-            drop(Plain::new(self.sync_chats_for_monitor().await?));
+            // architecture.sync@2: replay from the feed cursor when one exists;
+            // otherwise (or on reset/deferral) keep the bounded snapshot read.
+            let caught_up = self.has_chat_sync_cursor()
+                && matches!(self.catch_up_chat_sync_feed().await, Ok(super::sync_feed::FeedCatchUp::Applied { .. }));
+            if !caught_up {
+                drop(Plain::new(self.sync_chats_for_monitor().await?));
+            }
         }
         self.check_chat_monitor_fence(&monitor.fence)?;
         let mut selection = Plain::new(ChatSelectionUpdate::Unchanged);
@@ -1267,7 +1278,7 @@ fn observe_frame(kind: &str, payload: &Value, changes: Option<&Arc<Changes>>, fe
     if changes.is_some() && matches!(kind,
         "chat_title_updated"|"chat_draft_updated"|"draft_deleted"|"new_chat_message"|"chat_deleted"
         |"ai_message_update"|"ai_background_response_completed"|"team_chat_created"
-        |"team_chat_message_created"|"team_ai_response_completed")
+        |"team_chat_message_created"|"team_ai_response_completed"|"chat_sync_hint")
         && let Some(scope)=payload.get("team_id").filter(|value| !value.is_null()) {
         let scope=scope.as_str().filter(|id| uuid::Uuid::parse_str(id).is_ok()).ok_or(Error::Protocol)?;
         if fence.is_some_and(|bound| bound.team.as_deref()!=Some(scope)) { return Ok(()); }

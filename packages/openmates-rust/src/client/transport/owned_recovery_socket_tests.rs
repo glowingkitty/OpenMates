@@ -54,7 +54,7 @@ fn same_fixed_builder_preserves_foreground_capability_and_active_chat_data(){
     let prepared=client.prepare_socket_connection(false,false,true,SocketSelectionPolicy::AnnounceActiveChat,None).expect("fixed transport data only");
     let url=url::Url::parse(&prepared.request.uri().to_string()).expect("url");
     let capabilities=url.query_pairs().find(|(key,_)|key=="client_capabilities").expect("capabilities").1.into_owned();
-    assert_eq!(capabilities,"canonical_embed_receipts_v1,typed_recovery_outputs_v2,agentic-storage-v2,chat_metadata_recovery");
+    assert_eq!(capabilities,"canonical_embed_receipts_v1,typed_recovery_outputs_v2,agentic-storage-v2,chat_sync_feed_v1,chat_metadata_recovery");
     assert_eq!(prepared.active_chat,client.active_chat);
     assert!(client.completion_recovery_mode.is_none(),"transport request DATA never grants foreground mode");
 }

@@ -28,6 +28,7 @@ pub(super) enum Stage {
     RecoveryCheckStarted,
     RecoveryChecked,
     CachedHit,
+    FeedHit,
     ForegroundStarted,
     PreDispatchPersisted,
     ForegroundFinished,
@@ -36,7 +37,7 @@ pub(super) enum Stage {
 }
 #[derive(Clone, Copy, Serialize)]
 #[serde(rename_all = "snake_case")]
-enum Branch { Unobserved, CachedHit, Foreground }
+enum Branch { Unobserved, CachedHit, FeedHit, Foreground }
 #[derive(Clone, Copy, Serialize)]
 struct Event { stage: Stage, elapsed_us: u64 }
 #[derive(Serialize)]
@@ -130,6 +131,7 @@ impl ListStages {
             ListReadDiagnosticStage::RecoveryChecked { pending_or_uncertain } =>
                 self.record_observation(Stage::RecoveryChecked, None, Some(pending_or_uncertain)),
             ListReadDiagnosticStage::CachedHit => self.record_observation(Stage::CachedHit, Some(Branch::CachedHit), None),
+            ListReadDiagnosticStage::FeedHit => self.record_observation(Stage::FeedHit, Some(Branch::FeedHit), None),
             ListReadDiagnosticStage::ForegroundStarted => self.record_observation(Stage::ForegroundStarted, Some(Branch::Foreground), None),
             ListReadDiagnosticStage::PreDispatchPersisted => self.record(Stage::PreDispatchPersisted),
             ListReadDiagnosticStage::ForegroundFinished => self.record(Stage::ForegroundFinished),

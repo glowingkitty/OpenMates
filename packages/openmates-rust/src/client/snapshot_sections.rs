@@ -18,7 +18,7 @@ use serde_json::{Map, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
 /// Top-level snapshot fields that form the Chat-list index section.
-pub fn index_fields() -> [&'static str; 6] {
+pub fn index_fields() -> [&'static str; 7] {
     [
         "chats",
         "wrappers",
@@ -26,6 +26,8 @@ pub fn index_fields() -> [&'static str; 6] {
         chat_arrival_order::SNAPSHOT_FIELD,
         chat_list_freshness::SNAPSHOT_FIELD,
         chat_tombstones::SNAPSHOT_FIELD,
+        // architecture.sync@2 feed cursor and overview inputs.
+        "chat_sync_feed_v1",
     ]
 }
 /// Top-level snapshot field carrying the protected list-freshness receipt.

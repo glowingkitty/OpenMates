@@ -22786,7 +22786,7 @@ assertions:
       surface: rest_api
     - &id2970
       path: backend/tests/test_chat_sync_feed_service.py
-      line: 270
+      line: 278
       name: test_rest_route_is_session_only_and_maps_team_revocation_to_403
       surface: rest_api
     supporting_tests:
@@ -24031,7 +24031,7 @@ assertions:
       surface: rest_api
     - &id3112
       path: backend/tests/test_chat_sync_feed_service.py
-      line: 287
+      line: 295
       name: test_internal_hint_endpoint_requires_service_token
       surface: rest_api
     tests:
@@ -24096,7 +24096,7 @@ assertions:
       surface: rest_api
     - &id3117
       path: backend/tests/test_chat_sync_feed_service.py
-      line: 252
+      line: 260
       name: test_last_opened_parsing
       surface: rest_api
     tests:

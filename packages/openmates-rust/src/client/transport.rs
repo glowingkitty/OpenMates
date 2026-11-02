@@ -1047,6 +1047,11 @@ impl Client {
         } else {
             "canonical_embed_receipts_v1,typed_recovery_outputs_v2,agentic-storage-v2".into()
         };
+        if !ephemeral {
+            // architecture.sync@2: cold-start cursor, overview and delta feed.
+            capabilities.push(',');
+            capabilities.push_str(super::sync_feed::CAPABILITY);
+        }
         if completion_recovery {
             capabilities.push_str(",chat_metadata_recovery");
             if task_jobs {

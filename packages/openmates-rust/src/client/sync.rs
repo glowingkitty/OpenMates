@@ -493,6 +493,7 @@ impl Client {
         // Older/missing welcomes retain the same socket's legacy parser, with
         // proof minting closed. Tentative legacy metadata is cleared on upgrade.
         let mut inventory_correlation_supported = false;
+        let mut feed_capture = super::sync_feed::ColdStartCapture::default();
         let deadline = crate::platform::time::Instant::now() + Duration::from_secs(120);
         loop {
             let (k, p) = tokio::select! {
@@ -562,6 +563,7 @@ impl Client {
                     &mut phase1_windows,&mut chats,&mut chat_arrival_order,&mut wrappers,
                     &mut embeds,&mut embed_keys,&mut metadata_seen,&mut sync_done)?;
                 embed_selectors.observe(&k,&p);
+                super::sync_feed::observe_cold_start(&k, &p, self.team()?, &mut feed_capture);
             }
             if sync_done && recovery_done {
                 break;
@@ -663,6 +665,7 @@ impl Client {
         self.wrappers = wrappers;
         self.embeds = embeds;
         self.embed_keys = embed_keys;
+        self.adopt_cold_start_feed(feed_capture)?;
         // Optional bounded selector support must not restrict any maintained
         // content workload. Missing/overflow/malformed order remains unavailable.
         self.saved_embed_selectors=embed_selectors.clone().bind(self).ok().map(std::sync::Arc::new);
@@ -956,6 +959,9 @@ impl Client {
         if let Some(tombstones) = self.deleted_chats_snapshot() {
             snapshot[super::chat_tombstones::SNAPSHOT_FIELD] = tombstones;
         }
+        if let Some(feed) = self.chat_sync_feed_snapshot() {
+            snapshot[super::sync_feed::SNAPSHOT_FIELD] = feed;
+        }
         snapshot
     }
     pub fn restore_ciphertext_snapshot(&mut self, snapshot: &Value) -> Result<()> {
@@ -1006,6 +1012,7 @@ impl Client {
         self.chats = chats;
         self.chat_arrival_order = chat_arrival_order;
         self.deleted_chats = super::chat_tombstones::restore(snapshot.get(super::chat_tombstones::SNAPSHOT_FIELD));
+        self.restore_chat_sync_feed(snapshot)?;
         self.wrappers = snapshot["wrappers"]
             .as_array()
             .ok_or(Error::Protocol)?

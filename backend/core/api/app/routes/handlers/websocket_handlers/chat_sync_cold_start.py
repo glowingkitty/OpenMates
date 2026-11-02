@@ -2,7 +2,8 @@
 
 Only sockets that advertise `chat_sync_feed_v1` are affected; for every other
 socket `begin_cold_start` returns an inactive handle and phased sync stays
-byte-identical. For capable sockets a cold start:
+byte-identical. For capable sockets a cold start (phase=all, or the headless
+metadata-only phase2):
 1. reads the feed clock BEFORE any snapshot read (cursor for phased_sync_complete),
 2. sends `chat_overview_priority_ready` (last opened chat, even outside the recent
    window, plus the personal due-soon set) concurrently with Phase 1a,
@@ -19,6 +20,7 @@ from typing import Any
 from backend.core.api.app.services.chat_sync_feed_service import socket_has_capability
 
 logger = logging.getLogger(__name__)
+COLD_START_PHASES = frozenset({"all", "phase2"})
 
 
 @dataclass
@@ -66,7 +68,9 @@ async def begin_cold_start(websocket: Any, manager: Any, cache_service: Any, dir
                            user_id: str, device_fingerprint_hash: str, team_id: str | None,
                            context_epoch: Any, sync_phase: str) -> ColdStartFeed:
     feed = getattr(getattr(getattr(websocket, "app", None), "state", None), "chat_sync_feed", None)
-    if feed is None or sync_phase != "all" or not socket_has_capability(websocket):
+    # phase2 is the headless metadata-only cold start (native CLI inventory);
+    # its clock is read before the snapshot exactly like phase=all.
+    if feed is None or sync_phase not in COLD_START_PHASES or not socket_has_capability(websocket):
         return ColdStartFeed()
     try:
         cursor = await feed.cold_start_cursor(user_id, team_id)
