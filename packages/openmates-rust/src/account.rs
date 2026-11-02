@@ -6,6 +6,7 @@
 //! gift-card redemption and fixed billing/export reads are explicit operations.
 //! Command consumers choose the supported operation and output representation.
 mod api_keys;
+mod ideabucket;
 mod memories;
 mod notifications;
 mod settings_ops;
@@ -16,6 +17,7 @@ pub use memories::{MemoryField, MemoryType, memory_types, validate_memory};
 pub use settings_ops::StoredFileDeletion;
 pub use settings_ops::VerifiedAction;
 pub use settings_ops::AccountExportStart;
+pub use ideabucket::{IDEABUCKET_DEFAULT_PROCESSING_PROMPT, IdeaBucketText, normalize_processing_times};
 pub use settings_read::{SettingsReadError, SettingsReadResponse};
 use crate::{Client, Error, Result, crypto};
 pub use api_keys::{

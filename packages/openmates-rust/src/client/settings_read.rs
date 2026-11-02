@@ -47,6 +47,34 @@ impl Client {
         Ok(original)
     }
 
+    /// One account-owned WebSocket write and its receipt matched on
+    /// `field == id` (e.g. an IdeaBucket draft's `draft_update_receipt`).
+    pub(crate) async fn account_ws_receipt(
+        &mut self,
+        kind: &str,
+        payload: Value,
+        reply: &str,
+        field: &str,
+        id: &str,
+    ) -> Result<Value> {
+        self.require_session()?;
+        if self.operation_cancel.is_cancelled() {
+            return Err(Error::Cancelled);
+        }
+        let mut ws = self.socket_with_task_jobs(false).await?;
+        super::transport::send(&mut ws, kind, payload).await?;
+        let deadline = crate::platform::time::Instant::now() + std::time::Duration::from_secs(30);
+        let receipt = crate::platform::time::timeout_at(
+            deadline,
+            super::transport::wait(&mut ws, reply, field, id),
+        )
+        .await
+        .map_err(|_| Error::Offline);
+        let _ = ws.close(None).await;
+        let mut receipt = receipt??;
+        Ok(receipt.get_mut("payload").map(Value::take).unwrap_or(receipt))
+    }
+
     /// One request/reply settings WebSocket exchange correlated by
     /// `request_id` (e.g. email notification settings). 30-second wait.
     pub(crate) async fn settings_request_exchange(

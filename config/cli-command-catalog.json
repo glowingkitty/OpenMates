@@ -11930,7 +11930,10 @@
           "line": 15211,
           "symbol": "printIdeaBucketHelp"
         }
-      ]
+      ],
+      "arity_overrides": {
+        "ideabucket": "switch"
+      }
     },
     {
       "long": "observation",
@@ -34230,9 +34233,9 @@
         {
           "name": "text",
           "required": true,
-          "variadic": false,
+          "variadic": true,
           "at": 2,
-          "synopsis": "<text>"
+          "synopsis": "<text...>"
         }
       ],
       "flags": [
@@ -34255,12 +34258,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.ideabucket",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/ideabucket.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Scheduled processing times are evaluated in UTC (npm uses the host time zone).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -34331,15 +34335,16 @@
       "positionals": [
         {
           "name": "bucket-id",
-          "required": true,
+          "required": false,
           "variadic": false,
           "at": 2,
-          "synopsis": "<bucket-id>"
+          "synopsis": "[bucket-id]"
         }
       ],
       "flags": [
         "api-key",
         "api-url",
+        "bucket",
         "help",
         "json",
         "now",
@@ -34354,12 +34359,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.ideabucket",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/ideabucket.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Scheduled processing times are evaluated in UTC (npm uses the host time zone).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -34394,12 +34400,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.ideabucket",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/ideabucket.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Scheduled processing times are evaluated in UTC (npm uses the host time zone).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -34436,12 +34443,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.ideabucket",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/ideabucket.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Scheduled processing times are evaluated in UTC (npm uses the host time zone).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -34470,6 +34478,7 @@
       "flags": [
         "api-key",
         "api-url",
+        "bucket",
         "help",
         "json",
         "profile"
@@ -34483,12 +34492,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.ideabucket",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/ideabucket.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Scheduled processing times are evaluated in UTC (npm uses the host time zone).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -61819,8 +61829,8 @@
   "coverage": {
     "command_patterns": 720,
     "flags": 599,
-    "native_handlers_partial": 588,
-    "unsupported": 132,
+    "native_handlers_partial": 593,
+    "unsupported": 127,
     "feature_complete": false
   },
   "maintenance": {
