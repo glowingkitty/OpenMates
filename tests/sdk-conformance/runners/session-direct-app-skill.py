@@ -132,6 +132,10 @@ async def run_vector(suite, vector):
                 peer.release.set()
                 await refused(lambda: call)
             elif "expected_error" in vector:
+                if mode == "owner_rotation":
+                    # Establish the original owner first; the command's own
+                    # admission then observes the changed owner and refuses.
+                    await c.validate_session()
                 await refused(
                     lambda: c.run_skill(
                         request["app"], request["skill"], request["input"]

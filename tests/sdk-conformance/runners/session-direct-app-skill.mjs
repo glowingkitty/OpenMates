@@ -65,7 +65,10 @@ async function runVector(suite,v,fixture){
     appsStage='dispatch_call';const call=c.runSkill(r.app,r.skill,r.input);const observation=refused(()=>call);
     appsStage='dispatch_barrier';let dispatched=false;for(let i=0;i<500;i++){const report=await status();assert.equal(report.failure,null);if(report.skill_posts===1){dispatched=true;break;}await pause(10);}assert.ok(dispatched);
     appsStage='dispatch_cancel';c.cancel();await fetch(endpoint+'/__test/release');await observation;
-   }else if(v.expected_error){appsStage='expected_refusal';await refused(()=>c.runSkill(r.app,r.skill,r.input));}
+   }else if(v.expected_error){
+    // owner_rotation: establish the original owner, then the command's own admission observes the change.
+    if(v.mode==='owner_rotation'){appsStage='owner_establish';await c.validateSession();}
+    appsStage='expected_refusal';await refused(()=>c.runSkill(r.app,r.skill,r.input));}
    else{appsStage='cookie_run';const actual=await c.runSkill(r.app,r.skill,r.input);appsStage='cookie_result';assert.deepEqual(actual,v.expected);appsStage='session_export';const snapshot=await c.exportSession({includeSecrets:true});appsStage='session_export_assert';assert.equal(snapshot.session.master_key,explicit.master_key);assert.equal(snapshot.session.session_id,explicit.session_id);}
   }
   appsStage='peer_report';const report=await status();appsStage='peer_report_assert';assert.equal(report.failure,null);assert.equal(report.skill_posts,v.expected_skill_posts);assert.equal(report.downloads,v.expected_downloads);assert.equal(report.retention_posts,v.expected_retention_posts);

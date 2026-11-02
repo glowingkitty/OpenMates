@@ -443,6 +443,11 @@ async fn shared_direct_skill_vectors() {
                 ));
                 evidence = "actual-public-inflight-cancellation";
             } else {
+                if mode == "owner_rotation" {
+                    // Establish the original owner; the command's own admission
+                    // then observes the changed owner and refuses before any POST.
+                    ok(b.validate_session().await);
+                }
                 let result = b
                     .run_skill("web".into(), "search".into(), request["input"].to_string())
                     .await;
