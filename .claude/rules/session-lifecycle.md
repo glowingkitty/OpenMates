@@ -9,6 +9,9 @@ paths:
   `sessions.py start --mode <bug|feature|docs|testing> --task <outcome>`; it
   reuses an existing binding for this Claude terminal. Sub-agents share it.
   SSH/manual work passes the returned `--session`.
+- Other running Claude chats (task, workspace, recent files) are injected at
+  session start and whenever they change (`.claude/hooks/peer-chats.sh`).
+  Inspect one with `python3 scripts/agent_peers.py history <chat-id>`.
 - Re-read files before editing; preserve other tasks' edits and edit leases.
   Do not create another worktree after deployment to continue the same task.
 - `sessions.py deploy --title <title> --message <why>` validates, serializes and
