@@ -1,0 +1,9 @@
+OpenMates native session SDK bindings
+Copyright (c) 2026 OpenMates contributors. Licensed under MIT; see LICENSE.
+
+This newly authored adapter links the separately MIT-licensed openmates-sdk.
+It does not include the OpenMates CLI executable or backend implementation.
+Shared protocol schemas and synthetic interoperability fixtures retain their
+source attribution in tests/sdk-conformance/fixtures/core.json.
+Third-party Rust dependency versions are recorded in Cargo.lock; their upstream
+licenses apply to those dependencies independently.

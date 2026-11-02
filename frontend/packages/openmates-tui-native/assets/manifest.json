@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "files": [
+    {
+      "path": "LICENSE",
+      "source": "LICENSE",
+      "sha256": "74971ebe9f8aff6d68fb017906a0c455d2aad56fbd46120fe56b734774724cfe"
+    },
+    {
+      "path": "assets/cli-command-catalog.json",
+      "source": "config/cli-command-catalog.json",
+      "sha256": "c696c7c8496ec2bf3f99ea391dc9e7c92bc81c63eb9cddf4513581f42351d201"
+    },
+    {
+      "path": "assets/licenses/legacy-cli-MIT.txt",
+      "source": "frontend/packages/openmates-cli/LICENSE",
+      "sha256": "6c912da49a249b8d942e60da62e4f63c3ce71ab287a60163edf2b343397886d2"
+    },
+    {
+      "path": "assets/selfhost/caddy/core/Caddyfile",
+      "source": "frontend/packages/openmates-cli/templates/caddy/core/Caddyfile",
+      "sha256": "e63e32215757c65d557122d8c728c696563a3de069292f337e44b31b0d9d85f3"
+    },
+    {
+      "path": "assets/selfhost/caddy/preview/Caddyfile",
+      "source": "frontend/packages/openmates-cli/templates/caddy/preview/Caddyfile",
+      "sha256": "6f6ffbae38d0f2cc8a516bc999a59c6d037d04f1043d8a3183d32da219e7ef46"
+    },
+    {
+      "path": "assets/selfhost/caddy/upload/Caddyfile",
+      "source": "frontend/packages/openmates-cli/templates/caddy/upload/Caddyfile",
+      "sha256": "1469afa006f890f46b1b37ca930fbb3431418d1d9b718ae89f6300e95bc4dc15"
+    },
+    {
+      "path": "assets/selfhost/core/docker-compose.no-webapp.yml",
+      "source": "backend/core/docker-compose.no-webapp.yml",
+      "sha256": "5952465d18d95f68597782bc04557da45866f87a2e2d8a5b202fb55542334eea"
+    },
+    {
+      "path": "assets/selfhost/core/docker-compose.selfhost.yml",
+      "source": "frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml",
+      "sha256": "11dfb9c938100a71718081ab76365a656a8711e656cce671939675faae3eed73"
+    },
+    {
+      "path": "assets/selfhost/core/monitoring/alertmanager/alertmanager.yml",
+      "source": "frontend/packages/openmates-cli/templates/core/monitoring/alertmanager/alertmanager.yml",
+      "sha256": "661f6471f613d90a06b6cf3f32e34b79c2157b12b5b14491723f66f429b64751"
+    },
+    {
+      "path": "assets/selfhost/core/monitoring/prometheus/alert_rules.yml",
+      "source": "frontend/packages/openmates-cli/templates/core/monitoring/prometheus/alert_rules.yml",
+      "sha256": "dab55e9d67358ab37b7793c0a93d319f2137b46ffb94a60679e495eaf9a42630"
+    },
+    {
+      "path": "assets/selfhost/core/monitoring/prometheus/prometheus.yml",
+      "source": "frontend/packages/openmates-cli/templates/core/monitoring/prometheus/prometheus.yml",
+      "sha256": "970a3c53661eeba6836a6ccd06ad29647ea408c509fa8c16a86848e0f823da5e"
+    },
+    {
+      "path": "assets/selfhost/preview/docker-compose.preview.yml",
+      "source": "frontend/packages/openmates-cli/templates/preview/docker-compose.preview.yml",
+      "sha256": "adb5c388ca07897c23c091b89fdbc1e706e1f84b6ae781eb2d3c9c13f187084e"
+    },
+    {
+      "path": "assets/selfhost/upload/docker-compose.yml",
+      "source": "frontend/packages/openmates-cli/templates/upload/docker-compose.yml",
+      "sha256": "a35eceb7341c75d6629cbf38979f9d3fb7cb1db9c74301cfec62573ef155950a"
+    },
+    {
+      "path": "tests/crypto_fixtures/chat_completion_recovery_vectors.json",
+      "source": "backend/tests/fixtures/chat_completion_recovery_vectors.json",
+      "sha256": "403823259a10fd4d316872e10830a743e6acc9c690bd95ffef5cbf5687226f4d"
+    },
+    {
+      "path": "tests/crypto_fixtures/session-saved-chat-read.json",
+      "source": "tests/sdk-conformance/fixtures/session-saved-chat-read.json",
+      "sha256": "2d1b181b90f7ceb2c00394381395c4a3881b9b6ad660877b02a2f52cdd82cea6"
+    },
+    {
+      "path": "tests/fixtures/sdk-embed-version-content.json",
+      "source": "tests/sdk-conformance/fixtures/sdk-embed-version-content.json",
+      "sha256": "6f798513498497f0f7978e6afa2b504aa0e12a75ba40af5eff6e5cf2c91a1e7c"
+    }
+  ]
+}

@@ -1,0 +1,285 @@
+{
+  "version": 1,
+  "capabilities": {
+    "session.project-items.v1": {
+      "account": {
+        "session_id": "synthetic-work-session",
+        "cookie": "synthetic-work-initial",
+        "master_key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8="
+      },
+      "team": {
+        "team_id": "88888888-8888-4888-8888-888888888888",
+        "team_key_b64": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8=",
+        "encrypted_team_key": "T00JE61leRgLKbxm229jbLWO8xpiE1KLRbYSMmNfED7TvaZXCyYnc08uB0FAXIQw7F60wFEdKKjsJr97P9unys3x"
+      },
+      "project_id": "bbaaccdd-1111-4111-8111-aabbccddeeff",
+      "target_id": "target/界?&",
+      "personal_detail": {
+        "project": {
+          "project_id": "bbaaccdd-1111-4111-8111-aabbccddeeff",
+          "hashed_user_id": "90f9d7c2dc3a74b071652feddec532207e1aad02a37030875aa70b9266e8a4e8",
+          "hashed_team_id": null,
+          "mutation_permissions": {
+            "manage_any_items": true,
+            "manage_own_items": true
+          },
+          "encrypted_name": "AAAAAAAAAAAAAAAB4NcdRfrDkChzqvm75ZUMGbZ4eutreAHHET8sd/A7MnfAeL+a+V86lps=",
+          "encrypted_description": "AAAAAAAAAAAAAAACb6Qtfri5u8n1tSgEvQse2nKblf1/DtwW7wZHm9AcOvL6SUwRjRfhW/8bWC5I",
+          "encrypted_icon": null,
+          "encrypted_color": null,
+          "encrypted_slug": "AAAAAAAAAAAAAAADSk9I16siQnLxUBXqf0iQSQoYUKTVat/Xha2I/qcB6Qtd",
+          "encrypted_project_key": "AAAAAAAAAAAAAAAEWwmPQs20HVrPhF3xY8MA8oOp10cVhq4w1dcbhzCqd0UZ7naJQNaAIAir3gs9cDlm"
+        },
+        "folders": [
+          {
+            "hashed_project_id": "65550b1e287cbeb44c870746539443b129f24040e952c28002579d7c2c5cf3ee",
+            "hashed_user_id": "90f9d7c2dc3a74b071652feddec532207e1aad02a37030875aa70b9266e8a4e8",
+            "hashed_team_id": null,
+            "folder_id": "folder-id",
+            "hashed_parent_folder_id": "e47125968b3b71049fbc4802d1e40a71ea1359decfabacf70b34588037d4ff0c",
+            "encrypted_name": "AAAAAAAAAAAAAAAFSEkIHqjWWIQoIsXGPEtpVlbLnk0rC66AiozA0OkTt8/DdLUcOCm4xQ=="
+          }
+        ],
+        "items": [
+          {
+            "hashed_project_id": "65550b1e287cbeb44c870746539443b129f24040e952c28002579d7c2c5cf3ee",
+            "hashed_user_id": "90f9d7c2dc3a74b071652feddec532207e1aad02a37030875aa70b9266e8a4e8",
+            "hashed_team_id": null,
+            "project_item_id": "link-chat",
+            "item_type": "chat",
+            "target_id_encrypted": "AAAAAAAAAAAAAAAGAe6wjqpy9tfzM6HYInRATJe7+rL8ocflgLvMzA==",
+            "target_id_hash": "ab91d4bf13d15aa13b9bcaf316498d89e575e0f7f211cdefd03540b47a173b95",
+            "encrypted_display_name": "AAAAAAAAAAAAAAAHDv3io66bPBQLNHDTZXZDzdcGm6XWuCw8lvzNofpBe6n0KjyF6LQ=",
+            "encrypted_note": "AAAAAAAAAAAAAAAIVqM/hDlZS8mPi3RuK/jfEFSkdgnse6woKSEUuDCzfsiK1A==",
+            "ownership_label": "Attached by you",
+            "position": 0
+          },
+          {
+            "hashed_project_id": "65550b1e287cbeb44c870746539443b129f24040e952c28002579d7c2c5cf3ee",
+            "hashed_user_id": "90f9d7c2dc3a74b071652feddec532207e1aad02a37030875aa70b9266e8a4e8",
+            "hashed_team_id": null,
+            "project_item_id": "link-embed",
+            "item_type": "embed",
+            "target_id_encrypted": "AAAAAAAAAAAAAAAJ85HLxzDp9xVYCVd624WYMWIZcl8LTTZHe0WlHg==",
+            "target_id_hash": "ab91d4bf13d15aa13b9bcaf316498d89e575e0f7f211cdefd03540b47a173b95",
+            "encrypted_display_name": "AAAAAAAAAAAAAAAKNm9XRTeDoqaJ2KS8w9xpruhsffxwgyoMSs2EBUsCyxYNyjlDh8lN",
+            "encrypted_note": "AAAAAAAAAAAAAAAL0aV7an2ku5Wmu0qM+5OZlhNGQm0ipU1kvYRLLoU9zGBtJg==",
+            "ownership_label": "Attached by you",
+            "position": 1
+          },
+          {
+            "hashed_project_id": "65550b1e287cbeb44c870746539443b129f24040e952c28002579d7c2c5cf3ee",
+            "hashed_user_id": "90f9d7c2dc3a74b071652feddec532207e1aad02a37030875aa70b9266e8a4e8",
+            "hashed_team_id": null,
+            "project_item_id": "link-workflow",
+            "item_type": "workflow",
+            "target_id_encrypted": "AAAAAAAAAAAAAAAMADGcvfdyDi0WNf+6hKZmxNzlmko1+st3P9LdbA==",
+            "target_id_hash": "ab91d4bf13d15aa13b9bcaf316498d89e575e0f7f211cdefd03540b47a173b95",
+            "encrypted_display_name": "AAAAAAAAAAAAAAANj2ihnfdObUng1eADmEl4dletYB9Ezc9of5Yx8EMXTMrcWaTPHQzghjtf",
+            "encrypted_note": "AAAAAAAAAAAAAAAOTVgHrZKYSmR77ZLmJcbkaIilaTCTuiiyHc2CiURQEKBtvw==",
+            "ownership_label": "Attached by you",
+            "position": 2
+          },
+          {
+            "hashed_project_id": "65550b1e287cbeb44c870746539443b129f24040e952c28002579d7c2c5cf3ee",
+            "hashed_user_id": "90f9d7c2dc3a74b071652feddec532207e1aad02a37030875aa70b9266e8a4e8",
+            "hashed_team_id": null,
+            "project_item_id": "link-upload",
+            "item_type": "upload",
+            "target_id_encrypted": "AAAAAAAAAAAAAAAPSEvVr0Bxonm4uqaDtmxFoR8mQekOVuU59uEh1U4=",
+            "target_id_hash": "208b0ca21d7bd3f11ea8e76d5e72b271ef36b11c7e577dc06a149995080a239b",
+            "encrypted_display_name": "AAAAAAAAAAAAAAAQq96TlO+x39CH7xmjTt1py1GPtCjNvOHVW2Vqa+EMQnsHqNT8EYReGw==",
+            "encrypted_note": "AAAAAAAAAAAAAAARCXcfFyUXmdndHmNHernKJYBUrQubltUKh+44iGrLMwC9HA==",
+            "ownership_label": "Attached by you",
+            "position": 3
+          }
+        ]
+      },
+      "team_detail": {
+        "project": {
+          "project_id": "bbaaccdd-1111-4111-8111-aabbccddeeff",
+          "hashed_user_id": null,
+          "hashed_team_id": "c8f367a876b2c57ec18bd1d1cdc9cf7bc039390e73bd84981b06b873a363f3cf",
+          "mutation_permissions": {
+            "manage_any_items": true,
+            "manage_own_items": true
+          },
+          "encrypted_name": "AAAAAAAAAAAAAAASRjF1Rz5HUSAJJM0cBTYy46esZxP8lJMzcTITQKcbqUbUtCfNnt7L1lw=",
+          "encrypted_description": "AAAAAAAAAAAAAAATYzcicbm4pPocCuD+D7JAJtLwlTdOEqTh4I4Yqx9GD7af1KjYurcQ99acjdpa",
+          "encrypted_icon": null,
+          "encrypted_color": null,
+          "encrypted_slug": "AAAAAAAAAAAAAAAUvWi/wfo+wdpfQ25K6b4zi6OVOE0TPkZ6Y7atf9sBdK0+",
+          "key_wrappers": [
+            {
+              "key_type": "team",
+              "team_key_epoch": 1,
+              "hashed_team_id": "c8f367a876b2c57ec18bd1d1cdc9cf7bc039390e73bd84981b06b873a363f3cf",
+              "encrypted_project_key": "AAAAAAAAAAAAAAAVirFRIV8MZAa3LkA/u3KZQfG5By/0lNZlxNRLrY/dYzqsKyxdDMbuEzQ7CeaHYYPX"
+            }
+          ],
+          "encrypted_project_key": null
+        },
+        "folders": [
+          {
+            "hashed_project_id": "65550b1e287cbeb44c870746539443b129f24040e952c28002579d7c2c5cf3ee",
+            "hashed_user_id": null,
+            "hashed_team_id": "c8f367a876b2c57ec18bd1d1cdc9cf7bc039390e73bd84981b06b873a363f3cf",
+            "folder_id": "folder-id",
+            "hashed_parent_folder_id": "e47125968b3b71049fbc4802d1e40a71ea1359decfabacf70b34588037d4ff0c",
+            "encrypted_name": "AAAAAAAAAAAAAAAWBnGBn+TFR2oZjx2ZbtrUJdUEP7sTPK7nqhJUAxFyMCjJQq8ODLwL7g=="
+          }
+        ],
+        "items": [
+          {
+            "hashed_project_id": "65550b1e287cbeb44c870746539443b129f24040e952c28002579d7c2c5cf3ee",
+            "hashed_user_id": null,
+            "hashed_team_id": "c8f367a876b2c57ec18bd1d1cdc9cf7bc039390e73bd84981b06b873a363f3cf",
+            "project_item_id": "link-chat",
+            "item_type": "chat",
+            "target_id_encrypted": "AAAAAAAAAAAAAAAXyL6kbveslRHAsEm666TuDAsn9MUQ1x08GEioRQ==",
+            "target_id_hash": "ab91d4bf13d15aa13b9bcaf316498d89e575e0f7f211cdefd03540b47a173b95",
+            "encrypted_display_name": "AAAAAAAAAAAAAAAYmvKRgepWjRP5K1qNyDKBf2gZ6Yux5Gzl1zCbrIo4GOTab4RbT40=",
+            "encrypted_note": "AAAAAAAAAAAAAAAZesGQnxE7aHdiaClfTKErD0Q/cbl5sALVlh+21bTGgSD1mQ==",
+            "ownership_label": "Attached by you",
+            "position": 0
+          },
+          {
+            "hashed_project_id": "65550b1e287cbeb44c870746539443b129f24040e952c28002579d7c2c5cf3ee",
+            "hashed_user_id": null,
+            "hashed_team_id": "c8f367a876b2c57ec18bd1d1cdc9cf7bc039390e73bd84981b06b873a363f3cf",
+            "project_item_id": "link-embed",
+            "item_type": "embed",
+            "target_id_encrypted": "AAAAAAAAAAAAAAAaCTdt8vBFzPFayQxF2jmaBI5CfyGpFj8QFzw+AA==",
+            "target_id_hash": "ab91d4bf13d15aa13b9bcaf316498d89e575e0f7f211cdefd03540b47a173b95",
+            "encrypted_display_name": "AAAAAAAAAAAAAAAblsS/ThJEVGyYP4DO0OwARBBWSEgmlit1JfoZHf1LUtpu3WGPz/8V",
+            "encrypted_note": "AAAAAAAAAAAAAAAc+g6mKM830fRk46tFNuPAEJ70eP9wSE7/CMw8ekTCYPRbbQ==",
+            "ownership_label": "Attached by you",
+            "position": 1
+          },
+          {
+            "hashed_project_id": "65550b1e287cbeb44c870746539443b129f24040e952c28002579d7c2c5cf3ee",
+            "hashed_user_id": null,
+            "hashed_team_id": "c8f367a876b2c57ec18bd1d1cdc9cf7bc039390e73bd84981b06b873a363f3cf",
+            "project_item_id": "link-workflow",
+            "item_type": "workflow",
+            "target_id_encrypted": "AAAAAAAAAAAAAAAdDtNpw6v1gT0usoQt6a0d2v3Rj1DsFKfu9YTGVQ==",
+            "target_id_hash": "ab91d4bf13d15aa13b9bcaf316498d89e575e0f7f211cdefd03540b47a173b95",
+            "encrypted_display_name": "AAAAAAAAAAAAAAAe7EhyD6+TkVZVgw3kZBRO1kBE0P4uJ8pmi5ljcr1ouctPgmMZABt1/Tcu",
+            "encrypted_note": "AAAAAAAAAAAAAAAfrPYn50p8tUAWRt65uB5ARaEn0IWeNNEN8TAcGK0j0ePU5A==",
+            "ownership_label": "Attached by you",
+            "position": 2
+          },
+          {
+            "hashed_project_id": "65550b1e287cbeb44c870746539443b129f24040e952c28002579d7c2c5cf3ee",
+            "hashed_user_id": null,
+            "hashed_team_id": "c8f367a876b2c57ec18bd1d1cdc9cf7bc039390e73bd84981b06b873a363f3cf",
+            "project_item_id": "link-upload",
+            "item_type": "upload",
+            "target_id_encrypted": "AAAAAAAAAAAAAAAgQruqEyeiSilMDCo0cj9h6xLvoQ7Df3CNG/0AHEI=",
+            "target_id_hash": "208b0ca21d7bd3f11ea8e76d5e72b271ef36b11c7e577dc06a149995080a239b",
+            "encrypted_display_name": "AAAAAAAAAAAAAAAha+l/Bo+rHrejLLwcGIZvWZVvQeJIVoSr39X26L3+FL1X1hD8xxd/2g==",
+            "encrypted_note": "AAAAAAAAAAAAAAAiRcvUrYQ9+VOuyOL/5xx6dON85FrmIaoCLvd+qQDUbBJBEg==",
+            "ownership_label": "Attached by you",
+            "position": 3
+          }
+        ]
+      },
+      "expected": {
+        "project_id": "bbaaccdd-1111-4111-8111-aabbccddeeff",
+        "folders": [
+          {
+            "folder_id": "folder-id",
+            "parent_folder_id": "e47125968b3b71049fbc4802d1e40a71ea1359decfabacf70b34588037d4ff0c",
+            "name": "Synthetic private folder",
+            "position": 0
+          }
+        ],
+        "items": [
+          {
+            "project_item_id": "link-chat",
+            "type": "chat",
+            "target_id": "target/界?&",
+            "display_name": "Synthetic private chat",
+            "ownership_label": "Attached by you",
+            "position": 0
+          },
+          {
+            "project_item_id": "link-embed",
+            "type": "embed",
+            "target_id": "target/界?&",
+            "display_name": "Synthetic private embed",
+            "ownership_label": "Attached by you",
+            "position": 1
+          },
+          {
+            "project_item_id": "link-workflow",
+            "type": "workflow",
+            "target_id": "target/界?&",
+            "display_name": "Synthetic private workflow",
+            "ownership_label": "Attached by you",
+            "position": 2
+          },
+          {
+            "project_item_id": "link-upload",
+            "type": "upload",
+            "target_id": "upload-target",
+            "display_name": "Synthetic private upload",
+            "ownership_label": "Attached by you",
+            "position": 3
+          }
+        ]
+      },
+      "vectors": [
+        {
+          "id": "personal-encrypted-projection",
+          "mode": "projection"
+        },
+        {
+          "id": "team-encrypted-projection",
+          "mode": "projection",
+          "team": true
+        },
+        {
+          "id": "personal-chat-unlink-preserves-target",
+          "mode": "unlink",
+          "item_type": "chat"
+        },
+        {
+          "id": "team-embed-unlink-preserves-target",
+          "mode": "unlink",
+          "team": true,
+          "item_type": "embed"
+        },
+        {
+          "id": "workflow-unlink-noop-exact-receipt",
+          "mode": "noop",
+          "item_type": "workflow"
+        },
+        {
+          "id": "strict-confirmation-zero-transport",
+          "mode": "confirmation"
+        },
+        {
+          "id": "explicit-scope-zero-transport",
+          "mode": "scope"
+        },
+        {
+          "id": "cross-project-child-refused",
+          "mode": "tamper"
+        },
+        {
+          "id": "missing-manage-permission-no-delete",
+          "mode": "permission"
+        },
+        {
+          "id": "malformed-unlink-receipt-no-retry",
+          "mode": "receipt"
+        },
+        {
+          "id": "queued-cancel-fences-unlink-retains-cookie",
+          "mode": "cancel"
+        }
+      ]
+    }
+  }
+}

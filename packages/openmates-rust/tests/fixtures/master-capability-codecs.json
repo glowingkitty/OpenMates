@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "source_sha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
+  "provenance": "Exact eleven existing crypto.aes-gcm-combined.v1 IDs/keys/IVs/plaintexts and ciphertext SHA256; compact repeat form preserves the million-byte case. Native framing rules unchanged; opaque strict legacy matches MetadataEncryptor source. No browser execution claim.",
+  "vectors": [
+    {
+      "id": "legacy-iv-ciphertext",
+      "key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "iv_b64": "AAECAwQFBgcICQoL",
+      "wire": "legacy",
+      "ciphertext_sha256": "4293ee466daeafc5be4e5984abd655847eb1b4bac35975590cffface6323532f",
+      "native": "plaintext",
+      "opaque_browser": "plaintext",
+      "plaintext": "Synthetic SDK conformance ✓"
+    },
+    {
+      "id": "browser-om-fnv-header",
+      "key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "iv_b64": "AAECAwQFBgcICQoL",
+      "wire": "om-fnv",
+      "ciphertext_sha256": "233aed8bd159c9ab53f9612dd03e55a33db820cac965c7d8f78997b250b48ebf",
+      "native": "plaintext",
+      "opaque_browser": "crypto-error",
+      "plaintext": "Synthetic SDK conformance ✓"
+    },
+    {
+      "id": "historical-python-constant-header",
+      "key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "iv_b64": "AAECAwQFBgcICQoL",
+      "wire": "om-python",
+      "ciphertext_sha256": "d868fe1c034a54374532ee7b3e4461f2c6931c7ae20a6bc9274df4e27f133672",
+      "native": "plaintext",
+      "opaque_browser": "crypto-error",
+      "plaintext": "Synthetic SDK conformance ✓"
+    },
+    {
+      "id": "legacy-om-iv-wrong-fingerprint-empty",
+      "key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "iv_b64": "T03erb7vBgcICQoL",
+      "wire": "legacy",
+      "ciphertext_sha256": "1c6429bdf3bdddebb8b43de39cdc6bcd2c73da7ca58eec9e3e0a2ef655d264bf",
+      "native": "plaintext",
+      "opaque_browser": "plaintext",
+      "plaintext": ""
+    },
+    {
+      "id": "legacy-om-iv-wrong-fingerprint-text",
+      "key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "iv_b64": "T03erb7vBgcICQoL",
+      "wire": "legacy",
+      "ciphertext_sha256": "a14bdd6e277fd3bc8a2448f620cd7923543abab39ba38914101320b9b7a91a47",
+      "native": "plaintext",
+      "opaque_browser": "plaintext",
+      "plaintext": "Synthetic authenticated legacy OM IV ✓"
+    },
+    {
+      "id": "legacy-om-iv-current-fingerprint-empty",
+      "key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "iv_b64": "T00JE61lBgcICQoL",
+      "wire": "legacy",
+      "ciphertext_sha256": "f9c728335eda289762fe5a379d75bb59b681118fed7bcd768777f7c6d92341a5",
+      "native": "plaintext",
+      "opaque_browser": "plaintext",
+      "plaintext": ""
+    },
+    {
+      "id": "legacy-om-iv-current-fingerprint-text",
+      "key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "iv_b64": "T00JE61lBgcICQoL",
+      "wire": "legacy",
+      "ciphertext_sha256": "c9797af9b5b42f596557eeb261ee637db7748c5e091178c570b3d5e9a7da43bd",
+      "native": "plaintext",
+      "opaque_browser": "plaintext",
+      "plaintext": "Synthetic authenticated legacy OM IV ✓"
+    },
+    {
+      "id": "legacy-om-iv-historical-python-marker-empty",
+      "key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "iv_b64": "T00BAAAABgcICQoL",
+      "wire": "legacy",
+      "ciphertext_sha256": "d7b0af883091d70c02ca89feee928b59867b0ec7896317c7cf7f564a0edc835a",
+      "native": "plaintext",
+      "opaque_browser": "plaintext",
+      "plaintext": ""
+    },
+    {
+      "id": "legacy-om-iv-historical-python-marker-text",
+      "key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "iv_b64": "T00BAAAABgcICQoL",
+      "wire": "legacy",
+      "ciphertext_sha256": "f2b7aab84922602a30eb8f8e7a8fee64f0640679c753736bca74058ba1b6876e",
+      "native": "plaintext",
+      "opaque_browser": "plaintext",
+      "plaintext": "Synthetic authenticated legacy OM IV ✓"
+    },
+    {
+      "id": "legacy-om-iv-short-before-framed-minimum",
+      "key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "iv_b64": "T03erb7vBgcICQoL",
+      "wire": "legacy",
+      "ciphertext_sha256": "be208b3d7b08d3a6bbe5bf49b007e5af3355cfb999ed4283a758b42cfc094ed3",
+      "native": "plaintext",
+      "opaque_browser": "plaintext",
+      "plaintext": "short"
+    },
+    {
+      "id": "legacy-om-iv-large-private-text-bound",
+      "key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "iv_b64": "T03erb7vBgcICQoL",
+      "wire": "legacy",
+      "ciphertext_sha256": "0f676967fa22369edf6df4b8a8f828998f4dbe5f02473a6889ca3f18e4c45d09",
+      "native": "plaintext",
+      "opaque_browser": "plaintext",
+      "plaintext_repeat": {
+        "character": "X",
+        "count": 1000000
+      }
+    }
+  ],
+  "open_parity_limits": [
+    "Native OM/FNV and historical Python-framed master envelopes are not accepted by existing browser Format C/D decoder; opaque capability intentionally preserves that error behavior.",
+    "Opaque local identity never proves account ownership or native durable credential acknowledgement."
+  ]
+}

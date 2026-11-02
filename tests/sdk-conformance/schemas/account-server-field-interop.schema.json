@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openmates.org/schemas/account-server-field-interop.v1.json",
+  "title": "Native account legacy master-field interoperability coverage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contractVersion",
+    "id",
+    "codecDependency",
+    "format",
+    "aad",
+    "fields",
+    "unchanged",
+    "limits"
+  ],
+  "properties": {
+    "contractVersion": {
+      "const": 1
+    },
+    "id": {
+      "const": "native.account.server-fields.v1"
+    },
+    "codecDependency": {
+      "const": "tests/sdk-conformance/fixtures/server-field-codec.json"
+    },
+    "format": {
+      "const": "base64(iv12||aes256-gcm-ciphertext||tag128)"
+    },
+    "aad": {
+      "const": "empty"
+    },
+    "fields": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "oneOf": [
+          {
+            "const": {
+              "field": "encrypted_settings",
+              "route": "POST /v1/settings/topic-preferences",
+              "writer": "Account.set_interests",
+              "webReader": "MetadataEncryptor.decryptWithMasterKey",
+              "sourceTest": "account::tests::encrypted_interest_update_preserves_unrelated_settings_and_hides_tags_on_wire"
+            }
+          },
+          {
+            "const": {
+              "field": "encrypted_name",
+              "route": "POST /v1/settings/api-keys",
+              "writer": "Account.create_full_access_api_key",
+              "webReader": "MetadataEncryptor.decryptWithMasterKey",
+              "sourceTest": "account::api_keys::tests::create_sends_v2_ciphertext_only_and_returns_exact_separated_setup_shape"
+            }
+          },
+          {
+            "const": {
+              "field": "encrypted_key_prefix",
+              "route": "POST /v1/settings/api-keys",
+              "writer": "Account.create_full_access_api_key",
+              "webReader": "MetadataEncryptor.decryptWithMasterKey",
+              "sourceTest": "account::api_keys::tests::create_sends_v2_ciphertext_only_and_returns_exact_separated_setup_shape"
+            }
+          }
+        ]
+      }
+    },
+    "unchanged": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "limits": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}

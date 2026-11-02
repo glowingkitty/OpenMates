@@ -1,0 +1,380 @@
+{
+  "schema_version": 1,
+  "provenance": "Synthetic public account key and deterministic AES-GCM nonces; offline-only. Never use this key or nonce strategy for real data.",
+  "capabilities": {
+    "sdk.drafts": {
+      "key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "vectors": [
+        {
+          "id": "encrypted-preview",
+          "draft": {
+            "chat_id": "chat-encrypted-preview",
+            "encrypted_draft_md": "AQEBAQEBAQEBAQEBJLqLQQDgHA+3dANqeQEm+CnyHJAwFNJoz/SHUqO3bbeeO/c=",
+            "encrypted_draft_preview": "AgICAgICAgICAgICyElv3t35QSmu88udRCmkG+4lhjEgsSA6+f3mt3c=",
+            "draft_v": 2
+          },
+          "markdown": "Synthetic draft \u2713",
+          "preview": "Saved preview",
+          "kind": "record"
+        },
+        {
+          "id": "fallback-preview",
+          "draft": {
+            "chat_id": "chat-fallback-preview",
+            "encrypted_draft_md": "AwMDAwMDAwMDAwMDljNErnPqKm6mJX4GtdIsf2IujoiigETJ+sU+ZXxa0Srje0Sm3f8PnTDTPHYTM0Vii64P1NPaPtJGhTRp/5eEIj+y/NAsplz6KLM8N7AgPBzWrMn4IvQ7xXYLQAlbtkeex5/B2tPfv/t1O3xT7Jq98wuPnE2s2fiRyAVKZ4FfBa+rYY6DFTqt8ToBq6B6EXiFJo332GjrohmsPnSwUSdGlB66A/Amv3+/Tu9hKiwLEHfkpS2ffATwlfiG",
+            "encrypted_draft_preview": null,
+            "draft_v": 2
+          },
+          "markdown": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "preview": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "kind": "record"
+        },
+        {
+          "id": "empty-markdown",
+          "draft": {
+            "chat_id": "chat-empty-markdown",
+            "encrypted_draft_md": "BAQEBAQEBAQEBAQEAyt87MqjM2qpaQj9gIUHYw==",
+            "encrypted_draft_preview": null,
+            "draft_v": 2
+          },
+          "markdown": "",
+          "preview": "",
+          "kind": "record"
+        },
+        {
+          "id": "corrupt-preview",
+          "draft": {
+            "chat_id": "chat-corrupt-preview",
+            "encrypted_draft_md": "AQEBAQEBAQEBAQEBJLqLQQDgHA+3dANqeQEm+CnyHJAwFNJoz/SHUqO3bbeeO/c=",
+            "encrypted_draft_preview": "not-authenticated",
+            "draft_v": 2
+          },
+          "markdown": "Synthetic draft \u2713",
+          "preview": null,
+          "kind": "record"
+        },
+        {
+          "id": "wrong-account-key",
+          "kind": "wrong-account-key",
+          "expected_error": "crypto"
+        },
+        {
+          "id": "project-grant-not-account-key",
+          "kind": "project-grant-not-account-key",
+          "expected_error": "forbidden"
+        },
+        {
+          "id": "corrupt-markdown",
+          "kind": "corrupt-markdown",
+          "expected_error": "crypto"
+        },
+        {
+          "id": "get-missing-no-key-unwrap",
+          "kind": "missing"
+        },
+        {
+          "id": "empty-list-no-key-unwrap",
+          "kind": "empty-list"
+        },
+        {
+          "id": "anonymous-refused-no-request",
+          "kind": "anonymous",
+          "expected_error": "authentication"
+        },
+        {
+          "id": "unauthorized",
+          "status": 401,
+          "rust_error": "authentication",
+          "kind": "http-error",
+          "expected_error": "authentication"
+        },
+        {
+          "id": "forbidden-owner-or-scope",
+          "status": 403,
+          "rust_error": "forbidden",
+          "kind": "http-error",
+          "expected_error": "forbidden"
+        },
+        {
+          "id": "conflict",
+          "status": 409,
+          "rust_error": "conflict",
+          "kind": "http-error",
+          "expected_error": "conflict"
+        },
+        {
+          "id": "rate-limited",
+          "status": 429,
+          "rust_error": "offline",
+          "kind": "http-error",
+          "expected_error": "offline"
+        },
+        {
+          "id": "server-error",
+          "status": 503,
+          "rust_error": "offline",
+          "kind": "http-error",
+          "expected_error": "offline"
+        }
+      ],
+      "protocol": {
+        "list": {
+          "method": "GET",
+          "path": "/v1/sdk/drafts"
+        },
+        "get": {
+          "method": "GET",
+          "path": "/v1/sdk/drafts/{chat_id}"
+        },
+        "missing": {
+          "draft": null
+        },
+        "scope": "chat:read_existing",
+        "owner": "authenticated API-key owner only; no owner/team override",
+        "mutations": false
+      },
+      "credential": "sk-api-synthetic.synthetic",
+      "session": {
+        "key_wrapper": {
+          "salt": "CAgICAgICAgICAgICAgICA==",
+          "key_iv": "CQkJCQkJCQkJCQkJ",
+          "encrypted_key": "hW7WaqQlk+RSQgC+/412QBRi5w+1HJm7vph1KlyDawp0EmOonfyjthOrcJierA2v"
+        }
+      },
+      "error_cases": [
+        {
+          "id": "unauthorized",
+          "status": 401,
+          "rust_error": "authentication"
+        },
+        {
+          "id": "forbidden-owner-or-scope",
+          "status": 403,
+          "rust_error": "forbidden"
+        },
+        {
+          "id": "conflict",
+          "status": 409,
+          "rust_error": "conflict"
+        },
+        {
+          "id": "rate-limited",
+          "status": 429,
+          "rust_error": "offline"
+        },
+        {
+          "id": "server-error",
+          "status": 503,
+          "rust_error": "offline"
+        }
+      ],
+      "required_negative_checks": [
+        "wrong-account-key",
+        "corrupt-markdown",
+        "corrupt-preview-null",
+        "get-missing-no-key-unwrap",
+        "anonymous-refused-no-request",
+        "http-errors-propagated-no-fallback",
+        "project-grant-not-account-key"
+      ],
+      "open_parity_limits": [
+        {
+          "id": "astral-preview-fallback",
+          "draft": {
+            "chat_id": "chat-astral",
+            "encrypted_draft_md": "CgoKCgoKCgoKCgoKyEM+8atPFpNR57nEDNrYQPFzxWjJWyIfsgFuZsxdoNsOFU5RIBNEufVM8aAGjqCQBUZE0LyTl9xIKz0DCtJqazv710jc3Uw28/LJz+z/lXei8taArUDITMbL6LD72fhAMez47wc5XnNEBThmtnjtF5f7DS3AjvB3PJii1bQXxd40WAXbfUUScc/PEcid0R/fspFa59RjqgZTEK01id9KMOHP63D2gMAkWsPRaRUK4c6dKwolJ9nh",
+            "encrypted_draft_preview": null,
+            "draft_v": 3
+          },
+          "markdown": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\ud83d\ude00tail",
+          "previews": {
+            "python": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\ud83d\ude00",
+            "rust": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\ud83d\ude00"
+          },
+          "status": "open-existing-sdk-divergence",
+          "reason": "npm legacy slice counts UTF-16 code units; Python/Rust count Unicode scalar values. Existing behavior retained and explicitly asserted per language; not cross-language pass.",
+          "npm_preview_utf16": [
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            97,
+            55357
+          ]
+        }
+      ],
+      "wrong_account_session": {
+        "key_wrapper": {
+          "salt": "CAgICAgICAgICAgICAgICA==",
+          "key_iv": "CwsLCwsLCwsLCwsL",
+          "encrypted_key": "aSYeLyVoqrjTTrRjMBdtZgQBsWrykoaLIFbDInIOlWl4dFVpG+jHBjPqgrUQBxul"
+        }
+      },
+      "project_grant_session": {
+        "resource_key_grants": [
+          {
+            "resource_type": "project",
+            "resource_id": "synthetic-project",
+            "salt": "CAgICAgICAgICAgICAgICA==",
+            "key_iv": "CQkJCQkJCQkJCQkJ",
+            "encrypted_key": "hW7WaqQlk+RSQgC+/412QBRi5w+1HJm7vph1KlyDawp0EmOonfyjthOrcJierA2v"
+          }
+        ]
+      }
+    }
+  }
+}

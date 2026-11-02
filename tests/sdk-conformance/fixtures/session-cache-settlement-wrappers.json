@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "capability": "session.cache-preferred-settlement.v1",
+  "proof_scope": "pure facade forwarding and lifecycle only; fake-native errors do not establish core enforcement",
+  "release_ready": false,
+  "three_adapter_behavior_proof": false,
+  "stage": {
+    "id": "synthetic-stage",
+    "source": "cache_settled",
+    "scope": {
+      "api_url": "https://api.example.invalid",
+      "account_id": "synthetic-owner",
+      "team_id": null
+    },
+    "checkpoint_json": "{ \"encrypted\": \"synthetic \\u96ea\" }\n",
+    "ciphertext_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "credential_revision": 7,
+    "credentials_json": "{ \"synthetic_cookie\": \"explicit\" }\n"
+  },
+  "receipt": {
+    "ciphertext_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "credential_revision": 7
+  },
+  "publications": [
+    {
+      "source": "canonical",
+      "chat": {
+        "id": "synthetic-chat",
+        "messages": []
+      },
+      "cached": false,
+      "refreshing": false,
+      "history_complete": true,
+      "has_more_before": false,
+      "pii_restoration": "all_user_rows"
+    },
+    {
+      "source": "cache_settled",
+      "chat": {
+        "id": "synthetic-chat",
+        "messages": []
+      },
+      "cached": true,
+      "refreshing": false,
+      "history_complete": false,
+      "has_more_before": null,
+      "pii_restoration": "all_cached_user_rows"
+    },
+    {
+      "source": "cached_offline",
+      "chat": {
+        "id": "synthetic-chat",
+        "messages": []
+      },
+      "cached": true,
+      "refreshing": false,
+      "history_complete": false,
+      "has_more_before": null,
+      "pii_restoration": "page_local"
+    }
+  ],
+  "native_errors": [
+    {
+      "id": "access-denied",
+      "code": "access_denied",
+      "message": "Synthetic native refusal."
+    },
+    {
+      "id": "session-expired",
+      "code": "expired",
+      "message": "Synthetic native refusal."
+    },
+    {
+      "id": "wrong-ack",
+      "code": "conflict",
+      "message": "Synthetic native refusal."
+    },
+    {
+      "id": "stale-generation",
+      "code": "cancelled",
+      "message": "Synthetic native refusal."
+    }
+  ],
+  "peer_protocol_reference": "session-chat-change-monitor.json; existing monitor modes remain unchanged and no new loopback mode is claimed implemented"
+}

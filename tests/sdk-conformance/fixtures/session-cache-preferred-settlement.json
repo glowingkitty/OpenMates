@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "provenance": "PRIVATE UNRUN: actual library adapters and independent synthetic encrypted loopback peer. No product, durability-policy or release acceptance claim.",
+  "capabilities": {
+    "session.cache-preferred-settlement.v1": {
+      "account": {
+        "owner_id": "11111111-1111-4111-8111-111111111111",
+        "master_key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+        "session_id": "synthetic-session",
+        "cookie": "synthetic-refresh-token"
+      },
+      "protocol": {
+        "app_origin": "https://app.example.invalid",
+        "initial_chat_id": "22222222-2222-4222-8222-222222222222",
+        "job_id": "44444444-4444-4444-8444-444444444444",
+        "assistant_id": "55555555-5555-4555-8555-555555555555",
+        "record_id": "66666666-6666-4666-8666-666666666666",
+        "embed_id": "77777777-7777-4777-8777-777777777777",
+        "initial_chat_key": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8=",
+        "input": "Please explain this synthetic recovery fixture.",
+        "transient_content": "Untrusted transient preview",
+        "sealed_content": "Durably recovered synthetic \u96ea \ud83d\ude00 completion",
+        "canonical_content": "Canonical answer persisted by another device",
+        "lease_token": "synthetic-lease-token",
+        "lease_generation": 7,
+        "fresh_messages_v": 5,
+        "turn_id": "88888888-8888-4888-8888-888888888888"
+      },
+      "vectors": [
+        {
+          "id": "selected-exact-ack",
+          "mode": "selected-exact-ack"
+        },
+        {
+          "id": "selected-wrong-hash",
+          "mode": "selected-wrong-hash"
+        },
+        {
+          "id": "selected-wrong-revision",
+          "mode": "selected-wrong-revision"
+        },
+        {
+          "id": "stale-a-active-b",
+          "mode": "stale-a-active-b"
+        },
+        {
+          "id": "discarded-stage",
+          "mode": "discarded-stage"
+        },
+        {
+          "id": "explicit-consent",
+          "mode": "explicit-consent"
+        },
+        {
+          "id": "monitor-exact-ack",
+          "mode": "monitor-exact-ack"
+        },
+        {
+          "id": "selected-denied",
+          "mode": "selected-denied"
+        }
+      ],
+      "required_unverified": [
+        "Owner/account switch, key rotation, Team switch, expiry and denial at each stage and after output serialization across all direct SDKs.",
+        "Native-only cancellation-after-serialization tests are separate; foreign adapters cannot inject that private seam.",
+        "Comparative latest-20 performance, offline fallback, complete canonical history and production owner-store durability remain unproven."
+      ]
+    }
+  }
+}

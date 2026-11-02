@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "id": "native.workspace.server-fields.v1",
+  "codec_fixture": "server-field-codec.json",
+  "cases": [
+    {
+      "id": "tasks-personal",
+      "workspace": "Tasks",
+      "team": false,
+      "key_field": "encrypted_task_key",
+      "encrypted_fields": [
+        "encrypted_title",
+        "encrypted_description",
+        "encrypted_slug",
+        "encrypted_labels",
+        "encrypted_tags",
+        "encrypted_linked_project_ids"
+      ]
+    },
+    {
+      "id": "tasks-team",
+      "workspace": "Tasks",
+      "team": true,
+      "key_field": "encrypted_task_key",
+      "encrypted_fields": [
+        "encrypted_title",
+        "encrypted_description",
+        "encrypted_slug",
+        "encrypted_labels",
+        "encrypted_tags",
+        "encrypted_linked_project_ids"
+      ]
+    },
+    {
+      "id": "projects-personal",
+      "workspace": "Projects",
+      "team": false,
+      "key_field": "encrypted_project_key",
+      "encrypted_fields": [
+        "encrypted_name",
+        "encrypted_description",
+        "encrypted_slug",
+        "encrypted_settings"
+      ]
+    },
+    {
+      "id": "projects-team",
+      "workspace": "Projects",
+      "team": true,
+      "key_field": "encrypted_project_key",
+      "encrypted_fields": [
+        "encrypted_name",
+        "encrypted_description",
+        "encrypted_slug",
+        "encrypted_settings"
+      ]
+    }
+  ],
+  "send_case": {
+    "id": "draft-to-new-chat-wrapper",
+    "source_test": "client::send::tests::first_draft_turn_generates_an_independent_chat_key",
+    "field": "encrypted_chat_key",
+    "wire": "legacy-empty-aad",
+    "readers": [
+      "MetadataEncryptor.unwrapChatKey"
+    ]
+  }
+}

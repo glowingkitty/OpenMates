@@ -1,0 +1,1053 @@
+{
+  "schema_version": 1,
+  "provenance": "Synthetic fixed public keys; independent encrypted HTTP/WS peer. PRIVATE UNRUN. No provider, CLI, profile, host registration or wire commit ACK. Private actor serializer barriers are additional required evidence, not simulated public hooks.",
+  "internal_actor_regressions": [
+    "cancel-serialization",
+    "completed-worker-source-revoke",
+    "completed-worker-session-reset",
+    "full-cap4-pending-commit-pressure-priority-cancel"
+  ],
+  "internal_core_regressions": [
+    "late_old_force_logout_never_clears_a_newer_identity",
+    "reauthorization_suspends_live_candidate_before_first_await"
+  ],
+  "capabilities": {
+    "session.project-task-watch.v1": {
+      "account": {
+        "session_id": "synthetic-work-session",
+        "cookie": "synthetic-work-initial",
+        "master_key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8="
+      },
+      "team": {
+        "team_id": "88888888-8888-4888-8888-888888888888",
+        "team_key_b64": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8=",
+        "encrypted_team_key": "T00JE61leRgLKbxm229jbLWO8xpiE1KLRbYSMmNfED7TvaZXCyYnc08uB0FAXIQw7F60wFEdKKjsJr97P9unys3x"
+      },
+      "owner_id": "synthetic-watch-owner",
+      "project_id": "11111111-1111-4111-8111-111111111111",
+      "source_id": "synthetic-watch-source",
+      "project_key_b64": "QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8=",
+      "vectors": [
+        {
+          "id": "personal-21-final",
+          "required_assertions": "Actual Cookie Personal source auth; multipart20+1; only final publishes; caller durable save then exact commit.",
+          "team": false,
+          "steps": [
+            {
+              "op": "open",
+              "watch": "a"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 1
+            },
+            {
+              "op": "send",
+              "watch": "a",
+              "kind": "partial"
+            },
+            {
+              "op": "multipart_snapshot",
+              "watch": "a",
+              "count": 21,
+              "cursor": "epoch:1"
+            },
+            {
+              "op": "commit",
+              "watch": "a"
+            },
+            {
+              "op": "state",
+              "watch": "a",
+              "state": "connected"
+            }
+          ]
+        },
+        {
+          "id": "team-21-final",
+          "required_assertions": "Actual Team key/source HTTP auth;21records; no Personal-key fallback.",
+          "team": true,
+          "steps": [
+            {
+              "op": "open",
+              "watch": "a"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 1
+            },
+            {
+              "op": "send",
+              "watch": "a",
+              "kind": "partial"
+            },
+            {
+              "op": "multipart_snapshot",
+              "watch": "a",
+              "count": 21,
+              "cursor": "epoch:1"
+            },
+            {
+              "op": "commit",
+              "watch": "a"
+            },
+            {
+              "op": "state",
+              "watch": "a",
+              "state": "connected"
+            }
+          ]
+        },
+        {
+          "id": "delta-removal",
+          "required_assertions": "After committed baseline, valid delta removes/adds exact rows; untouched opaque metadata retained.",
+          "team": false,
+          "steps": [
+            {
+              "op": "open",
+              "watch": "a"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 1
+            },
+            {
+              "op": "send",
+              "watch": "a",
+              "kind": "baseline"
+            },
+            {
+              "op": "snapshot",
+              "watch": "a",
+              "count": 21,
+              "cursor": "epoch:1"
+            },
+            {
+              "op": "commit",
+              "watch": "a"
+            },
+            {
+              "op": "state",
+              "watch": "a",
+              "state": "connected"
+            },
+            {
+              "op": "send",
+              "watch": "a",
+              "kind": "delta"
+            },
+            {
+              "op": "snapshot",
+              "watch": "a",
+              "count": 21,
+              "cursor": "epoch:2"
+            },
+            {
+              "op": "commit",
+              "watch": "a"
+            }
+          ]
+        },
+        {
+          "id": "same-cursor-final-empty",
+          "required_assertions": "Final-empty readiness publishes current batch receipt; prior same-cursor receipt rejected.",
+          "team": false,
+          "steps": [
+            {
+              "op": "open",
+              "watch": "a"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 1
+            },
+            {
+              "op": "send",
+              "watch": "a",
+              "kind": "baseline"
+            },
+            {
+              "op": "snapshot",
+              "watch": "a",
+              "count": 21,
+              "cursor": "epoch:1"
+            },
+            {
+              "op": "commit",
+              "watch": "a"
+            },
+            {
+              "op": "state",
+              "watch": "a",
+              "state": "connected"
+            },
+            {
+              "op": "save_receipt",
+              "watch": "a"
+            },
+            {
+              "op": "send",
+              "watch": "a",
+              "kind": "empty"
+            },
+            {
+              "op": "snapshot",
+              "watch": "a",
+              "count": 21,
+              "cursor": "epoch:1"
+            },
+            {
+              "op": "reject_saved_commit",
+              "watch": "a"
+            },
+            {
+              "op": "commit",
+              "watch": "a"
+            }
+          ]
+        },
+        {
+          "id": "exact-local-commit",
+          "required_assertions": "Wrong batch/cursor receipt cannot advance; exact receipt after durable save advances once; no wire ACK.",
+          "team": false,
+          "steps": [
+            {
+              "op": "open",
+              "watch": "a"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 1
+            },
+            {
+              "op": "send",
+              "watch": "a",
+              "kind": "baseline"
+            },
+            {
+              "op": "snapshot",
+              "watch": "a",
+              "count": 21,
+              "cursor": "epoch:1"
+            },
+            {
+              "op": "reject_commit",
+              "watch": "a"
+            },
+            {
+              "op": "commit",
+              "watch": "a"
+            },
+            {
+              "op": "state",
+              "watch": "a",
+              "state": "connected"
+            },
+            {
+              "op": "reject_current_commit",
+              "watch": "a"
+            }
+          ]
+        },
+        {
+          "id": "uncommitted-reconnect",
+          "required_assertions": "Drop before commit; next subscribe carries prior durable cursor and no stale sealed event.",
+          "team": false,
+          "steps": [
+            {
+              "op": "open",
+              "watch": "a"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 1
+            },
+            {
+              "op": "send",
+              "watch": "a",
+              "kind": "baseline"
+            },
+            {
+              "op": "snapshot",
+              "watch": "a",
+              "count": 21,
+              "cursor": "epoch:1"
+            },
+            {
+              "op": "drop",
+              "watch": "a"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 2
+            },
+            {
+              "op": "assert_resume",
+              "cursor": null
+            },
+            {
+              "op": "send",
+              "watch": "a",
+              "kind": "baseline"
+            },
+            {
+              "op": "snapshot",
+              "watch": "a",
+              "count": 21,
+              "cursor": "epoch:1"
+            },
+            {
+              "op": "commit",
+              "watch": "a"
+            },
+            {
+              "op": "drop",
+              "watch": "a"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 3
+            },
+            {
+              "op": "assert_resume",
+              "cursor": "epoch:1"
+            }
+          ]
+        },
+        {
+          "id": "checkpoint-restore",
+          "required_assertions": "Ciphertext checkpoint restores authenticated exact scope; wrong source/tamper refused.",
+          "team": false,
+          "steps": [
+            {
+              "op": "open",
+              "watch": "a"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 1
+            },
+            {
+              "op": "send",
+              "watch": "a",
+              "kind": "baseline"
+            },
+            {
+              "op": "snapshot",
+              "watch": "a",
+              "count": 21,
+              "cursor": "epoch:1"
+            },
+            {
+              "op": "commit",
+              "watch": "a"
+            },
+            {
+              "op": "state",
+              "watch": "a",
+              "state": "connected"
+            },
+            {
+              "op": "close",
+              "watch": "a"
+            },
+            {
+              "op": "open",
+              "watch": "b",
+              "checkpoint": "a"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 2
+            },
+            {
+              "op": "assert_resume",
+              "cursor": "epoch:1"
+            },
+            {
+              "op": "send",
+              "watch": "b",
+              "kind": "empty"
+            },
+            {
+              "op": "snapshot",
+              "watch": "b",
+              "count": 21,
+              "cursor": "epoch:1"
+            },
+            {
+              "op": "tampered_checkpoint"
+            }
+          ]
+        },
+        {
+          "id": "owner-project-team-negatives",
+          "required_assertions": "Wrong owner/Project/source/Team wrappers fail closed before exposure.",
+          "team": false,
+          "steps": [
+            {
+              "op": "negative_scope"
+            },
+            {
+              "op": "open",
+              "watch": "a"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 6
+            },
+            {
+              "op": "send",
+              "watch": "a",
+              "kind": "ttl"
+            },
+            {
+              "op": "snapshot",
+              "watch": "a",
+              "count": 1,
+              "cursor": "epoch:1"
+            },
+            {
+              "op": "ttl_elapsed"
+            },
+            {
+              "op": "reject_expired_commit",
+              "watch": "a"
+            }
+          ]
+        },
+        {
+          "id": "source-auth-denial",
+          "required_assertions": "Initial canonical source HTTP denial terminates only selected Watch; no Task plaintext or global credential erasure; unrelated typed read succeeds. Reconnect denial is the separate reauthorize-denial-invalidates vector.",
+          "team": false,
+          "steps": [
+            {
+              "op": "deny_source"
+            },
+            {
+              "op": "open",
+              "watch": "a"
+            },
+            {
+              "op": "terminal",
+              "watch": "a"
+            },
+            {
+              "op": "ordinary_read"
+            }
+          ]
+        },
+        {
+          "id": "api-key-refusal-before-transport",
+          "required_assertions": "Actual Rust API-key task_source and public npm/Python API-key projects watch shims refuse project_task_watch_unavailable / PROJECT_TASK_WATCH_REQUIRES_COOKIE_SESSION with zero HTTP/WS/profile access.",
+          "team": false,
+          "steps": [
+            {
+              "op": "api_key_refusal"
+            }
+          ]
+        },
+        {
+          "id": "cookie-rotation-retains-watch",
+          "required_assertions": "Ordinary concurrent HTTP rotates Cookie/revision; same-owner watch remains live; fresh next handshake uses rotated credential.",
+          "team": false,
+          "steps": [
+            {
+              "op": "open",
+              "watch": "a"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 1
+            },
+            {
+              "op": "send",
+              "watch": "a",
+              "kind": "baseline"
+            },
+            {
+              "op": "snapshot",
+              "watch": "a",
+              "count": 21,
+              "cursor": "epoch:1"
+            },
+            {
+              "op": "commit",
+              "watch": "a"
+            },
+            {
+              "op": "state",
+              "watch": "a",
+              "state": "connected"
+            },
+            {
+              "op": "rotate"
+            },
+            {
+              "op": "ordinary_read"
+            },
+            {
+              "op": "drop",
+              "watch": "a"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 2
+            },
+            {
+              "op": "assert_resume",
+              "cursor": "epoch:1"
+            },
+            {
+              "op": "send",
+              "watch": "a",
+              "kind": "empty"
+            },
+            {
+              "op": "snapshot",
+              "watch": "a",
+              "count": 21,
+              "cursor": "epoch:1"
+            },
+            {
+              "op": "commit",
+              "watch": "a"
+            },
+            {
+              "op": "assert_rotation"
+            }
+          ]
+        },
+        {
+          "id": "late-old-force-logout",
+          "required_assertions": "Old watch reset/terminal plus replacement credentials survive attempted old-socket force_logout. Precise late actor continuation is separate internal regression.",
+          "team": false,
+          "steps": [
+            {
+              "op": "open",
+              "watch": "a"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 1
+            },
+            {
+              "op": "reset"
+            },
+            {
+              "op": "late_force_logout",
+              "watch": "a"
+            },
+            {
+              "op": "assert_session"
+            },
+            {
+              "op": "ordinary_read"
+            }
+          ]
+        },
+        {
+          "id": "full-queue-source-revoke",
+          "required_assertions": "Capacity1 sealed queue full; live actor polls revoke promptly, no cursor advance/other Watch close.",
+          "team": false,
+          "steps": [
+            {
+              "op": "open",
+              "watch": "a"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 1
+            },
+            {
+              "op": "open",
+              "watch": "b"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 2
+            },
+            {
+              "op": "send",
+              "watch": "a",
+              "kind": "baseline"
+            },
+            {
+              "op": "revoke",
+              "watch": "a"
+            },
+            {
+              "op": "closed",
+              "watch": "a"
+            },
+            {
+              "op": "terminal",
+              "watch": "a"
+            },
+            {
+              "op": "ordinary_read"
+            },
+            {
+              "op": "send",
+              "watch": "b",
+              "kind": "baseline"
+            },
+            {
+              "op": "snapshot",
+              "watch": "b",
+              "count": 21,
+              "cursor": "epoch:1"
+            }
+          ]
+        },
+        {
+          "id": "full-queue-force-logout",
+          "required_assertions": "Full publication queue cannot delay forceLogout; current credentials invalidated through core; no stale output.",
+          "team": false,
+          "steps": [
+            {
+              "op": "open",
+              "watch": "a"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 1
+            },
+            {
+              "op": "send",
+              "watch": "a",
+              "kind": "baseline"
+            },
+            {
+              "op": "force_logout",
+              "watch": "a"
+            },
+            {
+              "op": "closed",
+              "watch": "a"
+            },
+            {
+              "op": "terminal",
+              "watch": "a"
+            },
+            {
+              "op": "assert_logged_out"
+            }
+          ]
+        },
+        {
+          "id": "cancel-handshake",
+          "required_assertions": "Withheld upgrade; priority close returns without Client/socket wait; unrelated watch stays live.",
+          "team": false,
+          "steps": [
+            {
+              "op": "hold_upgrade"
+            },
+            {
+              "op": "open",
+              "watch": "a"
+            },
+            {
+              "op": "beacon",
+              "key": "upgrades",
+              "minimum": 1
+            },
+            {
+              "op": "close",
+              "watch": "a"
+            },
+            {
+              "op": "release_upgrade"
+            },
+            {
+              "op": "open",
+              "watch": "b"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 1
+            },
+            {
+              "op": "send",
+              "watch": "b",
+              "kind": "baseline"
+            },
+            {
+              "op": "snapshot",
+              "watch": "b",
+              "count": 21,
+              "cursor": "epoch:1"
+            }
+          ]
+        },
+        {
+          "id": "cancel-read",
+          "required_assertions": "Idle read cancelled only by owned token; caller parent token and other Watch remain live.",
+          "team": false,
+          "steps": [
+            {
+              "op": "open",
+              "watch": "a"
+            },
+            {
+              "op": "open",
+              "watch": "b"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 2
+            },
+            {
+              "op": "close_pending",
+              "watch": "a"
+            },
+            {
+              "op": "send",
+              "watch": "b",
+              "kind": "baseline"
+            },
+            {
+              "op": "snapshot",
+              "watch": "b",
+              "count": 21,
+              "cursor": "epoch:1"
+            },
+            {
+              "op": "ordinary_read"
+            }
+          ]
+        },
+        {
+          "id": "iterator-abandon-selected",
+          "required_assertions": "JS return/break and Python aclose/context/cancelled opening clean exact handle only; no SessionBridge global cancel.",
+          "team": false,
+          "steps": [
+            {
+              "op": "open",
+              "watch": "a"
+            },
+            {
+              "op": "open",
+              "watch": "b"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 2
+            },
+            {
+              "op": "iterator_close",
+              "watch": "a"
+            },
+            {
+              "op": "send",
+              "watch": "b",
+              "kind": "baseline"
+            },
+            {
+              "op": "snapshot",
+              "watch": "b",
+              "count": 21,
+              "cursor": "epoch:1"
+            }
+          ]
+        },
+        {
+          "id": "two-idle-client-lane",
+          "required_assertions": "Two real idle watches plus ordinary typed operation prove no read/connect Client-lane hold.",
+          "team": false,
+          "steps": [
+            {
+              "op": "open",
+              "watch": "a"
+            },
+            {
+              "op": "open",
+              "watch": "b"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 2
+            },
+            {
+              "op": "ordinary_read"
+            }
+          ]
+        },
+        {
+          "id": "busy-finish-suspend",
+          "required_assertions": "Hold Client with real typed HTTP operation; incoming final read times out25ms; suspend, retain durable cursor, reauthorize then resume.",
+          "team": false,
+          "steps": [
+            {
+              "op": "open",
+              "watch": "a"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 1
+            },
+            {
+              "op": "busy_finish"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 2
+            },
+            {
+              "op": "assert_resume",
+              "cursor": null
+            },
+            {
+              "op": "send",
+              "watch": "a",
+              "kind": "baseline"
+            },
+            {
+              "op": "snapshot",
+              "watch": "a",
+              "count": 21,
+              "cursor": "epoch:1"
+            }
+          ]
+        },
+        {
+          "id": "reauthorize-denial-invalidates",
+          "required_assertions": "After baseline dispatch, source denial and socket interruption, eventual canonical reconnect authorization denies the selected Watch; terminal/refusal exposes no old snapshot and unrelated typed read succeeds. Does not establish a live candidate at the pre-await reauthorization boundary; separate internal core regression required.",
+          "team": false,
+          "steps": [
+            {
+              "op": "open",
+              "watch": "a"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 1
+            },
+            {
+              "op": "send",
+              "watch": "a",
+              "kind": "baseline"
+            },
+            {
+              "op": "deny_source"
+            },
+            {
+              "op": "drop",
+              "watch": "a"
+            },
+            {
+              "op": "terminal",
+              "watch": "a"
+            },
+            {
+              "op": "ordinary_read"
+            }
+          ]
+        },
+        {
+          "id": "watch-cap-16",
+          "required_assertions": "Admit16 maximum;17th refuses before transport; exact close frees one slot; no unbounded closed-entry accumulation.",
+          "team": false,
+          "steps": [
+            {
+              "op": "cap"
+            }
+          ]
+        },
+        {
+          "id": "bounded-commit-channel",
+          "required_assertions": "One completed native wrong-commit conflict observes admission. Thirty-two concurrent wrong commits plus selected close settle with typed conflict/cancelled outcomes while unrelated typed read succeeds. Does not prove cap4 queue pressure, admission of every batch call, or precise priority cancellation; separate internal actor regression required.",
+          "team": false,
+          "steps": [
+            {
+              "op": "open",
+              "watch": "a"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 1
+            },
+            {
+              "op": "send",
+              "watch": "a",
+              "kind": "baseline"
+            },
+            {
+              "op": "commit_flood_close"
+            }
+          ]
+        },
+        {
+          "id": "session-lifecycle-invalidates",
+          "required_assertions": "Session close/reset/login/team switch/native Drop fence all old seals/actors; same-owner Cookie refresh is distinct.",
+          "team": false,
+          "steps": [
+            {
+              "op": "open",
+              "watch": "a"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 1
+            },
+            {
+              "op": "send",
+              "watch": "a",
+              "kind": "baseline"
+            },
+            {
+              "op": "reset"
+            },
+            {
+              "op": "terminal",
+              "watch": "a"
+            },
+            {
+              "op": "assert_session"
+            },
+            {
+              "op": "open",
+              "watch": "b"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 2
+            },
+            {
+              "op": "set_team"
+            },
+            {
+              "op": "terminal",
+              "watch": "b"
+            },
+            {
+              "op": "reset"
+            },
+            {
+              "op": "open",
+              "watch": "c"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 3
+            },
+            {
+              "op": "close_client"
+            },
+            {
+              "op": "terminal",
+              "watch": "c"
+            }
+          ]
+        },
+        {
+          "id": "no-host-or-job-surface",
+          "required_assertions": "Peer rejects any terminal/source host registration/heartbeat/job/storage/active-chat claim and every invented application ACK/mutation.",
+          "team": false,
+          "steps": [
+            {
+              "op": "open",
+              "watch": "a"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 1
+            },
+            {
+              "op": "send",
+              "watch": "a",
+              "kind": "baseline"
+            },
+            {
+              "op": "snapshot",
+              "watch": "a",
+              "count": 21,
+              "cursor": "epoch:1"
+            },
+            {
+              "op": "commit",
+              "watch": "a"
+            },
+            {
+              "op": "state",
+              "watch": "a",
+              "state": "connected"
+            }
+          ]
+        },
+        {
+          "id": "idle-flood-bounded-commit",
+          "required_assertions": "Finite1024 idle-frame flood cannot starve exact local commit; bounded operation deadline and ordinary typed read still succeed.",
+          "team": false,
+          "steps": [
+            {
+              "op": "open",
+              "watch": "a"
+            },
+            {
+              "op": "beacon",
+              "key": "subscriptions",
+              "minimum": 1
+            },
+            {
+              "op": "send",
+              "watch": "a",
+              "kind": "baseline"
+            },
+            {
+              "op": "snapshot",
+              "watch": "a",
+              "count": 21,
+              "cursor": "epoch:1"
+            },
+            {
+              "op": "idle_flood",
+              "watch": "a"
+            },
+            {
+              "op": "commit",
+              "watch": "a"
+            },
+            {
+              "op": "state",
+              "watch": "a",
+              "state": "connected"
+            },
+            {
+              "op": "ordinary_read"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

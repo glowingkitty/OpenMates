@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "provenance": "Synthetic account/crypto/protocol copied exactly from session.cache-preferred-settlement.v1; independent140-row encrypted peer and real direct-library adapters. Authored runtime vectors UNRUN; required_partial.",
+  "capabilities": {
+    "session.chat-first-page-continuation.v1": {
+      "account": {
+        "owner_id": "11111111-1111-4111-8111-111111111111",
+        "master_key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+        "session_id": "synthetic-session",
+        "cookie": "synthetic-refresh-token"
+      },
+      "protocol": {
+        "app_origin": "https://app.example.invalid",
+        "initial_chat_id": "22222222-2222-4222-8222-222222222222",
+        "job_id": "44444444-4444-4444-8444-444444444444",
+        "assistant_id": "55555555-5555-4555-8555-555555555555",
+        "record_id": "66666666-6666-4666-8666-666666666666",
+        "embed_id": "77777777-7777-4777-8777-777777777777",
+        "initial_chat_key": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8=",
+        "input": "Please explain this synthetic recovery fixture.",
+        "transient_content": "Untrusted transient preview",
+        "sealed_content": "Durably recovered synthetic \u96ea \ud83d\ude00 completion",
+        "canonical_content": "Canonical answer persisted by another device",
+        "lease_token": "synthetic-lease-token",
+        "lease_generation": 7,
+        "fresh_messages_v": 5,
+        "turn_id": "88888888-8888-4888-8888-888888888888"
+      },
+      "vectors": [
+        {
+          "id": "cold-uuid",
+          "mode": "admit",
+          "message_id_mode": "uuid"
+        },
+        {
+          "id": "cold-composite",
+          "mode": "admit",
+          "message_id_mode": "composite"
+        },
+        {
+          "id": "cold-opaque",
+          "mode": "admit",
+          "message_id_mode": "opaque"
+        },
+        {
+          "id": "capacity-refused",
+          "mode": "capacity-false",
+          "message_id_mode": "uuid"
+        },
+        {
+          "id": "capacity-io-error",
+          "mode": "capacity-error",
+          "message_id_mode": "uuid"
+        },
+        {
+          "id": "wrong-checkpoint-hash",
+          "mode": "wrong-hash",
+          "message_id_mode": "uuid"
+        },
+        {
+          "id": "wrong-credential-revision",
+          "mode": "wrong-revision",
+          "message_id_mode": "uuid"
+        },
+        {
+          "id": "receipt-purpose-separated",
+          "mode": "wrong-purpose",
+          "message_id_mode": "uuid"
+        },
+        {
+          "id": "store-cas-refused",
+          "mode": "cas-refused",
+          "message_id_mode": "uuid"
+        },
+        {
+          "id": "callback-failed",
+          "mode": "callback-failure",
+          "message_id_mode": "uuid"
+        },
+        {
+          "id": "callback-cancelled",
+          "mode": "callback-cancel",
+          "message_id_mode": "uuid"
+        },
+        {
+          "id": "stale-a-preserves-b",
+          "mode": "stale-a-b",
+          "message_id_mode": "uuid"
+        },
+        {
+          "id": "missing-secret-consent",
+          "mode": "no-secrets",
+          "message_id_mode": "uuid"
+        },
+        {
+          "id": "missing-private-consent",
+          "mode": "no-private",
+          "message_id_mode": "uuid"
+        },
+        {
+          "id": "warm-default-preserved",
+          "mode": "warm",
+          "message_id_mode": "uuid"
+        },
+        {
+          "id": "strict-default-preserved",
+          "mode": "strict",
+          "message_id_mode": "uuid"
+        }
+      ],
+      "required_unverified": [
+        "Actual Rust/NAPI/PyO3 builds and all16 real-library vectors in isolated CI.",
+        "Queued original master-resource revoke/private-denial/request-cancel release guards: authored session_first_page_tests.rs regressions require Rust CI; public SDK adapters cannot manufacture those private resources.",
+        "All existing core/store100-row lifecycle/rollback and operation-epoch tests remain required.",
+        "Native product first-usable/completion and comparable3SDK CPU/RAM/latency performance acceptance remain open."
+      ]
+    }
+  }
+}

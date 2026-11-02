@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Full chat optional authenticated metadata shared fixed3 fixture",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "synthetic",
+    "chatKeyHex",
+    "chat",
+    "vectors"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "synthetic": {
+      "const": true
+    },
+    "chatKeyHex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "chat": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "category",
+        "messages"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "messages": {
+          "type": "array"
+        }
+      }
+    },
+    "vectors": {
+      "type": "array",
+      "minItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "encryptedSlug",
+          "expected",
+          "present"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "encryptedSlug": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "present": {
+            "type": "boolean"
+          },
+          "expected": {
+            "type": "object",
+            "required": [
+              "id",
+              "title",
+              "category",
+              "messages"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "category": {
+                "type": "string"
+              },
+              "messages": {
+                "type": "array"
+              },
+              "slug": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

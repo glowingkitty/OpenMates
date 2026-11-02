@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "capability": "session.embeds.live-selector.v1",
+  "status": "migration-gap-native-cli-and-foreign-bindings",
+  "source": "original-live-content-sidecars-order-DATA-not-auth",
+  "payload": {
+    "embeds": [
+      {"embed_id": "33333333-ffff-4333-8333-333333333333", "id": "55555555-5555-4555-8555-555555555555"},
+      {"embed_id": "33333333-0000-4333-8333-333333333333"},
+      {"embed_id": "33333333-ffff-4333-8333-333333333333", "id": "33333333-ffff-4333-8333-333333333333"}
+    ]
+  },
+  "vectors": [
+    {"id": "first-collision-not-sorted", "selector": "33333333", "selected": "33333333-ffff-4333-8333-333333333333"},
+    {"id": "first-alias-not-latest-duplicate", "selector": "55555555", "selected": "33333333-ffff-4333-8333-333333333333"},
+    {"id": "exact-second", "selector": "33333333-0000-4333-8333-333333333333", "selected": "33333333-0000-4333-8333-333333333333"}
+  ]
+}

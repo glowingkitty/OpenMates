@@ -1,0 +1,480 @@
+{
+  "schemaVersion": 1,
+  "oracle": {
+    "source": "frontend/packages/openmates-cli/src/cli.ts",
+    "sha256": "d339605cbe60b1198a56b2e10ddf0bab154ebecfd9ff4f558315e030cc1a9e45",
+    "functions": [
+      "parseArgs",
+      "appendFlagValue",
+      "handleDrafts"
+    ],
+    "execution": "pure extracted maintained functions + in-memory client"
+  },
+  "cases": [
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "list"
+      ],
+      "refreshFlag": null,
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "list",
+        "--refresh"
+      ],
+      "refreshFlag": true,
+      "forceRefresh": true
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "list",
+        "--refresh",
+        "--json"
+      ],
+      "refreshFlag": true,
+      "forceRefresh": true
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "list",
+        "--refresh=true"
+      ],
+      "refreshFlag": "true",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "list",
+        "--refresh=false"
+      ],
+      "refreshFlag": "false",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "list",
+        "--refresh="
+      ],
+      "refreshFlag": "",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "list",
+        "--refresh=0"
+      ],
+      "refreshFlag": "0",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "list",
+        "--refresh=anything"
+      ],
+      "refreshFlag": "anything",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "list",
+        "--refresh=false=ignored"
+      ],
+      "refreshFlag": "false",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "list",
+        "--refresh",
+        "true"
+      ],
+      "refreshFlag": "true",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "list",
+        "--refresh",
+        "false"
+      ],
+      "refreshFlag": "false",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "list",
+        "--refresh",
+        "0"
+      ],
+      "refreshFlag": "0",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "list",
+        "--refresh",
+        "anything"
+      ],
+      "refreshFlag": "anything",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "list",
+        "--refresh",
+        "-x"
+      ],
+      "refreshFlag": "-x",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "list",
+        "--refresh",
+        "a=b"
+      ],
+      "refreshFlag": "a=b",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "list",
+        "--refresh",
+        "--refresh"
+      ],
+      "refreshFlag": true,
+      "forceRefresh": true
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "list",
+        "--refresh=true",
+        "--refresh"
+      ],
+      "refreshFlag": true,
+      "forceRefresh": true
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "list",
+        "--refresh",
+        "--refresh=true"
+      ],
+      "refreshFlag": "true",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "list",
+        "--refresh=false",
+        "--refresh=true"
+      ],
+      "refreshFlag": "false\ntrue",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "list",
+        "--refresh=",
+        "--refresh=true"
+      ],
+      "refreshFlag": "true",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "list",
+        "--refresh=true",
+        "--refresh="
+      ],
+      "refreshFlag": "true\n",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "get",
+        "11111111-1111-4111-8111-111111111111"
+      ],
+      "refreshFlag": null,
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "get",
+        "11111111-1111-4111-8111-111111111111",
+        "--refresh"
+      ],
+      "refreshFlag": true,
+      "forceRefresh": true
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "get",
+        "11111111-1111-4111-8111-111111111111",
+        "--refresh",
+        "--json"
+      ],
+      "refreshFlag": true,
+      "forceRefresh": true
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "get",
+        "11111111-1111-4111-8111-111111111111",
+        "--refresh=true"
+      ],
+      "refreshFlag": "true",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "get",
+        "11111111-1111-4111-8111-111111111111",
+        "--refresh=false"
+      ],
+      "refreshFlag": "false",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "get",
+        "11111111-1111-4111-8111-111111111111",
+        "--refresh="
+      ],
+      "refreshFlag": "",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "get",
+        "11111111-1111-4111-8111-111111111111",
+        "--refresh=0"
+      ],
+      "refreshFlag": "0",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "get",
+        "11111111-1111-4111-8111-111111111111",
+        "--refresh=anything"
+      ],
+      "refreshFlag": "anything",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "get",
+        "11111111-1111-4111-8111-111111111111",
+        "--refresh=false=ignored"
+      ],
+      "refreshFlag": "false",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "get",
+        "11111111-1111-4111-8111-111111111111",
+        "--refresh",
+        "true"
+      ],
+      "refreshFlag": "true",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "get",
+        "11111111-1111-4111-8111-111111111111",
+        "--refresh",
+        "false"
+      ],
+      "refreshFlag": "false",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "get",
+        "11111111-1111-4111-8111-111111111111",
+        "--refresh",
+        "0"
+      ],
+      "refreshFlag": "0",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "get",
+        "11111111-1111-4111-8111-111111111111",
+        "--refresh",
+        "anything"
+      ],
+      "refreshFlag": "anything",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "get",
+        "11111111-1111-4111-8111-111111111111",
+        "--refresh",
+        "-x"
+      ],
+      "refreshFlag": "-x",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "get",
+        "11111111-1111-4111-8111-111111111111",
+        "--refresh",
+        "a=b"
+      ],
+      "refreshFlag": "a=b",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "get",
+        "11111111-1111-4111-8111-111111111111",
+        "--refresh",
+        "--refresh"
+      ],
+      "refreshFlag": true,
+      "forceRefresh": true
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "get",
+        "11111111-1111-4111-8111-111111111111",
+        "--refresh=true",
+        "--refresh"
+      ],
+      "refreshFlag": true,
+      "forceRefresh": true
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "get",
+        "11111111-1111-4111-8111-111111111111",
+        "--refresh",
+        "--refresh=true"
+      ],
+      "refreshFlag": "true",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "get",
+        "11111111-1111-4111-8111-111111111111",
+        "--refresh=false",
+        "--refresh=true"
+      ],
+      "refreshFlag": "false\ntrue",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "get",
+        "11111111-1111-4111-8111-111111111111",
+        "--refresh=",
+        "--refresh=true"
+      ],
+      "refreshFlag": "true",
+      "forceRefresh": false
+    },
+    {
+      "argv": [
+        "openmates",
+        "drafts",
+        "get",
+        "11111111-1111-4111-8111-111111111111",
+        "--refresh=true",
+        "--refresh="
+      ],
+      "refreshFlag": "true\n",
+      "forceRefresh": false
+    }
+  ]
+}

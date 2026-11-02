@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "provenance": "Synthetic independent Python cryptography peer. SDK ephemeral secrets remain opaque/random. Authored UNRUN direct-library tests; no parity acceptance.",
+  "capabilities": {
+    "protocol.project-remote-crypto.v1": {
+      "project_key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+      "identities": {
+        "personal": {
+          "ownerId": "owner-\"\\☃😀",
+          "projectId": "project-1",
+          "sourceId": "source-1",
+          "sourceSessionId": "session-1",
+          "requestingClientId": "browser-1",
+          "keyEpoch": 7
+        },
+        "team": {
+          "ownerId": "owner-\"\\☃😀",
+          "projectId": "project-1",
+          "sourceId": "source-1",
+          "sourceSessionId": "session-1",
+          "requestingClientId": "browser-1",
+          "keyEpoch": 7,
+          "contextType": "team",
+          "contextId": "team-1",
+          "hostMemberId": "host-member",
+          "hostDeviceId": "host-device",
+          "requesterMemberId": "requester-member",
+          "requesterDeviceId": "requester-device"
+        }
+      },
+      "request_id": "request-1",
+      "request_text": "{\"path\":\"fixture/☃😀\",\"line\":\"one\\ntwo\"}",
+      "result_text": "{\"ok\":true,\"value\":\"synthetic fixture\"}",
+      "vectors": [
+        {
+          "id": "personal-requester-interop",
+          "mode": "personal-requester-interop",
+          "context": "personal",
+          "role": "requester"
+        },
+        {
+          "id": "personal-source-interop",
+          "mode": "personal-source-interop",
+          "context": "personal",
+          "role": "source"
+        },
+        {
+          "id": "team-requester-interop",
+          "mode": "team-requester-interop",
+          "context": "team",
+          "role": "requester"
+        },
+        {
+          "id": "team-source-interop",
+          "mode": "team-source-interop",
+          "context": "team",
+          "role": "source"
+        },
+        {
+          "id": "bad-handshake-tag-consumes-state",
+          "mode": "bad-handshake-tag-consumes-state",
+          "context": "personal",
+          "role": "requester"
+        },
+        {
+          "id": "wrong-identity",
+          "mode": "wrong-identity",
+          "context": "personal",
+          "role": "requester"
+        },
+        {
+          "id": "wrong-project-key",
+          "mode": "wrong-project-key",
+          "context": "personal",
+          "role": "requester"
+        },
+        {
+          "id": "wrong-role-version",
+          "mode": "wrong-role-version",
+          "context": "personal",
+          "role": "requester"
+        },
+        {
+          "id": "tamper-routing-replay",
+          "mode": "tamper-routing-replay",
+          "context": "personal",
+          "role": "requester"
+        },
+        {
+          "id": "json-invalid-retry-and-lossless-text",
+          "mode": "json-invalid-retry-and-lossless-text",
+          "context": "personal",
+          "role": "requester"
+        },
+        {
+          "id": "close-handles",
+          "mode": "close-handles",
+          "context": "personal",
+          "role": "requester"
+        },
+        {
+          "id": "metadata-key-bounds",
+          "mode": "metadata-key-bounds",
+          "context": "personal",
+          "role": "requester"
+        },
+        {
+          "id": "payload-envelope-bounds",
+          "mode": "payload-envelope-bounds",
+          "context": "personal",
+          "role": "requester"
+        },
+        {
+          "id": "nonce-capacity",
+          "mode": "nonce-capacity",
+          "context": "personal",
+          "role": "requester"
+        }
+      ]
+    }
+  }
+}

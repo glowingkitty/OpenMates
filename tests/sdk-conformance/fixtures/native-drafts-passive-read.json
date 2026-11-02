@@ -1,0 +1,244 @@
+{
+  "schema_version": 1,
+  "provenance": "Synthetic public owner/key and deterministic AES-GCM fixture nonce, never for live encryption. Protocol-only; actual Rust/CLI execution required.",
+  "key_b64": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=",
+  "metadata_epoch": 23,
+  "rest_failures": [
+    {
+      "id": "network-before-headers",
+      "error": "offline",
+      "http_status": null,
+      "fallback": true
+    },
+    {
+      "id": "success-body-io-failure",
+      "error": "offline",
+      "http_status": null,
+      "fallback": true
+    },
+    {
+      "id": "http-429",
+      "error": "offline",
+      "http_status": 429,
+      "fallback": false
+    },
+    {
+      "id": "http-500",
+      "error": "offline",
+      "http_status": 500,
+      "fallback": false
+    },
+    {
+      "id": "http-503",
+      "error": "offline",
+      "http_status": 503,
+      "fallback": false
+    },
+    {
+      "id": "expired",
+      "error": "expired",
+      "http_status": null,
+      "fallback": false
+    },
+    {
+      "id": "authentication",
+      "error": "authentication",
+      "http_status": null,
+      "fallback": false
+    },
+    {
+      "id": "forbidden",
+      "error": "forbidden",
+      "http_status": null,
+      "fallback": false
+    },
+    {
+      "id": "cancelled",
+      "error": "cancelled",
+      "http_status": null,
+      "fallback": false
+    },
+    {
+      "id": "crypto",
+      "error": "crypto",
+      "http_status": null,
+      "fallback": false
+    },
+    {
+      "id": "protocol",
+      "error": "protocol",
+      "http_status": null,
+      "fallback": false
+    },
+    {
+      "id": "conflict",
+      "error": "conflict",
+      "http_status": null,
+      "fallback": false
+    }
+  ],
+  "metadata_cases": [
+    {
+      "id": "unrelated-startup",
+      "kind": "phased_sync_complete",
+      "payload": {
+        "phase": "all",
+        "context_epoch": 0
+      },
+      "expect": "ignored"
+    },
+    {
+      "id": "metadata-only",
+      "kind": "phase_2_last_20_chats_ready",
+      "payload": {
+        "phase": "phase2",
+        "context_epoch": 23,
+        "team_id": null,
+        "chats": [
+          {
+            "chat_details": {
+              "id": "11111111-1111-4111-8111-111111111111",
+              "user_id": "synthetic-owner",
+              "draft_v": 4,
+              "encrypted_draft_md": "AAECAwQFBgcICQoL6N/7UkibchCdSpelUxqh1cvmD3iU9zE476vc4GAsloTPGAXIW54i",
+              "encrypted_draft_preview": null,
+              "messages_v": 7
+            }
+          }
+        ]
+      },
+      "expect": "metadata"
+    },
+    {
+      "id": "foreign-team",
+      "kind": "phase_2_last_20_chats_ready",
+      "payload": {
+        "phase": "phase2",
+        "context_epoch": 23,
+        "team_id": "foreign",
+        "chats": []
+      },
+      "expect": "reject"
+    },
+    {
+      "id": "messages-forbidden",
+      "kind": "phase_2_last_20_chats_ready",
+      "payload": {
+        "phase": "phase2",
+        "context_epoch": 23,
+        "chats": [
+          {
+            "chat_details": {
+              "id": "11111111-1111-4111-8111-111111111111",
+              "user_id": "synthetic-owner",
+              "draft_v": 4,
+              "encrypted_draft_md": "AAECAwQFBgcICQoL6N/7UkibchCdSpelUxqh1cvmD3iU9zE476vc4GAsloTPGAXIW54i",
+              "encrypted_draft_preview": null,
+              "messages_v": 7
+            },
+            "messages": [
+              {
+                "encrypted_content": "not-requested"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": "reject"
+    }
+  ],
+  "success_request_budget": [
+    "draft-rest-network-failure",
+    "auth",
+    "ws",
+    "native_client_lifecycle",
+    "get_draft_versions",
+    "phased_sync_request",
+    "get_draft_versions"
+  ],
+  "cold_request_budget": [
+    "auth",
+    "ws",
+    "native_client_lifecycle",
+    "phased_sync_request"
+  ],
+  "phase": "phase2",
+  "forbid": [
+    "phase:all",
+    "phase:phase1",
+    "phase:phase3",
+    "message history",
+    "active-chat announcement",
+    "task recovery lease",
+    "inference"
+  ],
+  "version_floor_cases": [
+    {
+      "id": "positive-observation-blocks-older-metadata",
+      "cached": 3,
+      "observed": 5,
+      "metadata": 4,
+      "reject": true
+    },
+    {
+      "id": "positive-observation-allows-newer-metadata",
+      "cached": 3,
+      "observed": 5,
+      "metadata": 6,
+      "reject": false
+    },
+    {
+      "id": "cleared-floor-blocks-resurrection",
+      "cached": 3,
+      "cleared": 5,
+      "metadata": 4,
+      "reject": true
+    },
+    {
+      "id": "cleared-floor-blocks-equal-version",
+      "cached": 3,
+      "cleared": 5,
+      "metadata": 5,
+      "reject": true
+    },
+    {
+      "id": "cleared-floor-allows-newer-version",
+      "cached": 3,
+      "cleared": 5,
+      "metadata": 6,
+      "reject": false
+    },
+    {
+      "id": "already-cleared-floor-can-advance",
+      "cached": 5,
+      "cached_clear": true,
+      "cleared": 7,
+      "metadata": 6,
+      "reject": true
+    },
+    {
+      "id": "first-seen-cleared-floor-blocks-older-ciphertext",
+      "cached": 0,
+      "cached_absent": true,
+      "cleared": 6,
+      "metadata": 5,
+      "reject": true
+    },
+    {
+      "id": "first-seen-cleared-floor-allows-newer-ciphertext",
+      "cached": 0,
+      "cached_absent": true,
+      "cleared": 6,
+      "metadata": 7,
+      "reject": false
+    },
+    {
+      "id": "first-seen-cleared-floor-blocks-equal-ciphertext",
+      "cached": 0,
+      "cached_absent": true,
+      "cleared": 6,
+      "metadata": 6,
+      "reject": true
+    }
+  ]
+}

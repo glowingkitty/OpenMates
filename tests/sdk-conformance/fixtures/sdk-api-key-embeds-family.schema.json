@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Actual direct-library complete embeds family synthetic protocol/crypto fixture",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "capabilities"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "capabilities": {
+      "type": "object",
+      "required": [
+        "sdk.embeds.family"
+      ],
+      "properties": {
+        "sdk.embeds.family": {
+          "type": "object",
+          "required": [
+            "device_id",
+            "api_keys",
+            "session",
+            "shown",
+            "project",
+            "embed_key_base64",
+            "project_key_base64",
+            "vectors"
+          ],
+          "properties": {
+            "device_id": {
+              "const": "synthetic-embed-device"
+            },
+            "api_keys": {
+              "type": "object",
+              "required": [
+                "A",
+                "B"
+              ]
+            },
+            "session": {
+              "type": "object"
+            },
+            "shown": {
+              "type": "object"
+            },
+            "project": {
+              "type": "object"
+            },
+            "embed_key_base64": {
+              "type": "string"
+            },
+            "project_key_base64": {
+              "type": "string"
+            },
+            "vectors": {
+              "type": "array",
+              "minItems": 22,
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "operation",
+                  "owner",
+                  "embed_id",
+                  "project_id",
+                  "chat_id",
+                  "session_id",
+                  "version",
+                  "status",
+                  "response",
+                  "expected_error"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "operation": {
+                    "enum": [
+                      "restore_version",
+                      "preview_start",
+                      "preview_status",
+                      "preview_open",
+                      "preview_stop",
+                      "share",
+                      "add_to_project",
+                      "remove_from_project"
+                    ]
+                  },
+                  "owner": {
+                    "enum": [
+                      "A",
+                      "B"
+                    ]
+                  },
+                  "embed_id": {
+                    "type": "string"
+                  },
+                  "project_id": {
+                    "type": "string"
+                  },
+                  "chat_id": {
+                    "type": "string"
+                  },
+                  "session_id": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "integer"
+                  },
+                  "status": {
+                    "type": "integer"
+                  },
+                  "expected_error": {
+                    "enum": [
+                      null,
+                      "invalid",
+                      "forbidden",
+                      "key-unavailable",
+                      "preview-timeout"
+                    ]
+                  },
+                  "confirmed": {
+                    "type": "boolean"
+                  },
+                  "wait": {
+                    "type": "boolean"
+                  },
+                  "expires": {
+                    "type": "integer"
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "options": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  },
+                  "local_timeout": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

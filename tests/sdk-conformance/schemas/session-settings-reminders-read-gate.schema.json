@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "provenance",
+    "capabilities"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "provenance": {
+      "type": "string"
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session.settings-reminders-read"
+      ],
+      "properties": {
+        "session.settings-reminders-read": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source_fixture",
+            "source_sha256",
+            "vectors"
+          ],
+          "properties": {
+            "source_fixture": {
+              "const": "tests/sdk-conformance/fixtures/session-settings-reminders-read.json"
+            },
+            "source_sha256": {
+              "const": "78885103ff46073bb19c0dc9f7b10373f84e06889f0440cf5888c79c0be7ea18"
+            },
+            "vectors": {
+              "type": "array",
+              "minItems": 28,
+              "maxItems": 28,
+              "uniqueItems": true,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id"
+                ],
+                "properties": {
+                  "id": {
+                    "enum": [
+                      "complete-encrypted-raw-response",
+                      "null",
+                      "array",
+                      "scalar",
+                      "empty-body",
+                      "malformed-json",
+                      "html-body",
+                      "cookie-rotation-malformed-body",
+                      "invalid-cookie-malformed-body",
+                      "oversize-malformed-body",
+                      "owner-denial",
+                      "forbidden-malformed-body",
+                      "expired-malformed-body",
+                      "server-error-malformed-body",
+                      "no-session",
+                      "one-429-retry-cookie-preserved",
+                      "second-429-no-third-retry",
+                      "429-cookie-failure-no-retry",
+                      "429-body-limit-no-retry",
+                      "redirect-malformed-body",
+                      "truncate-body",
+                      "cancel-body",
+                      "cancel-retry",
+                      "root-insertion-order",
+                      "root-js-index-order",
+                      "root-duplicate-escaped-order",
+                      "valid-depth129-refuses",
+                      "valid-numeric-range-refuses"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

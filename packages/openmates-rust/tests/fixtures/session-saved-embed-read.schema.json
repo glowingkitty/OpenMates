@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openmates:session.saved-embed-read.v1:proposal",
+  "title": "Proposed sealed saved-embed JSON release (not authority)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "embed_id",
+    "type",
+    "content",
+    "text_preview",
+    "status",
+    "source_chat_hash",
+    "parent_embed_id",
+    "metadata",
+    "source",
+    "read_only",
+    "cached"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "embed_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "type": {
+      "type": "string"
+    },
+    "content": {},
+    "text_preview": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "finished",
+        "error"
+      ]
+    },
+    "source_chat_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "parent_embed_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "metadata": {
+      "type": "object"
+    },
+    "source": {
+      "const": "selected_cookie_ws"
+    },
+    "read_only": {
+      "const": true
+    },
+    "cached": {
+      "const": false
+    }
+  }
+}

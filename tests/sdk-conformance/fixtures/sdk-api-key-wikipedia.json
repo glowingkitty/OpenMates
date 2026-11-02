@@ -1,0 +1,1043 @@
+{
+  "schema_version": 1,
+  "provenance": "PRIVATE UNRUN synthetic Wikipedia proxy protocol only. No real learning/inference/provider request, no model override.",
+  "capabilities": {
+    "sdk.wikipedia": {
+      "api_key": "sk-api-wikipediaOwnerA.localSetupSuffix",
+      "device_id": "synthetic-wikipedia-device",
+      "vectors": [
+        {
+          "id": "search-default",
+          "operation": "search",
+          "query": "Topic",
+          "title": null,
+          "language": null,
+          "limit": null,
+          "anonymous": false,
+          "steps": [
+            {
+              "operation": "search",
+              "http_status": 200,
+              "response": {
+                "results": [
+                  {
+                    "page_id": 7,
+                    "key": "Topic",
+                    "title": "Topic",
+                    "description": "Synthetic",
+                    "extra": {
+                      "CamelCase": false
+                    }
+                  }
+                ],
+                "opaque": [
+                  null,
+                  true
+                ]
+              },
+              "expected_title": null
+            }
+          ],
+          "expected_request_count": 1,
+          "expected_error": null,
+          "expected": {
+            "results": [
+              {
+                "page_id": 7,
+                "key": "Topic",
+                "title": "Topic",
+                "description": "Synthetic",
+                "extra": {
+                  "CamelCase": false
+                }
+              }
+            ],
+            "opaque": [
+              null,
+              true
+            ]
+          }
+        },
+        {
+          "id": "search-unicode",
+          "operation": "search",
+          "query": "A & 界",
+          "title": null,
+          "language": "en_US",
+          "limit": 7,
+          "anonymous": false,
+          "steps": [
+            {
+              "operation": "search",
+              "http_status": 200,
+              "response": {
+                "results": [
+                  {
+                    "page_id": 7,
+                    "key": "Topic",
+                    "title": "Topic",
+                    "description": "Synthetic",
+                    "extra": {
+                      "CamelCase": false
+                    }
+                  }
+                ],
+                "opaque": [
+                  null,
+                  true
+                ]
+              },
+              "expected_title": null
+            }
+          ],
+          "expected_request_count": 1,
+          "expected_error": null,
+          "expected": {
+            "results": [
+              {
+                "page_id": 7,
+                "key": "Topic",
+                "title": "Topic",
+                "description": "Synthetic",
+                "extra": {
+                  "CamelCase": false
+                }
+              }
+            ],
+            "opaque": [
+              null,
+              true
+            ]
+          }
+        },
+        {
+          "id": "search-empty-server-owned",
+          "operation": "search",
+          "query": "",
+          "title": null,
+          "language": null,
+          "limit": null,
+          "anonymous": false,
+          "steps": [
+            {
+              "operation": "search",
+              "http_status": 200,
+              "response": {
+                "results": [
+                  {
+                    "page_id": 7,
+                    "key": "Topic",
+                    "title": "Topic",
+                    "description": "Synthetic",
+                    "extra": {
+                      "CamelCase": false
+                    }
+                  }
+                ],
+                "opaque": [
+                  null,
+                  true
+                ]
+              },
+              "expected_title": null
+            }
+          ],
+          "expected_request_count": 1,
+          "expected_error": null,
+          "expected": {
+            "results": [
+              {
+                "page_id": 7,
+                "key": "Topic",
+                "title": "Topic",
+                "description": "Synthetic",
+                "extra": {
+                  "CamelCase": false
+                }
+              }
+            ],
+            "opaque": [
+              null,
+              true
+            ]
+          }
+        },
+        {
+          "id": "search-empty-language-divergence",
+          "operation": "search",
+          "query": "Topic",
+          "title": null,
+          "language": "",
+          "limit": null,
+          "anonymous": false,
+          "steps": [
+            {
+              "operation": "search",
+              "http_status": 200,
+              "response": {
+                "results": [
+                  {
+                    "page_id": 7,
+                    "key": "Topic",
+                    "title": "Topic",
+                    "description": "Synthetic",
+                    "extra": {
+                      "CamelCase": false
+                    }
+                  }
+                ],
+                "opaque": [
+                  null,
+                  true
+                ]
+              },
+              "expected_title": null
+            }
+          ],
+          "expected_request_count": 1,
+          "expected_error": null,
+          "expected": {
+            "results": [
+              {
+                "page_id": 7,
+                "key": "Topic",
+                "title": "Topic",
+                "description": "Synthetic",
+                "extra": {
+                  "CamelCase": false
+                }
+              }
+            ],
+            "opaque": [
+              null,
+              true
+            ]
+          },
+          "python_expected_language": "en"
+        },
+        {
+          "id": "search-limit-zero-server-owned",
+          "operation": "search",
+          "query": "Topic",
+          "title": null,
+          "language": null,
+          "limit": 0,
+          "anonymous": false,
+          "steps": [
+            {
+              "operation": "search",
+              "http_status": 200,
+              "response": {
+                "results": [
+                  {
+                    "page_id": 7,
+                    "key": "Topic",
+                    "title": "Topic",
+                    "description": "Synthetic",
+                    "extra": {
+                      "CamelCase": false
+                    }
+                  }
+                ],
+                "opaque": [
+                  null,
+                  true
+                ]
+              },
+              "expected_title": null
+            }
+          ],
+          "expected_request_count": 1,
+          "expected_error": null,
+          "expected": {
+            "results": [
+              {
+                "page_id": 7,
+                "key": "Topic",
+                "title": "Topic",
+                "description": "Synthetic",
+                "extra": {
+                  "CamelCase": false
+                }
+              }
+            ],
+            "opaque": [
+              null,
+              true
+            ]
+          }
+        },
+        {
+          "id": "search-limit-negative-server-owned",
+          "operation": "search",
+          "query": "Topic",
+          "title": null,
+          "language": null,
+          "limit": -2,
+          "anonymous": false,
+          "steps": [
+            {
+              "operation": "search",
+              "http_status": 200,
+              "response": {
+                "results": [
+                  {
+                    "page_id": 7,
+                    "key": "Topic",
+                    "title": "Topic",
+                    "description": "Synthetic",
+                    "extra": {
+                      "CamelCase": false
+                    }
+                  }
+                ],
+                "opaque": [
+                  null,
+                  true
+                ]
+              },
+              "expected_title": null
+            }
+          ],
+          "expected_request_count": 1,
+          "expected_error": null,
+          "expected": {
+            "results": [
+              {
+                "page_id": 7,
+                "key": "Topic",
+                "title": "Topic",
+                "description": "Synthetic",
+                "extra": {
+                  "CamelCase": false
+                }
+              }
+            ],
+            "opaque": [
+              null,
+              true
+            ]
+          }
+        },
+        {
+          "id": "summary-opaque-fields",
+          "operation": "summary",
+          "query": null,
+          "title": "Input topic",
+          "language": null,
+          "limit": null,
+          "anonymous": false,
+          "steps": [
+            {
+              "operation": "summary",
+              "http_status": 200,
+              "response": {
+                "title": "Canonical topic",
+                "extract": "Synthetic summary 界\nline2",
+                "source_url": "https://example.invalid/public-article",
+                "unknown": {
+                  "keep": [
+                    null,
+                    false,
+                    3
+                  ]
+                }
+              },
+              "expected_title": "Input topic"
+            }
+          ],
+          "expected_request_count": 1,
+          "expected_error": null,
+          "expected": {
+            "title": "Canonical topic",
+            "extract": "Synthetic summary 界\nline2",
+            "source_url": "https://example.invalid/public-article",
+            "unknown": {
+              "keep": [
+                null,
+                false,
+                3
+              ]
+            }
+          }
+        },
+        {
+          "id": "learning-opaque-bundle",
+          "operation": "learning",
+          "query": null,
+          "title": "Input topic",
+          "language": null,
+          "limit": null,
+          "anonymous": false,
+          "steps": [
+            {
+              "operation": "learning",
+              "http_status": 200,
+              "response": {
+                "canonical_title": "Canonical topic",
+                "language": "en",
+                "source_url": "https://example.invalid/public-article",
+                "questions": [
+                  "Synthetic Q?"
+                ],
+                "related_articles": [
+                  {
+                    "title": "Related",
+                    "canonical_title": "Related",
+                    "language": "en",
+                    "description": "Synthetic",
+                    "extra": "preserved"
+                  }
+                ],
+                "expires_in_seconds": 60,
+                "guide_extension": true
+              },
+              "expected_title": "Input topic"
+            }
+          ],
+          "expected_request_count": 1,
+          "expected_error": null,
+          "expected": {
+            "canonical_title": "Canonical topic",
+            "language": "en",
+            "source_url": "https://example.invalid/public-article",
+            "questions": [
+              "Synthetic Q?"
+            ],
+            "related_articles": [
+              {
+                "title": "Related",
+                "canonical_title": "Related",
+                "language": "en",
+                "description": "Synthetic",
+                "extra": "preserved"
+              }
+            ],
+            "expires_in_seconds": 60,
+            "guide_extension": true
+          }
+        },
+        {
+          "id": "article-canonical-title-and-full-opaque-projection",
+          "operation": "article",
+          "query": null,
+          "title": "Input topic",
+          "language": null,
+          "limit": null,
+          "anonymous": false,
+          "steps": [
+            {
+              "operation": "summary",
+              "http_status": 200,
+              "response": {
+                "title": "Canonical topic",
+                "extract": "Synthetic summary 界\nline2",
+                "source_url": "https://example.invalid/public-article",
+                "unknown": {
+                  "keep": [
+                    null,
+                    false,
+                    3
+                  ]
+                }
+              },
+              "expected_title": "Input topic"
+            },
+            {
+              "operation": "learning",
+              "http_status": 200,
+              "response": {
+                "canonical_title": "Canonical topic",
+                "language": "en",
+                "source_url": "https://example.invalid/public-article",
+                "questions": [
+                  "Synthetic Q?"
+                ],
+                "related_articles": [
+                  {
+                    "title": "Related",
+                    "canonical_title": "Related",
+                    "language": "en",
+                    "description": "Synthetic",
+                    "extra": "preserved"
+                  }
+                ],
+                "expires_in_seconds": 60,
+                "guide_extension": true
+              },
+              "expected_title": "Canonical topic"
+            }
+          ],
+          "expected_request_count": 2,
+          "expected_error": null,
+          "expected": {
+            "title": "Canonical topic",
+            "extract": "Synthetic summary 界\nline2",
+            "source_url": "https://example.invalid/public-article",
+            "unknown": {
+              "keep": [
+                null,
+                false,
+                3
+              ]
+            },
+            "questions": [
+              "Synthetic Q?"
+            ],
+            "related_articles": [
+              {
+                "title": "Related",
+                "canonical_title": "Related",
+                "language": "en",
+                "description": "Synthetic",
+                "extra": "preserved"
+              }
+            ],
+            "suggestions_unavailable": false
+          }
+        },
+        {
+          "id": "article-falls-back-to-input-title",
+          "operation": "article",
+          "query": null,
+          "title": "Input topic",
+          "language": null,
+          "limit": null,
+          "anonymous": false,
+          "steps": [
+            {
+              "operation": "summary",
+              "http_status": 200,
+              "response": {
+                "title": "",
+                "extract": "Synthetic summary 界\nline2",
+                "source_url": "https://example.invalid/public-article",
+                "unknown": {
+                  "keep": [
+                    null,
+                    false,
+                    3
+                  ]
+                }
+              },
+              "expected_title": "Input topic"
+            },
+            {
+              "operation": "learning",
+              "http_status": 200,
+              "response": {
+                "canonical_title": "Canonical topic",
+                "language": "en",
+                "source_url": "https://example.invalid/public-article",
+                "questions": [
+                  "Synthetic Q?"
+                ],
+                "related_articles": [
+                  {
+                    "title": "Related",
+                    "canonical_title": "Related",
+                    "language": "en",
+                    "description": "Synthetic",
+                    "extra": "preserved"
+                  }
+                ],
+                "expires_in_seconds": 60,
+                "guide_extension": true
+              },
+              "expected_title": "Input topic"
+            }
+          ],
+          "expected_request_count": 2,
+          "expected_error": null,
+          "expected": {
+            "title": "",
+            "extract": "Synthetic summary 界\nline2",
+            "source_url": "https://example.invalid/public-article",
+            "unknown": {
+              "keep": [
+                null,
+                false,
+                3
+              ]
+            },
+            "questions": [
+              "Synthetic Q?"
+            ],
+            "related_articles": [
+              {
+                "title": "Related",
+                "canonical_title": "Related",
+                "language": "en",
+                "description": "Synthetic",
+                "extra": "preserved"
+              }
+            ],
+            "suggestions_unavailable": false
+          }
+        },
+        {
+          "id": "article-learning-401-keeps-summary",
+          "operation": "article",
+          "query": null,
+          "title": "Input topic",
+          "language": null,
+          "limit": null,
+          "anonymous": false,
+          "steps": [
+            {
+              "operation": "summary",
+              "http_status": 200,
+              "response": {
+                "title": "Canonical topic",
+                "extract": "Synthetic summary 界\nline2",
+                "source_url": "https://example.invalid/public-article",
+                "unknown": {
+                  "keep": [
+                    null,
+                    false,
+                    3
+                  ]
+                }
+              },
+              "expected_title": "Input topic"
+            },
+            {
+              "operation": "learning",
+              "http_status": 401,
+              "response": {
+                "detail": "synthetic guide unavailable"
+              },
+              "expected_title": "Canonical topic"
+            }
+          ],
+          "expected_request_count": 2,
+          "expected_error": null,
+          "expected": {
+            "title": "Canonical topic",
+            "extract": "Synthetic summary 界\nline2",
+            "source_url": "https://example.invalid/public-article",
+            "unknown": {
+              "keep": [
+                null,
+                false,
+                3
+              ]
+            },
+            "questions": [],
+            "related_articles": [],
+            "suggestions_unavailable": true
+          }
+        },
+        {
+          "id": "article-learning-403-keeps-summary",
+          "operation": "article",
+          "query": null,
+          "title": "Input topic",
+          "language": null,
+          "limit": null,
+          "anonymous": false,
+          "steps": [
+            {
+              "operation": "summary",
+              "http_status": 200,
+              "response": {
+                "title": "Canonical topic",
+                "extract": "Synthetic summary 界\nline2",
+                "source_url": "https://example.invalid/public-article",
+                "unknown": {
+                  "keep": [
+                    null,
+                    false,
+                    3
+                  ]
+                }
+              },
+              "expected_title": "Input topic"
+            },
+            {
+              "operation": "learning",
+              "http_status": 403,
+              "response": {
+                "detail": "synthetic guide unavailable"
+              },
+              "expected_title": "Canonical topic"
+            }
+          ],
+          "expected_request_count": 2,
+          "expected_error": null,
+          "expected": {
+            "title": "Canonical topic",
+            "extract": "Synthetic summary 界\nline2",
+            "source_url": "https://example.invalid/public-article",
+            "unknown": {
+              "keep": [
+                null,
+                false,
+                3
+              ]
+            },
+            "questions": [],
+            "related_articles": [],
+            "suggestions_unavailable": true
+          }
+        },
+        {
+          "id": "article-learning-429-keeps-summary",
+          "operation": "article",
+          "query": null,
+          "title": "Input topic",
+          "language": null,
+          "limit": null,
+          "anonymous": false,
+          "steps": [
+            {
+              "operation": "summary",
+              "http_status": 200,
+              "response": {
+                "title": "Canonical topic",
+                "extract": "Synthetic summary 界\nline2",
+                "source_url": "https://example.invalid/public-article",
+                "unknown": {
+                  "keep": [
+                    null,
+                    false,
+                    3
+                  ]
+                }
+              },
+              "expected_title": "Input topic"
+            },
+            {
+              "operation": "learning",
+              "http_status": 429,
+              "response": {
+                "detail": "synthetic guide unavailable"
+              },
+              "expected_title": "Canonical topic"
+            }
+          ],
+          "expected_request_count": 2,
+          "expected_error": null,
+          "expected": {
+            "title": "Canonical topic",
+            "extract": "Synthetic summary 界\nline2",
+            "source_url": "https://example.invalid/public-article",
+            "unknown": {
+              "keep": [
+                null,
+                false,
+                3
+              ]
+            },
+            "questions": [],
+            "related_articles": [],
+            "suggestions_unavailable": true
+          }
+        },
+        {
+          "id": "article-learning-500-keeps-summary",
+          "operation": "article",
+          "query": null,
+          "title": "Input topic",
+          "language": null,
+          "limit": null,
+          "anonymous": false,
+          "steps": [
+            {
+              "operation": "summary",
+              "http_status": 200,
+              "response": {
+                "title": "Canonical topic",
+                "extract": "Synthetic summary 界\nline2",
+                "source_url": "https://example.invalid/public-article",
+                "unknown": {
+                  "keep": [
+                    null,
+                    false,
+                    3
+                  ]
+                }
+              },
+              "expected_title": "Input topic"
+            },
+            {
+              "operation": "learning",
+              "http_status": 500,
+              "response": {
+                "detail": "synthetic guide unavailable"
+              },
+              "expected_title": "Canonical topic"
+            }
+          ],
+          "expected_request_count": 2,
+          "expected_error": null,
+          "expected": {
+            "title": "Canonical topic",
+            "extract": "Synthetic summary 界\nline2",
+            "source_url": "https://example.invalid/public-article",
+            "unknown": {
+              "keep": [
+                null,
+                false,
+                3
+              ]
+            },
+            "questions": [],
+            "related_articles": [],
+            "suggestions_unavailable": true
+          }
+        },
+        {
+          "id": "summary-http-400",
+          "operation": "summary",
+          "query": null,
+          "title": "Input topic",
+          "language": null,
+          "limit": null,
+          "anonymous": false,
+          "steps": [
+            {
+              "operation": "summary",
+              "http_status": 400,
+              "response": {
+                "detail": "synthetic summary refusal"
+              },
+              "expected_title": "Input topic"
+            }
+          ],
+          "expected_request_count": 1,
+          "expected_error": "invalid",
+          "expected": null
+        },
+        {
+          "id": "summary-http-401",
+          "operation": "summary",
+          "query": null,
+          "title": "Input topic",
+          "language": null,
+          "limit": null,
+          "anonymous": false,
+          "steps": [
+            {
+              "operation": "summary",
+              "http_status": 401,
+              "response": {
+                "detail": "synthetic summary refusal"
+              },
+              "expected_title": "Input topic"
+            }
+          ],
+          "expected_request_count": 1,
+          "expected_error": "authentication",
+          "expected": null
+        },
+        {
+          "id": "summary-http-403",
+          "operation": "summary",
+          "query": null,
+          "title": "Input topic",
+          "language": null,
+          "limit": null,
+          "anonymous": false,
+          "steps": [
+            {
+              "operation": "summary",
+              "http_status": 403,
+              "response": {
+                "detail": "synthetic summary refusal"
+              },
+              "expected_title": "Input topic"
+            }
+          ],
+          "expected_request_count": 1,
+          "expected_error": "forbidden",
+          "expected": null
+        },
+        {
+          "id": "summary-http-404",
+          "operation": "summary",
+          "query": null,
+          "title": "Input topic",
+          "language": null,
+          "limit": null,
+          "anonymous": false,
+          "steps": [
+            {
+              "operation": "summary",
+              "http_status": 404,
+              "response": {
+                "detail": "synthetic summary refusal"
+              },
+              "expected_title": "Input topic"
+            }
+          ],
+          "expected_request_count": 1,
+          "expected_error": "invalid",
+          "expected": null
+        },
+        {
+          "id": "summary-http-409",
+          "operation": "summary",
+          "query": null,
+          "title": "Input topic",
+          "language": null,
+          "limit": null,
+          "anonymous": false,
+          "steps": [
+            {
+              "operation": "summary",
+              "http_status": 409,
+              "response": {
+                "detail": "synthetic summary refusal"
+              },
+              "expected_title": "Input topic"
+            }
+          ],
+          "expected_request_count": 1,
+          "expected_error": "conflict",
+          "expected": null
+        },
+        {
+          "id": "summary-http-422",
+          "operation": "summary",
+          "query": null,
+          "title": "Input topic",
+          "language": null,
+          "limit": null,
+          "anonymous": false,
+          "steps": [
+            {
+              "operation": "summary",
+              "http_status": 422,
+              "response": {
+                "detail": "synthetic summary refusal"
+              },
+              "expected_title": "Input topic"
+            }
+          ],
+          "expected_request_count": 1,
+          "expected_error": "invalid",
+          "expected": null
+        },
+        {
+          "id": "summary-http-429",
+          "operation": "summary",
+          "query": null,
+          "title": "Input topic",
+          "language": null,
+          "limit": null,
+          "anonymous": false,
+          "steps": [
+            {
+              "operation": "summary",
+              "http_status": 429,
+              "response": {
+                "detail": "synthetic summary refusal"
+              },
+              "expected_title": "Input topic"
+            }
+          ],
+          "expected_request_count": 1,
+          "expected_error": "offline",
+          "expected": null
+        },
+        {
+          "id": "summary-http-500",
+          "operation": "summary",
+          "query": null,
+          "title": "Input topic",
+          "language": null,
+          "limit": null,
+          "anonymous": false,
+          "steps": [
+            {
+              "operation": "summary",
+              "http_status": 500,
+              "response": {
+                "detail": "synthetic summary refusal"
+              },
+              "expected_title": "Input topic"
+            }
+          ],
+          "expected_request_count": 1,
+          "expected_error": "offline",
+          "expected": null
+        },
+        {
+          "id": "article-summary-failure-does-not-request-learning",
+          "operation": "article",
+          "query": null,
+          "title": "Input topic",
+          "language": null,
+          "limit": null,
+          "anonymous": false,
+          "steps": [
+            {
+              "operation": "summary",
+              "http_status": 403,
+              "response": {
+                "detail": "synthetic summary refusal"
+              },
+              "expected_title": "Input topic"
+            }
+          ],
+          "expected_request_count": 1,
+          "expected_error": "forbidden",
+          "expected": null
+        },
+        {
+          "id": "anonymous-search",
+          "operation": "search",
+          "query": "Topic",
+          "title": null,
+          "language": null,
+          "limit": null,
+          "anonymous": true,
+          "steps": [],
+          "expected_request_count": 0,
+          "expected_error": "authentication",
+          "expected": null
+        },
+        {
+          "id": "anonymous-summary",
+          "operation": "summary",
+          "query": null,
+          "title": "Input topic",
+          "language": null,
+          "limit": null,
+          "anonymous": true,
+          "steps": [],
+          "expected_request_count": 0,
+          "expected_error": "authentication",
+          "expected": null
+        },
+        {
+          "id": "anonymous-learning",
+          "operation": "learning",
+          "query": null,
+          "title": "Input topic",
+          "language": null,
+          "limit": null,
+          "anonymous": true,
+          "steps": [],
+          "expected_request_count": 0,
+          "expected_error": "authentication",
+          "expected": null
+        },
+        {
+          "id": "anonymous-article",
+          "operation": "article",
+          "query": null,
+          "title": "Input topic",
+          "language": null,
+          "limit": null,
+          "anonymous": true,
+          "steps": [],
+          "expected_request_count": 0,
+          "expected_error": "authentication",
+          "expected": null
+        }
+      ]
+    }
+  }
+}

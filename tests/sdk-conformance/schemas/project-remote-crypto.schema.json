@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "provenance",
+    "capabilities"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "provenance": {
+      "type": "string"
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol.project-remote-crypto.v1"
+      ],
+      "properties": {
+        "protocol.project-remote-crypto.v1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "project_key",
+            "identities",
+            "request_id",
+            "request_text",
+            "result_text",
+            "vectors"
+          ],
+          "properties": {
+            "project_key": {
+              "const": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"
+            },
+            "identities": {
+              "const": {
+                "personal": {
+                  "ownerId": "owner-\"\\☃😀",
+                  "projectId": "project-1",
+                  "sourceId": "source-1",
+                  "sourceSessionId": "session-1",
+                  "requestingClientId": "browser-1",
+                  "keyEpoch": 7
+                },
+                "team": {
+                  "ownerId": "owner-\"\\☃😀",
+                  "projectId": "project-1",
+                  "sourceId": "source-1",
+                  "sourceSessionId": "session-1",
+                  "requestingClientId": "browser-1",
+                  "keyEpoch": 7,
+                  "contextType": "team",
+                  "contextId": "team-1",
+                  "hostMemberId": "host-member",
+                  "hostDeviceId": "host-device",
+                  "requesterMemberId": "requester-member",
+                  "requesterDeviceId": "requester-device"
+                }
+              }
+            },
+            "request_id": {
+              "type": "string"
+            },
+            "request_text": {
+              "type": "string"
+            },
+            "result_text": {
+              "type": "string"
+            },
+            "vectors": {
+              "type": "array",
+              "minItems": 14,
+              "maxItems": 14,
+              "uniqueItems": true,
+              "items": {
+                "oneOf": [
+                  {
+                    "const": {
+                      "id": "personal-requester-interop",
+                      "mode": "personal-requester-interop",
+                      "context": "personal",
+                      "role": "requester"
+                    }
+                  },
+                  {
+                    "const": {
+                      "id": "personal-source-interop",
+                      "mode": "personal-source-interop",
+                      "context": "personal",
+                      "role": "source"
+                    }
+                  },
+                  {
+                    "const": {
+                      "id": "team-requester-interop",
+                      "mode": "team-requester-interop",
+                      "context": "team",
+                      "role": "requester"
+                    }
+                  },
+                  {
+                    "const": {
+                      "id": "team-source-interop",
+                      "mode": "team-source-interop",
+                      "context": "team",
+                      "role": "source"
+                    }
+                  },
+                  {
+                    "const": {
+                      "id": "bad-handshake-tag-consumes-state",
+                      "mode": "bad-handshake-tag-consumes-state",
+                      "context": "personal",
+                      "role": "requester"
+                    }
+                  },
+                  {
+                    "const": {
+                      "id": "wrong-identity",
+                      "mode": "wrong-identity",
+                      "context": "personal",
+                      "role": "requester"
+                    }
+                  },
+                  {
+                    "const": {
+                      "id": "wrong-project-key",
+                      "mode": "wrong-project-key",
+                      "context": "personal",
+                      "role": "requester"
+                    }
+                  },
+                  {
+                    "const": {
+                      "id": "wrong-role-version",
+                      "mode": "wrong-role-version",
+                      "context": "personal",
+                      "role": "requester"
+                    }
+                  },
+                  {
+                    "const": {
+                      "id": "tamper-routing-replay",
+                      "mode": "tamper-routing-replay",
+                      "context": "personal",
+                      "role": "requester"
+                    }
+                  },
+                  {
+                    "const": {
+                      "id": "json-invalid-retry-and-lossless-text",
+                      "mode": "json-invalid-retry-and-lossless-text",
+                      "context": "personal",
+                      "role": "requester"
+                    }
+                  },
+                  {
+                    "const": {
+                      "id": "close-handles",
+                      "mode": "close-handles",
+                      "context": "personal",
+                      "role": "requester"
+                    }
+                  },
+                  {
+                    "const": {
+                      "id": "metadata-key-bounds",
+                      "mode": "metadata-key-bounds",
+                      "context": "personal",
+                      "role": "requester"
+                    }
+                  },
+                  {
+                    "const": {
+                      "id": "payload-envelope-bounds",
+                      "mode": "payload-envelope-bounds",
+                      "context": "personal",
+                      "role": "requester"
+                    }
+                  },
+                  {
+                    "const": {
+                      "id": "nonce-capacity",
+                      "mode": "nonce-capacity",
+                      "context": "personal",
+                      "role": "requester"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

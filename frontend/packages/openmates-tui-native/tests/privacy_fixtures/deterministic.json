@@ -1,0 +1,367 @@
+{
+  "provenance": "Synthetic examples evaluated with canonical piiDetectionService.ts; expected originals split at line breaks as ProjectFilePrivacy does. Public placeholders only; never use synthetic secrets in production.",
+  "vectors": [
+    {
+      "name": "aws",
+      "input": "AKIAABCDEFGHIJKLMNOP",
+      "expected": [
+        {
+          "original": "AKIAABCDEFGHIJKLMNOP",
+          "type": "AWS_ACCESS_KEY"
+        }
+      ]
+    },
+    {
+      "name": "openai",
+      "input": "sk-proj-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expected": [
+        {
+          "original": "sk-proj-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "type": "OPENAI_KEY"
+        }
+      ]
+    },
+    {
+      "name": "anthropic",
+      "input": "sk-ant-api03-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "expected": [
+        {
+          "original": "sk-ant-api03-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "type": "OPENAI_KEY"
+        }
+      ]
+    },
+    {
+      "name": "github",
+      "input": "ghp_cccccccccccccccccccccccccccccccccccc",
+      "expected": [
+        {
+          "original": "ghp_cccccccccccccccccccccccccccccccccccc",
+          "type": "GITHUB_PAT"
+        }
+      ]
+    },
+    {
+      "name": "stripe",
+      "input": "sk_test_dddddddddddddddddddddddddddddd",
+      "expected": [
+        {
+          "original": "sk_test_dddddddddddddddddddddddddddddd",
+          "type": "STRIPE_KEY"
+        }
+      ]
+    },
+    {
+      "name": "google",
+      "input": "AIzaeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "expected": [
+        {
+          "original": "AIzaeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "type": "GOOGLE_API_KEY"
+        }
+      ]
+    },
+    {
+      "name": "slack",
+      "input": "xoxb-ffffffffffffffffffffff",
+      "expected": [
+        {
+          "original": "xoxb-ffffffffffffffffffffff",
+          "type": "SLACK_TOKEN"
+        }
+      ]
+    },
+    {
+      "name": "aws-secret",
+      "input": "aws_secret = GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+      "expected": [
+        {
+          "original": "aws_secret = GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+          "type": "AWS_SECRET_KEY"
+        }
+      ]
+    },
+    {
+      "name": "twilio",
+      "input": "ACaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expected": [
+        {
+          "original": "ACaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "type": "TWILIO_KEY"
+        }
+      ]
+    },
+    {
+      "name": "sendgrid",
+      "input": "SG.hhhhhhhhhhhhhhhhhhhhhh.jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj",
+      "expected": [
+        {
+          "original": "SG.hhhhhhhhhhhhhhhhhhhhhh.jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj",
+          "type": "SENDGRID_KEY"
+        }
+      ]
+    },
+    {
+      "name": "azure",
+      "input": "azure_key=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "expected": [
+        {
+          "original": "azure_key=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "type": "AZURE_KEY"
+        }
+      ]
+    },
+    {
+      "name": "huggingface",
+      "input": "hf_kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
+      "expected": [
+        {
+          "original": "hf_kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
+          "type": "HUGGINGFACE_KEY"
+        }
+      ]
+    },
+    {
+      "name": "databricks",
+      "input": "dapiaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expected": [
+        {
+          "original": "dapiaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "type": "DATABRICKS_TOKEN"
+        }
+      ]
+    },
+    {
+      "name": "firebase",
+      "input": "AAAAmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
+      "expected": [
+        {
+          "original": "AAAAmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
+          "type": "FIREBASE_KEY"
+        }
+      ]
+    },
+    {
+      "name": "generic",
+      "input": "password=fictionalCredential42",
+      "expected": [
+        {
+          "original": "password=fictionalCredential42",
+          "type": "GENERIC_SECRET"
+        }
+      ]
+    },
+    {
+      "name": "pem",
+      "input": "-----BEGIN PRIVATE KEY-----\nSYNTHETICKEYONLY\n-----END PRIVATE KEY-----",
+      "expected": [
+        {
+          "original": "-----BEGIN PRIVATE KEY-----",
+          "type": "PRIVATE_KEY"
+        },
+        {
+          "original": "SYNTHETICKEYONLY",
+          "type": "PRIVATE_KEY"
+        },
+        {
+          "original": "-----END PRIVATE KEY-----",
+          "type": "PRIVATE_KEY"
+        }
+      ]
+    },
+    {
+      "name": "jwt",
+      "input": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJmaWN0aW9uYWwifQ.c3ludGhldGlj",
+      "expected": [
+        {
+          "original": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJmaWN0aW9uYWwifQ.c3ludGhldGlj",
+          "type": "JWT"
+        }
+      ]
+    },
+    {
+      "name": "email",
+      "input": "fictional@example.invalid",
+      "expected": [
+        {
+          "original": "fictional@example.invalid",
+          "type": "EMAIL"
+        }
+      ]
+    },
+    {
+      "name": "card",
+      "input": "4111 1111 1111 1111",
+      "expected": [
+        {
+          "original": "4111 1111 1111 1111",
+          "type": "CREDIT_CARD"
+        }
+      ]
+    },
+    {
+      "name": "ssn",
+      "input": "123-45-6789",
+      "expected": [
+        {
+          "original": "123-45-6789",
+          "type": "SSN"
+        }
+      ]
+    },
+    {
+      "name": "phone",
+      "input": "+49 30 1234 5678",
+      "expected": [
+        {
+          "original": "+49 30 1234 5678",
+          "type": "PHONE"
+        }
+      ]
+    },
+    {
+      "name": "ipv4",
+      "input": "8.8.8.8",
+      "expected": [
+        {
+          "original": "8.8.8.8",
+          "type": "IPV4"
+        }
+      ]
+    },
+    {
+      "name": "ipv6",
+      "input": "2001:0db8:0000:0000:0000:ff00:0042:8329",
+      "expected": [
+        {
+          "original": "2001:0db8:0000:0000:0000:ff00:0042:8329",
+          "type": "IPV6"
+        }
+      ]
+    },
+    {
+      "name": "iban",
+      "input": "DE89370400440532013000",
+      "expected": [
+        {
+          "original": "8937040044",
+          "type": "PHONE"
+        },
+        {
+          "original": "0532013000",
+          "type": "PHONE"
+        }
+      ]
+    },
+    {
+      "name": "home",
+      "input": "/home/fictionalperson/project",
+      "expected": [
+        {
+          "original": "/home/fictionalperson",
+          "type": "HOME_FOLDER"
+        }
+      ]
+    },
+    {
+      "name": "terminal",
+      "input": "fictional@privatehost:~$",
+      "expected": [
+        {
+          "original": "fictional@privatehost",
+          "type": "USER_AT_HOSTNAME"
+        }
+      ]
+    },
+    {
+      "name": "mac",
+      "input": "AA:BB:CC:DD:EE:01",
+      "expected": [
+        {
+          "original": "AA:BB:CC:DD:EE:01",
+          "type": "MAC_ADDRESS"
+        }
+      ]
+    },
+    {
+      "name": "passport",
+      "input": "passport: C12345678",
+      "expected": [
+        {
+          "original": "passport: C12345678",
+          "type": "PASSPORT"
+        }
+      ]
+    },
+    {
+      "name": "tax",
+      "input": "DE123456789",
+      "expected": [
+        {
+          "original": "DE123456789",
+          "type": "TAX_ID"
+        }
+      ]
+    },
+    {
+      "name": "plate",
+      "input": "license plate: B AB 1234",
+      "expected": [
+        {
+          "original": "license plate: B AB 1234",
+          "type": "VEHICLE_PLATE"
+        }
+      ]
+    },
+    {
+      "name": "wallet",
+      "input": "0x742d35Cc6634C0532925a3b844Bc9e7595f2bD18",
+      "expected": [
+        {
+          "original": "0532925",
+          "type": "PHONE"
+        }
+      ]
+    },
+    {
+      "name": "negative-service",
+      "input": "git@github.com root@server:~$ /home/ubuntu/project",
+      "expected": [
+        {
+          "original": "git@github.com",
+          "type": "EMAIL"
+        }
+      ]
+    },
+    {
+      "name": "negative-local-ip",
+      "input": "127.0.0.1 192.168.1.1 10.1.2.3",
+      "expected": []
+    },
+    {
+      "name": "negative-dates",
+      "input": "2026-04-12 and 12/04/2026",
+      "expected": []
+    },
+    {
+      "name": "url-shield",
+      "input": "https://example.invalid/2025/1/6/24337399",
+      "expected": []
+    },
+    {
+      "name": "uuid-shield",
+      "input": "f19829ad-2f7d-4c25-8c13-123456789012",
+      "expected": []
+    },
+    {
+      "name": "luhn-invalid",
+      "input": "4111 1111 1111 1112",
+      "expected": []
+    },
+    {
+      "name": "iban-invalid",
+      "input": "DE00370400440532013000",
+      "expected": []
+    }
+  ]
+}

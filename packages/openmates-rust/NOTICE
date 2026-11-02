@@ -1,0 +1,11 @@
+OpenMates Rust SDK
+Copyright OpenMates contributors.
+
+This SDK is licensed under MIT. Protocol parameters and interoperability vectors
+follow the OpenMates protocol. Canonical interoperability fixtures are synchronized
+from the OpenMates repository by scripts/sync_rust_sdk_fixtures.py.
+
+Task ordering uses ICU4X icu_collator and its compiled Unicode/CLDR data,
+licensed Unicode-3.0, and utf16_iter/write16, licensed Apache-2.0 OR MIT.
+The Task-order fixture records qualified Node/ICU/data identities, not a claim
+of ordering equality across arbitrary Unicode or CLDR releases.

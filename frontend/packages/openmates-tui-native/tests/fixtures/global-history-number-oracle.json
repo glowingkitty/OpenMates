@@ -1,0 +1,6346 @@
+{
+  "error_cases": [
+    {
+      "action": "list",
+      "status": 422,
+      "json": false,
+      "stdout": "",
+      "stderr": "Error: Workspace history list failed with HTTP 422\n",
+      "exit_code": 1
+    },
+    {
+      "action": "list",
+      "status": 422,
+      "json": true,
+      "stdout": "",
+      "stderr": "{\"error\":{\"code\":\"command_failed\",\"message\":\"Workspace history list failed with HTTP 422\"}}\n",
+      "exit_code": 1
+    },
+    {
+      "action": "show",
+      "status": 404,
+      "json": false,
+      "stdout": "",
+      "stderr": "Error: Workspace history show failed with HTTP 404\n",
+      "exit_code": 1
+    },
+    {
+      "action": "show",
+      "status": 404,
+      "json": true,
+      "stdout": "",
+      "stderr": "{\"error\":{\"code\":\"command_failed\",\"message\":\"Workspace history show failed with HTTP 404\"}}\n",
+      "exit_code": 1
+    },
+    {
+      "action": "undo",
+      "status": 409,
+      "json": false,
+      "stdout": "",
+      "stderr": "Error: Workspace history undo failed with HTTP 409\n",
+      "exit_code": 1
+    },
+    {
+      "action": "undo",
+      "status": 409,
+      "json": true,
+      "stdout": "",
+      "stderr": "{\"error\":{\"code\":\"command_failed\",\"message\":\"Workspace history undo failed with HTTP 409\"}}\n",
+      "exit_code": 1
+    }
+  ],
+  "oracle": {
+    "node": "v24.20.0",
+    "cli_source_sha256": "d339605cbe60b1198a56b2e10ddf0bab154ebecfd9ff4f558315e030cc1a9e45",
+    "client_source_sha256": "853afee952df271231c4d2c8b40a5a29969ad88f8c8a01983c2deec58a0356ee",
+    "execution": "Actual baseline parser, handler and SDK list method extracted; stubbed session and HTTP only. No product runtime or network."
+  },
+  "cases": [
+    {
+      "argv": [
+        "history",
+        "list"
+      ],
+      "flags": {},
+      "number_bits": "7ff8000000000000",
+      "number_string": "NaN",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit="
+      ],
+      "flags": {
+        "limit": ""
+      },
+      "number_bits": "0000000000000000",
+      "number_string": "0",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit= "
+      ],
+      "flags": {
+        "limit": " "
+      },
+      "number_bits": "0000000000000000",
+      "number_string": "0",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=﻿"
+      ],
+      "flags": {
+        "limit": "﻿"
+      },
+      "number_bits": "0000000000000000",
+      "number_string": "0",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit="
+      ],
+      "flags": {
+        "limit": ""
+      },
+      "number_bits": "7ff8000000000000",
+      "number_string": "NaN",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=  1  "
+      ],
+      "flags": {
+        "limit": "  1  "
+      },
+      "number_bits": "3ff0000000000000",
+      "number_string": "1",
+      "limit_query": "1",
+      "path": "/v1/workspace/history?limit=1"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=0"
+      ],
+      "flags": {
+        "limit": "0"
+      },
+      "number_bits": "0000000000000000",
+      "number_string": "0",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-0"
+      ],
+      "flags": {
+        "limit": "-0"
+      },
+      "number_bits": "8000000000000000",
+      "number_string": "0",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=+0"
+      ],
+      "flags": {
+        "limit": "+0"
+      },
+      "number_bits": "0000000000000000",
+      "number_string": "0",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=NaN"
+      ],
+      "flags": {
+        "limit": "NaN"
+      },
+      "number_bits": "7ff8000000000000",
+      "number_string": "NaN",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=nan"
+      ],
+      "flags": {
+        "limit": "nan"
+      },
+      "number_bits": "7ff8000000000000",
+      "number_string": "NaN",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=Infinity"
+      ],
+      "flags": {
+        "limit": "Infinity"
+      },
+      "number_bits": "7ff0000000000000",
+      "number_string": "Infinity",
+      "limit_query": "Infinity",
+      "path": "/v1/workspace/history?limit=Infinity"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=+Infinity"
+      ],
+      "flags": {
+        "limit": "+Infinity"
+      },
+      "number_bits": "7ff0000000000000",
+      "number_string": "Infinity",
+      "limit_query": "Infinity",
+      "path": "/v1/workspace/history?limit=Infinity"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-Infinity"
+      ],
+      "flags": {
+        "limit": "-Infinity"
+      },
+      "number_bits": "fff0000000000000",
+      "number_string": "-Infinity",
+      "limit_query": "-Infinity",
+      "path": "/v1/workspace/history?limit=-Infinity"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=infinity"
+      ],
+      "flags": {
+        "limit": "infinity"
+      },
+      "number_bits": "7ff8000000000000",
+      "number_string": "NaN",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=inf"
+      ],
+      "flags": {
+        "limit": "inf"
+      },
+      "number_bits": "7ff8000000000000",
+      "number_string": "NaN",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=+inf"
+      ],
+      "flags": {
+        "limit": "+inf"
+      },
+      "number_bits": "7ff8000000000000",
+      "number_string": "NaN",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-inf"
+      ],
+      "flags": {
+        "limit": "-inf"
+      },
+      "number_bits": "7ff8000000000000",
+      "number_string": "NaN",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.5"
+      ],
+      "flags": {
+        "limit": "1.5"
+      },
+      "number_bits": "3ff8000000000000",
+      "number_string": "1.5",
+      "limit_query": "1.5",
+      "path": "/v1/workspace/history?limit=1.5"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-3.5"
+      ],
+      "flags": {
+        "limit": "-3.5"
+      },
+      "number_bits": "c00c000000000000",
+      "number_string": "-3.5",
+      "limit_query": "-3.5",
+      "path": "/v1/workspace/history?limit=-3.5"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1e21"
+      ],
+      "flags": {
+        "limit": "1e21"
+      },
+      "number_bits": "444b1ae4d6e2ef50",
+      "number_string": "1e+21",
+      "limit_query": "1e+21",
+      "path": "/v1/workspace/history?limit=1e%2B21"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1e20"
+      ],
+      "flags": {
+        "limit": "1e20"
+      },
+      "number_bits": "4415af1d78b58c40",
+      "number_string": "100000000000000000000",
+      "limit_query": "100000000000000000000",
+      "path": "/v1/workspace/history?limit=100000000000000000000"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1e-6"
+      ],
+      "flags": {
+        "limit": "1e-6"
+      },
+      "number_bits": "3eb0c6f7a0b5ed8d",
+      "number_string": "0.000001",
+      "limit_query": "0.000001",
+      "path": "/v1/workspace/history?limit=0.000001"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1e-7"
+      ],
+      "flags": {
+        "limit": "1e-7"
+      },
+      "number_bits": "3e7ad7f29abcaf48",
+      "number_string": "1e-7",
+      "limit_query": "1e-7",
+      "path": "/v1/workspace/history?limit=1e-7"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1000000000000000100"
+      ],
+      "flags": {
+        "limit": "1000000000000000100"
+      },
+      "number_bits": "43abc16d674ec801",
+      "number_string": "1000000000000000100",
+      "limit_query": "1000000000000000100",
+      "path": "/v1/workspace/history?limit=1000000000000000100"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=9007199254740993"
+      ],
+      "flags": {
+        "limit": "9007199254740993"
+      },
+      "number_bits": "4340000000000000",
+      "number_string": "9007199254740992",
+      "limit_query": "9007199254740992",
+      "path": "/v1/workspace/history?limit=9007199254740992"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=9223372036854775808"
+      ],
+      "flags": {
+        "limit": "9223372036854775808"
+      },
+      "number_bits": "43e0000000000000",
+      "number_string": "9223372036854776000",
+      "limit_query": "9223372036854776000",
+      "path": "/v1/workspace/history?limit=9223372036854776000"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1e309"
+      ],
+      "flags": {
+        "limit": "1e309"
+      },
+      "number_bits": "7ff0000000000000",
+      "number_string": "Infinity",
+      "limit_query": "Infinity",
+      "path": "/v1/workspace/history?limit=Infinity"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1e309"
+      ],
+      "flags": {
+        "limit": "-1e309"
+      },
+      "number_bits": "fff0000000000000",
+      "number_string": "-Infinity",
+      "limit_query": "-Infinity",
+      "path": "/v1/workspace/history?limit=-Infinity"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1e-400"
+      ],
+      "flags": {
+        "limit": "1e-400"
+      },
+      "number_bits": "0000000000000000",
+      "number_string": "0",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=5e-324"
+      ],
+      "flags": {
+        "limit": "5e-324"
+      },
+      "number_bits": "0000000000000001",
+      "number_string": "5e-324",
+      "limit_query": "5e-324",
+      "path": "/v1/workspace/history?limit=5e-324"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.2250738585072014e-308"
+      ],
+      "flags": {
+        "limit": "2.2250738585072014e-308"
+      },
+      "number_bits": "0010000000000000",
+      "number_string": "2.2250738585072014e-308",
+      "limit_query": "2.2250738585072014e-308",
+      "path": "/v1/workspace/history?limit=2.2250738585072014e-308"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.7976931348623157e308"
+      ],
+      "flags": {
+        "limit": "1.7976931348623157e308"
+      },
+      "number_bits": "7fefffffffffffff",
+      "number_string": "1.7976931348623157e+308",
+      "limit_query": "1.7976931348623157e+308",
+      "path": "/v1/workspace/history?limit=1.7976931348623157e%2B308"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=0x10"
+      ],
+      "flags": {
+        "limit": "0x10"
+      },
+      "number_bits": "4030000000000000",
+      "number_string": "16",
+      "limit_query": "16",
+      "path": "/v1/workspace/history?limit=16"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=0XFFFFFFFFFFFFFFFFFFFF"
+      ],
+      "flags": {
+        "limit": "0XFFFFFFFFFFFFFFFFFFFF"
+      },
+      "number_bits": "44f0000000000000",
+      "number_string": "1.2089258196146292e+24",
+      "limit_query": "1.2089258196146292e+24",
+      "path": "/v1/workspace/history?limit=1.2089258196146292e%2B24"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      ],
+      "flags": {
+        "limit": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "number_bits": "7ff0000000000000",
+      "number_string": "Infinity",
+      "limit_query": "Infinity",
+      "path": "/v1/workspace/history?limit=Infinity"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=0b1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+      ],
+      "flags": {
+        "limit": "0b1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "number_bits": "4630000000000000",
+      "number_string": "1.2676506002282294e+30",
+      "limit_query": "1.2676506002282294e+30",
+      "path": "/v1/workspace/history?limit=1.2676506002282294e%2B30"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=0o777777777777777777777777777777"
+      ],
+      "flags": {
+        "limit": "0o777777777777777777777777777777"
+      },
+      "number_bits": "4590000000000000",
+      "number_string": "1.2379400392853803e+27",
+      "limit_query": "1.2379400392853803e+27",
+      "path": "/v1/workspace/history?limit=1.2379400392853803e%2B27"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=+0x10"
+      ],
+      "flags": {
+        "limit": "+0x10"
+      },
+      "number_bits": "7ff8000000000000",
+      "number_string": "NaN",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-0x10"
+      ],
+      "flags": {
+        "limit": "-0x10"
+      },
+      "number_bits": "7ff8000000000000",
+      "number_string": "NaN",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=0x"
+      ],
+      "flags": {
+        "limit": "0x"
+      },
+      "number_bits": "7ff8000000000000",
+      "number_string": "NaN",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=0b2"
+      ],
+      "flags": {
+        "limit": "0b2"
+      },
+      "number_bits": "7ff8000000000000",
+      "number_string": "NaN",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=0o8"
+      ],
+      "flags": {
+        "limit": "0o8"
+      },
+      "number_bits": "7ff8000000000000",
+      "number_string": "NaN",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=00"
+      ],
+      "flags": {
+        "limit": "00"
+      },
+      "number_bits": "0000000000000000",
+      "number_string": "0",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=.5"
+      ],
+      "flags": {
+        "limit": ".5"
+      },
+      "number_bits": "3fe0000000000000",
+      "number_string": "0.5",
+      "limit_query": "0.5",
+      "path": "/v1/workspace/history?limit=0.5"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1."
+      ],
+      "flags": {
+        "limit": "1."
+      },
+      "number_bits": "3ff0000000000000",
+      "number_string": "1",
+      "limit_query": "1",
+      "path": "/v1/workspace/history?limit=1"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.e2"
+      ],
+      "flags": {
+        "limit": "1.e2"
+      },
+      "number_bits": "4059000000000000",
+      "number_string": "100",
+      "limit_query": "100",
+      "path": "/v1/workspace/history?limit=100"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1e"
+      ],
+      "flags": {
+        "limit": "1e"
+      },
+      "number_bits": "7ff8000000000000",
+      "number_string": "NaN",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1_000"
+      ],
+      "flags": {
+        "limit": "1_000"
+      },
+      "number_bits": "7ff8000000000000",
+      "number_string": "NaN",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1\n2"
+      ],
+      "flags": {
+        "limit": "1\n2"
+      },
+      "number_bits": "7ff8000000000000",
+      "number_string": "NaN",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=​1"
+      ],
+      "flags": {
+        "limit": "​1"
+      },
+      "number_bits": "7ff8000000000000",
+      "number_string": "NaN",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1=2"
+      ],
+      "flags": {
+        "limit": "1"
+      },
+      "number_bits": "3ff0000000000000",
+      "number_string": "1",
+      "limit_query": "1",
+      "path": "/v1/workspace/history?limit=1"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-3.867270028102586e+280"
+      ],
+      "flags": {
+        "limit": "-3.867270028102586e+280"
+      },
+      "number_bits": "fa310b3bdb53e776",
+      "number_string": "-3.867270028102586e+280",
+      "limit_query": "-3.867270028102586e+280",
+      "path": "/v1/workspace/history?limit=-3.867270028102586e%2B280"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=3.0337110786435252e-285"
+      ],
+      "flags": {
+        "limit": "3.0337110786435252e-285"
+      },
+      "number_bits": "04dcdf1de4a8bb0d",
+      "number_string": "3.0337110786435252e-285",
+      "limit_query": "3.0337110786435252e-285",
+      "path": "/v1/workspace/history?limit=3.0337110786435252e-285"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.4474268687029975e+197"
+      ],
+      "flags": {
+        "limit": "-1.4474268687029975e+197"
+      },
+      "number_bits": "e8defb35986cd598",
+      "number_string": "-1.4474268687029975e+197",
+      "limit_query": "-1.4474268687029975e+197",
+      "path": "/v1/workspace/history?limit=-1.4474268687029975e%2B197"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.5683658235508848e-168"
+      ],
+      "flags": {
+        "limit": "1.5683658235508848e-168"
+      },
+      "number_bits": "1d17ad0231f77507",
+      "number_string": "1.5683658235508848e-168",
+      "limit_query": "1.5683658235508848e-168",
+      "path": "/v1/workspace/history?limit=1.5683658235508848e-168"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=9.752519205149083e+136"
+      ],
+      "flags": {
+        "limit": "9.752519205149083e+136"
+      },
+      "number_bits": "5c60c5abb4088c8a",
+      "number_string": "9.752519205149083e+136",
+      "limit_query": "9.752519205149083e+136",
+      "path": "/v1/workspace/history?limit=9.752519205149083e%2B136"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=5.579776862313414e-248"
+      ],
+      "flags": {
+        "limit": "5.579776862313414e-248"
+      },
+      "number_bits": "0c98f7f29ef2ab91",
+      "number_string": "5.579776862313414e-248",
+      "limit_query": "5.579776862313414e-248",
+      "path": "/v1/workspace/history?limit=5.579776862313414e-248"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-7.530571509547975e+165"
+      ],
+      "flags": {
+        "limit": "-7.530571509547975e+165"
+      },
+      "number_bits": "e26058a9329198cc",
+      "number_string": "-7.530571509547975e+165",
+      "limit_query": "-7.530571509547975e+165",
+      "path": "/v1/workspace/history?limit=-7.530571509547975e%2B165"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-6.713594531104865e-144"
+      ],
+      "flags": {
+        "limit": "-6.713594531104865e-144"
+      },
+      "number_bits": "a234f5499488912b",
+      "number_string": "-6.713594531104865e-144",
+      "limit_query": "-6.713594531104865e-144",
+      "path": "/v1/workspace/history?limit=-6.713594531104865e-144"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=9.83973915371488e+259"
+      ],
+      "flags": {
+        "limit": "9.83973915371488e+259"
+      },
+      "number_bits": "75e9994215745ade",
+      "number_string": "9.83973915371488e+259",
+      "limit_query": "9.83973915371488e+259",
+      "path": "/v1/workspace/history?limit=9.83973915371488e%2B259"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=0.0004852698777057564"
+      ],
+      "flags": {
+        "limit": "0.0004852698777057564"
+      },
+      "number_bits": "3f3fcd7a41259c55",
+      "number_string": "0.0004852698777057564",
+      "limit_query": "0.0004852698777057564",
+      "path": "/v1/workspace/history?limit=0.0004852698777057564"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-4.383163619752596e-38"
+      ],
+      "flags": {
+        "limit": "-4.383163619752596e-38"
+      },
+      "number_bits": "b82dd48c4d0b2740",
+      "number_string": "-4.383163619752596e-38",
+      "limit_query": "-4.383163619752596e-38",
+      "path": "/v1/workspace/history?limit=-4.383163619752596e-38"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=5.0188389476538286e-132"
+      ],
+      "flags": {
+        "limit": "5.0188389476538286e-132"
+      },
+      "number_bits": "24ac7fc5e316278f",
+      "number_string": "5.0188389476538286e-132",
+      "limit_query": "5.0188389476538286e-132",
+      "path": "/v1/workspace/history?limit=5.0188389476538286e-132"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.1409090631457398e+213"
+      ],
+      "flags": {
+        "limit": "-1.1409090631457398e+213"
+      },
+      "number_bits": "ec2b1cb65a276672",
+      "number_string": "-1.1409090631457398e+213",
+      "limit_query": "-1.1409090631457398e+213",
+      "path": "/v1/workspace/history?limit=-1.1409090631457398e%2B213"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-3.0462242226430305e+98"
+      ],
+      "flags": {
+        "limit": "-3.0462242226430305e+98"
+      },
+      "number_bits": "d461d3a8d4811159",
+      "number_string": "-3.0462242226430305e+98",
+      "limit_query": "-3.0462242226430305e+98",
+      "path": "/v1/workspace/history?limit=-3.0462242226430305e%2B98"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-8.690680224646106e-49"
+      ],
+      "flags": {
+        "limit": "-8.690680224646106e-49"
+      },
+      "number_bits": "b5f45282de7fb4f4",
+      "number_string": "-8.690680224646106e-49",
+      "limit_query": "-8.690680224646106e-49",
+      "path": "/v1/workspace/history?limit=-8.690680224646106e-49"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.9553658541512515e-177"
+      ],
+      "flags": {
+        "limit": "1.9553658541512515e-177"
+      },
+      "number_bits": "1b3fb1d230a35c33",
+      "number_string": "1.9553658541512515e-177",
+      "limit_query": "1.9553658541512515e-177",
+      "path": "/v1/workspace/history?limit=1.9553658541512515e-177"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=5.171129243481354e+86"
+      ],
+      "flags": {
+        "limit": "5.171129243481354e+86"
+      },
+      "number_bits": "51f0a2fd5c8b0346",
+      "number_string": "5.171129243481354e+86",
+      "limit_query": "5.171129243481354e+86",
+      "path": "/v1/workspace/history?limit=5.171129243481354e%2B86"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-7.688008659553612e+66"
+      ],
+      "flags": {
+        "limit": "-7.688008659553612e+66"
+      },
+      "number_bits": "cdd24020e234ce9d",
+      "number_string": "-7.688008659553612e+66",
+      "limit_query": "-7.688008659553612e+66",
+      "path": "/v1/workspace/history?limit=-7.688008659553612e%2B66"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=8.089832858501143e-203"
+      ],
+      "flags": {
+        "limit": "8.089832858501143e-203"
+      },
+      "number_bits": "15f95d2aca90b5e8",
+      "number_string": "8.089832858501143e-203",
+      "limit_query": "8.089832858501143e-203",
+      "path": "/v1/workspace/history?limit=8.089832858501143e-203"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.1839880737695235e+209"
+      ],
+      "flags": {
+        "limit": "1.1839880737695235e+209"
+      },
+      "number_bits": "6b570c851d1d9317",
+      "number_string": "1.1839880737695235e+209",
+      "limit_query": "1.1839880737695235e+209",
+      "path": "/v1/workspace/history?limit=1.1839880737695235e%2B209"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-6.640758170385472e-76"
+      ],
+      "flags": {
+        "limit": "-6.640758170385472e-76"
+      },
+      "number_bits": "b053394331f5c55a",
+      "number_string": "-6.640758170385472e-76",
+      "limit_query": "-6.640758170385472e-76",
+      "path": "/v1/workspace/history?limit=-6.640758170385472e-76"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=4.182805248072089e-247"
+      ],
+      "flags": {
+        "limit": "4.182805248072089e-247"
+      },
+      "number_bits": "0cc7658c41e4d821",
+      "number_string": "4.182805248072089e-247",
+      "limit_query": "4.182805248072089e-247",
+      "path": "/v1/workspace/history?limit=4.182805248072089e-247"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.2403358197953054e+204"
+      ],
+      "flags": {
+        "limit": "1.2403358197953054e+204"
+      },
+      "number_bits": "6a4fa5ffab0ede1c",
+      "number_string": "1.2403358197953054e+204",
+      "limit_query": "1.2403358197953054e+204",
+      "path": "/v1/workspace/history?limit=1.2403358197953054e%2B204"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.4129771877294517e+232"
+      ],
+      "flags": {
+        "limit": "-1.4129771877294517e+232"
+      },
+      "number_bits": "f02233cfff80703b",
+      "number_string": "-1.4129771877294517e+232",
+      "limit_query": "-1.4129771877294517e+232",
+      "path": "/v1/workspace/history?limit=-1.4129771877294517e%2B232"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.0306820233919744e+43"
+      ],
+      "flags": {
+        "limit": "1.0306820233919744e+43"
+      },
+      "number_bits": "48dd94416eff80ae",
+      "number_string": "1.0306820233919744e+43",
+      "limit_query": "1.0306820233919744e+43",
+      "path": "/v1/workspace/history?limit=1.0306820233919744e%2B43"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=4.669512588049477e-197"
+      ],
+      "flags": {
+        "limit": "4.669512588049477e-197"
+      },
+      "number_bits": "172bec8fc86d71e5",
+      "number_string": "4.669512588049477e-197",
+      "limit_query": "4.669512588049477e-197",
+      "path": "/v1/workspace/history?limit=4.669512588049477e-197"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-2.1899952545730634e-166"
+      ],
+      "flags": {
+        "limit": "-2.1899952545730634e-166"
+      },
+      "number_bits": "9d89d3f7c46e2190",
+      "number_string": "-2.1899952545730634e-166",
+      "limit_query": "-2.1899952545730634e-166",
+      "path": "/v1/workspace/history?limit=-2.1899952545730634e-166"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-2.0190922378644456e-73"
+      ],
+      "flags": {
+        "limit": "-2.0190922378644456e-73"
+      },
+      "number_bits": "b0d6d4df6a39d79f",
+      "number_string": "-2.0190922378644456e-73",
+      "limit_query": "-2.0190922378644456e-73",
+      "path": "/v1/workspace/history?limit=-2.0190922378644456e-73"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-7.085003884900344e-126"
+      ],
+      "flags": {
+        "limit": "-7.085003884900344e-126"
+      },
+      "number_bits": "a5f32f1809154942",
+      "number_string": "-7.085003884900344e-126",
+      "limit_query": "-7.085003884900344e-126",
+      "path": "/v1/workspace/history?limit=-7.085003884900344e-126"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=3.4672639506464856e-76"
+      ],
+      "flags": {
+        "limit": "3.4672639506464856e-76"
+      },
+      "number_bits": "304412f75ae71fe9",
+      "number_string": "3.4672639506464856e-76",
+      "limit_query": "3.4672639506464856e-76",
+      "path": "/v1/workspace/history?limit=3.4672639506464856e-76"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=137144062659963980000"
+      ],
+      "flags": {
+        "limit": "137144062659963980000"
+      },
+      "number_bits": "441dbd065979b444",
+      "number_string": "137144062659963980000",
+      "limit_query": "137144062659963980000",
+      "path": "/v1/workspace/history?limit=137144062659963980000"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-5.670491350489195e+120"
+      ],
+      "flags": {
+        "limit": "-5.670491350489195e+120"
+      },
+      "number_bits": "d901914e2dcded43",
+      "number_string": "-5.670491350489195e+120",
+      "limit_query": "-5.670491350489195e+120",
+      "path": "/v1/workspace/history?limit=-5.670491350489195e%2B120"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.8104746465418118e-48"
+      ],
+      "flags": {
+        "limit": "1.8104746465418118e-48"
+      },
+      "number_bits": "36052b08294d7316",
+      "number_string": "1.8104746465418118e-48",
+      "limit_query": "1.8104746465418118e-48",
+      "path": "/v1/workspace/history?limit=1.8104746465418118e-48"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.6141019044201472e-108"
+      ],
+      "flags": {
+        "limit": "-1.6141019044201472e-108"
+      },
+      "number_bits": "a98e538829eaa62d",
+      "number_string": "-1.6141019044201472e-108",
+      "limit_query": "-1.6141019044201472e-108",
+      "path": "/v1/workspace/history?limit=-1.6141019044201472e-108"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-5.00507013273695e-188"
+      ],
+      "flags": {
+        "limit": "-5.00507013273695e-188"
+      },
+      "number_bits": "990be00ad2480a38",
+      "number_string": "-5.00507013273695e-188",
+      "limit_query": "-5.00507013273695e-188",
+      "path": "/v1/workspace/history?limit=-5.00507013273695e-188"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.4346343356256873e-192"
+      ],
+      "flags": {
+        "limit": "-1.4346343356256873e-192"
+      },
+      "number_bits": "981a2e863dbb1527",
+      "number_string": "-1.4346343356256873e-192",
+      "limit_query": "-1.4346343356256873e-192",
+      "path": "/v1/workspace/history?limit=-1.4346343356256873e-192"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-2.51187001229931e+306"
+      ],
+      "flags": {
+        "limit": "-2.51187001229931e+306"
+      },
+      "number_bits": "ff8c9dbd847b922a",
+      "number_string": "-2.51187001229931e+306",
+      "limit_query": "-2.51187001229931e+306",
+      "path": "/v1/workspace/history?limit=-2.51187001229931e%2B306"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-9.610456737411271e-208"
+      ],
+      "flags": {
+        "limit": "-9.610456737411271e-208"
+      },
+      "number_bits": "94f3bf3b191508b1",
+      "number_string": "-9.610456737411271e-208",
+      "limit_query": "-9.610456737411271e-208",
+      "path": "/v1/workspace/history?limit=-9.610456737411271e-208"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.2539075218884011e-209"
+      ],
+      "flags": {
+        "limit": "1.2539075218884011e-209"
+      },
+      "number_bits": "14907d436a6ed76c",
+      "number_string": "1.2539075218884011e-209",
+      "limit_query": "1.2539075218884011e-209",
+      "path": "/v1/workspace/history?limit=1.2539075218884011e-209"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-3.14671059544237e+228"
+      ],
+      "flags": {
+        "limit": "-3.14671059544237e+228"
+      },
+      "number_bits": "ef609a991b9df34b",
+      "number_string": "-3.14671059544237e+228",
+      "limit_query": "-3.14671059544237e+228",
+      "path": "/v1/workspace/history?limit=-3.14671059544237e%2B228"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-5.112795259294851e-90"
+      ],
+      "flags": {
+        "limit": "-5.112795259294851e-90"
+      },
+      "number_bits": "ad64d4740c847a7e",
+      "number_string": "-5.112795259294851e-90",
+      "limit_query": "-5.112795259294851e-90",
+      "path": "/v1/workspace/history?limit=-5.112795259294851e-90"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.1801925602039119e-32"
+      ],
+      "flags": {
+        "limit": "1.1801925602039119e-32"
+      },
+      "number_bits": "394ea3b996cb8b75",
+      "number_string": "1.1801925602039119e-32",
+      "limit_query": "1.1801925602039119e-32",
+      "path": "/v1/workspace/history?limit=1.1801925602039119e-32"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=5.418314170193199e+195"
+      ],
+      "flags": {
+        "limit": "5.418314170193199e+195"
+      },
+      "number_bits": "68928e5d5a770fe0",
+      "number_string": "5.418314170193199e+195",
+      "limit_query": "5.418314170193199e+195",
+      "path": "/v1/workspace/history?limit=5.418314170193199e%2B195"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=7.245014858556509e-128"
+      ],
+      "flags": {
+        "limit": "7.245014858556509e-128"
+      },
+      "number_bits": "25891c2bac956baf",
+      "number_string": "7.245014858556509e-128",
+      "limit_query": "7.245014858556509e-128",
+      "path": "/v1/workspace/history?limit=7.245014858556509e-128"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.3002174828799597e-260"
+      ],
+      "flags": {
+        "limit": "2.3002174828799597e-260"
+      },
+      "number_bits": "0a06a27d0ef24012",
+      "number_string": "2.3002174828799597e-260",
+      "limit_query": "2.3002174828799597e-260",
+      "path": "/v1/workspace/history?limit=2.3002174828799597e-260"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.395127466007476e+79"
+      ],
+      "flags": {
+        "limit": "-1.395127466007476e+79"
+      },
+      "number_bits": "d05e1f13683fb279",
+      "number_string": "-1.395127466007476e+79",
+      "limit_query": "-1.395127466007476e+79",
+      "path": "/v1/workspace/history?limit=-1.395127466007476e%2B79"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=6.802286560670426e+119"
+      ],
+      "flags": {
+        "limit": "6.802286560670426e+119"
+      },
+      "number_bits": "58d0dbf3b090e794",
+      "number_string": "6.802286560670426e+119",
+      "limit_query": "6.802286560670426e+119",
+      "path": "/v1/workspace/history?limit=6.802286560670426e%2B119"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-6.688269611052617e+265"
+      ],
+      "flags": {
+        "limit": "-6.688269611052617e+265"
+      },
+      "number_bits": "f72098079ce6a253",
+      "number_string": "-6.688269611052617e+265",
+      "limit_query": "-6.688269611052617e+265",
+      "path": "/v1/workspace/history?limit=-6.688269611052617e%2B265"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-6.273890065561679e-26"
+      ],
+      "flags": {
+        "limit": "-6.273890065561679e-26"
+      },
+      "number_bits": "bab36ab014c836e6",
+      "number_string": "-6.273890065561679e-26",
+      "limit_query": "-6.273890065561679e-26",
+      "path": "/v1/workspace/history?limit=-6.273890065561679e-26"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.1412344462035252e-75"
+      ],
+      "flags": {
+        "limit": "2.1412344462035252e-75"
+      },
+      "number_bits": "306efe042db341bd",
+      "number_string": "2.1412344462035252e-75",
+      "limit_query": "2.1412344462035252e-75",
+      "path": "/v1/workspace/history?limit=2.1412344462035252e-75"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.0227854479515729e+181"
+      ],
+      "flags": {
+        "limit": "1.0227854479515729e+181"
+      },
+      "number_bits": "6583b7f94c87d288",
+      "number_string": "1.0227854479515729e+181",
+      "limit_query": "1.0227854479515729e+181",
+      "path": "/v1/workspace/history?limit=1.0227854479515729e%2B181"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.6034671710198826e-150"
+      ],
+      "flags": {
+        "limit": "-1.6034671710198826e-150"
+      },
+      "number_bits": "a0d4febeb5e0fb37",
+      "number_string": "-1.6034671710198826e-150",
+      "limit_query": "-1.6034671710198826e-150",
+      "path": "/v1/workspace/history?limit=-1.6034671710198826e-150"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-6.102271315512682e-62"
+      ],
+      "flags": {
+        "limit": "-6.102271315512682e-62"
+      },
+      "number_bits": "b3391a711796f2fa",
+      "number_string": "-6.102271315512682e-62",
+      "limit_query": "-6.102271315512682e-62",
+      "path": "/v1/workspace/history?limit=-6.102271315512682e-62"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.763226676099447e-47"
+      ],
+      "flags": {
+        "limit": "-1.763226676099447e-47"
+      },
+      "number_bits": "b639c503a2fc3d41",
+      "number_string": "-1.763226676099447e-47",
+      "limit_query": "-1.763226676099447e-47",
+      "path": "/v1/workspace/history?limit=-1.763226676099447e-47"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.4068813312090998e+71"
+      ],
+      "flags": {
+        "limit": "1.4068813312090998e+71"
+      },
+      "number_bits": "4eb46269b2f684bc",
+      "number_string": "1.4068813312090998e+71",
+      "limit_query": "1.4068813312090998e+71",
+      "path": "/v1/workspace/history?limit=1.4068813312090998e%2B71"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=7.255402819380666e-181"
+      ],
+      "flags": {
+        "limit": "7.255402819380666e-181"
+      },
+      "number_bits": "1a8815caca021a5b",
+      "number_string": "7.255402819380666e-181",
+      "limit_query": "7.255402819380666e-181",
+      "path": "/v1/workspace/history?limit=7.255402819380666e-181"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.5236188580351164e+29"
+      ],
+      "flags": {
+        "limit": "2.5236188580351164e+29"
+      },
+      "number_bits": "46097b66dfd0484e",
+      "number_string": "2.5236188580351164e+29",
+      "limit_query": "2.5236188580351164e+29",
+      "path": "/v1/workspace/history?limit=2.5236188580351164e%2B29"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=5.994550178853619e-297"
+      ],
+      "flags": {
+        "limit": "5.994550178853619e-297"
+      },
+      "number_bits": "026f5d03e048e905",
+      "number_string": "5.994550178853619e-297",
+      "limit_query": "5.994550178853619e-297",
+      "path": "/v1/workspace/history?limit=5.994550178853619e-297"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.2433200674370742e+193"
+      ],
+      "flags": {
+        "limit": "2.2433200674370742e+193"
+      },
+      "number_bits": "6813aaefabbaf230",
+      "number_string": "2.2433200674370742e+193",
+      "limit_query": "2.2433200674370742e+193",
+      "path": "/v1/workspace/history?limit=2.2433200674370742e%2B193"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=3.1262611711439185e+27"
+      ],
+      "flags": {
+        "limit": "3.1262611711439185e+27"
+      },
+      "number_bits": "45a433f71b59e3bf",
+      "number_string": "3.1262611711439185e+27",
+      "limit_query": "3.1262611711439185e+27",
+      "path": "/v1/workspace/history?limit=3.1262611711439185e%2B27"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-4.1289144661523796e-203"
+      ],
+      "flags": {
+        "limit": "-4.1289144661523796e-203"
+      },
+      "number_bits": "95e9e401a05b4ae2",
+      "number_string": "-4.1289144661523796e-203",
+      "limit_query": "-4.1289144661523796e-203",
+      "path": "/v1/workspace/history?limit=-4.1289144661523796e-203"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=5.5846489063800386e-21"
+      ],
+      "flags": {
+        "limit": "5.5846489063800386e-21"
+      },
+      "number_bits": "3bba5f6d1f23c909",
+      "number_string": "5.5846489063800386e-21",
+      "limit_query": "5.5846489063800386e-21",
+      "path": "/v1/workspace/history?limit=5.5846489063800386e-21"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=143072239.83263314"
+      ],
+      "flags": {
+        "limit": "143072239.83263314"
+      },
+      "number_bits": "41a10e37dfaa4ee4",
+      "number_string": "143072239.83263314",
+      "limit_query": "143072239.83263314",
+      "path": "/v1/workspace/history?limit=143072239.83263314"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.1250674962635366e+128"
+      ],
+      "flags": {
+        "limit": "2.1250674962635366e+128"
+      },
+      "number_bits": "5a939ee6602e7b63",
+      "number_string": "2.1250674962635366e+128",
+      "limit_query": "2.1250674962635366e+128",
+      "path": "/v1/workspace/history?limit=2.1250674962635366e%2B128"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.0206255406655263e+176"
+      ],
+      "flags": {
+        "limit": "2.0206255406655263e+176"
+      },
+      "number_bits": "648987cb23684eb6",
+      "number_string": "2.0206255406655263e+176",
+      "limit_query": "2.0206255406655263e+176",
+      "path": "/v1/workspace/history?limit=2.0206255406655263e%2B176"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.1572354494021216e+223"
+      ],
+      "flags": {
+        "limit": "1.1572354494021216e+223"
+      },
+      "number_bits": "6e4001d6c7b7a14d",
+      "number_string": "1.1572354494021216e+223",
+      "limit_query": "1.1572354494021216e+223",
+      "path": "/v1/workspace/history?limit=1.1572354494021216e%2B223"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-9.380821757727297e-88"
+      ],
+      "flags": {
+        "limit": "-9.380821757727297e-88"
+      },
+      "number_bits": "addddba0e9850ed8",
+      "number_string": "-9.380821757727297e-88",
+      "limit_query": "-9.380821757727297e-88",
+      "path": "/v1/workspace/history?limit=-9.380821757727297e-88"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=4.057540789046512e-160"
+      ],
+      "flags": {
+        "limit": "4.057540789046512e-160"
+      },
+      "number_bits": "1ed6d172c9e04547",
+      "number_string": "4.057540789046512e-160",
+      "limit_query": "4.057540789046512e-160",
+      "path": "/v1/workspace/history?limit=4.057540789046512e-160"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.1459482129636522e-157"
+      ],
+      "flags": {
+        "limit": "-1.1459482129636522e-157"
+      },
+      "number_bits": "9f592c671c84e7ca",
+      "number_string": "-1.1459482129636522e-157",
+      "limit_query": "-1.1459482129636522e-157",
+      "path": "/v1/workspace/history?limit=-1.1459482129636522e-157"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=0.002901766058683399"
+      ],
+      "flags": {
+        "limit": "0.002901766058683399"
+      },
+      "number_bits": "3f67c571ca5375d1",
+      "number_string": "0.002901766058683399",
+      "limit_query": "0.002901766058683399",
+      "path": "/v1/workspace/history?limit=0.002901766058683399"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-3.505451953547515e-137"
+      ],
+      "flags": {
+        "limit": "-3.505451953547515e-137"
+      },
+      "number_bits": "a39a17298e2ae60c",
+      "number_string": "-3.505451953547515e-137",
+      "limit_query": "-3.505451953547515e-137",
+      "path": "/v1/workspace/history?limit=-3.505451953547515e-137"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-5.682362700253906e+171"
+      ],
+      "flags": {
+        "limit": "-5.682362700253906e+171"
+      },
+      "number_bits": "e39786b3b20de56b",
+      "number_string": "-5.682362700253906e+171",
+      "limit_query": "-5.682362700253906e+171",
+      "path": "/v1/workspace/history?limit=-5.682362700253906e%2B171"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-8.177482110382301e+206"
+      ],
+      "flags": {
+        "limit": "-8.177482110382301e+206"
+      },
+      "number_bits": "eae4606b73efea1e",
+      "number_string": "-8.177482110382301e+206",
+      "limit_query": "-8.177482110382301e+206",
+      "path": "/v1/workspace/history?limit=-8.177482110382301e%2B206"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.7949869503420858e-160"
+      ],
+      "flags": {
+        "limit": "1.7949869503420858e-160"
+      },
+      "number_bits": "1ec43050892e8a95",
+      "number_string": "1.7949869503420858e-160",
+      "limit_query": "1.7949869503420858e-160",
+      "path": "/v1/workspace/history?limit=1.7949869503420858e-160"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.668802146158077e+166"
+      ],
+      "flags": {
+        "limit": "2.668802146158077e+166"
+      },
+      "number_bits": "627cf721100ec880",
+      "number_string": "2.668802146158077e+166",
+      "limit_query": "2.668802146158077e+166",
+      "path": "/v1/workspace/history?limit=2.668802146158077e%2B166"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=5.46915210570698e+172"
+      ],
+      "flags": {
+        "limit": "5.46915210570698e+172"
+      },
+      "number_bits": "63cc4de6d1f83fcf",
+      "number_string": "5.46915210570698e+172",
+      "limit_query": "5.46915210570698e+172",
+      "path": "/v1/workspace/history?limit=5.46915210570698e%2B172"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-2.307940324783428e-52"
+      ],
+      "flags": {
+        "limit": "-2.307940324783428e-52"
+      },
+      "number_bits": "b5361b0d9f2d69b2",
+      "number_string": "-2.307940324783428e-52",
+      "limit_query": "-2.307940324783428e-52",
+      "path": "/v1/workspace/history?limit=-2.307940324783428e-52"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.8490280000987685e+256"
+      ],
+      "flags": {
+        "limit": "2.8490280000987685e+256"
+      },
+      "number_bits": "752e5bf4d66c6399",
+      "number_string": "2.8490280000987685e+256",
+      "limit_query": "2.8490280000987685e+256",
+      "path": "/v1/workspace/history?limit=2.8490280000987685e%2B256"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-5.98398462698222e+295"
+      ],
+      "flags": {
+        "limit": "-5.98398462698222e+295"
+      },
+      "number_bits": "fd576c74d1eaea34",
+      "number_string": "-5.98398462698222e+295",
+      "limit_query": "-5.98398462698222e+295",
+      "path": "/v1/workspace/history?limit=-5.98398462698222e%2B295"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.7662239587016046e-224"
+      ],
+      "flags": {
+        "limit": "-1.7662239587016046e-224"
+      },
+      "number_bits": "917a269128267873",
+      "number_string": "-1.7662239587016046e-224",
+      "limit_query": "-1.7662239587016046e-224",
+      "path": "/v1/workspace/history?limit=-1.7662239587016046e-224"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=4.4167960137827347e-116"
+      ],
+      "flags": {
+        "limit": "4.4167960137827347e-116"
+      },
+      "number_bits": "27fbd84b5adaba86",
+      "number_string": "4.4167960137827347e-116",
+      "limit_query": "4.4167960137827347e-116",
+      "path": "/v1/workspace/history?limit=4.4167960137827347e-116"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-5.110682172157872e+101"
+      ],
+      "flags": {
+        "limit": "-5.110682172157872e+101"
+      },
+      "number_bits": "d50d350cca60c4dd",
+      "number_string": "-5.110682172157872e+101",
+      "limit_query": "-5.110682172157872e+101",
+      "path": "/v1/workspace/history?limit=-5.110682172157872e%2B101"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-6.961366971669869e+85"
+      ],
+      "flags": {
+        "limit": "-6.961366971669869e+85"
+      },
+      "number_bits": "d1c1eac1bcb4bf28",
+      "number_string": "-6.961366971669869e+85",
+      "limit_query": "-6.961366971669869e+85",
+      "path": "/v1/workspace/history?limit=-6.961366971669869e%2B85"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-2.423717102925601e+284"
+      ],
+      "flags": {
+        "limit": "-2.423717102925601e+284"
+      },
+      "number_bits": "fafa1425f049f357",
+      "number_string": "-2.423717102925601e+284",
+      "limit_query": "-2.423717102925601e+284",
+      "path": "/v1/workspace/history?limit=-2.423717102925601e%2B284"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-8.423659710169014e+148"
+      ],
+      "flags": {
+        "limit": "-8.423659710169014e+148"
+      },
+      "number_bits": "deda59f259c2709a",
+      "number_string": "-8.423659710169014e+148",
+      "limit_query": "-8.423659710169014e+148",
+      "path": "/v1/workspace/history?limit=-8.423659710169014e%2B148"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-7.014187223096578e-256"
+      ],
+      "flags": {
+        "limit": "-7.014187223096578e-256"
+      },
+      "number_bits": "8af5104b7613b261",
+      "number_string": "-7.014187223096578e-256",
+      "limit_query": "-7.014187223096578e-256",
+      "path": "/v1/workspace/history?limit=-7.014187223096578e-256"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=4.187757004492423e+35"
+      ],
+      "flags": {
+        "limit": "4.187757004492423e+35"
+      },
+      "number_bits": "475429cf1cd0fb5c",
+      "number_string": "4.187757004492423e+35",
+      "limit_query": "4.187757004492423e+35",
+      "path": "/v1/workspace/history?limit=4.187757004492423e%2B35"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-7.27698412543272e-188"
+      ],
+      "flags": {
+        "limit": "-7.27698412543272e-188"
+      },
+      "number_bits": "991443a05162547b",
+      "number_string": "-7.27698412543272e-188",
+      "limit_query": "-7.27698412543272e-188",
+      "path": "/v1/workspace/history?limit=-7.27698412543272e-188"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.4799933620797658e-268"
+      ],
+      "flags": {
+        "limit": "1.4799933620797658e-268"
+      },
+      "number_bits": "08538bfbbd305fee",
+      "number_string": "1.4799933620797658e-268",
+      "limit_query": "1.4799933620797658e-268",
+      "path": "/v1/workspace/history?limit=1.4799933620797658e-268"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-6.360281138630981e-29"
+      ],
+      "flags": {
+        "limit": "-6.360281138630981e-29"
+      },
+      "number_bits": "ba142812b6057025",
+      "number_string": "-6.360281138630981e-29",
+      "limit_query": "-6.360281138630981e-29",
+      "path": "/v1/workspace/history?limit=-6.360281138630981e-29"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=3.0928134403311993e-251"
+      ],
+      "flags": {
+        "limit": "3.0928134403311993e-251"
+      },
+      "number_bits": "0bec580bea8792d0",
+      "number_string": "3.0928134403311993e-251",
+      "limit_query": "3.0928134403311993e-251",
+      "path": "/v1/workspace/history?limit=3.0928134403311993e-251"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.3314556385494177e-181"
+      ],
+      "flags": {
+        "limit": "-1.3314556385494177e-181"
+      },
+      "number_bits": "9a61adfea6217fdf",
+      "number_string": "-1.3314556385494177e-181",
+      "limit_query": "-1.3314556385494177e-181",
+      "path": "/v1/workspace/history?limit=-1.3314556385494177e-181"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.7573035529679687e+50"
+      ],
+      "flags": {
+        "limit": "-1.7573035529679687e+50"
+      },
+      "number_bits": "ca5e0f556a859c82",
+      "number_string": "-1.7573035529679687e+50",
+      "limit_query": "-1.7573035529679687e+50",
+      "path": "/v1/workspace/history?limit=-1.7573035529679687e%2B50"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-7.142209579970411e+155"
+      ],
+      "flags": {
+        "limit": "-7.142209579970411e+155"
+      },
+      "number_bits": "e04aa26fa9328229",
+      "number_string": "-7.142209579970411e+155",
+      "limit_query": "-7.142209579970411e+155",
+      "path": "/v1/workspace/history?limit=-7.142209579970411e%2B155"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.4168682979714495e+163"
+      ],
+      "flags": {
+        "limit": "2.4168682979714495e+163"
+      },
+      "number_bits": "61dadc4eb1b7b984",
+      "number_string": "2.4168682979714495e+163",
+      "limit_query": "2.4168682979714495e+163",
+      "path": "/v1/workspace/history?limit=2.4168682979714495e%2B163"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-8.319831975192295e+145"
+      ],
+      "flags": {
+        "limit": "-8.319831975192295e+145"
+      },
+      "number_bits": "de3aa6b4838f9983",
+      "number_string": "-8.319831975192295e+145",
+      "limit_query": "-8.319831975192295e+145",
+      "path": "/v1/workspace/history?limit=-8.319831975192295e%2B145"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=3.6350567040701076e+251"
+      ],
+      "flags": {
+        "limit": "3.6350567040701076e+251"
+      },
+      "number_bits": "742962ac920c7a56",
+      "number_string": "3.6350567040701076e+251",
+      "limit_query": "3.6350567040701076e+251",
+      "path": "/v1/workspace/history?limit=3.6350567040701076e%2B251"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.0694341930004213e-274"
+      ],
+      "flags": {
+        "limit": "-1.0694341930004213e-274"
+      },
+      "number_bits": "870d9efb9057ac6d",
+      "number_string": "-1.0694341930004213e-274",
+      "limit_query": "-1.0694341930004213e-274",
+      "path": "/v1/workspace/history?limit=-1.0694341930004213e-274"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-14575.402734266347"
+      ],
+      "flags": {
+        "limit": "-14575.402734266347"
+      },
+      "number_bits": "c0cc77b38ccbe378",
+      "number_string": "-14575.402734266347",
+      "limit_query": "-14575.402734266347",
+      "path": "/v1/workspace/history?limit=-14575.402734266347"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-7.815589030767111e-86"
+      ],
+      "flags": {
+        "limit": "-7.815589030767111e-86"
+      },
+      "number_bits": "ae436f32e1ef0567",
+      "number_string": "-7.815589030767111e-86",
+      "limit_query": "-7.815589030767111e-86",
+      "path": "/v1/workspace/history?limit=-7.815589030767111e-86"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-9.355628494680728e-138"
+      ],
+      "flags": {
+        "limit": "-9.355628494680728e-138"
+      },
+      "number_bits": "a37bda59fb0c8d6a",
+      "number_string": "-9.355628494680728e-138",
+      "limit_query": "-9.355628494680728e-138",
+      "path": "/v1/workspace/history?limit=-9.355628494680728e-138"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.2648919467327348e+104"
+      ],
+      "flags": {
+        "limit": "1.2648919467327348e+104"
+      },
+      "number_bits": "558c3cc71975f2f1",
+      "number_string": "1.2648919467327348e+104",
+      "limit_query": "1.2648919467327348e+104",
+      "path": "/v1/workspace/history?limit=1.2648919467327348e%2B104"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.2242749775432436e+33"
+      ],
+      "flags": {
+        "limit": "-1.2242749775432436e+33"
+      },
+      "number_bits": "c6ce2e42e6edc4ac",
+      "number_string": "-1.2242749775432436e+33",
+      "limit_query": "-1.2242749775432436e+33",
+      "path": "/v1/workspace/history?limit=-1.2242749775432436e%2B33"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.5093031188692467e-104"
+      ],
+      "flags": {
+        "limit": "-1.5093031188692467e-104"
+      },
+      "number_bits": "aa614ed40be0678b",
+      "number_string": "-1.5093031188692467e-104",
+      "limit_query": "-1.5093031188692467e-104",
+      "path": "/v1/workspace/history?limit=-1.5093031188692467e-104"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-3.161577295596426e-124"
+      ],
+      "flags": {
+        "limit": "-3.161577295596426e-124"
+      },
+      "number_bits": "a64ac071e91ea9be",
+      "number_string": "-3.161577295596426e-124",
+      "limit_query": "-3.161577295596426e-124",
+      "path": "/v1/workspace/history?limit=-3.161577295596426e-124"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.4857160476880667e+238"
+      ],
+      "flags": {
+        "limit": "2.4857160476880667e+238"
+      },
+      "number_bits": "716e89ce5b9699b5",
+      "number_string": "2.4857160476880667e+238",
+      "limit_query": "2.4857160476880667e+238",
+      "path": "/v1/workspace/history?limit=2.4857160476880667e%2B238"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-8.386899644076506e+83"
+      ],
+      "flags": {
+        "limit": "-8.386899644076506e+83"
+      },
+      "number_bits": "d15ba14ef97a5120",
+      "number_string": "-8.386899644076506e+83",
+      "limit_query": "-8.386899644076506e+83",
+      "path": "/v1/workspace/history?limit=-8.386899644076506e%2B83"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-6.850518500287675e+29"
+      ],
+      "flags": {
+        "limit": "-6.850518500287675e+29"
+      },
+      "number_bits": "c6214b0b37c6a3ef",
+      "number_string": "-6.850518500287675e+29",
+      "limit_query": "-6.850518500287675e+29",
+      "path": "/v1/workspace/history?limit=-6.850518500287675e%2B29"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-5.49466637785528e-198"
+      ],
+      "flags": {
+        "limit": "-5.49466637785528e-198"
+      },
+      "number_bits": "96fa496eaec0e352",
+      "number_string": "-5.49466637785528e-198",
+      "limit_query": "-5.49466637785528e-198",
+      "path": "/v1/workspace/history?limit=-5.49466637785528e-198"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=3.811437540783603e-235"
+      ],
+      "flags": {
+        "limit": "3.811437540783603e-235"
+      },
+      "number_bits": "0f4363d006cf24b9",
+      "number_string": "3.811437540783603e-235",
+      "limit_query": "3.811437540783603e-235",
+      "path": "/v1/workspace/history?limit=3.811437540783603e-235"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-9.19953658179663e+170"
+      ],
+      "flags": {
+        "limit": "-9.19953658179663e+170"
+      },
+      "number_bits": "e36e786d38b5bcd4",
+      "number_string": "-9.19953658179663e+170",
+      "limit_query": "-9.19953658179663e+170",
+      "path": "/v1/workspace/history?limit=-9.19953658179663e%2B170"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.94402394210073e-79"
+      ],
+      "flags": {
+        "limit": "1.94402394210073e-79"
+      },
+      "number_bits": "2f970cedef6ade93",
+      "number_string": "1.94402394210073e-79",
+      "limit_query": "1.94402394210073e-79",
+      "path": "/v1/workspace/history?limit=1.94402394210073e-79"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.8506542105094113e+236"
+      ],
+      "flags": {
+        "limit": "1.8506542105094113e+236"
+      },
+      "number_bits": "70fd1a36412a8e26",
+      "number_string": "1.8506542105094113e+236",
+      "limit_query": "1.8506542105094113e+236",
+      "path": "/v1/workspace/history?limit=1.8506542105094113e%2B236"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-3.0588385173860986e+209"
+      ],
+      "flags": {
+        "limit": "-3.0588385173860986e+209"
+      },
+      "number_bits": "eb6dc6028c8557fd",
+      "number_string": "-3.0588385173860986e+209",
+      "limit_query": "-3.0588385173860986e+209",
+      "path": "/v1/workspace/history?limit=-3.0588385173860986e%2B209"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.9160050819487072e-274"
+      ],
+      "flags": {
+        "limit": "-1.9160050819487072e-274"
+      },
+      "number_bits": "871a88dc23bf7bc8",
+      "number_string": "-1.9160050819487072e-274",
+      "limit_query": "-1.9160050819487072e-274",
+      "path": "/v1/workspace/history?limit=-1.9160050819487072e-274"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-3.1098295772026813e-52"
+      ],
+      "flags": {
+        "limit": "-3.1098295772026813e-52"
+      },
+      "number_bits": "b53dc947a9e07b77",
+      "number_string": "-3.1098295772026813e-52",
+      "limit_query": "-3.1098295772026813e-52",
+      "path": "/v1/workspace/history?limit=-3.1098295772026813e-52"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-9.337031907158056e+70"
+      ],
+      "flags": {
+        "limit": "-9.337031907158056e+70"
+      },
+      "number_bits": "ceab0e9861603e3a",
+      "number_string": "-9.337031907158056e+70",
+      "limit_query": "-9.337031907158056e+70",
+      "path": "/v1/workspace/history?limit=-9.337031907158056e%2B70"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.0064816739413536e+277"
+      ],
+      "flags": {
+        "limit": "2.0064816739413536e+277"
+      },
+      "number_bits": "79821c4643f33781",
+      "number_string": "2.0064816739413536e+277",
+      "limit_query": "2.0064816739413536e+277",
+      "path": "/v1/workspace/history?limit=2.0064816739413536e%2B277"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-2.808433972651711e+267"
+      ],
+      "flags": {
+        "limit": "-2.808433972651711e+267"
+      },
+      "number_bits": "f775c6452bc641fc",
+      "number_string": "-2.808433972651711e+267",
+      "limit_query": "-2.808433972651711e+267",
+      "path": "/v1/workspace/history?limit=-2.808433972651711e%2B267"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.467000688831097e-184"
+      ],
+      "flags": {
+        "limit": "2.467000688831097e-184"
+      },
+      "number_bits": "19d0c5a63ba91e9b",
+      "number_string": "2.467000688831097e-184",
+      "limit_query": "2.467000688831097e-184",
+      "path": "/v1/workspace/history?limit=2.467000688831097e-184"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=4.369692950636792e-38"
+      ],
+      "flags": {
+        "limit": "4.369692950636792e-38"
+      },
+      "number_bits": "382dbd142e87c78e",
+      "number_string": "4.369692950636792e-38",
+      "limit_query": "4.369692950636792e-38",
+      "path": "/v1/workspace/history?limit=4.369692950636792e-38"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.8227334836384703e-22"
+      ],
+      "flags": {
+        "limit": "1.8227334836384703e-22"
+      },
+      "number_bits": "3b6b8b5bceeb0745",
+      "number_string": "1.8227334836384703e-22",
+      "limit_query": "1.8227334836384703e-22",
+      "path": "/v1/workspace/history?limit=1.8227334836384703e-22"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.7906290459653597e-130"
+      ],
+      "flags": {
+        "limit": "-1.7906290459653597e-130"
+      },
+      "number_bits": "a4ffc65da67c0370",
+      "number_string": "-1.7906290459653597e-130",
+      "limit_query": "-1.7906290459653597e-130",
+      "path": "/v1/workspace/history?limit=-1.7906290459653597e-130"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.1633730568557165e+38"
+      ],
+      "flags": {
+        "limit": "1.1633730568557165e+38"
+      },
+      "number_bits": "47d5e1700118abff",
+      "number_string": "1.1633730568557165e+38",
+      "limit_query": "1.1633730568557165e+38",
+      "path": "/v1/workspace/history?limit=1.1633730568557165e%2B38"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=8.881772583895247e-237"
+      ],
+      "flags": {
+        "limit": "8.881772583895247e-237"
+      },
+      "number_bits": "0eeceaf9357c3e22",
+      "number_string": "8.881772583895247e-237",
+      "limit_query": "8.881772583895247e-237",
+      "path": "/v1/workspace/history?limit=8.881772583895247e-237"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=9.882996661559818e-126"
+      ],
+      "flags": {
+        "limit": "9.882996661559818e-126"
+      },
+      "number_bits": "25fac29242db4b49",
+      "number_string": "9.882996661559818e-126",
+      "limit_query": "9.882996661559818e-126",
+      "path": "/v1/workspace/history?limit=9.882996661559818e-126"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-7.779198918041456e-304"
+      ],
+      "flags": {
+        "limit": "-7.779198918041456e-304"
+      },
+      "number_bits": "81011230ffc9f424",
+      "number_string": "-7.779198918041456e-304",
+      "limit_query": "-7.779198918041456e-304",
+      "path": "/v1/workspace/history?limit=-7.779198918041456e-304"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.9294071231222218e+300"
+      ],
+      "flags": {
+        "limit": "1.9294071231222218e+300"
+      },
+      "number_bits": "7e470c5ae6f947a3",
+      "number_string": "1.9294071231222218e+300",
+      "limit_query": "1.9294071231222218e+300",
+      "path": "/v1/workspace/history?limit=1.9294071231222218e%2B300"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-4.47623792833117e-194"
+      ],
+      "flags": {
+        "limit": "-4.47623792833117e-194"
+      },
+      "number_bits": "97ca241151a1f5f6",
+      "number_string": "-4.47623792833117e-194",
+      "limit_query": "-4.47623792833117e-194",
+      "path": "/v1/workspace/history?limit=-4.47623792833117e-194"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.6346252401325036e+36"
+      ],
+      "flags": {
+        "limit": "2.6346252401325036e+36"
+      },
+      "number_bits": "477fb690da12c78d",
+      "number_string": "2.6346252401325036e+36",
+      "limit_query": "2.6346252401325036e+36",
+      "path": "/v1/workspace/history?limit=2.6346252401325036e%2B36"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.1970313151981631e-177"
+      ],
+      "flags": {
+        "limit": "1.1970313151981631e-177"
+      },
+      "number_bits": "1b3367199ec48818",
+      "number_string": "1.1970313151981631e-177",
+      "limit_query": "1.1970313151981631e-177",
+      "path": "/v1/workspace/history?limit=1.1970313151981631e-177"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.0516520408980332e-293"
+      ],
+      "flags": {
+        "limit": "-1.0516520408980332e-293"
+      },
+      "number_bits": "831addc5b56f5587",
+      "number_string": "-1.0516520408980332e-293",
+      "limit_query": "-1.0516520408980332e-293",
+      "path": "/v1/workspace/history?limit=-1.0516520408980332e-293"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.3151526896572898e-60"
+      ],
+      "flags": {
+        "limit": "-1.3151526896572898e-60"
+      },
+      "number_bits": "b380e82df2fa830a",
+      "number_string": "-1.3151526896572898e-60",
+      "limit_query": "-1.3151526896572898e-60",
+      "path": "/v1/workspace/history?limit=-1.3151526896572898e-60"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.2460906605092805e-15"
+      ],
+      "flags": {
+        "limit": "-1.2460906605092805e-15"
+      },
+      "number_bits": "bcd6729431448011",
+      "number_string": "-1.2460906605092805e-15",
+      "limit_query": "-1.2460906605092805e-15",
+      "path": "/v1/workspace/history?limit=-1.2460906605092805e-15"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-2.210123536931927e-116"
+      ],
+      "flags": {
+        "limit": "-2.210123536931927e-116"
+      },
+      "number_bits": "a7ebdddd31df734c",
+      "number_string": "-2.210123536931927e-116",
+      "limit_query": "-2.210123536931927e-116",
+      "path": "/v1/workspace/history?limit=-2.210123536931927e-116"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-4268813.017424027"
+      ],
+      "flags": {
+        "limit": "-4268813.017424027"
+      },
+      "number_bits": "c15048c3411d79ab",
+      "number_string": "-4268813.017424027",
+      "limit_query": "-4268813.017424027",
+      "path": "/v1/workspace/history?limit=-4268813.017424027"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.2765610031673542e-282"
+      ],
+      "flags": {
+        "limit": "2.2765610031673542e-282"
+      },
+      "number_bits": "057528749d78b95e",
+      "number_string": "2.2765610031673542e-282",
+      "limit_query": "2.2765610031673542e-282",
+      "path": "/v1/workspace/history?limit=2.2765610031673542e-282"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.4821837764597107e-265"
+      ],
+      "flags": {
+        "limit": "1.4821837764597107e-265"
+      },
+      "number_bits": "08f31def554bb8d5",
+      "number_string": "1.4821837764597107e-265",
+      "limit_query": "1.4821837764597107e-265",
+      "path": "/v1/workspace/history?limit=1.4821837764597107e-265"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-6.144003971064288e-183"
+      ],
+      "flags": {
+        "limit": "-6.144003971064288e-183"
+      },
+      "number_bits": "9a1a1b445661a9c0",
+      "number_string": "-6.144003971064288e-183",
+      "limit_query": "-6.144003971064288e-183",
+      "path": "/v1/workspace/history?limit=-6.144003971064288e-183"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2658994.8010435174"
+      ],
+      "flags": {
+        "limit": "2658994.8010435174"
+      },
+      "number_bits": "414449596688980f",
+      "number_string": "2658994.8010435174",
+      "limit_query": "2658994.8010435174",
+      "path": "/v1/workspace/history?limit=2658994.8010435174"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.6714018106842995e-132"
+      ],
+      "flags": {
+        "limit": "1.6714018106842995e-132"
+      },
+      "number_bits": "2492fb5bb594acf2",
+      "number_string": "1.6714018106842995e-132",
+      "limit_query": "1.6714018106842995e-132",
+      "path": "/v1/workspace/history?limit=1.6714018106842995e-132"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.1464688734927436e+286"
+      ],
+      "flags": {
+        "limit": "2.1464688734927436e+286"
+      },
+      "number_bits": "7b620b1d252ff5d9",
+      "number_string": "2.1464688734927436e+286",
+      "limit_query": "2.1464688734927436e+286",
+      "path": "/v1/workspace/history?limit=2.1464688734927436e%2B286"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=4.037960901223678e-115"
+      ],
+      "flags": {
+        "limit": "4.037960901223678e-115"
+      },
+      "number_bits": "282fd21ccf195f74",
+      "number_string": "4.037960901223678e-115",
+      "limit_query": "4.037960901223678e-115",
+      "path": "/v1/workspace/history?limit=4.037960901223678e-115"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=5.0480898914687533e+154"
+      ],
+      "flags": {
+        "limit": "5.0480898914687533e+154"
+      },
+      "number_bits": "600e1ecbf3bbd4b3",
+      "number_string": "5.0480898914687533e+154",
+      "limit_query": "5.0480898914687533e+154",
+      "path": "/v1/workspace/history?limit=5.0480898914687533e%2B154"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=3.672902045748955e-134"
+      ],
+      "flags": {
+        "limit": "3.672902045748955e-134"
+      },
+      "number_bits": "243ab231ee1fb1c6",
+      "number_string": "3.672902045748955e-134",
+      "limit_query": "3.672902045748955e-134",
+      "path": "/v1/workspace/history?limit=3.672902045748955e-134"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.7508557646411133e+285"
+      ],
+      "flags": {
+        "limit": "1.7508557646411133e+285"
+      },
+      "number_bits": "7b278c6ecc68fb1d",
+      "number_string": "1.7508557646411133e+285",
+      "limit_query": "1.7508557646411133e+285",
+      "path": "/v1/workspace/history?limit=1.7508557646411133e%2B285"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=4.841335539493972e+172"
+      ],
+      "flags": {
+        "limit": "4.841335539493972e+172"
+      },
+      "number_bits": "63c90e20be500868",
+      "number_string": "4.841335539493972e+172",
+      "limit_query": "4.841335539493972e+172",
+      "path": "/v1/workspace/history?limit=4.841335539493972e%2B172"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=3.5970059817064567e+245"
+      ],
+      "flags": {
+        "limit": "3.5970059817064567e+245"
+      },
+      "number_bits": "72ea5705e42c9397",
+      "number_string": "3.5970059817064567e+245",
+      "limit_query": "3.5970059817064567e+245",
+      "path": "/v1/workspace/history?limit=3.5970059817064567e%2B245"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.1314567193289896e-145"
+      ],
+      "flags": {
+        "limit": "1.1314567193289896e-145"
+      },
+      "number_bits": "21d69b07eb585bda",
+      "number_string": "1.1314567193289896e-145",
+      "limit_query": "1.1314567193289896e-145",
+      "path": "/v1/workspace/history?limit=1.1314567193289896e-145"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-2.6445459893289742e-110"
+      ],
+      "flags": {
+        "limit": "-2.6445459893289742e-110"
+      },
+      "number_bits": "a92fcca85962cca1",
+      "number_string": "-2.6445459893289742e-110",
+      "limit_query": "-2.6445459893289742e-110",
+      "path": "/v1/workspace/history?limit=-2.6445459893289742e-110"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-3.984697717641553e-189"
+      ],
+      "flags": {
+        "limit": "-3.984697717641553e-189"
+      },
+      "number_bits": "98d1c0fc96fe589c",
+      "number_string": "-3.984697717641553e-189",
+      "limit_query": "-3.984697717641553e-189",
+      "path": "/v1/workspace/history?limit=-3.984697717641553e-189"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-3.04384841708644e+231"
+      ],
+      "flags": {
+        "limit": "-3.04384841708644e+231"
+      },
+      "number_bits": "efff5e9192de78bb",
+      "number_string": "-3.04384841708644e+231",
+      "limit_query": "-3.04384841708644e+231",
+      "path": "/v1/workspace/history?limit=-3.04384841708644e%2B231"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.1942769179602503e-243"
+      ],
+      "flags": {
+        "limit": "-1.1942769179602503e-243"
+      },
+      "number_bits": "8d804f24ef3e7f2e",
+      "number_string": "-1.1942769179602503e-243",
+      "limit_query": "-1.1942769179602503e-243",
+      "path": "/v1/workspace/history?limit=-1.1942769179602503e-243"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.3568649343971626e+73"
+      ],
+      "flags": {
+        "limit": "1.3568649343971626e+73"
+      },
+      "number_bits": "4f1eb7e4b441ae65",
+      "number_string": "1.3568649343971626e+73",
+      "limit_query": "1.3568649343971626e+73",
+      "path": "/v1/workspace/history?limit=1.3568649343971626e%2B73"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.1874639103411311e+111"
+      ],
+      "flags": {
+        "limit": "1.1874639103411311e+111"
+      },
+      "number_bits": "56ff99e0b9404410",
+      "number_string": "1.1874639103411311e+111",
+      "limit_query": "1.1874639103411311e+111",
+      "path": "/v1/workspace/history?limit=1.1874639103411311e%2B111"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.654226712453166e+64"
+      ],
+      "flags": {
+        "limit": "2.654226712453166e+64"
+      },
+      "number_bits": "4d502152c6c7681f",
+      "number_string": "2.654226712453166e+64",
+      "limit_query": "2.654226712453166e+64",
+      "path": "/v1/workspace/history?limit=2.654226712453166e%2B64"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-3.943438439089705e+298"
+      ],
+      "flags": {
+        "limit": "-3.943438439089705e+298"
+      },
+      "number_bits": "fdee2614a3272fc2",
+      "number_string": "-3.943438439089705e+298",
+      "limit_query": "-3.943438439089705e+298",
+      "path": "/v1/workspace/history?limit=-3.943438439089705e%2B298"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-5.476585085373829e+279"
+      ],
+      "flags": {
+        "limit": "-5.476585085373829e+279"
+      },
+      "number_bits": "fa034f2679e62469",
+      "number_string": "-5.476585085373829e+279",
+      "limit_query": "-5.476585085373829e+279",
+      "path": "/v1/workspace/history?limit=-5.476585085373829e%2B279"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-4.975753975071934e-242"
+      ],
+      "flags": {
+        "limit": "-4.975753975071934e-242"
+      },
+      "number_bits": "8dd53bf2ee08fec4",
+      "number_string": "-4.975753975071934e-242",
+      "limit_query": "-4.975753975071934e-242",
+      "path": "/v1/workspace/history?limit=-4.975753975071934e-242"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.0336949492100435e-54"
+      ],
+      "flags": {
+        "limit": "1.0336949492100435e-54"
+      },
+      "number_bits": "34b9589bbd7385c3",
+      "number_string": "1.0336949492100435e-54",
+      "limit_query": "1.0336949492100435e-54",
+      "path": "/v1/workspace/history?limit=1.0336949492100435e-54"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-3.5615700657943614e+144"
+      ],
+      "flags": {
+        "limit": "-3.5615700657943614e+144"
+      },
+      "number_bits": "ddf241155290c196",
+      "number_string": "-3.5615700657943614e+144",
+      "limit_query": "-3.5615700657943614e+144",
+      "path": "/v1/workspace/history?limit=-3.5615700657943614e%2B144"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-9.367461688304768e+39"
+      ],
+      "flags": {
+        "limit": "-9.367461688304768e+39"
+      },
+      "number_bits": "c83b874b7f30f2ad",
+      "number_string": "-9.367461688304768e+39",
+      "limit_query": "-9.367461688304768e+39",
+      "path": "/v1/workspace/history?limit=-9.367461688304768e%2B39"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=9.733527606630004e-25"
+      ],
+      "flags": {
+        "limit": "9.733527606630004e-25"
+      },
+      "number_bits": "3af2d3cf3616fcb8",
+      "number_string": "9.733527606630004e-25",
+      "limit_query": "9.733527606630004e-25",
+      "path": "/v1/workspace/history?limit=9.733527606630004e-25"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.681465963011697e+99"
+      ],
+      "flags": {
+        "limit": "2.681465963011697e+99"
+      },
+      "number_bits": "54939d8097e935a7",
+      "number_string": "2.681465963011697e+99",
+      "limit_query": "2.681465963011697e+99",
+      "path": "/v1/workspace/history?limit=2.681465963011697e%2B99"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.0008889496455144e+169"
+      ],
+      "flags": {
+        "limit": "1.0008889496455144e+169"
+      },
+      "number_bits": "6305377b2b36c8aa",
+      "number_string": "1.0008889496455144e+169",
+      "limit_query": "1.0008889496455144e+169",
+      "path": "/v1/workspace/history?limit=1.0008889496455144e%2B169"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-2.199867037817827e-98"
+      ],
+      "flags": {
+        "limit": "-2.199867037817827e-98"
+      },
+      "number_bits": "aba80eed00871d31",
+      "number_string": "-2.199867037817827e-98",
+      "limit_query": "-2.199867037817827e-98",
+      "path": "/v1/workspace/history?limit=-2.199867037817827e-98"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-7.806986668249725e-154"
+      ],
+      "flags": {
+        "limit": "-7.806986668249725e-154"
+      },
+      "number_bits": "a024ef56a027f1ec",
+      "number_string": "-7.806986668249725e-154",
+      "limit_query": "-7.806986668249725e-154",
+      "path": "/v1/workspace/history?limit=-7.806986668249725e-154"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=3.748795327793015e+267"
+      ],
+      "flags": {
+        "limit": "3.748795327793015e+267"
+      },
+      "number_bits": "777d10bacdcd1bcb",
+      "number_string": "3.748795327793015e+267",
+      "limit_query": "3.748795327793015e+267",
+      "path": "/v1/workspace/history?limit=3.748795327793015e%2B267"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-3.0524570555247227e-227"
+      ],
+      "flags": {
+        "limit": "-3.0524570555247227e-227"
+      },
+      "number_bits": "90e723be566618fe",
+      "number_string": "-3.0524570555247227e-227",
+      "limit_query": "-3.0524570555247227e-227",
+      "path": "/v1/workspace/history?limit=-3.0524570555247227e-227"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=0.000018381728386064574"
+      ],
+      "flags": {
+        "limit": "0.000018381728386064574"
+      },
+      "number_bits": "3ef3464ec195e7f5",
+      "number_string": "0.000018381728386064574",
+      "limit_query": "0.000018381728386064574",
+      "path": "/v1/workspace/history?limit=0.000018381728386064574"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-3.5551807665382095e-121"
+      ],
+      "flags": {
+        "limit": "-3.5551807665382095e-121"
+      },
+      "number_bits": "a6ed608e1a6cd260",
+      "number_string": "-3.5551807665382095e-121",
+      "limit_query": "-3.5551807665382095e-121",
+      "path": "/v1/workspace/history?limit=-3.5551807665382095e-121"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=6.615764286861973e+304"
+      ],
+      "flags": {
+        "limit": "6.615764286861973e+304"
+      },
+      "number_bits": "7f381e408ac61c2f",
+      "number_string": "6.615764286861973e+304",
+      "limit_query": "6.615764286861973e+304",
+      "path": "/v1/workspace/history?limit=6.615764286861973e%2B304"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.3921270537650647e+112"
+      ],
+      "flags": {
+        "limit": "1.3921270537650647e+112"
+      },
+      "number_bits": "5737279eff90c692",
+      "number_string": "1.3921270537650647e+112",
+      "limit_query": "1.3921270537650647e+112",
+      "path": "/v1/workspace/history?limit=1.3921270537650647e%2B112"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-5.38890101026363e+263"
+      ],
+      "flags": {
+        "limit": "-5.38890101026363e+263"
+      },
+      "number_bits": "f6b11d1ba156d6f9",
+      "number_string": "-5.38890101026363e+263",
+      "limit_query": "-5.38890101026363e+263",
+      "path": "/v1/workspace/history?limit=-5.38890101026363e%2B263"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=3.822858599127892e-70"
+      ],
+      "flags": {
+        "limit": "3.822858599127892e-70"
+      },
+      "number_bits": "31851b86733dd214",
+      "number_string": "3.822858599127892e-70",
+      "limit_query": "3.822858599127892e-70",
+      "path": "/v1/workspace/history?limit=3.822858599127892e-70"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=7.606112080729333e+33"
+      ],
+      "flags": {
+        "limit": "7.606112080729333e+33"
+      },
+      "number_bits": "46f7702a1a215ad3",
+      "number_string": "7.606112080729333e+33",
+      "limit_query": "7.606112080729333e+33",
+      "path": "/v1/workspace/history?limit=7.606112080729333e%2B33"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-6.655410978911966e-12"
+      ],
+      "flags": {
+        "limit": "-6.655410978911966e-12"
+      },
+      "number_bits": "bd9d45539c222566",
+      "number_string": "-6.655410978911966e-12",
+      "limit_query": "-6.655410978911966e-12",
+      "path": "/v1/workspace/history?limit=-6.655410978911966e-12"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.2354806997178813e+294"
+      ],
+      "flags": {
+        "limit": "1.2354806997178813e+294"
+      },
+      "number_bits": "7cfef38e6653ae3d",
+      "number_string": "1.2354806997178813e+294",
+      "limit_query": "1.2354806997178813e+294",
+      "path": "/v1/workspace/history?limit=1.2354806997178813e%2B294"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=9.756327622786958e+192"
+      ],
+      "flags": {
+        "limit": "9.756327622786958e+192"
+      },
+      "number_bits": "68011b71fd0e6508",
+      "number_string": "9.756327622786958e+192",
+      "limit_query": "9.756327622786958e+192",
+      "path": "/v1/workspace/history?limit=9.756327622786958e%2B192"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-4.3674411156253376e-132"
+      ],
+      "flags": {
+        "limit": "-4.3674411156253376e-132"
+      },
+      "number_bits": "a4a8ccd9c4b63bb7",
+      "number_string": "-4.3674411156253376e-132",
+      "limit_query": "-4.3674411156253376e-132",
+      "path": "/v1/workspace/history?limit=-4.3674411156253376e-132"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-4.662717524318064e-47"
+      ],
+      "flags": {
+        "limit": "-4.662717524318064e-47"
+      },
+      "number_bits": "b65109530892c97a",
+      "number_string": "-4.662717524318064e-47",
+      "limit_query": "-4.662717524318064e-47",
+      "path": "/v1/workspace/history?limit=-4.662717524318064e-47"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-7.137379306339009e-303"
+      ],
+      "flags": {
+        "limit": "-7.137379306339009e-303"
+      },
+      "number_bits": "81339409c72a71c1",
+      "number_string": "-7.137379306339009e-303",
+      "limit_query": "-7.137379306339009e-303",
+      "path": "/v1/workspace/history?limit=-7.137379306339009e-303"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.2957425622180694e-8"
+      ],
+      "flags": {
+        "limit": "1.2957425622180694e-8"
+      },
+      "number_bits": "3e4bd36b89a13f3c",
+      "number_string": "1.2957425622180694e-8",
+      "limit_query": "1.2957425622180694e-8",
+      "path": "/v1/workspace/history?limit=1.2957425622180694e-8"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.019137027886958e-138"
+      ],
+      "flags": {
+        "limit": "1.019137027886958e-138"
+      },
+      "number_bits": "234845d8c50a62db",
+      "number_string": "1.019137027886958e-138",
+      "limit_query": "1.019137027886958e-138",
+      "path": "/v1/workspace/history?limit=1.019137027886958e-138"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=7.449213437582306e-18"
+      ],
+      "flags": {
+        "limit": "7.449213437582306e-18"
+      },
+      "number_bits": "3c612d3d4ebc86ce",
+      "number_string": "7.449213437582306e-18",
+      "limit_query": "7.449213437582306e-18",
+      "path": "/v1/workspace/history?limit=7.449213437582306e-18"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.0892194217794361e+219"
+      ],
+      "flags": {
+        "limit": "1.0892194217794361e+219"
+      },
+      "number_bits": "6d68af4af3516585",
+      "number_string": "1.0892194217794361e+219",
+      "limit_query": "1.0892194217794361e+219",
+      "path": "/v1/workspace/history?limit=1.0892194217794361e%2B219"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.142504754982226e-46"
+      ],
+      "flags": {
+        "limit": "-1.142504754982226e-46"
+      },
+      "number_bits": "b664df45b07c54b0",
+      "number_string": "-1.142504754982226e-46",
+      "limit_query": "-1.142504754982226e-46",
+      "path": "/v1/workspace/history?limit=-1.142504754982226e-46"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-9.710191231054757e-132"
+      ],
+      "flags": {
+        "limit": "-9.710191231054757e-132"
+      },
+      "number_bits": "a4bb91be35b5b43f",
+      "number_string": "-9.710191231054757e-132",
+      "limit_query": "-9.710191231054757e-132",
+      "path": "/v1/workspace/history?limit=-9.710191231054757e-132"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-7.2161850846919e-65"
+      ],
+      "flags": {
+        "limit": "-7.2161850846919e-65"
+      },
+      "number_bits": "b29e65eb296e7162",
+      "number_string": "-7.2161850846919e-65",
+      "limit_query": "-7.2161850846919e-65",
+      "path": "/v1/workspace/history?limit=-7.2161850846919e-65"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.293323623076402e+63"
+      ],
+      "flags": {
+        "limit": "2.293323623076402e+63"
+      },
+      "number_bits": "4d164c8e201b0d89",
+      "number_string": "2.293323623076402e+63",
+      "limit_query": "2.293323623076402e+63",
+      "path": "/v1/workspace/history?limit=2.293323623076402e%2B63"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=0.00022218383156209353"
+      ],
+      "flags": {
+        "limit": "0.00022218383156209353"
+      },
+      "number_bits": "3f2d1f40949cd964",
+      "number_string": "0.00022218383156209353",
+      "limit_query": "0.00022218383156209353",
+      "path": "/v1/workspace/history?limit=0.00022218383156209353"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.3097541345028847e-50"
+      ],
+      "flags": {
+        "limit": "-1.3097541345028847e-50"
+      },
+      "number_bits": "b59399fb1e0653e3",
+      "number_string": "-1.3097541345028847e-50",
+      "limit_query": "-1.3097541345028847e-50",
+      "path": "/v1/workspace/history?limit=-1.3097541345028847e-50"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=5.573233130253588e+30"
+      ],
+      "flags": {
+        "limit": "5.573233130253588e+30"
+      },
+      "number_bits": "465196059940dd36",
+      "number_string": "5.573233130253588e+30",
+      "limit_query": "5.573233130253588e+30",
+      "path": "/v1/workspace/history?limit=5.573233130253588e%2B30"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=3.36117922068229e-49"
+      ],
+      "flags": {
+        "limit": "3.36117922068229e-49"
+      },
+      "number_bits": "35df706cddfa2dcd",
+      "number_string": "3.36117922068229e-49",
+      "limit_query": "3.36117922068229e-49",
+      "path": "/v1/workspace/history?limit=3.36117922068229e-49"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-2.45335795138549e-208"
+      ],
+      "flags": {
+        "limit": "-2.45335795138549e-208"
+      },
+      "number_bits": "94d429ff9d6b4158",
+      "number_string": "-2.45335795138549e-208",
+      "limit_query": "-2.45335795138549e-208",
+      "path": "/v1/workspace/history?limit=-2.45335795138549e-208"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-2.250455774836403e-127"
+      ],
+      "flags": {
+        "limit": "-2.250455774836403e-127"
+      },
+      "number_bits": "a5a37fd100e4a5c7",
+      "number_string": "-2.250455774836403e-127",
+      "limit_query": "-2.250455774836403e-127",
+      "path": "/v1/workspace/history?limit=-2.250455774836403e-127"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.7459052108719963e-71"
+      ],
+      "flags": {
+        "limit": "-1.7459052108719963e-71"
+      },
+      "number_bits": "b13ed8f41ea95e4a",
+      "number_string": "-1.7459052108719963e-71",
+      "limit_query": "-1.7459052108719963e-71",
+      "path": "/v1/workspace/history?limit=-1.7459052108719963e-71"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.0598623529919176"
+      ],
+      "flags": {
+        "limit": "1.0598623529919176"
+      },
+      "number_bits": "3ff0f5323a05ca51",
+      "number_string": "1.0598623529919176",
+      "limit_query": "1.0598623529919176",
+      "path": "/v1/workspace/history?limit=1.0598623529919176"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.945571257480571e-241"
+      ],
+      "flags": {
+        "limit": "1.945571257480571e-241"
+      },
+      "number_bits": "0df4c1c7d6ef408c",
+      "number_string": "1.945571257480571e-241",
+      "limit_query": "1.945571257480571e-241",
+      "path": "/v1/workspace/history?limit=1.945571257480571e-241"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=3.3869923383522365e+227"
+      ],
+      "flags": {
+        "limit": "3.3869923383522365e+227"
+      },
+      "number_bits": "6f2c984691f74deb",
+      "number_string": "3.3869923383522365e+227",
+      "limit_query": "3.3869923383522365e+227",
+      "path": "/v1/workspace/history?limit=3.3869923383522365e%2B227"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=3.5613237333595567e-150"
+      ],
+      "flags": {
+        "limit": "3.5613237333595567e-150"
+      },
+      "number_bits": "20e750b16d4ec89e",
+      "number_string": "3.5613237333595567e-150",
+      "limit_query": "3.5613237333595567e-150",
+      "path": "/v1/workspace/history?limit=3.5613237333595567e-150"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.179781133808382e+123"
+      ],
+      "flags": {
+        "limit": "1.179781133808382e+123"
+      },
+      "number_bits": "597c8e18efbd2715",
+      "number_string": "1.179781133808382e+123",
+      "limit_query": "1.179781133808382e+123",
+      "path": "/v1/workspace/history?limit=1.179781133808382e%2B123"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-8.641948552206549e-38"
+      ],
+      "flags": {
+        "limit": "-8.641948552206549e-38"
+      },
+      "number_bits": "b83d6832ed43cb00",
+      "number_string": "-8.641948552206549e-38",
+      "limit_query": "-8.641948552206549e-38",
+      "path": "/v1/workspace/history?limit=-8.641948552206549e-38"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=0.000027626293844382467"
+      ],
+      "flags": {
+        "limit": "0.000027626293844382467"
+      },
+      "number_bits": "3efcf7e07507304f",
+      "number_string": "0.000027626293844382467",
+      "limit_query": "0.000027626293844382467",
+      "path": "/v1/workspace/history?limit=0.000027626293844382467"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.3768719859408352e+208"
+      ],
+      "flags": {
+        "limit": "1.3768719859408352e+208"
+      },
+      "number_bits": "6b25716bac9d3032",
+      "number_string": "1.3768719859408352e+208",
+      "limit_query": "1.3768719859408352e+208",
+      "path": "/v1/workspace/history?limit=1.3768719859408352e%2B208"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=5.93009573577606e-226"
+      ],
+      "flags": {
+        "limit": "5.93009573577606e-226"
+      },
+      "number_bits": "112c18a42f0bc819",
+      "number_string": "5.93009573577606e-226",
+      "limit_query": "5.93009573577606e-226",
+      "path": "/v1/workspace/history?limit=5.93009573577606e-226"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=3.093025548223862e+261"
+      ],
+      "flags": {
+        "limit": "3.093025548223862e+261"
+      },
+      "number_bits": "76392559f74b14b4",
+      "number_string": "3.093025548223862e+261",
+      "limit_query": "3.093025548223862e+261",
+      "path": "/v1/workspace/history?limit=3.093025548223862e%2B261"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=9.593856342740628e-168"
+      ],
+      "flags": {
+        "limit": "9.593856342740628e-168"
+      },
+      "number_bits": "1d421a7a2ba370f3",
+      "number_string": "9.593856342740628e-168",
+      "limit_query": "9.593856342740628e-168",
+      "path": "/v1/workspace/history?limit=9.593856342740628e-168"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.3780012472408597e+203"
+      ],
+      "flags": {
+        "limit": "1.3780012472408597e+203"
+      },
+      "number_bits": "6a1c20fe9999e906",
+      "number_string": "1.3780012472408597e+203",
+      "limit_query": "1.3780012472408597e+203",
+      "path": "/v1/workspace/history?limit=1.3780012472408597e%2B203"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.7442098689817574e+261"
+      ],
+      "flags": {
+        "limit": "-1.7442098689817574e+261"
+      },
+      "number_bits": "f62c5c43ba8d715d",
+      "number_string": "-1.7442098689817574e+261",
+      "limit_query": "-1.7442098689817574e+261",
+      "path": "/v1/workspace/history?limit=-1.7442098689817574e%2B261"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-4.333552888899109e-175"
+      ],
+      "flags": {
+        "limit": "-4.333552888899109e-175"
+      },
+      "number_bits": "9bbb704684a291a8",
+      "number_string": "-4.333552888899109e-175",
+      "limit_query": "-4.333552888899109e-175",
+      "path": "/v1/workspace/history?limit=-4.333552888899109e-175"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.4253493590016323e+90"
+      ],
+      "flags": {
+        "limit": "-1.4253493590016323e+90"
+      },
+      "number_bits": "d2a66415950573d7",
+      "number_string": "-1.4253493590016323e+90",
+      "limit_query": "-1.4253493590016323e+90",
+      "path": "/v1/workspace/history?limit=-1.4253493590016323e%2B90"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2140632227111366.5"
+      ],
+      "flags": {
+        "limit": "2140632227111366.5"
+      },
+      "number_bits": "431e6b931df7871a",
+      "number_string": "2140632227111366.5",
+      "limit_query": "2140632227111366.5",
+      "path": "/v1/workspace/history?limit=2140632227111366.5"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=4.9631427271248245e-146"
+      ],
+      "flags": {
+        "limit": "4.9631427271248245e-146"
+      },
+      "number_bits": "21c3d4f8621226e1",
+      "number_string": "4.9631427271248245e-146",
+      "limit_query": "4.9631427271248245e-146",
+      "path": "/v1/workspace/history?limit=4.9631427271248245e-146"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.273196306944803e-254"
+      ],
+      "flags": {
+        "limit": "1.273196306944803e-254"
+      },
+      "number_bits": "0b37e577a2d6f5dc",
+      "number_string": "1.273196306944803e-254",
+      "limit_query": "1.273196306944803e-254",
+      "path": "/v1/workspace/history?limit=1.273196306944803e-254"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-8.169891757219861e+35"
+      ],
+      "flags": {
+        "limit": "-8.169891757219861e+35"
+      },
+      "number_bits": "c763ab15a434dcfb",
+      "number_string": "-8.169891757219861e+35",
+      "limit_query": "-8.169891757219861e+35",
+      "path": "/v1/workspace/history?limit=-8.169891757219861e%2B35"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.6044108514899505e-279"
+      ],
+      "flags": {
+        "limit": "2.6044108514899505e-279"
+      },
+      "number_bits": "0617a3413069de6e",
+      "number_string": "2.6044108514899505e-279",
+      "limit_query": "2.6044108514899505e-279",
+      "path": "/v1/workspace/history?limit=2.6044108514899505e-279"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-7.649158548592406e+129"
+      ],
+      "flags": {
+        "limit": "-7.649158548592406e+129"
+      },
+      "number_bits": "dae611f61d622ca5",
+      "number_string": "-7.649158548592406e+129",
+      "limit_query": "-7.649158548592406e+129",
+      "path": "/v1/workspace/history?limit=-7.649158548592406e%2B129"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.0764484554183842e+55"
+      ],
+      "flags": {
+        "limit": "-1.0764484554183842e+55"
+      },
+      "number_bits": "cb5c18bbcdd83550",
+      "number_string": "-1.0764484554183842e+55",
+      "limit_query": "-1.0764484554183842e+55",
+      "path": "/v1/workspace/history?limit=-1.0764484554183842e%2B55"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=4.314110349429377e+48"
+      ],
+      "flags": {
+        "limit": "4.314110349429377e+48"
+      },
+      "number_bits": "4a079d5b306b905f",
+      "number_string": "4.314110349429377e+48",
+      "limit_query": "4.314110349429377e+48",
+      "path": "/v1/workspace/history?limit=4.314110349429377e%2B48"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-4.517978789529213e+180"
+      ],
+      "flags": {
+        "limit": "-4.517978789529213e+180"
+      },
+      "number_bits": "e5716bb6123a0302",
+      "number_string": "-4.517978789529213e+180",
+      "limit_query": "-4.517978789529213e+180",
+      "path": "/v1/workspace/history?limit=-4.517978789529213e%2B180"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-6.000241895500316e-239"
+      ],
+      "flags": {
+        "limit": "-6.000241895500316e-239"
+      },
+      "number_bits": "8e79018d4b4206a9",
+      "number_string": "-6.000241895500316e-239",
+      "limit_query": "-6.000241895500316e-239",
+      "path": "/v1/workspace/history?limit=-6.000241895500316e-239"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.0843554073754943e+140"
+      ],
+      "flags": {
+        "limit": "2.0843554073754943e+140"
+      },
+      "number_bits": "5d1180c7ffad8404",
+      "number_string": "2.0843554073754943e+140",
+      "limit_query": "2.0843554073754943e+140",
+      "path": "/v1/workspace/history?limit=2.0843554073754943e%2B140"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-5.176280872925851e+211"
+      ],
+      "flags": {
+        "limit": "-5.176280872925851e+211"
+      },
+      "number_bits": "ebe3ae6103b9b203",
+      "number_string": "-5.176280872925851e+211",
+      "limit_query": "-5.176280872925851e+211",
+      "path": "/v1/workspace/history?limit=-5.176280872925851e%2B211"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-2.0706977709202903e+50"
+      ],
+      "flags": {
+        "limit": "-2.0706977709202903e+50"
+      },
+      "number_bits": "ca61b5da3e1a48d6",
+      "number_string": "-2.0706977709202903e+50",
+      "limit_query": "-2.0706977709202903e+50",
+      "path": "/v1/workspace/history?limit=-2.0706977709202903e%2B50"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.93030312541513e+109"
+      ],
+      "flags": {
+        "limit": "1.93030312541513e+109"
+      },
+      "number_bits": "56a07034d8b678ed",
+      "number_string": "1.93030312541513e+109",
+      "limit_query": "1.93030312541513e+109",
+      "path": "/v1/workspace/history?limit=1.93030312541513e%2B109"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.2543632482045118e-138"
+      ],
+      "flags": {
+        "limit": "-1.2543632482045118e-138"
+      },
+      "number_bits": "a34de00f536955f8",
+      "number_string": "-1.2543632482045118e-138",
+      "limit_query": "-1.2543632482045118e-138",
+      "path": "/v1/workspace/history?limit=-1.2543632482045118e-138"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.4961388895991962e+171"
+      ],
+      "flags": {
+        "limit": "-1.4961388895991962e+171"
+      },
+      "number_bits": "e378c6fe8be9a5e7",
+      "number_string": "-1.4961388895991962e+171",
+      "limit_query": "-1.4961388895991962e+171",
+      "path": "/v1/workspace/history?limit=-1.4961388895991962e%2B171"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.1593252597102843e-236"
+      ],
+      "flags": {
+        "limit": "-1.1593252597102843e-236"
+      },
+      "number_bits": "8ef2df7f9c3a43ea",
+      "number_string": "-1.1593252597102843e-236",
+      "limit_query": "-1.1593252597102843e-236",
+      "path": "/v1/workspace/history?limit=-1.1593252597102843e-236"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-2.6899003927709135e-206"
+      ],
+      "flags": {
+        "limit": "-2.6899003927709135e-206"
+      },
+      "number_bits": "954145a354888771",
+      "number_string": "-2.6899003927709135e-206",
+      "limit_query": "-2.6899003927709135e-206",
+      "path": "/v1/workspace/history?limit=-2.6899003927709135e-206"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.4361572669174733e+188"
+      ],
+      "flags": {
+        "limit": "2.4361572669174733e+188"
+      },
+      "number_bits": "670bfeadef5d5f2c",
+      "number_string": "2.4361572669174733e+188",
+      "limit_query": "2.4361572669174733e+188",
+      "path": "/v1/workspace/history?limit=2.4361572669174733e%2B188"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.3398804796148687e+86"
+      ],
+      "flags": {
+        "limit": "1.3398804796148687e+86"
+      },
+      "number_bits": "51d13e26d1a4100b",
+      "number_string": "1.3398804796148687e+86",
+      "limit_query": "1.3398804796148687e+86",
+      "path": "/v1/workspace/history?limit=1.3398804796148687e%2B86"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.623155892562152e-255"
+      ],
+      "flags": {
+        "limit": "2.623155892562152e-255"
+      },
+      "number_bits": "0b13b181cf9ac83e",
+      "number_string": "2.623155892562152e-255",
+      "limit_query": "2.623155892562152e-255",
+      "path": "/v1/workspace/history?limit=2.623155892562152e-255"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.8464782650113986e+108"
+      ],
+      "flags": {
+        "limit": "1.8464782650113986e+108"
+      },
+      "number_bits": "566928bd33097635",
+      "number_string": "1.8464782650113986e+108",
+      "limit_query": "1.8464782650113986e+108",
+      "path": "/v1/workspace/history?limit=1.8464782650113986e%2B108"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-3.0766938156223835e+217"
+      ],
+      "flags": {
+        "limit": "-3.0766938156223835e+217"
+      },
+      "number_bits": "ed164ffd2a8e93a0",
+      "number_string": "-3.0766938156223835e+217",
+      "limit_query": "-3.0766938156223835e+217",
+      "path": "/v1/workspace/history?limit=-3.0766938156223835e%2B217"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-2.3733758363803203e-159"
+      ],
+      "flags": {
+        "limit": "-2.3733758363803203e-159"
+      },
+      "number_bits": "9f00af0b99d3d46f",
+      "number_string": "-2.3733758363803203e-159",
+      "limit_query": "-2.3733758363803203e-159",
+      "path": "/v1/workspace/history?limit=-2.3733758363803203e-159"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.00490993425803e-302"
+      ],
+      "flags": {
+        "limit": "1.00490993425803e-302"
+      },
+      "number_bits": "013b90b7b0a1e9d2",
+      "number_string": "1.00490993425803e-302",
+      "limit_query": "1.00490993425803e-302",
+      "path": "/v1/workspace/history?limit=1.00490993425803e-302"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.0957661325518096e-123"
+      ],
+      "flags": {
+        "limit": "1.0957661325518096e-123"
+      },
+      "number_bits": "26672dfac616c939",
+      "number_string": "1.0957661325518096e-123",
+      "limit_query": "1.0957661325518096e-123",
+      "path": "/v1/workspace/history?limit=1.0957661325518096e-123"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=4.718877368013296e-277"
+      ],
+      "flags": {
+        "limit": "4.718877368013296e-277"
+      },
+      "number_bits": "0690bade21692754",
+      "number_string": "4.718877368013296e-277",
+      "limit_query": "4.718877368013296e-277",
+      "path": "/v1/workspace/history?limit=4.718877368013296e-277"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.154636118233672e-116"
+      ],
+      "flags": {
+        "limit": "2.154636118233672e-116"
+      },
+      "number_bits": "27eb2ac2d54a1713",
+      "number_string": "2.154636118233672e-116",
+      "limit_query": "2.154636118233672e-116",
+      "path": "/v1/workspace/history?limit=2.154636118233672e-116"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.5963240493218997e+223"
+      ],
+      "flags": {
+        "limit": "2.5963240493218997e+223"
+      },
+      "number_bits": "6e51f4de48eefca6",
+      "number_string": "2.5963240493218997e+223",
+      "limit_query": "2.5963240493218997e+223",
+      "path": "/v1/workspace/history?limit=2.5963240493218997e%2B223"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=0.000666145550655042"
+      ],
+      "flags": {
+        "limit": "0.000666145550655042"
+      },
+      "number_bits": "3f45d408ad5e447d",
+      "number_string": "0.000666145550655042",
+      "limit_query": "0.000666145550655042",
+      "path": "/v1/workspace/history?limit=0.000666145550655042"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-2.7043260538836717e+50"
+      ],
+      "flags": {
+        "limit": "-2.7043260538836717e+50"
+      },
+      "number_bits": "ca6721332db48e48",
+      "number_string": "-2.7043260538836717e+50",
+      "limit_query": "-2.7043260538836717e+50",
+      "path": "/v1/workspace/history?limit=-2.7043260538836717e%2B50"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=5.696682540008928e-24"
+      ],
+      "flags": {
+        "limit": "5.696682540008928e-24"
+      },
+      "number_bits": "3b1b8c26c2a23bf7",
+      "number_string": "5.696682540008928e-24",
+      "limit_query": "5.696682540008928e-24",
+      "path": "/v1/workspace/history?limit=5.696682540008928e-24"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-2.3314988594487377e+229"
+      ],
+      "flags": {
+        "limit": "-2.3314988594487377e+229"
+      },
+      "number_bits": "ef8ec182e46e94ba",
+      "number_string": "-2.3314988594487377e+229",
+      "limit_query": "-2.3314988594487377e+229",
+      "path": "/v1/workspace/history?limit=-2.3314988594487377e%2B229"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=6.564294028742747e-255"
+      ],
+      "flags": {
+        "limit": "6.564294028742747e-255"
+      },
+      "number_bits": "0b28a409c2e1ec01",
+      "number_string": "6.564294028742747e-255",
+      "limit_query": "6.564294028742747e-255",
+      "path": "/v1/workspace/history?limit=6.564294028742747e-255"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=7.313199109469775e-87"
+      ],
+      "flags": {
+        "limit": "7.313199109469775e-87"
+      },
+      "number_bits": "2e0d189ff5c77c7c",
+      "number_string": "7.313199109469775e-87",
+      "limit_query": "7.313199109469775e-87",
+      "path": "/v1/workspace/history?limit=7.313199109469775e-87"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-5.8697811719749135e+113"
+      ],
+      "flags": {
+        "limit": "-5.8697811719749135e+113"
+      },
+      "number_bits": "d78e82676665e71b",
+      "number_string": "-5.8697811719749135e+113",
+      "limit_query": "-5.8697811719749135e+113",
+      "path": "/v1/workspace/history?limit=-5.8697811719749135e%2B113"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-4.528210880964628e+53"
+      ],
+      "flags": {
+        "limit": "-4.528210880964628e+53"
+      },
+      "number_bits": "cb12e9230bae860e",
+      "number_string": "-4.528210880964628e+53",
+      "limit_query": "-4.528210880964628e+53",
+      "path": "/v1/workspace/history?limit=-4.528210880964628e%2B53"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.0766856186072004e+158"
+      ],
+      "flags": {
+        "limit": "-1.0766856186072004e+158"
+      },
+      "number_bits": "e0bf5e49c7bc03c5",
+      "number_string": "-1.0766856186072004e+158",
+      "limit_query": "-1.0766856186072004e+158",
+      "path": "/v1/workspace/history?limit=-1.0766856186072004e%2B158"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.2498261884744762e-276"
+      ],
+      "flags": {
+        "limit": "-1.2498261884744762e-276"
+      },
+      "number_bits": "86a627bb06fbe5f0",
+      "number_string": "-1.2498261884744762e-276",
+      "limit_query": "-1.2498261884744762e-276",
+      "path": "/v1/workspace/history?limit=-1.2498261884744762e-276"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=4.905705121272502e+179"
+      ],
+      "flags": {
+        "limit": "4.905705121272502e+179"
+      },
+      "number_bits": "653e43e63d70fc7f",
+      "number_string": "4.905705121272502e+179",
+      "limit_query": "4.905705121272502e+179",
+      "path": "/v1/workspace/history?limit=4.905705121272502e%2B179"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-7.902077537901314e-94"
+      ],
+      "flags": {
+        "limit": "-7.902077537901314e-94"
+      },
+      "number_bits": "ac9a5f7e7b71e4a2",
+      "number_string": "-7.902077537901314e-94",
+      "limit_query": "-7.902077537901314e-94",
+      "path": "/v1/workspace/history?limit=-7.902077537901314e-94"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=3.5849926042820383e+202"
+      ],
+      "flags": {
+        "limit": "3.5849926042820383e+202"
+      },
+      "number_bits": "69fd459c55230fc9",
+      "number_string": "3.5849926042820383e+202",
+      "limit_query": "3.5849926042820383e+202",
+      "path": "/v1/workspace/history?limit=3.5849926042820383e%2B202"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-707409.5925521445"
+      ],
+      "flags": {
+        "limit": "-707409.5925521445"
+      },
+      "number_bits": "c12596a32f62fea4",
+      "number_string": "-707409.5925521445",
+      "limit_query": "-707409.5925521445",
+      "path": "/v1/workspace/history?limit=-707409.5925521445"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.0131101216107043e+219"
+      ],
+      "flags": {
+        "limit": "1.0131101216107043e+219"
+      },
+      "number_bits": "6d66f5bb4d95a023",
+      "number_string": "1.0131101216107043e+219",
+      "limit_query": "1.0131101216107043e+219",
+      "path": "/v1/workspace/history?limit=1.0131101216107043e%2B219"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-4.1680862503865695e+265"
+      ],
+      "flags": {
+        "limit": "-4.1680862503865695e+265"
+      },
+      "number_bits": "f714aeb06d850476",
+      "number_string": "-4.1680862503865695e+265",
+      "limit_query": "-4.1680862503865695e+265",
+      "path": "/v1/workspace/history?limit=-4.1680862503865695e%2B265"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-9.979501615565701e+98"
+      ],
+      "flags": {
+        "limit": "-9.979501615565701e+98"
+      },
+      "number_bits": "d47d3353d5add40d",
+      "number_string": "-9.979501615565701e+98",
+      "limit_query": "-9.979501615565701e+98",
+      "path": "/v1/workspace/history?limit=-9.979501615565701e%2B98"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=3.303439954873438e-176"
+      ],
+      "flags": {
+        "limit": "3.303439954873438e-176"
+      },
+      "number_bits": "1b80bba60ab93a98",
+      "number_string": "3.303439954873438e-176",
+      "limit_query": "3.303439954873438e-176",
+      "path": "/v1/workspace/history?limit=3.303439954873438e-176"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.03007237581018e-298"
+      ],
+      "flags": {
+        "limit": "-1.03007237581018e-298"
+      },
+      "number_bits": "82113eecf8803607",
+      "number_string": "-1.03007237581018e-298",
+      "limit_query": "-1.03007237581018e-298",
+      "path": "/v1/workspace/history?limit=-1.03007237581018e-298"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-2.547530364642447e+131"
+      ],
+      "flags": {
+        "limit": "-2.547530364642447e+131"
+      },
+      "number_bits": "db36f852c6d1798a",
+      "number_string": "-2.547530364642447e+131",
+      "limit_query": "-2.547530364642447e+131",
+      "path": "/v1/workspace/history?limit=-2.547530364642447e%2B131"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.8710819015571027e+291"
+      ],
+      "flags": {
+        "limit": "1.8710819015571027e+291"
+      },
+      "number_bits": "7c67fff08ad75491",
+      "number_string": "1.8710819015571027e+291",
+      "limit_query": "1.8710819015571027e+291",
+      "path": "/v1/workspace/history?limit=1.8710819015571027e%2B291"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=5.095760768844973e-112"
+      ],
+      "flags": {
+        "limit": "5.095760768844973e-112"
+      },
+      "number_bits": "28d39b94769a4dcc",
+      "number_string": "5.095760768844973e-112",
+      "limit_query": "5.095760768844973e-112",
+      "path": "/v1/workspace/history?limit=5.095760768844973e-112"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-2.4623921248778594e-285"
+      ],
+      "flags": {
+        "limit": "-2.4623921248778594e-285"
+      },
+      "number_bits": "84d76f3234db622b",
+      "number_string": "-2.4623921248778594e-285",
+      "limit_query": "-2.4623921248778594e-285",
+      "path": "/v1/workspace/history?limit=-2.4623921248778594e-285"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=8.545747975809632e-108"
+      ],
+      "flags": {
+        "limit": "8.545747975809632e-108"
+      },
+      "number_bits": "29b411eefeb217de",
+      "number_string": "8.545747975809632e-108",
+      "limit_query": "8.545747975809632e-108",
+      "path": "/v1/workspace/history?limit=8.545747975809632e-108"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-3.226329393229589e-296"
+      ],
+      "flags": {
+        "limit": "-3.226329393229589e-296"
+      },
+      "number_bits": "8295199fe2c2d555",
+      "number_string": "-3.226329393229589e-296",
+      "limit_query": "-3.226329393229589e-296",
+      "path": "/v1/workspace/history?limit=-3.226329393229589e-296"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-3.59208566059692e-112"
+      ],
+      "flags": {
+        "limit": "-3.59208566059692e-112"
+      },
+      "number_bits": "a8cba4c4e1f52c40",
+      "number_string": "-3.59208566059692e-112",
+      "limit_query": "-3.59208566059692e-112",
+      "path": "/v1/workspace/history?limit=-3.59208566059692e-112"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-3.880361763990878e-276"
+      ],
+      "flags": {
+        "limit": "-3.880361763990878e-276"
+      },
+      "number_bits": "86c1324911b4088f",
+      "number_string": "-3.880361763990878e-276",
+      "limit_query": "-3.880361763990878e-276",
+      "path": "/v1/workspace/history?limit=-3.880361763990878e-276"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.0554959527068645e-136"
+      ],
+      "flags": {
+        "limit": "2.0554959527068645e-136"
+      },
+      "number_bits": "23c31f95d386f372",
+      "number_string": "2.0554959527068645e-136",
+      "limit_query": "2.0554959527068645e-136",
+      "path": "/v1/workspace/history?limit=2.0554959527068645e-136"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=6.07513121048437e-247"
+      ],
+      "flags": {
+        "limit": "6.07513121048437e-247"
+      },
+      "number_bits": "0cd0fda0a23fda59",
+      "number_string": "6.07513121048437e-247",
+      "limit_query": "6.07513121048437e-247",
+      "path": "/v1/workspace/history?limit=6.07513121048437e-247"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.007577215098624e+158"
+      ],
+      "flags": {
+        "limit": "1.007577215098624e+158"
+      },
+      "number_bits": "60bd5adaabc009f4",
+      "number_string": "1.007577215098624e+158",
+      "limit_query": "1.007577215098624e+158",
+      "path": "/v1/workspace/history?limit=1.007577215098624e%2B158"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.5368821878246974e-221"
+      ],
+      "flags": {
+        "limit": "1.5368821878246974e-221"
+      },
+      "number_bits": "121638c1a81d4d33",
+      "number_string": "1.5368821878246974e-221",
+      "limit_query": "1.5368821878246974e-221",
+      "path": "/v1/workspace/history?limit=1.5368821878246974e-221"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.8695652124410855e-7"
+      ],
+      "flags": {
+        "limit": "2.8695652124410855e-7"
+      },
+      "number_bits": "3e9341e020896046",
+      "number_string": "2.8695652124410855e-7",
+      "limit_query": "2.8695652124410855e-7",
+      "path": "/v1/workspace/history?limit=2.8695652124410855e-7"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=7.345713471574345e-74"
+      ],
+      "flags": {
+        "limit": "7.345713471574345e-74"
+      },
+      "number_bits": "30c09ce0a70e279d",
+      "number_string": "7.345713471574345e-74",
+      "limit_query": "7.345713471574345e-74",
+      "path": "/v1/workspace/history?limit=7.345713471574345e-74"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.0283597679332958e-231"
+      ],
+      "flags": {
+        "limit": "-1.0283597679332958e-231"
+      },
+      "number_bits": "8ff98b7504ec5ae8",
+      "number_string": "-1.0283597679332958e-231",
+      "limit_query": "-1.0283597679332958e-231",
+      "path": "/v1/workspace/history?limit=-1.0283597679332958e-231"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-0.00044535656259575687"
+      ],
+      "flags": {
+        "limit": "-0.00044535656259575687"
+      },
+      "number_bits": "bf3d2fd7df149417",
+      "number_string": "-0.00044535656259575687",
+      "limit_query": "-0.00044535656259575687",
+      "path": "/v1/workspace/history?limit=-0.00044535656259575687"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-6.393180866476658e-220"
+      ],
+      "flags": {
+        "limit": "-6.393180866476658e-220"
+      },
+      "number_bits": "926ce31868dff25a",
+      "number_string": "-6.393180866476658e-220",
+      "limit_query": "-6.393180866476658e-220",
+      "path": "/v1/workspace/history?limit=-6.393180866476658e-220"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-552705724914706.06"
+      ],
+      "flags": {
+        "limit": "-552705724914706.06"
+      },
+      "number_bits": "c2ff6aed4661c121",
+      "number_string": "-552705724914706.06",
+      "limit_query": "-552705724914706.06",
+      "path": "/v1/workspace/history?limit=-552705724914706.06"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.7607856606970925e-16"
+      ],
+      "flags": {
+        "limit": "-1.7607856606970925e-16"
+      },
+      "number_bits": "bca96027099ad31c",
+      "number_string": "-1.7607856606970925e-16",
+      "limit_query": "-1.7607856606970925e-16",
+      "path": "/v1/workspace/history?limit=-1.7607856606970925e-16"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.9735781037696678e+305"
+      ],
+      "flags": {
+        "limit": "2.9735781037696678e+305"
+      },
+      "number_bits": "7f5b19d4a5a5813b",
+      "number_string": "2.9735781037696678e+305",
+      "limit_query": "2.9735781037696678e+305",
+      "path": "/v1/workspace/history?limit=2.9735781037696678e%2B305"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-7.385412626798434e+133"
+      ],
+      "flags": {
+        "limit": "-7.385412626798434e+133"
+      },
+      "number_bits": "dbba031debf27dae",
+      "number_string": "-7.385412626798434e+133",
+      "limit_query": "-7.385412626798434e+133",
+      "path": "/v1/workspace/history?limit=-7.385412626798434e%2B133"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-2.010550296620838e+131"
+      ],
+      "flags": {
+        "limit": "-2.010550296620838e+131"
+      },
+      "number_bits": "db3220d78ba6eae5",
+      "number_string": "-2.010550296620838e+131",
+      "limit_query": "-2.010550296620838e+131",
+      "path": "/v1/workspace/history?limit=-2.010550296620838e%2B131"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1770985601762758700"
+      ],
+      "flags": {
+        "limit": "1770985601762758700"
+      },
+      "number_bits": "43b893ce058f6690",
+      "number_string": "1770985601762758700",
+      "limit_query": "1770985601762758700",
+      "path": "/v1/workspace/history?limit=1770985601762758700"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.3521802297474635e+120"
+      ],
+      "flags": {
+        "limit": "1.3521802297474635e+120"
+      },
+      "number_bits": "58e0c1b1874df89f",
+      "number_string": "1.3521802297474635e+120",
+      "limit_query": "1.3521802297474635e+120",
+      "path": "/v1/workspace/history?limit=1.3521802297474635e%2B120"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=3.985439522218348e-231"
+      ],
+      "flags": {
+        "limit": "3.985439522218348e-231"
+      },
+      "number_bits": "1018bff756fe1642",
+      "number_string": "3.985439522218348e-231",
+      "limit_query": "3.985439522218348e-231",
+      "path": "/v1/workspace/history?limit=3.985439522218348e-231"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-6.0774776416352e-255"
+      ],
+      "flags": {
+        "limit": "-6.0774776416352e-255"
+      },
+      "number_bits": "8b26d039db8628e9",
+      "number_string": "-6.0774776416352e-255",
+      "limit_query": "-6.0774776416352e-255",
+      "path": "/v1/workspace/history?limit=-6.0774776416352e-255"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-8.534317186601696e-110"
+      ],
+      "flags": {
+        "limit": "-8.534317186601696e-110"
+      },
+      "number_bits": "a949a7c217e54944",
+      "number_string": "-8.534317186601696e-110",
+      "limit_query": "-8.534317186601696e-110",
+      "path": "/v1/workspace/history?limit=-8.534317186601696e-110"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.7714020033630483e+226"
+      ],
+      "flags": {
+        "limit": "-1.7714020033630483e+226"
+      },
+      "number_bits": "eee7ed9fbea21e43",
+      "number_string": "-1.7714020033630483e+226",
+      "limit_query": "-1.7714020033630483e+226",
+      "path": "/v1/workspace/history?limit=-1.7714020033630483e%2B226"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=5.306702640120847e+302"
+      ],
+      "flags": {
+        "limit": "5.306702640120847e+302"
+      },
+      "number_bits": "7ec8c34467e91016",
+      "number_string": "5.306702640120847e+302",
+      "limit_query": "5.306702640120847e+302",
+      "path": "/v1/workspace/history?limit=5.306702640120847e%2B302"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.5434043856890816e+280"
+      ],
+      "flags": {
+        "limit": "-1.5434043856890816e+280"
+      },
+      "number_bits": "fa1b355cbf283f2d",
+      "number_string": "-1.5434043856890816e+280",
+      "limit_query": "-1.5434043856890816e+280",
+      "path": "/v1/workspace/history?limit=-1.5434043856890816e%2B280"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.8363257686515994e-243"
+      ],
+      "flags": {
+        "limit": "-1.8363257686515994e-243"
+      },
+      "number_bits": "8d8913b8aa02ef38",
+      "number_string": "-1.8363257686515994e-243",
+      "limit_query": "-1.8363257686515994e-243",
+      "path": "/v1/workspace/history?limit=-1.8363257686515994e-243"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-3.42753562024115e+164"
+      ],
+      "flags": {
+        "limit": "-3.42753562024115e+164"
+      },
+      "number_bits": "e217cede2a305627",
+      "number_string": "-3.42753562024115e+164",
+      "limit_query": "-3.42753562024115e+164",
+      "path": "/v1/workspace/history?limit=-3.42753562024115e%2B164"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.5783034956050727e-132"
+      ],
+      "flags": {
+        "limit": "2.5783034956050727e-132"
+      },
+      "number_bits": "249d480b1556ff2a",
+      "number_string": "2.5783034956050727e-132",
+      "limit_query": "2.5783034956050727e-132",
+      "path": "/v1/workspace/history?limit=2.5783034956050727e-132"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.0324699525138461e-178"
+      ],
+      "flags": {
+        "limit": "-1.0324699525138461e-178"
+      },
+      "number_bits": "9afac6ccdbba31b1",
+      "number_string": "-1.0324699525138461e-178",
+      "limit_query": "-1.0324699525138461e-178",
+      "path": "/v1/workspace/history?limit=-1.0324699525138461e-178"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.5344395074198162e+199"
+      ],
+      "flags": {
+        "limit": "-1.5344395074198162e+199"
+      },
+      "number_bits": "e949a8bf6dce0c6c",
+      "number_string": "-1.5344395074198162e+199",
+      "limit_query": "-1.5344395074198162e+199",
+      "path": "/v1/workspace/history?limit=-1.5344395074198162e%2B199"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=7.9726173295998735e+211"
+      ],
+      "flags": {
+        "limit": "7.9726173295998735e+211"
+      },
+      "number_bits": "6bee5037c7a5444b",
+      "number_string": "7.9726173295998735e+211",
+      "limit_query": "7.9726173295998735e+211",
+      "path": "/v1/workspace/history?limit=7.9726173295998735e%2B211"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.964950662450605e-273"
+      ],
+      "flags": {
+        "limit": "-1.964950662450605e-273"
+      },
+      "number_bits": "875101fe0ffcb77e",
+      "number_string": "-1.964950662450605e-273",
+      "limit_query": "-1.964950662450605e-273",
+      "path": "/v1/workspace/history?limit=-1.964950662450605e-273"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-3.0820319156631304e-77"
+      ],
+      "flags": {
+        "limit": "-3.0820319156631304e-77"
+      },
+      "number_bits": "b00c8ccc5a314475",
+      "number_string": "-3.0820319156631304e-77",
+      "limit_query": "-3.0820319156631304e-77",
+      "path": "/v1/workspace/history?limit=-3.0820319156631304e-77"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-9.321704386424881e-238"
+      ],
+      "flags": {
+        "limit": "-9.321704386424881e-238"
+      },
+      "number_bits": "8eb847b9d71f94e0",
+      "number_string": "-9.321704386424881e-238",
+      "limit_query": "-9.321704386424881e-238",
+      "path": "/v1/workspace/history?limit=-9.321704386424881e-238"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-4.502131990143726e-278"
+      ],
+      "flags": {
+        "limit": "-4.502131990143726e-278"
+      },
+      "number_bits": "865989d6992fccaf",
+      "number_string": "-4.502131990143726e-278",
+      "limit_query": "-4.502131990143726e-278",
+      "path": "/v1/workspace/history?limit=-4.502131990143726e-278"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=4.192521903258277e+252"
+      ],
+      "flags": {
+        "limit": "4.192521903258277e+252"
+      },
+      "number_bits": "74624c8fb1344d12",
+      "number_string": "4.192521903258277e+252",
+      "limit_query": "4.192521903258277e+252",
+      "path": "/v1/workspace/history?limit=4.192521903258277e%2B252"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.0477647960952363e-193"
+      ],
+      "flags": {
+        "limit": "1.0477647960952363e-193"
+      },
+      "number_bits": "17de9826434efb79",
+      "number_string": "1.0477647960952363e-193",
+      "limit_query": "1.0477647960952363e-193",
+      "path": "/v1/workspace/history?limit=1.0477647960952363e-193"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-2.7404661574711873e+172"
+      ],
+      "flags": {
+        "limit": "-2.7404661574711873e+172"
+      },
+      "number_bits": "e3bc5d824477bc94",
+      "number_string": "-2.7404661574711873e+172",
+      "limit_query": "-2.7404661574711873e+172",
+      "path": "/v1/workspace/history?limit=-2.7404661574711873e%2B172"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=5.357362056937092e+131"
+      ],
+      "flags": {
+        "limit": "5.357362056937092e+131"
+      },
+      "number_bits": "5b48270d19251353",
+      "number_string": "5.357362056937092e+131",
+      "limit_query": "5.357362056937092e+131",
+      "path": "/v1/workspace/history?limit=5.357362056937092e%2B131"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.800479098624546e+233"
+      ],
+      "flags": {
+        "limit": "-1.800479098624546e+233"
+      },
+      "number_bits": "f05cfe2daad113e6",
+      "number_string": "-1.800479098624546e+233",
+      "limit_query": "-1.800479098624546e+233",
+      "path": "/v1/workspace/history?limit=-1.800479098624546e%2B233"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-3.530759504141205e-158"
+      ],
+      "flags": {
+        "limit": "-3.530759504141205e-158"
+      },
+      "number_bits": "9f3f064a93e51abd",
+      "number_string": "-3.530759504141205e-158",
+      "limit_query": "-3.530759504141205e-158",
+      "path": "/v1/workspace/history?limit=-3.530759504141205e-158"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-2.1255935156630362e+222"
+      ],
+      "flags": {
+        "limit": "-2.1255935156630362e+222"
+      },
+      "number_bits": "ee17857b4af1f788",
+      "number_string": "-2.1255935156630362e+222",
+      "limit_query": "-2.1255935156630362e+222",
+      "path": "/v1/workspace/history?limit=-2.1255935156630362e%2B222"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-146907561141217.72"
+      ],
+      "flags": {
+        "limit": "-146907561141217.72"
+      },
+      "number_bits": "c2e0b3929fe47c37",
+      "number_string": "-146907561141217.72",
+      "limit_query": "-146907561141217.72",
+      "path": "/v1/workspace/history?limit=-146907561141217.72"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.2591238738238604e+238"
+      ],
+      "flags": {
+        "limit": "-1.2591238738238604e+238"
+      },
+      "number_bits": "f15ef01f0c339ffa",
+      "number_string": "-1.2591238738238604e+238",
+      "limit_query": "-1.2591238738238604e+238",
+      "path": "/v1/workspace/history?limit=-1.2591238738238604e%2B238"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.4580840592628958e+290"
+      ],
+      "flags": {
+        "limit": "1.4580840592628958e+290"
+      },
+      "number_bits": "7c2dec7e0d59a641",
+      "number_string": "1.4580840592628958e+290",
+      "limit_query": "1.4580840592628958e+290",
+      "path": "/v1/workspace/history?limit=1.4580840592628958e%2B290"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.119782688036836e+306"
+      ],
+      "flags": {
+        "limit": "2.119782688036836e+306"
+      },
+      "number_bits": "7f88263cd978f9bc",
+      "number_string": "2.119782688036836e+306",
+      "limit_query": "2.119782688036836e+306",
+      "path": "/v1/workspace/history?limit=2.119782688036836e%2B306"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-7.2607956298013885e-267"
+      ],
+      "flags": {
+        "limit": "-7.2607956298013885e-267"
+      },
+      "number_bits": "88adf7ad5ffbab5b",
+      "number_string": "-7.2607956298013885e-267",
+      "limit_query": "-7.2607956298013885e-267",
+      "path": "/v1/workspace/history?limit=-7.2607956298013885e-267"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.4260430989756635e+35"
+      ],
+      "flags": {
+        "limit": "1.4260430989756635e+35"
+      },
+      "number_bits": "473b76ef709dc54e",
+      "number_string": "1.4260430989756635e+35",
+      "limit_query": "1.4260430989756635e+35",
+      "path": "/v1/workspace/history?limit=1.4260430989756635e%2B35"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-5.747239082367393e+85"
+      ],
+      "flags": {
+        "limit": "-5.747239082367393e+85"
+      },
+      "number_bits": "d1bd9591066ae205",
+      "number_string": "-5.747239082367393e+85",
+      "limit_query": "-5.747239082367393e+85",
+      "path": "/v1/workspace/history?limit=-5.747239082367393e%2B85"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.7808028418135985e+109"
+      ],
+      "flags": {
+        "limit": "2.7808028418135985e+109"
+      },
+      "number_bits": "56a7ae5c273ab730",
+      "number_string": "2.7808028418135985e+109",
+      "limit_query": "2.7808028418135985e+109",
+      "path": "/v1/workspace/history?limit=2.7808028418135985e%2B109"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-3.870481697655684e-114"
+      ],
+      "flags": {
+        "limit": "-3.870481697655684e-114"
+      },
+      "number_bits": "a8631026dc8a84bf",
+      "number_string": "-3.870481697655684e-114",
+      "limit_query": "-3.870481697655684e-114",
+      "path": "/v1/workspace/history?limit=-3.870481697655684e-114"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.6156934463033302e-49"
+      ],
+      "flags": {
+        "limit": "2.6156934463033302e-49"
+      },
+      "number_bits": "35d877576ac697e2",
+      "number_string": "2.6156934463033302e-49",
+      "limit_query": "2.6156934463033302e-49",
+      "path": "/v1/workspace/history?limit=2.6156934463033302e-49"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=4.30564621774374e-135"
+      ],
+      "flags": {
+        "limit": "4.30564621774374e-135"
+      },
+      "number_bits": "2409093cc0335209",
+      "number_string": "4.30564621774374e-135",
+      "limit_query": "4.30564621774374e-135",
+      "path": "/v1/workspace/history?limit=4.30564621774374e-135"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=5.249186738898933e-238"
+      ],
+      "flags": {
+        "limit": "5.249186738898933e-238"
+      },
+      "number_bits": "0eab5854a15c63e4",
+      "number_string": "5.249186738898933e-238",
+      "limit_query": "5.249186738898933e-238",
+      "path": "/v1/workspace/history?limit=5.249186738898933e-238"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-8.167406814320929e-185"
+      ],
+      "flags": {
+        "limit": "-8.167406814320929e-185"
+      },
+      "number_bits": "99b635edfde72c63",
+      "number_string": "-8.167406814320929e-185",
+      "limit_query": "-8.167406814320929e-185",
+      "path": "/v1/workspace/history?limit=-8.167406814320929e-185"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.752516557418331e-212"
+      ],
+      "flags": {
+        "limit": "-1.752516557418331e-212"
+      },
+      "number_bits": "93f7996b81ae6bb6",
+      "number_string": "-1.752516557418331e-212",
+      "limit_query": "-1.752516557418331e-212",
+      "path": "/v1/workspace/history?limit=-1.752516557418331e-212"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-2.733975643215667e+80"
+      ],
+      "flags": {
+        "limit": "-2.733975643215667e+80"
+      },
+      "number_bits": "d0a27237036dba4d",
+      "number_string": "-2.733975643215667e+80",
+      "limit_query": "-2.733975643215667e+80",
+      "path": "/v1/workspace/history?limit=-2.733975643215667e%2B80"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-488.97346108575357"
+      ],
+      "flags": {
+        "limit": "-488.97346108575357"
+      },
+      "number_bits": "c07e8f934bee73d8",
+      "number_string": "-488.97346108575357",
+      "limit_query": "-488.97346108575357",
+      "path": "/v1/workspace/history?limit=-488.97346108575357"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.8309323343374714e-282"
+      ],
+      "flags": {
+        "limit": "-1.8309323343374714e-282"
+      },
+      "number_bits": "8571043428820647",
+      "number_string": "-1.8309323343374714e-282",
+      "limit_query": "-1.8309323343374714e-282",
+      "path": "/v1/workspace/history?limit=-1.8309323343374714e-282"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.1101267330297271e+278"
+      ],
+      "flags": {
+        "limit": "-1.1101267330297271e+278"
+      },
+      "number_bits": "f9a90cc852b2d4ca",
+      "number_string": "-1.1101267330297271e+278",
+      "limit_query": "-1.1101267330297271e+278",
+      "path": "/v1/workspace/history?limit=-1.1101267330297271e%2B278"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=9.844482630502659e+295"
+      ],
+      "flags": {
+        "limit": "9.844482630502659e+295"
+      },
+      "number_bits": "7d63448009f91ed1",
+      "number_string": "9.844482630502659e+295",
+      "limit_query": "9.844482630502659e+295",
+      "path": "/v1/workspace/history?limit=9.844482630502659e%2B295"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=3.278090511058688e-264"
+      ],
+      "flags": {
+        "limit": "3.278090511058688e-264"
+      },
+      "number_bits": "093a6cd54a209b0c",
+      "number_string": "3.278090511058688e-264",
+      "limit_query": "3.278090511058688e-264",
+      "path": "/v1/workspace/history?limit=3.278090511058688e-264"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.555372811781369e-136"
+      ],
+      "flags": {
+        "limit": "-1.555372811781369e-136"
+      },
+      "number_bits": "a3bcf0e0fa09b66b",
+      "number_string": "-1.555372811781369e-136",
+      "limit_query": "-1.555372811781369e-136",
+      "path": "/v1/workspace/history?limit=-1.555372811781369e-136"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.2801160065718916e+50"
+      ],
+      "flags": {
+        "limit": "1.2801160065718916e+50"
+      },
+      "number_bits": "4a55e5b3ace2a71e",
+      "number_string": "1.2801160065718916e+50",
+      "limit_query": "1.2801160065718916e+50",
+      "path": "/v1/workspace/history?limit=1.2801160065718916e%2B50"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.6233309183863907e+186"
+      ],
+      "flags": {
+        "limit": "1.6233309183863907e+186"
+      },
+      "number_bits": "6697e0a6f89cc395",
+      "number_string": "1.6233309183863907e+186",
+      "limit_query": "1.6233309183863907e+186",
+      "path": "/v1/workspace/history?limit=1.6233309183863907e%2B186"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.3852955864437144e-307"
+      ],
+      "flags": {
+        "limit": "2.3852955864437144e-307"
+      },
+      "number_bits": "004570ad81b5cd80",
+      "number_string": "2.3852955864437144e-307",
+      "limit_query": "2.3852955864437144e-307",
+      "path": "/v1/workspace/history?limit=2.3852955864437144e-307"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.3566964210222722e+24"
+      ],
+      "flags": {
+        "limit": "-1.3566964210222722e+24"
+      },
+      "number_bits": "c4f1f4aa90cf20cf",
+      "number_string": "-1.3566964210222722e+24",
+      "limit_query": "-1.3566964210222722e+24",
+      "path": "/v1/workspace/history?limit=-1.3566964210222722e%2B24"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.4889493220104904e-85"
+      ],
+      "flags": {
+        "limit": "2.4889493220104904e-85"
+      },
+      "number_bits": "2e5ef1ffb991f6b2",
+      "number_string": "2.4889493220104904e-85",
+      "limit_query": "2.4889493220104904e-85",
+      "path": "/v1/workspace/history?limit=2.4889493220104904e-85"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.2058732857505263e-203"
+      ],
+      "flags": {
+        "limit": "1.2058732857505263e-203"
+      },
+      "number_bits": "15ce3efd6d0c2c99",
+      "number_string": "1.2058732857505263e-203",
+      "limit_query": "1.2058732857505263e-203",
+      "path": "/v1/workspace/history?limit=1.2058732857505263e-203"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-3.1673510522907023e-181"
+      ],
+      "flags": {
+        "limit": "-3.1673510522907023e-181"
+      },
+      "number_bits": "9a75075c8db83f34",
+      "number_string": "-3.1673510522907023e-181",
+      "limit_query": "-3.1673510522907023e-181",
+      "path": "/v1/workspace/history?limit=-3.1673510522907023e-181"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=4.181286766332314e+237"
+      ],
+      "flags": {
+        "limit": "4.181286766332314e+237"
+      },
+      "number_bits": "71448c3681696973",
+      "number_string": "4.181286766332314e+237",
+      "limit_query": "4.181286766332314e+237",
+      "path": "/v1/workspace/history?limit=4.181286766332314e%2B237"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.904690090070303e+184"
+      ],
+      "flags": {
+        "limit": "-1.904690090070303e+184"
+      },
+      "number_bits": "e631ee26862e1786",
+      "number_string": "-1.904690090070303e+184",
+      "limit_query": "-1.904690090070303e+184",
+      "path": "/v1/workspace/history?limit=-1.904690090070303e%2B184"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=4.475968656021307e+164"
+      ],
+      "flags": {
+        "limit": "4.475968656021307e+164"
+      },
+      "number_bits": "621f1732e42b1ddd",
+      "number_string": "4.475968656021307e+164",
+      "limit_query": "4.475968656021307e+164",
+      "path": "/v1/workspace/history?limit=4.475968656021307e%2B164"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.0884134718143517e+286"
+      ],
+      "flags": {
+        "limit": "-1.0884134718143517e+286"
+      },
+      "number_bits": "fb524c71746d6428",
+      "number_string": "-1.0884134718143517e+286",
+      "limit_query": "-1.0884134718143517e+286",
+      "path": "/v1/workspace/history?limit=-1.0884134718143517e%2B286"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=5.995369485146105e+218"
+      ],
+      "flags": {
+        "limit": "5.995369485146105e+218"
+      },
+      "number_bits": "6d5b2ca1de99f457",
+      "number_string": "5.995369485146105e+218",
+      "limit_query": "5.995369485146105e+218",
+      "path": "/v1/workspace/history?limit=5.995369485146105e%2B218"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-8.408961835411551e-126"
+      ],
+      "flags": {
+        "limit": "-8.408961835411551e-126"
+      },
+      "number_bits": "a5f6c4d183519d9a",
+      "number_string": "-8.408961835411551e-126",
+      "limit_query": "-8.408961835411551e-126",
+      "path": "/v1/workspace/history?limit=-8.408961835411551e-126"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=3.231440115313791e-182"
+      ],
+      "flags": {
+        "limit": "3.231440115313791e-182"
+      },
+      "number_bits": "1a4129d4fc919b61",
+      "number_string": "3.231440115313791e-182",
+      "limit_query": "3.231440115313791e-182",
+      "path": "/v1/workspace/history?limit=3.231440115313791e-182"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=3.3203730360866805e+41"
+      ],
+      "flags": {
+        "limit": "3.3203730360866805e+41"
+      },
+      "number_bits": "488e7e28d489f05c",
+      "number_string": "3.3203730360866805e+41",
+      "limit_query": "3.3203730360866805e+41",
+      "path": "/v1/workspace/history?limit=3.3203730360866805e%2B41"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.1440627700985463e-207"
+      ],
+      "flags": {
+        "limit": "-1.1440627700985463e-207"
+      },
+      "number_bits": "94f781ecf770657b",
+      "number_string": "-1.1440627700985463e-207",
+      "limit_query": "-1.1440627700985463e-207",
+      "path": "/v1/workspace/history?limit=-1.1440627700985463e-207"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.8739809875043873e-266"
+      ],
+      "flags": {
+        "limit": "1.8739809875043873e-266"
+      },
+      "number_bits": "08c35611cd185cee",
+      "number_string": "1.8739809875043873e-266",
+      "limit_query": "1.8739809875043873e-266",
+      "path": "/v1/workspace/history?limit=1.8739809875043873e-266"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=9.191378902164422e+175"
+      ],
+      "flags": {
+        "limit": "9.191378902164422e+175"
+      },
+      "number_bits": "647739f9d94fe925",
+      "number_string": "9.191378902164422e+175",
+      "limit_query": "9.191378902164422e+175",
+      "path": "/v1/workspace/history?limit=9.191378902164422e%2B175"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.044719022308742e-117"
+      ],
+      "flags": {
+        "limit": "-1.044719022308742e-117"
+      },
+      "number_bits": "a7a513737da5d7d0",
+      "number_string": "-1.044719022308742e-117",
+      "limit_query": "-1.044719022308742e-117",
+      "path": "/v1/workspace/history?limit=-1.044719022308742e-117"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-3.068326865806382e+293"
+      ],
+      "flags": {
+        "limit": "-3.068326865806382e+293"
+      },
+      "number_bits": "fcdebf49afaea0df",
+      "number_string": "-3.068326865806382e+293",
+      "limit_query": "-3.068326865806382e+293",
+      "path": "/v1/workspace/history?limit=-3.068326865806382e%2B293"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=5.705285203705139e-156"
+      ],
+      "flags": {
+        "limit": "5.705285203705139e-156"
+      },
+      "number_bits": "1fb3953350b36982",
+      "number_string": "5.705285203705139e-156",
+      "limit_query": "5.705285203705139e-156",
+      "path": "/v1/workspace/history?limit=5.705285203705139e-156"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=9.154396951517632e-219"
+      ],
+      "flags": {
+        "limit": "9.154396951517632e-219"
+      },
+      "number_bits": "12a9da2628f28b29",
+      "number_string": "9.154396951517632e-219",
+      "limit_query": "9.154396951517632e-219",
+      "path": "/v1/workspace/history?limit=9.154396951517632e-219"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.1105191744303121e+206"
+      ],
+      "flags": {
+        "limit": "1.1105191744303121e+206"
+      },
+      "number_bits": "6ab62334a7f04e84",
+      "number_string": "1.1105191744303121e+206",
+      "limit_query": "1.1105191744303121e+206",
+      "path": "/v1/workspace/history?limit=1.1105191744303121e%2B206"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=5.7218881283361844e-189"
+      ],
+      "flags": {
+        "limit": "5.7218881283361844e-189"
+      },
+      "number_bits": "18d97e71966cca83",
+      "number_string": "5.7218881283361844e-189",
+      "limit_query": "5.7218881283361844e-189",
+      "path": "/v1/workspace/history?limit=5.7218881283361844e-189"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-9.928222613233772e+184"
+      ],
+      "flags": {
+        "limit": "-9.928222613233772e+184"
+      },
+      "number_bits": "e6575d8e233d1756",
+      "number_string": "-9.928222613233772e+184",
+      "limit_query": "-9.928222613233772e+184",
+      "path": "/v1/workspace/history?limit=-9.928222613233772e%2B184"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-7.7656126148481e+217"
+      ],
+      "flags": {
+        "limit": "-7.7656126148481e+217"
+      },
+      "number_bits": "ed2c289094c6456d",
+      "number_string": "-7.7656126148481e+217",
+      "limit_query": "-7.7656126148481e+217",
+      "path": "/v1/workspace/history?limit=-7.7656126148481e%2B217"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-8.939870652145499e+27"
+      ],
+      "flags": {
+        "limit": "-8.939870652145499e+27"
+      },
+      "number_bits": "c5bce2e33f23c878",
+      "number_string": "-8.939870652145499e+27",
+      "limit_query": "-8.939870652145499e+27",
+      "path": "/v1/workspace/history?limit=-8.939870652145499e%2B27"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-5.1821670315816156e+241"
+      ],
+      "flags": {
+        "limit": "-5.1821670315816156e+241"
+      },
+      "number_bits": "f21f16331efd4667",
+      "number_string": "-5.1821670315816156e+241",
+      "limit_query": "-5.1821670315816156e+241",
+      "path": "/v1/workspace/history?limit=-5.1821670315816156e%2B241"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-2.9316665283726315e-74"
+      ],
+      "flags": {
+        "limit": "-2.9316665283726315e-74"
+      },
+      "number_bits": "b0aa85469dccfa6a",
+      "number_string": "-2.9316665283726315e-74",
+      "limit_query": "-2.9316665283726315e-74",
+      "path": "/v1/workspace/history?limit=-2.9316665283726315e-74"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=4.990008621166688e-259"
+      ],
+      "flags": {
+        "limit": "4.990008621166688e-259"
+      },
+      "number_bits": "0a4eb0789c5c1bf1",
+      "number_string": "4.990008621166688e-259",
+      "limit_query": "4.990008621166688e-259",
+      "path": "/v1/workspace/history?limit=4.990008621166688e-259"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.7720101480474838e+193"
+      ],
+      "flags": {
+        "limit": "2.7720101480474838e+193"
+      },
+      "number_bits": "68184d88f4b9f9ac",
+      "number_string": "2.7720101480474838e+193",
+      "limit_query": "2.7720101480474838e+193",
+      "path": "/v1/workspace/history?limit=2.7720101480474838e%2B193"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-3.5650265524802124e-163"
+      ],
+      "flags": {
+        "limit": "-3.5650265524802124e-163"
+      },
+      "number_bits": "9e348793a010b88b",
+      "number_string": "-3.5650265524802124e-163",
+      "limit_query": "-3.5650265524802124e-163",
+      "path": "/v1/workspace/history?limit=-3.5650265524802124e-163"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-5.817694868344136e+220"
+      ],
+      "flags": {
+        "limit": "-5.817694868344136e+220"
+      },
+      "number_bits": "edc499ce12cbe6be",
+      "number_string": "-5.817694868344136e+220",
+      "limit_query": "-5.817694868344136e+220",
+      "path": "/v1/workspace/history?limit=-5.817694868344136e%2B220"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.431773427755916e-220"
+      ],
+      "flags": {
+        "limit": "1.431773427755916e-220"
+      },
+      "number_bits": "1249e09f214d52b5",
+      "number_string": "1.431773427755916e-220",
+      "limit_query": "1.431773427755916e-220",
+      "path": "/v1/workspace/history?limit=1.431773427755916e-220"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.795787165977823e+138"
+      ],
+      "flags": {
+        "limit": "-1.795787165977823e+138"
+      },
+      "number_bits": "dca34d5d0d5fd620",
+      "number_string": "-1.795787165977823e+138",
+      "limit_query": "-1.795787165977823e+138",
+      "path": "/v1/workspace/history?limit=-1.795787165977823e%2B138"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.9124663411330611e+276"
+      ],
+      "flags": {
+        "limit": "-1.9124663411330611e+276"
+      },
+      "number_bits": "f94b9e75fd1a04ef",
+      "number_string": "-1.9124663411330611e+276",
+      "limit_query": "-1.9124663411330611e+276",
+      "path": "/v1/workspace/history?limit=-1.9124663411330611e%2B276"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-7.293714317808901e-89"
+      ],
+      "flags": {
+        "limit": "-7.293714317808901e-89"
+      },
+      "number_bits": "ada2926b3087f052",
+      "number_string": "-7.293714317808901e-89",
+      "limit_query": "-7.293714317808901e-89",
+      "path": "/v1/workspace/history?limit=-7.293714317808901e-89"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.5954146269443702e-164"
+      ],
+      "flags": {
+        "limit": "-1.5954146269443702e-164"
+      },
+      "number_bits": "9ded664b273f6db9",
+      "number_string": "-1.5954146269443702e-164",
+      "limit_query": "-1.5954146269443702e-164",
+      "path": "/v1/workspace/history?limit=-1.5954146269443702e-164"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=8.963393033925126e-154"
+      ],
+      "flags": {
+        "limit": "8.963393033925126e-154"
+      },
+      "number_bits": "202809301da991d4",
+      "number_string": "8.963393033925126e-154",
+      "limit_query": "8.963393033925126e-154",
+      "path": "/v1/workspace/history?limit=8.963393033925126e-154"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.0975756416575656e-215"
+      ],
+      "flags": {
+        "limit": "1.0975756416575656e-215"
+      },
+      "number_bits": "134e44ec1df24f93",
+      "number_string": "1.0975756416575656e-215",
+      "limit_query": "1.0975756416575656e-215",
+      "path": "/v1/workspace/history?limit=1.0975756416575656e-215"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=4.5328392275080107e+232"
+      ],
+      "flags": {
+        "limit": "4.5328392275080107e+232"
+      },
+      "number_bits": "703d325a65086b26",
+      "number_string": "4.5328392275080107e+232",
+      "limit_query": "4.5328392275080107e+232",
+      "path": "/v1/workspace/history?limit=4.5328392275080107e%2B232"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.8756760048583193e-236"
+      ],
+      "flags": {
+        "limit": "1.8756760048583193e-236"
+      },
+      "number_bits": "0efe88e58c2830fd",
+      "number_string": "1.8756760048583193e-236",
+      "limit_query": "1.8756760048583193e-236",
+      "path": "/v1/workspace/history?limit=1.8756760048583193e-236"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=9.211310385022591e-31"
+      ],
+      "flags": {
+        "limit": "9.211310385022591e-31"
+      },
+      "number_bits": "39b2aec92a06a0c8",
+      "number_string": "9.211310385022591e-31",
+      "limit_query": "9.211310385022591e-31",
+      "path": "/v1/workspace/history?limit=9.211310385022591e-31"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-2.2363332536351242e-133"
+      ],
+      "flags": {
+        "limit": "-2.2363332536351242e-133"
+      },
+      "number_bits": "a464517398bcfc77",
+      "number_string": "-2.2363332536351242e-133",
+      "limit_query": "-2.2363332536351242e-133",
+      "path": "/v1/workspace/history?limit=-2.2363332536351242e-133"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.4021527258836816e-23"
+      ],
+      "flags": {
+        "limit": "1.4021527258836816e-23"
+      },
+      "number_bits": "3b30f373d721eb3a",
+      "number_string": "1.4021527258836816e-23",
+      "limit_query": "1.4021527258836816e-23",
+      "path": "/v1/workspace/history?limit=1.4021527258836816e-23"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=9.840078841455235e+140"
+      ],
+      "flags": {
+        "limit": "9.840078841455235e+140"
+      },
+      "number_bits": "5d34a85abcd1a081",
+      "number_string": "9.840078841455235e+140",
+      "limit_query": "9.840078841455235e+140",
+      "path": "/v1/workspace/history?limit=9.840078841455235e%2B140"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-3.0684745452486013e-148"
+      ],
+      "flags": {
+        "limit": "-3.0684745452486013e-148"
+      },
+      "number_bits": "a14f6373ddf5b6fc",
+      "number_string": "-3.0684745452486013e-148",
+      "limit_query": "-3.0684745452486013e-148",
+      "path": "/v1/workspace/history?limit=-3.0684745452486013e-148"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.5442166807375742e+106"
+      ],
+      "flags": {
+        "limit": "-1.5442166807375742e+106"
+      },
+      "number_bits": "d5faee9c320baf9b",
+      "number_string": "-1.5442166807375742e+106",
+      "limit_query": "-1.5442166807375742e+106",
+      "path": "/v1/workspace/history?limit=-1.5442166807375742e%2B106"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.2281081970689179e-54"
+      ],
+      "flags": {
+        "limit": "1.2281081970689179e-54"
+      },
+      "number_bits": "34be1cf5c8ca448e",
+      "number_string": "1.2281081970689179e-54",
+      "limit_query": "1.2281081970689179e-54",
+      "path": "/v1/workspace/history?limit=1.2281081970689179e-54"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1.5389148073497978e-220"
+      ],
+      "flags": {
+        "limit": "1.5389148073497978e-220"
+      },
+      "number_bits": "124bd059a99e0045",
+      "number_string": "1.5389148073497978e-220",
+      "limit_query": "1.5389148073497978e-220",
+      "path": "/v1/workspace/history?limit=1.5389148073497978e-220"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=2.6457279744190206e-303"
+      ],
+      "flags": {
+        "limit": "2.6457279744190206e-303"
+      },
+      "number_bits": "011d0792ce78c870",
+      "number_string": "2.6457279744190206e-303",
+      "limit_query": "2.6457279744190206e-303",
+      "path": "/v1/workspace/history?limit=2.6457279744190206e-303"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=4.818869409317502e-307"
+      ],
+      "flags": {
+        "limit": "4.818869409317502e-307"
+      },
+      "number_bits": "0055a83917424cff",
+      "number_string": "4.818869409317502e-307",
+      "limit_query": "4.818869409317502e-307",
+      "path": "/v1/workspace/history?limit=4.818869409317502e-307"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-2.359111026728052e+50"
+      ],
+      "flags": {
+        "limit": "-2.359111026728052e+50"
+      },
+      "number_bits": "ca642d5776ac8b22",
+      "number_string": "-2.359111026728052e+50",
+      "limit_query": "-2.359111026728052e+50",
+      "path": "/v1/workspace/history?limit=-2.359111026728052e%2B50"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-7.454487047678273e-20"
+      ],
+      "flags": {
+        "limit": "-7.454487047678273e-20"
+      },
+      "number_bits": "bbf600737f8bd449",
+      "number_string": "-7.454487047678273e-20",
+      "limit_query": "-7.454487047678273e-20",
+      "path": "/v1/workspace/history?limit=-7.454487047678273e-20"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=-1.5697394570919737e-103"
+      ],
+      "flags": {
+        "limit": "-1.5697394570919737e-103"
+      },
+      "number_bits": "aa96804ffbc90924",
+      "number_string": "-1.5697394570919737e-103",
+      "limit_query": "-1.5697394570919737e-103",
+      "path": "/v1/workspace/history?limit=-1.5697394570919737e-103"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=4.7688888987681345e+52"
+      ],
+      "flags": {
+        "limit": "4.7688888987681345e+52"
+      },
+      "number_bits": "4adfdd83f73af8a3",
+      "number_string": "4.7688888987681345e+52",
+      "limit_query": "4.7688888987681345e+52",
+      "path": "/v1/workspace/history?limit=4.7688888987681345e%2B52"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit"
+      ],
+      "flags": {
+        "limit": true
+      },
+      "number_bits": "7ff8000000000000",
+      "number_string": "NaN",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--type"
+      ],
+      "flags": {
+        "type": true
+      },
+      "number_bits": "7ff8000000000000",
+      "number_string": "NaN",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--id"
+      ],
+      "flags": {
+        "id": true
+      },
+      "number_bits": "7ff8000000000000",
+      "number_string": "NaN",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=5",
+        "--limit"
+      ],
+      "flags": {
+        "limit": true
+      },
+      "number_bits": "7ff8000000000000",
+      "number_string": "NaN",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit",
+        "--limit=2"
+      ],
+      "flags": {
+        "limit": "2"
+      },
+      "number_bits": "4000000000000000",
+      "number_string": "2",
+      "limit_query": "2",
+      "path": "/v1/workspace/history?limit=2"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--type=task=ignored",
+        "--id=a=b"
+      ],
+      "flags": {
+        "type": "task",
+        "id": "a"
+      },
+      "number_bits": "7ff8000000000000",
+      "number_string": "NaN",
+      "limit_query": null,
+      "path": "/v1/workspace/history?object_type=task&object_id=a"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--type=task",
+        "--type",
+        "--type=plan"
+      ],
+      "flags": {
+        "type": "plan"
+      },
+      "number_bits": "7ff8000000000000",
+      "number_string": "NaN",
+      "limit_query": null,
+      "path": "/v1/workspace/history?object_type=plan"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1",
+        "--limit=2"
+      ],
+      "flags": {
+        "limit": "1\n2"
+      },
+      "number_bits": "7ff8000000000000",
+      "number_string": "NaN",
+      "limit_query": null,
+      "path": "/v1/workspace/history"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=",
+        "--limit=2"
+      ],
+      "flags": {
+        "limit": "2"
+      },
+      "number_bits": "4000000000000000",
+      "number_string": "2",
+      "limit_query": "2",
+      "path": "/v1/workspace/history?limit=2"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--limit=1",
+        "--limit="
+      ],
+      "flags": {
+        "limit": "1\n"
+      },
+      "number_bits": "3ff0000000000000",
+      "number_string": "1",
+      "limit_query": "1",
+      "path": "/v1/workspace/history?limit=1"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--type=task",
+        "--type=plan",
+        "--id=a",
+        "--id=b"
+      ],
+      "flags": {
+        "type": "task\nplan",
+        "id": "a\nb"
+      },
+      "number_bits": "7ff8000000000000",
+      "number_string": "NaN",
+      "limit_query": null,
+      "path": "/v1/workspace/history?object_type=task%0Aplan&object_id=a%0Ab"
+    },
+    {
+      "argv": [
+        "history",
+        "list",
+        "--type=",
+        "--type=project",
+        "--id=",
+        "--id=owned"
+      ],
+      "flags": {
+        "type": "project",
+        "id": "owned"
+      },
+      "number_bits": "7ff8000000000000",
+      "number_string": "NaN",
+      "limit_query": null,
+      "path": "/v1/workspace/history?object_type=project&object_id=owned"
+    }
+  ]
+}

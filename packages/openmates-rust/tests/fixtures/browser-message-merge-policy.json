@@ -1,0 +1,606 @@
+{
+  "schema_version": 1,
+  "scope": "Supported Message scalar policy fields; raw journal precedence belongs to transaction tests.",
+  "cases": [
+    {
+      "name": "status_sending",
+      "existing": {
+        "status": "sending",
+        "content": "same"
+      },
+      "incoming": {
+        "status": "sending",
+        "content": "same"
+      },
+      "expected": {
+        "should_update_message": false,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "status_waiting_for_upload",
+      "existing": {
+        "status": "waiting_for_upload",
+        "content": "same"
+      },
+      "incoming": {
+        "status": "waiting_for_upload",
+        "content": "same"
+      },
+      "expected": {
+        "should_update_message": false,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "status_waiting_for_internet",
+      "existing": {
+        "status": "waiting_for_internet",
+        "content": "same"
+      },
+      "incoming": {
+        "status": "waiting_for_internet",
+        "content": "same"
+      },
+      "expected": {
+        "should_update_message": false,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "status_processing",
+      "existing": {
+        "status": "processing",
+        "content": "same"
+      },
+      "incoming": {
+        "status": "processing",
+        "content": "same"
+      },
+      "expected": {
+        "should_update_message": false,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "status_streaming",
+      "existing": {
+        "status": "streaming",
+        "content": "same"
+      },
+      "incoming": {
+        "status": "streaming",
+        "content": "same"
+      },
+      "expected": {
+        "should_update_message": true,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "status_waiting_for_user",
+      "existing": {
+        "status": "waiting_for_user",
+        "content": "same"
+      },
+      "incoming": {
+        "status": "waiting_for_user",
+        "content": "same"
+      },
+      "expected": {
+        "should_update_message": false,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "status_failed",
+      "existing": {
+        "status": "failed",
+        "content": "same"
+      },
+      "incoming": {
+        "status": "failed",
+        "content": "same"
+      },
+      "expected": {
+        "should_update_message": false,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "status_delivered",
+      "existing": {
+        "status": "delivered",
+        "content": "same"
+      },
+      "incoming": {
+        "status": "delivered",
+        "content": "same"
+      },
+      "expected": {
+        "should_update_message": false,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "status_synced",
+      "existing": {
+        "status": "synced",
+        "content": "same"
+      },
+      "incoming": {
+        "status": "synced",
+        "content": "same"
+      },
+      "expected": {
+        "should_update_message": false,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "status_queued",
+      "existing": {
+        "status": "queued",
+        "content": "same"
+      },
+      "incoming": {
+        "status": "queued",
+        "content": "same"
+      },
+      "expected": {
+        "should_update_message": false,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "priority_increases",
+      "existing": {
+        "status": "sending"
+      },
+      "incoming": {
+        "status": "processing"
+      },
+      "expected": {
+        "should_update_message": true,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "queue_survives_sync",
+      "existing": {
+        "status": "queued"
+      },
+      "incoming": {
+        "status": "synced"
+      },
+      "expected": {
+        "should_update_message": false,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "pause_blocks_queued_new_revision",
+      "existing": {
+        "queue_dispatch_status": "paused",
+        "status": "queued",
+        "queue_revision": 1
+      },
+      "incoming": {
+        "queue_dispatch_status": "queued",
+        "queue_revision": 2
+      },
+      "expected": {
+        "should_update_message": false,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "pause_blocks_processing",
+      "existing": {
+        "queue_dispatch_status": "paused"
+      },
+      "incoming": {
+        "queue_dispatch_status": "processing",
+        "status": "synced"
+      },
+      "expected": {
+        "should_update_message": false,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "processing_blocks_queued",
+      "existing": {
+        "queue_dispatch_status": "processing"
+      },
+      "incoming": {
+        "queue_dispatch_status": "queued",
+        "status": "queued"
+      },
+      "expected": {
+        "should_update_message": false,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "paused_supersedes_queued",
+      "existing": {
+        "status": "queued"
+      },
+      "incoming": {
+        "queue_dispatch_status": "paused"
+      },
+      "expected": {
+        "should_update_message": true,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "paused_supersedes_processing",
+      "existing": {
+        "queue_dispatch_status": "processing",
+        "status": "synced"
+      },
+      "incoming": {
+        "queue_dispatch_status": "paused",
+        "status": "failed"
+      },
+      "expected": {
+        "should_update_message": true,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "processing_equal_revision",
+      "existing": {
+        "status": "queued",
+        "queue_revision": 4
+      },
+      "incoming": {
+        "status": "processing",
+        "queue_revision": 4,
+        "queue_dispatch_status": "processing"
+      },
+      "expected": {
+        "should_update_message": true,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "processing_older_revision",
+      "existing": {
+        "status": "queued",
+        "queue_revision": 4
+      },
+      "incoming": {
+        "status": "processing",
+        "queue_revision": 3,
+        "queue_dispatch_status": "processing"
+      },
+      "expected": {
+        "should_update_message": false,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": true
+      }
+    },
+    {
+      "name": "newer_edit_revision",
+      "existing": {
+        "status": "queued",
+        "queue_revision": 4,
+        "content": "old"
+      },
+      "incoming": {
+        "status": "sending",
+        "queue_revision": 5,
+        "content": "new"
+      },
+      "expected": {
+        "should_update_message": true,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "missing_revision_defaults_zero",
+      "existing": {
+        "status": "queued"
+      },
+      "incoming": {
+        "status": "sending",
+        "queue_revision": 1
+      },
+      "expected": {
+        "should_update_message": true,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "null_revision_is_not_safe_integer",
+      "existing": {
+        "status": "queued",
+        "queue_revision": null
+      },
+      "incoming": {
+        "status": "processing",
+        "queue_revision": null,
+        "queue_dispatch_status": "processing"
+      },
+      "expected": {
+        "should_update_message": false,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "waiting_preserved_synced",
+      "existing": {
+        "status": "waiting_for_user"
+      },
+      "incoming": {
+        "status": "synced"
+      },
+      "expected": {
+        "should_update_message": false,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "waiting_preserved_delivered",
+      "existing": {
+        "status": "waiting_for_user"
+      },
+      "incoming": {
+        "status": "delivered"
+      },
+      "expected": {
+        "should_update_message": false,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "content_change_blocks_metadata",
+      "existing": {
+        "status": "synced",
+        "content": "old"
+      },
+      "incoming": {
+        "status": "synced",
+        "content": "new",
+        "model_name": "model"
+      },
+      "expected": {
+        "should_update_message": false,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "missing_content_differs_null",
+      "existing": {
+        "status": "synced"
+      },
+      "incoming": {
+        "status": "synced",
+        "content": null,
+        "category": "new"
+      },
+      "expected": {
+        "should_update_message": false,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "metadata_model_name",
+      "existing": {
+        "status": "synced"
+      },
+      "incoming": {
+        "status": "synced",
+        "model_name": null
+      },
+      "expected": {
+        "should_update_message": true,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "metadata_category",
+      "existing": {
+        "status": "synced"
+      },
+      "incoming": {
+        "status": "synced",
+        "category": "new"
+      },
+      "expected": {
+        "should_update_message": true,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "metadata_thinking_content",
+      "existing": {
+        "status": "synced"
+      },
+      "incoming": {
+        "status": "synced",
+        "thinking_content": "thought"
+      },
+      "expected": {
+        "should_update_message": true,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "metadata_thinking_signature",
+      "existing": {
+        "status": "synced"
+      },
+      "incoming": {
+        "status": "synced",
+        "thinking_signature": "signature"
+      },
+      "expected": {
+        "should_update_message": true,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "metadata_thinking_token_count",
+      "existing": {
+        "status": "synced"
+      },
+      "incoming": {
+        "status": "synced",
+        "thinking_token_count": 0
+      },
+      "expected": {
+        "should_update_message": true,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "metadata_has_thinking",
+      "existing": {
+        "status": "synced"
+      },
+      "incoming": {
+        "status": "synced",
+        "has_thinking": false
+      },
+      "expected": {
+        "should_update_message": true,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "all_cipher_fields_added",
+      "existing": {
+        "encrypted_content": "",
+        "encrypted_sender_name": "",
+        "encrypted_category": "",
+        "encrypted_model_name": "",
+        "encrypted_thinking_content": "",
+        "encrypted_thinking_signature": "",
+        "encrypted_pii_mappings": ""
+      },
+      "incoming": {
+        "encrypted_content": "cipher",
+        "encrypted_sender_name": "cipher",
+        "encrypted_category": "cipher",
+        "encrypted_model_name": "cipher",
+        "encrypted_thinking_content": "cipher",
+        "encrypted_thinking_signature": "cipher",
+        "encrypted_pii_mappings": "cipher"
+      },
+      "expected": {
+        "should_update_message": false,
+        "has_new_encrypted_fields": true,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "cipher_not_replaced",
+      "existing": {
+        "encrypted_content": "old"
+      },
+      "incoming": {
+        "encrypted_content": "new"
+      },
+      "expected": {
+        "should_update_message": false,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "empty_cipher_not_added",
+      "existing": {
+        "encrypted_content": null
+      },
+      "incoming": {
+        "encrypted_content": ""
+      },
+      "expected": {
+        "should_update_message": false,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "stored_revision_wins_despite_older_clock",
+      "existing": {
+        "queue_revision": 9,
+        "updated_at": 1
+      },
+      "incoming": {
+        "queue_revision": 8,
+        "updated_at": 999
+      },
+      "expected": {
+        "should_update_message": false,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": true
+      }
+    },
+    {
+      "name": "incoming_revision_wins_despite_older_clock",
+      "existing": {
+        "queue_revision": 8,
+        "updated_at": 999
+      },
+      "incoming": {
+        "queue_revision": 9,
+        "updated_at": 1
+      },
+      "expected": {
+        "should_update_message": false,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": false
+      }
+    },
+    {
+      "name": "safe_integer_boundary",
+      "existing": {
+        "queue_revision": 9007199254740991
+      },
+      "incoming": {
+        "queue_revision": 9007199254740990
+      },
+      "expected": {
+        "should_update_message": false,
+        "has_new_encrypted_fields": false,
+        "has_newer_stored_revision": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "protocolVersion": 1,
+  "scope": "same-batch-personal-chat-list",
+  "inventoryCapability": "task_update_jobs_inventory_v1",
+  "taskScanBounds": {
+    "maxPages": 16,
+    "maxKeys": 4096,
+    "scanCount": 256
+  },
+  "mainEmpty": {
+    "type": "recovery_jobs_available",
+    "payload": {
+      "jobs": []
+    }
+  },
+  "metadataEmpty": {
+    "type": "metadata_jobs_available",
+    "payload": {
+      "jobs": []
+    }
+  },
+  "taskEmptyComplete": {
+    "type": "task_update_jobs_available",
+    "payload": {
+      "jobs": [],
+      "complete": true
+    }
+  },
+  "failureRule": "omitted or failed or bounded discovery never implies empty",
+  "cases": [
+    "complete-idle-one-sync",
+    "missing-main-fresh-fallback",
+    "missing-task-complete-fresh-fallback",
+    "owned-task-read-only-then-ordinary-fallback",
+    "missing-terminal-offline",
+    "intervening-traffic-invalidates",
+    "failed-durable-output-wiped"
+  ]
+}

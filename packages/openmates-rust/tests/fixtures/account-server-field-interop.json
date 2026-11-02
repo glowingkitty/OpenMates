@@ -1,0 +1,40 @@
+{
+  "contractVersion": 1,
+  "id": "native.account.server-fields.v1",
+  "codecDependency": "tests/sdk-conformance/fixtures/server-field-codec.json",
+  "format": "base64(iv12||aes256-gcm-ciphertext||tag128)",
+  "aad": "empty",
+  "fields": [
+    {
+      "field": "encrypted_settings",
+      "route": "POST /v1/settings/topic-preferences",
+      "writer": "Account.set_interests",
+      "webReader": "MetadataEncryptor.decryptWithMasterKey",
+      "sourceTest": "account::tests::encrypted_interest_update_preserves_unrelated_settings_and_hides_tags_on_wire"
+    },
+    {
+      "field": "encrypted_name",
+      "route": "POST /v1/settings/api-keys",
+      "writer": "Account.create_full_access_api_key",
+      "webReader": "MetadataEncryptor.decryptWithMasterKey",
+      "sourceTest": "account::api_keys::tests::create_sends_v2_ciphertext_only_and_returns_exact_separated_setup_shape"
+    },
+    {
+      "field": "encrypted_key_prefix",
+      "route": "POST /v1/settings/api-keys",
+      "writer": "Account.create_full_access_api_key",
+      "webReader": "MetadataEncryptor.decryptWithMasterKey",
+      "sourceTest": "account::api_keys::tests::create_sends_v2_ciphertext_only_and_returns_exact_separated_setup_shape"
+    }
+  ],
+  "unchanged": [
+    "public generic/native ciphertext",
+    "existing native read fallback",
+    "API key bearer/secret separation and raw PBKDF2 root wrapping",
+    "whole-record interests merge and failure-before-write behavior"
+  ],
+  "limits": [
+    "No browser opaque account capability activation is claimed; existing require_session and raw-export API-key enrollment limitations remain.",
+    "Rust and actual browser execution/performance are unrun."
+  ]
+}

@@ -1,0 +1,1196 @@
+{
+  "schema_version": 1,
+  "capabilities": {
+    "session.embeds.version-content.v1": {
+      "account": {
+        "cookie": "synthetic-cookie",
+        "session_id": "synthetic-session",
+        "master_key": "CQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQk=",
+        "owner_id": "11111111-1111-4111-8111-111111111111",
+        "hashed_email": "synthetic-owner"
+      },
+      "protocol": {
+        "app_origin": "http://localhost:5173",
+        "team_id": "33333333-3333-4333-8333-333333333333",
+        "embed_id": "11111111-1111-4111-8111-111111111111"
+      },
+      "vectors": [
+        {
+          "id": "snapshot",
+          "mode": "normal",
+          "embed_id": "11111111-1111-4111-8111-111111111111",
+          "version": 1,
+          "response": {
+            "embed_id": "11111111-1111-4111-8111-111111111111",
+            "version_number": 1,
+            "current_version": 99,
+            "rows": [
+              {
+                "version_number": 1,
+                "created_at": 1,
+                "encrypted_snapshot": "AAAAAAAAAAAAAAABUSTJCFVKgGJZ2n+iq34+ekdl8jUvDiN/dEDj"
+              }
+            ],
+            "readonly": true,
+            "opaque": {
+              "CamelCase": [
+                null,
+                false,
+                "synthetic"
+              ]
+            }
+          },
+          "expected": {
+            "embed_id": "11111111-1111-4111-8111-111111111111",
+            "version_number": 1,
+            "current_version": 99,
+            "rows": [
+              {
+                "version_number": 1,
+                "created_at": 1,
+                "encrypted_snapshot": "AAAAAAAAAAAAAAABUSTJCFVKgGJZ2n+iq34+ekdl8jUvDiN/dEDj"
+              }
+            ],
+            "readonly": true,
+            "opaque": {
+              "CamelCase": [
+                null,
+                false,
+                "synthetic"
+              ]
+            },
+            "content": "alpha\nbeta\n"
+          },
+          "error": null,
+          "status": 200,
+          "fallback409": false,
+          "heads": {
+            "11111111-1111-4111-8111-111111111111": {
+              "embed_id": "11111111-1111-4111-8111-111111111111",
+              "already_encrypted": true,
+              "chat_id": "22222222-2222-4222-8222-222222222222",
+              "type": "ciphertext-only",
+              "content": "ciphertext-only",
+              "encrypted_text_preview": null,
+              "parent_embed_id": null,
+              "status": "finished",
+              "embed_keys": [
+                {
+                  "hashed_embed_id": "bd7662a5eeb41614e720d477abfcb2272e19a8a70a93b7e3bc8560d44ad326e9",
+                  "key_type": "master",
+                  "encrypted_embed_key": "BQUFBQUFBQUFBQUFyHCxUQzfG0pFI1L52mhucgbLtZey1LHLBXMRpm3wpwh5gWwnLuG5FgL6V9aEQhIt",
+                  "wrapper_version": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "patch-unicode",
+          "mode": "normal",
+          "embed_id": "11111111-1111-4111-8111-111111111111",
+          "version": 2,
+          "response": {
+            "embed_id": "11111111-1111-4111-8111-111111111111",
+            "version_number": 2,
+            "current_version": 99,
+            "rows": [
+              {
+                "version_number": 1,
+                "created_at": 1,
+                "encrypted_snapshot": "AAAAAAAAAAAAAAABUSTJCFVKgGJZ2n+iq34+ekdl8jUvDiN/dEDj"
+              },
+              {
+                "version_number": 2,
+                "created_at": 2,
+                "encrypted_patch": "AAAAAAAAAAAAAAAC3EaZA5dpvU/q5TCn+w9rRmh0i1DqxbhtslTXH+dK5kCWNyapZ5WgETLVWJiIvxIFcanV6i5y0btikdhEKj/gqpApjvIRsw=="
+              }
+            ],
+            "readonly": true,
+            "opaque": {
+              "CamelCase": [
+                null,
+                false,
+                "synthetic"
+              ]
+            }
+          },
+          "expected": {
+            "embed_id": "11111111-1111-4111-8111-111111111111",
+            "version_number": 2,
+            "current_version": 99,
+            "rows": [
+              {
+                "version_number": 1,
+                "created_at": 1,
+                "encrypted_snapshot": "AAAAAAAAAAAAAAABUSTJCFVKgGJZ2n+iq34+ekdl8jUvDiN/dEDj"
+              },
+              {
+                "version_number": 2,
+                "created_at": 2,
+                "encrypted_patch": "AAAAAAAAAAAAAAAC3EaZA5dpvU/q5TCn+w9rRmh0i1DqxbhtslTXH+dK5kCWNyapZ5WgETLVWJiIvxIFcanV6i5y0btikdhEKj/gqpApjvIRsw=="
+              }
+            ],
+            "readonly": true,
+            "opaque": {
+              "CamelCase": [
+                null,
+                false,
+                "synthetic"
+              ]
+            },
+            "content": "alpha\n界 😀\n"
+          },
+          "error": null,
+          "status": 200,
+          "fallback409": false,
+          "heads": {
+            "11111111-1111-4111-8111-111111111111": {
+              "embed_id": "11111111-1111-4111-8111-111111111111",
+              "already_encrypted": true,
+              "chat_id": "22222222-2222-4222-8222-222222222222",
+              "type": "ciphertext-only",
+              "content": "ciphertext-only",
+              "encrypted_text_preview": null,
+              "parent_embed_id": null,
+              "status": "finished",
+              "embed_keys": [
+                {
+                  "hashed_embed_id": "bd7662a5eeb41614e720d477abfcb2272e19a8a70a93b7e3bc8560d44ad326e9",
+                  "key_type": "master",
+                  "encrypted_embed_key": "BQUFBQUFBQUFBQUFyHCxUQzfG0pFI1L52mhucgbLtZey1LHLBXMRpm3wpwh5gWwnLuG5FgL6V9aEQhIt",
+                  "wrapper_version": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "no-final-lf",
+          "mode": "normal",
+          "embed_id": "11111111-1111-4111-8111-111111111111",
+          "version": 2,
+          "response": {
+            "embed_id": "11111111-1111-4111-8111-111111111111",
+            "version_number": 2,
+            "current_version": 99,
+            "rows": [
+              {
+                "version_number": 1,
+                "created_at": 1,
+                "encrypted_snapshot": "AAAAAAAAAAAAAAAH2FA35I3EIwIe70ngbFkycwGc"
+              },
+              {
+                "version_number": 2,
+                "created_at": 2,
+                "encrypted_patch": "AAAAAAAAAAAAAAAIUBvQjnyawK5G8kO4lmjiiP+sQlGYkFBgRmOfGSHs28VsBlwQ0wBOpyKInoCcAVI6AgoItFnvlBITrQIxA6xcU1wLDTQ2unD3q3c="
+              }
+            ],
+            "readonly": true,
+            "opaque": {
+              "CamelCase": [
+                null,
+                false,
+                "synthetic"
+              ]
+            }
+          },
+          "expected": {
+            "embed_id": "11111111-1111-4111-8111-111111111111",
+            "version_number": 2,
+            "current_version": 99,
+            "rows": [
+              {
+                "version_number": 1,
+                "created_at": 1,
+                "encrypted_snapshot": "AAAAAAAAAAAAAAAH2FA35I3EIwIe70ngbFkycwGc"
+              },
+              {
+                "version_number": 2,
+                "created_at": 2,
+                "encrypted_patch": "AAAAAAAAAAAAAAAIUBvQjnyawK5G8kO4lmjiiP+sQlGYkFBgRmOfGSHs28VsBlwQ0wBOpyKInoCcAVI6AgoItFnvlBITrQIxA6xcU1wLDTQ2unD3q3c="
+              }
+            ],
+            "readonly": true,
+            "opaque": {
+              "CamelCase": [
+                null,
+                false,
+                "synthetic"
+              ]
+            },
+            "content": "b"
+          },
+          "error": null,
+          "status": 200,
+          "fallback409": false,
+          "heads": {
+            "11111111-1111-4111-8111-111111111111": {
+              "embed_id": "11111111-1111-4111-8111-111111111111",
+              "already_encrypted": true,
+              "chat_id": "22222222-2222-4222-8222-222222222222",
+              "type": "ciphertext-only",
+              "content": "ciphertext-only",
+              "encrypted_text_preview": null,
+              "parent_embed_id": null,
+              "status": "finished",
+              "embed_keys": [
+                {
+                  "hashed_embed_id": "bd7662a5eeb41614e720d477abfcb2272e19a8a70a93b7e3bc8560d44ad326e9",
+                  "key_type": "master",
+                  "encrypted_embed_key": "BQUFBQUFBQUFBQUFyHCxUQzfG0pFI1L52mhucgbLtZey1LHLBXMRpm3wpwh5gWwnLuG5FgL6V9aEQhIt",
+                  "wrapper_version": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "marker-before-hunk-line",
+          "mode": "normal",
+          "embed_id": "11111111-1111-4111-8111-111111111111",
+          "version": 2,
+          "response": {
+            "embed_id": "11111111-1111-4111-8111-111111111111",
+            "version_number": 2,
+            "rows": [
+              {
+                "version_number": 1,
+                "created_at": 1,
+                "encrypted_snapshot": "AAAAAAAAAAAAAAAH2FA35I3EIwIe70ngbFkycwGc"
+              },
+              {
+                "version_number": 2,
+                "encrypted_patch": "AAAAAAAAAAAAAAPnF4G4TqLNRTWF5Yqzry48a5JI3ogHwrZ/onskTGIVWJ2uSN4sKXalsbEwks8QHK6BMbU6dE5HQJvE+1Otxuc="
+              }
+            ]
+          },
+          "expected": null,
+          "error": "protocol",
+          "status": 200,
+          "fallback409": false,
+          "heads": {
+            "11111111-1111-4111-8111-111111111111": {
+              "embed_id": "11111111-1111-4111-8111-111111111111",
+              "already_encrypted": true,
+              "chat_id": "22222222-2222-4222-8222-222222222222",
+              "type": "ciphertext-only",
+              "content": "ciphertext-only",
+              "encrypted_text_preview": null,
+              "parent_embed_id": null,
+              "status": "finished",
+              "embed_keys": [
+                {
+                  "hashed_embed_id": "bd7662a5eeb41614e720d477abfcb2272e19a8a70a93b7e3bc8560d44ad326e9",
+                  "key_type": "master",
+                  "encrypted_embed_key": "BQUFBQUFBQUFBQUFyHCxUQzfG0pFI1L52mhucgbLtZey1LHLBXMRpm3wpwh5gWwnLuG5FgL6V9aEQhIt",
+                  "wrapper_version": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "bounded-409-legacy",
+          "mode": "normal",
+          "embed_id": "11111111-1111-4111-8111-111111111111",
+          "version": 1,
+          "response": {
+            "embed_id": "11111111-1111-4111-8111-111111111111",
+            "version_number": 1,
+            "current_version": 99,
+            "rows": [
+              {
+                "version_number": 1,
+                "created_at": 1,
+                "encrypted_snapshot": "AAAAAAAAAAAAAAABUSTJCFVKgGJZ2n+iq34+ekdl8jUvDiN/dEDj"
+              }
+            ],
+            "readonly": true,
+            "opaque": {
+              "CamelCase": [
+                null,
+                false,
+                "synthetic"
+              ]
+            }
+          },
+          "expected": {
+            "embed_id": "11111111-1111-4111-8111-111111111111",
+            "version_number": 1,
+            "current_version": 99,
+            "rows": [
+              {
+                "version_number": 1,
+                "created_at": 1,
+                "encrypted_snapshot": "AAAAAAAAAAAAAAABUSTJCFVKgGJZ2n+iq34+ekdl8jUvDiN/dEDj"
+              }
+            ],
+            "readonly": true,
+            "opaque": {
+              "CamelCase": [
+                null,
+                false,
+                "synthetic"
+              ]
+            },
+            "content": "alpha\nbeta\n"
+          },
+          "error": null,
+          "status": 200,
+          "fallback409": true,
+          "heads": {
+            "11111111-1111-4111-8111-111111111111": {
+              "embed_id": "11111111-1111-4111-8111-111111111111",
+              "already_encrypted": true,
+              "chat_id": "22222222-2222-4222-8222-222222222222",
+              "type": "ciphertext-only",
+              "content": "ciphertext-only",
+              "encrypted_text_preview": null,
+              "parent_embed_id": null,
+              "status": "finished",
+              "embed_keys": [
+                {
+                  "hashed_embed_id": "bd7662a5eeb41614e720d477abfcb2272e19a8a70a93b7e3bc8560d44ad326e9",
+                  "key_type": "master",
+                  "encrypted_embed_key": "BQUFBQUFBQUFBQUFyHCxUQzfG0pFI1L52mhucgbLtZey1LHLBXMRpm3wpwh5gWwnLuG5FgL6V9aEQhIt",
+                  "wrapper_version": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "parent-inherited-key",
+          "mode": "normal",
+          "embed_id": "11111111-1111-4111-8111-111111111111",
+          "version": 1,
+          "response": {
+            "embed_id": "11111111-1111-4111-8111-111111111111",
+            "version_number": 1,
+            "current_version": 99,
+            "rows": [
+              {
+                "version_number": 1,
+                "created_at": 1,
+                "encrypted_snapshot": "AAAAAAAAAAAAAAABUSTJCFVKgGJZ2n+iq34+ekdl8jUvDiN/dEDj"
+              }
+            ],
+            "readonly": true,
+            "opaque": {
+              "CamelCase": [
+                null,
+                false,
+                "synthetic"
+              ]
+            }
+          },
+          "expected": {
+            "embed_id": "11111111-1111-4111-8111-111111111111",
+            "version_number": 1,
+            "current_version": 99,
+            "rows": [
+              {
+                "version_number": 1,
+                "created_at": 1,
+                "encrypted_snapshot": "AAAAAAAAAAAAAAABUSTJCFVKgGJZ2n+iq34+ekdl8jUvDiN/dEDj"
+              }
+            ],
+            "readonly": true,
+            "opaque": {
+              "CamelCase": [
+                null,
+                false,
+                "synthetic"
+              ]
+            },
+            "content": "alpha\nbeta\n"
+          },
+          "error": null,
+          "status": 200,
+          "fallback409": false,
+          "heads": {
+            "11111111-1111-4111-8111-111111111111": {
+              "embed_id": "11111111-1111-4111-8111-111111111111",
+              "already_encrypted": true,
+              "chat_id": "22222222-2222-4222-8222-222222222222",
+              "type": "ciphertext-only",
+              "content": "ciphertext-only",
+              "encrypted_text_preview": null,
+              "parent_embed_id": "44444444-4444-4444-8444-444444444444",
+              "status": "finished",
+              "embed_keys": []
+            },
+            "44444444-4444-4444-8444-444444444444": {
+              "embed_id": "44444444-4444-4444-8444-444444444444",
+              "already_encrypted": true,
+              "chat_id": "22222222-2222-4222-8222-222222222222",
+              "type": "ciphertext-only",
+              "content": "ciphertext-only",
+              "encrypted_text_preview": null,
+              "parent_embed_id": null,
+              "status": "finished",
+              "embed_keys": [
+                {
+                  "hashed_embed_id": "f1d11edf5c5cbe84bc60d6c543d0d5938a5bd3a833381499af7549ddc4933a23",
+                  "key_type": "master",
+                  "encrypted_embed_key": "BQUFBQUFBQUFBQUFyHCxUQzfG0pFI1L52mhucgbLtZey1LHLBXMRpm3wpwh5gWwnLuG5FgL6V9aEQhIt",
+                  "wrapper_version": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "http-401",
+          "mode": "normal",
+          "embed_id": "11111111-1111-4111-8111-111111111111",
+          "version": 1,
+          "response": {
+            "embed_id": "11111111-1111-4111-8111-111111111111",
+            "version_number": 1,
+            "current_version": 99,
+            "rows": [
+              {
+                "version_number": 1,
+                "created_at": 1,
+                "encrypted_snapshot": "AAAAAAAAAAAAAAABUSTJCFVKgGJZ2n+iq34+ekdl8jUvDiN/dEDj"
+              }
+            ],
+            "readonly": true,
+            "opaque": {
+              "CamelCase": [
+                null,
+                false,
+                "synthetic"
+              ]
+            }
+          },
+          "expected": null,
+          "error": "expired",
+          "status": 401,
+          "fallback409": false,
+          "heads": {
+            "11111111-1111-4111-8111-111111111111": {
+              "embed_id": "11111111-1111-4111-8111-111111111111",
+              "already_encrypted": true,
+              "chat_id": "22222222-2222-4222-8222-222222222222",
+              "type": "ciphertext-only",
+              "content": "ciphertext-only",
+              "encrypted_text_preview": null,
+              "parent_embed_id": null,
+              "status": "finished",
+              "embed_keys": [
+                {
+                  "hashed_embed_id": "bd7662a5eeb41614e720d477abfcb2272e19a8a70a93b7e3bc8560d44ad326e9",
+                  "key_type": "master",
+                  "encrypted_embed_key": "BQUFBQUFBQUFBQUFyHCxUQzfG0pFI1L52mhucgbLtZey1LHLBXMRpm3wpwh5gWwnLuG5FgL6V9aEQhIt",
+                  "wrapper_version": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "http-403",
+          "mode": "normal",
+          "embed_id": "11111111-1111-4111-8111-111111111111",
+          "version": 1,
+          "response": {
+            "embed_id": "11111111-1111-4111-8111-111111111111",
+            "version_number": 1,
+            "current_version": 99,
+            "rows": [
+              {
+                "version_number": 1,
+                "created_at": 1,
+                "encrypted_snapshot": "AAAAAAAAAAAAAAABUSTJCFVKgGJZ2n+iq34+ekdl8jUvDiN/dEDj"
+              }
+            ],
+            "readonly": true,
+            "opaque": {
+              "CamelCase": [
+                null,
+                false,
+                "synthetic"
+              ]
+            }
+          },
+          "expected": null,
+          "error": "forbidden",
+          "status": 403,
+          "fallback409": false,
+          "heads": {
+            "11111111-1111-4111-8111-111111111111": {
+              "embed_id": "11111111-1111-4111-8111-111111111111",
+              "already_encrypted": true,
+              "chat_id": "22222222-2222-4222-8222-222222222222",
+              "type": "ciphertext-only",
+              "content": "ciphertext-only",
+              "encrypted_text_preview": null,
+              "parent_embed_id": null,
+              "status": "finished",
+              "embed_keys": [
+                {
+                  "hashed_embed_id": "bd7662a5eeb41614e720d477abfcb2272e19a8a70a93b7e3bc8560d44ad326e9",
+                  "key_type": "master",
+                  "encrypted_embed_key": "BQUFBQUFBQUFBQUFyHCxUQzfG0pFI1L52mhucgbLtZey1LHLBXMRpm3wpwh5gWwnLuG5FgL6V9aEQhIt",
+                  "wrapper_version": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "http-404",
+          "mode": "normal",
+          "embed_id": "11111111-1111-4111-8111-111111111111",
+          "version": 1,
+          "response": {
+            "embed_id": "11111111-1111-4111-8111-111111111111",
+            "version_number": 1,
+            "current_version": 99,
+            "rows": [
+              {
+                "version_number": 1,
+                "created_at": 1,
+                "encrypted_snapshot": "AAAAAAAAAAAAAAABUSTJCFVKgGJZ2n+iq34+ekdl8jUvDiN/dEDj"
+              }
+            ],
+            "readonly": true,
+            "opaque": {
+              "CamelCase": [
+                null,
+                false,
+                "synthetic"
+              ]
+            }
+          },
+          "expected": null,
+          "error": "invalid_argument",
+          "status": 404,
+          "fallback409": false,
+          "heads": {
+            "11111111-1111-4111-8111-111111111111": {
+              "embed_id": "11111111-1111-4111-8111-111111111111",
+              "already_encrypted": true,
+              "chat_id": "22222222-2222-4222-8222-222222222222",
+              "type": "ciphertext-only",
+              "content": "ciphertext-only",
+              "encrypted_text_preview": null,
+              "parent_embed_id": null,
+              "status": "finished",
+              "embed_keys": [
+                {
+                  "hashed_embed_id": "bd7662a5eeb41614e720d477abfcb2272e19a8a70a93b7e3bc8560d44ad326e9",
+                  "key_type": "master",
+                  "encrypted_embed_key": "BQUFBQUFBQUFBQUFyHCxUQzfG0pFI1L52mhucgbLtZey1LHLBXMRpm3wpwh5gWwnLuG5FgL6V9aEQhIt",
+                  "wrapper_version": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "noauth",
+          "mode": "noauth",
+          "embed_id": "11111111-1111-4111-8111-111111111111",
+          "version": 1,
+          "response": {
+            "embed_id": "11111111-1111-4111-8111-111111111111",
+            "version_number": 1,
+            "current_version": 99,
+            "rows": [
+              {
+                "version_number": 1,
+                "created_at": 1,
+                "encrypted_snapshot": "AAAAAAAAAAAAAAABUSTJCFVKgGJZ2n+iq34+ekdl8jUvDiN/dEDj"
+              }
+            ],
+            "readonly": true,
+            "opaque": {
+              "CamelCase": [
+                null,
+                false,
+                "synthetic"
+              ]
+            }
+          },
+          "expected": null,
+          "error": "authentication",
+          "status": 200,
+          "fallback409": false,
+          "heads": {
+            "11111111-1111-4111-8111-111111111111": {
+              "embed_id": "11111111-1111-4111-8111-111111111111",
+              "already_encrypted": true,
+              "chat_id": "22222222-2222-4222-8222-222222222222",
+              "type": "ciphertext-only",
+              "content": "ciphertext-only",
+              "encrypted_text_preview": null,
+              "parent_embed_id": null,
+              "status": "finished",
+              "embed_keys": [
+                {
+                  "hashed_embed_id": "bd7662a5eeb41614e720d477abfcb2272e19a8a70a93b7e3bc8560d44ad326e9",
+                  "key_type": "master",
+                  "encrypted_embed_key": "BQUFBQUFBQUFBQUFyHCxUQzfG0pFI1L52mhucgbLtZey1LHLBXMRpm3wpwh5gWwnLuG5FgL6V9aEQhIt",
+                  "wrapper_version": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "policy-denied",
+          "mode": "policy-denied",
+          "embed_id": "11111111-1111-4111-8111-111111111111",
+          "version": 1,
+          "response": {
+            "embed_id": "11111111-1111-4111-8111-111111111111",
+            "version_number": 1,
+            "current_version": 99,
+            "rows": [
+              {
+                "version_number": 1,
+                "created_at": 1,
+                "encrypted_snapshot": "AAAAAAAAAAAAAAABUSTJCFVKgGJZ2n+iq34+ekdl8jUvDiN/dEDj"
+              }
+            ],
+            "readonly": true,
+            "opaque": {
+              "CamelCase": [
+                null,
+                false,
+                "synthetic"
+              ]
+            }
+          },
+          "expected": null,
+          "error": "forbidden",
+          "status": 200,
+          "fallback409": false,
+          "heads": {
+            "11111111-1111-4111-8111-111111111111": {
+              "embed_id": "11111111-1111-4111-8111-111111111111",
+              "already_encrypted": true,
+              "chat_id": "22222222-2222-4222-8222-222222222222",
+              "type": "ciphertext-only",
+              "content": "ciphertext-only",
+              "encrypted_text_preview": null,
+              "parent_embed_id": null,
+              "status": "finished",
+              "embed_keys": [
+                {
+                  "hashed_embed_id": "bd7662a5eeb41614e720d477abfcb2272e19a8a70a93b7e3bc8560d44ad326e9",
+                  "key_type": "master",
+                  "encrypted_embed_key": "BQUFBQUFBQUFBQUFyHCxUQzfG0pFI1L52mhucgbLtZey1LHLBXMRpm3wpwh5gWwnLuG5FgL6V9aEQhIt",
+                  "wrapper_version": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "team",
+          "mode": "team",
+          "embed_id": "11111111-1111-4111-8111-111111111111",
+          "version": 1,
+          "response": {
+            "embed_id": "11111111-1111-4111-8111-111111111111",
+            "version_number": 1,
+            "current_version": 99,
+            "rows": [
+              {
+                "version_number": 1,
+                "created_at": 1,
+                "encrypted_snapshot": "AAAAAAAAAAAAAAABUSTJCFVKgGJZ2n+iq34+ekdl8jUvDiN/dEDj"
+              }
+            ],
+            "readonly": true,
+            "opaque": {
+              "CamelCase": [
+                null,
+                false,
+                "synthetic"
+              ]
+            }
+          },
+          "expected": null,
+          "error": "unavailable",
+          "status": 200,
+          "fallback409": false,
+          "heads": {
+            "11111111-1111-4111-8111-111111111111": {
+              "embed_id": "11111111-1111-4111-8111-111111111111",
+              "already_encrypted": true,
+              "chat_id": "22222222-2222-4222-8222-222222222222",
+              "type": "ciphertext-only",
+              "content": "ciphertext-only",
+              "encrypted_text_preview": null,
+              "parent_embed_id": null,
+              "status": "finished",
+              "embed_keys": [
+                {
+                  "hashed_embed_id": "bd7662a5eeb41614e720d477abfcb2272e19a8a70a93b7e3bc8560d44ad326e9",
+                  "key_type": "master",
+                  "encrypted_embed_key": "BQUFBQUFBQUFBQUFyHCxUQzfG0pFI1L52mhucgbLtZey1LHLBXMRpm3wpwh5gWwnLuG5FgL6V9aEQhIt",
+                  "wrapper_version": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "server-content-text",
+          "mode": "normal",
+          "embed_id": "11111111-1111-4111-8111-111111111111",
+          "version": 1,
+          "response": {
+            "embed_id": "11111111-1111-4111-8111-111111111111",
+            "version_number": 1,
+            "current_version": 2,
+            "content": "legacy Cookie content",
+            "readonly": true,
+            "opaque": {
+              "preserved": true
+            }
+          },
+          "expected": {
+            "embed_id": "11111111-1111-4111-8111-111111111111",
+            "version_number": 1,
+            "current_version": 2,
+            "content": "legacy Cookie content",
+            "readonly": true,
+            "opaque": {
+              "preserved": true
+            }
+          },
+          "error": null,
+          "status": 200,
+          "fallback409": false,
+          "heads": {
+            "11111111-1111-4111-8111-111111111111": {
+              "embed_id": "11111111-1111-4111-8111-111111111111",
+              "already_encrypted": true,
+              "chat_id": "22222222-2222-4222-8222-222222222222",
+              "type": "ciphertext-only",
+              "content": "ciphertext-only",
+              "encrypted_text_preview": null,
+              "parent_embed_id": null,
+              "status": "finished",
+              "embed_keys": [
+                {
+                  "hashed_embed_id": "bd7662a5eeb41614e720d477abfcb2272e19a8a70a93b7e3bc8560d44ad326e9",
+                  "key_type": "master",
+                  "encrypted_embed_key": "BQUFBQUFBQUFBQUFyHCxUQzfG0pFI1L52mhucgbLtZey1LHLBXMRpm3wpwh5gWwnLuG5FgL6V9aEQhIt",
+                  "wrapper_version": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "server-content-empty",
+          "mode": "normal",
+          "embed_id": "11111111-1111-4111-8111-111111111111",
+          "version": 1,
+          "response": {
+            "embed_id": "11111111-1111-4111-8111-111111111111",
+            "version_number": 1,
+            "current_version": 2,
+            "content": "",
+            "readonly": true,
+            "opaque": {
+              "preserved": true
+            }
+          },
+          "expected": {
+            "embed_id": "11111111-1111-4111-8111-111111111111",
+            "version_number": 1,
+            "current_version": 2,
+            "content": "",
+            "readonly": true,
+            "opaque": {
+              "preserved": true
+            }
+          },
+          "error": null,
+          "status": 200,
+          "fallback409": false,
+          "heads": {
+            "11111111-1111-4111-8111-111111111111": {
+              "embed_id": "11111111-1111-4111-8111-111111111111",
+              "already_encrypted": true,
+              "chat_id": "22222222-2222-4222-8222-222222222222",
+              "type": "ciphertext-only",
+              "content": "ciphertext-only",
+              "encrypted_text_preview": null,
+              "parent_embed_id": null,
+              "status": "finished",
+              "embed_keys": [
+                {
+                  "hashed_embed_id": "bd7662a5eeb41614e720d477abfcb2272e19a8a70a93b7e3bc8560d44ad326e9",
+                  "key_type": "master",
+                  "encrypted_embed_key": "BQUFBQUFBQUFBQUFyHCxUQzfG0pFI1L52mhucgbLtZey1LHLBXMRpm3wpwh5gWwnLuG5FgL6V9aEQhIt",
+                  "wrapper_version": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "invalid-version-0",
+          "mode": "normal",
+          "embed_id": "11111111-1111-4111-8111-111111111111",
+          "version": 0,
+          "response": {
+            "embed_id": "11111111-1111-4111-8111-111111111111",
+            "version_number": 1,
+            "current_version": 99,
+            "rows": [
+              {
+                "version_number": 1,
+                "created_at": 1,
+                "encrypted_snapshot": "AAAAAAAAAAAAAAABUSTJCFVKgGJZ2n+iq34+ekdl8jUvDiN/dEDj"
+              }
+            ],
+            "readonly": true,
+            "opaque": {
+              "CamelCase": [
+                null,
+                false,
+                "synthetic"
+              ]
+            }
+          },
+          "expected": null,
+          "error": "invalid_argument",
+          "status": 200,
+          "fallback409": false,
+          "heads": {
+            "11111111-1111-4111-8111-111111111111": {
+              "embed_id": "11111111-1111-4111-8111-111111111111",
+              "already_encrypted": true,
+              "chat_id": "22222222-2222-4222-8222-222222222222",
+              "type": "ciphertext-only",
+              "content": "ciphertext-only",
+              "encrypted_text_preview": null,
+              "parent_embed_id": null,
+              "status": "finished",
+              "embed_keys": [
+                {
+                  "hashed_embed_id": "bd7662a5eeb41614e720d477abfcb2272e19a8a70a93b7e3bc8560d44ad326e9",
+                  "key_type": "master",
+                  "encrypted_embed_key": "BQUFBQUFBQUFBQUFyHCxUQzfG0pFI1L52mhucgbLtZey1LHLBXMRpm3wpwh5gWwnLuG5FgL6V9aEQhIt",
+                  "wrapper_version": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "invalid-version-1.5",
+          "mode": "normal",
+          "embed_id": "11111111-1111-4111-8111-111111111111",
+          "version": 1.5,
+          "response": {
+            "embed_id": "11111111-1111-4111-8111-111111111111",
+            "version_number": 1,
+            "current_version": 99,
+            "rows": [
+              {
+                "version_number": 1,
+                "created_at": 1,
+                "encrypted_snapshot": "AAAAAAAAAAAAAAABUSTJCFVKgGJZ2n+iq34+ekdl8jUvDiN/dEDj"
+              }
+            ],
+            "readonly": true,
+            "opaque": {
+              "CamelCase": [
+                null,
+                false,
+                "synthetic"
+              ]
+            }
+          },
+          "expected": null,
+          "error": "invalid_argument",
+          "status": 200,
+          "fallback409": false,
+          "heads": {
+            "11111111-1111-4111-8111-111111111111": {
+              "embed_id": "11111111-1111-4111-8111-111111111111",
+              "already_encrypted": true,
+              "chat_id": "22222222-2222-4222-8222-222222222222",
+              "type": "ciphertext-only",
+              "content": "ciphertext-only",
+              "encrypted_text_preview": null,
+              "parent_embed_id": null,
+              "status": "finished",
+              "embed_keys": [
+                {
+                  "hashed_embed_id": "bd7662a5eeb41614e720d477abfcb2272e19a8a70a93b7e3bc8560d44ad326e9",
+                  "key_type": "master",
+                  "encrypted_embed_key": "BQUFBQUFBQUFBQUFyHCxUQzfG0pFI1L52mhucgbLtZey1LHLBXMRpm3wpwh5gWwnLuG5FgL6V9aEQhIt",
+                  "wrapper_version": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "invalid-version-True",
+          "mode": "normal",
+          "embed_id": "11111111-1111-4111-8111-111111111111",
+          "version": true,
+          "response": {
+            "embed_id": "11111111-1111-4111-8111-111111111111",
+            "version_number": 1,
+            "current_version": 99,
+            "rows": [
+              {
+                "version_number": 1,
+                "created_at": 1,
+                "encrypted_snapshot": "AAAAAAAAAAAAAAABUSTJCFVKgGJZ2n+iq34+ekdl8jUvDiN/dEDj"
+              }
+            ],
+            "readonly": true,
+            "opaque": {
+              "CamelCase": [
+                null,
+                false,
+                "synthetic"
+              ]
+            }
+          },
+          "expected": null,
+          "error": "invalid_argument",
+          "status": 200,
+          "fallback409": false,
+          "heads": {
+            "11111111-1111-4111-8111-111111111111": {
+              "embed_id": "11111111-1111-4111-8111-111111111111",
+              "already_encrypted": true,
+              "chat_id": "22222222-2222-4222-8222-222222222222",
+              "type": "ciphertext-only",
+              "content": "ciphertext-only",
+              "encrypted_text_preview": null,
+              "parent_embed_id": null,
+              "status": "finished",
+              "embed_keys": [
+                {
+                  "hashed_embed_id": "bd7662a5eeb41614e720d477abfcb2272e19a8a70a93b7e3bc8560d44ad326e9",
+                  "key_type": "master",
+                  "encrypted_embed_key": "BQUFBQUFBQUFBQUFyHCxUQzfG0pFI1L52mhucgbLtZey1LHLBXMRpm3wpwh5gWwnLuG5FgL6V9aEQhIt",
+                  "wrapper_version": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "short-id",
+          "mode": "normal",
+          "embed_id": "11111111",
+          "version": 1,
+          "response": {
+            "embed_id": "11111111-1111-4111-8111-111111111111",
+            "version_number": 1,
+            "current_version": 99,
+            "rows": [
+              {
+                "version_number": 1,
+                "created_at": 1,
+                "encrypted_snapshot": "AAAAAAAAAAAAAAABUSTJCFVKgGJZ2n+iq34+ekdl8jUvDiN/dEDj"
+              }
+            ],
+            "readonly": true,
+            "opaque": {
+              "CamelCase": [
+                null,
+                false,
+                "synthetic"
+              ]
+            }
+          },
+          "expected": null,
+          "error": "invalid_argument",
+          "status": 200,
+          "fallback409": false,
+          "heads": {
+            "11111111-1111-4111-8111-111111111111": {
+              "embed_id": "11111111-1111-4111-8111-111111111111",
+              "already_encrypted": true,
+              "chat_id": "22222222-2222-4222-8222-222222222222",
+              "type": "ciphertext-only",
+              "content": "ciphertext-only",
+              "encrypted_text_preview": null,
+              "parent_embed_id": null,
+              "status": "finished",
+              "embed_keys": [
+                {
+                  "hashed_embed_id": "bd7662a5eeb41614e720d477abfcb2272e19a8a70a93b7e3bc8560d44ad326e9",
+                  "key_type": "master",
+                  "encrypted_embed_key": "BQUFBQUFBQUFBQUFyHCxUQzfG0pFI1L52mhucgbLtZey1LHLBXMRpm3wpwh5gWwnLuG5FgL6V9aEQhIt",
+                  "wrapper_version": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "wrong-response-id",
+          "mode": "normal",
+          "embed_id": "11111111-1111-4111-8111-111111111111",
+          "version": 1,
+          "response": {
+            "embed_id": "55555555-5555-4555-8555-555555555555",
+            "version_number": 1,
+            "current_version": 99,
+            "rows": [
+              {
+                "version_number": 1,
+                "created_at": 1,
+                "encrypted_snapshot": "AAAAAAAAAAAAAAABUSTJCFVKgGJZ2n+iq34+ekdl8jUvDiN/dEDj"
+              }
+            ],
+            "readonly": true,
+            "opaque": {
+              "CamelCase": [
+                null,
+                false,
+                "synthetic"
+              ]
+            }
+          },
+          "expected": null,
+          "error": "protocol",
+          "status": 200,
+          "fallback409": false,
+          "heads": {
+            "11111111-1111-4111-8111-111111111111": {
+              "embed_id": "11111111-1111-4111-8111-111111111111",
+              "already_encrypted": true,
+              "chat_id": "22222222-2222-4222-8222-222222222222",
+              "type": "ciphertext-only",
+              "content": "ciphertext-only",
+              "encrypted_text_preview": null,
+              "parent_embed_id": null,
+              "status": "finished",
+              "embed_keys": [
+                {
+                  "hashed_embed_id": "bd7662a5eeb41614e720d477abfcb2272e19a8a70a93b7e3bc8560d44ad326e9",
+                  "key_type": "master",
+                  "encrypted_embed_key": "BQUFBQUFBQUFBQUFyHCxUQzfG0pFI1L52mhucgbLtZey1LHLBXMRpm3wpwh5gWwnLuG5FgL6V9aEQhIt",
+                  "wrapper_version": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "future-row",
+          "mode": "normal",
+          "embed_id": "11111111-1111-4111-8111-111111111111",
+          "version": 1,
+          "response": {
+            "embed_id": "11111111-1111-4111-8111-111111111111",
+            "version_number": 1,
+            "current_version": 99,
+            "rows": [
+              {
+                "version_number": 2,
+                "encrypted_snapshot": "cipher-only"
+              }
+            ],
+            "readonly": true,
+            "opaque": {
+              "CamelCase": [
+                null,
+                false,
+                "synthetic"
+              ]
+            }
+          },
+          "expected": null,
+          "error": "protocol",
+          "status": 200,
+          "fallback409": false,
+          "heads": {
+            "11111111-1111-4111-8111-111111111111": {
+              "embed_id": "11111111-1111-4111-8111-111111111111",
+              "already_encrypted": true,
+              "chat_id": "22222222-2222-4222-8222-222222222222",
+              "type": "ciphertext-only",
+              "content": "ciphertext-only",
+              "encrypted_text_preview": null,
+              "parent_embed_id": null,
+              "status": "finished",
+              "embed_keys": [
+                {
+                  "hashed_embed_id": "bd7662a5eeb41614e720d477abfcb2272e19a8a70a93b7e3bc8560d44ad326e9",
+                  "key_type": "master",
+                  "encrypted_embed_key": "BQUFBQUFBQUFBQUFyHCxUQzfG0pFI1L52mhucgbLtZey1LHLBXMRpm3wpwh5gWwnLuG5FgL6V9aEQhIt",
+                  "wrapper_version": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "cold-chat-wrapper-explicit-gap",
+          "mode": "normal",
+          "embed_id": "11111111-1111-4111-8111-111111111111",
+          "version": 1,
+          "response": {
+            "embed_id": "11111111-1111-4111-8111-111111111111",
+            "version_number": 1,
+            "current_version": 99,
+            "rows": [
+              {
+                "version_number": 1,
+                "created_at": 1,
+                "encrypted_snapshot": "AAAAAAAAAAAAAAABUSTJCFVKgGJZ2n+iq34+ekdl8jUvDiN/dEDj"
+              }
+            ],
+            "readonly": true,
+            "opaque": {
+              "CamelCase": [
+                null,
+                false,
+                "synthetic"
+              ]
+            }
+          },
+          "expected": null,
+          "error": "unavailable",
+          "status": 200,
+          "fallback409": false,
+          "heads": {
+            "11111111-1111-4111-8111-111111111111": {
+              "embed_id": "11111111-1111-4111-8111-111111111111",
+              "already_encrypted": true,
+              "chat_id": "22222222-2222-4222-8222-222222222222",
+              "type": "ciphertext-only",
+              "content": "ciphertext-only",
+              "encrypted_text_preview": null,
+              "parent_embed_id": null,
+              "status": "finished",
+              "embed_keys": [
+                {
+                  "key_type": "chat",
+                  "hashed_embed_id": "bd7662a5eeb41614e720d477abfcb2272e19a8a70a93b7e3bc8560d44ad326e9",
+                  "hashed_chat_id": "b454f82c5857ebabf342b7258e5cf7def78b7cd975814119462973de9a38df10",
+                  "encrypted_embed_key": "BgYGBgYGBgYGBgYGwD7qEplWtpRxWghTnrHSov3Y6C7mDe51hNSYzuElX7z+RUhp2zsnMXRO7GoNLc33"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "source_reconstruction_fixture_sha256": "6f798513498497f0f7978e6afa2b504aa0e12a75ba40af5eff6e5cf2c91a1e7c",
+      "state": "partial authored; all3actual adapters/CLI/runtime/performance UNRUN"
+    }
+  }
+}

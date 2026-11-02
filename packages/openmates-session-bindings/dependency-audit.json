@@ -1,0 +1,34 @@
+{
+  "scope": "packages/openmates-session-bindings/Cargo.lock",
+  "lock_sha256": "245767f2925fea629bd5b32071ffd5c254fd011152b1430a901e4fd0b9e69666",
+  "tool": "cargo-audit 0.22.2",
+  "advisory_database_commit": "4b587f00996ebe5c05a73eaef105ef241e876414",
+  "checked_at": "2026-10-21",
+  "result": {
+    "database": {
+      "advisory-count": 1348,
+      "last-commit": null,
+      "last-updated": null
+    },
+    "lockfile": {
+      "dependency-count": 241
+    },
+    "settings": {
+      "target_arch": [],
+      "target_os": [],
+      "severity": null,
+      "ignore": [],
+      "informational_warnings": [
+        "unmaintained",
+        "unsound",
+        "notice"
+      ]
+    },
+    "vulnerabilities": {
+      "found": false,
+      "count": 0,
+      "list": []
+    },
+    "warnings": {}
+  }
+}

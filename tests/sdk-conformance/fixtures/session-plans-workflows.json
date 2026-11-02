@@ -1,0 +1,183 @@
+{
+  "schema_version": 1,
+  "provenance": "Synthetic public credentials/keys from session-work.json. Plan Project wrappers and ciphertext checked by the shared independent cryptography peer. Workflow title/graph are canonical server-visible definitions with explicit consent; slug is encrypted. All transport ephemeral local mocks, no real inference/account.",
+  "capabilities": {
+    "session.plans-workflows.v1": {
+      "account": {
+        "session_id": "synthetic-work-session",
+        "cookie": "synthetic-work-initial",
+        "master_key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8="
+      },
+      "team": {
+        "team_id": "88888888-8888-4888-8888-888888888888",
+        "team_key_b64": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8=",
+        "encrypted_team_key": "T00JE61leRgLKbxm229jbLWO8xpiE1KLRbYSMmNfED7TvaZXCyYnc08uB0FAXIQw7F60wFEdKKjsJr97P9unys3x"
+      },
+      "project_id": "88888888-1111-4111-8111-111111111111",
+      "workflow_id": "44444444-4444-4444-8444-444444444444",
+      "run_id": "55555555-5555-4555-8555-555555555555",
+      "input": {
+        "plan": {
+          "title": "Synthetic private Plan",
+          "goal": "Synthetic private goal",
+          "scope_in": "Synthetic private scope",
+          "linked_project_ids": [
+            "88888888-1111-4111-8111-111111111111"
+          ],
+          "user_flows": [
+            {
+              "flow_id": "flow-one",
+              "title": "Synthetic private flow",
+              "actor": null,
+              "steps": [
+                {
+                  "step_id": "step-one",
+                  "text": "Synthetic private step",
+                  "references": [
+                    {
+                      "kind": "url",
+                      "url": "https://example.invalid/synthetic"
+                    }
+                  ]
+                }
+              ],
+              "expected_outcome": "Synthetic private outcome",
+              "linked_task_ids": [],
+              "linked_criterion_ids": []
+            }
+          ]
+        },
+        "workflow": {
+          "title": "Synthetic Workflow",
+          "slug": "synthetic-workflow",
+          "graph": {
+            "version": 1,
+            "trigger_node_id": "start",
+            "nodes": [
+              {
+                "id": "start",
+                "type": "manual_trigger",
+                "title": null,
+                "config": {
+                  "projectId": "user-defined-camel-name"
+                },
+                "input_mapping": {},
+                "ui": {}
+              },
+              {
+                "id": "end",
+                "type": "end",
+                "title": null,
+                "config": {},
+                "input_mapping": {},
+                "ui": {}
+              }
+            ],
+            "edges": [
+              {
+                "from": "start",
+                "to": "end",
+                "branch": null
+              }
+            ],
+            "variables": {
+              "dueAt": "keep-user-name"
+            },
+            "limits": {},
+            "ui_layout": {}
+          }
+        },
+        "run": {
+          "idempotency_key": "synthetic-stable-workflow-intent",
+          "mode": "manual",
+          "input": {
+            "projectId": "opaque-user-input",
+            "nested": {
+              "dueAt": "unchanged"
+            }
+          },
+          "message_destination_overrides": {},
+          "return_outputs": {}
+        }
+      },
+      "vectors": [
+        {
+          "id": "plans-personal-crud",
+          "mode": "crud",
+          "family": "plans",
+          "team": false,
+          "allow_private": false
+        },
+        {
+          "id": "workflows-personal-crud",
+          "mode": "crud",
+          "family": "workflows",
+          "team": false,
+          "allow_private": true
+        },
+        {
+          "id": "workflows-team-crud",
+          "mode": "crud",
+          "family": "workflows",
+          "team": true,
+          "allow_private": true
+        },
+        {
+          "id": "run-workflow-run",
+          "mode": "run",
+          "allow_private": true
+        },
+        {
+          "id": "failed-workflow-run",
+          "mode": "failed",
+          "allow_private": true
+        },
+        {
+          "id": "bad_identity-workflow-run",
+          "mode": "bad_identity",
+          "allow_private": true
+        },
+        {
+          "id": "timeout-workflow-run",
+          "mode": "timeout",
+          "allow_private": true
+        },
+        {
+          "id": "cancel-workflow-run",
+          "mode": "cancel",
+          "allow_private": true
+        },
+        {
+          "id": "local-cancel-workflow-wait",
+          "mode": "local_cancel",
+          "allow_private": true
+        },
+        {
+          "id": "http_error-workflow-run",
+          "mode": "http_error",
+          "allow_private": true
+        },
+        {
+          "id": "strict-boundary",
+          "mode": "strict",
+          "allow_private": true
+        },
+        {
+          "id": "scope-boundary",
+          "mode": "scope",
+          "allow_private": true
+        },
+        {
+          "id": "consent-boundary",
+          "mode": "consent",
+          "allow_private": false
+        },
+        {
+          "id": "confirmation-boundary",
+          "mode": "confirmation",
+          "allow_private": true
+        }
+      ]
+    }
+  }
+}

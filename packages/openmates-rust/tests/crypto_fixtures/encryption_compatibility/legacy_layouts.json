@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "keys": {
+    "content_key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+    "wrapping_key_b64": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8=",
+    "cli_fixture_machine_key_b64": "QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8="
+  },
+  "chat": {
+    "format_a": {"blob_b64": "T00JE61lAAECAwQFBgcICQoLK2exeqac733iM/rqxcQZSY7t99Zeqi9ulRSoFUi09w==", "plaintext": "legacy-format-a"},
+    "format_b": {"blob_b64": "AAECAwQFBgcICQoLK2exeqac733iM/rqxcQaX5E5OyfJaCVgpdr+Oa3Raw==", "plaintext": "legacy-format-b"},
+    "format_c": {"blob_b64": "AAECAwQFBgcICQoLXFNfpE4w7eu08MPNKn5QMwNh+3d+BLAGPBTJoaec1YdLiW2dQ1ioc3cx0QtglUzb", "plaintext_key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8="},
+    "format_d": {"blob_b64": "DA0ODxAREhMUFRYXjl8pVFdELdmxJ4mVhviHTn76neJrZREJNpCaz2ds/w==", "plaintext": "legacy-format-d"}
+  },
+  "legacy_media": [
+    {"kind": "upload_image", "aes_key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=", "aes_nonce": "AAECAwQFBgcICQoL", "variants": {"original": {"s3_key": "fixtures/upload_image/original.enc", "ciphertext_b64": "MnK6dKSBnXLgIPDui4YKBOS/6VWcAvWFmm6TXClhAjW1Fr7NhA==", "plaintext": "upload_image:original"}, "preview": {"s3_key": "fixtures/upload_image/preview.enc", "ciphertext_b64": "MnK6dKSBnXLgIPDui5kKCPW/4kPNcgf2FXH/1K3IxpeQF4r6", "plaintext": "upload_image:preview"}}},
+    {"kind": "generated_image", "aes_key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=", "aes_nonce": "AAECAwQFBgcICQoL", "variants": {"full": {"s3_key": "fixtures/generated_image/full.enc", "ciphertext_b64": "IGe4freEtn7pHv7m0I4dV+Wj61iXpdA6bOpZu+COWNydyVLJ", "plaintext": "generated_image:full"}, "preview": {"s3_key": "fixtures/generated_image/preview.enc", "ciphertext_b64": "IGe4freEtn7pHv7m0I4dV/Ok4kKZHigSfJ3naQDtNQCiRquM1EvI", "plaintext": "generated_image:preview"}}},
+    {"kind": "vectorized_image", "aes_key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=", "aes_nonce": "AAECAwQFBgcICQoL", "variants": {"svg": {"s3_key": "fixtures/vectorized_image/svg.enc", "ciphertext_b64": "MWe1b6qXq2HoJcji3IgfCLml8VNvQX4tpaZsWhkEdX3uAeCC", "plaintext": "vectorized_image:svg"}, "preview": {"s3_key": "fixtures/vectorized_image/preview.enc", "ciphertext_b64": "MWe1b6qXq2HoJcji3IgfCLmm9VGGEjoLlL65YNKD3C5OMjvuAtGW8w==", "plaintext": "vectorized_image:preview"}}},
+    {"kind": "remotion_output", "aes_key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=", "aes_nonce": "AAECAwQFBgcICQoL", "variants": {"video": {"s3_key": "fixtures/remotion_output/video.enc", "ciphertext_b64": "NWe7dLGMrXXSLuL/wZwMV/W/41Gf8PN4JHLaqRHv5cHAS05acw==", "plaintext": "remotion_output:video"}, "thumbnail": {"s3_key": "fixtures/remotion_output/thumbnail.enc", "ciphertext_b64": "NWe7dLGMrXXSLuL/wZwMV/e+8lmSFT4VVFySBtL8nt2KzSig1f4CLrU=", "plaintext": "remotion_output:thumbnail"}}}
+  ],
+  "legacy_invoice": {"encrypted_amount": "fixture-vault-ciphertext", "encrypted_s3_object_key": "fixture-vault-object-key", "encrypted_aes_key": "fixture-vault-wrapped-key", "encrypted_filename": "fixture-vault-filename", "aes_key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=", "aes_nonce": "AAECAwQFBgcICQoL", "object_ciphertext_b64": "K2exeqac73LjN/ji0oxVHeewuavE4LA13D2lgwUaDMzl8w==", "plaintext": "legacy-invoice-pdf"},
+  "legacy_short_link": {"token": "Ab12Cd34", "short_key": "Ef56Gh", "kdf": {"name": "PBKDF2", "iterations": 200000, "hash": "SHA-256", "salt_prefix": "omts-v1-"}, "encrypted_url_b64": "DA0ODxAREhMUFRYX04echz/4HpipnJp9Fq7EzWykS0rQ0Ak5SvM/BndndEOTLucVhj0lVowT/blOtLEifvgpBppoAi+k09TdgvsUZ2YgRg==", "plaintext": "https://example.invalid/share/chat/id#key=synthetic"},
+  "legacy_cli_sessions": [
+    {"tier": "plaintext", "session": {"sessionId": "fixture-session", "hashedEmail": "fixture-hash", "masterKeyExportedB64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8="}},
+    {"tier": "keychain", "session": {"sessionId": "fixture-session", "hashedEmail": "fixture-hash", "masterKeyStorage": "keychain"}},
+    {"tier": "encrypted", "session": {"sessionId": "fixture-session", "hashedEmail": "fixture-hash", "masterKeyStorage": "encrypted", "masterKeyEncrypted": "GBkaGxwdHh8gISIjK469uJWt5s6NQzvXsKkvb1NDET0+qR9ahNV8ysZx9qCxWPugCOLBT4TcWKjumiNAJAkPj5lDGamSLNvJ", "plaintextMasterKeyB64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8="}}
+  ]
+}

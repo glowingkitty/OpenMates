@@ -1,0 +1,740 @@
+{
+  "schema_version": 1,
+  "reference": {
+    "scope": "qualified offline comparator oracle, not current CI or macOS runtime proof",
+    "source_commit": "25dfaf520724c693dac4d743abb20064f41c9d49",
+    "source_path": "frontend/packages/openmates-cli/src/tuiTasksWorkspace.ts",
+    "node_path": "/home/superdev/.nvm/versions/node/v24.20.0/bin/node",
+    "node_sha256": "23a5637c2470fde09fcc1acc77c1b92e04e3d7e3e6e80ff7df6f5831958d1477",
+    "node": "v24.20.0",
+    "icu": "78.3",
+    "unicode": "17.0",
+    "cldr": "48.0",
+    "locale": "explicit per vector",
+    "position_contract": "finite JSON Number; missing/null0; JavaScript Number comparison; -0==0; stable ties",
+    "implementation_data": {
+      "icu_collator": "2.3.1",
+      "icu_collator_data": "2.3.0",
+      "cldr": "48.2.1",
+      "icu_export": "release-78.1rc",
+      "limits": "No universal equality across Node/ICU/data versions; no invalid UTF16 surrogate claim."
+    }
+  },
+  "capabilities": {
+    "local.task-order.v1": {
+      "vectors": [
+        {
+          "id": "position-opposes-id",
+          "locale": "en-US",
+          "tasks": [
+            {
+              "task_id": "a",
+              "title": "Alpha",
+              "position": 200
+            },
+            {
+              "task_id": "z",
+              "title": "Zulu",
+              "position": 100
+            }
+          ],
+          "expected_indices": [
+            1,
+            0
+          ],
+          "resolved_options": {
+            "locale": "en-US",
+            "usage": "sort",
+            "sensitivity": "variant",
+            "ignorePunctuation": false,
+            "collation": "default",
+            "numeric": false,
+            "caseFirst": "false"
+          }
+        },
+        {
+          "id": "fractional-negative-zero",
+          "locale": "en-US",
+          "tasks": [
+            {
+              "title": "f",
+              "position": 0.125
+            },
+            {
+              "title": "same",
+              "position": -0.0
+            },
+            {
+              "title": "same",
+              "position": 0
+            },
+            {
+              "title": "early",
+              "position": -1.75
+            },
+            {
+              "title": "later",
+              "position": -1.25
+            },
+            {
+              "title": "last",
+              "position": 1.5
+            }
+          ],
+          "expected_indices": [
+            3,
+            4,
+            1,
+            2,
+            0,
+            5
+          ],
+          "resolved_options": {
+            "locale": "en-US",
+            "usage": "sort",
+            "sensitivity": "variant",
+            "ignorePunctuation": false,
+            "collation": "default",
+            "numeric": false,
+            "caseFirst": "false"
+          }
+        },
+        {
+          "id": "missing-null-zero",
+          "locale": "en-US",
+          "tasks": [
+            {
+              "title": "Zulu"
+            },
+            {
+              "title": "alpha",
+              "position": null
+            },
+            {
+              "title": "beta",
+              "position": 0
+            }
+          ],
+          "expected_indices": [
+            1,
+            2,
+            0
+          ],
+          "resolved_options": {
+            "locale": "en-US",
+            "usage": "sort",
+            "sensitivity": "variant",
+            "ignorePunctuation": false,
+            "collation": "default",
+            "numeric": false,
+            "caseFirst": "false"
+          }
+        },
+        {
+          "id": "canonical-equivalence-stable",
+          "locale": "en-US",
+          "tasks": [
+            {
+              "task_id": "z",
+              "title": "é",
+              "metadata": {
+                "keep": [
+                  "private",
+                  1
+                ]
+              }
+            },
+            {
+              "task_id": "a",
+              "title": "é"
+            },
+            {
+              "title": "Å"
+            },
+            {
+              "title": "Å"
+            },
+            {
+              "title": "☕"
+            },
+            {
+              "title": "☕️"
+            }
+          ],
+          "expected_indices": [
+            4,
+            5,
+            2,
+            3,
+            0,
+            1
+          ],
+          "resolved_options": {
+            "locale": "en-US",
+            "usage": "sort",
+            "sensitivity": "variant",
+            "ignorePunctuation": false,
+            "collation": "default",
+            "numeric": false,
+            "caseFirst": "false"
+          }
+        },
+        {
+          "id": "english-unicode",
+          "locale": "en-US",
+          "tasks": [
+            {
+              "title": "é"
+            },
+            {
+              "title": "e"
+            },
+            {
+              "title": "E"
+            },
+            {
+              "title": "resume"
+            },
+            {
+              "title": "résumé"
+            },
+            {
+              "title": "a-b"
+            },
+            {
+              "title": "ab"
+            },
+            {
+              "title": "Task 2"
+            },
+            {
+              "title": "Task 10"
+            },
+            {
+              "title": "中文"
+            },
+            {
+              "title": "日本語"
+            },
+            {
+              "title": "界"
+            },
+            {
+              "title": "海"
+            },
+            {
+              "title": "😀"
+            },
+            {
+              "title": "😃"
+            },
+            {
+              "title": "👍"
+            },
+            {
+              "title": "👍🏽"
+            },
+            {
+              "title": "👩‍💻"
+            },
+            {
+              "title": "👨‍💻"
+            }
+          ],
+          "expected_indices": [
+            15,
+            16,
+            18,
+            17,
+            13,
+            14,
+            5,
+            6,
+            1,
+            2,
+            0,
+            3,
+            4,
+            8,
+            7,
+            9,
+            10,
+            12,
+            11
+          ],
+          "resolved_options": {
+            "locale": "en-US",
+            "usage": "sort",
+            "sensitivity": "variant",
+            "ignorePunctuation": false,
+            "collation": "default",
+            "numeric": false,
+            "caseFirst": "false"
+          }
+        },
+        {
+          "id": "swedish",
+          "locale": "sv-SE",
+          "tasks": [
+            {
+              "title": "ö"
+            },
+            {
+              "title": "z"
+            },
+            {
+              "title": "ä"
+            },
+            {
+              "title": "å"
+            },
+            {
+              "title": "a"
+            }
+          ],
+          "expected_indices": [
+            4,
+            1,
+            3,
+            2,
+            0
+          ],
+          "resolved_options": {
+            "locale": "sv",
+            "usage": "sort",
+            "sensitivity": "variant",
+            "ignorePunctuation": false,
+            "collation": "default",
+            "numeric": false,
+            "caseFirst": "false"
+          }
+        },
+        {
+          "id": "german",
+          "locale": "de-DE",
+          "tasks": [
+            {
+              "title": "ö"
+            },
+            {
+              "title": "z"
+            },
+            {
+              "title": "ä"
+            },
+            {
+              "title": "å"
+            },
+            {
+              "title": "a"
+            }
+          ],
+          "expected_indices": [
+            4,
+            3,
+            2,
+            0,
+            1
+          ],
+          "resolved_options": {
+            "locale": "de",
+            "usage": "sort",
+            "sensitivity": "variant",
+            "ignorePunctuation": false,
+            "collation": "default",
+            "numeric": false,
+            "caseFirst": "false"
+          }
+        },
+        {
+          "id": "danish-case",
+          "locale": "da-DK",
+          "tasks": [
+            {
+              "title": "a"
+            },
+            {
+              "title": "A"
+            },
+            {
+              "title": "å"
+            },
+            {
+              "title": "Å"
+            },
+            {
+              "title": "z"
+            },
+            {
+              "title": "Z"
+            }
+          ],
+          "expected_indices": [
+            1,
+            0,
+            5,
+            4,
+            3,
+            2
+          ],
+          "resolved_options": {
+            "locale": "da",
+            "usage": "sort",
+            "sensitivity": "variant",
+            "ignorePunctuation": false,
+            "collation": "default",
+            "numeric": false,
+            "caseFirst": "upper"
+          }
+        },
+        {
+          "id": "turkish-case",
+          "locale": "tr-TR",
+          "tasks": [
+            {
+              "title": "i"
+            },
+            {
+              "title": "I"
+            },
+            {
+              "title": "ı"
+            },
+            {
+              "title": "İ"
+            },
+            {
+              "title": "j"
+            }
+          ],
+          "expected_indices": [
+            2,
+            1,
+            0,
+            3,
+            4
+          ],
+          "resolved_options": {
+            "locale": "tr",
+            "usage": "sort",
+            "sensitivity": "variant",
+            "ignorePunctuation": false,
+            "collation": "default",
+            "numeric": false,
+            "caseFirst": "false"
+          }
+        },
+        {
+          "id": "japanese",
+          "locale": "ja-JP",
+          "tasks": [
+            {
+              "title": "日本語"
+            },
+            {
+              "title": "中文"
+            },
+            {
+              "title": "海"
+            },
+            {
+              "title": "界"
+            },
+            {
+              "title": "あ"
+            },
+            {
+              "title": "ア"
+            }
+          ],
+          "expected_indices": [
+            4,
+            5,
+            2,
+            3,
+            1,
+            0
+          ],
+          "resolved_options": {
+            "locale": "ja",
+            "usage": "sort",
+            "sensitivity": "variant",
+            "ignorePunctuation": false,
+            "collation": "default",
+            "numeric": false,
+            "caseFirst": "false"
+          }
+        },
+        {
+          "id": "numeric-keyword",
+          "locale": "en-US-u-kn-true",
+          "tasks": [
+            {
+              "title": "Task 10"
+            },
+            {
+              "title": "Task 2"
+            },
+            {
+              "title": "Task 1"
+            }
+          ],
+          "expected_indices": [
+            2,
+            1,
+            0
+          ],
+          "resolved_options": {
+            "locale": "en-US-u-kn",
+            "usage": "sort",
+            "sensitivity": "variant",
+            "ignorePunctuation": false,
+            "collation": "default",
+            "numeric": true,
+            "caseFirst": "false"
+          }
+        },
+        {
+          "id": "large-js-number-rounding",
+          "locale": "en-US",
+          "tasks": [
+            {
+              "title": "same",
+              "position": 9007199254740993,
+              "original": "first"
+            },
+            {
+              "title": "same",
+              "position": 9007199254740992,
+              "original": "second"
+            },
+            {
+              "title": "negative",
+              "position": -1e+308
+            },
+            {
+              "title": "positive",
+              "position": 1e+308
+            }
+          ],
+          "expected_indices": [
+            2,
+            0,
+            1,
+            3
+          ],
+          "resolved_options": {
+            "locale": "en-US",
+            "usage": "sort",
+            "sensitivity": "variant",
+            "ignorePunctuation": false,
+            "collation": "default",
+            "numeric": false,
+            "caseFirst": "false"
+          }
+        },
+        {
+          "id": "display-fallbacks",
+          "locale": "en-US",
+          "tasks": [
+            {
+              "source": "workflow_run",
+              "title": ""
+            },
+            {
+              "title": null
+            },
+            {
+              "title": "Real title"
+            },
+            {
+              "source": "workflow_run"
+            },
+            {
+              "title": ""
+            },
+            {}
+          ],
+          "expected_indices": [
+            1,
+            4,
+            5,
+            2,
+            0,
+            3
+          ],
+          "resolved_options": {
+            "locale": "en-US",
+            "usage": "sort",
+            "sensitivity": "variant",
+            "ignorePunctuation": false,
+            "collation": "default",
+            "numeric": false,
+            "caseFirst": "false"
+          }
+        },
+        {
+          "id": "invalid-position-string",
+          "locale": "en-US",
+          "tasks": [
+            {
+              "title": "ok",
+              "position": "1"
+            }
+          ],
+          "error": "invalid_argument"
+        },
+        {
+          "id": "invalid-position-bool",
+          "locale": "en-US",
+          "tasks": [
+            {
+              "title": "ok",
+              "position": true
+            }
+          ],
+          "error": "invalid_argument"
+        },
+        {
+          "id": "invalid-position-object",
+          "locale": "en-US",
+          "tasks": [
+            {
+              "title": "ok",
+              "position": {}
+            }
+          ],
+          "error": "invalid_argument"
+        },
+        {
+          "id": "invalid-title",
+          "locale": "en-US",
+          "tasks": [
+            {
+              "title": false
+            }
+          ],
+          "error": "invalid_argument"
+        },
+        {
+          "id": "invalid-source",
+          "locale": "en-US",
+          "tasks": [
+            {
+              "title": "ok",
+              "source": 2
+            }
+          ],
+          "error": "invalid_argument"
+        },
+        {
+          "id": "invalid-row",
+          "locale": "en-US",
+          "tasks": [
+            null
+          ],
+          "error": "invalid_argument"
+        },
+        {
+          "id": "invalid-locale-empty",
+          "locale": "",
+          "tasks": [],
+          "error": "invalid_argument"
+        },
+        {
+          "id": "thai-default-punctuation",
+          "locale": "th-TH",
+          "tasks": [
+            {
+              "title": "a-b"
+            },
+            {
+              "title": "ab"
+            },
+            {
+              "title": "a b"
+            },
+            {
+              "title": "a_b"
+            },
+            {
+              "title": "ก-ข"
+            },
+            {
+              "title": "กข"
+            },
+            {
+              "title": "ก ข"
+            }
+          ],
+          "expected_indices": [
+            4,
+            5,
+            6,
+            0,
+            1,
+            2,
+            3
+          ],
+          "resolved_options": {
+            "locale": "th",
+            "usage": "sort",
+            "sensitivity": "variant",
+            "ignorePunctuation": true,
+            "collation": "default",
+            "numeric": false,
+            "caseFirst": "false"
+          }
+        },
+        {
+          "id": "german-phonebook",
+          "locale": "de-DE-u-co-phonebk",
+          "tasks": [
+            {
+              "title": "ä"
+            },
+            {
+              "title": "ae"
+            },
+            {
+              "title": "a"
+            },
+            {
+              "title": "ö"
+            },
+            {
+              "title": "oe"
+            },
+            {
+              "title": "o"
+            }
+          ],
+          "expected_indices": [
+            2,
+            1,
+            0,
+            5,
+            4,
+            3
+          ],
+          "resolved_options": {
+            "locale": "de-u-co-phonebk",
+            "usage": "sort",
+            "sensitivity": "variant",
+            "ignorePunctuation": false,
+            "collation": "phonebk",
+            "numeric": false,
+            "caseFirst": "false"
+          }
+        }
+      ],
+      "required_checks": [
+        "sort through actual shared Rust SDK policy",
+        "preserve all row values and unknown metadata",
+        "stable ties without ID ordering",
+        "invalid inputs do not reorder input",
+        "explicit locale without environment discovery"
+      ]
+    }
+  }
+}

@@ -1,0 +1,357 @@
+{
+  "schema_version": 1,
+  "provenance": "Public synthetic fixture follows maintained IDB Message/ChatCompressionCheckpoint shapes. AESGCM independently generated with Python cryptography; IV12+ciphertext+tag128 legacy wire. No real account data or browser execution proof.",
+  "master_key_hex": "0707070707070707070707070707070707070707070707070707070707070707",
+  "chat_key_hex": "0909090909090909090909090909090909090909090909090909090909090909",
+  "input": {
+    "chat_metadata": {
+      "id": "22222222-2222-4222-8222-222222222222",
+      "encrypted_chat_key": "AAAAAAAAAAAAAAAzWycMA3A55FFUs93lULQVc17uSe9808G0UsLMAhZqhdTXuzK4h/mW9NJrWZfo5qzA",
+      "encrypted_title": "AAAAAAAAAAAAAAA0AOGFIFYfVYx6W30ttC0u4iiflbthoqFZdEyKfG9NLhttkUQ="
+    },
+    "messages": [
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-000000000001",
+        "client_message_id": "10000000-0000-4000-8000-000000000001",
+        "created_at": 100,
+        "role": "user",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAABkx6mUTt5XggesakJUiN2002DMFBQ7djUq0W0ZnlHlz/MbfwZWjjyXHZJvL7ZA+h9",
+        "encrypted_pii_mappings": "AAAAAAAAAAAAAAACqKjLEu+lDZII4hep5B4oqDOiBFSNia+AyRFW5kNXBj8aoaOIBMrp6bP/enPLGjtYRIvyiZi4i3Bpx/vdmQi5kZwzoCecBiRVuqp6NfND7Q=="
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-000000000002",
+        "client_message_id": "10000000-0000-4000-8000-000000000002",
+        "created_at": 100,
+        "role": "assistant",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAADm3NPCWbfjJIEaYNj+DQMcCIpPCBL0WCsOoKvP66F5K67xtd39ckxx1xMf2XE4bpf",
+        "encrypted_pii_mappings": null
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-000000000003",
+        "client_message_id": "10000000-0000-4000-8000-000000000003",
+        "created_at": 101,
+        "role": "user",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAAEiTbfxOuUvb73JsgYD0Xg5CDJ1hiFtoscGswDVLBaVQvOtOn7yksdOCnAfldmJeAx",
+        "encrypted_pii_mappings": "AAAAAAAAAAAAAAAFumsRV4QT3AahPHDLzh2F6Up3vG8vjvaUDYOw8oxxNIoJIHYxAa6k3GTVMbgj5Q4iV6DUolPksLRzmBycWHtp/E+JQLBc1wyNGigH3nb4EA=="
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-000000000004",
+        "client_message_id": "10000000-0000-4000-8000-000000000004",
+        "created_at": 101,
+        "role": "assistant",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAAGcpKxTTlq5rk6VVZ4ZCBSd0L5aqDLXmi0EmDV3uqey/4b+T5IK4oUIc5snum8NL6e",
+        "encrypted_pii_mappings": null
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-000000000005",
+        "client_message_id": "10000000-0000-4000-8000-000000000005",
+        "created_at": 102,
+        "role": "user",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAAHiKbzFBjyIEdwhocitWKWlzlTXrayndsWduWf4oc9Aji2hGl/louUuxo13N1vzcA7",
+        "encrypted_pii_mappings": "AAAAAAAAAAAAAAAIU4/g5vaIflJ+IumohULBqfaeco9O+FO9DGIs5a0biIVu5co4Ow7+hqDAwXZIRDs8x0eO1OO6D3uwkb/67XT5j6NuKeeFCnxA/euqxRGWtg=="
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-000000000006",
+        "client_message_id": "10000000-0000-4000-8000-000000000006",
+        "created_at": 102,
+        "role": "assistant",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAAJxuDG/OKICbLofeKcZSPfAWmZm6VxJWBHNkSRn+zNZq6bcRk0OlDz5tfIEeU5elMy",
+        "encrypted_pii_mappings": null
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-000000000007",
+        "client_message_id": "10000000-0000-4000-8000-000000000007",
+        "created_at": 103,
+        "role": "user",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAAKNvaqFqViWmcV59PwJwjBSl+2XR8OorolT867hI5BMilRl04/9pAWtLUuP/fB4tmf",
+        "encrypted_pii_mappings": "AAAAAAAAAAAAAAALam+FEE/YJkfct6TwrQcc+Je5pGUKaCOhRATq4MRVaHKRX9LdK8qcLVWaIqOKbcCQIcjzLCfn9RhIzN+gh5v5juApWwOztTTzXEzrPYKN9Q=="
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-000000000008",
+        "client_message_id": "10000000-0000-4000-8000-000000000008",
+        "created_at": 103,
+        "role": "assistant",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAAMhlVhpJvrHAJCszCjCvMfowPW26OvGz4Zznqt3PqBfByrjZmZs5DCNIGH2JE/ARPr",
+        "encrypted_pii_mappings": null
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-000000000009",
+        "client_message_id": "10000000-0000-4000-8000-000000000009",
+        "created_at": 104,
+        "role": "user",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAANovS0Yrpm8jb4xzrdBj2xV2Bt1DfdDhAQbZ8gh8xz3/mSTM674R7LchWZCUqsp7QA",
+        "encrypted_pii_mappings": "AAAAAAAAAAAAAAAOGFwoWidh0AsqpROmMnSMSZz5eYhFexMmaHZvZdcXjAwiKF0ZZUTVZ1S6foN2949WNSsBsH1g2C/uTSe0QchXYn9zkAsRiOvVMlN6cCOmvA=="
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-00000000000a",
+        "client_message_id": "10000000-0000-4000-8000-00000000000a",
+        "created_at": 104,
+        "role": "assistant",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAAPqDUVfFuAPfIMZGh5U8uitQT0wGn2VA7pKm4PImCuF7Zn0M7ycoJbGveU4gw6QCL2Tg==",
+        "encrypted_pii_mappings": null
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-00000000000b",
+        "client_message_id": "10000000-0000-4000-8000-00000000000b",
+        "created_at": 105,
+        "role": "user",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAAQWLRkHYIlFTcLB4RDnqeyTBtO9RKBHj+Y5QRo1NWQkuqTc+ODsVXsDeKwQIyiUrelCQ==",
+        "encrypted_pii_mappings": "AAAAAAAAAAAAAAARFFnwxDmz3Oxm4yvNG/NV8XWxCWblBXN4tnCNMNq6FMD+Nknzj8L5f7KIKXzkyHtyJVUVF/m2+tI8hyrDNoQVAWtClXEBuwVWDeDU/zq0jA=="
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-00000000000c",
+        "client_message_id": "10000000-0000-4000-8000-00000000000c",
+        "created_at": 105,
+        "role": "assistant",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAASVwVgJrgi03Si/XZU1bCqfYiGiZASz4jPeMy1Y8UwuE6nt+C9cudDIivjbaJzoQ4zUw==",
+        "encrypted_pii_mappings": null
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-00000000000d",
+        "client_message_id": "10000000-0000-4000-8000-00000000000d",
+        "created_at": 106,
+        "role": "user",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAAT8uZ5mNcUxeQW99nPRnji2XGJmw0s8gYpcotfdsbgfi56cOoTYN7sgV0qo5i7QJk28A==",
+        "encrypted_pii_mappings": "AAAAAAAAAAAAAAAU9yxw5PS2Br3QFRZMAe/CZNSl06peqJtqoEZ0bw+1+NRMJdF3O/ypnnSAoDYiZ19zKOGWipIHNW17ohueX/gPXVQPkbojvSqLnOGOlR/rcQ=="
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-00000000000e",
+        "client_message_id": "10000000-0000-4000-8000-00000000000e",
+        "created_at": 106,
+        "role": "assistant",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAAVsb6qYVCBQahzjmhLkW6yJnjssLs1yBK9WU/zy1msVvWaZDtZka+0VsaXjlSjhKUG8A==",
+        "encrypted_pii_mappings": null
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-00000000000f",
+        "client_message_id": "10000000-0000-4000-8000-00000000000f",
+        "created_at": 107,
+        "role": "user",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAAWgu7fep77FKugdTPR+M1Pn6PWaODjvTOowvvayaI/O4drodbdeLTFy8ELcg4caehm3A==",
+        "encrypted_pii_mappings": "AAAAAAAAAAAAAAAXn7RbvwS0m2SnIz0sIgaUg4WbH/fywE3kAdVXJMgGijoDlhnN5t+bJPNcy2a5w64TK1sGSD9t2L2Mr09evt4ioEp5mGeudTF0+2Z9DKs1hw=="
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-000000000010",
+        "client_message_id": "10000000-0000-4000-8000-000000000010",
+        "created_at": 107,
+        "role": "assistant",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAAYTjsW6yKxNdykqOiHpPy+kqvJHXpL8JrEF+7Bh/pEUMJjC4dSJ79v2GzNqtNVhkxrxA==",
+        "encrypted_pii_mappings": null
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-000000000011",
+        "client_message_id": "10000000-0000-4000-8000-000000000011",
+        "created_at": 108,
+        "role": "user",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAAZ+ZwV5rcEFRETF02O2MIQ2cWSndRpkTEmHUTEI2fvf8aYceUgMQDyNhWrSHyd9i+Lmg==",
+        "encrypted_pii_mappings": "AAAAAAAAAAAAAAAa9SQDm5h/wXAjk300vmGX+A5XhciIw3igQzmATZ6Y33hN1NjtXpmDrNDZARLe9rdcPCfbBpOs26/vgPsYsht4wLQWyHy4OZwagfJ601xyZQ=="
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-000000000012",
+        "client_message_id": "10000000-0000-4000-8000-000000000012",
+        "created_at": 108,
+        "role": "assistant",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAAbYSvcbv1ip1dAfNzaWGJTOF1wa6zmTKXyiP8NvOdSpZISAlJWrwsiCcPuFo0/1aNT3w==",
+        "encrypted_pii_mappings": null
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-000000000013",
+        "client_message_id": "10000000-0000-4000-8000-000000000013",
+        "created_at": 109,
+        "role": "user",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAAcVvUo7cdVuO34PaMKZeeroUndGZ9+bylTjsMQv1vBJo9KOuPbJyQAXh8kSnnnwCmveg==",
+        "encrypted_pii_mappings": "AAAAAAAAAAAAAAAdz2C8L2y1/JxoGLhdSuYOm4JS8tdMnyo6zmbxxXyUNUDqeOgEJkF4SgmR9BCZXPgf9UZxcrVETWpKvMxLRhwrBIljfycGZsZTFRMZxba3bA=="
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-000000000014",
+        "client_message_id": "10000000-0000-4000-8000-000000000014",
+        "created_at": 109,
+        "role": "assistant",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAAeXmO0a4DcuBPy+WR5aHFAHX84SJQmIqqFaLNj3gWA+/Kr6Dc5ATdcd39EvF1DLeqXNA==",
+        "encrypted_pii_mappings": null
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-000000000015",
+        "client_message_id": "10000000-0000-4000-8000-000000000015",
+        "created_at": 110,
+        "role": "user",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAAf0WsxkXgH77j/Ta1PCJtE2axkBsr2H0aItjv0wBZk5Obg0WVxAhqjSOEjtIrxdXcqIA==",
+        "encrypted_pii_mappings": "AAAAAAAAAAAAAAAgowTgaUV/pkZ7QSfrSK5jxRiqUq62FXtyPNv57HU6ZCb/GAHinB/huCEYFGxh2uSpyzvREeDHKUUD+T3IqZpadL9TrTXk2AZlARY6EApwDg=="
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-000000000016",
+        "client_message_id": "10000000-0000-4000-8000-000000000016",
+        "created_at": 110,
+        "role": "assistant",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAAhh4ZFH/194btxm5yZ3P0mzKFcDhlZRCrtd5PskJ8kyJZq7yOCDIU8dwNcrEI9iqnK9g==",
+        "encrypted_pii_mappings": null
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-000000000017",
+        "client_message_id": "10000000-0000-4000-8000-000000000017",
+        "created_at": 111,
+        "role": "user",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAAitl14ms8ZJuTRT/LLHdqPP+v7CQeZhdgncfQeRtTK2vfikXrPyTC6QcJJpJAr0NXJ3A==",
+        "encrypted_pii_mappings": "AAAAAAAAAAAAAAAjI0DtAPLdiFVLY6onrp+tI0FslXxxvglU4gqTlUvOEiy1LXxFUeWfXt2fJwEqso4HetkWAIKAL61qgcRVx6pldCpINGqASDwSQM6JcxCwEg=="
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-000000000018",
+        "client_message_id": "10000000-0000-4000-8000-000000000018",
+        "created_at": 111,
+        "role": "assistant",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAAk4cQ174RhQiyTfva/sDvudgsV5kQx/CzTMJxVirzyGMm//JVbc+XtnWsAg0ZjZKSyHg==",
+        "encrypted_pii_mappings": null
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-000000000019",
+        "client_message_id": "10000000-0000-4000-8000-000000000019",
+        "created_at": 112,
+        "role": "user",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAAlBFPg9nY0bYagy7blDPbEBZdw4I5nXg7+f5gL746o4W2fUhEoZ87vqWEtdzxhIqoGOA==",
+        "encrypted_pii_mappings": "AAAAAAAAAAAAAAAmLGyJ9bHT73fN7B4qapMkq7gGiB/trIaj9kBfdy1+Kndc4lb0tNG759t6fHXNfLn9335J8pRsCBYeEl65IhBbzfLRX2vY4CNv4Ja26+s6hw=="
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-00000000001a",
+        "client_message_id": "10000000-0000-4000-8000-00000000001a",
+        "created_at": 112,
+        "role": "assistant",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAAnBXcTZjyKgUf+gjxsW5slNEfM3RLo0Uvayo/k9awhZItAw0xbaMQkvaF5ZiUxjrc2Gw==",
+        "encrypted_pii_mappings": null
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-00000000001b",
+        "client_message_id": "10000000-0000-4000-8000-00000000001b",
+        "created_at": 113,
+        "role": "user",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAAodR+71/xnf51rJiem43d0V/sH3D/rXuLiha0OQMI2gj4JDKSom3Vo3PUi7t9WJkuOeQ==",
+        "encrypted_pii_mappings": "AAAAAAAAAAAAAAApdnOZzfdiE9u4kfc4uY84SW1MDNZ3ASYHdV26ybC4CQMHPcn2zYZhP2EWIyNoEvF44tTBj2uy4QAoh2qzLhqDBXi2+r8Nvt0srPYo9XypGQ=="
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-00000000001c",
+        "client_message_id": "10000000-0000-4000-8000-00000000001c",
+        "created_at": 113,
+        "role": "assistant",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAAq5HDCIjDt8x1HAHgazi2QCBk23JqtM54FIHlXGhKq33R8A15MAdcJBKRSGGWblyFLtw==",
+        "encrypted_pii_mappings": null
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-00000000001d",
+        "client_message_id": "10000000-0000-4000-8000-00000000001d",
+        "created_at": 114,
+        "role": "user",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAArSHZntCHUYjBu9isIs807JIawzZ+thIRqwkrG1c6AFIK3fsW1MdqRbKnJEx7wUDYxHQ==",
+        "encrypted_pii_mappings": "AAAAAAAAAAAAAAAslSTDeE8vi2rvqdnv4gT9KyRGtzxk4W7fcl3NXS6Ym08Os5KYaPmm/0p64EBvbClvZrRoNyFols1DgJBl8Wds4mgw+qCTgc58R8d31fVKMA=="
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-00000000001e",
+        "client_message_id": "10000000-0000-4000-8000-00000000001e",
+        "created_at": 114,
+        "role": "assistant",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAAtxriTPr2oV+NCACdemkzK+U6iF2RIepPO8feumvuG5QpGEJo0b5o60Nx/RvqVJnqAxA==",
+        "encrypted_pii_mappings": null
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-00000000001f",
+        "client_message_id": "10000000-0000-4000-8000-00000000001f",
+        "created_at": 115,
+        "role": "user",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAAurFzhwr6mrjTCfQpwV1lpIpP6tSVWuNsYd9opxvAweEii79MUvrV9e/9/VWv1FO6mKw==",
+        "encrypted_pii_mappings": "AAAAAAAAAAAAAAAvobrTQebVsQ6UBLcfM4lBJ4Eqpj2t6ouH8ocy4ZgmNzcg2vnuN5jVH/ktT2CLalronuIU5Hi9UIwR1m3QdkCPFnPJxHLGNaX3Zf+mMhd9Jw=="
+      },
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "2222222222-10000000-0000-4000-8000-000000000020",
+        "client_message_id": "10000000-0000-4000-8000-000000000020",
+        "created_at": 115,
+        "role": "assistant",
+        "status": "synced",
+        "encrypted_content": "AAAAAAAAAAAAAAAwQKbvCsLNDJwZ3VnoX1Qi/fecoyENsUCJavl07d3EVlZdSmrxJVR2kMwFkTMZC1QrzQ==",
+        "encrypted_pii_mappings": null
+      }
+    ],
+    "wrappers": [],
+    "boundary": null,
+    "compression_checkpoints": [
+      {
+        "id": "20000000-0000-4000-8000-000000000001",
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "created_at": 200,
+        "compressed_up_to_timestamp": 105,
+        "compressed_up_to_message_id": "2222222222-10000000-0000-4000-8000-00000000000c",
+        "compressed_message_count": 12,
+        "encrypted_summary": "AAAAAAAAAAAAAAAxFoDkDkdVDuouV2zf+xhKUycymDUBQ86fweLJ/5Fr7URzqUpzW+dF"
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000000002",
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "created_at": 201,
+        "compressed_up_to_timestamp": 110,
+        "compressed_up_to_message_id": "2222222222-10000000-0000-4000-8000-000000000016",
+        "compressed_message_count": 22,
+        "encrypted_summary": "AAAAAAAAAAAAAAAyJn7xK1D+Zihgg9FCyvwCD7i/AkeDcYXyPQBF44RM2tZldSPxO3iDxA=="
+      }
+    ]
+  }
+}

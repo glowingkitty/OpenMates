@@ -1,0 +1,22 @@
+{
+  "provenance": "Synthetic captured @serenity-kit/opaque 1.1.0 transcript with canonical pairing KSF and identifiers; no production credentials. Rust tests consume this static fixture with no JavaScript/Node dependency.",
+  "pin": "ABC346",
+  "context": "[\"openmates-pair\",2,\"ABC346\",\"00000000-0000-4000-8000-000000000001\",\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"00000000-0000-4000-8000-000000000002\",60]",
+  "client_state": "c84fVinqc3zRRB0AfAlmJk9M0cIDuz2DQ_pNqfj1gwhQ_z2nEvyvHUuapTHmY1XEsWDrdU05JKmLPOE-R4hYNwF8V26O065lz2k0j7JmPJasOCF3XnZYVhI1aFbHx5v_yNABXNg4goG2VCoBuqP9t-cjGOaZbym9LWMfpXnR4ier-Kqac35cdp4LE79cGoOMccnohF5y_iwm2kRQbjBWAgF8V26O065lz2k0j7JmPJasOCF3XnZYVhI1aFbHx5v_",
+  "request": "UP89pxL8rx1LmqUx5mNVxLFg63VNOSSpizzhPkeIWDcBfFdujtOuZc9pNI-yZjyWrDghd152WFYSNWhWx8eb_8jQAVzYOIKBtlQqAbqj_bfnIxjmmW8pvS1jH6V50eIn",
+  "response": "ptd04LCTAMkQzj2bND4i5cECQ2LvSUvLytXhBh2zFXpFB9LScW1Ui5iF8kc1FMPmv8CmsK9pIoQ7cMkaAPdhfOr64iwT-XRoO4Hgk6O6BEIRiCr7QYuHK8rFyzbOZjhaJqgaUtlqcrjLkmBlad7F4TnNr-ZNZebU1bLNn4U2r-S6XxVJma81IGHv6OKyrlAdtfZdKvYkqyahAsO3sxMUvH3AKKHn_M-kEeFOxfKOeuSRHgJ-uf6_89DMpZF9BNaY7U23CcMivKu_WxNqOTbgVs2nrbkzadOfziLwkrlvd5P8SYLIruAUc08ZPzhIxvaYmg4JLZY_jcv8ydVkVBOUBXvskIS2i5O1OzyT1BriipH4QihbUYW-E35gcy2bZs_2EgXMKbFABNg-oTNR5b4d34haxjOkqvjU70O1mQvp_Rg",
+  "finish": "M5g5_yUJvyzkfYmfMvCJ1zY12PUZr05BCXraWNp5Hx4l_7GUaan8xFscbWFVsrH1AAgkNOBAk1JIviYUMjGrGQ",
+  "encrypted_bundle": "e41wX5i5EUhGqZvIVR_8MUDRtwG6PzNOWSB2xBp1xw3N945-R7c5s7rc24l-cLjk6IKbbi7JnaeqZpZH3y687m19elaGk_DFTzvPK4qH5Bo7gxjYKtAE5zmzsuNtPwg4sruyQgjpFoyWC0dvj1MiXBNw7BjIp42l16jglV5jXdViIAo1IJb7244tC9I90MBiiwTpXImHUVUNEUpyjpw_6fRBKqbSeiEqYU2O6t3u9IKTwTuvsW9eSJXN5su_Ba9VuAnun9QW74Z7t3Clu1RniZDCuadb36qLxj8Um1FY9mfA0mT1W_oC2SkF4NDI_RGzhSGxWHlNLRQPBPRgjiwmgQ3isUsxbrwtUGlXFOCeCL-aHYiRqIm_feI611uNafXbAcn8QVMn7V63Q9wzvX9-fa71a2LFE8neXr-36q1d8V9Vbs7BO2lY_JdPEBt_WB4_MD9D6eIFExwTKsFWOHvilltq0oR9Ta-1v9Osx2i2gVg5cI6ZQxsNwSuD9KNzTaFP",
+  "iv": "AAECAwQFBgcICQoL",
+  "bundle": {
+    "protocol_version": 2,
+    "master_key_exported": "KioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKio=",
+    "grant_secret": "FxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxc",
+    "user_email_salt": "BQUFBQUFBQUFBQUFBQUFBQ==",
+    "hashed_email": "synthetic-hashed-email",
+    "user_id": "00000000-0000-4000-8000-000000000002",
+    "account_context": {
+      "encrypted_email_with_master_key": "synthetic-encrypted-email"
+    }
+  }
+}

@@ -1201,6 +1201,7 @@
           ],
           "conformance": true,
           "evidence": [
+            "frontend/packages/openmates-cli/tests/sdk-root-credential-boundary.test.ts",
             "tests/sdk-conformance/runners/api-key-foundation.py",
             "tests/sdk-conformance/test_api_key_foundation_contract.py"
           ],
@@ -1218,6 +1219,7 @@
           ],
           "conformance": true,
           "evidence": [
+            "packages/openmates-python/tests/test_root_credential_boundary.py",
             "tests/sdk-conformance/runners/api-key-foundation.py",
             "tests/sdk-conformance/test_api_key_foundation_contract.py"
           ],
@@ -3705,7 +3707,7 @@
       }
     },
     {
-      "description": "Reviewed public SDK capability family: sdk.session-client; support must be proved by actual library conformance. Rust browser platform draft APIs belong to this Client session-authority family; actual browser/WASM runtime and storage integration remain unverified. Classification adds no npm/Python browser API or parity/release claim. Ordinary fresh-password key retention is required partial under the same auth/storage capability. Rust policy/public-consumer tests and genuine Worker/CryptoKey/IndexedDB login/read proof are authored unrun; equivalent direct npm/Python functional retention interfaces, a shared executable three-SDK fixture family/schema and all actual adapter execution remain missing. Language API shapes may differ; foreign enum/helper names are not required. The maintained two-case effect fixture validates synthetic plans only, not storage success, credential ACK, key/account enrollment or cross-database association. Default login remains unchanged; generated WASM/package and full application lifecycle/performance acceptance remain open. Selected Personal metadata-cache restore/persist and full-ID saved-embed reads remain required partial session/state operations. New Rust public capabilities are classified here pending genuine three-SDK fixtures and runtime proof; no separate executable family is invented from core-only source. Required-partial owning-Worker browser cache source adds selected metadata restore/read, authoritative incoming-window cache policy and actual-retained-row projection/monitor stages; independent core semantic review and all real runtime/platform conformance remain required. Source/pure policy fixtures do not establish a new executable family. Inactive continuous selected-cache and local terminal-observer additions are registered only as required partial source; per-context writer integration, genuine runtime and direct three-SDK equivalence remain open.",
+      "description": "Reviewed public SDK capability family: sdk.session-client; support must be proved by actual library conformance. Rust browser platform draft APIs belong to this Client session-authority family; actual browser/WASM runtime and storage integration remain unverified. Classification adds no npm/Python browser API or parity/release claim. Ordinary fresh-password key retention is required partial under the same auth/storage capability. Rust policy/public-consumer tests and genuine Worker/CryptoKey/IndexedDB login/read proof are authored unrun; equivalent direct npm/Python functional retention interfaces, a shared executable three-SDK fixture family/schema and all actual adapter execution remain missing. Language API shapes may differ; foreign enum/helper names are not required. The maintained two-case effect fixture validates synthetic plans only, not storage success, credential ACK, key/account enrollment or cross-database association. Default login remains unchanged; generated WASM/package and full application lifecycle/performance acceptance remain open. Selected Personal metadata-cache restore/persist and full-ID saved-embed reads remain required partial session/state operations. New Rust public capabilities are classified here pending genuine three-SDK fixtures and runtime proof; no separate executable family is invented from core-only source. Required-partial owning-Worker browser cache source adds selected metadata restore/read, authoritative incoming-window cache policy and actual-retained-row projection/monitor stages; independent core semantic review and all real runtime/platform conformance remain required. Source/pure policy fixtures do not establish a new executable family. Inactive continuous selected-cache and local terminal-observer additions are registered only as required partial source; per-context writer integration, genuine runtime and direct three-SDK equivalence remain open. Browser metadata/store, original-hint inventory/recovery, and the additional owned local-first/monitor-acquisition phases remain required partial work. Direct npm/Python functional equivalents and genuine cross-SDK conformance are unfinished or unproved: retain the same owner/profile/key/credential scope, matched rotated-Cookie bookkeeping, cancellation and unknown-work ownership through actual HTTP/socket/native transaction completion; persist all authenticated navigation metadata while limiting heavy parent content to20 and fetching subchat content on demand; publish local cached selected content independently of held background startup without downgrading keyless/corrupt/denied/cancelled sources to HTTP. Before SDK shipping, synchronize supported equivalent operations and run original plus new shared vectors and actual packaged acceptance in all three maintained SDKs. Browser feature ABI names need not match foreign method names, but browser-only cases and hidden/default-off annotations do not waive functional parity. Initial restore/auth-held cache readiness, no-usable-Master full startup/native provenance, full metadata/later-hint ACK and all existing gaps remain required and open. Default browser activation and SDK release eligibility remain false. Default-off selected Personal text ActiveChat UI now delegates to the original startup owner sender, gated by the same full Master/profile/Root and actual platform selection after original startup completion. DATA/keyless readiness cannot grant send. Original consume/cancel terminal and unknown-work retention remain required. Five account-free component cases and one genuine isolated browser send/follow-up/cancel case are authored UNRUN; source wiring grants no CI admission, functional parity, performance acceptance or default activation. Team/new chat/attachments/persisted drafts/consent-response support and full ACK/global drain remain unfinished. Original saved-stream Project Catalogue now phases its fixed Project/Team HTTP headers/body and project/team unwrap awaits outside the Client mutex, retaining the same invocation child, crypto scope, typed header bookkeeping, exact Team-cache CAS and existing twenty-item projection. Native same-A/parallel-B/cookie-rotation/request-cancel cases are authored UNRUN, including the mandatory actual-Client first-cookie application barrier. This bounded internal concurrency change grants no runtime/performance/SDK parity or release acceptance; other coarse Apply IO and browser/foreign acceptance remain separate. Original saved-stream recovery Version now phases its existing fixed metadata HTTP headers/body and lazy Team/chat unwrap waits outside the Client mutex, preserving original child/crypto/driver, matched rotated-cookie bookkeeping, exact first-wrapper/Direct policy and server-authoritative version floor/CAS. Same-chat row/wrapper and Team-cache conflict observations refuse intervening changes without rollback; unrelated B remains independent. Four Core resource/crypto/conflict and two genuine held-Version/B/rotation/cancel cases are authored UNRUN. This internal prepare/IO/Apply split grants no runtime/performance/SDK parity, new API or release acceptance; other coarse Apply IO and all actual native/compiler/performance acceptance remain separate. Default-OFF Personal text first-request browser adapter reuses the same genuine full startup Root/Master/profile and existing shared Rust owned-send None creation path. Actual Started/Admitted identity is DATA only; unchanged canonical/native CAS and independent reread must complete before UUID routing. Pending legacy welcome input is inert; original stream/cancel/unknown lifetimes remain held, with no second Client, fabricated native row, legacy postdispatch fallback or model override. Five component and one genuine first-request/native-route/follow-up/cancel cases are authored UNRUN. The reviewed selected-Main code-embed Worker adapter consumes only the same retained metadata/reply proofs and genuine phased SavedEmbedRead; acquisition/native IO remain outside Client phases, journal/resources remain retained, and selected-ID UI producer/full-artifact discovery/runtime acceptance remain OPEN. Existing SDK inventory/API/status/conformance/evidence, all plans/gaps and default activation remain held; Team/rich input/interactive consent/keyless/auth-held/background new-chat persistence/fullACK and actual compile/native/browser/performance acceptance remain OPEN.",
       "domain": "auth",
       "id": "sdk.session-client",
       "languages": {
@@ -4195,7 +4197,9 @@
             "client.Client.begin_browser_credential_cas",
             "client.Client.begin_owned_browser_cold_message_read",
             "client.Client.begin_owned_browser_incoming_message_read",
+            "client.Client.begin_owned_browser_local_first_message_read",
             "client.Client.begin_owned_browser_original_hint_read",
+            "client.Client.begin_owned_browser_profile_cache_read",
             "client.Client.begin_pair",
             "client.Client.browser_authoritative_message_cache_json",
             "client.Client.browser_cached_chat_items_json",
@@ -4243,9 +4247,12 @@
             "client.Client.prepare_browser_credential_snapshot",
             "client.Client.prepare_browser_draft_admission",
             "client.Client.prepare_browser_draft_with_io_json",
+            "client.Client.prepare_browser_first_session",
             "client.Client.prepare_browser_incoming_cache_update",
             "client.Client.prepare_browser_monitored_retained_saved_chat_with_io",
             "client.Client.prepare_browser_ordinary_key_retention",
+            "client.Client.prepare_browser_profile_cache_readiness",
+            "client.Client.prepare_owned_chat_monitor",
             "client.Client.prepare_owned_saved_send",
             "client.Client.prepare_scoped_saved_send",
             "client.Client.prepare_validated_owned_saved_send",
@@ -4258,6 +4265,7 @@
             "client.Client.run_prepared_saved_send",
             "client.Client.save_draft",
             "client.Client.saved_embed",
+            "client.Client.saved_embed_selector",
             "client.Client.search_chats",
             "client.Client.send",
             "client.Client.send_message",
@@ -4362,13 +4370,89 @@
             "client.browser_draft.BrowserDraftWrite.control",
             "client.browser_draft.BrowserDraftWrite.local_result",
             "client.browser_draft.BrowserDraftWrite.synchronize",
+            "client.browser_first_session_data.BrowserFirstSessionData",
+            "client.browser_first_session_data.BrowserFirstSessionData.control",
+            "client.browser_first_session_data.BrowserFirstSessionData.observed_http_status",
+            "client.browser_first_session_data.BrowserFirstSessionData.response_json",
+            "client.browser_first_session_data.BrowserFirstSessionDataControl",
+            "client.browser_first_session_data.BrowserFirstSessionDataControl.cancel",
+            "client.browser_first_session_data.BrowserFirstSessionDataControl.ensure_current",
+            "client.browser_first_session_data.PreparedBrowserFirstSessionData",
+            "client.browser_first_session_data.PreparedBrowserFirstSessionData.control",
+            "client.browser_first_session_data.PreparedBrowserFirstSessionData.restrict_remaining_budget",
+            "client.browser_first_session_data.PreparedBrowserFirstSessionData.wait",
+            "client.browser_first_session_restore.BrowserFirstSessionControl",
+            "client.browser_first_session_restore.BrowserFirstSessionControl.cancel",
+            "client.browser_first_session_restore.BrowserFirstSessionControl.ensure_current",
+            "client.browser_first_session_restore.BrowserFirstSessionReceipt",
+            "client.browser_first_session_restore.BrowserFirstSessionReceipt.control",
+            "client.browser_first_session_restore.BrowserFirstSessionReceipt.observed_http_status",
+            "client.browser_first_session_restore.BrowserFirstSessionReceipt.response_json",
+            "client.browser_first_session_restore.BrowserFirstSessionReceipt.restore",
+            "client.browser_first_session_restore.BrowserFirstSessionReceipt.restore_with_original_store",
+            "client.browser_first_session_restore.PreparedBrowserFirstSession",
+            "client.browser_first_session_restore.PreparedBrowserFirstSession.control",
+            "client.browser_first_session_restore.PreparedBrowserFirstSession.restrict_remaining_budget",
+            "client.browser_first_session_restore.PreparedBrowserFirstSession.wait",
             "client.browser_incoming_sync.BrowserIncomingCachePublication",
+            "client.browser_initial_sync_store.BoundInitialSyncStore",
+            "client.browser_initial_sync_store.BoundInitialSyncStore.begin",
+            "client.browser_initial_sync_store.BoundInitialSyncStore.ensure_current",
+            "client.browser_initial_sync_store.BoundInitialSyncStore.ensure_profile_cache_current",
+            "client.browser_initial_sync_store.BoundInitialSyncStore.wait_native_invalidated",
+            "client.browser_initial_sync_store.CapturedInitialSyncStore",
+            "client.browser_initial_sync_store.CapturedInitialSyncStore.bind_original",
+            "client.browser_initial_sync_store.CapturedInitialSyncStore.capture_first",
+            "client.browser_initial_sync_store.CapturedInitialSyncStore.prepare_first_session_data_original",
+            "client.browser_initial_sync_store.CapturedInitialSyncStore.prepare_first_session_original",
+            "client.browser_initial_sync_store.StartupMetadataNativeTerminal",
+            "client.browser_initial_sync_store.StartupMetadataNativeTerminal.native_io_quiescent",
+            "client.browser_initial_sync_store.StartupMetadataStoreDriver",
+            "client.browser_initial_sync_store.StartupMetadataStoreDriver.control",
+            "client.browser_initial_sync_store.StartupMetadataStoreDriver.drive",
+            "client.browser_initial_sync_store.StartupMetadataStoreDriver.finish",
+            "client.browser_initial_sync_store.StartupMetadataStoreDriver.terminal",
+            "client.browser_initial_sync_store.StartupMetadataStored",
+            "client.browser_initial_sync_store.StartupMetadataStored.ensure_current",
+            "client.browser_initial_sync_store.StartupMetadataStored.stored_metadata_count",
             "client.browser_message_policy.browser_message_merge_policy_json",
+            "client.browser_metadata_bootstrap.BrowserMetadataBootstrap",
+            "client.browser_metadata_bootstrap.BrowserMetadataBootstrap.capture_first",
+            "client.browser_metadata_bootstrap.BrowserMetadataBootstrap.store_selected",
+            "client.browser_metadata_bootstrap.BrowserMetadataBootstrap.store_subchat",
+            "client.browser_metadata_bootstrap.MetadataNativeIoTicket",
+            "client.browser_metadata_bootstrap.MetadataOpaqueStored",
+            "client.browser_metadata_bootstrap.MetadataOpaqueStored.check_current",
+            "client.browser_metadata_bootstrap.close_native_metadata_io_only",
             "client.browser_monitor.BrowserMetadataMonitorPublication",
             "client.browser_monitor.BrowserMetadataMonitorRefresh",
             "client.browser_ordinary_retention.BrowserOrdinaryKeyRetention",
             "client.browser_ordinary_retention.BrowserOrdinaryKeyRetention.effect_json",
             "client.browser_ordinary_retention.BrowserOrdinaryKeyRetention.take_key",
+            "client.browser_original_draft_consumer.OriginalPhysicalDraftInventory",
+            "client.browser_original_draft_consumer.OriginalPhysicalDraftInventory.apply",
+            "client.browser_original_draft_consumer.OriginalPhysicalDraftInventory.cancel",
+            "client.browser_original_draft_consumer.OriginalPhysicalDraftInventory.drive",
+            "client.browser_original_draft_consumer.OriginalPhysicalDraftInventory.kind",
+            "client.browser_original_draft_consumer.OriginalPhysicalDraftInventory.wait_cancelled",
+            "client.browser_original_draft_consumer.OwnedBrowserMetadataContinuation.begin_next_physical_draft_inventory",
+            "client.browser_original_draft_consumer.OwnedBrowserReadDriver.begin_physical_draft_inventory",
+            "client.browser_original_draft_inventory.OriginalHintDraftInventoryPrerequisite",
+            "client.browser_original_draft_inventory.OriginalHintDraftInventoryPrerequisite.cancel",
+            "client.browser_original_draft_inventory.OriginalHintDraftInventoryPrerequisite.first_ticket",
+            "client.browser_original_draft_inventory.OriginalHintDraftInventoryPrerequisite.wait_cancelled",
+            "client.browser_original_draft_inventory.OriginalHintDraftInventoryTicket",
+            "client.browser_original_draft_inventory.OriginalHintDraftInventoryTicket.check_original",
+            "client.browser_original_draft_inventory.OriginalHintDraftInventoryTicket.effect_json",
+            "client.browser_original_draft_inventory.OriginalHintDraftInventoryTicket.inspect_data",
+            "client.browser_original_draft_inventory.OriginalHintDraftInventoryTicket.inspect_reread_data",
+            "client.browser_original_draft_inventory.OriginalHintRefreshBatch.begin_draft_inventory",
+            "client.browser_original_draft_inventory.UntrustedDraftInventoryPageData",
+            "client.browser_original_draft_inventory.UntrustedDraftInventoryPageData.cursor_data",
+            "client.browser_original_draft_inventory.UntrustedDraftInventoryPageData.database_version_data",
+            "client.browser_original_draft_inventory.UntrustedDraftInventoryPageData.rows_data",
+            "client.browser_original_draft_inventory.UntrustedDraftInventoryRereadData",
+            "client.browser_original_draft_inventory.UntrustedDraftInventoryRereadData.row_data",
             "client.browser_owned_hint_recovery.BrowserOriginalHintRecoveryAdoption",
             "client.browser_owned_hint_recovery.BrowserOriginalHintRecoveryAdoption.apply",
             "client.browser_owned_hint_recovery.BrowserOriginalHintRecoveryApply",
@@ -4398,6 +4482,8 @@
             "client.browser_owned_hint_recovery.BrowserOriginalHintRecoveryStep.Io",
             "client.browser_owned_hint_recovery.BrowserOriginalHintRecoveryStep.PendingPersistence",
             "client.browser_owned_hint_recovery.OwnedBrowserMetadataContinuation.begin_recovery",
+            "client.browser_owned_hint_recovery.OwnedBrowserMetadataContinuation.next_recovery_offer",
+            "client.browser_owned_hint_recovery.OwnedBrowserMetadataContinuation.wait_recovery_work",
             "client.browser_owned_hint_recovery_native.BrowserOriginalHintRecoveryCheckpointDurable",
             "client.browser_owned_hint_recovery_native.BrowserOriginalHintRecoveryCheckpointDurable.into_driver",
             "client.browser_owned_hint_recovery_native.BrowserOriginalHintRecoveryCheckpointNativeWrite",
@@ -4417,7 +4503,7 @@
             "client.browser_owned_hint_recovery_native.BrowserOriginalHintRecoveryCheckpointVerified.finish",
             "client.browser_owned_hint_recovery_native.BrowserOriginalHintRecoveryCheckpointWrite.start_native",
             "client.browser_owned_hint_recovery_native.OwnedBrowserMetadataContinuation.begin_recovery_with_checkpoint_port",
-            "client.browser_owned_hint_recovery_native.OwnedBrowserMetadataContinuation.next_recovery_offer",
+            "client.browser_owned_hint_recovery_native.OwnedBrowserMetadataContinuation.begin_shared_recovery_with_checkpoint_port",
             "client.browser_owned_hint_recovery_physical.BrowserOriginalHintRecoveryCheckpointCrypto",
             "client.browser_owned_hint_recovery_physical.BrowserOriginalHintRecoveryCheckpointCrypto.drive",
             "client.browser_owned_hint_recovery_physical.BrowserOriginalHintRecoveryCheckpointCrypto.into_pending",
@@ -4429,9 +4515,44 @@
             "client.browser_owned_hint_recovery_physical.BrowserOriginalHintRecoveryPersistenceFailure",
             "client.browser_owned_hint_recovery_physical.BrowserOriginalHintRecoveryPersistenceFailure.error_kind",
             "client.browser_owned_hint_recovery_physical.BrowserOriginalHintRecoveryPersistenceFailure.into_pending",
+            "client.browser_owned_hint_refresh.OriginalHintRefreshAdmission",
+            "client.browser_owned_hint_refresh.OriginalHintRefreshAdmission.Driven",
+            "client.browser_owned_hint_refresh.OriginalHintRefreshAdmission.NotRequired",
+            "client.browser_owned_hint_refresh.OriginalHintRefreshBatch",
+            "client.browser_owned_hint_refresh.OriginalHintRefreshBatch.cancel",
+            "client.browser_owned_hint_refresh.OriginalHintRefreshBatch.ensure_current",
+            "client.browser_owned_hint_refresh.OriginalHintRefreshBatch.next_row",
+            "client.browser_owned_hint_refresh.OriginalHintRefreshBatch.wait_cancelled",
+            "client.browser_owned_hint_refresh.OriginalHintRowSeed",
+            "client.browser_owned_hint_refresh.OriginalHintRowSeed.chat_id",
+            "client.browser_owned_hint_refresh.OriginalHintRowSeed.ensure_current",
+            "client.browser_owned_hint_refresh.OriginalHintRowSeed.is_personal_draft_data",
             "client.browser_owned_hint_remainder.OriginalHintRecoveryHandoff",
+            "client.browser_owned_hint_row.OriginalHintRowMetadataAdmission",
+            "client.browser_owned_hint_row.OriginalHintRowMetadataAdmission.Draft",
+            "client.browser_owned_hint_row.OriginalHintRowMetadataAdmission.Saved",
+            "client.browser_owned_hint_row.OriginalHintRowMetadataPublication",
+            "client.browser_owned_hint_row.OriginalHintRowMetadataPublication.chat_id",
+            "client.browser_owned_hint_row.OriginalHintRowMetadataPublication.ensure_current",
+            "client.browser_owned_hint_row.OriginalHintRowMetadataPublication.kind",
+            "client.browser_owned_hint_row.OriginalHintRowSeed.begin_metadata",
+            "client.browser_owned_hint_row_ledger.OriginalHintMetadataApplied",
+            "client.browser_owned_hint_row_ledger.OriginalHintRefreshBatch.acknowledge_metadata",
+            "client.browser_owned_hint_row_ledger.OriginalHintRowMetadataPublication.apply",
+            "client.browser_owned_hint_windows.OriginalHintRefreshBatch.prepare_windows",
+            "client.browser_owned_hint_windows.OriginalHintWindowBatch",
+            "client.browser_owned_hint_windows.OriginalHintWindowBatch.cancel",
+            "client.browser_owned_hint_windows.OriginalHintWindowBatch.ensure_current",
+            "client.browser_owned_hint_windows.OriginalHintWindowBatch.kind",
+            "client.browser_owned_hint_windows.OriginalHintWindowBatch.next_row",
+            "client.browser_owned_hint_windows.OriginalHintWindowBatch.wait_cancelled",
+            "client.browser_owned_hint_windows.OwnedOriginalHintWindowCompletion",
+            "client.browser_owned_hint_windows.OwnedOriginalHintWindowCompletion.finish",
+            "client.browser_owned_hint_windows.OwnedOriginalHintWindowPreparation",
+            "client.browser_owned_hint_windows.OwnedOriginalHintWindowPreparation.drive",
             "client.browser_owned_message_read.OwnedBrowserMetadataContinuation",
             "client.browser_owned_message_read.OwnedBrowserMetadataContinuation.begin_metadata",
+            "client.browser_owned_message_read.OwnedBrowserMetadataContinuation.begin_original_refresh",
             "client.browser_owned_message_read.OwnedBrowserMetadataContinuation.cancel",
             "client.browser_owned_message_read.OwnedBrowserMetadataContinuation.check_original",
             "client.browser_owned_message_read.OwnedBrowserMetadataContinuation.kind",
@@ -4450,6 +4571,7 @@
             "client.browser_owned_message_read.OwnedBrowserReadDriver.terminal_observer",
             "client.browser_owned_message_read.OwnedBrowserReadIO",
             "client.browser_owned_message_read.OwnedBrowserReadIO.execute",
+            "client.browser_owned_message_read.OwnedBrowserReadIO.uses_original_physical_draft_budget",
             "client.browser_owned_message_read.OwnedBrowserReadPhase",
             "client.browser_owned_message_read.OwnedBrowserReadPhase.apply",
             "client.browser_owned_message_read.OwnedBrowserReadPublication",
@@ -4463,11 +4585,32 @@
             "client.browser_owned_message_read.OwnedBrowserReadStep.Apply",
             "client.browser_owned_message_read.OwnedBrowserReadStep.IO",
             "client.browser_owned_message_read.OwnedBrowserReadStep.Metadata",
+            "client.browser_owned_message_read.OwnedBrowserReadStep.Refresh",
+            "client.browser_owned_message_read.OwnedBrowserReadStep.RowMetadata",
             "client.browser_owned_message_read.OwnedBrowserReadStep.Selected",
             "client.browser_owned_message_read.OwnedBrowserReadTerminal",
             "client.browser_owned_message_read.OwnedBrowserReadTerminal.is_quiescent",
             "client.browser_owned_message_read.OwnedBrowserReadTerminalObserver",
             "client.browser_owned_message_read.OwnedBrowserReadTerminalObserver.terminal",
+            "client.browser_profile_cache_absence.OwnedBrowserProfileCacheAbsence",
+            "client.browser_profile_cache_absence.OwnedBrowserProfileCacheAbsence.consume",
+            "client.browser_profile_cache_absence.OwnedBrowserProfileCacheAbsence.ensure_current",
+            "client.browser_profile_cache_absence.OwnedBrowserReadDriver.take_profile_cache_absence",
+            "client.browser_profile_cache_readiness.BrowserProfileCacheReadiness",
+            "client.browser_profile_cache_readiness.BrowserProfileCacheReadiness.cancel",
+            "client.browser_profile_cache_readiness.BrowserProfileCacheReadiness.ensure_current",
+            "client.browser_profile_cache_readiness.BrowserProfileCacheReadiness.wait_invalidated",
+            "client.browser_recovery_metadata_finalize.BoundInitialSyncStore.begin_metadata_recovery_finalize",
+            "client.browser_recovery_metadata_finalize.BrowserMetadataRecoveryFinalize",
+            "client.browser_recovery_metadata_finalize.BrowserMetadataRecoveryFinalize.cancel",
+            "client.browser_recovery_metadata_finalize.BrowserMetadataRecoveryFinalize.drive",
+            "client.browser_recovery_metadata_finalize.BrowserMetadataRecoveryFinalize.ensure_current",
+            "client.browser_recovery_metadata_finalize.BrowserMetadataRecoveryFinalize.finish",
+            "client.browser_recovery_metadata_finalize.BrowserMetadataRecoveryFinalize.terminal",
+            "client.browser_recovery_metadata_finalize.BrowserMetadataRecoveryLocalStored",
+            "client.browser_recovery_metadata_finalize.BrowserMetadataRecoveryLocalStored.ensure_current",
+            "client.browser_recovery_metadata_finalize.BrowserMetadataRecoveryNativeTerminal",
+            "client.browser_recovery_metadata_finalize.BrowserMetadataRecoveryNativeTerminal.native_io_quiescent",
             "client.browser_retained_view.BrowserRetainedCachePublication",
             "client.browser_snapshot.BrowserCredentialCasEffect",
             "client.browser_snapshot.BrowserCredentialCasEffect.Cas",
@@ -4517,6 +4660,24 @@
             "client.message_window.MessageWindowOptions.respect_compression_boundary",
             "client.message_window.valid_message_id",
             "client.monitor.ChatMonitor.changed_or_idle",
+            "client.monitor_start_owned.OwnedChatMonitorReady",
+            "client.monitor_start_owned.OwnedChatMonitorReady.ensure_current",
+            "client.monitor_start_owned.OwnedChatMonitorReady.retain",
+            "client.monitor_start_owned.OwnedChatMonitorStartApply",
+            "client.monitor_start_owned.OwnedChatMonitorStartApply.apply",
+            "client.monitor_start_owned.OwnedChatMonitorStartControl",
+            "client.monitor_start_owned.OwnedChatMonitorStartControl.cancel",
+            "client.monitor_start_owned.OwnedChatMonitorStartControl.ensure_current",
+            "client.monitor_start_owned.OwnedChatMonitorStartControl.retire",
+            "client.monitor_start_owned.OwnedChatMonitorStartControl.terminal",
+            "client.monitor_start_owned.OwnedChatMonitorStartStep",
+            "client.monitor_start_owned.OwnedChatMonitorStartStep.Apply",
+            "client.monitor_start_owned.OwnedChatMonitorStartStep.Ready",
+            "client.monitor_start_owned.OwnedChatMonitorStartTerminal",
+            "client.monitor_start_owned.OwnedChatMonitorStartTerminal.acquisition_io_quiescent",
+            "client.monitor_start_owned.PreparedOwnedChatMonitor",
+            "client.monitor_start_owned.PreparedOwnedChatMonitor.control",
+            "client.monitor_start_owned.PreparedOwnedChatMonitor.next",
             "client.owned_saved_send.PreparedOwnedSavedSend",
             "client.owned_saved_send.PreparedOwnedSavedSend.cancellation_request",
             "client.owned_saved_send.PreparedOwnedSavedSend.id",
@@ -4563,6 +4724,7 @@
             "client.saved_embed.SavedEmbedRead",
             "client.saved_embed.SavedEmbedRead.check",
             "client.saved_embed.SavedEmbedRead.json",
+            "client.saved_embed.SavedEmbedRead.share_url",
             "client.send_options.SendConsentPolicy",
             "client.send_options.SendConsentPolicy.ApproveRequested",
             "client.send_options.SendConsentPolicy.Reject",
@@ -6317,25 +6479,71 @@
     {
       "description": "Pure authenticated Project Personal/Team handshake and directional bounded-replay encrypted remote session foundation; no network/source-host lifecycle claim.",
       "domain": "encryption",
+      "fixture": "tests/sdk-conformance/fixtures/project-remote-crypto.json",
       "id": "protocol.project-remote-crypto.v1",
       "languages": {
         "npm": {
-          "api": [],
-          "conformance": false,
-          "evidence": [],
-          "gaps": [
-            "Equivalent headless SDK Project remote handshake/session API and independent shared conformance are not established; retained CLI remote crypto is application-owned."
+          "api": [
+            "RemoteCryptoError",
+            "RemoteCryptoError.code",
+            "RemoteHandshake",
+            "RemoteHandshake.close",
+            "RemoteHandshake.finish",
+            "RemoteHandshake.handshake",
+            "RemoteSession",
+            "RemoteSession.close",
+            "RemoteSession.open",
+            "RemoteSession.openJsonText",
+            "RemoteSession.seal"
           ],
-          "status": "missing"
+          "conformance": true,
+          "evidence": [
+            "tests/sdk-conformance/remote_crypto_peer.py",
+            "tests/sdk-conformance/runners/project-remote-crypto-worker.mjs",
+            "tests/sdk-conformance/runners/project-remote-crypto.py",
+            "tests/sdk-conformance/test_project_remote_crypto_facade.mjs",
+            "tests/sdk-conformance/test_project_remote_crypto_gate_driver.py",
+            "tests/sdk-conformance/test_project_remote_crypto_harness.py",
+            "tests/sdk-conformance/test_project_remote_crypto_peer.py"
+          ],
+          "gaps": [
+            "Equivalent headless SDK Project remote handshake/session API and independent shared conformance are not established; retained CLI remote crypto is application-owned.",
+            "Source-only opaque-handle bindings, lossless JSON-text API and independent shared vectors are prepared; actual three-library execution, native compilation, protected cancellation admission and existing platform/performance/security acceptance remain pending."
+          ],
+          "status": "partial"
         },
         "python": {
-          "api": [],
-          "conformance": false,
-          "evidence": [],
-          "gaps": [
-            "Equivalent headless SDK Project remote handshake/session API and independent shared conformance are not established."
+          "api": [
+            "RemoteCryptoError",
+            "RemoteEnvelope",
+            "RemoteHandshake",
+            "RemoteHandshake.close",
+            "RemoteHandshake.finish",
+            "RemoteHandshake.handshake",
+            "RemoteHandshakeWire",
+            "RemoteIdentity",
+            "RemoteRole",
+            "RemoteSession",
+            "RemoteSession.close",
+            "RemoteSession.open",
+            "RemoteSession.open_json_text",
+            "RemoteSession.seal"
           ],
-          "status": "missing"
+          "conformance": true,
+          "evidence": [
+            "tests/sdk-conformance/remote_crypto_peer.py",
+            "tests/sdk-conformance/runners/project-remote-crypto-worker.py",
+            "tests/sdk-conformance/runners/project-remote-crypto.py",
+            "tests/sdk-conformance/test_project_remote_crypto_facade.py",
+            "tests/sdk-conformance/test_project_remote_crypto_gate_driver.py",
+            "tests/sdk-conformance/test_project_remote_crypto_harness.py",
+            "tests/sdk-conformance/test_project_remote_crypto_peer.py"
+          ],
+          "gaps": [
+            "Equivalent headless SDK Project remote handshake/session API and independent shared conformance are not established.",
+            "Source-only opaque-handle bindings, lossless JSON-text API and independent shared vectors are prepared; actual three-library execution, native compilation, protected cancellation admission and existing platform/performance/security acceptance remain pending."
+          ],
+          "status": "partial"
         },
         "rust": {
           "api": [
@@ -6382,10 +6590,18 @@
             "remote_access_crypto.Role.Requester",
             "remote_access_crypto.Role.Source"
           ],
-          "conformance": false,
-          "evidence": [],
+          "conformance": true,
+          "evidence": [
+            "packages/openmates-session-bindings/examples/project-remote-crypto-worker.rs",
+            "tests/sdk-conformance/remote_crypto_peer.py",
+            "tests/sdk-conformance/runners/project-remote-crypto.py",
+            "tests/sdk-conformance/test_project_remote_crypto_gate_driver.py",
+            "tests/sdk-conformance/test_project_remote_crypto_harness.py",
+            "tests/sdk-conformance/test_project_remote_crypto_peer.py"
+          ],
           "gaps": [
-            "Eight focused Rust unit cases establish bounded handshake/envelope primitives; cross-language shared fixtures, actual foreground session/source-host integration, authorization/revocation lifecycle and interoperable npm/Python SDK counterparts remain unverified."
+            "Eight focused Rust unit cases establish bounded handshake/envelope primitives; cross-language shared fixtures, actual foreground session/source-host integration, authorization/revocation lifecycle and interoperable npm/Python SDK counterparts remain unverified.",
+            "Source-only opaque-handle bindings, lossless JSON-text API and independent shared vectors are prepared; actual three-library execution, native compilation, protected cancellation admission and existing platform/performance/security acceptance remain pending."
           ],
           "status": "partial"
         }
@@ -7880,6 +8096,540 @@
           ],
           "gaps": [
             "Authored shared 28-vector settings reminders read coverage and gate adapter require actual synchronized Rust/npm/Python execution, real retry/cancellation, platform, security and comparable performance acceptance; complete JSON compatibility beyond supported parser limits remains open."
+          ],
+          "status": "partial"
+        }
+      }
+    },
+    {
+      "description": "Explicit initial startup on a genuine original monitor with one-use actual actor intent, terminal-ordered expanded metadata and opaque result; no implicit activation, native persistence or ACK.",
+      "domain": "operations",
+      "fixture": "tests/sdk-conformance/fixtures/session-initial-startup-sync.json",
+      "id": "session.initial-startup-sync.v1",
+      "languages": {
+        "npm": {
+          "api": [
+            "SessionChatMonitor.beginInitialSync",
+            "SessionInitialSyncMetadata",
+            "SessionInitialSyncMetadata.cancel",
+            "SessionInitialSyncMetadata.receivedMetadataCount",
+            "SessionInitialSyncOperation",
+            "SessionInitialSyncOperation.cancel",
+            "SessionInitialSyncOperation.run"
+          ],
+          "conformance": true,
+          "evidence": [
+            "tests/sdk-conformance/runners/session-initial-startup-sync-gate.py",
+            "tests/sdk-conformance/runners/session-initial-startup-sync.mjs",
+            "tests/sdk-conformance/startup_sync_server.py",
+            "tests/sdk-conformance/test_session_initial_startup_gate.py",
+            "tests/sdk-conformance/test_session_initial_startup_gate_driver.py"
+          ],
+          "gaps": [
+            "Authored actual native operation and10 shared actor vectors are uncompiled/unrun; paired NAPI/PyO3 artifacts, real three-SDK execution, security/platform/backend compatibility and comparative performance remain required.",
+            "Core existing Master-capable original scope is unchanged. A separate genuine NativeMetadataContext/no-usable-Master SDK resource path, physical per-row store/readback, app startup activation, older-page delivery and full/later-hint ACK remain open; observed count is DATA only."
+          ],
+          "status": "partial"
+        },
+        "python": {
+          "api": [
+            "SessionChatMonitor.begin_initial_sync",
+            "SessionInitialSyncMetadata",
+            "SessionInitialSyncMetadata.cancel",
+            "SessionInitialSyncMetadata.received_metadata_count",
+            "SessionInitialSyncOperation",
+            "SessionInitialSyncOperation.cancel",
+            "SessionInitialSyncOperation.run"
+          ],
+          "conformance": true,
+          "evidence": [
+            "tests/sdk-conformance/runners/session-initial-startup-sync-gate.py",
+            "tests/sdk-conformance/runners/session-initial-startup-sync.py",
+            "tests/sdk-conformance/startup_sync_server.py",
+            "tests/sdk-conformance/test_session_initial_startup_gate.py",
+            "tests/sdk-conformance/test_session_initial_startup_gate_driver.py"
+          ],
+          "gaps": [
+            "Authored actual native operation and10 shared actor vectors are uncompiled/unrun; paired NAPI/PyO3 artifacts, real three-SDK execution, security/platform/backend compatibility and comparative performance remain required.",
+            "Core existing Master-capable original scope is unchanged. A separate genuine NativeMetadataContext/no-usable-Master SDK resource path, physical per-row store/readback, app startup activation, older-page delivery and full/later-hint ACK remain open; observed count is DATA only."
+          ],
+          "status": "partial"
+        },
+        "rust": {
+          "api": [
+            "client.Client.prepare_initial_sync",
+            "client.initial_sync.InitialSyncControl",
+            "client.initial_sync.InitialSyncControl.cancel",
+            "client.initial_sync.InitialSyncControl.ensure_current",
+            "client.initial_sync.InitialSyncMetadataBatch",
+            "client.initial_sync.InitialSyncMetadataBatch.cancel",
+            "client.initial_sync.InitialSyncMetadataBatch.ensure_current",
+            "client.initial_sync.InitialSyncMetadataBatch.received_metadata_count",
+            "client.initial_sync.InitialSyncRead",
+            "client.initial_sync.InitialSyncRead.cancel",
+            "client.initial_sync.InitialSyncRead.ensure_current",
+            "client.initial_sync.InitialSyncRead.retain",
+            "client.initial_sync.PreparedInitialSync",
+            "client.initial_sync.PreparedInitialSync.cancel",
+            "client.initial_sync.PreparedInitialSync.control",
+            "client.initial_sync.PreparedInitialSync.ensure_current",
+            "client.initial_sync.PreparedInitialSync.wait"
+          ],
+          "conformance": true,
+          "evidence": [
+            "packages/openmates-session-bindings/examples/session-initial-startup-sync-conformance.rs",
+            "tests/sdk-conformance/runners/session-initial-startup-sync-gate.py",
+            "tests/sdk-conformance/startup_sync_server.py",
+            "tests/sdk-conformance/test_session_initial_startup_gate.py",
+            "tests/sdk-conformance/test_session_initial_startup_gate_driver.py"
+          ],
+          "gaps": [
+            "Authored actual native operation and10 shared actor vectors are uncompiled/unrun; paired NAPI/PyO3 artifacts, real three-SDK execution, security/platform/backend compatibility and comparative performance remain required.",
+            "Core existing Master-capable original scope is unchanged. A separate genuine NativeMetadataContext/no-usable-Master SDK resource path, physical per-row store/readback, app startup activation, older-page delivery and full/later-hint ACK remain open; observed count is DATA only."
+          ],
+          "status": "partial"
+        }
+      }
+    },
+    {
+      "description": "Actual cookie-authenticated original explicit SDK credentials and Rust-owned ephemeral metadata store; no Master/physical/browser/durable/private/ACK grant.",
+      "domain": "operations",
+      "fixture": "tests/sdk-conformance/fixtures/session-ephemeral-metadata.json",
+      "id": "session.ephemeral-metadata-startup.v1",
+      "languages": {
+        "npm": {
+          "api": [
+            "EphemeralMetadataClient",
+            "EphemeralMetadataClient.close",
+            "EphemeralMetadataClient.credentialSnapshot",
+            "EphemeralMetadataClient.prepareInitialSync",
+            "EphemeralMetadataSnapshot",
+            "EphemeralMetadataSnapshot.cancel",
+            "EphemeralMetadataSnapshot.receivedMetadataCount",
+            "EphemeralMetadataStartup",
+            "EphemeralMetadataStartup.cancel",
+            "EphemeralMetadataStartup.run",
+            "MetadataAuthentication",
+            "MetadataAuthentication.authenticate",
+            "MetadataAuthentication.cancel",
+            "MetadataAuthentication.cancelAndDrain",
+            "MetadataAuthentication.credentialSnapshot",
+            "MetadataEphemeralError",
+            "MetadataEphemeralError.code"
+          ],
+          "conformance": true,
+          "evidence": [
+            "tests/sdk-conformance/ephemeral_metadata_server.py",
+            "tests/sdk-conformance/runners/session-ephemeral-metadata-gate.py",
+            "tests/sdk-conformance/runners/session-ephemeral-metadata.mjs",
+            "tests/sdk-conformance/test_ephemeral_metadata_gate.py",
+            "tests/sdk-conformance/test_ephemeral_metadata_gate_driver.py"
+          ],
+          "gaps": [
+            "Authored source and actual29-case adapters are uncompiled/unrun. Isolated three-language, backend/security/platform, release and comparative performance acceptance remain required.",
+            "Only explicit existing cookie-session Personal metadata in Core memory. Team startup, physical/native DB/profile persistence, browser/UI activation, private operations and full/later-hint ACK remain unsupported by this resource. It never substitutes for existing physical/browser proofs.",
+            "Root must include these new fixed gate/adapter commands in protected Driver-owned descendant cleanup before execution/release; this proposal reuses normal bounded owned-group cleanup but does not edit protected controller authority."
+          ],
+          "status": "partial"
+        },
+        "python": {
+          "api": [
+            "EphemeralMetadataClient",
+            "EphemeralMetadataClient.close",
+            "EphemeralMetadataClient.credential_snapshot",
+            "EphemeralMetadataClient.prepare_initial_sync",
+            "EphemeralMetadataSnapshot",
+            "EphemeralMetadataSnapshot.cancel",
+            "EphemeralMetadataSnapshot.received_metadata_count",
+            "EphemeralMetadataStartup",
+            "EphemeralMetadataStartup.cancel",
+            "EphemeralMetadataStartup.run",
+            "MetadataAuthentication",
+            "MetadataAuthentication.authenticate",
+            "MetadataAuthentication.cancel",
+            "MetadataAuthentication.cancel_and_drain",
+            "MetadataAuthentication.credential_snapshot",
+            "MetadataAuthenticationOptions",
+            "MetadataCookieCredentials",
+            "MetadataEphemeralError"
+          ],
+          "conformance": true,
+          "evidence": [
+            "tests/sdk-conformance/ephemeral_metadata_server.py",
+            "tests/sdk-conformance/runners/session-ephemeral-metadata-gate.py",
+            "tests/sdk-conformance/runners/session-ephemeral-metadata.py",
+            "tests/sdk-conformance/test_ephemeral_metadata_gate.py",
+            "tests/sdk-conformance/test_ephemeral_metadata_gate_driver.py"
+          ],
+          "gaps": [
+            "Authored source and actual29-case adapters are uncompiled/unrun. Isolated three-language, backend/security/platform, release and comparative performance acceptance remain required.",
+            "Only explicit existing cookie-session Personal metadata in Core memory. Team startup, physical/native DB/profile persistence, browser/UI activation, private operations and full/later-hint ACK remain unsupported by this resource. It never substitutes for existing physical/browser proofs.",
+            "Root must include these new fixed gate/adapter commands in protected Driver-owned descendant cleanup before execution/release; this proposal reuses normal bounded owned-group cleanup but does not edit protected controller authority."
+          ],
+          "status": "partial"
+        },
+        "rust": {
+          "api": [
+            "client.ephemeral_metadata.EphemeralMetadataClient",
+            "client.ephemeral_metadata.EphemeralMetadataClient.close",
+            "client.ephemeral_metadata.EphemeralMetadataClient.credential_snapshot",
+            "client.ephemeral_metadata.EphemeralMetadataClient.prepare_initial_sync",
+            "client.ephemeral_metadata.EphemeralMetadataSnapshot",
+            "client.ephemeral_metadata.EphemeralMetadataSnapshot.cancel",
+            "client.ephemeral_metadata.EphemeralMetadataSnapshot.received_metadata_count",
+            "client.ephemeral_metadata.MetadataCookieCredentials",
+            "client.ephemeral_metadata.MetadataCookieCredentials.cookies",
+            "client.ephemeral_metadata.MetadataCookieCredentials.session_id",
+            "client.ephemeral_metadata.MetadataEndpointOptions",
+            "client.ephemeral_metadata.MetadataEndpointOptions.api_url",
+            "client.ephemeral_metadata.MetadataEndpointOptions.app_url",
+            "client.ephemeral_metadata.MetadataEndpointOptions.identity",
+            "client.ephemeral_metadata.PreparedEphemeralMetadataStartup",
+            "client.ephemeral_metadata.PreparedEphemeralMetadataStartup.cancel",
+            "client.ephemeral_metadata.PreparedEphemeralMetadataStartup.cancellation",
+            "client.ephemeral_metadata.PreparedEphemeralMetadataStartup.run",
+            "client.ephemeral_metadata.PreparedMetadataAuthentication",
+            "client.ephemeral_metadata.PreparedMetadataAuthentication.authenticate_existing",
+            "client.ephemeral_metadata.PreparedMetadataAuthentication.credential_snapshot",
+            "client.ephemeral_metadata.PreparedMetadataAuthentication.from_explicit_cookie",
+            "client.ephemeral_metadata.PreparedMetadataAuthentication.wait_for_authentication_io"
+          ],
+          "conformance": true,
+          "evidence": [
+            "packages/openmates-session-bindings/examples/session-ephemeral-metadata-conformance.rs",
+            "tests/sdk-conformance/ephemeral_metadata_server.py",
+            "tests/sdk-conformance/runners/session-ephemeral-metadata-gate.py",
+            "tests/sdk-conformance/test_ephemeral_metadata_gate.py",
+            "tests/sdk-conformance/test_ephemeral_metadata_gate_driver.py"
+          ],
+          "gaps": [
+            "Authored source and actual29-case adapters are uncompiled/unrun. Isolated three-language, backend/security/platform, release and comparative performance acceptance remain required.",
+            "Only explicit existing cookie-session Personal metadata in Core memory. Team startup, physical/native DB/profile persistence, browser/UI activation, private operations and full/later-hint ACK remain unsupported by this resource. It never substitutes for existing physical/browser proofs.",
+            "Root must include these new fixed gate/adapter commands in protected Driver-owned descendant cleanup before execution/release; this proposal reuses normal bounded owned-group cleanup but does not edit protected controller authority."
+          ],
+          "status": "partial"
+        }
+      }
+    },
+    {
+      "description": "Fresh owner-admitted Personal Cookie full-ID fragment-only embed share via direct Rust/npm/Python libraries. 16 shared vectors authored, execution unrun. No cached-key fallback or CLI activation.",
+      "domain": "operations",
+      "fixture": "tests/sdk-conformance/fixtures/session-embed-share-bindings.json",
+      "id": "session.embeds.admitted-share-url.v1",
+      "languages": {
+        "npm": {
+          "api": [
+            "SessionClient.embeds.shareUrl",
+            "SessionEmbeds.shareUrl"
+          ],
+          "conformance": true,
+          "evidence": [
+            "tests/sdk-conformance/runners/session-embed-share.mjs"
+          ],
+          "gaps": [
+            "Native Rust/NAPI/PyO3 semantic compilation and authored unit/real-socket cancellation tests UNRUN",
+            "16x3 independent actual Cookie HTTP/WS/admitted-read/share-envelope conformance UNRUN",
+            "Native CLI adapter/short-ID/cache synchronization/options/stdout/exit/Team/Direct/envelope paths remain gaps",
+            "Linux/Mac CPU/end-to-end/request budget and peak/steady RSS versus maintained TypeScript UNRUN",
+            "Foreign immutable-string GC cannot promise physical wiping after the explicit secret URL export; no key getter or implicit export",
+            "Separate reviewed protected fixed-dispatcher owned-process cleanup admission remains required before any execution"
+          ],
+          "status": "partial"
+        },
+        "python": {
+          "api": [
+            "SessionClient.embeds.share_url"
+          ],
+          "conformance": true,
+          "evidence": [
+            "tests/sdk-conformance/runners/session-embed-share.py"
+          ],
+          "gaps": [
+            "Native Rust/NAPI/PyO3 semantic compilation and authored unit/real-socket cancellation tests UNRUN",
+            "16x3 independent actual Cookie HTTP/WS/admitted-read/share-envelope conformance UNRUN",
+            "Native CLI adapter/short-ID/cache synchronization/options/stdout/exit/Team/Direct/envelope paths remain gaps",
+            "Linux/Mac CPU/end-to-end/request budget and peak/steady RSS versus maintained TypeScript UNRUN",
+            "Foreign immutable-string GC cannot promise physical wiping after the explicit secret URL export; no key getter or implicit export",
+            "Separate reviewed protected fixed-dispatcher owned-process cleanup admission remains required before any execution"
+          ],
+          "status": "partial"
+        },
+        "rust": {
+          "api": [],
+          "conformance": true,
+          "evidence": [
+            "packages/openmates-session-bindings/examples/session-embed-share-conformance.rs"
+          ],
+          "gaps": [
+            "Native Rust/NAPI/PyO3 semantic compilation and authored unit/real-socket cancellation tests UNRUN",
+            "16x3 independent actual Cookie HTTP/WS/admitted-read/share-envelope conformance UNRUN",
+            "Native CLI adapter/short-ID/cache synchronization/options/stdout/exit/Team/Direct/envelope paths remain gaps",
+            "Linux/Mac CPU/end-to-end/request budget and peak/steady RSS versus maintained TypeScript UNRUN",
+            "Foreign immutable-string GC cannot promise physical wiping after the explicit secret URL export; no key getter or implicit export",
+            "Separate reviewed protected fixed-dispatcher owned-process cleanup admission remains required before any execution"
+          ],
+          "status": "partial"
+        }
+      }
+    },
+    {
+      "description": "Original Main Progress/Master/store matching-journal read and opaque native metadata CAS/reread only. Default OFF; no transcript, retirement or ACK conversion.",
+      "domain": "recovery",
+      "id": "browser.main-metadata-native.v1",
+      "languages": {
+        "npm": {
+          "api": [],
+          "conformance": false,
+          "evidence": [],
+          "gaps": [
+            "Direct npm equivalent Main metadata native-store capability is not implemented; no foreign parity or runtime acceptance"
+          ],
+          "status": "missing"
+        },
+        "python": {
+          "api": [],
+          "conformance": false,
+          "evidence": [],
+          "gaps": [
+            "Direct python equivalent Main metadata native-store capability is not implemented; no foreign parity or runtime acceptance"
+          ],
+          "status": "missing"
+        },
+        "rust": {
+          "api": [
+            "client.browser_main_metadata_store.BoundInitialSyncStore.begin_main_metadata_store",
+            "client.browser_main_metadata_store.BrowserMainMetadataNativeTerminal",
+            "client.browser_main_metadata_store.BrowserMainMetadataNativeTerminal.native_io_quiescent",
+            "client.browser_main_metadata_store.BrowserMainMetadataStore",
+            "client.browser_main_metadata_store.BrowserMainMetadataStore.cancel",
+            "client.browser_main_metadata_store.BrowserMainMetadataStore.drive",
+            "client.browser_main_metadata_store.BrowserMainMetadataStore.ensure_current",
+            "client.browser_main_metadata_store.BrowserMainMetadataStore.finish",
+            "client.browser_main_metadata_store.BrowserMainMetadataStore.terminal",
+            "client.browser_main_metadata_store.BrowserMainMetadataStored",
+            "client.browser_main_metadata_store.BrowserMainMetadataStored.ensure_current"
+          ],
+          "conformance": false,
+          "evidence": [
+            "packages/openmates-rust/src/client/browser_metadata_bootstrap_policy.rs"
+          ],
+          "gaps": [
+            "Partial Main metadata native prerequisite only; original journal retained, transcript/artifact durability, exact retirement and full-hint ACK remain unfinished; actual browser/native/compiler and performance UNRUN"
+          ],
+          "status": "partial"
+        }
+      }
+    },
+    {
+      "description": "Partial native Personal embeds share: authenticated genuinely-unsynced cold sync or supported fresh ordered cache, original saved-read and final-persist guard. No complete CLI/cache/foreign parity.",
+      "domain": "operations",
+      "id": "cli.native-personal-embed-share.v1",
+      "languages": {
+        "npm": {
+          "api": [],
+          "conformance": false,
+          "evidence": [],
+          "gaps": [
+            "Native ordered-cache ensureSynced/share adapter has no matching npm library capability; existing full-ID share is separate; cache/sync/TTL/Team/error/performance parity unfinished"
+          ],
+          "status": "missing"
+        },
+        "python": {
+          "api": [],
+          "conformance": false,
+          "evidence": [],
+          "gaps": [
+            "Native ordered-cache ensureSynced/share adapter has no matching python library capability; existing full-ID share is separate; cache/sync/TTL/Team/error/performance parity unfinished"
+          ],
+          "status": "missing"
+        },
+        "rust": {
+          "api": [
+            "client.Client.ensure_saved_embed_selector"
+          ],
+          "conformance": false,
+          "evidence": [
+            "frontend/packages/openmates-tui-native/tests/embed_share_cli.rs"
+          ],
+          "gaps": [
+            "Actual compiled whoami FINAL-persist then separate share, cancellation/denial/native-store and CPU/whole-lifecycle peak/applicable steady RAM UNRUN; legacy or uncertain TTL, stale carryforward, Team, NaN/unsafe integers and full TS error/output parity unfinished"
+          ],
+          "status": "partial"
+        }
+      }
+    },
+    {
+      "description": "Partial existing Project workflow-file synchronization through direct Cookie-session Rust bridge/npm/Python and native YAML update. Real scope/approval/crypto remain Core-owned; authored matching 23-vector plans are UNRUN.",
+      "domain": "operations",
+      "fixture": "tests/sdk-conformance/fixtures/workflow-file-sync.json",
+      "id": "work.project-workflow-file-sync.v1",
+      "languages": {
+        "npm": {
+          "api": [
+            "SessionClient.projects.syncWorkflowFiles",
+            "SessionProjects.syncWorkflowFiles"
+          ],
+          "conformance": true,
+          "evidence": [
+            "tests/sdk-conformance/runners/workflow-file-sync.mjs"
+          ],
+          "gaps": [
+            "Direct Cookie-session adapters and 23 shared encrypted peer vectors are authored UNRUN; genuine Core/bridge/native lock resolution, exact optional YAML packaging guards, independent fixed protected dispatcher, semantic compilation, actual three-library protocol/cancel/Team/platform execution and comparable CPU/wall/whole-application peak/applicable steady RAM remain OPEN. No passed conformance, complete parity, activation or release eligibility. API-key combined bound-file operation remains unavailable; existing YAML APIs are distinct from this Project operation."
+          ],
+          "status": "partial"
+        },
+        "python": {
+          "api": [
+            "SessionClient.projects.sync_workflow_files",
+            "SessionProjects.sync_workflow_files",
+            "SessionWorkflowFileSaveStatus",
+            "SessionWorkflowFileSyncOptions"
+          ],
+          "conformance": true,
+          "evidence": [
+            "tests/sdk-conformance/runners/workflow-file-sync.py"
+          ],
+          "gaps": [
+            "Direct Cookie-session adapters and 23 shared encrypted peer vectors are authored UNRUN; genuine Core/bridge/native lock resolution, exact optional YAML packaging guards, independent fixed protected dispatcher, semantic compilation, actual three-library protocol/cancel/Team/platform execution and comparable CPU/wall/whole-application peak/applicable steady RAM remain OPEN. No passed conformance, complete parity, activation or release eligibility. API-key combined bound-file operation remains unavailable; existing YAML APIs are distinct from this Project operation."
+          ],
+          "status": "partial"
+        },
+        "rust": {
+          "api": [
+            "work.projects.workflow_files.Projects.sync_workflow_files",
+            "work.projects.workflow_files.WorkflowFileSaveStatus",
+            "work.projects.workflow_files.WorkflowFileSaveStatus.error",
+            "work.projects.workflow_files.WorkflowFileSaveStatus.project_id",
+            "work.projects.workflow_files.WorkflowFileSaveStatus.status",
+            "work.workflows.file.serialize_workflow_file",
+            "work.workflows.file.workflow_file_name"
+          ],
+          "conformance": true,
+          "evidence": [
+            "frontend/apps/web_app/tests/cli-rust-core-essential.spec.ts",
+            "packages/openmates-session-bindings/examples/workflow-file-sync-conformance.rs"
+          ],
+          "gaps": [
+            "Actual compiled native update/Project Source relay/metadata acknowledgement, terminal approval/cancellation and CPU/whole-lifecycle peak/applicable steady RAM UNRUN; API-key combined update, Team YAML authoring/Team relay and arbitrary remote error text parity unfinished Direct Cookie-session adapters and 23 shared encrypted peer vectors are authored UNRUN; genuine Core/bridge/native lock resolution, exact optional YAML packaging guards, independent fixed protected dispatcher, semantic compilation, actual three-library protocol/cancel/Team/platform execution and comparable CPU/wall/whole-application peak/applicable steady RAM remain OPEN. No passed conformance, complete parity, activation or release eligibility."
+          ],
+          "status": "partial"
+        }
+      }
+    },
+    {
+      "description": "Partial selected recovered assistant ciphertext persistence with original Progress/Master/store/journal, pre-CAS row bounds, actual native IO and independent reread. Main Worker connector emits metadata-only DATA; default OFF, no journal retirement or full ACK.",
+      "domain": "recovery",
+      "id": "browser.recovered-selected-reply-native.v1",
+      "languages": {
+        "npm": {
+          "api": [],
+          "conformance": false,
+          "evidence": [],
+          "gaps": [
+            "Direct npm selected-reply/Main native-store equivalent is not implemented; existing SDK full-ID share or recovery APIs are separate, no foreign parity or runtime acceptance"
+          ],
+          "status": "missing"
+        },
+        "python": {
+          "api": [],
+          "conformance": false,
+          "evidence": [],
+          "gaps": [
+            "Direct python selected-reply/Main native-store equivalent is not implemented; existing SDK full-ID share or recovery APIs are separate, no foreign parity or runtime acceptance"
+          ],
+          "status": "missing"
+        },
+        "rust": {
+          "api": [
+            "client.browser_recovered_reply_store.BoundInitialSyncStore.begin_recovered_reply_store",
+            "client.browser_recovered_reply_store.BrowserRecoveredReplyControl",
+            "client.browser_recovered_reply_store.BrowserRecoveredReplyControl.cancel",
+            "client.browser_recovered_reply_store.BrowserRecoveredReplyControl.ensure_current",
+            "client.browser_recovered_reply_store.BrowserRecoveredReplyNativeTerminal",
+            "client.browser_recovered_reply_store.BrowserRecoveredReplyNativeTerminal.native_io_quiescent",
+            "client.browser_recovered_reply_store.BrowserRecoveredReplyStore",
+            "client.browser_recovered_reply_store.BrowserRecoveredReplyStore.cancel",
+            "client.browser_recovered_reply_store.BrowserRecoveredReplyStore.control",
+            "client.browser_recovered_reply_store.BrowserRecoveredReplyStore.drive",
+            "client.browser_recovered_reply_store.BrowserRecoveredReplyStore.ensure_current",
+            "client.browser_recovered_reply_store.BrowserRecoveredReplyStore.finish",
+            "client.browser_recovered_reply_store.BrowserRecoveredReplyStore.terminal",
+            "client.browser_recovered_reply_store.BrowserRecoveredReplyStored",
+            "client.browser_recovered_reply_store.BrowserRecoveredReplyStored.ensure_current"
+          ],
+          "conformance": false,
+          "evidence": [
+            "packages/openmates-rust/src/client/browser_recovered_reply_policy_tests.rs"
+          ],
+          "gaps": [
+            "Selected-reply native/Worker connector and Main metadata-only DATA remain partial; full transcript/artifacts, journal retirement, full/later-hint ACK and actual compiler/native/browser/cancel/performance acceptance unfinished or UNRUN"
+          ],
+          "status": "partial"
+        }
+      }
+    },
+    {
+      "description": "Default-OFF original Worker/Main metadata proof phases one freshly authenticated Personal saved code embed read outside Client waits, then consumes that same opaque read in the same Main/profile/native store CAS and independent rereads. Narrow acquisition/native terminals never imply Main retirement or full-hint ACK. Existing SDK defaults and public saved_embed remain held; all executable/native/browser/performance acceptance remains separate.",
+      "domain": "recovery",
+      "id": "browser.recovered-selected-code-embed-native.v1",
+      "languages": {
+        "npm": {
+          "api": [],
+          "conformance": false,
+          "evidence": [],
+          "gaps": [
+            "Direct npm selected-code Main native-store/phased browser read equivalent is not implemented; existing full-ID share is separate; compiler/native/browser/runtime/cancel/performance and full artifact/ACK parity remain OPEN"
+          ],
+          "status": "missing"
+        },
+        "python": {
+          "api": [],
+          "conformance": false,
+          "evidence": [],
+          "gaps": [
+            "Direct python selected-code Main native-store/phased browser read equivalent is not implemented; existing full-ID share is separate; compiler/native/browser/runtime/cancel/performance and full artifact/ACK parity remain OPEN"
+          ],
+          "status": "missing"
+        },
+        "rust": {
+          "api": [
+            "client.Client.prepare_owned_saved_embed_read",
+            "client.browser_main_code_embed_store.BoundInitialSyncStore.begin_main_code_embed_store",
+            "client.browser_main_code_embed_store.BrowserMainCodeEmbedControl",
+            "client.browser_main_code_embed_store.BrowserMainCodeEmbedControl.cancel",
+            "client.browser_main_code_embed_store.BrowserMainCodeEmbedControl.ensure_current",
+            "client.browser_main_code_embed_store.BrowserMainCodeEmbedNativeTerminal",
+            "client.browser_main_code_embed_store.BrowserMainCodeEmbedNativeTerminal.native_io_quiescent",
+            "client.browser_main_code_embed_store.BrowserMainCodeEmbedStore",
+            "client.browser_main_code_embed_store.BrowserMainCodeEmbedStore.cancel",
+            "client.browser_main_code_embed_store.BrowserMainCodeEmbedStore.control",
+            "client.browser_main_code_embed_store.BrowserMainCodeEmbedStore.drive",
+            "client.browser_main_code_embed_store.BrowserMainCodeEmbedStore.ensure_current",
+            "client.browser_main_code_embed_store.BrowserMainCodeEmbedStore.finish",
+            "client.browser_main_code_embed_store.BrowserMainCodeEmbedStore.terminal",
+            "client.browser_main_code_embed_store.BrowserMainCodeEmbedStored",
+            "client.browser_main_code_embed_store.BrowserMainCodeEmbedStored.ensure_current",
+            "client.saved_embed_owned.OwnedSavedEmbedReadApply",
+            "client.saved_embed_owned.OwnedSavedEmbedReadApply.apply",
+            "client.saved_embed_owned.OwnedSavedEmbedReadControl",
+            "client.saved_embed_owned.OwnedSavedEmbedReadControl.cancel",
+            "client.saved_embed_owned.OwnedSavedEmbedReadControl.ensure_current",
+            "client.saved_embed_owned.OwnedSavedEmbedReadControl.terminal",
+            "client.saved_embed_owned.OwnedSavedEmbedReadReady",
+            "client.saved_embed_owned.OwnedSavedEmbedReadReady.retain",
+            "client.saved_embed_owned.OwnedSavedEmbedReadStep",
+            "client.saved_embed_owned.OwnedSavedEmbedReadStep.Apply",
+            "client.saved_embed_owned.OwnedSavedEmbedReadStep.Ready",
+            "client.saved_embed_owned.OwnedSavedEmbedReadTerminal",
+            "client.saved_embed_owned.OwnedSavedEmbedReadTerminal.acquisition_io_quiescent",
+            "client.saved_embed_owned.PreparedOwnedSavedEmbedRead",
+            "client.saved_embed_owned.PreparedOwnedSavedEmbedRead.control",
+            "client.saved_embed_owned.PreparedOwnedSavedEmbedRead.next"
+          ],
+          "conformance": false,
+          "evidence": [],
+          "gaps": [
+            "Selected canonical Main-linked root code embed only; original journal retained, no output-completeness or full-hint ACK. Core acquisition/native-policy unit suites are authored UNRUN and not admitted matrix conformance evidence. Real browser original-bootstrap/Main/selected-ID/native CAS/transaction/reread fixtures, compile/runtime/cancel and CPU/RSS remain UNRUN; diff/child/checkpoint and whole-artifact discovery remain OPEN"
           ],
           "status": "partial"
         }

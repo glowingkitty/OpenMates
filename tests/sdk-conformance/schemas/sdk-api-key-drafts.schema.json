@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Read-only encrypted account draft record",
+  "type": "object",
+  "required": [
+    "chat_id",
+    "encrypted_draft_md",
+    "draft_v"
+  ],
+  "properties": {
+    "chat_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+    },
+    "encrypted_draft_md": {
+      "type": "string",
+      "minLength": 1
+    },
+    "encrypted_draft_preview": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "draft_v": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "additionalProperties": true
+}

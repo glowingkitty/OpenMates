@@ -1,0 +1,1001 @@
+{
+  "capabilities": {
+    "sdk.configuration": {
+      "schema_version": 1,
+      "capability": "sdk.configuration",
+      "status": "partial-authored-runtime-unrun",
+      "account": {
+        "owner_id": "11111111-1111-4111-8111-111111111111",
+        "session_id": "synthetic-direct-session",
+        "cookie": "synthetic-direct-cookie",
+        "master_key": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=",
+        "api_key": "sk-api-directFixture.localSetupSuffix",
+        "device_id": "synthetic-direct-device"
+      },
+      "request": {
+        "app": "web",
+        "skill": "search",
+        "input": {
+          "query": "synthetic direct fixture"
+        }
+      },
+      "sync_expected": {
+        "success": true,
+        "credits_charged": 1,
+        "data": {
+          "ordered": [
+            3,
+            1,
+            2
+          ],
+          "results": [
+            {
+              "title": "Synthetic direct result"
+            }
+          ]
+        }
+      },
+      "account_expected": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "username": "synthetic",
+        "credits": 17,
+        "language": "en",
+        "darkmode": true
+      },
+      "vectors": [
+        {
+          "id": "api_key-sync",
+          "mode": "sync",
+          "credential": "api_key",
+          "expected": {
+            "success": true,
+            "credits_charged": 1,
+            "data": {
+              "ordered": [
+                3,
+                1,
+                2
+              ],
+              "results": [
+                {
+                  "title": "Synthetic direct result"
+                }
+              ]
+            }
+          },
+          "expected_skill_posts": 1,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0
+        },
+        {
+          "id": "api_key-single_task",
+          "mode": "single_task",
+          "credential": "api_key",
+          "expected": {
+            "success": true,
+            "credits_charged": 1,
+            "data": {
+              "ordered": [
+                3,
+                1,
+                2
+              ],
+              "label": "single"
+            }
+          },
+          "expected_skill_posts": 1,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0
+        },
+        {
+          "id": "api_key-task_array_order",
+          "mode": "task_array_order",
+          "credential": "api_key",
+          "expected": {
+            "success": true,
+            "credits_charged": 2,
+            "data": {
+              "results": [
+                {
+                  "label": "A",
+                  "ordered": [
+                    3,
+                    1,
+                    2
+                  ]
+                },
+                {
+                  "label": "B",
+                  "ordered": [
+                    2,
+                    3,
+                    1
+                  ]
+                }
+              ]
+            }
+          },
+          "expected_skill_posts": 1,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0
+        },
+        {
+          "id": "api_key-file_no_download",
+          "mode": "file_no_download",
+          "credential": "api_key",
+          "expected": {
+            "success": true,
+            "credits_charged": 1,
+            "data": {
+              "file_url": "/v1/embeds/44444444-4444-4444-8444-444444444444/file",
+              "files": [
+                {
+                  "name": "synthetic.bin",
+                  "url": "https://files.example.invalid/private.bin"
+                }
+              ]
+            }
+          },
+          "expected_skill_posts": 1,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0
+        },
+        {
+          "id": "api_key-account",
+          "mode": "account",
+          "credential": "api_key",
+          "expected_skill_posts": 0,
+          "expected_account_reads": 1,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0,
+          "expected": {
+            "id": "11111111-1111-4111-8111-111111111111",
+            "username": "synthetic",
+            "credits": 17,
+            "language": "en",
+            "darkmode": true
+          }
+        },
+        {
+          "id": "api_key-account-auth-refusal",
+          "mode": "account_auth_refusal",
+          "credential": "api_key",
+          "expected_skill_posts": 0,
+          "expected_account_reads": 1,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0,
+          "expected_error": "forbidden"
+        },
+        {
+          "id": "api_key-failed-task-safe-error",
+          "mode": "failed_task",
+          "credential": "api_key",
+          "expected_skill_posts": 1,
+          "expected_account_reads": 0,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0,
+          "expected_error": "invalid_argument"
+        },
+        {
+          "id": "api_key-cancel-before-io",
+          "mode": "pre_cancel",
+          "credential": "api_key",
+          "expected_skill_posts": 0,
+          "expected_account_reads": 0,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0,
+          "wire_mode": "sync",
+          "expected_error": "cancelled"
+        },
+        {
+          "id": "api_key-queued-allocation-cancel",
+          "mode": "allocation_cancel",
+          "credential": "api_key",
+          "expected_skill_posts": 0,
+          "expected_account_reads": 1,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0,
+          "expected_error": "cancelled"
+        },
+        {
+          "id": "api_key-queued-allocation-close",
+          "mode": "allocation_close",
+          "credential": "api_key",
+          "expected_skill_posts": 0,
+          "expected_account_reads": 1,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0,
+          "expected_error": "cancelled"
+        },
+        {
+          "id": "api_key-stale-a-does-not-cancel-b",
+          "mode": "stale_successor",
+          "credential": "api_key",
+          "expected_skill_posts": 0,
+          "expected_account_reads": 2,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0,
+          "expected": {
+            "id": "11111111-1111-4111-8111-111111111111",
+            "username": "synthetic",
+            "credits": 17,
+            "language": "en",
+            "darkmode": true
+          }
+        },
+        {
+          "id": "api_key-held-post-cancel-no-replay",
+          "mode": "cancel_after_dispatch",
+          "credential": "api_key",
+          "expected_skill_posts": 1,
+          "expected_account_reads": 0,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0,
+          "expected_error": "cancelled"
+        },
+        {
+          "id": "api_key-routing-override-refused",
+          "mode": "routing_override",
+          "credential": "api_key",
+          "expected_skill_posts": 0,
+          "expected_account_reads": 0,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0,
+          "wire_mode": "sync",
+          "expected_error": "invalid_argument"
+        },
+        {
+          "id": "api_key-held-a-real-b-account-before-release",
+          "mode": "concurrent_account",
+          "wire_mode": "cancel_after_dispatch",
+          "credential": "api_key",
+          "expected": {
+            "id": "11111111-1111-4111-8111-111111111111",
+            "username": "synthetic",
+            "credits": 17,
+            "language": "en",
+            "darkmode": true
+          },
+          "expected_skill_posts": 1,
+          "expected_account_reads": 1,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0
+        },
+        {
+          "id": "api_key-parallel_tasks_success",
+          "mode": "parallel_tasks_success",
+          "credential": "api_key",
+          "expected_skill_posts": 1,
+          "expected_account_reads": 0,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0,
+          "original_task_ids": [
+            "task_a",
+            "task_b",
+            "task_c",
+            "task_d"
+          ],
+          "task_results": [
+            {
+              "label": "A",
+              "ordered": [
+                3,
+                1,
+                2
+              ]
+            },
+            {
+              "label": "B",
+              "ordered": [
+                3,
+                1,
+                2
+              ]
+            },
+            {
+              "label": "C",
+              "ordered": [
+                3,
+                1,
+                2
+              ]
+            },
+            {
+              "label": "D",
+              "ordered": [
+                3,
+                1,
+                2
+              ]
+            }
+          ],
+          "expected": {
+            "success": true,
+            "credits_charged": 4,
+            "data": {
+              "results": [
+                {
+                  "label": "A",
+                  "ordered": [
+                    3,
+                    1,
+                    2
+                  ]
+                },
+                {
+                  "label": "B",
+                  "ordered": [
+                    3,
+                    1,
+                    2
+                  ]
+                },
+                {
+                  "label": "C",
+                  "ordered": [
+                    3,
+                    1,
+                    2
+                  ]
+                },
+                {
+                  "label": "D",
+                  "ordered": [
+                    3,
+                    1,
+                    2
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "api_key-parallel_tasks_failure",
+          "mode": "parallel_tasks_failure",
+          "credential": "api_key",
+          "expected_skill_posts": 1,
+          "expected_account_reads": 0,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0,
+          "original_task_ids": [
+            "task_a",
+            "task_b",
+            "task_c",
+            "task_d"
+          ],
+          "task_results": [
+            {
+              "label": "A",
+              "ordered": [
+                3,
+                1,
+                2
+              ]
+            },
+            {
+              "label": "B",
+              "ordered": [
+                3,
+                1,
+                2
+              ]
+            },
+            {
+              "label": "C",
+              "ordered": [
+                3,
+                1,
+                2
+              ]
+            },
+            {
+              "label": "D",
+              "ordered": [
+                3,
+                1,
+                2
+              ]
+            }
+          ],
+          "expected_error": "invalid_argument"
+        },
+        {
+          "id": "api_key-task_ids_one_object",
+          "mode": "task_ids_one_object",
+          "credential": "api_key",
+          "expected_skill_posts": 1,
+          "expected_account_reads": 0,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0,
+          "original_task_ids": [
+            "task_one"
+          ],
+          "task_result": {
+            "label": "one",
+            "ordered": [
+              3,
+              1,
+              2
+            ]
+          },
+          "expected": {
+            "success": true,
+            "credits_charged": 1,
+            "data": {
+              "results": [
+                {
+                  "label": "one",
+                  "ordered": [
+                    3,
+                    1,
+                    2
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "api_key-task_ids_one_scalar",
+          "mode": "task_ids_one_scalar",
+          "credential": "api_key",
+          "expected_skill_posts": 1,
+          "expected_account_reads": 0,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0,
+          "original_task_ids": [
+            "task_one"
+          ],
+          "task_result": 7,
+          "expected": {
+            "success": true,
+            "credits_charged": 1,
+            "data": {
+              "results": [
+                7
+              ]
+            }
+          }
+        },
+        {
+          "id": "api_key-task_id_direct_object",
+          "mode": "task_id_direct_object",
+          "credential": "api_key",
+          "expected_skill_posts": 1,
+          "expected_account_reads": 0,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0,
+          "original_task_ids": [
+            "task_one"
+          ],
+          "task_result": {
+            "label": "one",
+            "ordered": [
+              3,
+              1,
+              2
+            ]
+          },
+          "expected": {
+            "success": true,
+            "credits_charged": 1,
+            "data": {
+              "label": "one",
+              "ordered": [
+                3,
+                1,
+                2
+              ]
+            }
+          }
+        },
+        {
+          "id": "api_key-task_id_direct_scalar",
+          "mode": "task_id_direct_scalar",
+          "credential": "api_key",
+          "expected_skill_posts": 1,
+          "expected_account_reads": 0,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0,
+          "original_task_ids": [
+            "task_one"
+          ],
+          "task_result": 7,
+          "expected": {
+            "success": true,
+            "credits_charged": 1,
+            "data": 7
+          }
+        },
+        {
+          "id": "api_key-parallel_code_success",
+          "mode": "parallel_code_success",
+          "credential": "api_key",
+          "expected_skill_posts": 1,
+          "expected_account_reads": 0,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0,
+          "request": {
+            "app": "code",
+            "skill": "run",
+            "input": {
+              "requests": [
+                {
+                  "mode": "direct",
+                  "entry_path": "main.py",
+                  "files": [
+                    {
+                      "path": "main.py",
+                      "content_base64": "cHJpbnQoJ3N5bnRoZXRpYyBjb2RlIGZpeHR1cmUnKQo=",
+                      "language": "python",
+                      "is_target": true
+                    }
+                  ],
+                  "enable_internet": false
+                },
+                {
+                  "mode": "direct",
+                  "entry_path": "main.py",
+                  "files": [
+                    {
+                      "path": "main.py",
+                      "content_base64": "cHJpbnQoJ3N5bnRoZXRpYyBjb2RlIGZpeHR1cmUnKQo=",
+                      "language": "python",
+                      "is_target": true
+                    }
+                  ],
+                  "enable_internet": false
+                },
+                {
+                  "mode": "direct",
+                  "entry_path": "main.py",
+                  "files": [
+                    {
+                      "path": "main.py",
+                      "content_base64": "cHJpbnQoJ3N5bnRoZXRpYyBjb2RlIGZpeHR1cmUnKQo=",
+                      "language": "python",
+                      "is_target": true
+                    }
+                  ],
+                  "enable_internet": false
+                },
+                {
+                  "mode": "direct",
+                  "entry_path": "main.py",
+                  "files": [
+                    {
+                      "path": "main.py",
+                      "content_base64": "cHJpbnQoJ3N5bnRoZXRpYyBjb2RlIGZpeHR1cmUnKQo=",
+                      "language": "python",
+                      "is_target": true
+                    }
+                  ],
+                  "enable_internet": false
+                }
+              ]
+            }
+          },
+          "original_code_ids": [
+            "run_a",
+            "run_b",
+            "run_c",
+            "run_d"
+          ],
+          "original_status_paths": [
+            "/v1/code/run/run_a",
+            "/v1/code/run/run_b",
+            "/v1/code/run/run_c",
+            "/v1/code/run/run_d"
+          ],
+          "code_results": [
+            {
+              "run_id": "run_a",
+              "status_path": "/v1/code/run/run_a",
+              "label": "A"
+            },
+            {
+              "run_id": "run_b",
+              "status_path": "/v1/code/run/run_b",
+              "label": "B"
+            },
+            {
+              "run_id": "run_c",
+              "status_path": "/v1/code/run/run_c",
+              "label": "C"
+            },
+            {
+              "run_id": "run_d",
+              "status_path": "/v1/code/run/run_d",
+              "label": "D"
+            }
+          ],
+          "code_statuses": [
+            {
+              "run_id": "run_a",
+              "status": "finished",
+              "exit_code": 0
+            },
+            {
+              "run_id": "run_b",
+              "status": "finished",
+              "exit_code": 0
+            },
+            {
+              "run_id": "run_c",
+              "status": "finished",
+              "exit_code": 0
+            },
+            {
+              "run_id": "run_d",
+              "status": "finished",
+              "exit_code": 0
+            }
+          ],
+          "expected": {
+            "success": true,
+            "credits_charged": 4,
+            "data": {
+              "batch": "code-fixture",
+              "results": [
+                {
+                  "run_id": "run_a",
+                  "status_path": "/v1/code/run/run_a",
+                  "label": "A",
+                  "final": {
+                    "run_id": "run_a",
+                    "status": "finished",
+                    "exit_code": 0
+                  }
+                },
+                {
+                  "run_id": "run_b",
+                  "status_path": "/v1/code/run/run_b",
+                  "label": "B",
+                  "final": {
+                    "run_id": "run_b",
+                    "status": "finished",
+                    "exit_code": 0
+                  }
+                },
+                {
+                  "run_id": "run_c",
+                  "status_path": "/v1/code/run/run_c",
+                  "label": "C",
+                  "final": {
+                    "run_id": "run_c",
+                    "status": "finished",
+                    "exit_code": 0
+                  }
+                },
+                {
+                  "run_id": "run_d",
+                  "status_path": "/v1/code/run/run_d",
+                  "label": "D",
+                  "final": {
+                    "run_id": "run_d",
+                    "status": "finished",
+                    "exit_code": 0
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "api_key-parallel_code_failed_status",
+          "mode": "parallel_code_failed_status",
+          "credential": "api_key",
+          "expected_skill_posts": 1,
+          "expected_account_reads": 0,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0,
+          "request": {
+            "app": "code",
+            "skill": "run",
+            "input": {
+              "requests": [
+                {
+                  "mode": "direct",
+                  "entry_path": "main.py",
+                  "files": [
+                    {
+                      "path": "main.py",
+                      "content_base64": "cHJpbnQoJ3N5bnRoZXRpYyBjb2RlIGZpeHR1cmUnKQo=",
+                      "language": "python",
+                      "is_target": true
+                    }
+                  ],
+                  "enable_internet": false
+                },
+                {
+                  "mode": "direct",
+                  "entry_path": "main.py",
+                  "files": [
+                    {
+                      "path": "main.py",
+                      "content_base64": "cHJpbnQoJ3N5bnRoZXRpYyBjb2RlIGZpeHR1cmUnKQo=",
+                      "language": "python",
+                      "is_target": true
+                    }
+                  ],
+                  "enable_internet": false
+                },
+                {
+                  "mode": "direct",
+                  "entry_path": "main.py",
+                  "files": [
+                    {
+                      "path": "main.py",
+                      "content_base64": "cHJpbnQoJ3N5bnRoZXRpYyBjb2RlIGZpeHR1cmUnKQo=",
+                      "language": "python",
+                      "is_target": true
+                    }
+                  ],
+                  "enable_internet": false
+                },
+                {
+                  "mode": "direct",
+                  "entry_path": "main.py",
+                  "files": [
+                    {
+                      "path": "main.py",
+                      "content_base64": "cHJpbnQoJ3N5bnRoZXRpYyBjb2RlIGZpeHR1cmUnKQo=",
+                      "language": "python",
+                      "is_target": true
+                    }
+                  ],
+                  "enable_internet": false
+                }
+              ]
+            }
+          },
+          "original_code_ids": [
+            "run_a",
+            "run_b",
+            "run_c",
+            "run_d"
+          ],
+          "original_status_paths": [
+            "/v1/code/run/run_a",
+            "/v1/code/run/run_b",
+            "/v1/code/run/run_c",
+            "/v1/code/run/run_d"
+          ],
+          "code_results": [
+            {
+              "run_id": "run_a",
+              "status_path": "/v1/code/run/run_a",
+              "label": "A"
+            },
+            {
+              "run_id": "run_b",
+              "status_path": "/v1/code/run/run_b",
+              "label": "B"
+            },
+            {
+              "run_id": "run_c",
+              "status_path": "/v1/code/run/run_c",
+              "label": "C"
+            },
+            {
+              "run_id": "run_d",
+              "status_path": "/v1/code/run/run_d",
+              "label": "D"
+            }
+          ],
+          "code_statuses": [
+            {
+              "run_id": "run_a",
+              "status": "finished",
+              "exit_code": 0
+            },
+            {
+              "run_id": "run_b",
+              "status": "failed",
+              "exit_code": 1
+            },
+            {
+              "run_id": "run_c",
+              "status": "finished",
+              "exit_code": 0
+            },
+            {
+              "run_id": "run_d",
+              "status": "finished",
+              "exit_code": 0
+            }
+          ],
+          "expected": {
+            "success": true,
+            "credits_charged": 4,
+            "data": {
+              "batch": "code-fixture",
+              "results": [
+                {
+                  "run_id": "run_a",
+                  "status_path": "/v1/code/run/run_a",
+                  "label": "A",
+                  "final": {
+                    "run_id": "run_a",
+                    "status": "finished",
+                    "exit_code": 0
+                  }
+                },
+                {
+                  "run_id": "run_b",
+                  "status_path": "/v1/code/run/run_b",
+                  "label": "B",
+                  "final": {
+                    "run_id": "run_b",
+                    "status": "failed",
+                    "exit_code": 1
+                  }
+                },
+                {
+                  "run_id": "run_c",
+                  "status_path": "/v1/code/run/run_c",
+                  "label": "C",
+                  "final": {
+                    "run_id": "run_c",
+                    "status": "finished",
+                    "exit_code": 0
+                  }
+                },
+                {
+                  "run_id": "run_d",
+                  "status_path": "/v1/code/run/run_d",
+                  "label": "D",
+                  "final": {
+                    "run_id": "run_d",
+                    "status": "finished",
+                    "exit_code": 0
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "api_key-parallel_code_http_failure",
+          "mode": "parallel_code_http_failure",
+          "credential": "api_key",
+          "expected_skill_posts": 1,
+          "expected_account_reads": 0,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0,
+          "request": {
+            "app": "code",
+            "skill": "run",
+            "input": {
+              "requests": [
+                {
+                  "mode": "direct",
+                  "entry_path": "main.py",
+                  "files": [
+                    {
+                      "path": "main.py",
+                      "content_base64": "cHJpbnQoJ3N5bnRoZXRpYyBjb2RlIGZpeHR1cmUnKQo=",
+                      "language": "python",
+                      "is_target": true
+                    }
+                  ],
+                  "enable_internet": false
+                },
+                {
+                  "mode": "direct",
+                  "entry_path": "main.py",
+                  "files": [
+                    {
+                      "path": "main.py",
+                      "content_base64": "cHJpbnQoJ3N5bnRoZXRpYyBjb2RlIGZpeHR1cmUnKQo=",
+                      "language": "python",
+                      "is_target": true
+                    }
+                  ],
+                  "enable_internet": false
+                },
+                {
+                  "mode": "direct",
+                  "entry_path": "main.py",
+                  "files": [
+                    {
+                      "path": "main.py",
+                      "content_base64": "cHJpbnQoJ3N5bnRoZXRpYyBjb2RlIGZpeHR1cmUnKQo=",
+                      "language": "python",
+                      "is_target": true
+                    }
+                  ],
+                  "enable_internet": false
+                },
+                {
+                  "mode": "direct",
+                  "entry_path": "main.py",
+                  "files": [
+                    {
+                      "path": "main.py",
+                      "content_base64": "cHJpbnQoJ3N5bnRoZXRpYyBjb2RlIGZpeHR1cmUnKQo=",
+                      "language": "python",
+                      "is_target": true
+                    }
+                  ],
+                  "enable_internet": false
+                }
+              ]
+            }
+          },
+          "original_code_ids": [
+            "run_a",
+            "run_b",
+            "run_c",
+            "run_d"
+          ],
+          "original_status_paths": [
+            "/v1/code/run/run_a",
+            "/v1/code/run/run_b",
+            "/v1/code/run/run_c",
+            "/v1/code/run/run_d"
+          ],
+          "code_results": [
+            {
+              "run_id": "run_a",
+              "status_path": "/v1/code/run/run_a",
+              "label": "A"
+            },
+            {
+              "run_id": "run_b",
+              "status_path": "/v1/code/run/run_b",
+              "label": "B"
+            },
+            {
+              "run_id": "run_c",
+              "status_path": "/v1/code/run/run_c",
+              "label": "C"
+            },
+            {
+              "run_id": "run_d",
+              "status_path": "/v1/code/run/run_d",
+              "label": "D"
+            }
+          ],
+          "code_statuses": [
+            {
+              "run_id": "run_a",
+              "status": "finished",
+              "exit_code": 0
+            },
+            {
+              "run_id": "run_b",
+              "status": "finished",
+              "exit_code": 0
+            },
+            {
+              "run_id": "run_c",
+              "status": "finished",
+              "exit_code": 0
+            },
+            {
+              "run_id": "run_d",
+              "status": "finished",
+              "exit_code": 0
+            }
+          ],
+          "expected_error": "forbidden"
+        }
+      ],
+      "required_oracles": [
+        "actual-Rust-OpenMates-not-Cookie",
+        "actual-three-native-adapters",
+        "explicit-bearer-no-setup-suffix-on-wire",
+        "no-CLI-home-auth",
+        "no-paid-replay",
+        "no-account-retention-or-file-download",
+        "queued-native-opaque-final-release",
+        "cancel-stale-A-does-not-cancel-B",
+        "failed-task-private-text-redacted"
+      ],
+      "inherited_app18_api_key_vectors": "exact four original vector objects, unchanged prefix",
+      "fixture_family": "api-key-foundation.v1"
+    }
+  }
+}

@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Native Client strict server-field writer cases",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "codec_fixture",
+    "cases",
+    "send_case"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "id": {
+      "const": "native.workspace.server-fields.v1"
+    },
+    "codec_fixture": {
+      "const": "server-field-codec.json"
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "uniqueItems": true,
+      "items": {
+        "oneOf": [
+          {
+            "const": {
+              "id": "tasks-personal",
+              "workspace": "Tasks",
+              "team": false,
+              "key_field": "encrypted_task_key",
+              "encrypted_fields": [
+                "encrypted_title",
+                "encrypted_description",
+                "encrypted_slug",
+                "encrypted_labels",
+                "encrypted_tags",
+                "encrypted_linked_project_ids"
+              ]
+            }
+          },
+          {
+            "const": {
+              "id": "tasks-team",
+              "workspace": "Tasks",
+              "team": true,
+              "key_field": "encrypted_task_key",
+              "encrypted_fields": [
+                "encrypted_title",
+                "encrypted_description",
+                "encrypted_slug",
+                "encrypted_labels",
+                "encrypted_tags",
+                "encrypted_linked_project_ids"
+              ]
+            }
+          },
+          {
+            "const": {
+              "id": "projects-personal",
+              "workspace": "Projects",
+              "team": false,
+              "key_field": "encrypted_project_key",
+              "encrypted_fields": [
+                "encrypted_name",
+                "encrypted_description",
+                "encrypted_slug",
+                "encrypted_settings"
+              ]
+            }
+          },
+          {
+            "const": {
+              "id": "projects-team",
+              "workspace": "Projects",
+              "team": true,
+              "key_field": "encrypted_project_key",
+              "encrypted_fields": [
+                "encrypted_name",
+                "encrypted_description",
+                "encrypted_slug",
+                "encrypted_settings"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "send_case": {
+      "const": {
+        "id": "draft-to-new-chat-wrapper",
+        "source_test": "client::send::tests::first_draft_turn_generates_an_independent_chat_key",
+        "field": "encrypted_chat_key",
+        "wire": "legacy-empty-aad",
+        "readers": [
+          "MetadataEncryptor.unwrapChatKey"
+        ]
+      }
+    }
+  }
+}

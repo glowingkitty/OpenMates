@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "capability": "session.embeds.saved-read.v1",
+  "stage": "proposal_private_unrun",
+  "credentials": "explicit Cookie/session plus native or opaque MasterCapability; no installed profile discovery",
+  "key_export": false,
+  "protocol": {
+    "request_event": "request_embed",
+    "request": {
+      "embed_id": "33333333-3333-4333-8333-333333333333"
+    },
+    "response_event": "send_embed_data",
+    "max_parent_chain": 8,
+    "max_wrappers_total": 1024,
+    "max_selected_wire_bytes": 16777216,
+    "owner_id": "11111111-1111-4111-8111-111111111111",
+    "source_chat_id": "22222222-2222-4222-8222-222222222222",
+    "requires": [
+      "same user_id",
+      "exact requested embed_id",
+      "already_encrypted=true",
+      "encryption_mode=client",
+      "finished or error status",
+      "complete key window",
+      "same source chat for used parent chain"
+    ]
+  },
+  "unsupported": [
+    "prefix",
+    "team",
+    "direct",
+    "local_profile",
+    "key_window_continuation"
+  ],
+  "vectors": [
+    {
+      "id": "exact-content",
+      "role": "synthetic",
+      "type": "code",
+      "content": {
+        "title": "Synthetic",
+        "text": "Exact [EMAIL_1]\nvalue"
+      },
+      "metadata": {
+        "createdAt": 12,
+        "is_private": true
+      },
+      "wire": {
+        "embed_id": "33333333-3333-4333-8333-333333333333",
+        "user_id": "11111111-1111-4111-8111-111111111111",
+        "already_encrypted": true,
+        "encryption_mode": "client",
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "status": "finished",
+        "parent_embed_id": null,
+        "type": "AQEBAQEBAQEBAQEBFY7t0iahJeS3RWJt000f3Dt+1x0=",
+        "content": "AgICAgICAgICAgICYZadbi+H0AUgctXOjPakH756C9hclF7Rvn7RczjUwxLhorbadrV92o/pwLvIgfZI3gdsJfX7qFE4i+9n28yHQP1wLqJS",
+        "embed_keys": [
+          {
+            "hashed_embed_id": "f6222a1106eefe4f6b25302a9d963cfaba14bedfefacc2c311967e41c61cffe4",
+            "hashed_user_id": "bd7662a5eeb41614e720d477abfcb2272e19a8a70a93b7e3bc8560d44ad326e9",
+            "key_type": "master",
+            "encrypted_embed_key": "AwMDAwMDAwMDAwMD1pPsdVK7bKvcpahy6z/V9b74xlaD+5Is+iTRHnHhq7/v1MpRVF7nXHkAZnHzY2+D"
+          }
+        ],
+        "embed_keys_has_more_after": false,
+        "oversized_embed_key_id": null,
+        "createdAt": 12,
+        "is_private": true
+      },
+      "synthetic_master_key_base64": "CQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQk=",
+      "wire_format": "base64(12-byte IV || AES-256-GCM ciphertext || 16-byte tag), empty AAD"
+    },
+    {
+      "id": "opaque-master-no-export",
+      "expect": "same decode as native, platform AES port invoked once"
+    },
+    {
+      "id": "stale-owner-key-operation-denial",
+      "expect": "sealed JSON release rejected"
+    },
+    {
+      "id": "foreign-owner-or-wrapper",
+      "expect": "fixed typed rejection, no plaintext"
+    },
+    {
+      "id": "parent-cycle-or-different-source",
+      "expect": "reject without cache writes"
+    },
+    {
+      "id": "partial-key-window",
+      "expect": "explicit unsupported; no hidden retry"
+    },
+    {
+      "id": "preexisting-negative-ledger-uncached-source",
+      "source_forms": [
+        "canonical_uuid",
+        "sha256"
+      ],
+      "denials": [
+        "source",
+        "global",
+        "overflow"
+      ],
+      "expect": "reject before decrypt and sealed release even with empty chat cache and valid master wrapper"
+    },
+    {
+      "id": "cached-direct-like-classification",
+      "rejected": [
+        "unknown_visibility",
+        "nonnull_participant_hashes",
+        "nonnull_participant_envelopes",
+        "nonnull_team_marker"
+      ],
+      "expect": "same fail-closed restriction as backend direct-like predicate"
+    }
+  ]
+}

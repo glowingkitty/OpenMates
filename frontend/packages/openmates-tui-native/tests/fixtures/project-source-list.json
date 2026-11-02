@@ -1,0 +1,209 @@
+{
+  "scope": "pure TS safeProjectSources/printProjectSources presentation oracle; synthetic decode only",
+  "cases": [
+    {
+      "id": "ordered-six-fields",
+      "project_id": "bbaaccdd-1111-4111-8111-aabbccddeeff",
+      "decoded_sources": [
+        {
+          "source_id": "remote-one",
+          "source_type": "remote_folder",
+          "encrypted_display_name": "cipher-one",
+          "encrypted_metadata": "metadata-never-decrypt",
+          "capabilities": [
+            "read",
+            "search"
+          ],
+          "status": "connected",
+          "ownership_label": "Attached by you",
+          "created_at": 1,
+          "host_device_id": "hidden-device",
+          "display_name": "Remote folder"
+        },
+        {
+          "source_id": "local-two",
+          "source_type": "local_folder",
+          "encrypted_display_name": "cipher-two",
+          "metadata": {
+            "binding_root": "/synthetic/private-root"
+          },
+          "capabilities": [
+            "read"
+          ],
+          "status": "permission_required",
+          "unknown_future": "never-output",
+          "display_name": "Local source"
+        }
+      ],
+      "expected": {
+        "project_id": "bbaaccdd-1111-4111-8111-aabbccddeeff",
+        "sources": [
+          {
+            "source_id": "remote-one",
+            "source_type": "remote_folder",
+            "display_name": "Remote folder",
+            "capabilities": [
+              "read",
+              "search"
+            ],
+            "status": "connected",
+            "ownership_label": "Attached by you"
+          },
+          {
+            "source_id": "local-two",
+            "source_type": "local_folder",
+            "display_name": "Local source",
+            "capabilities": [
+              "read"
+            ],
+            "status": "permission_required",
+            "ownership_label": null
+          }
+        ]
+      },
+      "text": "remote-one  Remote folder  connected\nlocal-two  Local source  permission_required\n"
+    },
+    {
+      "id": "nullish-defaults",
+      "project_id": "bbaaccdd-1111-4111-8111-aabbccddeeff",
+      "decoded_sources": [
+        {
+          "source_id": "missing-fields",
+          "source_type": "remote_folder",
+          "encrypted_metadata": "do-not-decrypt",
+          "display_name": ""
+        },
+        {
+          "source_id": "null-fields",
+          "source_type": "local_git_repository",
+          "encrypted_display_name": null,
+          "capabilities": null,
+          "status": null,
+          "ownership_label": null,
+          "display_name": ""
+        }
+      ],
+      "expected": {
+        "project_id": "bbaaccdd-1111-4111-8111-aabbccddeeff",
+        "sources": [
+          {
+            "source_id": "missing-fields",
+            "source_type": "remote_folder",
+            "display_name": "",
+            "capabilities": [],
+            "status": "offline",
+            "ownership_label": null
+          },
+          {
+            "source_id": "null-fields",
+            "source_type": "local_git_repository",
+            "display_name": "",
+            "capabilities": [],
+            "status": "offline",
+            "ownership_label": null
+          }
+        ]
+      },
+      "text": "missing-fields    offline\nnull-fields    offline\n"
+    },
+    {
+      "id": "empty-values-are-not-nullish",
+      "project_id": "bbaaccdd-1111-4111-8111-aabbccddeeff",
+      "decoded_sources": [
+        {
+          "source_id": "empty-values",
+          "source_type": "remote_git_repository",
+          "encrypted_display_name": "empty-cipher",
+          "capabilities": [],
+          "status": "",
+          "ownership_label": "",
+          "display_name": ""
+        }
+      ],
+      "expected": {
+        "project_id": "bbaaccdd-1111-4111-8111-aabbccddeeff",
+        "sources": [
+          {
+            "source_id": "empty-values",
+            "source_type": "remote_git_repository",
+            "display_name": "",
+            "capabilities": [],
+            "status": "",
+            "ownership_label": ""
+          }
+        ]
+      },
+      "text": "empty-values    \n"
+    },
+    {
+      "id": "permitted-json-values-use-original-string-presentation",
+      "project_id": "bbaaccdd-1111-4111-8111-aabbccddeeff",
+      "decoded_sources": [
+        {
+          "source_id": "nonstring-status",
+          "source_type": "remote_folder",
+          "encrypted_display_name": "cipher",
+          "capabilities": false,
+          "status": false,
+          "ownership_label": {
+            "label": "fixture only"
+          },
+          "display_name": "Example"
+        }
+      ],
+      "expected": {
+        "project_id": "bbaaccdd-1111-4111-8111-aabbccddeeff",
+        "sources": [
+          {
+            "source_id": "nonstring-status",
+            "source_type": "remote_folder",
+            "display_name": "Example",
+            "capabilities": false,
+            "status": false,
+            "ownership_label": {
+              "label": "fixture only"
+            }
+          }
+        ]
+      },
+      "text": "nonstring-status  Example  false\n"
+    },
+    {
+      "id": "missing-or-bad-name-is-empty",
+      "project_id": "bbaaccdd-1111-4111-8111-aabbccddeeff",
+      "decoded_sources": [
+        {
+          "source_id": "bad-name",
+          "source_type": "remote_folder",
+          "encrypted_display_name": "bad-cipher",
+          "encrypted_metadata": "invalid-but-irrelevant",
+          "display_name": ""
+        }
+      ],
+      "expected": {
+        "project_id": "bbaaccdd-1111-4111-8111-aabbccddeeff",
+        "sources": [
+          {
+            "source_id": "bad-name",
+            "source_type": "remote_folder",
+            "display_name": "",
+            "capabilities": [],
+            "status": "offline",
+            "ownership_label": null
+          }
+        ]
+      },
+      "text": "bad-name    offline\n"
+    },
+    {
+      "id": "empty-source-list",
+      "project_id": "bbaaccdd-1111-4111-8111-aabbccddeeff",
+      "decoded_sources": [],
+      "expected": {
+        "project_id": "bbaaccdd-1111-4111-8111-aabbccddeeff",
+        "sources": []
+      },
+      "text": "No Project sources.\n"
+    }
+  ]
+}

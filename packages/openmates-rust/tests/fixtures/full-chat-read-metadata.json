@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "synthetic": true,
+  "chatKeyHex": "0909090909090909090909090909090909090909090909090909090909090909",
+  "chat": {
+    "id": "22222222-2222-4222-8222-222222222222",
+    "title": "Synthetic full chat",
+    "category": "general_knowledge",
+    "messages": []
+  },
+  "vectors": [
+    {
+      "id": "authentic-exact-slug",
+      "encryptedSlug": "BQUFBQUFBQUFBQUFig/XNX/1Tyw0QTHTjgMcEjvZkkJWtugb9dwvLokdHAE=",
+      "expected": {
+        "id": "22222222-2222-4222-8222-222222222222",
+        "title": "Synthetic full chat",
+        "category": "general_knowledge",
+        "messages": [],
+        "slug": "Exact-Saved-Slug"
+      },
+      "present": true
+    },
+    {
+      "id": "authentic-empty-slug",
+      "encryptedSlug": "BQUFBQUFBQUFBQUFsmMvyDvVQ5HLV+TJ0xCfGA==",
+      "expected": {
+        "id": "22222222-2222-4222-8222-222222222222",
+        "title": "Synthetic full chat",
+        "category": "general_knowledge",
+        "messages": [],
+        "slug": ""
+      },
+      "present": true
+    },
+    {
+      "id": "missing-slug",
+      "encryptedSlug": null,
+      "expected": {
+        "id": "22222222-2222-4222-8222-222222222222",
+        "title": "Synthetic full chat",
+        "category": "general_knowledge",
+        "messages": []
+      },
+      "present": false
+    },
+    {
+      "id": "null-slug",
+      "encryptedSlug": null,
+      "expected": {
+        "id": "22222222-2222-4222-8222-222222222222",
+        "title": "Synthetic full chat",
+        "category": "general_knowledge",
+        "messages": []
+      },
+      "present": true
+    },
+    {
+      "id": "empty-ciphertext",
+      "encryptedSlug": "",
+      "expected": {
+        "id": "22222222-2222-4222-8222-222222222222",
+        "title": "Synthetic full chat",
+        "category": "general_knowledge",
+        "messages": []
+      },
+      "present": true
+    }
+  ]
+}

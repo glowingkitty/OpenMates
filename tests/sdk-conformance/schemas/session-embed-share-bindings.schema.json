@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "capabilities"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "capabilities": {
+      "type": "object",
+      "required": [
+        "session.embeds.admitted-share-url.v1"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "session.embeds.admitted-share-url.v1": {
+          "type": "object",
+          "required": [
+            "status",
+            "account",
+            "protocol",
+            "embed_id",
+            "key_hex",
+            "head",
+            "vectors"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "const": "partial-authored-unrun"
+            },
+            "account": {
+              "type": "object"
+            },
+            "protocol": {
+              "type": "object"
+            },
+            "embed_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "key_hex": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "head": {
+              "type": "object"
+            },
+            "vectors": {
+              "type": "array",
+              "minItems": 16,
+              "maxItems": 16,
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "expires",
+                  "password"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "expires": {
+                    "type": "integer",
+                    "minimum": -9223372036854775808,
+                    "maximum": 9223372036854775807
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "mode": {
+                    "enum": [
+                      "foreign-owner",
+                      "auth-owner-changed",
+                      "team-row",
+                      "direct-row",
+                      "truncated",
+                      "bad-tag",
+                      "wrong-key",
+                      "expired-wrapper",
+                      "ws-denied",
+                      "noauth",
+                      "policy-denied",
+                      "team",
+                      "paired-expired"
+                    ]
+                  },
+                  "error": {
+                    "enum": [
+                      "forbidden",
+                      "unavailable",
+                      "crypto",
+                      "conflict",
+                      "authentication",
+                      "expired"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,382 @@
+{
+  "schema_version": 1,
+  "provenance": "PRIVATE UNRUN synthetic exact facade wire/opaque-output contract; no live backend or published parity claim.",
+  "capabilities": {
+    "sdk.docs": {
+      "api_key": "sk-api-docsOwnerA.localSetupSuffix",
+      "device_id": "synthetic-docs-device",
+      "vectors": [
+        {
+          "id": "list-full-tree-extension-fields",
+          "operation": "list",
+          "query": null,
+          "slug": null,
+          "anonymous": false,
+          "http_status": 200,
+          "response": {
+            "folders": [
+              {
+                "path": "guide",
+                "title": "Guide",
+                "folders": [],
+                "files": [
+                  {
+                    "slug": "guide/start",
+                    "title": "Start",
+                    "filename": "start.md",
+                    "wordCount": 3
+                  }
+                ]
+              }
+            ],
+            "files": [],
+            "extension": {
+              "case": [
+                null,
+                false,
+                3
+              ]
+            }
+          },
+          "expected_request_count": 1,
+          "expected_error": null
+        },
+        {
+          "id": "search-unicode-query",
+          "operation": "search",
+          "query": "A & 界 é?#+%",
+          "slug": null,
+          "anonymous": false,
+          "http_status": 200,
+          "response": {
+            "results": [
+              {
+                "slug": "guide/start",
+                "snippet": "Unicode 界\nline2"
+              }
+            ],
+            "q": "A & 界 é?#+%",
+            "extra": false
+          },
+          "expected_request_count": 1,
+          "expected_error": null
+        },
+        {
+          "id": "search-empty-query",
+          "operation": "search",
+          "query": "",
+          "slug": null,
+          "anonymous": false,
+          "http_status": 200,
+          "response": {
+            "results": [
+              {
+                "slug": "guide/start",
+                "snippet": "Unicode 界\nline2"
+              }
+            ],
+            "q": "",
+            "extra": false
+          },
+          "expected_request_count": 1,
+          "expected_error": null
+        },
+        {
+          "id": "search-whitespace-query",
+          "operation": "search",
+          "query": "  ",
+          "slug": null,
+          "anonymous": false,
+          "http_status": 200,
+          "response": {
+            "results": [
+              {
+                "slug": "guide/start",
+                "snippet": "Unicode 界\nline2"
+              }
+            ],
+            "q": "  ",
+            "extra": false
+          },
+          "expected_request_count": 1,
+          "expected_error": null
+        },
+        {
+          "id": "search-long-server-owned-query",
+          "operation": "search",
+          "query": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "slug": null,
+          "anonymous": false,
+          "http_status": 200,
+          "response": {
+            "results": [
+              {
+                "slug": "guide/start",
+                "snippet": "Unicode 界\nline2"
+              }
+            ],
+            "q": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "extra": false
+          },
+          "expected_request_count": 1,
+          "expected_error": null
+        },
+        {
+          "id": "show-slash-space",
+          "operation": "show",
+          "query": null,
+          "slug": "guide/first page",
+          "anonymous": false,
+          "http_status": 200,
+          "response": {
+            "slug": "guide/first page",
+            "content": "# Synthetic\n\n界 é\n",
+            "filename": "opaque.md",
+            "unknown": {
+              "noUnwrap": true
+            }
+          },
+          "expected_request_count": 1,
+          "expected_error": null
+        },
+        {
+          "id": "show-reserved-unicode",
+          "operation": "show",
+          "query": null,
+          "slug": "guide/a!_()*'?#+%界",
+          "anonymous": false,
+          "http_status": 200,
+          "response": {
+            "slug": "guide/a!_()*'?#+%界",
+            "content": "# Synthetic\n\n界 é\n",
+            "filename": "opaque.md",
+            "unknown": {
+              "noUnwrap": true
+            }
+          },
+          "expected_request_count": 1,
+          "expected_error": null
+        },
+        {
+          "id": "download-slash-space",
+          "operation": "download",
+          "query": null,
+          "slug": "guide/first page",
+          "anonymous": false,
+          "http_status": 200,
+          "response": {
+            "slug": "guide/first page",
+            "content": "# Synthetic\n\n界 é\n",
+            "filename": "opaque.md",
+            "unknown": {
+              "noUnwrap": true
+            }
+          },
+          "expected_request_count": 1,
+          "expected_error": null
+        },
+        {
+          "id": "download-reserved-unicode",
+          "operation": "download",
+          "query": null,
+          "slug": "guide/a!_()*'?#+%界",
+          "anonymous": false,
+          "http_status": 200,
+          "response": {
+            "slug": "guide/a!_()*'?#+%界",
+            "content": "# Synthetic\n\n界 é\n",
+            "filename": "opaque.md",
+            "unknown": {
+              "noUnwrap": true
+            }
+          },
+          "expected_request_count": 1,
+          "expected_error": null
+        },
+        {
+          "id": "http-400",
+          "operation": "show",
+          "query": null,
+          "slug": "guide/start",
+          "anonymous": false,
+          "http_status": 400,
+          "response": {
+            "detail": "closed synthetic error"
+          },
+          "expected_request_count": 1,
+          "expected_error": "invalid"
+        },
+        {
+          "id": "http-401",
+          "operation": "show",
+          "query": null,
+          "slug": "guide/start",
+          "anonymous": false,
+          "http_status": 401,
+          "response": {
+            "detail": "closed synthetic error"
+          },
+          "expected_request_count": 1,
+          "expected_error": "authentication"
+        },
+        {
+          "id": "http-403",
+          "operation": "show",
+          "query": null,
+          "slug": "guide/start",
+          "anonymous": false,
+          "http_status": 403,
+          "response": {
+            "detail": "closed synthetic error"
+          },
+          "expected_request_count": 1,
+          "expected_error": "forbidden"
+        },
+        {
+          "id": "http-404",
+          "operation": "show",
+          "query": null,
+          "slug": "guide/start",
+          "anonymous": false,
+          "http_status": 404,
+          "response": {
+            "detail": "closed synthetic error"
+          },
+          "expected_request_count": 1,
+          "expected_error": "invalid"
+        },
+        {
+          "id": "http-409",
+          "operation": "show",
+          "query": null,
+          "slug": "guide/start",
+          "anonymous": false,
+          "http_status": 409,
+          "response": {
+            "detail": "closed synthetic error"
+          },
+          "expected_request_count": 1,
+          "expected_error": "conflict"
+        },
+        {
+          "id": "http-422",
+          "operation": "show",
+          "query": null,
+          "slug": "guide/start",
+          "anonymous": false,
+          "http_status": 422,
+          "response": {
+            "detail": "closed synthetic error"
+          },
+          "expected_request_count": 1,
+          "expected_error": "invalid"
+        },
+        {
+          "id": "http-429",
+          "operation": "show",
+          "query": null,
+          "slug": "guide/start",
+          "anonymous": false,
+          "http_status": 429,
+          "response": {
+            "detail": "closed synthetic error"
+          },
+          "expected_request_count": 1,
+          "expected_error": "offline"
+        },
+        {
+          "id": "http-500",
+          "operation": "show",
+          "query": null,
+          "slug": "guide/start",
+          "anonymous": false,
+          "http_status": 500,
+          "response": {
+            "detail": "closed synthetic error"
+          },
+          "expected_request_count": 1,
+          "expected_error": "offline"
+        },
+        {
+          "id": "opaque-success-array",
+          "operation": "list",
+          "query": null,
+          "slug": null,
+          "anonymous": false,
+          "http_status": 200,
+          "response": [
+            {
+              "anything": true
+            },
+            null
+          ],
+          "expected_request_count": 1,
+          "expected_error": null
+        },
+        {
+          "id": "opaque-success-null",
+          "operation": "list",
+          "query": null,
+          "slug": null,
+          "anonymous": false,
+          "http_status": 200,
+          "response": null,
+          "expected_request_count": 1,
+          "expected_error": null
+        },
+        {
+          "id": "anonymous-list",
+          "operation": "list",
+          "query": null,
+          "slug": null,
+          "anonymous": true,
+          "http_status": 200,
+          "response": {
+            "detail": "synthetic docs response"
+          },
+          "expected_request_count": 0,
+          "expected_error": "authentication"
+        },
+        {
+          "id": "anonymous-search",
+          "operation": "search",
+          "query": "query",
+          "slug": null,
+          "anonymous": true,
+          "http_status": 200,
+          "response": {
+            "detail": "synthetic docs response"
+          },
+          "expected_request_count": 0,
+          "expected_error": "authentication"
+        },
+        {
+          "id": "anonymous-show",
+          "operation": "show",
+          "query": null,
+          "slug": "guide/start",
+          "anonymous": true,
+          "http_status": 200,
+          "response": {
+            "detail": "synthetic docs response"
+          },
+          "expected_request_count": 0,
+          "expected_error": "authentication"
+        },
+        {
+          "id": "anonymous-download",
+          "operation": "download",
+          "query": null,
+          "slug": "guide/start",
+          "anonymous": true,
+          "http_status": 200,
+          "response": {
+            "detail": "synthetic docs response"
+          },
+          "expected_request_count": 0,
+          "expected_error": "authentication"
+        }
+      ]
+    }
+  }
+}

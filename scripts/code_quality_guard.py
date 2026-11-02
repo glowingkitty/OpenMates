@@ -142,6 +142,24 @@ def _is_compose_file(path: str) -> bool:
     return name.startswith("docker-compose") and Path(path).suffix in {".yml", ".yaml"}
 
 
+def _reviewed_compose_copies(staged_files: list[str]) -> set[str]:
+    """Return staged compose files byte-identical to a compose file tracked at HEAD.
+
+    Packaged assets (for example the self-host compose embedded in the Rust CLI)
+    copy an already-reviewed compose file; an exact copy adds no new exposure.
+    """
+    staged_compose = [path for path in staged_files if _is_compose_file(path)]
+    if not staged_compose:
+        return set()
+    tracked = _git(["ls-tree", "-r", "--name-only", "HEAD"], check=False).stdout.splitlines()
+    reviewed_texts = {
+        _git(["show", f"HEAD:{path}"], check=False).stdout
+        for path in tracked
+        if _is_compose_file(path)
+    }
+    return {path for path in staged_compose if _staged_file_text(path) in reviewed_texts}
+
+
 def _unsafe_compose_port_publish(line: str) -> str | None:
     stripped = line.strip()
     if not stripped.startswith("-"):
@@ -407,8 +425,11 @@ def main() -> int:
         blocks.append(f"chat plaintext directus guard: {issue}")
 
     added_lines = [(path, line) for path, _line_no, line in added_lines_with_numbers]
+    reviewed_compose_copies = _reviewed_compose_copies(staged_files)
     for path, line in added_lines:
         if _is_compose_file(path):
+            if path in reviewed_compose_copies:
+                continue
             reason = _unsafe_compose_port_publish(line)
             if reason:
                 blocks.append(

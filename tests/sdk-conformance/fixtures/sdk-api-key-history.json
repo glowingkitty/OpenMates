@@ -1,0 +1,755 @@
+{
+  "schema_version": 1,
+  "provenance": "PRIVATE UNRUN independent synthetic peer and actual public SDK adapters; no accounts/live backend/inference. Golden metadata and opaque refs are never decrypted.",
+  "capabilities": {
+    "sdk.history": {
+      "api_keys": {
+        "a": "sk-api-historyOwnerA.localSetupSuffix",
+        "b": "sk-api-historyOwnerB.localSetupSuffix"
+      },
+      "device_id": "synthetic-history-device",
+      "vectors": [
+        {
+          "id": "list-default-opaque-metadata",
+          "operation": "list",
+          "owner": "a",
+          "filters": {},
+          "change_set_id": null,
+          "http_status": 200,
+          "response": {
+            "change_sets": [
+              {
+                "change_set_id": "chg_ffffffffffffffffffffffffffffffff",
+                "hashed_user_id": "synthetic-owner-hash",
+                "source": "sdk",
+                "namespace": "workflow",
+                "status": "applied",
+                "redacted_summary": "Synthetic metadata only",
+                "created_at": 5,
+                "extra": {
+                  "CamelCase": [
+                    false,
+                    null,
+                    7
+                  ]
+                }
+              },
+              {
+                "change_set_id": "chg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "hashed_user_id": "synthetic-owner-hash",
+                "source": "sdk",
+                "namespace": "mixed",
+                "status": "applied",
+                "redacted_summary": "Synthetic metadata only",
+                "created_at": 10,
+                "extra": {
+                  "CamelCase": [
+                    false,
+                    null,
+                    7
+                  ]
+                }
+              }
+            ]
+          },
+          "expected": [
+            {
+              "change_set_id": "chg_ffffffffffffffffffffffffffffffff",
+              "hashed_user_id": "synthetic-owner-hash",
+              "source": "sdk",
+              "namespace": "workflow",
+              "status": "applied",
+              "redacted_summary": "Synthetic metadata only",
+              "created_at": 5,
+              "extra": {
+                "CamelCase": [
+                  false,
+                  null,
+                  7
+                ]
+              }
+            },
+            {
+              "change_set_id": "chg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "hashed_user_id": "synthetic-owner-hash",
+              "source": "sdk",
+              "namespace": "mixed",
+              "status": "applied",
+              "redacted_summary": "Synthetic metadata only",
+              "created_at": 10,
+              "extra": {
+                "CamelCase": [
+                  false,
+                  null,
+                  7
+                ]
+              }
+            }
+          ],
+          "expected_error": null,
+          "expected_query": {},
+          "expected_request_count": 1
+        },
+        {
+          "id": "list-missing-rows-is-empty",
+          "operation": "list",
+          "owner": "a",
+          "filters": {},
+          "change_set_id": null,
+          "http_status": 200,
+          "response": {},
+          "expected": [],
+          "expected_error": null,
+          "expected_query": {},
+          "expected_request_count": 1
+        },
+        {
+          "id": "list-explicit-filters-reserved-unicode",
+          "operation": "list",
+          "owner": "a",
+          "filters": {
+            "object_type": "task",
+            "object_id": "a /?#+%界",
+            "limit": 5
+          },
+          "change_set_id": null,
+          "http_status": 200,
+          "response": {
+            "change_sets": [
+              {
+                "change_set_id": "chg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "hashed_user_id": "synthetic-owner-hash",
+                "source": "sdk",
+                "namespace": "mixed",
+                "status": "applied",
+                "redacted_summary": "Synthetic metadata only",
+                "created_at": 10,
+                "extra": {
+                  "CamelCase": [
+                    false,
+                    null,
+                    7
+                  ]
+                }
+              }
+            ]
+          },
+          "expected": [
+            {
+              "change_set_id": "chg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "hashed_user_id": "synthetic-owner-hash",
+              "source": "sdk",
+              "namespace": "mixed",
+              "status": "applied",
+              "redacted_summary": "Synthetic metadata only",
+              "created_at": 10,
+              "extra": {
+                "CamelCase": [
+                  false,
+                  null,
+                  7
+                ]
+              }
+            }
+          ],
+          "expected_error": null,
+          "expected_query": {
+            "object_type": [
+              "task"
+            ],
+            "object_id": [
+              "a /?#+%界"
+            ],
+            "limit": [
+              "5"
+            ]
+          },
+          "expected_request_count": 1
+        },
+        {
+          "id": "list-zero-limit-server-owned",
+          "operation": "list",
+          "owner": "a",
+          "filters": {
+            "limit": 0
+          },
+          "change_set_id": null,
+          "http_status": 200,
+          "response": {
+            "change_sets": [
+              {
+                "change_set_id": "chg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "hashed_user_id": "synthetic-owner-hash",
+                "source": "sdk",
+                "namespace": "mixed",
+                "status": "applied",
+                "redacted_summary": "Synthetic metadata only",
+                "created_at": 10,
+                "extra": {
+                  "CamelCase": [
+                    false,
+                    null,
+                    7
+                  ]
+                }
+              }
+            ]
+          },
+          "expected": [
+            {
+              "change_set_id": "chg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "hashed_user_id": "synthetic-owner-hash",
+              "source": "sdk",
+              "namespace": "mixed",
+              "status": "applied",
+              "redacted_summary": "Synthetic metadata only",
+              "created_at": 10,
+              "extra": {
+                "CamelCase": [
+                  false,
+                  null,
+                  7
+                ]
+              }
+            }
+          ],
+          "expected_error": null,
+          "expected_query": {
+            "limit": [
+              "0"
+            ]
+          },
+          "expected_request_count": 1,
+          "npm_expected_query": {}
+        },
+        {
+          "id": "list-negative-limit-server-owned",
+          "operation": "list",
+          "owner": "a",
+          "filters": {
+            "limit": -2
+          },
+          "change_set_id": null,
+          "http_status": 200,
+          "response": {
+            "change_sets": [
+              {
+                "change_set_id": "chg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "hashed_user_id": "synthetic-owner-hash",
+                "source": "sdk",
+                "namespace": "mixed",
+                "status": "applied",
+                "redacted_summary": "Synthetic metadata only",
+                "created_at": 10,
+                "extra": {
+                  "CamelCase": [
+                    false,
+                    null,
+                    7
+                  ]
+                }
+              }
+            ]
+          },
+          "expected": [
+            {
+              "change_set_id": "chg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "hashed_user_id": "synthetic-owner-hash",
+              "source": "sdk",
+              "namespace": "mixed",
+              "status": "applied",
+              "redacted_summary": "Synthetic metadata only",
+              "created_at": 10,
+              "extra": {
+                "CamelCase": [
+                  false,
+                  null,
+                  7
+                ]
+              }
+            }
+          ],
+          "expected_error": null,
+          "expected_query": {
+            "limit": [
+              "-2"
+            ]
+          },
+          "expected_request_count": 1
+        },
+        {
+          "id": "list-large-limit-server-owned",
+          "operation": "list",
+          "owner": "a",
+          "filters": {
+            "limit": 1000
+          },
+          "change_set_id": null,
+          "http_status": 200,
+          "response": {
+            "change_sets": [
+              {
+                "change_set_id": "chg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "hashed_user_id": "synthetic-owner-hash",
+                "source": "sdk",
+                "namespace": "mixed",
+                "status": "applied",
+                "redacted_summary": "Synthetic metadata only",
+                "created_at": 10,
+                "extra": {
+                  "CamelCase": [
+                    false,
+                    null,
+                    7
+                  ]
+                }
+              }
+            ]
+          },
+          "expected": [
+            {
+              "change_set_id": "chg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "hashed_user_id": "synthetic-owner-hash",
+              "source": "sdk",
+              "namespace": "mixed",
+              "status": "applied",
+              "redacted_summary": "Synthetic metadata only",
+              "created_at": 10,
+              "extra": {
+                "CamelCase": [
+                  false,
+                  null,
+                  7
+                ]
+              }
+            }
+          ],
+          "expected_error": null,
+          "expected_query": {
+            "limit": [
+              "1000"
+            ]
+          },
+          "expected_request_count": 1
+        },
+        {
+          "id": "show-opaque-entry-and-extensions",
+          "operation": "show",
+          "owner": "a",
+          "filters": {},
+          "change_set_id": "chg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "http_status": 200,
+          "response": {
+            "change_set": {
+              "change_set_id": "chg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "hashed_user_id": "synthetic-owner-hash",
+              "source": "sdk",
+              "namespace": "mixed",
+              "status": "applied",
+              "redacted_summary": "Synthetic metadata only",
+              "created_at": 10,
+              "extra": {
+                "CamelCase": [
+                  false,
+                  null,
+                  7
+                ]
+              }
+            },
+            "entries": [
+              {
+                "entry_id": "che_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "object_type": "task",
+                "object_id": "synthetic-task",
+                "operation": "update",
+                "encrypted_before_ref": "opaque:before-ciphertext-not-decoded",
+                "encrypted_after_ref": "opaque:after-ciphertext-not-decoded",
+                "encrypted_patch_ref": null,
+                "workflow_version_before_id": null,
+                "extra": {
+                  "opaque": [
+                    1,
+                    false,
+                    null
+                  ]
+                }
+              }
+            ],
+            "unknown_extension": {
+              "keepExact": true
+            }
+          },
+          "expected": {
+            "change_set": {
+              "change_set_id": "chg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "hashed_user_id": "synthetic-owner-hash",
+              "source": "sdk",
+              "namespace": "mixed",
+              "status": "applied",
+              "redacted_summary": "Synthetic metadata only",
+              "created_at": 10,
+              "extra": {
+                "CamelCase": [
+                  false,
+                  null,
+                  7
+                ]
+              }
+            },
+            "entries": [
+              {
+                "entry_id": "che_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "object_type": "task",
+                "object_id": "synthetic-task",
+                "operation": "update",
+                "encrypted_before_ref": "opaque:before-ciphertext-not-decoded",
+                "encrypted_after_ref": "opaque:after-ciphertext-not-decoded",
+                "encrypted_patch_ref": null,
+                "workflow_version_before_id": null,
+                "extra": {
+                  "opaque": [
+                    1,
+                    false,
+                    null
+                  ]
+                }
+              }
+            ],
+            "unknown_extension": {
+              "keepExact": true
+            }
+          },
+          "expected_error": null,
+          "expected_query": {},
+          "expected_request_count": 1
+        },
+        {
+          "id": "show-segment-reserved-unicode",
+          "operation": "show",
+          "owner": "a",
+          "filters": {},
+          "change_set_id": "chg /?#+%界",
+          "http_status": 200,
+          "response": {
+            "change_set": {
+              "change_set_id": "chg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "hashed_user_id": "synthetic-owner-hash",
+              "source": "sdk",
+              "namespace": "mixed",
+              "status": "applied",
+              "redacted_summary": "Synthetic metadata only",
+              "created_at": 10,
+              "extra": {
+                "CamelCase": [
+                  false,
+                  null,
+                  7
+                ]
+              }
+            },
+            "entries": [
+              {
+                "entry_id": "che_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "object_type": "task",
+                "object_id": "synthetic-task",
+                "operation": "update",
+                "encrypted_before_ref": "opaque:before-ciphertext-not-decoded",
+                "encrypted_after_ref": "opaque:after-ciphertext-not-decoded",
+                "encrypted_patch_ref": null,
+                "workflow_version_before_id": null,
+                "extra": {
+                  "opaque": [
+                    1,
+                    false,
+                    null
+                  ]
+                }
+              }
+            ],
+            "unknown_extension": {
+              "keepExact": true
+            }
+          },
+          "expected": {
+            "change_set": {
+              "change_set_id": "chg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "hashed_user_id": "synthetic-owner-hash",
+              "source": "sdk",
+              "namespace": "mixed",
+              "status": "applied",
+              "redacted_summary": "Synthetic metadata only",
+              "created_at": 10,
+              "extra": {
+                "CamelCase": [
+                  false,
+                  null,
+                  7
+                ]
+              }
+            },
+            "entries": [
+              {
+                "entry_id": "che_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "object_type": "task",
+                "object_id": "synthetic-task",
+                "operation": "update",
+                "encrypted_before_ref": "opaque:before-ciphertext-not-decoded",
+                "encrypted_after_ref": "opaque:after-ciphertext-not-decoded",
+                "encrypted_patch_ref": null,
+                "workflow_version_before_id": null,
+                "extra": {
+                  "opaque": [
+                    1,
+                    false,
+                    null
+                  ]
+                }
+              }
+            ],
+            "unknown_extension": {
+              "keepExact": true
+            }
+          },
+          "expected_error": null,
+          "expected_query": {},
+          "expected_request_count": 1
+        },
+        {
+          "id": "undo-compensating-entry-once",
+          "operation": "undo",
+          "owner": "a",
+          "filters": {},
+          "change_set_id": "chg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "http_status": 200,
+          "response": {
+            "change_set": {
+              "change_set_id": "chg_cccccccccccccccccccccccccccccccc",
+              "hashed_user_id": "synthetic-owner-hash",
+              "source": "undo",
+              "namespace": "mixed",
+              "status": "applied",
+              "redacted_summary": "Synthetic metadata only",
+              "created_at": 10,
+              "extra": {
+                "CamelCase": [
+                  false,
+                  null,
+                  7
+                ]
+              }
+            },
+            "entries": [
+              {
+                "entry_id": "che_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "object_type": "task",
+                "object_id": "synthetic-task",
+                "operation": "restore",
+                "encrypted_before_ref": "opaque:before-ciphertext-not-decoded",
+                "encrypted_after_ref": "opaque:after-ciphertext-not-decoded",
+                "encrypted_patch_ref": null,
+                "workflow_version_before_id": null,
+                "extra": {
+                  "opaque": [
+                    1,
+                    false,
+                    null
+                  ]
+                }
+              }
+            ]
+          },
+          "expected": {
+            "change_set": {
+              "change_set_id": "chg_cccccccccccccccccccccccccccccccc",
+              "hashed_user_id": "synthetic-owner-hash",
+              "source": "undo",
+              "namespace": "mixed",
+              "status": "applied",
+              "redacted_summary": "Synthetic metadata only",
+              "created_at": 10,
+              "extra": {
+                "CamelCase": [
+                  false,
+                  null,
+                  7
+                ]
+              }
+            },
+            "entries": [
+              {
+                "entry_id": "che_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "object_type": "task",
+                "object_id": "synthetic-task",
+                "operation": "restore",
+                "encrypted_before_ref": "opaque:before-ciphertext-not-decoded",
+                "encrypted_after_ref": "opaque:after-ciphertext-not-decoded",
+                "encrypted_patch_ref": null,
+                "workflow_version_before_id": null,
+                "extra": {
+                  "opaque": [
+                    1,
+                    false,
+                    null
+                  ]
+                }
+              }
+            ]
+          },
+          "expected_error": null,
+          "expected_query": {},
+          "expected_request_count": 1
+        },
+        {
+          "id": "undo-http-400",
+          "operation": "undo",
+          "owner": "a",
+          "filters": {},
+          "change_set_id": "chg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "http_status": 400,
+          "response": {
+            "detail": "synthetic redacted failure"
+          },
+          "expected": null,
+          "expected_error": "invalid",
+          "expected_query": {},
+          "expected_request_count": 1
+        },
+        {
+          "id": "undo-http-401",
+          "operation": "undo",
+          "owner": "a",
+          "filters": {},
+          "change_set_id": "chg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "http_status": 401,
+          "response": {
+            "detail": "synthetic redacted failure"
+          },
+          "expected": null,
+          "expected_error": "authentication",
+          "expected_query": {},
+          "expected_request_count": 1
+        },
+        {
+          "id": "undo-http-403",
+          "operation": "undo",
+          "owner": "a",
+          "filters": {},
+          "change_set_id": "chg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "http_status": 403,
+          "response": {
+            "detail": "synthetic redacted failure"
+          },
+          "expected": null,
+          "expected_error": "forbidden",
+          "expected_query": {},
+          "expected_request_count": 1
+        },
+        {
+          "id": "undo-http-404",
+          "operation": "undo",
+          "owner": "a",
+          "filters": {},
+          "change_set_id": "chg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "http_status": 404,
+          "response": {
+            "detail": "synthetic redacted failure"
+          },
+          "expected": null,
+          "expected_error": "invalid",
+          "expected_query": {},
+          "expected_request_count": 1
+        },
+        {
+          "id": "undo-http-409",
+          "operation": "undo",
+          "owner": "a",
+          "filters": {},
+          "change_set_id": "chg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "http_status": 409,
+          "response": {
+            "detail": "synthetic redacted failure"
+          },
+          "expected": null,
+          "expected_error": "conflict",
+          "expected_query": {},
+          "expected_request_count": 1
+        },
+        {
+          "id": "undo-http-410",
+          "operation": "undo",
+          "owner": "a",
+          "filters": {},
+          "change_set_id": "chg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "http_status": 410,
+          "response": {
+            "detail": "synthetic redacted failure"
+          },
+          "expected": null,
+          "expected_error": "invalid",
+          "expected_query": {},
+          "expected_request_count": 1
+        },
+        {
+          "id": "undo-http-422",
+          "operation": "undo",
+          "owner": "a",
+          "filters": {},
+          "change_set_id": "chg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "http_status": 422,
+          "response": {
+            "detail": "synthetic redacted failure"
+          },
+          "expected": null,
+          "expected_error": "invalid",
+          "expected_query": {},
+          "expected_request_count": 1
+        },
+        {
+          "id": "undo-http-429",
+          "operation": "undo",
+          "owner": "a",
+          "filters": {},
+          "change_set_id": "chg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "http_status": 429,
+          "response": {
+            "detail": "synthetic redacted failure"
+          },
+          "expected": null,
+          "expected_error": "offline",
+          "expected_query": {},
+          "expected_request_count": 1
+        },
+        {
+          "id": "undo-http-500",
+          "operation": "undo",
+          "owner": "a",
+          "filters": {},
+          "change_set_id": "chg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "http_status": 500,
+          "response": {
+            "detail": "synthetic redacted failure"
+          },
+          "expected": null,
+          "expected_error": "offline",
+          "expected_query": {},
+          "expected_request_count": 1
+        },
+        {
+          "id": "show-other-owner-denied",
+          "operation": "show",
+          "owner": "b",
+          "filters": {},
+          "change_set_id": "chg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "http_status": 404,
+          "response": {
+            "detail": "Workspace change set not found"
+          },
+          "expected": null,
+          "expected_error": "invalid",
+          "expected_query": {},
+          "expected_request_count": 1
+        }
+      ]
+    }
+  }
+}

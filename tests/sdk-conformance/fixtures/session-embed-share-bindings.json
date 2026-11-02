@@ -1,0 +1,150 @@
+{
+  "schema_version": 1,
+  "capabilities": {
+    "session.embeds.admitted-share-url.v1": {
+      "status": "partial-authored-unrun",
+      "account": {
+        "cookie": "synthetic-cookie",
+        "session_id": "synthetic-session",
+        "master_key": "CQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQk=",
+        "owner_id": "11111111-1111-4111-8111-111111111111",
+        "hashed_email": "synthetic-owner"
+      },
+      "protocol": {
+        "app_origin": "http://localhost:5173",
+        "team_id": "44444444-4444-4444-8444-444444444444"
+      },
+      "embed_id": "33333333-3333-4333-8333-333333333333",
+      "key_hex": "0707070707070707070707070707070707070707070707070707070707070707",
+      "head": {
+        "embed_id": "33333333-3333-4333-8333-333333333333",
+        "user_id": "11111111-1111-4111-8111-111111111111",
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "already_encrypted": true,
+        "encryption_mode": "client",
+        "status": "finished",
+        "parent_embed_id": null,
+        "type": "FRUVFRUVFRUVFRUVir2yI4ihrfF8cSLNSvavwnlS7ng=",
+        "content": "FhYWFhYWFhYWFhYW6MbKjuHqojUQ/n66Vcz0Z5G4rQg6SeVHKPF9o/0CF6ET6yPJ7M9tQijr9xJQIH8tycHiIz0a/RzNRUbFeXY=",
+        "embed_keys": [
+          {
+            "hashed_embed_id": "f6222a1106eefe4f6b25302a9d963cfaba14bedfefacc2c311967e41c61cffe4",
+            "hashed_user_id": "bd7662a5eeb41614e720d477abfcb2272e19a8a70a93b7e3bc8560d44ad326e9",
+            "key_type": "master",
+            "encrypted_embed_key": "FxcXFxcXFxcXFxcXtMdHx/curDEFp7Xesf/vlMSzw07DPP+iMi+GKT1klwDlM+tl3lpKyX1qwf7BCITo"
+          }
+        ],
+        "embed_keys_has_more_after": false,
+        "oversized_embed_key_id": null
+      },
+      "vectors": [
+        {
+          "id": "no-expiry",
+          "expires": 0,
+          "password": ""
+        },
+        {
+          "id": "signed-sdk-duration",
+          "expires": -7,
+          "password": ""
+        },
+        {
+          "id": "password-sdk-not-cli-policy",
+          "expires": 3600,
+          "password": "synthetic-long-password"
+        },
+        {
+          "id": "foreign-owner",
+          "expires": 0,
+          "password": "",
+          "mode": "foreign-owner",
+          "error": "forbidden"
+        },
+        {
+          "id": "auth-owner-changed",
+          "expires": 0,
+          "password": "",
+          "mode": "auth-owner-changed",
+          "error": "forbidden"
+        },
+        {
+          "id": "team-row",
+          "expires": 0,
+          "password": "",
+          "mode": "team-row",
+          "error": "forbidden"
+        },
+        {
+          "id": "direct-row",
+          "expires": 0,
+          "password": "",
+          "mode": "direct-row",
+          "error": "forbidden"
+        },
+        {
+          "id": "truncated",
+          "expires": 0,
+          "password": "",
+          "mode": "truncated",
+          "error": "unavailable"
+        },
+        {
+          "id": "bad-tag",
+          "expires": 0,
+          "password": "",
+          "mode": "bad-tag",
+          "error": "crypto"
+        },
+        {
+          "id": "wrong-key",
+          "expires": 0,
+          "password": "",
+          "mode": "wrong-key",
+          "error": "forbidden"
+        },
+        {
+          "id": "expired-wrapper",
+          "expires": 0,
+          "password": "",
+          "mode": "expired-wrapper",
+          "error": "conflict"
+        },
+        {
+          "id": "ws-denied",
+          "expires": 0,
+          "password": "",
+          "mode": "ws-denied",
+          "error": "forbidden"
+        },
+        {
+          "id": "noauth",
+          "expires": 0,
+          "password": "",
+          "mode": "noauth",
+          "error": "authentication"
+        },
+        {
+          "id": "policy-denied",
+          "expires": 0,
+          "password": "",
+          "mode": "policy-denied",
+          "error": "forbidden"
+        },
+        {
+          "id": "team",
+          "expires": 0,
+          "password": "",
+          "mode": "team",
+          "error": "unavailable"
+        },
+        {
+          "id": "paired-expired",
+          "expires": 0,
+          "password": "",
+          "mode": "paired-expired",
+          "error": "expired"
+        }
+      ]
+    }
+  }
+}

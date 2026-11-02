@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "provenance": "Public synthetic AES-GCM vectors generated independently with existing Python cryptography. New server writes legacy IV12+ct+tag128; exact activityAAD retained. Old native framed reads remain authenticated; no generic native/vault format change.",
+  "vectors": [
+    {
+      "id": "legacy-text",
+      "key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "plaintext_b64": "U3ludGhldGljIGZpZWxkIOKckw==",
+      "aad": "",
+      "wire": "legacy",
+      "iv_b64": "AAECAwQFBgcICQoL",
+      "ciphertext_b64": "AAECAwQFBgcICQoLFHu4b62AtnLuYfHi1IUcTWFKFCfOosE2nQjs3Hmt873nr+A=",
+      "ciphertext_sha256": "b9f894b36cee4b53c6b02ebc7ee069412daa1ccc57aa33978fcce4e37004d40d"
+    },
+    {
+      "id": "native-old-text",
+      "key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "plaintext_b64": "U3ludGhldGljIGZpZWxkIOKckw==",
+      "aad": "",
+      "wire": "om-fnv",
+      "iv_b64": "AAECAwQFBgcICQoL",
+      "ciphertext_b64": "T00JE61lAAECAwQFBgcICQoLFHu4b62AtnLuYfHi1IUcTWFKFCfOosE2nQjs3Hmt873nr+A=",
+      "ciphertext_sha256": "70009f678b0311d366d608c82a8ea2abf0a8944136da4de5a1e0ac4bdbf5597f"
+    },
+    {
+      "id": "python-old-text",
+      "key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "plaintext_b64": "U3ludGhldGljIGZpZWxkIOKckw==",
+      "aad": "",
+      "wire": "om-python",
+      "iv_b64": "AAECAwQFBgcICQoL",
+      "ciphertext_b64": "T00BAAAAAAECAwQFBgcICQoLFHu4b62AtnLuYfHi1IUcTWFKFCfOosE2nQjs3Hmt873nr+A=",
+      "ciphertext_sha256": "608a14b20e1875f16af84da9ae5bdec9924cc02f9dc14e40825ad1bd000e3f2d"
+    },
+    {
+      "id": "legacy-key-wrapper",
+      "key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "plaintext_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "aad": "",
+      "wire": "legacy",
+      "iv_b64": "AAECAwQFBgcICQoL",
+      "ciphertext_b64": "AAECAwQFBgcICQoLRwPUGMHgxByFSJ2AveR2YpPHlSfkbklrIH7/ngF0Hq1e3dxQdAROIoK0MrPy2PZz",
+      "ciphertext_sha256": "6de868d6a65c695a81c4fb89120a3ffd65cf79f790c132d492da37ef6643106c"
+    },
+    {
+      "id": "legacy-activity-comment",
+      "key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "plaintext_b64": "U3ludGhldGljIGFjdGl2aXR5",
+      "aad": "task_activity_comment:11111111-1111-4111-8111-111111111111:22222222-2222-4222-8222-222222222222:v1",
+      "wire": "legacy",
+      "iv_b64": "AAECAwQFBgcICQoL",
+      "ciphertext_b64": "AAECAwQFBgcICQoLFHu4b62AtnLuYfboxYAOBPevwRTOui6ImeE8LKA8Gq0UQA==",
+      "ciphertext_sha256": "3ec9b25d4e0d2e170e6296a7e97dfbdca27fb5588b82ca797f90a9d5c826bdd2"
+    },
+    {
+      "id": "native-old-activity",
+      "key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "plaintext_b64": "U3ludGhldGljIGFjdGl2aXR5",
+      "aad": "task_activity_comment:11111111-1111-4111-8111-111111111111:22222222-2222-4222-8222-222222222222:v1",
+      "wire": "om-fnv",
+      "iv_b64": "AAECAwQFBgcICQoL",
+      "ciphertext_b64": "T00JE61lAAECAwQFBgcICQoLFHu4b62AtnLuYfboxYAOBPevwRTOui6ImeE8LKA8Gq0UQA==",
+      "ciphertext_sha256": "4b66c34bd3c2eaa82d3882da8271e83f84f5f194fdc9a7fe070a32427450e911"
+    },
+    {
+      "id": "legacy-activity-material",
+      "key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "plaintext_b64": "eyJlbWJlZCI6InN5bnRoZXRpYyJ9",
+      "aad": "task_activity_embed_keys:11111111-1111-4111-8111-111111111111:22222222-2222-4222-8222-222222222222:v1",
+      "wire": "legacy",
+      "iv_b64": "AAECAwQFBgcICQoL",
+      "ciphertext_b64": "AAECAwQFBgcICQoLPCCzdqeApjm3Y+Ty350QCPe/5BaNYBWE9DOE8oOlOGQc+Vi4xw==",
+      "ciphertext_sha256": "a0649499a28b3681b810008937f0e70172247d46430aeaf015a57d9e6ece5b47"
+    },
+    {
+      "id": "legacy-om-iv-aad",
+      "key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "plaintext_b64": "QXV0aGVudGljYXRlZCBsZWdhY3kgT00gbm9uY2U=",
+      "aad": "task_activity_comment:task:entry:v1",
+      "wire": "legacy",
+      "iv_b64": "T00JE61lAAECAwQF",
+      "ciphertext_b64": "T00JE61lAAECAwQF0rRYQPqXLoUlXKGh//8ywZsdndFO45L6bhDR9A2by8/A/MAdSTJRLlOdL3BD",
+      "ciphertext_sha256": "5e55e1b7f7143c844bda08d5955032c141823b774bad4ad507036d2f249f8ed1"
+    }
+  ]
+}

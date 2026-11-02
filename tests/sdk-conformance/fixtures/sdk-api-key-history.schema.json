@@ -1,0 +1,171 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "provenance": {
+      "type": "string"
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sdk.history": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "api_keys": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "a": {
+                  "type": "string"
+                },
+                "b": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "a",
+                "b"
+              ]
+            },
+            "device_id": {
+              "const": "synthetic-history-device"
+            },
+            "vectors": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 32,
+              "items": {
+                "$ref": "#/$defs/vector"
+              }
+            }
+          },
+          "required": [
+            "api_keys",
+            "device_id",
+            "vectors"
+          ]
+        }
+      },
+      "required": [
+        "sdk.history"
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "provenance",
+    "capabilities"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openmates.org/schemas/sdk-api-key-history-fixture.v1.json",
+  "$defs": {
+    "query": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "vector": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$"
+        },
+        "operation": {
+          "enum": [
+            "list",
+            "show",
+            "undo"
+          ]
+        },
+        "owner": {
+          "enum": [
+            "a",
+            "b"
+          ]
+        },
+        "filters": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "object_type": {
+              "type": "string"
+            },
+            "object_id": {
+              "type": "string"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": -9223372036854775808,
+              "maximum": 9223372036854775807
+            }
+          },
+          "required": []
+        },
+        "change_set_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "http_status": {
+          "type": "integer",
+          "minimum": 200,
+          "maximum": 599
+        },
+        "response": {
+          "type": "object"
+        },
+        "expected": {
+          "type": [
+            "array",
+            "object",
+            "null"
+          ]
+        },
+        "expected_error": {
+          "enum": [
+            null,
+            "invalid",
+            "authentication",
+            "forbidden",
+            "conflict",
+            "offline"
+          ]
+        },
+        "expected_query": {
+          "$ref": "#/$defs/query"
+        },
+        "npm_expected_query": {
+          "$ref": "#/$defs/query"
+        },
+        "expected_request_count": {
+          "const": 1
+        }
+      },
+      "required": [
+        "id",
+        "operation",
+        "owner",
+        "filters",
+        "change_set_id",
+        "http_status",
+        "response",
+        "expected",
+        "expected_error",
+        "expected_query",
+        "expected_request_count"
+      ]
+    }
+  }
+}

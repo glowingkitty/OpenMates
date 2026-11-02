@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "capability",
+    "registration",
+    "request",
+    "retry",
+    "cases"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "capability": {
+      "const": "session.settings-reminders-read"
+    },
+    "registration": {
+      "const": "prerequisite-only-not-public"
+    },
+    "request": {
+      "const": {
+        "method": "GET",
+        "path": "/v1/settings/reminders",
+        "query": null,
+        "body": null,
+        "team_header": false
+      }
+    },
+    "retry": {
+      "const": {
+        "only_status": 429,
+        "max_retries": 1,
+        "delay_ms": 61000
+      }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 28,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "session",
+          "responses",
+          "expected"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "session": {
+            "type": "boolean"
+          },
+          "responses": {
+            "type": "array",
+            "maxItems": 2,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "status",
+                "body",
+                "headers"
+              ],
+              "properties": {
+                "status": {
+                  "type": "integer",
+                  "minimum": 200,
+                  "maximum": 599
+                },
+                "body": {
+                  "type": "string"
+                },
+                "headers": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ],
+                    "minItems": 2,
+                    "maxItems": 2
+                  }
+                }
+              }
+            }
+          },
+          "expected": {
+            "type": "object",
+            "required": [
+              "ok",
+              "requests",
+              "wait_ms"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "requests": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2
+              },
+              "wait_ms": {
+                "type": "array",
+                "items": {
+                  "const": 61000
+                },
+                "maxItems": 1
+              },
+              "value": {},
+              "error": {
+                "enum": [
+                  "Protocol",
+                  "Expired",
+                  "Forbidden",
+                  "Offline",
+                  "Authentication",
+                  "Cancelled",
+                  "Unavailable"
+                ]
+              },
+              "http_status": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "root_keys": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "uniqueItems": true
+              },
+              "serialized_json": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          },
+          "action": {
+            "enum": [
+              "truncate_body",
+              "cancel_body",
+              "cancel_retry"
+            ]
+          }
+        }
+      },
+      "maxItems": 28
+    }
+  }
+}

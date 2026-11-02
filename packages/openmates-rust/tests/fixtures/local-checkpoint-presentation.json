@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "provenance": "Public synthetic companion to browser-idb-local-window.json; no private account or execution evidence.",
+  "policy": {
+    "max_input_checkpoints": 128,
+    "max_packet_bytes": 262144,
+    "frame_reserve_bytes": 8192,
+    "selection": "created_at descending, physical id ascending tie",
+    "coverage": "retained_latest only, not complete inventory",
+    "pii": "stored literal; no message mappings"
+  },
+  "cases": [
+    {
+      "id": "real_ciphertext",
+      "expected": {
+        "source": "local_profile",
+        "coverage": "retained_latest",
+        "historyComplete": false,
+        "piiRestoration": "stored",
+        "retainedCheckpointCount": 2,
+        "checkpoint": {
+          "id": "20000000-0000-4000-8000-000000000002",
+          "chatId": "22222222-2222-4222-8222-222222222222",
+          "createdAt": 201,
+          "compressedUpToTimestamp": 110,
+          "compressedMessageCount": 22,
+          "summaryState": "loaded",
+          "summary": "Latest synthetic summary",
+          "summaryUnavailableReason": null
+        }
+      }
+    },
+    {
+      "id": "clear_literal",
+      "expected": {
+        "source": "local_profile",
+        "coverage": "retained_latest",
+        "historyComplete": false,
+        "piiRestoration": "stored",
+        "retainedCheckpointCount": 2,
+        "checkpoint": {
+          "id": "20000000-0000-4000-8000-000000000002",
+          "chatId": "22222222-2222-4222-8222-222222222222",
+          "createdAt": 201,
+          "compressedUpToTimestamp": 110,
+          "compressedMessageCount": 22,
+          "summaryState": "loaded",
+          "summary": "Stored [PERSON_1] literal",
+          "summaryUnavailableReason": null
+        }
+      }
+    },
+    {
+      "id": "missing",
+      "expected": {
+        "source": "local_profile",
+        "coverage": "retained_latest",
+        "historyComplete": false,
+        "piiRestoration": "stored",
+        "retainedCheckpointCount": 2,
+        "checkpoint": {
+          "id": "20000000-0000-4000-8000-000000000002",
+          "chatId": "22222222-2222-4222-8222-222222222222",
+          "createdAt": 201,
+          "compressedUpToTimestamp": 110,
+          "compressedMessageCount": 22,
+          "summaryState": "missing",
+          "summary": null,
+          "summaryUnavailableReason": null
+        }
+      }
+    },
+    {
+      "id": "corrupt",
+      "expected": {
+        "source": "local_profile",
+        "coverage": "retained_latest",
+        "historyComplete": false,
+        "piiRestoration": "stored",
+        "retainedCheckpointCount": 2,
+        "checkpoint": {
+          "id": "20000000-0000-4000-8000-000000000002",
+          "chatId": "22222222-2222-4222-8222-222222222222",
+          "createdAt": 201,
+          "compressedUpToTimestamp": 110,
+          "compressedMessageCount": 22,
+          "summaryState": "unavailable",
+          "summary": null,
+          "summaryUnavailableReason": "corrupt"
+        }
+      }
+    },
+    {
+      "id": "budget",
+      "expected": {
+        "source": "local_profile",
+        "coverage": "retained_latest",
+        "historyComplete": false,
+        "piiRestoration": "stored",
+        "retainedCheckpointCount": 2,
+        "checkpoint": {
+          "id": "20000000-0000-4000-8000-000000000002",
+          "chatId": "22222222-2222-4222-8222-222222222222",
+          "createdAt": 201,
+          "compressedUpToTimestamp": 110,
+          "compressedMessageCount": 22,
+          "summaryState": "not_loaded",
+          "summary": null,
+          "summaryUnavailableReason": null
+        }
+      }
+    },
+    {
+      "id": "exact_oversized",
+      "expected": {
+        "source": "local_profile",
+        "coverage": "retained_latest",
+        "historyComplete": false,
+        "piiRestoration": "stored",
+        "retainedCheckpointCount": 2,
+        "checkpoint": {
+          "id": "20000000-0000-4000-8000-000000000002",
+          "chatId": "22222222-2222-4222-8222-222222222222",
+          "createdAt": 201,
+          "compressedUpToTimestamp": 110,
+          "compressedMessageCount": 22,
+          "summaryState": "unavailable",
+          "summary": null,
+          "summaryUnavailableReason": "oversized"
+        }
+      }
+    }
+  ]
+}

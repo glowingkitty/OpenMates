@@ -1,0 +1,197 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "session-cache-settlement.schema.json",
+  "title": "Private direct session cache settlement DTOs; not durability authority",
+  "$defs": {
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "api_url",
+        "account_id",
+        "team_id"
+      ],
+      "properties": {
+        "api_url": {
+          "type": "string"
+        },
+        "account_id": {
+          "type": "string"
+        },
+        "team_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ciphertext_sha256",
+        "credential_revision"
+      ],
+      "properties": {
+        "ciphertext_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "credential_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "source",
+        "scope",
+        "checkpoint_json",
+        "ciphertext_sha256",
+        "credential_revision",
+        "credentials_json"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "canonical",
+            "cache_settled",
+            "cached_offline"
+          ]
+        },
+        "scope": {
+          "$ref": "#/$defs/scope"
+        },
+        "checkpoint_json": {
+          "type": "string",
+          "description": "Exact opaque UTF8 bytes. Never parse and reserialize for persistence."
+        },
+        "ciphertext_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "credential_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "credentials_json": {
+          "type": "string",
+          "description": "Exact opaque secret UTF8 bytes, explicit caller-owned persistence only."
+        }
+      }
+    },
+    "publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "chat",
+        "cached",
+        "refreshing",
+        "history_complete",
+        "has_more_before",
+        "pii_restoration"
+      ],
+      "properties": {
+        "source": {
+          "enum": [
+            "canonical",
+            "cache_settled",
+            "cached_offline"
+          ]
+        },
+        "chat": {
+          "type": "object"
+        },
+        "cached": {
+          "type": "boolean"
+        },
+        "refreshing": {
+          "const": false
+        },
+        "history_complete": {
+          "type": "boolean"
+        },
+        "has_more_before": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "pii_restoration": {
+          "enum": [
+            "all_user_rows",
+            "all_cached_user_rows",
+            "page_local"
+          ]
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "source": {
+              "const": "canonical"
+            },
+            "cached": {
+              "const": false
+            },
+            "history_complete": {
+              "const": true
+            },
+            "has_more_before": {
+              "const": false
+            },
+            "pii_restoration": {
+              "const": "all_user_rows"
+            }
+          }
+        },
+        {
+          "properties": {
+            "source": {
+              "const": "cache_settled"
+            },
+            "cached": {
+              "const": true
+            },
+            "history_complete": {
+              "const": false
+            },
+            "has_more_before": {
+              "const": null
+            },
+            "pii_restoration": {
+              "const": "all_cached_user_rows"
+            }
+          }
+        },
+        {
+          "properties": {
+            "source": {
+              "const": "cached_offline"
+            },
+            "cached": {
+              "const": true
+            },
+            "history_complete": {
+              "const": false
+            },
+            "pii_restoration": {
+              "const": "page_local"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

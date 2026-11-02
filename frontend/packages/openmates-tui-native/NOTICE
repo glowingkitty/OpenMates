@@ -1,0 +1,13 @@
+OpenMates native CLI/TUI
+Copyright OpenMates contributors.
+
+This application crate follows the repository's AGPL-3.0-only license;
+see LICENSE, copied verbatim from the repository root.
+
+The self-host Compose, monitoring and Caddy template data copied from
+frontend/packages/openmates-cli/templates retains its original MIT attribution
+and license, reproduced verbatim in assets/licenses/legacy-cli-MIT.txt.
+assets/manifest.json records the exact canonical sources and content hashes.
+
+The separately licensed openmates-sdk dependency remains MIT. This application
+notice does not change that SDK's license or the licenses of other dependencies.

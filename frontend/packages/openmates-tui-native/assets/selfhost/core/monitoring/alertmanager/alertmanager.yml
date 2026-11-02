@@ -1,0 +1,90 @@
+# Alertmanager configuration for OpenMates.
+# Sends alert notifications to the internal API and optionally to Discord.
+# The placeholders are substituted by the self-host Compose startup command.
+# Keep this packaged copy aligned with backend/core/monitoring/alertmanager.
+# Architecture: docs/architecture/logging-and-monitoring.md
+
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ["alertname", "severity"]
+  receiver: "api-webhook"
+  group_wait: 60s
+  group_interval: 10m
+  repeat_interval: 4h
+
+  routes:
+    - match:
+        drill: "true"
+        severity: critical
+        environment: development
+      receiver: "urgent-discord"
+      group_by: ["alertname", "severity", "drill_id"]
+      group_wait: 1s
+      group_interval: 1s
+      repeat_interval: 1h
+      continue: true
+    - match:
+        drill: "true"
+        severity: critical
+        environment: development
+      receiver: "api-webhook"
+      group_by: ["alertname", "severity", "drill_id"]
+      group_wait: 1s
+      group_interval: 1s
+      repeat_interval: 1h
+    - match:
+        drill: "true"
+        severity: warning
+        environment: development
+      receiver: "api-webhook"
+      group_by: ["alertname", "severity", "drill_id"]
+      group_wait: 1s
+      group_interval: 1s
+      repeat_interval: 1h
+    # URGENT_DISCORD_ROUTE_START
+    - match:
+        severity: critical
+      receiver: "urgent-discord"
+      group_wait: 10s
+      group_interval: 5m
+      repeat_interval: 1h
+      continue: true
+    # URGENT_DISCORD_ROUTE_END
+    - match:
+        severity: critical
+      receiver: "api-webhook"
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 1h
+
+    - match:
+        severity: warning
+      receiver: "api-webhook"
+      group_wait: 120s
+      group_interval: 30m
+      repeat_interval: 12h
+
+inhibit_rules:
+  - source_match:
+      severity: "critical"
+    target_match:
+      severity: "warning"
+    equal: ["alertname"]
+
+receivers:
+  - name: "api-webhook"
+    webhook_configs:
+      - url: "http://api:8000/internal/alerts/webhook"
+        send_resolved: true
+        http_config:
+          http_headers:
+            X-Internal-Service-Token:
+              secrets: ["${INTERNAL_API_SHARED_TOKEN}"]
+  # URGENT_DISCORD_RECEIVER_START
+  - name: "urgent-discord"
+    discord_configs:
+      - webhook_url: "${DISCORD_WEBHOOK_URGENT_SCOPED}"
+        send_resolved: true
+  # URGENT_DISCORD_RECEIVER_END

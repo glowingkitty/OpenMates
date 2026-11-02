@@ -1,0 +1,709 @@
+{
+  "schema_version": 1,
+  "scope": "Synthetic local privacy assertions. Random tokens checked structurally, never compared across processes. No network, credentials or full privacy-policy parity claim.",
+  "capabilities": {
+    "local.privacy.v1": {
+      "vectors": [
+        {
+          "id": "known-reuse-metadata",
+          "input": {
+            "operation": "prepare",
+            "text": "Contact fictional@example.invalid and [KNOWN_EMAIL].",
+            "memories": [],
+            "existing_mappings": [
+              {
+                "original": "fictional@example.invalid",
+                "placeholder": "[KNOWN_EMAIL]",
+                "type": "EMAIL",
+                "opaque": {
+                  "retained": true
+                }
+              }
+            ],
+            "enhanced": false
+          },
+          "expected": {
+            "text": "Contact [KNOWN_EMAIL] and [KNOWN_EMAIL].",
+            "mappings": [
+              {
+                "original": "fictional@example.invalid",
+                "placeholder": "[KNOWN_EMAIL]",
+                "type": "EMAIL",
+                "opaque": {
+                  "retained": true
+                }
+              }
+            ]
+          },
+          "restored": "Contact fictional@example.invalid and fictional@example.invalid."
+        },
+        {
+          "id": "longest-known-match",
+          "input": {
+            "operation": "prepare",
+            "text": "Synthetic Person",
+            "memories": [],
+            "existing_mappings": [
+              {
+                "original": "Synthetic",
+                "placeholder": "[SHORT]"
+              },
+              {
+                "original": "Synthetic Person",
+                "placeholder": "[LONG]"
+              }
+            ],
+            "enhanced": false
+          },
+          "expected": {
+            "text": "[LONG]",
+            "mappings": [
+              {
+                "original": "Synthetic",
+                "placeholder": "[SHORT]",
+                "type": "OTHER"
+              },
+              {
+                "original": "Synthetic Person",
+                "placeholder": "[LONG]",
+                "type": "OTHER"
+              }
+            ]
+          },
+          "restored": "Synthetic Person"
+        },
+        {
+          "id": "fresh-email-repeated",
+          "input": {
+            "operation": "prepare",
+            "text": "fictional@example.invalid / fictional@example.invalid",
+            "memories": [],
+            "existing_mappings": [],
+            "enhanced": false
+          },
+          "mapping_values": [
+            {
+              "original": "fictional@example.invalid",
+              "type": "EMAIL"
+            }
+          ],
+          "restored": "fictional@example.invalid / fictional@example.invalid"
+        },
+        {
+          "id": "unicode-personal-memory",
+          "input": {
+            "operation": "prepare",
+            "text": "Meet FICTIONAL PERSON at 42 Synthetic Lane, München.",
+            "memories": [
+              {
+                "app_id": "privacy",
+                "item_type": "personal_data_entry",
+                "data": {
+                  "enabled": true,
+                  "textToHide": "Fictional Person",
+                  "replaceWith": "PERSON",
+                  "addressLines": {
+                    "street": "42 Synthetic Lane",
+                    "city": "München"
+                  }
+                }
+              }
+            ],
+            "existing_mappings": [],
+            "enhanced": false
+          },
+          "mapping_values": [
+            {
+              "original": "FICTIONAL PERSON",
+              "type": "EMAIL"
+            },
+            {
+              "original": "42 Synthetic Lane",
+              "type": "EMAIL"
+            },
+            {
+              "original": "München",
+              "type": "EMAIL"
+            }
+          ],
+          "restored": "Meet FICTIONAL PERSON at 42 Synthetic Lane, München."
+        },
+        {
+          "id": "category-disabled",
+          "input": {
+            "operation": "prepare",
+            "text": "fictional@example.invalid",
+            "memories": [
+              {
+                "app_id": "privacy",
+                "item_type": "pii_detection_settings",
+                "data": {
+                  "masterEnabled": true,
+                  "categories": {
+                    "email_addresses": false
+                  }
+                }
+              }
+            ],
+            "existing_mappings": [],
+            "enhanced": false
+          },
+          "expected": {
+            "text": "fictional@example.invalid",
+            "mappings": []
+          },
+          "restored": "fictional@example.invalid"
+        },
+        {
+          "id": "master-disabled",
+          "input": {
+            "operation": "prepare",
+            "text": "fictional@example.invalid",
+            "memories": [
+              {
+                "app_id": "privacy",
+                "item_type": "pii_detection_settings",
+                "data": {
+                  "masterEnabled": false
+                }
+              }
+            ],
+            "existing_mappings": [],
+            "enhanced": false
+          },
+          "expected": {
+            "text": "fictional@example.invalid",
+            "mappings": []
+          },
+          "restored": "fictional@example.invalid"
+        },
+        {
+          "id": "master-disabled-known-still-private",
+          "input": {
+            "operation": "prepare",
+            "text": "fictional@example.invalid",
+            "memories": [
+              {
+                "app_id": "privacy",
+                "item_type": "pii_detection_settings",
+                "data": {
+                  "masterEnabled": false
+                }
+              }
+            ],
+            "existing_mappings": [
+              {
+                "original": "fictional@example.invalid",
+                "placeholder": "[KNOWN_EMAIL]",
+                "type": "EMAIL",
+                "opaque": {
+                  "retained": true
+                }
+              }
+            ],
+            "enhanced": false
+          },
+          "expected": {
+            "text": "[KNOWN_EMAIL]",
+            "mappings": [
+              {
+                "original": "fictional@example.invalid",
+                "placeholder": "[KNOWN_EMAIL]",
+                "type": "EMAIL",
+                "opaque": {
+                  "retained": true
+                }
+              }
+            ]
+          },
+          "restored": "fictional@example.invalid"
+        },
+        {
+          "id": "unknown-token-shield",
+          "input": {
+            "operation": "prepare",
+            "text": "[OM_PII_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+            "memories": [],
+            "existing_mappings": [],
+            "enhanced": false
+          },
+          "mapping_values": [
+            {
+              "original": "[OM_PII_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+              "type": "OTHER"
+            }
+          ],
+          "restored": "[OM_PII_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]"
+        },
+        {
+          "id": "restore-one-pass",
+          "input": {
+            "operation": "restore",
+            "text": "[KNOWN]",
+            "mappings": [
+              {
+                "placeholder": "[KNOWN]",
+                "original": "literal [EMAIL_1_com]"
+              }
+            ]
+          },
+          "expected": {
+            "text": "literal [EMAIL_1_com]"
+          }
+        },
+        {
+          "id": "restore-ordinary-literal",
+          "input": {
+            "operation": "restore",
+            "text": "[README] []",
+            "mappings": []
+          },
+          "expected": {
+            "text": "[README] []"
+          }
+        },
+        {
+          "id": "restore-missing",
+          "input": {
+            "operation": "restore",
+            "text": "[EMAIL_1_com]",
+            "mappings": []
+          },
+          "error": "invalid_argument"
+        },
+        {
+          "id": "restore-conflict",
+          "input": {
+            "operation": "restore",
+            "text": "[KNOWN]",
+            "mappings": [
+              {
+                "placeholder": "[KNOWN]",
+                "original": "one"
+              },
+              {
+                "placeholder": "[KNOWN]",
+                "original": "two"
+              }
+            ]
+          },
+          "error": "invalid_argument"
+        },
+        {
+          "id": "prepare-conflict",
+          "input": {
+            "operation": "prepare",
+            "text": "[KNOWN]",
+            "memories": [],
+            "existing_mappings": [
+              {
+                "placeholder": "[KNOWN]",
+                "original": "one"
+              },
+              {
+                "placeholder": "[KNOWN]",
+                "original": "two"
+              }
+            ],
+            "enhanced": false
+          },
+          "error": "invalid_argument"
+        },
+        {
+          "id": "enhanced-refused",
+          "input": {
+            "operation": "prepare",
+            "text": "synthetic private value",
+            "memories": [],
+            "existing_mappings": [],
+            "enhanced": true
+          },
+          "error": "invalid_argument"
+        },
+        {
+          "id": "malformed-mapping-filter",
+          "input": {
+            "operation": "prepare",
+            "text": "plain text",
+            "memories": [],
+            "existing_mappings": [
+              null,
+              {},
+              {
+                "original": "secret",
+                "placeholder": "invalid"
+              }
+            ],
+            "enhanced": false
+          },
+          "expected": {
+            "text": "plain text",
+            "mappings": []
+          },
+          "restored": "plain text"
+        },
+        {
+          "id": "text-limit-exact",
+          "input": {
+            "operation": "restore",
+            "text": "plain",
+            "mappings": []
+          },
+          "expand": {
+            "text_bytes": 1048576
+          },
+          "expected_text_length": 1048576
+        },
+        {
+          "id": "text-limit-over",
+          "input": {
+            "operation": "restore",
+            "text": "plain",
+            "mappings": []
+          },
+          "expand": {
+            "text_bytes": 1048577
+          },
+          "error": "invalid_argument"
+        },
+        {
+          "id": "mapping-limit-exact",
+          "input": {
+            "operation": "restore",
+            "text": "plain",
+            "mappings": []
+          },
+          "expand": {
+            "mapping_count": 1024
+          },
+          "expected": {
+            "text": "plain"
+          }
+        },
+        {
+          "id": "mapping-limit-over",
+          "input": {
+            "operation": "restore",
+            "text": "plain",
+            "mappings": []
+          },
+          "expand": {
+            "mapping_count": 1025
+          },
+          "error": "invalid_argument"
+        },
+        {
+          "id": "encoded-limit-exact",
+          "input": {
+            "operation": "restore",
+            "text": "plain",
+            "mappings": []
+          },
+          "expand": {
+            "encoded_bytes": 4194304
+          },
+          "expected": {
+            "text": "plain"
+          }
+        },
+        {
+          "id": "encoded-limit-over",
+          "input": {
+            "operation": "restore",
+            "text": "plain",
+            "mappings": []
+          },
+          "expand": {
+            "encoded_bytes": 4194305
+          },
+          "error": "invalid_argument"
+        },
+        {
+          "id": "prepare-output-mapping-over",
+          "input": {
+            "operation": "prepare",
+            "text": "a@b.co",
+            "memories": [],
+            "existing_mappings": [],
+            "enhanced": false
+          },
+          "expand": {
+            "existing_count": 1024
+          },
+          "error": "invalid_argument"
+        },
+        {
+          "id": "prepare-output-text-exact",
+          "input": {
+            "operation": "prepare",
+            "text": "a@b.co",
+            "memories": [],
+            "existing_mappings": [],
+            "enhanced": false
+          },
+          "expand": {
+            "email_repeats": 24966
+          },
+          "mapping_values": [
+            {
+              "original": "a@b.co",
+              "type": "EMAIL"
+            }
+          ],
+          "prepared_text_length": 1048572,
+          "roundtrip_input": true
+        },
+        {
+          "id": "prepare-output-text-over",
+          "input": {
+            "operation": "prepare",
+            "text": "a@b.co",
+            "memories": [],
+            "existing_mappings": [],
+            "enhanced": false
+          },
+          "expand": {
+            "email_repeats": 25000
+          },
+          "error": "invalid_argument"
+        },
+        {
+          "id": "prepare-output-json-under",
+          "input": {
+            "operation": "prepare",
+            "text": "a@b.co",
+            "memories": [],
+            "existing_mappings": [],
+            "enhanced": false
+          },
+          "expand": {
+            "prepare_json_bytes": 4194104
+          },
+          "roundtrip_input": true
+        },
+        {
+          "id": "prepare-output-json-over",
+          "input": {
+            "operation": "prepare",
+            "text": "a@b.co",
+            "memories": [],
+            "existing_mappings": [],
+            "enhanced": false
+          },
+          "expand": {
+            "prepare_json_bytes": 4194304
+          },
+          "error": "invalid_argument"
+        },
+        {
+          "id": "canonical-number-integer-zero-exact",
+          "input": {
+            "operation": "restore",
+            "text": "plain",
+            "mappings": [
+              0,
+              ""
+            ]
+          },
+          "expand": {
+            "canonical_json_bytes": 4194304,
+            "canonical_overhead": 58
+          },
+          "expected": {
+            "text": "plain"
+          }
+        },
+        {
+          "id": "canonical-number-integer-zero-over",
+          "input": {
+            "operation": "restore",
+            "text": "plain",
+            "mappings": [
+              0,
+              ""
+            ]
+          },
+          "expand": {
+            "canonical_json_bytes": 4194305,
+            "canonical_overhead": 58
+          },
+          "error": "invalid_argument"
+        },
+        {
+          "id": "canonical-number-float-zero-exact",
+          "input": {
+            "operation": "restore",
+            "text": "plain",
+            "mappings": [
+              0.0,
+              ""
+            ]
+          },
+          "expand": {
+            "canonical_json_bytes": 4194304,
+            "canonical_overhead": 58
+          },
+          "expected": {
+            "text": "plain"
+          }
+        },
+        {
+          "id": "canonical-number-float-zero-over",
+          "input": {
+            "operation": "restore",
+            "text": "plain",
+            "mappings": [
+              0.0,
+              ""
+            ]
+          },
+          "expand": {
+            "canonical_json_bytes": 4194305,
+            "canonical_overhead": 58
+          },
+          "error": "invalid_argument"
+        },
+        {
+          "id": "canonical-number-exponent-zero-exact",
+          "input": {
+            "operation": "restore",
+            "text": "plain",
+            "mappings": [
+              0e0,
+              ""
+            ]
+          },
+          "expand": {
+            "canonical_json_bytes": 4194304,
+            "canonical_overhead": 58
+          },
+          "expected": {
+            "text": "plain"
+          }
+        },
+        {
+          "id": "canonical-number-exponent-zero-over",
+          "input": {
+            "operation": "restore",
+            "text": "plain",
+            "mappings": [
+              0e0,
+              ""
+            ]
+          },
+          "expand": {
+            "canonical_json_bytes": 4194305,
+            "canonical_overhead": 58
+          },
+          "error": "invalid_argument"
+        },
+        {
+          "id": "canonical-number-negative-zero-exact",
+          "input": {
+            "operation": "restore",
+            "text": "plain",
+            "mappings": [
+              -0.0,
+              ""
+            ]
+          },
+          "expand": {
+            "canonical_json_bytes": 4194304,
+            "canonical_overhead": 58
+          },
+          "expected": {
+            "text": "plain"
+          }
+        },
+        {
+          "id": "canonical-number-negative-zero-over",
+          "input": {
+            "operation": "restore",
+            "text": "plain",
+            "mappings": [
+              -0.0,
+              ""
+            ]
+          },
+          "expand": {
+            "canonical_json_bytes": 4194305,
+            "canonical_overhead": 58
+          },
+          "error": "invalid_argument"
+        },
+        {
+          "id": "prepare-long-placeholder-exact",
+          "input": {
+            "operation": "prepare",
+            "text": "x",
+            "memories": [],
+            "existing_mappings": [],
+            "enhanced": false
+          },
+          "expand": {
+            "placeholder_bytes": 1048576,
+            "plain_repeats": 1
+          },
+          "prepared_text_length": 1048576,
+          "prepared_token_output": true,
+          "roundtrip_input": true
+        },
+        {
+          "id": "prepare-long-placeholder-allocation-refused",
+          "input": {
+            "operation": "prepare",
+            "text": "x",
+            "memories": [],
+            "existing_mappings": [],
+            "enhanced": false
+          },
+          "expand": {
+            "placeholder_bytes": 1048576,
+            "plain_repeats": 524288
+          },
+          "error": "invalid_argument"
+        },
+        {
+          "id": "restore-original-output-exact",
+          "input": {
+            "operation": "restore",
+            "text": "[X]",
+            "mappings": []
+          },
+          "expand": {
+            "original_bytes": 1048576,
+            "token_repeats": 1
+          },
+          "expected_text_length": 1048576,
+          "expected_repeat_character": "y"
+        },
+        {
+          "id": "restore-original-output-over",
+          "input": {
+            "operation": "restore",
+            "text": "[X]",
+            "mappings": []
+          },
+          "expand": {
+            "original_bytes": 1048577,
+            "token_repeats": 1
+          },
+          "error": "invalid_argument"
+        },
+        {
+          "id": "restore-repeated-token-allocation-refused",
+          "input": {
+            "operation": "restore",
+            "text": "[X]",
+            "mappings": []
+          },
+          "expand": {
+            "original_bytes": 2097152,
+            "token_repeats": 349525
+          },
+          "error": "invalid_argument"
+        }
+      ]
+    }
+  }
+}

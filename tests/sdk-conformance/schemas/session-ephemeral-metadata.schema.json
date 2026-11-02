@@ -1,0 +1,19 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"session-ephemeral-metadata.schema.json",
+  "type":"object","additionalProperties":false,"required":["schema_version","provenance","capabilities"],
+  "properties":{
+    "schema_version":{"const":1},"provenance":{"type":"string"},
+    "capabilities":{"type":"object","additionalProperties":false,"required":["session.ephemeral-metadata-startup.v1"],"properties":{
+      "session.ephemeral-metadata-startup.v1":{"type":"object","additionalProperties":false,"required":["account","protocol","vectors"],"properties":{
+        "account":{"type":"object","additionalProperties":false,"required":["owner_id","session_id","cookie"],"properties":{"owner_id":{"type":"string"},"session_id":{"type":"string"},"cookie":{"type":"string"}}},
+        "protocol":{"type":"object","additionalProperties":false,"required":["app_origin","initial_chat_id"],"properties":{"app_origin":{"type":"string"},"initial_chat_id":{"type":"string"}}},
+        "vectors":{"type":"array","minItems":29,"maxItems":29,"items":{"type":"object","additionalProperties":false,"required":["id","mode"],"properties":{
+          "id":{"type":"string"},"mode":{"enum":["expanded","cookie_only","small","phase1","denied","expired","malformed","owner_dto","api_key","changed_principal","rotation_failure","cancel_before","auth_cancel","cancel_inflight","foreign_epoch","foreign_team","stale_snapshot","foreign_snapshot","closed_snapshot","late_invalid_cookie","late_undecodable_cookie","malformed_body","truncated_body","held_malformed_body","cancel_before_headers","cancel_after_headers","foreign_auth_cancel","early_invalid_cookie","early_undecodable_cookie"]},
+          "total_chat_count":{"type":"integer","minimum":0},"expected_count":{"type":"integer","minimum":0},"error":{"enum":["expired","protocol","invalid_argument","cancelled","forbidden","offline"]},"auth_requests":{"type":"integer","minimum":0},"connections":{"type":"integer","minimum":0},
+          "lifecycle":{"type":"object","additionalProperties":false,"required":["rust","npm","python"],"properties":{"rust":{"const":"outer-future-aborted-after-original-cancel"},"npm":{"const":"explicit-original-cancel-not-promise-drop"},"python":{"const":"task-cancel-propagates-original-cancel"}}}
+        }}}
+      }}
+    }}
+  }
+}

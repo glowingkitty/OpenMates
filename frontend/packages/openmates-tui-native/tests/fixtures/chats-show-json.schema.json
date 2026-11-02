@@ -1,0 +1,218 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "openmates:cli:chats-show-json:v1",
+  "title": "Preserved session chats show --json output",
+  "description": "Source: pinned TypeScript SHA256 cf8292c046b850890e32eda0929a00b8ff5d788e266b5be31381332b8220b5dc, lines 13635-13677, 14672-14721, 118477-118485. This schema describes complete wrapper projection, not a partial content benchmark. Default is one limit30/compression=true request and may return fewer rows (current server cap20); it does not fill to30. has_more_before is required on the default bounded lane and omitted for --all (enforced by fixture/test). participantUserHashes and piiMappings retain source omission semantics. Optional activeFocusId retains any nonempty decrypted string including whitespace; absent/null/nonstring/empty/corrupt encrypted focus is omitted by shared projection.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "chat",
+    "messages",
+    "follow_up_suggestions"
+  ],
+  "properties": {
+    "chat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "chatVisibility",
+        "shortId",
+        "slug",
+        "title",
+        "summary",
+        "createdAt",
+        "updatedAt",
+        "category",
+        "mateName",
+        "parentId",
+        "isSubChat",
+        "isHiddenCandidate",
+        "isHidden",
+        "pinned",
+        "hasDraft",
+        "draftPreview",
+        "metadataUpdatedAt"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "chatVisibility": {
+          "enum": [
+            "personal",
+            "team",
+            "direct"
+          ]
+        },
+        "participantUserHashes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "shortId": {
+          "type": "string"
+        },
+        "slug": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "summary": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "createdAt": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "updatedAt": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "category": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mateName": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "parentId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "isSubChat": {
+          "type": "boolean"
+        },
+        "isHiddenCandidate": {
+          "type": "boolean"
+        },
+        "isHidden": {
+          "type": "boolean"
+        },
+        "pinned": {
+          "type": "boolean"
+        },
+        "hasDraft": {
+          "type": "boolean"
+        },
+        "draftPreview": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "metadataUpdatedAt": {
+          "type": "number"
+        },
+        "activeFocusId": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "messages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "clientMessageId",
+          "chatId",
+          "role",
+          "content",
+          "senderName",
+          "hashedSenderUserId",
+          "category",
+          "modelName",
+          "createdAt",
+          "embedIds"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "clientMessageId": {
+            "type": "string"
+          },
+          "chatId": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "senderName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hashedSenderUserId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "modelName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "number"
+          },
+          "embedIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "piiMappings": {
+            "description": "Optional source JSON.parse result: any valid JSON, including null/object/scalar/array; omission is distinct from present null."
+          }
+        }
+      }
+    },
+    "follow_up_suggestions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "has_more_before": {
+      "type": "boolean"
+    }
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "session-initial-startup-sync.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "provenance",
+    "capabilities"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "provenance": {
+      "type": "string"
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session.initial-startup-sync.v1"
+      ],
+      "properties": {
+        "session.initial-startup-sync.v1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "account",
+            "protocol",
+            "vectors"
+          ],
+          "properties": {
+            "account": {
+              "type": "object"
+            },
+            "protocol": {
+              "type": "object"
+            },
+            "vectors": {
+              "type": "array",
+              "minItems": 10,
+              "maxItems": 10,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "mode"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "mode": {
+                    "enum": [
+                      "startup_expand",
+                      "startup_small",
+                      "startup_missing",
+                      "startup_cancel_before",
+                      "startup_cancel_inflight",
+                      "startup_stale",
+                      "startup_foreign_monitor",
+                      "startup_repeat",
+                      "startup_foreign_context",
+                      "startup_server_error"
+                    ]
+                  },
+                  "total_chat_count": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "expected_count": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
