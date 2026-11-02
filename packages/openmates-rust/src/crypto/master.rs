@@ -190,7 +190,7 @@ impl MasterCapability {
 }
 // Source-matches cryptoService.base64ToUint8Array: URL alphabet mapping and
 // padding precede browser atob's forgiving ASCII-whitespace/trailing-bit decode.
-fn decode_browser_base64(input: &str) -> Result<Vec<u8>> {
+pub(crate) fn decode_browser_base64(input: &str) -> Result<Vec<u8>> {
     if input.is_empty() {
         return Err(Error::Crypto);
     }

@@ -11,8 +11,6 @@ use std::{
     process::{Child, Command, Stdio},
     time::Duration,
 };
-#[path = "support/saved_stream.rs"]
-mod saved_stream;
 const CAPABILITY: &str = "session.work-crud.v1";
 type Check<T> = Result<T, &'static str>;
 macro_rules! require {
@@ -22,6 +20,8 @@ macro_rules! require {
         }
     };
 }
+#[path = "support/saved_stream.rs"]
+mod saved_stream;
 struct Peer {
     process: Child,
     endpoint: String,
