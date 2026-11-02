@@ -73,7 +73,7 @@ mod source_read;
 pub use source_read::ProjectSourcesDecodedNames;
 mod sources;
 mod task_sync;
-pub use items::ProjectItemType;
+pub use items::{ProjectItemType, ProjectLink};
 pub use sources::*;
 pub(super) struct ResolvedProject {
     pub(super) raw: Value,

@@ -461,6 +461,8 @@ fn terminal_text(text: &str) -> String {
 }
 
 #[cfg(test)]
+mod catalog_drift_tests;
+#[cfg(test)]
 mod catalog_tests {
     use super::*;
     use sha2::{Digest, Sha256};

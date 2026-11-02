@@ -30433,12 +30433,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.projects.link_item.chat",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/chat_project.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Full canonical chat UUID and Personal Cookie context only; short IDs, slugs, titles, last, Team and Direct links remain unavailable.",
+        "Remote-copy proposal modes (--repo-copy, --remote-cache-copy, --remote-copy) are not ported and fail explicitly; the default encrypted OpenMates link is created."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -33052,7 +33053,7 @@
           "name": "project-id",
           "required": true,
           "variadic": false,
-          "at": 2,
+          "at": 3,
           "synopsis": "<project-id>"
         }
       ],
@@ -33073,12 +33074,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.projects.link_item.embed",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/chat_project.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal Cookie context only; Team links and API-key credentials fail explicitly.",
+        "Embed selectors use the saved-embed resolver; real link integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -33310,7 +33312,7 @@
           "name": "project-id",
           "required": true,
           "variadic": false,
-          "at": 2,
+          "at": 3,
           "synopsis": "<project-id>"
         }
       ],
@@ -33330,12 +33332,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.projects.unlink_item.embed",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/chat_project.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal Cookie context only; Team links and API-key credentials fail explicitly.",
+        "Unlink never deletes the embed or Project; real unlink integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -33379,12 +33382,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "client.saved_embed_selector.share_url",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/embed_share.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Personal Cookie context only; Team shares and API-key credentials fail explicitly.",
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -34618,12 +34622,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "login",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43935,12 +43939,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "plans::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "This spelling appears in original help only. The original Plans router delegates it unchanged to Tasks, which accepts create/delete and does not translate add/remove; no working native handler is claimed."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -45018,12 +45022,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "plans::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "This spelling appears in original help only. The original Plans router delegates it unchanged to Tasks, which accepts create/delete and does not translate add/remove; no working native handler is claimed."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48125,12 +48129,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "projects::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48582,12 +48586,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48626,13 +48630,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null,
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
         "owner": "native_server_worker"
       },
       "gaps": [
-        "Native server handler is owned by the server port; host tooling requirements vary by action."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48673,13 +48677,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null,
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
         "owner": "native_server_worker"
       },
       "gaps": [
-        "Native server handler is owned by the server port; host tooling requirements vary by action."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48720,13 +48724,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null,
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
         "owner": "native_server_worker"
       },
       "gaps": [
-        "Native server handler is owned by the server port; host tooling requirements vary by action."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48776,13 +48780,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null,
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
         "owner": "native_server_worker"
       },
       "gaps": [
-        "Native server handler is owned by the server port; host tooling requirements vary by action."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48832,13 +48836,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null,
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
         "owner": "native_server_worker"
       },
       "gaps": [
-        "Native server handler is owned by the server port; host tooling requirements vary by action."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48971,13 +48975,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null,
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
         "owner": "native_server_worker"
       },
       "gaps": [
-        "Native server handler is owned by the server port; host tooling requirements vary by action."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -49020,13 +49024,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null,
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
         "owner": "native_server_worker"
       },
       "gaps": [
-        "Native server handler is owned by the server port; host tooling requirements vary by action."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -49069,13 +49073,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null,
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
         "owner": "native_server_worker"
       },
       "gaps": [
-        "Native server handler is owned by the server port; host tooling requirements vary by action."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -49118,13 +49122,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null,
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
         "owner": "native_server_worker"
       },
       "gaps": [
-        "Native server handler is owned by the server port; host tooling requirements vary by action."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -49167,13 +49171,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null,
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
         "owner": "native_server_worker"
       },
       "gaps": [
-        "Native server handler is owned by the server port; host tooling requirements vary by action."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -49212,13 +49216,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null,
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
         "owner": "native_server_worker"
       },
       "gaps": [
-        "Native server handler is owned by the server port; host tooling requirements vary by action."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -50078,13 +50082,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null,
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
         "owner": "native_server_worker"
       },
       "gaps": [
-        "Native server handler is owned by the server port; host tooling requirements vary by action."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -50119,12 +50123,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs"
       },
       "gaps": [
-        "Native handler not ported; command fails explicitly without another runtime."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -50161,13 +50165,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null,
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
         "owner": "native_server_worker"
       },
       "gaps": [
-        "Native server handler is owned by the server port; host tooling requirements vary by action."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -50202,12 +50206,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs"
       },
       "gaps": [
-        "Native handler not ported; command fails explicitly without another runtime."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -50244,13 +50248,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null,
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
         "owner": "native_server_worker"
       },
       "gaps": [
-        "Native server handler is owned by the server port; host tooling requirements vary by action."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -50286,13 +50290,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null,
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
         "owner": "native_server_worker"
       },
       "gaps": [
-        "Native server handler is owned by the server port; host tooling requirements vary by action."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -50331,13 +50335,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null,
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
         "owner": "native_server_worker"
       },
       "gaps": [
-        "Native server handler is owned by the server port; host tooling requirements vary by action."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -50373,13 +50377,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null,
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
         "owner": "native_server_worker"
       },
       "gaps": [
-        "Native server handler is owned by the server port; host tooling requirements vary by action."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -50787,13 +50791,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null,
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
         "owner": "native_server_worker"
       },
       "gaps": [
-        "Native server handler is owned by the server port; host tooling requirements vary by action."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -50918,12 +50922,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs"
       },
       "gaps": [
-        "Original runtime grammar is reviewed; native handling of this spelling has not been implemented or verified."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -51026,13 +51030,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null,
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
         "owner": "native_server_worker"
       },
       "gaps": [
-        "Native server handler is owned by the server port; host tooling requirements vary by action."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54940,12 +54944,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.reminders_ordered",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/reminders.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59364,12 +59368,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "tui",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/runtime.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -61418,12 +61422,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "workflows::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/workflows.rs"
       },
       "gaps": [
-        "Native Workflow CLI handler not ported; command fails explicitly. YAML update additionally needs canonical bound remote-file synchronization; no empty synchronization success is fabricated."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -61480,8 +61484,8 @@
   "coverage": {
     "command_patterns": 720,
     "flags": 597,
-    "native_handlers_partial": 459,
-    "unsupported": 261,
+    "native_handlers_partial": 493,
+    "unsupported": 227,
     "feature_complete": false
   },
   "maintenance": {

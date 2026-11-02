@@ -391,3 +391,77 @@ async fn unlink_preserves_authoritative_denials_and_uncertain_or_cancelled_admis
         )));
     }
 }
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
+#[tokio::test]
+async fn link_item_encrypts_target_name_note_and_metadata_with_the_project_key() {
+    let (api, server) = mock(vec![
+        json!({"project":project(None)}),
+        json!({"item":{"project_item_id":"server-link"}}),
+    ])
+    .await;
+    let mut c = client(&api);
+    let value = c
+        .projects()
+        .link_item(
+            PROJECT,
+            ProjectLink {
+                item_type: ProjectItemType::Chat,
+                target_id: "exact-chat".into(),
+                display_name: "Private chat title".into(),
+                folder_id: Some("folder-id".into()),
+                metadata: json!({"storage":"save_only_in_openmates","source":"cli_add_to_project"}),
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        value,
+        json!({"project_id":PROJECT,"item":{"project_item_id":"server-link"}})
+    );
+    let requests = server.await.unwrap();
+    assert_eq!(requests.len(), 2);
+    assert!(requests[1].starts_with(&format!("POST /v1/projects/{PROJECT}/items ")));
+    assert!(!requests[1].contains("Private chat title"));
+    let body: Value = serde_json::from_str(requests[1].split("\r\n\r\n").nth(1).unwrap()).unwrap();
+    assert_eq!(body["item_type"], "chat");
+    assert_eq!(body["target_id"], "exact-chat");
+    assert_eq!(body["folder_id"], "folder-id");
+    assert!(uuid::Uuid::parse_str(body["project_item_id"].as_str().unwrap()).is_ok());
+    let open =
+        |field: &str| crypto::decrypt_combined(body[field].as_str().unwrap(), &[8; 32]).unwrap();
+    assert_eq!(open("target_id_encrypted"), "exact-chat");
+    assert_eq!(open("encrypted_display_name"), "Private chat title");
+    assert_eq!(open("encrypted_note"), "");
+    assert_eq!(
+        serde_json::from_str::<Value>(&open("encrypted_metadata")).unwrap(),
+        json!({"storage":"save_only_in_openmates","source":"cli_add_to_project"})
+    );
+    assert_eq!(body["created_at"], body["position"]);
+    // Invalid input and malformed receipts never become implicit successes.
+    let mut c = client("http://127.0.0.1:1");
+    let invalid = ProjectLink {
+        item_type: ProjectItemType::Embed,
+        target_id: String::new(),
+        display_name: String::new(),
+        folder_id: None,
+        metadata: json!({}),
+    };
+    assert!(matches!(
+        c.projects().link_item(PROJECT, invalid).await,
+        Err(Error::Invalid(_))
+    ));
+    let (api, server) = mock(vec![json!({"project":project(None)}), json!({"ok":true})]).await;
+    let mut c = client(&api);
+    let link = ProjectLink {
+        item_type: ProjectItemType::Embed,
+        target_id: "embed".into(),
+        display_name: "Embed".into(),
+        folder_id: None,
+        metadata: json!({}),
+    };
+    assert!(matches!(
+        c.projects().link_item(PROJECT, link).await,
+        Err(Error::Protocol)
+    ));
+    assert_eq!(server.await.unwrap().len(), 2);
+}

@@ -10,6 +10,16 @@ pub enum ProjectItemType {
     Workflow,
 }
 
+/// One encrypted Project link to create; the target object is never copied.
+pub struct ProjectLink {
+    pub item_type: ProjectItemType,
+    pub target_id: String,
+    pub display_name: String,
+    pub folder_id: Option<String>,
+    /// Plain JSON object, encrypted with the Project key before transport.
+    pub metadata: Value,
+}
+
 impl Projects<'_> {
     /// Return the legacy decrypted folder/item projection in the selected scope.
     /// The canonical detail route also supports approved developer Project grants;
@@ -101,6 +111,68 @@ impl Projects<'_> {
         Ok(json!({"project_id":id,"target_id":target_id,"deleted":deleted,"deleted_count":count}))
     }
 
+    /// Create one encrypted Project link (the legacy CLI's
+    /// createEncryptedProjectItem). The target stays where it is; only the
+    /// target ID, display name, empty note and metadata are encrypted with the
+    /// Project key. A lost response is an error, never an automatic retry.
+    pub async fn link_item(&mut self, selector: &str, link: ProjectLink) -> Result<Value> {
+        self.items_active()?;
+        let ProjectLink {
+            item_type,
+            target_id,
+            display_name,
+            folder_id,
+            metadata,
+        } = link;
+        if target_id.is_empty() || target_id.len() > 4096 || target_id.chars().any(char::is_control)
+        {
+            return Err(Error::Invalid(
+                "Supply a valid exact Project item target ID.",
+            ));
+        }
+        if !metadata.is_object() {
+            return Err(Error::Invalid("Project item metadata must be an object."));
+        }
+        self.scope()?;
+        if matches!(self.backend, Backend::ApiKey(_)) {
+            return Err(Error::Unavailable {
+                code: "project_item_link_unavailable",
+                reason: "PROJECT_ITEM_LINK_REQUIRES_COOKIE_SESSION",
+            });
+        }
+        let project = self.resolve(selector).await?;
+        self.items_active()?;
+        let id = string(&project.raw, "project_id")?.to_owned();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|_| Error::Protocol)?
+            .as_secs();
+        let kind = serde_json::to_value(item_type)?;
+        let key = &project.key;
+        let body = json!({
+            "project_item_id":uuid::Uuid::new_v4().to_string(),
+            "folder_id":folder_id,
+            "item_type":kind,
+            "target_id":target_id,
+            "target_id_encrypted":crypto::encrypt_combined(&target_id,key)?,
+            "encrypted_display_name":crypto::encrypt_combined(&display_name,key)?,
+            "encrypted_note":crypto::encrypt_combined("",key)?,
+            "encrypted_metadata":crypto::encrypt_combined(&serde_json::to_string(&metadata)?,key)?,
+            "created_at":now,"updated_at":now,"position":now
+        });
+        let route = self.path(&format!("/v1/projects/{id}/items"), &[]);
+        let response = self
+            .backend
+            .request(Method::POST, &route, Some(body), None)
+            .await?;
+        let item = response
+            .get("item")
+            .filter(|item| item.is_object())
+            .cloned()
+            .ok_or(Error::Protocol)?;
+        Ok(json!({"project_id":id,"item":item}))
+    }
+
     fn items_active(&self) -> Result<()> {
         if self.operation_cancel.is_cancelled() {
             Err(Error::Cancelled)
@@ -110,7 +182,11 @@ impl Projects<'_> {
     }
 }
 
-pub(super) fn child_scope(row: &Value, project: &ResolvedProject, team: Option<&str>) -> Result<()> {
+pub(super) fn child_scope(
+    row: &Value,
+    project: &ResolvedProject,
+    team: Option<&str>,
+) -> Result<()> {
     let expected = hash(string(&project.raw, "project_id")?);
     if row["hashed_project_id"] != expected {
         return Err(Error::Forbidden);
