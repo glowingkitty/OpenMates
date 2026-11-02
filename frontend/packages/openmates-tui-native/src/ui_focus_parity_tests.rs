@@ -67,3 +67,16 @@ fn other_workspaces_keep_their_content_shortcuts() {
     assert!(ui.form.is_some());
     assert!(ui.draft.text.is_empty());
 }
+
+#[test]
+fn home_starts_on_the_cards_so_enter_opens_the_selected_chat() {
+    let mut ui = chats_home();
+    assert!(ui.focus == Focus::Content);
+    let commands = ui.key(key(KeyCode::Enter));
+    assert!(matches!(&commands[..], [UiCommand::Open(Workspace::Chats, id)] if id == "a"));
+    // Typing from the start screen still drafts a message.
+    let mut ui = chats_home();
+    typed(&mut ui, "hi");
+    assert!(ui.focus == Focus::Composer);
+    assert_eq!(ui.draft.text.to_string(), "hi");
+}

@@ -348,7 +348,9 @@ impl Ui {
             items: std::array::from_fn(|_| vec![]),
             selected: [0; 6],
             sidebar: false,
-            focus: Focus::Composer,
+            // TS route("chats","start"): the home cards own focus, so Enter
+            // opens the selected chat; typing still starts a draft.
+            focus: Focus::Content,
             navigation_index: 0,
             navigation_return: Focus::Composer,
             chat: None,
@@ -1738,6 +1740,16 @@ impl Ui {
                 field.editor.insert(text);
             }
         } else if self.focus == Focus::Composer {
+            self.draft.insert(text);
+        } else if self.focus == Focus::Content
+            && self.workspace == Workspace::Chats
+            && self.chat.is_none()
+            && self.detail.is_none()
+            && self.settings.is_none()
+        {
+            // TS parity: pasting on the chat home starts a draft like typing.
+            self.focus = Focus::Composer;
+            self.hits.clear();
             self.draft.insert(text);
         }
         vec![]
