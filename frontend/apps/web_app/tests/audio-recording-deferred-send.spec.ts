@@ -65,7 +65,16 @@ async function openAuthenticatedRecording(page: Page): Promise<void> {
 		.dispatchEvent('mousedown', { button: 0 });
 	const overlay = page.getByTestId('record-overlay');
 	await expect(overlay).toBeVisible({ timeout: 5000 });
-	await expect(overlay.getByTestId('recording-live-transcript')).toContainText(RAW_TRANSCRIPT, { timeout: 10000 });
+	// Live words stream into the editor after the notes, not into the overlay.
+	await expect(editor).toContainText(`${AUDIO_SEND_PROMPT} ${RAW_TRANSCRIPT}`, { timeout: 10000 });
+	await expect(overlay.getByTestId('recording-live-transcript')).toHaveCount(0);
+}
+
+async function expectProcessingRawTranscript(page: Page): Promise<void> {
+	const editor = page.getByTestId('message-editor').locator('.ProseMirror');
+	await expect(editor).toContainText(AUDIO_SEND_PROMPT);
+	await expect(editor.getByTestId('recording-transcript-processing')).toHaveText(RAW_TRANSCRIPT);
+	await expect(page.getByTestId('record-overlay')).toHaveAttribute('data-recording-processing', 'true');
 }
 
 async function expectEditableTranscript(page: Page): Promise<void> {
@@ -162,7 +171,7 @@ for (const phase of ['recording', 'correction']) {
 		await expect(overlay.getByTestId('record-finish-button')).toBeHidden();
 		await expect(overlay).toHaveAttribute('data-recording-processing', 'true');
 		await expect(page.getByTestId('message-user')).toHaveCount(0);
-		await expect(page.getByTestId('message-editor').locator('.ProseMirror')).toHaveText(AUDIO_SEND_PROMPT);
+		await expectProcessingRawTranscript(page);
 		releaseCorrection();
 		await expectDirectTranscriptSent(page);
 		expect(storageRequests).toEqual([]);
@@ -179,8 +188,10 @@ test('cancelling a pending recording Send preserves notes without submitting', a
 	await overlay.getByTestId('record-send-button').click();
 	await expect(overlay).toHaveAttribute('data-recording-processing', 'true');
 	await expect(overlay.getByTestId('record-send-button')).toBeDisabled();
+	await expectProcessingRawTranscript(page);
 	await overlay.getByTestId('record-cancel-button').click();
 	await expect(overlay).not.toBeVisible();
+	// Cancel removes the unedited dictated words and keeps the typed notes.
 	await expect(page.getByTestId('message-editor').locator('.ProseMirror')).toHaveText(AUDIO_SEND_PROMPT);
 	await expect(page.getByTestId('message-user')).toHaveCount(0);
 	expect(storageRequests).toEqual([]);
@@ -198,7 +209,7 @@ test('held correction returns editable transcript and notes before one explicit 
 	const overlay = page.getByTestId('record-overlay');
 	await expect(overlay).toHaveAttribute('data-recording-processing', 'true');
 	await expect(overlay.getByTestId('record-finish-button')).toBeDisabled();
-	await expect(page.getByTestId('message-editor').locator('.ProseMirror')).toHaveText(AUDIO_SEND_PROMPT);
+	await expectProcessingRawTranscript(page);
 	await expect(page.getByTestId('message-user')).toHaveCount(0);
 	releaseCorrection();
 	await expectEditableTranscript(page);
@@ -258,7 +269,9 @@ test('realtime correction failure preserves notes without upload or batch fallba
 	await page.getByTestId('record-overlay').getByTestId('record-send-button').click();
 	await expect(page.getByTestId('record-overlay')).not.toBeVisible({ timeout: 20000 });
 	const editor = page.getByTestId('message-editor').locator('.ProseMirror');
-	await expect(editor).toHaveText(AUDIO_SEND_PROMPT);
+	// Words already dictated stay as an editable, unsent draft after a failure.
+	await expect(editor).toHaveText(`${AUDIO_SEND_PROMPT} ${RAW_TRANSCRIPT}`);
+	await expect(editor.getByTestId('recording-transcript-processing')).toHaveCount(0);
 	await expect(page.getByTestId('recording-preview')).toHaveCount(0);
 	await expect(page.getByTestId('message-user')).toHaveCount(0);
 	expect(storageRequests).toEqual([]);

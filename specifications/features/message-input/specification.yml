@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.message-input
-version: 11
+version: 12
 status: draft
 title: Message Input
 summary: 'The OpenMates chat composer owns user text, embeds, draft state, focus-driven background interaction gating,
@@ -383,9 +383,9 @@ assertions:
 - id: message-input.audio.editable-transcript
   type: behavior
   must: In the shared web composer, microphone recordings are transient input for transcription and correction.
-    On success, insert the corrected transcript as ordinary editable text at the originating selection while preserving
-    existing notes and other content. Finish or Enter leaves the corrected text unsent for review. During recording
-    and correction, additionally offer the existing compact round orange up-arrow Send control with its accessible
+    On success, the corrected transcript becomes ordinary editable text where it was dictated, as defined by
+    message-input.audio.live-editor-transcript, while preserving existing notes and other content. Finish or Enter
+    leaves the corrected text unsent for review. During recording and correction, additionally offer the existing compact round orange up-arrow Send control with its accessible
     Send name. Choosing Send finishes capture if needed and requests exactly one submission of the complete draft
     after correction succeeds, through the normal composer send gates, without another button press. Repeated activation
     cannot duplicate submission. Do not create a recording embed or permanently upload/store the audio. Cancellation,
@@ -427,10 +427,10 @@ assertions:
   depends_on: [examples.guest_dictation]
 
 
-- id: message-input.audio.single-line-preview
+- id: message-input.audio.live-editor-transcript
   type: behavior
-  must: During web microphone recording, display only the most recent wrapped transcript line at every desktop, tablet and phone width. The current line remains fully readable; older lines never appear partially above or below it, including while new text arrives or the layout reflows. Do not animate vertically between lines. Preserve the complete transcript for final correction and editable insertion, and keep recording controls visible.
-  depends_on: [examples.single_line_recording]
+  must: During web chat-composer microphone recording, recognized words stream directly into the message editor as editable text at the current caret, starting at the selection where recording began, and the editor expands to show the full draft above the compact recording controls. If the user moves the caret or selects text while recording, the following words are inserted there (replacing a text selection, never an embed). Enter finishes and Escape cancels the recording while the editor is focused. After finishing, dictated text shows an animated gradient until correction completes while the colored recording controls remain visible. Correction replaces dictated text only when it was dictated in one place and left unedited; otherwise the user's arrangement is kept. Cancel removes unedited dictated text. Errors keep already dictated text as an editable draft, except guest allowance failures, which leave no transcript. Personal-data detection runs on dictated text during recording with the usual highlights and exclusions; while any active detection is present the recording Send control fades out and only Cancel and Finish remain. Other composers using the recorder keep a single-line preview.
+  depends_on: [examples.live_editor_recording]
 
 applies_to:
   rest_api:
@@ -473,6 +473,7 @@ examples:
   - drafts
   - attachments
   - recording
+  - live_editor_recording
   - suggestions
   - send_ownership
   - privacy_context

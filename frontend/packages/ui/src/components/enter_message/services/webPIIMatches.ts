@@ -15,6 +15,19 @@ const LABEL_TYPES: Record<string, PIIType> = {
 };
 export const WEB_PII_LABELS = [...Object.keys(LABEL_TYPES), 'IP_ADDRESS'];
 
+// A city or state on its own is general knowledge ("the history of Berlin"),
+// not personal data. It is only part of an address next to a street, building
+// number, unit or postal code, e.g. "Hauptstr. 5, 10115 Berlin".
+const REGION_LABELS = new Set(['CITY', 'STATE']);
+const ADDRESS_ANCHOR_LABELS = new Set(['STREET_NAME', 'BUILDING_NUMBER', 'SECONDARY_ADDRESS', 'ZIP_CODE']);
+// Address parts are separated by a few characters (", ", a line break).
+const ADDRESS_PART_MAX_GAP = 8;
+
+function isAddressRegion(entity: WebPIIEntity, entities: WebPIIEntity[]): boolean {
+  return entities.some(anchor => ADDRESS_ANCHOR_LABELS.has(anchor.label) &&
+    anchor.start - entity.end <= ADDRESS_PART_MAX_GAP && entity.start - anchor.end <= ADDRESS_PART_MAX_GAP);
+}
+
 /** Stable across composer markup/canonical text offset changes; never persisted. */
 export function modelPIIMatchId(type: PIIType, value: string): string {
   let hash = 2166136261;
@@ -94,6 +107,7 @@ export function mergeWebPIIMatches(text: string, entities: WebPIIEntity[], optio
     if (!Number.isInteger(entity.start) || !Number.isInteger(entity.end) || entity.start < 0 || entity.end <= entity.start || entity.end > text.length || text.slice(entity.start, entity.end) !== entity.original) {
       throw new Error('PII detector returned invalid character offsets');
     }
+    if (REGION_LABELS.has(entity.label) && !isAddressRegion(entity, entities)) continue;
     if (options.disabledCategories?.has(PII_TYPE_TO_CATEGORY[type])) continue;
     if (hardReserved.some(r => overlaps(entity.start, entity.end, r))) continue;
     // Reject semantic versions misidentified as IP addresses (e.g. 3.14.159).

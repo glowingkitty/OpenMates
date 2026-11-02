@@ -158,4 +158,21 @@ describe('browser model PII span adaptation', () => {
     const text = 'https://example.org/Amina [PERSON_NAME_1] 123e4567-e89b-42d3-a456-426614174000 version 3.14.159 OpenMates';
     expect(mergeWebPIIMatches(text, [entity(text, 'Amina'), entity(text, 'PERSON_NAME'), entity(text, '123e4567'), entity(text, '3.14.159', 'IP_ADDRESS'), entity(text, 'OpenMates', 'ORG')])).toEqual([]);
   });
+  // contract-test: supporting surface=gui.web assertions=pii.composer.city-not-personal
+  it('does not treat a standalone city or state as personal data', () => {
+    const text = 'Tell me about the history of Berlin and the economy of Bavaria.';
+    expect(mergeWebPIIMatches(text, [entity(text, 'Berlin', 'CITY'), entity(text, 'Bavaria', 'STATE')])).toEqual([]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.city-not-personal
+  it('still protects a city that is part of a street address', () => {
+    const text = 'Send it to Hauptstrasse 5, 10115 Berlin please, not to Hamburg.';
+    const matches = mergeWebPIIMatches(text, [
+      entity(text, 'Hauptstrasse', 'STREET_NAME'), entity(text, '5', 'BUILDING_NUMBER'),
+      entity(text, '10115', 'ZIP_CODE'), entity(text, 'Berlin', 'CITY'), entity(text, 'Hamburg', 'CITY'),
+    ]);
+    expect(matches.map(match => [match.type, match.match])).toEqual([
+      ['ADDRESS', 'Hauptstrasse'], ['ADDRESS', '5'], ['ADDRESS', '10115'], ['ADDRESS', 'Berlin'],
+    ]);
+  });
 });

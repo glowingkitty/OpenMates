@@ -9,6 +9,7 @@ import { BestModelMentionNode } from "./extensions/BestModelMentionNode";
 // import * as EmbedNodes from "./extensions/embeds";
 import { Embed } from "./extensions/Embed"; // Import unified Embed extension
 import { createKeyboardHandlingExtension } from "./handlers/sendHandlers";
+import { RecordingTranscriptProcessing } from "./extensions/RecordingTranscriptProcessing";
 
 export function getEditorExtensions() {
   // Note: We no longer set a static placeholder here.
@@ -46,6 +47,8 @@ export function getEditorExtensions() {
     GenericMentionNode, // For skills, focus modes, settings/memories mentions
     // CustomPlaceholder uses reactive text store, no need to override with static text
     CustomPlaceholder,
+    // Gradient shimmer over live-dictated text while its correction runs
+    RecordingTranscriptProcessing,
     createKeyboardHandlingExtension(),
   ];
 }

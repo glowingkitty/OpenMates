@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.pii-protection@3
+specification: feature.pii-protection@4
 
 web_enhanced_preference:
   - id: production-default-and-persistent-off
@@ -56,6 +56,18 @@ composer_detection:
   - id: excluded-email-preserved
     input: {message: "Email max@posteo.de and sarah@proton.com", excluded_values: ["max@posteo.de"]}
     expect: {sent_contains_original_excluded_value: true, sent_contains_active_email_placeholder: true}
+
+city_names:
+  - id: standalone-city-question
+    assertion_ids: [pii.composer.city-not-personal]
+    given: Enhanced protection is on and the on-device model recognizes "Berlin" as a city.
+    when: A user types "Tell me about the history of Berlin" and sends it.
+    then: Berlin is not highlighted and the message is sent with "Berlin" unchanged.
+  - id: city-in-street-address
+    assertion_ids: [pii.composer.city-not-personal]
+    given: Enhanced protection is on and the model recognizes the street, number, postal code and city.
+    when: A user types "Send it to Hauptstrasse 5, 10115 Berlin".
+    then: The street, number, postal code and Berlin are highlighted and replaced with address placeholders when sent.
 
 message_reveal:
   - id: owner-message-hidden-by-default

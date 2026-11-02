@@ -763,7 +763,9 @@ test('pending Mercury correction falls back to Gemini 3.8 Flash and inserts one 
 	await expect(overlay).toBeVisible();
 	await expect(overlay.getByTestId('recording-processing-text')).toBeVisible();
 	await expect(overlay.getByTestId('record-finish-button')).toBeDisabled();
-	await expect(editor).toHaveText('Please  now');
+	// The finalized raw transcript streams in at the caret and shimmers while correction runs.
+	await expect(editor).toHaveText('Please um review please now');
+	await expect(editor.getByTestId('recording-transcript-processing')).toHaveText('um review please');
 	(releaseFallback as (() => void) | null)?.();
 	await expect(overlay).not.toBeVisible();
 	await expect(editor).toHaveText('Please review now');
@@ -834,7 +836,8 @@ test('pending correction keeps the overlay visible until corrected text is inser
 	await expect(status).toHaveText('Improving transcript…');
 	await expect(overlay.getByTestId('record-finish-button')).toBeDisabled();
 	await expect(overlay.getByTestId('record-cancel-button')).toBeVisible();
-	await expect(editor).toHaveText('Please  now');
+	await expect(editor).toHaveText('Please review now');
+	await expect(editor.getByTestId('recording-transcript-processing')).toHaveText('review');
 	await expect(editor).not.toBeFocused();
 	const sendButton = page.getByTestId('composer-send-button').last();
 	await expect.poll(async () => (await sendButton.count()) === 0 || await sendButton.isDisabled()).toBe(true);
@@ -847,7 +850,7 @@ test('pending correction keeps the overlay visible until corrected text is inser
 	await expect(status).toHaveText('Removing filler words…', { timeout: 4000 });
 	await expect(status).toHaveText('Making it more concise…', { timeout: 4000 });
 	await expect(overlay).toBeVisible();
-	await expect(editor).toHaveText('Please  now');
+	await expect(editor.getByTestId('recording-transcript-processing')).toHaveText('review');
 	(releaseCorrection as (() => void) | null)?.();
 	await expect(overlay).not.toBeVisible();
 	await expect(editor).toHaveText('Please review now');

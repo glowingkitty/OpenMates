@@ -21,6 +21,33 @@
   letter-spacing: inherit;
 }
 
+/* Live-dictated text sweeps a gradient while the recording's correction pass
+   runs; the recording pill below keeps its colored background meanwhile. */
+:global(.ProseMirror .recording-transcript-processing) {
+  /* Same sweep as the shared processing text, tinted with the recording gradient. */
+  background: linear-gradient(90deg,
+    var(--color-font-primary) 0%,
+    var(--color-font-primary) 35%,
+    #667eea 45%,
+    #a78bfa 50%,
+    #764ba2 55%,
+    var(--color-font-primary) 65%,
+    var(--color-font-primary) 100%);
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: processing-text-shimmer 1.5s infinite linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :global(.ProseMirror .recording-transcript-processing) {
+    animation: none;
+    background: none;
+    color: var(--color-font-secondary, var(--color-font-primary));
+  }
+}
+
 /* =============================================================================
    TipTap decoration-based highlighting styles for unclosed blocks
    ============================================================================= */

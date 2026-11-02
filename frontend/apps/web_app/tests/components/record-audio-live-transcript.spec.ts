@@ -46,7 +46,7 @@ test('recording overlay keeps only its latest wrapped transcript line visible on
 });
 
 for (const width of [1155, 768, 390]) {
-  // contract-test: direct surface=gui.web assertions=message-input.recording.lifecycle,message-input.audio.single-line-preview
+  // contract-test: direct surface=gui.web assertions=message-input.recording.lifecycle,message-input.audio.live-editor-transcript
   test(`long recording shows exactly the newest transcript line at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width: Math.max(width + 40, 430), height: 900 });
     await page.goto(`/dev/preview/enter_message/RecordAudio?variant=veryLongTranscript&theme=dark&background=%23181818&width=${width}&chrome=0`);

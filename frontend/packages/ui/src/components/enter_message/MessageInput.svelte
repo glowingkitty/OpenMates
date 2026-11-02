@@ -99,6 +99,7 @@
     import { extractEmbedReferences } from '../../services/embedResolver';
     import { getLastAuthMethod, type LastAuthMethod } from '../../utils/lastAuthMethod';
     import { AnonymousTranscriptionUsageError, type AudioRealtimeTranscriptionHandle } from '../../services/audioRealtimeTranscription';
+    import { createLiveTranscriptController, LIVE_TRANSCRIPT_META, type LiveTranscriptController } from './services/liveTranscriptInsertion';
     import { transactionInsertedTriggerCharacter } from './services/composerParsingSchedule';
     import { assistantSpeechController } from '../../services/assistantSpeechController';
     import { voiceCallController } from '../../services/voiceCall';
@@ -402,21 +403,27 @@
     let recordingLayoutPending = $state(false);
     let recordingLayoutActive = $derived(recordingLayoutPending || $recordingState.showRecordAudioUI || $recordingState.isRecordingActive);
     let recordingStartedWithDraft = $state(false);
-    let recordingShowsDraft = $derived(recordingLayoutActive && recordingStartedWithDraft);
+    // Live dictation streams into the editor, so the draft view opens as soon
+    // as the first words arrive, even for a recording started on an empty field.
+    let recordingHasLiveText = $state(false);
+    let recordingShowsDraft = $derived(recordingLayoutActive && (recordingStartedWithDraft || recordingHasLiveText));
+    let livePIIDetectionTimer: ReturnType<typeof setTimeout> | null = null;
+    // Continuous dictation would keep resetting the regular PII debounce, so
+    // live text is scanned on a fixed cadence instead.
+    const LIVE_PII_DETECTION_INTERVAL_MS = 600;
     let recordingContext = $state.raw<{
         owner: string;
         generation: number;
         editor: Editor;
         chatId: string | undefined;
         draftChatId: string | null;
-        from: number;
-        to: number;
+        textAtCapture: string;
+        live: LiveTranscriptController;
         realtime: AudioRealtimeTranscriptionHandle | null;
         sendRequested: boolean;
         overlayRemoved: Promise<void>;
         resolveOverlayRemoved: () => void;
         releaseEmptyDraftProtection: () => void;
-        unmap: () => void;
     } | null>(null);
 
     // --- Local UI State ---
@@ -2743,6 +2750,11 @@
                         // the open viewer can receive the original event.
                         if ((event.key === 'Enter' || event.key === 'Escape') &&
                             document.querySelector('.unified-embed-fullscreen-overlay')) return true;
+                        // While dictating into the editor, Enter finishes and Escape
+                        // cancels the recording (handled by RecordAudio's document
+                        // listener) instead of sending or inserting a paragraph.
+                        if ($recordingState.showRecordAudioUI &&
+                            ((event.key === 'Enter' && !event.shiftKey) || event.key === 'Escape')) return true;
                         if ((event.key === 'Enter' || event.key === ' ') && (event.target as HTMLElement).closest('[data-testid="project-access-chip"]')) {
                             handleMessageWrapperKeyDown(event);
                             return true;
@@ -2925,6 +2937,7 @@
  
     onDestroy(() => {
         composerDestroyed = true;
+        if (livePIIDetectionTimer) clearTimeout(livePIIDetectionTimer);
         piiPreviewGeneration += 1;
         unsubscribePIISettings();
         unsubscribePIIReadiness();
@@ -3057,8 +3070,7 @@
                 // become draft text. Flushing that transient empty document
                 // would create and then delete the originating draft shell,
                 // clearing its ID while the correction is still in flight.
-                const emptyRecordingEditor = recordingContext?.editor === editor && editor.isEmpty;
-                if (!queuedEdit && !emptyRecordingEditor) flushSaveDraft(editor, chatIdAtBlur);
+                if (!queuedEdit && !recordingDefersDraftSave(editor)) flushSaveDraft(editor, chatIdAtBlur);
                 // Only reset to initial content if the editor is TRULY empty (no content at all)
                 // Do NOT reset if it contains mentions - those are valid draft content
                 // that should be preserved even though they can't be sent alone
@@ -3569,7 +3581,7 @@
             const repairedDomDrift = syncTextOnlyDomToEditorBeforeDraftSave(editor);
             if (repairedDomDrift) {
                 hasContent = editorHasSendableText(editor);
-                if (!queuedEdit && !(recordingContext?.editor === editor && editor.isEmpty)) {
+                if (!queuedEdit && !recordingDefersDraftSave(editor)) {
                     triggerSaveDraft(currentChatId, editor);
                 }
             }
@@ -3680,7 +3692,7 @@
             if (transaction.docChanged) {
                 refreshDraftPreviewState(editor);
                 updateOriginalMarkdown(editor);
-                if (!queuedEdit && !(recordingContext?.editor === editor && editor.isEmpty)) {
+                if (!queuedEdit && !recordingDefersDraftSave(editor)) {
                     triggerSaveDraft(currentChatId, editor);
                 }
             }
@@ -3706,8 +3718,10 @@
             }
         }
         
-        // Always trigger save/delete operation - the draft service handles both scenarios
-        if (!queuedEdit && !(recordingContext?.editor === editor && editor.isEmpty)) {
+        // Always trigger save/delete operation - the draft service handles both scenarios.
+        // Dictation's own writes (streaming, correction, cancel cleanup) persist
+        // explicitly once the recording settles instead.
+        if (!queuedEdit && !recordingDefersDraftSave(editor) && !transaction.getMeta(LIVE_TRANSCRIPT_META)) {
             triggerSaveDraft(currentChatId, editor);
         }
 
@@ -4934,7 +4948,9 @@
                 clearTimeout(blurTimeoutId);
                 blurTimeoutId = null;
             }
-            if (editor && !editor.isDestroyed && !editor.isFocused) {
+            // While dictation is visible, a tap places the caret where the next
+            // words go; forcing focus('end') would overwrite the native caret.
+            if (editor && !editor.isDestroyed && !editor.isFocused && !recordingShowsDraft) {
                 editor.commands.focus('end');
                 console.debug('[MessageInput] Ensuring editor focus on editor mousedown');
             }
@@ -5221,7 +5237,7 @@
         recordingContext = null;
         context?.releaseEmptyDraftProtection();
         context?.resolveOverlayRemoved();
-        context?.unmap();
+        context?.live.destroy();
         context?.realtime?.cancel();
     }
 
@@ -5229,7 +5245,7 @@
         invalidateRecordingContext('new-recording');
         if (!editor || editor.isDestroyed) return;
         const activeEditor = editor;
-        const selection = activeEditor.state.selection;
+        recordingHasLiveText = false;
         let resolveOverlayRemoved = () => {};
         const overlayRemoved = new Promise<void>((resolve) => { resolveOverlayRemoved = resolve; });
         const context = {
@@ -5238,22 +5254,16 @@
             editor: activeEditor,
             chatId: currentChatId,
             draftChatId: get(draftEditorUIState).currentChatId ?? null,
-            from: selection.from,
-            to: selection.to,
+            // Dictation lands at the editor selection captured here and then
+            // follows the caret wherever the user moves it while speaking.
+            live: createLiveTranscriptController(activeEditor),
+            textAtCapture: activeEditor.getText(),
             realtime: null as AudioRealtimeTranscriptionHandle | null,
             sendRequested: false,
             overlayRemoved,
             resolveOverlayRemoved,
             releaseEmptyDraftProtection: () => {},
-            unmap: () => {},
         };
-        const mapSelection = ({ transaction }: { transaction: Transaction }) => {
-            if (!transaction.docChanged) return;
-            context.from = transaction.mapping.map(context.from, context.from === context.to ? 1 : -1);
-            context.to = transaction.mapping.map(context.to, 1);
-        };
-        activeEditor.on('transaction', mapSelection);
-        context.unmap = () => activeEditor.off('transaction', mapSelection);
         recordingContext = context;
         context.releaseEmptyDraftProtection = protectEmptyRecordingDraft(activeEditor, context.chatId, () =>
             recordingContext === context && context.generation === recordingDraftGeneration &&
@@ -5292,6 +5302,46 @@
         return current;
     }
 
+    // contract-test: direct surface=gui.web assertions=message-input.audio.live-editor-transcript
+    function handleLiveTranscript(event: CustomEvent<{ transcript: string }>) {
+        const context = recordingContext;
+        if (!context || !isCurrentRecordingContext(context)) return;
+        if (!context.live.apply(event.detail.transcript)) return;
+        recordingHasLiveText = true;
+        scheduleLivePIIDetection(context.editor);
+    }
+
+    function scheduleLivePIIDetection(targetEditor: Editor) {
+        if (livePIIDetectionTimer) return;
+        livePIIDetectionTimer = setTimeout(() => {
+            livePIIDetectionTimer = null;
+            if (editor === targetEditor && !targetEditor.isDestroyed) void runPIIDetectionImmediate(targetEditor);
+        }, LIVE_PII_DETECTION_INTERVAL_MS);
+    }
+
+    /** Recording drafts persist once dictation is reconciled, not on every streamed word. */
+    function recordingDefersDraftSave(targetEditor: Editor): boolean {
+        const context = recordingContext;
+        return !!context && context.editor === targetEditor &&
+            (targetEditor.isEmpty || context.live.hasText());
+    }
+
+    function handleRecordingCancelled() {
+        const context = recordingContext;
+        if (context && isCurrentRecordingContext(context)) {
+            context.live.discard();
+            invalidateRecordingContext('recording-cancelled');
+            // Only text typed during the recording needs persisting; an unchanged
+            // draft is already saved and must not be re-saved as a new draft.
+            if (!queuedEdit && !context.editor.isEmpty && context.editor.getText() !== context.textAtCapture) {
+                triggerSaveDraft(currentChatId, context.editor);
+            }
+        } else {
+            invalidateRecordingContext('recording-cancelled');
+        }
+        handleStopRecordingCleanup();
+    }
+
     function handleRecordingSendRequested() {
         const context = recordingContext;
         if (!context || !isCurrentRecordingContext(context)) return;
@@ -5315,6 +5365,7 @@
         }
         context.realtime = realtime;
         recordingCorrectionPending = true;
+        context.live.setProcessing(true);
         recordRecordingDiagnostic('correction-pending', context);
 
         // Associate billing with the draft without creating an audio file or embed.
@@ -5335,18 +5386,12 @@
             recordRecordingDiagnostic('correction-arrived', context);
             if (!isCurrentRecordingContext(context)) return;
             const transcript = result.transcript.trim();
-            if (!transcript) throw new Error('Empty recording transcript');
-            const plainTextContent: JSONContent[] = [];
-            transcript.split(/\r\n?|\n/).forEach((line, index) => {
-                if (index > 0) plainTextContent.push({ type: 'hardBreak' });
-                if (line) plainTextContent.push({ type: 'text', text: line });
-            });
-            context.editor.commands.insertContentAt(
-                { from: context.from, to: context.to },
-                plainTextContent,
-                { updateSelection: true },
-            );
-            recordRecordingDiagnostic('transcript-inserted', context);
+            if (!transcript && !context.live.hasText()) throw new Error('Empty recording transcript');
+            context.live.setProcessing(false);
+            // One untouched dictation segment becomes the corrected text. Text
+            // the user redirected or edited while speaking stays as arranged.
+            const outcome = transcript ? context.live.applyCorrection(transcript) : 'kept';
+            recordRecordingDiagnostic('transcript-inserted', context, outcome);
             hasContent = editorHasSendableText(context.editor);
             refreshDraftPreviewState(context.editor);
             lastEditorUpdateText = context.editor.getText();
@@ -5381,6 +5426,14 @@
             if (isCurrentRecordingContext(context)) {
                 if (!(error instanceof AnonymousTranscriptionUsageError)) console.error('[MessageInput] Recording transcription failed:', error);
                 void showTranscriptionError(error);
+                context.live.setProcessing(false);
+                if (error instanceof AnonymousTranscriptionUsageError) {
+                    // Guest dictation without admitted allowance yields no transcript.
+                    context.live.discard();
+                } else if (context.live.hasText() && !queuedEdit) {
+                    // Already streamed words stay editable; persist them as the draft.
+                    triggerSaveDraft(currentChatId, context.editor);
+                }
             }
         } finally {
             if (!$authStore.isAuthenticated) void refreshAnonymousFreeUsageStatus();
@@ -6502,8 +6555,8 @@
     // These now extract the original event from the detail payload
     function prepareEditorForRecording() {
         captureRecordingContext();
-        // Freeze the layout choice at capture start; corrected text must not
-        // expand a recording that began with an empty editor.
+        // A recording that begins with a draft shows it immediately; an empty
+        // editor expands once the first dictated words stream in.
         recordingStartedWithDraft = !!editor && !editor.isDestroyed &&
             inspectDraftContent(editor.getJSON()).hasMeaningfulContent;
         if (blurTimeoutId) {
@@ -7783,13 +7836,16 @@
                 retainUntilSend={true}
                 compact={true}
                 allowSend={true}
+                transcriptInEditor={true}
+                sendHidden={detectedPII.length > 0}
                 recordingGeneration={recordingContext?.generation ?? recordingDraftGeneration}
+                on:livetranscript={handleLiveTranscript}
                 on:sendrequested={handleRecordingSendRequested}
                 on:audiorecorded={handleAudioRecorded}
                 on:transcriptionerror={(event) => showTranscriptionError(event.detail)}
                 on:close={handleStopRecordingCleanup}
                 on:overlayremoved={handleRecordingOverlayRemoved}
-                on:cancel={() => { invalidateRecordingContext('recording-cancelled'); handleStopRecordingCleanup(); }}
+                on:cancel={handleRecordingCancelled}
                 on:recordingStateChange={handleRecordingLayoutChange}
                 on:prepareassistantplayback={() => assistantSpeechController.primeForAutoplay()}
             />

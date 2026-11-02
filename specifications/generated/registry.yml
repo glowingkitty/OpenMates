@@ -635,10 +635,10 @@ specifications:
     required_applies_to:
     - gui.web
   feature.message-input:
-    version: 11
+    version: 12
     status: draft
     path: features/message-input
-    fingerprint: ecbb089dbfdfa8e4dbe67bdaa596a16bc102cc00ef25d3bdc3311e653afc79c3
+    fingerprint: 53cd58f0ab1423687b18050cddc91341a451e71ecb3580401ce55b1c97d72643
     required_applies_to:
     - gui.web
     - gui.apple
@@ -671,10 +671,10 @@ specifications:
     - gui.web
     - gui.apple
   feature.pii-protection:
-    version: 3
+    version: 4
     status: draft
     path: features/pii-protection
-    fingerprint: 96477800c260db91761cbc49bae744f86f92dd2e932c5d8aacd8f9e3907c0a88
+    fingerprint: 4a94217ddc2bb2e36cbeb1e3027687a513a922aab9c38ca610b38a5f447fe9d0
     required_applies_to:
     - cli
     - gui.web
@@ -8047,7 +8047,7 @@ assertions:
     required_applies_to:
     - gui.web
   message-input.focus.parent-state:
-    specification: feature.message-input@11
+    specification: feature.message-input@12
     specification_id: feature.message-input
     type: behavior
     fingerprint: c9cd7e910c210b6e430cc4fe09f4a85755a5473346cc017e97991f63af76886b
@@ -8055,7 +8055,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.focus.guest-welcome-suppression:
-    specification: feature.message-input@11
+    specification: feature.message-input@12
     specification_id: feature.message-input
     type: behavior
     fingerprint: c933fbea8f93821c45a3a877c156d7d6b06d85ae4f4091f423d967748a818df3
@@ -8063,7 +8063,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.focus.workspace-suppression:
-    specification: feature.message-input@11
+    specification: feature.message-input@12
     specification_id: feature.message-input
     type: behavior
     fingerprint: c7a2ea4163b551346229632a481846960f46511195a333b32d02edf473ddeec0
@@ -8071,7 +8071,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.actions.visibility:
-    specification: feature.message-input@11
+    specification: feature.message-input@12
     specification_id: feature.message-input
     type: behavior
     fingerprint: 5c8d4b857988f7d4ea4b2d12b52a224fa96539dba11fcf7344322a1a525af091
@@ -8079,7 +8079,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.attachments.quick-access:
-    specification: feature.message-input@11
+    specification: feature.message-input@12
     specification_id: feature.message-input
     type: behavior
     fingerprint: ec56a430a0eaf37c7d71c61f4f7468329cf038888c2227110368e2104fc58943
@@ -8087,7 +8087,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.drafts.preview-persistence:
-    specification: feature.message-input@11
+    specification: feature.message-input@12
     specification_id: feature.message-input
     type: behavior
     fingerprint: a3f26a82f400ea4d23e90bb8676f9f2e8790f48705ab90b1c55c553df301f193
@@ -8095,7 +8095,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.embeds.gated-send:
-    specification: feature.message-input@11
+    specification: feature.message-input@12
     specification_id: feature.message-input
     type: invariant
     fingerprint: 3ca30e8ebdfb1985406c4a9d74b477e80ebfc5f1685de5ab69ae224b295643a8
@@ -8103,7 +8103,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.recording.lifecycle:
-    specification: feature.message-input@11
+    specification: feature.message-input@12
     specification_id: feature.message-input
     type: behavior
     fingerprint: 57b9517de2eb6c4d7e8e89975c97bdc94035c92240bba5f0e463e39a97e06c98
@@ -8111,7 +8111,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.suggestions.contextual:
-    specification: feature.message-input@11
+    specification: feature.message-input@12
     specification_id: feature.message-input
     type: behavior
     fingerprint: 6b709d86954867371423b3d9bcffa3109e43e87a23f926e6d46e5cbfefec812a
@@ -8119,7 +8119,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.send.ownership:
-    specification: feature.message-input@11
+    specification: feature.message-input@12
     specification_id: feature.message-input
     type: behavior
     fingerprint: 0cdd07a0825a9fb6e20341f6ff15595b61d95c56f3e86cda879453e569d4e00a
@@ -8127,7 +8127,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.privacy-context:
-    specification: feature.message-input@11
+    specification: feature.message-input@12
     specification_id: feature.message-input
     type: privacy
     fingerprint: 6b26620a7d7a2eecf45ff9b5a4e4e404f73838448e431b5c9db8c8433166e5e1
@@ -8135,7 +8135,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.layout.responsive-parity:
-    specification: feature.message-input@11
+    specification: feature.message-input@12
     specification_id: feature.message-input
     type: parity
     fingerprint: ae4b23f1ed3345bae9cdd0f1021af7d30ec0f359fab64707a860472438ccc562
@@ -8143,15 +8143,15 @@ assertions:
     - gui.web
     - gui.apple
   message-input.audio.editable-transcript:
-    specification: feature.message-input@11
+    specification: feature.message-input@12
     specification_id: feature.message-input
     type: behavior
-    fingerprint: 5cd9e78b665c116164d4957a7a29056093a013d9d37f86918d70e53e3c827451
+    fingerprint: 914a30e07c07a98584463f94466408a1dbafb4777de5de057373f2a2ad76404b
     required_applies_to:
     - gui.web
     - gui.apple
   message-input.suggestion.editable-acceptance:
-    specification: feature.message-input@11
+    specification: feature.message-input@12
     specification_id: feature.message-input
     type: behavior
     fingerprint: 6d9b131cf10f3eade559e3dc78557e5c7312793796661c81072f45999df37028
@@ -8159,7 +8159,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.suggestion.keyboard-ownership:
-    specification: feature.message-input@11
+    specification: feature.message-input@12
     specification_id: feature.message-input
     type: behavior
     fingerprint: 5ba10c97b4bf3796634e80c21584fc3e9b3f8c41b7d3e4cd8ca9244321107249
@@ -8167,7 +8167,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.suggestion.dismissal:
-    specification: feature.message-input@11
+    specification: feature.message-input@12
     specification_id: feature.message-input
     type: behavior
     fingerprint: 2ff79519a5de3f85c64b88c777ef871115b196d61ee0d4be231b4c70644a91ce
@@ -8175,7 +8175,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.suggestion.draft-priority:
-    specification: feature.message-input@11
+    specification: feature.message-input@12
     specification_id: feature.message-input
     type: behavior
     fingerprint: 13a8c2b349bbc566be559a348bf09719a8a4bb1fd6d9d887c6a87318bedf312f
@@ -8183,7 +8183,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.suggestion.touch-acceptance:
-    specification: feature.message-input@11
+    specification: feature.message-input@12
     specification_id: feature.message-input
     type: behavior
     fingerprint: 22eff2e48adf2c7e7c8b90598c9e977918672097d84e43d4f23ccbc562c53ab2
@@ -8191,7 +8191,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.audio.realtime-voxtral3:
-    specification: feature.message-input@11
+    specification: feature.message-input@12
     specification_id: feature.message-input
     type: behavior
     fingerprint: 25efdfb2514c7087d87c647caf81c0b30535f211f5b05270d1a3307a959ab11f
@@ -8199,18 +8199,18 @@ assertions:
     - gui.web
     - gui.apple
   message-input.audio.guest-admission:
-    specification: feature.message-input@11
+    specification: feature.message-input@12
     specification_id: feature.message-input
     type: security
     fingerprint: 4e90d45262ee9a99290190eedd78914dba667875b581570613fbb930cbcc75ac
     required_applies_to:
     - gui.web
     - gui.apple
-  message-input.audio.single-line-preview:
-    specification: feature.message-input@11
+  message-input.audio.live-editor-transcript:
+    specification: feature.message-input@12
     specification_id: feature.message-input
     type: behavior
-    fingerprint: 603f2c0c2b2c9980e72273b0fff258b292f946bf4af14e54a247cb0d0771ce23
+    fingerprint: 70b56b6ee60a3b4398a85822fe301619292985168d337880eaa5bd33902948ea
     required_applies_to:
     - gui.web
     - gui.apple
@@ -8569,7 +8569,7 @@ assertions:
     - gui.web
     - gui.apple
   pii.composer.detect-redact-exclude:
-    specification: feature.pii-protection@3
+    specification: feature.pii-protection@4
     specification_id: feature.pii-protection
     type: privacy
     fingerprint: 1b025eee5975202c5778db2f3c39c0c3b91af15708638086729da27c6cab7213
@@ -8577,8 +8577,17 @@ assertions:
     - cli
     - gui.web
     - gui.apple
+  pii.composer.city-not-personal:
+    specification: feature.pii-protection@4
+    specification_id: feature.pii-protection
+    type: privacy
+    fingerprint: a1da3fbfa67b7b06fbaf9542fc19f2c96ecad5a88a7f9b648225c9e6e97a5342
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
   pii.web.enhanced-default-and-opt-out:
-    specification: feature.pii-protection@3
+    specification: feature.pii-protection@4
     specification_id: feature.pii-protection
     type: privacy
     fingerprint: 087a2c5b6ddb938a55bb32c8a41a9f7cc80c36a5d2e30cad56f23af90bd6da7c
@@ -8587,7 +8596,7 @@ assertions:
     - gui.web
     - gui.apple
   pii.web.local-bounded-inference:
-    specification: feature.pii-protection@3
+    specification: feature.pii-protection@4
     specification_id: feature.pii-protection
     type: privacy
     fingerprint: 62b23aeb481c0b48e1d9371d170bca84f5622ea4d7c314035f6ea9639935febf
@@ -8596,7 +8605,7 @@ assertions:
     - gui.web
     - gui.apple
   pii.web.licensing-egress-boundary:
-    specification: feature.pii-protection@3
+    specification: feature.pii-protection@4
     specification_id: feature.pii-protection
     type: privacy
     fingerprint: 5bf5ae4f71a562f95f2e451e3b1d5541bff1a59123449492c4840f313aa66256
@@ -8605,7 +8614,7 @@ assertions:
     - gui.web
     - gui.apple
   pii.web.provider-disclosure:
-    specification: feature.pii-protection@3
+    specification: feature.pii-protection@4
     specification_id: feature.pii-protection
     type: privacy
     fingerprint: 73df01757c1f9d6562c0b057798348551ce4ef500a16fef0b3ddf5820bacc251
@@ -8614,7 +8623,7 @@ assertions:
     - gui.web
     - gui.apple
   pii.apple.enhanced-local-detection:
-    specification: feature.pii-protection@3
+    specification: feature.pii-protection@4
     specification_id: feature.pii-protection
     type: privacy
     fingerprint: e8c3afc56c795579c76f35f7c9ff8164fcc3e51ca08b5a242fedf3643cc73521
@@ -8623,7 +8632,7 @@ assertions:
     - gui.web
     - gui.apple
   pii.message.owner-local-reveal:
-    specification: feature.pii-protection@3
+    specification: feature.pii-protection@4
     specification_id: feature.pii-protection
     type: privacy
     fingerprint: 6ec4ad5e9a77acef7d27640949c1df23d3e0e5aa3ca76c53da3dc8210d20daba
@@ -8632,7 +8641,7 @@ assertions:
     - gui.web
     - gui.apple
   pii.embed.owner-local-reveal-sync:
-    specification: feature.pii-protection@3
+    specification: feature.pii-protection@4
     specification_id: feature.pii-protection
     type: privacy
     fingerprint: 3ebb728ea3853a3594ed0a1099a154d4d81a3b801ea3dc05092b3148f44607e8
@@ -8641,7 +8650,7 @@ assertions:
     - gui.web
     - gui.apple
   pii.outbound.known-original-rewrite:
-    specification: feature.pii-protection@3
+    specification: feature.pii-protection@4
     specification_id: feature.pii-protection
     type: privacy
     fingerprint: 2798e6a6691a473c30383372aafe7f8c0b4b1299b5de6aa53060007d373be005
@@ -8650,7 +8659,7 @@ assertions:
     - gui.web
     - gui.apple
   pii.surface.semantic-parity:
-    specification: feature.pii-protection@3
+    specification: feature.pii-protection@4
     specification_id: feature.pii-protection
     type: parity
     fingerprint: 7094578ec4fc94e3b7b3b3073b2f30f05991abb1e215e452da4020eb0756dbeb

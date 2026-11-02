@@ -254,7 +254,8 @@ test.describe.serial('Audio recording and assistant speech', () => {
 		await mic.dispatchEvent('mousedown');
 		const recording = page.getByTestId('record-overlay');
 		await expect(recording).toBeVisible({ timeout: 10_000 });
-		await expect(recording.getByTestId('recording-live-transcript')).toContainText('Live preview while speaking.');
+		await expect(editor).toContainText('Live preview while speaking.');
+		await expect(recording.getByTestId('recording-live-transcript')).toHaveCount(0);
 		await recording.getByTestId('record-finish-button').click();
 		await expect(editor).toHaveText(TRANSCRIPTION_TEXT, { timeout: 30_000 });
 		await expect(voiceToggle).toHaveAttribute('aria-pressed', 'false');
