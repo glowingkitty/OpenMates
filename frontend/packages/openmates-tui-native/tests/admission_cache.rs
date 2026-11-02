@@ -295,16 +295,22 @@ async fn header_first_rotation_survives_invalid_body_without_output_or_cache_los
 
 #[cfg(unix)]
 #[tokio::test]
-async fn cache_publication_failure_withholds_whoami_and_keeps_rotated_credentials_durable() {
+async fn whoami_never_reads_or_publishes_the_cache_and_keeps_rotated_credentials_durable() {
     let peer = Peer::new(VALID, None).await;
     let temp = private_dir();
     let saved = session(&peer.api);
     seed(temp.path(), &saved);
     let cache = cache_path(temp.path());
+    let before = std::fs::read(&cache).unwrap();
     *peer.sabotage.lock().unwrap() = Some(cache.clone());
     let result = command(&peer.api, temp.path()).await;
-    assert!(!result.status.success());
-    assert!(result.stdout.is_empty());
+    // whoami defers the sync cache: an obstructed cache cannot fail it, and it
+    // neither follows nor replaces the obstruction.
+    assert!(result.status.success());
+    assert_eq!(
+        serde_json::from_slice::<Value>(&result.stdout).unwrap()["id"],
+        "synthetic-account"
+    );
     let store = RuntimeStore::new(Some(temp.path().to_path_buf()), false)
         .await
         .unwrap();
@@ -326,12 +332,8 @@ async fn cache_publication_failure_withholds_whoami_and_keeps_rotated_credential
             .file_type()
             .is_symlink()
     );
-    // The target is the exact pre-admission protected ciphertext; the failing
-    // publication cannot replace or follow it and cannot release user output.
-    let target: Value =
-        serde_json::from_slice(&std::fs::read(cache.with_extension("blocked")).unwrap()).unwrap();
-    assert_eq!(target["version"], 1);
-    assert!(!target["ciphertext"].as_str().unwrap().is_empty());
+    // The target is still the exact pre-admission protected ciphertext.
+    assert_eq!(std::fs::read(cache.with_extension("blocked")).unwrap(), before);
     assert_eq!(peer.finish().await, 1);
 }
 

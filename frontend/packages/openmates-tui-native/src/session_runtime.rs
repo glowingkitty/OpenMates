@@ -51,6 +51,77 @@ fn current(
     Ok(())
 }
 
+/// Which part of the protected sync cache a command restores before dispatch.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CacheLoad {
+    /// Never read or rewrite the cache (commands that read no cached Chats).
+    /// Unless preserved (whoami), list freshness is still durably revoked
+    /// before dispatch, exactly like prepare_command_cache_admission.
+    Deferred { revoke_list_freshness: bool },
+    /// Only the Chat-list index; per-Chat content loads on demand.
+    Index,
+    /// The index plus one Chat's cached content (cache-first open).
+    Chat(String),
+    /// Everything (legacy behavior; any command not listed below).
+    Full,
+}
+
+/// Account/settings reads and writes that never use cached Chats or embeds.
+const DEFERRED_ACCOUNT_COMMANDS: &[&str] = &[
+    "credits",
+    "account info",
+    "account username set",
+    "account timezone set",
+    "account interests list",
+    "account interests set",
+    "account interests clear",
+    "account chats stats",
+    "account storage overview",
+    "account storage files",
+    "interface language set",
+    "interface dark-mode set",
+    "interface font set",
+    "billing overview",
+    "billing usage",
+    "billing usage summaries",
+    "billing usage daily",
+    "billing usage export",
+    "billing usage overview",
+    "billing usage details",
+    "billing usage chat-total",
+    "billing gift-card list",
+    "billing invoices list",
+    "billing bank-transfer list",
+    "gift-card list",
+    "developers api-keys list",
+    "developers devices",
+    "security sessions",
+    "memories list",
+    "memories types",
+    "memories create",
+    "memories update",
+    "memories delete",
+    "reminders list",
+];
+
+/// Cache restoration policy per command. Only commands proven not to read
+/// cached Chats/embeds defer; `chats list` needs only the index.
+pub fn command_cache_load(invocation: &crate::cli::Invocation) -> CacheLoad {
+    let path = invocation.command_path();
+    let account = path.strip_prefix("settings ").unwrap_or(&path);
+    if path == "whoami" {
+        CacheLoad::Deferred { revoke_list_freshness: false }
+    } else if crate::cli::is_direct_apps_command(invocation)
+        || DEFERRED_ACCOUNT_COMMANDS.contains(&account)
+    {
+        CacheLoad::Deferred { revoke_list_freshness: true }
+    } else if path == "chats list" {
+        CacheLoad::Index
+    } else {
+        CacheLoad::Full
+    }
+}
+
 /// Restore only the selected durable profile's protected ciphertext before its
 /// first save. This publishes no output and grants no server authentication.
 /// Read/shape/context failures preserve the existing on-disk profile and cache.
@@ -59,6 +130,20 @@ pub async fn restore_protected_cache(
     store: &RuntimeStore,
     passphrase: Option<Zeroizing<String>>,
     cancel: &CancellationToken,
+) -> Result<()> {
+    restore_command_cache(client, store, passphrase, cancel, CacheLoad::Full).await
+}
+
+/// `restore_protected_cache` restricted to what the command needs. Deferred
+/// performs the same durable-profile checks without reading the cache and
+/// marks the store so persistence never rewrites it; non-`whoami` deferred
+/// commands still durably revoke list freshness at their pre-dispatch save.
+pub async fn restore_command_cache(
+    client: &mut Client,
+    store: &RuntimeStore,
+    passphrase: Option<Zeroizing<String>>,
+    cancel: &CancellationToken,
+    load: CacheLoad,
 ) -> Result<()> {
     let generation = store.generation();
     current(client, store, generation, cancel)?;
@@ -69,17 +154,39 @@ pub async fn restore_protected_cache(
     if session_digest(&durable)? != credential_digest(client)? {
         return Err(Error::Cancelled);
     }
-    let snapshot = store
-        .read_cache(
-            durable.hashed_email.clone(),
-            cache_key(&durable),
-            durable.master_key.clone(),
-        )
+    let owner = durable.hashed_email.clone();
+    let key = cache_key(&durable);
+    let master = durable.master_key.clone();
+    let mode = match &load {
+        CacheLoad::Deferred { revoke_list_freshness } => {
+            store.defer_sync_cache(*revoke_list_freshness);
+            return current(client, store, generation, cancel);
+        }
+        CacheLoad::Full => crate::storage::SyncReadMode::Complete,
+        CacheLoad::Index | CacheLoad::Chat(_) => crate::storage::SyncReadMode::Index,
+    };
+    let read = store
+        .read_sync_cache(owner.clone(), key.clone(), master.clone(), mode)
         .await?;
     current(client, store, generation, cancel)?;
-    if let Some(snapshot) = snapshot {
-        if let Err(error) = client.restore_authenticated_ciphertext_snapshot(&snapshot) {
-            // SDK restoration can parse several fields before a later failure.
+    let restored = match read {
+        None => Ok(()),
+        Some(crate::storage::SyncCacheRead::Complete(snapshot)) => {
+            client.restore_authenticated_ciphertext_snapshot(&snapshot)
+        }
+        Some(crate::storage::SyncCacheRead::Index(index)) => client
+            .restore_authenticated_ciphertext_index(
+                &index,
+                store.sync_content_loader(owner, key, master),
+            ),
+    };
+    if let Err(error) = restored {
+        // SDK restoration can parse several fields before a later failure.
+        client.forget_session();
+        return Err(error);
+    }
+    if let CacheLoad::Chat(chat) = load {
+        if let Err(error) = load_cached_chat(client, store, &chat).await {
             client.forget_session();
             return Err(error);
         }
@@ -89,6 +196,28 @@ pub async fn restore_protected_cache(
         return Err(error);
     }
     Ok(())
+}
+
+/// Cache-first Chat open: decrypt only this Chat's cached content section
+/// (messages, sync window/cursor, selected first page, its embeds and keys)
+/// into a partially restored client. Returns whether a cached section existed.
+/// A completely restored client already holds it (Ok(true) iff it has rows).
+pub async fn load_cached_chat(client: &mut Client, store: &RuntimeStore, chat: &str) -> Result<bool> {
+    if client.partially_restored_chats().is_none_or(|loaded| loaded.iter().any(|id| id == chat)) {
+        return Ok(true);
+    }
+    let session = client.session().ok_or(Error::Authentication)?;
+    let section = store
+        .read_sync_chat(
+            session.hashed_email.clone(),
+            cache_key(session),
+            session.master_key.clone(),
+            chat.to_owned(),
+        )
+        .await?;
+    let found = section.is_some();
+    client.restore_cached_chat_content(chat, section.as_ref())?;
+    Ok(found)
 }
 
 /// Conservative native command admission. The immediately following initial
@@ -236,6 +365,8 @@ impl<'a> FreshSessionAdmission<'a> {
 
 /// Acknowledge precisely the revision that was saved, only after durable cache
 /// publication succeeds. Pairing admission cannot acknowledge an unsaved grant.
+/// Change-only: unchanged credentials and unchanged cache sections are not
+/// rewritten; content a partially restored client never loaded is retained.
 pub async fn persist(
     client: &mut Client,
     store: &RuntimeStore,
@@ -243,21 +374,35 @@ pub async fn persist(
 ) -> Result<()> {
     if let Some(snapshot) = client.credential_snapshot() {
         let session = snapshot.session;
+        let generation = store.generation_guard();
         // Capacity refusal must precede credential replacement as well as cache
         // publication. Reuse this exact snapshot; no additional history clone.
-        let generation = store.generation_guard();
-        let cache = store.prepare_cache(client.ciphertext_snapshot()).await?;
+        let deferred = store.sync_cache_deferred();
+        let cache = match deferred {
+            Some(_) => None,
+            None => Some(
+                store
+                    .prepare_sync_sections(client.ciphertext_snapshot(), client.partially_restored_chats())
+                    .await?,
+            ),
+        };
         if !generation.is_current() { return Err(Error::Cancelled); }
-        store.save(session.clone(), passphrase).await?;
+        store.save_if_changed(session.clone(), passphrase).await?;
         if !generation.is_current() { return Err(Error::Cancelled); }
-        store
-            .write_prepared_cache(
-                session.hashed_email.clone(),
-                cache_key(&session),
-                session.master_key.clone(),
-                cache,
-            )
-            .await?;
+        if let Some(cache) = cache {
+            store
+                .write_sync_sections(
+                    session.hashed_email.clone(),
+                    cache_key(&session),
+                    session.master_key.clone(),
+                    cache,
+                )
+                .await?;
+        } else if deferred == Some(true) {
+            store
+                .revoke_deferred_freshness(session.hashed_email.clone(), cache_key(&session))
+                .await?;
+        }
         if !generation.is_current() { return Err(Error::Cancelled); }
         client.acknowledge_credentials(snapshot.revision)?;
     } else {

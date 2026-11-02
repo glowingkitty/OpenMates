@@ -35,6 +35,13 @@ pub struct RuntimeStore {
     store: Arc<Store>,
     queue: Arc<Mutex<()>>,
     generation: Arc<AtomicU64>,
+    /// Commands that never read cached Chats leave the sync cache unread and
+    /// untouched (see session_runtime::CacheLoad::Deferred).
+    deferred: Arc<std::sync::Mutex<Option<DeferredCache>>>,
+}
+#[derive(Clone, Copy)]
+struct DeferredCache {
+    revoke_freshness: bool,
 }
 impl RuntimeStore {
     pub async fn new(path: Option<PathBuf>, force_vault: bool) -> Result<Self> {
@@ -52,6 +59,7 @@ impl RuntimeStore {
                 store: Arc::new(store),
                 queue: Arc::new(Mutex::new(())),
                 generation: Arc::new(AtomicU64::new(0)),
+                deferred: Arc::default(),
             })
         })
         .await
@@ -184,25 +192,6 @@ impl RuntimeStore {
         Ok(crate::storage::cache_record_encoded_len(checkpoint_json_bytes)?
             <= crate::storage::MAX_LOCAL_RECORD_BYTES)
     }
-    /// Owned immutable capacity admission. Encoding runs on the same ordered
-    /// blocking lane, without replacing credentials or granting publication.
-    pub(crate) async fn prepare_cache(&self, value: Value) -> Result<crate::storage::PreparedCacheWrite> {
-        let generation = self.generation();
-        let current = self.generation.clone();
-        self.blocking(move |store| {
-            if current.load(Ordering::SeqCst) != generation { return Err(Error::Cancelled); }
-            store.prepare_ciphertext_cache(value)
-        }).await
-    }
-    pub(crate) async fn write_prepared_cache(&self, owner: String, key: String, master: Key,
-        prepared: crate::storage::PreparedCacheWrite) -> Result<()> {
-        let generation = self.generation();
-        let current = self.generation.clone();
-        self.blocking(move |store| {
-            if current.load(Ordering::SeqCst) != generation { return Err(Error::Cancelled); }
-            store.write_prepared_ciphertext_cache(&owner, &key, &master, prepared)
-        }).await
-    }
     pub async fn write_cache(
         &self,
         owner: String,
@@ -217,6 +206,140 @@ impl RuntimeStore {
                 return Err(Error::Cancelled);
             }
             store.write_ciphertext_cache(&owner, &key, &master, value)
+        })
+        .await
+    }
+    /// Change-only credential publication (see Store::save_session_if_changed).
+    pub async fn save_if_changed(
+        &self,
+        session: Session,
+        passphrase: Option<Zeroizing<String>>,
+    ) -> Result<bool> {
+        let generation = self.generation();
+        let current = self.generation.clone();
+        self.blocking(move |store| {
+            if current.load(Ordering::SeqCst) != generation {
+                return Err(Error::Cancelled);
+            }
+            store.save_session_if_changed(&session, passphrase.as_ref().map(|secret| secret.as_str()))
+        })
+        .await
+    }
+    /// Mark this process's sync cache as deliberately unread. Persistence then
+    /// never reads or rewrites it; `revoke_freshness` durably revokes only the
+    /// list-freshness receipt at the next persist (pre-dispatch fence).
+    pub fn defer_sync_cache(&self, revoke_freshness: bool) {
+        *self.deferred.lock().unwrap_or_else(std::sync::PoisonError::into_inner) =
+            Some(DeferredCache { revoke_freshness });
+    }
+    /// Some(revocation still pending) while the sync cache is deferred.
+    pub fn sync_cache_deferred(&self) -> Option<bool> {
+        self.deferred
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .map(|deferred| deferred.revoke_freshness)
+    }
+    pub async fn revoke_deferred_freshness(&self, owner: String, key: String) -> Result<()> {
+        let generation = self.generation();
+        let current = self.generation.clone();
+        self.blocking(move |store| {
+            if current.load(Ordering::SeqCst) != generation {
+                return Err(Error::Cancelled);
+            }
+            store.revoke_sync_freshness(&owner, &key)
+        })
+        .await?;
+        if let Some(deferred) = self.deferred.lock().unwrap_or_else(std::sync::PoisonError::into_inner).as_mut() {
+            deferred.revoke_freshness = false;
+        }
+        Ok(())
+    }
+    pub(crate) async fn read_sync_cache(
+        &self,
+        owner: String,
+        key: String,
+        master: Key,
+        mode: crate::storage::SyncReadMode,
+    ) -> Result<Option<crate::storage::SyncCacheRead>> {
+        let generation = self.generation();
+        let current = self.generation.clone();
+        self.blocking(move |store| {
+            if current.load(Ordering::SeqCst) != generation {
+                return Err(Error::Cancelled);
+            }
+            store.read_sync_cache(&owner, &key, &master, mode)
+        })
+        .await
+    }
+    /// One Chat's cached content section (index must have been restored).
+    pub async fn read_sync_chat(
+        &self,
+        owner: String,
+        key: String,
+        master: Key,
+        chat: String,
+    ) -> Result<Option<Value>> {
+        let generation = self.generation();
+        let current = self.generation.clone();
+        self.blocking(move |store| {
+            if current.load(Ordering::SeqCst) != generation {
+                return Err(Error::Cancelled);
+            }
+            store.read_sync_chat(&owner, &key, &master, &chat)
+        })
+        .await
+    }
+    /// Loader for the SDK's partial restore. It runs synchronously inside SDK
+    /// operations, outside this queue; Store file locks still serialize it and
+    /// a revoked/advanced generation refuses it.
+    pub fn sync_content_loader(
+        &self,
+        owner: String,
+        key: String,
+        master: Key,
+    ) -> openmates_sdk::client::CachedContentLoader {
+        let store = self.store.clone();
+        let generation = self.generation_guard();
+        Arc::new(move |loaded: &[String]| {
+            if !generation.is_current() {
+                return Err(Error::Cancelled);
+            }
+            let remainder = store.read_sync_remainder(&owner, &key, &master, loaded)?;
+            if !generation.is_current() {
+                return Err(Error::Cancelled);
+            }
+            Ok(remainder)
+        })
+    }
+    pub(crate) async fn prepare_sync_sections(
+        &self,
+        value: Value,
+        partial: Option<Vec<String>>,
+    ) -> Result<crate::storage::PreparedSections> {
+        let generation = self.generation();
+        let current = self.generation.clone();
+        self.blocking(move |store| {
+            if current.load(Ordering::SeqCst) != generation {
+                return Err(Error::Cancelled);
+            }
+            store.prepare_sync_sections(value, partial)
+        })
+        .await
+    }
+    pub(crate) async fn write_sync_sections(
+        &self,
+        owner: String,
+        key: String,
+        master: Key,
+        prepared: crate::storage::PreparedSections,
+    ) -> Result<bool> {
+        let generation = self.generation();
+        let current = self.generation.clone();
+        self.blocking(move |store| {
+            if current.load(Ordering::SeqCst) != generation {
+                return Err(Error::Cancelled);
+            }
+            store.write_sync_sections(&owner, &key, &master, prepared)
         })
         .await
     }
@@ -348,6 +471,7 @@ mod tests {
             store,
             queue: Arc::new(Mutex::new(())),
             generation: Arc::new(AtomicU64::new(0)),
+            deferred: Arc::default(),
         };
         let session = Session {
             api_url: "https://never-contact.example.invalid".into(),
@@ -395,7 +519,7 @@ mod tests {
         // The SDK has no public ACK getter; do not invent one for this test.
     }
     #[tokio::test]
-    async fn unchanged_client_full_persist_reuses_cache_after_session_save_and_ack() {
+    async fn unchanged_client_full_persist_rewrites_neither_session_nor_cache_but_acks() {
         let (directory, runtime, _backend, _release, session) = isolated();
         let mut client =
             crate::client::Client::new(&session.api_url.clone(), Some(session)).unwrap();
@@ -409,6 +533,7 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(runtime.store.cache_serializations_for_test(), 1);
+        let first_io = runtime.store.io_counts_for_test();
         let first_session = std::fs::read(directory.path().join("session.json")).unwrap();
         let first_fence: Value = serde_json::from_slice(
             &std::fs::read(directory.path().join("revocation.json")).unwrap(),
@@ -435,10 +560,10 @@ mod tests {
         crate::session_runtime::persist(&mut client, &runtime, None)
             .await
             .unwrap();
-        assert_ne!(
+        assert_eq!(
             std::fs::read(directory.path().join("session.json")).unwrap(),
             first_session,
-            "the second real session-save encrypts/publishes a new envelope"
+            "an unchanged session is not re-encrypted or republished"
         );
         let second_fence: Value = serde_json::from_slice(
             &std::fs::read(directory.path().join("revocation.json")).unwrap(),
@@ -451,14 +576,16 @@ mod tests {
             initial.revision
         );
         assert_eq!(client.ciphertext_snapshot(), ciphertext);
-        assert_eq!(runtime.store.cache_serializations_for_test(), 1);
+        // Change detection encodes the bounded sections once per persist.
+        assert_eq!(runtime.store.cache_serializations_for_test(), 2);
         assert_eq!(std::fs::read(&cache_path).unwrap(), first_cache);
+        assert_eq!(runtime.store.io_counts_for_test(), first_io, "second persist read and wrote nothing");
         assert!(runtime.load(None).await.unwrap().is_some());
 
         // The same real persistence boundary must still refuse after revocation;
         // an eligible retained Value does not grant authority or acknowledge IO.
         runtime.revoke().await.unwrap();
-        assert_eq!(runtime.store.cache_serializations_for_test(), 1);
+        assert_eq!(runtime.store.cache_serializations_for_test(), 2);
         let revoked_session = std::fs::read(directory.path().join("session.json")).unwrap();
         let revoked_fence = std::fs::read(directory.path().join("revocation.json")).unwrap();
         assert!(
@@ -466,9 +593,9 @@ mod tests {
                 .await
                 .is_err()
         );
-        // Revocation erased the optional memo. Pure bounded cache preparation
-        // runs before credential save; its one encoding grants no disk/ACK right.
-        assert_eq!(runtime.store.cache_serializations_for_test(), 2);
+        // Revocation erased all durable evidence. Pure bounded preparation runs
+        // before credential save; its one encoding grants no disk/ACK right.
+        assert_eq!(runtime.store.cache_serializations_for_test(), 3);
         assert_eq!(std::fs::read(directory.path().join("session.json")).unwrap(), revoked_session);
         assert_eq!(std::fs::read(directory.path().join("revocation.json")).unwrap(), revoked_fence);
         assert_eq!(std::fs::read(&cache_path).unwrap(), first_cache);
@@ -812,10 +939,10 @@ mod tests {
     async fn prepared_and_preparing_cache_cannot_cross_logout_generation() {
         let (directory, runtime, _backend, _release, session) = isolated();
         runtime.save(session.clone(), None).await.unwrap();
-        let prepared = runtime.prepare_cache(serde_json::json!({"chats":{}})).await.unwrap();
+        let prepared = runtime.prepare_sync_sections(serde_json::json!({"chats":{}}), None).await.unwrap();
         let held = runtime.queue.clone().lock_owned().await;
-        let mut preparing = Box::pin(runtime.prepare_cache(serde_json::json!({"chats":{}})));
-        let mut publishing = Box::pin(runtime.write_prepared_cache(session.hashed_email.clone(), "sync-personal".into(), session.master_key.clone(), prepared));
+        let mut preparing = Box::pin(runtime.prepare_sync_sections(serde_json::json!({"chats":{}}), None));
+        let mut publishing = Box::pin(runtime.write_sync_sections(session.hashed_email.clone(), "sync-personal".into(), session.master_key.clone(), prepared));
         assert!(futures_util::poll!(preparing.as_mut()).is_pending());
         assert!(futures_util::poll!(publishing.as_mut()).is_pending());
         let worker = runtime.clone();
@@ -914,3 +1041,7 @@ mod tests {
         logout.await.unwrap().unwrap();
     }
 }
+
+#[cfg(test)]
+#[path = "cache_persistence_tests.rs"]
+mod cache_persistence_tests;

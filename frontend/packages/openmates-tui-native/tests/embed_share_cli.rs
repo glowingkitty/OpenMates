@@ -112,8 +112,9 @@ async fn real_binary_after_whoami_persist_cold_sync_then_cache_reuses_first_coll
     // seed alone cannot substitute for this user-reachable persistence seam.
     let whoami=peer.run_args(state.path(),&["whoami","--json"]).await;assert!(whoami.status.success(),"initial whoami failed");assert!(whoami.stderr.is_empty());assert_eq!(peer.sync.load(Ordering::SeqCst),0);
     let runtime=openmates::runtime_store::RuntimeStore::new(Some(state.path().into()),false).await.unwrap();
-    let saved=runtime.load(None).await.unwrap().unwrap();let snapshot=runtime.read_cache(saved.hashed_email.clone(),openmates::session_runtime::cache_key(&saved),saved.master_key.clone()).await.unwrap().unwrap();
-    assert_eq!(snapshot["saved_embed_order_v1"],json!({"version":1,"state":"unsynced"}));drop(snapshot);drop(runtime);
+    let saved=runtime.load(None).await.unwrap().unwrap();
+    // whoami never reads or writes the sync cache: the first share starts cold.
+    assert!(runtime.read_cache(saved.hashed_email.clone(),openmates::session_runtime::cache_key(&saved),saved.master_key.clone()).await.unwrap().is_none());drop(runtime);
     let first=peer.run(state.path(),"33333333").await;assert!(first.status.success(),"cold share failed");assert!(first.stderr.is_empty());
     let value:Value=serde_json::from_slice(&first.stdout).unwrap();assert_eq!(value["embed_id"],"33333333");assert_eq!(value["expires"],0);assert_eq!(value["password_protected"],false);assert!(value["url"].as_str().unwrap().contains(&format!("/embed/{FIRST}#key=")));assert_eq!(peer.sync.load(Ordering::SeqCst),1);assert_fragment(value["url"].as_str().unwrap());
     let alias=peer.run(state.path(),"55555555").await;assert!(alias.status.success(),"warm alias share failed");let value:Value=serde_json::from_slice(&alias.stdout).unwrap();assert_eq!(value["embed_id"],"55555555");assert!(value["url"].as_str().unwrap().contains(FIRST));assert_eq!(peer.sync.load(Ordering::SeqCst),1);assert_eq!(peer.reads.load(Ordering::SeqCst),2);

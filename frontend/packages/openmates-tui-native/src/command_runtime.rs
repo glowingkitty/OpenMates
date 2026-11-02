@@ -377,7 +377,8 @@ async fn run_with_list_stages(
     } else {
         // Restore authenticated local ciphertext before any save can replace it
         // with the new Client's initially empty snapshot. Never publish it here.
-        session_runtime::restore_protected_cache(&mut client, &store, passphrase.clone(), &cancel)
+        let cache_load = session_runtime::command_cache_load(&invocation);
+        session_runtime::restore_command_cache(&mut client, &store, passphrase.clone(), &cancel, cache_load)
             .await?;
         stages.record(Stage::CacheRestored);
         session_runtime::prepare_command_cache_admission(&mut client, &invocation);
@@ -1913,10 +1914,10 @@ mod tests {
     }
     #[cfg(unix)]
     #[tokio::test(flavor = "current_thread")]
-    async fn actual_runtime_whoami_final_cache_write_only_failure_withholds_and_wipes_output() {
+    async fn actual_runtime_whoami_final_save_never_touches_an_obstructed_cache() {
         use std::sync::{
             Arc, Mutex,
-            atomic::{AtomicBool, Ordering},
+            atomic::AtomicBool,
         };
         let (directory, api, peer) = final_fence_fixture().await;
         let proof = Arc::new(Mutex::new(None));
@@ -1931,19 +1932,15 @@ mod tests {
             std::os::unix::fs::symlink(&blocked, &observed.cache).unwrap();
             assert!(callback_proof.lock().unwrap().replace(observed).is_none());
         });
+        // whoami defers the sync cache: its final save publishes the rotated
+        // credentials only and never reads, follows or replaces the cache.
         let result = run_final_fence_whoami(&api, directory.path()).await;
-        assert!(matches!(result, Err(CliError::Client(Error::Io))));
-        assert!(wiped.load(Ordering::Acquire));
+        assert!(result.is_ok());
         let proof = proof
             .lock()
             .unwrap()
             .take()
             .expect("exact final-output barrier reached");
-        assert_ne!(
-            std::fs::read(directory.path().join("session.json")).unwrap(),
-            proof.session_bytes,
-            "only final cache publication fails, after final credentials saved"
-        );
         assert!(
             std::fs::symlink_metadata(&proof.cache)
                 .unwrap()
@@ -1953,7 +1950,7 @@ mod tests {
         assert_eq!(
             std::fs::read(proof.cache.with_extension("blocked")).unwrap(),
             proof.cache_bytes,
-            "failed final save publishes no replacement cache/receipt"
+            "the deferred cache is byte-identical"
         );
         let store = RuntimeStore::new(Some(directory.path().to_path_buf()), false)
             .await
@@ -1963,16 +1960,6 @@ mod tests {
             saved.cookies["auth_refresh_token"],
             "synthetic-final-rotated"
         );
-        assert!(matches!(
-            store
-                .read_cache(
-                    saved.hashed_email.clone(),
-                    session_runtime::cache_key(&saved),
-                    saved.master_key.clone()
-                )
-                .await,
-            Err(Error::Io)
-        ));
         assert_eq!(peer.await.unwrap(), 1);
     }
     #[tokio::test(flavor = "current_thread")]

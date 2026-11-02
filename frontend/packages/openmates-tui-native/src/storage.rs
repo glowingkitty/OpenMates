@@ -33,6 +33,10 @@ use zeroize::{Zeroize, Zeroizing};
 // Credential DTO belongs to the headless SDK; keyring/vault policy stays here.
 pub use openmates_sdk::Session;
 
+#[path = "storage_sections.rs"]
+mod sections;
+pub(crate) use sections::{PreparedSections, SyncCacheRead, SyncReadMode};
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StorageMode {
@@ -131,28 +135,6 @@ pub(crate) fn cache_record_encoded_len(checkpoint_json_bytes: usize) -> Result<u
         .checked_div(3).and_then(|value| value.checked_mul(4)).ok_or(Error::Protocol)?;
     let framing = serde_json::to_vec(&CacheRecord { version: 1, ciphertext: String::new() })?.len();
     framing.checked_add(ciphertext).ok_or(Error::Protocol)
-}
-/// Owned capacity admission, not authorization or a durability/credential ACK.
-/// Private fields bind the exact immutable Value to either its encoded bytes or
-/// a previously bounded record candidate. Publication rechecks all IO authority.
-pub(crate) struct PreparedCacheWrite {
-    value: serde_json::Value,
-    buffers: PreparedCacheBuffers,
-}
-struct PreparedCacheBuffers {
-    plaintext: Option<Zeroizing<Vec<u8>>>,
-    candidate: Option<CacheRecordEvidence>,
-}
-fn authenticated_memo_capacity_fits(record: &CacheRecordEvidence) -> bool {
-    // read_cache admits authenticated candidates only below the existing4MiB
-    // plaintext/65536-node memo bounds. Canonical strings/framing cannot grow
-    // over valid JSON input; default finite serde_json numbers need <32 bytes.
-    // Even allowing32 extra bytes for EVERY node still fits the same reader.
-    // Thus a changed/missing file can safely fall back to canonical encoding.
-    record.encoded_len <= CACHE_MEMO_MAX_BYTES
-        && CACHE_MEMO_MAX_NODES.checked_mul(32).and_then(|n| n.checked_add(CACHE_MEMO_MAX_BYTES))
-            .and_then(|n| cache_record_encoded_len(n).ok())
-            .is_some_and(|n| n <= MAX_LOCAL_RECORD_BYTES)
 }
 fn encode_bounded_cache(value: &serde_json::Value) -> Result<Zeroizing<Vec<u8>>> {
     let framing = serde_json::to_vec(&CacheRecord { version: 1, ciphertext: String::new() })?.len();
@@ -273,6 +255,26 @@ impl CacheWriteMemo {
             CacheMemoSource::AuthenticatedRead(record) => record,
         }
     }
+}
+/// In-process evidence of the exact durable session publication. The Store's
+/// lifetime runtime lock excludes other writers; every skip still rechecks the
+/// fence epoch, cleanup state and current session.json bytes. Never serialized.
+#[derive(Clone)]
+struct DurableSession {
+    epoch: String,
+    session_digest: [u8; 32],
+    envelope_digest: [u8; 32],
+    synced: bool,
+}
+/// In-process evidence of one durable cache record: the epoch/key/AAD binding,
+/// the digest of its canonical plaintext and the exact file identity. A skip
+/// requires all of them; any mismatch takes the ordinary encrypted write.
+struct DurableCache {
+    epoch: String,
+    binding: Zeroizing<[u8; 32]>,
+    plaintext_digest: [u8; 32],
+    identity: CacheFileIdentity,
+    synced: bool,
 }
 #[derive(Clone, Copy, PartialEq, Eq)]
 struct CacheFileIdentity {
@@ -411,12 +413,26 @@ pub struct Store {
     #[cfg(test)]
     session_intent_test: Mutex<SessionIntentTestState>,
     cache_write_memo: Mutex<Option<CacheWriteMemo>>,
+    durable_session: Mutex<Option<DurableSession>>,
+    durable_caches: Mutex<std::collections::HashMap<String, DurableCache>>,
+    section_manifests: Mutex<std::collections::HashMap<String, sections::Manifest>>,
     #[cfg(test)]
     cache_serializations: std::sync::atomic::AtomicUsize,
     #[cfg(test)]
     cache_hit_action: Mutex<Option<CacheHitAction>>,
     #[cfg(test)]
     vault_derivations: std::sync::atomic::AtomicUsize,
+    #[cfg(test)]
+    io_counts: IoCounts,
+}
+/// Test-only counters of private session/cache record reads and publications.
+#[cfg(test)]
+#[derive(Default)]
+pub(crate) struct IoCounts {
+    pub(crate) cache_reads: std::sync::atomic::AtomicUsize,
+    pub(crate) cache_writes: std::sync::atomic::AtomicUsize,
+    pub(crate) session_writes: std::sync::atomic::AtomicUsize,
+    pub(crate) revocation_writes: std::sync::atomic::AtomicUsize,
 }
 impl Store {
     pub fn default_path() -> Result<PathBuf> {
@@ -455,12 +471,17 @@ impl Store {
             #[cfg(test)]
             session_intent_test: Mutex::new(SessionIntentTestState::default()),
             cache_write_memo: Mutex::new(None),
+            durable_session: Mutex::new(None),
+            durable_caches: Mutex::new(std::collections::HashMap::new()),
+            section_manifests: Mutex::new(std::collections::HashMap::new()),
             #[cfg(test)]
             cache_serializations: std::sync::atomic::AtomicUsize::new(0),
             #[cfg(test)]
             cache_hit_action: Mutex::new(None),
             #[cfg(test)]
             vault_derivations: std::sync::atomic::AtomicUsize::new(0),
+            #[cfg(test)]
+            io_counts: IoCounts::default(),
         })
     }
     /// Explicit local vault mode, useful on hosts without a native credential store.
@@ -491,7 +512,7 @@ impl Store {
         if self.pending_cleanup()?.is_some() {
             return Ok(None);
         }
-        let Some(envelope) = self.envelope()? else {
+        let Some((envelope, envelope_digest)) = self.envelope_with_digest()? else {
             return Ok(None);
         };
         envelope.validate()?;
@@ -516,7 +537,96 @@ impl Store {
         let _fence = self.lock("revocation.lock")?;
         self.require_epoch(&fence.epoch)?;
         self.remember_vault_key(&envelope, passphrase, &key)?;
+        // Loaded bytes are evidence only: an unsynced earlier publication is
+        // fsynced once before a later save may be skipped (see below).
+        self.remember_durable_session(DurableSession {
+            epoch: fence.epoch,
+            session_digest: session_digest(&session)?,
+            envelope_digest,
+            synced: false,
+        });
         Ok(Some(session))
+    }
+    fn remember_durable_session(&self, evidence: DurableSession) {
+        *self
+            .durable_session
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(evidence);
+    }
+    fn forget_durable_evidence(&self) {
+        self.durable_session
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
+        self.durable_caches
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clear();
+        self.section_manifests
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clear();
+    }
+    /// Change-only persistence: skip the credential publication when the exact
+    /// session is already the durable one for the current epoch. Otherwise (or
+    /// on any doubt) this is precisely `save_session`. Returns whether it wrote.
+    pub fn save_session_if_changed(
+        &self,
+        session: &Session,
+        passphrase: Option<&str>,
+    ) -> Result<bool> {
+        if !session.is_expired() && self.durable_session_current(session, passphrase)? {
+            return Ok(false);
+        }
+        self.save_session(session, passphrase).map(|()| true)
+    }
+    fn durable_session_current(&self, session: &Session, passphrase: Option<&str>) -> Result<bool> {
+        let digest = session_digest(session)?;
+        let Some(remembered) = self
+            .durable_session
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+            .filter(|remembered| remembered.session_digest == digest)
+        else {
+            return Ok(false);
+        };
+        let _guard = self.lock("session.lock")?;
+        let fence = self.fence()?;
+        if fence.revoked || fence.epoch != remembered.epoch || self.pending_cleanup()?.is_some() {
+            return Ok(false);
+        }
+        let Some((envelope, envelope_digest)) = self.envelope_with_digest()? else {
+            return Ok(false);
+        };
+        let context = session_context(session)?;
+        let unchanged = envelope_digest == remembered.envelope_digest
+            && envelope.validate().is_ok()
+            && envelope.owner == owner_id(&session.hashed_email)
+            && envelope.context == context
+            && envelope.expires_at == session.paired_session_expires_at
+            && fence.context.as_ref() == Some(&context)
+            && fence.admitted.as_ref().is_none_or(|admitted| admitted == &context)
+            && fence.cleanup.as_ref().is_some_and(|cleanup| {
+                cleanup.mode == envelope.mode && cleanup.owner == envelope.owner
+            });
+        // A vault passphrase must still verify exactly as an ordinary save would.
+        if !unchanged
+            || (envelope.mode == StorageMode::EncryptedVault
+                && self.unwrap_key(&envelope, passphrase).is_err())
+        {
+            return Ok(false);
+        }
+        let _fence = self.lock("revocation.lock")?;
+        self.require_epoch(&remembered.epoch)?;
+        if !remembered.synced {
+            for name in ["session.json", "revocation.json"] {
+                self.open(name, OFlags::RDONLY | OFlags::NONBLOCK)?.sync_all()?;
+            }
+            self.root.sync_all()?;
+            self.remember_durable_session(DurableSession { synced: true, ..remembered });
+        }
+        Ok(true)
     }
     pub fn save_session(&self, session: &Session, passphrase: Option<&str>) -> Result<()> {
         if session.is_expired() {
@@ -527,6 +637,10 @@ impl Store {
             return Err(Error::Invalid("A session owner is required."));
         }
         let _guard = self.lock("session.lock")?;
+        self.durable_session
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
         let mut fence = self.fence()?;
         if fence.revoked {
             return Err(Error::Locked);
@@ -655,7 +769,8 @@ impl Store {
         if !already_durable {
             self.atomic_write("revocation.json", &final_intent)?;
         }
-        let result = self.atomic_write("session.json", &serde_json::to_vec(&envelope)?);
+        let envelope_bytes = serde_json::to_vec(&envelope)?;
+        let result = self.atomic_write("session.json", &envelope_bytes);
         drop(publication);
         if result.is_err() && existing.is_none() && mode == StorageMode::OsKeyring {
             // Do not leave an untracked wrapping key behind after a failed save.
@@ -673,6 +788,12 @@ impl Store {
             let _fence = self.lock("revocation.lock")?;
             self.require_epoch(&fence.epoch)?;
             self.remember_vault_key(&envelope, passphrase, &key)?;
+            self.remember_durable_session(DurableSession {
+                epoch: fence.epoch.clone(),
+                session_digest: session_digest(session)?,
+                envelope_digest: Sha256::digest(&envelope_bytes).into(),
+                synced: true,
+            });
         }
         result
     }
@@ -786,6 +907,7 @@ impl Store {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .take();
         drop(previous);
+        self.forget_durable_evidence();
         let mut fence = self.fence()?;
         if !fence.revoked {
             let existing = self.read("session.json").and_then(|bytes| {
@@ -885,6 +1007,7 @@ impl Store {
     }
     fn clear_session_locked(&self) -> Result<()> {
         self.clear_vault_cache()?;
+        self.forget_durable_evidence();
         let pending = match self.pending_cleanup()? {
             Some(pending) => pending,
             None => {
@@ -940,6 +1063,17 @@ impl Store {
         let envelope = self.cache_session(owner)?;
         let name = cache_name(owner, cache_key);
         let _cache_guard = self.lock(&format!("{name}.lock"))?;
+        // A committed sectioned layout supersedes the legacy single record.
+        if let Some(read) =
+            self.read_sections_locked(&envelope, owner, cache_key, key, &epoch, SyncReadMode::Complete)?
+        {
+            let value = match read {
+                SyncCacheRead::Complete(value) | SyncCacheRead::Index(value) => value,
+            };
+            let _fence = self.lock("revocation.lock")?;
+            self.require_epoch(&epoch)?;
+            return Ok(Some(value));
+        }
         let Some(bytes) = self.read(&name)? else {
             return Ok(None);
         };
@@ -986,6 +1120,25 @@ impl Store {
         }
         Ok(Some(value))
     }
+    /// Legacy single-record read for restore/migration. Caller holds
+    /// session.lock and the record lock; no memo candidate is retained.
+    fn read_legacy_locked(
+        &self,
+        envelope: &Envelope,
+        owner: &str,
+        cache_key: &str,
+        key: &[u8; 32],
+    ) -> Result<Option<serde_json::Value>> {
+        let Some(bytes) = self.read(&cache_name(owner, cache_key))? else {
+            return Ok(None);
+        };
+        let record: CacheRecord = serde_json::from_slice(&bytes)?;
+        if record.version != 1 {
+            return Err(Error::Protocol);
+        }
+        let plaintext = decrypt(key, &record.ciphertext, &cache_aad(envelope, cache_key)?)?;
+        Ok(Some(serde_json::from_slice(&plaintext)?))
+    }
     pub fn write_cache(
         &self,
         owner: &str,
@@ -993,7 +1146,7 @@ impl Store {
         key: &[u8; 32],
         value: &serde_json::Value,
     ) -> Result<()> {
-        self.publish_cache(owner, cache_key, key, value, None).map(|_| ())
+        self.publish_cache(owner, cache_key, key, value).map(|_| ())
     }
     /// Consume the application's existing ciphertext snapshot without cloning
     /// it into a second memo. Arbitrary borrowed callers retain no new values.
@@ -1004,20 +1157,7 @@ impl Store {
         key: &[u8; 32],
         value: serde_json::Value,
     ) -> Result<()> {
-        self.write_ciphertext_cache_inner(owner, cache_key, key, value, None)
-    }
-    /// Prepare once before credential replacement. No key, filesystem or epoch
-    /// grant is consumed here; a known-fit memo candidate only avoids encoding.
-    pub(crate) fn prepare_ciphertext_cache(&self, value: serde_json::Value) -> Result<PreparedCacheWrite> {
-        let candidate = if cache_memo_eligible(&value) {
-            self.cache_write_memo.lock().ok().and_then(|memo| memo.as_ref()
-                .filter(|memo| memo.value == value && memo.record().record_len <= MAX_LOCAL_RECORD_BYTES
-                    && (matches!(&memo.source, CacheMemoSource::Published(_))
-                        || authenticated_memo_capacity_fits(memo.record())))
-                .map(|memo| memo.record().clone()))
-        } else { None };
-        let plaintext = if candidate.is_none() { Some(self.encode_cache_value(&value)?) } else { None };
-        Ok(PreparedCacheWrite { value, buffers: PreparedCacheBuffers { plaintext, candidate } })
+        self.write_ciphertext_cache_inner(owner, cache_key, key, value)
     }
     fn encode_cache_value(&self, value: &serde_json::Value) -> Result<Zeroizing<Vec<u8>>> {
         let bytes = encode_bounded_cache(value)?;
@@ -1025,13 +1165,9 @@ impl Store {
         self.cache_serializations.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         Ok(bytes)
     }
-    pub(crate) fn write_prepared_ciphertext_cache(&self, owner: &str, cache_key: &str,
-        key: &[u8; 32], prepared: PreparedCacheWrite) -> Result<()> {
-        self.write_ciphertext_cache_inner(owner, cache_key, key, prepared.value, Some(prepared.buffers))
-    }
     fn write_ciphertext_cache_inner(&self, owner: &str, cache_key: &str, key: &[u8; 32],
-        value: serde_json::Value, prepared: Option<PreparedCacheBuffers>) -> Result<()> {
-        let proof = self.publish_cache(owner, cache_key, key, &value, prepared)?;
+        value: serde_json::Value) -> Result<()> {
+        let proof = self.publish_cache(owner, cache_key, key, &value)?;
         let next = if proof.record.encoded_len <= CACHE_MEMO_MAX_BYTES && cache_memo_eligible(&value) {
             Some(CacheWriteMemo {
                 value,
@@ -1057,7 +1193,6 @@ impl Store {
         cache_key: &str,
         key: &[u8; 32],
         value: &serde_json::Value,
-        prepared: Option<PreparedCacheBuffers>,
     ) -> Result<CachePublicationProof> {
         let epoch = self.active_epoch()?;
         let _session_guard = self.lock("session.lock")?;
@@ -1066,14 +1201,7 @@ impl Store {
         let _cache_guard = self.lock(&format!("{name}.lock"))?;
         let aad = cache_aad(&envelope, cache_key)?;
         let mac = cache_publication_mac(key, &epoch, &aad)?;
-        let mut prepared_plaintext = None;
-        let previous = if let Some(prepared) = prepared {
-            prepared_plaintext = prepared.plaintext;
-            // Capacity evidence never substitutes for the original current
-            // epoch/key/AAD binding or durable descriptor/readback below.
-            prepared.candidate.filter(|record| record.epoch == epoch
-                && mac.clone().verify_slice(record.binding.as_ref()).is_ok())
-        } else if cache_memo_eligible(value) {
+        let previous = if cache_memo_eligible(value) {
             self.cache_write_memo.lock().ok().and_then(|memo| {
                 memo.as_ref()
                     .filter(|memo| {
@@ -1145,18 +1273,15 @@ impl Store {
                             }
                             self.require_current_cache_file(&name, &file, &identity)?;
                             self.require_epoch(&epoch)?;
+                            self.retire_sections_locked(owner, cache_key)?;
                             return Ok(CachePublicationProof { record: proof });
                         }
                     }
                 }
             }
         }
-        // Encode at most once, before retiring old memo state. Prepared bytes
-        // already passed the reader's exact record bound before credential save.
-        let plaintext = match prepared_plaintext {
-            Some(bytes) => bytes,
-            None => self.encode_cache_value(value)?,
-        };
+        // Encode at most once, before retiring old memo state.
+        let plaintext = self.encode_cache_value(value)?;
         // Keep the old memo through capacity refusal; retire it before the
         // ciphertext/base64 buffers. Exactly one plaintext buffer is owned.
         let discarded = self
@@ -1173,6 +1298,8 @@ impl Store {
         let _fence = self.lock("revocation.lock")?;
         self.require_epoch(&epoch)?;
         self.atomic_write(&name, &encoded)?;
+        drop(_fence);
+        self.retire_sections_locked(owner, cache_key)?;
         Ok(CachePublicationProof {
             record: CacheRecordEvidence {
                 epoch,
@@ -1263,15 +1390,24 @@ impl Store {
             .transpose()
     }
     fn envelope(&self) -> Result<Option<Envelope>> {
+        Ok(self.envelope_with_digest()?.map(|(record, _)| record))
+    }
+    /// The parsed envelope plus the SHA-256 of its exact current file bytes.
+    fn envelope_with_digest(&self) -> Result<Option<(Envelope, [u8; 32])>> {
         let record = self.read("session.json").and_then(|bytes| {
             bytes
-                .map(|bytes| serde_json::from_slice::<Envelope>(&bytes).map_err(Error::from))
+                .map(|bytes| {
+                    serde_json::from_slice::<Envelope>(&bytes)
+                        .map(|record| (record, Sha256::digest(&bytes).into()))
+                        .map_err(Error::from)
+                })
                 .transpose()
         });
         match record {
             Ok(record) => {
                 let binding = record
                     .as_ref()
+                    .map(|(record, _)| record)
                     .filter(|record| {
                         record.version == 1
                             && record.mode == StorageMode::EncryptedVault
@@ -1435,6 +1571,10 @@ impl Store {
         Ok(file)
     }
     fn read(&self, name: &str) -> Result<Option<Vec<u8>>> {
+        Ok(self.read_with_identity(name)?.map(|(bytes, _)| bytes))
+    }
+    /// Bytes plus the identity of the exact descriptor they were read from.
+    fn read_with_identity(&self, name: &str) -> Result<Option<(Vec<u8>, Option<CacheFileIdentity>)>> {
         check_private(&self.root, true)?;
         let fd = match rustix::fs::openat(
             &self.root,
@@ -1453,7 +1593,12 @@ impl Store {
         }
         let mut bytes = Vec::new();
         file.read_to_end(&mut bytes)?;
-        Ok(Some(bytes))
+        #[cfg(test)]
+        if name.starts_with("cache-") {
+            self.io_counts.cache_reads.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        }
+        let identity = cache_file_identity(&file).ok().flatten();
+        Ok(Some((bytes, identity)))
     }
     fn lock(&self, name: &str) -> Result<FileLock> {
         let file = self.open(name, OFlags::RDWR | OFlags::CREATE)?;
@@ -1491,6 +1636,18 @@ impl Store {
     /// Return the actual fsynced/renamed descriptor, never a later reopened file.
     /// Ordinary writers discard it immediately; session intent retains evidence.
     fn atomic_write_file(&self, name: &str, bytes: &[u8]) -> Result<File> {
+        self.atomic_write_file_with(name, bytes, true)
+    }
+    /// `sync_directory: false` is only for records a later, synced commit names.
+    fn atomic_write_file_with(&self, name: &str, bytes: &[u8], sync_directory: bool) -> Result<File> {
+        #[cfg(test)]
+        if name.starts_with("cache-") {
+            self.io_counts.cache_writes.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        } else if name == "revocation.json" {
+            self.io_counts.revocation_writes.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        } else if name == "session.json" {
+            self.io_counts.session_writes.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        }
         #[cfg(test)]
         {
             let mut state = self.session_intent_test.lock().unwrap();
@@ -1522,7 +1679,9 @@ impl Store {
                     return Err(Error::Io);
                 }
             }
-            self.root.sync_all()?;
+            if sync_directory {
+                self.root.sync_all()?;
+            }
             Ok(file)
         })();
         if result.is_err() {
@@ -1648,6 +1807,10 @@ fn session_context(session: &Session) -> Result<String> {
         session.created_at,
     ))?);
     Ok(digest(&identity))
+}
+fn session_digest(session: &Session) -> Result<[u8; 32]> {
+    let encoded = Zeroizing::new(serde_json::to_vec(session)?);
+    Ok(Sha256::digest(encoded.as_slice()).into())
 }
 fn cache_name(owner: &str, cache_key: &str) -> String {
     format!(
@@ -2656,6 +2819,16 @@ impl Store {
         self.cache_serializations
             .load(std::sync::atomic::Ordering::SeqCst)
     }
+    /// (cache record reads, cache record writes, session.json writes, revocation.json writes)
+    pub(crate) fn io_counts_for_test(&self) -> (usize, usize, usize, usize) {
+        let load = |counter: &std::sync::atomic::AtomicUsize| counter.load(std::sync::atomic::Ordering::SeqCst);
+        (
+            load(&self.io_counts.cache_reads),
+            load(&self.io_counts.cache_writes),
+            load(&self.io_counts.session_writes),
+            load(&self.io_counts.revocation_writes),
+        )
+    }
 }
 
 #[cfg(test)]
@@ -2740,64 +2913,6 @@ mod ordinary_cache_roundtrip_capacity_tests {
         assert_eq!(store.cache_write_memo.lock().unwrap().as_ref().unwrap().value, old);
         assert_eq!(store.read_cache(&session.hashed_email, "sync-personal", &session.master_key).unwrap(), Some(old));
         assert!(!std::fs::read_dir(directory.path()).unwrap().any(|entry| entry.unwrap().file_name().to_string_lossy().starts_with(".tmp-")));
-    }
-    // contract-test: supporting surface=cli assertions=cli.runtime.native-rust,cli.migration.complete-compatible
-    #[test]
-    fn prepared_changed_value_encodes_once_and_matching_memo_never_encodes_again() {
-        let (_directory, store, session) = super::cache_publication_memo_tests::fixture();
-        let old = serde_json::json!({"chats":{},"history":{}});
-        let prepared = store.prepare_ciphertext_cache(old.clone()).unwrap();
-        assert_eq!(store.cache_serializations_for_test(), 1);
-        store.write_prepared_ciphertext_cache(&session.hashed_email, "sync-personal", &session.master_key, prepared).unwrap();
-        assert_eq!(store.cache_serializations_for_test(), 1, "consume prepared bytes, do not reserialize");
-        let name = cache_name(&session.hashed_email, "sync-personal");
-        let bytes = store.read(&name).unwrap().unwrap();
-        let prepared = store.prepare_ciphertext_cache(old.clone()).unwrap();
-        assert!(prepared.buffers.plaintext.is_none());
-        assert!(prepared.buffers.candidate.is_some());
-        assert_eq!(store.cache_serializations_for_test(), 1, "known-fit exact memo capacity needs no JSON pass");
-        store.write_prepared_ciphertext_cache(&session.hashed_email, "sync-personal", &session.master_key, prepared).unwrap();
-        assert_eq!(store.cache_serializations_for_test(), 1);
-        assert_eq!(store.read(&name).unwrap().unwrap(), bytes);
-        let changed = serde_json::json!({"chats":{},"history":{},"changed":"ciphertext"});
-        let prepared = store.prepare_ciphertext_cache(changed.clone()).unwrap();
-        assert_eq!(store.cache_serializations_for_test(), 2);
-        store.write_prepared_ciphertext_cache(&session.hashed_email, "sync-personal", &session.master_key, prepared).unwrap();
-        assert_eq!(store.cache_serializations_for_test(), 2);
-        assert_eq!(store.read_cache(&session.hashed_email, "sync-personal", &session.master_key).unwrap(), Some(changed));
-    }
-    // contract-test: supporting surface=cli assertions=cli.runtime.native-rust,cli.migration.complete-compatible
-    #[test]
-    fn authenticated_read_memo_needs_no_json_pass_and_missing_file_falls_back_once() {
-        let (_directory, store, session) = super::cache_publication_memo_tests::fixture();
-        let name = cache_name(&session.hashed_email, "sync-personal");
-        let envelope = store.cache_session(&session.hashed_email).unwrap();
-        let aad = cache_aad(&envelope, "sync-personal").unwrap();
-        // Valid authenticated legacy JSON need not already be canonical.
-        let raw = br#"{ "chats": {}, "history": {}, "number": -0 }"#;
-        let record = CacheRecord { version: 1, ciphertext: encrypt(&session.master_key, raw, &aad).unwrap() };
-        store.atomic_write(&name, &serde_json::to_vec(&record).unwrap()).unwrap();
-        let value = store.read_cache(&session.hashed_email, "sync-personal", &session.master_key).unwrap().unwrap();
-        let prepared = store.prepare_ciphertext_cache(value.clone()).unwrap();
-        assert!(prepared.buffers.plaintext.is_none());
-        assert_eq!(store.cache_serializations_for_test(), 0);
-        store.remove(&name).unwrap();
-        store.write_prepared_ciphertext_cache(&session.hashed_email, "sync-personal", &session.master_key, prepared).unwrap();
-        assert_eq!(store.cache_serializations_for_test(), 1);
-        assert_eq!(store.read_cache(&session.hashed_email, "sync-personal", &session.master_key).unwrap(), Some(value));
-    }
-    // contract-test: supporting surface=cli assertions=cli.runtime.native-rust,cli.migration.complete-compatible
-    #[test]
-    fn prepared_capacity_is_not_key_owner_epoch_or_durability_authority() {
-        let (_directory, store, session) = super::cache_publication_memo_tests::fixture();
-        let value = serde_json::json!({"chats":{},"history":{}});
-        store.write_ciphertext_cache(&session.hashed_email, "sync-personal", &session.master_key, value.clone()).unwrap();
-        let name = cache_name(&session.hashed_email, "sync-personal");
-        let bytes = store.read(&name).unwrap().unwrap();
-        let prepared = store.prepare_ciphertext_cache(value).unwrap();
-        assert!(prepared.buffers.candidate.is_some());
-        assert!(store.write_prepared_ciphertext_cache("wrong-owner", "sync-personal", &session.master_key, prepared).is_err());
-        assert_eq!(store.read(&name).unwrap().unwrap(), bytes);
     }
     // contract-test: supporting surface=cli assertions=cli.runtime.native-rust,cli.migration.complete-compatible
     #[test]

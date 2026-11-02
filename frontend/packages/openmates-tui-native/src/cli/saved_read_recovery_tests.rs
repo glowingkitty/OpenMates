@@ -1519,7 +1519,7 @@ async fn cancelled_explicit_personal_and_failed_warm_save_publish_no_output() ->
         let cache = directory.path().join(format!(
             "cache-{:x}-{:x}.json",
             Sha256::digest(owner.as_bytes()),
-            Sha256::digest(b"sync-personal")
+            Sha256::digest(b"sync-personal#index")
         ));
         need(cache.is_file())?;
         std::fs::remove_file(&cache).map_err(|_| "owned warm cache obstruction")?;
@@ -2014,7 +2014,7 @@ async fn complete_history_final_save_failure_wipes_output_and_keeps_disk_revoked
         let cache = directory.path().join(format!(
             "cache-{:x}-{:x}.json",
             Sha256::digest(owner.as_bytes()),
-            Sha256::digest(b"sync-personal")
+            Sha256::digest(b"sync-personal#index")
         ));
         need(cache.is_file())?;
         std::fs::remove_file(&cache).map_err(|_| "owned final cache file")?;

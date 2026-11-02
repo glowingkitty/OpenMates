@@ -407,6 +407,9 @@ impl Client {
         refreshes: u8,
         policy: ChatSyncPolicy,
     ) -> Result<bool> {
+        // A global sync replaces content wholesale: complete any partially
+        // restored native cache first (no-op for complete clients).
+        self.ensure_cached_content_loaded()?;
         let generation = self.generation;
         let cancel = self.operation_cancel.clone();
         let wrapping = self.wrapping_capability().await?;
@@ -956,6 +959,7 @@ impl Client {
         snapshot
     }
     pub fn restore_ciphertext_snapshot(&mut self, snapshot: &Value) -> Result<()> {
+        self.cached_content = Default::default();
         self.saved_embed_selectors=None;
         self.saved_embed_cache=super::saved_embed_selector::SelectorCache::Legacy;
         self.chat_list_freshness.invalidate();

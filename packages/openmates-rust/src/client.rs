@@ -106,6 +106,8 @@ pub use project_task_watch::{
 };
 mod credentials;
 mod cache_policy;
+pub use cache_policy::CachedContentLoader;
+pub mod snapshot_sections;
 mod chat_list_freshness;
 mod chat_arrival_order;
 mod chat_tombstones;
@@ -541,6 +543,8 @@ pub struct Client {
     recent_validation: Option<auth::RecentValidation>,
     /// Chats this client deleted (chat_tombstones.rs); display state only.
     deleted_chats: BTreeMap<String, u64>,
+    /// Partially restored native cache content (cache_policy.rs).
+    cached_content: cache_policy::CachedContentState,
 }
 impl Client {
     /// Explicit validated application origin selected for this client.
@@ -598,6 +602,7 @@ impl Client {
             credential_ack: 0,
             recent_validation: None,
             deleted_chats: BTreeMap::new(),
+            cached_content: Default::default(),
             fresh_auth: Default::default(),
             inventory_network: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
             credential_updates: None,
@@ -878,6 +883,7 @@ impl Client {
         self.saved_embed_selectors=None;
         self.saved_embed_cache=saved_embed_selector::SelectorCache::Legacy;
         self.embed_keys.clear();
+        self.cached_content = Default::default();
         self.direct_identity = None;
         self.team_key = None;
         self.team_wrapped_key = None;
@@ -1085,6 +1091,7 @@ impl Client {
         self.selected_first_pages.clear();
         self.embeds.clear();
         self.embed_keys.clear();
+        self.cached_content = Default::default();
         crate::model::zeroize_json(&mut self.user);
         self.saved_embed_selectors=None;
         self.saved_embed_cache=saved_embed_selector::SelectorCache::Legacy;

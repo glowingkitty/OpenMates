@@ -4,7 +4,156 @@ use super::chat_list_freshness::{
 };
 use super::*;
 
+/// Adapter-owned loader for the not-yet-restored remainder of a partially
+/// restored native cache. Called with the Chat IDs already restored; returns
+/// `{"shared": <section>|null, "chats": {<chat id>: <section>}}` in the
+/// `snapshot_sections` layout. It must apply the same owner/key/epoch checks as
+/// the original authenticated read; it grants no freshness or authority.
+pub type CachedContentLoader =
+    std::sync::Arc<dyn Fn(&[String]) -> Result<Value> + Send + Sync>;
+
+/// Restoration state of native cache content. Default: complete (every
+/// ordinary restore, reset, Team change and logout). Partial: only the index
+/// and the listed Chats were restored; the remainder is on durable storage.
+#[derive(Default)]
+pub(super) struct CachedContentState {
+    loader: Option<CachedContentLoader>,
+    loaded: std::collections::BTreeSet<String>,
+}
+
 impl Client {
+    /// Restore only the Chat-list index section (see `snapshot_sections`) from
+    /// an authenticated owner envelope, deferring all per-Chat and shared
+    /// content to `loader`. Same trust boundary as the full authenticated
+    /// restore; content is loaded per Chat with `restore_cached_chat_content`
+    /// or completely by `ensure_cached_content_loaded` (global sync does this).
+    pub fn restore_authenticated_ciphertext_index(
+        &mut self,
+        index: &Value,
+        loader: CachedContentLoader,
+    ) -> Result<()> {
+        self.restore_authenticated_ciphertext_snapshot(index)?;
+        self.cached_content = CachedContentState { loader: Some(loader), loaded: Default::default() };
+        Ok(())
+    }
+
+    /// Chat IDs whose cached content is restored, or None when the client holds
+    /// its complete cache (the persisted state may then be replaced wholesale).
+    pub fn partially_restored_chats(&self) -> Option<Vec<String>> {
+        self.cached_content
+            .loader
+            .as_ref()
+            .map(|_| self.cached_content.loaded.iter().cloned().collect())
+    }
+
+    /// Restore one Chat's cached content section (None: no cached content).
+    /// Content the client already holds for that Chat wins over the cached
+    /// section field by field; embeds/keys merge by identifier. A complete
+    /// client ignores this call. Invalid sections are refused unchanged.
+    pub fn restore_cached_chat_content(&mut self, chat: &str, section: Option<&Value>) -> Result<()> {
+        if self.cached_content.loader.is_none() {
+            return Ok(());
+        }
+        if let Some(section) = section {
+            let partial = super::snapshot_sections::chat_partial_snapshot(chat, section)?;
+            self.merge_cached_content(&partial, Some(chat))?;
+        }
+        self.cached_content.loaded.insert(chat.to_owned());
+        Ok(())
+    }
+
+    /// Complete a partial restore before any operation that reads or replaces
+    /// cached content beyond the restored Chats. No-op for complete clients.
+    pub fn ensure_cached_content_loaded(&mut self) -> Result<()> {
+        let Some(loader) = self.cached_content.loader.clone() else {
+            return Ok(());
+        };
+        let loaded: Vec<String> = self.cached_content.loaded.iter().cloned().collect();
+        let remainder = loader(&loaded)?;
+        if let Some(shared) = remainder.get("shared").filter(|value| !value.is_null()) {
+            let shared = shared.as_object().ok_or(Error::Protocol)?;
+            let partial = json!({
+                "embeds": shared.get("embeds").cloned().unwrap_or_else(|| json!({})),
+                "embed_keys": shared.get("embed_keys").cloned().unwrap_or_else(|| json!([])),
+            });
+            self.merge_cached_content(&partial, None)?;
+            if matches!(self.saved_embed_cache, super::saved_embed_selector::SelectorCache::Legacy) {
+                self.saved_embed_cache = super::saved_embed_selector::SelectorCache::restore(
+                    shared.get(super::saved_embed_selector::CACHE_FIELD),
+                    self.saved_embed_unsynced_empty(),
+                );
+            }
+        }
+        if let Some(chats) = remainder.get("chats").filter(|value| !value.is_null()) {
+            for (chat, section) in chats.as_object().ok_or(Error::Protocol)? {
+                if !self.cached_content.loaded.contains(chat) {
+                    let partial = super::snapshot_sections::chat_partial_snapshot(chat, section)?;
+                    self.merge_cached_content(&partial, Some(chat))?;
+                }
+            }
+        }
+        self.cached_content = CachedContentState::default();
+        Ok(())
+    }
+
+    /// Validate a content-only partial snapshot exactly like the full restore,
+    /// then add only what the client does not already hold.
+    fn merge_cached_content(&mut self, partial: &Value, chat: Option<&str>) -> Result<()> {
+        self.require_session()?;
+        let windows = super::sync_windows::restore_windows(partial.get(super::sync_windows::SNAPSHOT_FIELD))?;
+        let selected = super::selected_first_page::restore(partial.get(super::selected_first_page::SNAPSHOT_FIELD))?;
+        let history: BTreeMap<String, Vec<Value>> = serde_json::from_value(
+            partial.get("history").cloned().unwrap_or_else(|| json!({})),
+        )?;
+        let embeds: BTreeMap<String, Value> = serde_json::from_value(
+            partial.get("embeds").cloned().unwrap_or_else(|| json!({})),
+        )?;
+        let embed_keys: Vec<Value> = serde_json::from_value(
+            partial.get("embed_keys").cloned().unwrap_or_else(|| json!([])),
+        )?;
+        let foreign = |id: &String| chat.is_some_and(|chat| chat != id);
+        if windows.keys().chain(selected.keys()).chain(history.keys()).any(foreign) {
+            return Err(Error::Protocol);
+        }
+        // Sync windows carry globally unique source ranks; a conflicting cached
+        // rank is refused rather than allowed to shadow a held window.
+        let held_ranks: std::collections::BTreeSet<u8> = self
+            .sync_message_windows
+            .values()
+            .filter_map(|window| window.source_rank)
+            .collect();
+        for (id, window) in windows {
+            if self.sync_message_windows.contains_key(&id) {
+                continue;
+            }
+            if window.source_rank.is_some_and(|rank| held_ranks.contains(&rank)) {
+                return Err(Error::Protocol);
+            }
+            self.sync_message_windows.insert(id, window);
+        }
+        for (id, page) in selected {
+            self.selected_first_pages.entry(id).or_insert(page);
+        }
+        for (id, rows) in history {
+            self.history.entry(id).or_insert(rows);
+        }
+        for (id, row) in embeds {
+            self.embeds.entry(id).or_insert(row);
+        }
+        let held: std::collections::BTreeSet<String> = self
+            .embed_keys
+            .iter()
+            .filter_map(|row| row.get("id").and_then(Value::as_str).map(str::to_owned))
+            .collect();
+        for row in embed_keys {
+            let id = row.get("id").and_then(Value::as_str);
+            if id.is_none_or(|id| !held.contains(id)) {
+                self.embed_keys.push(row);
+            }
+        }
+        Ok(())
+    }
+
     /// Explicitly revoke only cached-list freshness. The caller must durably
     /// publish the next ciphertext snapshot before uncertain remote effects.
     /// Ciphertext and credentials remain available through their existing APIs.
