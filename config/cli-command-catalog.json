@@ -46368,12 +46368,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "cli::privacy_cmd",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/privacy_cmd.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "The native CLI has no offline model runtime: status reports 'unsupported'; install/enable/update stay unported. Disable/remove also update an npm-profile preference file so native sends are unblocked.",
+        "Does not stop a running npm privacy worker daemon."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46503,12 +46504,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "cli::privacy_cmd",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/privacy_cmd.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "The native CLI has no offline model runtime: status reports 'unsupported'; install/enable/update stay unported. Disable/remove also update an npm-profile preference file so native sends are unblocked.",
+        "Does not stop a running npm privacy worker daemon."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46542,12 +46544,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "cli::privacy_cmd",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/privacy_cmd.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "The native CLI has no offline model runtime: status reports 'unsupported'; install/enable/update stay unported. Disable/remove also update an npm-profile preference file so native sends are unblocked.",
+        "Does not stop a running npm privacy worker daemon."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -61829,8 +61832,8 @@
   "coverage": {
     "command_patterns": 720,
     "flags": 599,
-    "native_handlers_partial": 593,
-    "unsupported": 127,
+    "native_handlers_partial": 596,
+    "unsupported": 124,
     "feature_complete": false
   },
   "maintenance": {

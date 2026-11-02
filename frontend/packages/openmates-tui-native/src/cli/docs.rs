@@ -14,7 +14,11 @@ pub fn is_public(i: &Invocation) -> bool {
         || wiki_help(i)
         // Informational settings answers (web-only notices) need no account.
         || super::account::is_info(i)
+        // Device-local privacy model controls need no account either.
+        || privacy_cmd::supported(i)
 }
+#[path = "privacy_cmd.rs"]
+mod privacy_cmd;
 fn wiki_help(i: &Invocation) -> bool {
     i.path.first().is_some_and(|name| name == "wiki")
         && (i.path.len() == 1
@@ -125,6 +129,9 @@ pub async fn execute(
 ) -> Result<CliOutput, CliError> {
     if let Some(help) = public_help(i) {
         return help;
+    }
+    if privacy_cmd::supported(i) {
+        return privacy_cmd::execute(i);
     }
     if let Some(notice) = super::account::web_only(i, &client.application_url()) {
         return notice;
