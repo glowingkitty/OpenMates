@@ -36,8 +36,10 @@ class StartupPeer(EssentialPeer):
                         payload["client_type"] == self.identity
                         and payload["interactive"] is False
                     )
-                    assert payload["is_foreground"] is False
-                    socket.send("native_client_lifecycle_ack", {"is_foreground": False})
+                    # Every native SDK socket announces is_foreground=true (the
+                    # core lifecycle; recovery requires a foreground ack).
+                    assert payload["is_foreground"] is True
+                    socket.send("native_client_lifecycle_ack", {"is_foreground": True})
                     socket.send(
                         "recovery_outputs_discovery_complete", {"status": "disabled"}
                     )
