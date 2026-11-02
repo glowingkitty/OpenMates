@@ -7,7 +7,7 @@
 use aes_gcm::{Aes256Gcm,Nonce,aead::{Aead,KeyInit}};
 use base64::{Engine as _,engine::general_purpose::STANDARD};
 use futures_util::{SinkExt,StreamExt};
-use openmates_tui_native::storage::{CredentialBackend,KeyringFailure,Session,Store};
+use openmates::storage::{CredentialBackend,KeyringFailure,Session,Store};
 use serde_json::{Value,json};
 use sha2::{Digest,Sha256};
 use std::{collections::BTreeMap,path::Path,sync::{Arc,atomic::{AtomicBool,AtomicUsize,Ordering}},time::Duration};
@@ -111,8 +111,8 @@ async fn real_binary_after_whoami_persist_cold_sync_then_cache_reuses_first_coll
     // separate real executable process before the first share. Credentials-only
     // seed alone cannot substitute for this user-reachable persistence seam.
     let whoami=peer.run_args(state.path(),&["whoami","--json"]).await;assert!(whoami.status.success(),"initial whoami failed");assert!(whoami.stderr.is_empty());assert_eq!(peer.sync.load(Ordering::SeqCst),0);
-    let runtime=openmates_tui_native::runtime_store::RuntimeStore::new(Some(state.path().into()),false).await.unwrap();
-    let saved=runtime.load(None).await.unwrap().unwrap();let snapshot=runtime.read_cache(saved.hashed_email.clone(),openmates_tui_native::session_runtime::cache_key(&saved),saved.master_key.clone()).await.unwrap().unwrap();
+    let runtime=openmates::runtime_store::RuntimeStore::new(Some(state.path().into()),false).await.unwrap();
+    let saved=runtime.load(None).await.unwrap().unwrap();let snapshot=runtime.read_cache(saved.hashed_email.clone(),openmates::session_runtime::cache_key(&saved),saved.master_key.clone()).await.unwrap().unwrap();
     assert_eq!(snapshot["saved_embed_order_v1"],json!({"version":1,"state":"unsynced"}));drop(snapshot);drop(runtime);
     let first=peer.run(state.path(),"33333333").await;assert!(first.status.success(),"cold share failed");assert!(first.stderr.is_empty());
     let value:Value=serde_json::from_slice(&first.stdout).unwrap();assert_eq!(value["embed_id"],"33333333");assert_eq!(value["expires"],0);assert_eq!(value["password_protected"],false);assert!(value["url"].as_str().unwrap().contains(&format!("/embed/{FIRST}#key=")));assert_eq!(peer.sync.load(Ordering::SeqCst),1);assert_fragment(value["url"].as_str().unwrap());

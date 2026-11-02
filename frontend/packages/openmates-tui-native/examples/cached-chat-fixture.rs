@@ -2,7 +2,7 @@
 //! Explicit loopback credentials use the actual encrypted RuntimeStore boundary;
 //! subsequent actual native reads must authenticate and populate their own cache.
 use openmates_sdk::{Client, Session};
-use openmates_tui_native::runtime_store::RuntimeStore;
+use openmates::runtime_store::RuntimeStore;
 use serde_json::{Value, json};
 #[cfg(unix)]
 use std::os::unix::fs::MetadataExt;

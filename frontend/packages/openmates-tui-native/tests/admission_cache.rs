@@ -1,6 +1,6 @@
 //! Controlled-peer native admission evidence; synthetic encrypted cache only.
 //! Intended for isolated GitHub CI. No installed profile, keyring or AI access.
-use openmates_tui_native::{
+use openmates::{
     cli::{self, CliError, Invocation},
     client::Client,
     error::Error,

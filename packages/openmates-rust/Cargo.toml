@@ -18,7 +18,7 @@ workflow-yaml = ["dep:serde_yaml"]
 
 [dependencies]
 tokio-util = "0.7"
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream", "http2"] }
 futures-util = "0.3"
 tungstenite = { version = "0.28", default-features = false, features = ["handshake"] }
 serde = { version = "1", features = ["derive"] }
@@ -71,9 +71,3 @@ js-sys = "0.3"
 wasm-streams = "0.4"
 web-sys = { version = "0.3", features = ["AbortController", "AbortSignal", "Headers", "Request", "RequestInit", "RequestCredentials", "RequestCache", "RequestRedirect", "Response", "ReadableStream", "DedicatedWorkerGlobalScope", "WorkerGlobalScope", "WorkerLocation", "WebSocket", "MessageEvent", "Event", "CloseEvent"] }
 futures-channel = "0.3"
-
-# RUSTSEC-2026-0387: Ristretto255-only voprf/opaque-ke without elliptic-curve/crypto-bigint 0.5.
-# See packages/third_party/README.md. Remove once upstream drops elliptic-curve 0.13.
-[patch.crates-io]
-opaque-ke = { path = "../third_party/opaque-ke" }
-voprf = { path = "../third_party/voprf" }

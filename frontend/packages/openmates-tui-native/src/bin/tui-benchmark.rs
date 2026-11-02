@@ -1,6 +1,6 @@
 //! Offline real-renderer benchmark. Raw fixtures are parsed independently of TypeScript.
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use openmates_tui_native::{
+use openmates::{
     model::{Chat, Item, Workspace},
     ui::Ui,
 };

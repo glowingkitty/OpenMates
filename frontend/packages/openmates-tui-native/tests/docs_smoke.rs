@@ -1,6 +1,6 @@
 //! Isolated product evidence for the native public Docs CLI contract.
 //! No signup, account credentials, model selection or AI inference is used.
-use openmates_tui_native::client::Client;
+use openmates::client::Client;
 use serde_json::Value;
 use std::{
     path::Path,

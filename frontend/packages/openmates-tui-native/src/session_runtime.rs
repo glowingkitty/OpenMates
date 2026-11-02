@@ -140,7 +140,7 @@ pub async fn revoke_chat_cache_before_dispatch(
 ///
 /// A separately authenticated Client cannot be supplied to the formatter:
 /// ```compile_fail
-/// use openmates_tui_native::{client::Client, cli::Invocation,
+/// use openmates::{client::Client, cli::Invocation,
 ///     runtime_store::RuntimeStore, session_runtime::FreshSessionAdmission};
 /// use tokio_util::sync::CancellationToken;
 /// async fn replace(client: &mut Client, other: &Client, store: &RuntimeStore,
@@ -151,7 +151,7 @@ pub async fn revoke_chat_cache_before_dispatch(
 /// ```
 /// The admitted Client cannot change account or Team while its guard exists:
 /// ```compile_fail
-/// use openmates_tui_native::{client::Client, cli::Invocation,
+/// use openmates::{client::Client, cli::Invocation,
 ///     runtime_store::RuntimeStore, session_runtime::FreshSessionAdmission};
 /// use tokio_util::sync::CancellationToken;
 /// async fn mutate(client: &mut Client, store: &RuntimeStore,

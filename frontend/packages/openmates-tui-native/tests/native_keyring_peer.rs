@@ -1,7 +1,7 @@
 //! CI-only cross-process peer. No fake credential backend, API, account or AI.
 //! Run only via native-keyring-ci.py inside the admitted isolated GitHub runner.
 #![cfg(target_os = "linux")]
-use openmates_tui_native::storage::{Session, StorageMode, Store};
+use openmates::storage::{Session, StorageMode, Store};
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, fs, os::unix::fs::MetadataExt, path::PathBuf};
 use zeroize::Zeroizing;

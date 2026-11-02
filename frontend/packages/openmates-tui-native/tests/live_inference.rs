@@ -1,5 +1,5 @@
 //! Explicit dev-only real inference proof, never selected by isolated CI.
-use openmates_tui_native::{client::Client, model::StreamUpdate};
+use openmates::{client::Client, model::StreamUpdate};
 use tokio_util::sync::CancellationToken;
 
 #[tokio::test]

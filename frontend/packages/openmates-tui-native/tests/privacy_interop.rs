@@ -1,4 +1,4 @@
-use openmates_tui_native::privacy::{prepare, restore};
+use openmates::privacy::{prepare, restore};
 use serde_json::{Value, json};
 
 #[test]

@@ -13,7 +13,7 @@ use crossterm::{
     },
 };
 use futures_util::StreamExt;
-use openmates_tui_native::{
+use openmates::{
     client::{
         ChatFirstPageCandidate, ChatFirstPagePublication, ChatFirstPageSink, CacheSettlementPublication, CachedChatPublication, CachedChatViews, CachedChatWindow, ChatViewRead, CanonicalChatPublication,
         ChatInvalidation, ChatMonitor, ChatMonitorAccessDenial, ChatPublication,
@@ -136,14 +136,14 @@ impl std::ops::Deref for NativeLivePublication {
     fn deref(&self) -> &ChatPublication { &self.publication }
 }
 impl NativeLivePublication {
-    fn into_models(self) -> Result<openmates_tui_native::client::ChatModels> {
+    fn into_models(self) -> Result<openmates::client::ChatModels> {
         if !self.store_generation.is_current() || self.request.is_cancelled() { return Err(Error::Cancelled); }
         let mut models = Zeroizing::new(self.publication.into_models()?);
         if !self.store_generation.is_current() || self.request.is_cancelled() {
             return Err(Error::Cancelled);
         }
-        Ok(std::mem::replace(&mut *models, openmates_tui_native::client::ChatModels {
-            items: vec![], selection: openmates_tui_native::client::ChatSelectionUpdate::Unchanged,
+        Ok(std::mem::replace(&mut *models, openmates::client::ChatModels {
+            items: vec![], selection: openmates::client::ChatSelectionUpdate::Unchanged,
         }))
     }
 }
@@ -246,7 +246,7 @@ impl ChatFirstPageSink for NativeChatFirstPageSink {
                 ciphertext_sha256: candidate.ciphertext_sha256()?,
                 credential_revision: candidate.credential_revision(),
             };
-            openmates_tui_native::session_runtime::persist(client, &self.store, self.passphrase.clone()).await?;
+            openmates::session_runtime::persist(client, &self.store, self.passphrase.clone()).await?;
             if !self.generation.is_current() { return Err(Error::Cancelled); }
             let publication = client.commit_chat_first_page(candidate, receipt)?;
             self.replies.send(Reply { epoch: self.epoch, view: View::ChatFirstPage(NativeChatFirstPagePublication {
@@ -828,7 +828,7 @@ impl CanonicalRecoveryPersistence for RecoveryPersistence {
             self.check(client, cancel)?;
             // Core commit/resume already strictly reread exact canonical
             // ciphertext. Do not substitute public open_chat's offline fallback.
-            openmates_tui_native::session_runtime::persist(
+            openmates::session_runtime::persist(
                 client,
                 &self.store,
                 self.passphrase.clone(),
@@ -879,17 +879,17 @@ async fn actor(
 ) {
     let initial = async {
         let directories = directories::BaseDirs::new().ok_or(Error::Io)?;
-        let profile = openmates_tui_native::profile::resolve(
-            openmates_tui_native::profile::ProfileOptions {
+        let profile = openmates::profile::resolve(
+            openmates::profile::ProfileOptions {
                 profile: args.profile,
                 state_dir: args.state_dir,
                 api_url: args.api_url,
             },
-            openmates_tui_native::profile::ProfileEnvironment::capture(),
+            openmates::profile::ProfileEnvironment::capture(),
             directories.home_dir(),
         )?;
-        let installed_api = openmates_tui_native::server::installed_api(&profile.state_dir)?;
-        let installed_app = openmates_tui_native::server::installed_app(&profile.state_dir)?;
+        let installed_api = openmates::server::installed_api(&profile.state_dir)?;
+        let installed_app = openmates::server::installed_app(&profile.state_dir)?;
         let explicit_app = std::env::var("OPENMATES_APP_URL")
             .ok()
             .filter(|s| !s.is_empty());
@@ -897,17 +897,17 @@ async fn actor(
         let mut client = Client::new(&api, None)?;
         client.set_identity(openmates_sdk::ClientIdentity::Cli);
         client.set_interactive(true);
-        client.set_app_origin(openmates_tui_native::profile::application_origin(
+        client.set_app_origin(openmates::profile::application_origin(
             &api,
             explicit_app.clone(),
             installed_api.as_deref(),
             installed_app.clone(),
         )?)?;
-        client.set_private_operation_gate(Some(openmates_tui_native::privacy::gate_for_profile(
+        client.set_private_operation_gate(Some(openmates::privacy::gate_for_profile(
             &profile,
             directories.home_dir(),
         )));
-        let trusted_path = openmates_tui_native::cli::trusted_account::enforced_profile(
+        let trusted_path = openmates::cli::trusted_account::enforced_profile(
             &profile.state_dir,
             args.trusted_account,
         )
@@ -1118,7 +1118,7 @@ impl Actor {
         };
         self.trusted_verified = false;
         self.client.validate_session().await?;
-        use openmates_tui_native::cli::trusted_account as trusted;
+        use openmates::cli::trusted_account as trusted;
         if login {
             trusted::save(path, self.client.user()["id"].as_str().unwrap_or(""))
                 .map_err(|_| Error::Forbidden)?;
@@ -1137,7 +1137,7 @@ impl Actor {
             .map_err(|_| Error::Cancelled)
     }
     async fn persist(&mut self) -> Result<()> {
-        openmates_tui_native::session_runtime::persist(
+        openmates::session_runtime::persist(
             &mut self.client,
             &self.store,
             self.passphrase.clone(),
@@ -1152,7 +1152,7 @@ impl Actor {
         // This can start monitors and foreground recovery. Remove any restored
         // receipt durably before those effects, including a crash before a
         // recovery checkpoint/final save. Failure refuses their dispatch.
-        openmates_tui_native::session_runtime::revoke_chat_cache_before_dispatch(
+        openmates::session_runtime::revoke_chat_cache_before_dispatch(
             &mut self.client,
             &self.store,
             self.passphrase.clone(),
@@ -1166,13 +1166,13 @@ impl Actor {
         let admission = self.monitor_admission(replies, epoch).await?;
         if let MonitorAdmission::Denied(error) = admission { return Err(error); }
         let storage = match self.store.storage_mode().await? {
-            Some(openmates_tui_native::storage::StorageMode::OsKeyring) => {
+            Some(openmates::storage::StorageMode::OsKeyring) => {
                 "Signed in · credentials protected by OS keyring"
             }
-            Some(openmates_tui_native::storage::StorageMode::RestrictedLocalFile) => {
+            Some(openmates::storage::StorageMode::RestrictedLocalFile) => {
                 "Signed in · credentials protected by owner-only local files"
             }
-            Some(openmates_tui_native::storage::StorageMode::EncryptedVault) => {
+            Some(openmates::storage::StorageMode::EncryptedVault) => {
                 "Signed in · credentials protected by passphrase vault"
             }
             None => "Signed in · credentials not stored",
@@ -1604,7 +1604,7 @@ impl Actor {
             Ok(value) => value,
             Err(Error::Locked)
                 if self.store.storage_mode().await?
-                    == Some(openmates_tui_native::storage::StorageMode::EncryptedVault) =>
+                    == Some(openmates::storage::StorageMode::EncryptedVault) =>
             {
                 Self::emit(replies, epoch, View::Unlock).await?;
                 return Ok(());
@@ -1621,7 +1621,7 @@ impl Actor {
                 .as_deref()
                 .unwrap_or(&session.api_url)
                 .to_owned();
-            let app = openmates_tui_native::profile::application_origin(
+            let app = openmates::profile::application_origin(
                 &api,
                 self.explicit_app.clone(),
                 self.installed_app.as_ref().map(|(api, _)| api.as_str()),
@@ -2156,7 +2156,7 @@ impl Actor {
     }
 }
 fn cache_key(session: &Session) -> String {
-    openmates_tui_native::session_runtime::cache_key(session)
+    openmates::session_runtime::cache_key(session)
 }
 fn now_ms() -> u64 {
     SystemTime::now()

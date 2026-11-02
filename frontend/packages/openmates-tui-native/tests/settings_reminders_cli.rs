@@ -2,7 +2,7 @@
 //! production timer. No fake auth, transport, retry clock or application sidecar.
 //! Linux CI uses util-linux script solely as a terminal fixture for the prompt.
 #![cfg(target_os = "linux")]
-use openmates_tui_native::storage::{Session, Store};
+use openmates::storage::{Session, Store};
 use serde_json::{Value, json};
 use std::{
     collections::{BTreeMap, VecDeque},

@@ -6,7 +6,7 @@ use openmates_sdk::{
     account::{ApiKeyCreateConfirmation, ApiKeyRevokeConfirmation},
     work::{ProjectCreate, ProjectItemType, ProjectPatch, TaskCreate, TaskPatch},
 };
-use openmates_tui_native::{
+use openmates::{
     client::Client,
     error::Error,
     model::{Mutation, Workspace},
@@ -178,8 +178,8 @@ async fn saved_rename_lifecycle(client: &mut Client) {
     assert!(chat.messages.is_empty());
     // Actual native dispatch and genuine server metadata read; no AI request,
     // selector-derived slug or benchmark ledger is involved. Isolated CI only.
-    let parsed=openmates_tui_native::cli::parse_from(["openmates","chats","show",id.as_str(),"--json"]).expect("parse full read");
-    let output=openmates_tui_native::cli::execute(&parsed.invocation.expect("show invocation"),client,tokio_util::sync::CancellationToken::new()).await.unwrap_or_else(|_| panic!("native full metadata dispatch"));
+    let parsed=openmates::cli::parse_from(["openmates","chats","show",id.as_str(),"--json"]).expect("parse full read");
+    let output=openmates::cli::execute(&parsed.invocation.expect("show invocation"),client,tokio_util::sync::CancellationToken::new()).await.unwrap_or_else(|_| panic!("native full metadata dispatch"));
     assert_eq!(output.exit_code,0);assert!(output.stderr.is_empty());
     let public:serde_json::Value=serde_json::from_str(&output.stdout).expect("public JSON");
     // Original TypeScript chats show --json wraps rich metadata under chat.

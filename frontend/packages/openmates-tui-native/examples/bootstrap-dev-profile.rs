@@ -6,7 +6,7 @@ use clap::Parser;
 use openmates_sdk::{
     Client, ClientIdentity, ClientOptions, crypto, privacy::PrivacyOptions, work::ProjectFilters,
 };
-use openmates_tui_native::{
+use openmates::{
     cli::trusted_account,
     profile::{self, ProfileEnvironment, ProfileOptions},
     runtime_store::RuntimeStore,

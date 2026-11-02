@@ -1,5 +1,5 @@
 //! Command lifecycle and interactive profiles belong to the application.
-use openmates_tui_native::{
+use openmates::{
     cli::{self, CliError, CliOutput, GlobalArgs, Invocation},
     client::{Client, ClientOptions},
     error::Error,
@@ -319,7 +319,7 @@ async fn run_with_list_stages(
     )));
     client.set_operation_cancel(cancel.clone());
     client.set_chat_cache_clock_provider(Some(std::sync::Arc::new(
-        openmates_tui_native::native_cache_clock::cache_clock_evidence,
+        openmates::native_cache_clock::cache_clock_evidence,
     )));
     // Only genuine credential absence admits the public anonymous transport.
     // Expired/locked/invalid sessions and explicit API keys have already returned
@@ -1399,7 +1399,7 @@ mod tests {
         );
         assert_eq!(context.profile.state_dir, host_state);
         let store =
-            openmates_tui_native::storage::Store::encrypted_vault(account.state_dir.clone())
+            openmates::storage::Store::encrypted_vault(account.state_dir.clone())
                 .unwrap();
         cli::trusted_account::save(store.state_dir(), "expected-fixture-user")
             .unwrap_or_else(|error| panic!("{error}"));
@@ -1483,7 +1483,7 @@ mod tests {
         let store = RuntimeStore::new(Some(directory.path().to_path_buf()), true)
             .await
             .unwrap();
-        let session = openmates_tui_native::storage::Session {
+        let session = openmates::storage::Session {
             api_url: "https://never-contact.example.invalid".into(),
             session_id: "synthetic".into(),
             cookies: Default::default(),
@@ -1596,22 +1596,22 @@ mod tests {
     }
 
     struct FinalFenceNoKeyring;
-    impl openmates_tui_native::storage::CredentialBackend for FinalFenceNoKeyring {
+    impl openmates::storage::CredentialBackend for FinalFenceNoKeyring {
         fn get(
             &self,
             _: &str,
-        ) -> Result<Zeroizing<Vec<u8>>, openmates_tui_native::storage::KeyringFailure> {
-            Err(openmates_tui_native::storage::KeyringFailure::Unavailable)
+        ) -> Result<Zeroizing<Vec<u8>>, openmates::storage::KeyringFailure> {
+            Err(openmates::storage::KeyringFailure::Unavailable)
         }
         fn set(
             &self,
             _: &str,
             _: &[u8],
-        ) -> Result<(), openmates_tui_native::storage::KeyringFailure> {
-            Err(openmates_tui_native::storage::KeyringFailure::Unavailable)
+        ) -> Result<(), openmates::storage::KeyringFailure> {
+            Err(openmates::storage::KeyringFailure::Unavailable)
         }
-        fn delete(&self, _: &str) -> Result<(), openmates_tui_native::storage::KeyringFailure> {
-            Err(openmates_tui_native::storage::KeyringFailure::Unavailable)
+        fn delete(&self, _: &str) -> Result<(), openmates::storage::KeyringFailure> {
+            Err(openmates::storage::KeyringFailure::Unavailable)
         }
     }
     fn final_fence_snapshot() -> serde_json::Value {
@@ -1653,12 +1653,12 @@ mod tests {
             builder.permissions(std::fs::Permissions::from_mode(0o700));
         }
         let directory = builder.tempdir().unwrap();
-        let store = openmates_tui_native::storage::Store::with_backend(
+        let store = openmates::storage::Store::with_backend(
             directory.path().to_path_buf(),
             std::sync::Arc::new(FinalFenceNoKeyring),
         )
         .unwrap();
-        let session = openmates_tui_native::storage::Session {
+        let session = openmates::storage::Session {
             api_url: api.clone(),
             session_id: "synthetic-final-fence-session".into(),
             cookies: BTreeMap::from([("auth_refresh_token".into(), "synthetic-original".into())]),
@@ -1793,7 +1793,7 @@ mod tests {
         // Runtime has awaited initial persistence and is paused synchronously
         // at PendingOutput capture. This read-only injected backend deliberately
         // avoids its lifetime runtime lock without touching any OS keyring.
-        let store = openmates_tui_native::storage::Store::with_backend(
+        let store = openmates::storage::Store::with_backend(
             path.to_path_buf(),
             std::sync::Arc::new(FinalFenceNoKeyring),
         )
@@ -1980,7 +1980,7 @@ mod tests {
         let _hook = final_output_test_hook::install(move |pending, cancel| {
             assert!(pending.stdout.contains("synthetic final private draft"));
             pending.wiped_on_drop = Some(callback_wiped);
-            let store = openmates_tui_native::storage::Store::with_backend(
+            let store = openmates::storage::Store::with_backend(
                 path.clone(),
                 Arc::new(FinalFenceNoKeyring),
             )

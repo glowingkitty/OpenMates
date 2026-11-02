@@ -5,7 +5,7 @@
   "source_snapshots": [
     {
       "path": "frontend/packages/openmates-cli/src/cli.ts",
-      "sha256": "f7bc6e7afef5186dcfacd16f5188038ff07f9031070428ae4be1393fa0a4ac90"
+      "sha256": "68ca0c38c64c818f9f222601af29e8a54e8b23d744dc94f47e9cfe90916057fd"
     },
     {
       "path": "frontend/packages/openmates-cli/src/server.ts",
@@ -29,7 +29,7 @@
     },
     {
       "path": "frontend/packages/openmates-cli/src/tasksCli.ts",
-      "sha256": "aea21e3f4e534537979a544e791c28899c51a9907741a98528c4fe09acfb94a1"
+      "sha256": "aacac373ed14b5d4652fc399d6f80f5ec94da6ea0b0beee0d46c138d4006c21f"
     },
     {
       "path": "frontend/packages/openmates-cli/src/taskActivityHistory.ts",
@@ -49,7 +49,7 @@
     },
     {
       "path": "frontend/packages/openmates-cli/src/codexConnection.ts",
-      "sha256": "8e5bd8e490ae11d9587519922fae38a61b6d4f289c89c9cf597cac867c9f7075"
+      "sha256": "f00ddaf2b93b597552cb5a1ac6bf8f5d09d2c745622f4ab98c0eaf2b6076db6a"
     },
     {
       "path": "frontend/packages/openmates-cli/src/storage.ts",

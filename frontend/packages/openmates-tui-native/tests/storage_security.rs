@@ -1,5 +1,5 @@
 //! Isolated credential/cache tests. No OS keyring or installed CLI state is read.
-use openmates_tui_native::{
+use openmates::{
     error::Error,
     storage::{CredentialBackend, KeyringFailure, Session, StorageMode, Store},
 };

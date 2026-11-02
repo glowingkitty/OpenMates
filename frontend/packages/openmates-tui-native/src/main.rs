@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
 mod command_runtime;
 mod runtime;
-use openmates_tui_native::cli::{self, CliError, CliOutput};
+use openmates::cli::{self, CliError, CliOutput};
 use std::{
     io::{self, IsTerminal, Write},
     path::PathBuf,
@@ -136,7 +136,7 @@ fn write_result(result: Result<CliOutput, CliError>, json: bool) -> ! {
             std::process::exit(
                 if matches!(
                     error,
-                    CliError::Client(openmates_tui_native::error::Error::Cancelled)
+                    CliError::Client(openmates::error::Error::Cancelled)
                 ) {
                     130
                 } else {

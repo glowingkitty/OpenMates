@@ -33,10 +33,14 @@ decisions:
   - Shared Rust owns all reusable headless logic for CLI/TUI, web (WASM) and later
     Apple. Svelte keeps only UI/DOM and thin browser APIs (media, WebRTC);
     IndexedDB/SwiftData stay as thin storage adapters.
-  - Packaging (2026-11-02) - ONE published crate `openmates` containing the SDK
-    library and the `openmates` CLI binary. `cargo install openmates` installs
-    the CLI; `cargo add openmates` gives the SDK. TUI/CLI-only dependencies sit
-    behind a default `cli` feature so SDK users can opt out. The Node-API/PyO3 and
+  - Packaging (2026-11-02) - ONE published crate `openmates`
+    (frontend/packages/openmates-tui-native) containing the `openmates` CLI binary
+    and the SDK re-exported as `openmates::sdk`. `cargo install openmates` installs
+    the CLI; `cargo add openmates --no-default-features` gives the SDK only
+    (CLI/TUI dependencies sit behind the default `cli` feature). The SDK core stays
+    an internal member crate `openmates-sdk`. One root Cargo workspace owns the
+    single lockfile, profiles and the dependency patch. License MIT, matching the
+    npm and PyPI packages (server/web app stay AGPL). The Node-API/PyO3 and
     WASM binding crates stay internal (shipped inside npm, PyPI and the web app,
     not on crates.io). GitHub executable downloads are out of scope.
   - The npm CLI stays installed and working until full parity plus explicit
@@ -109,6 +113,10 @@ stages:
     task: TASK-4963
     outcome: Every npm CLI command/flag/output/exit code, signup and self-host setup
       (GitHub CI) work in Rust.
+    known_gaps:
+      - Tasks --external-chat must accept claude:<session-uuid> (link-only, owner
+        check via CLAUDE_CODE_SESSION_ID) like the npm CLI since 3de6434413; Rust
+        cli/codex.rs and work/tasks.rs still accept codex only.
   - id: sdk-parity
     task: TASK-7993
     outcome: Rust/npm/Python capability matrix complete; conformance runners back

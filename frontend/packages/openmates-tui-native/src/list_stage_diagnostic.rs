@@ -1,7 +1,7 @@
 //! Finite, opt-in isolated-CI CLI list timing. No SDK authority or product IO.
 //! No arbitrary strings/IDs/errors enter a record; the original result is never
 //! changed by diagnostic encoding or delivery. Normal command output is separate.
-use openmates_tui_native::cli::ListReadDiagnosticStage;
+use openmates::cli::ListReadDiagnosticStage;
 use serde::Serialize;
 use std::{ffi::OsStr, io::{self, Write}, sync::{Arc, Mutex}, time::Instant};
 

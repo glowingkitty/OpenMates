@@ -3,7 +3,7 @@ use base64::{
     Engine as _,
     engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD},
 };
-use openmates_tui_native::crypto::*;
+use openmates::crypto::*;
 use serde_json::{Value, json};
 
 fn fixture() -> Value {
