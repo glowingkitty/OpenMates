@@ -12,6 +12,8 @@ mod browser_crypto;
 #[cfg(target_arch = "wasm32")] pub mod browser_embed_write;
 
 #[cfg(target_arch = "wasm32")]
+mod browser_chat_state;
+#[cfg(target_arch = "wasm32")]
 mod browser_auth;
 #[cfg(target_arch = "wasm32")]
 pub use browser_auth::*;

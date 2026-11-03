@@ -3,6 +3,7 @@
 //! CLI profile, prompts for input, starts a terminal, or opens a browser.
 #![forbid(unsafe_code)]
 pub mod account;
+pub mod chat_state;
 pub mod client;
 pub mod crypto;
 pub mod error;
