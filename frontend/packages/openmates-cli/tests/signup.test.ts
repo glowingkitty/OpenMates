@@ -14,7 +14,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createCipheriv, randomBytes } from "node:crypto";
 
-import { OpenMatesClient } from "../dist/index.js";
+import { OpenMatesClient } from "../dist/cli-internal-client.js";
 import { createSignupCryptoMaterial, deriveKeyFromPassword, hashKey } from "../src/crypto.ts";
 
 type FetchCall = {

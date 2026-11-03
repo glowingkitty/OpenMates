@@ -37,7 +37,7 @@ if (!isMainThread) {
   if (typeof createCapacityProject !== 'function' || typeof writeVersion !== 'function' || typeof readArchivedPage !== 'function') {
     throw new Error('Capacity adapters must export createCapacityProject, writeVersion and readArchivedPage');
   }
-  const sdkPath = resolve('frontend/packages/openmates-cli/dist/index.js');
+  const sdkPath = resolve('frontend/packages/openmates-cli/dist/cli-internal-client.js');
   ({ OpenMatesClient } = await import(pathToFileURL(sdkPath).href));
 }
 const apiUrl = process.env.OPENMATES_CAPACITY_API_URL;

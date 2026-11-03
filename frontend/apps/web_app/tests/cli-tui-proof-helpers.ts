@@ -176,7 +176,7 @@ function seedEncryptedAppsResult(apiUrl: string, home: string, candidateCli: str
 		"import {randomBytes,randomUUID,webcrypto} from 'node:crypto';",
 		"import {pathToFileURL} from 'node:url';",
 		"const root=process.argv[1];",
-		"const {OpenMatesClient}=await import(pathToFileURL(root+'/index.js').href);",
+		"const {OpenMatesClient}=await import(pathToFileURL(root+'/cli-internal-client.js').href);",
 		"async function seal(data,keyBytes){const iv=randomBytes(12);const key=await webcrypto.subtle.importKey('raw',keyBytes,{name:'AES-GCM'},false,['encrypt']);const encrypted=await webcrypto.subtle.encrypt({name:'AES-GCM',iv},key,data);return Buffer.concat([iv,Buffer.from(encrypted)]).toString('base64');}",
 		"const encryptBytesWithAesGcm=(bytes,key)=>seal(bytes,key);",
 		"const encryptWithAesGcmCombined=(text,key)=>seal(Buffer.from(text,'utf8'),key);",

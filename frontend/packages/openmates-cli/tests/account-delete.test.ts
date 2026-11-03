@@ -14,7 +14,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { OpenMatesClient } from "../dist/index.js";
+import { OpenMatesClient } from "../dist/cli-internal-client.js";
 
 type FetchCall = {
   url: string;
@@ -61,6 +61,7 @@ async function withMockFetch<T>(handler: (call: FetchCall) => unknown, run: (cal
 }
 
 describe("CLI account deletion SDK", () => {
+  // contract-test: supporting surface=cli assertions=auth.sensitive-actions.recent-verification
   it("requests and verifies the delete-account email code", async () => {
     await withMockFetch(() => ({ success: true, message: "ok" }), async (calls) => {
       const client = new OpenMatesClient({ apiUrl: "https://api.example.test", session: testSession() });
@@ -81,6 +82,7 @@ describe("CLI account deletion SDK", () => {
     });
   });
 
+  // contract-test: supporting surface=cli assertions=auth.sensitive-actions.recent-verification,auth.proofs.single-use
   it("sends CLI-only email verification plus TOTP to delete-account", async () => {
     const originalHome = process.env.HOME;
     const tempHome = mkdtempSync(join(tmpdir(), "openmates-cli-delete-"));

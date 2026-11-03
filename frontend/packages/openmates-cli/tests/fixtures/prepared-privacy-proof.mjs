@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 const cli = resolve(process.argv[2]);
 const require = createRequire(pathToFileURL(cli));
 const { WebSocketServer } = require('ws');
-const { OpenMatesClient } = await import(pathToFileURL(join(dirname(cli), 'index.js')).href);
+const { OpenMatesClient } = await import(pathToFileURL(join(dirname(cli), 'cli-internal-client.js')).href);
 if (!resolve(process.env.OPENMATES_STATE_DIR ?? '').startsWith(join(tmpdir(), 'cli-privacy-e2e-'))) throw Error('Disposable CLI privacy fixture directory required.');
 const key = await webcrypto.subtle.importKey('raw', new Uint8Array(32), { name: 'AES-GCM' }, false, ['encrypt']);
 const iv = webcrypto.getRandomValues(new Uint8Array(12));

@@ -95,7 +95,7 @@ function childProcess(command: string, args: string[], env: Record<string, strin
 }
 
 function approveFixtureDevice(apiUrl: string, accessType: 'rest_api' | 'npm' | 'pip', deviceId?: string): void {
-	const program = `import { OpenMatesClient } from './frontend/packages/openmates-cli/dist/index.js';
+	const program = `import { OpenMatesClient } from './frontend/packages/openmates-cli/dist/cli-internal-client.js';
 		const client = new OpenMatesClient({ apiUrl: process.env.OPENMATES_API_URL });
 		if (!client.hasSession()) throw new Error('Fresh owner session is missing');
 		const keys = await client.listApiKeys();
@@ -234,7 +234,7 @@ test.describe('Jobs search programmatic contract', () => {
 	test('npm SDK preserves grouped Jobs results', async () => {
 		test.skip(!key, 'Disposable fixture API key required');
 		const env = { OPENMATES_API_KEY: key!, OPENMATES_API_URL: apiUrl };
-		const prefix = `import { OpenMates } from './frontend/packages/openmates-cli/dist/index.js';
+		const prefix = `import { OpenMates } from './frontend/packages/openmates-cli/dist/cli-internal-client.js';
 			const client = new OpenMates({ apiKey: process.env.OPENMATES_API_KEY, apiUrl: process.env.OPENMATES_API_URL, deviceId: 'jobs-e2e-npm' });`;
 		const registration = childProcess('node', ['--input-type=module', '-e', prefix + `
 			try { await client.chats.list({ limit: 1 }); console.log(JSON.stringify({ status: 200 })); }

@@ -11,7 +11,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { OpenMates, OpenMatesClient, type BankTransferOrderDetails } from "../dist/index.js";
+import { OpenMates, OpenMatesClient, type BankTransferOrderDetails } from "../dist/cli-internal-client.js";
 
 type FetchCall = {
   url: string;

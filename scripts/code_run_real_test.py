@@ -152,14 +152,14 @@ def installed_sdk(cli: str, supplied: Path | None) -> Path:
     else:
         entry = Path(cli).resolve()
         if entry.name == "cli.js":
-            path = entry.with_name("index.js")
+            path = entry.with_name("cli-internal-client.js")
         else:
             # Managed npm installation uses a credential-free shell launcher.
             words = shlex.split(entry.read_text())
             candidates = [Path(word) for word in words if word.endswith("/dist/cli.js")]
             if len(candidates) != 1:
                 raise ProofError("installed_sdk_module_required")
-            path = candidates[0].with_name("index.js")
+            path = candidates[0].with_name("cli-internal-client.js")
     if not path.is_file():
         raise ProofError("installed_sdk_missing")
     return path

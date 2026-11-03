@@ -56,7 +56,7 @@ async function embedStorageSummary(page: any, seed: Seed) {
 }
 
 function seedViaPairedCli(apiUrl: string, home: string): Seed {
-	const modulePath = path.join(path.dirname(CLI_DIST), 'index.js');
+	const modulePath = path.join(path.dirname(CLI_DIST), 'cli-internal-client.js');
 	const source = String.raw`
 		const {pathToFileURL}=require('node:url');
 		const {randomUUID,randomBytes,createHash,webcrypto}=require('node:crypto');

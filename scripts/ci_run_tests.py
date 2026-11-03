@@ -780,7 +780,7 @@ def provision_api_key(account: dict) -> str:
     # the account-wide one-use TOTP guard cannot mistake setup for a replay.
     time.sleep(30 - (time.time() % 30) + 1)
     totp_code = generate_ci_totp(account["OPENMATES_TEST_ACCOUNT_OTP_KEY"])
-    sdk = (ROOT / "frontend/packages/openmates-cli/dist/index.js").as_uri()
+    sdk = (ROOT / "frontend/packages/openmates-cli/dist/cli-internal-client.js").as_uri()
     program = """
 const { OpenMatesClient, OpenMates } = await import(process.argv[1]);
 const { platform, arch } = await import("node:os");
@@ -852,7 +852,7 @@ def accept_fixture_credits(account: dict) -> int:
     """
     require_runner()
     snapshot = fresh_fixture_session(account)
-    sdk = (ROOT / "frontend/packages/openmates-cli/dist/index.js").as_uri()
+    sdk = (ROOT / "frontend/packages/openmates-cli/dist/cli-internal-client.js").as_uri()
     program = """
 const { OpenMatesClient } = await import(process.argv[1]);
 const { readFileSync } = await import("node:fs");

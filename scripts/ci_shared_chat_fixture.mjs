@@ -33,7 +33,7 @@ export async function buildFixture(source, userId, masterKey) {
 async function main() {
   if (process.env.RUNNER_ENVIRONMENT !== 'github-hosted' || process.env.CI_TEST_MODE !== 'e2e') throw new Error('Shared archive fixture requires isolated GitHub E2E');
   const source = path.resolve(process.argv[2]);
-  const {OpenMatesClient} = await import(pathToFileURL(path.join(source,'frontend/packages/openmates-cli/dist/index.js')));
+  const {OpenMatesClient} = await import(pathToFileURL(path.join(source,'frontend/packages/openmates-cli/dist/cli-internal-client.js')));
   const client = new OpenMatesClient({apiUrl:'http://localhost:8000'});
   const user = await client.whoAmI();
   if (typeof user.id !== 'string') throw new Error('Fresh account identity missing');

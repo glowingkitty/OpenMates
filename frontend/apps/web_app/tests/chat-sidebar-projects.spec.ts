@@ -20,7 +20,7 @@ const compose = path.join(root, 'test-results/ci-private/compose.json');
 const { email, password, otpKey } = getTestAccount();
 
 function sdk(apiUrl: string, home: string, program: string, payload: unknown = {}): any {
-  const modulePath = path.join(path.dirname(CLI_DIST), 'index.js');
+  const modulePath = path.join(path.dirname(CLI_DIST), 'cli-internal-client.js');
   expect(fs.existsSync(modulePath), 'Candidate SDK must be built').toBe(true);
   const source = `
     const {pathToFileURL} = require('node:url');

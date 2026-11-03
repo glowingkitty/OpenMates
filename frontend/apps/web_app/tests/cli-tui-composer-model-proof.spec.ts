@@ -77,7 +77,7 @@ test('cold Auto Enter sends in the real terminal before catalog readiness', asyn
   const previousOptions = process.env.NODE_OPTIONS, previousLatency = process.env.OPENMATES_TUI_LATENCY_EVENTS;
   try {
     await loginWorkflowCliViaPair(page, apiUrl, home, 'TUI_COLD_AUTO_SEND_PROOF');
-    const modulePath = path.join(path.dirname(cli), 'index.js');
+    const modulePath = path.join(path.dirname(cli), 'cli-internal-client.js');
     fs.writeFileSync(adapterPath, `
       import fs from 'node:fs'; import {pathToFileURL} from 'node:url';
       const {OpenMatesClient}=await import(pathToFileURL(${JSON.stringify(modulePath)}).href);
@@ -122,7 +122,7 @@ test('cold Auto Enter sends in the real terminal before catalog readiness', asyn
 });
 
 function sdk(apiUrl: string, home: string, cli: string, program: string, input: unknown = {}): any {
-	const modulePath = path.join(path.dirname(cli), 'index.js');
+	const modulePath = path.join(path.dirname(cli), 'cli-internal-client.js');
 	const source = `
 		const {pathToFileURL}=require('node:url');
 		(async()=>{
@@ -151,7 +151,7 @@ function installControlledCatalog(home: string, cli: string): () => void {
 		health: {providers: {google: {status: 'healthy'}}},
 	};
 	const adapterPath = path.join(home, 'controlled-model-catalog.mjs');
-	const modulePath = path.join(path.dirname(cli), 'index.js');
+	const modulePath = path.join(path.dirname(cli), 'cli-internal-client.js');
 	fs.writeFileSync(adapterPath, `
 		import {pathToFileURL} from 'node:url';
 		const {OpenMatesClient}=await import(pathToFileURL(${JSON.stringify(modulePath)}).href);

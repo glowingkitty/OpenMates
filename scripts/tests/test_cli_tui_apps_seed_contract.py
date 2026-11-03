@@ -25,7 +25,7 @@ def test_terminal_apps_seed_matches_actual_save_graph_contract():
                         for line in block.splitlines() if line.strip().startswith('"'))
     # Execute the exact fixture construction and AES-GCM encryption, with no product transport.
     program = program.replace(
-        "const {OpenMatesClient}=await import(pathToFileURL(root+'/index.js').href);",
+        "const {OpenMatesClient}=await import(pathToFileURL(root+'/cli-internal-client.js').href);",
         "let payload; const OpenMatesClient={load:()=>({"
         "whoAmI:async()=>({id:'00000000-0000-4000-8000-000000000001'}),"
         "getActiveTeamId:()=>null,getMasterKeyBytes:()=>Buffer.alloc(32,7),"

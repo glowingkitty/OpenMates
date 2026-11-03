@@ -10,7 +10,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { OpenMatesClient } from "../dist/index.js";
+import { OpenMatesClient } from "../dist/cli-internal-client.js";
 
 type FetchCall = {
   url: string;
@@ -57,6 +57,7 @@ async function withMockFetch<T>(handler: (call: FetchCall) => unknown, run: (cal
 }
 
 describe("CLI security setup SDK", () => {
+  // contract-test: supporting surface=cli assertions=auth.credentials.atomic-replacement,auth.sensitive-actions.recent-verification
   it("runs TOTP setup and backup-code confirmation endpoint contracts", async () => {
     await withMockFetch((call) => {
       if (call.url.endsWith("/initiate")) return { success: true, message: "ok", secret: "OTPSECRET", otpauth_url: "otpauth://totp/OpenMates" };
@@ -87,6 +88,7 @@ describe("CLI security setup SDK", () => {
     });
   });
 
+  // contract-test: supporting surface=cli assertions=auth.secrets.lifecycle,auth.keys.independent-unlock
   it("creates and confirms recovery key material without sending the raw key", async () => {
     await withMockFetch(() => ({ success: true, message: "ok" }), async (calls) => {
       const client = new OpenMatesClient({ apiUrl: "https://api.example.test", session: testSession() });

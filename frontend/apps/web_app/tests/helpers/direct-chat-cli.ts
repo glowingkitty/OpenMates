@@ -42,7 +42,7 @@ export async function pairDirectChatCli(page: Page, apiUrl: string, home: string
 export async function readDirectChatOffline(
 	apiUrl: string, home: string, candidateCli: string, teamId: string, chatId: string
 ): Promise<{ messages: Array<{ content?: string }>; networkAttempts: number }> {
-	const sdkUrl = pathToFileURL(join(dirname(candidateCli), 'index.js')).href;
+	const sdkUrl = pathToFileURL(join(dirname(candidateCli), 'cli-internal-client.js')).href;
 	const source = `
 import { OpenMatesClient } from ${JSON.stringify(sdkUrl)};
 let networkAttempts = 0;

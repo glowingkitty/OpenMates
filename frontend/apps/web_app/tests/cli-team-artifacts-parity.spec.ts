@@ -82,7 +82,7 @@ function clearTeamCache(home: string, teamId: string): void {
 
 /** Invoke the shipped SDK client so the recipient performs real Team-key/embed decryption. */
 function readMemberEmbed(home: string, teamId: string, chatId: string, embedId: string): Record<string, unknown> {
-  const modulePath = join(dirname(CLI_DIST), 'index.js');
+  const modulePath = join(dirname(CLI_DIST), 'cli-internal-client.js');
   const script = [
     "const {pathToFileURL}=require('node:url');",
     "(async()=>{const {OpenMatesClient}=await import(pathToFileURL(process.argv[1]).href);",

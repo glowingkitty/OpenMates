@@ -25,7 +25,7 @@ type Fixture = {userId: string; rows: ChatRow[]; names: Record<string, string>;
 	ids: Record<string, string>; projectId?: string; archivedId?: string};
 
 function sdk(apiUrl: string, home: string, candidateCli: string, program: string, payload: unknown = {}): any {
-	const modulePath = path.join(path.dirname(candidateCli), 'index.js');
+	const modulePath = path.join(path.dirname(candidateCli), 'cli-internal-client.js');
 	expect(fs.existsSync(modulePath), 'Candidate SDK must be built').toBe(true);
 	const source = `
 		const {pathToFileURL} = require('node:url');

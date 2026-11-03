@@ -15,7 +15,7 @@ const path = require('node:path');
 const ROOT=path.resolve(__dirname,'../../../..');
 const PACKAGE=path.join(ROOT,'frontend/packages/openmates-cli');
 const CLI=path.join(PACKAGE,'dist/cli.js');
-const SDK=path.join(PACKAGE,'dist/index.js');
+const SDK=path.join(PACKAGE,'dist/cli-internal-client.js');
 
 function sdk<T>(apiUrl:string,home:string,program:string,input:unknown={}):T {
   const source=`const {pathToFileURL}=require('node:url');

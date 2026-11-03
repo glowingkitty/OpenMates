@@ -83,7 +83,7 @@ async function main() {
   const token = process.env.OPENMATES_CI_FIXTURE_CMS_TOKEN;
   if (!token) throw new Error('Disposable CMS fixture token missing');
   const source = path.resolve(process.argv[2]);
-  const { OpenMatesClient } = await import(pathToFileURL(path.join(source, 'frontend/packages/openmates-cli/dist/index.js')));
+  const { OpenMatesClient } = await import(pathToFileURL(path.join(source, 'frontend/packages/openmates-cli/dist/cli-internal-client.js')));
   const client = new OpenMatesClient({ apiUrl: 'http://localhost:8000' });
   const user = await client.whoAmI();
   if (typeof user.id !== 'string') throw new Error('Fresh fixture account identity missing');

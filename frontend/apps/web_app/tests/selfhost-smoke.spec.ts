@@ -108,7 +108,7 @@ function assertCliDefaultsToInstalledSelfHost(): void {
   fs.copyFileSync(serverConfigPath, path.join(tempStateDir, 'server.json'));
 
   const repoRoot = path.resolve(process.cwd(), '../../..');
-  const cliIndexUrl = pathToFileURL(path.join(repoRoot, 'frontend/packages/openmates-cli/dist/index.js')).href;
+  const cliIndexUrl = pathToFileURL(path.join(repoRoot, 'frontend/packages/openmates-cli/dist/cli-internal-client.js')).href;
   const script = `
     import { OpenMatesClient, deriveAppUrl } from ${JSON.stringify(cliIndexUrl)};
     const client = OpenMatesClient.load();

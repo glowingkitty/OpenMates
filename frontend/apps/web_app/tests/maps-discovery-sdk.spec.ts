@@ -39,7 +39,7 @@ function run(command: string, args: string[], env: Record<string, string>, label
 }
 
 function approveFixtureDevice(apiUrl: string, accessType: 'npm' | 'pip', deviceId: string): void {
-	const program = `import { OpenMatesClient } from './frontend/packages/openmates-cli/dist/index.js';
+	const program = `import { OpenMatesClient } from './frontend/packages/openmates-cli/dist/cli-internal-client.js';
 		const client = new OpenMatesClient({ apiUrl: process.env.OPENMATES_API_URL });
 		if (!client.hasSession()) throw new Error('Fresh owner session is missing');
 		const keys = await client.listApiKeys();
@@ -73,14 +73,14 @@ test.describe('Maps discovery SDK validation', () => {
 	test('npm SDK returns the grouped discovery validation failure', async () => {
 		test.skip(!key, 'OPENMATES_TEST_ACCOUNT_API_KEY required');
 		const env = { OPENMATES_API_KEY: key!, OPENMATES_API_URL: apiUrl };
-		const bootstrap = `import { OpenMates } from './frontend/packages/openmates-cli/dist/index.js';
+		const bootstrap = `import { OpenMates } from './frontend/packages/openmates-cli/dist/cli-internal-client.js';
 			const client = new OpenMates({ apiKey: process.env.OPENMATES_API_KEY, apiUrl: process.env.OPENMATES_API_URL, deviceId: '${NPM_DEVICE}' });
 			try { await client.chats.list({ limit: 1 }); console.log(JSON.stringify({ status: 200 })); }
 			catch (error) { if (error.status !== 403) throw error; console.log(JSON.stringify({ status: 403 })); }`;
 		const registration = run('node', ['--input-type=module', '-e', bootstrap], env, 'npm device registration');
 		expect([200, 403]).toContain(registration.status);
 		if (registration.status === 403) approveFixtureDevice(apiUrl, 'npm', NPM_DEVICE);
-		const code = `import { OpenMates } from './frontend/packages/openmates-cli/dist/index.js';
+		const code = `import { OpenMates } from './frontend/packages/openmates-cli/dist/cli-internal-client.js';
 			const client = new OpenMates({ apiKey: process.env.OPENMATES_API_KEY, apiUrl: process.env.OPENMATES_API_URL, deviceId: '${NPM_DEVICE}' });
 			const response = await client.apps.maps.search(${JSON.stringify(INPUT)});
 			const data = response?.data;

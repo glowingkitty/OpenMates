@@ -62,7 +62,7 @@ test('records the real terminal Chats, Tasks, Projects, Workflows, and Apps home
 				const projections=tasks.filter(task=>task.source==='workflow_run').map(task=>({id:task.task_id,workflowId:task.workflow_id}));
 				process.stdout.write(JSON.stringify({ids:tasks.map(task=>task.task_id),projections,batches,limits,sizes}));
 			})().catch(error=>{console.error(error.message);process.exit(1)});`;
-		const paged=JSON.parse(execFileSync('node',['-e',pagingSource,path.join(path.dirname(candidateCli),'index.js'),fixture.projectId!],{
+		const paged=JSON.parse(execFileSync('node',['-e',pagingSource,path.join(path.dirname(candidateCli),'cli-internal-client.js'),fixture.projectId!],{
 			env:workflowCliEnv(apiUrl,home),encoding:'utf8',timeout:60_000,
 		}).trim());
 		expect(paged.ids.sort()).toEqual([fixture.taskId,secondTaskId].sort());
@@ -75,7 +75,7 @@ test('records the real terminal Chats, Tasks, Projects, Workflows, and Apps home
 		const colored=await page.request.patch(`${apiUrl}/v1/workflows/${fixture.workflowId}`,{data:{category:'finance',enabled:true}});
 		expect(colored.ok()).toBe(true);
 		expect((await colored.json()).workflow.category).toBe('finance');
-		const allPaged=JSON.parse(execFileSync('node',['-e',pagingSource,path.join(path.dirname(candidateCli),'index.js'),'personal'],{
+		const allPaged=JSON.parse(execFileSync('node',['-e',pagingSource,path.join(path.dirname(candidateCli),'cli-internal-client.js'),'personal'],{
 			env:workflowCliEnv(apiUrl,home),encoding:'utf8',timeout:60_000,
 		}).trim());
 		expect(allPaged.batches).toEqual([[1,false],[2,false],[3,true]]);

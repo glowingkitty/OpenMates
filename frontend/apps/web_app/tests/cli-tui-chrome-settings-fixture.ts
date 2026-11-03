@@ -29,7 +29,7 @@ function sdk<T>(apiUrl:string,home:string,cli:string,program:string,input:unknow
 			${program}
 		})().catch(error=>{console.error('Chrome fixture:',error.message);process.exit(1)});
 	`;
-	return JSON.parse(execFileSync('node',['-e',source,path.join(path.dirname(cli),'index.js'),JSON.stringify(input)],{
+	return JSON.parse(execFileSync('node',['-e',source,path.join(path.dirname(cli),'cli-internal-client.js'),JSON.stringify(input)],{
 		cwd:ROOT,env:workflowCliEnv(apiUrl,home),encoding:'utf8',timeout:90_000,
 	}).trim()) as T;
 }

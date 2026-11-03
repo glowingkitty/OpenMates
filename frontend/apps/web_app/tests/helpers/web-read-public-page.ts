@@ -5,7 +5,7 @@ const { spawnSync } = require('node:child_process');
 const path = require('node:path');
 const { CLI_DIST } = require('./cli-test-helpers');
 const ROOT = path.resolve(__dirname, '../../../../..');
-const INDEX = path.join(path.dirname(CLI_DIST), 'index.js');
+const INDEX = path.join(path.dirname(CLI_DIST), 'cli-internal-client.js');
 export const PUBLIC_PAGE = 'https://read-page.ci.test/allowed';
 export const INPUT = { security: { prompt_injection_protection: 'disabled' }, requests: [{ id: 'public-page', url: PUBLIC_PAGE }] };
 

@@ -795,7 +795,7 @@ test('CLI bootstraps root wrappers before protected canonical reads and replay s
 
 /** Capture a swallowed browsing-recovery error without exposing sealed payloads. */
 function diagnosePendingCliRevision(apiUrl: string, home: string, chatId: string): Record<string, unknown> {
-	const cli = path.resolve(__dirname, '../../../packages/openmates-cli/dist/index.js');
+	const cli = path.resolve(__dirname, '../../../packages/openmates-cli/dist/cli-internal-client.js');
 	const program = `
 		const {pathToFileURL}=require('node:url');
 		const {createHash}=require('node:crypto');

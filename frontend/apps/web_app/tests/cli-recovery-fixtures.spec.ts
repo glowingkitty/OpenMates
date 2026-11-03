@@ -35,7 +35,7 @@ function canonicalHistorySdk(apiUrl: string, home: string, program: string, inpu
 			${program}
 		})().catch(error=>{console.error('Canonical history fixture:',error.message);process.exit(1)});
 	`;
-	return JSON.parse(execFileSync('node', ['-e', source, path.join(path.dirname(cli), 'index.js'), JSON.stringify(input)], {
+	return JSON.parse(execFileSync('node', ['-e', source, path.join(path.dirname(cli), 'cli-internal-client.js'), JSON.stringify(input)], {
 		cwd: repositoryRoot, env: workflowCliEnv(apiUrl, home), encoding: 'utf8', timeout: 90_000
 	}).trim());
 }

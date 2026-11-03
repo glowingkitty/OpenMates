@@ -113,7 +113,7 @@ test('cold TUI loads a saved chat and canonical child reads return only authoriz
       const input=JSON.parse(process.argv[2]);
       ${program}
     })().catch(error=>{console.error(error.message);process.exit(1);});
-  `, path.join(path.dirname(cli), 'index.js'), JSON.stringify(input)], {env, encoding: 'utf8', timeout: 90_000}).trim());
+  `, path.join(path.dirname(cli), 'cli-internal-client.js'), JSON.stringify(input)], {env, encoding: 'utf8', timeout: 90_000}).trim());
   try {
     await loginWorkflowCliViaPair(page, api, home, 'TUI_INHERITED_KEY');
     const fixture = sdk(`

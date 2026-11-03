@@ -26,7 +26,7 @@ from urllib.error import HTTPError
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CLI_DIR = REPO_ROOT / "frontend/packages/openmates-cli"
 CLI_DIST = CLI_DIR / "dist/cli.js"
-SDK_ENTRY = "./frontend/packages/openmates-cli/dist/index.js"
+SDK_ENTRY = "./frontend/packages/openmates-cli/dist/cli-internal-client.js"
 DEFAULT_API_URL = "https://api.dev.openmates.org"
 
 
