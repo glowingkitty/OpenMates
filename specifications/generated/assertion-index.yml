@@ -5812,7 +5812,7 @@ assertions:
     current_direct_proof: false
   app-skills.providers.permitted-only:
     specification: architecture.app-skill-execution@1
-    fingerprint: 1d11d85682fd2f7a3a04a2cfbfde69303415b4349e055ef537370ef2dc2d066d
+    fingerprint: 0dbda432556d43309327ab56e09d36471ef87111bfd4fa48b41173c60f6c20ed
     direct_tests:
     - &id766
       path: frontend/apps/web_app/tests/provider-boundary.spec.ts
@@ -5883,7 +5883,7 @@ assertions:
     current_direct_proof: false
   app-skills.providers.unavailable-no-network:
     specification: architecture.app-skill-execution@1
-    fingerprint: fa3050a47ef351c1f5dadc555e5ed8a2e0572c60c6435fab20b5a517c9aa3fe9
+    fingerprint: ca3bce345a0c3270b7c71503d8cf99f7141ca43ce8a373266aeebb4ba8368001
     direct_tests:
     - &id770
       path: backend/tests/test_health_search_appointments_skill.py

@@ -304,7 +304,6 @@ provider_boundary:
   then: It is unavailable in discovery and direct invocation fails without provider requests, proxy use, replacement
     sources, inference enrichment or success billing.
   assertion_ids:
-  - app-skills.providers.permitted-only
   - app-skills.providers.unavailable-no-network
 - id: retained-routes-are-scoped
   given: Alice selects Swedish jobs, a supported conference schedule, published media.ccc.de captions, a supported
@@ -319,7 +318,7 @@ provider_boundary:
   given: Alice asks to read a public documentation page and the site permits OpenMatesReader in robots.txt.
   when: The reader retrieves the selected page without a proxy or access-control bypass.
   then: It returns the complete extracted text and saves it in the existing encrypted result; it does not enable
-    a retired platform connector or claim a content licence from crawler access.
+    a retired platform connector.
   assertion_ids:
   - app-skills.providers.permitted-only
 provider_history:
