@@ -180928,6 +180928,14 @@ assertions:
         - *id23063
         - *id23064
     current_direct_proof: false
+  sdk.auth.api-key-only:
+    specification: surface.sdk@1
+    fingerprint: 444b0a7216cd664c530e090e222cf24599f65f8effc207b085d062ed116b81ef
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
   sdk.auth.credential-separation:
     specification: surface.sdk@1
     fingerprint: 7284685ec1554b83e97bfaf7cb97de8796d9de9f1267dda81c6508310fc97ab5

@@ -865,7 +865,7 @@ specifications:
     version: 1
     status: draft
     path: surfaces/sdk
-    fingerprint: c988305f550b6d25d5c2c3ecfcb98d9fb836d8ad4881d9e3d0124c3a3a71b239
+    fingerprint: 254f665b47ef57ed7f60702d46c0509cd7978298b35f7e02a6c59f28d521748f
     required_applies_to:
     - rest_api
     - cli
@@ -12080,6 +12080,19 @@ assertions:
     specification_id: surface.sdk
     type: privacy
     fingerprint: ceef05fbcbd968d06fd076d15893102a7c3ede31baca500763ce682c8d86aac3
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  sdk.auth.api-key-only:
+    specification: surface.sdk@1
+    specification_id: surface.sdk
+    type: security
+    fingerprint: 444b0a7216cd664c530e090e222cf24599f65f8effc207b085d062ed116b81ef
     required_applies_to:
     - rest_api
     - cli
