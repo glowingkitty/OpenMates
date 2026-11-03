@@ -196,6 +196,12 @@
   min-height: var(--composer-focused-height, 180px);
 }
 
+/* A caller's live transcript opens the composer like focus does, without
+   focusing the editor (no keyboard on touch devices). */
+.message-field.call-transcript-active:not(.fullscreen-expanded):not(.recording-active):not(.maps-open) {
+  min-height: var(--composer-focused-height, 180px);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .message-field, .scrollable-content { transition: none; }
 }

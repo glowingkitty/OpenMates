@@ -940,7 +940,8 @@
     // Draft preview mode is only for text drafts. Embed-only drafts must keep the
     // editor visible so audio/file preview controls remain reachable after blur.
     let isDraftPreview = $derived(!!draftPreviewSummary && hasContent && !hasEmbedContent && !hasDraftPreviewEmbeds && !isMessageFieldFocused && !isFullscreen && !recordingLayoutActive && !forceDraftActionsVisible && !anonymousUsageExhausted);
-    let isInlineCompact = $derived(inlineCompact && !isFullscreen && !recordingShowsDraft && (recordingLayoutActive || (!shouldShowActionButtons && !isMessageFieldFocused && (!hasSendableDraft || isDraftPreview) && !$recordingState.showRecordAudioUI)));
+    // A live call transcript always opens the full composer so it stays readable (3RZXL).
+    let isInlineCompact = $derived(inlineCompact && !isFullscreen && !recordingShowsDraft && !callLiveTranscript && (recordingLayoutActive || (!shouldShowActionButtons && !isMessageFieldFocused && (!hasSendableDraft || isDraftPreview) && !$recordingState.showRecordAudioUI)));
 
     // Computed state for showing action buttons
     // In extended/fullscreen mode: always visible (no tap required).
@@ -962,7 +963,7 @@
         )
     );
     let showBaseEmptyInputAffordances = $derived(
-        !startNewChatOnClick && !recordingLayoutActive && !shouldShowActionButtons && !isFullscreen && !isMessageFieldFocused && !hasSendableDraft && !isDraftPreview && !showMaps && !showCamera && !showSketch
+        !startNewChatOnClick && !recordingLayoutActive && !shouldShowActionButtons && !isFullscreen && !isMessageFieldFocused && !hasSendableDraft && !isDraftPreview && !showMaps && !showCamera && !showSketch && !callLiveTranscript
     );
 
     // Single-tap feedback: briefly highlight the inline "Press & hold to record" label
@@ -7515,7 +7516,7 @@
     {/if}
 
     <div
-        class="message-field canonical-composer {isMessageFieldFocused ? 'focused' : ''} {recordingLayoutActive ? 'recording-active' : ''} {!shouldShowActionButtons && !recordingShowsDraft ? 'compact' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''} {isDraftPreview ? 'draft-preview' : ''}"
+        class="message-field canonical-composer {isMessageFieldFocused ? 'focused' : ''} {recordingLayoutActive ? 'recording-active' : ''} {!shouldShowActionButtons && !recordingShowsDraft && !callLiveTranscript ? 'compact' : ''} {callLiveTranscript ? 'call-transcript-active' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''} {isDraftPreview ? 'draft-preview' : ''}"
         data-testid="message-field"
         data-focused={isMessageFieldFocused}
         data-editor-ready={!isInitialMount}

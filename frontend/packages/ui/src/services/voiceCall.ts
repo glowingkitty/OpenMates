@@ -67,6 +67,10 @@ export interface VoiceCallState {
   /** The user's in-progress utterance, shown translucently in the composer
    * until its final turn becomes a regular chat message. */
   liveTranscript?: VoiceCallLiveTranscript | null;
+  /** Canonical assistant reply currently answering a call turn, and whether
+   * its task is still generating. Drives spoken-progress text emphasis. */
+  assistantMessageId?: string | null;
+  assistantGenerating?: boolean;
 }
 export interface VoiceCallLiveTranscript {
   messageId: string;
@@ -665,7 +669,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
       : activeTask?.taskId ?? null;
     this.assistantMessageId = messageId;
     this.assistantTaskId = taskId;
-    this.update({ assistantSpeaking: speaking });
+    this.update({ assistantSpeaking: speaking, assistantMessageId: messageId, assistantGenerating: !!activeTask });
     this.send({ type: 'assistant_state', speaking, generating: !!activeTask,
       assistant_message_id: messageId, assistant_task_id: taskId,
       text: speech.chatId === chatId && speech.messageId === messageId ? speech.text.slice(-8_000) : '',

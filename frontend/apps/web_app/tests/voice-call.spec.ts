@@ -2249,7 +2249,7 @@ test.describe('Voice mode through ordinary chat', () => {
 
   // contract-test: direct surface=gui.web assertions=video-call.chat.transcripts,video-call.chat.typed-input,video-call.chat.call-events,video-call.audio.complete-turn-admission,video-call.audio.spoken-rich-response,video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing,chats.message.identity-idempotent
   test('uses one canonical turn for voice and typed input, preserves rich replies and retains its chat across navigation and reload',async({page},testInfo)=>{
-    test.setTimeout(240_000);
+    test.setTimeout(330_000);
     const imageProxyFixture = await installVoiceFixtureImageProxy(page);
     await installNativeVoiceInput(page);await observeRealTransport(page);
     await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
@@ -2284,9 +2284,28 @@ test.describe('Voice mode through ordinary chat', () => {
     await expect(liveTranscript).toHaveAttribute('data-submitted','false');
     expect(Number(await liveTranscript.evaluate(node=>getComputedStyle(node).opacity))).toBeLessThan(0.7);
     await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]')).toBeEmpty();
+    // The transcript opens the full composer rather than a collapsed pill (3RZXL).
+    const composer=page.getByTestId('message-field');
+    await expect(composer).toHaveClass(/call-transcript-active/);
+    await expect(composer).not.toHaveClass(/(^|\s)(compact|inline-compact)(\s|$)/);
+    expect((await composer.boundingBox())!.height).toBeGreaterThan(100);
+    // Record whether the spoken reply is dimmed word by word while it plays.
+    await page.evaluate(()=>{
+      const target=window as unknown as {__unspokenSamples?:number[]};
+      target.__unspokenSamples=[];
+      const registry=(CSS as unknown as {highlights?:Map<string,{size:number}>}).highlights;
+      setInterval(()=>target.__unspokenSamples!.push(registry?.get('assistant-speech-unspoken')?.size ?? 0),50);
+    });
     const resumedAt=await page.evaluate(()=>performance.now());
     await playNativeVoiceFixture(page);
     await waitForSpokenAssistant(page);
+    // Unspoken words render translucent during playback, then the whole reply
+    // becomes fully visible once speech finishes.
+    const unspokenSamples=()=>page.evaluate(()=>(window as unknown as {__unspokenSamples:number[]}).__unspokenSamples);
+    await expect.poll(async()=>(await unspokenSamples()).some(size=>size>0),
+      {timeout:60_000,message:'Assistant text must be dimmed until spoken'}).toBe(true);
+    await expect.poll(async()=>(await unspokenSamples()).slice(-3).every(size=>size===0),
+      {timeout:90_000,message:'Spoken reply must become fully visible after playback'}).toBe(true);
     await expect(page.getByTestId('message-user').filter({hasText:USER_SPEECH})).toHaveCount(1);
     // Once admitted, the turn is a regular chat message and the preview clears.
     await expect(liveTranscript).toHaveCount(0);

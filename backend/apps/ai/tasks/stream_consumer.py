@@ -6598,6 +6598,10 @@ async def _consume_main_processing_stream(
                 )
                 if owned_live_speech is not None:
                     owned_live_speech.append(realtime_speech_turn)
+                    # The provider handshake overlaps model generation instead of
+                    # delaying the first spoken clause. Only an owned turn is
+                    # prewarmed: its owner cancels it on every exit path.
+                    realtime_speech_turn.prewarm()
 
             async def dispatch_speech_segment(segment):
                 nonlocal waiting_speech_segment
