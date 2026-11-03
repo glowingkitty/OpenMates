@@ -19,7 +19,7 @@ import re
 import hashlib
 from uuid import UUID
 from backend.core.api.app.services.directus.embed_methods import EMBED_ALL_FIELDS, EMBED_KEY_ALL_FIELDS
-from typing import Any
+from typing import Any, Literal
 from fastapi import APIRouter, HTTPException, Request, Depends, Path, Query, Body
 from fastapi.responses import StreamingResponse
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -600,6 +600,47 @@ async def get_embed_reference_availability(
     return response
 
 
+def _key_page_options(embed_limit: int) -> dict[str, int]:
+    """Row-count options for the keys of an embed page; defaults add nothing."""
+    if embed_limit <= 30:
+        return {}
+    return {"key_limit": 2 * embed_limit, "max_hashes": embed_limit}
+
+
+async def _chat_embed_changes_after(
+    chat_id: str, team_id: str | None, current_user: User,
+    directus_service: DirectusService, *, after_updated_at: int,
+    after_embed_id: str | None, limit: int,
+) -> dict[str, Any]:
+    """Changed-embed page plus the caller's readable wrappers for that page."""
+    hashed_chat_id = _hash_value(chat_id)
+    page = await directus_service.embed.get_embed_changes_after_cursor(
+        hashed_chat_id, after_updated_at=after_updated_at,
+        after_embed_id=after_embed_id, limit=limit,
+    )
+    rows = page["embeds"]
+    hashes = [row.get("hashed_embed_id") or _hash_value(row["embed_id"])
+              for row in rows if row.get("embed_id")]
+    key_page = await directus_service.embed.get_sync_embed_key_window_for_page(
+        hashed_chat_id, _hash_value(current_user.id), hashes,
+        include_master_keys=not bool(team_id),
+        **_key_page_options(limit),
+    ) if hashes else {"embed_keys": [], "has_more_after": False, "end_cursor": None,
+                      "oversized_key_id": None}
+    return {
+        "chat_id": chat_id,
+        "direction": "after",
+        "embeds": rows,
+        "embed_keys": key_page["embed_keys"],
+        "embed_keys_has_more_after": key_page["has_more_after"],
+        "embed_keys_end_cursor": key_page["end_cursor"],
+        "oversized_embed_key_id": key_page["oversized_key_id"],
+        "has_more_after": page["has_more_after"],
+        "end_cursor": page["end_cursor"],
+        "oversized_embed_id": page["oversized_embed_id"],
+    }
+
+
 @router.get("/chats/{chat_id}/window")
 @limiter.limit("120/minute")
 async def get_chat_embed_window(
@@ -608,19 +649,48 @@ async def get_chat_embed_window(
     before_created_at: int | None = None,
     before_id: str | None = None,
     team_id: str | None = None,
+    direction: Literal["before", "after"] = "before",
+    after_updated_at: int | None = None,
+    after_embed_id: str | None = None,
+    limit: int = 30,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
 ):
-    """Return one bounded ciphertext/key page after fresh Personal or Team access."""
-    if (before_created_at is None) != (before_id is None) or (
+    """Return one bounded ciphertext/key page after fresh Personal or Team access.
+
+    First-party session only (no API keys), same 120/minute limit and the same
+    Personal/Team/direct-chat checks for both directions. ``direction=after``
+    returns embeds changed after ``(after_updated_at, after_embed_id)`` in
+    ascending order for cache-first delta rounds, mirroring the message
+    window's ``direction=after`` cursor. ``limit`` (default 30, at most 100)
+    raises the row count in either direction; byte caps and oversized-row
+    handling are unchanged. Keys for a larger page are returned in the same
+    byte-capped key page (``embed_keys_has_more_after`` continues them).
+    """
+    if not 1 <= limit <= 100:
+        raise HTTPException(status_code=400, detail="Invalid embed page limit")
+    if direction == "after":
+        if (before_created_at is not None or before_id is not None
+                or after_updated_at is None or not 0 <= after_updated_at <= 2_147_483_647
+                
+                or (after_embed_id is not None and (not after_embed_id or len(after_embed_id) > 128))):
+            raise HTTPException(status_code=400, detail="Invalid embed cursor")
+        await _require_chat_embed_read(chat_id, team_id, current_user, directus_service)
+        return await _chat_embed_changes_after(
+            chat_id, team_id, current_user, directus_service,
+            after_updated_at=after_updated_at, after_embed_id=after_embed_id, limit=limit,
+        )
+    if (after_updated_at is not None or after_embed_id is not None
+            or (before_created_at is None) != (before_id is None) or (
         before_created_at is not None and before_created_at < 0
-    ) or (before_id is not None and (not before_id or len(before_id) > 128)):
+    ) or (before_id is not None and (not before_id or len(before_id) > 128))):
         raise HTTPException(status_code=400, detail="Invalid embed cursor")
     await _require_chat_embed_read(chat_id, team_id, current_user, directus_service)
 
     hashed_chat_id = _hash_value(chat_id)
     page = await directus_service.embed.get_embed_window_by_hashed_chat_id(
         hashed_chat_id, before_created_at=before_created_at, before_id=before_id,
+        **({"limit": limit} if limit != 30 else {}),
     )
     rows = page["embeds"]
     hashes = [row.get("hashed_embed_id") or _hash_value(row["embed_id"])
@@ -628,6 +698,7 @@ async def get_chat_embed_window(
     key_page = await directus_service.embed.get_sync_embed_key_window_for_page(
         hashed_chat_id, _hash_value(current_user.id), hashes,
         include_master_keys=not bool(team_id),
+        **_key_page_options(limit),
     )
     return {
         "chat_id": chat_id,
@@ -652,19 +723,29 @@ async def get_chat_embed_key_window(
     after_key_id: str | None = None,
     key_id: str | None = None,
     team_id: str | None = None,
+    limit: int = 30,
     current_user: User = Depends(get_current_user_or_api_key),
     directus_service: DirectusService = Depends(get_directus_service),
 ):
-    """Continue wrappers for a checked embed page without exposing other chats' keys."""
+    """Continue wrappers for a checked embed page without exposing other chats' keys.
+
+    ``limit`` is the embed page size being continued (default 30, at most 100):
+    it admits that many ``embed_ids`` and scales the key page to 2x rows. The
+    key byte cap is unchanged.
+    """
     selected = embed_ids.split(",")
-    if (not 1 <= len(selected) <= 30 or any(not value or len(value) > 128 for value in selected)
+    if not 1 <= limit <= 100:
+        raise HTTPException(status_code=400, detail="Invalid embed key cursor")
+    if (not 1 <= len(selected) <= limit or any(not value or len(value) > 128 for value in selected)
             or len(set(selected)) != len(selected) or after_key_id and key_id
             or any(value is not None and (not value or len(value) > 128) for value in (after_key_id, key_id))):
         raise HTTPException(status_code=400, detail="Invalid embed key cursor")
     await _require_chat_embed_read(chat_id, team_id, current_user, directus_service)
     hashed_chat_id = _hash_value(chat_id)
     try:
-        hashes = await directus_service.embed.validate_embed_ids_in_chat(hashed_chat_id, selected)
+        hashes = await directus_service.embed.validate_embed_ids_in_chat(
+            hashed_chat_id, selected, **({"max_ids": limit} if limit != 30 else {}),
+        )
     except ValueError:
         hashes = []
     if hashes:
@@ -709,6 +790,7 @@ async def get_chat_embed_key_window(
         hashed_chat_id, _hash_value(current_user.id), hashes,
         after_key_id=after_key_id,
         include_master_keys=not bool(team_id),
+        **_key_page_options(limit),
     )
     return {"embed_keys": page["embed_keys"], "has_more_after": page["has_more_after"],
             "end_cursor": page["end_cursor"], "oversized_key_id": page["oversized_key_id"]}

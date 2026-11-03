@@ -307,3 +307,112 @@ async def test_pruned_chat_sync_merges_authorized_archive_window() -> None:
     assert window["has_more_before"] is True
     assert window["storage_tier"] == "mixed"
     assert archive.calls[0]["chat_id"] == "chat-1"
+
+
+# contract-test: supporting surface=rest_api assertions=storage.cold.discoverable-bounded
+@pytest.mark.anyio
+async def test_embed_changes_after_cursor_pages_ascending_with_tie_breaker(monkeypatch) -> None:
+    from backend.core.api.app.services.directus import embed_methods
+
+    monkeypatch.setattr(embed_methods, "SYNC_EMBED_PAGE_MAX_BYTES", 400)
+    requests = []
+    directus = object()
+
+    async def scoped_read(service, request):
+        assert service is directus
+        requests.append(request)
+        return [
+            {"id": "r-2", "embed_id": "embed-b", "updated_at": 20, "encrypted_content": "x" * 100},
+            {"id": "r-3", "embed_id": "embed-c", "updated_at": 21, "encrypted_content": "x" * 100},
+            {"id": "r-4", "embed_id": "embed-d", "updated_at": 22, "encrypted_content": "x" * 100},
+        ]
+
+    monkeypatch.setattr(embed_methods, "read_embed_uuid_page", scoped_read)
+    page = await EmbedMethods(directus).get_embed_changes_after_cursor(
+        "chat-hash", after_updated_at=20, after_embed_id="embed-a", limit=2,
+    )
+    assert requests == [{"operation": "embed_changes", "hashed_chat_id": "chat-hash",
+                         "after_updated_at": 20, "after_embed_id": "embed-a", "limit": 3}]
+    # Two rows fit the page limit; the third row signals another page.
+    assert [row["embed_id"] for row in page["embeds"]] == ["embed-b", "embed-c"]
+    assert page["has_more_after"] is True
+    assert page["end_cursor"] == {"updated_at": 21, "embed_id": "embed-c"}
+    assert page["oversized_embed_id"] is None
+
+    await EmbedMethods(directus).get_embed_changes_after_cursor("chat-hash", after_updated_at=5)
+    assert requests[-1] == {"operation": "embed_changes", "hashed_chat_id": "chat-hash",
+                            "after_updated_at": 5, "after_embed_id": None,
+                            "limit": embed_methods.SYNC_EMBED_PAGE_LIMIT + 1}
+
+
+# contract-test: supporting surface=rest_api assertions=storage.cold.discoverable-bounded
+@pytest.mark.anyio
+async def test_embed_changes_after_cursor_skips_past_oversized_first_row(monkeypatch) -> None:
+    from backend.core.api.app.services.directus import embed_methods
+
+    monkeypatch.setattr(embed_methods, "SYNC_EMBED_PAGE_MAX_BYTES", 100)
+
+    async def scoped_read(service, request):
+        return [
+            {"id": "r-1", "embed_id": "embed-big", "updated_at": 30, "encrypted_content": "x" * 200},
+            {"id": "r-2", "embed_id": "embed-next", "updated_at": 31, "encrypted_content": "x"},
+        ]
+
+    monkeypatch.setattr(embed_methods, "read_embed_uuid_page", scoped_read)
+    page = await EmbedMethods(object()).get_embed_changes_after_cursor("chat-hash", after_updated_at=0)
+    assert page["embeds"] == []
+    assert page["oversized_embed_id"] == "embed-big"
+    assert page["end_cursor"] == {"updated_at": 30, "embed_id": "embed-big"}
+    assert page["has_more_after"] is True
+
+
+# contract-test: supporting surface=rest_api assertions=storage.cold.discoverable-bounded
+@pytest.mark.anyio
+async def test_embed_window_limit_raises_row_count_but_keeps_byte_cap(monkeypatch) -> None:
+    from backend.core.api.app.services.directus import embed_methods
+
+    seen = {}
+
+    class FakeDirectus:
+        async def get_items(self, collection, *, params, no_cache, raise_on_error):
+            seen["limit"] = params["limit"]
+            return [{"id": f"r-{n}", "embed_id": f"e-{n}", "created_at": 100 - n,
+                     "encrypted_content": "x" * 50} for n in range(params["limit"])]
+
+    default = await EmbedMethods(FakeDirectus()).get_embed_window_by_hashed_chat_id("chat-hash")
+    assert seen["limit"] == 31 and len(default["embeds"]) == 30 and default["has_more_before"] is True
+    large = await EmbedMethods(FakeDirectus()).get_embed_window_by_hashed_chat_id("chat-hash", limit=100)
+    assert seen["limit"] == 101 and len(large["embeds"]) == 100 and large["has_more_before"] is True
+    clamped = await EmbedMethods(FakeDirectus()).get_embed_window_by_hashed_chat_id("chat-hash", limit=5000)
+    assert seen["limit"] == 101 and len(clamped["embeds"]) == 100
+
+    monkeypatch.setattr(embed_methods, "SYNC_EMBED_PAGE_MAX_BYTES", 600)
+    capped = await EmbedMethods(FakeDirectus()).get_embed_window_by_hashed_chat_id("chat-hash", limit=100)
+    assert 0 < len(capped["embeds"]) < 100 and capped["has_more_before"] is True
+    assert capped["payload_bytes"] <= 600
+
+
+# contract-test: supporting surface=rest_api assertions=storage.cold.discoverable-bounded
+@pytest.mark.anyio
+async def test_embed_window_continuation_and_key_pages_forward_limit_only_when_non_default(monkeypatch) -> None:
+    from backend.core.api.app.services.directus import embed_methods
+
+    requests = []
+
+    async def scoped_read(service, request):
+        requests.append(request)
+        return []
+
+    monkeypatch.setattr(embed_methods, "read_embed_uuid_page", scoped_read)
+    methods = EmbedMethods(object())
+    await methods.get_embed_window_by_hashed_chat_id("c", before_created_at=5, before_id="id")
+    await methods.get_embed_window_by_hashed_chat_id("c", before_created_at=5, before_id="id", limit=100)
+    assert "limit" not in requests[0] and requests[1]["limit"] == 101
+    hashes = [f"{n:064x}" for n in range(80)]
+    await methods.get_sync_embed_key_window_for_page("c", "u", hashes[:3], after_key_id="k")
+    await methods.get_sync_embed_key_window_for_page(
+        "c", "u", hashes, after_key_id="k", key_limit=200, max_hashes=100,
+    )
+    assert "limit" not in requests[2] and requests[3]["limit"] == 201
+    with pytest.raises(ValueError):
+        await methods.get_sync_embed_key_window_for_page("c", "u", hashes, after_key_id="k")

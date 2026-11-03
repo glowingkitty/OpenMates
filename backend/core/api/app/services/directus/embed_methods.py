@@ -31,6 +31,8 @@ _EMBED_DIRECTUS_ID_CACHE_TTL: int = 7 * 86400  # 7 days in seconds
 # Prevents unbounded memory usage when fetching embeds for many chats.
 _BULK_FETCH_PAGE_SIZE: int = 500
 SYNC_EMBED_PAGE_LIMIT: int = 30
+# Upper bound a client may request via ``limit``; the byte caps below still apply.
+SYNC_EMBED_PAGE_MAX_LIMIT: int = 100
 SYNC_EMBED_PAGE_MAX_BYTES: int = 256 * 1024
 SYNC_EMBED_KEY_PAGE_LIMIT: int = 60
 SYNC_EMBED_KEY_PAGE_MAX_BYTES: int = 128 * 1024
@@ -261,20 +263,29 @@ class EmbedMethods:
         *,
         before_created_at: int | None = None,
         before_id: str | None = None,
+        limit: int = SYNC_EMBED_PAGE_LIMIT,
     ) -> Dict[str, Any]:
         """Fetch one stable, byte-bounded encrypted embed page for an authorized chat.
+
+        ``limit`` (default 30, at most 100) only raises the row count; the byte
+        cap and oversized-row handling are unchanged.
 
         Authorization belongs to the caller's chat scope. The hash must be
         derived from that checked chat, never supplied directly by a client.
         """
+        page_limit = max(1, min(int(limit), SYNC_EMBED_PAGE_MAX_LIMIT))
         embed_filter: Dict[str, Any] = {"hashed_chat_id": {"_eq": hashed_chat_id}}
         if before_created_at is not None:
             if not before_id:
                 raise ValueError("Embed continuation requires an id tie breaker")
-            rows = await read_embed_uuid_page(self.directus_service, {
+            request: Dict[str, Any] = {
                 "operation": "embed_window", "hashed_chat_id": hashed_chat_id,
                 "before_created_at": before_created_at, "before_id": before_id,
-            })
+            }
+            if page_limit != SYNC_EMBED_PAGE_LIMIT:
+                # Omitted at the default so an older scoped-read endpoint still accepts it.
+                request["limit"] = page_limit + 1
+            rows = await read_embed_uuid_page(self.directus_service, request)
         else:
             rows = await self.directus_service.get_items(
                 "embeds",
@@ -282,15 +293,15 @@ class EmbedMethods:
                     "filter": embed_filter,
                     "fields": EMBED_ALL_FIELDS,
                     "sort": ["-created_at", "-id"],
-                    "limit": SYNC_EMBED_PAGE_LIMIT + 1,
+                    "limit": page_limit + 1,
                 },
                 no_cache=True,
                 raise_on_error=True,
             )
-        if not isinstance(rows, list) or len(rows) > SYNC_EMBED_PAGE_LIMIT + 1:
+        if not isinstance(rows, list) or len(rows) > page_limit + 1:
             raise RuntimeError("Embed page unavailable")
-        has_more_before = len(rows) > SYNC_EMBED_PAGE_LIMIT
-        rows = rows[:SYNC_EMBED_PAGE_LIMIT]
+        has_more_before = len(rows) > page_limit
+        rows = rows[:page_limit]
         kept: List[Dict[str, Any]] = []
         payload_bytes = 0
         oversized_embed_id: str | None = None
@@ -316,6 +327,62 @@ class EmbedMethods:
             } if oldest else None,
             "oversized_embed_id": oversized_embed_id,
             "oversized_embed_cursor": oversized_embed_cursor,
+            "payload_bytes": payload_bytes,
+        }
+
+    async def get_embed_changes_after_cursor(
+        self,
+        hashed_chat_id: str,
+        *,
+        after_updated_at: int,
+        after_embed_id: str | None = None,
+        limit: int = SYNC_EMBED_PAGE_LIMIT,
+    ) -> Dict[str, Any]:
+        """Fetch embeds of an authorized chat changed after ``(updated_at, embed_id)``.
+
+        Ascending ``(updated_at, embed_id)`` order makes pages deterministic; the
+        returned ``end_cursor`` continues exactly after the last row. Without
+        ``after_embed_id`` every row with ``updated_at > after_updated_at`` is
+        included. Rows without ``updated_at`` (legacy imports) are never returned
+        here; the backward window covers them. Deleted embeds are not reported.
+        """
+        limit = max(1, min(int(limit), SYNC_EMBED_PAGE_MAX_LIMIT))
+        # Directus REST rejects _gt on string fields, so the (updated_at,
+        # embed_id) tie-breaker uses the internal typed scoped-read endpoint.
+        rows = await read_embed_uuid_page(self.directus_service, {
+            "operation": "embed_changes", "hashed_chat_id": hashed_chat_id,
+            "after_updated_at": int(after_updated_at), "after_embed_id": after_embed_id,
+            "limit": limit + 1,
+        })
+        if not isinstance(rows, list) or len(rows) > limit + 1:
+            raise RuntimeError("Embed change page unavailable")
+        has_more_after = len(rows) > limit
+        rows = rows[:limit]
+        kept: List[Dict[str, Any]] = []
+        payload_bytes = 0
+        oversized_embed_id: str | None = None
+        last: Dict[str, Any] | None = None
+        for row in rows:
+            row_bytes = len(json.dumps(row, separators=(",", ":")).encode("utf-8"))
+            if row_bytes > SYNC_EMBED_PAGE_MAX_BYTES and not kept:
+                # Skip past it so the caller fetches it by id and keeps paging.
+                oversized_embed_id = row.get("embed_id")
+                last = row
+                has_more_after = has_more_after or len(rows) > 1
+                break
+            if payload_bytes + row_bytes > SYNC_EMBED_PAGE_MAX_BYTES:
+                has_more_after = True
+                break
+            kept.append(row)
+            payload_bytes += row_bytes
+            last = row
+        return {
+            "embeds": kept,
+            "has_more_after": has_more_after,
+            "end_cursor": {
+                "updated_at": int(last["updated_at"]), "embed_id": last["embed_id"],
+            } if last else None,
+            "oversized_embed_id": oversized_embed_id,
             "payload_bytes": payload_bytes,
         }
 
@@ -609,10 +676,12 @@ class EmbedMethods:
 
     async def validate_embed_ids_in_chat(
         self, hashed_chat_id: str, embed_ids: List[str],
+        *, max_ids: int = SYNC_EMBED_PAGE_LIMIT,
     ) -> List[str]:
         """Resolve client embed IDs in this chat to key hashes, including legacy rows."""
+        max_ids = max(1, min(int(max_ids), SYNC_EMBED_PAGE_MAX_LIMIT))
         selected_ids = list(dict.fromkeys(value for value in embed_ids if value))
-        if not selected_ids or len(selected_ids) > SYNC_EMBED_PAGE_LIMIT:
+        if not selected_ids or len(selected_ids) > max_ids:
             raise ValueError("Invalid embed id page")
         rows = await self.directus_service.get_items(
             "embeds",
@@ -622,7 +691,7 @@ class EmbedMethods:
                     "embed_id": {"_in": selected_ids},
                 },
                 "fields": "embed_id,hashed_embed_id",
-                "limit": SYNC_EMBED_PAGE_LIMIT,
+                "limit": max_ids,
             },
             no_cache=True,
             raise_on_error=True,
@@ -644,10 +713,19 @@ class EmbedMethods:
         *,
         after_key_id: str | None = None,
         include_master_keys: bool = True,
+        key_limit: int = SYNC_EMBED_KEY_PAGE_LIMIT,
+        max_hashes: int = SYNC_EMBED_PAGE_LIMIT,
     ) -> Dict[str, Any]:
-        """Read a stable, byte-bounded key page for selected embed hashes."""
+        """Read a stable, byte-bounded key page for selected embed hashes.
+
+        ``key_limit`` (default 60, at most 200) and ``max_hashes`` (default 30,
+        at most 100) only raise row counts; ``SYNC_EMBED_KEY_PAGE_MAX_BYTES`` and
+        the oversized-key handling are unchanged.
+        """
+        key_limit = max(1, min(int(key_limit), 2 * SYNC_EMBED_PAGE_MAX_LIMIT))
+        max_hashes = max(1, min(int(max_hashes), SYNC_EMBED_PAGE_MAX_LIMIT))
         selected_hashes = list(dict.fromkeys(value for value in hashed_embed_ids if value))
-        if len(selected_hashes) > SYNC_EMBED_PAGE_LIMIT:
+        if len(selected_hashes) > max_hashes:
             raise ValueError("Embed key request exceeds the sync page limit")
         if not selected_hashes:
             return {"embed_keys": [], "has_more_after": False, "end_cursor": None,
@@ -658,12 +736,16 @@ class EmbedMethods:
             "key_type": {"_eq": "master"}, "hashed_user_id": {"_eq": hashed_user_id},
         }]} if include_master_keys else chat_scope)
         if after_key_id:
-            rows = await read_embed_uuid_page(self.directus_service, {
+            key_request: Dict[str, Any] = {
                 "operation": "embed_key_window", "hashed_chat_id": hashed_chat_id,
                 "hashed_user_id": hashed_user_id if include_master_keys else None,
                 "hashed_embed_ids": selected_hashes, "include_master_keys": include_master_keys,
                 "after_id": after_key_id,
-            })
+            }
+            if key_limit != SYNC_EMBED_KEY_PAGE_LIMIT or len(selected_hashes) > SYNC_EMBED_PAGE_LIMIT:
+                # Omitted at the defaults so an older scoped-read endpoint still accepts it.
+                key_request["limit"] = key_limit + 1
+            rows = await read_embed_uuid_page(self.directus_service, key_request)
         else:
             rows = await self.directus_service.get_items(
                 "embed_keys",
@@ -671,18 +753,18 @@ class EmbedMethods:
                     "filter": key_filter,
                     "fields": EMBED_KEY_ALL_FIELDS,
                     "sort": ["id"],
-                    "limit": SYNC_EMBED_KEY_PAGE_LIMIT + 1,
+                    "limit": key_limit + 1,
                 },
                 no_cache=True,
                 raise_on_error=True,
             )
-        if not isinstance(rows, list) or len(rows) > SYNC_EMBED_KEY_PAGE_LIMIT + 1:
+        if not isinstance(rows, list) or len(rows) > key_limit + 1:
             raise RuntimeError("Embed keys unavailable")
-        has_more_after = len(rows) > SYNC_EMBED_KEY_PAGE_LIMIT
+        has_more_after = len(rows) > key_limit
         kept: List[Dict[str, Any]] = []
         payload_bytes = 0
         oversized_key_id = None
-        for row in rows[:SYNC_EMBED_KEY_PAGE_LIMIT]:
+        for row in rows[:key_limit]:
             row_bytes = len(json.dumps(row, separators=(",", ":")).encode("utf-8"))
             if row_bytes > SYNC_EMBED_KEY_PAGE_MAX_BYTES and not kept:
                 oversized_key_id = row["id"]

@@ -1717,3 +1717,251 @@ async def test_message_window_reuses_fenced_metadata_and_rechecks_direct_members
             cache_service=None, directus_service=revoked, user_id=_FENCE_USER, chat_id="direct",
             log_prefix="[test]", metadata=_direct_row("direct"),
         )
+
+
+# ─── Delta hints: client embed ids and cold-Redis Phase 2 versions ───────────
+
+
+def test_embed_hints_skip_only_finished_embeds_by_embed_id_or_row_id() -> None:
+    from backend.core.api.app.routes.handlers.websocket_handlers.sync_delta_hints import select_sync_embeds
+
+    embeds = [
+        {"id": "row-1", "embed_id": "embed-1", "status": "finished"},
+        {"id": "row-2", "embed_id": "embed-2", "status": "finished"},
+        {"id": "row-3", "embed_id": "embed-3", "status": "processing"},
+        {"id": "row-4", "embed_id": "embed-4", "status": "rendering"},
+        {"id": "row-5", "embed_id": "embed-5", "status": "error"},
+        {"id": "row-6", "embed_id": "embed-6", "status": "finished"},
+        {"id": "row-1-dup", "embed_id": "embed-1", "status": "finished"},
+    ]
+    reasons: dict = {}
+    sent: set = set()
+    selected = select_sync_embeds(
+        embeds,
+        seen_embed_ids=set(),
+        sent_embed_ids=sent,
+        # Web hint (embed_id), TS CLI hint (row id) and hints for still-changing rows.
+        client_embed_ids={"embed-1", "row-2", "embed-3", "row-4"},
+        skip_reasons=reasons,
+    )
+
+    assert [embed["embed_id"] for embed in selected] == ["embed-3", "embed-4", "embed-6"]
+    assert sent == {"embed-3", "embed-4", "embed-6"}
+    assert reasons == {"client_embed_id": 2, "client_row_id": 1, "terminal_failure": 1}
+
+
+# contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases
+@pytest.mark.anyio
+async def test_phase1b_honours_row_id_embed_hints_for_finished_embeds(monkeypatch) -> None:
+    rows = {"chat-a": _owned_row("chat-a")}
+    directus, cache, manager, _ = _phase1b_harness(monkeypatch, rows)
+
+    async def embed_window(hashed_chat_id):
+        return {"embeds": [
+            {"id": "row-final", "embed_id": "embed-final", "status": "finished"},
+            {"id": "row-live", "embed_id": "embed-live", "status": "processing"},
+        ], "has_more_before": False, "start_cursor": None, "oversized_embed_id": None}
+
+    directus.get_embed_window_by_hashed_chat_id = embed_window
+
+    await _handle_phase1b_sync(
+        manager=manager, cache_service=cache, directus_service=directus,
+        user_id=_FENCE_USER, device_fingerprint_hash="device-1", phase1_chat_ids=["chat-a"],
+        client_chat_versions={}, sent_embed_ids=set(),
+        client_embed_ids={"row-final", "row-live"},
+    )
+
+    assert [embed["embed_id"] for embed in manager.sent[-1]["payload"]["embeds"]] == ["embed-live"]
+
+
+# contract-test: supporting surface=gui.web assertions=sync.phase2.metadata-only
+@pytest.mark.anyio
+async def test_phase2_skips_current_chats_from_directus_versions_when_redis_is_cold() -> None:
+    def wrapper(chat_id: str, messages_v: int) -> dict:
+        return {
+            "chat_details": {"id": chat_id, "encrypted_chat_key": "opaque-key", "title_v": 2,
+                             "metadata_v": 3, "messages_v": messages_v, "draft_v": 0,
+                             "last_edited_overall_timestamp": 100},
+            "user_encrypted_draft_content": None,
+            "user_draft_version_db": 0,
+        }
+
+    class FakeChat:
+        async def get_user_chat_count(self, user_id, team_id=None):
+            return 3
+
+        async def get_core_chats_and_user_drafts_for_cache_warming(self, user_id, limit=100, team_id=None):
+            return [wrapper("current", 5), wrapper("stale", 6), wrapper("new", 1)]
+
+        async def get_all_user_drafts(self, user_id):
+            return {}
+
+    class FakeDirectus:
+        chat = FakeChat()
+
+        async def get_items(self, collection, params, **kwargs):
+            return []
+
+    class ColdCache:
+        async def get_all_user_draft_chat_ids(self, user_id):
+            return []
+
+        async def get_batch_chat_versions(self, user_id, chat_ids):
+            return {}
+
+        async def get_user_draft_from_cache(self, user_id, chat_id):
+            return None
+
+        async def get_user_draft_metadata_from_cache(self, user_id, chat_id):
+            return {}
+
+        async def is_user_draft_tombstoned(self, user_id, chat_id):
+            return False
+
+    manager = SimpleNamespace(sent=[])
+
+    async def send_personal_message(message, user_id, device_fingerprint_hash):
+        manager.sent.append(message)
+
+    manager.send_personal_message = send_personal_message
+    client_versions = {"title_v": 2, "metadata_v": 3, "messages_v": 5, "draft_v": 0}
+    await phased_sync_handler._handle_phase2_sync(
+        manager=manager, cache_service=ColdCache(), directus_service=FakeDirectus(),
+        user_id="user-1", device_fingerprint_hash="device-1",
+        client_chat_versions={"current": client_versions, "stale": client_versions},
+        client_chat_ids=["current", "stale"], sent_embed_ids=set(),
+    )
+
+    payload = manager.sent[-1]["payload"]
+    assert [row["chat_details"]["id"] for row in payload["chats"]] == ["stale", "new"]
+    assert payload["total_chat_count"] == 3
+
+
+# ─── Phase 1b bounded concurrent per-chat reads ───────────────────────────────
+
+
+def _phase1b_concurrent_harness(monkeypatch, chat_ids, *, delays, failing=(), embeds_by_chat=None):
+    rows = {chat_id: _owned_row(chat_id) for chat_id in chat_ids}
+    directus, cache, manager, _ = _phase1b_harness(monkeypatch, rows)
+    state = {"active": 0, "peak": 0}
+
+    async def content_window(**kwargs):
+        chat_id = kwargs["chat_id"]
+        state["active"] += 1
+        state["peak"] = max(state["peak"], state["active"])
+        try:
+            await asyncio.sleep(delays[chat_id])
+        finally:
+            state["active"] -= 1
+        if chat_id in failing:
+            raise RuntimeError("directus read failed")
+        return {"messages": [f"cipher-{chat_id}"], "server_message_count": 1,
+                "has_more_before": False, "start_cursor": None}
+
+    async def embed_window(hashed_chat_id):
+        chat_id = next(cid for cid in chat_ids if _hash(cid) == hashed_chat_id)
+        await asyncio.sleep(delays[chat_id])
+        return {"embeds": (embeds_by_chat or {}).get(chat_id, []), "has_more_before": False,
+                "start_cursor": None, "oversized_embed_id": None}
+
+    monkeypatch.setattr(phased_sync_handler, "load_bounded_sync_message_window", content_window)
+    directus.get_embed_window_by_hashed_chat_id = embed_window
+    return directus, cache, manager, state
+
+
+# contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases
+@pytest.mark.anyio
+async def test_phase1b_concurrent_reads_keep_chat_order_under_random_delays(monkeypatch) -> None:
+    import random
+
+    chat_ids = [f"chat-{index:02d}" for index in range(20)]
+    rng = random.Random(1234)
+    delays = {chat_id: rng.uniform(0, 0.02) for chat_id in chat_ids}
+    directus, cache, manager, state = _phase1b_concurrent_harness(monkeypatch, chat_ids, delays=delays)
+
+    await _handle_phase1b_sync(
+        manager=manager, cache_service=cache, directus_service=directus,
+        user_id=_FENCE_USER, device_fingerprint_hash="device-1", phase1_chat_ids=chat_ids,
+        client_chat_versions={}, sent_embed_ids=set(),
+    )
+
+    payload = manager.sent[-1]["payload"]
+    assert [row["chat_id"] for row in payload["chats"]] == chat_ids
+    assert [row["messages"] for row in payload["chats"]] == [[f"cipher-{cid}"] for cid in chat_ids]
+    assert list(payload["embed_windows_by_chat_id"]) == chat_ids
+    assert 1 < state["peak"] <= phased_sync_handler.PHASE1B_CHAT_READ_CONCURRENCY
+    assert directus.calls["get_chats_metadata_batch"] == 2
+
+
+# contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases
+@pytest.mark.anyio
+async def test_phase1b_shared_embed_goes_to_first_chat_even_when_it_finishes_last(monkeypatch) -> None:
+    chat_ids = ["chat-first", "chat-second"]
+    shared = "embed-shared"
+    embeds_by_chat = {
+        "chat-first": [{"id": "row-first", "embed_id": shared, "status": "finished"}],
+        "chat-second": [
+            {"id": "row-second", "embed_id": shared, "status": "finished"},
+            {"id": "row-own", "embed_id": "embed-own", "status": "finished"},
+        ],
+    }
+    directus, cache, manager, _ = _phase1b_concurrent_harness(
+        monkeypatch, chat_ids, delays={"chat-first": 0.03, "chat-second": 0.0},
+        embeds_by_chat=embeds_by_chat,
+    )
+    sent_embed_ids: set = set()
+
+    await _handle_phase1b_sync(
+        manager=manager, cache_service=cache, directus_service=directus,
+        user_id=_FENCE_USER, device_fingerprint_hash="device-1", phase1_chat_ids=chat_ids,
+        client_chat_versions={}, sent_embed_ids=sent_embed_ids,
+    )
+
+    payload = manager.sent[-1]["payload"]
+    assert [embed["id"] for embed in payload["embeds"]] == ["row-first", "row-own"]
+    assert sent_embed_ids == {shared, "embed-own"}
+    assert payload["embed_key_windows_by_chat_id"]["chat-second"]["embed_ids"] == [shared, "embed-own"]
+
+
+# contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases
+@pytest.mark.anyio
+async def test_phase1b_read_failure_is_isolated_to_the_failing_chat(monkeypatch, caplog) -> None:
+    chat_ids = ["chat-a", "chat-b", "chat-c"]
+    directus, cache, manager, _ = _phase1b_concurrent_harness(
+        monkeypatch, chat_ids, delays={cid: 0.0 for cid in chat_ids}, failing={"chat-b"},
+    )
+
+    with caplog.at_level("WARNING"):
+        await _handle_phase1b_sync(
+            manager=manager, cache_service=cache, directus_service=directus,
+            user_id=_FENCE_USER, device_fingerprint_hash="device-1", phase1_chat_ids=chat_ids,
+            client_chat_versions={}, sent_embed_ids=set(),
+        )
+
+    payload = manager.sent[-1]["payload"]
+    assert [row["chat_id"] for row in payload["chats"]] == ["chat-a", "chat-c"]
+    assert set(payload["chat_key_wrapper_windows_by_chat_id"]) == {"chat-a", "chat-c"}
+    assert "Omitting chat chat-b" in caplog.text
+
+
+@pytest.mark.anyio
+async def test_bounded_chat_reads_cancel_and_drain_outstanding_reads() -> None:
+    from backend.core.api.app.routes.handlers.websocket_handlers.bounded_chat_reads import read_chats_bounded
+
+    started = asyncio.Event()
+    finished: list = []
+
+    async def reader(chat_id):
+        try:
+            started.set()
+            await asyncio.sleep(10)
+        finally:
+            finished.append(chat_id)
+
+    task = asyncio.create_task(read_chats_bounded(["a", "b", "c"], reader, concurrency=2))
+    await started.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    # Every started read was cancelled and drained before the caller saw the cancel.
+    assert sorted(finished) == ["a", "b"]

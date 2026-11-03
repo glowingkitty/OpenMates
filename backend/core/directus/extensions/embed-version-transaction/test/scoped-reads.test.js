@@ -44,7 +44,7 @@ function database(seed) {
           : op === 'or' ? result || predicate(row) : result && predicate(row), true);
       },
       then(resolve, reject) {
-        assert.ok(limit <= 61);
+        assert.ok(limit <= 201);
         const rows = (seed[table] || []).filter(query.matches).sort((a, b) => {
           for (const [field, direction] of order) {
             if (a[field] !== b[field]) return (a[field] < b[field] ? -1 : 1) * (direction === 'desc' ? -1 : 1);
@@ -78,6 +78,55 @@ test('native UUID embed continuation crosses tied timestamps with fixed scope an
   }
   assert.deepEqual(seen, rows.slice(0, 75).sort((a, b) => b.created_at - a.created_at || b.id.localeCompare(a.id)).map((row) => row.id));
   assert.equal(new Set(seen).size, 75);
+});
+
+// contract-test: supporting surface=rest_api assertions=storage.cold.discoverable-bounded
+test('embed change pages ascend by updated_at then embed_id across tied seconds', async () => {
+  const rows = Array.from({ length: 70 }, (_, n) => ({ id: id(n), embed_id: `embed-${String(n).padStart(3, '0')}`,
+    updated_at: n < 40 ? 50 : 60 + n, hashed_chat_id: CHAT, encrypted_content: `cipher-${n}`, forbidden_column: 'private' }));
+  rows.push({ id: id(900), embed_id: 'embed-old', updated_at: 5, hashed_chat_id: CHAT });
+  rows.push({ id: id(901), embed_id: 'embed-legacy', updated_at: null, hashed_chat_id: CHAT });
+  rows.push({ id: id(902), embed_id: 'embed-other', updated_at: 99, hashed_chat_id: OTHER });
+  const db = database({ embeds: rows });
+  const seen = [];
+  let cursor = { after_updated_at: 10, after_embed_id: null };
+  for (;;) {
+    const page = await readScopedEmbedPage(db, { operation: 'embed_changes', hashed_chat_id: CHAT, limit: 31, ...cursor });
+    assert.ok(page.every((row) => row.hashed_chat_id === CHAT && !('forbidden_column' in row)));
+    const kept = page.slice(0, 30);
+    seen.push(...kept.map((row) => row.embed_id));
+    if (page.length <= 30) break;
+    const last = kept.at(-1);
+    cursor = { after_updated_at: last.updated_at, after_embed_id: last.embed_id };
+  }
+  assert.deepEqual(seen, rows.slice(0, 70).map((row) => row.embed_id));
+  const bad = [
+    { operation: 'embed_changes', hashed_chat_id: CHAT, after_updated_at: -1, after_embed_id: null, limit: 5 },
+    { operation: 'embed_changes', hashed_chat_id: CHAT, after_updated_at: 1, after_embed_id: '', limit: 5 },
+    { operation: 'embed_changes', hashed_chat_id: CHAT, after_updated_at: 1, after_embed_id: null, limit: 102 },
+    { operation: 'embed_changes', hashed_chat_id: 'forged', after_updated_at: 1, after_embed_id: null, limit: 5 },
+    { operation: 'embed_changes', hashed_chat_id: CHAT, after_updated_at: 1, limit: 5 },
+  ];
+  for (const body of bad) {
+    await assert.rejects(readScopedEmbedPage(db, body), { status: 400, code: 'invalid_scoped_read' });
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=storage.cold.discoverable-bounded
+test('embed and key continuations accept a bounded larger limit and reject out-of-range ones', async () => {
+  const embeds = Array.from({ length: 150 }, (_, n) => ({ id: id(n), created_at: 12, hashed_chat_id: CHAT }));
+  const base = { operation: 'embed_window', hashed_chat_id: CHAT, before_created_at: 13, before_id: id(999) };
+  assert.equal((await readScopedEmbedPage(database({ embeds }), base)).length, 31);
+  assert.equal((await readScopedEmbedPage(database({ embeds }), { ...base, limit: 101 })).length, 101);
+  for (const limit of [1, 102, 1.5, '50']) {
+    await assert.rejects(readScopedEmbedPage(database({ embeds }), { ...base, limit }), { status: 400, code: 'invalid_scoped_read' });
+  }
+  const keys = Array.from({ length: 250 }, (_, n) => ({ id: id(n + 1), hashed_embed_id: EMBED, key_type: 'chat', hashed_chat_id: CHAT }));
+  const keyBody = { operation: 'embed_key_window', hashed_chat_id: CHAT, hashed_user_id: null,
+    hashed_embed_ids: [EMBED], include_master_keys: false, after_id: id(0) };
+  assert.equal((await readScopedEmbedPage(database({ embed_keys: keys }), keyBody)).length, 61);
+  assert.equal((await readScopedEmbedPage(database({ embed_keys: keys }), { ...keyBody, limit: 201 })).length, 201);
+  await assert.rejects(readScopedEmbedPage(database({ embed_keys: keys }), { ...keyBody, limit: 202 }), { status: 400 });
 });
 
 // contract-test: supporting surface=rest_api assertions=storage.cold.shared-team-authorized
