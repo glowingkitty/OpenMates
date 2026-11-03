@@ -1227,7 +1227,8 @@ async def _handoff_queued_after_task_failure(
 ) -> bool | _FailureHandoffOutcome:
     """Dispatch an accepted follower after its predecessor failed without an answer."""
     if (not (request_data.legacy_cutover_task_id or request_data.recovery_task_id
-                 or request_data.is_focus_mode_continuation)
+                 or request_data.is_focus_mode_continuation
+                 or getattr(request_data, "_pending_async_recovery_handoff", None))
             or request_data.is_incognito or request_data.is_external):
         return False
     if await cache_service.get_active_ai_task(request_data.chat_id) != task_id:
@@ -1257,6 +1258,14 @@ async def _handoff_queued_after_task_failure(
         return await _handoff_queued_after_task_failure(
             request_data, skill_config_dict, task_id, cache_service, directus_service,
         )
+    pending_handoff = getattr(request_data, "_pending_async_recovery_handoff", None)
+    if pending_handoff:
+        from backend.apps.ai.tasks.async_skill_continuation import settle_async_recovery_handoff
+        if not await settle_async_recovery_handoff(
+            cache=cache_service, directus=directus_service,
+            producer_id=pending_handoff, category="async_skill_superseded",
+        ):
+            raise RequiredRecoveryOutputError("Queued follower could not settle predecessor pause")
     if lease["messages"][0].get("recovery_task_id"):
         await _start_recovery_queued_follower(
             prior_request=request_data, prior_task_id=task_id,
@@ -2880,6 +2889,17 @@ async def _async_process_ai_skill_ask_task(
             # inference ID. Recent-work IPC must use the live delivery owner.
             object.__setattr__(request_data, "_verified_same_turn_delivery_task_id", task_id)
 
+        from backend.apps.ai.tasks.async_skill_continuation import (
+            claim_async_recovery_handoff, is_async_recovery_handoff_delivery,
+        )
+        if (request_data.is_async_skill_continuation and not request_data.same_turn_batch_id
+                and is_async_recovery_handoff_delivery(request_data, task_id)):
+            if not await claim_async_recovery_handoff(
+                cache=cache_service_instance, directus=directus_service_instance,
+                request=request_data, delivery_id=task_id,
+            ):
+                return _recovery_unclaimed_result({"state": "ASYNC_HANDOFF_UNAVAILABLE"})
+
         durable_claim_started = time.monotonic()
         if request_data.is_sub_chat_continuation and request_data.recovery_consumed_child_ids:
             await _consume_sub_chat_recovery_children(
@@ -4269,6 +4289,25 @@ async def _async_process_ai_skill_ask_task(
                         }
                 _log_team_ai_pipeline_stage(request_data, task_id, "main", "completed")
             logger.info(f"[Task ID: {task_id}] Main processing stream consumed.")
+            if getattr(request_data, "_pending_async_recovery_handoff", None):
+                # Reuse the canonical atomic queue drain/transfer, including
+                # accepted followers that arrived before this source paused.
+                handoff = await _handoff_queued_after_task_failure(
+                    request_data, skill_config_dict, task_id,
+                    cache_service_instance, directus_service_instance,
+                )
+                if handoff is _FailureHandoffOutcome.OWNED_MARKER_CLEARED:
+                    from backend.apps.ai.tasks.async_skill_continuation import dispatch_deferred_async_skill_continuations
+                    await dispatch_deferred_async_skill_continuations(
+                        cache_service=cache_service_instance, user_id=request_data.user_id,
+                        chat_id=request_data.chat_id,
+                    )
+                return {
+                    "task_id": task_id, "status": "waiting_for_async_completion",
+                    "preprocessing_summary": {}, "main_processing_output": None, "postprocessing_summary": {},
+                    "interrupted_by_soft_time_limit": False, "interrupted_by_revocation": False,
+                    "_celery_task_state": "SUCCESS",
+                }
             if (main_processor_debug_metadata or {}).get("same_turn_skill_paused"):
                 if debug_cache_task:
                     await _settle_optional_debug_cache(
@@ -5303,6 +5342,21 @@ def same_turn_skill_deadline_task(batch_id: str) -> Optional[str]:
             await cache.close()
 
     return asyncio.run(settle())
+
+
+@celery_config.app.task(name="apps.ai.tasks.async_recovery_handoff_deadline", soft_time_limit=45, time_limit=60)
+def async_recovery_handoff_deadline_task(producer_id: str) -> None:
+    """Expire only a registered unclaimed Project callback pause."""
+    async def settle() -> None:
+        cache = CacheService()
+        directus = DirectusService(cache_service=cache)
+        try:
+            from backend.apps.ai.tasks.async_skill_continuation import expire_async_recovery_handoff
+            await expire_async_recovery_handoff(cache=cache, directus=directus, producer_id=producer_id)
+        finally:
+            await directus.close()
+            await cache.close()
+    asyncio.run(settle())
 
 
 @celery_config.app.task(

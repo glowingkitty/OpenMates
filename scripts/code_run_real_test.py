@@ -88,8 +88,9 @@ def prompts(nonce: str) -> list[dict]:
         "Create source code embeds and automatically execute them using code.run in E2B. "
         "Do not ask me to click Run. Include the execution/task UUID returned by code.run in your acknowledgement "
         "and final explanation. Wait for the actual execution result before claiming success. "
-        f"The source must calculate 64-bit FNV-1a over UTF-8 bytes of '{nonce}' "
-        "(offset 0xcbf29ce484222325, prime 0x100000001b3, wrapping unsigned 64-bit arithmetic), "
+        f"The source must calculate the standard 64-bit FNV-1a hash over UTF-8 bytes of '{nonce}', "
+        "using unsigned 64-bit wrapping arithmetic and the standard offset basis and prime "
+        "written as hexadecimal constants in the source, "
         "and print proof=<16 lowercase hex digits>. After execution, include that exact returned proof line "
         "in your final explanation together with actual results and generated artifact references. "
     )
@@ -117,9 +118,20 @@ def prompts(nonce: str) -> list[dict]:
     ]
 
 
-def command(cli: str, args: list[str], *, timeout: int = 120) -> dict | list:
-    result = subprocess.run([cli, *args, "--api-url", API_URL, "--json"], cwd=ROOT,
-                            capture_output=True, text=True, timeout=timeout, check=False)
+def command(cli: str, args: list[str], *, timeout: int = 120, diagnostic_path: Path | None = None) -> dict | list:
+    try:
+        result = subprocess.run([cli, *args, "--api-url", API_URL, "--json"], cwd=ROOT,
+                                capture_output=True, text=True, timeout=timeout, check=False)
+    except subprocess.TimeoutExpired as exc:
+        if diagnostic_path:
+            def decoded(value):
+                return value.decode(errors="replace") if isinstance(value, bytes) else value
+            write_receipt(diagnostic_path, {"failure": "timeout", "stdout": decoded(exc.stdout),
+                                            "stderr": decoded(exc.stderr)})
+        raise
+    if diagnostic_path:
+        write_receipt(diagnostic_path, {"returncode": result.returncode, "stdout": result.stdout,
+                                        "stderr": result.stderr})
     if result.returncode:
         raise ProofError(f"{args[0]}_{args[1]}_failed")
     try:
@@ -163,6 +175,17 @@ def installed_sdk(cli: str, supplied: Path | None) -> Path:
     if not path.is_file():
         raise ProofError("installed_sdk_missing")
     return path
+
+
+def authenticated_snapshot(data: dict, chat_id: str, execution_ids: list[str]) -> dict:
+    request = {"api_url": API_URL, "sdk_module": data["sdk_module"], "chat_id": chat_id,
+               "execution_ids": execution_ids}
+    probed = subprocess.run(["node", str(Path(__file__).with_name("code_run_real_probe.mjs"))],
+                            input=json.dumps(request), capture_output=True, text=True, cwd=ROOT,
+                            check=False, timeout=120)
+    if probed.returncode:
+        raise ProofError("authenticated_sdk_probe_failed")
+    return json.loads(probed.stdout)
 
 
 def verify(case: dict, snapshot: dict, proof: str, nonce: str) -> tuple[bool, str]:
@@ -244,7 +267,8 @@ def flow(input_path: Path) -> int:
         try:
             sent = command(data["cli"], ["chats", "new", case["prompt"], "--project", data["project_id"],
                            "--slug", data["slug"], "--personal", "--response-timeout-seconds",
-                           str(data["timeout_seconds"])], timeout=data["timeout_seconds"]+30)
+                           str(data["timeout_seconds"])], timeout=data["timeout_seconds"]+30,
+                           diagnostic_path=directory / "initial-cli-transport.json")
         except (ProofError, subprocess.TimeoutExpired):
             # Preserve identity for an admitted request even if collecting its
             # response fails, allowing real CLI capture and scoped cleanup.
@@ -253,6 +277,16 @@ def flow(input_path: Path) -> int:
                 result["chat_id"] = admitted["chat"]["id"]
             except (ProofError, subprocess.TimeoutExpired, KeyError, TypeError):
                 pass
+            if result.get("chat_id"):
+                try:
+                    recovered = authenticated_snapshot(data, result["chat_id"], [])
+                    write_receipt(directory / "snapshot-after-recovery.json", recovered)
+                    passed, reason = verify(case, recovered, data["proof"], data["nonce"])
+                    result["verification_after_recovery"] = {"passed": passed, "reason": reason}
+                except (ProofError, subprocess.TimeoutExpired, ValueError):
+                    result["recovery_inspection"] = "failed"
+            # Recovery evidence is separate: an initial CLI failure still fails
+            # this flow even when the server completed the requested program.
             raise
         write_receipt(directory / "initial-response.json", sent)
         chat_id = sent.get("chatId") if isinstance(sent, dict) else None
@@ -266,14 +300,7 @@ def flow(input_path: Path) -> int:
         snapshot, reason = {}, "execution_status_missing"
         known_executions: list[str] = []
         while time.monotonic() < deadline:
-            request = {"api_url": API_URL, "sdk_module": data["sdk_module"], "chat_id": chat_id,
-                       "execution_ids": known_executions}
-            probed = subprocess.run(["node", str(Path(__file__).with_name("code_run_real_probe.mjs"))],
-                                    input=json.dumps(request), capture_output=True, text=True, cwd=ROOT,
-                                    check=False, timeout=120)
-            if probed.returncode:
-                raise ProofError("authenticated_sdk_probe_failed")
-            snapshot = json.loads(probed.stdout)
+            snapshot = authenticated_snapshot(data, chat_id, known_executions)
             write_receipt(directory / "snapshot.json", snapshot)
             known_executions = [run["execution_id"] for run in snapshot.get("executions", [])]
             passed, current = verify(case, snapshot, data["proof"], data["nonce"])
@@ -400,7 +427,9 @@ def main() -> int:
         if not isinstance(project_id, str) or not project_id:
             raise ProofError("disposable_project_missing")
         receipt["project_id"] = project_id
-        nonce = uuid4().hex
+        # Keep the synthetic challenge free of long digit runs that privacy
+        # detection could reasonably interpret as phone/account data.
+        nonce = "test-" + "".join(chr(ord("a") + int(char, 16)) for char in uuid4().hex)
         for case in prompts(nonce):
             if args.case and case["label"] not in args.case:
                 continue

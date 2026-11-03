@@ -3827,7 +3827,7 @@ async def handle_main_processing(
     if pending_project_catalog_id:
         from backend.apps.ai.processing.project_focus_orchestration import request_project_focus_catalog
         await request_project_focus_catalog(
-            request_data=request_data, preprocessing_results=preprocessing_results,
+            task_id=task_id, directus_service=directus_service, request_data=request_data, preprocessing_results=preprocessing_results,
             cache_service=cache_service, skill_config_dict=skill_config_dict,
             project_id=pending_project_catalog_id,
         )
@@ -9364,6 +9364,8 @@ async def handle_main_processing(
                                     request_data=request_data,
                                     skill_config_dict=skill_config_dict,
                                     app_id="system",
+                                    source_delivery_task_id=task_id,
+                                    directus_service=directus_service,
                                     skill_id=skill_id,
                                     tool_name=skill_id,
                                     tool_arguments=operation_arguments,

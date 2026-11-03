@@ -294,6 +294,18 @@ async def test_confident_none_or_refusal_cannot_be_reselected_by_detailed_routin
     monkeypatch.setattr(server_mode, "is_payment_enabled", lambda: False)
     monkeypatch.setattr(preprocessor, "load_skill_ledger", AsyncMock(return_value=preprocessor.RoutingLedgerSnapshot(available=True, prompt_rows=())))
     monkeypatch.setattr(project_focus_request_service, "validated_project_candidates", AsyncMock(return_value=candidates))
+    # This case tests Project consent/refusal filtering, not model availability.
+    # Keep its existing synthetic model fixture independent of /app provider YAML.
+    monkeypatch.setattr(preprocessor, "_select_main_model", AsyncMock(return_value={
+        "complexity_val": preprocessor.normalize_request_tier("simple"),
+        "task_area_val": "general", "user_unhappy_val": False,
+        "enable_subchats_val": False, "china_related": False, "has_image_upload_embed": False,
+        "selected_llm_for_main_id": "test/main", "selected_llm_for_main_name": "Main",
+        "selected_secondary_model_id": None, "selected_fallback_model_id": None,
+        "model_selection_reason": "provider-free routing fixture", "filtered_cn_models": False,
+        "model_override_applied": False, "model_selection_unavailable": False,
+        "selected_llm_thinking_level": None,
+    }))
     compact = AsyncMock(side_effect=lambda **kwargs: answers_for(kwargs["questions"], project=ambiguous,
         project_confidence=.4 if ambiguous else .99))
     monkeypatch.setattr(jev_preprocessing, "_evaluate_preprocessing_questions", compact)

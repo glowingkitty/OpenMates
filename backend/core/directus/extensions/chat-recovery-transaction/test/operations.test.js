@@ -1248,6 +1248,36 @@ test('same-turn skill pause authorizes one bounded successor delivery', async ()
   assert.equal(database.rows.chat_turn_preflights[0].state, 'FAILED');
 });
 
+test('Project callback handoff permits nested Code Run pause only for the claimed delivery', async () => {
+  const callback = '018f8888-8888-7888-8888-888888888888';
+  const nested = '018f9999-9999-7999-8999-999999999999';
+  const database = fakeDatabase({ chat_turn_preflights: [{
+    id: PREFLIGHT_ID, inference_task_id: TASK_ID, state: 'RUNNING', turn_id: TURN_ID,
+    async_current_delivery_task_id: TASK_ID,
+  }] });
+  const now = new Date('2029-01-01T00:00:00.000Z');
+  const pause = { protocol_version: 1, inference_task_id: TASK_ID,
+    delivery_task_id: TASK_ID, step_id: 'async:project-catalog', deadline_seconds: 300 };
+  assert.equal((await executeOperation(database, 'pause_inference_for_skill', pause, now)).paused, true);
+  const resume = { protocol_version: 1, inference_task_id: TASK_ID,
+    delivery_task_id: callback, step_id: pause.step_id };
+  assert.equal((await executeOperation(database, 'resume_inference_for_skill', resume, now)).claimed, true);
+  assert.equal((await executeOperation(database, 'resume_inference_for_skill', resume, now)).claimed, false);
+  const codePause = { ...pause, delivery_task_id: callback, step_id: 'nested-code-run' };
+  assert.equal((await executeOperation(database, 'pause_inference_for_skill', codePause, now)).paused, true);
+  for (const wrongDelivery of [TASK_ID, nested]) {
+    await assert.rejects(() => executeOperation(database, 'pause_inference_for_skill',
+      { ...codePause, delivery_task_id: wrongDelivery }, now),
+    error => error.code === 'inference_delivery_mismatch');
+  }
+  assert.equal((await executeOperation(database, 'resume_inference_for_skill',
+    { ...resume, delivery_task_id: nested, step_id: 'forged-step' }, now)).claimed, false);
+  assert.equal(database.rows.chat_turn_preflights[0].async_current_delivery_task_id, callback);
+  assert.equal((await executeOperation(database, 'resume_inference_for_skill',
+    { ...resume, delivery_task_id: nested, step_id: codePause.step_id }, now)).claimed, true);
+  assert.equal(database.rows.chat_turn_preflights[0].async_current_delivery_task_id, nested);
+});
+
 test('same-turn skill resume expires and cannot claim a cancelled inference', async () => {
   const database = fakeDatabase({ chat_turn_preflights: [{
     id: PREFLIGHT_ID, inference_task_id: TASK_ID, state: 'RUNNING',

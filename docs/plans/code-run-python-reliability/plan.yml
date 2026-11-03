@@ -7,7 +7,7 @@ goal: Implement the Python code-execution reliability fix, test the same math ex
   example requests, and ensure the assistant can generate a code embed, auto-execute it in E2B when instructed,
   and process the result in its response.
 phase_boundary: User approved implementation and expanded verification to Rust and assistant-requested
-  automatic execution.
+  automatic execution. User subsequently approved including the broader Project async handoff repair.
 findings:
   confirmed_root_cause: 'The web dependency picker turned inferred Python imports into exact pins of each
     package''s independently advertised latest PyPI release. The submitted NumPy pin was numpy==2.5.4,
@@ -37,6 +37,16 @@ findings:
     evidence: Source review of the actual Code Run producer and shared callback early-result contract.
     repair: Thread only server-injected batch context through the private worker payload and include
       trusted callback identity, preserving private sealing and one-shot result delivery.
+  project_async_delivery_handoff:
+    observed_failure: Project-associated Rust requests reached a legacy async continuation carrying the
+      original recovery inference identifier but a new physical delivery identifier. A nested Code Run
+      pause correctly rejected this mismatch after the source inference had completed empty.
+    evidence: Both requested Rust cases ended with a generic assistant error; a valid single-file Rust
+      diagnostic compiled and ran successfully, ruling out missing Rust support or file normalization.
+    approved_scope: User explicitly approved the shared Project handoff repair after the bounded finding
+      and proposed existing pause/resume lifecycle repair were presented.
+    repair_boundary: Keep strict ownership checks. Establish server-owned handoff authority, pause the
+      source delivery, and verify/claim the successor delivery through the existing resume operation.
   historical_run:
     local_time: 2026-10-28 01:00:31 to 01:00:44 Europe/Berlin
     target_filename: math_demo.py
@@ -212,6 +222,27 @@ implementation_sequence:
   - backend/tests/test_code_run_billing_attribution.py
   - backend/tests/test_code_run_start_context.py
   - backend/tests/test_code_run_early_completion.py
+- step: 7
+  outcome: Project continuations can safely run and await nested Code Run requests.
+  changes:
+  - Bind a legacy current-turn async callback to the original server delivery and step before pausing.
+  - Dispatch a deterministic successor and verify cached owner, chat, turn, inference, step and delivery
+    authority before resuming through the existing lifecycle operation.
+  - Preserve logical assistant identity, current-turn cancellation, bounded retries and one-shot delivery;
+    reject stale or forged ownership and prevent premature empty terminalization.
+  - Bind private recent-work IPC to the verified current delivery using runtime-only authority that
+    cannot be supplied through public requests or model-generated arguments.
+  - Exercise callback registration, deferred enqueue, verified successor claim and nested Code Run pause
+    together; retain strict Directus rejection tests for stale and forged deliveries.
+  owned_paths:
+  - backend/apps/ai/tasks/async_skill_continuation.py
+  - backend/apps/ai/tasks/ask_skill_task.py
+  - backend/apps/ai/processing/main_processor.py
+  - backend/apps/ai/processing/project_focus_orchestration.py
+  - backend/shared/python_utils/recent_work_summary_client.py
+  - backend/tests/test_async_recovery_handoff.py
+  - backend/tests/test_project_focus_early_routing.py
+  - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
 required_acceptance:
 - Inferred Python imports default to unpinned compatible resolution even when registry latest requires
   newer Python.
@@ -249,8 +280,14 @@ verification:
     with compatible packages and a captured plot, exposing the missing same-turn deadline envelope.
     Its focused repair passes four local completion-barrier tests. The early-result callback repair
     passes fourteen focused checks, including sealed replay, trusted batch matching, one-shot delivery,
-    manual compatibility and fail-closed scanning. Combined isolated CI and final real assistant result
-    checks remain in progress.
+    manual compatibility and fail-closed scanning. Combined isolated CI passed all 81 selected tests
+    before deployment 454a24a. The next real math run produced a
+    correct saved assistant answer, independently verified numeric output, matching fresh proof and a
+    92013-byte plot, although the initiating CLI request reported a delivery failure. Both Rust cases
+    exposed the separately approved Project continuation ownership mismatch. Its guarded handoff repair
+    passes 288 local Python checks and 174 Directus lifecycle checks. Independent review confirmed atomic
+    queued-follower transfer, Stop fencing and deduplicated expiry notification. Isolated CI and final
+    requested Rust results remain in progress.
   real_inference_dev_required:
   - After scoped deploy, use isolated test account/Project/CLI state under shared dev-stack and exclusive
     account leases.

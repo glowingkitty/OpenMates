@@ -86,11 +86,24 @@ def authoritative_context_turn_id(request: object) -> str:
     return getattr(request, "_authoritative_context_turn_id", None) or request.message_id
 
 
+_ASYNC_HANDOFF_CAPABILITY = object()
+
+
+def bind_verified_async_handoff_delivery(request: object, execution_task_id: str) -> None:
+    """Bind runtime-only IPC authority after the durable delivery claim succeeds."""
+    object.__setattr__(request, "_verified_async_handoff_delivery_task_id", execution_task_id)
+    object.__setattr__(request, "_verified_async_handoff_capability", _ASYNC_HANDOFF_CAPABILITY)
+
+
 def recent_work_authority_task_id(request: object, execution_task_id: str) -> str:
     """Use the live active-task owner after a verified same-turn resume claim."""
     if (getattr(request, "is_async_skill_continuation", False)
             and getattr(request, "same_turn_batch_id", None)
             and getattr(request, "_verified_same_turn_delivery_task_id", None) == execution_task_id):
+        return execution_task_id
+    if (getattr(request, "is_async_skill_continuation", False)
+            and getattr(request, "_verified_async_handoff_delivery_task_id", None) == execution_task_id
+            and getattr(request, "_verified_async_handoff_capability", None) is _ASYNC_HANDOFF_CAPABILITY):
         return execution_task_id
     resolve = getattr(request, "resolved_recovery_inference_task_id", None)
     return (getattr(request, "_focus_authority_task_id", None)

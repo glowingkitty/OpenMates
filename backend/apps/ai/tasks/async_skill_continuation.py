@@ -12,6 +12,7 @@ import asyncio
 import json
 import time
 import os
+import uuid
 from typing import Any, Optional
 
 import yaml
@@ -131,6 +132,242 @@ def _capacity_continuation_marker(context: dict[str, Any], request_data: AskSkil
         raise RuntimeError("Synthetic async continuation marker is invalid")
     return marker
 
+ASYNC_RECOVERY_HANDOFF_PREFIX = "async_recovery_handoff"
+
+
+def _async_handoff_key(task_id: str) -> str:
+    return f"{ASYNC_RECOVERY_HANDOFF_PREFIX}:{task_id}"
+
+
+async def _prepare_async_recovery_handoff(
+    *, cache: Any, directus: Any, request: AskSkillRequest,
+    producer_id: str, source_delivery_id: str, ttl_seconds: int,
+) -> dict[str, Any]:
+    """Pause only the verified source delivery before offering Project work."""
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+    from backend.apps.ai.tasks.same_turn_skill_barrier import _set_once
+
+    inference_id = request.resolved_recovery_inference_task_id()
+    if not source_delivery_id or directus is None or not inference_id:
+        raise RuntimeError("Async recovery handoff lacks source authority")
+    if await cache.get_active_ai_task(request.chat_id) != source_delivery_id:
+        raise RuntimeError("Async recovery source no longer owns the chat")
+    seconds = max(1, min(int(ttl_seconds), 90 * 60))
+    authority = {
+        "user_id": request.user_id, "user_id_hash": request.user_id_hash, "chat_id": request.chat_id,
+        "message_id": request.message_id, "inference_task_id": inference_id,
+        "preflight_id": request.recovery_preflight_id, "turn_id": request.recovery_turn_id,
+        "producer_id": producer_id, "source_delivery_id": source_delivery_id,
+        "logical_message_id": request.continuation_message_id or source_delivery_id,
+        "delivery_id": str(uuid.uuid5(uuid.UUID(inference_id), f"async:{producer_id}")),
+        "step_id": f"async:{producer_id}", "deadline": time.time() + seconds,
+        "claimed": False,
+    }
+    key = _async_handoff_key(producer_id)
+    if not await _set_once(cache, key, json.dumps(authority)):
+        previous = await cache.get(key)
+        immutable = set(authority) - {"deadline", "claimed"}
+        if (not isinstance(previous, dict) or previous.get("claimed")
+                or any(previous.get(k) != authority[k] for k in immutable)):
+            raise RuntimeError("Async recovery handoff identity changed")
+        authority = previous
+        seconds = max(1, int(authority["deadline"] - time.time()))
+    paused = await ChatRecoveryService(directus).execute("pause_inference_for_skill", {
+        "protocol_version": 1, "inference_task_id": inference_id,
+        "delivery_task_id": source_delivery_id, "step_id": authority["step_id"],
+        "deadline_seconds": seconds,
+    })
+    if paused.get("paused") is not True:
+        raise RuntimeError("Async recovery source pause rejected")
+    await cache.set(f"{ASYNC_RECOVERY_HANDOFF_PREFIX}:source:{source_delivery_id}", producer_id, ttl=90 * 60)
+    request.awaiting_async_skill_continuation = True
+    object.__setattr__(request, "_pending_async_recovery_handoff", producer_id)
+    try:
+        _get_celery_app().send_task(
+            "apps.ai.tasks.async_recovery_handoff_deadline", kwargs={"producer_id": producer_id},
+            countdown=seconds + 2, queue="app_ai",
+        )
+    except Exception:
+        await settle_async_recovery_handoff(
+            cache=cache, directus=directus, producer_id=producer_id, category="async_skill_expired",
+        )
+        raise
+    return authority
+
+
+def _async_handoff_matches(authority: dict[str, Any], request: AskSkillRequest) -> bool:
+    return all((
+        authority.get("user_id") == request.user_id,
+        authority.get("chat_id") == request.chat_id,
+        authority.get("message_id") == request.message_id,
+        authority.get("inference_task_id") == request.resolved_recovery_inference_task_id(),
+        authority.get("preflight_id") == request.recovery_preflight_id,
+        authority.get("turn_id") == request.recovery_turn_id,
+    ))
+
+
+def is_async_recovery_handoff_delivery(request: AskSkillRequest, delivery_id: str) -> bool:
+    """Recognize our deterministic queue identity without trusting request markers."""
+    try:
+        inference_id = request.resolved_recovery_inference_task_id()
+        return bool(request.async_skill_task_id and delivery_id == str(uuid.uuid5(
+            uuid.UUID(inference_id), f"async:{request.async_skill_task_id}",
+        )))
+    except (ValueError, TypeError, AttributeError):
+        return False
+
+
+async def _enqueue_async_recovery_handoff(
+    *, cache: Any, authority: dict[str, Any], request_payload: dict,
+    skill_config: dict,
+) -> str | None:
+    """Reserve the exact deterministic delivery before a retryable broker send."""
+    request = AskSkillRequest.model_validate(request_payload)
+    if not _async_handoff_matches(authority, request):
+        raise RuntimeError("Async recovery queue scope changed")
+    if authority.get("claimed") or time.time() >= authority["deadline"]:
+        return None
+    if await cache.get(async_skill_latest_user_turn_key(request.user_id, request.chat_id)) != request.message_id:
+        return None
+    client = await cache.client
+    delivery_id = authority["delivery_id"]
+    # A repeated dispatch of this same authority is harmless; a competing chat
+    # owner or changed user turn must never be displaced by a delayed callback.
+    reserved = await client.eval(
+        "if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end; "
+        "local owner=redis.call('GET', KEYS[2]); "
+        "if owner and owner ~= ARGV[2] then return 0 end; "
+        "redis.call('SET', KEYS[2], ARGV[2], 'EX', 600); "
+        "redis.call('SET', KEYS[3], ARGV[3], 'EX', 600); return 1",
+        3, async_skill_latest_user_turn_key(request.user_id, request.chat_id),
+        cache._get_active_task_key(request.chat_id), cache._get_task_chat_mapping_key(delivery_id),
+        request.message_id, delivery_id, request.chat_id,
+    )
+    if not reserved:
+        return None
+    try:
+        result = _get_celery_app().send_task(
+            name="apps.ai.tasks.skill_ask", task_id=delivery_id, queue="app_ai",
+            kwargs={"request_data_dict": request_payload, "skill_config_dict": skill_config},
+        )
+        if not result or result.id != delivery_id:
+            raise RuntimeError("Async recovery broker returned a different delivery")
+    except Exception:
+        await cache.clear_active_ai_task_if_matches(request.chat_id, delivery_id)
+        raise
+    return result.id
+
+
+async def claim_async_recovery_handoff(
+    *, cache: Any, directus: Any, request: AskSkillRequest, delivery_id: str,
+) -> bool:
+    """Claim a registered Project callback; request flags alone grant nothing."""
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+    request.__dict__.pop("_verified_async_handoff_delivery_task_id", None)
+    request.__dict__.pop("_verified_async_handoff_capability", None)
+    authority = await cache.get(_async_handoff_key(request.async_skill_task_id or ""))
+    if (not isinstance(authority, dict) or not _async_handoff_matches(authority, request)
+            or authority.get("delivery_id") != delivery_id or authority.get("claimed")
+            or request.continuation_message_id != authority.get("logical_message_id")
+            or time.time() >= authority["deadline"]
+            or await cache.get_active_ai_task(request.chat_id) != delivery_id
+            or await cache.get(async_skill_latest_user_turn_key(request.user_id, request.chat_id)) != request.message_id):
+        return False
+    # Same-delivery broker duplicates cannot both enter the durable claim.
+    client = await cache.client
+    if not await client.set(_async_handoff_key(authority["producer_id"]) + ":claim", "1", nx=True, ex=30):
+        return False
+    resumed = await ChatRecoveryService(directus).execute("resume_inference_for_skill", {
+        "protocol_version": 1, "inference_task_id": authority["inference_task_id"],
+        "delivery_task_id": delivery_id, "step_id": authority["step_id"],
+    })
+    if resumed.get("claimed") is not True:
+        return False
+    authority["claimed"] = True
+    await cache.set(_async_handoff_key(authority["producer_id"]), authority, ttl=90 * 60)
+    request.awaiting_async_skill_continuation = False
+    from backend.shared.python_utils.recent_work_summary_client import bind_verified_async_handoff_delivery
+    bind_verified_async_handoff_delivery(request, delivery_id)
+    return True
+
+
+async def settle_async_recovery_handoff(
+    *, cache: Any, directus: Any, producer_id: str, category: str,
+) -> bool:
+    """Settle only this pause/turn and send one existing terminal client event."""
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+    from backend.apps.ai.tasks.same_turn_skill_barrier import _set_once
+
+    key = _async_handoff_key(producer_id)
+    authority = await cache.get(key)
+    if not isinstance(authority, dict):
+        return False
+    stopped = await ChatRecoveryService(directus).execute("mark_inference_failed", {
+        "protocol_version": 1, "inference_task_id": authority["inference_task_id"],
+        **({"turn_id": authority["turn_id"]} if category == "user_cancelled"
+           else {"step_id": authority["step_id"]}),
+        "failure_category": category,
+    })
+    if stopped.get("state") != "FAILED":
+        return False
+    if await _set_once(cache, key + ":stopped", "1"):
+        await cache.publish_event(f"chat_stream::{authority['chat_id']}", {
+            "type": "recovery_output_paused", "chat_id": authority["chat_id"],
+            "user_id_uuid": authority["user_id"], "user_id_hash": authority["user_id_hash"],
+            "message_id": authority["message_id"], "task_id": authority["logical_message_id"],
+            "reason_code": "user_cancelled" if category == "user_cancelled" else "durable_output_unavailable",
+        })
+    await cache.clear_active_ai_task_if_matches(authority["chat_id"], authority["delivery_id"])
+    await cache.delete(async_skill_continuation_key(producer_id))
+    await cache.delete(async_skill_deferred_completion_key(producer_id))
+    source_key = f"{ASYNC_RECOVERY_HANDOFF_PREFIX}:source:{authority['source_delivery_id']}"
+    if await cache.get(source_key) == producer_id:
+        await cache.delete(source_key)
+    await cache.delete(key)
+    return True
+
+
+async def expire_async_recovery_handoff(*, cache: Any, directus: Any, producer_id: str) -> None:
+    """Expire an abandoned exact pause without failing a claimed successor."""
+    authority = await cache.get(_async_handoff_key(producer_id))
+    if (isinstance(authority, dict) and not authority.get("claimed")
+            and time.time() >= authority["deadline"]):
+        await settle_async_recovery_handoff(
+            cache=cache, directus=directus, producer_id=producer_id, category="async_skill_expired",
+        )
+
+
+async def cancel_async_recovery_handoff_source(
+    cache: Any, *, user_id: str, chat_id: str, source_task_id: str,
+) -> bool:
+    """Fence Stop even when a paused source has already released its chat owner."""
+    producer_id = await cache.get(f"{ASYNC_RECOVERY_HANDOFF_PREFIX}:source:{source_task_id}")
+    authority = await cache.get(_async_handoff_key(producer_id or ""))
+    if (not isinstance(authority, dict) or authority.get("user_id") != user_id
+            or authority.get("chat_id") != chat_id or authority.get("source_delivery_id") != source_task_id):
+        return False
+    client = await cache.client
+    fenced = await client.eval(
+        "if redis.call('GET', KEYS[1]) == ARGV[1] then "
+        "redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3]); return 1 end; return 0",
+        1, async_skill_latest_user_turn_key(user_id, chat_id), authority["message_id"],
+        f"cancelled:{source_task_id}", 90 * 60,
+    )
+    if not fenced:
+        return False
+    from backend.core.api.app.services.directus import DirectusService
+    directus = DirectusService(cache_service=cache)
+    try:
+        stopped = await settle_async_recovery_handoff(
+            cache=cache, directus=directus, producer_id=producer_id, category="user_cancelled",
+        )
+    finally:
+        await directus.close()
+    if stopped and authority.get("claimed"):
+        _get_celery_app().control.revoke(authority["delivery_id"], terminate=True, signal="SIGUSR1")
+    return stopped
+
 
 async def cache_async_skill_continuation_context(
     *,
@@ -148,6 +385,8 @@ async def cache_async_skill_continuation_context(
     defer_until_initial_response_complete: bool = False,
     same_turn_batch_id: Optional[str] = None,
     ttl_seconds: int = ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
+    source_delivery_task_id: str | None = None,
+    directus_service: Any = None,
 ) -> None:
     """Store the original ask context for a later async skill completion."""
     if not cache_service or not async_task_id:
@@ -211,11 +450,25 @@ async def cache_async_skill_continuation_context(
         context["capacity_replay_marker"] = capacity_marker
     if inline_wait_deadline is not None:
         context["inline_wait_deadline"] = inline_wait_deadline
+    if (not same_turn_batch_id and app_id == "system" and requires_current_turn
+            and defer_until_initial_response_complete and request_data.resolved_recovery_inference_task_id()):
+        await _prepare_async_recovery_handoff(
+            cache=cache_service, directus=directus_service, request=request_data,
+            producer_id=async_task_id, source_delivery_id=source_delivery_task_id,
+            ttl_seconds=ttl_seconds,
+        )
+        context["recovery_handoff"] = True
     stored = await cache_service.set(
         async_skill_continuation_key(async_task_id),
         context,
         ttl=max(1, min(int(ttl_seconds), ASYNC_SKILL_CONTINUATION_TTL_SECONDS)),
     )
+    if context.get("recovery_handoff") and not stored:
+        await settle_async_recovery_handoff(
+            cache=cache_service, directus=directus_service,
+            producer_id=async_task_id, category="async_skill_expired",
+        )
+        raise RuntimeError("Async recovery callback context could not be stored")
     if same_turn_batch_id and not stored:
         raise RuntimeError("Same-turn completion callback context could not be stored")
     if same_turn_batch_id:
@@ -499,7 +752,10 @@ async def dispatch_async_skill_continuation(
         project_file_reference_preview=_project_file_reference_preview(
             context=context, completed_results=completed_results, result_status=result_status,
         ),
-        continuation_message_id=original_request.continuation_message_id,
+        continuation_message_id=(
+            (await cache_service.get(_async_handoff_key(async_task_id)) or {}).get("logical_message_id")
+            if context.get("recovery_handoff") else original_request.continuation_message_id
+        ),
         is_async_skill_continuation=True,
         original_user_message_id=(
             original_request.original_user_message_id or original_request.message_id
@@ -597,17 +853,29 @@ async def dispatch_async_skill_continuation(
                 await cache_service.set(index_key, pending, ttl=ASYNC_SKILL_CONTINUATION_TTL_SECONDS)
             logger.info("Deferred async continuation %s until the initial response finishes", async_task_id)
             return None
-    task_result = app.send_task(
-        name="apps.ai.tasks.skill_ask",
-        kwargs={
-            "request_data_dict": request_payload,
-            "skill_config_dict": skill_config_payload,
-        },
-        queue="app_ai",
-    )
+    if context.get("recovery_handoff"):
+        authority = await cache_service.get(_async_handoff_key(async_task_id))
+        if not isinstance(authority, dict):
+            return None
+        delivery_id = await _enqueue_async_recovery_handoff(
+            cache=cache_service, authority=authority, request_payload=request_payload,
+            skill_config=skill_config_payload,
+        )
+        if not delivery_id:
+            return None
+    else:
+        task_result = app.send_task(
+            name="apps.ai.tasks.skill_ask",
+            kwargs={
+                "request_data_dict": request_payload,
+                "skill_config_dict": skill_config_payload,
+            },
+            queue="app_ai",
+        )
+        delivery_id = task_result.id
     await cache_service.delete(cache_key)
-    logger.info("Dispatched async skill continuation task %s for completed task %s", task_result.id, async_task_id)
-    return task_result.id
+    logger.info("Dispatched async skill continuation task %s for completed task %s", delivery_id, async_task_id)
+    return delivery_id
 
 
 async def dispatch_same_turn_barrier(
@@ -774,7 +1042,9 @@ async def cancel_same_turn_source(
         metadata.get("chat_id") != chat_id,
         metadata.get("source_delivery_task_id") != source_task_id,
     )):
-        return False
+        return await cancel_async_recovery_handoff_source(
+            cache_service, user_id=user_id, chat_id=chat_id, source_task_id=source_task_id,
+        )
     client = await cache_service.client
     if client is None:
         raise RuntimeError("Paused-turn cancellation authority unavailable")
@@ -857,13 +1127,26 @@ async def dispatch_deferred_async_skill_continuations(
             if user_message is None or capacity_marker not in user_message.content:
                 raise RuntimeError("Synthetic deferred continuation lost its signed replay marker")
         app = _get_celery_app()
-        result = app.send_task(
-            name="apps.ai.tasks.skill_ask",
-            kwargs={"request_data_dict": request_payload,
-                    "skill_config_dict": completion.get("skill_config_dict") or {}},
-            queue="app_ai",
-        )
-        continuation_id = result.id
+        if context.get("recovery_handoff"):
+            authority = await cache_service.get(_async_handoff_key(str(async_task_id)))
+            if not isinstance(authority, dict):
+                await cache_service.delete(result_key)
+                continue
+            continuation_id = await _enqueue_async_recovery_handoff(
+                cache=cache_service, authority=authority, request_payload=request_payload,
+                skill_config=completion.get("skill_config_dict") or {},
+            )
+            if not continuation_id:
+                retained.append(str(async_task_id))
+                continue
+        else:
+            result = app.send_task(
+                name="apps.ai.tasks.skill_ask",
+                kwargs={"request_data_dict": request_payload,
+                        "skill_config_dict": completion.get("skill_config_dict") or {}},
+                queue="app_ai",
+            )
+            continuation_id = result.id
         await cache_service.delete(context_key)
         if continuation_id:
             await cache_service.delete(result_key)
