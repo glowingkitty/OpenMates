@@ -52,6 +52,9 @@ COPY backend/preview/requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
+# Pillow wheels bundle an unpatched Brotli decoder; swap in the patched system one.
+COPY backend/core/api/docker/replace_pillow_brotli.py /tmp/replace_pillow_brotli.py
+RUN python /tmp/replace_pillow_brotli.py && rm /tmp/replace_pillow_brotli.py
 
 # Copy application code and shared provider modules used by preview routes
 COPY backend/preview/ .

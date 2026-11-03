@@ -27,6 +27,7 @@ RUN apt-get clean && \
             libpangocairo-1.0-0 \
             libgdk-pixbuf-xlib-2.0-0 \
             libffi-dev \
+            libbrotli1 \
             shared-mime-info \
             && break || \
         sleep 5; \
@@ -36,6 +37,10 @@ RUN apt-get clean && \
 COPY backend/core/api/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt \
     && pip install --no-cache-dir pytest pytest-asyncio pytest-json-report
+
+# Pillow wheels bundle an unpatched Brotli decoder; swap in the patched system one.
+COPY backend/core/api/docker/replace_pillow_brotli.py /tmp/replace_pillow_brotli.py
+RUN python /tmp/replace_pillow_brotli.py && rm /tmp/replace_pillow_brotli.py
 
 # The isolated AI worker uses this image. Jev batch packing loads both proxy
 # tokenizers before a signed offline fixture reaches its provider boundary.

@@ -42,6 +42,9 @@ RUN python -c "import ctypes; decoder = ctypes.CDLL('libbrotlidec.so.1'); decode
 # Copy and install Python requirements (uploads-specific superset of core requirements)
 COPY backend/upload/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+# Pillow wheels bundle an unpatched Brotli decoder; swap in the patched system one.
+COPY backend/core/api/docker/replace_pillow_brotli.py /tmp/replace_pillow_brotli.py
+RUN python /tmp/replace_pillow_brotli.py && rm /tmp/replace_pillow_brotli.py
 
 # Copy shared backend framework code. base_main.py and Dockerfile.base were
 # deleted in OPE-342 (per-app FastAPI containers were collapsed into in-process
