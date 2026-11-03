@@ -91,3 +91,32 @@ fn enter_on_cached_cards_before_authentication_still_opens_the_chat() {
     let commands = ui.key(key(KeyCode::Enter));
     assert!(matches!(&commands[..], [UiCommand::Open(Workspace::Chats, id)] if id == "a"));
 }
+
+fn screen(ui: &mut Ui) -> String {
+    let mut terminal = ratatui::Terminal::new(ratatui::backend::TestBackend::new(120, 38)).unwrap();
+    terminal.draw(|frame| ui.draw(frame)).unwrap();
+    let buffer = terminal.backend().buffer().clone();
+    (0..38)
+        .map(|y| (0..120).map(|x| buffer[(x, y)].symbol().to_owned()).collect::<String>())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+#[test]
+fn home_shows_ts_navigation_hint_and_places_the_pager_hint_under_the_pager() {
+    let mut ui = chats_home();
+    let text = screen(&mut ui);
+    assert!(text.lines().next().unwrap().contains("Ctrl+G navigation"));
+    let lines: Vec<&str> = text.lines().collect();
+    let pager = lines.iter().position(|l| l.contains("Chat 1 of")).expect("pager");
+    assert!(lines[pager + 1].contains("←/→ choose  ·  Enter open  ·  Tab write"));
+    assert!(lines.iter().any(|l| l.trim() == "Continue where you left off"));
+}
+
+#[test]
+fn opened_chat_header_has_the_chats_breadcrumb() {
+    let mut ui = chats_home();
+    ui.set_chat(Chat { id: "a".into(), title: "Trip plan".into(), ..Chat::default() });
+    let text = screen(&mut ui);
+    assert!(text.contains("› Chats › Trip plan"));
+}

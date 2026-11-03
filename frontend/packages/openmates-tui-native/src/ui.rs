@@ -228,6 +228,10 @@ struct UncertainTurn {
     text: Zeroizing<String>,
     admitted: bool,
 }
+/// Header hint next to the workspace tabs (TS `Ctrl+G navigation`).
+const NAVIGATION_HINT: &str = "Ctrl+G navigation";
+/// Breadcrumb between "‹ Back" and an opened chat's title (TS `‹ Back › Chats › <title>`).
+const CHAT_CRUMB: &str = "› Chats › ";
 struct ActiveTurn {
     chat_id: String,
     user_id: String,
@@ -310,6 +314,19 @@ fn field_list<'a>(item: &'a Item, key: &str) -> &'a [Value] {
         .and_then(Value::as_array)
         .map(Vec::as_slice)
         .unwrap_or(&[])
+}
+/// Breadcrumb plus bold title when the row has room for both.
+fn chat_title_line(title: &str, width: u16) -> Line<'static> {
+    let crumb_width = CHAT_CRUMB.width() as u16;
+    let title_style = Style::default().fg(TEXT).bold();
+    if width > crumb_width + 12 {
+        Line::from(vec![
+            Span::styled(CHAT_CRUMB, Style::default().fg(MUTED)),
+            Span::styled(title.to_owned(), title_style),
+        ])
+    } else {
+        Line::from(Span::styled(title.to_owned(), title_style))
+    }
 }
 fn panel(title: impl Into<String>, focused: bool) -> Block<'static> {
     Block::default()
@@ -3035,6 +3052,12 @@ impl Ui {
             );
             x += width;
         }
+        if self.focus != Focus::Navigation && right.saturating_sub(x) >= 20 {
+            frame.render_widget(
+                Paragraph::new(NAVIGATION_HINT).style(Style::default().fg(MUTED)),
+                Rect::new(x + 1, area.y, right - x - 1, 1),
+            );
+        }
         let label = if settings_width > 4 {
             " ⚙ Settings "
         } else {
@@ -3240,7 +3263,7 @@ impl Ui {
             Rect::new(area.x, area.y + u16::from(area.height > 5), area.width, 1),
         );
         let help = match self.workspace {
-            Workspace::Chats => "Continue where you left off · ←/→ choose · Enter open",
+            Workspace::Chats => "Continue where you left off",
             Workspace::Apps => "Choose an app · ←/→ choose · Enter explore",
             Workspace::Projects => "Your Projects · n create · Enter open",
             Workspace::Workflows => "Automate with Workflows · n create · Enter open",
@@ -3369,6 +3392,12 @@ impl Ui {
                 false,
             );
             if self.workspace == Workspace::Chats && area.height > 15 {
+                frame.render_widget(
+                    Paragraph::new("←/→ choose  ·  Enter open  ·  Tab write")
+                        .alignment(ratatui::layout::Alignment::Center)
+                        .style(Style::default().fg(MUTED)),
+                    Rect::new(area.x, area.y + 12, area.width, 1),
+                );
                 frame.render_widget(
                     Paragraph::new("/search Search chats  ·  Ctrl+N New chat")
                         .alignment(ratatui::layout::Alignment::Center)
@@ -3552,7 +3581,7 @@ impl Ui {
             7
         };
         frame.render_widget(
-            Paragraph::new(markdown::clean(&title)).style(Style::default().fg(TEXT).bold()),
+            Paragraph::new(chat_title_line(&markdown::clean(&title), area.width.saturating_sub(7 + actions))),
             Rect::new(x, area.y, area.width.saturating_sub(7 + actions), 1),
         );
         if area.width > 32 {
