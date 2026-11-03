@@ -12,6 +12,7 @@ import uuid
 from typing import TYPE_CHECKING, Dict, Any, List, Optional
 from datetime import datetime, timezone
 
+import httpx
 from fastapi import WebSocket
 
 from backend.core.api.app.services.cache import CacheService
@@ -59,6 +60,32 @@ PHASE1B_CHAT_READ_CONCURRENCY = 5
 
 class DurableChatDeletionFenceUnavailable(RuntimeError):
     """Do not complete startup sync when explicit deletion cannot be verified."""
+
+
+PHASED_SYNC_RETRY_AFTER_MS = 3000
+# Dependency failures that clear on their own once the host recovers.
+TRANSIENT_SYNC_ERRORS = (
+    DurableChatDeletionFenceUnavailable,
+    httpx.TransportError,
+    asyncio.TimeoutError,
+)
+
+
+def build_retryable_sync_error(
+    sync_phase: str, team_id: Optional[str], context_epoch: Any,
+) -> Dict[str, Any]:
+    """Typed, retryable frame; carries no chat data (fence stays fail-closed)."""
+    return {
+        "type": "phased_sync_retryable_error",
+        "payload": {
+            "code": "sync_dependency_unavailable",
+            "retryable": True,
+            "retry_after_ms": PHASED_SYNC_RETRY_AFTER_MS,
+            "sync_phase": sync_phase,
+            "team_id": team_id,
+            "context_epoch": context_epoch,
+        },
+    }
 
 PHASE1_REQUIRED_ENCRYPTED_FIELDS = (
     "encrypted_chat_key",
@@ -729,9 +756,11 @@ async def handle_phased_sync_request(
         _otel_span, _otel_token = start_ws_handler_span("phased_sync_request", user_id, payload, user_otel_attrs)
     except Exception:
         pass
+    sync_phase = payload.get("phase", "all")
+    team_id = None
+    context_epoch = None
     try:
         try:
-            sync_phase = payload.get("phase", "all")
             # Extract client version data for delta checking
             client_chat_versions = payload.get("client_chat_versions", {})
             client_chat_ids = payload.get("client_chat_ids", [])
@@ -877,8 +906,14 @@ async def handle_phased_sync_request(
         except Exception as e:
             logger.error(f"Error handling phased sync for user {user_id}: {e}", exc_info=True)
             try:
+                if isinstance(e, TRANSIENT_SYNC_ERRORS):
+                    error_frame = build_retryable_sync_error(
+                        sync_phase, team_id, context_epoch,
+                    )
+                else:
+                    error_frame = {"type": "error", "payload": {"message": "Failed to process phased sync request"}}
                 await manager.send_personal_message(
-                    {"type": "error", "payload": {"message": "Failed to process phased sync request"}},
+                    error_frame,
                     user_id,
                     device_fingerprint_hash
                 )
@@ -1913,7 +1948,7 @@ async def _handle_phase2_sync(
 
     except Exception as e:
         logger.error(f"Error in Phase 2 sync for user {user_id}: {e}", exc_info=True)
-        if isinstance(e, DurableChatDeletionFenceUnavailable):
+        if isinstance(e, TRANSIENT_SYNC_ERRORS):
             raise
 
 

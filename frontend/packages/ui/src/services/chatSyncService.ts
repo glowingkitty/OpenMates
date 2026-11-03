@@ -13,6 +13,10 @@ import { websocketStatus } from "../stores/websocketStatusStore";
 import { notificationStore } from "../stores/notificationStore";
 import { aiTypingStore } from "../stores/aiTypingStore";
 import { phasedSyncState } from "../stores/phasedSyncStateStore";
+import {
+  handlePhasedSyncRetryableErrorImpl,
+  type PhasedSyncRetryablePayload,
+} from "./chatSyncPhasedRetry";
 import { chatSyncActivity } from "../stores/chatSyncActivityStore";
 import { activeChatFocusStore } from "../stores/activeChatFocusStore";
 import { activeChatStore } from "../stores/activeChatStore";
@@ -1503,6 +1507,11 @@ export class ChatSynchronizationService extends EventTarget {
         const chatId = activeChatStore.get();
         if (chatId) this.requestQueuedMessages(chatId);
       });
+    });
+    webSocketService.on("phased_sync_retryable_error", (payload) => {
+      const typedPayload = payload as PhasedSyncRetryablePayload;
+      if (!this.isPayloadForActiveContext(typedPayload)) return;
+      handlePhasedSyncRetryableErrorImpl(this, typedPayload);
     });
     webSocketService.on("sync_status_response", (payload) => {
       if (get(activeTeamId)) return;
