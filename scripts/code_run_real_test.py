@@ -197,7 +197,11 @@ def verify(case: dict, snapshot: dict, proof: str, nonce: str) -> tuple[bool, st
     if not eligible:
         return False, "created_code_embed_missing"
     eligible_ids = {embed["embedId"] for embed in eligible}
-    executions = [run for run in snapshot.get("executions", []) if run.get("target_embed_id") in eligible_ids]
+    eligible_files = {str(embed["content"].get("filename")) for embed in eligible if embed["content"].get("filename")}
+    # Multi-file runs target their entrypoint (e.g. run.sh); accept them only
+    # when the server-recorded upload set includes the nonce-bearing source.
+    executions = [run for run in snapshot.get("executions", []) if run.get("target_embed_id") in eligible_ids
+                  or eligible_files.intersection(run.get("files") or [])]
     if not executions:
         return False, "execution_status_missing"
     completed = [run for run in executions if run.get("status") == "finished" and run.get("exit_code") == 0]
@@ -238,8 +242,17 @@ def verify(case: dict, snapshot: dict, proof: str, nonce: str) -> tuple[bool, st
     assistants = [message for message in snapshot.get("messages", []) if message.get("role") == "assistant"]
     # Require a saved assistant answer correlated with the independently checked
     # terminal nonce, not the dispatch acknowledgement or plausible prose alone.
+    # The proof line may be inline or shown through a code embed that this
+    # assistant message itself references.
+    proof_embed_ids = {embed["embedId"] for embed in sources if f"proof={proof}" in embed["content"]["code"]}
+
+    def cites_proof(content: str) -> bool:
+        return f"proof={proof}" in content or any(
+            re.search(rf'"embed_id"\s*:\s*"{re.escape(embed_id)}"', content) for embed_id in proof_embed_ids
+        )
+
     explanation = next((str(message.get("content", "")) for message in reversed(assistants)
-                        if f"proof={proof}" in str(message.get("content", ""))), "")
+                        if cites_proof(str(message.get("content", "")))), "")
     if not explanation:
         text = json.dumps(snapshot)
         if '"scan_status": "unscanned"' in text or re.search(r"withheld|scan.{0,40}unavailable", text, re.I):
