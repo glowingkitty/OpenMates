@@ -30776,7 +30776,7 @@ assertions:
     supporting_tests:
     - &id3935
       path: backend/tests/test_media_generation_safety.py
-      line: 181
+      line: 183
       name: test_audio_generate_rejects_speech_request
       surface: rest_api
     tests:
@@ -30794,7 +30794,7 @@ assertions:
     supporting_tests:
     - &id3936
       path: backend/tests/test_media_generation_safety.py
-      line: 192
+      line: 194
       name: test_audio_generate_allows_short_original_sfx
       surface: rest_api
     tests:
@@ -31210,17 +31210,17 @@ assertions:
       surface: rest_api
     - &id3976
       path: backend/tests/test_media_generation_safety.py
-      line: 202
+      line: 204
       name: test_audio_speak_blocks_seed_phrase_scam
       surface: rest_api
     - &id3977
       path: backend/tests/test_media_generation_safety.py
-      line: 213
+      line: 215
       name: test_audio_speak_blocks_coercive_fake_authority
       surface: rest_api
     - &id3978
       path: backend/tests/test_media_generation_safety.py
-      line: 224
+      line: 226
       name: test_audio_speak_allows_safe_assistant_sample
       surface: rest_api
     tests:

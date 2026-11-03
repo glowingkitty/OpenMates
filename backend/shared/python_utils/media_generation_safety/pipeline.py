@@ -24,6 +24,14 @@ _FAMOUS_PERSON_CONTEXT_RE = re.compile(
     r"narrat(?:e|ion)\s+(?:by|like)|sing(?:ing)?\s+like|deepfake)\b",
     re.IGNORECASE,
 )
+# Assistant narration reads its own prose in a fixed OpenMates voice, so the
+# bare preposition "in" ("the weather in New York") is no imitation signal there.
+_EXPLICIT_IMITATION_RE = re.compile(
+    r"\b(?:imitat(?:e|ing)|clone|copy|mimic|sound(?:s)?\s+like|"
+    r"voice\s+of|style\s+of|persona\s+of|as\s+if\s+(?:it\s+were\s+)?(?:by|from)|"
+    r"narrat(?:e|ion)\s+(?:by|like)|sing(?:ing)?\s+like|deepfake)\b",
+    re.IGNORECASE,
+)
 _NAMED_PERSON_HINT_RE = re.compile(
     r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3}\b"
 )
@@ -183,7 +191,10 @@ def validate_media_generation_request(
             reason="speech_requested_in_sound_effect_skill",
         )
 
-    if _SCAM_RE.search(text):
+    trusted_speech = trusted_narration and normalized_media_type == "speech"
+    # Reporting on scams is ordinary narration; the semantic safeguard still
+    # rejects narration that itself phishes or defrauds the listener (3RZXL).
+    if _SCAM_RE.search(text) and not trusted_speech:
         return MediaGenerationDecision(
             allowed=False,
             category="G1_scam_or_fraud",
@@ -219,7 +230,9 @@ def validate_media_generation_request(
     has_voice_or_persona = bool(_VOICE_OR_PERSONA_RE.search(text))
     has_public_role = bool(_PUBLIC_ROLE_RE.search(text))
     has_named_person = bool(_NAMED_PERSON_HINT_RE.search(text))
-    has_imitation_context = bool(_FAMOUS_PERSON_CONTEXT_RE.search(text))
+    has_imitation_context = bool(
+        (_EXPLICIT_IMITATION_RE if trusted_speech else _FAMOUS_PERSON_CONTEXT_RE).search(text)
+    )
     has_named_person_media_use = bool(_NAMED_PERSON_MEDIA_USE_RE.search(text))
     has_mononym_voice_or_persona = bool(_MONONYM_VOICE_OR_PERSONA_RE.search(text))
     broad_identity_match = (
@@ -231,9 +244,7 @@ def validate_media_generation_request(
     # Assistant-response narration uses a fixed OpenMates voice to read already
     # generated prose. Reporting about a person is not a request to imitate them.
     # User-authored audio.speak requests retain the broader identity heuristic.
-    if broad_identity_match and not (
-        trusted_narration and normalized_media_type == "speech"
-    ):
+    if broad_identity_match and not trusted_speech:
         return MediaGenerationDecision(
             allowed=False,
             category="G3_public_figure_voice_or_persona",

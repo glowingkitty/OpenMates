@@ -1,3 +1,5 @@
+import pytest
+
 # backend/tests/test_media_generation_safety.py
 #
 # Unit coverage for prompt-level generated media safety.
@@ -254,3 +256,22 @@ def test_trusted_assistant_narration_still_blocks_explicit_voice_imitation():
 
     assert not decision.allowed
     assert decision.category == "G3_public_figure_voice_or_persona"
+
+
+@pytest.mark.parametrize("prompt", [
+    "The weather in New York is sunny today.",
+    "In Berlin, Chancellor Merz met the French President.",
+    "Police arrested three suspects in a phishing scam that targeted pensioners.",
+])
+def test_trusted_assistant_narration_allows_ordinary_places_people_and_scam_news(prompt):
+    # Live call replies were cut off when "in" plus two capitalised words read
+    # as public-figure imitation, and scam reporting as a scam (issue 3RZXL).
+    assert validate_media_generation_request(media_type="speech", prompt=prompt, trusted_narration=True).allowed
+
+
+def test_user_authored_speech_keeps_scam_and_imitation_heuristics():
+    scam = validate_media_generation_request(media_type="speech", prompt="Write a phishing call script.")
+    imitation = validate_media_generation_request(media_type="speech", prompt="Read this in Sam Altman voice.")
+
+    assert scam.category == "G1_scam_or_fraud"
+    assert imitation.category == "G3_public_figure_voice_or_persona"
