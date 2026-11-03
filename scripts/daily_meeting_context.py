@@ -26,7 +26,6 @@ from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 TZ = ZoneInfo("Europe/Berlin")
-PROJECT_ID = "96033196-e4b1-431e-b773-ba221e952fed"
 TRANSCRIPTS = Path.home() / ".claude" / "projects"
 MARKETING_REPO = next((p / "openmates-marketing" for p in ROOT.parents
                        if (p / "openmates-marketing" / ".git").exists()), ROOT.parent / "openmates-marketing")
@@ -177,9 +176,11 @@ def git_summary(root: Path, since: datetime, gaps: list[str]) -> dict:
     }
 
 
-def task_snapshot(gaps: list[str], project: str = PROJECT_ID) -> list[dict] | None:
+def task_snapshot(gaps: list[str]) -> list[dict] | None:
+    """All of the account's Tasks: agents often create Tasks without linking the
+    OpenMates project, so a --project filter would hide them from the meeting."""
     try:
-        run = subprocess.run(["openmates", "tasks", "list", "--project", project, "--json"],
+        run = subprocess.run(["openmates", "tasks", "list", "--json"],
                              capture_output=True, text=True, timeout=180)
         data = json.loads(run.stdout)
     except (OSError, subprocess.TimeoutExpired, ValueError) as error:
@@ -245,7 +246,7 @@ def task_summary(tasks: list[dict] | None, previous: list[dict] | None,
             "blocked": [_compact(t) for t in by_status.get("blocked", [])],
             "todo_top": [_compact(t) for t in _by_priority(by_status.get("todo", []))[:40]],
             "backlog_top": [_compact(t) for t in _by_priority(by_status.get("backlog", []))[:15]],
-            "more": "full lists: openmates tasks list --project " + PROJECT_ID + " --json",
+            "more": "full lists: openmates tasks list --status <status> --json",
         },
         "changed_since_last_meeting": [c for c in changes if c["to"] != "done"],
         "baseline": "previous snapshot" if previous else "none (first run; no change diff)",
@@ -444,7 +445,11 @@ def focus(root: Path) -> str:
 
 
 def previous_meeting(root: Path, today: str) -> dict | None:
-    """Most recent earlier meeting record written by daily_meeting.py --record."""
+    """Most recent earlier decisions note (<date>-decisions.md), else a legacy meeting record."""
+    notes = sorted(p for p in (root / "logs/daily-meetings").glob("????-??-??-decisions.md")
+                   if p.name[:10] < today)
+    if notes:
+        return {"date": notes[-1].name[:10], "decisions": notes[-1].read_text()[:6000]}
     for path in sorted((root / "logs/daily-meetings").glob("????-??-??.json"), reverse=True):
         if path.stem < today:
             meetings = json.loads(path.read_text()).get("meetings", {})

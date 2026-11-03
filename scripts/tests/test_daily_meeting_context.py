@@ -159,3 +159,13 @@ def test_product_overview_reads_tagline_description_and_features_from_readme(tmp
     assert product == {"tagline": "Your agentic OS. Privacy first.",
                        "description": "OpenMates is an open-source assistant.",
                        "features": ["**Apps inside chat:** search", "**Privacy:** encrypted"]}
+
+
+def test_previous_meeting_prefers_the_latest_earlier_decisions_note(tmp_path):
+    folder = tmp_path / "logs/daily-meetings"
+    folder.mkdir(parents=True)
+    (folder / "2026-11-02-decisions.md").write_text("DECISIONS 2026-11-02")
+    (folder / "2026-11-03-decisions.md").write_text("DECISIONS 2026-11-03\nFocus: recordings")
+    (folder / "2026-11-04-decisions.md").write_text("DECISIONS 2026-11-04")
+    assert brief.previous_meeting(tmp_path, "2026-11-04") == {
+        "date": "2026-11-03", "decisions": "DECISIONS 2026-11-03\nFocus: recordings"}

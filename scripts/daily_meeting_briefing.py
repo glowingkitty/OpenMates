@@ -188,6 +188,11 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
             "matters but need not fill the week.", ""]
     focus_text = re.sub(r"^(#{1,2}) ", "### ", ev.get("focus_file", "").strip(), flags=re.M)
     out += ["## 1. Focus file (FOCUS.md)", "", focus_text or "_FOCUS.md missing._", ""]
+    previous = ev.get("previous_meeting") or {}
+    if previous.get("decisions"):
+        out += [f"### Decisions from the last meeting ({previous['date']})",
+                "Check what was done; carry over what wasn't.", "", "```",
+                previous["decisions"].strip(), "```", ""]
 
     out += ["## 2. Since the last meeting", ""]
     for theme in chats_summary.get("themes", []):

@@ -28,6 +28,9 @@ The note is the user's approved decision: apply it without re-asking, and ask
 only when an item is ambiguous (e.g. a reminder title matches none or several).
 
 ## Apply
+0. **Save the note** verbatim as `logs/daily-meetings/<date>-decisions.md`
+   (chmod 600, private); the next briefing shows it as the previous meeting.
+   Personal notes (health, authorities, private links) stay there, never in FOCUS.md.
 1. **FOCUS.md** (repo root, work-related only): set *Today's focus* (focus + the
    tasks with done-criteria, dated), apply parking-lot additions/removals (tag
    each addition with the date), replace *Current week's goals* if changed.
@@ -40,11 +43,12 @@ only when an item is ambiguous (e.g. a reminder title matches none or several).
    failures by title. Mac offline: save the list as
    `logs/daily-meetings/<date>-pending-reminders.json`, tell the user, and apply
    it when they say the Mac is online. No deletes; writes only to OpenMates and
-   Personal Tasks.
+   Personal Tasks. A move keeps the reminder's time of day unless the note names one.
 3. **OpenMates Tasks** are the agents' work queue (Reminders are the user's
    inbox). For each agreed task that agents work on: find the existing Task
-   (`openmates tasks list --project 96033196-e4b1-431e-b773-ba221e952fed --json`)
-   or create it (`openmates tasks create --project <id> --title … --description
+   (`openmates tasks list --json`; Tasks created by chats are often not linked to
+   the project) or create it (`openmates tasks create --project
+   96033196-e4b1-431e-b773-ba221e952fed --title … --description
    "<goal, done-criterion, date>" --priority … --assign external-ai`). Parking-lot
    items that already have Tasks move to `backlog`. Never mark incomplete work Done.
 4. **Work chats** (optional, ask once with a recommendation): one Claude chat per
