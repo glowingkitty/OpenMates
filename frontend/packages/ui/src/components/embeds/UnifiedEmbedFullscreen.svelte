@@ -1640,7 +1640,7 @@
   .fixed-bottom { flex-shrink: 0; position: relative; z-index: 1000; padding: 12px max(16px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)); background: var(--embed-content-background); }
   .fixed-bottom.floating-bottom { position: absolute; inset-inline: 0; bottom: 0; background: linear-gradient(transparent, var(--embed-content-background)); pointer-events: none; }
   .floating-bottom :global(.result-followup) { pointer-events: auto; }
-  .content-area.app-home-content { display: flex; flex-direction: column; overflow: hidden; }
+  .content-area.app-home-content { display: flex; flex-direction: column; overflow-x: hidden; overflow-y: auto; }
 
   .content-area {
     min-height: 0;
