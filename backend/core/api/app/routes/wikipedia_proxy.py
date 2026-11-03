@@ -31,6 +31,7 @@ from fastapi.responses import JSONResponse
 
 from backend.core.api.app.routes.apps_api import charge_credits_via_internal_api
 from backend.core.api.app.services.limiter import limiter
+from backend.core.api.app.utils.session_principal_consistency import is_expected_principal_mismatch
 from backend.shared.providers.wikipedia.wikipedia_api import (
     batch_validate_topics,
     fetch_page_summary,
@@ -252,7 +253,10 @@ async def _authorize_request(request: Request, response: Response) -> Dict[str, 
             refresh_token=refresh_token,
         )
         return auth_info
-    except HTTPException:
+    except HTTPException as exc:
+        # The closed owner-consistency refusal must reach the client unchanged.
+        if is_expected_principal_mismatch(exc):
+            raise
         raise HTTPException(
             status_code=401,
             detail="Not authenticated: request must come from the web-app origin, include a valid session cookie, or a valid API key.",

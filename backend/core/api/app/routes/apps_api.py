@@ -11,6 +11,8 @@
 import logging
 import base64
 import httpx
+from backend.core.api.app.utils.session_principal_consistency import is_expected_principal_mismatch
+
 import hashlib
 import os
 import json
@@ -341,8 +343,10 @@ async def get_session_or_api_key_info(
                 "email": getattr(user, "encrypted_email_address", None),
                 "vault_key_id": getattr(user, "vault_key_id", None),
             }
-        except HTTPException:
-            pass  # session invalid — fall through to API key
+        except HTTPException as exc:
+            if is_expected_principal_mismatch(exc):
+                raise
+            pass  # legacy session invalid — fall through to API key
 
     # --- 2. Try API key ---
     auth_header = request.headers.get("Authorization")

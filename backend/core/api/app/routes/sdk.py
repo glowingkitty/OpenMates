@@ -6,6 +6,8 @@ Security: returns only API-key-wrapped master key material, never plaintext keys
 Scope: SDK bootstrap routes; chat execution routes are added in later slices.
 """
 
+from backend.core.api.app.utils.session_principal_consistency import require_expected_principal
+
 import hashlib
 import importlib
 import inspect
@@ -246,7 +248,9 @@ async def _authenticate_sdk_request(request: Request) -> dict[str, Any]:
 
     api_key = auth_header.removeprefix("Bearer ").strip()
     try:
-        return await get_api_key_auth_service(request).authenticate_api_key(api_key, request=request)
+        authenticated = await get_api_key_auth_service(request).authenticate_api_key(api_key, request=request)
+        require_expected_principal(request, authenticated.get("user_id"))
+        return authenticated
     except DeviceNotApprovedError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except ApiKeyNotFoundError as exc:

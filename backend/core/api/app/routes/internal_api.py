@@ -22,6 +22,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from datetime import datetime, timezone
 
 from backend.core.api.app.utils.internal_auth import VerifiedInternalRequest
+from backend.core.api.app.utils.session_principal_consistency import require_expected_principal
 from backend.core.api.app.utils.config_manager import ConfigManager
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError
@@ -355,6 +356,8 @@ async def validate_token_route(
     Called by the app-uploads microservice to authenticate upload requests
     without duplicating auth logic. The refresh token is forwarded from the
     client's cookie via the X-Refresh-Token header.
+    An optional X-OpenMates-Expected-Principal header forwarded from the browser
+    is refused with 403 session_principal_mismatch when it names another owner.
 
     Security:
     - Protected by INTERNAL_API_SHARED_TOKEN (same as all /internal/* routes).
@@ -382,6 +385,9 @@ async def validate_token_route(
             )
             raise HTTPException(status_code=401, detail="Invalid or incomplete user session")
 
+        # The upload service forwards the browser's optional owner assertion.
+        require_expected_principal(request, user_id)
+
         logger.debug(f"[ValidateToken] Token validated from cache for user {user_id[:8]}...")
         return ValidateTokenResponse(
             user_id=user_id,
@@ -404,6 +410,7 @@ async def validate_token_route(
     user_id = token_data.get("id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token data: Missing user ID")
+    require_expected_principal(request, user_id)
 
     # Fetch full user profile for vault_key_id
     try:

@@ -357,3 +357,29 @@ async def test_proxy_search_rejects_unauthenticated_before_upstream_fetch(
 
     assert getattr(exc_info.value, "status_code", None) == 401
     fetch.assert_not_awaited()
+
+
+# contract-test: direct surface=rest_api assertions=owner-consistency.http.refuse-before-effect
+@pytest.mark.parametrize("raised,expected_status", [
+    (HTTPException(status_code=403, detail={"error": "session_principal_mismatch"}), 403),
+    (HTTPException(status_code=401, detail="unauthenticated"), 401),
+])
+async def test_proxy_auth_keeps_owner_mismatch_refusal_unrewritten(
+    monkeypatch: pytest.MonkeyPatch, raised: HTTPException, expected_status: int,
+) -> None:
+    wikipedia_proxy = _import_wikipedia_proxy()
+    apps_api = sys.modules["backend.core.api.app.routes.apps_api"]
+    monkeypatch.setattr(apps_api, "get_session_or_api_key_info", AsyncMock(side_effect=raised))
+    for name, attr in (("cache", "CacheService"), ("directus", "DirectusService")):
+        stub = types.ModuleType(f"backend.core.api.app.services.{name}")
+        setattr(stub, attr, lambda **_kwargs: object())
+        monkeypatch.setitem(sys.modules, f"backend.core.api.app.services.{name}", stub)
+    request = SimpleNamespace(
+        headers={}, cookies={"auth_refresh_token": "synthetic"},
+        app=SimpleNamespace(state=SimpleNamespace(allowed_origins=[])),
+    )
+    with pytest.raises(HTTPException) as error:
+        await wikipedia_proxy._authorize_request(request, SimpleNamespace())
+    assert error.value.status_code == expected_status
+    if expected_status == 403:
+        assert error.value.detail == {"error": "session_principal_mismatch"}

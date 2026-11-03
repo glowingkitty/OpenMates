@@ -7,6 +7,7 @@
 import { getApiUrl } from '../config/api';
 import { getWebSocketToken } from '../utils/cookies';
 import { getSessionId } from '../utils/sessionId';
+import { websocketTokenNeedsRefresh } from './audioRealtimeTranscription';
 import type { CodeRunEvent, CodeRunStatus, CodeRunStreamMessage, CodeRunDependencyInstall } from './codeRunService';
 
 export class NotebookRunStartError extends Error {
@@ -108,8 +109,10 @@ export function getNotebookRunStreamUrl(executionId: string): string {
   const params = new URLSearchParams();
   params.set('sessionId', getSessionId());
 
+  // The cookie authenticates first-party browsers; the server refuses a cookie
+  // paired with an expired query token, so only attach a still-valid token.
   const token = getWebSocketToken();
-  if (token) {
+  if (token && !websocketTokenNeedsRefresh(token)) {
     params.set('token', token);
   }
 

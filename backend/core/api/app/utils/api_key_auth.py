@@ -9,6 +9,10 @@
 # Notification pattern mirrors the reminder_fired / user_notification flow in
 # websockets.py + chatSyncServiceHandlersAppSettings.ts.
 
+from backend.core.api.app.utils.session_principal_consistency import (
+    require_expected_principal, is_expected_principal_mismatch,
+)
+
 import hashlib
 import logging
 from datetime import datetime, timezone
@@ -125,6 +129,10 @@ class ApiKeyAuthService:
             if not user_id:
                 raise ApiKeyNotFoundError("API key record missing user_id")
 
+            # Authentication is established; refuse a conflicting owner before
+            # device registration, usage metadata or downstream business effects.
+            require_expected_principal(request, user_id)
+
             # Check device approval - BLOCKS if device is new or not approved
             # First request from new device is blocked until user approves in web UI
             device_hash = None
@@ -169,6 +177,12 @@ class ApiKeyAuthService:
             raise
         except DeviceNotApprovedError:
             raise
+        except HTTPException as exc:
+            if is_expected_principal_mismatch(exc):
+                raise
+            # Preserve prior normalization for unrelated auth internals.
+            logger.error("Error authenticating API key", exc_info=True)
+            raise ApiKeyNotFoundError("Authentication failed") from exc
         except Exception as e:
             logger.error(f"Error authenticating API key: {e}", exc_info=True)
             raise ApiKeyNotFoundError("Authentication failed")

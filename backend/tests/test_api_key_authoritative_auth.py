@@ -77,3 +77,30 @@ def test_unknown_sdk_header_stays_ip_scoped_rest_access():
     service = ApiKeyAuthService(SimpleNamespace(), SimpleNamespace())
     request = SimpleNamespace(headers={"X-OpenMates-SDK": "unknown"})
     assert service._access_type_for_request(request) == "rest_api"
+
+
+# contract-test: direct surface=rest_api assertions=auth.session.isolation,owner-consistency.http.refuse-before-effect
+@pytest.mark.asyncio
+@pytest.mark.parametrize("expected,allowed", [(None, True), ("22222222-2222-4222-8222-222222222222", True), ("11111111-1111-4111-8111-111111111111", False)])
+async def test_request_aware_api_key_restriction_precedes_device_and_usage_effects(expected, allowed):
+    from fastapi import HTTPException
+    from starlette.requests import Request
+    directus = Directus()
+    directus.row["user_id"] = "22222222-2222-4222-8222-222222222222"
+    directus.update_api_key_last_used = AsyncMock(return_value=True)
+    service = ApiKeyAuthService(directus, SimpleNamespace())
+    service._check_and_register_device = AsyncMock(return_value="synthetic-device")
+    headers = [] if expected is None else [(b"x-openmates-expected-principal", expected.encode())]
+    request = Request({"type": "http", "headers": headers})
+    if allowed:
+        result = await service.authenticate_api_key("sk-api-synthetic", request=request)
+        assert result["user_id"] == directus.row["user_id"]
+        service._check_and_register_device.assert_awaited_once()
+        directus.update_api_key_last_used.assert_awaited_once()
+    else:
+        with pytest.raises(HTTPException) as error:
+            await service.authenticate_api_key("sk-api-synthetic", request=request)
+        assert error.value.status_code == 403
+        assert error.value.detail == {"error": "session_principal_mismatch"}
+        service._check_and_register_device.assert_not_awaited()
+        directus.update_api_key_last_used.assert_not_awaited()

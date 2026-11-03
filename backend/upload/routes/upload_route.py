@@ -437,6 +437,19 @@ def _get_target_environment(request: Request) -> str:
     return "dev" if server_env in {"dev", "development"} else "prod"
 
 
+EXPECTED_PRINCIPAL_HEADER = "X-OpenMates-Expected-Principal"
+PRINCIPAL_MISMATCH_DETAIL = {"error": "session_principal_mismatch"}
+
+
+def _is_principal_mismatch_body(resp: httpx.Response) -> bool:
+    """Only the core API's closed owner-consistency refusal is relayed as 403."""
+    try:
+        body = resp.json()
+    except ValueError:
+        return False
+    return isinstance(body, dict) and body.get("detail") == PRINCIPAL_MISMATCH_DETAIL
+
+
 def _get_core_api_credentials(request: Request) -> tuple[str, str]:
     """
     Return the (core_api_url, internal_token) pair for this request.
@@ -489,19 +502,28 @@ async def get_authenticated_user(
 
     core_api_url, internal_token = _get_core_api_credentials(request)
 
+    expected_principals = request.headers.getlist(EXPECTED_PRINCIPAL_HEADER)
+    # A non-ASCII value can never be a canonical UUID and cannot be forwarded
+    # as an HTTP header, so it gets the same closed refusal without upload work.
+    if any(not value.isascii() for value in expected_principals):
+        raise HTTPException(status_code=403, detail=PRINCIPAL_MISMATCH_DETAIL)
+
     try:
+        # Forward every optional owner assertion value unchanged; the core API
+        # refuses duplicates, malformed values and other owners.
+        headers = [
+            ("X-Internal-Service-Token", internal_token),
+            ("X-Refresh-Token", refresh_token),
+            *((EXPECTED_PRINCIPAL_HEADER, value) for value in expected_principals),
+        ]
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(
-                f"{core_api_url}/internal/validate-token",
-                headers={
-                    "X-Internal-Service-Token": internal_token,
-                    "X-Refresh-Token": refresh_token,
-                },
-            )
+            resp = await client.get(f"{core_api_url}/internal/validate-token", headers=headers)
         if resp.status_code == 200:
             return resp.json()
         elif resp.status_code == 401:
             raise HTTPException(status_code=401, detail="Invalid or expired token")
+        elif resp.status_code == 403 and _is_principal_mismatch_body(resp):
+            raise HTTPException(status_code=403, detail=PRINCIPAL_MISMATCH_DETAIL)
         else:
             logger.error(f"[Upload Auth] Core API returned {resp.status_code}: {resp.text[:200]}")
             raise HTTPException(status_code=502, detail="Authentication service unavailable")

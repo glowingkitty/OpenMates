@@ -66,6 +66,14 @@ specifications:
     fingerprint: 91bc8260b7eb07974b79477c74046e823872424cfd1ddec0d04e6567cd5b8bdf
     required_applies_to:
     - cli
+  architecture.session-owner-consistency:
+    version: 1
+    status: draft
+    path: architecture/session-owner-consistency
+    fingerprint: 925a45d23ccc87e3c717b3480fa27bf872a9817817f241fdc013a67a015eb267
+    required_applies_to:
+    - rest_api
+    - gui.web
   architecture.storage-lifecycle:
     version: 2
     status: draft
@@ -1752,6 +1760,54 @@ assertions:
     fingerprint: b6b12a31c596be6b9c78157f07b62923bd19937e3088b84a34a159091af2078b
     required_applies_to:
     - cli
+  owner-consistency.header.restriction-only:
+    specification: architecture.session-owner-consistency@1
+    specification_id: architecture.session-owner-consistency
+    type: security
+    fingerprint: 276b127649e4f182fac9cf5acdeccb4f29033d7f87adf5cc9593c439c8a798c2
+    required_applies_to:
+    - rest_api
+    - gui.web
+  owner-consistency.http.refuse-before-effect:
+    specification: architecture.session-owner-consistency@1
+    specification_id: architecture.session-owner-consistency
+    type: security
+    fingerprint: fe66c53c28bb736f666c2487de4ab37dee28ddcdf7babb26ee81a56c1542a40a
+    required_applies_to:
+    - rest_api
+    - gui.web
+  owner-consistency.logout.no-cross-owner-clear:
+    specification: architecture.session-owner-consistency@1
+    specification_id: architecture.session-owner-consistency
+    type: security
+    fingerprint: 17ee5ae296455ad0b4dd2bd634297ee6a982d202a5b6d1f47b728420fe44154d
+    required_applies_to:
+    - rest_api
+    - gui.web
+  owner-consistency.ws.dual-principal:
+    specification: architecture.session-owner-consistency@1
+    specification_id: architecture.session-owner-consistency
+    type: security
+    fingerprint: bdb2fd6c4290bddfd059b037faafd0c2356e96cd9f781747e510f3d52279741a
+    required_applies_to:
+    - rest_api
+    - gui.web
+  owner-consistency.uploads.forwarded:
+    specification: architecture.session-owner-consistency@1
+    specification_id: architecture.session-owner-consistency
+    type: security
+    fingerprint: a36f7b4bd849abaf2c94589b815c3601fbed133780775fd0d6912dcf25677687
+    required_applies_to:
+    - rest_api
+    - gui.web
+  owner-consistency.capabilities.advertised-when-live:
+    specification: architecture.session-owner-consistency@1
+    specification_id: architecture.session-owner-consistency
+    type: invariant
+    fingerprint: 46c3df4ec55c9e10a6465e9ec2e574feec4dee997c0f3aa8604f3b41a69cbcf2
+    required_applies_to:
+    - rest_api
+    - gui.web
   storage.client.shared-policy-existing-adapters:
     specification: architecture.storage-lifecycle@2
     specification_id: architecture.storage-lifecycle
