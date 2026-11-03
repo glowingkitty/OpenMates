@@ -12,7 +12,9 @@ Personal Tasks lists; writes are limited to those lists and never delete
   complete|set-due|update|move  single changes by reminder id
   batch --file changes.json     [{"action": "set-due", "id": ..., "due": ...}, ...]
 
-Dates: YYYY-MM-DD (all-day) or an ISO timestamp with offset.
+Due: always a time of day — "YYYY-MM-DD HH:MM" (Berlin) or an ISO instant. A bare
+date is refused so the reminder shows at a clear time in Reminders and Calendar;
+the Mac helper also sets the start date and one alarm at that time.
 Docs: docs/contributing/guides/daily-meeting.md
 """
 
@@ -36,6 +38,31 @@ CACHE = Path.home() / ".local/state/openmates/reminders-cache.json"
 
 class RemindersError(RuntimeError):
     """The Mac could not be reached or rejected the request."""
+
+
+def normalize_due(value: str | None) -> str | None:
+    """Rule: a reminder is never due on a bare day, always at a time of day.
+
+    Accepts "YYYY-MM-DD HH:MM" / "YYYY-MM-DDTHH:MM" (Berlin time) or an ISO
+    instant with offset; returns an ISO instant. Empty clears the due date.
+    """
+    if value is None or value == "":
+        return value
+    text = value.strip()
+    if len(text) == 10:
+        raise RemindersError(f"due_time_required: {text!r} has no time of day; use 'YYYY-MM-DD HH:MM'")
+    try:
+        moment = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError as error:
+        raise RemindersError(f"invalid_due: {text!r}") from error
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=TZ)
+    return moment.isoformat(timespec="seconds")  # EventKit parser needs seconds
+
+
+def checked_ops(ops: list[dict]) -> list[dict]:
+    """Normalize every due in a batch before anything reaches the Mac."""
+    return [op | {"due": normalize_due(op["due"])} if "due" in op else op for op in ops]
 
 
 def remote(request: dict, timeout: int = 180) -> object:
@@ -159,13 +186,13 @@ def main(argv: list[str] | None = None) -> int:
     create = sub.add_parser("create")
     create.add_argument("--list", required=True, choices=LISTS)
     create.add_argument("--title", required=True)
-    create.add_argument("--due")
+    create.add_argument("--due", help="'YYYY-MM-DD HH:MM' Berlin time; a time is required")
     create.add_argument("--notes")
     for name in ("complete", "set-due", "update", "move"):
         cmd = sub.add_parser(name)
         cmd.add_argument("--id", required=True)
         if name == "set-due":
-            cmd.add_argument("--due", default="", help="empty clears the due date")
+            cmd.add_argument("--due", default="", help="'YYYY-MM-DD HH:MM' Berlin time; empty clears it")
         if name == "update":
             cmd.add_argument("--title")
             cmd.add_argument("--notes")
@@ -195,11 +222,13 @@ def main(argv: list[str] | None = None) -> int:
         ops = json.loads(args.file.read_text())
         if not isinstance(ops, list):
             raise SystemExit("batch file must hold a JSON list of changes")
-        result = remote({"action": "batch", "ops": ops})
+        result = remote({"action": "batch", "ops": checked_ops(ops)})
     else:
         request = {key.replace("_", "-") if key == "command" else key: value
                    for key, value in vars(args).items() if value is not None}
         request["action"] = request.pop("command")
+        if "due" in request:
+            request["due"] = normalize_due(request["due"])
         result = remote(request)
     print(json.dumps(result, indent=1, ensure_ascii=False))
     return 0

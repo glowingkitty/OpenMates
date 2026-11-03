@@ -60,3 +60,24 @@ def test_load_falls_back_to_cache_when_mac_is_offline(tmp_path, monkeypatch):
     monkeypatch.setattr(mac_reminders, "sync", offline)
     items, source, fetched = mac_reminders.load(cache=cache)
     assert (items, source, fetched) == ([{"title": "a"}], "cache", "2026-11-03T07:30:00+00:00")
+
+
+def test_due_requires_a_time_of_day():
+    import pytest
+
+    with pytest.raises(mac_reminders.RemindersError, match="due_time_required"):
+        mac_reminders.normalize_due("2026-11-04")
+    assert mac_reminders.normalize_due("2026-11-04 15:00") == "2026-11-04T15:00:00+01:00"
+    assert mac_reminders.normalize_due("2026-11-04T10:00:00Z") == "2026-11-04T10:00:00+00:00"
+    assert mac_reminders.normalize_due("") == ""
+    with pytest.raises(mac_reminders.RemindersError, match="due_time_required"):
+        mac_reminders.checked_ops([{"action": "create", "title": "x", "due": "2026-11-05"}])
+
+
+def test_mac_helper_refuses_bare_dates_and_sets_start_and_alarm():
+    from scripts import _apple_reminders_remote as helper
+
+    assert '"due_time_required"' in helper.SWIFT
+    assert "r.startDateComponents = components" in helper.SWIFT
+    assert "EKAlarm(absoluteDate:" in helper.SWIFT
+    assert "r.dueDateComponents = try dueComponents" not in helper.SWIFT

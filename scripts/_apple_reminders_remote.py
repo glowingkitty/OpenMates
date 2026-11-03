@@ -56,22 +56,34 @@ func describe(_ r: EKReminder) -> [String: Any] {
             due = String(format: "%04d-%02d-%02d", y, m, d)  // all-day: a date, not an instant
         } else if let d = Calendar.current.date(from: c) { due = iso.string(from: d) }
     }
+    var start: Any = NSNull()
+    if let c = r.startDateComponents, let d = Calendar.current.date(from: c) { start = iso.string(from: d) }
+    let alarms: [Any] = (r.alarms ?? []).map { a in
+        if let d = a.absoluteDate { return iso.string(from: d) }
+        return "relative:\(Int(a.relativeOffset))"
+    }
     return ["id": prefix + r.calendarItemIdentifier, "title": r.title ?? "", "notes": r.notes ?? "",
             "list": r.calendar.title, "due": due, "due_has_time": r.dueDateComponents?.hour != nil,
+            "start": start, "alarms": alarms,
             "priority": r.priority, "completed": r.isCompleted,
             "created": r.creationDate.map { iso.string(from: $0) } ?? NSNull()]
 }
 func dueComponents(_ value: Any?) throws -> DateComponents? {
     guard let text = value as? String, !text.isEmpty else { return nil }
-    if text.count == 10 {  // YYYY-MM-DD: all-day reminder
-        let parts = text.split(separator: "-").compactMap { Int($0) }
-        if parts.count != 3 { throw OpError(code: "invalid_due") }
-        return DateComponents(year: parts[0], month: parts[1], day: parts[2])
-    }
+    // Rule: reminders always get a time of day; a bare YYYY-MM-DD is refused.
+    if text.count == 10 { throw OpError(code: "due_time_required") }
     let fractional = ISO8601DateFormatter()
     fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     guard let date = iso.date(from: text) ?? fractional.date(from: text) else { throw OpError(code: "invalid_due") }
     return Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .timeZone], from: date)
+}
+// Due, start and alarm move together so Reminders and Calendar show the same moment.
+func applyDue(_ r: EKReminder, _ value: Any?) throws {
+    let components = try dueComponents(value)
+    r.dueDateComponents = components
+    r.startDateComponents = components
+    for alarm in r.alarms ?? [] { r.removeAlarm(alarm) }
+    if let c = components, let d = Calendar.current.date(from: c) { r.addAlarm(EKAlarm(absoluteDate: d)) }
 }
 func requireWritable(_ cal: EKCalendar) throws {
     if !writable.contains(cal.title) { throw OpError(code: "list_not_writable:" + cal.title) }
@@ -111,13 +123,13 @@ func perform(_ req: [String: Any]) throws -> Any {
         r.title = req["title"] as? String ?? ""
         if r.title.isEmpty { throw OpError(code: "title_required") }
         r.notes = req["notes"] as? String
-        r.dueDateComponents = try dueComponents(req["due"])
+        try applyDue(r, req["due"])
         if let p = req["priority"] as? Int { r.priority = p }
         return try save(r)
     case "complete":
         let r = try reminder(req); r.isCompleted = true; return try save(r)
     case "set-due":
-        let r = try reminder(req); r.dueDateComponents = try dueComponents(req["due"]); return try save(r)
+        let r = try reminder(req); try applyDue(r, req["due"]); return try save(r)
     case "update":
         let r = try reminder(req)
         if let t = req["title"] as? String { r.title = t }

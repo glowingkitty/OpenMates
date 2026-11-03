@@ -15,9 +15,9 @@ Focus: …
 Tasks:
 1. … (done when: …)
 Reminders:
-- "<exact title>" -> done | move YYYY-MM-DD | keep
+- "<exact title>" -> done | move YYYY-MM-DD HH:MM | keep
 New reminders:
-- "<title>" (OpenMates|Personal Tasks, YYYY-MM-DD)
+- "<title>" (OpenMates|Personal Tasks, YYYY-MM-DD HH:MM)
 Parking lot:
 + … | - …
 Week goals: unchanged | …
@@ -44,6 +44,9 @@ only when an item is ambiguous (e.g. a reminder title matches none or several).
    `logs/daily-meetings/<date>-pending-reminders.json`, tell the user, and apply
    it when they say the Mac is online. No deletes; writes only to OpenMates and
    Personal Tasks. A move keeps the reminder's time of day unless the note names one.
+   **Rule: never a date-only reminder.** Every due has a time (`YYYY-MM-DD HH:MM`,
+   Berlin); if the note gives only a date, pick a sensible time and report it.
+   The tools refuse bare dates; the Mac helper sets due, start and one alarm together.
 3. **OpenMates Tasks** are the agents' work queue (Reminders are the user's
    inbox). For each agreed task that agents work on: find the existing Task
    (`openmates tasks list --json`; Tasks created by chats are often not linked to

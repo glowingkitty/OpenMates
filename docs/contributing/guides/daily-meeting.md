@@ -37,3 +37,8 @@ Tailscale SSH → fixed EventKit helper `scripts/_apple_reminders_remote.py` on 
 Mac. Writes only to OpenMates and Personal Tasks; no delete action. EventKit,
 not AppleScript: AppleScript lookups scan every reminder and time out. The
 remote command guard (`apple_no_delete_guard.py`) admits only this helper.
+
+**Due times rule:** a reminder is never due on a bare day. Every due carries a
+time (`YYYY-MM-DD HH:MM`, Berlin); `mac_reminders.py` and the Mac helper refuse
+date-only values. Setting a due also sets the start date and replaces the alarms
+with one alarm at that time, so Reminders and Calendar show the same moment.

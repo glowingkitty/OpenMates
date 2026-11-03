@@ -113,8 +113,9 @@ pulled into new features and bugs while marketing (videos, press) slips.
 refactors, UX polish and bug fixes that do not block marketing; offer the parking lot.
 - Flow: (1) one-sentence recap of yesterday and today's phase; (2) agree **today's \
 single focus** — propose one from the week's goals; (3) go through overdue and \
-today/tomorrow reminders **in groups** (done / move to a date you suggest / keep), \
-not one by one; (4) agree **up to 3 tasks**; (5) parking-lot additions/removals and \
+today/tomorrow reminders **in groups** (done / move to a date and time you suggest / \
+keep), not one by one. Every moved or new reminder needs a **time of day**, never \
+just a date — suggest one; (4) agree **up to 3 tasks**; (5) parking-lot additions/removals and \
 week-goal changes; (6) read back and output the decisions note.
 - Ask clarifying questions in these directions: what blocks this week's goals; \
 deadlines at risk; loose ends from yesterday's chats (finish, park or drop?); \
@@ -130,9 +131,9 @@ Focus: <single most important task today>
 Tasks:
 1. <task> (done when: …)
 Reminders:
-- "<exact reminder title>" -> done | move YYYY-MM-DD | keep
+- "<exact reminder title>" -> done | move YYYY-MM-DD HH:MM | keep
 New reminders:
-- "<title>" (OpenMates|Personal Tasks, YYYY-MM-DD)
+- "<title>" (OpenMates|Personal Tasks, YYYY-MM-DD HH:MM)
 Parking lot:
 + <added item> | - <removed item>
 Week goals: <unchanged | new goals>
