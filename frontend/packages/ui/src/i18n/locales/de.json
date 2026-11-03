@@ -2257,7 +2257,7 @@
             "text": "Bio-Vollmilch bei ExampleGrocer finden"
           },
           "2": {
-            "text": "Spaghetti-Preise bei ExampleGrocer und Amazon vergleichen"
+            "text": "Spaghetti-Preise in verschiedenen Supermärkten vergleichen"
           },
           "3": {
             "text": "Welche veganen Käse-Alternativen gibt es bei ExampleGrocer?"
@@ -8725,9 +8725,6 @@
     },
     "view_on_google_hotels": {
       "text": "Auf Google Hotels ansehen"
-    },
-    "view_on_meetup": {
-      "text": "Auf Gathering ansehen"
     },
     "loading_map": {
       "text": "Karte wird geladen..."
@@ -21073,9 +21070,6 @@
         "text": "Persönliche Daten verbergen",
         "chats": {
           "text": "Chats"
-        },
-        "description": {
-          "text": "OpenMates ersetzt automatisch sensible Daten durch Platzhalter, bevor sie an den OpenMates-Server und externe Anbieter gesendet werden, um deine Privatsphäre zu schützen. Ersetzte Daten werden visuell hervorgehoben. Du kannst jederzeit auf einen ersetzten Dateneintrag klicken, um die Ersetzung zu überschreiben, oder die Funktionalität hier komplett deaktivieren."
         }
       },
       "enhanced_pii_model": {

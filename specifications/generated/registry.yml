@@ -687,7 +687,7 @@ specifications:
     version: 4
     status: draft
     path: features/pii-protection
-    fingerprint: 4a94217ddc2bb2e36cbeb1e3027687a513a922aab9c38ca610b38a5f447fe9d0
+    fingerprint: c0169e8574048c0e6986c05553e518a995ebef93ca01320c262f014f964aa846
     required_applies_to:
     - cli
     - gui.web
@@ -8682,7 +8682,7 @@ assertions:
     specification: feature.pii-protection@4
     specification_id: feature.pii-protection
     type: privacy
-    fingerprint: 73df01757c1f9d6562c0b057798348551ce4ef500a16fef0b3ddf5820bacc251
+    fingerprint: 665ba051591d550763d35b4b492580206849b043068fda951ec570718ef67822
     required_applies_to:
     - cli
     - gui.web

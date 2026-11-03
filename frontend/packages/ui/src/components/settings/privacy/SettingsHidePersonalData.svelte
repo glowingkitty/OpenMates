@@ -21,7 +21,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
     import { createEventDispatcher, onMount } from 'svelte';
     import { text } from '@repo/ui';
     import { getApiEndpoint, apiEndpoints } from '../../../config/api';
-    import { SettingsItem, SettingsSectionHeading, SettingsInfoBox, SettingsGradientLink } from '../../settings/elements';
+    import { SettingsItem, SettingsSectionHeading } from '../../settings/elements';
     import SecurityAuth from '../security/SecurityAuth.svelte';
     import { personalDataStore, type PersonalDataEntry } from '../../../stores/personalDataStore';
     import { isSensitiveAuthValid, recordSensitiveAuthSuccess } from '../../../stores/sensitiveAuthStore';
@@ -264,13 +264,6 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
     />
 </div>
 
-<!-- Description -->
-<div class="description-section">
-    <p class="description-text">
-        {$text('settings.privacy.hide_personal_data.description')}
-    </p>
-</div>
-
 <SettingsItem
     type="subsubmenu"
     icon="subsetting_icon anonym"
@@ -281,15 +274,6 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
     onClick={handleEnhancedToggle}
     data-testid="enhanced-personal-data-protection"
 />
-<SettingsInfoBox plain data-testid="pii-model-disclosure">
-    {$text('settings.privacy.enhanced_protection.description')}
-</SettingsInfoBox>
-<SettingsGradientLink href="https://desertant.com" external dataTestid="pii-model-attribution">
-    {$text('enter_message.pii.model_credit')}
-</SettingsGradientLink>
-<SettingsGradientLink href="https://desertant.com/privacy/" external dataTestid="pii-provider-privacy">
-    {$text('settings.privacy.enhanced_protection.provider_privacy')}
-</SettingsGradientLink>
 
 <!-- ─── Contacts Section (unified Names, Addresses, Birthdays) ─────────────── -->
 <SettingsSectionHeading title={$text('settings.privacy.contacts')} icon="contact" />
@@ -516,17 +500,6 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 <style>
     .master-toggle-row {
         margin-bottom: var(--spacing-2);
-    }
-
-    .description-section {
-        padding: var(--spacing-2) var(--spacing-8) var(--spacing-6);
-    }
-
-    .description-text {
-        font-size: var(--font-size-p);
-        color: var(--color-grey-100);
-        line-height: 1.5;
-        margin: 0;
     }
 
     .add-entry-row :global(.menu-title) {

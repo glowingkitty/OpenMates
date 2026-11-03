@@ -7333,9 +7333,6 @@
     "view_on_google_hotels": {
       "text": "Bekijken op Google Hotels"
     },
-    "view_on_meetup": {
-      "text": "Bekijken op Gathering"
-    },
     "loading_map": {
       "text": "Kaart laden..."
     },
@@ -18143,9 +18140,6 @@
         "text": "Persoonlijke gegevens verbergen",
         "chats": {
           "text": "Chats"
-        },
-        "description": {
-          "text": "OpenMates vervangt automatisch gevoelige gegevens door tijdelijke aanduidingen voordat ze naar de OpenMates-server en externe providers worden verzonden om uw privacy te beschermen. Vervangen gegevens worden visueel gemarkeerd. U kunt altijd op een vervangen gegevensinvoer klikken om de vervanging te overschrijven, of de functionaliteit hier volledig uitschakelen."
         }
       },
       "enhanced_pii_model": {

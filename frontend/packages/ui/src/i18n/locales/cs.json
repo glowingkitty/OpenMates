@@ -7333,9 +7333,6 @@
     "view_on_google_hotels": {
       "text": "Zobrazit na Google Hotels"
     },
-    "view_on_meetup": {
-      "text": "Zobrazit na Gathering"
-    },
     "loading_map": {
       "text": "Načítání mapy..."
     },
@@ -18143,9 +18140,6 @@
         "text": "Skrýt osobní údaje",
         "chats": {
           "text": "Chaty"
-        },
-        "description": {
-          "text": "OpenMates automaticky nahradí citlivá data zástupnými symboly před jejich odesláním na server OpenMates a externím poskytovatelům, aby chránil vaše soukromí. Nahrazená data jsou vizuálně zvýrazněna. Vždy můžete kliknout na nahrazenou datovou položku a přepsat nahrazení, nebo zde funkci zcela vypnout."
         }
       },
       "enhanced_pii_model": {

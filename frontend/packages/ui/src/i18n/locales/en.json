@@ -2273,7 +2273,7 @@
             "text": "**Find** organic whole milk at ExampleGrocer"
           },
           "2": {
-            "text": "**Compare prices** for spaghetti on ExampleGrocer and Amazon"
+            "text": "**Compare prices** for spaghetti at different supermarkets"
           },
           "3": {
             "text": "What **vegan cheese** options are available at ExampleGrocer?"
@@ -8770,9 +8770,6 @@
     },
     "view_on_google_hotels": {
       "text": "View on Google Hotels"
-    },
-    "view_on_meetup": {
-      "text": "View on Gathering"
     },
     "loading_map": {
       "text": "Loading map..."
@@ -21694,9 +21691,6 @@
         "text": "Hide personal data",
         "chats": {
           "text": "Chats"
-        },
-        "description": {
-          "text": "OpenMates will auto replace sensitive data with placeholders, before sending them to the OpenMates server and any external provider, to protect your privacy. Replaced data are visually highlighted. You can always click on a replaced data entry to overwrite the replacement, or turn off the functionality completely here."
         }
       },
       "enhanced_pii_model": {
@@ -22251,13 +22245,7 @@
         }
       },
       "enhanced_protection": {
-        "text": "Enhanced personal data protection",
-        "description": {
-          "text": "Redact from Desert Ant Labs detects personal data locally in messages and recording text. Mandatory licensing traffic includes an installation identifier and model, SDK, platform and application metadata; the provider also sees IP address, headers and timing. Your scanned text stays on your device. Existing audio and file provider flows remain unchanged. Turning this off keeps full pattern detection, your configured entries and exclusions active when Hide personal data is on."
-        },
-        "provider_privacy": {
-          "text": "Desert Ant Labs privacy policy"
-        }
+        "text": "Enhanced personal data protection"
       }
     },
     "terms_and_conditions": {

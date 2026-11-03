@@ -7333,9 +7333,6 @@
     "view_on_google_hotels": {
       "text": "Zobacz na Google Hotels"
     },
-    "view_on_meetup": {
-      "text": "Zobacz na Gathering"
-    },
     "loading_map": {
       "text": "Ładowanie mapy..."
     },
@@ -18143,9 +18140,6 @@
         "text": "Ukryj dane osobowe",
         "chats": {
           "text": "Czaty"
-        },
-        "description": {
-          "text": "OpenMates automatycznie zastąpi poufne dane placeholderami przed wysłaniem ich do serwera OpenMates i zewnętrznych dostawców, aby chronić Twoją prywatność. Zastąpione dane są wizualnie wyróżnione. Zawsze możesz kliknąć zastąpiony wpis danych, aby nadpisać zastępstwo, lub całkowicie wyłączyć tę funkcję tutaj."
         }
       },
       "enhanced_pii_model": {

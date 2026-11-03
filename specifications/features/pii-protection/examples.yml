@@ -41,8 +41,8 @@ web_provider_disclosure:
   - id: informed-privacy-choice
     assertion_ids: [pii.web.provider-disclosure]
     given: A user opens Privacy to understand enhanced protection before changing its switch.
-    when: They read its description and linked privacy-policy section.
-    then: They can see that Redact processes text locally, Desert Ant Labs receives limited direct licensing metadata and connection information, and turning enhancement off retains basic detection.
+    when: They see only the labelled switch in settings and read the published privacy policy.
+    then: Settings show no explanatory text below the switch, and the policy shows that Redact processes text locally, Desert Ant Labs receives limited direct licensing metadata and connection information, and turning enhancement off retains basic detection.
   - id: policy-retains-real-boundaries
     assertion_ids: [pii.web.provider-disclosure]
     given: A reader checks the provider disclosure for retention and whether all audio or uploaded files stay on the device.

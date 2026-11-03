@@ -142,30 +142,6 @@ hide_personal_data.chats:
   sv: Chattar
   he: "צ'אטים"
   verified_by_human: []
-hide_personal_data.description:
-  context: Description text explaining the hide personal data feature
-  en: OpenMates will auto replace sensitive data with placeholders, before sending them to the OpenMates server and any external provider, to protect your privacy. Replaced data are visually highlighted. You can always click on a replaced data entry to overwrite the replacement, or turn off the functionality completely here.
-  de: OpenMates ersetzt automatisch sensible Daten durch Platzhalter, bevor sie an den OpenMates-Server und externe Anbieter gesendet werden, um deine Privatsphäre zu schützen. Ersetzte Daten werden visuell hervorgehoben. Du kannst jederzeit auf einen ersetzten Dateneintrag klicken, um die Ersetzung zu überschreiben, oder die Funktionalität hier komplett deaktivieren.
-  zh: OpenMates 会在将敏感数据发送到 OpenMates 服务器和任何外部提供商之前自动用占位符替换，以保护您的隐私。替换的数据会以视觉方式突出显示。您可以随时单击替换的数据条目来覆盖替换，或在此处完全关闭该功能。
-  es: OpenMates reemplazará automáticamente los datos confidenciales con marcadores de posición antes de enviarlos al servidor de OpenMates y a cualquier proveedor externo para proteger tu privacidad. Los datos reemplazados se resaltan visualmente. Siempre puedes hacer clic en una entrada de datos reemplazada para sobrescribir el reemplazo, o desactivar la funcionalidad completamente aquí.
-  fr: OpenMates remplacera automatiquement les données sensibles par des espaces réservés avant de les envoyer au serveur OpenMates et à tout fournisseur externe pour protéger votre confidentialité. Les données remplacées sont mises en évidence visuellement. Vous pouvez toujours cliquer sur une entrée de données remplacée pour écraser le remplacement, ou désactiver complètement la fonctionnalité ici.
-  pt: O OpenMates substituirá automaticamente dados sensíveis por marcadores antes de enviá-los ao servidor do OpenMates e a qualquer provedor externo para proteger sua privacidade. Os dados substituídos são destacados visualmente. Você sempre pode clicar em uma entrada de dados substituída para sobrescrever a substituição, ou desativar completamente a funcionalidade aqui.
-  ru: OpenMates автоматически заменит конфиденциальные данные заполнителями перед отправкой их на сервер OpenMates и любому внешнему провайдеру, чтобы защитить вашу конфиденциальность. Замененные данные визуально выделены. Вы всегда можете нажать на замененную запись данных, чтобы перезаписать замену, или полностью отключить функцию здесь.
-  ja: OpenMates はプライバシーを保護するため、OpenMates サーバーおよび外部プロバイダーに送信する前に、センシティブなデータをプレースホルダーで自動的に置き換えます。置き換えられたデータは視覚的に強調表示されます。置き換えられたデータ項目をクリックして置き換えを上書きするか、ここで機能を完全にオフにすることができます。
-  ko: OpenMates는 개인정보를 보호하기 위해 OpenMates 서버 및 외부 공급자에게 전송하기 전에 민감한 데이터를 자리표시자로 자동 교체합니다. 교체된 데이터는 시각적으로 강조 표시됩니다. 교체된 데이터 항목을 클릭하여 교체를 덮어쓰거나 여기서 기능을 완전히 끌 수 있습니다.
-  it: OpenMates sostituirà automaticamente i dati sensibili con segnaposto prima di inviarli al server di OpenMates e a qualsiasi provider esterno per proteggere la tua privacy. I dati sostituiti vengono evidenziati visivamente. Puoi sempre fare clic su una voce di dati sostituita per sovrascrivere la sostituzione, o disattivare completamente la funzionalità qui.
-  tr: OpenMates, gizliliğinizi korumak için hassas verileri OpenMates sunucusuna ve harici sağlayıcılara göndermeden önce yer tutucularla otomatik olarak değiştirir. Değiştirilen veriler görsel olarak vurgulanır. Değiştirilen bir veri girişine tıklayarak değiştirmeyi her zaman üzerine yazabilir veya işlevi burada tamamen kapatabilirsiniz.
-  vi: OpenMates sẽ tự động thay thế dữ liệu nhạy cảm bằng các ký tự giữ chỗ trước khi gửi đến máy chủ OpenMates và bất kỳ nhà cung cấp bên ngoài nào để bảo vệ quyền riêng tư của bạn. Dữ liệu được thay thế được làm nổi bật trực quan. Bạn luôn có thể nhấp vào một mục dữ liệu được thay thế để ghi đè lên sự thay thế, hoặc tắt hoàn toàn chức năng tại đây.
-  id: OpenMates akan secara otomatis mengganti data sensitif dengan placeholder sebelum mengirimkannya ke server OpenMates dan penyedia eksternal mana pun untuk melindungi privasi Anda. Data yang diganti disorot secara visual. Anda selalu dapat mengklik entri data yang diganti untuk menimpa penggantian, atau mematikan fungsionalitas sepenuhnya di sini.
-  pl: OpenMates automatycznie zastąpi poufne dane placeholderami przed wysłaniem ich do serwera OpenMates i zewnętrznych dostawców, aby chronić Twoją prywatność. Zastąpione dane są wizualnie wyróżnione. Zawsze możesz kliknąć zastąpiony wpis danych, aby nadpisać zastępstwo, lub całkowicie wyłączyć tę funkcję tutaj.
-  nl: OpenMates vervangt automatisch gevoelige gegevens door tijdelijke aanduidingen voordat ze naar de OpenMates-server en externe providers worden verzonden om uw privacy te beschermen. Vervangen gegevens worden visueel gemarkeerd. U kunt altijd op een vervangen gegevensinvoer klikken om de vervanging te overschrijven, of de functionaliteit hier volledig uitschakelen.
-  ar: سيقوم OpenMates تلقائيًا باستبدال البيانات الحساسة بعناصر نائبة، قبل إرسالها إلى خادم OpenMates وأي مزود خارجي، لحماية خصوصيتك. يتم تمييز البيانات المستبدلة بصريًا. يمكنك دائمًا النقر على إدخال بيانات مستبدل لتجاوز الاستبدال، أو إيقاف تشغيل الوظيفة بالكامل هنا.
-  hi: OpenMates आपकी गोपनीयता की रक्षा के लिए OpenMates सर्वर और किसी भी बाहरी प्रदाता को भेजने से पहले संवेदनशील डेटा को प्लेसहोल्डर से स्वचालित रूप से बदल देगा। बदले गए डेटा को दृश्य रूप से हाइलाइट किया गया है। आप हमेशा प्रतिस्थापन को अधिलेखित करने के लिए प्रतिस्थापित डेटा प्रविष्टि पर क्लिक कर सकते हैं, या यहां पूरी तरह से कार्यक्षमता को बंद कर सकते हैं।
-  th: OpenMates จะแทนที่ข้อมูลที่ละเอียดอ่อนด้วยตัวแทนโดยอัตโนมัติ ก่อนส่งไปยังเซิร์ฟเวอร์ OpenMates และผู้ให้บริการภายนอก เพื่อปกป้องความเป็นส่วนตัวของคุณ ข้อมูลที่ถูกแทนที่จะถูกเน้นด้วยภาพ คุณสามารถคลิกที่รายการข้อมูลที่ถูกแทนที่เสมอเพื่อเขียนทับการแทนที่ หรือปิดการทำงานนี้ทั้งหมดที่นี่
-  cs: OpenMates automaticky nahradí citlivá data zástupnými symboly před jejich odesláním na server OpenMates a externím poskytovatelům, aby chránil vaše soukromí. Nahrazená data jsou vizuálně zvýrazněna. Vždy můžete kliknout na nahrazenou datovou položku a přepsat nahrazení, nebo zde funkci zcela vypnout.
-  sv: OpenMates ersätter automatiskt känslig data med platshållare innan de skickas till OpenMates-servern och externa leverantörer för att skydda din integritet. Ersatt data är visuellt markerad. Du kan alltid klicka på en ersatt datapost för att skriva över ersättningen, eller stänga av funktionaliteten helt här.
-  he: OpenMates תחליף באופן אוטומטי נתונים רגישים בממלאי מקום, לפני שליחתם לשרת של OpenMates ולכל ספק חיצוני, כדי להגן על הפרטיות שלך. נתונים שהוחלפו מודגשים באופן חזותי. תמיד ניתן ללחוץ על ערך נתונים שהוחלף כדי לדרוס את ההחלפה, או לכבות את הפונקציונליות לחלוטין כאן.
-  verified_by_human: []
 enhanced_pii_model.title:
   context: Settings section title for optional on-device enhanced PII model.
   en: Enhanced personal data detection
@@ -4392,12 +4368,4 @@ enhanced_pii_model.verifying:
 enhanced_protection:
   context: Independent default-on toggle for optional on-device model enhancement; baseline personal-data protection remains active when disabled
   en: Enhanced personal data protection
-  verified_by_human: []
-enhanced_protection.description:
-  context: Transparent disclosure shown whether optional enhancement is enabled or disabled
-  en: Redact from Desert Ant Labs detects personal data locally in messages and recording text. Mandatory licensing traffic includes an installation identifier and model, SDK, platform and application metadata; the provider also sees IP address, headers and timing. Your scanned text stays on your device. Existing audio and file provider flows remain unchanged. Turning this off keeps full pattern detection, your configured entries and exclusions active when Hide personal data is on.
-  verified_by_human: []
-enhanced_protection.provider_privacy:
-  context: External link to the optional on-device model provider privacy policy
-  en: Desert Ant Labs privacy policy
   verified_by_human: []

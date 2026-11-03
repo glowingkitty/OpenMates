@@ -7333,9 +7333,6 @@
     "view_on_google_hotels": {
       "text": "Google Hotelsで見る"
     },
-    "view_on_meetup": {
-      "text": "Meetupで見る"
-    },
     "loading_map": {
       "text": "地図を読み込み中..."
     },
@@ -18143,9 +18140,6 @@
         "text": "個人データを非表示",
         "chats": {
           "text": "チャット"
-        },
-        "description": {
-          "text": "OpenMates はプライバシーを保護するため、OpenMates サーバーおよび外部プロバイダーに送信する前に、センシティブなデータをプレースホルダーで自動的に置き換えます。置き換えられたデータは視覚的に強調表示されます。置き換えられたデータ項目をクリックして置き換えを上書きするか、ここで機能を完全にオフにすることができます。"
         }
       },
       "enhanced_pii_model": {

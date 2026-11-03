@@ -7333,9 +7333,6 @@
     "view_on_google_hotels": {
       "text": "Visa på Google Hotels"
     },
-    "view_on_meetup": {
-      "text": "Visa på Gathering"
-    },
     "loading_map": {
       "text": "Laddar karta..."
     },
@@ -18143,9 +18140,6 @@
         "text": "Dölj personuppgifter",
         "chats": {
           "text": "Chattar"
-        },
-        "description": {
-          "text": "OpenMates ersätter automatiskt känslig data med platshållare innan de skickas till OpenMates-servern och externa leverantörer för att skydda din integritet. Ersatt data är visuellt markerad. Du kan alltid klicka på en ersatt datapost för att skriva över ersättningen, eller stänga av funktionaliteten helt här."
         }
       },
       "enhanced_pii_model": {

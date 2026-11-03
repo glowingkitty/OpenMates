@@ -7333,9 +7333,6 @@
     "view_on_google_hotels": {
       "text": "Google Hotels'de görüntüle"
     },
-    "view_on_meetup": {
-      "text": "Gathering'ta görüntüle"
-    },
     "loading_map": {
       "text": "Harita yükleniyor..."
     },
@@ -18143,9 +18140,6 @@
         "text": "Kişisel verileri gizle",
         "chats": {
           "text": "Sohbetler"
-        },
-        "description": {
-          "text": "OpenMates, gizliliğinizi korumak için hassas verileri OpenMates sunucusuna ve harici sağlayıcılara göndermeden önce yer tutucularla otomatik olarak değiştirir. Değiştirilen veriler görsel olarak vurgulanır. Değiştirilen bir veri girişine tıklayarak değiştirmeyi her zaman üzerine yazabilir veya işlevi burada tamamen kapatabilirsiniz."
         }
       },
       "enhanced_pii_model": {

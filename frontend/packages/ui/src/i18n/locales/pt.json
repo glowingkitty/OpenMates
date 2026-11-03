@@ -7360,9 +7360,6 @@
     "view_on_google_hotels": {
       "text": "Ver no Google Hotels"
     },
-    "view_on_meetup": {
-      "text": "Ver no Gathering"
-    },
     "loading_map": {
       "text": "Carregando mapa..."
     },
@@ -18170,9 +18167,6 @@
         "text": "Ocultar dados pessoais",
         "chats": {
           "text": "Chats"
-        },
-        "description": {
-          "text": "O OpenMates substituirá automaticamente dados sensíveis por marcadores antes de enviá-los ao servidor do OpenMates e a qualquer provedor externo para proteger sua privacidade. Os dados substituídos são destacados visualmente. Você sempre pode clicar em uma entrada de dados substituída para sobrescrever a substituição, ou desativar completamente a funcionalidade aqui."
         }
       },
       "enhanced_pii_model": {

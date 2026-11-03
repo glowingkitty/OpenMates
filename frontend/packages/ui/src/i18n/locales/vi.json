@@ -7333,9 +7333,6 @@
     "view_on_google_hotels": {
       "text": "Xem trên Google Hotels"
     },
-    "view_on_meetup": {
-      "text": "Xem trên Gathering"
-    },
     "loading_map": {
       "text": "Đang tải bản đồ..."
     },
@@ -18143,9 +18140,6 @@
         "text": "Ẩn dữ liệu cá nhân",
         "chats": {
           "text": "Trò chuyện"
-        },
-        "description": {
-          "text": "OpenMates sẽ tự động thay thế dữ liệu nhạy cảm bằng các ký tự giữ chỗ trước khi gửi đến máy chủ OpenMates và bất kỳ nhà cung cấp bên ngoài nào để bảo vệ quyền riêng tư của bạn. Dữ liệu được thay thế được làm nổi bật trực quan. Bạn luôn có thể nhấp vào một mục dữ liệu được thay thế để ghi đè lên sự thay thế, hoặc tắt hoàn toàn chức năng tại đây."
         }
       },
       "enhanced_pii_model": {

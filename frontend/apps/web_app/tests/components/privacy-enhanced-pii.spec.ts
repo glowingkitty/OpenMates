@@ -24,6 +24,23 @@ async function mockLocalAvailability(page: import('@playwright/test').Page) {
   await page.route('**/v1/anonymous/free-usage/status**', route => route.fulfill({ json: availability }));
 }
 
+/** The protection section shows exactly two labelled toggles; disclosures live in the privacy policy. */
+async function expectOnlyLabelledToggles(page: import('@playwright/test').Page) {
+  const master = page.getByTestId('personal-data-master-protection');
+  const enhanced = page.getByTestId('enhanced-personal-data-protection');
+  await expect(master).toContainText('Hide personal data');
+  await expect(enhanced).toContainText('Enhanced personal data protection');
+  for (const id of ['pii-model-disclosure', 'pii-model-attribution', 'pii-provider-privacy']) {
+    await expect(page.getByTestId(id)).toHaveCount(0);
+  }
+  await expect(page.getByText(/Desert Ant Labs|auto replace sensitive data/)).toHaveCount(0);
+  const masterBox = await master.boundingBox();
+  const enhancedBox = await enhanced.boundingBox();
+  expect(masterBox && enhancedBox).toBeTruthy();
+  // No text block may sit between the two toggle rows.
+  expect(enhancedBox!.y - (masterBox!.y + masterBox!.height)).toBeLessThan(24);
+}
+
 // contract-test: direct surface=gui.web assertions=pii.web.enhanced-default-and-opt-out,pii.web.provider-disclosure
 test('persists enhanced opt-out through reload and keeps basic composer checks without starting the model', async ({ page, context }) => {
   test.setTimeout(90000);
@@ -54,9 +71,7 @@ test('persists enhanced opt-out through reload and keeps basic composer checks w
     const bounds = await icon.boundingBox();
     expect(bounds && bounds.width > 0 && bounds.height > 0).toBeTruthy();
   }
-  await expect(page.getByTestId('pii-model-disclosure')).toContainText('licensing');
-  await expect(page.getByTestId('pii-provider-privacy')).toHaveAttribute('href', 'https://desertant.com/privacy/');
-  await expect(page.getByTestId('pii-model-attribution')).toHaveAttribute('href', 'https://desertant.com');
+  await expectOnlyLabelledToggles(page);
   await toggle.hover();
   await toggle.focus();
   await toggle.press('Enter');
@@ -65,18 +80,15 @@ test('persists enhanced opt-out through reload and keeps basic composer checks w
   await waitForComponentPreview(page);
   await expect(input).toBeEnabled();
   await expect(input).not.toBeChecked();
-  await expect(page.getByTestId('pii-model-attribution')).toBeVisible();
+  await expectOnlyLabelledToggles(page);
   const box = await row.boundingBox();
-  const disclosureBox = await page.getByTestId('pii-model-disclosure').boundingBox();
   expect(box && box.width > 400 && box.height > 0).toBeTruthy();
-  expect(disclosureBox && disclosureBox.width > 400 && disclosureBox.y >= box!.y + box!.height).toBeTruthy();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: test.info().outputPath('privacy-enhanced-off.png'), fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   const mobileRow = await row.boundingBox();
-  const mobileDisclosure = await page.getByTestId('pii-model-disclosure').boundingBox();
   expect(mobileRow && mobileRow.width > 280).toBeTruthy();
-  expect(mobileDisclosure && mobileDisclosure.width > 280 && mobileDisclosure.y >= mobileRow!.y + mobileRow!.height).toBeTruthy();
+  await expectOnlyLabelledToggles(page);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: test.info().outputPath('privacy-enhanced-off-mobile.png'), fullPage: true });
   await page.setViewportSize({ width: 1440, height: 900 });

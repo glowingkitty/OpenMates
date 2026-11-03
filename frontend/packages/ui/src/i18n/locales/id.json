@@ -7333,9 +7333,6 @@
     "view_on_google_hotels": {
       "text": "Lihat di Google Hotels"
     },
-    "view_on_meetup": {
-      "text": "Lihat di Gathering"
-    },
     "loading_map": {
       "text": "Memuat peta..."
     },
@@ -18143,9 +18140,6 @@
         "text": "Sembunyikan data pribadi",
         "chats": {
           "text": "Obrolan"
-        },
-        "description": {
-          "text": "OpenMates akan secara otomatis mengganti data sensitif dengan placeholder sebelum mengirimkannya ke server OpenMates dan penyedia eksternal mana pun untuk melindungi privasi Anda. Data yang diganti disorot secara visual. Anda selalu dapat mengklik entri data yang diganti untuk menimpa penggantian, atau mematikan fungsionalitas sepenuhnya di sini."
         }
       },
       "enhanced_pii_model": {
