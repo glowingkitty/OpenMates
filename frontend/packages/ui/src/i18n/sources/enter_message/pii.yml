@@ -38,52 +38,52 @@ enhanced_scan_failed:
   verified_by_human: []
 
 banner_title:
-  context: Title shown in the PII warning banner when sensitive data is detected
-  en: Sensitive data detected
-  de: Sensible Daten erkannt
-  zh: 检测到敏感数据
-  es: Datos sensibles detectados
-  fr: Données sensibles détectées
-  pt: Dados sensíveis detectados
-  ru: Обнаружены конфиденциальные данные
-  ja: 機密データが検出されました
-  ko: 민감한 데이터가 감지되었습니다
-  it: Dati sensibili rilevati
-  tr: Hassas veriler tespit edildi
-  vi: Phát hiện dữ liệu nhạy cảm
-  id: Data sensitif terdeteksi
-  pl: Wykryto dane wrażliwe
-  nl: Gevoelige gegevens gedetecteerd
-  ar: تم اكتشاف بيانات حساسة
-  hi: संवेदनशील डेटा पाया गया
-  th: ตรวจพบข้อมูลที่ละเอียดอ่อน
-  cs: Detekována citlivá data
-  sv: Känsliga uppgifter hittades
-  he: זוהו נתונים רגישים
+  context: Headline of the PII warning banner. {count} is the number of detected sensitive entries, shown as e.g. "2×".
+  en: "{count}× sensitive data detected"
+  de: "{count}× sensible Daten erkannt"
+  zh: "检测到 {count}× 敏感数据"
+  es: "{count}× datos sensibles detectados"
+  fr: "{count}× données sensibles détectées"
+  pt: "{count}× dados sensíveis detectados"
+  ru: "Обнаружено конфиденциальных данных: {count}×"
+  ja: "機密データを {count}× 検出"
+  ko: "민감한 데이터 {count}× 감지됨"
+  it: "{count}× dati sensibili rilevati"
+  tr: "{count}× hassas veri tespit edildi"
+  vi: "Phát hiện {count}× dữ liệu nhạy cảm"
+  id: "{count}× data sensitif terdeteksi"
+  pl: "Wykryto {count}× dane wrażliwe"
+  nl: "{count}× gevoelige gegevens gedetecteerd"
+  ar: "تم اكتشاف {count}× بيانات حساسة"
+  hi: "{count}× संवेदनशील डेटा पाया गया"
+  th: "ตรวจพบข้อมูลที่ละเอียดอ่อน {count}×"
+  cs: "Detekováno {count}× citlivých dat"
+  sv: "{count}× känsliga uppgifter hittades"
+  he: "זוהו {count}× נתונים רגישים"
   verified_by_human: []
 banner_description:
-  context: Description explaining what will happen to detected sensitive data. {summary} is replaced with a list like "2 emails, 1 API key"
-  en: "Found {summary}. These will be replaced with placeholders before sending. Click on highlighted text to keep original."
-  de: "{summary} gefunden. Diese werden vor dem Senden durch Platzhalter ersetzt. Klicke auf markierten Text, um das Original zu behalten."
-  zh: "发现 {summary}。发送前将用占位符替换。单击高亮文本以保留原始内容。"
-  es: "Se encontró {summary}. Serán reemplazados con marcadores antes de enviar. Haz clic en el texto resaltado para mantener el original."
-  fr: "{summary} trouvé(s). Ceux-ci seront remplacés par des espaces réservés avant l'envoi. Cliquez sur le texte surligné pour conserver l'original."
-  pt: "Encontrado {summary}. Estes serão substituídos por marcadores antes do envio. Clique no texto destacado para manter o original."
-  ru: "Найдено: {summary}. Они будут заменены заполнителями перед отправкой. Нажмите на выделенный текст, чтобы сохранить оригинал."
-  ja: "{summary} が見つかりました。送信前にプレースホルダーに置き換えられます。ハイライトされたテキストをクリックして元のまま保持。"
-  ko: "{summary}을(를) 발견했습니다. 전송 전에 자리 표시자로 교체됩니다. 강조된 텍스트를 클릭하여 원본을 유지하세요."
-  it: "Trovato {summary}. Questi verranno sostituiti con segnaposto prima dell'invio. Clicca sul testo evidenziato per mantenere l'originale."
-  tr: "{summary} bulundu. Gönderilmeden önce yer tutucularla değiştirilecek. Orijinali korumak için vurgulanan metne tıklayın."
-  vi: "Tìm thấy {summary}. Chúng sẽ được thay thế bằng ký tự giữ chỗ trước khi gửi. Nhấp vào văn bản được đánh dấu để giữ nguyên bản."
-  id: "Ditemukan {summary}. Ini akan diganti dengan placeholder sebelum dikirim. Klik teks yang disorot untuk mempertahankan aslinya."
-  pl: "Znaleziono {summary}. Zostaną zastąpione symbolami zastępczymi przed wysłaniem. Kliknij wyróżniony tekst, aby zachować oryginał."
-  nl: "{summary} gevonden. Deze worden vervangen door tijdelijke aanduidingen voor verzending. Klik op gemarkeerde tekst om het origineel te behouden."
-  ar: "تم العثور على {summary}. ستُستبدَل بعناصر نائبة قبل الإرسال. انقر على النص المميز للاحتفاظ بالنص الأصلي."
-  hi: "{summary} मिला। भेजने से पहले इन्हें प्लेसहोल्डर से बदला जाएगा। मूल रखने के लिए हाइलाइट किए गए टेक्स्ट पर क्लिक करें।"
-  th: "พบ {summary} จะถูกแทนที่ด้วย placeholder ก่อนส่ง คลิกที่ข้อความที่ไฮไลต์เพื่อเก็บต้นฉบับ"
-  cs: "Nalezeno: {summary}. Před odesláním budou nahrazeny zástupnými symboly. Klikněte na zvýrazněný text pro zachování originálu."
-  sv: "Hittade {summary}. Dessa ersätts med platshållare innan de skickas. Klicka på markerad text för att behålla originalet."
-  he: "נמצאו {summary}. אלו יוחלפו בממלאי מקום לפני השליחה. לחץ על הטקסט המודגש כדי לשמור על המקור."
+  context: Short hint under the PII banner headline explaining placeholders and how to keep an original value.
+  en: "These will be replaced with placeholders before sending. Click highlighted text to send the original instead."
+  de: "Diese werden vor dem Senden durch Platzhalter ersetzt. Klicke auf markierten Text, um stattdessen das Original zu senden."
+  zh: "发送前将替换为占位符。点击高亮文本即可改为发送原文。"
+  es: "Se reemplazarán con marcadores antes de enviar. Haz clic en el texto resaltado para enviar el original."
+  fr: "Ils seront remplacés par des espaces réservés avant l'envoi. Cliquez sur le texte surligné pour envoyer l'original."
+  pt: "Serão substituídos por marcadores antes do envio. Clique no texto destacado para enviar o original."
+  ru: "Перед отправкой они будут заменены заполнителями. Нажмите на выделенный текст, чтобы отправить оригинал."
+  ja: "送信前にプレースホルダーに置き換えられます。ハイライトされたテキストをクリックすると元のまま送信します。"
+  ko: "전송 전에 자리 표시자로 교체됩니다. 강조된 텍스트를 클릭하면 원본을 보냅니다."
+  it: "Verranno sostituiti con segnaposto prima dell'invio. Clicca sul testo evidenziato per inviare l'originale."
+  tr: "Göndermeden önce yer tutucularla değiştirilecek. Orijinali göndermek için vurgulanan metne tıklayın."
+  vi: "Chúng sẽ được thay bằng ký tự giữ chỗ trước khi gửi. Nhấp vào văn bản được đánh dấu để gửi bản gốc."
+  id: "Ini akan diganti dengan placeholder sebelum dikirim. Klik teks yang disorot untuk mengirim aslinya."
+  pl: "Przed wysłaniem zostaną zastąpione symbolami zastępczymi. Kliknij wyróżniony tekst, aby wysłać oryginał."
+  nl: "Deze worden vóór verzending vervangen door tijdelijke aanduidingen. Klik op gemarkeerde tekst om het origineel te verzenden."
+  ar: "سيتم استبدالها بعناصر نائبة قبل الإرسال. انقر على النص المميز لإرسال النص الأصلي بدلاً من ذلك."
+  hi: "भेजने से पहले इन्हें प्लेसहोल्डर से बदला जाएगा। मूल भेजने के लिए हाइलाइट किए गए टेक्स्ट पर क्लिक करें।"
+  th: "จะถูกแทนที่ด้วย placeholder ก่อนส่ง คลิกข้อความที่ไฮไลต์เพื่อส่งต้นฉบับแทน"
+  cs: "Před odesláním budou nahrazeny zástupnými symboly. Klikněte na zvýrazněný text a odešlete originál."
+  sv: "Dessa ersätts med platshållare innan de skickas. Klicka på markerad text för att skicka originalet i stället."
+  he: "אלו יוחלפו בממלאי מקום לפני השליחה. לחץ על הטקסט המודגש כדי לשלוח את המקור במקום."
   verified_by_human: []
 undo_all:
   context: Tooltip/title for the Undo All button
@@ -111,8 +111,8 @@ undo_all:
   verified_by_human: []
 undo_all_short:
   context: Short button label for Undo All
-  en: Undo All
-  de: Alle zurück
+  en: "Undo all"
+  de: "Alle rückgängig"
   zh: 全部撤销
   es: Deshacer todo
   fr: Tout annuler

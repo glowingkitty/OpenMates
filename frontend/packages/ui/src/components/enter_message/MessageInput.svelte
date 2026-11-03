@@ -155,6 +155,7 @@
     import { mergeWebPIIMatches } from './services/webPIIMatches';
     import { claimWebPIIFallbackNotice } from './services/webPIIFallbackNotice';
     import PIIWarningBanner from './PIIWarningBanner.svelte';
+    import { createComposerInteractionFocusHold } from './services/composerInteractionFocusHold';
     // Privacy settings store — controls master toggle, per-category toggles, and personal data entries
     import { personalDataStore, type PersonalDataEntry, type PIIDetectionSettings } from '../../stores/personalDataStore';
     import { get } from 'svelte/store';
@@ -2912,10 +2913,17 @@
         appsHandoffEditorReady = true;
         const unsubscribeAppsHandoff = appsWorkspaceComposerHandoff.subscribe(() => { void applyAppsComposerHandoff(); });
         function dismissOnOutsidePointer(event: PointerEvent) {
-            if (!isFocused || $recordingState.showRecordAudioUI || isMenuInteraction) return;
+            if (!isFocused || $recordingState.showRecordAudioUI || isMenuInteraction || isComposerInteractionFocusHeld()) return;
             const target = event.target;
-            if (!(target instanceof HTMLElement) || messageInputWrapper?.contains(target) ||
-                target.closest('[data-preserve-composer-focus="true"], [data-composer-focus-control]')) return;
+            if (!(target instanceof HTMLElement) || messageInputWrapper?.contains(target)) return;
+            if (target.closest('[data-preserve-composer-focus="true"]')) {
+                // Suggestion rails outside the wrapper (e.g. "OpenMates can help
+                // you with") must not collapse the draft when a mobile blur
+                // lands between pointerdown and click.
+                holdComposerFocusForInteraction();
+                return;
+            }
+            if (target.closest('[data-composer-focus-control]')) return;
             dismissFocus();
         }
         document.addEventListener('pointerdown', dismissOnOutsidePointer, true);
@@ -3020,7 +3028,7 @@
 
     function handleEditorBlur({ editor }: { editor: Editor }) {
         const chatIdAtBlur = currentChatId;
-        const preserveComposerFocusForThisBlur = preserveComposerFocusOnNextBlur;
+        const preserveComposerFocusForThisBlur = preserveComposerFocusOnNextBlur || isComposerInteractionFocusHeld();
         preserveComposerFocusOnNextBlur = false;
         if (preserveComposerFocusResetTimer) {
             clearTimeout(preserveComposerFocusResetTimer);
@@ -3040,7 +3048,7 @@
             // Recording owns the compact panel while the user browses the chat.
             // Keep its width expanded without stealing DOM focus back.
             if (recordingLayoutActive || nativeAttachmentPickerOpen) return;
-            if (preserveComposerFocusForThisBlur) {
+            if (preserveComposerFocusForThisBlur || isComposerInteractionFocusHeld()) {
                 isMessageFieldFocused = true;
                 isFocused = true;
                 return;
@@ -3506,11 +3514,31 @@
         }
     }
     
+    // PII highlight/banner and suggestion-rail taps must not collapse the draft.
+    const composerInteractionFocusHold = createComposerInteractionFocusHold();
+    const isComposerInteractionFocusHeld = () => composerInteractionFocusHold.isHeld();
+    function holdComposerFocusForInteraction() {
+        composerInteractionFocusHold.start();
+        if (blurTimeoutId) {
+            clearTimeout(blurTimeoutId);
+            blurTimeoutId = null;
+        }
+        isMessageFieldFocused = true;
+        isFocused = true;
+    }
+    function handleMessageWrapperPointerDown(event: PointerEvent) {
+        const target = event.target;
+        if (target instanceof Element && target.closest('.pii-highlight, [data-testid="pii-warning-banner"]')) {
+            holdComposerFocusForInteraction();
+        }
+    }
+
     /**
      * Handle click on a PII decoration to exclude it from replacement.
      * Called when user clicks on highlighted sensitive data.
      */
     function handlePIIClick(matchId: string) {
+        holdComposerFocusForInteraction();
         // Add to exclusions set
         piiExclusions = new Set([...piiExclusions, matchId]);
         // Invalidate last text cache so detection re-runs immediately
@@ -3531,6 +3559,7 @@
      * Excludes all detected PII so nothing gets replaced on send.
      */
     function handlePIIUndoAll() {
+        holdComposerFocusForInteraction();
         piiPreviewGeneration += 1;
         // Mark all current detections as excluded
         const newExclusions = new Set(piiExclusions);
@@ -7447,6 +7476,7 @@
     class:guest-cta-mode={guestCtaMode && !$authStore.isAuthenticated}
     role="none"
     onmousedown={handleMessageWrapperMouseDown}
+    onpointerdown={handleMessageWrapperPointerDown}
     onclick={handleMessageWrapperClick}
     onkeydown={handleMessageWrapperKeyDown}
     onfocusin={handleMessageWrapperFocusIn}

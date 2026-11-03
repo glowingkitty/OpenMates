@@ -10279,16 +10279,16 @@
         "text": "Personal data checks could not finish. Your message was not sent. Retry the checks and send again."
       },
       "banner_title": {
-        "text": "Sensitive data detected"
+        "text": "{count}× sensitive data detected"
       },
       "banner_description": {
-        "text": "Found {summary}. These will be replaced with placeholders before sending. Click on highlighted text to keep original."
+        "text": "These will be replaced with placeholders before sending. Click highlighted text to send the original instead."
       },
       "undo_all": {
         "text": "Undo all replacements"
       },
       "undo_all_short": {
-        "text": "Undo All"
+        "text": "Undo all"
       },
       "click_to_restore": {
         "text": "Click to keep original"

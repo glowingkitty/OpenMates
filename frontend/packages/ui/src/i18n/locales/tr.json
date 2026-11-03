@@ -8618,10 +8618,10 @@
     },
     "pii": {
       "banner_title": {
-        "text": "Hassas veriler tespit edildi"
+        "text": "{count}× hassas veri tespit edildi"
       },
       "banner_description": {
-        "text": "{summary} bulundu. Gönderilmeden önce yer tutucularla değiştirilecek. Orijinali korumak için vurgulanan metne tıklayın."
+        "text": "Göndermeden önce yer tutucularla değiştirilecek. Orijinali göndermek için vurgulanan metne tıklayın."
       },
       "undo_all": {
         "text": "Tüm değiştirmeleri geri al"

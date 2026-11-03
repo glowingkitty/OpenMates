@@ -8618,10 +8618,10 @@
     },
     "pii": {
       "banner_title": {
-        "text": "Detekována citlivá data"
+        "text": "Detekováno {count}× citlivých dat"
       },
       "banner_description": {
-        "text": "Nalezeno: {summary}. Před odesláním budou nahrazeny zástupnými symboly. Klikněte na zvýrazněný text pro zachování originálu."
+        "text": "Před odesláním budou nahrazeny zástupnými symboly. Klikněte na zvýrazněný text a odešlete originál."
       },
       "undo_all": {
         "text": "Vrátit zpět všechny náhrady"

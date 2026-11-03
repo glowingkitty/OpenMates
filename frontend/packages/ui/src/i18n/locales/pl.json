@@ -8618,10 +8618,10 @@
     },
     "pii": {
       "banner_title": {
-        "text": "Wykryto dane wrażliwe"
+        "text": "Wykryto {count}× dane wrażliwe"
       },
       "banner_description": {
-        "text": "Znaleziono {summary}. Zostaną zastąpione symbolami zastępczymi przed wysłaniem. Kliknij wyróżniony tekst, aby zachować oryginał."
+        "text": "Przed wysłaniem zostaną zastąpione symbolami zastępczymi. Kliknij wyróżniony tekst, aby wysłać oryginał."
       },
       "undo_all": {
         "text": "Cofnij wszystkie zamiany"

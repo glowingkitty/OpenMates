@@ -8618,10 +8618,10 @@
     },
     "pii": {
       "banner_title": {
-        "text": "检测到敏感数据"
+        "text": "检测到 {count}× 敏感数据"
       },
       "banner_description": {
-        "text": "发现 {summary}。发送前将用占位符替换。单击高亮文本以保留原始内容。"
+        "text": "发送前将替换为占位符。点击高亮文本即可改为发送原文。"
       },
       "undo_all": {
         "text": "撤销所有替换"

@@ -8618,10 +8618,10 @@
     },
     "pii": {
       "banner_title": {
-        "text": "Data sensitif terdeteksi"
+        "text": "{count}× data sensitif terdeteksi"
       },
       "banner_description": {
-        "text": "Ditemukan {summary}. Ini akan diganti dengan placeholder sebelum dikirim. Klik teks yang disorot untuk mempertahankan aslinya."
+        "text": "Ini akan diganti dengan placeholder sebelum dikirim. Klik teks yang disorot untuk mengirim aslinya."
       },
       "undo_all": {
         "text": "Batalkan semua penggantian"

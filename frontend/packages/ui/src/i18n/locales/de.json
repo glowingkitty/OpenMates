@@ -10234,16 +10234,16 @@
         "text": "Die Erkennung persönlicher Daten konnte nicht abgeschlossen werden. Deine Nachricht wurde nicht gesendet. Starte die Prüfung neu und sende erneut."
       },
       "banner_title": {
-        "text": "Sensible Daten erkannt"
+        "text": "{count}× sensible Daten erkannt"
       },
       "banner_description": {
-        "text": "{summary} gefunden. Diese werden vor dem Senden durch Platzhalter ersetzt. Klicke auf markierten Text, um das Original zu behalten."
+        "text": "Diese werden vor dem Senden durch Platzhalter ersetzt. Klicke auf markierten Text, um stattdessen das Original zu senden."
       },
       "undo_all": {
         "text": "Alle Ersetzungen rückgängig machen"
       },
       "undo_all_short": {
-        "text": "Alle zurück"
+        "text": "Alle rückgängig"
       },
       "click_to_restore": {
         "text": "Klicken um Original zu behalten"

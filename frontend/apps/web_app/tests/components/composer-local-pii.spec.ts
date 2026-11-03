@@ -401,4 +401,40 @@ test.describe('Local PII composer integration', () => {
     await expect(protectedEmail).toHaveAttribute('data-pii-type', 'EMAIL');
     await expect.poll(() => page.evaluate(() => (window as typeof window & { piiFallbackNoticeCount: number }).piiFallbackNoticeCount)).toBe(1);
   });
+
+  test.describe('on a touch device', () => {
+    test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
+
+    // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude
+    test('keeps the draft open when tapping highlights, the banner and Undo all', async ({ page }) => {
+      test.setTimeout(150_000);
+      const editor = await openComposer(page);
+      const field = page.getByTestId('message-field');
+      const draft = 'Reply to keep.reference@example.net or protected.reference@example.net.';
+      await fillDraft(editor, draft);
+      const highlights = page.getByTestId('pii-highlight');
+      const banner = page.getByTestId('pii-warning-banner');
+      const title = banner.getByTestId('banner-title');
+      await expect(highlights).toHaveCount(2);
+      // The count sits in the headline so off-screen detections stay noticeable.
+      await expect(title).toHaveText(/^2× /);
+      await expect(banner.getByTestId('banner-description')).toHaveText(/send the original instead/);
+      await highlights.filter({ hasText: 'keep.reference@example.net' }).tap();
+      await expect(highlights).toHaveCount(1);
+      await expect(title).toHaveText(/^1× /);
+      await expect(field, 'Keeping one original must not collapse the draft').toHaveAttribute('data-focused', 'true');
+      await banner.getByTestId('banner-description').tap();
+      await expect(field, 'Tapping the banner must not collapse the draft').toHaveAttribute('data-focused', 'true');
+      await banner.getByTestId('undo-all-btn').tap();
+      await expect(highlights).toHaveCount(0);
+      await expect(banner).toHaveCount(0);
+      await expect(field, 'Undo all must not collapse the draft').toHaveAttribute('data-focused', 'true');
+      await expect(editor).toHaveText(draft);
+      // A tap on the background still dismisses once the short interaction hold ends.
+      await expect(async () => {
+        await page.mouse.click(5, 5);
+        await expect(field).toHaveAttribute('data-focused', 'false', { timeout: 500 });
+      }).toPass({ timeout: 5_000 });
+    });
+  });
 });

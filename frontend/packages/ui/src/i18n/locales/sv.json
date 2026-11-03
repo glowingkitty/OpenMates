@@ -8618,10 +8618,10 @@
     },
     "pii": {
       "banner_title": {
-        "text": "Känsliga uppgifter hittades"
+        "text": "{count}× känsliga uppgifter hittades"
       },
       "banner_description": {
-        "text": "Hittade {summary}. Dessa ersätts med platshållare innan de skickas. Klicka på markerad text för att behålla originalet."
+        "text": "Dessa ersätts med platshållare innan de skickas. Klicka på markerad text för att skicka originalet i stället."
       },
       "undo_all": {
         "text": "Ångra alla ersättningar"

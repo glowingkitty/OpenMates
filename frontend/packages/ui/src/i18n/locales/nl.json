@@ -8618,10 +8618,10 @@
     },
     "pii": {
       "banner_title": {
-        "text": "Gevoelige gegevens gedetecteerd"
+        "text": "{count}× gevoelige gegevens gedetecteerd"
       },
       "banner_description": {
-        "text": "{summary} gevonden. Deze worden vervangen door tijdelijke aanduidingen voor verzending. Klik op gemarkeerde tekst om het origineel te behouden."
+        "text": "Deze worden vóór verzending vervangen door tijdelijke aanduidingen. Klik op gemarkeerde tekst om het origineel te verzenden."
       },
       "undo_all": {
         "text": "Alle vervangingen ongedaan maken"

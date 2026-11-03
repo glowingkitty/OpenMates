@@ -8618,10 +8618,10 @@
     },
     "pii": {
       "banner_title": {
-        "text": "Phát hiện dữ liệu nhạy cảm"
+        "text": "Phát hiện {count}× dữ liệu nhạy cảm"
       },
       "banner_description": {
-        "text": "Tìm thấy {summary}. Chúng sẽ được thay thế bằng ký tự giữ chỗ trước khi gửi. Nhấp vào văn bản được đánh dấu để giữ nguyên bản."
+        "text": "Chúng sẽ được thay bằng ký tự giữ chỗ trước khi gửi. Nhấp vào văn bản được đánh dấu để gửi bản gốc."
       },
       "undo_all": {
         "text": "Hoàn tác tất cả thay thế"

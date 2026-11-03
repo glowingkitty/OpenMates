@@ -8645,10 +8645,10 @@
     },
     "pii": {
       "banner_title": {
-        "text": "Dati sensibili rilevati"
+        "text": "{count}× dati sensibili rilevati"
       },
       "banner_description": {
-        "text": "Trovato {summary}. Questi verranno sostituiti con segnaposto prima dell'invio. Clicca sul testo evidenziato per mantenere l'originale."
+        "text": "Verranno sostituiti con segnaposto prima dell'invio. Clicca sul testo evidenziato per inviare l'originale."
       },
       "undo_all": {
         "text": "Annulla tutte le sostituzioni"

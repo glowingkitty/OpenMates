@@ -8645,10 +8645,10 @@
     },
     "pii": {
       "banner_title": {
-        "text": "Dados sensíveis detectados"
+        "text": "{count}× dados sensíveis detectados"
       },
       "banner_description": {
-        "text": "Encontrado {summary}. Estes serão substituídos por marcadores antes do envio. Clique no texto destacado para manter o original."
+        "text": "Serão substituídos por marcadores antes do envio. Clique no texto destacado para enviar o original."
       },
       "undo_all": {
         "text": "Desfazer todas as substituições"
