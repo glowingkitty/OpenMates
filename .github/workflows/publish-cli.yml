@@ -86,6 +86,19 @@ jobs:
       - name: Check product/CLI version alignment
         run: node scripts/prepare_cli_publish_version.mjs --channel=check
 
+      - name: Refuse unsynchronized SDK capabilities
+        # Public API drift, one-language "implemented" claims, invalid shared
+        # fixtures or stale generated App methods fail publication. Open
+        # migration gaps stay listed; the strict `--release` audit runs in the
+        # isolated sdk-conformance lane.
+        env:
+          TOOLCHAIN: '1.98.1'
+        run: |
+          rustup toolchain install "$TOOLCHAIN" --profile minimal --component rustfmt
+          rustup default "$TOOLCHAIN"
+          python3 -m pip install --quiet jsonschema pyyaml
+          python3 scripts/check_sdk_conformance.py
+
       - uses: actions/upload-artifact@v4
         with:
           name: openmates-privacy-runtime

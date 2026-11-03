@@ -8000,7 +8000,7 @@
     "app_namespace_py": "videos",
     "skill_method_py": "search",
     "description_key": "videos.search.description",
-    "description": "Search for videos, documentaries, tutorials, and clips on the web. Keep query focused on the topic. Whenever the user states a viewing or learning purpose, audience level, desired depth, format, authority, or other preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Example: query \"RAG tutorial\" with relevance_criteria \"Advanced, hands-on production guidance with deployment and evaluation details.\" Keep country, language, safe-",
+    "description": "Search for videos, documentaries, tutorials, and clips on the web. Also select it proactively for how-to, repair, technique, exercise, or other procedure questions where seeing the process materially helps, instead of writing long step lists; skip it for abstract, data-only, or simple answers. Keep query focused on the topic. Whenever the user states a viewing or learning purpose, audience level, desired depth, format, authority, or other preference that should change ordering, put it in relevan",
     "schema": {
       "type": "object",
       "properties": {

@@ -75,6 +75,19 @@ jobs:
       - name: Check product/Python package version alignment
         run: python scripts/prepare_python_publish_version.py --channel=check
 
+      - name: Refuse unsynchronized SDK capabilities
+        # Public API drift, one-language "implemented" claims, invalid shared
+        # fixtures or stale generated App methods fail publication. Open
+        # migration gaps stay listed; the strict `--release` audit runs in the
+        # isolated sdk-conformance lane.
+        env:
+          TOOLCHAIN: '1.98.1'
+        run: |
+          rustup toolchain install "$TOOLCHAIN" --profile minimal --component rustfmt
+          rustup default "$TOOLCHAIN"
+          python3 -m pip install --quiet jsonschema pyyaml
+          python3 scripts/check_sdk_conformance.py
+
       - name: Build Python SDK package
         working-directory: packages/openmates-python
         run: python -m build
