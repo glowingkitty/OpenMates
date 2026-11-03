@@ -149,3 +149,44 @@ fn home_shows_two_wide_cards() {
     assert_eq!(home_card_columns(120), 2);
     assert_eq!(home_card_columns(50), 1);
 }
+fn app_item(id: &str, skills: usize, category: &str) -> Item {
+    Item {
+        id: id.into(),
+        title: id.to_uppercase(),
+        description: format!("{id} app"),
+        fields: serde_json::json!({"skills": vec![serde_json::json!({"id": "s"}); skills], "category": category}),
+        ..Default::default()
+    }
+}
+
+#[test]
+fn apps_home_matches_the_ts_featured_apps_screen() {
+    let mut ui = Ui::new();
+    ui.set_authenticated(true);
+    ui.workspace = Workspace::Apps;
+    let apps = ["zeta", "web", "news", "alpha"].map(|id| app_item(id, 3, "work")).to_vec();
+    ui.set_items(Workspace::Apps, apps);
+    let text = screen(&mut ui);
+    assert!(text.contains("What app do you want to use?"));
+    assert!(text.contains("App 1 of 2"));
+    assert!(text.contains("3 skills · work"));
+    assert!(text.contains("/browse Show all  ·  /search Search apps"));
+    assert!(text.contains("Search the web"), "hardcoded apps inspiration banner");
+    typed(&mut ui, "/browse");
+    ui.key(key(KeyCode::Enter));
+    assert!(screen(&mut ui).contains("App 1 of 4"));
+}
+
+#[test]
+fn projects_home_has_greeting_prompt_and_project_pager() {
+    let mut ui = Ui::new();
+    ui.set_authenticated(true);
+    ui.set_username("Ada");
+    ui.workspace = Workspace::Projects;
+    ui.set_items(Workspace::Projects, vec![chat_item("p1"), chat_item("p2")]);
+    let text = screen(&mut ui);
+    assert!(text.contains("Hey Ada!"));
+    assert!(text.contains("What do you want to organize next?"));
+    assert!(text.contains("Project 1 of 2 · ←/→ choose project · Enter open"));
+    assert!(text.contains("Project planning tip"));
+}

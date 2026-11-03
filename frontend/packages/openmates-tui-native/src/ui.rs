@@ -256,6 +256,8 @@ pub struct Ui {
     task_order: crate::error::Result<openmates_sdk::task_order::TaskOrder>,
     items: [Vec<Item>; 6],
     inspirations: Vec<openmates_sdk::client::overview::inspirations::Inspiration>,
+    all_apps: Vec<Item>,
+    show_all_apps: bool,
     inspiration_index: usize,
     selected: [usize; 6],
     sidebar: bool,
@@ -329,6 +331,26 @@ fn composer_hint(chat_open: bool) -> &'static str {
         "←/→ chat   Enter open   Tab write   Ctrl+B sidebar"
     }
 }
+/// TS `prompts`: the question under the greeting on each workspace home.
+fn workspace_prompt(workspace: Workspace) -> &'static str {
+    match workspace {
+        Workspace::Projects => "What do you want to organize next?",
+        Workspace::Workflows => "What do you want to automate next?",
+        Workspace::Tasks => "What task is next?",
+        Workspace::Apps => "What app do you want to use?",
+        _ => workspace.label(),
+    }
+}
+/// Pager text under the cards (TS `Chat n of N`, `App n of N`, `Project n of N · …`).
+fn pager_text(workspace: Workspace, selected: usize, total: usize, has_embeds: bool) -> String {
+    let n = selected + 1;
+    match workspace {
+        Workspace::Chats => format!("{} {n} of {total}", if has_embeds { "Item" } else { "Chat" }),
+        Workspace::Apps => format!("App {n} of {total}"),
+        Workspace::Projects => format!("Project {n} of {total} · ←/→ choose project · Enter open"),
+        _ => format!("{n} of {total}"),
+    }
+}
 /// Breadcrumb plus bold title when the row has room for both.
 fn chat_title_line(title: &str, width: u16) -> Line<'static> {
     let crumb_width = CHAT_CRUMB.width() as u16;
@@ -380,6 +402,8 @@ impl Ui {
             task_order: crate::task_order::for_host(),
             items: std::array::from_fn(|_| vec![]),
             inspirations: vec![],
+            all_apps: vec![],
+            show_all_apps: false,
             inspiration_index: 0,
             selected: [0; 6],
             sidebar: false,
@@ -553,6 +577,10 @@ impl Ui {
                 self.hits.clear();
                 return;
             }
+        }
+        if workspace == Workspace::Apps {
+            self.all_apps = items.clone();
+            items = crate::home_items::featured_apps(items, self.show_all_apps);
         }
         self.items[i] = items;
         self.selected[i] = selected_id
@@ -1396,8 +1424,8 @@ impl Ui {
                     return vec![UiCommand::Quit];
                 }
                 KeyCode::Char('q') => return vec![UiCommand::Quit],
-                KeyCode::Char('o') if !self.inspirations.is_empty() => {
-                    self.inspiration_index = (self.inspiration_index + 1) % self.inspirations.len();
+                KeyCode::Char('o') if !self.banner_pool().is_empty() => {
+                    self.inspiration_index = (self.inspiration_index + 1) % self.banner_pool().len();
                     return vec![];
                 }
                 KeyCode::Char('y') => {
@@ -1984,7 +2012,7 @@ impl Ui {
                 vec![]
             }
             "/stop" => vec![UiCommand::Cancel],
-            "/chats" | "/browse" => self.nav(Workspace::Chats),
+            "/chats" => self.nav(Workspace::Chats),
             "/apps" => self.nav(Workspace::Apps),
             "/app-skill" if !value.is_empty() => {
                 vec![UiCommand::Open(Workspace::Apps, format!("skill:{value}"))]
@@ -2031,6 +2059,17 @@ impl Ui {
             "/logout" => vec![UiCommand::Logout],
             "/sidebar" => self.activate(HitAction::Sidebar),
             "/new" => self.activate(HitAction::NewChat),
+            "/browse" => {
+                if self.workspace == Workspace::Apps {
+                    self.show_all_apps = !self.show_all_apps;
+                    let all = std::mem::take(&mut self.all_apps);
+                    self.selected[index(Workspace::Apps)] = 0;
+                    self.set_items(Workspace::Apps, all);
+                    vec![]
+                } else {
+                    self.nav(Workspace::Chats)
+                }
+            }
             "/active" => match self.running_chat_id() {
                 Some(id) => vec![UiCommand::Open(Workspace::Chats, id)],
                 None => vec![],
@@ -3250,10 +3289,19 @@ impl Ui {
             ));
         }
     }
+    /// Inspirations behind the home banner: the server list on Chats, the
+    /// TS hardcoded defaults on the other workspace homes.
+    fn banner_pool(&self) -> Vec<openmates_sdk::client::overview::inspirations::Inspiration> {
+        match self.workspace {
+            Workspace::Chats => self.inspirations.clone(),
+            other => crate::home_items::defaults::workspace_defaults(other),
+        }
+    }
     fn draw_home(&mut self, frame: &mut Frame, area: Rect) {
         // TS home banner: category-colored band with the day's inspiration.
-        let area = match self.inspirations.get(self.inspiration_index) {
-            Some(inspiration) if self.workspace == Workspace::Chats && area.height >= 30 => {
+        let pool = self.banner_pool();
+        let area = match pool.get(self.inspiration_index % pool.len().max(1)) {
+            Some(inspiration) if area.height >= 26 => {
                 let title = inspiration.feature_title.as_deref().filter(|t| !t.is_empty()).unwrap_or(
                     if inspiration.title.is_empty() { "Daily inspiration" } else { &inspiration.title },
                 );
@@ -3284,8 +3332,10 @@ impl Ui {
             } else {
                 format!("Hey {}!", self.username)
             }
+        } else if self.workspace == Workspace::Projects && !self.username.is_empty() {
+            format!("Hey {}!", self.username)
         } else {
-            self.workspace.label().into()
+            workspace_prompt(self.workspace).into()
         };
         frame.render_widget(
             Paragraph::new(title)
@@ -3295,8 +3345,9 @@ impl Ui {
         );
         let help = match self.workspace {
             Workspace::Chats => "Continue where you left off",
-            Workspace::Apps => "Choose an app · ←/→ choose · Enter explore",
-            Workspace::Projects => "Your Projects · n create · Enter open",
+            Workspace::Apps => "Use your apps directly and return to saved results.",
+            Workspace::Projects if !self.username.is_empty() => workspace_prompt(Workspace::Projects),
+            Workspace::Projects => "",
             Workspace::Workflows => "Automate with Workflows · n create · Enter open",
             _ => "",
         };
@@ -3380,11 +3431,19 @@ impl Ui {
                 )));
             }
             let mut body = inner;
-            if self.workspace == Workspace::Chats && inner.height > 3 {
-                // TS home footer: due-soon label, else the category, else "Chat".
-                let footer = item.fields.get("footer").and_then(|value| value.as_str()).map(str::to_owned)
-                    .or_else(|| Some(item.category.replace('_', " ")).filter(|category| !category.is_empty()))
-                    .unwrap_or_else(|| "Chat".to_owned());
+            if matches!(self.workspace, Workspace::Chats | Workspace::Apps) && inner.height > 3 {
+                // TS home footer: due-soon label, else the category, else "Chat"; apps show "N skills · category".
+                let footer = if self.workspace == Workspace::Apps {
+                    let skills = item.fields.get("skills").and_then(|v| v.as_array()).map_or(0, Vec::len);
+                    match item.fields.get("category").and_then(|v| v.as_str()).filter(|c| !c.is_empty()) {
+                        Some(category) => format!("{skills} skills · {}", category.replace('_', " ")),
+                        None => format!("{skills} skills"),
+                    }
+                } else {
+                    item.fields.get("footer").and_then(|value| value.as_str()).map(str::to_owned)
+                        .or_else(|| Some(item.category.replace('_', " ")).filter(|category| !category.is_empty()))
+                        .unwrap_or_else(|| "Chat".to_owned())
+                };
                 body.height = inner.height - 2;
                 frame.render_widget(
                     Paragraph::new(Line::from(Span::styled(footer, Style::default().fg(MUTED)))),
@@ -3403,15 +3462,11 @@ impl Ui {
                 false,
             );
             frame.render_widget(
-                Paragraph::new(format!(
-                    "{}{} of {}",
-                    if self.workspace == Workspace::Chats {
-                        if items.iter().any(|item| item.id.starts_with("embed:")) { "Item " } else { "Chat " }
-                    } else {
-                        ""
-                    },
-                    selected + 1,
-                    items.len()
+                Paragraph::new(pager_text(
+                    self.workspace,
+                    selected,
+                    items.len(),
+                    items.iter().any(|item| item.id.starts_with("embed:")),
                 ))
                     .alignment(ratatui::layout::Alignment::Center)
                     .style(Style::default().fg(MUTED)),
@@ -3424,6 +3479,16 @@ impl Ui {
                 HitAction::NextCard(1),
                 false,
             );
+            if self.workspace == Workspace::Apps && area.height > 15 {
+                for (row, text) in [(12, "←/→ choose app  ·  Enter open  ·  Tab focus"), (13, "/browse Show all  ·  /search Search apps")] {
+                    frame.render_widget(
+                        Paragraph::new(text)
+                            .alignment(ratatui::layout::Alignment::Center)
+                            .style(Style::default().fg(MUTED)),
+                        Rect::new(area.x, area.y + row, area.width, 1),
+                    );
+                }
+            }
             if self.workspace == Workspace::Chats && area.height > 15 {
                 frame.render_widget(
                     Paragraph::new("←/→ choose  ·  Enter open  ·  Tab write")
@@ -4381,7 +4446,8 @@ impl Ui {
                     frame,
                     Rect::new(inner.x, start_y + row as u16, inner.width, 1),
                     &format!(
-                        "{} {}{}",
+                        "{}. {} {}{}",
+                        i + 1,
                         if i == selected { "›" } else { " " },
                         title,
                         if *web { " ↗" } else { "" }
