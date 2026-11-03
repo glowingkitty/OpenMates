@@ -68,6 +68,48 @@ async function expectSettingsDispatch(page: Page, path: string): Promise<void> {
   await expect(page.getByTestId('apps-settings')).toHaveCount(0);
 }
 
+/** Every card must sit fully inside the carousel's vertical clip box (overflow-y is hidden). Polls so entrance animations settle first. */
+async function expectCardsVerticallyContained(carousel: Locator, cards: Locator): Promise<void> {
+  await expect(cards.first()).toBeVisible();
+  await expect.poll(async () => {
+    const box = await carousel.evaluate(element => {
+      const rect = element.getBoundingClientRect();
+      return { top: rect.top, bottom: rect.bottom };
+    });
+    const rects = await cards.evaluateAll(elements => elements.map(element => {
+      const rect = element.getBoundingClientRect();
+      return { top: rect.top, bottom: rect.bottom, height: rect.height };
+    }));
+    if (!rects.length) return ['no cards'];
+    return rects.flatMap((rect, index) => [
+      ...(rect.height > 40 ? [] : [`card ${index} height ${rect.height}`]),
+      ...(rect.top >= box.top + 4 ? [] : [`card ${index} top ${rect.top} above carousel ${box.top}`]),
+      ...(rect.bottom <= box.bottom - 4 ? [] : [`card ${index} bottom ${rect.bottom} below carousel ${box.bottom}`]),
+    ]);
+  }, { message: 'preview cards fit inside the carousel clip box', timeout: 5000 }).toEqual([]);
+}
+
+async function expectSharedWorkspaceGreeting(page: Page): Promise<void> {
+  const greeting = page.getByTestId('apps-app-home').locator('.app-greeting');
+  const styles = await greeting.evaluate(element => {
+    const probe = document.createElement('div');
+    probe.style.fontSize = 'var(--font-size-h2-mobile)';
+    element.appendChild(probe);
+    const h2Size = getComputedStyle(probe).fontSize;
+    probe.style.fontSize = 'var(--font-size-p)';
+    const pSize = getComputedStyle(probe).fontSize;
+    probe.remove();
+    const h2 = getComputedStyle(element.querySelector('h2')!);
+    const p = getComputedStyle(element.querySelector('p')!);
+    return { h2Size, pSize, h2: { size: h2.fontSize, weight: h2.fontWeight }, p: { size: p.fontSize, weight: p.fontWeight } };
+  });
+  expect(styles.h2.size).toBe(styles.h2Size);
+  expect(styles.h2.weight).toBe('600');
+  expect(styles.p.size).toBe(styles.pSize);
+  expect(styles.p.weight).toBe('600');
+  expect(parseFloat(styles.h2.size)).toBeGreaterThan(parseFloat(styles.p.size));
+}
+
 async function attachWorkspaceScreenshot(page: Page, name: string): Promise<void> {
   const path = test.info().outputPath(name);
   await page.screenshot({ path, animations: 'disabled' });
@@ -405,6 +447,8 @@ test.describe('Apps bare component previews', () => {
       const ids=await examples.evaluateAll(elements=>elements.map(element=>element.getAttribute('data-chat-id')));
       expect(ids.length).toBeGreaterThan(0);expect(ids.every(id=>ALL_EXAMPLE_CHATS.some(chat=>chat.chat_id===id))).toBe(true);
       await expect(carousel).toHaveCSS('overflow-x','auto');
+      await expectCardsVerticallyContained(carousel,examples);
+      await expectSharedWorkspaceGreeting(page);
       const geometry=await carousel.evaluate(element=>({scroll:element.scrollWidth,client:element.clientWidth}));
       if(width===390&&ids.length>1)expect(geometry.scroll).toBeGreaterThan(geometry.client);
       await carousel.evaluate(element=>{element.scrollLeft=element.scrollWidth;});
@@ -417,6 +461,49 @@ test.describe('Apps bare component previews', () => {
       await expectNoHorizontalOverflow(page);
       const navigated=page.evaluate(()=>new Promise<string>(resolve=>window.addEventListener('apps-preview-navigate',event=>resolve((event as CustomEvent<string>).detail),{once:true})));
       await page.getByTestId('apps-detail-close').click();expect(await navigated).toBe('#apps');
+    }
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.presentation.shared-detail-and-recency
+  test('short app homes scroll instead of clipping example, recommended and saved previews', async ({ page }: { page: Page }) => {
+    test.setTimeout(240_000);
+    await fixturePublicApps(page);
+    const now = Math.floor(Date.now() / 1000);
+    await page.route('**/v1/apps/workspace/library/web', route => route.fulfill({ json: {
+      app_id: 'web', daily_searches_enabled: true,
+      saved_searches: Array.from({ length: 3 }, (_, index) => ({ id: `saved-${index}`, skill_id: 'search', title: `Saved garden ${index}`, query: `Saved garden ${index}`, parameters: { query: `garden ${index}` }, saved_at: now - index })),
+      recommendations: [{ id: '90000000-0000-4000-8000-000000000011', skill_id: 'search', created_at: now, expires_at: now + 3600, result: { query: 'Recommended gardens', result_count: 1, results: [{ title: 'Fresh garden result', url: 'https://example.test/garden' }] } }],
+    } }));
+    await page.route('**/v1/apps/workspace/results?*', route => route.fulfill({ json: { items: [], offset: 0, limit: 20, has_more: false } }));
+    const sizes = [{ width: 1180, height: 620 }, { width: 768, height: 600 }, { width: 390, height: 600 }, { width: 320, height: 568 }];
+    for (const theme of ['light', 'dark']) for (const { width, height } of sizes) {
+      for (const variant of ['app', 'teamLibrary']) {
+        await page.setViewportSize({ width, height });
+        await page.goto(preview('apps/AppsWorkspace', width, variant).replace('theme=light', 'theme=' + theme), { waitUntil: 'domcontentloaded' });
+        await waitForComponentPreview(page);
+        const fullscreen = page.getByTestId('apps-detail-fullscreen');
+        await expect(fullscreen).toBeVisible();
+        await expectSharedWorkspaceGreeting(page);
+        const carousel = page.getByTestId('apps-preview-carousel');
+        const sections: Array<{ tab: string | null; cards: Locator }> = variant === 'app'
+          ? [{ tab: null, cards: carousel.getByTestId('app-store-example-chat-card') }]
+          : [{ tab: 'apps-tab-recommended', cards: carousel.locator('.preview-card') }, { tab: 'apps-tab-saved', cards: carousel.locator('.preview-card') }];
+        for (const section of sections) {
+          if (section.tab) { await page.getByTestId(section.tab).click(); await expect(page.getByTestId(section.tab)).toHaveAttribute('aria-pressed', 'true'); }
+          await expect(section.cards.first()).toBeVisible();
+          await expectCardsVerticallyContained(carousel, section.cards);
+          await section.cards.first().scrollIntoViewIfNeeded();
+          await expect(section.cards.first()).toBeInViewport({ ratio: 0.99 });
+          const first = await section.cards.first().boundingBox();
+          const carouselBox = await carousel.boundingBox();
+          if (width <= 390) expect(Math.abs((first!.x + first!.width / 2) - (carouselBox!.x + carouselBox!.width / 2))).toBeLessThanOrEqual(2);
+        }
+        await page.getByTestId('apps-tab-recent').scrollIntoViewIfNeeded();
+        await expect(page.getByTestId('apps-tab-recent')).toBeInViewport();
+        await expect(page.getByTestId('apps-request-textarea')).toBeInViewport();
+        await expectNoHorizontalOverflow(page);
+        await attachWorkspaceScreenshot(page, `apps-short-home-${variant}-${theme}-${width}x${height}.png`);
+      }
     }
   });
 
@@ -508,8 +595,10 @@ test.describe('Apps bare component previews', () => {
       await page.setViewportSize({width,height:844});await page.goto(preview('apps/AppsWorkspace',width,'teamLibrary'),{waitUntil:'domcontentloaded'});await waitForComponentPreview(page);
       await expect(page.getByTestId('apps-tab-recommended')).toHaveAttribute('aria-pressed','true');
       await expect(page.getByTestId('apps-preview-carousel').getByTestId('embed-preview')).toBeVisible();
+      await expectCardsVerticallyContained(page.getByTestId('apps-preview-carousel'),page.getByTestId('apps-preview-carousel').locator('.preview-card'));
       await page.getByTestId('apps-tab-saved').click();await expect(page.getByTestId('apps-tab-saved')).toHaveAttribute('aria-pressed','true');
       const carousel=page.getByTestId('apps-preview-carousel');await expect(carousel.getByTestId('apps-saved-search-query')).toHaveCount(4);
+      await expectCardsVerticallyContained(carousel,carousel.locator('.preview-card'));
       expect(await carousel.evaluate(element=>element.scrollWidth>element.clientWidth)).toBe(true);
       await carousel.evaluate(element=>{element.scrollLeft=element.scrollWidth;});await expect(carousel.getByTestId('apps-saved-search-query').last()).toBeInViewport();
       await page.goto(preview('apps/AppsWorkspace',width,'teamLibrarySidebar'),{waitUntil:'domcontentloaded'});await waitForComponentPreview(page);const sidebar=page.getByTestId('apps-sidebar');await expect(sidebar).toBeVisible();
