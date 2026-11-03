@@ -774,6 +774,26 @@ def run_fresh_fixture_sdk(snapshot, command, *, timeout, sensitive_env=None):
         )
 
 
+def cli_session_client_entry() -> str:
+    """Module URI of the subject CLI build's first-party session client.
+
+    The harness runs from CI_HARNESS_COMMIT while the CLI dist is built from the
+    subject, which may be based on an older dev commit. Subjects that contain
+    0c5ab48c32 build the non-SDK `cli-internal-client.js` entry, the only entry
+    that serves the CLI login once the root SDK is API-key only (39f78b1dee).
+    Older subjects predate both changes, so their root barrel still exports the
+    CLI session client. A subject root that is API-key only refuses `session`
+    and fails loudly in the caller; nothing here grants credits or bypasses auth.
+    """
+    dist = ROOT / "frontend/packages/openmates-cli/dist"
+    internal = dist / "cli-internal-client.js"
+    if internal.is_file():
+        return internal.as_uri()
+    if (dist / "index.js").is_file():
+        return (dist / "index.js").as_uri()
+    raise RuntimeError("Subject CLI build has no first-party session client entry")
+
+
 def provision_api_key(account: dict) -> str:
     """Issue an expiring key through the real SDK using the new CLI session."""
     require_runner()
@@ -782,7 +802,7 @@ def provision_api_key(account: dict) -> str:
     # the account-wide one-use TOTP guard cannot mistake setup for a replay.
     time.sleep(30 - (time.time() % 30) + 1)
     totp_code = generate_ci_totp(account["OPENMATES_TEST_ACCOUNT_OTP_KEY"])
-    sdk = (ROOT / "frontend/packages/openmates-cli/dist/cli-internal-client.js").as_uri()
+    sdk = cli_session_client_entry()
     program = """
 const { OpenMatesClient, OpenMates } = await import(process.argv[1]);
 const { platform, arch } = await import("node:os");
@@ -854,7 +874,7 @@ def accept_fixture_credits(account: dict) -> int:
     """
     require_runner()
     snapshot = fresh_fixture_session(account)
-    sdk = (ROOT / "frontend/packages/openmates-cli/dist/cli-internal-client.js").as_uri()
+    sdk = cli_session_client_entry()
     program = """
 const { OpenMatesClient } = await import(process.argv[1]);
 const { readFileSync } = await import("node:fs");
@@ -2196,6 +2216,8 @@ def run_e2e(
     )
 
     paired = PAIRED_SPEC in specs
+    # The bench spec serves each web build itself on the only CORS-allowed origin.
+    bench_only = specs == ["web-rust-core-bench.spec.ts"]
     if "rust-core-new-chat-send.spec.ts" in specs and (
         specs != ["rust-core-new-chat-send.spec.ts"]
         or artifact
@@ -2352,7 +2374,7 @@ def run_e2e(
         else:
             app_server = (
                 None
-                if artifact or node_probe_only or paired
+                if artifact or node_probe_only or paired or bench_only
                 else subprocess.Popen(
                     [
                         "pnpm",
@@ -2372,7 +2394,7 @@ def run_e2e(
             )
             child = (
                 None
-                if artifact or node_probe_only or paired
+                if artifact or node_probe_only or paired or bench_only
                 else subprocess.Popen(
                     [
                         sys.executable,
@@ -2551,6 +2573,7 @@ def run_e2e(
                         "shared-chat-open.spec.ts",
                         "shared-chat-bounded-history.spec.ts",
                         "startup-sync-contract.spec.ts",
+                        "web-rust-core-crypto.spec.ts",
                     }:
                         env["OPENMATES_CI_SHARED_CHAT_URL"] = provision_shared_archive(
                             primary
@@ -4232,6 +4255,7 @@ def main():
             "sdk-lockfiles",
             "rust-wasm",
             "rust-native-dev",
+            "rust-check",
         ):
             verify_pinned_node_runtime()
         proof_dimensions = configure_proof_dimensions()
@@ -4253,6 +4277,11 @@ def main():
             from ci_native_dev import run
 
             run(ROOT, results)
+        elif mode == "rust-check":
+            reject_inherited_accounts()
+            from ci_rust_check import run as run_rust_check
+
+            run_rust_check(ROOT, results, json.loads(os.environ["CI_SPECS_JSON"]))
         elif mode == "rust-wasm":
             reject_inherited_accounts()
             from ci_rust_wasm import run
