@@ -4160,6 +4160,9 @@
       },
       "more_options": {
         "text": "옵션 더 보기"
+      },
+      "previous_options": {
+        "text": "이전 옵션 보기"
       }
     },
     "explain_in_new_chat": {

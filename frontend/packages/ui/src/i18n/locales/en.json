@@ -5256,6 +5256,9 @@
       },
       "more_options": {
         "text": "Show more options"
+      },
+      "previous_options": {
+        "text": "Show previous options"
       }
     },
     "explain_in_new_chat": {

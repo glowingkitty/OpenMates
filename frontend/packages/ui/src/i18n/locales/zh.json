@@ -4160,6 +4160,9 @@
       },
       "more_options": {
         "text": "显示更多选项"
+      },
+      "previous_options": {
+        "text": "显示上一组选项"
       }
     },
     "explain_in_new_chat": {

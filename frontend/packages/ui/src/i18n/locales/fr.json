@@ -4160,6 +4160,9 @@
       },
       "more_options": {
         "text": "Afficher plus d'options"
+      },
+      "previous_options": {
+        "text": "Afficher les options précédentes"
       }
     },
     "explain_in_new_chat": {

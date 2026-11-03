@@ -4160,6 +4160,9 @@
       },
       "more_options": {
         "text": "Hiển thị thêm tùy chọn"
+      },
+      "previous_options": {
+        "text": "Hiển thị tùy chọn trước"
       }
     },
     "explain_in_new_chat": {

@@ -4160,6 +4160,9 @@
       },
       "more_options": {
         "text": "Tampilkan opsi lainnya"
+      },
+      "previous_options": {
+        "text": "Tampilkan opsi sebelumnya"
       }
     },
     "explain_in_new_chat": {

@@ -4160,6 +4160,9 @@
       },
       "more_options": {
         "text": "הצג אפשרויות נוספות"
+      },
+      "previous_options": {
+        "text": "הצג אפשרויות קודמות"
       }
     },
     "explain_in_new_chat": {

@@ -4160,6 +4160,9 @@
       },
       "more_options": {
         "text": "Meer opties tonen"
+      },
+      "previous_options": {
+        "text": "Vorige opties tonen"
       }
     },
     "explain_in_new_chat": {

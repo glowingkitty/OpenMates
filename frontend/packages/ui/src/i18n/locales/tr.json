@@ -4160,6 +4160,9 @@
       },
       "more_options": {
         "text": "Daha fazla seçenek göster"
+      },
+      "previous_options": {
+        "text": "Önceki seçenekleri göster"
       }
     },
     "explain_in_new_chat": {

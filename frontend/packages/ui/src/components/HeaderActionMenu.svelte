@@ -114,19 +114,41 @@
     return () => observer.disconnect();
   });
 
-  // Long action lists (chat More menu) scroll instead of running off-screen.
-  let menuMaxHeight = $state<number | null>(null);
+  // Long action lists (chat More menu) are paged instead of scrolled: at most
+  // PAGE_SIZE entries show at once, with arrows that switch to the next or
+  // previous set. Entries come from snippets, so pages are applied to the DOM.
+  const PAGE_SIZE = 5;
+  let pageHost = $state<HTMLDivElement>();
+  let page = $state(0);
+  let entryCount = $state(0);
+  const pageCount = $derived(Math.max(1, Math.ceil(entryCount / PAGE_SIZE)));
   $effect(() => {
-    if (!open || !menu) { menuMaxHeight = null; return; }
-    const element = menu;
-    const update = () => {
-      const available = window.innerHeight - element.getBoundingClientRect().top - MENU_SHADOW_CLEARANCE * 2;
-      menuMaxHeight = element.scrollHeight > available ? Math.max(120, available) : null;
-    };
-    update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
+    if (!open) page = 0;
   });
+  $effect(() => {
+    const host = pageHost;
+    const current = page;
+    if (!open || !host) return;
+    const apply = () => {
+      const entries = Array.from(host.children) as HTMLElement[];
+      entryCount = entries.length;
+      const lastPage = Math.max(0, Math.ceil(entries.length / PAGE_SIZE) - 1);
+      const visiblePage = Math.min(current, lastPage);
+      entries.forEach((entry, index) => {
+        entry.style.display = Math.floor(index / PAGE_SIZE) === visiblePage ? '' : 'none';
+      });
+    };
+    apply();
+    const observer = new MutationObserver(apply);
+    observer.observe(host, { childList: true });
+    return () => observer.disconnect();
+  });
+  async function changePage(delta: number) {
+    page = Math.min(pageCount - 1, Math.max(0, page + delta));
+    await tick();
+    const entries = Array.from(pageHost?.children ?? []) as HTMLElement[];
+    entries[page * PAGE_SIZE]?.querySelector<HTMLElement>('button, a')?.focus({ preventScroll: true });
+  }
 
   function outside(event: PointerEvent) {
     if (open && event.target instanceof Node && !root.contains(event.target))
@@ -225,8 +247,7 @@
           style:visibility={compactMoreOnly && !compactMenuPositioned ? 'hidden' : undefined}
           style:--menu-hover-scale={MENU_HOVER_SCALE}
           style:top={`calc(100% + ${MENU_GAP}px)`}
-          style:max-height={menuMaxHeight !== null ? `${menuMaxHeight}px` : undefined}
-          class:scrollable={menuMaxHeight !== null}
+          data-page={page}
           transition:fly={{
             y: -8,
             duration: window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -235,10 +256,30 @@
               : MENU_DURATION,
           }}
         >
-          {#if compactMoreOnly}{@render report()}{/if}
-          {#if hasShare && (compactMoreOnly || hasPriorityAction || containerWidth < SHARE_MIN_WIDTH)}{@render share()}{/if}
-          {#if compactMoreOnly && hasPriorityAction && priorityAction}{@render priorityAction()}{/if}
-          {@render actions()}
+          {#if page > 0}
+            <button
+              class="page-arrow page-up"
+              data-testid="more-actions-page-up"
+              data-keep-menu-open
+              aria-label={$text('chats.context_menu.previous_options')}
+              onclick={() => changePage(-1)}
+            ><span class="page-triangle" aria-hidden="true"></span></button>
+          {/if}
+          <div class="more-page" bind:this={pageHost}>
+            {#if compactMoreOnly}{@render report()}{/if}
+            {#if hasShare && (compactMoreOnly || hasPriorityAction || containerWidth < SHARE_MIN_WIDTH)}{@render share()}{/if}
+            {#if compactMoreOnly && hasPriorityAction && priorityAction}{@render priorityAction()}{/if}
+            {@render actions()}
+          </div>
+          {#if page < pageCount - 1}
+            <button
+              class="page-arrow page-down"
+              data-testid="more-actions-page-down"
+              data-keep-menu-open
+              aria-label={$text('chats.context_menu.more_options')}
+              onclick={() => changePage(1)}
+            ><span class="page-triangle" aria-hidden="true"></span></button>
+          {/if}
         </div>
       {/if}
     </div>
@@ -311,17 +352,37 @@
     overflow: visible;
     pointer-events: auto;
   }
-  .more-actions.scrollable {
-    overflow-y: auto;
-    overflow-x: hidden;
-    overscroll-behavior: contain;
-    flex-wrap: nowrap;
-    /* Room for pill hover scale and shadows inside the scroll clip. */
-    padding: var(--spacing-4) var(--spacing-8) var(--spacing-4) var(--spacing-2);
-    margin-left: calc(-1 * var(--spacing-2));
+  /* Snippet entries stay direct flex items of the menu column. */
+  .more-page {
+    display: contents;
   }
-  .more-actions.scrollable > :global(*) {
-    flex-shrink: 0;
+  .page-arrow {
+    all: unset;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 28px;
+    border-radius: var(--radius-full);
+    background-color: var(--color-grey-10);
+    box-shadow: var(--shadow-md);
+    cursor: pointer;
+    pointer-events: auto;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .page-arrow:hover,
+  .page-arrow:focus-visible {
+    background-color: var(--color-grey-20);
+  }
+  .page-triangle {
+    width: 0;
+    height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-top: 8px solid var(--color-primary-start);
+  }
+  .page-up .page-triangle {
+    transform: rotate(180deg);
   }
   .header-action-menu :global(.header-action) {
     all: unset;

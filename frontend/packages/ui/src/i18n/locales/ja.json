@@ -4160,6 +4160,9 @@
       },
       "more_options": {
         "text": "その他のオプションを表示"
+      },
+      "previous_options": {
+        "text": "前のオプションを表示"
       }
     },
     "explain_in_new_chat": {

@@ -5211,6 +5211,9 @@
       },
       "more_options": {
         "text": "Weitere Optionen anzeigen"
+      },
+      "previous_options": {
+        "text": "Vorherige Optionen anzeigen"
       }
     },
     "explain_in_new_chat": {

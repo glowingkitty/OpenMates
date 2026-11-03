@@ -4160,6 +4160,9 @@
       },
       "more_options": {
         "text": "Visa fler alternativ"
+      },
+      "previous_options": {
+        "text": "Visa föregående alternativ"
       }
     },
     "explain_in_new_chat": {

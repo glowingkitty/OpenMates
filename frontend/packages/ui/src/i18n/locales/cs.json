@@ -4160,6 +4160,9 @@
       },
       "more_options": {
         "text": "Zobrazit další možnosti"
+      },
+      "previous_options": {
+        "text": "Zobrazit předchozí možnosti"
       }
     },
     "explain_in_new_chat": {
