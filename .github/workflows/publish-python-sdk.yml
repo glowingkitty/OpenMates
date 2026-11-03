@@ -45,6 +45,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      TOOLCHAIN: '1.98.1'
     steps:
       - uses: actions/checkout@v4
 
@@ -66,8 +68,19 @@ jobs:
 
       - name: Install package test dependencies
         run: |
-          python -m pip install --upgrade pip pytest build
+          python -m pip install --upgrade pip pytest pytest-asyncio build
           python -m pip install -e packages/openmates-python
+
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install "$TOOLCHAIN" --profile minimal --component rustfmt
+          rustup default "$TOOLCHAIN"
+
+      - name: Build native session extension for the Python SDK tests
+        # SessionClient, privacy and task ordering have no pure-Python fallback;
+        # the suite must run against the real PyO3 core (openmates._native).
+        # The artifact is gitignored and only used by this test job.
+        run: python3 scripts/build_sdk_native.py --language python --debug
 
       - name: Run Python SDK tests
         run: python -m pytest packages/openmates-python/tests scripts/tests/test_prepare_python_publish_version.py
@@ -80,11 +93,7 @@ jobs:
         # fixtures or stale generated App methods fail publication. Open
         # migration gaps stay listed; the strict `--release` audit runs in the
         # isolated sdk-conformance lane.
-        env:
-          TOOLCHAIN: '1.98.1'
         run: |
-          rustup toolchain install "$TOOLCHAIN" --profile minimal --component rustfmt
-          rustup default "$TOOLCHAIN"
           python3 -m pip install --quiet --upgrade 'jsonschema>=4.18' pyyaml
           python3 scripts/check_sdk_conformance.py
 
