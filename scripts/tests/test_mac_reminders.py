@@ -48,3 +48,15 @@ def test_reminders_helper_is_admitted_and_cannot_delete(tmp_path, monkeypatch):
     helper = (mac_reminders.SCRIPTS / "_apple_reminders_remote.py").read_text()
     assert '"delete"' not in helper and "remove(" not in helper
     assert 'ALLOWED_WRITE_LISTS = ["OpenMates", "Personal Tasks"]' in helper
+
+
+def test_load_falls_back_to_cache_when_mac_is_offline(tmp_path, monkeypatch):
+    cache = tmp_path / "reminders-cache.json"
+    cache.write_text('{"fetched_at": "2026-11-03T07:30:00+00:00", "items": [{"title": "a"}]}')
+
+    def offline(_cache):
+        raise mac_reminders.RemindersError("Mac unreachable")
+
+    monkeypatch.setattr(mac_reminders, "sync", offline)
+    items, source, fetched = mac_reminders.load(cache=cache)
+    assert (items, source, fetched) == ([{"title": "a"}], "cache", "2026-11-03T07:30:00+00:00")

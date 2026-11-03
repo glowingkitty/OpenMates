@@ -6,7 +6,8 @@ helper `_apple_reminders_remote.py` on the Mac. Reads cover the OpenMates and
 Personal Tasks lists; writes are limited to those lists and never delete
 (finishing a reminder = complete). Apply changes only after the user approved them.
 
-  overview                      bucketed snapshot for the meeting (JSON)
+  sync                          refresh the local cache (cron every 30 min; Mac often offline)
+  overview [--cached]           bucketed snapshot for the meeting (JSON)
   create --list L --title T [--due D] [--notes N]
   complete|set-due|update|move  single changes by reminder id
   batch --file changes.json     [{"action": "set-due", "id": ..., "due": ...}, ...]
@@ -30,6 +31,7 @@ from zoneinfo import ZoneInfo
 SCRIPTS = Path(__file__).resolve().parent
 LISTS = ("OpenMates", "Personal Tasks")
 TZ = ZoneInfo("Europe/Berlin")
+CACHE = Path.home() / ".local/state/openmates/reminders-cache.json"
 
 
 class RemindersError(RuntimeError):
@@ -116,10 +118,39 @@ def fetch(lists: tuple[str, ...] = LISTS) -> list[dict]:
     return result
 
 
+def sync(cache: Path = CACHE) -> dict:
+    """Fetch from the Mac and store a private local copy for when the Mac is offline."""
+    items = fetch()
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    tmp = cache.with_suffix(".tmp")
+    tmp.write_text(json.dumps({"fetched_at": datetime.now(timezone.utc).isoformat(), "items": items}))
+    tmp.chmod(0o600)
+    tmp.replace(cache)
+    return {"fetched_at": "now", "open": len(items)}
+
+
+def load(prefer_live: bool = True, cache: Path = CACHE) -> tuple[list[dict], str, str]:
+    """Items plus their source ("live"/"cache") and fetch time; raises when neither exists."""
+    if prefer_live:
+        try:
+            sync(cache)
+        except (RemindersError, subprocess.TimeoutExpired, OSError):
+            pass  # Mac offline is normal; the cache below is the designed fallback
+        else:
+            data = json.loads(cache.read_text())
+            return data["items"], "live", data["fetched_at"]
+    if not cache.exists():
+        raise RemindersError("Mac offline and no cached reminders yet")
+    data = json.loads(cache.read_text())
+    return data["items"], "cache", data["fetched_at"]
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("sync")
     view = sub.add_parser("overview")
+    view.add_argument("--cached", action="store_true", help="use the local copy, do not contact the Mac")
     view.add_argument("--ahead-days", type=int, default=7)
     view.add_argument("--recent-days", type=int, default=7)
     listing = sub.add_parser("list", help="every open reminder, optionally one overview bucket")
@@ -145,8 +176,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     today = datetime.now(timezone.utc).astimezone(TZ).date()
-    if args.command == "overview":
-        result: object = overview(fetch(), today, args.ahead_days, args.recent_days)
+    if args.command == "sync":
+        result: object = sync()
+    elif args.command == "overview":
+        items, source, fetched = load(prefer_live=not args.cached)
+        result = overview(items, today, args.ahead_days, args.recent_days) | {
+            "source": source, "fetched_at": fetched}
     elif args.command == "list":
         items = fetch()
         if args.bucket:

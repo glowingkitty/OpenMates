@@ -21,6 +21,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import urllib.request
 from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -344,15 +345,49 @@ def marketing(since: datetime, repo: Path = MARKETING_REPO) -> dict:
 
 
 def reminders(gaps: list[str]) -> dict | None:
+    """Live from the Mac when it is online, else the copy synced every 30 minutes."""
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import mac_reminders  # noqa: E402 - sibling script, path set just above
 
     try:
-        return mac_reminders.overview(mac_reminders.fetch(), datetime.now(TZ).date())
-    except (mac_reminders.RemindersError, subprocess.TimeoutExpired, OSError) as error:
-        gaps.append(f"Apple Reminders unavailable (Mac offline or not reachable over Tailscale?): "
-                    f"{clean(str(error), 300)}")
+        items, source, fetched_at = mac_reminders.load()
+    except (mac_reminders.RemindersError, ValueError, OSError) as error:
+        gaps.append(f"Apple Reminders unavailable: {clean(str(error), 300)}")
         return None
+    if source == "cache":
+        gaps.append(f"Mac offline: reminders are the copy synced at {fetched_at[:16]} UTC")
+    return mac_reminders.overview(items, datetime.now(TZ).date()) | {
+        "source": source, "fetched_at": fetched_at}
+
+
+def claude_usage(gaps: list[str]) -> dict | None:
+    """Subscription usage as Claude Code's /usage shows it (account endpoint, read-only).
+
+    The endpoint is not a documented public API; a failure is reported as a gap.
+    """
+    try:
+        token = json.loads((Path.home() / ".claude/.credentials.json").read_text())["claudeAiOauth"]["accessToken"]
+        request = urllib.request.Request("https://api.anthropic.com/api/oauth/usage", headers={
+            "Authorization": f"Bearer {token}", "anthropic-beta": "oauth-2025-04-20"})
+        data = json.loads(urllib.request.urlopen(request, timeout=30).read())
+    except (OSError, KeyError, ValueError) as error:
+        gaps.append(f"Claude subscription usage unavailable ({type(error).__name__})")
+        return None
+
+    def window(key: str) -> dict | None:
+        value = data.get(key) or {}
+        if value.get("utilization") is None:
+            return None
+        resets = parse_ts(value.get("resets_at"))
+        return {"used_percent": value["utilization"],
+                "resets": resets.astimezone(TZ).strftime("%a %d %b %H:%M") if resets else ""}
+
+    return {"weekly": window("seven_day"), "five_hour": window("five_hour")}
+
+
+def focus(root: Path) -> str:
+    path = root / "FOCUS.md"
+    return path.read_text()[:12000] if path.exists() else ""
 
 
 def previous_meeting(root: Path, today: str) -> dict | None:
@@ -380,6 +415,8 @@ def collect(root: Path, now: datetime, since: datetime, out: Path) -> tuple[dict
         "meeting_date": now.astimezone(TZ).strftime("%A %Y-%m-%d"),
         "window": {"since": since.astimezone(TZ).isoformat(timespec="minutes"),
                    "until": now.astimezone(TZ).isoformat(timespec="minutes")},
+        "focus_file": focus(root),
+        "claude_usage": claude_usage(gaps),
         "previous_meeting": previous_meeting(root, today),
         "claude_chats": chats,
         "git": git_summary(root, since, gaps),

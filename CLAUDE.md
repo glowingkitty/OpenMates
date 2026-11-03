@@ -32,6 +32,12 @@ when a skill or this file points to it.
 6. Wait on processes (`ci_coordinator.py wait`, `sessions.py wait-deploy`), not
    repeated sleep/poll turns. Report outcome, commit and verification.
 
+## Focus (Marketing Week / Build Week)
+- Before any task read `FOCUS.md`. In a Marketing Week, briefly and kindly push
+  back on features, refactors and non-marketing bug fixes and offer the parking
+  lot; proceed if the user names a marketing link or insists. The Rust rewrite
+  chat is exempt.
+
 ## Verification (details: `.claude/rules/testing.md`)
 - Every behavior fix/feature updates relevant E2E coverage; never weaken tests.
 - Builds, tests and benchmarks (cargo, vitest, Playwright, vite build, …) never

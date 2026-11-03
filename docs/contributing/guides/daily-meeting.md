@@ -1,29 +1,38 @@
 # Daily meeting
 
-A weekday planning chat in Claude Code on the dev server (text or dictation, no
-voice call). A scheduled task opens it around 10:15 Europe/Berlin; it shows up in
-the Claude app. The `daily-meeting-and-orchestration` skill drives it.
+Hybrid: the dev server prepares a briefing, the founder holds the meeting by
+voice in the Claude app, and the decisions are written back on the dev server.
+What may be worked on is defined in [`FOCUS.md`](../../../FOCUS.md)
+(Marketing Week / Build Week cycle, week goals, today's focus, parking lot).
 
 ## Flow
-1. `scripts/daily_meeting_context.py collect` gathers the last working day:
-   Claude Code chats on the dev server, commits (incl. `openmates-marketing`),
-   the commit-type mix, OpenMates Tasks changes (diffed against the previous
-   snapshot), nightly test status, and the Apple Reminders overview. Output:
-   `logs/daily-meetings/YYYY-MM-DD-context.json` (gitignored, private).
-2. Recap, candid focus check, ≤3 numbered questions per round.
-3. Approved plan → Tasks and Reminders changes → new or resumed Claude chats
-   per stream. OpenMates Tasks are the agents' work queue; Reminders are the
-   user's capture inbox (work reminders for agents become Tasks).
-   Records: `scripts/daily_meeting.py --record priorities|answer|proposal|approve`.
+1. **Every 30 minutes** `scripts/mac_reminders.py sync` copies the open
+   OpenMates and Personal Tasks reminders from the Mac (Tailscale) to
+   `~/.local/state/openmates/reminders-cache.json` (private). The Mac is often
+   offline in the morning, so the briefing uses the latest copy.
+2. **Weekdays 10:00 Europe/Berlin** `scripts/daily_meeting_briefing.py --scheduled`:
+   - `scripts/daily_meeting_context.py collect` gathers Claude Code chats since
+     the last meeting, commits (incl. `openmates-marketing`), OpenMates Tasks
+     changes, nightly tests, FOCUS.md and the reminders (live, else the copy);
+   - Gemini Flash (`scripts/_gemini_flash_container.py`, run inside the `api`
+     container with the Vault key) summarizes the chats — Claude Code stores only
+     titles, no summaries;
+   - renders `logs/daily-meetings/YYYY-MM-DD-briefing.md` (private): meeting
+     instructions for Claude, phase rules, FOCUS.md, progress, reminders, then
+     appendices with all reminders/chats/Tasks/commits;
+   - uploads it with `scripts/response_media.py` (private S3 link, 48 h) and
+     posts the link to Discord (`DISCORD_WEBHOOK_DAILY_MEETING`, else
+     `DISCORD_WEBHOOK_DEV_NIGHTLY`).
+3. **Meeting:** paste the Discord message into the daily-meeting chat in the
+   Claude app and start a voice call. It ends with a `DECISIONS <date>` note.
+4. **Write-back:** paste the note into a Claude Code chat on the dev server; the
+   `daily-meeting-and-orchestration` skill updates FOCUS.md, Reminders and
+   OpenMates Tasks and can start the approved work chats.
 
 ## Apple Reminders
-`scripts/mac_reminders.py` (`overview`, `list`, `create`, `complete`, `set-due`,
-`update`, `move`, `batch`) → `apple_remote.py reminders-op` over Tailscale SSH →
-fixed EventKit helper `scripts/_apple_reminders_remote.py` on the Mac.
-
-- Lists read: OpenMates, Personal Tasks. Writes only there; no delete action.
-- The Mac must be awake and on Tailscale; otherwise the meeting continues and
-  lists the intended changes.
-- EventKit, not AppleScript: AppleScript lookups scan every reminder and time out.
-- The remote command guard (`apple_no_delete_guard.py`) admits only this exact
-  helper command.
+`scripts/mac_reminders.py` (`sync`, `overview`, `list`, `create`, `complete`,
+`set-due`, `update`, `move`, `batch`) → `apple_remote.py reminders-op` over
+Tailscale SSH → fixed EventKit helper `scripts/_apple_reminders_remote.py` on the
+Mac. Writes only to OpenMates and Personal Tasks; no delete action. EventKit,
+not AppleScript: AppleScript lookups scan every reminder and time out. The
+remote command guard (`apple_no_delete_guard.py`) admits only this helper.
