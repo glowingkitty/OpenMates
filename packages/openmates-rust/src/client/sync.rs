@@ -346,7 +346,15 @@ impl Client {
         if !has_draft(row) {
             return Ok(());
         }
-        draft_projection(row, &self.require_session()?.master_key, item)
+        // Only an untitled row decrypts draft text for its title. A titled row
+        // still needs a live credential authority, but an opaque browser master
+        // capability suffices because no key material is used.
+        if item.title.is_empty() {
+            return draft_projection(row, self.native_master_key()?, item);
+        }
+        self.require_credentials()?;
+        mark_draft(item);
+        Ok(())
     }
 
     pub(super) async fn sync_chats(&mut self) -> Result<Vec<Item>> {
@@ -1061,9 +1069,12 @@ pub(super) fn draft_projection(row: &Value, master: &[u8; 32], item: &mut Item) 
         let collapsed: String = text.split_whitespace().collect::<Vec<_>>().join(" ");
         item.title = collapsed.chars().take(200).collect();
     }
+    mark_draft(item);
+    Ok(())
+}
+fn mark_draft(item: &mut Item) {
     item.description = "Draft".into();
     item.fields["has_draft"] = Value::Bool(true);
-    Ok(())
 }
 
 pub(super) fn decrypt_optional(row: &Value, name: &str, key: &[u8; 32]) -> Result<String> {

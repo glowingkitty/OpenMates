@@ -811,7 +811,7 @@ async fn native_process_selection_is_inert_and_has_bounded_inline_future_for_eve
             destination: std::path::PathBuf::from("synthetic-unused-output"), overwrite: false },
         UiCommand::Quit,
     ];
-    let mut work = vec![Work::Boot, Work::PairPoll, Work::Monitor, Work::Live];
+    let mut work = vec![Work::Boot, Work::PairPoll, Work::Monitor, Work::Live, Work::Inspirations];
     work.extend(commands.into_iter().map(Work::Command));
     for work in work {
         let cancel = CancellationToken::new();

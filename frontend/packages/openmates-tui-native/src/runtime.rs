@@ -331,6 +331,9 @@ enum Work {
     /// The slow part of boot (global recovery + list). Runs only when the
     /// request queue is idle and yields to a chat Open/Send (preempted).
     BootSync,
+    /// The optional home banner read. Runs only when the queue is idle after
+    /// boot sync, so it never delays or adds to the boot request budget.
+    Inspirations,
     Command(UiCommand),
     PairPoll,
     Monitor,
@@ -993,6 +996,7 @@ async fn actor(
     let mut live_tick = tokio::time::interval(Duration::from_millis(250));
     live_tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     let mut boot_sync: Option<Stamp> = None;
+    let mut inspirations: Option<Stamp> = None;
     while let Some(request) = tokio::select! {
         biased;
         _=stop.cancelled()=>None,
@@ -1004,10 +1008,12 @@ async fn actor(
             if let Ok(mut slot) = boot_sync_preempt.lock() { *slot = Some(token.clone()); }
             boot_sync.take().map(|epoch| Request { epoch, work: Work::BootSync, cancel: token })
         },
+        _=std::future::ready(()), if inspirations.is_some() && boot_sync.is_none() =>
+            inspirations.take().map(|epoch| Request { epoch, work: Work::Inspirations, cancel: state.live_cancel.clone() }),
         _=live_tick.tick(), if state.live_monitor.as_ref().is_some_and(|m|m.is_valid()) && !state.live_cancel.is_cancelled()
             =>Some(Request{epoch:state.live_epoch,work:Work::Live,cancel:state.live_cancel.clone()}),
     } {
-        let background = matches!(&request.work, Work::Live);
+        let background = matches!(&request.work, Work::Live | Work::Inspirations);
         let booting = matches!(&request.work, Work::Boot);
         let syncing = matches!(&request.work, Work::BootSync);
         let opening_chat = matches!(&request.work, Work::Command(UiCommand::Open(Workspace::Chats, _)));
@@ -1021,6 +1027,7 @@ async fn actor(
                 boot_sync = Some(epoch);
                 continue;
             }
+            if state.client.session().is_some() { inspirations = Some(epoch); }
         }
         if booting && result.is_ok() && state.client.session().is_some() {
             boot_sync = Some(epoch);
@@ -1728,10 +1735,6 @@ impl Actor {
         if self.client.session().is_none() {
             return Ok(());
         }
-        // The home banner is optional: one small read, never fatal.
-        if let Ok(list) = self.client.daily_inspirations("en").await {
-            Self::emit(replies, epoch, View::Inspirations(list)).await?;
-        }
         let generation = self.store.generation_guard();
         let cancel = self.live_cancel.clone();
         // Reuse only the same-batch complete empty inventory returned after
@@ -1750,6 +1753,17 @@ impl Actor {
         self.persist().await?;
         if cancel.is_cancelled() || !generation.is_current() { return Err(Error::Cancelled); }
         Self::emit(replies, epoch, View::Items(Workspace::Chats, openmates::home_items::arrange(&self.client, items))).await
+    }
+    /// The home banner is optional: a failed read leaves the banner empty and
+    /// never fails the actor request.
+    async fn home_inspirations(&mut self, replies: &mpsc::Sender<Reply>, epoch: Stamp) -> Result<()> {
+        if self.client.session().is_none() {
+            return Ok(());
+        }
+        match self.client.daily_inspirations("en").await {
+            Ok(list) => Self::emit(replies, epoch, View::Inspirations(list)).await,
+            Err(_) => Ok(()),
+        }
     }
     async fn pair_poll(
         &mut self,
@@ -1930,6 +1944,10 @@ impl Actor {
             Work::BootSync => Box::pin(async move {
                 let _request_cancel = &cancel;
                 self.boot_sync(replies, epoch).await
+            }),
+            Work::Inspirations => Box::pin(async move {
+                let _request_cancel = &cancel;
+                self.home_inspirations(replies, epoch).await
             }),
             Work::PairPoll => Box::pin(async move {
                 let _request_cancel = &cancel;

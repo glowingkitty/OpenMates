@@ -868,6 +868,14 @@ jobs:
           mkdir -p frontend/apps/web_app/node_modules
           ln -sfn "$RUNNER_TEMP/web-decoder-ts/node_modules/typescript" \
             frontend/apps/web_app/node_modules/typescript
+      # The Rust tests spawn the synthetic Python peers in tests/sdk-conformance
+      # (and openmates-tui-native/tests/support), which import `cryptography`.
+      # setup-python's interpreter lacks it, so each peer exited before printing
+      # its endpoint and the tests failed with "peer JSON".
+      - name: Install Python packages for the synthetic SDK test peers
+        if: inputs.mode == 'rust-check'
+        timeout-minutes: 5
+        run: python3 -m pip install "cryptography>=41"
       - name: Restore Rust check dependency cache
         if: inputs.mode == 'rust-check'
         uses: Swatinem/rust-cache@v2
