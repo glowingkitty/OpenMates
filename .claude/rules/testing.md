@@ -36,6 +36,10 @@ paths:
   via the session helper first, use disposable accounts/Projects and isolated
   CLI state, select `@Gemini-3.8-Flash` (unless the user names another model)
   and fail if the persisted assistant model differs. Record revision + results.
+  Account: the personal dev test account only (`OPENMATES_PERSONAL_TEST_ACOUNT_*`,
+  lease `playwright-account:personal-dev`); numbered `OPENMATES_TEST_ACCOUNT_<n>_*`
+  slots are CI accounts and may not exist on dev. If its login fails, stop and
+  report; never sign up or repair accounts. Details: `docs/contributing/guides/testing.md`.
 - Choose checks for the changed behavior and affected clients; a web-only fix
   does not trigger Apple verification.
 
