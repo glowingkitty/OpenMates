@@ -10,7 +10,7 @@ def profile():
     return {"services": {"api": {"environment": {
         "CI": "true", "OPENMATES_CI_ISOLATED": "1", "OPENMATES_CI_AI_FIXTURES": "1",
         "MOCK_EXTERNAL_APIS": "true", "SERVER_ENVIRONMENT": "development",
-    }}}}
+    }, "labels": {"org.openmates.source": "verified-source"}}}}
 
 
 # contract-test: tooling
@@ -30,6 +30,8 @@ def test_exact_proof_uses_real_secret_free_worker_without_billing_fixture():
     assert worker["pids_limit"] == 32
     assert worker["networks"] == ["formula-calculation"]
     assert all(field not in worker for field in ("environment", "env_file", "volumes", "ports"))
+    # The runtime identity gate checks this label on every required service.
+    assert worker["labels"] == {"org.openmates.source": "verified-source"}
     unrelated = profile()
     original = deepcopy(unrelated)
     configure_formula_sheet_worker(unrelated, ["code-notebook-flow.spec.ts"])
@@ -80,3 +82,11 @@ def test_formula_runtime_remains_separate_from_unrelated_browser_batches():
         validate_runtime_batch(selected)
     with pytest.raises(RuntimeError, match="separate batch"):
         configure_formula_sheet_worker(profile(), selected)
+
+
+# contract-test: tooling
+def test_worker_without_verified_source_identity_is_refused():
+    candidate = profile()
+    del candidate["services"]["api"]["labels"]
+    with pytest.raises(RuntimeError, match="source identity"):
+        configure_formula_sheet_worker(candidate, ["formula-sheet-editing.spec.ts"])

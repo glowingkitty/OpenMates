@@ -67,6 +67,9 @@ def configure_formula_sheet_worker(profile: dict, selected: list[str]) -> None:
         raise RuntimeError(
             "Formula sheet proof requires isolated signed source authoring"
         )
+    source_identity = api.get("labels", {}).get("org.openmates.source")
+    if not source_identity:
+        raise RuntimeError("Formula worker requires the verified runtime source identity")
     profile.setdefault("networks", {})["formula-calculation"] = {"internal": True}
     for name in ("api", "ai-worker"):
         service = services.get(name)
@@ -89,6 +92,9 @@ def configure_formula_sheet_worker(profile: dict, selected: list[str]) -> None:
         "cpus": 1.0,
         "pids_limit": 32,
         "networks": ["formula-calculation"],
+        # The runtime identity gate verifies every required private service,
+        # including this worker, against the exact verified candidate source.
+        "labels": {"org.openmates.source": source_identity},
         "healthcheck": {
             "test": [
                 "CMD",
