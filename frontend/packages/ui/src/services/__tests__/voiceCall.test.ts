@@ -14,7 +14,8 @@ const persistence = vi.hoisted(() => ({
 const cleanup = vi.hoisted(() => ({
   identity: 'owner' as string | null, epoch: 1,
   remove: vi.fn(async (_input:unknown, _read:unknown) => ({accepted:true,localEligible:true})),
-  snapshot: vi.fn(async (input:{chatId:string;callId:string|null}, _signals:unknown) => ({chat:{chat_id:input.chatId,messages_v:input.callId?2:0}})),
+  snapshot: vi.fn(async (input:{chatId:string;callId:string|null}, _signals:unknown) => ({chat:{chat_id:input.chatId,messages_v:input.callId?2:0},
+    messages:[], artifactCount:0, pendingOperationCount:0, hasDraft:false, hasOrdinaryText:false, hasPendingTurn:false})),
 }));
 vi.mock('../voiceCallEmptyChatCleanup', () => ({cleanupEmptyVoiceCallChat:cleanup.remove,readEmptyVoiceCallCleanupSnapshot:cleanup.snapshot}));
 vi.mock('../workspaceQueryCache', () => ({getWorkspaceCacheIdentity:()=>cleanup.identity}));

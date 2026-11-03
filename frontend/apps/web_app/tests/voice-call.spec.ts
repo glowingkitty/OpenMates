@@ -2247,6 +2247,49 @@ test.describe('Voice mode through ordinary chat', () => {
     }
   });
 
+  // contract-test: direct surface=gui.web assertions=video-call.chat.call-events,video-call.lifecycle.recovery-and-billing
+  test('removes and closes an empty call chat after the call is interrupted by a reload',async({page},testInfo)=>{
+    test.setTimeout(150_000);
+    const deleted:string[]=[];const results:Array<{chat_id:string;accepted:boolean}>=[];
+    page.on('websocket',socket=>socket.on('framereceived',frame=>{
+      try {
+        const event=JSON.parse(String(frame.payload));const payload=event.payload??event;
+        if(event.type==='chat_deleted') deleted.push(payload.chat_id);
+        if(event.type==='empty_call_chat_cleanup_result') results.push(payload);
+      } catch { /* Binary/non-JSON frames do not carry deletion receipts. */ }
+    }));
+    const pendingCleanups=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('openmates.voiceCallEmptyCleanup.v1')??'[]') as Array<{chatId:string;callId:string|null;terminatedAt:number|null}>);
+    const chatStored=(chatId:string)=>page.evaluate(async id=>{
+      const db=await new Promise<IDBDatabase>((resolve,reject)=>{
+        const request=indexedDB.open('chats_db');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
+      });
+      try { return await new Promise<boolean>((resolve,reject)=>{
+        const request=db.transaction('chats','readonly').objectStore('chats').get(id);
+        request.onsuccess=()=>resolve(!!request.result);request.onerror=()=>reject(request.error);
+      }); } finally { db.close(); }
+    },chatId);
+    await installNativeVoiceInput(page);await observeRealTransport(page);
+    await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
+    await page.locator('[data-testid="voice-call-start"]:visible').click();
+    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    const ready=(await evidence(page)).received.find(frame=>frame.type==='ready'&&frame.path==='/v1/voice-call')!;
+    // The server-issued cleanup authority is durable before anything can interrupt the call.
+    await expect.poll(async()=>(await pendingCleanups()).find(row=>row.callId===ready.callId)?.chatId).toBeTruthy();
+    const chatId=(await pendingCleanups()).find(row=>row.callId===ready.callId)!.chatId;
+    expect(await chatStored(chatId)).toBe(true);
+    // Interrupt the live call without the in-page hangup flow completing: the
+    // page unloads, so the in-call cleanup can never run in this document.
+    await page.reload();
+    await expect.poll(()=>results.some(result=>result.chat_id===chatId&&result.accepted),{timeout:90_000}).toBe(true);
+    await expect.poll(()=>deleted.includes(chatId),{timeout:30_000}).toBe(true);
+    await expect.poll(()=>chatStored(chatId),{timeout:30_000}).toBe(false);
+    await expect.poll(async()=>(await pendingCleanups()).some(row=>row.chatId===chatId)).toBe(false);
+    // The deleted shell is closed: it is neither the open chat nor listed.
+    await expect.poll(()=>page.url().includes(chatId),{timeout:30_000}).toBe(false);
+    await expect(page.locator(`[data-chat-id="${chatId}"]`)).toHaveCount(0);
+    await testInfo.attach('interrupted-call-cleanup',{body:JSON.stringify({accepted:results.filter(result=>result.chat_id===chatId)}),contentType:'application/json'});
+  });
+
   // contract-test: direct surface=gui.web assertions=video-call.chat.transcripts,video-call.chat.typed-input,video-call.chat.call-events,video-call.audio.complete-turn-admission,video-call.audio.spoken-rich-response,video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing,chats.message.identity-idempotent
   test('uses one canonical turn for voice and typed input, preserves rich replies and retains its chat across navigation and reload',async({page},testInfo)=>{
     test.setTimeout(330_000);

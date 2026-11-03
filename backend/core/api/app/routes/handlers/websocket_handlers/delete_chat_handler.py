@@ -299,30 +299,26 @@ async def handle_delete_empty_call_chat(
             raise ValueError("Invalid conditional cleanup request")
         async with manager.empty_call_cleanup_gate(user_id):
             service = ChatRecoveryService(directus_service)
-            if not manager.all_user_connections_support_empty_call_cleanup(user_id):
-                await service.execute("update_call_cleanup_candidate", {
-                    "protocol_version": 1, "hashed_user_id": hashlib.sha256(user_id.encode()).hexdigest(),
-                    "chat_id": chat_id, "mode": "disqualify",
-                })
-            else:
-                result = await service.execute("invalidate_deletion", {
-                    "protocol_version": 1, "hashed_user_id": hashlib.sha256(user_id.encode()).hexdigest(),
-                    "scope": "chat", "chat_id": chat_id,
-                    "empty_call_cleanup": {key: payload[key] for key in (
-                        "cleanup_attempt_id", "call_id", "lifecycle_message_ids", "expected_messages_v")},
-                })
-                guard = result.get("empty_call_cleanup")
-                if isinstance(guard, dict):
-                    await manager.send_personal_message({"type": "empty_call_chat_cleanup_result", "payload": {
-                        "request_id": request_id, "chat_id": chat_id, "accepted": True,
-                    }}, user_id, device_fingerprint_hash)
-                    await handle_delete_chat(websocket, manager, cache_service, directus_service,
-                        encryption_service, user_id, device_fingerprint_hash, {"chatId": chat_id}, user_otel_attrs,
-                        empty_call_cleanup_guard=guard)
-                    return
-    except Exception:
-        # Unknown/old recipients and stale/unavailable authority preserve data.
-        pass
+            result = await service.execute("invalidate_deletion", {
+                "protocol_version": 1, "hashed_user_id": hashlib.sha256(user_id.encode()).hexdigest(),
+                "scope": "chat", "chat_id": chat_id,
+                "empty_call_cleanup": {key: payload[key] for key in (
+                    "cleanup_attempt_id", "call_id", "lifecycle_message_ids", "expected_messages_v")},
+            })
+            guard = result.get("empty_call_cleanup")
+            if isinstance(guard, dict):
+                await manager.send_personal_message({"type": "empty_call_chat_cleanup_result", "payload": {
+                    "request_id": request_id, "chat_id": chat_id, "accepted": True,
+                }}, user_id, device_fingerprint_hash)
+                await handle_delete_chat(websocket, manager, cache_service, directus_service,
+                    encryption_service, user_id, device_fingerprint_hash, {"chatId": chat_id}, user_otel_attrs,
+                    empty_call_cleanup_guard=guard)
+                return
+    except Exception as error:
+        # Stale/unavailable authority preserves data. Clients without the
+        # guarded handler receive an ordinary chat_deleted after the fence.
+        logger.info("Empty call chat cleanup not accepted: %s",
+                    getattr(error, "code", None) or type(error).__name__)
     await manager.send_personal_message({"type": "empty_call_chat_cleanup_result", "payload": {
         "request_id": request_id, "chat_id": chat_id, "accepted": False,
     }}, user_id, device_fingerprint_hash)

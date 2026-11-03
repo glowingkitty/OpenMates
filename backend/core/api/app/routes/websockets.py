@@ -3254,21 +3254,6 @@ async def websocket_endpoint(
     is_allowlisted_test_account = is_configured_test_account_profile(_user_data)
 
     logger.info(f"WebSocket connection established for user_id={user_id}, device={device_fingerprint_hash}")
-    if not supports_empty_call_cleanup:
-        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
-        # Retain eligibility loss durably before a legacy tab can discover any
-        # current candidate through initial sync, even if it later disconnects.
-        manager.empty_call_cleanup_unsafe_owners.add(user_id)
-        try:
-            await ChatRecoveryService(directus_service).execute("disqualify_call_cleanup_owner", {
-                "protocol_version": 1, "hashed_user_id": user_id_hash,
-            })
-        except Exception:
-            # Keep normal old-client sync available; automatic cleanup stays
-            # disabled for this owner when durable exclusion is unavailable.
-            logger.warning("Empty-call rollout exclusion unavailable")
-        else:
-            manager.empty_call_cleanup_unsafe_owners.discard(user_id)
     volatile_session_nonce = await manager.connect(
         websocket,
         user_id,

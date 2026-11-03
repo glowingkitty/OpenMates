@@ -289,8 +289,7 @@ async def test_conditional_cleanup_fans_out_only_canonical_transaction_guard(mon
     monkeypatch.setattr(delete_chat_handler, "handle_delete_chat", delete)
     from contextlib import nullcontext
     manager = SimpleNamespace(send_personal_message=AsyncMock(),
-        empty_call_cleanup_gate=lambda _user: nullcontext(),
-        all_user_connections_support_empty_call_cleanup=lambda _user: True)
+        empty_call_cleanup_gate=lambda _user: nullcontext())
     await delete_chat_handler.handle_delete_empty_call_chat(None, manager, object(), object(), object(),
         "owner", "device", payload)
     assert execute.await_args.args[0] == "invalidate_deletion"
@@ -308,8 +307,7 @@ async def test_conditional_cleanup_rejection_never_falls_back_to_generic_delete(
     monkeypatch.setattr(delete_chat_handler, "handle_delete_chat", delete)
     from contextlib import nullcontext
     manager = SimpleNamespace(send_personal_message=AsyncMock(),
-        empty_call_cleanup_gate=lambda _user: nullcontext(),
-        all_user_connections_support_empty_call_cleanup=lambda _user: True)
+        empty_call_cleanup_gate=lambda _user: nullcontext())
     await delete_chat_handler.handle_delete_empty_call_chat(None, manager, object(), object(), object(),
         "owner", "device", {"request_id": "018fabcd-abcd-7abc-8abc-abcdefabcdef", "chat_id": "chat",
             "cleanup_attempt_id": "018fabcd-abcd-7abc-8abc-abcdefabcdef", "call_id": None,
@@ -320,21 +318,22 @@ async def test_conditional_cleanup_rejection_never_falls_back_to_generic_delete(
 
 # contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
 @pytest.mark.anyio
-async def test_legacy_recipient_durably_disqualifies_instead_of_deleting(monkeypatch):
+async def test_cli_or_native_connections_do_not_disqualify_conditional_cleanup(monkeypatch):
+    """A connected CLI/TUI/Apple client must not keep empty call shells forever."""
     from contextlib import nullcontext
     from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
-    execute = AsyncMock(return_value={"disqualified": True})
+    payload = {"request_id": "018fabcd-abcd-7abc-8abc-abcdefabcdef", "chat_id": "chat",
+        "cleanup_attempt_id": "018fabcd-abcd-7abc-8abc-abcdefabcdef", "call_id": None,
+        "lifecycle_message_ids": [], "expected_messages_v": 0}
+    guard = {key: payload[key] for key in ("cleanup_attempt_id", "call_id", "lifecycle_message_ids", "expected_messages_v")}
+    execute = AsyncMock(return_value={"empty_call_cleanup": guard})
     monkeypatch.setattr(ChatRecoveryService, "execute", execute)
     delete = AsyncMock()
     monkeypatch.setattr(delete_chat_handler, "handle_delete_chat", delete)
     manager = SimpleNamespace(send_personal_message=AsyncMock(),
-        empty_call_cleanup_gate=lambda _user: nullcontext(),
-        all_user_connections_support_empty_call_cleanup=lambda _user: False)
+        empty_call_cleanup_gate=lambda _user: nullcontext())
     await delete_chat_handler.handle_delete_empty_call_chat(None, manager, object(), object(), object(),
-        "owner", "device", {"request_id": "018fabcd-abcd-7abc-8abc-abcdefabcdef", "chat_id": "chat",
-            "cleanup_attempt_id": "018fabcd-abcd-7abc-8abc-abcdefabcdef", "call_id": None,
-            "lifecycle_message_ids": [], "expected_messages_v": 0})
-    assert execute.await_args.args[0] == "update_call_cleanup_candidate"
-    assert execute.await_args.args[1]["mode"] == "disqualify"
-    assert manager.send_personal_message.await_args.args[0]["payload"]["accepted"] is False
-    delete.assert_not_awaited()
+        "owner", "device", payload)
+    assert [call.args[0] for call in execute.await_args_list] == ["invalidate_deletion"]
+    assert manager.send_personal_message.await_args.args[0]["payload"]["accepted"] is True
+    delete.assert_awaited_once()

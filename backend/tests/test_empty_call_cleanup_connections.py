@@ -1,4 +1,4 @@
-"""Known legacy recipients must never receive automatic chat deletion."""
+"""Empty-call deletion fans out a guard only to clients that implement it."""
 import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -27,9 +27,8 @@ async def test_connection_membership_cannot_change_during_conditional_fence_and_
     manager = ConnectionManager()
     current, legacy = socket(), socket()
     await manager.connect(current, 'owner', 'current', supports_empty_call_cleanup=True)
-    guarded = {'type': 'chat_deleted', 'payload': {'chat_id': 'chat', 'empty_call_cleanup': {}}}
+    guarded = {'type': 'chat_deleted', 'payload': {'chat_id': 'chat', 'empty_call_cleanup': {'call_id': None}}}
     async with manager.empty_call_cleanup_gate('owner'):
-        assert manager.all_user_connections_support_empty_call_cleanup('owner')
         joining = asyncio.create_task(manager.connect(legacy, 'owner', 'legacy'))
         await asyncio.wait_for(legacy.accepted.wait(), 1)
         assert 'legacy' not in manager.active_connections['owner']
@@ -38,18 +37,8 @@ async def test_connection_membership_cannot_change_during_conditional_fence_and_
         await asyncio.wait_for(manager.broadcast_to_user(guarded, 'owner'), 1)
         legacy.send_json.assert_not_awaited()
     await asyncio.wait_for(joining, 1)
-    assert not manager.all_user_connections_support_empty_call_cleanup('owner')
+    current.send_json.reset_mock()
     await manager.broadcast_to_user(guarded, 'owner')
-    legacy.send_json.assert_not_awaited()
-    await manager.broadcast_to_user({'type': 'new_system_message'}, 'owner')
-    legacy.send_json.assert_awaited_once()
-
-
-# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
-@pytest.mark.anyio
-async def test_unavailable_rollout_authority_preserves_even_after_unknown_peer_leaves():
-    manager = ConnectionManager()
-    await manager.connect(socket(), 'owner', 'current', supports_empty_call_cleanup=True)
-    assert manager.all_user_connections_support_empty_call_cleanup('owner')
-    manager.empty_call_cleanup_unsafe_owners.add('owner')
-    assert not manager.all_user_connections_support_empty_call_cleanup('owner')
+    current.send_json.assert_awaited_once_with(guarded)
+    # CLI/TUI/native recipients get an ordinary deletion so they close the chat.
+    legacy.send_json.assert_awaited_once_with({'type': 'chat_deleted', 'payload': {'chat_id': 'chat'}})

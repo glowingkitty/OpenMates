@@ -813,6 +813,12 @@ export class ChatSynchronizationService extends EventTarget {
         void import("./voiceCallMessages").then(({ retryPendingCallMessages }) =>
           retryPendingCallMessages()).catch((error) => {
           console.error("[ChatSyncService] Error retrying encrypted call messages:", error);
+        }).then(() => import("./voiceCallEmptyChatCleanupQueue")).then(
+          // Interrupted/crashed calls leave empty shells; retire them once the
+          // lifecycle outbox above has flushed on this connection.
+          ({ retryPendingEmptyVoiceCallCleanups }) => retryPendingEmptyVoiceCallCleanups(),
+        ).catch((error) => {
+          console.error("[ChatSyncService] Error retrying empty voice call cleanup:", error);
         });
 
         // Flush any encrypted embeds that couldn't be sent while offline

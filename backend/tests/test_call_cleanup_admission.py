@@ -108,8 +108,7 @@ async def test_lifecycle_confirmation_uses_durable_version_without_a_second_incr
     import asyncio
     from backend.core.api.app.routes.handlers.websocket_handlers.system_message_handler import _handle_call_lifecycle
     manager = SimpleNamespace(send_personal_message=AsyncMock(), broadcast_to_user=AsyncMock(),
-        empty_call_cleanup_gate=lambda _owner: asyncio.Lock(),
-        all_user_connections_support_empty_call_cleanup=lambda _owner: True)
+        empty_call_cleanup_gate=lambda _owner: asyncio.Lock())
     async def execute(_self, operation, data):
         assert operation == "persist_call_lifecycle"
         manager.send_personal_message.assert_not_awaited()
@@ -129,7 +128,7 @@ async def test_lifecycle_confirmation_uses_durable_version_without_a_second_incr
 
 # contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
 @pytest.mark.anyio
-async def test_legacy_lifecycle_receiver_is_excluded_before_durable_commit_and_broadcast(monkeypatch):
+async def test_lifecycle_commit_never_disqualifies_cleanup_for_other_connected_clients(monkeypatch):
     import asyncio
     from backend.core.api.app.routes.handlers.websocket_handlers.system_message_handler import _handle_call_lifecycle
     operations = []
@@ -140,13 +139,12 @@ async def test_legacy_lifecycle_receiver_is_excluded_before_durable_commit_and_b
         return {"disqualified": True}
     monkeypatch.setattr(ChatRecoveryService, "execute", execute)
     manager = SimpleNamespace(send_personal_message=AsyncMock(), broadcast_to_user=AsyncMock(),
-        empty_call_cleanup_gate=lambda _owner: asyncio.Lock(),
-        all_user_connections_support_empty_call_cleanup=lambda _owner: False)
+        empty_call_cleanup_gate=lambda _owner: asyncio.Lock())
     with pytest.raises(RuntimeError, match="fenced"):
         await _handle_call_lifecycle(manager=manager, cache_service=object(), directus_service=object(),
             user_id="owner", device_hash="device", owner_hash="a" * 64, chat_id="chat",
             message_id="00000000-voice-call-" + "f" * 32 + "-started", content="encrypted", created_at=1,
             message_status="synced", encrypted_chat_key="wrapped")
-    assert operations == ["update_call_cleanup_candidate", "persist_call_lifecycle"]
+    assert operations == ["persist_call_lifecycle"]
     manager.send_personal_message.assert_not_awaited()
     manager.broadcast_to_user.assert_not_awaited()

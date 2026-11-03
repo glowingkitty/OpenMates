@@ -18,7 +18,10 @@ import { callArtifactReferencesInText, type VoiceArtifactReference } from './voi
 import { CallAudio } from '../components/videocall/callAudio';
 import { VoiceCallAudioGate } from './voiceCallAudioGate';
 import { recordCallLifecycle } from './voiceCallLifecycle';
-import { cleanupEmptyVoiceCallChat, readEmptyVoiceCallCleanupSnapshot } from './voiceCallEmptyChatCleanup';
+import {
+  forgetEmptyCallCleanup, markEmptyCallCleanupTerminated, noteEmptyCallCleanupCallId, rememberEmptyCallCleanup,
+  runEmptyVoiceCallCleanup, scheduleEmptyVoiceCallCleanupRetry, setEmptyCallCleanupLive,
+} from './voiceCallEmptyChatCleanupQueue';
 import { getWorkspaceCacheIdentity } from './workspaceQueryCache';
 import { getWorkspaceCacheEpoch } from './workspaceCacheLifecycle';
 import { VoiceCallCuePlayer } from './voiceCallCues';
@@ -303,44 +306,40 @@ export class VoiceCallController implements VoiceCallControllerLike {
       reportEmptyCallCleanup('prerequisites', { current:current(), terminated:attempt.terminated,
         contentAttempted:attempt.contentAttempted, hasChat:!!attempt.chatId, hasAuthority:!!attempt.cleanupAttemptId,
         hasCall:!!attempt.callId, rejectedWrites:writes.filter(result=>result.status==='rejected').length });
-      if (!current() || !attempt.terminated || attempt.contentAttempted || !attempt.chatId ||
-          !attempt.cleanupAttemptId || writes.some(result => result.status === 'rejected')) return;
-      const input = { chatId: attempt.chatId, cleanupAttemptId: attempt.cleanupAttemptId,
-        callId: attempt.callId, expectedMessagesVersion: 0 };
-      const readSnapshot = async () => {
-        const snapshot = await readEmptyVoiceCallCleanupSnapshot(input, {
-        hasLocalOrdinaryText: attempt.contentAttempted,
-        hasPendingTurn: hasPendingPersonalChatTurn(input.chatId) || this.pendingTyped.size > 0 ||
-          (this.state.chatId === attempt.chatId && (this.state.status === 'connecting' || this.state.status === 'live')),
-        isCurrent: current,
-        });
-        const chat = snapshot.chat;
-        reportEmptyCallCleanup('snapshot', { chatPresent:!!chat,
-          messagesVersion:Number.isSafeInteger(chat?.messages_v)?chat!.messages_v:-1,
-          draftVersion:Number.isSafeInteger(chat?.draft_v)?chat!.draft_v!:-1,
-          messageCount:snapshot.messages?.length??-1, artifactCount:snapshot.artifactCount,
-          pendingOperationCount:snapshot.pendingOperationCount, hasDraft:snapshot.hasDraft,
-          hasOrdinaryText:snapshot.hasOrdinaryText, hasPendingTurn:snapshot.hasPendingTurn,
-          hasTitle:!!(chat?.title||chat?.encrypted_title), hasSummary:!!chat?.encrypted_chat_summary,
-          hasOlderMessages:!!chat?.message_window_has_more_before,hasOlderEmbeds:!!chat?.embed_window_has_more_before,
-          allMessagesSynced:snapshot.messages?.every(row=>row.status==='synced')??false,
-        });
-        return snapshot;
-      };
-      let snapshot = await readSnapshot();
-      // System-message receipts and their normal metadata handler complete in
-      // separate microtasks. Wait briefly for the exact lifecycle version;
-      // never ask the server to delete a partial or stale local projection.
-      const lifecycleVersion = attempt.callId === null ? 0 : 2;
-      for (let retry = 0; retry < 3 && current() && snapshot.chat &&
-          snapshot.chat.messages_v < lifecycleVersion; retry++) {
-        await new Promise(resolve => setTimeout(resolve, 250));
-        snapshot = await readSnapshot();
+      if (!attempt.chatId || !attempt.cleanupAttemptId) return;
+      // Typed or spoken content makes this an ordinary chat that is never retired.
+      if (attempt.contentAttempted) { forgetEmptyCallCleanup(attempt.chatId); return; }
+      // A failed lifecycle write or account switch keeps the durable record:
+      // the reconnect/backoff retry finishes the cleanup once writes land.
+      if (!current() || !attempt.terminated || writes.some(result => result.status === 'rejected')) {
+        scheduleEmptyVoiceCallCleanupRetry();
+        return;
       }
-      if (!current() || !snapshot.chat || !Number.isSafeInteger(snapshot.chat.messages_v) || snapshot.chat.messages_v < lifecycleVersion) return;
-      input.expectedMessagesVersion = snapshot.chat.messages_v;
-      const result = await cleanupEmptyVoiceCallChat(input, readSnapshot);
-      reportEmptyCallCleanup('completed',result);
+      const chatId = attempt.chatId;
+      const outcome = await runEmptyVoiceCallCleanup({ chatId, cleanupAttemptId: attempt.cleanupAttemptId,
+        callId: attempt.callId }, {
+        isCurrent: current,
+        hasLocalOrdinaryText: attempt.contentAttempted,
+        hasPendingTurn: () => hasPendingPersonalChatTurn(chatId) || this.pendingTyped.size > 0 ||
+          (this.state.chatId === chatId && (this.state.status === 'connecting' || this.state.status === 'live')),
+        onSnapshot: snapshot => {
+          const chat = snapshot.chat;
+          reportEmptyCallCleanup('snapshot', { chatPresent:!!chat,
+            messagesVersion:Number.isSafeInteger(chat?.messages_v)?chat!.messages_v:-1,
+            draftVersion:Number.isSafeInteger(chat?.draft_v)?chat!.draft_v!:-1,
+            messageCount:snapshot.messages?.length??-1, artifactCount:snapshot.artifactCount,
+            pendingOperationCount:snapshot.pendingOperationCount, hasDraft:snapshot.hasDraft,
+            hasOrdinaryText:snapshot.hasOrdinaryText, hasPendingTurn:snapshot.hasPendingTurn,
+            hasTitle:!!(chat?.title||chat?.encrypted_title), hasSummary:!!chat?.encrypted_chat_summary,
+            hasOlderMessages:!!chat?.message_window_has_more_before,hasOlderEmbeds:!!chat?.embed_window_has_more_before,
+            allMessagesSynced:snapshot.messages?.every(row=>row.status==='synced')??false,
+          });
+        },
+      });
+      reportEmptyCallCleanup('completed', { accepted: outcome === 'deleted', retained: outcome === 'retained',
+        retry: outcome === 'retry' });
+      if (outcome === 'retry') scheduleEmptyVoiceCallCleanupRetry();
+      else forgetEmptyCallCleanup(chatId);
     })().catch(() => { reportEmptyCallCleanup('unavailable',{}); /* Preserve uncertain local work. */ });
   }
 
@@ -440,7 +439,14 @@ export class VoiceCallController implements VoiceCallControllerLike {
       // Keep preparation independently observed: microphone denial/hangup may
       // finish first, but its late receipt must still retire the exact new shell.
       const preparation = prepareVoiceCallChat(existingChatId, true).then(prepared => {
-        if (attempt) { attempt.chatId = prepared.chatId; attempt.cleanupAttemptId = prepared.cleanupAttemptId; }
+        if (attempt) {
+          attempt.chatId = prepared.chatId; attempt.cleanupAttemptId = prepared.cleanupAttemptId;
+          if (prepared.cleanupAttemptId) {
+            rememberEmptyCallCleanup(prepared.chatId, prepared.cleanupAttemptId);
+            if (attempt.terminated) markEmptyCallCleanupTerminated(prepared.chatId);
+            else setEmptyCallCleanupLive(prepared.chatId, true);
+          }
+        }
         return prepared;
       }).catch((error) => {
         throw new VoiceCallStartError(error instanceof VoiceCallContextError ? error.code : 'call_unavailable');
@@ -501,7 +507,10 @@ export class VoiceCallController implements VoiceCallControllerLike {
         this.clockUpdatedAt = this.startedAt;
         this.activeMillis = 0;
         setActiveVoiceCallId(message.call_id);
-        if (this.cleanupAttempt) this.cleanupAttempt.callId = message.call_id;
+        if (this.cleanupAttempt) {
+          this.cleanupAttempt.callId = message.call_id;
+          if (this.cleanupAttempt.chatId) noteEmptyCallCleanupCallId(this.cleanupAttempt.chatId, message.call_id);
+        }
         this.update({ status: 'live', callId: message.call_id, error: null,
           cameraAvailable: message.camera_available === true,
 
@@ -892,7 +901,14 @@ export class VoiceCallController implements VoiceCallControllerLike {
       this.cues.play('ended');
     } else if (this.state.status === 'connecting') this.cues.stop();
     const attempt = this.cleanupAttempt;
-    if (attempt) attempt.terminated = true;
+    if (attempt) {
+      attempt.terminated = true;
+      // Synchronous: survives a beforeunload hangup so the next load retries.
+      if (attempt.chatId) {
+        markEmptyCallCleanupTerminated(attempt.chatId);
+        setEmptyCallCleanupLive(attempt.chatId, false);
+      }
+    }
     this.closeResources();
     this.update({ status, error, audioLevels: zeroLevels(), inputIdle: false, userSpeaking: false, assistantSpeaking: false,
       billingActivity: { inputListening: false, processing: false }, liveTranscript: null });
