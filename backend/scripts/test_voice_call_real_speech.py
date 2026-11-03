@@ -46,6 +46,9 @@ SCENARIOS: dict[str, tuple[list[tuple[str, float]], list[str], float | None]] = 
     "trailing_conjunction": ([("Can you recommend a book about history and", 3.0),
                               ("maybe one about science too?", 0)], ["history", "science"], None),
 }
+# Real STT may transcribe the synthetic "Yes." as "Yeah."; match the shared stem
+# so the check fails only on pipeline defects.
+SCENARIOS["short_answer"] = ([("Yes.", 0)], ["ye"], 2.0)
 
 
 class _Profile:
