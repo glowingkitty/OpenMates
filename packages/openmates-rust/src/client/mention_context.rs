@@ -12,6 +12,21 @@ use super::*;
 use crate::mentions::{self, MentionContext, MentionParseResult};
 
 impl Client {
+    /// Mention catalog for `mentions list|search` (client.ts `buildMentionContext`
+    /// without memory entries). A failed Apps request leaves only the static
+    /// models and mates, like npm; cancellation still propagates.
+    pub async fn mention_catalog(&mut self) -> Result<MentionContext> {
+        let apps = match self
+            .request(Method::GET, "/v1/apps?include_unavailable=true", None)
+            .await
+        {
+            Ok(data) => mentions::apps_from_json(&data),
+            Err(Error::Cancelled) => return Err(Error::Cancelled),
+            Err(_) => vec![],
+        };
+        Ok(MentionContext::with_apps(apps))
+    }
+
     /// Resolve display mentions (`@Gemini-3.8-Flash`, `@Sophia`,
     /// `@Web-Search`, ...) to wire syntax. Unknown mentions keep their text
     /// and are returned in `unresolved` for the caller to refuse or report.

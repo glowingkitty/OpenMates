@@ -3238,7 +3238,8 @@
       ],
       "arity_overrides": {
         "tasks": "switch",
-        "plans": "switch"
+        "plans": "switch",
+        "settings": "switch"
       }
     },
     {
@@ -20574,12 +20575,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "cli::group_help",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/group_help.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Bare group prints native help and exits 0; subcommands are tracked separately."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -30237,12 +30238,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "cli::group_help",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/group_help.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Bare group prints native help and exits 0; subcommands are tracked separately."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -30495,12 +30496,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "cli::group_help",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/group_help.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Bare group prints native help and exits 0; subcommands are tracked separately."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -31994,12 +31995,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "cli::group_help",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/group_help.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Bare group prints native help and exits 0; subcommands are tracked separately."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -32338,12 +32339,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "cli::group_help",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/group_help.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Bare group prints native help and exits 0; subcommands are tracked separately."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -33161,12 +33162,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "cli::group_help",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/group_help.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Bare group prints native help and exits 0; subcommands are tracked separately."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -33771,12 +33772,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "cli::group_help",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/group_help.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Bare group prints native help and exits 0; subcommands are tracked separately."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -33853,12 +33854,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "cli::group_help",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/group_help.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Bare group prints native help and exits 0; subcommands are tracked separately."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -34228,12 +34229,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "cli::group_help",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/group_help.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Bare group prints native help and exits 0; subcommands are tracked separately."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -34608,12 +34609,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "cli::group_help",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/group_help.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Bare group prints native help and exits 0; subcommands are tracked separately."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -34856,12 +34857,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "cli::group_help",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/group_help.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Bare group prints native help and exits 0; subcommands are tracked separately."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -34896,12 +34897,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.mentions_list",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/mentions_cmd.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -34943,12 +34944,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.mentions_list",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/mentions_cmd.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -35037,12 +35038,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "cli::group_help",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/group_help.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Bare group prints native help and exits 0; subcommands are tracked separately."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46650,12 +46651,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "cli::group_help",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/group_help.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Bare group prints native help and exits 0; subcommands are tracked separately."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -51232,12 +51233,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "cli::group_help",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/group_help.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Bare group prints native help and exits 0; subcommands are tracked separately."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -52513,12 +52514,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_extra",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_extra.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54224,12 +54225,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_extra",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_extra.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54264,12 +54265,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_extra",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_extra.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54304,12 +54305,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_extra",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_extra.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -55108,12 +55109,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_extra",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_extra.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -55140,7 +55141,8 @@
         "duration",
         "help",
         "json",
-        "profile"
+        "profile",
+        "yes"
       ],
       "source_locations": [
         {
@@ -55151,12 +55153,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_extra",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_extra.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -55358,6 +55360,7 @@
       "flags": [
         "api-key",
         "api-url",
+        "body",
         "help",
         "json",
         "profile",
@@ -55372,12 +55375,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_extra",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_extra.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -55412,12 +55415,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.settings_extra",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/settings_extra.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -56071,12 +56074,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "cli::group_help",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/group_help.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Bare group prints native help and exits 0; subcommands are tracked separately."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -57638,12 +57641,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "cli::group_help",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/group_help.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Bare group prints native help and exits 0; subcommands are tracked separately."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -60209,12 +60212,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "cli::group_help",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/group_help.rs"
       },
       "gaps": [
-        "Native Workflow CLI handler not ported; command fails explicitly. YAML update additionally needs canonical bound remote-file synchronization; no empty synchronization success is fabricated."
+        "Bare group prints native help and exits 0; subcommands are tracked separately."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -61885,8 +61888,8 @@
   "coverage": {
     "command_patterns": 720,
     "flags": 599,
-    "native_handlers_partial": 618,
-    "unsupported": 102,
+    "native_handlers_partial": 645,
+    "unsupported": 75,
     "feature_complete": false
   },
   "maintenance": {

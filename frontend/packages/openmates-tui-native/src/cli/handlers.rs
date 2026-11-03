@@ -41,6 +41,8 @@ fn supported(invocation: &Invocation) -> bool {
         || super::projects::supported(invocation)
         || super::workflows::supported(invocation)
         || super::account::supported(invocation)
+        || super::mentions_cmd::supported(invocation)
+        || super::group_help::is_root(invocation)
         || super::chat_work::supported(invocation)
         || super::chat_project::supported(invocation)
         || super::goal_chat::supported(invocation)
@@ -70,6 +72,7 @@ pub fn requirements(invocation: &Invocation) -> Requirements {
             | "apps run"
     ) || invocation.command_path() == "drafts"
         || super::docs::is_public(invocation)
+        || super::group_help::is_root(invocation)
         || !supported(invocation)
         || invocation.path.first().is_some_and(|v| v == "server");
     Requirements {
@@ -85,6 +88,7 @@ pub fn requirements(invocation: &Invocation) -> Requirements {
 pub fn execute_public(invocation: &Invocation) -> Option<Result<CliOutput, CliError>> {
     if invocation.command_path()=="embeds share" { if let Some(result)=super::embed_share::preflight(invocation){return Some(result);} }
     if let Some(output) = super::apps_run::public(invocation) { return Some(output); }
+    if let Some(output) = super::group_help::public(invocation) { return Some(output); }
     if let Some(output) = super::drafts::public(invocation) { return Some(output); }
     if let Some(help) = super::docs::public_help(invocation) {
         return Some(help);
@@ -1045,6 +1049,9 @@ async fn execute_context_with_inventory(
     }
     if super::account::supported(invocation) {
         return Box::pin(super::account::execute(invocation, client)).await;
+    }
+    if super::mentions_cmd::supported(invocation) {
+        return Box::pin(super::mentions_cmd::execute(invocation, client)).await;
     }
     if super::chat_project::supported(invocation) {
         return Box::pin(super::chat_project::execute(invocation, client, cancel)).await;

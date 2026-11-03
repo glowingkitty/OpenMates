@@ -19,7 +19,11 @@ pub use drafts::execute_sdk_drafts;
 mod goal_chat;
 pub use chat_work::normalize as normalize_chat_work;
 pub mod docs;
+mod group_help;
 mod handlers;
+mod mentions_cmd;
+#[cfg(test)]
+mod parity_test_support;
 pub(crate) use handlers::admitted_whoami_output;
 pub(crate) use full_chat_read::{is_full_json as is_full_json_show, options as full_chat_read_options};
 pub use handlers::{is_direct_apps_command,execute_direct_apps_admitted};

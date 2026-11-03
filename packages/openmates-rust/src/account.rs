@@ -11,6 +11,7 @@ mod connected_accounts;
 mod ideabucket;
 mod memories;
 mod notifications;
+mod settings_extra;
 mod settings_ops;
 mod settings_read;
 #[cfg(test)]

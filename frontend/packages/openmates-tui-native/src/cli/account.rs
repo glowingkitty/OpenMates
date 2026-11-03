@@ -10,6 +10,7 @@ mod export_start;
 mod memories;
 mod notifications;
 mod reminders;
+mod settings_extra;
 mod settings_more;
 #[path = "teams.rs"]
 mod teams;
@@ -44,6 +45,7 @@ pub(super) fn supported(invocation: &Invocation) -> bool {
     reminders::supported(invocation)
         || billing::supported(invocation)
         || settings_more::supported(invocation)
+        || settings_extra::supported(invocation)
         || export_start::supported(invocation)
         || notifications::supported(invocation)
         || memories::supported(invocation)
@@ -275,6 +277,9 @@ pub(super) async fn execute(
     }
     if settings_more::supported(invocation) {
         return settings_more::execute(invocation, client).await;
+    }
+    if settings_extra::supported(invocation) {
+        return settings_extra::execute(invocation, client).await;
     }
     if export_start::supported(invocation) {
         return export_start::execute(invocation, client).await;
