@@ -542,10 +542,16 @@ def _parse_verdict(text: str) -> SafeguardVerdict:
 
 
 def _is_groq_output_parse_failure(exc: BaseException) -> bool:
-    """True when Groq rejects a forced tool call because model output was unparsable."""
+    """True when Groq rejects a forced tool call because model output was unusable.
+
+    ``tool_use_failed`` ("model did not call a tool") is the same malformed-output
+    class: live voice calls saw ~3% of benign assistant clauses answered as bare
+    JSON, which fail-closed into a block and cut the spoken reply.
+    """
 
     message = str(exc).lower()
-    return "output_parse_failed" in message or "parsing failed" in message
+    return ("output_parse_failed" in message or "parsing failed" in message
+            or "tool_use_failed" in message)
 
 
 def _extract_json_object(text: str) -> Optional[Dict[str, Any]]:
