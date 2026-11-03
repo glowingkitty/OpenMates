@@ -817,3 +817,157 @@ def test_text_receipts_still_print_legacy_evidence_keys(capsys):
     output = capsys.readouterr().out
     assert "codex_evidence: /results/codex-evidence.json" in output
     assert "codex_evidence_command: python3 scripts/ci_evidence.py /results --upload" in output
+
+
+def _daily_queue(tmp_path, monkeypatch, **kwargs):
+    monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
+    return Queue(tmp_path / "queue.db", **kwargs)
+
+
+def test_daily_owner_is_capped_with_idle_capacity(tmp_path, monkeypatch):
+    monkeypatch.delenv("OPENMATES_CI_DAILY_MAX_ACTIVE", raising=False)
+    queue = _daily_queue(tmp_path, monkeypatch)
+    assert queue.daily_max_active == 6
+    for n in range(12):
+        queue.enqueue("daily", "a" * 40, [f"daily-{n}.spec.ts"])
+    remote = Remote()
+    queue.tick(remote, 100)
+    assert len(remote.sent) == 6
+    queue.tick(remote, 101)
+    assert len(remote.sent) == 6
+
+
+def test_other_owners_still_get_slots_beside_capped_daily(tmp_path, monkeypatch):
+    monkeypatch.delenv("OPENMATES_CI_DAILY_MAX_ACTIVE", raising=False)
+    queue = _daily_queue(tmp_path, monkeypatch)
+    for n in range(12):
+        queue.enqueue("daily", "a" * 40, [f"daily-{n}.spec.ts"])
+    for n in range(20):
+        queue.enqueue("dev", "b" * 40, [f"dev-{n}.spec.ts"])
+    remote = Remote()
+    queue.tick(remote, 100)
+    owners = [job["owner"] for job in remote.sent]
+    assert owners.count("daily") == 6
+    assert owners.count("dev") == 14  # remaining capacity, reserve lent
+
+
+def test_environment_overrides_daily_cap(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENMATES_CI_DAILY_MAX_ACTIVE", "2")
+    queue = _daily_queue(tmp_path, monkeypatch)
+    assert queue.daily_max_active == 2
+    for n in range(5):
+        queue.enqueue("daily", "a" * 40, [f"daily-{n}.spec.ts"])
+    remote = Remote()
+    queue.tick(remote, 100)
+    assert len(remote.sent) == 2
+
+
+def test_cancel_owner_only_cancels_undispatched_jobs_of_that_owner(tmp_path, monkeypatch):
+    queue = _daily_queue(tmp_path, monkeypatch, daily_max_active=1)
+    for n in range(3):
+        queue.enqueue("daily", "a" * 40, [f"daily-{n}.spec.ts"])
+    other = queue.enqueue("dev", "b" * 40, ["dev.spec.ts"])
+    remote = Remote()
+    queue.tick(remote, 100)
+    sent_daily = [job for job in remote.sent if job["owner"] == "daily"]
+    assert len(sent_daily) == 1
+    result = queue.cancel_owner("daily", "daily batch disabled")
+    assert result["cancelled_queued"] == 2
+    assert [job["id"] for job in result["active"]] == [sent_daily[0]["id"]]
+    states = {job["id"]: job["state"] for job in queue.status()}
+    assert states[sent_daily[0]["id"]] != "cancelled"
+    assert states[other["id"]] != "cancelled"
+
+
+def test_rust_check_admits_all_and_crate_targets(tmp_path):
+    import json
+
+    queue = Queue(tmp_path / "queue.db")
+    for target in ("all", "openmates-sdk", "openmates-sdk::chat::tests::round_trip"):
+        jobs = enqueue_submission(queue, "owner", "a" * 40, [target], "rust-check")
+        assert [json.loads(job["specs"]) for job in jobs] == [[target]]
+
+
+def test_rust_check_refuses_bad_targets_and_extras(tmp_path):
+    import pytest
+
+    queue = Queue(tmp_path / "queue.db")
+    for bad in (
+        [],
+        ["all", "openmates-sdk"],
+        ["../x"],
+        ["Bad_Crate"],
+        ["openmates-sdk::a b"],
+        ["openmates-sdk::"],
+        ["openmates-sdk; rm"],
+        ["x.spec.ts"],
+    ):
+        with pytest.raises(ValueError):
+            enqueue_submission(queue, "owner", "a" * 40, bad, "rust-check")
+    with pytest.raises(ValueError):
+        enqueue_submission(
+            queue, "owner", "a" * 40, ["all"], "rust-check", case_title="x"
+        )
+    with pytest.raises(ValueError):
+        enqueue_submission(
+            queue, "owner", "a" * 40, ["all"], "rust-check", runtime_seed_job="j"
+        )
+
+
+def test_rust_check_is_lightweight_hosted():
+    from scripts.ci_coordinator import LIGHTWEIGHT_MODES, runner_class
+
+    assert "rust-check" in LIGHTWEIGHT_MODES
+    assert runner_class({"specs": '["all"]'}) == "hosted"
+
+
+def test_rust_check_plan_matches_rust_workflow_exclusions():
+    from scripts.ci_rust_check import plan
+
+    commands = dict(plan("all"))
+    assert list(commands) == [
+        "workspace test",
+        "openmates sdk-only check",
+        "browser-bindings wasm32 check",
+    ]
+    assert commands["workspace test"] == [
+        "cargo", "test", "--workspace", "--locked", "--lib", "--bins", "--tests",
+    ]
+    assert "--no-default-features" in commands["openmates sdk-only check"]
+    assert "wasm32-unknown-unknown" in commands["browser-bindings wasm32 check"]
+    ((_, single),) = plan("openmates-sdk::chat::tests")
+    assert single[:4] == ["cargo", "test", "-p", "openmates-sdk"]
+    assert single[-2:] == ["--", "chat::tests"]
+
+
+def test_rust_check_receipt_shows_first_failures_concisely():
+    from scripts.ci_coordinator import rust_check_failures
+
+    row = {
+        "report": {
+            "runtime_profile": "rust-check",
+            "results": [
+                {"suite": "rust-check:a", "exit_code": 0, "seconds": 3.0},
+                {
+                    "suite": "rust-check:b",
+                    "exit_code": 101,
+                    "seconds": 9.5,
+                    "failures": [f"line {n}" for n in range(30)],
+                },
+            ],
+        }
+    }
+    lines = rust_check_failures(row)
+    assert lines[0] == "rust-check:a: passed in 3.0s"
+    assert lines[1] == "rust-check:b: FAILED (101) in 9.5s"
+    assert lines[2] == "| line 0" and len(lines) == 2 + 12
+    assert rust_check_failures({"report": {"runtime_profile": "e2e"}}) == []
+
+
+def test_vitest_accepts_exact_test_file_filters(tmp_path):
+    import json
+
+    queue = Queue(tmp_path / "queue.db")
+    path = "frontend/packages/ui/src/services/foo.test.ts"
+    jobs = enqueue_submission(queue, "owner", "a" * 40, [path], "vitest")
+    assert [json.loads(job["specs"]) for job in jobs] == [[path]]

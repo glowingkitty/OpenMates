@@ -25,10 +25,12 @@ import uuid
 POLL_SECONDS = 30
 MAX_ACTIVE = 20  # Confirmed GitHub Free hosted-job entitlement.
 MAX_SELFHOSTED = 1
+DAILY_OWNER = "daily"
+DAILY_MAX_ACTIVE = 6  # Hosted slots the daily batch may hold at once.
 OCCUPANCY_CACHE_SECONDS = 120
 MAX_OCCUPANCY_REQUESTS = 80
 ACTIVE_RUN_LOOKBACK_DAYS = 70
-LIGHTWEIGHT_MODES = frozenset({"component", "pytest", "vitest", "codex"})
+LIGHTWEIGHT_MODES = frozenset({"component", "pytest", "vitest", "codex", "rust-check"})
 RATE_RESERVE = 100
 ERROR_BACKOFF = 60
 UNCERTAIN_SECONDS = 600
@@ -411,8 +413,16 @@ class Queue:
         lightweight_reserve=None,
         max_selfhosted=None,
         hosted_entitlement=None,
+        daily_max_active=None,
     ):
         self.path = path
+        self.daily_max_active = int(
+            daily_max_active
+            if daily_max_active is not None
+            else os.environ.get("OPENMATES_CI_DAILY_MAX_ACTIVE", DAILY_MAX_ACTIVE)
+        )
+        if self.daily_max_active < 0:
+            raise ValueError("Daily CI slot cap must be nonnegative")
         self.hosted_entitlement = int(
             hosted_entitlement
             if hosted_entitlement is not None
@@ -535,6 +545,7 @@ class Queue:
             "sdk-lockfiles",
             "rust-wasm",
             "rust-native-dev",
+            "rust-check",
         ):
             raise ValueError("Unknown CI mode")
         if proof_profile not in ("", "web-phone", "web-laptop") or (
@@ -613,6 +624,10 @@ class Queue:
             )
         if mode == "sdk-conformance" and specs != ["sdk-conformance"]:
             raise ValueError("SDK conformance requires its exact unprepared target")
+        if mode == "rust-check":
+            specs = _validate_rust_check(
+                specs, preparation, runtime_seed_job, capacity_configuration, case_title
+            )
         if mode == "pytest":
             try:
                 from scripts.ci_pytest_targets import validate_pytest_targets
@@ -668,6 +683,7 @@ class Queue:
                 "sdk-lockfiles",
                 "rust-wasm",
                 "rust-native-dev",
+                "rust-check",
                 "selfhost",
             )
             else specs
@@ -974,6 +990,26 @@ class Queue:
             (key, str(value)),
         )
 
+    def cancel_owner(self, owner: str, reason: str) -> dict:
+        """Cancel one owner's undispatched jobs; other owners and running jobs are untouched."""
+        if not owner or not reason.strip():
+            raise ValueError("An owner and an explicit reason are required")
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            cursor = db.execute(
+                "UPDATE jobs SET state='cancelled',phase='cancelled by operator',updated=?,error=? WHERE owner=? AND state='queued' AND sent IS NULL",
+                (time.time(), reason.strip(), owner),
+            )
+            running = db.execute(
+                "SELECT id, run_id FROM jobs WHERE owner=? AND state NOT IN ('queued','success','failure','cancelled')",
+                (owner,),
+            ).fetchall()
+            return {
+                "owner": owner,
+                "cancelled_queued": cursor.rowcount,
+                "active": [dict(row) for row in running],
+            }
+
     def prioritize(self, key: str, owner: str, reason: str):
         """Admit one owned prerequisite ahead of bulk work without adding slots."""
         if not reason.strip():
@@ -1236,6 +1272,12 @@ class Queue:
                         owners[job["owner"]] = (
                             owners.get(job["owner"], 0) + reservations[job["id"]]
                         )
+                    daily_hosted = sum(
+                        reservations[job["id"]]
+                        for job in active_jobs
+                        if job["owner"] == DAILY_OWNER
+                        and runner_class(job) == "hosted"
+                    )
                     priority = self.metadata(db, "prerequisite_request", "")
                     last_owner = self.metadata(db, "last_admitted_owner", "")
                     # One writer owns capacity and owner fairness across all callers.
@@ -1248,6 +1290,12 @@ class Queue:
                                 self.max_selfhosted
                                 if runner_class(job) == "selfhosted"
                                 else self.max_active
+                            )
+                            # The daily batch is capped even when slots are idle.
+                            and not (
+                                job["owner"] == DAILY_OWNER
+                                and runner_class(job) == "hosted"
+                                and daily_hosted >= self.daily_max_active
                             )
                         ]
                         if not eligible:
@@ -1298,6 +1346,8 @@ class Queue:
                         db.commit()
                         local[runner_class(job)] += 1
                         owners[job["owner"]] = owners.get(job["owner"], 0) + 1
+                        if job["owner"] == DAILY_OWNER and runner_class(job) == "hosted":
+                            daily_hosted += 1
                         last_owner = job["owner"]
                         self.set_meta(db, "last_admitted_owner", last_owner)
                         # Respect GitHub's guidance to space mutating requests.
@@ -1335,6 +1385,17 @@ class Queue:
                         "network_retry_at",
                         max(now + ERROR_BACKOFF, getattr(exc, "retry_at", 0)),
                     )
+
+
+def _validate_rust_check(specs, preparation, runtime_seed_job, capacity, case_title):
+    """Rust check takes one cargo target and no preparation, seed or case filter."""
+    try:
+        from scripts.ci_rust_check import validate_specs
+    except ModuleNotFoundError:
+        from ci_rust_check import validate_specs
+    if preparation or runtime_seed_job or capacity or case_title:
+        raise ValueError("Rust check accepts only its cargo target")
+    return validate_specs(specs)
 
 
 def enqueue_submission(
@@ -1400,6 +1461,10 @@ def enqueue_submission(
         raise ValueError("SDK lock preparation requires its exact unprepared target")
     if mode == "sdk-conformance" and specs != ["sdk-conformance"]:
         raise ValueError("SDK conformance requires its exact unprepared target")
+    if mode == "rust-check":
+        specs = _validate_rust_check(
+            specs, prepared_builds, runtime_seed_job, capacity_configuration, case_title
+        )
     selections = list(specs) if mode == "pytest" else sorted(set(specs))
     if mode in ("component", "e2e", "selfhost") and not selections:
         raise ValueError("Browser requests require explicit specs")
@@ -1476,6 +1541,22 @@ def enqueue_submission(
     return jobs
 
 
+def rust_check_failures(row: dict, limit: int = 12) -> list[str]:
+    """Summarize failing rust-check steps and their first failure lines."""
+    report = row.get("report")
+    if not isinstance(report, dict) or report.get("runtime_profile") != "rust-check":
+        return []
+    lines = []
+    for item in report.get("results", []):
+        verdict = "passed" if item.get("exit_code") == 0 else f"FAILED ({item.get('exit_code')})"
+        lines.append(f"{item.get('suite')}: {verdict} in {item.get('seconds')}s")
+        if item.get("exit_code") != 0:
+            lines += [f"| {text}" for text in item.get("failures", [])[:limit]]
+    if report.get("error"):
+        lines.append(f"error: {str(report['error'])[:300]}")
+    return lines
+
+
 def print_receipt(value, *, as_json=False):
     """Keep machine receipts available without flooding ordinary agent calls."""
     if as_json:
@@ -1530,6 +1611,8 @@ def print_receipt(value, *, as_json=False):
         ):
             if row.get(key):
                 print(f"  {key}: {str(row[key])[:500]}")
+        for line in rust_check_failures(row):
+            print(f"  {line}")
         if not any(
             key in row for key in ("id", "request_id", "state", "status", "conclusion")
         ):
@@ -1587,6 +1670,7 @@ def main():
             "sdk-lockfiles",
             "rust-wasm",
             "rust-native-dev",
+            "rust-check",
         ],
         default="e2e",
     )
@@ -1618,6 +1702,11 @@ def main():
     priority.add_argument("id")
     priority.add_argument("--session", required=True)
     priority.add_argument("--reason", required=True)
+    cancel = sub.add_parser(
+        "cancel", help="Cancel one owner's undispatched queued jobs"
+    )
+    cancel.add_argument("--owner", required=True)
+    cancel.add_argument("--reason", required=True)
     status = sub.add_parser("status")
     status.add_argument("id", nargs="?")
     status.add_argument(
@@ -1641,7 +1730,7 @@ def main():
     wait.add_argument("id")
     wait.add_argument("--timeout", type=float, default=7200)
     wait.add_argument("--poll", type=float, default=10)
-    for command in (submit, priority, status, result, verify, health, wait):
+    for command in (submit, priority, cancel, status, result, verify, health, wait):
         command.add_argument(
             "--json", action="store_true", help="Emit complete machine-readable data"
         )
@@ -1730,6 +1819,7 @@ def main():
                 "sdk-lockfiles",
                 "rust-wasm",
                 "rust-native-dev",
+                "rust-check",
             },
             capacity_configuration=capacity_configuration,
             case_title=args.case_title,
@@ -1742,6 +1832,8 @@ def main():
         print_receipt(
             queue.prioritize(args.id, args.session, args.reason), as_json=args.json
         )
+    elif args.action == "cancel":
+        print_receipt(queue.cancel_owner(args.owner, args.reason), as_json=args.json)
     elif args.action == "status":
         rows = queue.status(args.id)
         if not args.id and not args.all:

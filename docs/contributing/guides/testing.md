@@ -25,6 +25,34 @@ logs and useful videos from the existing run. A separate proof-video production
 workflow is needed only when requested or part of the accepted scope. Use
 `response_media.py` to publish reviewed private expiring evidence if needed.
 
+## Rust and unit checks in isolated CI
+
+Rust builds and tests never run on the dev server. Submit the candidate source
+(`sessions.py ci-source`) with `ci_coordinator.py submit --mode rust-check`:
+
+```bash
+python3 scripts/ci_coordinator.py submit --session <id> --source <sha> --mode rust-check --spec all
+python3 scripts/ci_coordinator.py submit ... --mode rust-check --spec openmates-sdk
+python3 scripts/ci_coordinator.py submit ... --mode rust-check --spec 'openmates-sdk::chat::tests'
+python3 scripts/ci_coordinator.py wait <id>      # then: result <id> for failures
+```
+
+- `--spec all` runs `cargo test --workspace --locked --lib --bins --tests`
+  (examples excluded, as in `rust.yml`), the SDK-only `openmates` build without
+  default features, and a wasm32 `cargo check` of `openmates-browser-bindings`.
+- `--spec <crate>` runs `cargo test -p <crate> --locked --lib --bins --tests`;
+  `--spec <crate>::<filter>` passes `<filter>` as the cargo test-name filter.
+  Exactly one target per job; doc tests are not run.
+- Runs on `ubuntu-24.04-arm` with a `Swatinem/rust-cache` dependency cache
+  (saved only by runs without a candidate patch; patch runs restore only). A
+  cold build takes tens of minutes. It counts as a lightweight hosted job.
+- `result`/`wait` print each step's verdict plus its first failure lines (failing
+  tests, panics, compiler errors). Full bounded logs are in the result
+  artifact under `test-results/rust-check/`.
+- Vitest: `--mode vitest --spec <path>` takes exact test files (repeatable, up
+  to 30) under `frontend/packages/ui/src`, `frontend/apps/web_app/src` or
+  `frontend/packages/openmates-cli/tests`; without `--spec` it runs all suites.
+
 ## Real-inference checks on the dev server
 
 Real AI, speech and provider checks run only against dev, after the candidate is

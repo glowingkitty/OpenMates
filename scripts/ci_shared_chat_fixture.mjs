@@ -9,6 +9,7 @@
 import { randomBytes, randomUUID, createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
+import { existsSync } from 'node:fs';
 
 export const TRANSCRIPT = 'This synthetic archived voice memo describes a project review and its next steps. The team will check the implementation, review the results, and document the follow-up work.';
 const hash = value => createHash('sha256').update(value).digest('hex');
@@ -33,7 +34,11 @@ export async function buildFixture(source, userId, masterKey) {
 async function main() {
   if (process.env.RUNNER_ENVIRONMENT !== 'github-hosted' || process.env.CI_TEST_MODE !== 'e2e') throw new Error('Shared archive fixture requires isolated GitHub E2E');
   const source = path.resolve(process.argv[2]);
-  const {OpenMatesClient} = await import(pathToFileURL(path.join(source,'frontend/packages/openmates-cli/dist/cli-internal-client.js')));
+  // The harness may be newer than the subject build: pre-0c5ab48c32 subjects have
+  // no CLI-internal entry and still export the CLI session client from the root.
+  const dist = path.join(source,'frontend/packages/openmates-cli/dist');
+  const entry = existsSync(path.join(dist,'cli-internal-client.js')) ? 'cli-internal-client.js' : 'index.js';
+  const {OpenMatesClient} = await import(pathToFileURL(path.join(dist,entry)));
   const client = new OpenMatesClient({apiUrl:'http://localhost:8000'});
   const user = await client.whoAmI();
   if (typeof user.id !== 'string') throw new Error('Fresh account identity missing');

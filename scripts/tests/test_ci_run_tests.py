@@ -559,6 +559,9 @@ def test_fresh_credit_fixture_uses_real_gift_and_rejects_wrong_balance(tmp_path,
     account = fresh_fixture_for_sdk_transport(tmp_path, runner, monkeypatch)
 
     monkeypatch.setattr(runner, "ROOT", tmp_path)
+    internal = tmp_path / "frontend/packages/openmates-cli/dist/cli-internal-client.js"
+    internal.parent.mkdir(parents=True)
+    internal.write_text("", encoding="utf-8")
     calls = []
     def run(command, **kwargs):
         calls.append((command, kwargs))
@@ -567,12 +570,28 @@ def test_fresh_credit_fixture_uses_real_gift_and_rejects_wrong_balance(tmp_path,
     assert runner.accept_fixture_credits(account) == 1000
     command, kwargs = calls[0]
     assert "/v1/auth/accept-gift" in command[3]
+    assert command[4] == internal.as_uri()
     assert "client.getSession().cookies" in command[3]
     assert kwargs["env"]["OPENMATES_STATE_DIR"] != account["OPENMATES_STATE_DIR"]
     assert kwargs["capture_output"] is True
     monkeypatch.setattr(runner.subprocess, "run", lambda *a, **k: SimpleNamespace(returncode=0, stdout='{"credits": 0}'))
     with pytest.raises(RuntimeError, match="balance mismatch"):
         runner.accept_fixture_credits(account)
+
+
+def test_session_client_entry_matches_the_subject_cli_build(tmp_path, monkeypatch):
+    """The newer harness must serve older subjects that predate the CLI-internal entry."""
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+    monkeypatch.setattr(runner, "ROOT", tmp_path)
+    dist = tmp_path / "frontend/packages/openmates-cli/dist"
+    dist.mkdir(parents=True)
+    with pytest.raises(RuntimeError, match="no first-party session client entry"):
+        runner.cli_session_client_entry()
+    (dist / "index.js").write_text("", encoding="utf-8")
+    assert runner.cli_session_client_entry() == (dist / "index.js").as_uri()
+    (dist / "cli-internal-client.js").write_text("", encoding="utf-8")
+    assert runner.cli_session_client_entry() == (dist / "cli-internal-client.js").as_uri()
 
 
 def test_failure_diagnostics_are_separate_and_do_not_run_an_application(tmp_path, monkeypatch):
