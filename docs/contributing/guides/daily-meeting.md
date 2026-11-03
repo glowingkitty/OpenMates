@@ -11,7 +11,9 @@ the Claude app. The `daily-meeting-and-orchestration` skill drives it.
    snapshot), nightly test status, and the Apple Reminders overview. Output:
    `logs/daily-meetings/YYYY-MM-DD-context.json` (gitignored, private).
 2. Recap, candid focus check, ≤3 numbered questions per round.
-3. Approved plan → Reminders changes → new or resumed Claude chats per stream.
+3. Approved plan → Tasks and Reminders changes → new or resumed Claude chats
+   per stream. OpenMates Tasks are the agents' work queue; Reminders are the
+   user's capture inbox (work reminders for agents become Tasks).
    Records: `scripts/daily_meeting.py --record priorities|answer|proposal|approve`.
 
 ## Apple Reminders

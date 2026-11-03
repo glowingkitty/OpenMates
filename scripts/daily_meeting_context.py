@@ -191,7 +191,22 @@ def task_snapshot(gaps: list[str], project: str = PROJECT_ID) -> list[dict] | No
         "priority": t.get("priority_level") or "none",
         "blocked": t.get("blocked_reason_code") or "", "due": t.get("due_at") or "",
         "assignee": t.get("assignee_type") or "",
+        "chat": _chat_ref(t.get("external_chat")),
     } for t in data.get("tasks", [])]
+
+
+def _chat_ref(chat: dict | None) -> str:
+    return f"{chat.get('provider')}:{chat.get('id')}" if isinstance(chat, dict) and chat.get("id") else ""
+
+
+def chat_state(task: dict, active_chats: set[str]) -> str:
+    """Whether an in-progress Task has a Claude chat that was active in the meeting window."""
+    provider, _, chat_id = task.get("chat", "").partition(":")
+    if not chat_id:
+        return "no_chat"
+    if provider != "claude":
+        return f"{provider}_legacy"  # Codex is retired; such Tasks need a Claude owner or a decision
+    return "active" if chat_id in active_chats else "idle"
 
 
 PRIORITY_ORDER = {"urgent": 0, "high": 1, "medium": 2, "low": 3}
@@ -205,17 +220,25 @@ def _compact(task: dict) -> dict:
     return {key: value for key, value in task.items() if value and value != "none" and key != "status"}
 
 
-def task_summary(tasks: list[dict] | None, previous: list[dict] | None) -> dict:
+def task_summary(tasks: list[dict] | None, previous: list[dict] | None,
+                 active_chats: set[str] | None = None) -> dict:
+    """OpenMates Tasks are the agents' work queue (Reminders are the user's capture inbox)."""
     if tasks is None:
         return {}
+    active_chats = active_chats or set()
+    tasks = [t | {"chat_state": chat_state(t, active_chats)} if t["status"] == "in_progress" else t
+             for t in tasks]
     by_status: dict[str, list] = {}
     for task in tasks:
         by_status.setdefault(task["status"], []).append(task)
     old = {t["id"]: t["status"] for t in previous or []}
     changes = [{"id": t["id"], "title": t["title"], "from": old.get(t["id"], "new"), "to": t["status"]}
                for t in tasks if old.get(t["id"]) != t["status"]] if previous else []
+    done_now = [c for c in changes if c["to"] == "done"]
     return {
         "counts": {k: len(v) for k, v in by_status.items()},
+        "done_since_last_meeting": done_now,
+        "in_progress_by_chat_state": dict(Counter(t["chat_state"] for t in by_status.get("in_progress", []))),
         "open": {
             "in_progress": [_compact(t) for t in by_status.get("in_progress", [])],
             "blocked": [_compact(t) for t in by_status.get("blocked", [])],
@@ -223,7 +246,7 @@ def task_summary(tasks: list[dict] | None, previous: list[dict] | None) -> dict:
             "backlog_top": [_compact(t) for t in _by_priority(by_status.get("backlog", []))[:15]],
             "more": "full lists: openmates tasks list --project " + PROJECT_ID + " --json",
         },
-        "changed_since_last_meeting": changes,
+        "changed_since_last_meeting": [c for c in changes if c["to"] != "done"],
         "baseline": "previous snapshot" if previous else "none (first run; no change diff)",
     }
 
@@ -362,7 +385,7 @@ def collect(root: Path, now: datetime, since: datetime, out: Path) -> tuple[dict
         "git": git_summary(root, since, gaps),
         "work_mix": work_mix(root),
         "marketing": marketing(since),
-        "tasks": task_summary(tasks, previous),
+        "tasks": task_summary(tasks, previous, {c["session"] for c in chats}),
         "nightly": nightly(root, since),
         "reminders": reminders(gaps),
         "gaps": gaps,

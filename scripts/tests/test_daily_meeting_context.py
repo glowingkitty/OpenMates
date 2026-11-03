@@ -76,10 +76,10 @@ def test_task_summary_reports_status_changes_against_previous_snapshot():
                {"id": "TASK-3", "title": "c", "status": "blocked", "priority": "high", "blocked": "user"}]
     summary = brief.task_summary(current, previous)
     assert summary["counts"] == {"done": 1, "todo": 1, "blocked": 1}
+    assert summary["done_since_last_meeting"] == [
+        {"id": "TASK-1", "title": "a", "from": "in_progress", "to": "done"}]
     assert summary["changed_since_last_meeting"] == [
-        {"id": "TASK-1", "title": "a", "from": "in_progress", "to": "done"},
-        {"id": "TASK-3", "title": "c", "from": "new", "to": "blocked"},
-    ]
+        {"id": "TASK-3", "title": "c", "from": "new", "to": "blocked"}]
     assert brief.task_summary(current, None)["changed_since_last_meeting"] == []
 
 
@@ -110,3 +110,18 @@ def test_nightly_overview_counts_consecutive_empty_runs_and_last_results(tmp_pat
         "2026-10-04", 1, 1, 1)
     assert last["failed"] == [{"test": "b.spec.ts", "reason": "login works"}]
     assert last["not_run"] == [{"test": "c.spec.ts", "reason": "needs live AI"}]
+
+
+def test_in_progress_tasks_report_whether_their_chat_is_active():
+    tasks = [
+        {"id": "T-1", "title": "a", "status": "in_progress", "chat": "claude:live"},
+        {"id": "T-2", "title": "b", "status": "in_progress", "chat": "claude:quiet"},
+        {"id": "T-3", "title": "c", "status": "in_progress", "chat": "codex:old"},
+        {"id": "T-4", "title": "d", "status": "in_progress", "chat": ""},
+        {"id": "T-5", "title": "e", "status": "todo", "chat": ""},
+    ]
+    summary = brief.task_summary(tasks, None, {"live"})
+    assert summary["in_progress_by_chat_state"] == {
+        "active": 1, "idle": 1, "codex_legacy": 1, "no_chat": 1}
+    assert [t["chat_state"] for t in summary["open"]["in_progress"]] == [
+        "active", "idle", "codex_legacy", "no_chat"]
