@@ -11,6 +11,7 @@
     import * as cryptoService from '../services/cryptoService';
     import { updateProfile } from '../stores/userProfile';
     import { getSessionId } from '../utils/sessionId';
+    import { rustAuthEnabled, rustRecoveryKeyLogin, type RustPasswordLoginOutcome } from '../services/rustCore/authOperation';
 
     const dispatch = createEventDispatcher();
 
@@ -89,6 +90,29 @@
         errorMessage = null;
 
         try {
+            if (rustAuthEnabled()) {
+                // Rust builds the same request, the page sends it, Rust unwraps the key.
+                const userEmailSalt = cryptoService.getEmailSalt();
+                if (!userEmailSalt) {
+                    console.error('Email salt is required for recovery key login');
+                    errorMessage = 'Email salt not found. Please try logging in with email again.';
+                    return;
+                }
+                const outcome = await rustRecoveryKeyLogin({
+                    email, recoveryKey, sessionId: getSessionId(),
+                    userEmailSalt: cryptoService.uint8ArrayToBase64(userEmailSalt),
+                    emailEncryptionKey: cryptoService.getEmailEncryptionKeyForApi(), stayLoggedIn,
+                });
+                const data = outcome.data as RecoveryKeyLoginResponse;
+                if (outcome.ok && data.success) {
+                    await handleSuccessfulLogin(data, outcome);
+                } else if (data.message === 'login.recovery_key_wrong') {
+                    errorMessage = $text('login.recovery_key_wrong');
+                } else {
+                    errorMessage = data.message || $text('login.recovery_key_wrong');
+                }
+                return;
+            }
             // Generate hashed email for lookup
             const hashed_email = await cryptoService.hashEmail(email);
             
@@ -147,7 +171,7 @@
     }
 
     // Handle successful login
-    async function handleSuccessfulLogin(data: RecoveryKeyLoginResponse) {
+    async function handleSuccessfulLogin(data: RecoveryKeyLoginResponse, rustUnlock: RustPasswordLoginOutcome | null = null) {
         console.debug('[EnterRecoveryKey] handleSuccessfulLogin called with data:', {
             hasUser: !!data.user,
             hasEncryptedKey: !!data.user?.encrypted_key,
@@ -188,6 +212,17 @@
         
         // Decrypt and save master key - similar to password login but using recovery key (Web Crypto API)
         try {
+            let masterKey: CryptoKey | null;
+            if (rustUnlock) {
+                if (rustUnlock.kind !== 'unlocked' || !rustUnlock.key) {
+                    console.error('[EnterRecoveryKey] Rust unlock failed:', rustUnlock.code);
+                    errorMessage = rustUnlock.code === 'login_failed' ? $text('login.login_failed')
+                        : rustUnlock.code === 'unwrap_failed' ? 'Failed to decrypt master key with recovery key. Please verify your recovery key.'
+                        : 'Error decrypting master key with recovery key. Please try again.';
+                    return;
+                }
+                masterKey = rustUnlock.key;
+            } else {
             // Decode salt from base64
             console.debug('[EnterRecoveryKey] Decoding salt from base64...');
             const saltString = atob(data.user.salt);
@@ -203,7 +238,8 @@
             // Unwrap master key with IV (Web Crypto API)
             const keyIv = data.user.key_iv || ''; // IV for key unwrapping
             console.debug('[EnterRecoveryKey] Decrypting master key...');
-            const masterKey = await cryptoService.decryptKey(data.user.encrypted_key, keyIv, wrappingKey);
+            masterKey = await cryptoService.decryptKey(data.user.encrypted_key, keyIv, wrappingKey);
+            }
 
             if (!masterKey) {
                 console.error('[EnterRecoveryKey] Master key decryption returned null/undefined');

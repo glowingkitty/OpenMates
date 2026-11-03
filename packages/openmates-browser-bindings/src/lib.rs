@@ -10,6 +10,11 @@ pub use browser::*;
 #[cfg(target_arch = "wasm32")]
 mod browser_crypto;
 
+#[cfg(target_arch = "wasm32")]
+mod browser_auth;
+#[cfg(target_arch = "wasm32")]
+pub use browser_auth::*;
+
 #[cfg(all(test, target_arch = "wasm32"))]
 mod legacy_password_test_context;
 

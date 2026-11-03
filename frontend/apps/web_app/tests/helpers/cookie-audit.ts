@@ -224,5 +224,16 @@ export async function assertNoThirdPartyCookies(context: any): Promise<void> {
 	}
 }
 
+/**
+ * Cookie attribute fingerprint (no values) for parity checks between two client
+ * paths of the same flow, e.g. the TypeScript and Rust web auth arms.
+ */
+export async function cookieAttributeShape(context: any): Promise<string[]> {
+	const cookies: any[] = (await context.cookies()) || [];
+	return cookies
+		.map((c) => `${c.name}|${c.domain}|${c.path}|httpOnly=${!!c.httpOnly}|secure=${!!c.secure}|sameSite=${c.sameSite}|session=${c.expires === -1}`)
+		.sort();
+}
+
 export { test, expect };
-module.exports = { test, expect, assertNoThirdPartyCookies };
+module.exports = { test, expect, assertNoThirdPartyCookies, cookieAttributeShape };

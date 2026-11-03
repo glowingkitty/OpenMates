@@ -37,3 +37,4 @@ pub mod sdk_embeds;
 pub use sdk::{AnonymousMessage, ApiKey, OpenMates, SdkCredentials, SdkOptions};
 
 pub mod work;
+pub mod web_auth;

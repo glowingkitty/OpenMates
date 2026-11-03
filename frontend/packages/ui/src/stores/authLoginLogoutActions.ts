@@ -61,6 +61,7 @@ import {
 // Import auth types
 import type { LoginResult, LogoutCallbacks } from "./authTypes";
 import { getSessionId } from "../utils/sessionId";
+import { rustAnnounceLogout, rustAuthEnabled, rustLogoutServer } from "../services/rustCore/authOperation";
 
 // Login session generation counter.
 // Incremented on every successful login and when explicit logout starts.
@@ -638,6 +639,18 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
         if (typeof localStorage !== "undefined") {
           localStorage.setItem("openmates_needs_cleanup", "true");
         }
+        if (rustAuthEnabled()) {
+          // Flag builds: peer tabs drop their local session now and release
+          // their database connections before this tab deletes the databases.
+          await rustAnnounceLogout({
+            captured: logoutGeneration,
+            current: () => loginSessionGeneration,
+            skipServerLogout: callbacks?.skipServerLogout === true,
+            policyViolation: callbacks?.isPolicyViolation === true,
+          }).catch((error: unknown) =>
+            console.warn("[AuthStore] Cross-tab logout notice failed:", error),
+          );
+        }
 
         // Mark both databases as deleting before a fast re-login can start sync
         // and advertise stale local chat or embed IDs to the server.
@@ -712,7 +725,32 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
 
         // Perform server logout - this ensures the backend is notified even if it's slow
         // If the server is unreachable, the request will fail gracefully and not affect the user
-        if (!callbacks?.skipServerLogout) {
+        if (rustAuthEnabled()) {
+          // Rust picks the request (same endpoint, headers and no body) and the
+          // page sends it; peer tabs were told at the start of this cleanup.
+          const rustAbortController = new AbortController();
+          const rustTimeoutId = setTimeout(() => rustAbortController.abort(), 10_000);
+          try {
+            const sent = await rustLogoutServer({
+              captured: logoutGeneration,
+              current: () => loginSessionGeneration,
+              skipServerLogout: callbacks?.skipServerLogout === true,
+              policyViolation: callbacks?.isPolicyViolation === true,
+              signal: rustAbortController.signal,
+            });
+            if (sent.kind === "sent" && !sent.ok) {
+              console.error("Server logout request failed:", sent.status);
+            }
+          } catch (e) {
+            console.error(
+              "[AuthStore] Server logout API call failed (user already logged out locally):",
+              e,
+            );
+            if (callbacks?.onError) await callbacks.onError(e);
+          } finally {
+            clearTimeout(rustTimeoutId);
+          }
+        } else if (!callbacks?.skipServerLogout) {
           try {
             const logoutApiUrl = getApiEndpoint(apiEndpoints.auth.logout);
             // Use AbortController with 10s timeout to prevent the fetch from hanging
