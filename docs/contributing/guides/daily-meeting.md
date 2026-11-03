@@ -20,11 +20,12 @@ What may be worked on is defined in [`FOCUS.md`](../../../FOCUS.md)
    - renders `logs/daily-meetings/YYYY-MM-DD-briefing.md` (private): meeting
      instructions for Claude, phase rules, FOCUS.md, progress, reminders, then
      appendices with all reminders/chats/Tasks/commits;
-   - uploads it with `scripts/response_media.py` (private S3 link, 48 h) and
-     posts the link to Discord (`DISCORD_WEBHOOK_DAILY_MEETING`, else
+   - renders it as a PDF (`scripts/daily_meeting_pdf.py`; the Claude app cannot
+     fetch the long Markdown from a link) and uploads that with
+     `scripts/response_media.py` (private S3 link, 48 h), then posts the link to Discord (`DISCORD_WEBHOOK_DAILY_MEETING`, else
      `DISCORD_WEBHOOK_DEV_NIGHTLY`).
-3. **Meeting:** paste the Discord message into the daily-meeting chat in the
-   Claude app and start a voice call. It ends with a `DECISIONS <date>` note.
+3. **Meeting:** download the PDF from the Discord link, attach it in the
+   daily-meeting chat in the Claude app and start a voice call. It ends with a `DECISIONS <date>` note.
 4. **Write-back:** paste the note into a Claude Code chat on the dev server; the
    `daily-meeting-and-orchestration` skill updates FOCUS.md, Reminders and
    OpenMates Tasks and can start the approved work chats.

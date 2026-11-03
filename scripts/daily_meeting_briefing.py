@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 from datetime import date, datetime, timedelta, timezone
 import json
+import re
 import os
 from pathlib import Path
 import subprocess
@@ -185,7 +186,8 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
             "marketing. Everything else goes to the parking lot.",
             "- **Build Week:** features, bug fixes, UX from the parking lot; marketing still "
             "matters but need not fill the week.", ""]
-    out += ["## 1. Focus file (FOCUS.md)", "", ev.get("focus_file", "").strip() or "_FOCUS.md missing._", ""]
+    focus_text = re.sub(r"^(#{1,2}) ", "### ", ev.get("focus_file", "").strip(), flags=re.M)
+    out += ["## 1. Focus file (FOCUS.md)", "", focus_text or "_FOCUS.md missing._", ""]
 
     out += ["## 2. Since the last meeting", ""]
     for theme in chats_summary.get("themes", []):
@@ -276,9 +278,9 @@ def post_discord(root: Path, text: str) -> dict:
 def discord_text(today: date, url: str) -> str:
     name, _, _ = phase(today)
     return (f"**Daily meeting briefing — {today:%a %d %b}** ({name})\n"
-            f"Claude: open this briefing, read all of it, then run today's voice daily meeting "
-            f"exactly as its \"How to run this meeting\" section describes:\n{url}\n"
-            f"(private link, valid 48 h)")
+            f"Download the PDF and attach it in the daily-meeting chat. Claude: read all of it, "
+            f"then run today's voice daily meeting exactly as its \"How to run this meeting\" "
+            f"section describes.\n{url}\n(private link, valid 48 h)")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -314,9 +316,12 @@ def main(argv: list[str] | None = None) -> int:
         path.chmod(0o600)
         result: dict = {"briefing": str(path)}
         if not args.no_upload:
+            import daily_meeting_pdf
             import response_media
 
-            upload = response_media.upload_file(path, alt=f"Daily meeting briefing {today}",
+            pdf = daily_meeting_pdf.render_pdf(path, path.with_suffix(".pdf"))
+            result["pdf"] = str(pdf)
+            upload = response_media.upload_file(pdf, alt=f"Daily meeting briefing {today}",
                                                 expires_in=LINK_SECONDS)
             result["url"] = upload["url"]
             if not args.no_send:
