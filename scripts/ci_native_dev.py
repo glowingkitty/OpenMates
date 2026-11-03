@@ -117,9 +117,6 @@ EXTRA = frozenset(
         "config/cli-command-catalog.json",
         "backend/tests/fixtures/encryption_compatibility/legacy_layouts.json",
         "frontend/packages/workflowFile.ts",
-        CLI + "/scripts/benchmark.py",
-        CLI + "/scripts/prepare-typescript-baseline.mjs",
-        "frontend/packages/openmates-cli/scripts/tui-rust-baseline.mjs",
         *("frontend/packages/openmates-cli/src/" + name for name in CATALOG),
     }
 )
@@ -1469,7 +1466,8 @@ def renderer_metadata(data, receipt):
         targetKind="example",
         sourcePath=CLI + "/src/bin/tui-benchmark.rs",
         sourceSha256=receipt["inputs"][CLI + "/src/bin/tui-benchmark.rs"],
-        harnessSha256=receipt["inputs"][CLI + "/scripts/benchmark.py"],
+        # The retired benchmark.py harness no longer exists; the example source is the input.
+        harnessSha256=receipt["inputs"][CLI + "/src/bin/tui-benchmark.rs"],
         inputSetSha256=sdk.sha(
             json.dumps(
                 {

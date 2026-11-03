@@ -123,7 +123,6 @@ def fixture():
     inputs.update(
         {
             lane.CLI + "/src/bin/tui-benchmark.rs": "4" * 64,
-            lane.CLI + "/scripts/benchmark.py": "5" * 64,
         }
     )
     data = elf()
@@ -939,10 +938,7 @@ print(json.dumps(sorted({str(pathlib.Path(module.__file__).resolve().relative_to
                 (root / crate).mkdir(parents=True)
             (root / lane.LOCK).write_bytes(b"fixture-lock")
             before[lane.LOCK] = lane.sdk.sha(b"fixture-lock")
-            for name in (
-                lane.CLI + "/src/bin/tui-benchmark.rs",
-                lane.CLI + "/scripts/benchmark.py",
-            ):
+            for name in (lane.CLI + "/src/bin/tui-benchmark.rs",):
                 path = root / name
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_bytes(b"fixture-source")

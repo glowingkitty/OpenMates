@@ -318,8 +318,12 @@ def tool_search_path(node, rustup, pnpm, npm, python):
     return os.pathsep.join(dict.fromkeys([*directories, *os.defpath.split(os.pathsep)]))
 
 
-def command_tool(stage):
+def command_tool(stage, command=None):
     if stage in LIBRARY_UNIT_MANIFESTS:
+        return "cargo"
+    # The Rust WASM lane compiles with cargo under the SDK lane's python-built
+    # "wasm-build" stage name; the executable, not the stage, decides the tool.
+    if stage == "wasm-build" and command and Path(command[0]).name == "cargo":
         return "cargo"
     tools = {"rust-toolchain": "rustup", "wasm-target": "rustup", "wasm-bindgen-install": "cargo",
              "node-dependencies": "pnpm", "sdk-facade-build": "pnpm", "napi-load": "node", "wasm-load": "node"}
@@ -394,7 +398,7 @@ def admitted_command(stage, command, env):
         raise Refused("command_executable_open") from None
     try:
         before = os.fstat(descriptor)
-        python = command_tool(stage) == "python"
+        python = command_tool(stage, command) == "python"
         kernel_match = running_python_image(before) if python and stat.S_ISREG(before.st_mode) else False
         command_policy(before, python=python, kernel_match=kernel_match)
         digest, size, prefix = hashlib.sha256(), 0, b""
@@ -405,7 +409,7 @@ def admitted_command(stage, command, env):
             require(size <= 256 * 1024**2, "command_executable_bound")
             digest.update(chunk)
         require(not python or prefix == b"\x7fELF", "command_python_not_elf")
-        result = {"tool": command_tool(stage), "argvSha256": sha(json.dumps(command, separators=(",", ":")).encode()),
+        result = {"tool": command_tool(stage, command), "argvSha256": sha(json.dumps(command, separators=(",", ":")).encode()),
                   "executableSha256": digest.hexdigest(), "executableBytes": size,
                   "executableKind": "elf" if prefix == b"\x7fELF" else "script" if prefix.startswith(b"#!") else "regular",
                   "admission": "current-python-kernel-fd" if python else "strict-owner-mode",
@@ -466,7 +470,7 @@ class Commands:
         self.check()
         began = time.monotonic()
         record = {"stage": stage, "status": "failed", "started": False,
-                  "command": {"tool": command_tool(stage), "argvSha256": sha(json.dumps(command, separators=(",", ":")).encode())}}
+                  "command": {"tool": command_tool(stage, command), "argvSha256": sha(json.dumps(command, separators=(",", ":")).encode())}}
         self.steps.append(record)
         child = None
         try:
