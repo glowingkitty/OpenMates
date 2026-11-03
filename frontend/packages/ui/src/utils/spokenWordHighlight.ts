@@ -4,11 +4,12 @@
 //
 // Words are whitespace-separated tokens of readable text, matching how the
 // realtime speech turn counts words in its spoken source. Code blocks and
-// non-editable embeds are not spoken and are skipped.
+// embeds are not spoken and are skipped. Read-only messages render the whole
+// editor as contenteditable=false, so editability is no embed signal.
 
 export const UNSPOKEN_HIGHLIGHT_NAME = 'assistant-speech-unspoken';
 
-const SKIPPED_SELECTOR = 'pre, code, [contenteditable="false"]';
+const SKIPPED_SELECTOR = 'pre, code, [data-embed-id], [data-embed-type]';
 const BLOCK_SELECTOR = 'p, li, blockquote, h1, h2, h3, h4, h5, h6, td, th';
 const rangesByRoot = new Map<Element, Range>();
 

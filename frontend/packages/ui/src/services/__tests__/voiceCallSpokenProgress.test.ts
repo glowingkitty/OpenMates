@@ -68,8 +68,10 @@ describe('voiceCallSpokenProgress', () => {
   // contract-test: supporting surface=gui.web assertions=video-call.audio.spoken-rich-response
   it('ranges from the first unspoken word across inline marks, skipping code', () => {
     const root = document.createElement('div');
-    root.innerHTML = '<p>Hello <strong>bri</strong>ght world</p><pre><code>skip me</code></pre><p>Next line.</p>';
-    expect(unspokenRange(root, 1)?.toString()).toBe('bright worldskip meNext line.');
+    // Read-only messages mark the whole editor non-editable; only embeds and code are skipped.
+    root.innerHTML = '<div class="ProseMirror" contenteditable="false"><p>Hello <strong>bri</strong>ght world</p>'
+      + '<pre><code>skip me</code></pre><div data-embed-id="e1">embed card</div><p>Next line.</p></div>';
+    expect(unspokenRange(root, 1)?.toString()).toBe('bright worldskip meembed cardNext line.');
     expect(unspokenRange(root, 3)?.toString()).toBe('Next line.');
     expect(unspokenRange(root, 0)?.startContainer.textContent).toBe('Hello ');
     expect(unspokenRange(root, 5)).toBeNull();
