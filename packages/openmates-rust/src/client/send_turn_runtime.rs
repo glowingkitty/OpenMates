@@ -71,6 +71,8 @@ impl SavedTurnClientPhases for BorrowedTurnPhases<'_>{
         Ok(latest)
     })}
 }
+/// Delay between claims while another device of the same owner holds the lease.
+const CLAIM_CONFLICT_RETRY: Duration = Duration::from_millis(500);
 #[allow(clippy::too_many_arguments)]
 pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut P,ws:&mut Socket,
     prepared_turn:prepared_turn::PreparedTurnContext,turn_scope:&AsyncCryptoScope,
@@ -362,9 +364,20 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
         let job = required(&final_frame, "recovery_job_id")?;
         let assistant_id = required(&final_frame, "message_id")?;
         trace.phase = SendPhase::Claim;
-        phases.check(turn_scope,id,generation).await?;
-        send(ws,"recovery_job_claim",json!({"protocol_version":1,"job_id":job,"request_id":uuid::Uuid::new_v4().to_string()})).await?;
-        let claim=Plain::new(tokio::select! {biased;_=cancel.cancelled()=>return Err(Error::Cancelled),r=wait(ws,"recovery_job_claimed","job_id",job)=>r?});
+        let claim=Plain::new(loop {
+            phases.check(turn_scope,id,generation).await?;
+            let request=uuid::Uuid::new_v4().to_string();
+            send(ws,"recovery_job_claim",json!({"protocol_version":1,"job_id":job,"request_id":request})).await?;
+            let (kind,value)=tokio::select! {biased;_=cancel.cancelled()=>return Err(Error::Cancelled),r=transport::wait_recovery_claim(ws,job,&request)=>r?};
+            if kind=="recovery_job_claimed" {break value;}
+            // The final discovery is announced to every foreground device of
+            // this owner, so another one (e.g. an open browser) may lease the
+            // job first. Re-claim until it is TERMINAL (read canonically below)
+            // or its lease lapses; the claim fences still decide success.
+            let retry=crate::platform::time::Instant::now()+CLAIM_CONFLICT_RETRY;
+            if retry>=deadline {return Err(Error::Conflict);}
+            tokio::select! {biased;_=cancel.cancelled()=>return Err(Error::Cancelled),_=crate::platform::time::sleep(CLAIM_CONFLICT_RETRY)=>{}}
+        });
         phases.check(turn_scope,id,generation).await?;
         if text(&claim, "chat_id") != id
             || text(&claim, "turn_id") != turn

@@ -93,7 +93,7 @@ test.describe('Native Rust CLI chat sync feed', () => {
 			expect(done.code, done.output).toBe(0);
 		};
 		const newChat = async (cli: ReturnType<typeof device>, label: string) => {
-			const prompt = withMockMarker(`Feed sync check ${label}`, 'test_hello');
+			const prompt = withMockMarker(`@Gemini-3.8-Flash Feed sync check ${label}`, 'chat_flow_capital');
 			expect(prompt).toContain('<<<TEST_MOCK:');
 			const sent = await cli.record(['chats', 'new', prompt], `new-${label}`).waitForExit(150_000);
 			expect(sent.code, sent.output).toBe(0);

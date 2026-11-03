@@ -1246,10 +1246,33 @@ async fn receive_raw_mode(
     ephemeral: bool,
     monitor: bool,
 ) -> Result<(String, Value)> {
-    receive_raw_policy(ws, ephemeral, monitor, false).await
+    receive_raw_policy(ws, ephemeral, monitor, ErrorAllowance::None).await
+}
+/// The only typed `error` frames a non-ephemeral waiter may receive as data.
+/// Every other error frame remains a fatal protocol violation.
+#[derive(Clone, Copy)]
+enum ErrorAllowance<'a> {
+    None,
+    EmbedDiff,
+    /// Another device of the same owner holds this exact job's lease.
+    RecoveryClaim { job: &'a str, request: &'a str },
+}
+impl ErrorAllowance<'_> {
+    fn admits(self, payload: &Value) -> bool {
+        match self {
+            Self::None => false,
+            Self::EmbedDiff => payload["code"] == "embed_diff_conflict"
+                && payload["request_id"].is_string()
+                && payload["embed_id"].is_string()
+                && payload["version_number"].as_u64().is_some_and(|v| v > 0),
+            Self::RecoveryClaim { job, request } => payload["code"] == "lease_conflict"
+                && payload["job_id"] == job
+                && payload["request_id"] == request,
+        }
+    }
 }
 async fn receive_raw_policy(
-    ws: &mut Socket, ephemeral: bool, monitor: bool, embed_diff: bool,
+    ws: &mut Socket, ephemeral: bool, monitor: bool, allowance: ErrorAllowance<'_>,
 ) -> Result<(String, Value)> {
     loop {
         let next = {
@@ -1301,10 +1324,7 @@ async fn receive_raw_policy(
                     && !ephemeral
                     && frame["payload"]["code"] != "workflow_chat_delivery_rejected"
                     && !task_error
-                    && !(embed_diff && frame["payload"]["code"] == "embed_diff_conflict"
-                        && frame["payload"]["request_id"].is_string()
-                        && frame["payload"]["embed_id"].is_string()
-                        && frame["payload"]["version_number"].as_u64().is_some_and(|v| v > 0))
+                    && !allowance.admits(&frame["payload"])
                 {
                     return Err(Error::Protocol);
                 }
@@ -1334,7 +1354,20 @@ pub(super) async fn wait_embed_diff_outcome(
     wait_matching_policy(ws, |kind, payload| {
         matches!(kind, "store_embed_diff_confirmed" | "error")
             && payload["request_id"] == request
-    }, true).await
+    }, ErrorAllowance::EmbedDiff).await
+}
+/// Outcome of one `recovery_job_claim` request: the claimed frame, or this
+/// request's exact `lease_conflict` rejection while another device of the same
+/// owner holds the lease. Any other error frame stays a protocol failure.
+pub(super) async fn wait_recovery_claim(
+    ws: &mut Socket, job: &str, request: &str,
+) -> Result<(String, Value)> {
+    let allowance = ErrorAllowance::RecoveryClaim { job, request };
+    wait_matching_policy(ws, |kind, payload| {
+        let inner = payload.get("payload").unwrap_or(payload);
+        (kind == "recovery_job_claimed" && (text(payload, "job_id") == job || text(inner, "job_id") == job))
+            || (kind == "error" && allowance.admits(payload))
+    }, allowance).await
 }
 pub(super) async fn wait_workflow(
     ws: &mut Socket,
@@ -1390,10 +1423,10 @@ async fn wait_matching(
     ws: &mut Socket,
     matches: impl Fn(&str, &Value) -> bool,
 ) -> Result<(String, Value)> {
-    wait_matching_policy(ws, matches, false).await
+    wait_matching_policy(ws, matches, ErrorAllowance::None).await
 }
 async fn wait_matching_policy(
-    ws: &mut Socket, matches: impl Fn(&str, &Value) -> bool, embed_diff: bool,
+    ws: &mut Socket, matches: impl Fn(&str, &Value) -> bool, allowance: ErrorAllowance<'_>,
 ) -> Result<(String, Value)> {
     let _original_receive=ws.own_receive()?;
     {
@@ -1404,7 +1437,7 @@ async fn wait_matching_policy(
     } // Never retain the pending queue guard across any await.
     let deadline = crate::platform::time::Instant::now() + Duration::from_secs(90);
     loop {
-        let (k, p) = crate::platform::time::timeout_at(deadline, receive_raw_policy(ws, false, false, embed_diff))
+        let (k, p) = crate::platform::time::timeout_at(deadline, receive_raw_policy(ws, false, false, allowance))
             .await
             .map_err(|_| Error::Offline)??;
         if matches(&k, &p) {

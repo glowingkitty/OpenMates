@@ -41,6 +41,8 @@ enum Case {
     NoPersistAck,
     FailedMarker,
     FailedAfterFinal,
+    PeerLeaseConflict,
+    OtherClaimError,
 }
 fn sealed(case: Case) -> Value {
     let identity = crypto::RecoveryIdentity {
@@ -223,6 +225,20 @@ async fn case(case: Case) -> Result<SendOutcome> {
         let claim = next(&mut ws).await;
         assert_eq!(claim["type"], "recovery_job_claim");
         assert_eq!(claim["payload"]["job_id"], JOB);
+        if matches!(case, Case::PeerLeaseConflict | Case::OtherClaimError) {
+            // Another foreground device of this owner leased the announced job first.
+            let code = if matches!(case, Case::PeerLeaseConflict) { "lease_conflict" } else { "transaction_failed" };
+            emit(&mut ws, "error", json!({"code":code,"message":"Encrypted completion recovery was rejected.",
+                "job_id":JOB,"request_id":claim["payload"]["request_id"]})).await;
+            if matches!(case, Case::OtherClaimError) {
+                assert!(matches!(ws.next().await.unwrap().unwrap(), Frame::Close(_)));
+                return;
+            }
+            let retry = next(&mut ws).await;
+            assert_eq!(retry["type"], "recovery_job_claim");
+            assert_eq!(retry["payload"]["job_id"], JOB);
+            assert_ne!(retry["payload"]["request_id"], claim["payload"]["request_id"]);
+        }
         let mut response = json!({"job_id":JOB,"chat_id":CHAT,"turn_id":TURN,"assistant_message_id":ASSISTANT,"chat_key_version":1,
             "state":"LEASED","lease_generation":1,"lease_token":"synthetic-token","sealed_payload":sealed(case).to_string()});
         match case {
@@ -328,7 +344,7 @@ async fn case(case: Case) -> Result<SendOutcome> {
     }
     let _ = socket.close(None).await;
     peer.await.unwrap();
-    if matches!(case, Case::Before | Case::After | Case::NoPersistAck) {
+    if matches!(case, Case::Before | Case::After | Case::NoPersistAck | Case::PeerLeaseConflict) {
         metadata.await.unwrap();
     } else {
         metadata.abort();
@@ -347,6 +363,20 @@ async fn canonical_discovery_before_final_and_legacy_after_final_both_require_du
         .await
         .unwrap();
     }
+}
+// A browser of the same owner may lease the announced job before the sender
+// claims it. That exact rejection is retried under the same claim fences; any
+// other claim error still fails the turn without publishing completion.
+#[tokio::test]
+async fn peer_lease_conflict_is_reclaimed_but_other_claim_errors_fail() {
+    tokio::time::timeout(Duration::from_secs(5), async {
+        let result = case(Case::PeerLeaseConflict).await.unwrap();
+        assert_eq!(result.assistant, ANSWER);
+        assert!(matches!(result.status, SendStatus::Completed));
+        assert!(matches!(case(Case::OtherClaimError).await, Err(Error::Protocol)));
+    })
+    .await
+    .unwrap();
 }
 #[tokio::test]
 async fn stale_global_discovery_or_wrong_turn_final_never_claims_or_publishes() {
