@@ -3,6 +3,7 @@ pub(super) use owned_recovery_socket::{OwnedRecoverySocketPreparation,PreparedOw
 mod owned_read;
 pub(super) mod cookie_observation;
 mod owned_monitor_socket;
+mod remote_command_stop;
 pub(super) use owned_monitor_socket::{PreparedOwnedMonitorSocket,UnannouncedOwnedMonitorSocket,prepare_owned_passive_monitor_socket,connect_owned_passive_monitor_socket,announce_owned_passive_monitor_socket};
 #[cfg(all(feature="browser-metadata-prototype",any(target_arch="wasm32",test)))]
 pub(super) use owned_monitor_socket::prepare_owned_saved_embed_socket;

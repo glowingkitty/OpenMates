@@ -3,7 +3,7 @@ use super::*;
 use openmates_sdk::work::{ProjectFilters, WorkflowPatch};
 use std::io::{IsTerminal, Write};
 
-async fn approve(i: &Invocation, path: String, cancel: CancellationToken) -> Result<bool, Error> {
+pub(super) async fn approve(i: &Invocation, path: String, cancel: CancellationToken) -> Result<bool, Error> {
     if cancel.is_cancelled() {
         return Err(Error::Cancelled);
     }

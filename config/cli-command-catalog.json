@@ -34368,12 +34368,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.add_ideabucket_audio",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/ideabucket_audio.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "A file whose content is detected as non-audio (for example a renamed image) is refused instead of being image-sanitized and uploaded as npm does.",
+        "The store_embed / store_embed_keys receipt flow has no mock-socket test yet.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -34686,12 +34688,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.client.deactivate_learning_mode",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/learning_mode.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "--api-key credentials are not supported natively; use a native session.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -34727,12 +34730,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.client.activate_learning_mode",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/learning_mode.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "--api-key credentials are not supported natively; use a native session.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -34766,12 +34770,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.client.learning_mode_status",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/learning_mode.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "--api-key credentials are not supported natively; use a native session.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -35031,12 +35036,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.client.new_chat_suggestions",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/new_chat_suggestions.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Reads the Phase 1 sync frame on its own socket (the only server delivery path) without writing chat caches; npm reads them from its full sync.",
+        "--api-key credentials are not supported natively; use a native session.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41754,12 +41761,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.plans.show",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Resolves the Plan, then fails like npm (command_failed) pointing at the web review page; no diff is rendered in the CLI by design.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -47528,12 +47536,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.projects.stop_remote_command",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/command_settings.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Isolated integration and platform validation pending; uses the npm remote-access state directory (OPENMATES_STATE_DIR / --profile / ~/.openmates) and refuses native --state-dir; Project-not-found text differs from npm; JSON object keys are emitted sorted.",
+        "Chat must be a full hyphenated UUID (short IDs/slugs/titles not ported); ACK timeout reports offline; API-key mode is unavailable (REMOTE_COMMAND_STOP_REQUIRES_COOKIE_SESSION)."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -47586,12 +47595,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.remote_command.presets.disable",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/command_settings.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Isolated integration and platform validation pending; uses the npm remote-access state directory (OPENMATES_STATE_DIR / --profile / ~/.openmates) and refuses native --state-dir; Project-not-found text differs from npm; JSON object keys are emitted sorted."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -47702,12 +47711,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.remote_command.presets.list",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/command_settings.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Isolated integration and platform validation pending; uses the npm remote-access state directory (OPENMATES_STATE_DIR / --profile / ~/.openmates) and refuses native --state-dir; Project-not-found text differs from npm; JSON object keys are emitted sorted."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -47763,12 +47772,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.remote_command.resources.disable.credential",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/command_settings.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Isolated integration and platform validation pending; uses the npm remote-access state directory (OPENMATES_STATE_DIR / --profile / ~/.openmates) and refuses native --state-dir; Project-not-found text differs from npm; JSON object keys are emitted sorted."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -47824,12 +47833,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.remote_command.resources.disable.network",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/command_settings.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Isolated integration and platform validation pending; uses the npm remote-access state directory (OPENMATES_STATE_DIR / --profile / ~/.openmates) and refuses native --state-dir; Project-not-found text differs from npm; JSON object keys are emitted sorted."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -47885,12 +47894,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.remote_command.resources.disable.writable",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/command_settings.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Isolated integration and platform validation pending; uses the npm remote-access state directory (OPENMATES_STATE_DIR / --profile / ~/.openmates) and refuses native --state-dir; Project-not-found text differs from npm; JSON object keys are emitted sorted."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -47946,12 +47955,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.remote_command.resources.enable.credential",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/command_settings.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Isolated integration and platform validation pending; uses the npm remote-access state directory (OPENMATES_STATE_DIR / --profile / ~/.openmates) and refuses native --state-dir; Project-not-found text differs from npm; JSON object keys are emitted sorted.",
+        "Stores environment variable names only, never their values."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48007,12 +48017,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.remote_command.resources.enable.network",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/command_settings.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Isolated integration and platform validation pending; uses the npm remote-access state directory (OPENMATES_STATE_DIR / --profile / ~/.openmates) and refuses native --state-dir; Project-not-found text differs from npm; JSON object keys are emitted sorted."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48068,12 +48078,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.remote_command.resources.enable.writable",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/command_settings.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Isolated integration and platform validation pending; uses the npm remote-access state directory (OPENMATES_STATE_DIR / --profile / ~/.openmates) and refuses native --state-dir; Project-not-found text differs from npm; JSON object keys are emitted sorted."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48119,12 +48129,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.remote_command.resources.list",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/command_settings.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Isolated integration and platform validation pending; uses the npm remote-access state directory (OPENMATES_STATE_DIR / --profile / ~/.openmates) and refuses native --state-dir; Project-not-found text differs from npm; JSON object keys are emitted sorted."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58938,12 +58948,15 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.team_move",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams_workspace.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "--type chat fails explicitly: moving a chat needs its chat key from a synced personal chat cache, which the native one-shot CLI does not load.",
+        "Selectors resolve through the native Project/Task/Plan/Workflow resolvers, not npm's resolveRequired*/findTask/findPlan; a full UUID behaves the same.",
+        "The documented grammar is enforced; npm's undocumented positional type/id forms and --confirm are rejected by the native parser.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -60347,12 +60360,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.projects.attach_workflow",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/workflows/add_to_project.rs"
       },
       "gaps": [
-        "Native Workflow CLI handler not ported; command fails explicitly. YAML update additionally needs canonical bound remote-file synchronization; no empty synchronization success is fabricated."
+        "Storage-flag conflicts are rejected before Project resolution (npm resolves the Project first); messages and exit codes match.",
+        "--api-key credentials fail explicitly; Project item links require a cookie session.",
+        "Live backend integration, remote YAML write and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -61960,8 +61975,8 @@
   "coverage": {
     "command_patterns": 720,
     "flags": 599,
-    "native_handlers_partial": 662,
-    "unsupported": 58,
+    "native_handlers_partial": 680,
+    "unsupported": 40,
     "feature_complete": false
   },
   "maintenance": {

@@ -37,8 +37,11 @@ const COMMANDS: &[&str] = &[
     "teams usage",
     "teams add-credits",
 ];
+#[path = "teams_workspace.rs"]
+mod workspace;
 pub(super) fn supported(i: &Invocation) -> bool {
-    COMMANDS.contains(&i.command_path().as_str())
+    let path = i.command_path();
+    COMMANDS.contains(&path.as_str()) || workspace::COMMANDS.contains(&path.as_str())
 }
 fn text(stdout: String) -> CliOutput {
     CliOutput {
@@ -245,6 +248,9 @@ async fn line(question: &str) -> Result<String, CliError> {
 }
 
 pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOutput, CliError> {
+    if workspace::COMMANDS.contains(&i.command_path().as_str()) {
+        return workspace::execute(i, client).await;
+    }
     // npm requireTeamId: `--team <team-id>` selects the Team before positionals.
     if let Some(normalized) = team_flag_selector(i) {
         return Box::pin(execute(&normalized, client)).await;

@@ -1,4 +1,5 @@
 //! Workflows use typed native SDK methods; files and terminal output remain app-owned.
+mod add_to_project;
 mod ask;
 mod files;
 mod project_links;
@@ -64,6 +65,7 @@ pub(super) fn supported(i: &Invocation) -> bool {
             | "workflows export"
             | "workflows import"
             | "workflows remove-from-project"
+            | "workflows add-to-project"
     )
 }
 fn check(i: &Invocation, allowed: &[&str]) -> Result<(), CliError> {
@@ -305,6 +307,9 @@ pub(super) async fn execute(
     if i.command_path() == "workflows remove-from-project" {
         return project_links::execute_cookie(i, client, cancel).await;
     }
+    if i.command_path() == "workflows add-to-project" {
+        return add_to_project::execute_cookie(i, client, cancel).await;
+    }
     let team = client.session().and_then(|s| s.active_team_id.clone());
     execute_service(
         i,
@@ -340,6 +345,12 @@ pub async fn execute_sdk_workflows(
     }
     if i.command_path() == "workflows remove-from-project" {
         return project_links::execute_api_key(i, client, cancel).await;
+    }
+    if i.command_path() == "workflows add-to-project" {
+        return Err(CliError::Contract {
+            code: "project_item_link_unavailable",
+            message: "Workflow add-to-project requires an authenticated cookie session.".into(),
+        });
     }
     client.set_operation_cancel(cancel.clone());
     execute_service(

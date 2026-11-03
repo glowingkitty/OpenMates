@@ -14,7 +14,7 @@ pub(super) fn supported(i: &Invocation) -> bool {
     let action = i.path[2].as_str();
     match family {
         "dependencies" => ["list", "add", "remove"].contains(&action),
-        "revisions" => ["list", "status", "submit-for-review"].contains(&action),
+        "revisions" => ["list", "status", "diff", "submit-for-review"].contains(&action),
         "assumptions" => ["list", "create", "add", "update"].contains(&action),
         "success-criteria" | "criterion" | "criteria" => {
             ["add", "create", "edit", "update", "remove", "delete"].contains(&action)
@@ -448,6 +448,14 @@ pub(super) async fn execute(
             match action {
                 "list" => json!({"revisions":service.list_revisions(plan).await?}),
                 "status" => json!({"approval":service.approval_status(plan).await?}),
+                "diff" => {
+                    // Legacy CLI resolves the Plan, then points at the web review page.
+                    service.show(plan).await?;
+                    return Err(CliError::Contract {
+                        code: "command_failed",
+                        message: "Revision diffs are reviewed in the authenticated web review page; use submit-for-review to print its URL.".into(),
+                    });
+                }
                 _ => service.submit_for_review(plan).await?,
             }
         }

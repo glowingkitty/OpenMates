@@ -311,7 +311,7 @@ impl<'a> Tasks<'a> {
         }
         decrypt(raw, master, wrapping, self.filters.team_id.as_deref())
     }
-    async fn resolve(&mut self, id: &str) -> Result<Resolved> {
+    pub(super) async fn resolve(&mut self, id: &str) -> Result<Resolved> {
         if uuid::Uuid::parse_str(id).is_ok()
             && matches!(self.backend, Backend::Cookie(_))
             && self.filters.status.is_none()

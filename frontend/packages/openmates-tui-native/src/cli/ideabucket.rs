@@ -1,13 +1,12 @@
 //! `openmates ideabucket ...` (npm handleIdeaBucket): every result is printed
 //! as JSON, like npm. Declared from account.rs so it shares account dispatch.
-//! `ideabucket audio` stays unsupported until the upload/transcribe pipeline
-//! is native.
 use super::{CliError, CliOutput, Invocation, handlers};
 use crate::client::Client;
 use openmates_sdk::account::IdeaBucketText;
 
 const COMMANDS: &[&str] = &[
     "ideabucket add",
+    "ideabucket audio",
     "ideabucket status",
     "ideabucket settings get",
     "ideabucket settings set",
@@ -38,7 +37,7 @@ fn unix_seconds(raw: &str) -> Result<i64, CliError> {
 pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOutput, CliError> {
     let command = i.command_path();
     let allowed: &[&str] = match command.as_str() {
-        "ideabucket add" => &["chat", "bucket", "scheduled-at", "prompt"],
+        "ideabucket add" | "ideabucket audio" => &["chat", "bucket", "scheduled-at", "prompt"],
         "ideabucket status" => &["bucket"],
         "ideabucket settings set" => &["prompt", "times"],
         "ideabucket process" => &["bucket", "now"],
@@ -63,6 +62,12 @@ pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOu
                     prompt: i.text("prompt"),
                 })
                 .await?
+        }
+        "ideabucket audio" => {
+            let path = i.positionals.first().filter(|p| !p.is_empty());
+            let path = path.ok_or_else(|| fail("Missing audio file path for IdeaBucket audio."))?;
+            let scheduled = i.text("scheduled-at").map(unix_seconds).transpose()?;
+            return audio::execute(i, path, scheduled, &mut account).await;
         }
         "ideabucket status" => account.ideabucket_status(bucket_arg()).await?,
         "ideabucket settings get" => account.ideabucket_settings().await?,
@@ -90,6 +95,8 @@ pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOu
     CliOutput::json(&value)
 }
 
+#[path = "ideabucket_audio.rs"]
+mod audio;
 #[cfg(test)]
 #[path = "ideabucket_tests.rs"]
 mod tests;

@@ -13,6 +13,7 @@ mod imports;
 pub mod imports_chat;
 pub mod imports_parse;
 pub use imports::AccountImportPlan;
+#[cfg(not(target_arch = "wasm32"))] pub mod ideabucket_audio;
 mod memories;
 mod notifications;
 mod settings_extra;

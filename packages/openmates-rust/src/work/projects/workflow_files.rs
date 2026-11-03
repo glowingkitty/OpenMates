@@ -3,7 +3,11 @@
 use super::*;
 use crate::work::{WorkflowFileDocument, build_workflow_export};
 use zeroize::Zeroizing;
+mod attach;
 mod requester;
+pub use attach::{
+    WorkflowAttachOptions, WorkflowAttachResult, WorkflowRemoteFileResult, WorkflowStorageMode,
+};
 
 #[derive(Serialize)]
 pub struct WorkflowFileSaveStatus {
@@ -325,8 +329,6 @@ impl Projects<'_> {
                 let source = sources
                     .iter()
                     .find(|row| row["source_id"] == binding.0["source_id"]);
-                let mut status = "pending";
-                let mut error = None;
                 let focus = if let Some(chat) = chat {
                     let route = self.path(
                         "/v1/projects/focus/current",
@@ -340,10 +342,10 @@ impl Projects<'_> {
                     Value::Null
                 };
                 self.workflow_active()?;
-                if source.is_none() {
-                    error = Some("source_selection_required")
+                let (status, error) = if source.is_none() {
+                    ("pending", Some("source_selection_required"))
                 } else if chat.is_none() || focus["project_id"] != project_id {
-                    error = Some("project_focus_required")
+                    ("pending", Some("project_focus_required"))
                 } else {
                     if formatted.is_none() {
                         let (name, content) = serialize.take().ok_or(Error::Conflict)?(
@@ -352,74 +354,21 @@ impl Projects<'_> {
                         formatted = Some((name, Zeroizing::new(content)));
                     }
                     let (filename, content) = formatted.as_ref().ok_or(Error::Conflict)?;
-                    let path = file_path(&binding.0, filename)?;
-                    if self.workflow_row(id).await?["current_version_id"] != expected_version {
-                        status = "conflict";
-                        error = Some("workflow_version_changed")
-                    } else {
-                        let mutation = mutation(&binding.0, &path, &content)?;
-                        let written = self
-                            .workflow_execute_mutation(
-                                &project,
-                                source.ok_or(Error::Protocol)?,
-                                chat.ok_or(Error::Protocol)?,
-                                &path,
-                                &mutation.0,
-                                &mut approve,
-                            )
-                            .await;
-                        match written {
-                            Ok(written) => {
-                                let expected_hash = hash(&content);
-                                let applied = written["status"] == "completed"
-                                    || (written["path"] == path
-                                        && written["operation"] == mutation.0["operation"]
-                                        && written["operation_id"] == mutation.0["operation_id"]
-                                        && written["after_hash"] == expected_hash);
-                                if applied {
-                                    match self.workflow_row(id).await {
-                                        Ok(current) => {
-                                            binding.0["file_path"] = json!(path);
-                                            binding.0["base_hash"] = json!(expected_hash);
-                                            binding.0["saved_content"] = json!(content.as_str());
-                                            binding.0["workflow_version_id"] =
-                                                json!(expected_version);
-                                            if current["current_version_id"] == expected_version {
-                                                status = "saved"
-                                            } else {
-                                                status = "conflict";
-                                                error = Some("workflow_version_changed")
-                                            }
-                                        }
-                                        Err(Error::Cancelled) => return Err(Error::Cancelled),
-                                        Err(_) => {
-                                            status = "failed";
-                                            error = Some("workflow_file_write_failed")
-                                        }
-                                    }
-                                } else {
-                                    status = match written["status"].as_str() {
-                                        Some("conflict") => "conflict",
-                                        Some("failed") => "failed",
-                                        _ => "pending",
-                                    };
-                                    error = written["error"].as_str().map(|code| classify(code).1);
-                                }
-                            }
-                            Err(Error::Cancelled) => return Err(Error::Cancelled),
-                            Err(error_value) => {
-                                let code = match error_value {
-                                    Error::Conflict => "operation_conflict",
-                                    Error::Unavailable { code, .. } => code,
-                                    _ => "workflow_file_write_failed",
-                                };
-                                let pair = classify(code);
-                                status = pair.0;
-                                error = Some(pair.1);
-                            }
-                        }
-                    }
-                }
+                    self.persist_workflow_binding(
+                        WorkflowBindingWrite {
+                            id,
+                            expected_version,
+                            project: &project,
+                            source: source.ok_or(Error::Protocol)?,
+                            chat: chat.ok_or(Error::Protocol)?,
+                            filename,
+                            content,
+                        },
+                        &mut binding.0,
+                        &mut approve,
+                    )
+                    .await?
+                };
                 self.workflow_active()?;
                 metadata.0["remote_workflow_file"] = std::mem::take(&mut binding.0);
                 metadata.0["remote_file_status"] = json!(status);
@@ -455,6 +404,93 @@ impl Projects<'_> {
             }
         }
         Ok(results)
+    }
+}
+
+/// One bound YAML write: the caller has already selected the source and
+/// checked Project focus. Shared by binding sync and add-to-project.
+struct WorkflowBindingWrite<'a> {
+    id: &'a str,
+    expected_version: &'a str,
+    project: &'a ResolvedProject,
+    source: &'a Value,
+    chat: &'a str,
+    filename: &'a str,
+    content: &'a str,
+}
+impl Projects<'_> {
+    async fn persist_workflow_binding<A, F>(
+        &mut self,
+        w: WorkflowBindingWrite<'_>,
+        binding: &mut Value,
+        approve: &mut A,
+    ) -> Result<(&'static str, Option<&'static str>)>
+    where
+        A: FnMut(String) -> F,
+        F: std::future::Future<Output = Result<bool>>,
+    {
+        let status;
+        let mut error = None;
+        let path = file_path(binding, w.filename)?;
+        if self.workflow_row(w.id).await?["current_version_id"] != w.expected_version {
+            status = "conflict";
+            error = Some("workflow_version_changed")
+        } else {
+            let mutation = mutation(binding, &path, w.content)?;
+            let written = self
+                .workflow_execute_mutation(w.project, w.source, w.chat, &path, &mutation.0, approve)
+                .await;
+            match written {
+                Ok(written) => {
+                    let expected_hash = hash(w.content);
+                    let applied = written["status"] == "completed"
+                        || (written["path"] == path
+                            && written["operation"] == mutation.0["operation"]
+                            && written["operation_id"] == mutation.0["operation_id"]
+                            && written["after_hash"] == expected_hash);
+                    if applied {
+                        match self.workflow_row(w.id).await {
+                            Ok(current) => {
+                                binding["file_path"] = json!(path);
+                                binding["base_hash"] = json!(expected_hash);
+                                binding["saved_content"] = json!(w.content);
+                                binding["workflow_version_id"] = json!(w.expected_version);
+                                if current["current_version_id"] == w.expected_version {
+                                    status = "saved"
+                                } else {
+                                    status = "conflict";
+                                    error = Some("workflow_version_changed")
+                                }
+                            }
+                            Err(Error::Cancelled) => return Err(Error::Cancelled),
+                            Err(_) => {
+                                status = "failed";
+                                error = Some("workflow_file_write_failed")
+                            }
+                        }
+                    } else {
+                        status = match written["status"].as_str() {
+                            Some("conflict") => "conflict",
+                            Some("failed") => "failed",
+                            _ => "pending",
+                        };
+                        error = written["error"].as_str().map(|code| classify(code).1);
+                    }
+                }
+                Err(Error::Cancelled) => return Err(Error::Cancelled),
+                Err(error_value) => {
+                    let code = match error_value {
+                        Error::Conflict => "operation_conflict",
+                        Error::Unavailable { code, .. } => code,
+                        _ => "workflow_file_write_failed",
+                    };
+                    let pair = classify(code);
+                    status = pair.0;
+                    error = Some(pair.1);
+                }
+            }
+        }
+        Ok((status, error))
     }
 }
 

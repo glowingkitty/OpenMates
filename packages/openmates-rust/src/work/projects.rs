@@ -66,11 +66,16 @@ pub struct ProjectSettingsPatch {
 mod ask;
 pub use ask::*;
 mod focus;
+mod remote_command_stop;
+pub use remote_command_stop::REMOTE_COMMAND_FOCUS_INACTIVE;
 mod remote_files;
 pub use remote_files::{ProjectFileOperation, ProjectRequesterError, remote_error_message, safe_relative_path, select_source};
 mod items;
 mod workflow_files;
-pub use workflow_files::WorkflowFileSaveStatus;
+pub use workflow_files::{
+    WorkflowAttachOptions, WorkflowAttachResult, WorkflowFileSaveStatus, WorkflowRemoteFileResult,
+    WorkflowStorageMode,
+};
 mod source_host;
 mod source_read;
 pub use source_read::ProjectSourcesDecodedNames;

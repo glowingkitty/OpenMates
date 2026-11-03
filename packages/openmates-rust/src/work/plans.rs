@@ -101,10 +101,10 @@ pub enum PlanEvidence {
         url: String,
     },
 }
-struct ResolvedPlan {
-    raw: Value,
-    public: Value,
-    key: Key,
+pub(super) struct ResolvedPlan {
+    pub(super) raw: Value,
+    pub(super) public: Value,
+    pub(super) key: Key,
 }
 pub struct Plans<'a> {
     tasks: Tasks<'a>,
@@ -200,7 +200,7 @@ impl<'a> Plans<'a> {
             .map(|p| decode(p.clone(), &master))
             .collect()
     }
-    async fn resolve(&mut self, id: &str) -> Result<ResolvedPlan> {
+    pub(super) async fn resolve(&mut self, id: &str) -> Result<ResolvedPlan> {
         self.scope()?;
         if uuid::Uuid::parse_str(id).is_ok()
             && self.filters.status.is_none()

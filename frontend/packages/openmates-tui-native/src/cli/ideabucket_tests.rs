@@ -31,3 +31,21 @@ async fn ideabucket_commands_route_validate_and_print_json() {
     }
     assert!(server.await.unwrap()[0].starts_with("POST /v1/ideabucket/buckets/2026-11-02/process "));
 }
+
+// contract-test: supporting surface=cli assertions=cli.runtime.native-rust
+#[tokio::test]
+async fn ideabucket_audio_routes_and_fails_locally_before_any_request() {
+    let audio = ["openmates", "ideabucket", "audio", "memo.m4a", "--chat", "11111111-1111-4111-8111-111111111111"];
+    assert!(supported(&parsed(&audio)));
+    let (mut client, _server) = mock(vec![]).await;
+    let missing = "/nonexistent-openmates-ideabucket-audio/memo.m4a";
+    for (args, message) in [
+        (vec!["openmates", "ideabucket", "audio", "memo.m4a", "--scheduled-at", "soon"], "Invalid --scheduled-at; expected Unix seconds.".to_owned()),
+        (vec!["openmates", "ideabucket", "audio", missing], format!("{missing}: File not found")),
+    ] {
+        match execute(&parsed(&args), &mut client).await {
+            Err(CliError::Invalid(actual)) => assert_eq!(actual, message, "{args:?}"),
+            _ => panic!("expected invalid input for {args:?}"),
+        }
+    }
+}

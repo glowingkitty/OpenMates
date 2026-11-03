@@ -14,8 +14,11 @@ mod platform;
 pub mod privacy;
 pub mod project_task_sync;
 pub mod remote_access_crypto;
+#[cfg(all(feature = "workflow-yaml", not(target_arch = "wasm32")))]
+pub mod remote_command;
 pub mod session;
 pub mod task_order;
+pub mod upload_privacy;
 pub use client::{
     Client, ClientIdentity, ClientOptions, PasswordLoginOptions, CredentialEvent, CredentialSnapshot, PairChallenge,
     SendConsentPolicy, SendMemoryRequest, SendOptions, SendOutcome, SendQueueMode, SendStatus,

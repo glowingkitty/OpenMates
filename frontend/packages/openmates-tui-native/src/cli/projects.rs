@@ -1,5 +1,6 @@
 //! Project CLI authoring through the locally encrypted, typed SDK namespace.
 mod ask;
+mod command_settings;
 mod files;
 mod focus;
 mod items;
@@ -61,6 +62,16 @@ pub(super) fn supported(i: &Invocation) -> bool {
             | "projects files read"
             | "projects settings focus activate"
             | "projects settings focus deactivate"
+            | "projects settings command stop"
+            | "projects settings command-presets list"
+            | "projects settings command-presets disable"
+            | "projects settings command-resources list"
+            | "projects settings command-resources enable writable"
+            | "projects settings command-resources enable network"
+            | "projects settings command-resources enable credential"
+            | "projects settings command-resources disable writable"
+            | "projects settings command-resources disable network"
+            | "projects settings command-resources disable credential"
     )
 }
 fn check(i: &Invocation, allowed: &[&str]) -> Result<(), CliError> {
@@ -374,6 +385,9 @@ async fn execute_service(
     }
     if i.command_path().starts_with("projects files ") {
         return files::execute(i, &mut service).await;
+    }
+    if i.command_path().starts_with("projects settings command") {
+        return command_settings::execute(i, &mut service).await;
     }
     if i.command_path().starts_with("projects settings focus ") {
         return focus::execute(i, &mut service).await;

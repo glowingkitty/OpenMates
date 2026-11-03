@@ -1979,7 +1979,7 @@ mod tests {
     }
     #[test]
     fn unsupported_is_explicit_before_credentials() {
-        let command = invocation(&["plans", "revisions", "diff"], &[], &["OM-1"]);
+        let command = invocation(&["teams", "profile-image", "get"], &[], &["team-1"]);
         assert!(!requirements(&command).authenticated);
         let error = execute_public(&command).unwrap().err().unwrap();
         assert_eq!(error.exit_code(), 1);

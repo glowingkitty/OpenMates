@@ -9,7 +9,9 @@ mod export_archive;
 mod export_start;
 mod imports;
 mod imports_zip;
+mod learning_mode;
 mod memories;
+mod new_chat_suggestions;
 mod notifications;
 mod reminders;
 mod settings_extra;
@@ -52,6 +54,8 @@ pub(super) fn supported(invocation: &Invocation) -> bool {
         || imports::supported(invocation)
         || notifications::supported(invocation)
         || memories::supported(invocation)
+        || learning_mode::supported(invocation)
+        || new_chat_suggestions::supported(invocation)
         || is_info(invocation)
         || teams::supported(invocation)
         || ideabucket::supported(invocation)
@@ -295,6 +299,12 @@ pub(super) async fn execute(
     }
     if memories::supported(invocation) {
         return memories::execute(invocation, client).await;
+    }
+    if learning_mode::supported(invocation) {
+        return learning_mode::execute(invocation, client).await;
+    }
+    if new_chat_suggestions::supported(invocation) {
+        return new_chat_suggestions::execute(invocation, client).await;
     }
     if teams::supported(invocation) {
         return teams::execute(invocation, client).await;

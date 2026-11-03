@@ -115,24 +115,53 @@ fn today(now: i64) -> String {
     format!("{year:04}-{month:02}-{day:02}")
 }
 
+/// One captured idea (npm `IdeaBucketPreparedIdea`): markdown content, preview
+/// text and the server-processable payload object (without its `index`).
+pub(crate) struct PreparedIdea {
+    pub content: String,
+    pub preview: String,
+    pub payload: Value,
+}
+
+/// npm `buildIdeaBucketMarkdown`.
+pub(crate) fn ideas_markdown(prompt: &str, ideas: &[PreparedIdea]) -> String {
+    let mut blocks = vec![prompt.trim().to_owned()];
+    for (index, idea) in ideas.iter().enumerate() {
+        blocks.push(format!(
+            "----- Idea {} -----\n{}\n-----------------",
+            index + 1,
+            idea.content.trim()
+        ));
+    }
+    blocks.join("\n\n")
+}
+
 /// The `update_draft` payload and the npm result (without `draftV`).
-pub(crate) fn text_draft(
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn ideas_draft(
     chat_id: &str,
     bucket: &str,
     scheduled: i64,
     prompt: &str,
-    text: &str,
-    now: i64,
+    ideas: &[PreparedIdea],
+    version: i64,
     master: &[u8; 32],
     chat_key: &[u8; 32],
 ) -> Result<(Value, Value)> {
-    let markdown = format!(
-        "{}\n\n----- Idea 1 -----\n{text}\n-----------------",
-        prompt.trim()
-    );
-    let preview_text: String = text.chars().take(120).collect();
+    if ideas.is_empty() {
+        return Err(Error::Invalid("IdeaBucket add requires at least one idea."));
+    }
+    let markdown = ideas_markdown(prompt, ideas);
+    let joined = ideas.iter().map(|i| i.preview.as_str()).collect::<Vec<_>>().join(" ");
+    let preview_text: String = joined.trim().chars().take(120).collect();
     let preview = format!("IdeaBucket {bucket}: {preview_text}");
-    let payload = json!({"prompt":prompt,"processing_window_id":bucket,"ideas":[{"index":1,"type":"text","text":text}]}).to_string();
+    let mut numbered = vec![];
+    for (index, idea) in ideas.iter().enumerate() {
+        let mut item = idea.payload.as_object().cloned().ok_or(Error::Protocol)?;
+        item.insert("index".into(), json!(index + 1));
+        numbered.push(Value::Object(item));
+    }
+    let payload = json!({"prompt":prompt,"processing_window_id":bucket,"ideas":numbered}).to_string();
     let payload_hash = Sha256::digest(payload.as_bytes())
         .iter()
         .map(|b| format!("{b:02x}"))
@@ -144,7 +173,7 @@ pub(crate) fn text_draft(
         "encrypted_draft_preview":encrypt(preview.as_bytes(), master)?,
         "ideabucket":true,
         "ideabucket_processing_window_id":bucket,
-        "ideabucket_processing_version":now,
+        "ideabucket_processing_version":version,
         "encrypted_chat_key":encrypt(chat_key, master)?,
         "scheduled_send_at":scheduled,
         "server_vault_encrypted_processing_payload":encrypt(payload.as_bytes(), master)?,
@@ -158,6 +187,39 @@ pub(crate) fn text_draft(
     let result = json!({"chatId":chat_id,"bucketId":bucket,"processingWindowId":bucket,"scheduledSendAt":scheduled,
         "processingPayloadSynced":true,"payloadHash":payload_hash,"markdown":markdown,"preview":preview});
     Ok((draft, result))
+}
+
+/// Single text idea (npm addIdeaBucketText).
+#[cfg(test)]
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn text_draft(
+    chat_id: &str,
+    bucket: &str,
+    scheduled: i64,
+    prompt: &str,
+    text: &str,
+    now: i64,
+    master: &[u8; 32],
+    chat_key: &[u8; 32],
+) -> Result<(Value, Value)> {
+    ideas_draft(chat_id, bucket, scheduled, prompt, &[text_idea(text)], now, master, chat_key)
+}
+
+fn text_idea(text: &str) -> PreparedIdea {
+    PreparedIdea {
+        content: text.to_owned(),
+        preview: text.to_owned(),
+        payload: json!({"type":"text","text":text}),
+    }
+}
+
+/// `--chat` (validated) or a fresh chat ID.
+pub(crate) fn ideabucket_chat_id(chat_id: Option<&str>) -> Result<String> {
+    let chat_id = chat_id
+        .map(str::to_owned)
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+    uuid::Uuid::parse_str(&chat_id).map_err(|_| Error::Invalid("Invalid chat ID."))?;
+    Ok(chat_id)
 }
 
 impl Account<'_> {
@@ -245,22 +307,36 @@ impl Account<'_> {
                 "IdeaBucket text capture requires non-empty text.",
             ));
         }
+        let chat_id = ideabucket_chat_id(input.chat_id)?;
+        let (draft, result) = self
+            .prepare_ideabucket_draft(
+                &[text_idea(text)],
+                &chat_id,
+                input.bucket_id,
+                input.scheduled_send_at,
+                input.prompt,
+            )
+            .await?;
+        self.save_ideabucket_draft(&chat_id, draft, result).await
+    }
+    /// Resolve bucket, schedule and prompt (account settings when omitted) and
+    /// encrypt the draft for `ideas` (npm addIdeaBucketPreparedIdeas, pre-save).
+    pub(crate) async fn prepare_ideabucket_draft(
+        &mut self,
+        ideas: &[PreparedIdea],
+        chat_id: &str,
+        bucket_id: Option<&str>,
+        scheduled_send_at: Option<i64>,
+        prompt: Option<&str>,
+    ) -> Result<(Value, Value)> {
         let now = crate::work::now() as i64;
-        let chat_id = input
-            .chat_id
-            .map(str::to_owned)
-            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
-        uuid::Uuid::parse_str(&chat_id).map_err(|_| Error::Invalid("Invalid chat ID."))?;
-        let bucket = input
-            .bucket_id
-            .map(str::to_owned)
-            .unwrap_or_else(|| today(now));
-        let settings = if input.prompt.is_none() || input.scheduled_send_at.is_none() {
+        let bucket = bucket_id.map(str::to_owned).unwrap_or_else(|| today(now));
+        let settings = if prompt.is_none() || scheduled_send_at.is_none() {
             Some(self.ideabucket_settings().await?)
         } else {
             None
         };
-        let scheduled = input.scheduled_send_at.unwrap_or_else(|| match &settings {
+        let scheduled = scheduled_send_at.unwrap_or_else(|| match &settings {
             Some(s) if s["source"] == "account" => next_send_at(
                 now,
                 &s["processingTimes"]
@@ -275,8 +351,7 @@ impl Account<'_> {
             ),
             _ => now - now.rem_euclid(86_400) + 86_400 + 9 * 3600,
         });
-        let prompt = input
-            .prompt
+        let prompt = prompt
             .map(str::to_owned)
             .or_else(|| {
                 settings
@@ -285,16 +360,24 @@ impl Account<'_> {
             })
             .unwrap_or_else(|| IDEABUCKET_DEFAULT_PROCESSING_PROMPT.into());
         let master = self.client.require_session()?.master_key.clone();
-        let (draft, mut result) = text_draft(
-            &chat_id,
+        ideas_draft(
+            chat_id,
             &bucket,
             scheduled,
             &prompt,
-            text,
+            ideas,
             now,
             &master,
             &crate::crypto::random_key(),
-        )?;
+        )
+    }
+    /// Save a prepared draft and add the receipt's `draftV`.
+    pub(crate) async fn save_ideabucket_draft(
+        &mut self,
+        chat_id: &str,
+        draft: Value,
+        mut result: Value,
+    ) -> Result<Value> {
         let receipt = self
             .client
             .account_ws_receipt(
@@ -302,7 +385,7 @@ impl Account<'_> {
                 draft,
                 "draft_update_receipt",
                 "chat_id",
-                &chat_id,
+                chat_id,
             )
             .await?;
         result["draftV"] = json!(receipt["draft_v"].as_f64().unwrap_or(0.0) as i64);

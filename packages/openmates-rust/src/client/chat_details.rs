@@ -382,7 +382,7 @@ fn draft_preview(value: &str) -> Result<Option<ChatDetailsText>> {
         }))
     }
 }
-fn strip_suggestion(value: &str) -> &str {
+pub(super) fn strip_suggestion(value: &str) -> &str {
     let trimmed = value.trim_start_matches(js_space);
     let content = if trimmed.starts_with('[') {
         trimmed
