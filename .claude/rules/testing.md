@@ -25,7 +25,15 @@ paths:
   does not waive updating coverage unless the user says so.
 
 ## Where checks run
-- Focused unit/lint/build: locally in the worktree.
+- Locally in the worktree: lint, typecheck (`tsc`, `svelte-check`), `cargo
+  fmt/metadata/tree`, and pytest of `scripts/` tooling (light; still refused
+  while the host is overloaded).
+- Builds, unit tests and benchmarks (`cargo build/test/check/clippy/run/bench`,
+  `rustc`, `wasm-pack`, vitest, Playwright, `vite`/`svelte-kit`/`pnpm build`,
+  local headless-browser benches): isolated GitHub CI only, e.g.
+  `ci_coordinator.py submit --mode rust-check|rust-wasm|rust-native-dev|vitest|pytest`.
+  `.claude/hooks/bash-guard.sh` enforces this; the only override is the logged
+  `OPENMATES_ALLOW_LOCAL_HEAVY=real-inference` prefix for real-inference runs.
 - Product REST/WebSocket, CLI/SDK and browser E2E: isolated GitHub CI only (one
   browser spec per job, disposable backend, fresh accounts). Specs marked
   `reason=isolated_component_preview` use the Vite-only component profile.

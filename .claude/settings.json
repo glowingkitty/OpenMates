@@ -16,6 +16,16 @@
         ]
       },
       {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/host-load-gate.sh pre-agent",
+            "timeout": 5
+          }
+        ]
+      },
+      {
         "matcher": "Bash",
         "hooks": [
           {
@@ -140,11 +150,26 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/host-load-gate.sh session-start",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
       {
         "hooks": [
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/host-load-gate.sh prompt",
+            "timeout": 5
+          },
           {
             "type": "command",
             "command": "$(git rev-parse --show-toplevel)/.claude/hooks/peer-chats.sh",

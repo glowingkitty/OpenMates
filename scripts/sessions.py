@@ -7397,6 +7397,23 @@ def register_session_record(session_record: dict) -> tuple[str, list[str], list[
     return _mutate_sessions(register)
 
 
+def _refuse_new_session_when_host_overloaded() -> None:
+    """New task sessions wait while the shared dev host is overloaded.
+
+    Reusing an existing binding is allowed so in-flight work can finish; the
+    thresholds and logged override live in scripts/host_load_guard.py.
+    """
+    try:
+        from scripts import host_load_guard
+    except ModuleNotFoundError:
+        import host_load_guard
+
+    message = host_load_guard.gate("starting a new task session")
+    if message:
+        print(message + " Override (logged): OPENMATES_IGNORE_HOST_LOAD=1.", file=sys.stderr)
+        raise SystemExit(host_load_guard.EXIT_OVERLOADED)
+
+
 def cmd_start(args: argparse.Namespace) -> None:
     """Bind a task to its workspace and emit a compact receipt."""
     repo = _repo_metadata(_resolve_repo_id(getattr(args, "repo", None)))
@@ -7425,6 +7442,7 @@ def cmd_start(args: argparse.Namespace) -> None:
         _mutate_sessions(refresh)
         created = False
     else:
+        _refuse_new_session_when_host_overloaded()
         record = {**repo, "task": args.task or "(pending)", "mode": mode, "tags": tags,
                   "started": _now_iso(), "last_active": _now_iso(), "modified_files": [],
                   "writing": None, "task_id": None,
