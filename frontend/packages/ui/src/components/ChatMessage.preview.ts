@@ -307,7 +307,8 @@ export const variants = {
 		content:
 			'Menschen bevorzugen nicht universell Rechtecke im Verhältnis $1:1{,}618$. ' +
 			'Je nach Kontext werden oft Seitenverhältnisse wie $1:1{,}414$ ' +
-			'(das DIN-Format $\\sqrt{2}$) oder $1:1{,}5$ angenehm empfunden.',
+			'(das DIN-Format $\\sqrt{2}$) oder $1:1{,}5$ angenehm empfunden. ' +
+			'Wenn 1 Token $\\approx$ 4 Bytes sind, kostet Attention ($\\mathcal{O}(N^2)$) mehr.',
 		status: 'synced' as const,
 		messageParts: [],
 		containerWidth: 800,

@@ -137403,7 +137403,7 @@ assertions:
       surface: gui.web
     - &id17569
       path: frontend/apps/web_app/tests/components/chat-inline-ratio-math.spec.ts
-      line: 30
+      line: 34
       name: assistant chat message keeps suffixed currency as prose and renders paragraph-leading
         math
       surface: gui.web

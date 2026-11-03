@@ -242,7 +242,11 @@ function extractProseMathFormulas(
         continue;
       }
 
-      if (isCurrencyLikeDollar(processed, search)) {
+      // A "$" glued to the formula and followed by whitespace closes it, even
+      // when a number follows: in "$\approx$ 4 bytes" the "$ 4" is not currency.
+      const closesFormula =
+        searchPrev !== "" && !/\s/.test(searchPrev) && (searchNext === "" || /\s/.test(searchNext));
+      if (!closesFormula && isCurrencyLikeDollar(processed, search)) {
         continue;
       }
 

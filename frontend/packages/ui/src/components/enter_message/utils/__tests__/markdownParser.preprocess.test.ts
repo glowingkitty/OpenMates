@@ -283,6 +283,20 @@ describe("inline ratio math", () => {
     expect(JSON.stringify(doc)).toContain("Je nach Kontext");
   });
 
+  it("closes a formula whose closing dollar is followed by a spaced number", () => {
+    const doc = parseMarkdownToTiptap(
+      "If 1 token $\\approx$ 4 bytes, attention costs 16x more ($\\mathcal{O}(N^2)$). Price $5 stays text.",
+    );
+
+    expect(doc.content[0].content.filter((node: { type: string }) => node.type === "inlineMath"))
+      .toEqual([
+        { type: "inlineMath", attrs: { latex: "\\approx" } },
+        { type: "inlineMath", attrs: { latex: "\\mathcal{O}(N^2)" } },
+      ]);
+    expect(JSON.stringify(doc)).toContain(" 4 bytes, attention costs 16x more (");
+    expect(JSON.stringify(doc)).toContain("Price $5 stays text.");
+  });
+
   it("still treats a dollar amount followed by a colon as plain text", () => {
     const doc = parseMarkdownToTiptap("Price $1: per item; ratio $1:1{,}618$.");
 

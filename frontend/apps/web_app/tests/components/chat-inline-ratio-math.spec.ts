@@ -16,11 +16,15 @@ test('assistant chat message renders ratio formulas without swallowing prose', a
   const message = page.locator('.chat-message-body');
   await expect(message).toBeVisible();
   const formulas = message.locator('[data-type="inline-math"]');
-  await expect(formulas).toHaveCount(4);
+  await expect(formulas).toHaveCount(6);
   await expect(formulas.first()).toHaveAttribute('data-latex', '1:1{,}618');
   await expect(formulas.nth(1)).toHaveAttribute('data-latex', '1:1{,}414');
   await expect(formulas.nth(2)).toHaveAttribute('data-latex', '\\sqrt{2}');
   await expect(formulas.nth(3)).toHaveAttribute('data-latex', '1:1{,}5');
+  // A closing "$" followed by a spaced number must not be read as currency.
+  await expect(formulas.nth(4)).toHaveAttribute('data-latex', '\\approx');
+  await expect(formulas.nth(5)).toHaveAttribute('data-latex', '\\mathcal{O}(N^2)');
+  await expect(message).toContainText('4 Bytes sind, kostet Attention');
   await expect(message).toContainText('Je nach Kontext werden oft Seitenverhältnisse');
   await expect(message.locator('.katex-error')).toHaveCount(0);
   await expect(formulas.first().locator('.katex-html')).toContainText('1:1,618');
