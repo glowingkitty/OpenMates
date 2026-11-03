@@ -237,9 +237,12 @@
     return $assistantSpeechPlayer.regions.find((region) => region.active)?.sequence ?? null;
   });
   // Live call replies dim word by word instead of per block (see voiceCallSpokenProgress).
-  let spokenWords = $derived(
-    role === 'assistant' && $voiceCallSpokenProgress?.messageId === messageId ? $voiceCallSpokenProgress.words : null,
-  );
+  // Without an active call the progress is null; a message lacking messageId
+  // must not match that null progress and read `.words` from it.
+  let spokenWords = $derived.by(() => {
+    const progress = $voiceCallSpokenProgress;
+    return role === 'assistant' && progress !== null && progress.messageId === messageId ? progress.words : null;
+  });
   let blockSpeechSegment = $derived(spokenWords === null ? activeSpeechSegment : null);
   
   // State for thinking section expansion
