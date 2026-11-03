@@ -674,6 +674,11 @@ async fn recover_saved_read(
     match (result, disabled) {
         (Err(error), _) | (Ok(_), Err(error)) => Err(error),
         (Ok(outcome), Ok(())) => {
+            // Recovery work may have changed the selected Chat after its read
+            // round was sent early; the read then sends it again.
+            if outcome.attempted > 0 || outcome.canonical_changed {
+                client.discard_chat_details_prefetch();
+            }
             admission.check(client, context.store, cancel)?;
             Ok((admission, outcome.fresh_inventory))
         }

@@ -55,6 +55,11 @@ tempfile = "3"
 tokio = { version = "=1.54.1", features = ["rt-multi-thread", "macros", "sync", "time", "io-util", "net"] }
 rustix = { version = "1", features = ["fs", "process"] }
 tokio-tungstenite = { version = "0.28", features = ["rustls-tls-webpki-roots"] }
+# Same TLS stack and roots tokio-tungstenite uses; only for pre-establishing
+# the recovery socket's TCP/TLS connection (platform/socket.rs).
+tokio-rustls = { version = "0.26", default-features = false }
+rustls = { version = "0.23", default-features = false }
+webpki-roots = "0.26"
 
 # Browser execution seam. Client transport/session portability is intentionally
 # not claimed by enabling these dependencies alone. Native defaults stay intact.

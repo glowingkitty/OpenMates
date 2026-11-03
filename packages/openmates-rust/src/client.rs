@@ -551,6 +551,8 @@ pub struct Client {
     cached_content: cache_policy::CachedContentState,
     /// Cache-then-delta records for selected rich reads (chat_details_cache.rs).
     feed_prefetch: Option<sync_feed::FeedPrefetch>,
+    /// Selected read round sent before admission (chat_details_overlap.rs).
+    chat_details_overlap: Option<chat_details::ChatDetailsOverlap>,
     chat_details_cache: BTreeMap<String, chat_details_cache::ChatDetailsCache>,
     /// Incremental chat sync feed cursor and overview inputs (sync_feed.rs).
     chat_sync_feed: sync_feed::FeedState,
@@ -611,6 +613,7 @@ impl Client {
             browser_password_stay_logged_in: None,
             credential_revision: 1,
             feed_prefetch: None,
+            chat_details_overlap: None,
             credential_ack: 0,
             recent_validation: None,
             deleted_chats: BTreeMap::new(),

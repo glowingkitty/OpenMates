@@ -269,3 +269,67 @@ async fn embed_inventory_is_reused_only_while_the_first_page_is_unchanged() {
     let mut cold = peer.client();
     assert_eq!(changed, show(&mut cold, 30).await);
 }
+
+async fn routes_reach(peer: &Peer, count: usize) {
+    tokio::time::timeout(Duration::from_secs(8), async {
+        while peer.state.lock().unwrap().routes.len() < count {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .unwrap();
+}
+fn latest(limit: usize) -> ChatDetailsOptions {
+    ChatDetailsOptions { history: ChatDetailsHistory::Latest { limit }, ..Default::default() }
+}
+
+#[tokio::test]
+async fn overlapped_round_is_consumed_once_and_costs_no_second_request() {
+    let peer = Peer::start(5).await;
+    let mut client = peer.client();
+    let fresh = show(&mut client, 30).await;
+    peer.take_routes();
+    client.prefetch_chat_details(CHAT, &latest(30));
+    assert!(client.chat_details_overlap.is_some());
+    routes_reach(&peer, 3).await;
+    // The command's admission and recovery discovery would run here.
+    assert_eq!(show(&mut client, 30).await, fresh);
+    assert!(client.chat_details_overlap.is_none());
+    assert_eq!(peer.take_routes().len(), 3, "only the overlapped round");
+    // Without a new prefetch the next read sends its own round.
+    assert_eq!(show(&mut client, 30).await, fresh);
+    assert_eq!(peer.take_routes().len(), 3);
+}
+
+#[tokio::test]
+async fn overlapped_round_for_another_context_or_after_discard_is_never_used() {
+    let peer = Peer::start(4).await;
+    let mut client = peer.client();
+    let fresh = show(&mut client, 30).await;
+    // Other bounds (full history): the request paths differ, so the round is discarded.
+    peer.take_routes();
+    client.prefetch_chat_details(CHAT, &latest(30));
+    routes_reach(&peer, 3).await;
+    assert_eq!(show_with(&mut client, ChatDetailsHistory::Full).await["messages"].as_array().unwrap().len(), 4);
+    assert_eq!(peer.take_routes().len(), 6, "discarded round plus a fresh round");
+    // Another session owner never consumes it.
+    client.prefetch_chat_details(CHAT, &latest(30));
+    routes_reach(&peer, 3).await;
+    client.session.as_mut().unwrap().hashed_email = "another-owner".into();
+    let other = client.read_chat_details(CHAT, latest(30)).await;
+    assert!(other.is_ok(), "{:?}", other.err());
+    assert!(client.chat_details_overlap.is_none());
+    assert_eq!(peer.take_routes().len(), 6);
+    // Recovery work discards it before the read.
+    let mut client = peer.client();
+    show(&mut client, 30).await;
+    peer.take_routes();
+    client.prefetch_chat_details(CHAT, &latest(30));
+    routes_reach(&peer, 3).await;
+    client.discard_chat_details_prefetch();
+    assert_eq!(show(&mut client, 30).await, fresh);
+    assert_eq!(peer.take_routes().len(), 6);
+    // An invalid limit sends nothing.
+    client.prefetch_chat_details(CHAT, &latest(0));
+    assert!(client.chat_details_overlap.is_none());
+}

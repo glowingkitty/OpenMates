@@ -7,10 +7,10 @@ use openmates_sdk::client::{
     full_chat_read::FullChatReadAdmission,
     saved_chat_read::SavedChatContentMode,
 };
-pub(super) fn is_full_json(invocation: &Invocation) -> bool {
+pub(crate) fn is_full_json(invocation: &Invocation) -> bool {
     invocation.command_path() == "chats show" && invocation.boolean("json")
 }
-fn options(invocation: &Invocation) -> ChatDetailsOptions {
+pub(crate) fn options(invocation: &Invocation) -> ChatDetailsOptions {
     ChatDetailsOptions {
         history: if invocation.boolean("all") {
             ChatDetailsHistory::Full

@@ -250,6 +250,28 @@ pub fn prepare_command_cache_admission(client: &mut Client, invocation: &crate::
     if same_personal_chat_list_scope(client, invocation) {
         client.prefetch_chat_sync_feed();
     }
+    // A selected read always opens its recovery socket after admission:
+    // pre-establish only that connection's TCP/TLS (no request, no token), and
+    // send a JSON show's first read round now (cached tail delta included).
+    if let Some(id) = overlapped_saved_read_chat(invocation) {
+        client.preconnect_socket();
+        if crate::cli::is_full_json_show(invocation) {
+            client.prefetch_chat_details(id, &crate::cli::full_chat_read_options(invocation));
+        }
+    }
+}
+
+/// Only an unscoped `chats show|messages <canonical id>` overlaps admission;
+/// --personal/--team transitions keep the ordinary post-admission order.
+fn overlapped_saved_read_chat(invocation: &crate::cli::Invocation) -> Option<&str> {
+    (matches!(invocation.command_path().as_str(), "chats show" | "chats messages")
+        && !invocation.has("personal")
+        && !invocation.has("team")
+        && !invocation.has("api-key"))
+    .then(|| invocation.positionals.first())
+    .flatten()
+    .map(String::as_str)
+    .filter(|id| uuid::Uuid::parse_str(id).is_ok_and(|u| u.hyphenated().to_string() == *id))
 }
 
 /// Explicit --personal is scope-equivalent only while the admitted profile is
@@ -453,6 +475,18 @@ mod tests {
         // Short IDs resolve through the full cache, as before.
         assert_eq!(command_cache_load(&parse(&["openmates", "chats", "show", "22222222"])), CacheLoad::Full);
         assert_eq!(command_cache_load(&parse(&["openmates", "chats", "list"])), CacheLoad::Index);
+    }
+    #[test]
+    fn only_canonical_selected_reads_overlap_admission() {
+        let id = "22222222-2222-4222-8222-222222222222";
+        let parse = |args: &[&str]| crate::cli::parse_from(args.iter().copied()).unwrap().invocation.unwrap();
+        let overlapped = |args: &[&str]| overlapped_saved_read_chat(&parse(args)).map(str::to_owned);
+        assert_eq!(overlapped(&["openmates", "chats", "show", id, "--json"]), Some(id.into()));
+        assert_eq!(overlapped(&["openmates", "chats", "messages", id]), Some(id.into()));
+        // Short IDs, API-key commands and other commands keep the ordinary path.
+        assert_eq!(overlapped(&["openmates", "chats", "show", "22222222"]), None);
+        assert_eq!(overlapped(&["openmates", "chats", "show", id, "--api-key", "synthetic-key"]), None);
+        assert_eq!(overlapped(&["openmates", "chats", "list"]), None);
     }
     #[tokio::test]
     async fn cleared_sdk_credentials_remove_durable_session_and_owner_cache() {

@@ -97,6 +97,10 @@ impl Client {
         let selected_main_available = !main.is_empty();
         outputs.retain(|_, output| selected_output(output, id));
         deliveries.retain(|_, delivery| delivery.belongs_to_chat(id));
+        // Selected work may change the Chat: an early-sent read round is stale.
+        if selected_main_available || !metadata.is_empty() || !outputs.is_empty() || !deliveries.is_empty() {
+            self.discard_chat_details_prefetch();
+        }
         let replay = fence.run(async {
             check(self)?;
             self.replay_outputs(&mut ws, &outputs, None).await?;

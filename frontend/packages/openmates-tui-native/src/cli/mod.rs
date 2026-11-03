@@ -21,6 +21,7 @@ pub use chat_work::normalize as normalize_chat_work;
 pub mod docs;
 mod handlers;
 pub(crate) use handlers::admitted_whoami_output;
+pub(crate) use full_chat_read::{is_full_json as is_full_json_show, options as full_chat_read_options};
 pub use handlers::{is_direct_apps_command,execute_direct_apps_admitted};
 mod history;
 mod parser;

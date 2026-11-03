@@ -14,6 +14,9 @@ mod json;
 mod memory;
 #[path = "chat_details_prefetch.rs"]
 mod prefetch;
+#[path = "chat_details_overlap.rs"]
+mod overlap;
+pub(in crate::client) use overlap::ChatDetailsOverlap;
 pub use json::{ChatDetailsJson, ChatDetailsJsonString, ChatDetailsJsonValue};
 const MAX_PAGES: usize = 100; // Existing strict full-history page bound.
 const MAX_METADATA_BYTES: usize = 256 * 1024;
@@ -574,15 +577,7 @@ impl Client {
         options: ChatDetailsOptions,
         mut transaction: Option<&mut sync::read_freshness::ReadFreshnessTransaction>,
     ) -> Result<ChatDetailsRead> {
-        let limit = match options.history {
-            ChatDetailsHistory::Full => None,
-            ChatDetailsHistory::Latest { limit } if (1..=100).contains(&limit) => Some(limit),
-            _ => {
-                return Err(Error::Invalid(
-                    "Latest chat details limit must be between 1 and 100.",
-                ));
-            }
-        };
+        let limit = overlap::history_limit(options.history)?;
         let admission = self.full_chat_read_admission(id)?;
         let scope = AsyncCryptoScope::begin(self)?;
         scope.check_chat(self, id)?;
@@ -593,30 +588,27 @@ impl Client {
         // in that same order. Decryption still waits for the metadata row key.
         uuid::Uuid::parse_str(id).map_err(|_| Error::Protocol)?;
         self.require_credentials()?;
-        let requested = limit.unwrap_or(100);
-        let metadata_path = self.scoped("/v1/chats/metadata/batch")?;
-        let bounded = limit.is_some();
-        // Cache-then-delta: a cached read replaces the latest-window request by
-        // a tail delta after the last cached message (same concurrent round).
-        let cached = self.cached_chat_details(id, bounded);
-        let latest_path = self.chat_details_messages_path(id, requested, bounded, None)?;
-        let messages_path = match &cached {
-            Some(cache) => self.chat_details_tail_path(id, &cache.tail, bounded)?,
-            None => latest_path.clone(),
+        let round = self.chat_details_first_round(id, limit)?;
+        let overlapped = if transaction.is_none() {
+            self.take_chat_details_overlap(id, &round).await
+        } else {
+            self.discard_chat_details_prefetch();
+            None
         };
-        let embeds_path = self.chat_details_embeds_path(id, None)?;
-        let mut prepared = Vec::with_capacity(3);
-        for (method, path, body, not_found) in [
-            (Method::POST, &metadata_path, Some(json!({"chat_ids":[id],"include_read_details":true})), true),
-            (Method::GET, &messages_path, None, false),
-            (Method::GET, &embeds_path, None, false),
-        ] {
-            if let Some(t) = transaction.as_deref_mut() {
-                t.before_request(self, id);
+        let sent = match overlapped {
+            Some(sent) => sent,
+            None => {
+                let mut prepared = Vec::with_capacity(3);
+                for (method, path, body, not_found) in round.requests(id) {
+                    if let Some(t) = transaction.as_deref_mut() {
+                        t.before_request(self, id);
+                    }
+                    prepared.push(self.prepare_read(method, path, body, not_found)?);
+                }
+                futures_util::future::join_all(prepared.into_iter().map(|read| read.send())).await
             }
-            prepared.push(self.prepare_read(method, path, body, not_found)?);
-        }
-        let sent = futures_util::future::join_all(prepared.into_iter().map(|read| read.send())).await;
+        };
+        let overlap::FirstRound { latest_path, bounded, requested, cached, .. } = round;
         let mut finished = Vec::with_capacity(3);
         for read in sent {
             finished.push(self.finish_read(read).await);
