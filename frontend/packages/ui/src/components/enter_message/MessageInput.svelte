@@ -103,6 +103,7 @@
     import { transactionInsertedTriggerCharacter } from './services/composerParsingSchedule';
     import { assistantSpeechController } from '../../services/assistantSpeechController';
     import { voiceCallController } from '../../services/voiceCall';
+    import VoiceCallLiveTranscript from './VoiceCallLiveTranscript.svelte';
 
     // Handlers
     import { handleSend, prepareQueuedMessageRevision, detectUrlsInText } from './handlers/sendHandlers';
@@ -292,6 +293,8 @@
     const callOwnsComposer = $derived(callOwnsAudio &&
         (($voiceCallController.chatId !== null && $voiceCallController.chatId === currentChatId) ||
             ($voiceCallController.status === 'connecting' && !currentChatId && !$voiceCallController.chatId)));
+
+    const callLiveTranscript = $derived(callOwnsComposer ? $voiceCallController.liveTranscript ?? null : null);
 
     function plainCallTextOnly(): boolean {
         if (!editor || editor.isDestroyed) return false;
@@ -920,7 +923,7 @@
     }
     let visibleGhostSuggestion = $derived(
         isMessageFieldFocused && !!ghostSuggestion?.trim() && locallyDismissedGhostKey !== (ghostSuggestionKey ?? ghostSuggestion) &&
-        !hasSendableDraft && !queuedEdit && !$editMessageStore &&
+        !hasSendableDraft && !callLiveTranscript && !queuedEdit && !$editMessageStore &&
         !$recordingState.isRecordingActive && !$recordingState.showRecordAudioUI &&
         !recordingCorrectionPending && !showCamera && !showSketch && !showMaps &&
         !startNewChatOnClick && !anonymousFileAttachmentPending
@@ -7691,6 +7694,13 @@
         <div class="scrollable-content" bind:this={scrollableContent} style={scrollableStyle}>
             <div class="content-wrapper">
                 <div bind:this={editorElement} class="editor-content prose" data-testid="message-editor"></div>
+                {#if callLiveTranscript}
+                    <VoiceCallLiveTranscript
+                        text={callLiveTranscript.text}
+                        submitted={callLiveTranscript.submitted}
+                        overlay={!hasSendableDraft}
+                    />
+                {/if}
                 {#if visibleGhostSuggestion}
                     <div class="composer-ghost-suggestion" data-testid="composer-ghost-suggestion" role="status" in:fade={{ duration: 250 }}>{ghostSuggestion}</div>
                 {/if}

@@ -2276,10 +2276,20 @@ test.describe('Voice mode through ordinary chat', () => {
     await expect(page.getByTestId('chat-header-wrapper')).toHaveCount(0);
     await expect(page.getByTestId('message-user')).toHaveCount(0);
     await expect(page.getByTestId('message-assistant')).toHaveCount(0);
+    // The held utterance is visible as translucent live text in the composer,
+    // never as a chat message and never as editable draft content.
+    const liveTranscript=page.getByTestId('message-field').getByTestId('voice-call-live-transcript');
+    await expect(liveTranscript).toBeVisible();
+    await expect(liveTranscript).toHaveText('How do I make');
+    await expect(liveTranscript).toHaveAttribute('data-submitted','false');
+    expect(Number(await liveTranscript.evaluate(node=>getComputedStyle(node).opacity))).toBeLessThan(0.7);
+    await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]')).toBeEmpty();
     const resumedAt=await page.evaluate(()=>performance.now());
     await playNativeVoiceFixture(page);
     await waitForSpokenAssistant(page);
     await expect(page.getByTestId('message-user').filter({hasText:USER_SPEECH})).toHaveCount(1);
+    // Once admitted, the turn is a regular chat message and the preview clears.
+    await expect(liveTranscript).toHaveCount(0);
     const resumedSpeech=await evidence(page);
     const completed=resumedSpeech.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='transcript'&&frame.role==='user'&&frame.final);
     expect(completed).toHaveLength(1);expect(completed[0].messageId).toBe(pending.messageId);

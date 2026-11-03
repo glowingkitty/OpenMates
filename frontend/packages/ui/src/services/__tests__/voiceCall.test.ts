@@ -857,6 +857,36 @@ describe('integrated voice call typed turns', () => {
     harness.handleMessage(final); expect(canonical.send).toHaveBeenCalledOnce(); controller.hangup();
   });
 
+  // contract-test: direct surface=gui.web assertions=video-call.chat.transcripts,video-call.audio.complete-turn-admission
+  it('shows interim speech as a live composer transcript until the final turn becomes a chat message', async () => {
+    const { controller, harness } = liveController();
+    let visible!: () => void; let admit!: (accepted:boolean) => void;
+    canonical.send.mockImplementationOnce((turn: unknown) => new Promise(resolve => {
+      visible = (turn as { onVisible: () => void }).onVisible; admit = resolve;
+    }));
+    const partial = {type:'transcript',call_id:'call-1',role:'user',message_id:'user-live',text:'What is the',final:false};
+    harness.handleMessage(partial);
+    expect(get(controller).liveTranscript).toEqual({messageId:'user-live',text:'What is the',submitted:false});
+    harness.handleMessage({...partial,text:'What is the weather'});
+    expect(get(controller).liveTranscript?.text).toBe('What is the weather');
+    expect(canonical.send).not.toHaveBeenCalled();
+    harness.handleMessage({...partial,text:'What is the weather?',final:true});
+    expect(get(controller).liveTranscript).toEqual({messageId:'user-live',text:'What is the weather?',submitted:true});
+    await vi.waitFor(() => expect(canonical.send).toHaveBeenCalledOnce());
+    // A late partial for the admitted turn never re-opens the draft preview.
+    harness.handleMessage({...partial,text:'What is the weather? late'});
+    expect(get(controller).liveTranscript?.submitted).toBe(true);
+    visible();
+    expect(get(controller).liveTranscript).toBeNull();
+    admit(true);
+    harness.handleMessage({...partial,message_id:'user-echo',text:'echoed words'});
+    harness.handleMessage({type:'transcript.discarded',call_id:'call-1',message_id:'user-echo',reason:'echo'});
+    expect(get(controller).liveTranscript).toBeNull();
+    harness.handleMessage({...partial,message_id:'user-next',text:'And tomorrow'});
+    controller.hangup();
+    expect(get(controller).liveTranscript).toBeNull();
+  });
+
   // contract-test: direct surface=gui.web assertions=video-call.chat.typed-input,video-call.audio.complete-turn-admission
   it('retains typed draft acceptance on canonical failure, server refusal and connection end', async () => {
     for (const reason of ['canonical','refused','closed']) {

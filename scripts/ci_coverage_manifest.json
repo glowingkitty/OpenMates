@@ -255,6 +255,7 @@
         "components/voice-call-audio-gate.spec.ts",
         "components/voice-call-event-notice.spec.ts",
         "components/voice-call-composer.spec.ts",
+        "components/voice-call-live-transcript.spec.ts",
         "api-key-scopes-settings.spec.ts",
         "apps-workspace.spec.ts",
         "header-mobile-layout.spec.ts",

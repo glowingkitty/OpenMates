@@ -64,6 +64,15 @@ export interface VoiceCallState {
   mateCategory?: string;
   mateName?: string;
   modelName?: string;
+  /** The user's in-progress utterance, shown translucently in the composer
+   * until its final turn becomes a regular chat message. */
+  liveTranscript?: VoiceCallLiveTranscript | null;
+}
+export interface VoiceCallLiveTranscript {
+  messageId: string;
+  text: string;
+  /** Final transcript admitted for processing; awaiting its chat row. */
+  submitted: boolean;
 }
 export interface VoiceCallControllerLike extends Readable<VoiceCallState> {
   start(chatId?: string, onBound?: (chatId: string) => void, draftReady?: Promise<boolean>): Promise<void>;
@@ -83,6 +92,7 @@ export const initialVoiceCallState: VoiceCallState = {
   elapsedSeconds: 0, activeElapsedSeconds: 0, audioLevels: Array(16).fill(0), inputIdle: false, userSpeaking: false, assistantSpeaking: false, usage: null, billingActivity: null, error: null,
   cameraAvailable: false, cameraEnabled: false, cameraPending: false, cameraStream: null,
   cameraFacing: 'environment', cameraError: null, mediaExpanded: false, mediaItems: [], mediaIndex: 0, displayedMedia: null,
+  liveTranscript: null,
 };
 
 const NUMBER_FIELDS: (keyof VoiceCallUsage)[] = [
@@ -569,11 +579,20 @@ export class VoiceCallController implements VoiceCallControllerLike {
       case 'transcript': {
         const { callId, chatId } = this.state;
         if (this.state.status !== 'live' || !callId || !chatId || message.call_id !== callId ||
-            message.role !== 'user' || message.final !== true || typeof message.message_id !== 'string' ||
+            message.role !== 'user' || typeof message.message_id !== 'string' ||
             typeof message.text !== 'string' || !message.text.trim()) return;
         const id = message.message_id;
+        if (message.final !== true) {
+          // Partial drafts are display-only; they grant no chat authority.
+          if (!this.turnWrites.has(id)) this.update({ liveTranscript: { messageId: id, text: message.text, submitted: false } });
+          return;
+        }
         if (this.turnWrites.has(id)) return;
+        this.update({ liveTranscript: { messageId: id, text: message.text, submitted: true } });
         const generation = this.generation;
+        const clearLive = () => {
+          if (generation === this.generation && this.state.liveTranscript?.messageId === id) this.update({ liveTranscript: null });
+        };
         reportVoiceCallTurnDelivery({ callId, chatId, turnId: id }, 'queued');
         this.callTurnIds.add(id);
         const frames = [...this.sourceFrames.entries()].filter(([key]) => key.startsWith(`${id}:`)).map(([, pending]) => pending);
@@ -585,6 +604,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
             createdAt: typeof message.created_at === 'number' ? message.created_at : undefined,
             embedReferences: this.sourceReferences.get(id),
             ...(heardBoundary ? { heardBoundary } : {}),
+            onVisible: clearLive,
             isCurrent: () => generation === this.generation && this.state.status === 'live' });
           if (accepted && generation === this.generation && this.pendingHeardBoundary === heardBoundary) this.pendingHeardBoundary = null;
           return accepted;
@@ -596,7 +616,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
           void this.settleTyped(id, false);
           if (generation === this.generation) this.fail('transcript_save_failed');
           return false;
-        }).finally(() => { this.sourceReferences.delete(id); });
+        }).finally(() => { this.sourceReferences.delete(id); clearLive(); });
         this.turnWrites.set(id, pending);
         this.cleanupAttempt?.turnWrites.push(pending);
         this.turnAdmission = pending.then(() => {});
@@ -604,6 +624,11 @@ export class VoiceCallController implements VoiceCallControllerLike {
         // invoke the canonical inference pipeline twice.
         return;
       }
+      case 'transcript.discarded':
+        // Echo, backchannel, stop words and empty turns never become messages.
+        if (message.call_id === this.state.callId && typeof message.message_id === 'string' &&
+            this.state.liveTranscript?.messageId === message.message_id) this.update({ liveTranscript: null });
+        return;
       case 'text_input_rejected':
         if (typeof message.message_id === 'string') void this.settleTyped(message.message_id, false);
         return;
@@ -866,7 +891,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
     if (attempt) attempt.terminated = true;
     this.closeResources();
     this.update({ status, error, audioLevels: zeroLevels(), inputIdle: false, userSpeaking: false, assistantSpeaking: false,
-      billingActivity: { inputListening: false, processing: false } });
+      billingActivity: { inputListening: false, processing: false }, liveTranscript: null });
     if (attempt) this.cleanupFinishedAttempt(attempt);
     else reportEmptyCallCleanup('not_call_created',{});
   }
