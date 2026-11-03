@@ -60,7 +60,9 @@ MAX_TEXT_IDENTITIES = 2048
 # After an "uncertain" (or twice "unavailable") completion decision, continued
 # silence is the user's answer: submit once instead of holding the turn until
 # new speech that may never come. "incomplete" thinking pauses stay held.
-UNCERTAIN_SILENCE_FALLBACK_SECONDS = 1.5
+# Real TTS calls showed STT-punctuated pauses ("I would like to know.") judged
+# uncertain; 2.5s keeps ordinary ~2-3s thinking pauses in one turn.
+UNCERTAIN_SILENCE_FALLBACK_SECONDS = 2.5
 MESSAGE_ID = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
 PROCESSING_ACK_FIELD = "voice_processing_ack_v3_at"
 PROCESSING_ACK_VERSION = 3

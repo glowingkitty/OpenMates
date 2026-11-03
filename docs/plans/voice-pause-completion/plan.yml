@@ -27,7 +27,7 @@ decisions:
   - The completion request contains only the pending transcript and one typed completion decision, without skill catalogues or ordinary preprocessing.
   - Incomplete or uncertain text grants no chat/tool authority until confirmed or until the user stays silent.
   - >-
-    2026-11-03 revision: a held 'uncertain' turn previously waited for new speech that never came, and cold Jev timeouts (lazy tokenizer load) made every first turn uncertain, so calls never processed speech. A timeout/provider failure ('unavailable') is now retried once; an uncertain verdict or a repeated failure submits after 1.5s of further silence for the same text revision; 'incomplete' thinking pauses stay held. The live transcript is visible in the composer throughout.
+    2026-11-03 revision: a held 'uncertain' turn previously waited for new speech that never came, and cold Jev timeouts (lazy tokenizer load) made every first turn uncertain, so calls never processed speech. A timeout/provider failure ('unavailable') is now retried once; an uncertain verdict or a repeated failure submits after 2.5s of further silence (raised from 1.5s after real-speech dev runs split STT-punctuated thinking pauses) for the same text revision; 'incomplete' thinking pauses stay held. The live transcript is visible in the composer throughout.
   - A complete short answer or command remains valid; automatic transcript punctuation alone does not establish completion.
   - No OpenMates inference model/provider defaults or automatic routing are overridden.
   - Pronunciation dictionary support does not imply a configured dictionary; do not create provider resources for this change.
