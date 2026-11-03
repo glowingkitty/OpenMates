@@ -114,11 +114,42 @@ export class AssistantSpeechQueue {
   private readonly completedSegmentIds = new Set<string>();
   private readonly heardVoiceSequences = new Set<number>();
   private turnTrack: { id: string; began: boolean; ended: boolean; failed: boolean; sealed: boolean;
-    members: Map<string, number>; timings: Map<string, AssistantSpeechClauseTiming>; offset: number } | null = null;
+    members: Map<string, number>; timings: Map<string, AssistantSpeechClauseTiming>; offset: number;
+    wordStarts: [number, number][] } | null = null;
 
   registerTurnTrack(id: string): void {
     if (!this.turnTrack) this.turnTrack = { id, began: false, ended: false, failed: false, sealed: false,
-      members: new Map(), timings: new Map(), offset: 0 };
+      members: new Map(), timings: new Map(), offset: 0, wordStarts: [] };
+  }
+
+  /** Display-only provider word estimates; never used for heard boundaries. */
+  addTurnWordStarts(id: string, rows: [number, number][]): void {
+    const turn = this.turnTrack;
+    if (!turn || turn.id !== id || turn.failed) return;
+    const last = turn.wordStarts[turn.wordStarts.length - 1];
+    if (last && (rows[0][0] <= last[0] || rows[0][1] < last[1])) return;
+    if (turn.wordStarts.length + rows.length > 65_536) return;
+    turn.wordStarts.push(...rows);
+  }
+
+  /** Words of the live turn already reached by actual playback time. `settled`
+   * means playback finished, failed or stopped: the whole reply is shown. */
+  get spokenWordProgress(): { responseId: string; words: number; began: boolean; settled: boolean } | null {
+    const turn = this.turnTrack;
+    const responseId = this.state.responseId;
+    if (!turn || !responseId) return null;
+    const settled = turn.ended || turn.failed || ["stopped", "failed", "blocked_by_autoplay"].includes(this.state.status);
+    if (!turn.began) return { responseId, words: 0, began: false, settled };
+    const playing = this.currentAudio && this.state.activeSegmentId === turn.id;
+    const seconds = playing ? this.currentAudio!.currentTime : turn.offset;
+    const time = Number.isFinite(seconds) ? Math.max(0, seconds * 1000) : 0;
+    const starts = turn.wordStarts;
+    let low = 0, high = starts.length;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (starts[middle][1] <= time) low = middle + 1; else high = middle;
+    }
+    return { responseId, words: low ? starts[low - 1][0] + 1 : 0, began: true, settled };
   }
 
   registerTurnClause(id: string, sequence: number): void {

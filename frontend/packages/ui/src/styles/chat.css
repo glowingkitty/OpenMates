@@ -278,3 +278,9 @@
 .message-animated {
   animation: fadeInMessage 0.4s ease-in forwards;
 }
+
+/* Live voice call reply: words not yet spoken stay translucent until playback
+   reaches them (utils/spokenWordHighlight.ts). */
+::highlight(assistant-speech-unspoken) {
+  color: color-mix(in srgb, var(--color-font-primary) 40%, transparent);
+}

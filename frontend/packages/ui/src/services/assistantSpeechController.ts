@@ -260,6 +260,8 @@ class AssistantSpeechController {
     this.publish();
   }
   get playbackBoundary() { return this.queue.playbackBoundary; }
+  /** Display-only word progress of the live turn track (see AssistantSpeechQueue). */
+  get spokenWordProgress() { return this.queue.spokenWordProgress; }
   getCurrentSourceText(messageId?: string): string {
     return (!messageId || this.canonicalSource?.messageId === messageId)
       ? this.canonicalSource?.text ?? "" : "";
@@ -801,6 +803,7 @@ class AssistantSpeechController {
       const stream = this.liveAudio.get(payload.segment_id);
       stream?.accept(payload);
       if (payload.phase === "alignment" && stream?.active) this.queue.updateTurnTimings(payload.clause_timings!);
+      if (payload.phase === "words" && stream?.active) this.queue.addTurnWordStarts(payload.segment_id, payload.word_starts!);
     }
   }
 

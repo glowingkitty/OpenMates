@@ -349,3 +349,25 @@ def test_continuous_turn_seal_accepts_only_content_free_track_identity():
     for track in [None, "private text", {}, 1]:
         with pytest.raises(ValueError):
             validate_assistant_speech_sealed_segments({**payload, "turn_track_id": track})
+
+
+# contract-test: supporting surface=rest_api assertions=assistant-speech.playback.live-call-streaming,video-call.privacy
+def test_continuous_turn_word_starts_are_bounded_ordered_and_text_free():
+    envelope = event("words", kind="voice_prose_turn", word_starts=[[0, 0], [1, 240], [3, 240]])
+    assert validate_assistant_speech_audio_event(envelope, channel=CHANNEL)["word_starts"] == [[0, 0], [1, 240], [3, 240]]
+    for changes in [
+        {"kind": "voice_prose_clause"},
+        {"word_starts": []},
+        {"word_starts": [[0, 0]] * 513},
+        {"word_starts": [[1, 0], [1, 10]]},
+        {"word_starts": [[0, 50], [1, 10]]},
+        {"word_starts": [[0, 600001]]},
+        {"word_starts": [[0, 0, "private"]]},
+        {"word_starts": [[True, 0]]},
+        {"word_starts": [{"word": "private", "ms": 0}]},
+    ]:
+        with pytest.raises(ValueError):
+            validate_assistant_speech_audio_event({**envelope, "payload": {**envelope["payload"], **changes}}, channel=CHANNEL)
+    with pytest.raises(ValueError):
+        validate_assistant_speech_audio_event(
+            {**envelope, "payload": {**envelope["payload"], "audio_data": "AAAA"}}, channel=CHANNEL)
