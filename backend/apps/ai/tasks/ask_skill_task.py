@@ -77,7 +77,6 @@ from backend.apps.ai.processing.summary_billing import (
     SummaryBillingUnsupportedFallbackError,
     selected_main_cache_tariff_active,
 )
-from backend.apps.ai.processing.plan_focus_routing import route_plan_focus
 from backend.apps.ai.processing.focus_phase_history import filter_focus_phase_history
 from backend.apps.ai.processing.artifact_ledger import (
     build_historical_artifact_context,
@@ -3760,38 +3759,6 @@ async def _async_process_ai_skill_ask_task(
             raise RuntimeError(f"Preprocessing failed: {e}") from e
 
         try:
-            if user_overrides:
-                available_focus_modes = set()
-                for app_id, app_metadata in (discovered_apps_metadata or {}).items():
-                    focuses = getattr(app_metadata, "focuses", None) or []
-                    for focus in focuses:
-                        focus_id = getattr(focus, "id", None)
-                        if focus_id:
-                            available_focus_modes.add(f"{app_id}-{focus_id}")
-                latest_message = user_overrides.cleaned_message
-                plan_route = route_plan_focus(
-                    latest_message,
-                    plan_requested=user_overrides.plan_requested,
-                    available_focus_modes=available_focus_modes,
-                )
-                # Project focus takes precedence over automatic catalog planning.
-                project_focus_selected = bool(request_data.active_project_focus) or any(
-                    focus.startswith("project-")
-                    for focus in (preprocessing_result.relevant_focus_modes or [])
-                )
-                if (
-                    plan_route.should_plan
-                    and plan_route.active_focus_id
-                    and not request_data.active_focus_id
-                    and not project_focus_selected
-                    and not getattr(preprocessing_result, "user_requested_focus_only", False)
-                ):
-                    request_data.active_focus_id = plan_route.active_focus_id
-                    logger.info(
-                        f"[Task ID: {task_id}] PLAN_ROUTING: Set active_focus_id='{plan_route.active_focus_id}' "
-                        f"reason={plan_route.reason}"
-                    )
-
             # --- Billing preflight validation ---
             # Ensure that we have pricing info configured for the selected provider/model BEFORE we start streaming.
             # Skip preflight entirely if preprocessing says we cannot proceed (e.g., insufficient credits, harmful content).

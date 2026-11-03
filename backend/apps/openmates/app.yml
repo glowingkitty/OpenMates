@@ -108,9 +108,13 @@ focuses:
     process_translation_key: focus_modes.openmates_plan.process
     icon_image: planning.svg
     preprocessor_hint: >
-      Select when the user explicitly writes @plan, or when the user asks to plan,
-      structure, break down, verify, or coordinate a complex workflow that does not
-      clearly belong to a more specific app planner.
+      Select only when the latest message, in any language, explicitly asks the
+      assistant to create, draft or structure a plan, roadmap, schedule of steps
+      or task breakdown for a multi-step goal (for example a move, event, trip,
+      research project or personal project) that is not software implementation.
+      Do not select when planning words appear incidentally (for example someone
+      "plans to" do something, a question about an existing plan, or a plan as a
+      topic of discussion), or for a simple question or single-step request.
     systemprompt: |
       You are Plan, a careful OpenMates planning focus mode for complex workflows.
 

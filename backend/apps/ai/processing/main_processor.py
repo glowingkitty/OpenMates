@@ -32,6 +32,7 @@ from backend.apps.ai.processing.preprocessor import (
     PreprocessingResult, _history_has_loaded_image_blocks,
     _image_reference_consumer_skills, _request_has_image_upload_embed,
 )
+from backend.apps.ai.processing.plan_focus_routing import PLANNER_FOCUS_IDS
 from backend.apps.ai.processing.ai_model_catalogue_context import build_ai_model_catalogue_context
 from backend.apps.ai.processing.search_skill_reliability import (
     expand_companion_skills,
@@ -112,6 +113,10 @@ from backend.apps.ai.utils.embeds_map_view import (
     should_include_embeds_map_view_hint,
 )
 from backend.apps.ai.utils.tool_protocol_guard import ToolProtocolGuard
+from backend.apps.ai.utils.pseudo_tool_call import (
+    PSEUDO_TOOL_CALL_RETRY_PROMPT,
+    PseudoToolCallRecovery,
+)
 from backend.core.api.app.utils.override_parser import UserOverrides
 from backend.apps.ai.llm_providers.mistral_client import ParsedMistralToolCall, MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata, GoogleStreamFinishMetadata, ParsedGoogleToolCall
@@ -500,6 +505,8 @@ def _without_optional_fact_format_sections(
 
 
 def _trusted_focus_override(overrides: UserOverrides | None, focus_id: str) -> bool:
+    if overrides and overrides.plan_requested and focus_id in PLANNER_FOCUS_IDS:
+        return True  # @plan is explicit consent for whichever planner preprocessing resolved.
     return bool(overrides and any(f"{app_id}-{identifier}" == focus_id
                                  for app_id, identifier in overrides.focus_modes))
 
@@ -1528,6 +1535,25 @@ def _is_empty_post_tool_turn(tool_inference_iterations: int, llm_turn_had_conten
 
 def _has_visible_text(content: str) -> bool:
     return bool(content.strip())
+
+
+def _pseudo_tool_call_names(
+    available_tools: Optional[List[Dict[str, Any]]],
+    discovered_apps_metadata: Optional[Dict[str, Any]],
+) -> List[str]:
+    """Tool names a text pseudo call may name: offered tools plus every app skill."""
+    names = [
+        str((tool.get("function") or {}).get("name") or "")
+        for tool in available_tools or []
+        if isinstance(tool, dict)
+    ]
+    for app_id, metadata in (discovered_apps_metadata or {}).items():
+        names.extend(
+            f"{app_id}-{skill.id}"
+            for skill in getattr(metadata, "skills", None) or []
+            if getattr(skill, "id", None)
+        )
+    return [name for name in names if name]
 
 
 def _build_async_skill_pending_tool_result(
@@ -6296,6 +6322,7 @@ async def handle_main_processing(
     task_queue_guard_retries = 0
     answer_recovery = AnswerRecoveryState()
     protocol_guard_recovery_started = False
+    pseudo_tool_call_recovery = PseudoToolCallRecovery()
     continue_published_answer = False
     published_answer_text: List[str] = []
     omitted_budget_requests = 0
@@ -7205,7 +7232,9 @@ async def handle_main_processing(
             )
             break
 
-        protocol_guard = ToolProtocolGuard()
+        protocol_guard = ToolProtocolGuard(
+            known_tools=_pseudo_tool_call_names(available_tools_for_llm, discovered_apps_metadata),
+        )
         prepared_diagram_types = set(getattr(preprocessing_results, "relevant_diagram_types", None) or []) if (
             diagram_prompt and diagram_prompt in iteration_system_prompt) else set()
         if memory_runtime and memory_runtime.prompt and memory_runtime.prompt in iteration_system_prompt:
@@ -8121,6 +8150,40 @@ async def handle_main_processing(
                     yield billing_event
                 yield main_processing_failure("protocol_guard")
                 break
+
+        pseudo_tool_call_action = pseudo_tool_call_recovery.action(
+            detected=protocol_guard.pseudo_tool_call,
+            native_call_count=len(tool_calls_for_this_turn) + len(hallucinated_tool_calls_this_turn),
+            visible_text=final_buffered_text_for_turn,
+            has_retry_iteration=iteration < max_iterations_with_recovery - 1,
+        )
+        if protocol_guard.pseudo_tool_call:
+            logger.warning(
+                "%s [PSEUDO_TOOL_CALL] Model wrote a tool call as text; action=%s "
+                "native_calls=%s visible_chars=%s classification=%s",
+                log_prefix,
+                pseudo_tool_call_action,
+                len(tool_calls_for_this_turn),
+                len(final_buffered_text_for_turn.strip()),
+                protocol_guard.pseudo_tool_call_diagnostics,
+            )
+        if pseudo_tool_call_action == "retry":
+            # One bounded retry of the same step: tools stay as they were, so
+            # the model can make the real call or answer directly (S7ZNB).
+            if final_buffered_text_for_turn.strip():
+                current_message_history.append({"role": "assistant", "content": final_buffered_text_for_turn})
+            current_message_history.append({"role": "user", "content": PSEUDO_TOOL_CALL_RETRY_PROMPT})
+            continue
+        if pseudo_tool_call_action == "error":
+            logger.error(
+                "%s [PSEUDO_TOOL_CALL] Retry also produced only a text tool call; "
+                "marking the response failed instead of ending with an empty answer.",
+                log_prefix,
+            )
+            for billing_event in await terminal_billing_usage_events():
+                yield billing_event
+            yield main_processing_failure("protocol_guard")
+            break
 
         if not tool_calls_for_this_turn:
             task_queue_result = await evaluate_task_queue_post_turn(

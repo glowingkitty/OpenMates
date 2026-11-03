@@ -7,11 +7,16 @@ are emitted downstream and must never be interpreted as model tool attempts.
 from __future__ import annotations
 
 import re
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterable
 from dataclasses import dataclass
 from typing import Any
 
 from backend.apps.ai.llm_providers.types import StreamChunkType, UnifiedStreamChunk
+from backend.apps.ai.utils.pseudo_tool_call import (
+    SuppressedToolCallMarkup,
+    known_tool_names,
+    pseudo_tool_call_reason,
+)
 from backend.apps.ai.utils.stream_utils import aggregate_paragraphs
 
 
@@ -104,11 +109,23 @@ class ToolProtocolGuard:
     Long TOON blocks may be split at its buffer limit, so hold those until the
     closing fence (or end of stream). Ordinary code retains its existing path.
     After a fake result, suppress the remaining prose: it may cite invented data.
+
+    A pseudo tool *call* written as text (S7ZNB) is different: only that block
+    is withheld and recorded in ``pseudo_tool_call``; surrounding prose still
+    streams, and the caller decides after the turn whether it was a real answer.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, known_tools: Iterable[str] = ()) -> None:
         self.detected = False
         self.diagnostics: dict[str, str | int | bool] = {}
+        self.known_tools = known_tool_names(known_tools)
+        self.pseudo_tool_call = False
+        self.pseudo_tool_call_diagnostics: dict[str, str | int] = {}
+
+    def _record_pseudo_tool_call(self, reason: str, block: str) -> None:
+        if not self.pseudo_tool_call:
+            self.pseudo_tool_call_diagnostics = {"reason": reason, "body_chars": len(block)}
+        self.pseudo_tool_call = True
 
     async def filter(self, raw_stream: AsyncIterator[Any]) -> AsyncIterator[Any]:
         async def text_stream() -> AsyncIterator[Any]:
@@ -121,6 +138,9 @@ class ToolProtocolGuard:
         pending = ""
         language = ""
         async for chunk in aggregate_paragraphs(text_stream(), early_prose=True):
+            if isinstance(chunk, SuppressedToolCallMarkup):
+                self._record_pseudo_tool_call("tool_call_markup", chunk.text)
+                continue
             if not isinstance(chunk, str):
                 yield chunk
                 continue
@@ -133,7 +153,11 @@ class ToolProtocolGuard:
             elif pending:
                 pending += chunk
             else:
-                yield chunk
+                pseudo_reason = pseudo_tool_call_reason(chunk, self.known_tools)
+                if pseudo_reason:
+                    self._record_pseudo_tool_call(pseudo_reason, chunk)
+                else:
+                    yield chunk
                 continue
             opening_end = pending.find("\n") + 1
             if "```" not in pending[opening_end:]:
