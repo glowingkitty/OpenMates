@@ -23,10 +23,6 @@ pub(super) enum Link {
         embed: String,
         name: String,
     },
-    Carousel {
-        message: String,
-        delta: i32,
-    },
 }
 #[derive(Clone)]
 pub(super) struct Part {
@@ -259,7 +255,7 @@ pub(super) fn render(source: &str, width: usize) -> Vec<Row> {
             Event::End(TagEnd::Link) | Event::End(TagEnd::Image) => {
                 if let Some(target) = &link {
                     let command = match target {
-                        Link::Embed(id) => format!(" (/embed {id})"),
+                        Link::Embed(id) => format!(" (/embed {})", super::embeds::short_id(id)),
                         Link::Wiki(id) => format!(" (/wiki {id})"),
                         _ => String::new(),
                     };
