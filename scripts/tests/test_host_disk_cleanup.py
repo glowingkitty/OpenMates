@@ -86,3 +86,69 @@ def test_permission_denied_entries_are_skipped_not_failures(tmp_path, monkeypatc
     assert report["deleted"] == []
     assert report["skipped"]["permission"] == 1
     assert stale.exists()
+
+
+def _queue(repository: Path, rows: list[tuple[str, str, str]]) -> None:
+    import sqlite3
+
+    path = repository / "logs/ci-coordinator/queue.sqlite3"
+    path.parent.mkdir(parents=True)
+    with sqlite3.connect(path) as db:
+        db.execute("CREATE TABLE jobs (id TEXT, source TEXT, state TEXT, run_id TEXT,"
+                   " prepared_run_id TEXT, preparation_id TEXT, preparation_key TEXT,"
+                   " candidate_tree TEXT, candidate_base TEXT)")
+        db.executemany("INSERT INTO jobs (id,source,state) VALUES (?,?,?)", rows)
+
+
+def _retention(repository: Path, tmp_path: Path, **kwargs) -> dict:
+    return cleanup.run(tmp_path / "tmp", tmp_path / "recovery", apply=True, in_use=[],
+                       repository=repository, cache_root=tmp_path / "cache",
+                       **{"cargo_paths": [], **kwargs})
+
+
+def test_ci_artifacts_use_three_day_threshold_and_active_job_protection(tmp_path):
+    repo = tmp_path / "repo"
+    runs, cands = repo / "test-results/ci-runs", repo / "logs/ci-candidates"
+    old = _make(runs / "old-run", 4)
+    fresh = _make(runs / "fresh-run", 2)
+    queued = _make(runs / "queued-run", 30)
+    preparing = _make(cands / ("a" * 40), 30)
+    done = _make(cands / ("b" * 40), 30)
+    _queue(repo, [("queued-run", "x", "queued"), ("job1", "a" * 40, "preparing"),
+                  ("job2", "b" * 40, "success"), ("old-run", "y", "success")])
+
+    report = _retention(repo, tmp_path)
+    assert {Path(item["path"]) for item in report["deleted"]} == {old, done}
+    assert not old.exists() and not done.exists()
+    for kept in (fresh, queued, preparing):
+        assert kept.exists()
+
+
+def test_ci_artifacts_kept_when_queue_unreadable_and_dry_run_reports_only(tmp_path):
+    repo = tmp_path / "repo"
+    old = _make(repo / "test-results/ci-runs/old-run", 10)
+    (repo / "logs/ci-coordinator").mkdir(parents=True)
+    (repo / "logs/ci-coordinator/queue.sqlite3").write_text("not a database")
+    report = _retention(repo, tmp_path)
+    assert report["deleted"] == [] and old.exists()
+
+    (repo / "logs/ci-coordinator/queue.sqlite3").unlink()
+    dry = cleanup.run(tmp_path / "tmp", tmp_path / "recovery", apply=False, in_use=[],
+                      repository=repo, cache_root=tmp_path / "cache", cargo_paths=[])
+    assert [item["category"] for item in dry["deleted"]] == ["ci_run"]
+    assert dry["reclaimed_bytes"] > 0 and old.exists()
+
+
+def test_rust_dirs_need_24h_idle_and_no_running_cargo(tmp_path):
+    repo, cache = tmp_path / "repo", tmp_path / "cache"
+    idle = _make(repo / ".openmates-agent-worktrees/agent-1111/target", 2)
+    recent = _make(repo / ".openmates-agent-worktrees/agent-2222/target", 0.5)
+    busy_cwd = _make(repo / ".openmates-agent-worktrees/agent-3333/target", 2)
+    busy_env = _make(cache / "openmates-rust-bench", 2)
+    idle_cache = _make(cache / "openmates-rust-old", 2)
+
+    report = _retention(repo, tmp_path, cargo_paths=[
+        str(busy_cwd.parent / "crates/core"), str(busy_env / "debug")])
+    assert {Path(item["path"]) for item in report["deleted"]} == {idle, idle_cache}
+    for kept in (recent, busy_cwd, busy_env):
+        assert kept.exists()
