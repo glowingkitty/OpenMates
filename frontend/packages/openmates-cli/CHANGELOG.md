@@ -3,6 +3,33 @@
 Only SDK-relevant compatibility notes are recorded here. Release versions follow
 the product line (`0.29.x` alpha prereleases from `dev`, stable from `main`).
 
+## 0.30.0
+
+### Breaking
+
+- **The SDK is API-key only and separate from the CLI login.** The root
+  `OpenMatesClient` export no longer loads the stored CLI login (the 0.29.x
+  `OPENMATES_SDK_CLI_SESSION` deprecation is complete). It is now the API-key
+  client: `new OpenMatesClient({ apiKey })`. Constructing it (or calling
+  `OpenMatesClient.load()`) without an `apiKey` throws
+  `OpenMatesApiKeyRequiredError` (code `OPENMATES_SDK_API_KEY_REQUIRED`), and the
+  `session` / `loadStoredSession` options are rejected. No SDK entrypoint reads
+  CLI state files or the keychain, so an SDK script can use a different account
+  from the logged-in CLI. `SDK_CLI_SESSION_DEPRECATION_CODE` is removed.
+
+  **Migration:** create an API key in Settings → Developers and pass it
+  explicitly (`new OpenMatesClient({ apiKey })` or `new OpenMates({ apiKey })`).
+  The key decrypts your chats locally with its own wrapped account key; nothing
+  else is needed. The `openmates` command line keeps its own login and is
+  unaffected.
+
+### Deprecated
+
+- `SessionClient.loginPassword()` / `importSession()` in `openmates/sdk/v1`. Public
+  SDKs are API-key only; these login modes are removed once every capability they
+  offer is available through API-key authentication (open work tracked in
+  `config/sdk-capabilities.json`).
+
 ## 0.29.x
 
 ### Deprecated

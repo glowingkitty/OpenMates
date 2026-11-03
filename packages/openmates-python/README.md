@@ -282,8 +282,13 @@ Context events are for display only. No calendar account or network call is requ
 
 `openmates.SessionClient`, `RustApiKeyClient`, `prepare_privacy` and
 `sort_tasks` run in the shared OpenMates Rust core through the `openmates._native`
-extension (PyO3). They never launch the CLI or read CLI login state; credentials
-are explicit (`await client.login_password(...)` or `import_session(...)`). If
+extension (PyO3). They never launch the CLI or read CLI login state. The
+SDK is API-key only and separate from the CLI login: `SessionClient`'s
+`login_password(...)` / `import_session(...)` modes are deprecated and leave the
+public package once every capability they offer is available through API-key
+authentication (tracked in `config/sdk-capabilities.json`); use an API key from
+Settings > Developers, which decrypts your chats locally with its own wrapped
+account key. If
 the extension is missing, these APIs raise `SessionClientError` with code
 `native_binding_unavailable` (there is no pure-Python fallback). The `OpenMates`
 API-key client above does not need the extension. Published wheels do not include

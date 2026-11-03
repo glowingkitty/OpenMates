@@ -9,7 +9,23 @@ The current migration is **not capability complete** and `publish = false`
 prevents accidental publication. The shared SDK capability matrix and conformance
 gate track remaining parity work.
 
-## Explicit client state
+## API keys only; separate from the CLI login
+
+The public SDK (`openmates::sdk`) authenticates account access only with an API
+key the caller supplies (create one in Settings → Developers); it never reads the
+CLI login, `~/.openmates`, CLI profiles or a keyring, so it can use a different
+account than the logged-in CLI. Each API key carries its own wrapped account key,
+unwrapped locally in memory, so the key alone decrypts your chats and embeds.
+
+Boundary: `openmates::sdk` currently still re-exports the whole core crate,
+including the cookie-session `Client` below that the CLI/TUI, web and Apple apps
+use for their own login. Its password/imported-session login is first-party
+session authority, not a supported SDK authentication mode, and is deprecated
+for SDK use. It leaves the public `openmates::sdk` surface (staying internal to
+the app crates) once every capability it offers is available on the API-key
+`OpenMates` client; the remaining gaps are tracked in `config/sdk-capabilities.json`.
+
+## Explicit client state (first-party session authority)
 
 Import `openmates_sdk::{Client, ClientOptions, Session, Error}`. Construct a client
 with `Client::new(api_url, optional_session)` or `Client::with_options(...)`.

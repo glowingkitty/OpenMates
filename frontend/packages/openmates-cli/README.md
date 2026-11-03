@@ -375,23 +375,37 @@ Use `chats.send()` for anonymous AI chat with automatic routing; `apps.ai.ask()`
 requires an account. With an API key, use `saveToAccount: true` when you want the
 chat saved to the OpenMates account.
 
-### Deprecated: implicit CLI login in the root `OpenMatesClient`
+### API keys only, never the CLI login
 
-`new OpenMatesClient()` / `OpenMatesClient.load()` from the root `openmates`
-export still load the stored CLI login when no `session` is passed, but this is
-deprecated: SDK credentials must be explicit. It emits one `DeprecationWarning`
-with code `OPENMATES_SDK_CLI_SESSION` per process. Pass `session` explicitly,
-set `loadStoredSession: false`, or use `SessionClient` from `openmates/sdk/v1`.
-A later minor release will require explicit credentials (see `CHANGELOG.md`).
-The `openmates` command line is unaffected.
+The SDK authenticates only with an API key you pass explicitly (or configure via
+`OPENMATES_API_KEY`). It is completely separate from the `openmates` command
+line: it never reads the CLI's `~/.openmates/session.json`, its state directory
+or the OS keychain, so a script can use a different account than the one logged
+in to the CLI. Create an API key in Settings → Developers. Each key carries its
+own wrapped copy of your account key, so the SDK decrypts your chats locally,
+in memory, with only that key.
+
+Since 0.30.0 the root `OpenMatesClient` is the API-key client and requires
+`apiKey`; constructing it without one throws `OpenMatesApiKeyRequiredError`
+(code `OPENMATES_SDK_API_KEY_REQUIRED`). The former `session` and
+`loadStoredSession` options are rejected.
+
+```typescript
+import { OpenMatesClient } from "openmates";
+
+const om = new OpenMatesClient({ apiKey: process.env.MY_OPENMATES_KEY! });
+```
 
 ### Native session SDK (preview)
 
 `openmates/sdk/v1` exports `SessionClient`, `RustApiKeyClient` and related
 types. Every operation runs in the shared OpenMates Rust core through a native
 Node-API module loaded from `native/<platform>-<arch>.node`; the SDK never
-launches the CLI and never reads CLI login state. Credentials are explicit:
-log in with `loginPassword()` or import a caller-owned session. If the native
+launches the CLI and never reads CLI login state. Its password/imported-session
+login modes (`loginPassword()`, `importSession()`) are deprecated: public SDKs
+are API-key only, and these modes are removed once every capability they offer
+is available through API-key authentication (tracked in
+`config/sdk-capabilities.json`). Use an API key for new integrations. If the native
 module for your platform is missing or incompatible, construction throws
 `SessionClientError` with code `native_binding_unavailable` (no TypeScript
 fallback). The SDK is moving to one portable WebAssembly build of the core

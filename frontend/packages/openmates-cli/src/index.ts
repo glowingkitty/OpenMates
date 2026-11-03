@@ -10,7 +10,8 @@
 
 // SDK root export: implicit stored-CLI-login loading emits a one-time
 // DeprecationWarning (OPENMATES_SDK_CLI_SESSION). The CLI imports ./client.js.
-export { OpenMatesClient, SDK_CLI_SESSION_DEPRECATION_CODE } from "./sdkRootClient.js";
+export { OpenMatesClient, OpenMatesApiKeyRequiredError, SDK_API_KEY_REQUIRED_CODE } from "./sdkRootClient.js";
+export type { OpenMatesClientOptions } from "./sdkRootClient.js";
 export {
   deriveAppUrl,
   INTEREST_TAG_IDS,
@@ -84,7 +85,6 @@ export type {
   ChatListPage,
   MemoryTypeDef,
   MemoryFieldDef,
-  OpenMatesClientOptions,
   BankTransferOrderDetails,
   BankTransferStatus,
   GiftCardBankTransferStatus,

@@ -20,14 +20,23 @@ sync and persistence policy also follows `specifications/architecture/sync/` and
   Existing backend services and separate test/benchmark harnesses are exempt.
 - Shared Rust owns ALL reusable headless application operations, crypto, auth,
   storage policy, sync, reconnect and recovery across CLI/TUI, web and Apple.
-  SDK credentials and platform IO adapters are explicit; never discover the CLI
-  user's login. Parsing, UI and interactive profile selection stay in adapters.
+  Platform IO adapters are explicit. Parsing, UI and interactive profile
+  selection stay in adapters.
+- Public SDKs (npm, Python, Rust `openmates::sdk`) are API-key only and separate
+  from the CLI login (user decision): never read CLI state, session files,
+  profiles or keychains; a missing key is a typed error, never a login or
+  anonymous fallback. Password/imported-session login is CLI/TUI, web and Apple
+  session authority in shared Rust, not a public SDK mode. Each API key carries
+  its own wrapped master key, so API-key SDKs decrypt chats, messages and embeds
+  locally (memory only, zeroized); provide session-mode capabilities through the
+  API-key path rather than dropping them, and track remaining gaps as open work.
 - Web Svelte/TypeScript retains UI/DOM and thin browser APIs such as media and
   WebRTC. Apple retains native SwiftUI and platform hooks. Neither duplicates the
   reusable Rust behavior. Keep thin IndexedDB/SwiftData persistence adapters
   initially and preserve existing data; do not force a SQLite/OPFS migration.
 - Rust, npm and PyPI remain supported SDKs with matching public capabilities,
-  including relevant auth modes, operations, crypto, streaming, recovery and errors.
+  including API-key auth (plus explicit anonymous mode), operations, crypto,
+  streaming, recovery and errors.
   npm/Python are libraries, call library code directly and never launch the CLI.
   Preserve compatible interfaces where practical; document and version breaking changes.
 - Update the maintained capability matrix, shared schemas/protocol fixtures/crypto

@@ -1,36 +1,63 @@
 /**
  * Root `openmates` package export of `OpenMatesClient` for SDK integrations.
  *
- * The CLI imports its client from `./client.js` directly; only the public root
- * barrel uses this subclass. Implicitly loading the stored CLI login is
- * deprecated for SDK use (SDK credentials must be explicit). In 0.29.x it keeps
- * working and emits one `DeprecationWarning` (code OPENMATES_SDK_CLI_SESSION)
- * per process; pass `session` explicitly, `loadStoredSession: false`, or use
- * the `openmates/sdk/v1` SessionClient instead.
+ * Since 0.30.0 the public SDK authenticates only with an explicit API key and is
+ * fully separate from the CLI login: this class never reads the CLI state
+ * directory, `session.json`, the OS keychain or any other CLI credential, and it
+ * never falls back to anonymous use. It is the API-key `OpenMates` client with a
+ * mandatory `apiKey`. The CLI imports its own session client from `./client.js`;
+ * first-party harnesses that need the CLI login use the CLI-internal
+ * `dist/cli-internal-client.js`, which is not an SDK entrypoint.
  */
-import { OpenMatesClient as CliOpenMatesClient, type OpenMatesClientOptions } from "./client.js";
+import { OpenMates, OpenMatesConfigError, type OpenMatesOptions } from "./sdk.js";
 
-export const SDK_CLI_SESSION_DEPRECATION_CODE = "OPENMATES_SDK_CLI_SESSION";
-let warned = false;
+export const SDK_API_KEY_REQUIRED_CODE = "OPENMATES_SDK_API_KEY_REQUIRED";
 
-function warnImplicitCliSession(options: OpenMatesClientOptions): void {
-  if (warned || options.session !== undefined || options.loadStoredSession === false) return;
-  warned = true;
-  process.emitWarning(
-    "OpenMatesClient from the 'openmates' root export loads the stored CLI login implicitly. " +
-      "This is deprecated: pass an explicit `session`, set `loadStoredSession: false`, or use " +
-      "SessionClient from 'openmates/sdk/v1'. A future minor release will require explicit credentials.",
-    { type: "DeprecationWarning", code: SDK_CLI_SESSION_DEPRECATION_CODE },
-  );
+/** Raised when the root SDK client is constructed without an explicit API key. */
+export class OpenMatesApiKeyRequiredError extends OpenMatesConfigError {
+  readonly code = SDK_API_KEY_REQUIRED_CODE;
+  constructor(message: string) {
+    super(message);
+    this.name = "OpenMatesApiKeyRequiredError";
+  }
 }
 
-export class OpenMatesClient extends CliOpenMatesClient {
-  constructor(options: OpenMatesClientOptions = {}) {
-    warnImplicitCliSession(options);
-    super(options);
+export interface OpenMatesClientOptions {
+  /** API key created in Settings → Developers. Required; never read from the CLI login. */
+  apiKey: string;
+  apiUrl?: string;
+  deviceId?: string;
+  deviceIdPath?: string;
+}
+
+const ALLOWED_OPTIONS = new Set(["apiKey", "apiUrl", "deviceId", "deviceIdPath"]);
+const MIGRATION =
+  "Create an API key in Settings → Developers and pass it explicitly: new OpenMatesClient({ apiKey }). " +
+  "The SDK never uses the CLI login.";
+
+function requireApiKeyOptions(options: unknown): OpenMatesOptions {
+  if (options === undefined || options === null || typeof options !== "object" || Array.isArray(options)) {
+    throw new OpenMatesApiKeyRequiredError(`OpenMatesClient requires an explicit API key. ${MIGRATION}`);
+  }
+  const record = options as Record<string, unknown>;
+  for (const key of Object.keys(record)) {
+    if (key === "session" || key === "loadStoredSession") {
+      throw new OpenMatesApiKeyRequiredError(`OpenMatesClient no longer accepts \`${key}\`; CLI sessions are not SDK credentials. ${MIGRATION}`);
+    }
+    if (!ALLOWED_OPTIONS.has(key)) throw new OpenMatesConfigError(`Unknown OpenMatesClient option: ${key}`);
+  }
+  if (typeof record.apiKey !== "string" || record.apiKey.trim() === "") {
+    throw new OpenMatesApiKeyRequiredError(`OpenMatesClient requires an explicit API key. ${MIGRATION}`);
+  }
+  return { ...(record as unknown as OpenMatesClientOptions), anonymous: false, sdkName: "npm" };
+}
+
+export class OpenMatesClient extends OpenMates {
+  constructor(options: OpenMatesClientOptions) {
+    super(requireApiKeyOptions(options));
   }
 
-  static override load(options: OpenMatesClientOptions = {}): OpenMatesClient {
+  static load(options: OpenMatesClientOptions): OpenMatesClient {
     return new OpenMatesClient(options);
   }
 }
