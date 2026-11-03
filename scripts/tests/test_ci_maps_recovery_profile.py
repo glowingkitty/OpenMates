@@ -339,6 +339,8 @@ def _runner_profile(tmp_path, monkeypatch, **options):
     "stop-new-chat-draft.spec.ts",
     "cli-rust-core-essential.spec.ts",
     "cli-rust-chat-sync-feed.spec.ts",
+    "cli-rust-tui-unread.spec.ts",
+    "chat-unread-read-position.spec.ts",
     "rust-core-browser-session.spec.ts",
     "rust-core-browser-password-entry.spec.ts",
     "maps-discovery-chat.spec.ts",
@@ -489,6 +491,8 @@ def test_capacity_epoch_profile_guard_remains_separate(tmp_path, monkeypatch):
     ["cli-rust-core-essential.spec.ts"],
     ["cli-rust-core-essential.spec.ts", "connection-resilience.spec.ts"],
     ["cli-rust-chat-sync-feed.spec.ts"],
+    ["cli-rust-tui-unread.spec.ts"],
+    ["chat-unread-read-position.spec.ts"],
 ])
 def test_send_and_reconnect_batch_activates_epoch_once_before_browser(tmp_path, monkeypatch, specs):
     runner, _, _ = _runner_profile(tmp_path, monkeypatch, ai_fixtures=True)

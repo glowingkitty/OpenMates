@@ -147,6 +147,8 @@ MARKER_CHAT_EPOCH_SPECS = frozenset(
         "rust-core-new-chat-send.spec.ts",
         "cli-rust-core-essential.spec.ts",
         "cli-rust-chat-sync-feed.spec.ts",
+        "cli-rust-tui-unread.spec.ts",
+        "chat-unread-read-position.spec.ts",
         "cli-recovery-fixtures.spec.ts",
         "cli-recovery-discovery.spec.ts",
         "diagram-html-editing.spec.ts",
