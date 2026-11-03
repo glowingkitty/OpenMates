@@ -1,0 +1,284 @@
+schema_version: 1
+id: feature.chat-awareness
+version: 1
+status: draft
+title: Consent-Scoped Cross-Chat Awareness
+summary: 'The assistant may use another chat''s metadata or transcript only when the user explicitly grants it for
+  the current request: by mentioning a specific chat, @related-chats or @all-chats, or (in a later slice) by working
+  under a live authoritative Project focus. Ranking and transcript search run on the user''s device over locally
+  decrypted data; the server never gains independent decryption rights.
+
+  '
+scope:
+  includes:
+  - Specific-chat, @related-chats and @all-chats mentions in the web composer, their wire tokens and grants.
+  - Full selected-chat metadata (ID, title, summary, tags, category, created and updated times) as untrusted model
+    context.
+  - Local multilingual metadata ranking for @related-chats with a pinned, first-party-served embedding model.
+  - Device-executed transcript and metadata search bounded by the request's grant.
+  - Grant binding to user, request, source and destination; fail-closed revocation, cancellation, replay and stale
+    device responses.
+  - Restricting the existing automatic recent-work/related-chat context to the same consent policy.
+  - A privacy setting that forces confirmation before explicit-mention transcript searches.
+  - Voice transcript correction that canonicalizes explicit final requests into @related-chats or @all-chats.
+  - Automatic metadata awareness of a Project's chats under a live authoritative Project focus (delivered after the
+    regular-chat slice is verified).
+  excludes:
+  - Cross-chat messaging, editing or posting into another chat.
+  - Uploading a user's full chat metadata catalogue or transcripts to the server for ranking or search.
+  - Server-side decryption of other chats or transfer of raw chat keys.
+  - Anonymous, incognito, shared/external and public example chats as sources or destinations of awareness.
+  - Team-owned chats beyond the same-user access the current chat already has.
+relationships:
+  related_specifications:
+  - feature.chats
+  - feature.projects
+  - feature.focus-modes
+  - feature.message-input
+actors:
+- id: chat_owner
+  role: Authenticated user who explicitly grants cross-chat awareness for one request.
+- id: assistant
+  role: Uses granted chat metadata and search results as untrusted data and may only search within its grant.
+- id: owning_device
+  role: The user's client that decrypts, ranks and searches local chats and answers bounded search requests.
+models:
+  ChatAwarenessMention:
+    kind:
+      type: enum
+      values:
+      - specific_chat
+      - related_chats
+      - all_chats
+      required: true
+    wire_token:
+      type: literal_pattern
+      required: true
+      constraints:
+        specific_chat: '@chat:<chat_id>'
+        related_chats: '@related-chats'
+        all_chats: '@all-chats'
+        must_come_from_current_user_composer_turn: true
+  ChatMetadataRecord:
+    chat_id:
+      type: chat_id
+      required: true
+    title:
+      type: decrypted_text
+      required: true
+    summary:
+      type: decrypted_text
+      required: false
+    tags:
+      type: list
+      required: false
+    category:
+      type: text
+      required: false
+    created_at:
+      type: timestamp
+      required: true
+    updated_at:
+      type: timestamp
+      required: true
+    treated_as_instructions:
+      type: literal
+      constraints:
+        value: false
+  ChatAwarenessGrant:
+    user_id:
+      type: user_id
+      required: true
+    request_identity:
+      type: chat_turn_message_request_ids
+      required: true
+    destination_chat_id:
+      type: chat_id
+      required: true
+    source:
+      type: enum
+      values:
+      - explicit_mention
+      - project_focus
+      required: true
+    scope:
+      type: enum
+      values:
+      - selected_chats
+      - related_shortlist
+      - all_accessible_chats
+      - project_chats
+      required: true
+    allowed_chat_ids:
+      type: list
+      required: false
+      constraints:
+        related_shortlist_maximum: 8
+    transcript_search:
+      type: enum
+      values:
+      - allowed
+      - requires_confirmation
+      - forbidden
+      required: true
+  ChatAwarenessSearchResult:
+    chat_id:
+      type: chat_id
+      required: true
+    excerpts:
+      type: list
+      constraints:
+        maximum_results: 8
+        maximum_excerpt_characters: 600
+        produced_on_owning_device: true
+  RankingModel:
+    repository:
+      type: literal
+      constraints:
+        value: univo-models/static-similarity-mrl-multilingual-int8-128
+    revision:
+      type: literal
+      constraints:
+        value: ee7c2cb71e6948246b2bf45ef47083d215d69f2a
+    delivery:
+      type: first_party_static_asset
+      constraints:
+        sha256_pinned: true
+        third_party_runtime_request: false
+assertions:
+- id: chat-awareness.consent.no-implicit-discovery
+  type: privacy
+  must: Without a chat mention in the current user-authored turn (or, once delivered, a live authoritative Project
+    focus), no other chat's metadata, summary, transcript, ranking result or search result is loaded, selected,
+    searched or placed in model context. The existing automatic recent-work/related-chat context obeys this rule;
+    anonymous, incognito and external requests never receive cross-chat awareness.
+  depends_on:
+  - models.ChatAwarenessGrant
+  - examples.implicit_discovery
+- id: chat-awareness.mention.specific-chat
+  type: behavior
+  must: The web @ menu lists the user's chats by locally decrypted title; choosing one inserts a chat chip. On send,
+    that chat's full metadata enters model context as delimited untrusted data, and the assistant may search only
+    that chat's transcript for this request. Deleted, inaccessible or the current chat itself cannot be selected.
+  depends_on:
+  - models.ChatAwarenessMention
+  - models.ChatMetadataRecord
+  - examples.specific_chat
+- id: chat-awareness.mention.related-chats
+  type: behavior
+  must: '@related-chats ranks the user''s chat metadata against the message on the device with the pinned multilingual
+    model, sends only a bounded shortlist of at most eight chats with full metadata, and grants search only within
+    that shortlist. A query in one language finds relevant chats whose metadata is in another supported language.'
+  depends_on:
+  - models.ChatAwarenessMention
+  - models.RankingModel
+  - examples.related_chats
+- id: chat-awareness.mention.all-chats
+  type: behavior
+  must: '@all-chats authorizes query-driven search across all of the user''s accessible chats for this request. The
+    device answers each assistant query with bounded matching metadata and excerpts; the full metadata catalogue
+    is never uploaded.'
+  depends_on:
+  - models.ChatAwarenessSearchResult
+  - examples.all_chats
+- id: chat-awareness.search.device-executed
+  type: privacy
+  must: Chat search runs on the owning device over locally decrypted data and returns at most eight bounded results.
+    The server only relays the request and result for the live grant; it gains no independent decryption rights or
+    raw chat keys, does not persist results beyond the request's existing transient context lifetime, and treats
+    results as untrusted data.
+  depends_on:
+  - models.ChatAwarenessSearchResult
+  - examples.device_search
+- id: chat-awareness.grant.binding
+  type: security
+  must: A grant exists only for structured mentions the user placed in the current composer turn and is bound to
+    the current user, request, source and destination chat. Mention-looking text that is quoted, pasted from history,
+    produced by the model, returned by tools or found inside another chat cannot create or widen a grant.
+  depends_on:
+  - models.ChatAwarenessGrant
+  - examples.grant_binding
+- id: chat-awareness.grant.fail-closed
+  type: security
+  must: Account, Team, Project-scope or destination changes, deletion of a granted chat, request cancellation, replay
+    of a finished or expired request, and device responses for a different request, device or expired grant all
+    yield no cross-chat data. The assistant reports that the chat could not be read instead of guessing.
+  depends_on:
+  - models.ChatAwarenessGrant
+  - examples.fail_closed
+- id: chat-awareness.privacy.search-confirmation
+  type: privacy
+  must: A privacy setting, off by default, requires the user to confirm before any explicit-mention transcript search
+    runs; declining or ignoring the prompt leaves metadata-only awareness. Transcript searches authorized only by
+    Project focus always require confirmation.
+  depends_on:
+  - models.ChatAwarenessGrant.transcript_search
+  - examples.search_confirmation
+- id: chat-awareness.ranking.local-model
+  type: behavior
+  must: Ranking uses the pinned model served as first-party, hash-verified static assets with no third-party runtime
+    request. First-use preparation of a few thousand chats completes within three seconds on a typical laptop
+    browser, and repeat ranking within a few hundred milliseconds. If the model cannot load, @related-chats fails
+    visibly rather than sending unranked chats.
+  depends_on:
+  - models.RankingModel
+  - examples.ranking_model
+- id: chat-awareness.project-focus.metadata-awareness
+  type: behavior
+  must: After the regular-chat slice is verified, a live authoritative Project focus gives automatic metadata awareness
+    of that Project's accessible chats only; other Projects and unscoped chats stay excluded. Ending the focus removes
+    future automatic access.
+  depends_on:
+  - models.ChatAwarenessGrant.source
+  - examples.project_focus
+- id: chat-awareness.voice.consent-canonicalization
+  type: security
+  must: Voice transcript correction (batch and streaming) turns only an explicit, final speaker request to consider
+    related or all chats into @related-chats or @all-chats. Negated, quoted, hypothetical, ambiguous or retracted
+    language does not, and a token in the corrected text that the raw transcript does not support cannot authorize
+    anything. The composer keeps the original transcript, corrected text and structured consent consistent through
+    editing, cancellation and submission.
+  depends_on:
+  - models.ChatAwarenessMention
+  - examples.voice_consent
+applies_to:
+  rest_api:
+    required: true
+    role: First-party WebSocket admission, context-phase and device search relay carry grants and bounded results;
+      no public API exposes other chats' plaintext.
+  cli:
+    required: false
+    parity: semantic
+    role: Later parity through the shared Rust mention and policy core.
+  sdks:
+    required: false
+    parity: semantic
+    implementations:
+      npm:
+        required: false
+      pip:
+        required: false
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web:
+        required: true
+        role: Chat mention discovery, chips, local ranking, device search, confirmation prompt and privacy setting.
+      apple:
+        required: false
+        role: Later parity after web verification.
+examples:
+  file: examples.yml
+  required_groups:
+  - implicit_discovery
+  - specific_chat
+  - related_chats
+  - all_chats
+  - device_search
+  - grant_binding
+  - fail_closed
+  - search_confirmation
+  - ranking_model
+  - project_focus
+  - voice_consent

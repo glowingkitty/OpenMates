@@ -518,10 +518,12 @@ async def test_focus_executor_uses_admitted_recent_work_authority_and_preserves_
     ipc = RecentWorkSummaryClient(base_url="http://runtime", token="service-token",
                                   transport=httpx.ASGITransport(app=app))
     request = AskSkillRequest.model_construct(user_id="owner", chat_id="current", message_id="turn",
-        recovery_inference_task_id=root, is_focus_mode_continuation=True, current_user_content="synthetic goal")
+        recovery_inference_task_id=root, is_focus_mode_continuation=True, current_user_content="synthetic goal",
+        active_project_focus={"project_id": "project-1"})
     assert await mark_response_summary_active(request, child, client=ipc)
     assert await ipc.write(owner_id="owner", chat_id="related", task_id="task-related", revision="related-r1",
-                           text="synthetic related summary", assistant_completed_at=time.time())
+                           text="synthetic related summary", assistant_completed_at=time.time(),
+                           project_id="project-1")
     assert await fetch_related_chat_summaries(request, child, None, None, client=ipc)
     await mint_response_summary_completion(request, child, client=ipc)
     assert request._recent_summary_completion_ticket

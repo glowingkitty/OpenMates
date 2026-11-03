@@ -395,12 +395,13 @@ assertions:
   - examples.memory_only_summary
 - id: chats.context.related-work-selection
   type: behavior
-  must: Select useful bounded authorized summaries from same-Project work and cross-Project active chats or chats
-    whose last assistant response completed within thirty minutes; include in-progress Tasks and blocked/done Tasks
-    meaningfully changed within thirty minutes. Prefer same-Project candidates without injecting all. Explicitly
-    linked dependencies remain eligible outside discovery freshness. Preserve source, status and revision/freshness;
-    navigation cannot manufacture activity. Selected cross-Project context does not activate another Project, expose
-    its full files/instructions or claim Tasks.
+  must: Select useful bounded authorized Task summaries, including in-progress Tasks and blocked/done Tasks meaningfully
+    changed within thirty minutes. Other chats' summaries are candidates only under a live authoritative Project focus,
+    limited to that Project's chats, or when the current turn explicitly grants them under feature.chat-awareness;
+    without such consent no other chat summary is read or selected. Prefer same-Project candidates without injecting
+    all. Explicitly linked dependencies remain eligible outside discovery freshness. Preserve source, status and
+    revision/freshness; navigation cannot manufacture activity. Selected context does not activate another Project,
+    expose its full files/instructions or claim Tasks.
   depends_on:
   - examples.related_work_selection
 - id: chats.direction.context-assessment

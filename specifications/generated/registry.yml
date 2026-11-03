@@ -512,6 +512,14 @@ specifications:
     - sdks.npm
     - sdks.pip
     - gui.web
+  feature.chat-awareness:
+    version: 1
+    status: draft
+    path: features/chat-awareness
+    fingerprint: 6c13e044cfe5cefe3bab4568ddf563e91569ed774bc9a7a0d37c60a169b65d5b
+    required_applies_to:
+    - rest_api
+    - gui.web
   feature.chat-message-timeline:
     version: 1
     status: draft
@@ -570,7 +578,7 @@ specifications:
     version: 7
     status: draft
     path: features/chats
-    fingerprint: e58c7bef0ee4b0671204b8ee356b889bd84567f245bfd1b7c6675763a11e9933
+    fingerprint: 659267dd53fe09460570f606aa402859199126c23cc796c1153440aaca3019f3
     required_applies_to:
     - cli
     - gui.web
@@ -6785,6 +6793,94 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+  chat-awareness.consent.no-implicit-discovery:
+    specification: feature.chat-awareness@1
+    specification_id: feature.chat-awareness
+    type: privacy
+    fingerprint: 95df6d6650f397806eca59d24a74df8568a8a31325cc9bac84b31e9a5e08a174
+    required_applies_to:
+    - rest_api
+    - gui.web
+  chat-awareness.mention.specific-chat:
+    specification: feature.chat-awareness@1
+    specification_id: feature.chat-awareness
+    type: behavior
+    fingerprint: 219108e824de2f5ce2b34d27846177904be889dde8ceeb88ae6e7d125a1f1e79
+    required_applies_to:
+    - rest_api
+    - gui.web
+  chat-awareness.mention.related-chats:
+    specification: feature.chat-awareness@1
+    specification_id: feature.chat-awareness
+    type: behavior
+    fingerprint: 0d56633bf0a3a6d49c71a9e7b6ee56b7e06e27c636177390d3f1a7d749664916
+    required_applies_to:
+    - rest_api
+    - gui.web
+  chat-awareness.mention.all-chats:
+    specification: feature.chat-awareness@1
+    specification_id: feature.chat-awareness
+    type: behavior
+    fingerprint: f7c6ac1ed908189410cc58b7353c7931449d019f1b102e8db0a4fe01f66c7392
+    required_applies_to:
+    - rest_api
+    - gui.web
+  chat-awareness.search.device-executed:
+    specification: feature.chat-awareness@1
+    specification_id: feature.chat-awareness
+    type: privacy
+    fingerprint: 8d39a42f46c5278fd7f45dc0ae2d3bcd092d40b757fc1b1ecfd3f5db46f00a9c
+    required_applies_to:
+    - rest_api
+    - gui.web
+  chat-awareness.grant.binding:
+    specification: feature.chat-awareness@1
+    specification_id: feature.chat-awareness
+    type: security
+    fingerprint: 0f4b0211d4ce1d28e3c0d5611c4ddde574f54997c1865354f117024fcc04a621
+    required_applies_to:
+    - rest_api
+    - gui.web
+  chat-awareness.grant.fail-closed:
+    specification: feature.chat-awareness@1
+    specification_id: feature.chat-awareness
+    type: security
+    fingerprint: de386586c6bb306909e6573b4b81a1e2d4dac0465120c21ad74ce95b2bb40ffe
+    required_applies_to:
+    - rest_api
+    - gui.web
+  chat-awareness.privacy.search-confirmation:
+    specification: feature.chat-awareness@1
+    specification_id: feature.chat-awareness
+    type: privacy
+    fingerprint: abfc76620f45a58548587c73d025570ca6b9e8755d4e372079e7204687722c77
+    required_applies_to:
+    - rest_api
+    - gui.web
+  chat-awareness.ranking.local-model:
+    specification: feature.chat-awareness@1
+    specification_id: feature.chat-awareness
+    type: behavior
+    fingerprint: 73487025e2ddd68da74da83673d5333f9aaca58821cbe5e3086738bd2d35d576
+    required_applies_to:
+    - rest_api
+    - gui.web
+  chat-awareness.project-focus.metadata-awareness:
+    specification: feature.chat-awareness@1
+    specification_id: feature.chat-awareness
+    type: behavior
+    fingerprint: 7552c2419c4203e2cb6f3afad8c56e95783e978239a5c670070197df46294d5b
+    required_applies_to:
+    - rest_api
+    - gui.web
+  chat-awareness.voice.consent-canonicalization:
+    specification: feature.chat-awareness@1
+    specification_id: feature.chat-awareness
+    type: security
+    fingerprint: 923715566ed0c7398506c4c68e6e3ddd404068b80fe05f14236f1dacbf6f040a
+    required_applies_to:
+    - rest_api
+    - gui.web
   chat-message-timeline.visibility-and-spacing:
     specification: feature.chat-message-timeline@1
     specification_id: feature.chat-message-timeline
@@ -7282,7 +7378,7 @@ assertions:
     specification: feature.chats@7
     specification_id: feature.chats
     type: parity
-    fingerprint: 868c3723b40c641471ea4222f2c92809cc82852d0198bfae7513b52e6b4cfa28
+    fingerprint: 91755d09d45f56bd0cfe13fdf5072dee6419d8a41652b4ea3cd910d252d806bd
     required_applies_to:
     - cli
     - gui.web
@@ -7300,7 +7396,7 @@ assertions:
     specification: feature.chats@7
     specification_id: feature.chats
     type: behavior
-    fingerprint: bcc88c967f886f729d7d206ba5ae39075e1940dad29315badee497c2cfd0f076
+    fingerprint: 58b1c2be503aa9b7acf022d56386d1a87a7b5131e6abc9f912165a8cc902290c
     required_applies_to:
     - cli
     - gui.web

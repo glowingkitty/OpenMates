@@ -145,10 +145,49 @@ async def test_chat_discovery_uses_api_memory_index_without_worker_chat_scan():
             calls.append(kwargs)
             return []
 
-    request = SimpleNamespace(user_id="owner", chat_id="current", current_project={"id": "project"})
+    request = SimpleNamespace(user_id="owner", chat_id="current", current_project={"id": "project"},
+                              active_project_focus={"project_id": "project"})
     assert await related_work.fetch_related_chat_summaries(request, "task", object(), Directus(), client=Client()) == []
     assert "authorized_chat_ids" not in calls[0]
     assert calls[0]["current_project_id"] == "project"
+
+
+def _summary(chat_id, project_id):
+    from backend.shared.python_utils.recent_work_summary_cache import RecentChatSummary, SummarySource
+    return RecentChatSummary(SummarySource("owner", chat_id, project_id, "r1", 1.0, None, False, 10**12), "synthetic")
+
+
+# contract-test: supporting surface=cli assertions=chat-awareness.consent.no-implicit-discovery,chats.context.related-work-selection
+@pytest.mark.asyncio
+@pytest.mark.parametrize("request_fields", [
+    {},
+    {"current_project": {"id": "project", "project_id": "project"}},
+    {"active_project_focus": None},
+    {"active_project_focus": {"project_id": ""}},
+    {"active_project_focus": {"project_id": "project"}, "is_incognito": True},
+    {"active_project_focus": {"project_id": "project"}, "is_external": True},
+])
+async def test_regular_chat_never_reads_other_chat_summaries_without_live_project_focus(request_fields):
+    class Client:
+        async def read(self, **kwargs):
+            pytest.fail("Other chats' summaries must not be read without consent or live Project focus")
+
+    request = SimpleNamespace(user_id="owner", chat_id="current", **request_fields)
+    assert await related_work.fetch_related_chat_summaries(request, "task", object(), object(), client=Client()) == []
+
+
+# contract-test: supporting surface=cli assertions=chat-awareness.consent.no-implicit-discovery,chats.context.related-work-selection
+@pytest.mark.asyncio
+async def test_live_project_focus_reads_only_that_projects_chat_summaries():
+    class Client:
+        async def read(self, **kwargs):
+            assert kwargs["current_project_id"] == "socialhub"
+            return [_summary("same", "socialhub"), _summary("other", "garden"), _summary("unscoped", None)]
+
+    request = SimpleNamespace(user_id="owner", chat_id="current", current_project={"project_id": "garden"},
+                              active_project_focus={"project_id": "socialhub"})
+    result = await related_work.fetch_related_chat_summaries(request, "task", object(), object(), client=Client())
+    assert [item.source.chat_id for item in result] == ["same"]
 
 
 @pytest.mark.asyncio

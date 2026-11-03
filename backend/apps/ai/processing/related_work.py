@@ -26,6 +26,10 @@ async def fetch_related_chat_summaries(
 ) -> list[RecentChatSummary]:
     """Read transient summaries from the API's owner-scoped memory index.
 
+    Cross-chat awareness is consent-scoped (feature.chat-awareness): without an
+    explicit chat grant, other chats' summaries are readable only under the
+    server-authoritative live Project focus and only for that Project's chats.
+    Client-supplied ``current_project`` routing metadata is never consent.
     The API revalidates current source ownership/Team access before decryption;
     discovering candidates here must not scan durable chats or renew activity.
     """
@@ -33,16 +37,18 @@ async def fetch_related_chat_summaries(
         return []
     owner_id = getattr(request, "user_id", None)
     chat_id = getattr(request, "chat_id", None)
-    if not owner_id or not chat_id or not task_id:
+    focus = getattr(request, "active_project_focus", None)
+    focus_project_id = focus.get("project_id") if isinstance(focus, dict) else None
+    if not owner_id or not chat_id or not task_id or not isinstance(focus_project_id, str) or not focus_project_id:
         return []
     try:
-        project = getattr(request, "current_project", None) or {}
-        return await (client or RecentWorkSummaryClient()).read(
+        summaries = await (client or RecentWorkSummaryClient()).read(
             owner_id=owner_id, current_chat_id=chat_id, task_id=recent_work_authority_task_id(request, task_id),
-            current_project_id=project.get("id") or project.get("project_id"),
+            current_project_id=focus_project_id,
         )
     except Exception:
         return []
+    return [summary for summary in summaries if summary.source.project_id == focus_project_id]
 
 
 async def fetch_related_task_candidates(

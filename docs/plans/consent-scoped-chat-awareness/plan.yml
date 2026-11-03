@@ -1,0 +1,74 @@
+schema_version: 2
+profile: concise
+id: consent-scoped-chat-awareness
+title: Consent-Scoped Cross-Chat Awareness
+status: implementing
+
+goal: >
+  Deliver consent-scoped cross-chat awareness, regular chats first: the assistant
+  sees other chats' metadata or transcripts only through an explicit specific-chat,
+  @related-chats or @all-chats mention (or later a live authoritative Project
+  focus), with local multilingual ranking and device-executed search, and the
+  existing automatic recent-work disclosure obeys the same policy. Regular chats
+  are verified before Project-focus awareness; cross-chat messaging stays deferred.
+
+specification_refs:
+  - id: feature.chat-awareness
+    version: 1
+    role: primary
+    fingerprint: 6c13e044cfe5cefe3bab4568ddf563e91569ed774bc9a7a0d37c60a169b65d5b
+  - id: feature.chats
+    version: 7
+    role: amended
+    fingerprint: 659267dd53fe09460570f606aa402859199126c23cc796c1153440aaca3019f3
+
+scope:
+  in:
+    - Slice 1 (TASK-4644) - server gate so automatic recent-work context reads other chats' summaries only under the
+      server-authoritative live Project focus and only for that Project's chats; regular, incognito and external
+      requests read none.
+    - Slice 2 (TASK-6585) - web chat mentions, Rust/WASM policy, tokenizer and static-embedding ranking, pinned
+      first-party model assets, request-bound grants, device-executed bounded search relay, privacy confirmation setting.
+    - Slice 3 (TASK-2779) - voice transcript consent canonicalization and composer chip consistency.
+    - Slice 4 (TASK-7480) - automatic same-Project metadata awareness under live Project focus.
+  out:
+    - Cross-chat messaging or writes into another chat.
+    - Uploading full metadata catalogues or transcripts for server-side ranking or search.
+    - Server-side decryption rights or raw chat-key transfer.
+    - CLI, SDK and Apple parity before the web slice is verified.
+
+decisions:
+  - id: wait-for-rust-web-core
+    date: 2026-11-03
+    decision: The web slice waits for TASK-9558 to ship the default Rust/WASM web core instead of a separately
+      prebuilt WASM module or a TypeScript mirror. The user chose this when asked in the Claude session.
+  - id: gate-at-single-read
+    decision: All automatic chat-summary reads go through related_work.fetch_related_chat_summaries (preprocessor
+      Stage two and main-processor agentic context), so the consent gate lives there and uses only the
+      server-authoritative active_project_focus; client current_project routing metadata is never consent.
+  - id: model-delivery
+    decision: Follow the PII runtime precedent (frontend/apps/web_app/scripts/prepare-pii-runtime.mjs) for pinned,
+      hash-verified, first-party-served model files; no runtime Hugging Face requests.
+  - id: device-search-transport
+    decision: Reuse the server-to-device request pattern of project_file_operation_request and the request-bound
+      client-context binding (client_context_continuation.py) for chat search; results are untrusted bounded data.
+
+checks:
+  - id: unit-gate
+    required: true
+    command: backend/tests/test_related_work.py backend/tests/test_recent_work_summary_cache.py (repo .venv pytest)
+    proves: [chat-awareness.consent.no-implicit-discovery, chats.context.related-work-selection]
+  - id: ci-recent-work-boundaries
+    required: true
+    command: isolated GitHub CI frontend/apps/web_app/tests/jev-project-context-api.spec.ts
+    proves: [chats.context.memory-only-summary]
+  - id: dev-real-ai-canary
+    required: true
+    command: scripts/chat_awareness_real_test.py --personal-dev-test-account --allow-paid-dev-inference plus dev
+      worker log check that a regular-chat probe issues no /internal/recent-work/read
+    proves: [chat-awareness.consent.no-implicit-discovery]
+
+evidence:
+  - date: 2026-11-03
+    note: Pre-fix control on dev runtime c264490d answered UNKNOWN (no leak) but its regular-chat probe still issued
+      /internal/recent-work/read, so the log check, not the model answer, distinguishes fixed behavior.
