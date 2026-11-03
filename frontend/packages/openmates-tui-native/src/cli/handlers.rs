@@ -49,6 +49,7 @@ fn supported(invocation: &Invocation) -> bool {
         || super::context::supported(invocation)
         || super::docs::is_public(invocation)
         || super::parity_extras::supported(invocation)
+        || super::utility::supported(invocation)
         || matches!(
             invocation.command_path().as_str(),
             "wiki search" | "wiki show"
@@ -90,6 +91,7 @@ pub fn requirements(invocation: &Invocation) -> Requirements {
 pub fn execute_public(invocation: &Invocation) -> Option<Result<CliOutput, CliError>> {
     if invocation.command_path()=="embeds share" { if let Some(result)=super::embed_share::preflight(invocation){return Some(result);} }
     if let Some(output) = super::apps_run::public(invocation) { return Some(output); }
+    if let Some(output) = super::utility::public(invocation) { return Some(output); }
     if let Some(output) = super::group_help::public(invocation) { return Some(output); }
     if let Some(output) = super::drafts::public(invocation) { return Some(output); }
     if let Some(help) = super::docs::public_help(invocation) {
@@ -1055,6 +1057,7 @@ async fn execute_context_with_inventory(
     if super::parity_extras::supported(invocation) {
         return Box::pin(super::parity_extras::execute(invocation, client)).await;
     }
+    if super::utility::supported(invocation) { return Box::pin(super::utility::execute(invocation, client)).await; }
     if super::account::supported(invocation) {
         return Box::pin(super::account::execute(invocation, client)).await;
     }

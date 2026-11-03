@@ -329,6 +329,212 @@ impl Account<'_> {
     }
 }
 
+/// npm decryptConnectedAccountField: AES-GCM "combined" text, JSON when it
+/// parses, otherwise the plaintext; undecryptable or absent fields are null.
+pub(crate) fn decrypt_field(value: &Value, master: &[u8; 32]) -> Value {
+    let Some(text) = value.as_str().filter(|v| !v.is_empty()) else {
+        return Value::Null;
+    };
+    match crypto::decrypt_combined(text, master) {
+        Ok(plain) => serde_json::from_str(&plain).unwrap_or(Value::String(plain)),
+        Err(_) => Value::Null,
+    }
+}
+fn string_array(value: &Value) -> Vec<String> {
+    let mut out: Vec<String> = vec![];
+    for item in value.as_array().into_iter().flatten() {
+        let text = match item {
+            Value::String(s) => s.trim().to_owned(),
+            other => other.to_string(),
+        };
+        if !text.is_empty() && !out.contains(&text) {
+            out.push(text);
+        }
+    }
+    out
+}
+/// One encrypted connected-account row decrypted for a skill run (npm
+/// decryptConnectedAccountForSkill candidate). `None` when it belongs to a
+/// different provider or App. Missing refresh-token material is an error.
+pub fn skill_account_candidate(
+    row: &Value,
+    app_id: &str,
+    provider_id: &str,
+    master: &[u8; 32],
+) -> Result<Option<Value>> {
+    let id = match &row["id"] {
+        Value::String(s) => s.clone(),
+        Value::Null => String::new(),
+        other => other.to_string(),
+    };
+    let provider = match decrypt_field(&row["encrypted_provider_type"], master) {
+        Value::String(s) => s,
+        Value::Null => "null".into(),
+        other => other.to_string(),
+    };
+    if provider != provider_id {
+        return Ok(None);
+    }
+    let permissions = decrypt_field(&row["encrypted_app_permissions"], master);
+    let app = if permissions.is_object() {
+        match &permissions["app_id"] {
+            Value::Null => app_id.to_owned(),
+            Value::String(s) => s.clone(),
+            other => other.to_string(),
+        }
+    } else {
+        app_id.to_owned()
+    };
+    if app != app_id {
+        return Ok(None);
+    }
+    let label = match decrypt_field(&row["encrypted_account_label"], master) {
+        Value::String(s) => s,
+        Value::Null => provider.clone(),
+        other => other.to_string(),
+    };
+    let mut capabilities = string_array(&decrypt_field(&row["encrypted_capabilities"], master));
+    if capabilities.is_empty() {
+        capabilities.push("read".into());
+    }
+    let hint = decrypt_field(&row["encrypted_account_directory_hint"], master);
+    let account_ref = match &hint["account_ref"] {
+        Value::Null => id.clone(),
+        Value::String(s) => s.clone(),
+        other => other.to_string(),
+    };
+    let runtime_modes = if hint["runtime_modes"].is_object() {
+        hint["runtime_modes"].clone()
+    } else {
+        json!({"read":"allow_automatically"})
+    };
+    let bundle = decrypt_field(&row["encrypted_refresh_token_bundle"], master);
+    if !bundle.is_object() {
+        return Err(Error::Invalid(
+            "Connected account is missing encrypted refresh-token material.",
+        ));
+    }
+    Ok(Some(json!({"id":id,"provider_id":provider,"app_id":app,"label":label,
+        "account_ref":account_ref,"capabilities":capabilities,"runtime_modes":runtime_modes,
+        "refresh_token_bundle":bundle})))
+}
+fn path_segment(value: &str) -> Result<&str> {
+    if value.is_empty()
+        || !value
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_'))
+    {
+        return Err(Error::Invalid("Invalid App or skill identifier."));
+    }
+    Ok(value)
+}
+
+impl Account<'_> {
+    /// npm importConnectedAccountPayload(payload, {skipValidation:true}):
+    /// encrypt an already server-validated payload and store it.
+    pub async fn store_validated_connected_account(&mut self, payload: &Value) -> Result<Value> {
+        self.client.require_session()?;
+        let user = self.profile().await?;
+        let user_id = user["id"]
+            .as_str()
+            .or(user["user_id"].as_str())
+            .filter(|v| !v.is_empty())
+            .ok_or(Error::Invalid(
+                "Could not resolve current user id for connected account import.",
+            ))?
+            .to_owned();
+        let master = self.client.require_session()?.master_key.clone();
+        let row = import_row(payload, &user_id, &master)?;
+        assert_no_secret(&row)?;
+        let stored = self
+            .client
+            .request(Method::POST, "/v1/connected-accounts", Some(row))
+            .await?;
+        let id = stored["id"]
+            .as_str()
+            .filter(|v| !v.is_empty())
+            .ok_or(Error::Protocol)?;
+        Ok(json!({"id":id,"provider_id":payload["provider_id"],"app_id":payload["app_id"],"label":payload["label"]}))
+    }
+    /// POST /v1/connected-accounts/setup/revolut-business/exchange-code.
+    pub async fn exchange_revolut_business_setup_code(
+        &mut self,
+        client_id: &str,
+        code: &str,
+        private_key_pem: &str,
+        production: bool,
+        redirect_uri: &str,
+    ) -> Result<Value> {
+        self.client.require_session()?;
+        let result = self
+            .client
+            .request(
+                Method::POST,
+                "/v1/connected-accounts/setup/revolut-business/exchange-code",
+                Some(json!({"client_id":client_id,"code":code,"private_key_pem":private_key_pem,
+                    "environment":if production {"production"} else {"sandbox"},"redirect_uri":redirect_uri})),
+            )
+            .await?;
+        if result["provider_id"] != "revolut_business" {
+            return Err(Error::Invalid("Revolut Business setup exchange failed."));
+        }
+        Ok(result)
+    }
+    /// Public egress IPs Revolut must whitelist; `None` when unavailable.
+    pub async fn revolut_business_server_egress_ip(&mut self) -> Option<Value> {
+        self.client
+            .request(
+                Method::GET,
+                "/v1/connected-accounts/setup/revolut-business/server-egress-ip",
+                None,
+            )
+            .await
+            .ok()
+    }
+    /// Decrypted connected accounts for one App/provider (npm
+    /// decryptConnectedAccountForSkill candidates, before selection).
+    pub async fn connected_accounts_for_skill(
+        &mut self,
+        account_id: Option<&str>,
+        app_id: &str,
+        provider_id: &str,
+    ) -> Result<Vec<Value>> {
+        self.client.require_session()?;
+        let listed = self
+            .client
+            .request(Method::GET, "/v1/connected-accounts", None)
+            .await?;
+        let rows = listed["rows"].as_array().ok_or(Error::Protocol)?.clone();
+        let master = self.client.require_session()?.master_key.clone();
+        let mut out = vec![];
+        for row in &rows {
+            if account_id.is_some_and(|wanted| row["id"].as_str() != Some(wanted)) {
+                continue;
+            }
+            if let Some(candidate) = skill_account_candidate(row, app_id, provider_id, &master)? {
+                out.push(candidate);
+            }
+        }
+        Ok(out)
+    }
+    /// POST /v1/sdk/connected-account-skills/{app}/{skill}: the server-mediated
+    /// skill run with short-lived connected-account token refs.
+    pub async fn run_connected_account_skill(
+        &mut self,
+        app_id: &str,
+        skill_id: &str,
+        body: Value,
+    ) -> Result<Value> {
+        self.client.require_session()?;
+        let route = format!(
+            "/v1/sdk/connected-account-skills/{}/{}",
+            path_segment(app_id)?,
+            path_segment(skill_id)?
+        );
+        self.client.request(Method::POST, &route, Some(body)).await
+    }
+}
+
 #[cfg(test)]
 #[path = "connected_accounts_tests.rs"]
 mod tests;

@@ -11,6 +11,7 @@ CRATE = Path("frontend/packages/openmates-tui-native")
 TEMPLATES = Path("frontend/packages/openmates-cli/templates")
 FILES = {
     "assets/cli-command-catalog.json": "config/cli-command-catalog.json",
+    "assets/example-chat-index.json": "config/cli-example-chat-index.json",
     "assets/selfhost/core/docker-compose.no-webapp.yml": "backend/core/docker-compose.no-webapp.yml",
     "assets/licenses/legacy-cli-MIT.txt": "frontend/packages/openmates-cli/LICENSE",
     "LICENSE": "frontend/packages/openmates-cli/LICENSE",

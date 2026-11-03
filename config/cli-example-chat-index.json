@@ -1,0 +1,329 @@
+{
+  "schema_version": 1,
+  "chats": [
+    {
+      "id": "example-gigantic-airplanes",
+      "slug": "gigantic-airplanes-transporting-rocket-parts",
+      "title": "Gigantic airplanes for transporting rocket and airplane parts",
+      "summary": "Discussed specialized cargo aircraft like the An-225, Super Guppy, and BelugaXL used to transport rocket and airplane parts.",
+      "updated_at": 1775947248,
+      "category": "general_knowledge",
+      "app_skill_examples": [
+        "images.search",
+        "web.search"
+      ]
+    },
+    {
+      "id": "example-building-maintenance-email",
+      "slug": "building-maintenance-email-private-details",
+      "title": "Drafting a maintenance email with private details protected",
+      "summary": "OpenMates turns a tenant's broken-heater request into a professional email while keeping email addresses and phone numbers hidden behind private-detail placeholders.",
+      "updated_at": 1779276859,
+      "category": "general_knowledge",
+      "app_skill_examples": [
+        "mail.search"
+      ]
+    },
+    {
+      "id": "example-right-to-repair-laws",
+      "slug": "right-to-repair-laws-eu-us",
+      "title": "Right-to-Repair Laws in the EU and US",
+      "summary": "OpenMates searches recent news and expert commentary about right-to-repair laws in the EU and US, then links exact source quotes back to the connected source embed.",
+      "updated_at": null,
+      "category": "legal_law",
+      "app_skill_examples": [
+        "news.search"
+      ]
+    },
+    {
+      "id": "example-berlin-weather-bike-commute",
+      "slug": "berlin-weather-bike-commute",
+      "title": "Berlin Weather and Bike Commute Advice",
+      "summary": "Check Berlin's upcoming forecast and get practical clothing and cycling advice.",
+      "updated_at": null,
+      "category": "general_knowledge",
+      "app_skill_examples": [
+        "weather.forecast"
+      ]
+    },
+    {
+      "id": "example-rag-explained-videos",
+      "slug": "rag-explained-videos",
+      "title": "RAG Explained for Beginners",
+      "summary": "Find beginner-friendly videos about retrieval augmented generation and choose the best first watch.",
+      "updated_at": null,
+      "category": "software_development",
+      "app_skill_examples": [
+        "videos.search"
+      ]
+    },
+    {
+      "id": "example-rust-vector-database-repos",
+      "slug": "rust-vector-database-repos",
+      "title": "Rust Vector Database Repos",
+      "summary": "Find and compare active open-source Rust repositories for self-hosted vector databases.",
+      "updated_at": null,
+      "category": "software_development",
+      "app_skill_examples": [
+        "code.search_repos"
+      ]
+    },
+    {
+      "id": "example-svelte-runes-docs",
+      "slug": "svelte-runes-docs",
+      "title": "Svelte Runes Docs",
+      "summary": "Find Svelte 5 documentation for $state and $derived, then explain usage with a component example.",
+      "updated_at": null,
+      "category": "software_development",
+      "app_skill_examples": [
+        "code.get_docs"
+      ]
+    },
+    {
+      "id": "example-balcony-plant-reminder",
+      "slug": "balcony-plant-reminder",
+      "title": "Balcony Plant Reminder",
+      "summary": "Set a simple reminder to water balcony plants at a specific time.",
+      "updated_at": null,
+      "category": "general_knowledge",
+      "app_skill_examples": [
+        "reminder.set-reminder"
+      ]
+    },
+    {
+      "id": "example-housing-policy-dinner-discussion",
+      "slug": "housing-policy-dinner-discussion",
+      "title": "Prepare for a housing policy dinner discussion",
+      "summary": "Prepare for a calm family discussion about housing policy and rent control, starting with questions about the local context and each person’s goals.",
+      "updated_at": null,
+      "category": "activism",
+      "app_skill_examples": []
+    },
+    {
+      "id": "example-habit-garden-web-application",
+      "slug": "habit-garden-web-application",
+      "title": "Create an Interactive Svelte Habit Garden",
+      "summary": "Sophia builds a three-card habit garden with filtering, habit selection, a streak counter and a real application screenshot.",
+      "updated_at": null,
+      "category": "software_development",
+      "app_skill_examples": []
+    },
+    {
+      "id": "example-dashboard-sidebar-svg-icons",
+      "slug": "dashboard-sidebar-svg-icons",
+      "title": "Dashboard Sidebar SVG Icons",
+      "summary": "Find clean open-source SVG home and settings icons for a dashboard sidebar, with canonical names, collections, and licenses.",
+      "updated_at": null,
+      "category": "design",
+      "app_skill_examples": [
+        "design.search_icons"
+      ]
+    },
+    {
+      "id": "example-vital-farms-sec-financials",
+      "slug": "vital-farms-sec-financials",
+      "title": "Vital Farms SEC Financials",
+      "summary": "A Business app example that retrieves Vital Farms annual financials from official SEC EDGAR filings.",
+      "updated_at": null,
+      "category": "business_development",
+      "app_skill_examples": [
+        "business.company_financials"
+      ]
+    },
+    {
+      "id": "example-finance-cash-flow-overview",
+      "slug": "finance-cash-flow-overview",
+      "title": "Summarize recent business finances",
+      "summary": "Review recent Revolut Business account activity, income, expenses, net cash flow, and category trends with the Finance app.",
+      "updated_at": 1784657170,
+      "category": "finance",
+      "app_skill_examples": [
+        "finance.check_accounts"
+      ]
+    },
+    {
+      "id": "example-screenshot-to-html-pricing",
+      "slug": "screenshot-to-html-pricing-card",
+      "title": "Screenshot to HTML pricing card",
+      "summary": "Watch OpenMates turn a pricing-card screenshot into a standalone inline HTML code embed with visual QA metadata.",
+      "updated_at": null,
+      "category": "design",
+      "app_skill_examples": [
+        "code.image_to_html"
+      ]
+    },
+    {
+      "id": "example-berlin-mitte-work-friendly",
+      "slug": "berlin-mitte-work-friendly-restaurants",
+      "title": "Berlin Mitte Work-Friendly Restaurants Map",
+      "summary": "A real OpenMates Maps chat comparing Berlin Mitte places for air conditioning and free Wi-Fi, with verified-versus-unknown amenity notes.",
+      "updated_at": null,
+      "category": "general_knowledge",
+      "app_skill_examples": [
+        "maps.search"
+      ]
+    },
+    {
+      "id": "example-private-plumber-email",
+      "slug": "private-plumber-email",
+      "title": "Draft a plumber email privately",
+      "summary": "Draft a friendly repair enquiry while keeping your email address and phone number hidden from the AI.",
+      "updated_at": null,
+      "category": "maker_prototyping",
+      "app_skill_examples": []
+    },
+    {
+      "id": "example-damped-sine-decay-plot",
+      "slug": "damped-sine-decay-plot",
+      "title": "Damped Sine Wave and Its Envelopes",
+      "summary": "Plot a damped sine wave with its upper and lower envelopes, then understand how the oscillation fades.",
+      "updated_at": null,
+      "category": "science",
+      "app_skill_examples": []
+    },
+    {
+      "id": "example-community-garden-planning-mindmap",
+      "slug": "community-garden-planning-mindmap",
+      "title": "Community Garden Planning Mind Map",
+      "summary": "Map the volunteers, planting, budget, and events needed to launch a community garden.",
+      "updated_at": null,
+      "category": "general_knowledge",
+      "app_skill_examples": []
+    },
+    {
+      "id": "example-community-garden-volunteer-onboarding",
+      "slug": "community-garden-volunteer-onboarding",
+      "title": "Community Garden Volunteer Onboarding",
+      "summary": "Create a shareable one-page volunteer guide with first-day tasks, safety basics, and help contacts.",
+      "updated_at": null,
+      "category": "business_development",
+      "app_skill_examples": []
+    },
+    {
+      "id": "example-books-after-left-hand",
+      "slug": "books-after-left-hand-of-darkness",
+      "title": "Books to Read After The Left Hand of Darkness",
+      "summary": "Four thoughtful science fiction recommendations for readers who loved Le Guin’s worldbuilding and social questions.",
+      "updated_at": null,
+      "category": "general_knowledge",
+      "app_skill_examples": []
+    },
+    {
+      "id": "example-mastodon-public-post-themes",
+      "slug": "mastodon-public-post-themes",
+      "title": "Official Mastodon Account Post Summary",
+      "summary": "Summarized recent public posts from the official Mastodon account, covering Mastodon 5.0, governance, ecosystem spotlights, team updates, and merchandise.",
+      "updated_at": null,
+      "category": "general_knowledge",
+      "app_skill_examples": [
+        "social_media.get-posts"
+      ]
+    },
+    {
+      "id": "example-adjacent-career-portfolio-experiments",
+      "slug": "adjacent-career-portfolio-experiments",
+      "title": "Test Two Career Paths from Customer Support",
+      "summary": "Compare technical writing and support operations with practical one-month portfolio experiments and interview questions.",
+      "updated_at": null,
+      "category": "life_coach_psychology",
+      "app_skill_examples": []
+    },
+    {
+      "id": "example-net-cash-from-supplied",
+      "slug": "net-cash-from-supplied-balances",
+      "title": "Net Cash from Supplied Balances",
+      "summary": "Calculate net cash from three balances provided by the user and explain checking, savings, and credit card debt.",
+      "updated_at": null,
+      "category": "finance",
+      "app_skill_examples": [
+        "math.calculate"
+      ]
+    },
+    {
+      "id": "example-community-garden-welcome-melody",
+      "slug": "community-garden-welcome-melody",
+      "title": "Create a gentle community garden welcome melody",
+      "summary": "Generate a short instrumental melody for a community garden welcome video, with a warm acoustic sound and no vocals.",
+      "updated_at": null,
+      "category": "general_knowledge",
+      "app_skill_examples": [
+        "music.generate"
+      ]
+    },
+    {
+      "id": "example-community-garden-sunflower-illustration",
+      "slug": "community-garden-sunflower-illustration",
+      "title": "Sunflower Botanical Illustration for Garden Handout",
+      "summary": "Created a warm botanical illustration of a sunflower for a community garden handout with design suggestions.",
+      "updated_at": null,
+      "category": "design",
+      "app_skill_examples": [
+        "images.generate"
+      ]
+    },
+    {
+      "id": "example-community-garden-budget-review",
+      "slug": "community-garden-budget-review",
+      "title": "Review a community garden budget PDF",
+      "summary": "Read a fictional budget to compare expenses, funding, and likely missing costs.",
+      "updated_at": null,
+      "category": "finance",
+      "app_skill_examples": [
+        "pdf.read"
+      ]
+    },
+    {
+      "id": "example-community-garden-volunteer-chime",
+      "slug": "community-garden-volunteer-chime",
+      "title": "Community Garden Notification Sound Design",
+      "summary": "Created a gentle two-note wooden chime sound effect for a community garden volunteer sign-up notification.",
+      "updated_at": null,
+      "category": "general_knowledge",
+      "app_skill_examples": [
+        "audio.generate"
+      ]
+    },
+    {
+      "id": "example-online-shop-checkout-flow",
+      "slug": "online-shop-checkout-flow-diagram",
+      "title": "Online Shop Checkout Flow Diagram",
+      "summary": "An editable checkout flowchart with payment retry and order confirmation.",
+      "updated_at": null,
+      "category": "design",
+      "app_skill_examples": []
+    },
+    {
+      "id": "example-vegetarian-recipes-from-fridge",
+      "slug": "vegetarian-recipes-from-fridge-vegetables",
+      "title": "Vegetarian Recipe Ideas with Fridge Staples",
+      "summary": "User asked for vegetarian recipe ideas using spinach, carrots, bell peppers, and chickpeas; assistant provided three options.",
+      "updated_at": null,
+      "category": "cooking_food",
+      "app_skill_examples": [
+        "nutrition.search_recipes"
+      ]
+    },
+    {
+      "id": "example-browse-example-domain",
+      "slug": "browse-example-domain",
+      "title": "Extract website information as JSON",
+      "summary": "Browse Example Domain and return its complete statement with a source URL as structured JSON.",
+      "updated_at": null,
+      "category": "general_knowledge",
+      "app_skill_examples": [
+        "web.browse"
+      ]
+    },
+    {
+      "id": "example-browse-heading-json",
+      "slug": "browse-heading-json",
+      "title": "Read a web page with Browse",
+      "summary": "Use a browser to find a page heading and return the result with its source URL as JSON.",
+      "updated_at": null,
+      "category": "general_knowledge",
+      "app_skill_examples": [
+        "web.browse"
+      ]
+    }
+  ]
+}

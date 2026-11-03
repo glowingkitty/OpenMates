@@ -9,7 +9,12 @@
     {
       "path": "assets/cli-command-catalog.json",
       "source": "config/cli-command-catalog.json",
-      "sha256": "8cf990d463f0bc210140a660b0a5f4fc8aad45e76be09afda04c440d00c359e2"
+      "sha256": "7158809a734524b313ee85b70dcb2af4dd48e33d2528cc63570850717f414372"
+    },
+    {
+      "path": "assets/example-chat-index.json",
+      "source": "config/cli-example-chat-index.json",
+      "sha256": "6359504ab78ef48a86e54064c1df21e3c71e4af4f0c0668d910c5dacdf411220"
     },
     {
       "path": "assets/licenses/legacy-cli-MIT.txt",

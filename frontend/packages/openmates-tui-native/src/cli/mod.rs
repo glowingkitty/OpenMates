@@ -34,6 +34,7 @@ mod plans;
 mod projects;
 mod send;
 pub mod signup;
+mod utility;
 pub use send::execute_anonymous;
 mod task_input;
 pub(crate) mod task_queue;

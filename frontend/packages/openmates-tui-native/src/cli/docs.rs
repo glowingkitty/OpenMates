@@ -20,6 +20,7 @@ pub fn is_public(i: &Invocation) -> bool {
         || super::account::connected_accounts::is_public(i)
         // Newsletter subscribe/confirm/unsubscribe work signed out (npm).
         || super::account::is_public(i)
+        || super::utility::is_public(i)
 }
 #[path = "privacy_cmd.rs"]
 mod privacy_cmd;
@@ -137,6 +138,7 @@ pub async fn execute(
     if privacy_cmd::supported(i) {
         return privacy_cmd::execute(i);
     }
+    if super::utility::is_network_public(i) { return super::utility::execute_public(i).await; }
     if super::account::connected_accounts::is_public(i) {
         return super::account::connected_accounts::execute_public(i);
     }
