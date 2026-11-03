@@ -803,7 +803,7 @@ class StrictFullPreloadPlanTests(unittest.TestCase):
             [v["foreign_final"] for v in cases],
             ["permitted", "cancel", "owner", "successor"],
         )
-        self.assertTrue(cases[-1]["requests"][-3]["holdForSuccessor"])
+        self.assertTrue(cases[-1]["requests"][-4]["holdForSuccessor"])
 
     def test_details_latest_is_one_window_and_full_drains_without_compression(self):
         vectors = {v["id"]: v for v in self.suite["vectors"][74:]}
@@ -1031,6 +1031,33 @@ class StrictFullPreloadPlanTests(unittest.TestCase):
             category="general",
             metadataUpdatedAt=1700000201,
         )
+        # Vectors 91-94 (details foreign-final) once planned a second fresh
+        # read. The shared core now answers every later read of the same chat
+        # with a cached tail delta (direction=after) that misses here, because
+        # the cached 20 rows cannot fill limit 30, and then reads fresh. The
+        # pin hashes the original plan: drop each delta step, restore the fresh
+        # window to its slot and undo the added window counts.
+        for vector in old[91:95]:
+            self.assertEqual(vector["mode"], "details")
+            self.assertIn("foreign_final", vector)
+            requests, original, deltas = vector["requests"], [], 0
+            for index, step in enumerate(requests):
+                if step.get("query", {}).get("direction") == ["after"]:
+                    self.assertEqual(step["reply"]["messages"], [])
+                    original.append(requests[index + 2])
+                    deltas += 1
+                elif index >= 2 and requests[index - 2].get("query", {}).get(
+                    "direction"
+                ) == ["after"]:
+                    continue
+                else:
+                    original.append(step)
+            vector["requests"] = original
+            vector["expected_window_requests"] -= deltas
+            if vector["foreign_final"] == "successor":
+                self.assertEqual(
+                    vector.pop("cancel_expected_counts"), {"metadata": 3, "window": 3}
+                )
         self.assertEqual(
             hashlib.sha256(
                 json.dumps(

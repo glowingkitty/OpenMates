@@ -210,7 +210,8 @@ def green_sdk_evidence(tmp_path):
                 "status": "passed", "publication": False, "services": {}, "sourceHeld": True,
                 "loadIdentityVerified": True, "cleanupVerified": True,
                 "gate": sdk.gate_receipt(root, raw, trust=synthetic_trust(root)),
-                "artifacts": {language: {"sha256": "c" * 64, "elf": "linux-x64", "nlink": 1} for language in ("npm", "python")}}
+                "artifacts": {**{language: {"sha256": "c" * 64, "elf": "linux-x64", "nlink": 1} for language in ("npm", "python")},
+                              "wasm": {"sha256": "c" * 64, "format": "wasm32", "nlink": 1}}}
     inputs = {name: "c" * 64 for name in sdk.LOCKS}
     inputs[fixture_path] = sdk.sha((root / fixture_path).read_bytes())
     evidence.update(inputs=inputs, inputSetSha256=sdk.sha(json.dumps(inputs, sort_keys=True).encode()),
@@ -227,6 +228,22 @@ def green_sdk_evidence(tmp_path):
     expectation = {"trust": synthetic_trust(root), "expected_inputs": inputs,
                    "expected_packaged_fixture": (root / fixture_path).read_bytes()}
     return report, evidence, job, expectation
+
+
+@pytest.mark.parametrize("fault", ["missing_wasm", "wasm_as_elf", "native_as_wasm"])
+def test_retrieved_green_sdk_evidence_requires_exact_artifact_formats(tmp_path, fault):
+    report, evidence, job, expectation = green_sdk_evidence(tmp_path)
+    assert valid_sdk_conformance_receipt(report, evidence, job, "b" * 40, **expectation)
+    artifacts = evidence["artifacts"]
+    if fault == "missing_wasm":
+        del artifacts["wasm"]
+    elif fault == "wasm_as_elf":
+        artifacts["wasm"].pop("format")
+        artifacts["wasm"]["elf"] = "linux-x64"
+    else:
+        artifacts["npm"].pop("elf")
+        artifacts["npm"]["format"] = "wasm32"
+    assert not valid_sdk_conformance_receipt(report, evidence, job, "b" * 40, **expectation)
 
 
 def test_retrieved_green_sdk_evidence_requires_all_identity_and_cleanup(tmp_path):

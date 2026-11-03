@@ -54670,6 +54670,57 @@
               "path": "/v1/chats/22222222-2222-4222-8222-222222222222/messages/window",
               "query": {
                 "direction": [
+                  "after"
+                ],
+                "limit": [
+                  "100"
+                ],
+                "respect_compression_boundary": [
+                  "true"
+                ],
+                "after_timestamp": [
+                  "1700000065"
+                ],
+                "after_message_id": [
+                  "10000000-0000-4000-8000-000000000065"
+                ]
+              },
+              "reply": {
+                "chat_id": "22222222-2222-4222-8222-222222222222",
+                "messages": [],
+                "has_more_before": false,
+                "has_more_after": false,
+                "start_cursor": null,
+                "end_cursor": null,
+                "oversized_message": false,
+                "payload_bytes": 0
+              }
+            },
+            {
+              "method": "GET",
+              "path": "/v1/embeds/chats/22222222-2222-4222-8222-222222222222/window",
+              "query": {},
+              "reply": {
+                "chat_id": "22222222-2222-4222-8222-222222222222",
+                "embeds": [
+                  {
+                    "embed_id": "synthetic-embed-64",
+                    "hashed_chat_id": "b454f82c5857ebabf342b7258e5cf7def78b7cd975814119462973de9a38df10",
+                    "hashed_message_id": "570768c4a14af6b367d0a12826b1e60783686e934d6e05fec7180794c90bff00",
+                    "parent_embed_id": null,
+                    "created_at": 1700000064
+                  }
+                ],
+                "has_more_before": false,
+                "start_cursor": null,
+                "oversized_embed_id": null
+              }
+            },
+            {
+              "method": "GET",
+              "path": "/v1/chats/22222222-2222-4222-8222-222222222222/messages/window",
+              "query": {
+                "direction": [
                   "latest"
                 ],
                 "limit": [
@@ -54897,26 +54948,6 @@
                 },
                 "oversized_message": false,
                 "payload_bytes": 8646
-              }
-            },
-            {
-              "method": "GET",
-              "path": "/v1/embeds/chats/22222222-2222-4222-8222-222222222222/window",
-              "query": {},
-              "reply": {
-                "chat_id": "22222222-2222-4222-8222-222222222222",
-                "embeds": [
-                  {
-                    "embed_id": "synthetic-embed-64",
-                    "hashed_chat_id": "b454f82c5857ebabf342b7258e5cf7def78b7cd975814119462973de9a38df10",
-                    "hashed_message_id": "570768c4a14af6b367d0a12826b1e60783686e934d6e05fec7180794c90bff00",
-                    "parent_embed_id": null,
-                    "created_at": 1700000064
-                  }
-                ],
-                "has_more_before": false,
-                "start_cursor": null,
-                "oversized_embed_id": null
               }
             }
           ],
@@ -55224,7 +55255,7 @@
           },
           "expected_error": null,
           "expected_metadata_requests": 2,
-          "expected_window_requests": 2,
+          "expected_window_requests": 3,
           "expected_exact_requests": 0,
           "expected_embed_requests": 2,
           "expected_checks": [
@@ -55894,6 +55925,57 @@
               "path": "/v1/chats/22222222-2222-4222-8222-222222222222/messages/window",
               "query": {
                 "direction": [
+                  "after"
+                ],
+                "limit": [
+                  "100"
+                ],
+                "respect_compression_boundary": [
+                  "true"
+                ],
+                "after_timestamp": [
+                  "1700000065"
+                ],
+                "after_message_id": [
+                  "10000000-0000-4000-8000-000000000065"
+                ]
+              },
+              "reply": {
+                "chat_id": "22222222-2222-4222-8222-222222222222",
+                "messages": [],
+                "has_more_before": false,
+                "has_more_after": false,
+                "start_cursor": null,
+                "end_cursor": null,
+                "oversized_message": false,
+                "payload_bytes": 0
+              }
+            },
+            {
+              "method": "GET",
+              "path": "/v1/embeds/chats/22222222-2222-4222-8222-222222222222/window",
+              "query": {},
+              "reply": {
+                "chat_id": "22222222-2222-4222-8222-222222222222",
+                "embeds": [
+                  {
+                    "embed_id": "synthetic-embed-64",
+                    "hashed_chat_id": "b454f82c5857ebabf342b7258e5cf7def78b7cd975814119462973de9a38df10",
+                    "hashed_message_id": "570768c4a14af6b367d0a12826b1e60783686e934d6e05fec7180794c90bff00",
+                    "parent_embed_id": null,
+                    "created_at": 1700000064
+                  }
+                ],
+                "has_more_before": false,
+                "start_cursor": null,
+                "oversized_embed_id": null
+              }
+            },
+            {
+              "method": "GET",
+              "path": "/v1/chats/22222222-2222-4222-8222-222222222222/messages/window",
+              "query": {
+                "direction": [
                   "latest"
                 ],
                 "limit": [
@@ -56121,26 +56203,6 @@
                 },
                 "oversized_message": false,
                 "payload_bytes": 8646
-              }
-            },
-            {
-              "method": "GET",
-              "path": "/v1/embeds/chats/22222222-2222-4222-8222-222222222222/window",
-              "query": {},
-              "reply": {
-                "chat_id": "22222222-2222-4222-8222-222222222222",
-                "embeds": [
-                  {
-                    "embed_id": "synthetic-embed-64",
-                    "hashed_chat_id": "b454f82c5857ebabf342b7258e5cf7def78b7cd975814119462973de9a38df10",
-                    "hashed_message_id": "570768c4a14af6b367d0a12826b1e60783686e934d6e05fec7180794c90bff00",
-                    "parent_embed_id": null,
-                    "created_at": 1700000064
-                  }
-                ],
-                "has_more_before": false,
-                "start_cursor": null,
-                "oversized_embed_id": null
               }
             }
           ],
@@ -56448,7 +56510,7 @@
           },
           "expected_error": null,
           "expected_metadata_requests": 2,
-          "expected_window_requests": 2,
+          "expected_window_requests": 3,
           "expected_exact_requests": 0,
           "expected_embed_requests": 2,
           "expected_checks": [
@@ -57118,6 +57180,57 @@
               "path": "/v1/chats/22222222-2222-4222-8222-222222222222/messages/window",
               "query": {
                 "direction": [
+                  "after"
+                ],
+                "limit": [
+                  "100"
+                ],
+                "respect_compression_boundary": [
+                  "true"
+                ],
+                "after_timestamp": [
+                  "1700000065"
+                ],
+                "after_message_id": [
+                  "10000000-0000-4000-8000-000000000065"
+                ]
+              },
+              "reply": {
+                "chat_id": "22222222-2222-4222-8222-222222222222",
+                "messages": [],
+                "has_more_before": false,
+                "has_more_after": false,
+                "start_cursor": null,
+                "end_cursor": null,
+                "oversized_message": false,
+                "payload_bytes": 0
+              }
+            },
+            {
+              "method": "GET",
+              "path": "/v1/embeds/chats/22222222-2222-4222-8222-222222222222/window",
+              "query": {},
+              "reply": {
+                "chat_id": "22222222-2222-4222-8222-222222222222",
+                "embeds": [
+                  {
+                    "embed_id": "synthetic-embed-64",
+                    "hashed_chat_id": "b454f82c5857ebabf342b7258e5cf7def78b7cd975814119462973de9a38df10",
+                    "hashed_message_id": "570768c4a14af6b367d0a12826b1e60783686e934d6e05fec7180794c90bff00",
+                    "parent_embed_id": null,
+                    "created_at": 1700000064
+                  }
+                ],
+                "has_more_before": false,
+                "start_cursor": null,
+                "oversized_embed_id": null
+              }
+            },
+            {
+              "method": "GET",
+              "path": "/v1/chats/22222222-2222-4222-8222-222222222222/messages/window",
+              "query": {
+                "direction": [
                   "latest"
                 ],
                 "limit": [
@@ -57345,26 +57458,6 @@
                 },
                 "oversized_message": false,
                 "payload_bytes": 8646
-              }
-            },
-            {
-              "method": "GET",
-              "path": "/v1/embeds/chats/22222222-2222-4222-8222-222222222222/window",
-              "query": {},
-              "reply": {
-                "chat_id": "22222222-2222-4222-8222-222222222222",
-                "embeds": [
-                  {
-                    "embed_id": "synthetic-embed-64",
-                    "hashed_chat_id": "b454f82c5857ebabf342b7258e5cf7def78b7cd975814119462973de9a38df10",
-                    "hashed_message_id": "570768c4a14af6b367d0a12826b1e60783686e934d6e05fec7180794c90bff00",
-                    "parent_embed_id": null,
-                    "created_at": 1700000064
-                  }
-                ],
-                "has_more_before": false,
-                "start_cursor": null,
-                "oversized_embed_id": null
               }
             }
           ],
@@ -57672,7 +57765,7 @@
           },
           "expected_error": null,
           "expected_metadata_requests": 2,
-          "expected_window_requests": 2,
+          "expected_window_requests": 3,
           "expected_exact_requests": 0,
           "expected_embed_requests": 2,
           "expected_checks": [
@@ -58342,233 +58435,30 @@
               "path": "/v1/chats/22222222-2222-4222-8222-222222222222/messages/window",
               "query": {
                 "direction": [
-                  "latest"
+                  "after"
                 ],
                 "limit": [
-                  "30"
+                  "100"
                 ],
                 "respect_compression_boundary": [
                   "true"
+                ],
+                "after_timestamp": [
+                  "1700000065"
+                ],
+                "after_message_id": [
+                  "10000000-0000-4000-8000-000000000065"
                 ]
               },
               "reply": {
                 "chat_id": "22222222-2222-4222-8222-222222222222",
-                "messages": [
-                  {
-                    "id": "server-046",
-                    "client_message_id": "10000000-0000-4000-8000-000000000046",
-                    "chat_id": "22222222-2222-4222-8222-222222222222",
-                    "role": "assistant",
-                    "created_at": 1700000046,
-                    "encrypted_content": "T02HJLFlWblU+UKgcNTSctzGVJ/UZOYW3ZMRiJV7irR09Y6opovuCn6zuzdk98acgUkj",
-                    "encrypted_sender_name": "T02HJLFlPT/ngJhJwykK2APPbPPGCnrsMMkgC9IQX9jaB3xBUPpaCOd1hUKxaNXlaA6cN4M=",
-                    "encrypted_category": "T02HJLFloLr4y9o47NCnRNHSZ/8xxt7rFrEAm2+/IyC4JgyPMAI160o=",
-                    "encrypted_model_name": "T02HJLFl/NTByCNwdtKVQuMXwtMS1ICD8+YHMAkNtt2KS5CjV80mubbC6AcLQ5NqXyqUJygseG4="
-                  },
-                  {
-                    "id": "server-047",
-                    "client_message_id": "10000000-0000-4000-8000-000000000047",
-                    "chat_id": "22222222-2222-4222-8222-222222222222",
-                    "role": "user",
-                    "created_at": 1700000047,
-                    "encrypted_content": "T02HJLFlbgkfUSTEfalFjuSQ2gWZYbNmt6pREERNyz6QNjCkJv+GM9zsIDtWaRgQOuoF",
-                    "hashed_user_id": "synthetic-owner"
-                  },
-                  {
-                    "id": "server-048",
-                    "client_message_id": "10000000-0000-4000-8000-000000000048",
-                    "chat_id": "22222222-2222-4222-8222-222222222222",
-                    "role": "assistant",
-                    "created_at": 1700000048,
-                    "encrypted_content": "T02HJLFlODukE87S5RT7v0YNdzN2fNWNc0IU2lpJ7BnRuaZ1+slFsCwkWd2af+LlIcYK",
-                    "encrypted_sender_name": "T02HJLFlPT/ngJhJwykK2APPbPPGCnrsMMkgC9IQX9jaB3xBUPpaCOd1hUKxaNXlaA6cN4M=",
-                    "encrypted_category": "T02HJLFloLr4y9o47NCnRNHSZ/8xxt7rFrEAm2+/IyC4JgyPMAI160o=",
-                    "encrypted_model_name": "T02HJLFl/NTByCNwdtKVQuMXwtMS1ICD8+YHMAkNtt2KS5CjV80mubbC6AcLQ5NqXyqUJygseG4="
-                  },
-                  {
-                    "id": "server-049",
-                    "client_message_id": "10000000-0000-4000-8000-000000000049",
-                    "chat_id": "22222222-2222-4222-8222-222222222222",
-                    "role": "user",
-                    "created_at": 1700000049,
-                    "encrypted_content": "T02HJLFl9+WJuda9jUjAHhr+ZDPR6NEukOU5PEG1bAOY2HGY2rsd1QPxjA/NSrNvdnXH",
-                    "hashed_user_id": "synthetic-owner"
-                  },
-                  {
-                    "id": "server-050",
-                    "client_message_id": "10000000-0000-4000-8000-000000000050",
-                    "chat_id": "22222222-2222-4222-8222-222222222222",
-                    "role": "assistant",
-                    "created_at": 1700000050,
-                    "encrypted_content": "T02HJLFl9Hu+PkkbO8NpIzxdEqVGKL3fQzdLG9+zrwXmbs7XUXy4kvvTp15jPA7ion9g",
-                    "encrypted_sender_name": "T02HJLFlPT/ngJhJwykK2APPbPPGCnrsMMkgC9IQX9jaB3xBUPpaCOd1hUKxaNXlaA6cN4M=",
-                    "encrypted_category": "T02HJLFloLr4y9o47NCnRNHSZ/8xxt7rFrEAm2+/IyC4JgyPMAI160o=",
-                    "encrypted_model_name": "T02HJLFl/NTByCNwdtKVQuMXwtMS1ICD8+YHMAkNtt2KS5CjV80mubbC6AcLQ5NqXyqUJygseG4="
-                  },
-                  {
-                    "id": "server-051",
-                    "client_message_id": "10000000-0000-4000-8000-000000000051",
-                    "chat_id": "22222222-2222-4222-8222-222222222222",
-                    "role": "user",
-                    "created_at": 1700000051,
-                    "encrypted_content": "T02HJLFlVys7cbpASoWSJpKD2IAux6Q4cX9Rn3nlj1u4DLli5ZEbEd1IOg5PnN8w73Zt",
-                    "hashed_user_id": "synthetic-owner"
-                  },
-                  {
-                    "id": "server-052",
-                    "client_message_id": "10000000-0000-4000-8000-000000000052",
-                    "chat_id": "22222222-2222-4222-8222-222222222222",
-                    "role": "assistant",
-                    "created_at": 1700000052,
-                    "encrypted_content": "T02HJLFlTI+HEmuEV5TFMqcoZuRaEyx4AYBf3qi443svz6SHnEYXEdNm/hlnRtxzi3f9",
-                    "encrypted_sender_name": "T02HJLFlPT/ngJhJwykK2APPbPPGCnrsMMkgC9IQX9jaB3xBUPpaCOd1hUKxaNXlaA6cN4M=",
-                    "encrypted_category": "T02HJLFloLr4y9o47NCnRNHSZ/8xxt7rFrEAm2+/IyC4JgyPMAI160o=",
-                    "encrypted_model_name": "T02HJLFl/NTByCNwdtKVQuMXwtMS1ICD8+YHMAkNtt2KS5CjV80mubbC6AcLQ5NqXyqUJygseG4="
-                  },
-                  {
-                    "id": "server-053",
-                    "client_message_id": "10000000-0000-4000-8000-000000000053",
-                    "chat_id": "22222222-2222-4222-8222-222222222222",
-                    "role": "user",
-                    "created_at": 1700000053,
-                    "encrypted_content": "T02HJLFlnVULI5sU7Ae+Ej1fFOU4dDOHshW29uA2W9cqGzRDSXYAMpP3uhBcdvKrasWa",
-                    "hashed_user_id": "synthetic-owner"
-                  },
-                  {
-                    "id": "server-054",
-                    "client_message_id": "10000000-0000-4000-8000-000000000054",
-                    "chat_id": "22222222-2222-4222-8222-222222222222",
-                    "role": "assistant",
-                    "created_at": 1700000054,
-                    "encrypted_content": "T02HJLFl5hHiO90kkzyQjLRTQcY4VUBUCJyhr+RQjDzomUfggqsy6SlL2q5c74/CbpeS",
-                    "encrypted_sender_name": "T02HJLFlPT/ngJhJwykK2APPbPPGCnrsMMkgC9IQX9jaB3xBUPpaCOd1hUKxaNXlaA6cN4M=",
-                    "encrypted_category": "T02HJLFloLr4y9o47NCnRNHSZ/8xxt7rFrEAm2+/IyC4JgyPMAI160o=",
-                    "encrypted_model_name": "T02HJLFl/NTByCNwdtKVQuMXwtMS1ICD8+YHMAkNtt2KS5CjV80mubbC6AcLQ5NqXyqUJygseG4="
-                  },
-                  {
-                    "id": "server-055",
-                    "client_message_id": "10000000-0000-4000-8000-000000000055",
-                    "chat_id": "22222222-2222-4222-8222-222222222222",
-                    "role": "user",
-                    "created_at": 1700000055,
-                    "encrypted_content": "T02HJLFlUui0M6iD2P3lKU4zeNG9kK5xH89XWOZ9faERVxj2fijxlj2ar9rb5tHyyzfn",
-                    "hashed_user_id": "synthetic-owner"
-                  },
-                  {
-                    "id": "server-056",
-                    "client_message_id": "10000000-0000-4000-8000-000000000056",
-                    "chat_id": "22222222-2222-4222-8222-222222222222",
-                    "role": "assistant",
-                    "created_at": 1700000056,
-                    "encrypted_content": "T02HJLFlBNvgu2+my+ytfQ9i7zqE7e8knT43SwZzdpCmG6QokQVcZhSZZWghqamYW9XW",
-                    "encrypted_sender_name": "T02HJLFlPT/ngJhJwykK2APPbPPGCnrsMMkgC9IQX9jaB3xBUPpaCOd1hUKxaNXlaA6cN4M=",
-                    "encrypted_category": "T02HJLFloLr4y9o47NCnRNHSZ/8xxt7rFrEAm2+/IyC4JgyPMAI160o=",
-                    "encrypted_model_name": "T02HJLFl/NTByCNwdtKVQuMXwtMS1ICD8+YHMAkNtt2KS5CjV80mubbC6AcLQ5NqXyqUJygseG4="
-                  },
-                  {
-                    "id": "server-057",
-                    "client_message_id": "10000000-0000-4000-8000-000000000057",
-                    "chat_id": "22222222-2222-4222-8222-222222222222",
-                    "role": "user",
-                    "created_at": 1700000057,
-                    "encrypted_content": "T02HJLFlYf0+uju4ftV+pHgGuogkHQPfAub69QX5pa1bGtV2HGfuvr9tMQcwaPZPtMz0",
-                    "hashed_user_id": "synthetic-owner"
-                  },
-                  {
-                    "id": "server-058",
-                    "client_message_id": "10000000-0000-4000-8000-000000000058",
-                    "chat_id": "22222222-2222-4222-8222-222222222222",
-                    "role": "assistant",
-                    "created_at": 1700000058,
-                    "encrypted_content": "T02HJLFlU0nJiKdO6kgYHk33ayBFsyh/NC/pPy926q0wBWMrG2DrSY6Z8XSuFkIyJiSJ",
-                    "encrypted_sender_name": "T02HJLFlPT/ngJhJwykK2APPbPPGCnrsMMkgC9IQX9jaB3xBUPpaCOd1hUKxaNXlaA6cN4M=",
-                    "encrypted_category": "T02HJLFloLr4y9o47NCnRNHSZ/8xxt7rFrEAm2+/IyC4JgyPMAI160o=",
-                    "encrypted_model_name": "T02HJLFl/NTByCNwdtKVQuMXwtMS1ICD8+YHMAkNtt2KS5CjV80mubbC6AcLQ5NqXyqUJygseG4="
-                  },
-                  {
-                    "id": "server-059",
-                    "client_message_id": "10000000-0000-4000-8000-000000000059",
-                    "chat_id": "22222222-2222-4222-8222-222222222222",
-                    "role": "user",
-                    "created_at": 1700000059,
-                    "encrypted_content": "T02HJLFlvhj9U2708GmK3h7yF+6ueI/RgQapzHxgIvXv417QepQJAgnP3x2yyzS8Ujeg",
-                    "hashed_user_id": "synthetic-owner"
-                  },
-                  {
-                    "id": "server-060",
-                    "client_message_id": "10000000-0000-4000-8000-000000000060",
-                    "chat_id": "22222222-2222-4222-8222-222222222222",
-                    "role": "assistant",
-                    "created_at": 1700000060,
-                    "encrypted_content": "T02HJLFlo/cm1N3zcg/cCt9b8yPOOl83GcAJdxlxXkhw4QLJ52Z4ddN+8yWfCBDFY1aE",
-                    "encrypted_sender_name": "T02HJLFlPT/ngJhJwykK2APPbPPGCnrsMMkgC9IQX9jaB3xBUPpaCOd1hUKxaNXlaA6cN4M=",
-                    "encrypted_category": "T02HJLFloLr4y9o47NCnRNHSZ/8xxt7rFrEAm2+/IyC4JgyPMAI160o=",
-                    "encrypted_model_name": "T02HJLFl/NTByCNwdtKVQuMXwtMS1ICD8+YHMAkNtt2KS5CjV80mubbC6AcLQ5NqXyqUJygseG4="
-                  },
-                  {
-                    "id": "server-061",
-                    "client_message_id": "10000000-0000-4000-8000-000000000061",
-                    "chat_id": "22222222-2222-4222-8222-222222222222",
-                    "role": "user",
-                    "created_at": 1700000061,
-                    "encrypted_content": "T02HJLFlbTOSKkVgG0Dbb2Gm+1Sv5ItNedwCgasj5KgmQy6GxglhAV8AJOTpe3jHJodW",
-                    "hashed_user_id": "synthetic-owner"
-                  },
-                  {
-                    "id": "server-062",
-                    "client_message_id": "10000000-0000-4000-8000-000000000062",
-                    "chat_id": "22222222-2222-4222-8222-222222222222",
-                    "role": "assistant",
-                    "created_at": 1700000062,
-                    "encrypted_content": "T02HJLFlO8B4PQFCsIkWTFsuTnAIHHObop6gI7/sHsRAklinTveLAUk+xa04vOX5YNlp",
-                    "encrypted_sender_name": "T02HJLFlPT/ngJhJwykK2APPbPPGCnrsMMkgC9IQX9jaB3xBUPpaCOd1hUKxaNXlaA6cN4M=",
-                    "encrypted_category": "T02HJLFloLr4y9o47NCnRNHSZ/8xxt7rFrEAm2+/IyC4JgyPMAI160o=",
-                    "encrypted_model_name": "T02HJLFl/NTByCNwdtKVQuMXwtMS1ICD8+YHMAkNtt2KS5CjV80mubbC6AcLQ5NqXyqUJygseG4="
-                  },
-                  {
-                    "id": "server-063",
-                    "client_message_id": "10000000-0000-4000-8000-000000000063",
-                    "chat_id": "22222222-2222-4222-8222-222222222222",
-                    "role": "user",
-                    "created_at": 1700000063,
-                    "encrypted_content": "T02HJLFl/0qB5ZG2jDcEmkiENl2P4aoh1k36FrY+ZD0KtwiENR1p3deQzlNnRT+RrlyI",
-                    "hashed_user_id": "synthetic-owner"
-                  },
-                  {
-                    "id": "server-064",
-                    "client_message_id": "10000000-0000-4000-8000-000000000064",
-                    "chat_id": "22222222-2222-4222-8222-222222222222",
-                    "role": "assistant",
-                    "created_at": 1700000064,
-                    "encrypted_content": "T02HJLFlNs3Ln1MDzFQYHuzKKRVdYhk3QULOapQW0GIjDGOiEInvN2JZ8qtXGHioNePc7SgYwEmrTpNVbkMfKYNV67iO9sXQaGYfQ+3AD4tL",
-                    "encrypted_sender_name": "T02HJLFlPT/ngJhJwykK2APPbPPGCnrsMMkgC9IQX9jaB3xBUPpaCOd1hUKxaNXlaA6cN4M=",
-                    "encrypted_category": "T02HJLFloLr4y9o47NCnRNHSZ/8xxt7rFrEAm2+/IyC4JgyPMAI160o=",
-                    "encrypted_model_name": "T02HJLFl/NTByCNwdtKVQuMXwtMS1ICD8+YHMAkNtt2KS5CjV80mubbC6AcLQ5NqXyqUJygseG4=",
-                    "encrypted_pii_mappings": "T02HJLFlwEj4Wi2Txu21zhB5FlFBJ0zPQuFPtjnQQoYs5Exy79PuNh81q4mAxkim0juyXXyp+IYsNPe3P7k2jC9jzPxqKF0yFffBziH97h1m74Xy8Z0ig8V9d9fiqPjR1zEcjVcJj75GMQZ7hQOdtUoMKObrsuLFQMnre+qSaQ=="
-                  },
-                  {
-                    "id": "server-065",
-                    "client_message_id": "10000000-0000-4000-8000-000000000065",
-                    "chat_id": "22222222-2222-4222-8222-222222222222",
-                    "role": "user",
-                    "created_at": 1700000065,
-                    "encrypted_content": "T02HJLFlQC54PgP3CtuEKnbGeMn8HChyQnRjhQuTDCxYKNHGVK3qwNVu3xaA2eGTYLOA",
-                    "hashed_user_id": "synthetic-owner",
-                    "encrypted_pii_mappings": "T02HJLFlaEroHUAHHhSjq+jZ5SOD02ZgpfYwGGqCIhSRtqKL"
-                  }
-                ],
-                "has_more_before": true,
+                "messages": [],
+                "has_more_before": false,
                 "has_more_after": false,
-                "start_cursor": {
-                  "created_at": 1700000046,
-                  "message_id": "10000000-0000-4000-8000-000000000046"
-                },
-                "end_cursor": {
-                  "created_at": 1700000065,
-                  "message_id": "10000000-0000-4000-8000-000000000065"
-                },
+                "start_cursor": null,
+                "end_cursor": null,
                 "oversized_message": false,
-                "payload_bytes": 8646
+                "payload_bytes": 0
               }
             },
             {
@@ -58590,48 +58480,6 @@
                 "start_cursor": null,
                 "oversized_embed_id": null
               }
-            },
-            {
-              "method": "POST",
-              "path": "/v1/chats/metadata/batch",
-              "query": {},
-              "body": {
-                "chat_ids": [
-                  "22222222-2222-4222-8222-222222222222"
-                ],
-                "include_read_details": true
-              },
-              "reply": {
-                "chats": [
-                  {
-                    "id": "22222222-2222-4222-8222-222222222222",
-                    "encrypted_chat_key": "T00JE61l8qJyvvowmGbzwQ0O2F3s65y1IjsUrcTf6cc5/lAQd61CQ6zT7XJ4sbJrj+bAPm3lFpr5HhGm1oEL34n7",
-                    "messages_v": 65,
-                    "created_at": "1700000000",
-                    "updated_at": "1700000201",
-                    "last_edited_overall_timestamp": "1700000200",
-                    "participant_user_hashes": [
-                      "synthetic-owner",
-                      "synthetic-participant"
-                    ],
-                    "is_sub_chat": false,
-                    "is_hidden": false,
-                    "pinned": true,
-                    "encrypted_draft_md": "T00JE61lYofIEpKxEfjrCrk5ICisHO72UyZ7dMMr8hUEBOVT5gLWLRg9ZLFByKP9jMo3aH9owQ==",
-                    "read_details": {
-                      "created_at": 1700000000,
-                      "updated_at": "1700000201",
-                      "last_edited_overall_timestamp": 1700000200,
-                      "encrypted_follow_up_request_suggestions": "T02HJLFl8d2Pld6mPi8UE4+x7PttSbko7aGTFseD+RDkRxqq5lBx1Sj6MaEHKiVVOaMVSuExkYuL1yOFRhBJOkFhklZD+6Mgqfs5o1RCVJ6Fc60ZTQZUXBX7y4PwdyubYgFHrsPI"
-                    },
-                    "encrypted_title": "T02HJLFlgdNDO0up1JA2nCpaL+5boCkbjFZcJhnK+XlKAonQsoFBGIOhjIVQCfW5VfgiiuqrAZmUyvJj8Qw=",
-                    "encrypted_chat_summary": "T02HJLFlqBgfsWjDQQ98Y/oIS6GEG1ZP2n4IBKFpFc8ch8rfDxmI4LczD97tiD9vXiRjZeLNJ3z3bbte9eORDw==",
-                    "encrypted_slug": "T02HJLFlTr6dpm8qrDcF495nKrWmAe5reD3ac32iR80bE53mXa0yFUEzdteEs8oARrKh71sFTy0QWp/Lb5PTZxFlg74K+lt6dyZglA==",
-                    "encrypted_category": "T02HJLFloLr4y9o47NCnRNHSZ/8xxt7rFrEAm2+/IyC4JgyPMAI160o="
-                  }
-                ]
-              },
-              "holdForSuccessor": true
             },
             {
               "method": "GET",
@@ -58868,6 +58716,79 @@
               }
             },
             {
+              "method": "POST",
+              "path": "/v1/chats/metadata/batch",
+              "query": {},
+              "body": {
+                "chat_ids": [
+                  "22222222-2222-4222-8222-222222222222"
+                ],
+                "include_read_details": true
+              },
+              "reply": {
+                "chats": [
+                  {
+                    "id": "22222222-2222-4222-8222-222222222222",
+                    "encrypted_chat_key": "T00JE61l8qJyvvowmGbzwQ0O2F3s65y1IjsUrcTf6cc5/lAQd61CQ6zT7XJ4sbJrj+bAPm3lFpr5HhGm1oEL34n7",
+                    "messages_v": 65,
+                    "created_at": "1700000000",
+                    "updated_at": "1700000201",
+                    "last_edited_overall_timestamp": "1700000200",
+                    "participant_user_hashes": [
+                      "synthetic-owner",
+                      "synthetic-participant"
+                    ],
+                    "is_sub_chat": false,
+                    "is_hidden": false,
+                    "pinned": true,
+                    "encrypted_draft_md": "T00JE61lYofIEpKxEfjrCrk5ICisHO72UyZ7dMMr8hUEBOVT5gLWLRg9ZLFByKP9jMo3aH9owQ==",
+                    "read_details": {
+                      "created_at": 1700000000,
+                      "updated_at": "1700000201",
+                      "last_edited_overall_timestamp": 1700000200,
+                      "encrypted_follow_up_request_suggestions": "T02HJLFl8d2Pld6mPi8UE4+x7PttSbko7aGTFseD+RDkRxqq5lBx1Sj6MaEHKiVVOaMVSuExkYuL1yOFRhBJOkFhklZD+6Mgqfs5o1RCVJ6Fc60ZTQZUXBX7y4PwdyubYgFHrsPI"
+                    },
+                    "encrypted_title": "T02HJLFlgdNDO0up1JA2nCpaL+5boCkbjFZcJhnK+XlKAonQsoFBGIOhjIVQCfW5VfgiiuqrAZmUyvJj8Qw=",
+                    "encrypted_chat_summary": "T02HJLFlqBgfsWjDQQ98Y/oIS6GEG1ZP2n4IBKFpFc8ch8rfDxmI4LczD97tiD9vXiRjZeLNJ3z3bbte9eORDw==",
+                    "encrypted_slug": "T02HJLFlTr6dpm8qrDcF495nKrWmAe5reD3ac32iR80bE53mXa0yFUEzdteEs8oARrKh71sFTy0QWp/Lb5PTZxFlg74K+lt6dyZglA==",
+                    "encrypted_category": "T02HJLFloLr4y9o47NCnRNHSZ/8xxt7rFrEAm2+/IyC4JgyPMAI160o="
+                  }
+                ]
+              },
+              "holdForSuccessor": true
+            },
+            {
+              "method": "GET",
+              "path": "/v1/chats/22222222-2222-4222-8222-222222222222/messages/window",
+              "query": {
+                "direction": [
+                  "after"
+                ],
+                "limit": [
+                  "100"
+                ],
+                "respect_compression_boundary": [
+                  "true"
+                ],
+                "after_timestamp": [
+                  "1700000065"
+                ],
+                "after_message_id": [
+                  "10000000-0000-4000-8000-000000000065"
+                ]
+              },
+              "reply": {
+                "chat_id": "22222222-2222-4222-8222-222222222222",
+                "messages": [],
+                "has_more_before": false,
+                "has_more_after": false,
+                "start_cursor": null,
+                "end_cursor": null,
+                "oversized_message": false,
+                "payload_bytes": 0
+              }
+            },
+            {
               "method": "GET",
               "path": "/v1/embeds/chats/22222222-2222-4222-8222-222222222222/window",
               "query": {},
@@ -58885,6 +58806,240 @@
                 "has_more_before": false,
                 "start_cursor": null,
                 "oversized_embed_id": null
+              }
+            },
+            {
+              "method": "GET",
+              "path": "/v1/chats/22222222-2222-4222-8222-222222222222/messages/window",
+              "query": {
+                "direction": [
+                  "latest"
+                ],
+                "limit": [
+                  "30"
+                ],
+                "respect_compression_boundary": [
+                  "true"
+                ]
+              },
+              "reply": {
+                "chat_id": "22222222-2222-4222-8222-222222222222",
+                "messages": [
+                  {
+                    "id": "server-046",
+                    "client_message_id": "10000000-0000-4000-8000-000000000046",
+                    "chat_id": "22222222-2222-4222-8222-222222222222",
+                    "role": "assistant",
+                    "created_at": 1700000046,
+                    "encrypted_content": "T02HJLFlWblU+UKgcNTSctzGVJ/UZOYW3ZMRiJV7irR09Y6opovuCn6zuzdk98acgUkj",
+                    "encrypted_sender_name": "T02HJLFlPT/ngJhJwykK2APPbPPGCnrsMMkgC9IQX9jaB3xBUPpaCOd1hUKxaNXlaA6cN4M=",
+                    "encrypted_category": "T02HJLFloLr4y9o47NCnRNHSZ/8xxt7rFrEAm2+/IyC4JgyPMAI160o=",
+                    "encrypted_model_name": "T02HJLFl/NTByCNwdtKVQuMXwtMS1ICD8+YHMAkNtt2KS5CjV80mubbC6AcLQ5NqXyqUJygseG4="
+                  },
+                  {
+                    "id": "server-047",
+                    "client_message_id": "10000000-0000-4000-8000-000000000047",
+                    "chat_id": "22222222-2222-4222-8222-222222222222",
+                    "role": "user",
+                    "created_at": 1700000047,
+                    "encrypted_content": "T02HJLFlbgkfUSTEfalFjuSQ2gWZYbNmt6pREERNyz6QNjCkJv+GM9zsIDtWaRgQOuoF",
+                    "hashed_user_id": "synthetic-owner"
+                  },
+                  {
+                    "id": "server-048",
+                    "client_message_id": "10000000-0000-4000-8000-000000000048",
+                    "chat_id": "22222222-2222-4222-8222-222222222222",
+                    "role": "assistant",
+                    "created_at": 1700000048,
+                    "encrypted_content": "T02HJLFlODukE87S5RT7v0YNdzN2fNWNc0IU2lpJ7BnRuaZ1+slFsCwkWd2af+LlIcYK",
+                    "encrypted_sender_name": "T02HJLFlPT/ngJhJwykK2APPbPPGCnrsMMkgC9IQX9jaB3xBUPpaCOd1hUKxaNXlaA6cN4M=",
+                    "encrypted_category": "T02HJLFloLr4y9o47NCnRNHSZ/8xxt7rFrEAm2+/IyC4JgyPMAI160o=",
+                    "encrypted_model_name": "T02HJLFl/NTByCNwdtKVQuMXwtMS1ICD8+YHMAkNtt2KS5CjV80mubbC6AcLQ5NqXyqUJygseG4="
+                  },
+                  {
+                    "id": "server-049",
+                    "client_message_id": "10000000-0000-4000-8000-000000000049",
+                    "chat_id": "22222222-2222-4222-8222-222222222222",
+                    "role": "user",
+                    "created_at": 1700000049,
+                    "encrypted_content": "T02HJLFl9+WJuda9jUjAHhr+ZDPR6NEukOU5PEG1bAOY2HGY2rsd1QPxjA/NSrNvdnXH",
+                    "hashed_user_id": "synthetic-owner"
+                  },
+                  {
+                    "id": "server-050",
+                    "client_message_id": "10000000-0000-4000-8000-000000000050",
+                    "chat_id": "22222222-2222-4222-8222-222222222222",
+                    "role": "assistant",
+                    "created_at": 1700000050,
+                    "encrypted_content": "T02HJLFl9Hu+PkkbO8NpIzxdEqVGKL3fQzdLG9+zrwXmbs7XUXy4kvvTp15jPA7ion9g",
+                    "encrypted_sender_name": "T02HJLFlPT/ngJhJwykK2APPbPPGCnrsMMkgC9IQX9jaB3xBUPpaCOd1hUKxaNXlaA6cN4M=",
+                    "encrypted_category": "T02HJLFloLr4y9o47NCnRNHSZ/8xxt7rFrEAm2+/IyC4JgyPMAI160o=",
+                    "encrypted_model_name": "T02HJLFl/NTByCNwdtKVQuMXwtMS1ICD8+YHMAkNtt2KS5CjV80mubbC6AcLQ5NqXyqUJygseG4="
+                  },
+                  {
+                    "id": "server-051",
+                    "client_message_id": "10000000-0000-4000-8000-000000000051",
+                    "chat_id": "22222222-2222-4222-8222-222222222222",
+                    "role": "user",
+                    "created_at": 1700000051,
+                    "encrypted_content": "T02HJLFlVys7cbpASoWSJpKD2IAux6Q4cX9Rn3nlj1u4DLli5ZEbEd1IOg5PnN8w73Zt",
+                    "hashed_user_id": "synthetic-owner"
+                  },
+                  {
+                    "id": "server-052",
+                    "client_message_id": "10000000-0000-4000-8000-000000000052",
+                    "chat_id": "22222222-2222-4222-8222-222222222222",
+                    "role": "assistant",
+                    "created_at": 1700000052,
+                    "encrypted_content": "T02HJLFlTI+HEmuEV5TFMqcoZuRaEyx4AYBf3qi443svz6SHnEYXEdNm/hlnRtxzi3f9",
+                    "encrypted_sender_name": "T02HJLFlPT/ngJhJwykK2APPbPPGCnrsMMkgC9IQX9jaB3xBUPpaCOd1hUKxaNXlaA6cN4M=",
+                    "encrypted_category": "T02HJLFloLr4y9o47NCnRNHSZ/8xxt7rFrEAm2+/IyC4JgyPMAI160o=",
+                    "encrypted_model_name": "T02HJLFl/NTByCNwdtKVQuMXwtMS1ICD8+YHMAkNtt2KS5CjV80mubbC6AcLQ5NqXyqUJygseG4="
+                  },
+                  {
+                    "id": "server-053",
+                    "client_message_id": "10000000-0000-4000-8000-000000000053",
+                    "chat_id": "22222222-2222-4222-8222-222222222222",
+                    "role": "user",
+                    "created_at": 1700000053,
+                    "encrypted_content": "T02HJLFlnVULI5sU7Ae+Ej1fFOU4dDOHshW29uA2W9cqGzRDSXYAMpP3uhBcdvKrasWa",
+                    "hashed_user_id": "synthetic-owner"
+                  },
+                  {
+                    "id": "server-054",
+                    "client_message_id": "10000000-0000-4000-8000-000000000054",
+                    "chat_id": "22222222-2222-4222-8222-222222222222",
+                    "role": "assistant",
+                    "created_at": 1700000054,
+                    "encrypted_content": "T02HJLFl5hHiO90kkzyQjLRTQcY4VUBUCJyhr+RQjDzomUfggqsy6SlL2q5c74/CbpeS",
+                    "encrypted_sender_name": "T02HJLFlPT/ngJhJwykK2APPbPPGCnrsMMkgC9IQX9jaB3xBUPpaCOd1hUKxaNXlaA6cN4M=",
+                    "encrypted_category": "T02HJLFloLr4y9o47NCnRNHSZ/8xxt7rFrEAm2+/IyC4JgyPMAI160o=",
+                    "encrypted_model_name": "T02HJLFl/NTByCNwdtKVQuMXwtMS1ICD8+YHMAkNtt2KS5CjV80mubbC6AcLQ5NqXyqUJygseG4="
+                  },
+                  {
+                    "id": "server-055",
+                    "client_message_id": "10000000-0000-4000-8000-000000000055",
+                    "chat_id": "22222222-2222-4222-8222-222222222222",
+                    "role": "user",
+                    "created_at": 1700000055,
+                    "encrypted_content": "T02HJLFlUui0M6iD2P3lKU4zeNG9kK5xH89XWOZ9faERVxj2fijxlj2ar9rb5tHyyzfn",
+                    "hashed_user_id": "synthetic-owner"
+                  },
+                  {
+                    "id": "server-056",
+                    "client_message_id": "10000000-0000-4000-8000-000000000056",
+                    "chat_id": "22222222-2222-4222-8222-222222222222",
+                    "role": "assistant",
+                    "created_at": 1700000056,
+                    "encrypted_content": "T02HJLFlBNvgu2+my+ytfQ9i7zqE7e8knT43SwZzdpCmG6QokQVcZhSZZWghqamYW9XW",
+                    "encrypted_sender_name": "T02HJLFlPT/ngJhJwykK2APPbPPGCnrsMMkgC9IQX9jaB3xBUPpaCOd1hUKxaNXlaA6cN4M=",
+                    "encrypted_category": "T02HJLFloLr4y9o47NCnRNHSZ/8xxt7rFrEAm2+/IyC4JgyPMAI160o=",
+                    "encrypted_model_name": "T02HJLFl/NTByCNwdtKVQuMXwtMS1ICD8+YHMAkNtt2KS5CjV80mubbC6AcLQ5NqXyqUJygseG4="
+                  },
+                  {
+                    "id": "server-057",
+                    "client_message_id": "10000000-0000-4000-8000-000000000057",
+                    "chat_id": "22222222-2222-4222-8222-222222222222",
+                    "role": "user",
+                    "created_at": 1700000057,
+                    "encrypted_content": "T02HJLFlYf0+uju4ftV+pHgGuogkHQPfAub69QX5pa1bGtV2HGfuvr9tMQcwaPZPtMz0",
+                    "hashed_user_id": "synthetic-owner"
+                  },
+                  {
+                    "id": "server-058",
+                    "client_message_id": "10000000-0000-4000-8000-000000000058",
+                    "chat_id": "22222222-2222-4222-8222-222222222222",
+                    "role": "assistant",
+                    "created_at": 1700000058,
+                    "encrypted_content": "T02HJLFlU0nJiKdO6kgYHk33ayBFsyh/NC/pPy926q0wBWMrG2DrSY6Z8XSuFkIyJiSJ",
+                    "encrypted_sender_name": "T02HJLFlPT/ngJhJwykK2APPbPPGCnrsMMkgC9IQX9jaB3xBUPpaCOd1hUKxaNXlaA6cN4M=",
+                    "encrypted_category": "T02HJLFloLr4y9o47NCnRNHSZ/8xxt7rFrEAm2+/IyC4JgyPMAI160o=",
+                    "encrypted_model_name": "T02HJLFl/NTByCNwdtKVQuMXwtMS1ICD8+YHMAkNtt2KS5CjV80mubbC6AcLQ5NqXyqUJygseG4="
+                  },
+                  {
+                    "id": "server-059",
+                    "client_message_id": "10000000-0000-4000-8000-000000000059",
+                    "chat_id": "22222222-2222-4222-8222-222222222222",
+                    "role": "user",
+                    "created_at": 1700000059,
+                    "encrypted_content": "T02HJLFlvhj9U2708GmK3h7yF+6ueI/RgQapzHxgIvXv417QepQJAgnP3x2yyzS8Ujeg",
+                    "hashed_user_id": "synthetic-owner"
+                  },
+                  {
+                    "id": "server-060",
+                    "client_message_id": "10000000-0000-4000-8000-000000000060",
+                    "chat_id": "22222222-2222-4222-8222-222222222222",
+                    "role": "assistant",
+                    "created_at": 1700000060,
+                    "encrypted_content": "T02HJLFlo/cm1N3zcg/cCt9b8yPOOl83GcAJdxlxXkhw4QLJ52Z4ddN+8yWfCBDFY1aE",
+                    "encrypted_sender_name": "T02HJLFlPT/ngJhJwykK2APPbPPGCnrsMMkgC9IQX9jaB3xBUPpaCOd1hUKxaNXlaA6cN4M=",
+                    "encrypted_category": "T02HJLFloLr4y9o47NCnRNHSZ/8xxt7rFrEAm2+/IyC4JgyPMAI160o=",
+                    "encrypted_model_name": "T02HJLFl/NTByCNwdtKVQuMXwtMS1ICD8+YHMAkNtt2KS5CjV80mubbC6AcLQ5NqXyqUJygseG4="
+                  },
+                  {
+                    "id": "server-061",
+                    "client_message_id": "10000000-0000-4000-8000-000000000061",
+                    "chat_id": "22222222-2222-4222-8222-222222222222",
+                    "role": "user",
+                    "created_at": 1700000061,
+                    "encrypted_content": "T02HJLFlbTOSKkVgG0Dbb2Gm+1Sv5ItNedwCgasj5KgmQy6GxglhAV8AJOTpe3jHJodW",
+                    "hashed_user_id": "synthetic-owner"
+                  },
+                  {
+                    "id": "server-062",
+                    "client_message_id": "10000000-0000-4000-8000-000000000062",
+                    "chat_id": "22222222-2222-4222-8222-222222222222",
+                    "role": "assistant",
+                    "created_at": 1700000062,
+                    "encrypted_content": "T02HJLFlO8B4PQFCsIkWTFsuTnAIHHObop6gI7/sHsRAklinTveLAUk+xa04vOX5YNlp",
+                    "encrypted_sender_name": "T02HJLFlPT/ngJhJwykK2APPbPPGCnrsMMkgC9IQX9jaB3xBUPpaCOd1hUKxaNXlaA6cN4M=",
+                    "encrypted_category": "T02HJLFloLr4y9o47NCnRNHSZ/8xxt7rFrEAm2+/IyC4JgyPMAI160o=",
+                    "encrypted_model_name": "T02HJLFl/NTByCNwdtKVQuMXwtMS1ICD8+YHMAkNtt2KS5CjV80mubbC6AcLQ5NqXyqUJygseG4="
+                  },
+                  {
+                    "id": "server-063",
+                    "client_message_id": "10000000-0000-4000-8000-000000000063",
+                    "chat_id": "22222222-2222-4222-8222-222222222222",
+                    "role": "user",
+                    "created_at": 1700000063,
+                    "encrypted_content": "T02HJLFl/0qB5ZG2jDcEmkiENl2P4aoh1k36FrY+ZD0KtwiENR1p3deQzlNnRT+RrlyI",
+                    "hashed_user_id": "synthetic-owner"
+                  },
+                  {
+                    "id": "server-064",
+                    "client_message_id": "10000000-0000-4000-8000-000000000064",
+                    "chat_id": "22222222-2222-4222-8222-222222222222",
+                    "role": "assistant",
+                    "created_at": 1700000064,
+                    "encrypted_content": "T02HJLFlNs3Ln1MDzFQYHuzKKRVdYhk3QULOapQW0GIjDGOiEInvN2JZ8qtXGHioNePc7SgYwEmrTpNVbkMfKYNV67iO9sXQaGYfQ+3AD4tL",
+                    "encrypted_sender_name": "T02HJLFlPT/ngJhJwykK2APPbPPGCnrsMMkgC9IQX9jaB3xBUPpaCOd1hUKxaNXlaA6cN4M=",
+                    "encrypted_category": "T02HJLFloLr4y9o47NCnRNHSZ/8xxt7rFrEAm2+/IyC4JgyPMAI160o=",
+                    "encrypted_model_name": "T02HJLFl/NTByCNwdtKVQuMXwtMS1ICD8+YHMAkNtt2KS5CjV80mubbC6AcLQ5NqXyqUJygseG4=",
+                    "encrypted_pii_mappings": "T02HJLFlwEj4Wi2Txu21zhB5FlFBJ0zPQuFPtjnQQoYs5Exy79PuNh81q4mAxkim0juyXXyp+IYsNPe3P7k2jC9jzPxqKF0yFffBziH97h1m74Xy8Z0ig8V9d9fiqPjR1zEcjVcJj75GMQZ7hQOdtUoMKObrsuLFQMnre+qSaQ=="
+                  },
+                  {
+                    "id": "server-065",
+                    "client_message_id": "10000000-0000-4000-8000-000000000065",
+                    "chat_id": "22222222-2222-4222-8222-222222222222",
+                    "role": "user",
+                    "created_at": 1700000065,
+                    "encrypted_content": "T02HJLFlQC54PgP3CtuEKnbGeMn8HChyQnRjhQuTDCxYKNHGVK3qwNVu3xaA2eGTYLOA",
+                    "hashed_user_id": "synthetic-owner",
+                    "encrypted_pii_mappings": "T02HJLFlaEroHUAHHhSjq+jZ5SOD02ZgpfYwGGqCIhSRtqKL"
+                  }
+                ],
+                "has_more_before": true,
+                "has_more_after": false,
+                "start_cursor": {
+                  "created_at": 1700000046,
+                  "message_id": "10000000-0000-4000-8000-000000000046"
+                },
+                "end_cursor": {
+                  "created_at": 1700000065,
+                  "message_id": "10000000-0000-4000-8000-000000000065"
+                },
+                "oversized_message": false,
+                "payload_bytes": 8646
               }
             }
           ],
@@ -59192,7 +59347,7 @@
           },
           "expected_error": null,
           "expected_metadata_requests": 3,
-          "expected_window_requests": 3,
+          "expected_window_requests": 5,
           "expected_exact_requests": 0,
           "expected_embed_requests": 3,
           "expected_checks": [
@@ -59511,6 +59666,10 @@
               "consumed": 3,
               "details_embeds": 1
             }
+          },
+          "cancel_expected_counts": {
+            "metadata": 3,
+            "window": 3
           }
         },
         {

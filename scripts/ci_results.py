@@ -1461,10 +1461,16 @@ def valid_sdk_conformance_receipt(
             and digest(value.get("commandSha256"))
             for value, row in zip(launches, plan)
         )
-        and set(artifacts) == {"npm", "python"}
+        # The lane builds native npm/Python bindings and the portable WASM
+        # core; each artifact keeps its exact platform/format identity.
+        and set(artifacts) == {"npm", "python", "wasm"}
         and all(
             isinstance(value, dict)
-            and value.get("elf") == "linux-x64"
+            and (
+                value.get("format") == "wasm32"
+                if name == "wasm"
+                else value.get("elf") == "linux-x64"
+            )
             and digest(value.get("sha256"))
             and type(value.get("nlink")) is int
             and value["nlink"] == 1
@@ -1482,7 +1488,7 @@ def valid_sdk_conformance_receipt(
             )
             and value["bytes"] > 64
             and not value["mode"] & 0o002
-            for value in artifacts.values()
+            for name, value in artifacts.items()
         )
         and "frontend/packages/openmates-cli/dist/sdk-entry.js" in dist
         and all(

@@ -79,7 +79,7 @@
     {
       "path": "tests/crypto_fixtures/session-saved-chat-read.json",
       "source": "tests/sdk-conformance/fixtures/session-saved-chat-read.json",
-      "sha256": "94fb0481fb767d8ebe798a4016136026b7f16f685409b997f9d4b609fb82d35f"
+      "sha256": "2a21e811910e21189dc8d88fb6d846029d2eca927b6502b59ced547708a1daaa"
     },
     {
       "path": "tests/fixtures/sdk-embed-version-content.json",
