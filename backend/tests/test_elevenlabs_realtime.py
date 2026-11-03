@@ -476,6 +476,26 @@ async def test_real_empty_audio_frame_between_chunks_and_during_drain_requires_r
 
 
 @pytest.mark.asyncio
+async def test_alignment_only_frame_with_empty_audio_is_timing_not_an_audio_violation(transport):
+    socket, _, _ = transport
+    connection = session()
+    await connection.open()
+    await connection.append_text("Approved.")
+    socket.emit(audio(b"ID3first"))
+    # Shape captured from the real provider mid-turn (field sizes only).
+    socket.emit({"audio": "", "normalizedAlignment": None, "alignment": {
+        "chars": ["a", "b", "c"], "char_start_times_ms": [0, 10, 20], "char_durations_ms": [10, 10, 10]}})
+    assert (await connection.receive()).audio_bytes == b"ID3first"
+    timing = await connection.receive()
+    assert timing.audio_bytes == b"" and timing.alignment is not None and not timing.final
+    assert connection.audio_bytes_received == len(b"ID3first")
+    assert not socket.closed
+    socket.emit({"audio": "", "alignment": {"chars": "abc"}})
+    with pytest.raises(provider.ElevenLabsRealtimeError, match="invalid_alignment"):
+        await connection.receive()
+
+
+@pytest.mark.asyncio
 async def test_noop_stream_cannot_extend_session_lifetime_or_prove_generated_output(transport, monkeypatch):
     socket, _, clients = transport
     clock = [100.0]
