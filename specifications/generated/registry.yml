@@ -623,6 +623,13 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.interactive-html-visuals:
+    version: 1
+    status: draft
+    path: features/interactive-html-visuals
+    fingerprint: a818993f213b73d6fcf37b6d993cfb8e73cc5db9cca6f65494c49d1b1ed83db2
+    required_applies_to:
+    - gui.web
   feature.issue-reporting:
     version: 1
     status: draft
@@ -7929,6 +7936,27 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  interactive-html.render.live-preview-and-code-switch:
+    specification: feature.interactive-html-visuals@1
+    specification_id: feature.interactive-html-visuals
+    type: behavior
+    fingerprint: 0c039eb103d623b761bf14d18f35321007063d036dbb13e33dd9fca43591430d
+    required_applies_to:
+    - gui.web
+  interactive-html.security.isolated-and-offline:
+    specification: feature.interactive-html-visuals@1
+    specification_id: feature.interactive-html-visuals
+    type: invariant
+    fingerprint: 67a21a29402229df21f8a5acad8ab8735277c76a5b376c82a0b009c7fbd47a3a
+    required_applies_to:
+    - gui.web
+  interactive-html.assistant.self-contained-visuals:
+    specification: feature.interactive-html-visuals@1
+    specification_id: feature.interactive-html-visuals
+    type: behavior
+    fingerprint: f5dcb01c2a008fa71bcc00882108ba1607d11a0343e0693ca06dea03095aa533
+    required_applies_to:
+    - gui.web
   issue-reporting.entry.device-shake:
     specification: feature.issue-reporting@1
     specification_id: feature.issue-reporting

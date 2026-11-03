@@ -1,0 +1,84 @@
+schema_version: 1
+id: feature.interactive-html-visuals
+version: 1
+status: draft
+title: Interactive HTML Visuals in Code Embeds
+summary: >
+  HTML code embeds render as live visuals, with their inline CSS and JavaScript,
+  in the chat card and in fullscreen. The rendering is isolated from the app,
+  the account and the network. The assistant creates such self-contained
+  visuals when an animation, simulation or interactive explanation helps more
+  than text.
+
+related_contracts:
+  - specification: feature.assistant-answer-composition@1
+    relationship: An interactive visual is one more rich artifact the assistant can place beside the explanation it supports; composition rules on length and relevance still apply.
+  - specification: feature.chats@7
+    relationship: Reuse code embed streaming, storage, sharing and fullscreen; this contract adds only live HTML rendering and its isolation.
+
+scope:
+  includes:
+    - Live rendering of finished HTML code embeds (language html or a .html/.htm filename) in chat cards and fullscreen, with a switch between visual and source code.
+    - Isolation of the rendered document from the app, user data and the network.
+    - Assistant guidance for when and how to produce self-contained HTML visuals.
+  excludes:
+    - Runnable multi-file web apps, which stay in the existing application preview.
+    - Static editable diagrams, which stay in the Diagrams embed.
+    - Loading external libraries, fonts, images or data from the network inside a visual.
+
+assertions:
+  - id: interactive-html.render.live-preview-and-code-switch
+    type: behavior
+    must: >
+      A finished HTML code embed shows the rendered page, including inline CSS
+      animations and inline JavaScript, in its chat card instead of source lines.
+      The card stays a click target that opens fullscreen. Fullscreen opens on
+      the live, interactive visual, and one header button switches to the source
+      code and back; copy and download keep working. Markdown and other code
+      embeds keep their existing previews. While an HTML embed is still
+      streaming, its source is shown and the page is not executed.
+    depends_on: [examples.render]
+  - id: interactive-html.security.isolated-and-offline
+    type: invariant
+    must: >
+      The rendered page runs in an opaque-origin sandbox that can execute its
+      own inline scripts but cannot read or change the app, its cookies,
+      storage, encryption keys or other embeds, cannot submit forms, open
+      windows or dialogs, download files, or navigate the app. A content policy
+      placed before any author markup blocks every network request, so only
+      inline code and data or blob media load. Attempts to navigate the frame
+      are cancelled, and if a second document ever loads the visual is replaced
+      by a notice. Cards outside the viewport stop running. The same isolation
+      applies to assistant-generated, uploaded and shared-chat HTML.
+    depends_on: [examples.security]
+  - id: interactive-html.assistant.self-contained-visuals
+    type: behavior
+    must: >
+      When a process, motion, mechanism, simulation, data relationship or
+      interactive exploration is materially easier to understand visually, and
+      no better real image, video or result card exists, the assistant may emit
+      one self-contained HTML document in an html code fence with inline CSS and
+      JavaScript, inline SVG or canvas, no external resources or network calls,
+      responsive layout, readable labels and respect for reduced motion. It
+      explains the visual in a short sentence nearby and does not add one to
+      simple answers or when the user asked for text only.
+    depends_on: [examples.assistant]
+
+applies_to:
+  rest_api: {required: false, role: Existing code embed transport is unchanged.}
+  cli: {required: false, parity: semantic}
+  sdks:
+    required: false
+    implementations:
+      rust: {required: false}
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: true
+    implementations:
+      web: {required: true}
+      apple: {required: false}
+
+examples:
+  file: examples.yml
+  required_groups: [render, security, assistant]

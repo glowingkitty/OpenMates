@@ -26,6 +26,8 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { countCodeLines, formatLanguageName, parseCodeEmbedContent } from './codeEmbedContent';
+  import InteractiveHtmlFrame from './InteractiveHtmlFrame.svelte';
+  import { isInteractiveHtmlCode } from './interactiveHtmlSandbox';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import { embedPIIStore, addEmbedPIIMappings, removeEmbedPIIMappings } from '../../../stores/embedPIIStore';
   import { loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
@@ -238,6 +240,10 @@
   let renderLanguage = $derived(parsedContent.language || '');
   let renderFilename = $derived(parsedContent.filename);
   let displayLanguage = $derived.by(() => formatLanguageName(renderLanguage));
+  // Finished HTML embeds render as a live sandboxed visual instead of source.
+  let showInteractiveHtml = $derived(
+    status === 'finished' && !!renderCodeContent && isInteractiveHtmlCode(renderLanguage, renderFilename)
+  );
   
   let previewLines = $derived.by(() => {
     const c = renderCodeContent;
@@ -415,6 +421,10 @@
 	        <div class="code-run-output-preview" data-testid="code-run-output-preview">
 	          <pre>{savedRunOutputPreviewText}</pre>
 	        </div>
+	      {:else if showInteractiveHtml}
+	        <div class="interactive-html-preview" class:large={isLargePreview}>
+	          <InteractiveHtmlFrame code={renderCodeContent} title={renderFilename || displayLanguage} interactive={false} />
+	        </div>
 	      {:else if renderCodeContent}
 	        <!-- Code preview with syntax highlighting -->
 	        <div class="code-preview-container">
@@ -474,6 +484,18 @@
     justify-content: flex-start;
   }
   
+  /* Live HTML visual (sandboxed iframe) */
+  .interactive-html-preview {
+    width: 100%;
+    height: 160px;
+    border-radius: var(--radius-3);
+    overflow: hidden;
+  }
+
+  .interactive-html-preview.large {
+    height: 320px;
+  }
+
   /* Code preview container */
   .code-preview-container {
     position: relative;

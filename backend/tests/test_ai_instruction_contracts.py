@@ -121,3 +121,13 @@ def test_composition_query_budget_counts_batch_members_and_reuses_results() -> N
     assert "missing fact essential to correctness" in instruction
     assert "text-only" in instruction
     assert "Never imply you watched a video" in instruction
+
+
+def test_code_instruction_offers_self_contained_interactive_html_visuals() -> None:
+    instruction = CODE_BLOCK_INSTRUCTION_PATH.read_text(encoding="utf-8")
+
+    assert "Interactive HTML visuals" in instruction
+    assert "```html:four-stroke-engine.html" in instruction
+    assert "only inline CSS, inline JavaScript, inline SVG or canvas" in instruction
+    assert "prefers-reduced-motion" in instruction
+    assert "Do not add a visual to simple factual answers" in instruction

@@ -1276,6 +1276,81 @@ preview_hide:
   he: הסתר תצוגה מקדימה
   verified_by_human: [en, de]
 
+view_code:
+  context: Header CTA button label in an HTML code embed fullscreen that switches from the live rendered visual to the source code
+  en: View code
+  de: Code anzeigen
+  zh: 查看代码
+  es: Ver código
+  fr: Voir le code
+  pt: Ver código
+  ru: Показать код
+  ja: コードを表示
+  ko: 코드 보기
+  it: Mostra codice
+  tr: Kodu göster
+  vi: Xem mã
+  id: Lihat kode
+  pl: Pokaż kod
+  nl: Code bekijken
+  ar: عرض الكود
+  hi: कोड देखें
+  th: ดูโค้ด
+  cs: Zobrazit kód
+  sv: Visa kod
+  he: הצג קוד
+  verified_by_human: [en, de]
+
+view_visual:
+  context: Header CTA button label in an HTML code embed fullscreen that switches from the source code back to the live rendered visual
+  en: View visual
+  de: Visualisierung anzeigen
+  zh: 查看可视化
+  es: Ver visualización
+  fr: Voir le visuel
+  pt: Ver visualização
+  ru: Показать визуализацию
+  ja: ビジュアルを表示
+  ko: 시각화 보기
+  it: Mostra visualizzazione
+  tr: Görseli göster
+  vi: Xem hình ảnh trực quan
+  id: Lihat visual
+  pl: Pokaż wizualizację
+  nl: Visual bekijken
+  ar: عرض المرئي
+  hi: विज़ुअल देखें
+  th: ดูภาพ
+  cs: Zobrazit vizualizaci
+  sv: Visa visualisering
+  he: הצג תצוגה חזותית
+  verified_by_human: [en, de]
+
+interactive_html_blocked:
+  context: Notice shown in place of a live HTML visual when it tried to navigate away and was stopped for safety
+  en: This visual tried to open another page and was stopped.
+  de: Diese Visualisierung wollte eine andere Seite öffnen und wurde gestoppt.
+  zh: 此可视化内容试图打开其他页面，已被阻止。
+  es: Esta visualización intentó abrir otra página y se detuvo.
+  fr: Ce visuel a tenté d'ouvrir une autre page et a été arrêté.
+  pt: Esta visualização tentou abrir outra página e foi interrompida.
+  ru: Эта визуализация пыталась открыть другую страницу и была остановлена.
+  ja: このビジュアルは別のページを開こうとしたため停止されました。
+  ko: 이 시각화가 다른 페이지를 열려고 해서 중지되었습니다.
+  it: Questa visualizzazione ha tentato di aprire un'altra pagina ed è stata fermata.
+  tr: Bu görsel başka bir sayfa açmaya çalıştı ve durduruldu.
+  vi: Hình ảnh trực quan này đã cố mở trang khác và đã bị dừng.
+  id: Visual ini mencoba membuka halaman lain dan dihentikan.
+  pl: Ta wizualizacja próbowała otworzyć inną stronę i została zatrzymana.
+  nl: Deze visual probeerde een andere pagina te openen en is gestopt.
+  ar: حاول هذا المرئي فتح صفحة أخرى وتم إيقافه.
+  hi: इस विज़ुअल ने दूसरा पेज खोलने की कोशिश की और इसे रोक दिया गया।
+  th: ภาพนี้พยายามเปิดหน้าอื่นและถูกหยุดไว้
+  cs: Tato vizualizace se pokusila otevřít jinou stránku a byla zastavena.
+  sv: Den här visualiseringen försökte öppna en annan sida och stoppades.
+  he: התצוגה החזותית ניסתה לפתוח דף אחר ונעצרה.
+  verified_by_human: [en, de]
+
 get_docs.how_to_use.1:
   context: Example instruction for get docs skill - explore API capabilities
   en: Based on the docs, what can I do with the **Miro API**?

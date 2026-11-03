@@ -1,5 +1,6 @@
 import { authStore } from '../../../stores/authStore';
 import { webSocketService } from '../../../services/websocketService';
+import { interactiveHtmlFixture } from './interactiveHtmlPreviewFixture';
 
 /**
  * Preview mock data for CodeEmbedFullscreen.
@@ -59,6 +60,14 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+  /** Live sandboxed HTML visual with escape probes; opens on the visual. */
+  interactiveHtml: {
+    ...defaultProps,
+    data: codeData(interactiveHtmlFixture(false), 'html', 'orbit.html', 55),
+    embedId: 'preview-interactive-html-fullscreen',
+    hasPreviousEmbed: false,
+    hasNextEmbed: false,
+  },
   /** Real Code Run selection with API responses supplied by the focused component test. */
   pythonDependencies: {
     ...defaultProps,

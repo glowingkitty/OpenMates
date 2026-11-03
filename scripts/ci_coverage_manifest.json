@@ -986,6 +986,7 @@
         "components/social-date-pill.spec.ts",
         "components/saved-result-preview.spec.ts",
         "components/result-web-news-design.spec.ts",
+        "components/interactive-html-visuals.spec.ts",
         "components/result-catalog-design.spec.ts",
         "components/media-result-layout.spec.ts",
         "components/embed-fullscreen-followup.spec.ts",
