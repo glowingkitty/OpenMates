@@ -335,7 +335,13 @@ impl Client {
                 ..Item::default()
             });
         }
-        canonical_history::saved_item(row,key)
+        let mut item = canonical_history::saved_item(row, key)?;
+        self.apply_draft_projection(row, &mut item)?;
+        Ok(item)
+    }
+
+    pub(super) fn apply_draft_projection(&self, row: &Value, item: &mut Item) -> Result<()> {
+        draft_projection(row, &self.require_session()?.master_key, item)
     }
 
     pub(super) async fn sync_chats(&mut self) -> Result<Vec<Item>> {
@@ -1032,6 +1038,26 @@ impl Client {
         Ok(())
     }
 }
+/// TS `chatListItem` parity: a chat with a draft lists "Draft" as its
+/// description and, without a title, the draft preview (master-key
+/// encrypted) as its display title. `fields.has_draft` marks the row.
+pub(super) fn draft_projection(row: &Value, master: &[u8; 32], item: &mut Item) -> Result<()> {
+    if !row.get("encrypted_draft_md").and_then(Value::as_str).is_some_and(|draft| !draft.is_empty()) {
+        return Ok(());
+    }
+    if item.title.is_empty() {
+        let mut text = zeroize::Zeroizing::new(decrypt_optional(row, "encrypted_draft_preview", master)?);
+        if text.is_empty() {
+            text = zeroize::Zeroizing::new(decrypt_optional(row, "encrypted_draft_md", master)?);
+        }
+        let collapsed: String = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        item.title = collapsed.chars().take(200).collect();
+    }
+    item.description = "Draft".into();
+    item.fields["has_draft"] = Value::Bool(true);
+    Ok(())
+}
+
 pub(super) fn decrypt_optional(row: &Value, name: &str, key: &[u8; 32]) -> Result<String> {
     match row.get(name) {
         None | Some(Value::Null) => Ok(String::new()),
@@ -1534,5 +1560,30 @@ mod inventory_phase_tests {
         for policy in [ChatSyncPolicy::Ordinary, ChatSyncPolicy::MonitorReadOnly] {
             assert_eq!(policy.requested_phase(true, true, false), "all");
         }
+    }
+}
+
+#[cfg(test)]
+mod draft_projection_tests {
+    use super::*;
+
+    // contract-test: supporting surface=cli assertions=cli.runtime.native-rust
+    #[test]
+    fn untitled_chat_with_a_draft_lists_the_draft_preview_like_the_ts_tui() {
+        let master = [4u8; 32];
+        let enc = |text: &str| crypto::encrypt_combined(text, &master).unwrap();
+        let row = json!({"encrypted_draft_md": enc("long  draft\nbody"), "encrypted_draft_preview": enc("long  draft\nbody")});
+        let mut item = Item { id: "c".into(), fields: json!({"chat_list_title": null}), ..Item::default() };
+        draft_projection(&row, &master, &mut item).unwrap();
+        assert_eq!(item.title, "long draft body");
+        assert_eq!(item.description, "Draft");
+        assert_eq!(item.fields["has_draft"], true);
+        assert!(item.fields["chat_list_title"].is_null());
+        let mut titled = Item { id: "c".into(), title: "Real".into(), fields: json!({}), ..Item::default() };
+        draft_projection(&row, &master, &mut titled).unwrap();
+        assert_eq!(titled.title, "Real");
+        let mut none = Item { fields: json!({}), ..Item::default() };
+        draft_projection(&json!({}), &master, &mut none).unwrap();
+        assert!(none.title.is_empty() && none.fields.get("has_draft").is_none());
     }
 }
