@@ -33,7 +33,7 @@ paths:
   `ci_coordinator.py wait <id>`. Never start a second scheduler, deploy before
   E2E, or use the shared dev stack for these tests.
 - Real AI inference: only on the dev server, never in CI. Deploy the candidate
-  via the session helper first, use disposable accounts/Projects and isolated
+  via the session helper first, use disposable Projects and isolated
   CLI state, select `@Gemini-3.8-Flash` (unless the user names another model)
   and fail if the persisted assistant model differs. Record revision + results.
   Account: the personal dev test account only (`OPENMATES_PERSONAL_TEST_ACOUNT_*`,
