@@ -12444,3 +12444,57 @@ reminder_notification.open_item_button:
   sv: Öppna objekt
   he: פתיחת הפריט
   verified_by_human: []
+
+workflow_digest.workflows:
+  context: 'Daily Workflow summary: workflows'
+  en: Workflows
+  de: Workflows
+  verified_by_human: []
+
+workflow_digest.workflow:
+  context: 'Daily Workflow summary: workflow'
+  en: Workflow
+  de: Workflow
+  verified_by_human: []
+
+workflow_digest.view_workflow:
+  context: 'Daily Workflow summary: view workflow'
+  en: View Workflow
+  de: Workflow ansehen
+  verified_by_human: []
+
+workflow_digest.view_latest_run:
+  context: 'Daily Workflow summary: view latest run'
+  en: View latest run
+  de: Letzte Ausführung ansehen
+  verified_by_human: []
+
+workflow_digest.view_all:
+  context: 'Daily Workflow summary: view all'
+  en: View all Workflows
+  de: Alle Workflows ansehen
+  verified_by_human: []
+
+workflow_digest.last_activity:
+  context: 'Daily Workflow summary: last activity'
+  en: Latest activity
+  de: Letzte Aktivität
+  verified_by_human: []
+
+workflow_digest.in_progress:
+  context: 'Daily Workflow summary: in progress'
+  en: In progress at cutoff
+  de: Zum Berichtsende noch aktiv
+  verified_by_human: []
+
+workflow_digest.more_workflows:
+  context: 'Daily Workflow summary: more workflows'
+  en: more Workflows in this reporting period
+  de: weitere Workflows in diesem Berichtszeitraum
+  verified_by_human: []
+
+workflow_digest.attention:
+  context: 'Daily Workflow summary: attention'
+  en: Needs attention
+  de: Benötigt Aufmerksamkeit
+  verified_by_human: []

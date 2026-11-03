@@ -30,6 +30,7 @@ import { notificationStore } from "../stores/notificationStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "./drafts/draftConstants";
 import { isChatVisiblyActive } from "./chatNotificationVisibility";
+import { claimChatMessageNotification, isFinalizedChatMessage } from "./chatMessageNotificationReceipt";
 import { isDraftUpdateBlockedByLocalDeletion } from "./chatSyncMerge";
 import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat } from "../utils/chatDraftState";
 import { get } from "svelte/store";
@@ -469,8 +470,10 @@ async function notifyBackgroundAssistantBroadcast(
   chatId: string,
   message: Message,
   chat: Chat,
+  expectedIdentity: string | null,
 ): Promise<void> {
   if (
+    !expectedIdentity || expectedIdentity !== getWorkspaceCacheIdentity() ||
     message.role !== "assistant" ||
     chat.is_sub_chat ||
     chat.parent_id ||
@@ -479,8 +482,7 @@ async function notifyBackgroundAssistantBroadcast(
     return;
   }
 
-  unreadMessagesStore.incrementUnread(chatId);
-
+  const ownerID = get(userProfile).user_id || "";
   let chatTitle = chat.title || "New message";
   if (!chat.title && chat.encrypted_title) {
     try {
@@ -500,6 +502,11 @@ async function notifyBackgroundAssistantBroadcast(
     }
   }
 
+  // Title decryption can suspend across logout, a server/Team change or a
+  // navigation to this chat. Recheck before either unread or private preview UI.
+  if (expectedIdentity !== getWorkspaceCacheIdentity() || ownerID !== (get(userProfile).user_id || "") ||
+      isChatVisiblyActive(chatId) || !claimChatMessageNotification(ownerID, chatId, message.message_id)) return;
+  unreadMessagesStore.incrementUnread(chatId);
   notificationStore.chatMessage(
     chatId,
     chatTitle,
@@ -986,6 +993,7 @@ export async function handleNewChatMessageImpl(
     };
   },
 ): Promise<void> {
+  const notificationIdentity = getWorkspaceCacheIdentity();
   console.info(
     "[ChatSyncService:ChatUpdates] Received new_chat_message (user message from another device):",
     payload,
@@ -1024,6 +1032,7 @@ export async function handleNewChatMessageImpl(
     // CRITICAL: Avoid shared transactions here because encryption/decryption is async.
     // A shared transaction can auto-commit before saveMessage/updateChat runs, which
     // prevents UI updates from firing (seen as "missing" messages on other devices).
+    const hadMessage = isFinalizedChatMessage(await chatDB.getMessage(payload.message_id));
     let chat = await chatDB.getChat(payload.chat_id);
 
     if (!chat) {
@@ -1270,6 +1279,7 @@ export async function handleNewChatMessageImpl(
       encrypted_content: "", // Will be populated by chatDB.saveMessage()
     };
 
+    let messageSaved = false;
     // KEYS-04: converted from getKeySync to withKey for key-before-content guarantee.
     // If the key is absent (brand-new chat where the server broadcast fired before the
     // key was persisted), withKey buffers the save operation and executes it when the
@@ -1282,6 +1292,7 @@ export async function handleNewChatMessageImpl(
         "save-new-chat-message",
         async () => {
           await chatDB.saveMessage(newMessage);
+          messageSaved = true;
           console.debug(
             `[ChatSyncService:ChatUpdates] Saved new message ${payload.message_id} to chat ${payload.chat_id}`,
           );
@@ -1441,6 +1452,9 @@ export async function handleNewChatMessageImpl(
         },
       }),
     );
+    if (messageSaved && !hadMessage) {
+      await notifyBackgroundAssistantBroadcast(payload.chat_id, newMessage, chat, notificationIdentity);
+    }
   } catch (error) {
     console.error(
       "[ChatSyncService:ChatUpdates] Error in handleNewChatMessage:",
@@ -1454,6 +1468,7 @@ export async function handleChatMessageReceivedImpl(
   payload: ChatMessageReceivedPayload,
   isCurrentContext: () => boolean = () => true,
 ): Promise<void> {
+  const notificationIdentity = getWorkspaceCacheIdentity();
   console.info(
     "[ChatSyncService:ChatUpdates] Received chat_message_added (broadcast from server for other users/AI):",
     payload,
@@ -1605,6 +1620,7 @@ export async function handleChatMessageReceivedImpl(
         payload.chat_id,
         incomingMessage,
         chat,
+        notificationIdentity,
       );
     } else if (chat) {
       // CROSS-DEVICE KEY SAFETY: Before saving the message, verify the chat key
@@ -1735,10 +1751,13 @@ export async function handleChatMessageReceivedImpl(
           },
         }),
       );
-      await notifyBackgroundAssistantBroadcast(
+      // A saved canonical message is the durable replay receipt across reloads,
+      // claimant/broadcast races, persist/ACK projection and reconnect.
+      if (!isFinalizedChatMessage(existingLocalMessage)) await notifyBackgroundAssistantBroadcast(
         payload.chat_id,
         visibleMessage,
         finalChatState || chatUpdate,
+        notificationIdentity,
       );
     } else {
       // A server/Redis assistant broadcast can beat the direct new_chat_message

@@ -17002,10 +17002,10 @@
           "text": "Opslaan..."
         },
         "email_chat_how_it_works": {
-          "text": "Chatmails worden verzonden als je afwezig bent. Na een geslaagde geplande Workflow-run krijg je een voltooiingsmail en een dagelijks overzicht."
+          "text": "Eén dagelijkse e-mail vat geplande Workflow-activiteit samen; berichten volgen de normale chatinstellingen."
         },
         "email_workflow_runs_desc": {
-          "text": "E-mails na geslaagde geplande Workflow-runs, plus een dagelijks overzicht"
+          "text": "Eén dagelijkse e-mail vat geplande Workflow-activiteit samen; berichten volgen de normale chatinstellingen."
         },
         "email_webhooks": {
           "text": "Webhook-chats"

@@ -21,6 +21,7 @@ Tests: N/A (covered by integration tests via celery beat + email delivery logs)
 
 import asyncio
 import logging
+import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -386,4 +387,92 @@ async def _async_run_daily_notifications(task: BaseServiceTask) -> dict:
         logger.error("daily_notification_dispatcher failed: %s", exc, exc_info=True)
         return stats
     finally:
+        await task.cleanup_services()
+
+
+@app.task(
+    name="app.tasks.email_tasks.daily_notification_dispatcher.recover_workflow_digests",
+    base=BaseServiceTask, bind=True,
+)
+def recover_workflow_digests(self) -> dict:
+    """Recover only the latest Workflow email window; never rerun daily handlers."""
+    return asyncio.run(_async_recover_workflow_digests(self))
+
+
+async def _async_recover_workflow_digests(task: BaseServiceTask) -> dict:
+    """Use a bounded ordered sweep and short lease for a missed 09:00 dispatch.
+
+    The lease reduces competing scans; the durable per-user/window email guard
+    remains the authority even if a long sweep outlives the lease.
+    """
+    stats = {"checked_users": 0, "sent_workflowRuns": 0, "failed_users": 0}
+    now = datetime.now(timezone.utc)
+    cutoff = now.replace(hour=9, minute=0, second=0, microsecond=0)
+    if now < cutoff:
+        cutoff -= timedelta(days=1)
+    epoch = int(cutoff.timestamp())
+    lock_key = f"workflow_digest_recovery:{epoch}:{int(now.timestamp()) // 900}"
+    token = str(uuid.uuid4())
+    client = None
+    acquired = False
+    try:
+        await initialize_notification_email_services(task)
+        if not _is_current_digest_cutoff(epoch):
+            return {**stats, "status": "expired_cutoff"}
+        client = await task.cache_service.client
+        if client is None or not await client.set(lock_key, token, nx=True, ex=900):
+            return {**stats, "status": "locked"}
+        acquired = True
+        last_id = None
+        offset = 0
+        while _is_current_digest_cutoff(epoch):
+            filters = [{"status": {"_eq": "active"}}, {"email_notifications_enabled": {"_eq": True}}]
+            # Directus UUID filters do not support ordered comparisons. Stable
+            # id ordering plus actual returned-count offsets remains cap-safe;
+            # a roster change is recovered by the next current-window sweep.
+            users = await task.directus_service.get_items(
+                "directus_users", params={
+                    "fields": "id,email_notifications_enabled,email_notification_preferences,email_notification_preference_choices",
+                    "filter": {"_and": filters}, "sort": "id", "offset": offset, "limit": USER_PAGE_SIZE,
+                }, admin_required=True, no_cache=True, raise_on_error=True,
+            )
+            if not isinstance(users, list):
+                raise RuntimeError("Unexpected recovery user response")
+            if not users:
+                break
+            offset += len(users)
+            for user in users:
+                if not _is_current_digest_cutoff(epoch):
+                    return {**stats, "status": "expired_cutoff"}
+                user_id = user.get("id") if isinstance(user, dict) else None
+                if not isinstance(user_id, str) or not user_id or (last_id is not None and user_id <= last_id):
+                    raise RuntimeError("Unordered recovery user page")
+                last_id = user_id
+                stats["checked_users"] += 1
+                if not notification_category_enabled(user, "workflowRuns"):
+                    continue
+                try:
+                    result = await send_user_workflow_digest(task, user_id, cutoff, require_current_cutoff=True)
+                    if result == "sent":
+                        stats["sent_workflowRuns"] += 1
+                    elif result in {"failed", "retry_locked", "retry_unavailable"}:
+                        stats["failed_users"] += 1
+                        queue_workflow_digest_retry(user_id, epoch, 1)
+                except Exception:
+                    stats["failed_users"] += 1
+                    logger.exception("Workflow digest recovery failed for user %s", user_id[:8])
+                    queue_workflow_digest_retry(user_id, epoch, 1)
+        return {**stats, "status": "complete" if _is_current_digest_cutoff(epoch) else "expired_cutoff"}
+    except Exception:
+        logger.exception("Workflow digest recovery sweep unavailable")
+        return {**stats, "status": "unavailable"}
+    finally:
+        if acquired and client is not None:
+            try:
+                await client.eval(
+                    "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+                    1, lock_key, token,
+                )
+            except Exception:
+                logger.warning("Workflow digest recovery lease release unavailable")
         await task.cleanup_services()

@@ -2,13 +2,13 @@ schema_version: 2
 profile: concise
 id: workflow-daily-email-design
 title: One useful daily Workflow email with consistent reminder styling
-status: draft
+status: implementing
 goal: >
   Check what is already implemented and if there are some gaps, and if the workflow,
   like the daily workflow overview email isn't set up yet or doesn't match the
   updated design basically that we have. Let's plan this out so we can fix the gap.
 references:
-  - TASK-3248
+  - task:a34d1a14-a773-4671-9cdb-3386868da421
   - specifications/features/notifications/specification.yml
   - specifications/features/workflows/specification.yml
   - docs/plans/chat-email-workflow-digest/plan.yml
@@ -18,7 +18,10 @@ references:
 scope:
   in:
     - One automatic email per eligible user and daily reporting window across all scheduled Workflows, with no empty digest.
-    - Remove automatic per-run completion email, including pending outboxes, already-queued completion jobs and old workers in flight; retain sent history and pending event/push delivery.
+    - Retire automatic Workflow-run email, push and in-app/history alerts, including queued jobs and old workers; retain prior sent history and normal execution history.
+    - Daily Workflow activity summary is email only, with no push or in-app summary notification.
+    - Real Workflow-created chats/messages use normal chat email/push/in-app preferences, foreground/viewed gates and per-message deduplication, independently of the daily email setting.
+    - Preserve current output cancellation/expiry rules; notify committed messages or confirmed deliverable pending outputs, never tentative cancelled messages.
     - Group runs into one card per Workflow with all-run totals, outcomes, latest relevant times, and authenticated Workflow/run destinations.
     - Match the approved reminder/newsletter shell, notification bell, spacing, rounded cards and orange actions using bounded email-safe HTML.
     - Include late completions and running work overlapping the previous 24-hour window; retain scheduled-only eligibility and the fixed daily cutoff.
@@ -26,21 +29,21 @@ scope:
     - Preserve verified-address, unsubscribe and explicit privacy choices; settle useful Workflow identity separately from optional private output excerpts.
     - Update settings disclosure, translations, conflicting notification assertions/examples, focused coverage and dev verification.
   out:
-    - Changes to reminder emails, chat-response emails, push cadence or in-app completion history.
+    - Changes to reminder emails or notification behavior for non-Workflow chat messages.
     - Enabling the currently unavailable explicit Send email Workflow action.
     - Per-user send-time controls, new providers, browser rendering infrastructure or a new private image endpoint.
-    - Production mutation or rollout as part of this planning task.
+    - Production activation; implementation and verification target isolated CI then managed dev.
 decisions:
   - id: audit-not-implementation
-    status: active
-    decision: This is a proposal only. The current user request authorizes investigation and planning; no product behavior, preferences or Specification text was changed.
+    status: superseded
+    decision: Initial scope was investigation and planning; the user subsequently approved the plan and clarified the final delivery policy on 2026-10-28.
   - id: existing-delivery-baseline
     status: active
     decision: Reuse the implemented daily dispatcher, verified-contact resolver, per-user/date reservation and delivery guard rather than adding a parallel mailer.
     reason: The existing daily digest has isolated SMTP coverage and its 09:00 UTC registration is present in the running dev scheduler.
   - id: proposed-email-cadence
     status: active
-    decision: Proposed automatic Workflow email cadence is daily only. Immediate completion events and enabled push remain independent.
+    decision: Approved Workflow activity notifications are daily email only. No per-run or daily-summary push/in-app alerts. Actual chat output separately follows ordinary chat notification settings.
     reason: Current completion dispatch and the current completed-delivery assertion intentionally add per-run email; both must change together.
   - id: proposed-window
     status: active
@@ -52,26 +55,30 @@ decisions:
     reason: An hourly Workflow should occupy one card containing its run count. Email-safe HTML keeps names, statuses and actions readable with images blocked and avoids per-run image work.
   - id: proposed-content-policy
     status: active
-    decision: Recommend basic Workflow names and statuses as useful identifying context, with prompts, node inputs and output excerpts excluded unless explicitly enabled. Preserve every explicit hide-content and email opt-out choice.
-    reason: Current includeContent consent also hides Workflow titles. The identifying-context default and any migration must be explicitly settled in the revised contract before implementation; no blanket reset is proposed.
+    decision: Include basic Workflow names and statuses as useful identifying context, with prompts, node inputs and output excerpts excluded unless explicitly enabled. Preserve every explicit hide-content and email opt-out choice.
+    reason: Current includeContent consent also hides Workflow titles. The approved identifying-context rule mirrors reminder handling, honoring explicit user hide-content choices without a blanket preference reset.
 approvals:
   specification:
-    status: pending
-    reason: The existing notifications.workflow-run.completed-delivery assertion requires prompt per-run email; daily-only email and the chosen identity/window semantics require revised assertions/examples before implementation.
+    status: approved
+    approved_at: '2026-10-28'
+    reason: User approved the plan, clarified email-only activity versus ordinary chat output, and previously authorized related Specification updates without a further approval request. Exact approved fingerprint is 9e20bca3efc6e7d08a9e225f70b47095b34b09084d066de59da933cd3ee6328d (re-approved by the user on 2026-11-03 after post-approval wording edits).
   plan:
-    status: pending
-    reason: Concrete proposal prepared for the user's review; implementation was not requested in this turn.
+    status: approved
+    approved_at: '2026-10-28'
+    reason: User confirmed the plan and clarified the final channel behavior in the current chat.
 checks:
-  - "Required backend regression: 24 hourly successful runs across several Workflows produce zero immediate completion emails and exactly one daily email per eligible user/window."
-  - "Required backend regression: independent push/history, old pending outboxes, already-queued completion jobs, simultaneous dispatchers, retries, consent withdrawal, disabled categories and empty windows remain correct."
-  - "Required retirement verification: coordinate worker drain/rollout or a compatible final send gate so old in-flight senders cannot continue per-run mail after cutover; historical sent state and pending event/push reconciliation survive."
+  - "Required backend regression: 24 hourly runs without chat output across several Workflows produce zero per-run email/push/in-app status alerts and exactly one daily email per eligible user/window; the summary itself produces no push/in-app alert."
+  - "Required backend regression: ordinary chat output preferences and per-message notification identity, old pending outboxes, already-queued completion jobs, simultaneous dispatchers, retries, consent withdrawal, disabled categories and empty windows remain correct."
+  - "Required retirement verification: coordinate worker drain/rollout or a compatible final send gate so old in-flight senders cannot continue per-run mail after cutover; historical sent state survives, retired status channels stay terminal, and real message notification reconciliation survives."
+  - "Required chat-output coverage: new and existing chats, multiple real Send steps, committed outputs before later failure, cancellation of unpersisted outputs, owner/expiry checks, offline hydration and competing-device replay preserve normal notification gates without duplicates."
   - "Required window/scale coverage: late completion, running/waiting overlap, exact UTC boundaries, missed-current-window recovery, more than 200 runs/deliveries and bounded grouped overflow."
   - "Required rendering checks: shared header/footer and bell, escaped identifying text, grouped counts, orange actions, HTML/plain text and readable blocked-image output in light/dark themes."
   - "Required isolated GitHub checks: extend workflow-email-digest.spec.ts and completion probes to assert the combined total email count; verify signed-in and cold-login run/Workflow links."
   - "Required isolated visual evidence: desktop and phone digest with multiple Workflows and a frequent-run case; retain only the latest successful recording per requested flow."
-  - "Proposed final dev verification after implementation approval: send one labeled test digest to the verified configured user address and record provider acceptance and delivery separately."
+  - "Required final dev verification: send one labeled test digest to the verified configured user address and record provider acceptance and delivery separately."
 handoff:
   current_task_id: TASK-3248
-  next_action: Review the proposed cadence, identity policy and activity window; update the existing notification contract/examples before implementing the focused backend/template/settings changes.
+  next_action: Implement the approved digest, per-message chat adapter and client routing in parallel; run focused checks and isolated combined no-flooding/email/route coverage before managed dev activation.
   command: python3 scripts/plan_validate.py docs/plans/workflow-daily-email-design/plan.yml
-  expected_outcome: A reviewed daily-only contract and design with one integrated no-flooding regression, not another independent digest implementation.
+  expected_outcome: One useful daily Workflow-status email, normal eligible real chat notifications, and no duplicate or independent run-status alerts.
+  approved_specification_fingerprint: 9e20bca3efc6e7d08a9e225f70b47095b34b09084d066de59da933cd3ee6328d

@@ -32,6 +32,10 @@ logger = logging.getLogger(__name__)
 logger.addFilter(SensitiveDataFilter())
 
 
+class EmailSendDeferred(Exception):
+    """An authoritative eligibility read failed before any provider call."""
+
+
 class EmailSendIneligible(Exception):
     """The recipient became ineligible before crossing the transport boundary."""
 
@@ -604,7 +608,7 @@ class EmailTemplateService:
                    if accepted_message_id is not None and not ci_mail_capture else {}),
             )
                         
-        except EmailSendIneligible:
+        except (EmailSendIneligible, EmailSendDeferred):
             raise
         except Exception as e:
             logger.error(f"Error sending email: {str(e)}", exc_info=True)

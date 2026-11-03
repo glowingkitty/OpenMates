@@ -825,28 +825,28 @@ notifications.email_saving:
 
   verified_by_human: []
 notifications.email_chat_how_it_works:
-  context: Chat email alerts are away-only; successful scheduled Workflow completions also get prompt email and a daily summary
-  en: "Chat emails are sent when you're away. Successful scheduled Workflow runs get a completion email and a daily summary."
-  de: "Chat-E-Mails werden gesendet, wenn Sie abwesend sind. Für erfolgreiche geplante Workflow-Ausführungen erhalten Sie eine Abschluss-E-Mail und eine tägliche Zusammenfassung."
-  zh: "离开时才会发送聊天邮件。计划运行的工作流成功完成后，您会收到完成邮件和每日摘要。"
-  es: "Los correos de chat se envían cuando no estás. Las ejecuciones programadas de Workflows que se completan correctamente reciben un correo de finalización y un resumen diario."
-  fr: "Les e-mails de chat sont envoyés lorsque vous êtes absent. Les Workflows planifiés terminés avec succès donnent lieu à un e-mail de fin et à un récapitulatif quotidien."
-  pt: "Os e-mails de chat são enviados quando está ausente. As execuções agendadas de Workflows concluídas com sucesso geram um e-mail de conclusão e um resumo diário."
-  ru: "Письма о чатах отправляются, когда вас нет. После успешного завершения запланированного Workflow вы получите письмо и ежедневную сводку."
-  ja: "チャットのメールは離席中に送信されます。予定されたWorkflowが正常に完了すると、完了メールと日次のまとめが届きます。"
-  ko: "채팅 이메일은 자리를 비운 동안 전송됩니다. 예약된 Workflow 실행이 성공적으로 완료되면 완료 이메일과 일일 요약이 전송됩니다."
-  it: "Le email delle chat vengono inviate quando sei assente. Le esecuzioni pianificate dei Workflow completate correttamente ricevono un'email di completamento e un riepilogo giornaliero."
-  tr: "Sohbet e-postaları siz uzaktayken gönderilir. Başarıyla tamamlanan zamanlanmış Workflow çalışmaları için tamamlanma e-postası ve günlük özet gönderilir."
-  vi: "Email về cuộc trò chuyện được gửi khi bạn vắng mặt. Workflow theo lịch hoàn tất thành công sẽ có email thông báo hoàn tất và bản tóm tắt hằng ngày."
-  id: "Email obrolan dikirim saat Anda tidak aktif. Workflow terjadwal yang berhasil selesai mendapat email penyelesaian dan ringkasan harian."
-  pl: "E-maile o czatach są wysyłane, gdy Cię nie ma. Po pomyślnym zakończeniu zaplanowanego Workflow otrzymasz e-mail z powiadomieniem oraz codzienne podsumowanie."
-  nl: "Chatmails worden verzonden als je afwezig bent. Na een geslaagde geplande Workflow-run krijg je een voltooiingsmail en een dagelijks overzicht."
-  ar: "تُرسل رسائل البريد الخاصة بالمحادثات عندما تكون غائبًا. وتتلقى رسالة عند اكتمال تشغيل Workflow مجدول بنجاح، بالإضافة إلى ملخص يومي."
-  hi: "चैट ईमेल तब भेजे जाते हैं जब आप दूर हों। तय समय पर चला Workflow सफलतापूर्वक पूरा होने पर आपको एक ईमेल और दैनिक सारांश मिलता है।"
-  th: "อีเมลแชตจะส่งเมื่อคุณไม่อยู่ เมื่อ Workflow ที่ตั้งเวลาไว้ทำงานสำเร็จ คุณจะได้รับอีเมลแจ้งผลและสรุปรายวัน"
-  cs: "E-maily o chatech se posílají, když jste pryč. Po úspěšném dokončení naplánovaného Workflow dostanete e-mail a denní souhrn."
-  sv: "Chattmejl skickas när du är borta. När en schemalagd Workflow-körning lyckas får du ett mejl om slutförandet och en daglig sammanfattning."
-  he: "הודעות אימייל על צ'אטים נשלחות כשאינך זמין. כש-Workflow מתוזמן מסתיים בהצלחה, נשלחת הודעת השלמה וגם סיכום יומי."
+  context: Daily-only Workflow activity email; actual Workflow chat output follows ordinary chat notification settings
+  en: Chat emails are sent when you are away. Workflow activity gets one daily email only, without Workflow-status push or in-app alerts. Workflow-created chats and messages follow your normal chat notification settings.
+  de: Chat-E-Mails werden gesendet, wenn du abwesend bist. Workflow-Aktivitäten erhalten nur eine tägliche E-Mail, ohne Push- oder In-App-Statusmeldungen. Von Workflows erstellte Chats und Nachrichten folgen deinen normalen Chat-Benachrichtigungen.
+  zh: 每天一封邮件汇总计划工作流的活动；聊天消息遵循常规聊天设置。
+  es: Un correo diario resume la actividad de los Workflows programados; los mensajes siguen los ajustes normales del chat.
+  fr: Un e-mail quotidien résume les Workflows planifiés ; les messages suivent les réglages habituels du chat.
+  pt: Um e-mail diário resume a atividade dos Workflows agendados; as mensagens seguem as definições normais do chat.
+  ru: Одно ежедневное письмо об активности запланированных Workflow; сообщения используют обычные настройки чата.
+  ja: 予定されたWorkflowの実行状況を1日1通のメールでまとめます。チャットのメッセージには通常の通知設定が適用されます。
+  ko: 예약된 Workflow 활동은 하루 한 번 이메일로 요약하며, 채팅 메시지는 일반 채팅 설정을 따릅니다.
+  it: Una sola email giornaliera riepiloga i Workflow programmati; i messaggi seguono le normali impostazioni della chat.
+  tr: Planlanan Workflow etkinlikleri günde tek e-postayla özetlenir; mesajlar normal sohbet ayarlarını kullanır.
+  vi: Một email mỗi ngày tóm tắt hoạt động Workflow theo lịch; tin nhắn tuân theo cài đặt trò chuyện thông thường.
+  id: Satu email harian merangkum aktivitas Workflow terjadwal; pesan mengikuti pengaturan chat biasa.
+  pl: Jeden codzienny e-mail podsumowuje zaplanowane Workflow; wiadomości korzystają ze zwykłych ustawień czatu.
+  nl: Eén dagelijkse e-mail vat geplande Workflow-activiteit samen; berichten volgen de normale chatinstellingen.
+  ar: رسالة بريد واحدة يوميًا تلخص نشاط Workflow المجدول؛ وتتبع الرسائل إعدادات الدردشة المعتادة.
+  hi: निर्धारित Workflow गतिविधि का रोज़ एक ईमेल सारांश; संदेश सामान्य चैट सेटिंग का पालन करते हैं।
+  th: อีเมลวันละฉบับสรุปกิจกรรม Workflow ตามกำหนดเวลา ส่วนข้อความใช้การตั้งค่าแชตตามปกติ
+  cs: Jeden denní e-mail shrnuje naplánované Workflow; zprávy se řídí běžným nastavením chatu.
+  sv: Ett dagligt mejl sammanfattar schemalagda Workflow; meddelanden följer vanliga chattinställningar.
+  he: אימייל יומי אחד מסכם פעילות Workflow מתוזמנת; הודעות פועלות לפי הגדרות הצ׳אט הרגילות.
   verified_by_human: []
 notifications.email_workflow_runs:
   context: Toggle label for successful scheduled Workflow completion emails and the daily run summary
@@ -854,38 +854,39 @@ notifications.email_workflow_runs:
   de: Workflow-Ausführungen
   verified_by_human: []
 notifications.email_workflow_runs_desc:
-  context: Describes prompt emails for successful scheduled Workflow completions plus the daily run summary
-  en: "Completion emails for successful scheduled Workflow runs, plus a daily summary"
-  de: "Abschluss-E-Mails für erfolgreiche geplante Workflow-Ausführungen sowie eine tägliche Zusammenfassung"
-  zh: "计划运行的工作流成功完成时发送邮件，另附每日摘要"
-  es: "Correos al completarse correctamente las ejecuciones programadas de Workflows, más un resumen diario"
-  fr: "E-mails de fin pour les Workflows planifiés terminés avec succès, avec un récapitulatif quotidien"
-  pt: "E-mails de conclusão para execuções agendadas de Workflows concluídas com sucesso, além de um resumo diário"
-  ru: "Письма после успешного завершения запланированных Workflow и ежедневная сводка"
-  ja: "予定されたWorkflowの正常完了を知らせるメールと日次のまとめ"
-  ko: "예약된 Workflow 실행의 성공적인 완료를 알리는 이메일과 일일 요약"
-  it: "Email al completamento delle esecuzioni pianificate dei Workflow, più un riepilogo giornaliero"
-  tr: "Başarıyla tamamlanan zamanlanmış Workflow çalışmaları için e-postalar ve günlük özet"
-  vi: "Email khi Workflow theo lịch hoàn tất thành công, cùng bản tóm tắt hằng ngày"
-  id: "Email saat Workflow terjadwal berhasil selesai, ditambah ringkasan harian"
-  pl: "E-maile po pomyślnym zakończeniu zaplanowanych Workflow oraz codzienne podsumowanie"
-  nl: "E-mails na geslaagde geplande Workflow-runs, plus een dagelijks overzicht"
-  ar: "رسائل بريد عند اكتمال تشغيل Workflow مجدول بنجاح، مع ملخص يومي"
-  hi: "तय समय पर चले Workflow के सफलतापूर्वक पूरा होने पर ईमेल, साथ में दैनिक सारांश"
-  th: "อีเมลเมื่อ Workflow ที่ตั้งเวลาไว้ทำงานสำเร็จ พร้อมสรุปรายวัน"
-  cs: "E-maily po úspěšném dokončení naplánovaných Workflow a denní souhrn"
-  sv: "Mejl när schemalagda Workflow-körningar slutförs och en daglig sammanfattning"
-  he: "הודעות אימייל לאחר השלמה מוצלחת של הרצות Workflow מתוזמנות, לצד סיכום יומי"
+  context: One daily scheduled Workflow activity email, distinct from real chat messages
+  en: One daily email summarizing scheduled Workflow activity; chat messages follow normal chat settings.
+  de: Eine tägliche E-Mail zu geplanten Workflow-Aktivitäten; Chat-Nachrichten folgen den normalen Chat-Einstellungen.
+  zh: 每天一封邮件汇总计划工作流的活动；聊天消息遵循常规聊天设置。
+  es: Un correo diario resume la actividad de los Workflows programados; los mensajes siguen los ajustes normales del chat.
+  fr: Un e-mail quotidien résume les Workflows planifiés ; les messages suivent les réglages habituels du chat.
+  pt: Um e-mail diário resume a atividade dos Workflows agendados; as mensagens seguem as definições normais do chat.
+  ru: Одно ежедневное письмо об активности запланированных Workflow; сообщения используют обычные настройки чата.
+  ja: 予定されたWorkflowの実行状況を1日1通のメールでまとめます。チャットのメッセージには通常の通知設定が適用されます。
+  ko: 예약된 Workflow 활동은 하루 한 번 이메일로 요약하며, 채팅 메시지는 일반 채팅 설정을 따릅니다.
+  it: Una sola email giornaliera riepiloga i Workflow programmati; i messaggi seguono le normali impostazioni della chat.
+  tr: Planlanan Workflow etkinlikleri günde tek e-postayla özetlenir; mesajlar normal sohbet ayarlarını kullanır.
+  vi: Một email mỗi ngày tóm tắt hoạt động Workflow theo lịch; tin nhắn tuân theo cài đặt trò chuyện thông thường.
+  id: Satu email harian merangkum aktivitas Workflow terjadwal; pesan mengikuti pengaturan chat biasa.
+  pl: Jeden codzienny e-mail podsumowuje zaplanowane Workflow; wiadomości korzystają ze zwykłych ustawień czatu.
+  nl: Eén dagelijkse e-mail vat geplande Workflow-activiteit samen; berichten volgen de normale chatinstellingen.
+  ar: رسالة بريد واحدة يوميًا تلخص نشاط Workflow المجدول؛ وتتبع الرسائل إعدادات الدردشة المعتادة.
+  hi: निर्धारित Workflow गतिविधि का रोज़ एक ईमेल सारांश; संदेश सामान्य चैट सेटिंग का पालन करते हैं।
+  th: อีเมลวันละฉบับสรุปกิจกรรม Workflow ตามกำหนดเวลา ส่วนข้อความใช้การตั้งค่าแชตตามปกติ
+  cs: Jeden denní e-mail shrnuje naplánované Workflow; zprávy se řídí běžným nastavením chatu.
+  sv: Ett dagligt mejl sammanfattar schemalagda Workflow; meddelanden följer vanliga chattinställningar.
+  he: אימייל יומי אחד מסכם פעילות Workflow מתוזמנת; הודעות פועלות לפי הגדרות הצ׳אט הרגילות.
   verified_by_human: []
 notifications.email_include_content:
-  context: Optional email content preview toggle
-  en: Include titles and previews in email
-  de: Titel und Vorschauen in E-Mails aufnehmen
+  context: Optional private email content beyond identifying daily Workflow context
+  en: Include private titles and previews
+  de: Private Titel und Vorschauen einschließen
   verified_by_human: []
 notifications.email_include_content_desc:
-  context: Consent disclosure for chat and workflow title and preview content in email
-  en: Allow chat and workflow titles and previews in email. Your email provider can read this content.
-  de: Chat- und Workflow-Titel sowie Vorschauen in E-Mails zulassen. Ihr E-Mail-Anbieter kann diese Inhalte lesen.
+  context: Private excerpt consent and basic Workflow identity disclosure
+  en: Allow chat titles and message previews in email. Daily Workflow summaries normally include names and outcomes; explicitly hiding content also hides those names. Your email provider can read included content.
+  de: Erlaube Chat-Titel und Nachrichtenvorschauen in E-Mails. Tägliche Workflow-Übersichten enthalten normalerweise Namen und Ergebnisse; wenn du Inhalte ausdrücklich ausblendest, werden auch diese Namen verborgen. Dein E-Mail-Anbieter kann
+    enthaltene Inhalte lesen.
   verified_by_human: []
 notifications.email_webhooks:
   context: Toggle label for webhook chat email notifications

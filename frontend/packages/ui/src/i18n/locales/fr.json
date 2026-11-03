@@ -17029,10 +17029,10 @@
           "text": "Enregistrement..."
         },
         "email_chat_how_it_works": {
-          "text": "Les e-mails de chat sont envoyés lorsque vous êtes absent. Les Workflows planifiés terminés avec succès donnent lieu à un e-mail de fin et à un récapitulatif quotidien."
+          "text": "Un e-mail quotidien résume les Workflows planifiés ; les messages suivent les réglages habituels du chat."
         },
         "email_workflow_runs_desc": {
-          "text": "E-mails de fin pour les Workflows planifiés terminés avec succès, avec un récapitulatif quotidien"
+          "text": "Un e-mail quotidien résume les Workflows planifiés ; les messages suivent les réglages habituels du chat."
         },
         "email_webhooks": {
           "text": "Chats Webhook"

@@ -129,7 +129,7 @@ describe("activeChatStore", () => {
 
     // contract-test: supporting surface=gui.web assertions=notifications.workflow-run.chat-target
     it("preserves an exact Workflow completion target during startup chat resets", () => {
-      const completionHash = "#workflow-id=workflow-1&workflow-tab=runs&run-id=run-1&chat-id=chat-1&message-id=message-1&delivery-id=delivery-1";
+      const completionHash = "#chat-id=chat-1&message-id=message-1&delivery-id=delivery-1&workflow-id=workflow-1&run-id=run-1";
       locationMock.hash = completionHash;
       activeChatStore.clearActiveChat();
       expect(activeChatStore.get()).toBeNull();

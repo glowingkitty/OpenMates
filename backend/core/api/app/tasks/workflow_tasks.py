@@ -26,8 +26,10 @@ from backend.core.api.app.services.workflow_service import DirectusWorkflowRepos
 from backend.core.api.app.services.workflow_input_service import DirectusWorkflowInputRepository, WorkflowInputService
 from backend.core.api.app.services.workflow_models import WorkflowRunStatus, WorkflowValidationError
 from backend.core.api.app.services.workflow_completion_notification_service import (
-    COLLECTION as COMPLETION_COLLECTION, dispatch_completion, record_first_chat_target,
-    reserve_completion,
+    COLLECTION as COMPLETION_COLLECTION, dispatch_completion,
+)
+from backend.core.api.app.services.workflow_chat_notification_service import (
+    COLLECTION as CHAT_NOTIFICATION_COLLECTION, dispatch_chat_notification, enqueue_run_notifications,
 )
 from backend.core.api.app.services.workflow_service import _hash_owner_id
 from backend.core.api.app.tasks.base_task import BaseServiceTask
@@ -218,6 +220,8 @@ async def run_workflow_now(
             await deliver(run, user_id, accepted_invocation)
         except Exception as exc:
             raise WorkflowCallerDeliveryPending("Workflow caller delivery could not complete") from exc
+    if run.status == WorkflowRunStatus.COMPLETED and isinstance(service.repository, DirectusWorkflowRepository):
+        await enqueue_run_notifications(runtime_service._directus, run.id)
     return run.model_dump(mode="json")
 
 
@@ -244,8 +248,6 @@ async def run_scheduled_workflow_trigger_now(
         directus = getattr(runtime_service, "_directus", None) if isinstance(service.repository, DirectusWorkflowRepository) else None
         if isinstance(service.repository, DirectusWorkflowRepository) and directus is None:
             raise RuntimeError("Scheduled Workflow notification outbox requires Directus")
-        if directus is not None:
-            await reserve_completion(directus, run_id=run_id, workflow_id=workflow_id, owner_user_id=owner_user_id)
         try:
             run = await WorkflowRunner(service, app_skill_adapter=app_skill_adapter).run_workflow(
                 workflow,
@@ -256,11 +258,7 @@ async def run_scheduled_workflow_trigger_now(
                 version_id=version_id,
             )
             if directus is not None and run.status == WorkflowRunStatus.COMPLETED:
-                await record_first_chat_target(directus, run, owner_user_id)
-                try:
-                    dispatch_workflow_completion_task.apply_async(args=[run_id], queue="workflow")
-                except Exception:
-                    logger.exception("Workflow completion dispatch enqueue failed; durable outbox will retry")
+                await enqueue_run_notifications(directus, run.id)
         except WorkflowValidationError as exc:
             if str(exc) != _UNREACHABLE_EFFECT_READINESS_ERROR:
                 raise
@@ -302,10 +300,7 @@ def dispatch_workflow_completion_task(self: WorkflowServiceTask, run_id: str) ->
         client.close()
         raise
     async def operation() -> dict[str, str]:
-        from backend.core.api.app.services.email_template import EmailTemplateService
-        if self._email_template_service is None:
-            self._email_template_service = EmailTemplateService(secrets_manager=self._secrets_manager)
-        return await dispatch_completion(self, run_id, get_workflow_service())
+        return await dispatch_completion(self, run_id)
 
     async def run() -> dict[str, str]:
         try:
@@ -326,6 +321,29 @@ def dispatch_workflow_completion_task(self: WorkflowServiceTask, run_id: str) ->
             client.close()
 
 
+@app.task(name="workflows.dispatch_chat_notification", base=WorkflowServiceTask, bind=True,
+          soft_time_limit=240, time_limit=270)
+def dispatch_workflow_chat_notification_task(self: WorkflowServiceTask, delivery_id: str) -> dict[str, str]:
+    """Serialize the per-message external boundary; ledger survives queue loss."""
+    lock_key = f"workflow-chat-notification:{delivery_id}"
+    lock_token = str(uuid.uuid4())
+    client = redis.Redis.from_url(broker_url, socket_timeout=3)
+    try:
+        if not client.set(lock_key, lock_token, ex=360, nx=True):
+            return {"status": "already_dispatching"}
+        async def operation() -> dict[str, str]:
+            from backend.core.api.app.services.email_template import EmailTemplateService
+            if self._email_template_service is None:
+                self._email_template_service = EmailTemplateService(secrets_manager=self._secrets_manager)
+            return await dispatch_chat_notification(self, delivery_id)
+        return asyncio.run(_run_with_workflow_services(self, operation))
+    finally:
+        try:
+            client.eval("if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end", 1, lock_key, lock_token)
+        finally:
+            client.close()
+
+
 @app.task(name="workflows.reconcile_completions", base=WorkflowServiceTask, bind=True)
 def reconcile_workflow_completions_task(self: WorkflowServiceTask, limit: int = 100) -> dict[str, int]:
     async def operation() -> dict[str, int]:
@@ -334,11 +352,13 @@ def reconcile_workflow_completions_task(self: WorkflowServiceTask, limit: int = 
             client = await self.cache_service.client
             if not client:
                 raise RuntimeError("Workflow completion reconciliation cursor unavailable")
-            return await reconcile_workflow_completions_now(
+            retired = await reconcile_workflow_completions_now(
                 self.directus_service, client,
-                lambda run_id: dispatch_workflow_completion_task.apply_async(args=[run_id], queue="workflow"),
-                limit=limit,
-            )
+                lambda run_id: dispatch_workflow_completion_task.apply_async(args=[run_id], queue="workflow"), limit=limit)
+            actual = await reconcile_workflow_chat_notifications_now(
+                self.directus_service, client,
+                lambda delivery_id: dispatch_workflow_chat_notification_task.apply_async(args=[delivery_id], queue="workflow"), limit=limit)
+            return {"legacy_queued": retired["queued"], "queued": actual["queued"]}
         finally:
             await self.cleanup_services()
 
@@ -374,6 +394,23 @@ async def reconcile_workflow_completions_now(
             queued += 1
     await cache_client.set(cursor_key, page + 1 if len(rows or []) >= page_size else 1, ex=3600)
     return {"queued": queued}
+
+
+async def reconcile_workflow_chat_notifications_now(
+    directus: Any, cache_client: Any, enqueue: Callable[[str], Any], *, limit: int = 100,
+) -> dict[str, int]:
+    """Rotate pending output pages, including outputs admitted before run finish."""
+    key = "workflow-chat-notification:reconcile-page"
+    page = max(1, int(await cache_client.get(key) or 1))
+    page_size = max(1, min(limit, 500))
+    rows = await directus.get_items(CHAT_NOTIFICATION_COLLECTION, params={"filter": {"_or": [
+        {field: {"_eq": "pending"}} for field in ("event_state", "push_state", "email_state")
+    ]}, "fields": "delivery_id", "sort": "created_at,id", "limit": page_size, "page": page},
+        admin_required=True, no_cache=True, raise_on_error=True)
+    for row in rows:
+        enqueue(row["delivery_id"])
+    await cache_client.set(key, page + 1 if len(rows) >= page_size else 1, ex=3600)
+    return {"queued": len(rows)}
 
 
 async def scan_due_workflow_triggers_now(

@@ -17002,10 +17002,10 @@
           "text": "저장 중..."
         },
         "email_chat_how_it_works": {
-          "text": "채팅 이메일은 자리를 비운 동안 전송됩니다. 예약된 Workflow 실행이 성공적으로 완료되면 완료 이메일과 일일 요약이 전송됩니다."
+          "text": "예약된 Workflow 활동은 하루 한 번 이메일로 요약하며, 채팅 메시지는 일반 채팅 설정을 따릅니다."
         },
         "email_workflow_runs_desc": {
-          "text": "예약된 Workflow 실행의 성공적인 완료를 알리는 이메일과 일일 요약"
+          "text": "예약된 Workflow 활동은 하루 한 번 이메일로 요약하며, 채팅 메시지는 일반 채팅 설정을 따릅니다."
         },
         "email_webhooks": {
           "text": "웹훅 채팅"

@@ -17002,10 +17002,10 @@
           "text": "Ukládání..."
         },
         "email_chat_how_it_works": {
-          "text": "E-maily o chatech se posílají, když jste pryč. Po úspěšném dokončení naplánovaného Workflow dostanete e-mail a denní souhrn."
+          "text": "Jeden denní e-mail shrnuje naplánované Workflow; zprávy se řídí běžným nastavením chatu."
         },
         "email_workflow_runs_desc": {
-          "text": "E-maily po úspěšném dokončení naplánovaných Workflow a denní souhrn"
+          "text": "Jeden denní e-mail shrnuje naplánované Workflow; zprávy se řídí běžným nastavením chatu."
         },
         "email_webhooks": {
           "text": "Webhook chaty"

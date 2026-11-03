@@ -28,7 +28,7 @@ export function readWorkflowCompletionLink(hash: string): WorkflowCompletionLink
 	const chatId = params.get('chat-id')?.trim();
 	const messageId = params.get('message-id')?.trim();
 	const deliveryId = params.get('delivery-id')?.trim();
-	if (!workflowId || !runId || params.get('workflow-tab') !== 'runs' || !chatId || !messageId || !deliveryId) {
+	if (!workflowId || !runId || !chatId || !messageId || !deliveryId) {
 		return { kind: 'invalid' };
 	}
 	return { kind: 'chat', target: { workflowId, runId, chatId, messageId, deliveryId } };
@@ -101,7 +101,7 @@ export function preservesCompletionLinkOnTeamChange(
 /** Authoritative run detail, scoped by the API to its owner, must name the exact delivery. */
 export function runConfirmsWorkflowChatTarget(run: WorkflowRunDetail, target: WorkflowCompletionTarget): boolean {
 	if (run.id !== target.runId || run.workflow_id !== target.workflowId) return false;
-	if (run.completion_notification) {
+	if (run.completion_notification?.delivery_id === target.deliveryId) {
 		return run.completion_notification.delivery_id === target.deliveryId &&
 			run.completion_notification.chat_id === target.chatId &&
 			run.completion_notification.message_id === target.messageId;
@@ -114,4 +114,17 @@ export function runConfirmsWorkflowChatTarget(run: WorkflowRunDetail, target: Wo
 			node.output_summary?.chat_id === target.chatId &&
 			node.output_summary?.message_id === target.messageId
 		));
+}
+
+/** SvelteKit goto can replace a verified Workflow target without a native
+ * hashchange. Hand the exact resolved message to the mounted chat adapter.
+ */
+export function readWorkflowChatHandoff(from: URL | null, to: URL | null):
+  { hash: string; chatId: string; messageId: string } | null {
+  if (!from || !to || from.origin !== to.origin || to.pathname !== '/') return null;
+  const pending = readWorkflowCompletionLink(from.hash);
+  if (pending.kind !== 'chat') return null;
+  const { chatId, messageId } = pending.target;
+  const resolvedHash = `#chat-id=${encodeURIComponent(chatId)}&message-id=${encodeURIComponent(messageId)}`;
+  return to.hash === resolvedHash ? { hash: resolvedHash, chatId, messageId } : null;
 }

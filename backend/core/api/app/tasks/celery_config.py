@@ -1611,6 +1611,12 @@ app.conf.beat_schedule = {
         'schedule': crontab(hour=9, minute=0),  # Daily at 09:00 UTC
         'options': {'queue': 'email'},
     },
+    # Latest-window recovery only; other daily notification handlers stay daily.
+    'workflow-digest-recovery': {
+        'task': 'app.tasks.email_tasks.daily_notification_dispatcher.recover_workflow_digests',
+        'schedule': crontab(minute='*/15'),
+        'options': {'queue': 'email', 'expires': 900},
+    },
     # Newsletter campaign scheduler — sends only campaigns that were test-sent
     # to an admin and explicitly approved via the hidden admin API.
     'process-due-newsletter-campaigns': {

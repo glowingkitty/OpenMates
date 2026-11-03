@@ -111,6 +111,7 @@
 	import PlanDetailRoute from './plans/+page.svelte';
 	import TasksRoute from './tasks/+page.svelte';
 	import { isLegacyAppsWorkspaceHash, readWorkspaceHashRoute } from '$lib/workspaceHashRoute';
+	import { readWorkflowChatHandoff } from '$lib/workflowCompletionRoute';
 
 	// --- State ---
 	let isInitialLoad = $state(true);
@@ -191,12 +192,38 @@
 	let workflowHandoffReady = false;
 	let workflowHandoffInFlight = false;
 
-	afterNavigate(() => {
+	let pendingWorkflowChatHandoff = $state<{
+		hash: string; chatId: string; messageId: string; ownerId: string; teamId: string | null;
+	} | null>(null);
+	let chatDeepLinkInFlight: { hash: string; ownerId: string; teamId: string | null } | null = null;
+
+	afterNavigate(({ from, to }) => {
 		// A workflow can return to an already-mounted root page via SvelteKit goto,
 		// which does not always produce a native hashchange event.
 		if (workflowHandoffReady && window.location.pathname === '/') {
 			void consumePendingWorkflowClarification();
 		}
+		const target = readWorkflowChatHandoff(from?.url ?? null, to?.url ?? null);
+		const ownerId = get(userProfile).user_id;
+		if (target && ownerId) {
+			workspaceHash = target.hash;
+			pendingWorkflowChatHandoff = { ...target, ownerId, teamId: get(activeTeamId) };
+		}
+	});
+	$effect(() => {
+		const pending = pendingWorkflowChatHandoff;
+		const surface = activeChat;
+		if (!pending || !surface) return;
+		pendingWorkflowChatHandoff = null;
+		untrack(() => {
+			// Wait for the replacement chat component, preserving existing owner,
+			// Team, auth and exact-navigation checks in the normal deep-link path.
+			if (window.location.hash !== pending.hash || get(userProfile).user_id !== pending.ownerId ||
+				get(activeTeamId) !== pending.teamId || !get(authStore).isAuthenticated || get(forcedLogoutInProgress) ||
+				(surface.getCurrentChatId() === pending.chatId && lastLoadedChatId === pending.chatId &&
+					get(messageHighlightStore) === pending.messageId)) return;
+			void handleHashChange().catch(error => console.error('[+page.svelte] Workflow chat handoff failed:', error));
+		});
 	});
 	let isProcessingInitialHash = $state(false); // Track if we're processing initial hash load
 	let lastLoadedChatId = $state<string | null>(null);
@@ -3410,6 +3437,10 @@
 				autoplayVideo?: boolean,
 				teamId?: string | null
 			) => {
+				const request = { hash: window.location.hash, ownerId: get(userProfile).user_id || '', teamId: get(activeTeamId) };
+				if (chatDeepLinkInFlight?.hash === request.hash && chatDeepLinkInFlight.ownerId === request.ownerId &&
+					chatDeepLinkInFlight.teamId === request.teamId) return;
+				chatDeepLinkInFlight = request;
 				// Update originalHashChatId to reflect the new hash (important for sync completion handler)
 				originalHashChatId = chatId;
 				originalChatDeepLinkHash = window.location.hash;
@@ -3421,7 +3452,10 @@
 				try {
 					await handleChatDeepLink(chatId, messageId, scrollToLatestResponse, embedId, autoplayVideo, teamId);
 				} finally {
-					isProcessingInitialHash = false;
+					if (chatDeepLinkInFlight === request) {
+						chatDeepLinkInFlight = null;
+						isProcessingInitialHash = false;
+					}
 				}
 			},
 			onSettings: (path: string, fullHash: string) => {

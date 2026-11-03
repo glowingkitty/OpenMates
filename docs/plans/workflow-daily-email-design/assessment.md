@@ -1,8 +1,9 @@
 # Daily Workflow email audit
 
-Reviewed 2026-10-28 in session f4fe. Task: TASK-3248. This is source investigation
-and a proposed plan; no mail behavior or preferences were changed and no test
-email was sent during this audit.
+Reviewed 2026-10-28 in session f4fe. Task: TASK-3248. The initial audit made no product changes. The user subsequently approved
+implementation and clarified the final channel policy: daily Workflow email only;
+no Workflow-status push/in-app alert, while real chat output uses normal chat
+notifications. Implementation is now in progress under the updated contract.
 
 ## Reminder work already completed
 
@@ -62,13 +63,13 @@ capability gap and does not currently add another working flood path.
 
 ## Recommended implementation sequence
 
-1. Revise the existing notification cadence contract and examples; retain push
-   and history semantics. Settle basic-title consent and activity-window meaning.
+1. Revise the existing notification cadence contract and examples; retire Workflow-status push/in-app alerts and preserve normal chat notification
+   semantics for actual messages. Settle basic-title consent and activity-window meaning.
 2. Suppress automatic per-run mail and terminate/reclassify old pending email
    outboxes so reconciliation cannot emit the old behavior after deployment.
    Cover already-queued completion jobs and old workers that already loaded their
    send state with coordinated worker drain/rollout or a compatible final send
-   gate. Preserve historical sent state and pending event/push reconciliation;
+   gate. Preserve historical sent state and real message-notification reconciliation;
    changing database outboxes alone cannot stop an old sender already in flight.
 3. Improve the existing digest collection: activity overlap, grouping, complete
    counts, bounded cards, stable pagination and recovery of the current window.
@@ -84,4 +85,6 @@ Previous verification records show the daily digest passed isolated SMTP runs
 accepted separate emails for two scheduled runs. These are historical recorded
 results, not newly executed tests or proof of current production inbox delivery.
 
-The [draft plan](plan.yml) records the proposed scope and required checks.
+The [implementation plan](plan.yml) records the approved scope and required checks.
+Actual outputs are notified only after canonical commit or confirmed deliverable
+success; existing rollback of cancelled/unpersisted output remains effective.

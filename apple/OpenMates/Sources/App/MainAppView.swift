@@ -5686,8 +5686,17 @@ struct MainAppView: View {
             }
             return
         }
+        let messageScope = notification.userInfo?["accountScope"] as? UUID
+        let messageTransport = notification.userInfo?["transportGeneration"] as? Int
+        let messageTeam = teamContext.snapshot
         Task { @MainActor in
+            guard messageScope == nil || messageScope == OfflineStore.shared.scopeGeneration,
+                  messageTransport == nil || messageTransport == wsManager.transportGeneration,
+                  teamContext.isCurrent(messageTeam) else { return }
             await DraftService.shared.handleSyncEvent(type: type, raw: raw)
+            guard messageScope == nil || messageScope == OfflineStore.shared.scopeGeneration,
+                  messageTransport == nil || messageTransport == wsManager.transportGeneration,
+                  teamContext.isCurrent(messageTeam) else { return }
             if Self.draftSyncEventTypes.contains(type) {
                 return
             }
@@ -5705,6 +5714,11 @@ struct MainAppView: View {
                     NativeWorkspaceOfflineRuntime.markDirty(accountID: accountID, teamID: teamContext.teamID)
                     foregroundWorkspaceDidNavigate()
                 }
+            case "workflow_chat_deliveries_available":
+                guard let envelope = try JSONSerialization.jsonObject(with: raw) as? [String: Any],
+                      let payload = (envelope["payload"] ?? envelope["data"]) as? [String: Any],
+                      let deliveries = payload["deliveries"] as? [[String: Any]] else { return }
+                await applyAvailableWorkflowMessages(deliveries)
             case "new_chat_message":
                 let envelope = try syncDecoder.decode(WSEnvelope<NewChatMessagePayload>.self, from: raw)
                 guard let payload = envelope.payload ?? envelope.data else { return }
@@ -5984,8 +5998,75 @@ struct MainAppView: View {
         } catch { NativeDiagnostics.warning("Synced system receipt decryption unavailable", category: "chat.context") }
     }
 
+    /// Discovery and notification taps use one existing owner-fenced encrypted
+    /// delivery protocol. Run success is not required for a committed message.
+    private func applyAvailableWorkflowMessages(_ deliveries: [[String: Any]]) async {
+        guard authManager.hasNetworkAuthority, let accountID = authManager.currentUser?.id,
+              teamContext.teamID == nil else { return }
+        let scope = OfflineStore.shared.scopeGeneration
+        let team = teamContext.snapshot
+        let transport = wsManager.transportGeneration
+        let authority = authManager.networkAuthority?.generation
+        let isCurrent: @MainActor () -> Bool = {
+            authManager.hasNetworkAuthority && authManager.currentUser?.id == accountID &&
+                authManager.networkAuthority?.generation == authority &&
+                OfflineStore.shared.scopeGeneration == scope && teamContext.isCurrent(team) &&
+                wsManager.transportGeneration == transport && wsManager.connectionState == .connected
+        }
+        for delivery in deliveries {
+            guard isCurrent(), ["delivery_pending", "claimed"].contains(delivery["status"] as? String ?? "") else { continue }
+            let fields = delivery.compactMapValues { $0 as? String }
+            guard let route = WorkflowCompletionRoute.parse(fields),
+                  let chatID = route.chatID, let messageID = route.messageID else { continue }
+            // An unexpired other-device lease is retried after its fence expires.
+            if let expires = delivery["claim_expires_at"] as? Int,
+               expires > Int(Date().timeIntervalSince1970), delivery["status"] as? String == "claimed" {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(expires - Int(Date().timeIntervalSince1970) + 1))
+                    guard isCurrent() else { return }
+                    await applyAvailableWorkflowMessages([delivery.merging(["status": "delivery_pending"]) { _, new in new }])
+                }
+                continue
+            }
+            do {
+                let freshlyCommitted = try await WorkflowCompletionDelivery.persistIfNeeded(route, accountID: accountID,
+                    socket: wsManager, isCurrent: isCurrent)
+                guard isCurrent() else { return }
+                let chat = try await pushManager.workflowMessageForNotification(chatId: chatID,
+                    messageId: messageID, isCurrent: isCurrent)
+                guard isCurrent(), let message = chatStore.messages(for: chatID).first(where: { $0.id == messageID }) else { continue }
+                if freshlyCommitted { await showAssistantNotificationIfNeeded(chat: chat, message: message, source: "pending") }
+            } catch {
+                NativeDiagnostics.warning("Workflow message recovery remains pending: \(type(of: error))", category: "push_notifications")
+            }
+        }
+    }
+
     private func applyNewChatMessage(_ payload: NewChatMessagePayload) async {
+        guard authManager.hasNetworkAuthority else { return }
+        let authority = authManager.networkAuthority?.generation
+        let scope = OfflineStore.shared.scopeGeneration
+        let team = teamContext.snapshot
+        let account = authManager.currentUser?.id
+        let isFinalized: (Message) -> Bool = {
+            $0.id == payload.messageId && $0.isStreaming != true &&
+                ($0.content?.isEmpty == false || $0.encryptedContent?.isEmpty == false)
+        }
+        let hadMessage = chatStore.messages(for: payload.chatId).contains(where: isFinalized)
+            || OfflineStore.shared.loadMessages(chatId: payload.chatId).contains(where: isFinalized)
         await loadChatKeyIfNeeded(chatId: payload.chatId, encryptedChatKey: payload.encryptedChatKey)
+        guard authManager.hasNetworkAuthority, authority == authManager.networkAuthority?.generation,
+              scope == OfflineStore.shared.scopeGeneration, teamContext.isCurrent(team),
+              account == authManager.currentUser?.id else { return }
+        var content = payload.content
+        if content.isEmpty, let ciphertext = payload.encryptedContent {
+            guard let key = ChatKeyManager.shared.key(for: payload.chatId),
+                  let plaintext = try? await CryptoManager.shared.decryptContent(base64String: ciphertext, key: key) else { return }
+            guard authManager.hasNetworkAuthority, authority == authManager.networkAuthority?.generation,
+                  scope == OfflineStore.shared.scopeGeneration, teamContext.isCurrent(team),
+                  account == authManager.currentUser?.id else { return }
+            content = plaintext
+        }
 
         let createdAt = Self.isoString(fromUnixSeconds: payload.createdAt)
         let lastMessageAt = Self.isoString(fromUnixSeconds: payload.lastEditedOverallTimestamp ?? payload.createdAt)
@@ -6023,14 +6104,17 @@ struct MainAppView: View {
             activeFocusId: existing?.activeFocusId
         )
         chat = await decryptChatMetadata(chat)
+        guard authManager.hasNetworkAuthority, authority == authManager.networkAuthority?.generation,
+              scope == OfflineStore.shared.scopeGeneration, teamContext.isCurrent(team),
+              account == authManager.currentUser?.id else { return }
         chatStore.upsertChat(chat)
 
         let message = Message(
             id: payload.messageId,
             chatId: payload.chatId,
             role: MessageRole(rawValue: payload.role ?? "user") ?? .user,
-            content: payload.content,
-            encryptedContent: nil,
+            content: content,
+            encryptedContent: payload.encryptedContent,
             createdAt: createdAt,
             updatedAt: nil,
             appId: payload.role == "assistant" ? (chat.category ?? chat.appId) : nil,
@@ -6039,6 +6123,7 @@ struct MainAppView: View {
             encryptedPIIMappings: payload.encryptedPiiMappings
         )
         chatStore.appendMessage(message, to: payload.chatId)
+        if !hadMessage { await showAssistantNotificationIfNeeded(chat: chat, message: message, source: "background") }
         if let pendingTyping = pendingTypingMetadata.take(for: payload.messageId) {
             await applyTypingStartedMetadata(pendingTyping)
         }
@@ -7379,6 +7464,7 @@ private struct NewChatMessagePayload: Decodable {
     let chatId: String
     let messageId: String
     let content: String
+    let encryptedContent: String?
     let role: String?
     let createdAt: Int?
     let messagesV: Int?

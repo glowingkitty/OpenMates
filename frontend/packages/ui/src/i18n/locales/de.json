@@ -7812,6 +7812,33 @@
       },
       "message_preview": {
         "text": "Nachrichtenvorschau"
+      },
+      "workflows": {
+        "text": "Workflows"
+      },
+      "workflow": {
+        "text": "Workflow"
+      },
+      "view_workflow": {
+        "text": "Workflow ansehen"
+      },
+      "view_latest_run": {
+        "text": "Letzte Ausführung ansehen"
+      },
+      "view_all": {
+        "text": "Alle Workflows ansehen"
+      },
+      "last_activity": {
+        "text": "Letzte Aktivität"
+      },
+      "in_progress": {
+        "text": "Zum Berichtsende noch aktiv"
+      },
+      "more_workflows": {
+        "text": "weitere Workflows in diesem Berichtszeitraum"
+      },
+      "attention": {
+        "text": "Benötigt Aufmerksamkeit"
       }
     },
     "storage_billing_notice_date_policy": {
@@ -19606,19 +19633,19 @@
           "text": "Wird gespeichert..."
         },
         "email_chat_how_it_works": {
-          "text": "Chat-E-Mails werden gesendet, wenn Sie abwesend sind. Für erfolgreiche geplante Workflow-Ausführungen erhalten Sie eine Abschluss-E-Mail und eine tägliche Zusammenfassung."
+          "text": "Chat-E-Mails werden gesendet, wenn du abwesend bist. Workflow-Aktivitäten erhalten nur eine tägliche E-Mail, ohne Push- oder In-App-Statusmeldungen. Von Workflows erstellte Chats und Nachrichten folgen deinen normalen Chat-Benachrichtigungen."
         },
         "email_workflow_runs": {
           "text": "Workflow-Ausführungen"
         },
         "email_workflow_runs_desc": {
-          "text": "Abschluss-E-Mails für erfolgreiche geplante Workflow-Ausführungen sowie eine tägliche Zusammenfassung"
+          "text": "Eine tägliche E-Mail zu geplanten Workflow-Aktivitäten; Chat-Nachrichten folgen den normalen Chat-Einstellungen."
         },
         "email_include_content": {
-          "text": "Titel und Vorschauen in E-Mails aufnehmen"
+          "text": "Private Titel und Vorschauen einschließen"
         },
         "email_include_content_desc": {
-          "text": "Chat- und Workflow-Titel sowie Vorschauen in E-Mails zulassen. Ihr E-Mail-Anbieter kann diese Inhalte lesen."
+          "text": "Erlaube Chat-Titel und Nachrichtenvorschauen in E-Mails. Tägliche Workflow-Übersichten enthalten normalerweise Namen und Ergebnisse; wenn du Inhalte ausdrücklich ausblendest, werden auch diese Namen verborgen. Dein E-Mail-Anbieter kann enthaltene Inhalte lesen."
         },
         "email_webhooks": {
           "text": "Webhook-Chats"

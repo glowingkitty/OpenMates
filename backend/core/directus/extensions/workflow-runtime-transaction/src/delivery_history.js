@@ -2,7 +2,7 @@
 import { randomUUID, createHash } from 'node:crypto';
 import { fenceWebsiteDeliveries } from './website_changes.js';
 
-const FIELDS = new Set(['protocol_version','action','hashed_user_id','workflow_id','run_id','node_id','delivery_id','destination_hash','candidates','expires_at','encrypted_key_ref','delivery','run','content_ref']);
+const FIELDS = new Set(['protocol_version','action','hashed_user_id','workflow_id','run_id','node_id','delivery_id','destination_hash','candidates','expires_at','encrypted_key_ref','delivery','run','content_ref','notification_owner_user_id']);
 function uuid5(name) {
   const namespace = Buffer.from('6ba7b8119dad11d180b400c04fd430c8','hex');
   const bytes = createHash('sha1').update(namespace).update(name,'utf8').digest().subarray(0,16);
@@ -143,6 +143,23 @@ export async function deliveryHistory(database, body, now, fail) {
             || d.delivery_id !== expectedDeliveryId || d.message_id !== expectedMessageId) fail(409,'definition_unavailable');
       } else if (!Number.isInteger(d.expires_at) || d.expires_at <= 0) fail(400,'invalid_delivery_expiry');
       const existing = await trx('workflow_chat_deliveries').where({...deliveryScope,delivery_id:d.delivery_id}).first();
+      // Only the actual Send-message adapter supplies this internal admission.
+      // Bind the raw dispatch identity to the already locked hashed owner and
+      // deterministic run/node message IDs; definition/caller results stay silent.
+      if (body.notification_owner_user_id !== undefined) {
+        const owner = body.notification_owner_user_id;
+        if (typeof owner !== 'string' || !owner || createHash('sha256').update(owner).digest('hex') !== d.hashed_user_id
+            || definitionDelivery || !runId || !d.node_id || d.node_id.startsWith('__')
+            || d.delivery_id !== uuid5(`openmates:workflow:${runId}:${d.node_id}:delivery`)
+            || d.message_id !== uuid5(`openmates:workflow:${runId}:${d.node_id}:message`)) fail(400,'invalid_notification_admission');
+        const id = uuid5(`openmates:chat-notification:${owner}:${d.chat_id}:${d.message_id}`);
+        const admitted = await trx('workflow_chat_notifications').where({id}).first();
+        if (!admitted) await trx('workflow_chat_notifications').insert({id,owner_user_id:owner,
+          workflow_id:d.workflow_id,run_id:runId,delivery_id:d.delivery_id,chat_id:d.chat_id,message_id:d.message_id,
+          notification_id:`chat-message-${id}`,event_state:'pending',push_state:'pending',email_state:'pending',
+          created_at:current,updated_at:current});
+      }
+
       const websiteMembership = await trx('workflow_delivery_history').where({...scope,delivery_id:d.delivery_id,membership_kind:'website_change'}).first();
       // Already persisted owner ciphertext still needs its ACK. Unpersisted
       // notifications from an obsolete definition must not cross the edit.

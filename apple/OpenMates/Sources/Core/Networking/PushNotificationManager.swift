@@ -5,6 +5,8 @@
 // Assertions: apple-watch.handoff.exact-private
 // Specification: specifications/features/apple-notifications/specification.yml
 // Assertions: apple-notifications.registration.lifecycle, apple-notifications.action.routing-coherent, apple-notifications.action.direct-reply
+// Specification: specifications/features/notifications/specification.yml
+// Assertions: notifications.workflow-run.completed-delivery, notifications.workflow-run.chat-target
 
 import Foundation
 import CryptoKit
@@ -116,6 +118,7 @@ enum WorkflowCompletionDeliveryError: Error {
 /// owner WebSocket protocol used by web/CLI before navigating to the chat.
 @MainActor
 enum WorkflowCompletionDelivery {
+    private static var inFlight = Set<String>()
     static func authorizesPersistedTarget(_ route: WorkflowCompletionRoute, accountID: String) async -> Bool {
         guard route.chatID != nil, route.messageID != nil, route.deliveryID != nil else { return false }
         let auth = AuthManager.notificationSession
@@ -134,28 +137,34 @@ enum WorkflowCompletionDelivery {
     static func matchesCompletedRun(_ detail: WorkflowRunDetail, route: WorkflowCompletionRoute) -> Bool {
         guard let chatID = route.chatID, let messageID = route.messageID,
               let deliveryID = route.deliveryID,
-              detail.id == route.runID, detail.workflowId == route.workflowID,
-              detail.status == "completed", detail.triggerType == "schedule" else { return false }
-        if let pinned = detail.completionNotification {
+              detail.id == route.runID, detail.workflowId == route.workflowID else { return false }
+        // A committed Send remains a real chat message if a later node fails.
+        // Legacy first-target receipts cannot mask other Send nodes in the run.
+        if let pinned = detail.completionNotification, pinned.deliveryID == deliveryID {
             return !pinned.notificationID.isEmpty && pinned.chatID == chatID
                 && pinned.messageID == messageID && pinned.deliveryID == deliveryID
         }
-        guard let firstSend = detail.nodeRuns.first(where: {
-            $0.nodeType == .sendChatMessage && $0.status == "completed"
-        }) else { return false }
-        return firstSend.outputSummary["delivery_id"]?.value as? String == deliveryID
-            && firstSend.outputSummary["chat_id"]?.value as? String == chatID
-            && firstSend.outputSummary["message_id"]?.value as? String == messageID
+        return detail.nodeRuns.contains { node in
+            node.nodeType == .sendChatMessage && node.status == "completed"
+                && node.outputSummary["delivery_id"]?.value as? String == deliveryID
+                && node.outputSummary["chat_id"]?.value as? String == chatID
+                && node.outputSummary["message_id"]?.value as? String == messageID
+        }
     }
 
+    @discardableResult
     static func persistIfNeeded(_ route: WorkflowCompletionRoute, accountID: String,
                                 socket: WebSocketManager,
-                                isCurrent: @escaping @MainActor () -> Bool = { true }) async throws {
+                                isCurrent: @escaping @MainActor () -> Bool = { true }) async throws -> Bool {
         guard let deliveryID = route.deliveryID, let chatID = route.chatID,
-              let messageID = route.messageID else { return }
+              let messageID = route.messageID else { return false }
         let profile = ServerProfile.current()
+        let operation = accountID + "|" + profile.apiBaseURL.absoluteString + "|" + deliveryID
+        guard inFlight.insert(operation).inserted else { throw WorkflowCompletionDeliveryError.invalidClaim }
+        defer { inFlight.remove(operation) }
         let scope = OfflineStore.shared.scopeGeneration
         let generation = socket.transportGeneration
+        let team = TeamWorkspaceContext.shared.snapshot
         let auth = AuthManager.notificationSession
         let authorityGeneration = auth.networkAuthority?.generation
         func check() throws {
@@ -166,17 +175,23 @@ enum WorkflowCompletionDelivery {
                   ServerProfile.current() == profile,
                   OfflineStore.shared.scopeGeneration == scope,
                   socket.transportGeneration == generation,
+                  TeamWorkspaceContext.shared.isCurrent(team), team.teamID == nil,
                   socket.connectionState == .connected else { throw WorkflowCompletionDeliveryError.changedContext }
         }
+        var wasAlreadyPersisted = false
         try await persist(route, exchange: { type, payload, responseType, validate in
             let response = try await socket.sendAndWait(WSOutboundMessage(type: type, payload: payload),
                 responseType: responseType,
                 matching: { $0["request_id"] as? String == payload["request_id"] as? String &&
                             $0["delivery_id"] as? String == deliveryID }, beforeSend: validate)
+            if type == "workflow_chat_delivery_claim" {
+                wasAlreadyPersisted = response.fields["client_persisted"] as? Bool == true
+            }
             return response.fields
         }, encryptClaim: { claim in
             try await encrypt(claim, accountID: accountID, chatID: chatID, messageID: messageID)
         }, check: check)
+        return !wasAlreadyPersisted
     }
 
     // Tests suspend one exchange without using a real session or transport.
@@ -194,7 +209,8 @@ enum WorkflowCompletionDelivery {
         let claim = try await exchange("workflow_chat_delivery_claim",
             ["delivery_id": deliveryID, "request_id": requestID], "workflow_chat_delivery_claimed", check)
         try check()
-        guard claim["chat_id"] as? String == chatID,
+        guard claim["delivery_id"] as? String == deliveryID,
+              claim["chat_id"] as? String == chatID,
               claim["message_id"] as? String == messageID,
               claim["workflow_id"] as? String == route.workflowID,
               claim["run_id"] as? String == route.runID,
@@ -526,7 +542,6 @@ final class PushNotificationManager: NSObject, ObservableObject {
 
     private enum NotificationAction {
         static let chatMessageCategory = "OPENMATES_CHAT_MESSAGE"
-        static let workflowCompletedCategory = "OPENMATES_WORKFLOW_COMPLETED"
         static let reply = "OPENMATES_REPLY"
         static let openChat = "OPENMATES_OPEN_CHAT"
     }
@@ -1338,9 +1353,7 @@ final class PushNotificationManager: NSObject, ObservableObject {
             intentIdentifiers: [],
             options: []
         )
-        let workflowCategory = UNNotificationCategory(identifier: NotificationAction.workflowCompletedCategory,
-            actions: [], intentIdentifiers: [], options: [])
-        return [category, workflowCategory]
+        return [category]
     }
 }
 
@@ -1355,6 +1368,7 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
             "remote_push": notification.request.trigger is UNPushNotificationTrigger,
             "local_request": notification.request.trigger == nil
         ])
+        guard notification.request.content.userInfo["type"] as? String != "workflow.run_completed" else { return [] }
         return [.banner, .sound, .badge]
     }
 
@@ -1368,20 +1382,25 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
             "local_request": response.notification.request.trigger == nil
         ])
         let userInfo = response.notification.request.content.userInfo
+        // Delayed retired pushes cannot open or resurrect a Workflow status alert.
         if userInfo["type"] as? String == "workflow.run_completed" {
+            center.removeDeliveredNotifications(withIdentifiers: [response.notification.request.identifier])
+            completionHandler()
+            return
+        }
+        if userInfo["delivery_id"] != nil,
+           response.actionIdentifier == UNNotificationDefaultActionIdentifier {
             let fields = Dictionary(uniqueKeysWithValues: userInfo.compactMap { key, value -> (String, String)? in
                 guard let key = key as? String, let value = value as? String else { return nil }
                 return (key, value)
             })
             let route = WorkflowCompletionRoute.parse(fields)
             let completion = NotificationCompletionBox(completionHandler)
-            let actionIdentifier = response.actionIdentifier
             let categoryIdentifier = response.notification.request.content.categoryIdentifier
             Task { @MainActor in
                 defer { completion.complete() }
-                guard actionIdentifier == UNNotificationDefaultActionIdentifier,
-                      categoryIdentifier == Self.NotificationAction.workflowCompletedCategory,
-                      let route else { return }
+                guard categoryIdentifier == Self.NotificationAction.chatMessageCategory,
+                      let route, route.chatID != nil else { return }
                 pendingWorkflowCompletion = route
                 UnreadMessagesStore.shared.resynchronizeBadge()
             }

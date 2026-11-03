@@ -17002,10 +17002,10 @@
           "text": "Menyimpan..."
         },
         "email_chat_how_it_works": {
-          "text": "Email obrolan dikirim saat Anda tidak aktif. Workflow terjadwal yang berhasil selesai mendapat email penyelesaian dan ringkasan harian."
+          "text": "Satu email harian merangkum aktivitas Workflow terjadwal; pesan mengikuti pengaturan chat biasa."
         },
         "email_workflow_runs_desc": {
-          "text": "Email saat Workflow terjadwal berhasil selesai, ditambah ringkasan harian"
+          "text": "Satu email harian merangkum aktivitas Workflow terjadwal; pesan mengikuti pengaturan chat biasa."
         },
         "email_webhooks": {
           "text": "Obrolan Webhook"

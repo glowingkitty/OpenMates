@@ -17002,10 +17002,10 @@
           "text": "Sparar..."
         },
         "email_chat_how_it_works": {
-          "text": "Chattmejl skickas när du är borta. När en schemalagd Workflow-körning lyckas får du ett mejl om slutförandet och en daglig sammanfattning."
+          "text": "Ett dagligt mejl sammanfattar schemalagda Workflow; meddelanden följer vanliga chattinställningar."
         },
         "email_workflow_runs_desc": {
-          "text": "Mejl när schemalagda Workflow-körningar slutförs och en daglig sammanfattning"
+          "text": "Ett dagligt mejl sammanfattar schemalagda Workflow; meddelanden följer vanliga chattinställningar."
         },
         "email_webhooks": {
           "text": "Webhook-chattar"

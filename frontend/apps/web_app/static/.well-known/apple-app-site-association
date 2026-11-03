@@ -11,7 +11,8 @@
           { "/": "/s/*" },
           { "/": "/share/workflow-template/*" },
           { "/": "/", "#": "workflow-id=?*&workflow-tab=runs&run-id=?*&workflow-completion=1" },
-          { "/": "/", "#": "workflow-id=?*&workflow-tab=runs&run-id=?*&workflow-completion=1&chat-id=?*&message-id=?*&delivery-id=?*" }
+          { "/": "/", "#": "workflow-id=?*&workflow-tab=runs&run-id=?*&workflow-completion=1&chat-id=?*&message-id=?*&delivery-id=?*" },
+          { "/": "/", "#": "chat-id=?*&message-id=?*&delivery-id=?*&workflow-id=?*&run-id=?*&workflow-tab=runs" }
         ]
       }
     ]

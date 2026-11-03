@@ -7857,6 +7857,33 @@
       },
       "message_preview": {
         "text": "Message preview"
+      },
+      "workflows": {
+        "text": "Workflows"
+      },
+      "workflow": {
+        "text": "Workflow"
+      },
+      "view_workflow": {
+        "text": "View Workflow"
+      },
+      "view_latest_run": {
+        "text": "View latest run"
+      },
+      "view_all": {
+        "text": "View all Workflows"
+      },
+      "last_activity": {
+        "text": "Latest activity"
+      },
+      "in_progress": {
+        "text": "In progress at cutoff"
+      },
+      "more_workflows": {
+        "text": "more Workflows in this reporting period"
+      },
+      "attention": {
+        "text": "Needs attention"
       }
     },
     "storage_billing_notice_date_policy": {
@@ -20227,19 +20254,19 @@
           "text": "Saving..."
         },
         "email_chat_how_it_works": {
-          "text": "Chat emails are sent when you're away. Successful scheduled Workflow runs get a completion email and a daily summary."
+          "text": "Chat emails are sent when you are away. Workflow activity gets one daily email only, without Workflow-status push or in-app alerts. Workflow-created chats and messages follow your normal chat notification settings."
         },
         "email_workflow_runs": {
           "text": "Workflow runs"
         },
         "email_workflow_runs_desc": {
-          "text": "Completion emails for successful scheduled Workflow runs, plus a daily summary"
+          "text": "One daily email summarizing scheduled Workflow activity; chat messages follow normal chat settings."
         },
         "email_include_content": {
-          "text": "Include titles and previews in email"
+          "text": "Include private titles and previews"
         },
         "email_include_content_desc": {
-          "text": "Allow chat and workflow titles and previews in email. Your email provider can read this content."
+          "text": "Allow chat titles and message previews in email. Daily Workflow summaries normally include names and outcomes; explicitly hiding content also hides those names. Your email provider can read included content."
         },
         "email_webhooks": {
           "text": "Webhook Chats"

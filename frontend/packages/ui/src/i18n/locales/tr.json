@@ -17002,10 +17002,10 @@
           "text": "Kaydediliyor..."
         },
         "email_chat_how_it_works": {
-          "text": "Sohbet e-postaları siz uzaktayken gönderilir. Başarıyla tamamlanan zamanlanmış Workflow çalışmaları için tamamlanma e-postası ve günlük özet gönderilir."
+          "text": "Planlanan Workflow etkinlikleri günde tek e-postayla özetlenir; mesajlar normal sohbet ayarlarını kullanır."
         },
         "email_workflow_runs_desc": {
-          "text": "Başarıyla tamamlanan zamanlanmış Workflow çalışmaları için e-postalar ve günlük özet"
+          "text": "Planlanan Workflow etkinlikleri günde tek e-postayla özetlenir; mesajlar normal sohbet ayarlarını kullanır."
         },
         "email_webhooks": {
           "text": "Webhook Sohbetleri"

@@ -14,7 +14,7 @@ from backend.core.api.app.services.email_delivery_guard import (
     build_delivery_id, build_delivery_key, send_email_once,
 )
 from backend.core.api.app.services.email.brevo_provider import BrevoProvider
-from backend.core.api.app.services.email_template import EmailTemplateService
+from backend.core.api.app.services.email_template import EmailSendDeferred, EmailTemplateService
 from backend.core.api.app.tasks.email_tasks import workflow_digest_email_task as digest_task
 
 
@@ -34,13 +34,14 @@ class FakeDirectus:
         self.row = dict(kwargs["json"])
         return SimpleNamespace(status_code=200, text="ok")
 
-    async def get_items(self, collection, *, params, admin_required):
+    async def get_items(self, collection, *, params, admin_required, **kwargs):
         assert admin_required and collection == "email_deliveries"
         return [dict(self.row)] if self.row is not None else []
 
     async def update_item(self, collection, item_id, data, *, admin_required):
         assert admin_required and collection == "email_deliveries" and item_id == self.row["id"]
         self.row.update(data)
+        return True
 
 
 class FakeRedis:
@@ -364,3 +365,95 @@ def test_digest_retry_uses_only_ids_and_fixed_backoff(monkeypatch):
         {"args": ["user-1", 1790845200, 2], "countdown": 90, "expires": 600},
         {"args": ["user-1", 1790845200, 3], "countdown": 180, "expires": 600},
     ]
+
+
+# contract-test: supporting surface=rest_api assertions=notifications.delivery.idempotent,notifications.workflow-run.chat-target
+@pytest.mark.asyncio
+@pytest.mark.parametrize("late", [False, True])
+async def test_proven_pre_provider_defer_retries_smtp_once_and_never_replays_acceptance(late):
+    directus, cache = FakeDirectus(), FakeCache()
+    boundary_calls = 0
+    checks = 0
+    async def gate():
+        nonlocal checks
+        checks += 1
+        if checks == (2 if late else 1):
+            raise EmailSendDeferred("profile HTTP 503 before provider")
+        return True
+    async def send(**kwargs):
+        nonlocal boundary_calls
+        # Exercise the actual guard's late callback, before the provider boundary.
+        await kwargs["late_before_send"]()
+        boundary_calls += 1
+        return True
+    template = SimpleNamespace(send_email=AsyncMock(side_effect=send))
+    args = send_args(directus, template, cache)
+    template.selected_delivery_transport = lambda: "ci_smtp"
+    template.supports_delivery_idempotency = lambda: False
+    args["before_send"] = gate
+    with pytest.raises(EmailSendDeferred):
+        await send_email_once(**args)
+    first_start = directus.row["processing_started_at"]
+    assert directus.row["status"] == "deferred" and boundary_calls == 0
+    assert await send_email_once(**args) == (True, "sent")
+    assert directus.row["processing_started_at"] == first_start and boundary_calls == 1
+    assert await send_email_once(**args) == (False, "retry_unsafe_transport")
+    assert boundary_calls == 1
+
+
+# contract-test: supporting surface=rest_api assertions=notifications.delivery.idempotent,notifications.delivery.email-enabled
+@pytest.mark.asyncio
+async def test_smtp_defer_then_optout_is_terminal_without_provider_call():
+    directus, cache = FakeDirectus(), FakeCache()
+    template = SimpleNamespace(send_email=AsyncMock(return_value=True))
+    args = send_args(directus, template, cache)
+    template.selected_delivery_transport = lambda: "ci_smtp"
+    template.supports_delivery_idempotency = lambda: False
+    args["before_send"] = AsyncMock(side_effect=[EmailSendDeferred(), False])
+    with pytest.raises(EmailSendDeferred):
+        await send_email_once(**args)
+    assert await send_email_once(**args) == (False, "ineligible_at_dispatch")
+    assert directus.row["status"] == "skipped"
+    assert await send_email_once(**args) == (False, "retry_unsafe_transport")
+    template.send_email.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=notifications.delivery.idempotent
+@pytest.mark.asyncio
+async def test_uncertain_brevo_send_cannot_be_relabelled_as_proven_unsent_by_later_defer():
+    directus, cache = FakeDirectus(), FakeCache()
+    template = SimpleNamespace(send_email=AsyncMock(return_value=False))
+    args = send_args(directus, template, cache)
+    assert await send_email_once(**args) == (False, "failed")
+    args["before_send"] = AsyncMock(side_effect=EmailSendDeferred())
+    with pytest.raises(EmailSendDeferred):
+        await send_email_once(**args)
+    assert directus.row["status"] == "failed"
+    template.selected_delivery_transport = lambda: "ci_smtp"
+    template.supports_delivery_idempotency = lambda: False
+    assert await send_email_once(**args) == (False, "already_reserved")
+    assert template.send_email.await_count == 1
+
+
+# contract-test: supporting surface=rest_api assertions=notifications.delivery.idempotent,notifications.content.privacy-boundary
+@pytest.mark.asyncio
+async def test_real_template_propagates_late_pre_provider_defer_then_recovers(monkeypatch):
+    from backend.core.api.app.services import email_delivery_feedback
+    monkeypatch.setattr(email_delivery_feedback, "email_recipient_allowed", AsyncMock(return_value=True))
+    directus, cache, events = FakeDirectus(), FakeCache(), []
+    template, provider = _transport_ready_template(monkeypatch, events)
+    checks = 0
+    async def gate():
+        nonlocal checks
+        checks += 1
+        if checks == 2:
+            raise EmailSendDeferred("late authoritative read outage")
+        return True
+    args = send_args(directus, template, cache)
+    args.update(before_send=gate, subject="New message")
+    with pytest.raises(EmailSendDeferred):
+        await send_email_once(**args)
+    assert directus.row["status"] == "deferred"
+    provider.send_email.assert_not_awaited()
+    assert await send_email_once(**args) == (True, "sent")
+    provider.send_email.assert_awaited_once()

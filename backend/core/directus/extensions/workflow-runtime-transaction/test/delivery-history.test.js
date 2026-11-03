@@ -174,3 +174,43 @@ test('existing chat requires its canonical owner-encrypted key wrapper and rejec
   assert.equal(database.rows.chats[0].messages_v,3);
   assert.equal(database.rows.workflow_chat_deliveries[0].client_persisted_at,undefined);
 });
+
+// contract-test: supporting surface=rest_api assertions=notifications.workflow-run.chat-target,notifications.delivery.idempotent,notifications.content.privacy-boundary
+test('actual Send output and per-message notification admission commit atomically and retries preserve one ledger', async()=>{
+  const user='notification-owner';
+  const hash=createHash('sha256').update(user).digest('hex');
+  const own='user_sha256:'+hash;
+  const database=fakeDatabase({workflows:[{id:'w',workflow_id:'workflow-1',hashed_user_id:own}],
+    workflow_runs:[{id:'r',run_id:'run-1',workflow_id:'workflow-1',hashed_user_id:own,status:'running'}]});
+  const d={delivery_id:stableId('openmates:workflow:run-1:send:delivery'),message_id:stableId('openmates:workflow:run-1:send:message'),
+    chat_id:'chat',workflow_id:'workflow-1',run_id:'run-1',node_id:'send',hashed_user_id:hash,
+    encrypted_payload:'vault:cipher',status:'delivery_pending',revision:0,claim_generation:0,
+    created_at:Math.floor(now/1000),expires_at:Math.floor(now/1000)+1000};
+  const command={protocol_version:1,action:'save_delivery',workflow_id:'workflow-1',run_id:'run-1',hashed_user_id:own,
+    notification_owner_user_id:user,delivery:d};
+  await execute(database,command);
+  await execute(database,command);
+  assert.equal(database.rows.workflow_chat_deliveries.length,1);
+  assert.equal(database.rows.workflow_chat_notifications.length,1);
+  const row=database.rows.workflow_chat_notifications[0];
+  assert.equal(row.message_id,d.message_id);
+  assert.equal(row.notification_id,'chat-message-'+stableId(`openmates:chat-notification:${user}:chat:${d.message_id}`));
+  assert.equal(row.event_state,'pending');
+  assert.ok(!JSON.stringify(row).includes('vault:cipher'));
+  const forged={...command,notification_owner_user_id:'another'};
+  await assert.rejects(execute(database,forged),/invalid_notification_admission/);
+  const wrongId={...command,delivery:{...d,delivery_id:'forged'}};
+  await assert.rejects(execute(database,wrongId),/invalid_notification_admission/);
+  assert.equal(database.rows.workflow_chat_notifications.length,1);
+});
+
+// contract-test: supporting surface=rest_api assertions=notifications.workflow-run.completed-delivery
+test('internal workflow caller output is persisted without notification admission', async()=>{
+  const database=db();
+  const d={delivery_id:'caller-delivery',message_id:'caller-message',chat_id:'chat',workflow_id:'workflow-1',
+    run_id:'run-1',node_id:'__caller_result__',hashed_user_id:'a'.repeat(64),encrypted_payload:'vault:cipher',
+    status:'delivery_pending',revision:0,claim_generation:0,created_at:Math.floor(now/1000),expires_at:Math.floor(now/1000)+1000};
+  await execute(database,{...base,action:'save_delivery',delivery:d});
+  assert.equal(database.rows.workflow_chat_deliveries.length,1);
+  assert.equal((database.rows.workflow_chat_notifications || []).length,0);
+});

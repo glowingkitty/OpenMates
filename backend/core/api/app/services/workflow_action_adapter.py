@@ -450,7 +450,7 @@ class WorkflowActionAdapter:
             delivery_service._delivery_history = history
             self._workflow_service.repository._workflow_deliveries = delivery_service._repository
         kwargs = dict(owner_id=user_id, expires_at=expires_at, chat_id=chat_id, delivery_id=delivery_id,
-                      message_id=message_id, workflow_id=workflow_id, run_id=run_id, node_id=node_id)
+                      message_id=message_id, workflow_id=workflow_id, run_id=run_id, node_id=node_id, notify_chat_message=True)
         try:
             if self._chat_delivery_service_injected:
                 delivery = delivery_service.create_delivery(title=preview["title"], message=text, embeds=embeds, **kwargs)
@@ -463,6 +463,9 @@ class WorkflowActionAdapter:
             raise
         if not self._chat_delivery_service_injected or self._cache_service_factory is not None:
             await self._publish_workflow_chat_delivery_available(user_id=user_id, delivery=delivery)
+        if not self._chat_delivery_service_injected:
+            from backend.core.api.app.services.workflow_chat_notification_service import enqueue_delivery_notification
+            enqueue_delivery_notification(delivery.delivery_id)
         return {"type": "send_chat_message", "status": delivery.status, "delivery_id": delivery.delivery_id,
                 "chat_id": delivery.chat_id, "message_id": delivery.message_id, "selected_count": len(prepared.get("embeds") or []) if prepared else len(selected),
                 "embed_ids": [embed["embed_id"] for embed in embeds]}

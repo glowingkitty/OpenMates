@@ -1,0 +1,42 @@
+# Metadata-only, per actual Send-message outbox; admitted with durable ciphertext.
+workflow_chat_notifications:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+    owner_user_id:
+      type: uuid
+    workflow_id:
+      type: uuid
+    run_id:
+      type: uuid
+    delivery_id:
+      type: uuid
+      options:
+        unique: true
+    chat_id:
+      type: uuid
+    message_id:
+      type: uuid
+    notification_id:
+      type: string
+      options:
+        unique: true
+    event_state:
+      type: string
+      default: pending
+    push_state:
+      type: string
+      default: pending
+    push_target_states:
+      type: json
+      nullable: true
+      note: "Hashed device identities and acceptance states; never provider tokens."
+    email_state:
+      type: string
+      default: pending
+    created_at:
+      type: integer
+    updated_at:
+      type: integer

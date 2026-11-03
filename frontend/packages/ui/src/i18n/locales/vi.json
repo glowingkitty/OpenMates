@@ -17002,10 +17002,10 @@
           "text": "Đang lưu..."
         },
         "email_chat_how_it_works": {
-          "text": "Email về cuộc trò chuyện được gửi khi bạn vắng mặt. Workflow theo lịch hoàn tất thành công sẽ có email thông báo hoàn tất và bản tóm tắt hằng ngày."
+          "text": "Một email mỗi ngày tóm tắt hoạt động Workflow theo lịch; tin nhắn tuân theo cài đặt trò chuyện thông thường."
         },
         "email_workflow_runs_desc": {
-          "text": "Email khi Workflow theo lịch hoàn tất thành công, cùng bản tóm tắt hằng ngày"
+          "text": "Một email mỗi ngày tóm tắt hoạt động Workflow theo lịch; tin nhắn tuân theo cài đặt trò chuyện thông thường."
         },
         "email_webhooks": {
           "text": "Chats Webhook"

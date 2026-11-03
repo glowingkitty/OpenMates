@@ -17029,10 +17029,10 @@
           "text": "Salvataggio..."
         },
         "email_chat_how_it_works": {
-          "text": "Le email delle chat vengono inviate quando sei assente. Le esecuzioni pianificate dei Workflow completate correttamente ricevono un'email di completamento e un riepilogo giornaliero."
+          "text": "Una sola email giornaliera riepiloga i Workflow programmati; i messaggi seguono le normali impostazioni della chat."
         },
         "email_workflow_runs_desc": {
-          "text": "Email al completamento delle esecuzioni pianificate dei Workflow, più un riepilogo giornaliero"
+          "text": "Una sola email giornaliera riepiloga i Workflow programmati; i messaggi seguono le normali impostazioni della chat."
         },
         "email_webhooks": {
           "text": "Chat Webhook"

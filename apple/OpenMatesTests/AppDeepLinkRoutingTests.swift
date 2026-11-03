@@ -279,7 +279,7 @@ final class AppDeepLinkRoutingTests: XCTestCase {
             guard authorized else { throw WorkflowCompletionDeliveryError.changedContext }
         }
         func claim(persisted: Bool) -> [String: Any] {
-            ["chat_id": route.chatID!, "message_id": route.messageID!, "workflow_id": route.workflowID,
+            ["delivery_id": route.deliveryID!, "chat_id": route.chatID!, "message_id": route.messageID!, "workflow_id": route.workflowID,
              "run_id": route.runID, "claim_token": "synthetic-token", "claim_generation": 1,
              "claim_issued_at": Int(Date().timeIntervalSince1970),
              "claim_expires_at": Int(Date().timeIntervalSince1970) + 300, "client_persisted": persisted]
@@ -325,11 +325,35 @@ final class AppDeepLinkRoutingTests: XCTestCase {
                        "An already persisted delivery must reuse the winning ciphertext")
     }
 
-    // contract-test: direct surface=gui.apple assertions=notifications.workflow-run.run-target,apple-notifications.action.direct-reply
-    func testWorkflowCompletionCategoryOpensWithoutInlineReply() throws {
+    // contract-test: supporting surface=gui.apple assertions=notifications.workflow-run.chat-target,workflows.chat-delivery.claim-fenced
+    func testWorkflowMessageRejectsMismatchedClaimBeforeEncryptionOrPersistence() async throws {
+        let route = completionRoute(chat: true)
+        var encrypted = false
+        var exchanged: [String] = []
+        do {
+            try await WorkflowCompletionDelivery.persist(route, exchange: { type, _, _, check in
+                try check()
+                exchanged.append(type)
+                return ["delivery_id": UUID().uuidString, "chat_id": route.chatID!,
+                    "message_id": route.messageID!, "workflow_id": route.workflowID, "run_id": route.runID,
+                    "claim_token": "synthetic-token", "claim_generation": 1,
+                    "claim_issued_at": Int(Date().timeIntervalSince1970),
+                    "claim_expires_at": Int(Date().timeIntervalSince1970) + 300]
+            }, encryptClaim: { _ in
+                encrypted = true
+                return (metadata: "synthetic", message: "synthetic")
+            }, check: {})
+            XCTFail("A different delivery cannot authorize these message IDs")
+        } catch WorkflowCompletionDeliveryError.invalidClaim { }
+        XCTAssertFalse(encrypted)
+        XCTAssertEqual(exchanged, ["workflow_chat_delivery_claim"])
+    }
+
+    // contract-test: direct surface=gui.apple assertions=notifications.workflow-run.completed-delivery,apple-notifications.action.direct-reply
+    func testOnlyActualChatMessagesRegisterNotificationActions() throws {
         let categories = PushNotificationManager.notificationCategories()
-        let workflow = try XCTUnwrap(categories.first { $0.identifier == "OPENMATES_WORKFLOW_COMPLETED" })
-        XCTAssertTrue(workflow.actions.isEmpty, "Workflow completion requires a destination tap, never an inline Reply")
+        XCTAssertNil(categories.first { $0.identifier == "OPENMATES_WORKFLOW_COMPLETED" },
+                     "Workflow run status has no notification category")
         let chat = try XCTUnwrap(categories.first { $0.identifier == "OPENMATES_CHAT_MESSAGE" })
         XCTAssertEqual(chat.actions.map(\.identifier), ["OPENMATES_REPLY"])
         #if os(iOS)
@@ -340,6 +364,16 @@ final class AppDeepLinkRoutingTests: XCTestCase {
         #else
         XCTAssertTrue(chat.actions.first is UNTextInputNotificationAction)
         #endif
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=notifications.workflow-run.chat-target
+    func testOrdinaryWorkflowMessageURLRetainsExactDeliveryWithoutCompletionMarker() throws {
+        let handler = DeepLinkHandler()
+        let route = completionRoute(chat: true)
+        let url = try XCTUnwrap(URL(string: "https://\(ServerProfile.current().displayDomain)/#chat-id=\(route.chatID!)&message-id=\(route.messageID!)&delivery-id=\(route.deliveryID!)&workflow-id=\(route.workflowID)&run-id=\(route.runID)&workflow-tab=runs"))
+        handler.handle(url: url)
+        XCTAssertEqual(handler.pendingWorkflowCompletion, route)
+        XCTAssertNil(handler.pendingChatId, "Delivery must complete owner-fenced persistence before ordinary navigation")
     }
 
     // contract-test: direct surface=gui.apple assertions=notifications.workflow-run.chat-target,notifications.workflow-run.run-target
@@ -416,10 +450,16 @@ final class AppDeepLinkRoutingTests: XCTestCase {
         XCTAssertFalse(WorkflowCompletionDelivery.matchesCompletedRun(detail,
             route: WorkflowCompletionRoute(workflowID: workflow, runID: UUID().uuidString,
                 chatID: chat, messageID: message, deliveryID: delivery)))
-        XCTAssertFalse(WorkflowCompletionDelivery.matchesCompletedRun(detail,
+        XCTAssertTrue(WorkflowCompletionDelivery.matchesCompletedRun(detail,
             route: WorkflowCompletionRoute(workflowID: workflow, runID: run, chatID: chat,
                 messageID: "77777777-7777-4777-8777-777777777777",
                 deliveryID: "66666666-6666-4666-8666-666666666666")))
+        var failed = row
+        failed["status"] = "failed"
+        let failedDetail = try JSONDecoder().decode(WorkflowRunDetail.self,
+            from: JSONSerialization.data(withJSONObject: failed))
+        XCTAssertTrue(WorkflowCompletionDelivery.matchesCompletedRun(failedDetail, route: route),
+                      "Canonical delivered messages remain available after later run failure")
         var retained = row
         retained["node_runs"] = []
         retained["completion_notification"] = ["notification_id": UUID().uuidString,

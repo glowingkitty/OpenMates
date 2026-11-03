@@ -97,40 +97,64 @@ push_delivery:
     expect: {push_delivery_attempted: false, retained_history_item: true, failure_visible_as_denied: true}
 
 workflow_completion_delivery:
-  - id: scheduled-run-completes-with-offline-apple
+  - id: hourly-workflow-without-chat-output
     assertion_ids: [notifications.workflow-run.completed-delivery]
-    given: Alice has allowed Apple push and Workflow emails to her verified account address; her Apple app is closed.
-    when: Her noon scheduled Workflow finishes successfully while its encrypted chat output is still awaiting a device.
-    then: Both enabled channels promptly identify the completed run and its time. Apple privately decrypts the Workflow name on the device; email includes it only if Alice allowed content and otherwise identifies the run by reference. Neither channel waits for the daily digest or chat acknowledgement. Replaying completion or recovering an interrupted worker does not send either channel twice or rerun the Workflow.
-  - id: completion-email-independent-of-push-and-presence
+    given: Alice enabled Workflow email and push; her hourly weather check and another scheduled Workflow run throughout the day without creating chat messages.
+    when: Their runs finish and the daily reporting window closes, including retries of old completion jobs.
+    then: She receives one nonempty daily summary email across both Workflows, no per-run emails, and no Workflow-status push or in-app notifications. Empty next-day activity sends no email and the run detail history remains available.
+  - id: daily-summary-email-opt-out
     assertion_ids: [notifications.workflow-run.completed-delivery]
-    given: Bob has enabled Workflow email and is using the app, but Apple push is denied or its provider is unavailable.
-    when: His scheduled Workflow completes and a worker retries its completion notification.
-    then: The enabled email channel still dispatches once without private output unless Bob explicitly opted in. An email opt-out or unsubscribe prevents that email. Failed, cancelled, manual and test runs never send this scheduled-success event; the existing daily digest remains available.
+    given: Bob disabled Workflow email but still permits chat notifications and push.
+    when: A scheduled Workflow runs without a Send message output and the daily dispatcher retries.
+    then: Neither the execution nor its summary creates email, push or in-app status alerts; his independent normal chat notification preferences are preserved.
 
 workflow_completion_chat_route:
-  - id: completed-workflow-created-chat-opens-after-login
+  - id: workflow-created-chat-notifies-offline-owner
     assertion_ids: [notifications.workflow-run.chat-target]
-    given: Alice's scheduled Berlin weather Workflow completed and queued a message into a new chat while every client was closed.
-    when: She opens its Apple push or email link and signs in if needed; another device reconnects at the same time.
-    then: The authorized clients complete the fenced encrypted delivery exactly once and open the new weather chat containing that message. The notification never opens an unrelated chat or leaves Alice at the Workflow library.
-  - id: completed-workflow-existing-chat-target
+    given: Alice permits normal chat email and push, her apps are closed, and a successful Workflow durably queued a deliverable message into a new chat.
+    when: The message becomes available and Alice opens its normal chat notification after signing in while another device reconnects.
+    then: The enabled chat channels notify under ordinary chat rules, independently of the daily digest. The exact owner message is persisted once using client encryption and opens in its new chat; device acknowledgement never sends a duplicate notification.
+  - id: follow-up-and-multiple-message-steps
     assertion_ids: [notifications.workflow-run.chat-target]
-    given: Bob's scheduled Workflow sent its first message to his existing Morning updates chat and later sent another message to a second chat.
-    when: Bob opens either completion notification more than once.
-    then: Both channels consistently open Morning updates without duplicating either message or executing the Workflow again.
+    given: Bob's Workflow sends a follow-up into Morning updates and a second actual message into another chat, while a conditional third message is skipped; a different cancelled run has an unpersisted tentative output.
+    when: Each output becomes available, including duplicate delivery events, or Bob is already actively viewing OpenMates.
+    then: Each real output follows normal per-message chat preferences and foreground/viewed suppression and opens its own exact chat. The skipped branch, cancelled unpersisted output and internal AI steps produce no message alert, and no extra Workflow-completion alert is sent.
 
 workflow_completion_run_route:
-  - id: completed-workflow-skipped-send-opens-exact-run
+  - id: digest-links-open-exact-details
     assertion_ids: [notifications.workflow-run.run-target]
-    given: Alice's scheduled rain check completed successfully, but its condition was false so no Send message step ran.
-    when: She opens the completion push or email after another run has already started.
-    then: The app opens the exact completed rain-check run, showing its completed state and skipped branch, without selecting the newer run or a chat.
+    given: Alice's daily email includes a rain-check run that sent no message and a separate Workflow card with recent activity.
+    when: She opens each email action after signing in while a newer run also exists.
+    then: Each action opens the Workflow or exact run described by that action without generating a push or in-app summary alert or selecting an unrelated chat or newer run.
   - id: completion-target-access-revoked
     assertion_ids: [notifications.workflow-run.run-target]
-    given: Bob has a completion notification whose chat or Workflow run was deleted, or he is now signed in to another account.
-    when: He opens the old notification or a link with mismatched run and chat identities.
-    then: The client rechecks ownership and shows the target as unavailable; no private content from Bob's old account or another chat appears, and the notification offers no inline Reply action.
+    given: Bob has an older completion link or daily email whose target was deleted, belongs to another account, or has mismatched chat and run identities.
+    when: He opens the action.
+    then: The client rechecks ownership and shows the target as unavailable without private content or fallback to another target; unresolved chat targets offer no inline Reply.
+
+workflow_daily_activity:
+  - id: late-completion-and-busy-workflow
+    assertion_ids: [notifications.workflow-digest.daily-activity]
+    given: Alice has more than two hundred scheduled runs across several Workflows, including one that began before yesterday's cutoff and finished during today's reporting period.
+    when: The 09:00 UTC daily summary is prepared and two workers retry that same reporting window.
+    then: Exactly one email groups all qualifying activity by Workflow, includes the late completion and complete totals, and shows at most ten cards plus a link for the rest. A run finishing after the cutoff is not reported as finished within the period.
+  - id: recover-current-window-without-backlog-burst
+    assertion_ids: [notifications.workflow-digest.daily-activity]
+    given: Bob's dispatcher was unavailable at the daily cutoff and older reporting windows were also missed.
+    when: Service recovers and retries the current window more than once.
+    then: At most one current-window email is sent when eligible activity exists; no sequence of historical digest emails is replayed and manual or test runs do not create a digest.
+
+workflow_daily_identity:
+  - id: useful-default-workflow-overview
+    assertion_ids: [notifications.workflow-digest.readable-identity]
+    given: Alice enabled Workflow email without choosing to hide content and her hourly Berlin weather Workflow ran twenty-four times.
+    when: She opens the daily summary on her phone with images blocked or in a plain-text inbox.
+    then: She can identify Berlin weather, its run count and outcomes, reporting period and exact actions. The HTML uses the existing email shell, bell, rounded Workflow card and orange actions; private prompts, node inputs and output excerpts are absent unless she explicitly enabled them.
+  - id: explicit-hidden-content-and-last-minute-opt-out
+    assertion_ids: [notifications.workflow-digest.readable-identity]
+    given: Bob explicitly hid email content, or disables Workflow email or withdraws his verified address while a digest is being prepared.
+    when: The sender reaches its final delivery boundary.
+    then: His hidden content remains absent; disabled or unverified delivery is suppressed. Optional preview preparation never overrides the latest preference or leaks private text into logs or retained metadata.
 
 notification_history:
   - id: cli-lists-past-notifications

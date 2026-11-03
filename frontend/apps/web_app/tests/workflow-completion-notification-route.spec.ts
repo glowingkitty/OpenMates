@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Shared Playwright helpers expose CommonJS exports. */
-import type { Browser, Page } from '@playwright/test';
+import type { Browser, Page, TestInfo } from '@playwright/test';
+import { waitForResolvedChatMessageLink } from './helpers/chat-hydration';
 import { selectTeamInQuickPicker, setTeamMode } from './helpers/team-quick-context';
 export {};
 
@@ -16,7 +17,7 @@ function apiUrl(): string {
 function completionUrl(workflowId: string, runId: string, delivery?: { chat_id: string; message_id: string; delivery_id: string }): string {
 	const run = `/#workflow-id=${encodeURIComponent(workflowId)}&workflow-tab=runs&run-id=${encodeURIComponent(runId)}&workflow-completion=1`;
 	return delivery
-		? `${run}&chat-id=${encodeURIComponent(delivery.chat_id)}&message-id=${encodeURIComponent(delivery.message_id)}&delivery-id=${encodeURIComponent(delivery.delivery_id)}`
+		? `/#chat-id=${encodeURIComponent(delivery.chat_id)}&message-id=${encodeURIComponent(delivery.message_id)}&delivery-id=${encodeURIComponent(delivery.delivery_id)}&workflow-id=${encodeURIComponent(workflowId)}&run-id=${encodeURIComponent(runId)}&workflow-tab=runs`
 		: run;
 }
 
@@ -64,9 +65,9 @@ async function createAndSelectTeam(page: Page, name: string): Promise<string> {
 	return teamId;
 }
 
-test.describe('Workflow completion notification links', () => {
+test.describe('Workflow message notification and legacy run links', () => {
 	// contract-test: direct surface=gui.web assertions=notifications.workflow-run.chat-target,notifications.workflow-run.run-target,notifications.workflow-run.completed-delivery
-	test('cold open switches from Team to Personal, waits for the exact pending message, and rejects stale targets', async ({ page }: { page: Page }) => {
+	test('cold open switches from Team to Personal, resolves the second Send message, and rejects stale targets', async ({ page }: { page: Page }, testInfo: TestInfo) => {
 		test.setTimeout(180_000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 		await skipIfFeaturesDisabled(test, page, ['platform:workflows', 'platform:teams']);
@@ -78,7 +79,7 @@ test.describe('Workflow completion notification links', () => {
 		};
 		const app = association.applinks?.details?.find((detail) => detail.appIDs?.includes('Z9B2YFKN2X.org.openmates.app'));
 		const rootRules = app?.components?.filter((component) => component['/'] === '/') ?? [];
-		expect(rootRules).toHaveLength(2);
+		expect(rootRules).toHaveLength(3);
 		const matchesFragment = (pattern: string, fragment: string) => {
 			const parts = pattern.split('?*').map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
 			return new RegExp(`^${parts.join('.+')}$`).test(fragment);
@@ -115,8 +116,9 @@ test.describe('Workflow completion notification links', () => {
 		const chatTitle = `Completion chat ${Date.now()}`;
 		const graph = { version: 2, trigger_node_id: 'trigger', nodes: [
 			{ id: 'trigger', type: 'manual_trigger', title: 'Start', config: {} },
-			{ id: 'send', type: 'send_chat_message', title: 'Send message', config: { title: chatTitle, message: 'The scheduled result is ready' } }
-		], edges: [{ from: 'trigger', to: 'send' }] };
+			{ id: 'send', type: 'send_chat_message', title: 'Send message', config: { title: chatTitle, message: 'The scheduled result is ready' } },
+			{ id: 'second-send', type: 'send_chat_message', title: 'Another message', config: { title: `${chatTitle} second`, message: 'The second scheduled result is ready' } }
+		], edges: [{ from: 'trigger', to: 'send' }, { from: 'send', to: 'second-send' }] };
 		const { workflowId, runId } = await createAndRun(page, graph, title);
 		let reopened: Page | null = null;
 		let teamId: string | null = null;
@@ -124,7 +126,7 @@ test.describe('Workflow completion notification links', () => {
 			let delivery: { chat_id: string; message_id: string; delivery_id: string } | null = null;
 			await expect.poll(async () => {
 				const run = await getRun(page, workflowId, runId);
-				const node = run.node_runs?.find((item: { node_type: string }) => item.node_type === 'send_chat_message');
+				const node = run.node_runs?.find((item: { node_id: string }) => item.node_id === 'second-send');
 				if (run.status !== 'completed' || node?.output_summary?.status !== 'delivery_pending') return false;
 				delivery = node.output_summary;
 				return !!(delivery?.chat_id && delivery?.message_id && delivery?.delivery_id);
@@ -142,9 +144,9 @@ test.describe('Workflow completion notification links', () => {
 				}
 			});
 			await reopened.goto(getE2EDebugUrl(completionUrl(workflowId, runId, delivery!)), { waitUntil: 'domcontentloaded' });
-			await expect(reopened).toHaveURL(new RegExp(`#chat-id=${delivery!.chat_id}&message-id=${delivery!.message_id}`), { timeout: 45_000 });
+			await waitForResolvedChatMessageLink(reopened, delivery!.chat_id, delivery!.message_id,
+				'The second scheduled result is ready', testInfo);
 			expect(runDetailScopes).toContain(null);
-			await expect(reopened.getByText('The scheduled result is ready', { exact: false }).first()).toBeVisible();
 
 			await reopened.goto(getE2EDebugUrl(completionUrl(workflowId, runId, { ...delivery!, message_id: 'other-message' })), { waitUntil: 'domcontentloaded' });
 			await expect(reopened.getByTestId('workflow-completion-chat-unavailable')).toBeVisible({ timeout: 30_000 });
@@ -168,7 +170,7 @@ test.describe('Workflow completion notification links', () => {
 	});
 
 	// contract-test: direct surface=gui.web assertions=notifications.workflow-run.chat-target,notifications.workflow-run.completed-delivery
-	test('signed-out completion link survives login and opens the exact pending chat message', async ({ page, browser }: { page: Page; browser: Browser }) => {
+	test('signed-out completion link survives login and opens the exact pending chat message', async ({ page, browser }: { page: Page; browser: Browser }, testInfo: TestInfo) => {
 		test.setTimeout(210_000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 		await skipIfFeaturesDisabled(test, page, ['platform:workflows']);
@@ -209,10 +211,9 @@ test.describe('Workflow completion notification links', () => {
 			const link = completionUrl(workflowId, runId, delivery!);
 			await page.goto(getE2EDebugUrl(link), { waitUntil: 'domcontentloaded' });
 			await expect(page.getByTestId('workflows-auth-required')).toBeVisible({ timeout: 30_000 });
-			await expect(page).toHaveURL(new RegExp(`workflow-id=${workflowId}.*run-id=${runId}.*chat-id=${delivery!.chat_id}.*message-id=${delivery!.message_id}.*delivery-id=${delivery!.delivery_id}`));
+			await expect(page).toHaveURL(new RegExp(`chat-id=${delivery!.chat_id}.*message-id=${delivery!.message_id}.*delivery-id=${delivery!.delivery_id}.*workflow-id=${workflowId}.*run-id=${runId}`));
 			await loginToTestAccount(page, undefined, undefined, { preserveCurrentUrl: true, waitForEditor: false });
-			await expect(page).toHaveURL(new RegExp(`#chat-id=${delivery!.chat_id}&message-id=${delivery!.message_id}`), { timeout: 45_000 });
-			await expect(page.getByText(message, { exact: false }).first()).toBeVisible();
+			await waitForResolvedChatMessageLink(page, delivery!.chat_id, delivery!.message_id, message, testInfo);
 		} finally {
 			if (workflowId) await creatorContext.request.delete(`${apiUrl()}/v1/workflows/${workflowId}`).catch(() => null);
 			await creatorContext.close();
@@ -220,7 +221,7 @@ test.describe('Workflow completion notification links', () => {
 	});
 
 	// contract-test: direct surface=gui.web assertions=notifications.workflow-run.chat-target,notifications.workflow-run.completed-delivery
-	test('cold open targets a new message in the existing chat, not its seed message', async ({ page }: { page: Page }) => {
+	test('cold open targets a new message in the existing chat, not its seed message', async ({ page }: { page: Page }, testInfo: TestInfo) => {
 		test.setTimeout(210_000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 		await skipIfFeaturesDisabled(test, page, ['platform:workflows']);
@@ -249,8 +250,7 @@ test.describe('Workflow completion notification links', () => {
 			}, { timeout: 45_000 }).toBe(true);
 			expect(seedDelivery).toBeTruthy();
 			await page.goto(getE2EDebugUrl(completionUrl(seed.workflowId, seed.runId, seedDelivery!)), { waitUntil: 'domcontentloaded' });
-			await expect(page).toHaveURL(new RegExp(`#chat-id=${seedDelivery!.chat_id}&message-id=${seedDelivery!.message_id}`), { timeout: 45_000 });
-			await expect(page.getByText(seedText, { exact: false }).first()).toBeVisible();
+			await waitForResolvedChatMessageLink(page, seedDelivery!.chat_id, seedDelivery!.message_id, seedText, testInfo);
 			await expect.poll(async () => {
 				const run = await getRun(page, seed.workflowId, seed.runId);
 				return run.output_summary?.deliveries?.send?.status;
@@ -288,8 +288,7 @@ test.describe('Workflow completion notification links', () => {
 			await page.close();
 			reopened = await context.newPage();
 			await reopened.goto(getE2EDebugUrl(completionUrl(response.workflowId, response.runId, responseDelivery!)), { waitUntil: 'domcontentloaded' });
-			await expect(reopened).toHaveURL(new RegExp(`#chat-id=${seedDelivery!.chat_id}&message-id=${responseDelivery!.message_id}`), { timeout: 45_000 });
-			await expect(reopened.getByText(responseText, { exact: false }).first()).toBeVisible();
+			await waitForResolvedChatMessageLink(reopened, seedDelivery!.chat_id, responseDelivery!.message_id, responseText, testInfo);
 		} finally {
 			for (const workflowId of [responseWorkflowId, seedWorkflowId]) {
 				if (workflowId) await context.request.delete(`${apiUrl()}/v1/workflows/${workflowId}`).catch(() => null);

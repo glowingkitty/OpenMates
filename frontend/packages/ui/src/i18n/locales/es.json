@@ -17029,10 +17029,10 @@
           "text": "Guardando..."
         },
         "email_chat_how_it_works": {
-          "text": "Los correos de chat se envían cuando no estás. Las ejecuciones programadas de Workflows que se completan correctamente reciben un correo de finalización y un resumen diario."
+          "text": "Un correo diario resume la actividad de los Workflows programados; los mensajes siguen los ajustes normales del chat."
         },
         "email_workflow_runs_desc": {
-          "text": "Correos al completarse correctamente las ejecuciones programadas de Workflows, más un resumen diario"
+          "text": "Un correo diario resume la actividad de los Workflows programados; los mensajes siguen los ajustes normales del chat."
         },
         "email_webhooks": {
           "text": "Chats de Webhook"

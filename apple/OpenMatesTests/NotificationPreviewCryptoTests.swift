@@ -5,15 +5,15 @@ import XCTest
 @testable import OpenMates
 
 final class NotificationPreviewCryptoTests: XCTestCase {
-    // contract-test: direct surface=gui.apple assertions=notifications.workflow-run.completed-delivery
-    func testWorkflowCompletionEncryptedDisplaySeparatesTitleAndBody() throws {
+    // contract-test: supporting surface=gui.apple assertions=notifications.workflow-run.chat-target,apple-notifications.payload.privacy-safe
+    func testWorkflowChatMessageEncryptedDisplaySeparatesTitleAndBody() throws {
         let recipient = Curve25519.KeyAgreement.PrivateKey()
         let ephemeral = Curve25519.KeyAgreement.PrivateKey()
         let secret = try ephemeral.sharedSecretFromKeyAgreement(with: recipient.publicKey)
         let key = secret.hkdfDerivedSymmetricKey(using: SHA256.self, salt: Data(),
             sharedInfo: Data("openmates-apns-notification-v1".utf8), outputByteCount: 32)
         let plaintext = try JSONSerialization.data(withJSONObject: [
-            "title": "# **Morning workflow**", "body": "Your scheduled workflow completed."])
+            "title": "# **Morning workflow**", "body": "A new chat message is ready."])
         let box = try AES.GCM.seal(plaintext, using: key)
         func encode(_ data: Data) -> String {
             data.base64EncodedString().replacingOccurrences(of: "+", with: "-")
@@ -26,7 +26,7 @@ final class NotificationPreviewCryptoTests: XCTestCase {
             "ciphertext": encode(box.ciphertext + box.tag)]]
         XCTAssertEqual(NotificationPreviewCrypto.decryptDisplay(userInfo: userInfo,
             privateKeyData: recipient.rawRepresentation),
-            .init(title: "Morning workflow", body: "Your scheduled workflow completed."))
+            .init(title: "Morning workflow", body: "A new chat message is ready."))
         XCTAssertNil(NotificationPreviewCrypto.decryptDisplay(userInfo: userInfo,
             privateKeyData: Curve25519.KeyAgreement.PrivateKey().rawRepresentation))
     }

@@ -683,7 +683,7 @@ specifications:
     version: 2
     status: draft
     path: features/notifications
-    fingerprint: f75eb429414a92b2e7dbb8094e6c6e0680388ffde93bb540c2930875fb5e513f
+    fingerprint: 9e20bca3efc6e7d08a9e225f70b47095b34b09084d066de59da933cd3ee6328d
     required_applies_to:
     - rest_api
     - cli
@@ -8577,7 +8577,7 @@ assertions:
     specification: feature.notifications@2
     specification_id: feature.notifications
     type: behavior
-    fingerprint: b9af4f00d5c7c3bacde244cb0a9eb97a8a2a58b012bb80bea1591c5a783e5fe2
+    fingerprint: d2fc7320b87c2df9111e38bff1122a77a3927d8f07f5ce2bfca12959332b7466
     required_applies_to:
     - rest_api
     - cli
@@ -8589,7 +8589,7 @@ assertions:
     specification: feature.notifications@2
     specification_id: feature.notifications
     type: behavior
-    fingerprint: 5115fb4ca41d809c101e419b3e6c1b68d39cdebff04adcef8448429c2a11cb7f
+    fingerprint: e254e2cbfffffd800b172a6b0318b0d32c8669f550bdc2c214101e0e818de2bf
     required_applies_to:
     - rest_api
     - cli
@@ -8601,7 +8601,31 @@ assertions:
     specification: feature.notifications@2
     specification_id: feature.notifications
     type: behavior
-    fingerprint: 67e1641c7881a5c22d2fdaf627c73cf5a9d519f32d06fb96fc67d323b169043c
+    fingerprint: 27f2072b8a85da2ea6b332a007547ff326957a50e0e3bf2836d6c3ba55a6ff66
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  notifications.workflow-digest.daily-activity:
+    specification: feature.notifications@2
+    specification_id: feature.notifications
+    type: behavior
+    fingerprint: b1b865b71a8795282a017ebd700b2429c962caa3cb3ed0bb2f8f07910b128573
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  notifications.workflow-digest.readable-identity:
+    specification: feature.notifications@2
+    specification_id: feature.notifications
+    type: behavior
+    fingerprint: a6ef6e72432b1c9c5f6745a837e4d4aa86513a8909b074eb1ce62aa11c039926
     required_applies_to:
     - rest_api
     - cli
@@ -8649,7 +8673,7 @@ assertions:
     specification: feature.notifications@2
     specification_id: feature.notifications
     type: parity
-    fingerprint: 5edc6171ec5e1b37725d8d102c45d1960e2cab387322767d7a43f8419d8cd77e
+    fingerprint: 436b6162d88ff01565b1aee5188beaa170dacd692f840348d40ad985f222a101
     required_applies_to:
     - rest_api
     - cli

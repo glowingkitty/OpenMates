@@ -82,3 +82,35 @@ export async function clickReadyComposerSend(page: Page): Promise<void> {
   await expect(send).toBeEnabled();
   await send.click();
 }
+
+/** A pending delivery URL already starts with the target chat/message IDs. Only
+ * the chat-only URL is published after owner verification and local hydration.
+ */
+export function isResolvedChatMessageLink(url: URL, chatId: string, messageId: string): boolean {
+  return url.pathname === '/' &&
+    url.hash === `#chat-id=${encodeURIComponent(chatId)}&message-id=${encodeURIComponent(messageId)}`;
+}
+
+/** Wait for the resolved route and its exact assistant row, rather than treating
+ * the incoming notification URL or an earlier message as delivery completion.
+ */
+export async function waitForResolvedChatMessageLink(
+  page: Page, chatId: string, messageId: string, expectedText: string, testInfo: TestInfo,
+): Promise<void> {
+  try {
+    await expect(page, 'Owner verification must replace pending delivery hints with the exact chat/message route')
+      .toHaveURL(url => isResolvedChatMessageLink(url, chatId, messageId), { timeout: 45_000 });
+    const message = page.getByTestId('message-assistant')
+      .and(page.locator(`[data-message-id=${JSON.stringify(messageId)}]`));
+    await waitForHydratedChat(page, chatId, testInfo, message);
+    await expect(message, 'The exact delivered assistant message must render its expected content')
+      .toContainText(expectedText, { timeout: 30_000 });
+  } catch (error) {
+    await testInfo.attach('chat-message-link-state', {
+      body: JSON.stringify({ url: page.url(), chatId, messageId,
+        unavailable: await page.getByTestId('workflow-completion-chat-unavailable').isVisible().catch(() => false),
+      }), contentType: 'application/json',
+    });
+    throw error;
+  }
+}

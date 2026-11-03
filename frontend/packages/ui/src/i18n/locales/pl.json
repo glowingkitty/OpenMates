@@ -17002,10 +17002,10 @@
           "text": "Zapisywanie..."
         },
         "email_chat_how_it_works": {
-          "text": "E-maile o czatach są wysyłane, gdy Cię nie ma. Po pomyślnym zakończeniu zaplanowanego Workflow otrzymasz e-mail z powiadomieniem oraz codzienne podsumowanie."
+          "text": "Jeden codzienny e-mail podsumowuje zaplanowane Workflow; wiadomości korzystają ze zwykłych ustawień czatu."
         },
         "email_workflow_runs_desc": {
-          "text": "E-maile po pomyślnym zakończeniu zaplanowanych Workflow oraz codzienne podsumowanie"
+          "text": "Jeden codzienny e-mail podsumowuje zaplanowane Workflow; wiadomości korzystają ze zwykłych ustawień czatu."
         },
         "email_webhooks": {
           "text": "Czaty Webhook"

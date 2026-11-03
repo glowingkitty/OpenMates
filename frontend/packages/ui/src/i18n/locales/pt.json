@@ -17029,10 +17029,10 @@
           "text": "Salvando..."
         },
         "email_chat_how_it_works": {
-          "text": "Os e-mails de chat são enviados quando está ausente. As execuções agendadas de Workflows concluídas com sucesso geram um e-mail de conclusão e um resumo diário."
+          "text": "Um e-mail diário resume a atividade dos Workflows agendados; as mensagens seguem as definições normais do chat."
         },
         "email_workflow_runs_desc": {
-          "text": "E-mails de conclusão para execuções agendadas de Workflows concluídas com sucesso, além de um resumo diário"
+          "text": "Um e-mail diário resume a atividade dos Workflows agendados; as mensagens seguem as definições normais do chat."
         },
         "email_webhooks": {
           "text": "Chats de Webhook"

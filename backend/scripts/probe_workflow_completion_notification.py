@@ -1,13 +1,6 @@
-"""Isolated-CI probe for real scheduled completion push/email dispatch.
-
-The browser spec creates two real owner-authenticated schedules and passes their
-durable run IDs here. This script never fabricates completed Workflow rows.
-"""
-
+"""Runner-isolated actual-message alerts; status-only Workflow runs remain silent."""
 from __future__ import annotations
-
 import asyncio
-import hashlib
 import html
 import json
 import os
@@ -16,16 +9,13 @@ import time
 from types import SimpleNamespace
 from html.parser import HTMLParser
 from urllib.parse import parse_qs, urlsplit
-
 import httpx
-
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.email_template import EmailTemplateService
+from backend.core.api.app.services.notification_event_service import NotificationEventService
 from backend.core.api.app.services.push_notification_service import push_notification_service
-from backend.core.api.app.services.workflow_completion_notification_service import (
-    COLLECTION, completion_url, dispatch_completion, owner_run_completion_projection,
-)
+from backend.core.api.app.services.workflow_chat_notification_service import COLLECTION, message_url, dispatch_chat_notification
 from backend.core.api.app.services.workflow_models import WorkflowRunContentStorage, WorkflowRunDetail
 from backend.core.api.app.services.workflow_service import DirectusWorkflowRepository, WorkflowService, _hash_owner_id
 from backend.core.api.app.utils.encryption import EncryptionService
@@ -91,7 +81,8 @@ def _prepare(admin: httpx.Client, email: str) -> None:
     _verified_contact(admin, user)
     prefs = _json(user.get("email_notification_preferences"))
     choices = _json(user.get("email_notification_preference_choices"))
-    prefs.update(workflowRuns=True, includeContent=False)
+    prefs.update(workflowRuns=True, aiResponses=True, includeContent=False)
+    choices["aiResponses"] = {"source": "user", "value": True}
     choices["workflowRuns"] = {"source": "user", "value": True}
     choices["includeContent"] = {"source": "user", "value": False}
     _data(admin.patch(f"/users/{user['id']}", json={
@@ -102,13 +93,12 @@ def _prepare(admin: httpx.Client, email: str) -> None:
     print("WORKFLOW_COMPLETION_NOTIFICATION_PROBE_PREPARED")
 
 
+
 def _mail_messages(mailpit: httpx.Client, email: str) -> list[dict]:
     response = mailpit.get("/api/v1/messages?limit=100")
     response.raise_for_status()
     matches = []
     for item in response.json().get("messages", []):
-        if item.get("Subject") != "Your scheduled Workflow completed":
-            continue
         if not any(address.get("Address", "").lower() == email for address in item.get("To", [])):
             continue
         full = mailpit.get(f"/api/v1/message/{item['ID']}")
@@ -121,36 +111,24 @@ class _Anchors(HTMLParser):
     def __init__(self) -> None:
         super().__init__()
         self.hrefs: list[str] = []
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+    def handle_starttag(self, tag, attrs):
         if tag == "a":
             self.hrefs.extend(value for key, value in attrs if key == "href" and isinstance(value, str))
 
 
-def _run_links(message: dict, run_id: str) -> list[str]:
+def _message_links(message: dict, message_id: str) -> list[str]:
     parser = _Anchors()
     parser.feed(message.get("HTML") or "")
-    return [href for href in parser.hrefs
-            if parse_qs(urlsplit(href).fragment).get("run-id") == [run_id]]
+    return [href for href in parser.hrefs if parse_qs(urlsplit(href).fragment).get("message-id") == [message_id]]
 
 
-def _actual_link(message: dict, run_id: str) -> str:
-    matches = _run_links(message, run_id)
-    assert len(matches) == 1, f"Expected one actual SMTP link for run {run_id}"
-    return matches[0]
-
-
-def _current_run_messages(messages: list[dict], rows: tuple[dict, dict]) -> dict[str, dict]:
-    """Ignore prior attempts while rejecting duplicates for either current run."""
+def _current_message_emails(messages: list[dict], rows: list[dict]) -> dict[str, dict]:
     selected = {}
     for row in rows:
-        matching = [message for message in messages if _run_links(message, row["run_id"])]
-        assert len(matching) == 1, f"Expected one completion email for current run {row['run_id']}; found {len(matching)}"
-        assert _run_links(matching[0], row["run_id"]) == [completion_url(row)], (
-            f"Completion email for current run {row['run_id']} has the wrong target"
-        )
-        selected[row["run_id"]] = matching[0]
-    assert len(selected) == len(rows)
+        matching = [message for message in messages if _message_links(message, row["message_id"])]
+        assert len(matching) == 1, f"Expected one chat email for {row['message_id']}; found {len(matching)}"
+        assert _message_links(matching[0], row["message_id"]) == [message_url(row)], "Actual-message email has the wrong target"
+        selected[row["message_id"]] = matching[0]
     return selected
 
 
@@ -160,8 +138,10 @@ _DELIVERY_METADATA_KEYS = frozenset({
 })
 
 
-def _assert_pruned_run_metadata(run: WorkflowRunDetail, private_values: tuple[str, ...]) -> None:
-    """Allow only delivery routing/status after encrypted run content is removed."""
+def _assert_pruned_run_metadata(
+    run: WorkflowRunDetail, private_values: tuple[str, ...], expected_targets: list[dict],
+) -> None:
+    """Prove every exact output route survives pruning without retaining content."""
     assert run.content_available is False
     assert run.content_storage == WorkflowRunContentStorage.DELETED
     assert run.encrypted_content_ref is None and run.encrypted_content_checksum is None
@@ -169,6 +149,17 @@ def _assert_pruned_run_metadata(run: WorkflowRunDetail, private_values: tuple[st
     assert set(run.output_summary) <= {"deliveries"}
     deliveries = run.output_summary.get("deliveries") or {}
     assert isinstance(deliveries, dict)
+    routing_keys = ("delivery_id", "chat_id", "message_id")
+    assert expected_targets, "Pruning proof requires actual expected output targets"
+    assert all(target.get("workflow_id") == run.workflow_id and target.get("run_id") == run.id for target in expected_targets)
+    expected = {tuple(target.get(key) for key in routing_keys) for target in expected_targets}
+    assert len(expected) == len(expected_targets), "Expected output targets must be distinct"
+    assert len(deliveries) == len(expected), "Pruned run lost or added delivery targets"
+    retained = {tuple(metadata.get(key) for key in routing_keys) for metadata in deliveries.values()}
+    assert retained == expected, "Pruned run changed exact delivery/chat/message targets"
+    send_nodes = [node for node in run.node_runs if node.node_type == "send_chat_message" and node.status == "completed"]
+    assert len(send_nodes) == len(expected), "Pruned run lost or added completed Send nodes"
+    assert {node.node_id for node in send_nodes} == set(deliveries), "Pruned Send nodes do not match delivery metadata"
     for metadata in deliveries.values():
         assert isinstance(metadata, dict) and set(metadata) <= _DELIVERY_METADATA_KEYS
         assert metadata.get("type") == "send_chat_message"
@@ -179,154 +170,108 @@ def _assert_pruned_run_metadata(run: WorkflowRunDetail, private_values: tuple[st
     assert not any(value and value in exposed for value in private_values)
 
 
-def _run_and_outbox(admin: httpx.Client, user: dict, workflow_id: str, run_id: str) -> dict:
-    run = _one(admin, "/items/workflow_runs", {
-        "filter[run_id][_eq]": run_id,
-        "filter[workflow_id][_eq]": workflow_id,
-        "filter[hashed_user_id][_eq]": _hash_owner_id(user["id"]),
-    })
-    assert run["status"] == "completed" and run["trigger_type"] == "schedule" and isinstance(run.get("finished_at"), int)
-    row = _one(admin, f"/items/{COLLECTION}", {"filter[run_id][_eq]": run_id})
-    assert row["owner_user_id"] == user["id"] and row["workflow_id"] == workflow_id
-    assert row["notification_id"] == f"workflow-completed-{run_id}"
+
+def _real_run(admin, user, workflow_id, run_id):
+    row = _one(admin, "/items/workflow_runs", {"filter[run_id][_eq]": run_id,
+        "filter[workflow_id][_eq]": workflow_id, "filter[hashed_user_id][_eq]": _hash_owner_id(user["id"])})
+    assert row["status"] == "completed" and row["trigger_type"] == "schedule"
     return row
 
 
 async def _inspect(admin: httpx.Client, email: str) -> None:
-    ids = [os.getenv(key, "") for key in (
-        "WORKFLOW_ID", "RUN_ID", "NO_CHAT_WORKFLOW_ID", "NO_CHAT_RUN_ID",
-    )]
+    ids = [os.getenv(key, "") for key in ("WORKFLOW_ID", "RUN_ID", "NO_CHAT_WORKFLOW_ID", "NO_CHAT_RUN_ID")]
     if not all(re.fullmatch(r"[a-f0-9-]{36}", value) for value in ids):
-        raise RuntimeError("Inspect mode requires four real Workflow/run UUIDs")
+        raise RuntimeError("Inspect requires four real Workflow/run UUIDs")
     workflow_id, run_id, no_chat_workflow_id, no_chat_run_id = ids
     user = _user(admin, email)
     _verified_contact(admin, user)
-    deadline = time.monotonic() + 65
-    while True:
-        chat_row = _run_and_outbox(admin, user, workflow_id, run_id)
-        no_chat_row = _run_and_outbox(admin, user, no_chat_workflow_id, no_chat_run_id)
-        if all(row.get("event_state") == "published" and row.get("email_state") == "sent"
-               for row in (chat_row, no_chat_row)):
-            break
-        if time.monotonic() >= deadline:
-            raise AssertionError("Scheduled completion dispatch did not reach event/email acceptance within 65s")
-        await asyncio.sleep(2)
-    assert all(chat_row.get(key) for key in ("chat_id", "message_id", "delivery_id")), chat_row
-    assert not any(no_chat_row.get(key) for key in ("chat_id", "message_id", "delivery_id")), no_chat_row
-    delivery = _one(admin, "/items/workflow_chat_deliveries", {
-        "filter[delivery_id][_eq]": chat_row["delivery_id"],
-        "filter[run_id][_eq]": run_id,
-        "filter[hashed_user_id][_eq]": hashlib.sha256(user["id"].encode()).hexdigest(),
-    })
-    assert delivery["chat_id"] == chat_row["chat_id"] and delivery["message_id"] == chat_row["message_id"]
-    assert "chat-id=" in completion_url(chat_row) and "chat-id=" not in completion_url(no_chat_row)
-
+    _real_run(admin, user, workflow_id, run_id)
+    _real_run(admin, user, no_chat_workflow_id, no_chat_run_id)
+    rows = _data(admin.get(f"/items/{COLLECTION}", params={"filter[run_id][_eq]": run_id, "limit": 10}))
+    assert len(rows) == 2, "Every actual Send node must admit its own message"
+    assert len({row["message_id"] for row in rows}) == len({row["delivery_id"] for row in rows}) == 2
+    assert all(row["owner_user_id"] == user["id"] for row in rows)
+    skipped = _data(admin.get(f"/items/{COLLECTION}", params={"filter[run_id][_eq]": no_chat_run_id}))
+    assert skipped == [], "Skipped Send creates no chat notification"
+    for row in rows:
+        pending = _one(admin, "/items/workflow_chat_deliveries", {"filter[delivery_id][_eq]": row["delivery_id"]})
+        assert pending["chat_id"] == row["chat_id"] and not pending.get("client_persisted_at")
+        assert pending["status"] in {"delivery_pending", "claimed"}
+    secrets, encryption, cache = SecretsManager(), EncryptionService(), CacheService()
+    directus = DirectusService(cache_service=cache, encryption_service=encryption)
     mailpit = httpx.Client(base_url="http://mailpit:8025", timeout=10)
-    links: dict[str, str] = {}
     try:
-        messages = _current_run_messages(_mail_messages(mailpit, email), (chat_row, no_chat_row))
-        for row in (chat_row, no_chat_row):
-            message = messages[row["run_id"]]
+        await secrets.initialize()
+        assert await encryption.initialize()
+        task = SimpleNamespace(directus_service=directus, encryption_service=encryption, cache_service=cache,
+            secrets_manager=secrets, email_template_service=EmailTemplateService(secrets_manager=secrets))
+        deadline = time.monotonic() + 65
+        while True:
+            for row in rows:
+                await dispatch_chat_notification(task, row["delivery_id"])
+            current = _data(admin.get(f"/items/{COLLECTION}", params={"filter[run_id][_eq]": run_id}))
+            if all(row["event_state"] == "published" and row["email_state"] == "sent" for row in current):
+                break
+            assert time.monotonic() < deadline, "Actual chat notifications did not reach mail acceptance"
+            await asyncio.sleep(2)
+        emails = _current_message_emails(_mail_messages(mailpit, email), rows)
+        assert not any(message.get("Subject") == "Your scheduled Workflow completed" for message in _mail_messages(mailpit, email))
+        events = await NotificationEventService(cache).get_recent(user["id"], limit=100)
+        relevant = [event for event in events if event.get("routing", {}).get("run_id") in {run_id, no_chat_run_id}]
+        assert len(relevant) == 2 and all(event["type"] == "chat.assistant_message_received" for event in relevant)
+        assert {event["routing"]["message_id"] for event in relevant} == {row["message_id"] for row in rows}
+        service = WorkflowService(repository=DirectusWorkflowRepository())
+        private_titles = [service.get_workflow(w, user["id"]).title for w in (workflow_id, no_chat_workflow_id)]
+        for message in emails.values():
             body = html.unescape(message.get("HTML") or "")
-            assert row["run_id"] in body and "completed at" in body
-            links["chat" if row is chat_row else "run"] = _actual_link(message, row["run_id"])
-        secrets = SecretsManager()
-        encryption = EncryptionService()
-        cache = CacheService()
-        directus = DirectusService(cache_service=cache, encryption_service=encryption)
+            assert not any(value in body for value in [*private_titles, "Scheduled notification integration result", "Scheduled completion chat"])
+        for row in rows:
+            await dispatch_chat_notification(task, row["delivery_id"])
+        _current_message_emails(_mail_messages(mailpit, email), rows)
+
+        # Process-local provider interception: no synthetic target reaches APNs.
+        original_user = {key: user.get(key) for key in ("push_notification_enabled", "push_notification_subscription", "push_notification_preferences")}
+        original = (push_notification_service.initialize, push_notification_service.is_apns_ready, push_notification_service.send_push_notification)
+        captured = []
+        async def initialized(*args):
+            return None
+        def capture(**kwargs):
+            captured.append(kwargs)
+            return True
         try:
-            await secrets.initialize()
-            assert await encryption.initialize()
-            task = SimpleNamespace(
-                directus_service=directus, encryption_service=encryption, cache_service=cache,
-                secrets_manager=secrets, email_template_service=EmailTemplateService(secrets_manager=secrets),
-            )
-            service = WorkflowService(repository=DirectusWorkflowRepository())
-            private_titles = [service.get_workflow(workflow, user["id"]).title
-                              for workflow in (workflow_id, no_chat_workflow_id)]
-            for message in messages.values():
-                assert not any(title in (message.get("HTML") or "") for title in private_titles)
-            # Requeue the ledger projection without touching the completed run.
-            # Stable event and email idempotency must suppress duplicate sends.
-            for row in (chat_row, no_chat_row):
-                result = await dispatch_completion(task, row["run_id"], service)
-                assert result["status"] == "completed"
-            _current_run_messages(_mail_messages(mailpit, email), (chat_row, no_chat_row))
-
-            # Intercept only this probe process's APNs provider boundary. A
-            # synthetic token never reaches Apple, and no token enters Celery.
-            original_push = {
-                "push_notification_enabled": user.get("push_notification_enabled"),
-                "push_notification_subscription": user.get("push_notification_subscription"),
-                "push_notification_preferences": user.get("push_notification_preferences"),
-            }
-            original_initialize = push_notification_service.initialize
-            original_ready = push_notification_service.is_apns_ready
-            original_send = push_notification_service.send_push_notification
-            captured: list[dict] = []
-
-            async def initialized(*_args: object) -> None:
-                return None
-
-            def capture(**kwargs: object) -> bool:
-                captured.append(dict(kwargs))
-                return True
-
-            try:
-                _data(admin.patch(f"/users/{user['id']}", json={
-                    "push_notification_enabled": True,
-                    "push_notification_preferences": {"workflowRuns": True},
-                    "push_notification_subscription": json.dumps({
-                        "type": "apns", "platform": "ios", "token": "isolated-probe-token",
-                    }),
-                }))
-                _data(admin.patch(f"/items/{COLLECTION}/{chat_row['id']}", json={
-                    "push_state": "pending", "push_target_states": {},
-                }))
-                push_notification_service.initialize = initialized
-                push_notification_service.is_apns_ready = lambda: True
-                push_notification_service.send_push_notification = capture
-                first = await dispatch_completion(task, run_id, service)
-                assert first["push"] == "accepted" and len(captured) == 1
-                envelope = captured[0]
-                assert envelope["title"] == "OpenMates"
-                assert envelope["body"] == "Your scheduled Workflow completed"
-                assert envelope["category"] == "OPENMATES_WORKFLOW_COMPLETED"
-                assert envelope["workflow_routing"]["notification_id"] == chat_row["notification_id"]
-                assert envelope["workflow_routing"]["delivery_id"] == chat_row["delivery_id"]
-                assert isinstance(envelope.get("encrypted_title"), str) and envelope["encrypted_title"]
-                _data(admin.patch(f"/items/{COLLECTION}/{chat_row['id']}", json={"push_state": "pending"}))
-                replay = await dispatch_completion(task, run_id, service)
-                assert replay["push"] == "accepted" and len(captured) == 1
-                _current_run_messages(_mail_messages(mailpit, email), (chat_row, no_chat_row))
-            finally:
-                push_notification_service.initialize = original_initialize
-                push_notification_service.is_apns_ready = original_ready
-                push_notification_service.send_push_notification = original_send
-                _data(admin.patch(f"/users/{user['id']}", json=original_push))
-            if os.getenv("PRUNE_RUN_CONTENT") == "1":
-                before = service.get_run(workflow_id, run_id, user["id"])
-                ref = before.encrypted_content_ref
-                assert ref and before.content_available, "Real scheduled run content must exist before pruning"
-                assert service.repository.prune_run_content(workflow_id, run_id, user["id"], ref)
-                service.repository.delete_encrypted_blob(ref)
-                assert service.repository.get_encrypted_blob(ref) is None
-                pruned = service.get_run(workflow_id, run_id, user["id"])
-                _assert_pruned_run_metadata(pruned, (
-                    *private_titles, "Scheduled notification integration result", "Scheduled completion chat",
-                ))
-                projection = await owner_run_completion_projection(directus, pruned, user["id"])
-                assert projection and projection["chat_id"] == chat_row["chat_id"]
-                assert projection["message_id"] == chat_row["message_id"]
-                assert projection["delivery_id"] == chat_row["delivery_id"]
+            _data(admin.patch(f"/users/{user['id']}", json={"push_notification_enabled": True,
+                "push_notification_preferences": {"aiResponses": True, "workflowRuns": False},
+                "push_notification_subscription": json.dumps({"type": "apns", "platform": "ios", "token": "isolated-probe-token"})}))
+            push_notification_service.initialize = initialized
+            push_notification_service.is_apns_ready = lambda: True
+            push_notification_service.send_push_notification = capture
+            for row in rows:
+                _data(admin.patch(f"/items/{COLLECTION}/{row['id']}", json={"push_state": "pending", "push_target_states": {}}))
+                assert (await dispatch_chat_notification(task, row["delivery_id"]))["push"] == "accepted"
+                _data(admin.patch(f"/items/{COLLECTION}/{row['id']}", json={"push_state": "pending"}))
+                assert (await dispatch_chat_notification(task, row["delivery_id"]))["push"] == "accepted"
+            assert len(captured) == 2
+            for envelope, row in zip(captured, rows):
+                assert envelope["category"] == "OPENMATES_CHAT_MESSAGE" and envelope["message_id"] == row["message_id"]
+                assert envelope["workflow_routing"]["delivery_id"] == row["delivery_id"]
+                assert "workflow-completion" not in envelope["url"]
         finally:
-            await directus.close()
-            await encryption.close()
-            await cache.close()
-            await secrets.close()
+            push_notification_service.initialize, push_notification_service.is_apns_ready, push_notification_service.send_push_notification = original
+            _data(admin.patch(f"/users/{user['id']}", json=original_user))
+        if os.getenv("PRUNE_RUN_CONTENT") == "1":
+            before = service.get_run(workflow_id, run_id, user["id"])
+            ref = before.encrypted_content_ref
+            assert ref and before.content_available
+            assert service.repository.prune_run_content(workflow_id, run_id, user["id"], ref)
+            service.repository.delete_encrypted_blob(ref)
+            _assert_pruned_run_metadata(service.get_run(workflow_id, run_id, user["id"]), tuple(private_titles + ["Scheduled notification integration result", "Scheduled completion chat"]), expected_targets=rows)
+        print("WORKFLOW_CHAT_LINKS=" + json.dumps([{**{key: row[key] for key in ("chat_id", "message_id", "delivery_id")}, "url": message_url(row)} for row in rows], separators=(",", ":")))
     finally:
         mailpit.close()
-    print("WORKFLOW_COMPLETION_LINKS=" + json.dumps(links, separators=(",", ":")))
+        await directus.close()
+        await encryption.close()
+        await cache.close()
+        await secrets.close()
     print("WORKFLOW_COMPLETION_NOTIFICATION_PROBE_OK")
 
 

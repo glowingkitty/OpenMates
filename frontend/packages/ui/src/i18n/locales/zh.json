@@ -7333,9 +7333,6 @@
     "view_on_google_hotels": {
       "text": "在 Google Hotels 上查看"
     },
-    "view_on_meetup": {
-      "text": "在 Gathering 上查看"
-    },
     "loading_map": {
       "text": "正在加载地图..."
     },
@@ -17005,10 +17002,10 @@
           "text": "正在保存..."
         },
         "email_chat_how_it_works": {
-          "text": "离开时才会发送聊天邮件。计划运行的工作流成功完成后，您会收到完成邮件和每日摘要。"
+          "text": "每天一封邮件汇总计划工作流的活动；聊天消息遵循常规聊天设置。"
         },
         "email_workflow_runs_desc": {
-          "text": "计划运行的工作流成功完成时发送邮件，另附每日摘要"
+          "text": "每天一封邮件汇总计划工作流的活动；聊天消息遵循常规聊天设置。"
         },
         "email_webhooks": {
           "text": "Webhook 聊天"
