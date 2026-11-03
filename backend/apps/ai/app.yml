@@ -402,6 +402,7 @@ skills:
       always_include_skills:
         - web-search
         - images-search
+        - videos-search
 
 marketing_discovery:
   skills:
