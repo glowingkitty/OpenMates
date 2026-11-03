@@ -55,6 +55,7 @@ mod draft_read;
 pub use draft_read::DraftReadAdmission;
 mod embed;
 pub mod embed_version;
+pub mod embed_write;
 pub mod saved_embed;
 mod saved_embed_selector;
 mod focus;

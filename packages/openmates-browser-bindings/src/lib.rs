@@ -9,6 +9,7 @@ pub use browser::*;
 
 #[cfg(target_arch = "wasm32")]
 mod browser_crypto;
+#[cfg(target_arch = "wasm32")] pub mod browser_embed_write;
 
 #[cfg(target_arch = "wasm32")]
 mod browser_auth;
