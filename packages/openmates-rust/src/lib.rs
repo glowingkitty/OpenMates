@@ -39,3 +39,4 @@ pub use sdk::{AnonymousMessage, ApiKey, OpenMates, SdkCredentials, SdkOptions};
 
 pub mod work;
 pub mod web_auth;
+pub mod ws_link;
