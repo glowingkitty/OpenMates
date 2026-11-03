@@ -1,8 +1,9 @@
 # contract-test-file: tooling
 """Daily meeting context collection, using only fixture data."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
+import os
 
 from scripts import daily_meeting_context as brief
 
@@ -125,3 +126,26 @@ def test_in_progress_tasks_report_whether_their_chat_is_active():
         "active": 1, "idle": 1, "codex_legacy": 1, "no_chat": 1}
     assert [t["chat_state"] for t in summary["open"]["in_progress"]] == [
         "active", "idle", "codex_legacy", "no_chat"]
+
+
+def test_usage_pace_projects_when_the_weekly_limit_runs_out():
+    resets = datetime(2026, 11, 6, 10, tzinfo=timezone.utc)
+    now = resets - timedelta(days=5)  # 2 of 7 days elapsed
+    pace = brief.usage_pace(60.0, resets, now)
+    assert pace["week_elapsed_percent"] == 29
+    # week began Fri 30 Oct 10:00 UTC; 60% after 2 days reaches 100% after 3.33 days
+    assert pace["runs_out"] == "Mon 02 Nov 19:00"
+    assert "runs_out" not in brief.usage_pace(10.0, resets, now)
+
+
+def test_parked_code_at_risk_lists_only_referenced_archives_near_purge(tmp_path):
+    now = datetime(2026, 11, 3, 12, tzinfo=timezone.utc)
+    old = tmp_path / "agent-33bc-aa-bb.tar.gz"
+    other = tmp_path / "agent-9999-aa-bb.tar.gz"
+    for path in (old, other):
+        path.write_bytes(b"")
+        stamp = (now - timedelta(days=10)).timestamp()
+        os.utime(path, (stamp, stamp))
+    rows = brief.parked_code_at_risk("TASK-4971: recover agent-33bc first", now, tmp_path)
+    assert [r["worktree"] for r in rows] == ["agent-33bc"]
+    assert rows[0]["purged"] == "Sat 07 Nov"

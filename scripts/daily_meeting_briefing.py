@@ -118,7 +118,8 @@ week-goal changes; (6) read back and output the decisions note.
 - Ask clarifying questions in these directions: what blocks this week's goals; \
 deadlines at risk; loose ends from yesterday's chats (finish, park or drop?); \
 whether too many chats are running (and whether the remaining weekly Claude usage \
-covers the planned agent work); reminders whose date no longer makes sense.
+covers the planned agent work — if it runs out before the reset, cut agent work first); \
+parked code that is about to be purged; reminders whose date no longer makes sense.
 - Finish with the decisions note **exactly in this format** in a code block, so it \
 can be pasted back to the development server:
 
@@ -182,8 +183,15 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
                f"(last: {mkt.get('last_commit', 'n/a')}).")
     usage = (ev.get("claude_usage") or {}).get("weekly")
     if usage:
-        out.append(f"**Claude subscription:** {usage['used_percent']:.0f}% of this week's usage spent "
-                   f"(resets {usage['resets']}). Plan agent work to fit what is left.")
+        pace = (f" — at this week's rate it runs out **{usage['runs_out']}**" if usage.get("runs_out")
+                else "")
+        elapsed = (f" with {usage['week_elapsed_percent']}% of the week gone"
+                   if "week_elapsed_percent" in usage else "")
+        out.append(f"**Claude subscription:** {usage['used_percent']:.0f}% of this week's usage spent"
+                   f"{elapsed} (resets {usage['resets']}){pace}. Plan agent work to fit what is left.")
+    for item in ev.get("parked_code_at_risk") or []:
+        out.append(f"**⚠ Parked code purged {item['purged']}:** unlanded worktree {item['worktree']} "
+                   f"(archive {item['archive']}) — recover it or decide to drop it.")
     if last:
         out.append(f"**Nightly tests** ({last.get('date')}): {last.get('passed_count')} passed, "
                    f"{last.get('failed_count')} failed, {last.get('not_run_count')} not run.")

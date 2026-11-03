@@ -379,10 +379,45 @@ def claude_usage(gaps: list[str]) -> dict | None:
         if value.get("utilization") is None:
             return None
         resets = parse_ts(value.get("resets_at"))
-        return {"used_percent": value["utilization"],
-                "resets": resets.astimezone(TZ).strftime("%a %d %b %H:%M") if resets else ""}
+        row = {"used_percent": value["utilization"],
+               "resets": resets.astimezone(TZ).strftime("%a %d %b %H:%M") if resets else ""}
+        if key == "seven_day" and resets:
+            row |= usage_pace(value["utilization"], resets, datetime.now(timezone.utc))
+        return row
 
     return {"weekly": window("seven_day"), "five_hour": window("five_hour")}
+
+
+def usage_pace(used: float, resets: datetime, now: datetime) -> dict:
+    """Project when the weekly limit runs out if usage continues at this week's average rate."""
+    start = resets - timedelta(days=7)
+    elapsed = (now - start).total_seconds()
+    if elapsed <= 0 or used <= 0:
+        return {}
+    pace = {"week_elapsed_percent": round(100 * elapsed / (7 * 86400))}
+    runs_out = start + timedelta(seconds=elapsed * 100 / used)
+    if runs_out < resets:
+        pace["runs_out"] = runs_out.astimezone(TZ).strftime("%a %d %b %H:%M")
+    return pace
+
+
+RECOVERY_DIR = Path.home() / "projects/.openmates-worktree-recovery/expired-worktrees"
+RECOVERY_MAX_AGE_DAYS = 14  # scripts/host_disk_cleanup.py purges archives after this age
+
+
+def parked_code_at_risk(reference_text: str, now: datetime, recovery_dir: Path = RECOVERY_DIR,
+                        horizon_days: int = 7) -> list[dict]:
+    """Archived (unlanded) worktrees named in open Tasks or FOCUS.md that are purged soon."""
+    rows = []
+    for archive in sorted(recovery_dir.glob("agent-*.tar.gz")):
+        short = archive.name.split("-")[1]
+        if not re.search(rf"\b{re.escape(short)}\b", reference_text):
+            continue
+        purge = datetime.fromtimestamp(archive.stat().st_mtime, timezone.utc) + timedelta(days=RECOVERY_MAX_AGE_DAYS)
+        if purge - now <= timedelta(days=horizon_days):
+            rows.append({"worktree": f"agent-{short}", "purged": purge.astimezone(TZ).strftime("%a %d %b"),
+                         "archive": archive.name})
+    return rows
 
 
 def focus(root: Path) -> str:
@@ -417,6 +452,7 @@ def collect(root: Path, now: datetime, since: datetime, out: Path) -> tuple[dict
                    "until": now.astimezone(TZ).isoformat(timespec="minutes")},
         "focus_file": focus(root),
         "claude_usage": claude_usage(gaps),
+        "parked_code_at_risk": parked_code_at_risk(focus(root) + json.dumps(tasks, ensure_ascii=False), now),
         "previous_meeting": previous_meeting(root, today),
         "claude_chats": chats,
         "git": git_summary(root, since, gaps),
