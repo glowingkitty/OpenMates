@@ -1,11 +1,10 @@
 # contract-test-file: tooling
-"""Daily meeting brief evidence collection, using only fixture data."""
+"""Daily meeting context collection, using only fixture data."""
 
 from datetime import datetime, timezone
 import json
-from pathlib import Path
 
-from scripts import daily_meeting_brief as brief
+from scripts import daily_meeting_context as brief
 
 
 def _line(**row) -> str:
@@ -32,8 +31,8 @@ def test_transcript_summary_keeps_human_prompts_and_final_replies_in_window(tmp_
     since = datetime(2026, 11, 2, 0, 0, tzinfo=timezone.utc)
     summary = brief.summarize_transcript(path, since)
     assert summary["user_prompts"] == ["Fix the login bug, token <redacted>, mail <email>"]
-    assert summary["final_replies"] == ["Fixed and deployed."]
-    assert summary["session"] == "abcdef12"
+    assert summary["final_reply"] == "Fixed and deployed."
+    assert summary["session"] == "abcdef12-session"
 
 
 def test_transcript_without_human_prompts_in_window_is_skipped(tmp_path):
@@ -43,10 +42,30 @@ def test_transcript_without_human_prompts_in_window_is_skipped(tmp_path):
     assert brief.summarize_transcript(path, datetime(2026, 11, 1, tzinfo=timezone.utc)) is None
 
 
-def test_monday_window_reaches_back_to_friday_morning():
-    monday = datetime(2026, 11, 2, 7, 45, tzinfo=timezone.utc)
+def test_monday_window_reaches_back_to_friday_meeting():
+    monday = datetime(2026, 11, 2, 9, 20, tzinfo=timezone.utc)
     since = brief.default_since(monday)
-    assert (since.date().isoformat(), since.hour, since.minute) == ("2026-10-30", 8, 45)
+    assert (since.date().isoformat(), since.hour, since.minute) == ("2026-10-30", 10, 0)
+
+
+def test_window_starts_at_previous_days_collection_not_todays_rerun():
+    now = datetime(2026, 11, 4, 9, 30, tzinfo=timezone.utc)
+    state = {"collected": {"2026-11-03": "2026-11-03T09:40:00+00:00",
+                           "2026-11-04": "2026-11-04T09:10:00+00:00"}}
+    assert brief.window_start(state, now) == datetime(2026, 11, 3, 9, 40, tzinfo=timezone.utc)
+    assert brief.window_start({}, now) == brief.default_since(now)
+
+
+def test_previous_meeting_reads_latest_earlier_record(tmp_path):
+    folder = tmp_path / "logs/daily-meetings"
+    folder.mkdir(parents=True)
+    record = {"meetings": {"t": {"priorities": "ship signup", "proposal": "p", "answers": [{"text": "yes"}]}}}
+    (folder / "2026-11-02.json").write_text(json.dumps(record))
+    (folder / "2026-11-04.json").write_text(json.dumps({"meetings": {"t": {"priorities": "today"}}}))
+    previous = brief.previous_meeting(tmp_path, "2026-11-04")
+    assert previous["date"] == "2026-11-02"
+    assert previous["meetings"][0]["priorities"] == "ship signup"
+    assert previous["meetings"][0]["answers"] == ["yes"]
 
 
 def test_task_summary_reports_status_changes_against_previous_snapshot():
@@ -91,25 +110,3 @@ def test_nightly_overview_counts_consecutive_empty_runs_and_last_results(tmp_pat
         "2026-10-04", 1, 1, 1)
     assert last["failed"] == [{"test": "b.spec.ts", "reason": "login works"}]
     assert last["not_run"] == [{"test": "c.spec.ts", "reason": "needs live AI"}]
-
-
-def test_headline_uses_summary_section():
-    text = "# Brief\n\n## 1. Instructions\nx\n\n## 2. Summary\n- one\n- two\n\n## 3. Next\ny\n"
-    headline = brief.headline_for(text, "2026-11-02")
-    assert "Daily meeting brief ready" in headline
-    assert headline.endswith("- one\n- two")
-
-
-def test_scheduled_mode_only_runs_in_berlin_eight_oclock_hour(tmp_path, monkeypatch):
-    calls = []
-    monkeypatch.setattr(brief, "collect", lambda *a, **k: calls.append(a) or ({}, None))
-
-    class Clock(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 11, 2, 6, 45, tzinfo=timezone.utc)  # 07:45 Berlin (CET)
-
-    monkeypatch.setattr(brief, "datetime", Clock)
-    assert brief.main(["run", "--scheduled", "--out-dir", str(tmp_path), "--root", str(tmp_path)]) == 0
-    assert calls == []
-    assert not list(Path(tmp_path).glob("*-brief.md"))

@@ -4835,6 +4835,9 @@ def build_parser() -> argparse.ArgumentParser:
     native.add_argument("--bundle", help="Unsupported while native workloads remain closed")
     native.add_argument("--output", required=True, help="Local JSON result file; may contain private Mac paths")
 
+    reminders = subparsers.add_parser("reminders-op", help="Fixed Apple Reminders read/create/complete/reschedule/move/batch; no delete")
+    reminders.add_argument("--request", required=True, help="Local JSON request file (see scripts/mac_reminders.py)")
+
     diagnostic = subparsers.add_parser("render-diagnostic", help="Read-only evidence for the named authorized Chrome failure; does not clear its stop")
     diagnostic.add_argument("--output", required=True, help="Local diagnostic JSON output")
 
@@ -4922,6 +4925,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(redact_output(result.stderr, config), file=sys.stderr)
             if result.returncode == 77:
                 no_delete_guard.block("Typed Mac operation encountered a deletion stop; retained remote evidence: " + result.stdout[:4000])
+            return result.returncode
+        if args.command == "reminders-op":
+            raw = Path(args.request).read_bytes()
+            if len(raw) > 256 * 1024:
+                raise AppleRemoteError("Reminders request too large")
+            result = subprocess.run(ssh_command(config, no_delete_guard.reminders_command()),
+                                    input=raw.decode("utf-8"), capture_output=True, text=True,
+                                    timeout=180, check=False)
+            if result.stdout:
+                print(result.stdout.strip())
+            if result.stderr:
+                print(redact_output(result.stderr, config), file=sys.stderr)
             return result.returncode
         if args.command == "native-op":
             if not config.repo_path:

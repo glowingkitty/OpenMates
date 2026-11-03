@@ -1,23 +1,22 @@
 #!/usr/bin/env python3
-"""Prepare the weekday voice-call daily meeting brief and announce it on Discord.
+"""Collect the evidence the daily meeting (a Claude Code chat on the dev server) starts from.
 
-Pipeline (weekday 08:45 Europe/Berlin via the dev-server crontab):
-  collect  -> deterministic evidence JSON (Claude chats, git, Tasks, nightly checks)
-  render   -> headless `claude -p` (no tools) writes a voice-friendly Markdown brief
-  send     -> Discord webhook message with the brief attached
-
-Outputs are private and gitignored under logs/daily-meetings/. The brief is pasted
-into a regular Claude voice chat; its outcome block is imported afterwards by the
-daily meeting skill. Task records carry no timestamps, so "changed since the last
-meeting" is computed by diffing a saved status snapshot.
+Run by the `daily-meeting-and-orchestration` skill at the start of each meeting:
+  python3 scripts/daily_meeting_context.py collect
+writes logs/daily-meetings/YYYY-MM-DD-context.json (gitignored, private) with
+Claude chats since the previous meeting, git activity incl. the marketing repo,
+the work-type mix, OpenMates Tasks changes, nightly test status, and the Apple
+Reminders overview (via scripts/mac_reminders.py). Task records carry no
+timestamps, so "changed since the last meeting" diffs a saved status snapshot.
+Docs: docs/contributing/guides/daily-meeting.md
 """
 
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 from datetime import datetime, timedelta, timezone
 import json
-import os
 from pathlib import Path
 import re
 import subprocess
@@ -28,7 +27,9 @@ ROOT = Path(__file__).resolve().parents[1]
 TZ = ZoneInfo("Europe/Berlin")
 PROJECT_ID = "96033196-e4b1-431e-b773-ba221e952fed"
 TRANSCRIPTS = Path.home() / ".claude" / "projects"
-WEBHOOK_KEYS = ("DISCORD_WEBHOOK_DAILY_MEETING", "DISCORD_WEBHOOK_DEV_NIGHTLY")
+MARKETING_REPO = next((p / "openmates-marketing" for p in ROOT.parents
+                       if (p / "openmates-marketing" / ".git").exists()), ROOT.parent / "openmates-marketing")
+MEETING_HOUR = 10
 SECRET = re.compile(
     r"(sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|xox[abp]-[A-Za-z0-9-]{10,}|"
     r"AKIA[0-9A-Z]{16}|eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}|"
@@ -49,18 +50,6 @@ def parse_ts(value: str | None) -> datetime | None:
         return None
 
 
-def configured_value(root: Path, key: str) -> str:
-    if os.environ.get(key):
-        return os.environ[key]
-    env = root / ".env"
-    if env.is_file():
-        for line in env.read_text().splitlines():
-            name, sep, value = line.strip().partition("=")
-            if sep and name.strip() == key:
-                return value.strip().strip("'\"")
-    return ""
-
-
 def meeting_dir(root: Path) -> Path:
     path = root / "logs" / "daily-meetings"
     path.mkdir(parents=True, exist_ok=True)
@@ -69,18 +58,25 @@ def meeting_dir(root: Path) -> Path:
 
 def load_state(out: Path) -> dict:
     try:
-        return json.loads((out / "brief-state.json").read_text())
+        return json.loads((out / "context-state.json").read_text())
     except (OSError, ValueError):
         return {}
 
 
+def window_start(state: dict, now: datetime) -> datetime:
+    """End of the latest collection on an earlier day, else the previous weekday's meeting."""
+    today = now.astimezone(TZ).date().isoformat()
+    earlier = [until for day, until in state.get("collected", {}).items() if day < today]
+    return parse_ts(max(earlier)) if earlier else default_since(now)
+
+
 def default_since(now: datetime) -> datetime:
-    """Previous weekday 08:45 Berlin (Monday reaches back to Friday)."""
+    """Previous weekday's meeting time in Berlin (Monday reaches back to Friday)."""
     local = now.astimezone(TZ)
     day = local.date() - timedelta(days=1)
     while day.weekday() >= 5:
         day -= timedelta(days=1)
-    return datetime(day.year, day.month, day.day, 8, 45, tzinfo=TZ)
+    return datetime(day.year, day.month, day.day, MEETING_HOUR, 0, tzinfo=TZ)
 
 
 # ── Claude chats ──────────────────────────────────────────────────────────────
@@ -122,20 +118,19 @@ def summarize_transcript(path: Path, since: datetime) -> dict | None:
         if kind == "user" and row.get("turnOrigin", (row.get("origin") or {}).get("kind")) == "human":
             body = "\n".join(texts)
             if not body.lstrip().startswith("<"):  # skip injected reminders/command wrappers
-                prompts.append(clean(body, 1200))
+                prompts.append(clean(body, 600))
         elif kind == "assistant":
             replies.append("\n".join(texts))
-    if not prompts:
-        return None
+    if not prompts or (len(prompts) == 1 and len(prompts[0]) < 25):
+        return None  # empty or trivial chats ("login", "hi") are noise
     return {
-        "session": path.stem[:8],
+        "session": path.stem,
         "title": clean(title, 120),
         "started": first.astimezone(TZ).strftime("%a %H:%M"),
         "last_activity": last.astimezone(TZ).strftime("%a %H:%M"),
         "branch": branch,
-        "user_prompts": prompts[:12] + ([f"(+{len(prompts) - 12} more prompts)"] if len(prompts) > 12 else []),
-        "final_replies": [clean(r, 2500) for r in replies[-2:]],
-        "tools": sorted(tools)[:12],
+        "user_prompts": prompts[:6] + ([f"(+{len(prompts) - 6} more prompts)"] if len(prompts) > 6 else []),
+        "final_reply": clean(replies[-1], 1500) if replies else "",
         "_sort": last.isoformat(),
     }
 
@@ -199,6 +194,17 @@ def task_snapshot(gaps: list[str], project: str = PROJECT_ID) -> list[dict] | No
     } for t in data.get("tasks", [])]
 
 
+PRIORITY_ORDER = {"urgent": 0, "high": 1, "medium": 2, "low": 3}
+
+
+def _by_priority(tasks: list[dict]) -> list[dict]:
+    return sorted(tasks, key=lambda t: (PRIORITY_ORDER.get(t.get("priority"), 4), str(t.get("due") or "9999")))
+
+
+def _compact(task: dict) -> dict:
+    return {key: value for key, value in task.items() if value and value != "none" and key != "status"}
+
+
 def task_summary(tasks: list[dict] | None, previous: list[dict] | None) -> dict:
     if tasks is None:
         return {}
@@ -210,7 +216,13 @@ def task_summary(tasks: list[dict] | None, previous: list[dict] | None) -> dict:
                for t in tasks if old.get(t["id"]) != t["status"]] if previous else []
     return {
         "counts": {k: len(v) for k, v in by_status.items()},
-        "open": {s: by_status.get(s, []) for s in ("in_progress", "blocked", "todo", "backlog")},
+        "open": {
+            "in_progress": [_compact(t) for t in by_status.get("in_progress", [])],
+            "blocked": [_compact(t) for t in by_status.get("blocked", [])],
+            "todo_top": [_compact(t) for t in _by_priority(by_status.get("todo", []))[:40]],
+            "backlog_top": [_compact(t) for t in _by_priority(by_status.get("backlog", []))[:15]],
+            "more": "full lists: openmates tasks list --project " + PROJECT_ID + " --json",
+        },
         "changed_since_last_meeting": changes,
         "baseline": "previous snapshot" if previous else "none (first run; no change diff)",
     }
@@ -284,138 +296,111 @@ def nightly(root: Path, since: datetime) -> dict:
     return out
 
 
-def previous_outcome(out: Path, today: str) -> str:
-    outcomes = sorted(p for p in out.glob("*-outcome.md") if not p.name.startswith(today))
-    return clean(outcomes[-1].read_text(), 6000) if outcomes else ""
+WORK_TYPES = {"feat": "feature", "fix": "debugging/fixes", "test": "tests/CI", "ci": "tests/CI",
+              "docs": "docs", "refactor": "refactor", "perf": "performance", "chore": "chore"}
+
+
+def work_mix(root: Path, days: int = 10) -> dict:
+    """Commit types on dev over recent days, to spot feature/debugging drift."""
+    log = git(root, "log", "origin/dev", f"--since={days}.days", "--no-merges", "--format=%s")
+    mix = Counter(WORK_TYPES.get(re.split(r"[(:!]", line, 1)[0].strip().lower(), "other")
+                  for line in log.splitlines() if line.strip())
+    return {"window_days": days, "commits_by_type": dict(mix.most_common())}
+
+
+def marketing(since: datetime, repo: Path = MARKETING_REPO) -> dict:
+    if not (repo / ".git").exists():
+        return {"available": False}
+    def count(spec: str) -> int:
+        return len(git(repo, "log", "--all", f"--since={spec}", "--format=%h").splitlines())
+    recent = git(repo, "log", "--all", f"--since={since.isoformat()}", "--format=%cs %s")
+    last = git(repo, "log", "--all", "-1", "--format=%cs %s")
+    return {"available": True, "commits_since_last_meeting": [clean(x, 140) for x in recent.splitlines()[:20]],
+            "commits_last_7_days": count("7.days"), "commits_last_30_days": count("30.days"),
+            "last_commit": clean(last, 160)}
+
+
+def reminders(gaps: list[str]) -> dict | None:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import mac_reminders  # noqa: E402 - sibling script, path set just above
+
+    try:
+        return mac_reminders.overview(mac_reminders.fetch(), datetime.now(TZ).date())
+    except (mac_reminders.RemindersError, subprocess.TimeoutExpired, OSError) as error:
+        gaps.append(f"Apple Reminders unavailable (Mac offline or not reachable over Tailscale?): "
+                    f"{clean(str(error), 300)}")
+        return None
+
+
+def previous_meeting(root: Path, today: str) -> dict | None:
+    """Most recent earlier meeting record written by daily_meeting.py --record."""
+    for path in sorted((root / "logs/daily-meetings").glob("????-??-??.json"), reverse=True):
+        if path.stem < today:
+            meetings = json.loads(path.read_text()).get("meetings", {})
+            return {"date": path.stem, "meetings": [
+                {key: clean(str(m.get(key, "")), 3000) for key in ("priorities", "proposal", "approval")}
+                | {"answers": [clean(a.get("text", ""), 600) for a in m.get("answers", [])]}
+                for m in meetings.values()]}
+    return None
 
 
 def collect(root: Path, now: datetime, since: datetime, out: Path) -> tuple[dict, list | None]:
     gaps: list[str] = []
+    today = now.astimezone(TZ).date().isoformat()
     tasks = task_snapshot(gaps)
-    snapshots = sorted(out.glob("*-tasks.json"))
+    snapshots = sorted(p for p in out.glob("*-tasks.json") if p.name[:10] < today)
     previous = json.loads(snapshots[-1].read_text()) if snapshots else None
     chats = claude_chats(since)
     if not chats:
         gaps.append("no Claude Code chats found on the dev server for this window")
-    gaps.append("only Claude Code chats stored on the dev server are included; claude.ai chats and "
-                "Apple Calendar/Reminders are not visible to the server")
     evidence = {
         "meeting_date": now.astimezone(TZ).strftime("%A %Y-%m-%d"),
         "window": {"since": since.astimezone(TZ).isoformat(timespec="minutes"),
                    "until": now.astimezone(TZ).isoformat(timespec="minutes")},
-        "previous_meeting_outcome": previous_outcome(out, now.astimezone(TZ).date().isoformat()),
+        "previous_meeting": previous_meeting(root, today),
         "claude_chats": chats,
         "git": git_summary(root, since, gaps),
+        "work_mix": work_mix(root),
+        "marketing": marketing(since),
         "tasks": task_summary(tasks, previous),
         "nightly": nightly(root, since),
+        "reminders": reminders(gaps),
         "gaps": gaps,
     }
     return evidence, tasks
 
 
-# ── Render + Discord ──────────────────────────────────────────────────────────
-
-def render(evidence: dict, prompt_path: Path, timeout: int = 900) -> str:
-    prompt = prompt_path.read_text() + "\n\n<evidence>\n" + json.dumps(evidence, indent=1) + "\n</evidence>\n"
-    run = subprocess.run(
-        ["claude", "-p", "--tools", "", "--no-session-persistence", "--output-format", "text"],
-        input=prompt, capture_output=True, text=True, timeout=timeout, cwd=prompt_path.parent,
-    )
-    brief = run.stdout.strip()
-    if run.returncode or len(brief) < 500:
-        raise RuntimeError(f"brief generation failed (exit {run.returncode}): {clean(run.stderr, 300)}")
-    return brief + "\n"
-
-
-def send(root: Path, brief_path: Path, headline: str) -> dict:
-    sys.path.insert(0, str(root / "scripts"))
-    import discord_webhook  # noqa: E402 - repo-local helper, path set just above
-
-    for key in WEBHOOK_KEYS:
-        url = configured_value(root, key)
-        if url:
-            result = discord_webhook.post_attachment(
-                webhook_url=url, payload={"content": headline[:1900]},
-                content=brief_path.read_bytes(), filename=brief_path.name)
-            if not result:
-                raise RuntimeError(f"Discord delivery via {key} was not confirmed")
-            return {"channel": key, **result}
-    raise RuntimeError(f"no Discord webhook configured ({', '.join(WEBHOOK_KEYS)})")
-
-
-def notify_failure(root: Path, message: str) -> None:
-    sys.path.insert(0, str(root / "scripts"))
-    import discord_webhook  # noqa: E402 - repo-local helper, path set just above
-
-    for key in WEBHOOK_KEYS:
-        url = configured_value(root, key)
-        if url:
-            discord_webhook.post_message(webhook_url=url, payload={"content": message[:1900]})
-            return
-
-
-def headline_for(brief: str, day: str) -> str:
-    match = re.search(r"^##\s*(?:\d+\.\s*)?(?:TL;?DR|Summary)[^\n]*\n(.*?)(?=^## |\Z)", brief, re.M | re.S | re.I)
-    summary = match.group(1).strip() if match else ""
-    return (f"**Daily meeting brief ready — {day}**\nOpen the attachment, paste it into a Claude "
-            f"voice chat and start the call.\n\n{summary}").strip()
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("command", choices=("collect", "run", "send"))
-    parser.add_argument("--root", type=Path, default=ROOT)
+    parser.add_argument("command", choices=("collect",))
+    parser.add_argument("--root", type=Path, help="default: the canonical checkout (also from a worktree)")
     parser.add_argument("--out-dir", type=Path)
-    parser.add_argument("--since", help="ISO timestamp; default: last brief or previous weekday 08:45")
-    parser.add_argument("--brief", type=Path, help="send: existing brief file")
-    parser.add_argument("--scheduled", action="store_true",
-                        help="cron mode: only weekdays in the 08:xx Berlin hour, once per day")
-    parser.add_argument("--force", action="store_true", help="regenerate even if today's brief exists")
-    parser.add_argument("--no-send", action="store_true")
+    parser.add_argument("--since", help="ISO timestamp; default: end of the previous meeting's collection")
     args = parser.parse_args(argv)
 
-    root = args.root.resolve()
+    if args.root:
+        root = args.root.resolve()
+    else:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from agent_state import canonical_root  # noqa: E402 - sibling script, path set just above
+
+        root = canonical_root(ROOT)
     out = args.out_dir.resolve() if args.out_dir else meeting_dir(root)
     out.mkdir(parents=True, exist_ok=True)
     now = datetime.now(timezone.utc)
-    local = now.astimezone(TZ)
-    day = local.date().isoformat()
-    brief_path = out / f"{day}-brief.md"
-
-    if args.command == "send":
-        path = args.brief or brief_path
-        print(json.dumps(send(root, path, headline_for(path.read_text(), day))))
-        return 0
-    if args.scheduled and (local.weekday() >= 5 or local.hour != 8):
-        return 0  # crontab fires in both CET/CEST candidate hours; only 08:xx Berlin proceeds
-    if args.command == "run" and brief_path.exists() and not args.force:
-        print(f"brief already exists: {brief_path}")
-        return 0
-
+    day = now.astimezone(TZ).date().isoformat()
     state = load_state(out)
-    since = parse_ts(args.since) or parse_ts(state.get("last_brief_until")) or default_since(now)
+    since = parse_ts(args.since) or window_start(state, now)
     evidence, tasks = collect(root, now, since, out)
-    (out / f"{day}-evidence.json").write_text(json.dumps(evidence, indent=1))
-    if args.command == "collect":
-        print(out / f"{day}-evidence.json")
-        return 0
-    try:
-        brief = render(evidence, Path(__file__).with_name("daily_meeting_brief_prompt.md"))
-    except (RuntimeError, OSError, subprocess.TimeoutExpired) as error:
-        if not args.no_send:
-            notify_failure(root, f"⚠️ Daily meeting brief for {day} failed: {clean(str(error), 400)}")
-        raise
-    brief_path.write_text(brief)
+    path = out / f"{day}-context.json"
+    path.write_text(json.dumps(evidence, indent=1, ensure_ascii=False))
     if tasks is not None:
         (out / f"{day}-tasks.json").write_text(json.dumps(tasks))
-    state.update(last_brief_until=now.isoformat(), last_brief=str(brief_path))
-    (out / "brief-state.json").write_text(json.dumps(state, indent=1))
-    result = {"brief": str(brief_path)}
-    if not args.no_send:
-        result["discord"] = send(root, brief_path, headline_for(brief, day))
-    print(json.dumps(result))
+    state.setdefault("collected", {})[day] = now.isoformat()
+    (out / "context-state.json").write_text(json.dumps(state, indent=1))
+    print(path)
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())
