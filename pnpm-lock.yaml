@@ -81,6 +81,7 @@ overrides:
   source-map-js: 1.2.2
   katex: 0.18.2
   vite: 8.3.4
+  zod: ^4.6.6
 
 importers:
 
@@ -4939,8 +4940,8 @@ packages:
   zimmerframe@1.1.4:
     resolution: {integrity: sha512-B58NGBEoc8Y9MWWCQGl/gq9xBCe4IiKM0a2x7GZdQKOW5Exr8S1W24J6OgM1njK8xCRGvAJIL/MxXHf6SkmQKQ==}
 
-  zod@4.4.3:
-    resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
+  zod@4.6.6:
+    resolution: {integrity: sha512-4UmzQUF5fxvfcYHlbjBmejU+w+hbDnWFx4aS8kBx7nPBHcO2SqPbpAG8snbdg+Xse4pRefR98hgjFgIMCI/UhA==}
 
   zone.js@0.16.2:
     resolution: {integrity: sha512-Eky7p2Z1Ig3NnbfodSPoARCjKBSTFMnE/ACsP1L/XJEfY4SdOFce19BsUCWVwL6K5ABZFy5J3bjcMWffX+YM3Q==}
@@ -5692,7 +5693,7 @@ snapshots:
       react-dom: 18.3.1(react@18.3.1)
       remotion: 4.0.512(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       semver: 7.5.3
-      zod: 4.4.3
+      zod: 4.6.6
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
@@ -9078,6 +9079,6 @@ snapshots:
 
   zimmerframe@1.1.4: {}
 
-  zod@4.4.3: {}
+  zod@4.6.6: {}
 
   zone.js@0.16.2: {}

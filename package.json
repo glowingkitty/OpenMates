@@ -106,7 +106,8 @@
       "postcss-selector-parser": "7.1.6",
       "source-map-js": "1.2.2",
       "katex": "0.18.2",
-      "vite": "8.3.4"
+      "vite": "8.3.4",
+      "zod": "^4.6.6"
     }
   },
   "version": "0.29.0",
