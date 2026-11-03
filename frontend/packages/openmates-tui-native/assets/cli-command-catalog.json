@@ -21,7 +21,7 @@
     },
     {
       "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
-      "sha256": "76b772163b6731b396754688079b45246710802af22521ba774e1e98adaa0eef"
+      "sha256": "ece4cb325024a87d4778ed3aefe5f785616ad2ec68319c8a6763a3223b6c31f4"
     },
     {
       "path": "frontend/packages/openmates-cli/src/generatedFiles.ts",
