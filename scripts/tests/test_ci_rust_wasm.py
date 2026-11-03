@@ -3885,6 +3885,52 @@ class RecoverySdkSnippetTests(unittest.TestCase):
             files[lane.PACKAGE_FILES[0]] += attack.encode()
             self.assertFalse(lane.package_modules(files, self.inputs()))
 
+    def heap_mode_files(self):
+        # wasm-bindgen 0.2.129 glue for a wasm without target_features (release
+        # strip=true): every SDK import is shimmed, one sorted named header.
+        files = self.files()
+        javascript = files[lane.PACKAGE_FILES[0]]
+        javascript = javascript[: javascript.index(b"\nfunction sdkImports")]
+        names = ", ".join(sorted(lane.SDK_FUNCTIONS))
+        javascript = javascript.replace(
+            ('import * as import2 from "./' + self.name + '"\n').encode(),
+            ("import { " + names + " } from './" + self.name + "';\n").encode(),
+        ) + "".join(
+            "\nfunction __wbg_" + function + "_0(a){" + function + "(getObject(a));}"
+            for function in sorted(lane.SDK_FUNCTIONS)
+        ).encode()
+        files[lane.PACKAGE_FILES[0]] = javascript
+        return files
+
+    def test_heap_mode_single_named_sdk_header_is_admitted_and_closed(self):
+        files = self.heap_mode_files()
+        state = lane.new_provenance_diagnostic()
+        self.assertTrue(lane.package_modules(files, self.inputs(), state))
+        self.assertIs(state["packageSdkImportSingleton"], True)
+        self.assertIs(state["packageSdkNamespaceUsesClosed"], True)
+        named = ("import { " + ", ".join(sorted(lane.SDK_FUNCTIONS)) + " } from './").encode()
+        for fault, edit in {
+            "unknown-function": lambda js: js.replace(named, named.replace(b"{ ", b"{ otherFunction, ")),
+            "unsorted": lambda js: js.replace(named, named.replace(b"recoveryCancel, ", b"").replace(b"recoveryStop, ", b"recoveryStop, recoveryCancel, ")),
+            "renamed-binding": lambda js: js.replace(b"recoveryCapture,", b"recoveryCapture as capture,"),
+            "duplicate-header": lambda js: js.replace(named, named + js[js.index(named) + len(named):].split(b"\n", 1)[0] + b"\n" + named),
+            "plus-namespace": lambda js: ('import * as import2 from "./' + self.name + '"\n').encode() + js,
+            "alias": lambda js: js + b"const copied=recoveryCapture;",
+            "property": lambda js: js + b"recoveryCapture.call(null);",
+            "module-reference": lambda js: js + ('const m={"./' + self.name + '": 1};').encode(),
+            "other-import": lambda js: js + b'import x from "./unknown.js";',
+        }.items():
+            with self.subTest(fault=fault):
+                files = self.heap_mode_files()
+                faulty = edit(files[lane.PACKAGE_FILES[0]])
+                self.assertNotEqual(faulty, files[lane.PACKAGE_FILES[0]])
+                files[lane.PACKAGE_FILES[0]] = faulty
+                self.assertFalse(lane.package_modules(files, self.inputs()))
+        for attack in DEPENDENCY_ATTACKS:
+            files = self.heap_mode_files()
+            files[lane.PACKAGE_FILES[0]] += attack.encode()
+            self.assertFalse(lane.package_modules(files, self.inputs()))
+
     def test_source_body_package_name_and_closed_paths_refuse_tampering(self):
         # Source/Cargo.toml/body hash pins were removed; structure stays closed.
         for fault in (

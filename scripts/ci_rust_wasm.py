@@ -110,6 +110,7 @@ SDK_FUNCTIONS = frozenset(
         "recoveryClose",
         "recoveryDefer",
         "recoveryRequest",
+        "recoveryInventoryRequest",
         "recoveryCancel",
         "recoveryStop",
         "recoveryRead",
@@ -251,43 +252,41 @@ def recovery_sdk_output(files, inputs, diagnostic=None):
     if observed is not None:
         return observed
     headers = [
-        (
-            index,
-            ("import * as import" + str(index) + ' from "./' + name + '"\n').encode(),
-        )
+        (index, ("import * as import" + str(index) + ' from "./' + name + '"\n').encode())
         for index in (1, 2)
     ]
-    matched = [
-        (index, header) for index, header in headers if javascript.count(header) == 1
-    ]
-    singleton = len(matched) == 1
+    matched = [(i, header) for i, header in headers if javascript.count(header) == 1]
+    # Heap-mode glue (a wasm without target_features, e.g. release strip=true)
+    # shims every SDK import: wasm-bindgen 0.2.129 then emits one sorted named
+    # header for the same module instead of a direct namespace header.
+    named_header = rb"(?m)^import \{ ([A-Za-z]+(?:, [A-Za-z]+)*) \} from '\./" + re.escape(name.encode())
+    named = list(re.finditer(named_header + rb"';\n", javascript))
+    bound = named[0][1].decode().split(", ") if len(named) == 1 else []
+    named_ok = bound == sorted(set(bound)) and set(bound) <= SDK_FUNCTIONS
+    singleton = len(matched) + len(named) == 1 and named_ok
     _package_note(
         diagnostic, "package-import-header", packageSdkImportSingleton=singleton
     )
     if not singleton:
         return None
-    index, header = matched[0]
+    index, header = matched[0] if matched else (None, named[0][0])
     javascript = javascript.replace(header, b"", 1)
     try:
         text = javascript.decode("utf-8", errors="strict")
     except UnicodeError:
         return None
-    namespace = "import" + str(index)
-    token = r"(?<![A-Za-z0-9_$])" + namespace + r"(?![A-Za-z0-9_$])"
     # Namespace tokens may only be fixed SDK function access or the exact
-    # matching module-map value. No computed access, alias or different map key.
-    approved = []
-    for match in re.finditer(
-        token + r"\.(?:" + "|".join(sorted(SDK_FUNCTIONS)) + r")(?![A-Za-z0-9_$])", text
-    ):
-        approved.append((match.start(), match.start() + len(namespace)))
-    mapping = re.compile(
-        r"[\"']" + re.escape("./" + name) + r"[\"']\s*:\s*(" + token + r")"
-    )
-    for match in mapping.finditer(text):
-        approved.append(match.span(1))
+    # matching module-map value; named bindings may only be direct calls and the
+    # module is then never referenced again. No computed access or alias.
+    tokens = ["import" + str(index)] if index else bound
+    token = r"(?<![A-Za-z0-9_$])(?:" + "|".join(tokens) + r")(?![A-Za-z0-9_$])"
+    access = r"\.(?:" + "|".join(sorted(SDK_FUNCTIONS)) + r")(?![A-Za-z0-9_$])" if index else r"\("
+    approved = [match.span(1) for match in re.finditer("(" + token + ")" + access, text)]
+    mapping = r"[\"']" + re.escape("./" + name) + r"[\"']\s*:\s*(" + token + r")"
+    approved += [match.span(1) for match in re.finditer(mapping, text)] if index else []
     actual = [match.span() for match in re.finditer(token, text)]
-    uses_closed = bool(actual) and sorted(actual) == sorted(approved)
+    unreferenced = index is not None or ("./" + name) not in text
+    uses_closed = bool(actual) and sorted(actual) == sorted(approved) and unreferenced
     _package_note(
         diagnostic, "package-dependencies", packageSdkNamespaceUsesClosed=uses_closed
     )
