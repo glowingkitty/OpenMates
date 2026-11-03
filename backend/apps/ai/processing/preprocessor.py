@@ -2623,7 +2623,9 @@ async def handle_preprocessing(
                 for skill in (getattr(metadata, "skills", None) or [])
                 if (app_id, skill.id) not in {("ai", "ask"), ("projects", "search")}
             ]
-            public_focuses = [f"{app_id}-{focus.id}"
+            # Public app.yml relevance hints let stage one keep a Focus's app.
+            public_focuses = [f"{app_id}-{focus.id}: {focus.preprocessor_hint.strip()}" if focus.preprocessor_hint
+                              else f"{app_id}-{focus.id}"
                               for app_id, metadata in (discovered_apps_metadata or {}).items()
                               for focus in (getattr(metadata, "focuses", None) or [])]
             project_early_feedback: Dict[str, Any] = {}
