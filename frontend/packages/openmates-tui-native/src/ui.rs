@@ -4,6 +4,7 @@ mod editor;
 mod embeds;
 mod markdown;
 mod questions;
+mod settings_catalog;
 use crate::model::{Chat, Item, Message, Mutation, StreamUpdate, Workspace};
 use crossterm::event::{
     KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
@@ -288,6 +289,7 @@ pub struct Ui {
     size: (u16, u16),
     status: String,
     authenticated: bool,
+    settings_restricted: bool,
     username: String,
     streaming: bool,
     selecting: bool,
@@ -435,6 +437,7 @@ impl Ui {
             size: (0, 0),
             status: "Ready · cached content stays available when offline".into(),
             authenticated: false,
+            settings_restricted: false,
             username: String::new(),
             streaming: false,
             selecting: false,
@@ -914,6 +917,10 @@ impl Ui {
         {
             self.form = None;
         }
+    }
+    /// Paired (restricted) sessions hide Account, Memories and Billing.
+    pub fn set_settings_restricted(&mut self, value: bool) {
+        self.settings_restricted = value;
     }
     pub fn set_username(&mut self, value: &str) {
         self.username = markdown::clean(value);
@@ -1925,6 +1932,7 @@ impl Ui {
             HitAction::FormField(i)=>{if let Some(form)=self.form.as_mut(){form.selected=i;self.cycle_field(1);}vec![]},
             HitAction::FormSubmit=>{if self.form.as_ref().is_some_and(|f|matches!(f.purpose,FormPurpose::Pairing)){self.set_pair_pin_required();vec![]}else{self.submit_form()}},HitAction::FormCancel=>self.cancel_form(),
             HitAction::Palette(i)=>{let actions=self.palette_actions();if let Some((_,command))=actions.get(i){let command=command.to_string();self.form=None;self.command(&command)}else{vec![]}},
+            HitAction::SettingsRoute(route) if route==settings_catalog::LOGOUT_ROUTE=>vec![UiCommand::Logout],
             HitAction::SettingsRoute(route)=>{if let Some(settings)=self.settings.as_mut(){settings.route=route.clone();settings.selected=0;self.focus=Focus::Content;}vec![UiCommand::Open(Workspace::Settings,route)]},
             HitAction::Login=>{self.login_form();vec![]},
             HitAction::Pair=>vec![UiCommand::BeginPair],HitAction::Logout=>vec![UiCommand::Logout],
@@ -1932,6 +1940,22 @@ impl Ui {
             HitAction::SettingsEdit=>{self.settings_form();vec![]},
             HitAction::Actions=>{self.palette_query.clear();self.form=Some(Form::new("Actions",FormPurpose::Palette,vec![]));vec![]},HitAction::Share=>{self.share_form();vec![]},HitAction::Download=>{self.download_form();vec![]},
         }
+    }
+    /// Placeholder text per workspace, as in the TS TUI composer.
+    fn composer_placeholder(&self) -> &'static str {
+        match self.workspace {
+            Workspace::Projects if self.chat.is_none() => "Name a new project  ·  /search to browse",
+            Workspace::Workflows if self.chat.is_none() => "Describe new workflow  ·  /search to browse",
+            Workspace::Tasks if self.chat.is_none() => "Add or update tasks  ·  /search to browse",
+            Workspace::Apps if self.chat.is_none() => "Search apps or type / for actions",
+            Workspace::Chats if self.chat.is_some() => "Ask a follow-up, use @file, or type /help",
+            _ => "Ask anything, or /help",
+        }
+    }
+    fn composer_creates_item(&self) -> bool {
+        self.chat.is_none()
+            && self.detail.is_none()
+            && matches!(self.workspace, Workspace::Projects | Workspace::Workflows | Workspace::Tasks)
     }
     fn send(&mut self) -> Vec<UiCommand> {
         if self.draft.text.trim().is_empty() {
@@ -1944,6 +1968,17 @@ impl Ui {
         }
         if !self.authenticated {
             self.login_form();
+            return vec![];
+        }
+        if self.composer_creates_item() {
+            // TS parity: the Projects/Workflows/Tasks composer names a new item.
+            let name = self.draft.take().to_string();
+            self.edit_form(true);
+            if let Some(form) = self.form.as_mut()
+                && let Some(field) = form.fields.first_mut()
+            {
+                field.editor = Editor::from(name.trim());
+            }
             return vec![];
         }
         if self.cached_action_blocked() { return vec![]; }
@@ -3264,7 +3299,7 @@ impl Ui {
         if self.draft.text.is_empty() {
             frame.render_widget(
                 Paragraph::new(if self.authenticated {
-                    "Ask anything, or /help"
+                    self.composer_placeholder()
                 } else {
                     "Sign in to send messages · /login"
                 })
@@ -3763,6 +3798,7 @@ impl Ui {
                         Style::default().fg(MUTED).italic(),
                     ));
                 }
+                if let Some(chat) = self.chat.as_ref() { embeds::register(chat); }
                 let (message_rows, at) = embeds::message_rows(message, body.width as usize, selected_embed.as_deref());
                 selected_row = selected_row.or(at.map(|at| rows.len() + at));
                 rows.extend(message_rows);
@@ -4294,22 +4330,10 @@ impl Ui {
             return dynamic;
         }
         let entries: &[(&str, &str)] = match route {
-            "" => &[
-                ("profile", "Profile"),
-                ("account", "Account"),
-                ("interface", "Interface"),
-                ("notifications", "Notifications"),
-                ("privacy", "Privacy"),
-                ("settings_memories", "Memories"),
-                ("mates", "Mates"),
-                ("apps", "Apps"),
-                ("projects", "Projects"),
-                ("teams", "Teams"),
-                ("billing", "Billing"),
-                ("developers", "Developers"),
-                ("newsletter", "Newsletter"),
-                ("support", "Support"),
-            ],
+            "" => {
+                return settings_catalog::main_pages(self.authenticated, self.settings_restricted)
+            }
+            "ai" => &[("ai/models", "Default AI models")],
             "account" => &[
                 ("account/username", "Username"),
                 ("account/email", "Email"),
@@ -4413,7 +4437,11 @@ impl Ui {
         }
         let title = if route.is_empty() {
             if self.authenticated {
-                format!("{} · Account settings", self.username)
+                format!(
+                    "{} · Personal{}",
+                    self.username,
+                    if self.settings_restricted { " · Paired session" } else { "" }
+                )
             } else {
                 "Settings".into()
             }
@@ -4518,12 +4546,11 @@ impl Ui {
         if inner.height > 4 && route.is_empty() {
             let y = inner.bottom() - 1;
             if self.authenticated {
-                self.button(
-                    frame,
-                    Rect::new(inner.x, y, inner.width, 1),
-                    "Sign out",
-                    HitAction::Logout,
-                    false,
+                frame.render_widget(
+                    Paragraph::new(settings_catalog::KEY_HINT)
+                        .style(Style::default().fg(MUTED))
+                        .wrap(Wrap { trim: true }),
+                    Rect::new(inner.x, y.saturating_sub(1), inner.width, 2),
                 );
             } else {
                 let width = inner.width / 2;
@@ -6608,3 +6635,7 @@ mod focus_parity_tests;
 #[cfg(test)]
 #[path = "ui_embed_carousel_tests.rs"]
 mod embed_carousel_tests;
+
+#[cfg(test)]
+#[path = "ui_settings_composer_tests.rs"]
+mod settings_composer_tests;

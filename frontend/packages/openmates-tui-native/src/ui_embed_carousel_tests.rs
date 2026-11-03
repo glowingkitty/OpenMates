@@ -40,17 +40,19 @@ fn screen(ui: &mut Ui) -> String {
         .join("\n")
 }
 
+// contract-test: supporting surface=cli assertions=terminal-ui.chat.rich-content
 #[test]
 fn opened_chat_shows_the_embed_carousel_instead_of_raw_reference_json() {
     let mut ui = chat_with_embeds();
     let text = screen(&mut ui);
-    assert!(text.contains("Embed 1/2 · ←/→ choose · Enter open · /embed 237a754b"), "{text}");
+    assert!(text.contains("Embed 1/2 · ←/→ choose · Enter open · /embed emb-v-1"), "{text}");
     assert!(text.contains("Embed · Code"));
     assert!(!text.contains("embed_id"));
     assert!(!text.contains("╭─ json"));
     assert!(text.contains("Anything else?"));
 }
 
+// contract-test: supporting surface=cli assertions=terminal-ui.chat.rich-content
 #[test]
 fn arrows_choose_and_enter_opens_the_selected_embed() {
     let mut ui = chat_with_embeds();
@@ -58,7 +60,7 @@ fn arrows_choose_and_enter_opens_the_selected_embed() {
     ui.focus = Focus::Content;
     assert!(ui.key(key(KeyCode::Right)).is_empty());
     let text = screen(&mut ui);
-    assert!(text.contains("Embed 2/2 · ←/→ choose · Enter open · /embed 9b4f1c2e"), "{text}");
+    assert!(text.contains("Embed 2/2 · ←/→ choose · Enter open · /embed web-s-1"), "{text}");
     assert!(text.contains("recipe APIs"));
     // Right at the end stays on the last reference, as in TS.
     ui.key(key(KeyCode::Right));
@@ -69,16 +71,18 @@ fn arrows_choose_and_enter_opens_the_selected_embed() {
     assert!(matches!(&commands[..], [UiCommand::Open(Workspace::Apps, id)] if id == &format!("embed:{CODE}")));
 }
 
+// contract-test: supporting surface=cli assertions=terminal-ui.chat.rich-content
 #[test]
 fn slash_embed_accepts_the_displayed_short_reference() {
     let mut ui = chat_with_embeds();
-    for c in "/embed 237a754b".chars() {
+    for c in "/embed emb-v-1".chars() {
         ui.key(key(KeyCode::Char(c)));
     }
     let commands = ui.key(key(KeyCode::Enter));
     assert!(matches!(&commands[..], [UiCommand::Open(Workspace::Apps, id)] if id == &format!("embed:{CODE}")), "{}", commands.len());
 }
 
+// contract-test: supporting surface=cli assertions=terminal-ui.chat.rich-content
 #[test]
 fn embed_detail_shows_a_per_type_summary() {
     let mut ui = chat_with_embeds();

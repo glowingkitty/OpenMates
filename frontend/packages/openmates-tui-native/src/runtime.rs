@@ -515,7 +515,7 @@ async fn run_terminal(args: Args) -> Result<()> {
                 match reply.view {
                     View::AdmittedAuth(publication)=>{
                         let Ok((username,deadline))=publication.into_auth() else { continue; };
-                        authenticated=true;ui.set_authenticated(true);ui.set_username(&username);expires_at=deadline;pairing=false;membership_check=Some(tokio::time::Instant::now()+Duration::from_secs(30));ui.set_status("Signed in · native encrypted session");
+                        authenticated=true;ui.set_authenticated(true);ui.set_username(&username);ui.set_settings_restricted(deadline.is_some());expires_at=deadline;pairing=false;membership_check=Some(tokio::time::Instant::now()+Duration::from_secs(30));ui.set_status("Signed in · native encrypted session");
                     },
                     #[cfg(test)]
                     View::Auth{username,expires_at:deadline}=>{authenticated=true;ui.set_authenticated(true);ui.set_username(&username);expires_at=deadline;pairing=false;membership_check=Some(tokio::time::Instant::now()+Duration::from_secs(30));ui.set_status("Signed in · native encrypted session");},

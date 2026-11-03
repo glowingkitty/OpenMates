@@ -179,26 +179,77 @@ pub(super) fn chat_refs(chat: &Chat) -> Vec<EmbedRef> {
     refs
 }
 
-/// The command shortcut shown for an embed: the first UUID group, which
-/// [`resolve_alias`] expands again within the opened chat.
-pub(super) fn short_id(id: &str) -> &str {
-    match id.split_once('-') {
-        Some((head, _)) if head.len() == 8 && uuid::Uuid::parse_str(id).is_ok() => head,
-        _ => id,
-    }
+thread_local! {
+    /// `(chat id, [(embed id, alias)])`: aliases stay stable while the opened
+    /// chat gains older messages, like the TS `state.embedAliases`.
+    static ALIASES: std::cell::RefCell<(String, Vec<(String, String)>)> = const { std::cell::RefCell::new((String::new(), Vec::new())) };
 }
 
-/// `/embed <shortcut>` accepts the displayed short form of an opened-chat reference.
+fn short_part(value: &str) -> String {
+    let mut out = String::new();
+    for c in value.to_lowercase().chars() {
+        if c.is_ascii_alphanumeric() {
+            out.push(c);
+        } else if !out.ends_with('_') {
+            out.push('_');
+        }
+    }
+    out.trim_matches('_').to_owned()
+}
+
+/// TS `embedAliasPrefix`: three letters of the app plus skill initials.
+fn alias_prefix(app: &str, skill: &str) -> String {
+    let app: String = short_part(app).chars().take(3).collect();
+    let skill: Vec<String> = short_part(skill).split('_').filter_map(|w| w.chars().next()).map(String::from).collect();
+    format!(
+        "{}-{}",
+        if app.is_empty() { "emb" } else { &app },
+        if skill.is_empty() { "v".into() } else { skill.join("_") }
+    )
+}
+
+/// Allocate `emb-v-6`-style aliases for the opened chat's references.
+pub(super) fn register(chat: &Chat) {
+    ALIASES.with(|cell| {
+        let mut state = cell.borrow_mut();
+        if state.0 != chat.id {
+            *state = (chat.id.clone(), Vec::new());
+        }
+        for found in chat_refs(chat) {
+            if state.1.iter().any(|(id, _)| *id == found.id) {
+                continue;
+            }
+            let prefix = alias_prefix(
+                if found.app.is_empty() { "embed" } else { &found.app },
+                if found.skill.is_empty() { "view" } else { &found.skill },
+            );
+            let mut count = 1;
+            while state.1.iter().any(|(_, alias)| *alias == format!("{prefix}-{count}")) {
+                count += 1;
+            }
+            state.1.push((found.id, format!("{prefix}-{count}")));
+        }
+    });
+}
+
+/// The command shortcut shown for an embed; ids outside the opened chat stay whole.
+pub(super) fn short_id(id: &str) -> String {
+    ALIASES.with(|cell| {
+        cell.borrow().1.iter().find(|(known, _)| known == id).map(|(_, alias)| alias.clone())
+    })
+    .unwrap_or_else(|| id.to_owned())
+}
+
+/// `/embed <shortcut>` accepts the displayed alias of an opened-chat reference.
 pub(super) fn resolve_alias(chat: Option<&Chat>, value: &str) -> String {
     if uuid::Uuid::parse_str(value).is_ok() {
         return value.into();
     }
-    chat.map(chat_refs)
-        .and_then(|refs| {
-            let mut matches = refs.into_iter().filter(|r| short_id(&r.id) == value || r.id.starts_with(value));
-            let first = matches.next()?;
-            matches.next().is_none().then_some(first.id)
-        })
+    if let Some(chat) = chat {
+        register(chat);
+    }
+    ALIASES
+        .with(|cell| cell.borrow().1.iter().find(|(_, alias)| alias == value).map(|(id, _)| id.clone()))
         .unwrap_or_else(|| value.into())
 }
 
@@ -681,13 +732,14 @@ mod tests {
             ),
             ..Default::default()
         };
+        register(&Chat { messages: vec![message.clone()], ..Default::default() });
         let (rows, at) = message_rows(&message, 100, Some(ID2));
         let text = text_of(&rows);
         assert!(!text.contains("embed_id"), "{text}");
         assert!(!text.contains("```"));
         assert!(text.contains("Web · Search"));
         assert!(text.contains("rail passes"));
-        assert!(text.contains("Embed 2/2 · ←/→ choose · Enter open · /embed 9b4f1c2e"));
+        assert!(text.contains("Embed 2/2 · ←/→ choose · Enter open · /embed web-s-1"));
         let at = at.expect("selected group row");
         assert!(text_of(&rows[at..at + 1]).contains('╭'));
         assert!(rows.iter().flatten().any(|p| p.link == Some(Link::Embed(ID.into()))));
@@ -722,8 +774,9 @@ mod tests {
     #[test]
     fn narrow_width_falls_back_to_plain_refs() {
         let message = Message { content: format!("```json\n{{\"embed_id\":\"{ID}\"}}\n```"), ..Default::default() };
+        register(&Chat { messages: vec![message.clone()], ..Default::default() });
         let (rows, _) = message_rows(&message, 6, Some(ID));
-        assert_eq!(text_of(&rows), "/embed 237a754b");
+        assert_eq!(text_of(&rows), "/embed emb-v-1");
     }
 
     #[test]
@@ -732,11 +785,26 @@ mod tests {
             messages: vec![Message { content: format!("```json\n{{\"embed_id\":\"{ID}\"}}\n```"), ..Default::default() }],
             ..Default::default()
         };
-        assert_eq!(short_id(ID), "237a754b");
+        assert_eq!(resolve_alias(Some(&chat), "emb-v-1"), ID);
+        assert_eq!(short_id(ID), "emb-v-1");
         assert_eq!(short_id("not-a-uuid"), "not-a-uuid");
-        assert_eq!(resolve_alias(Some(&chat), "237a754b"), ID);
         assert_eq!(resolve_alias(Some(&chat), ID), ID);
-        assert_eq!(resolve_alias(None, "237a754b"), "237a754b");
+        assert_eq!(resolve_alias(None, "emb-v-9"), "emb-v-9");
+    }
+
+    #[test]
+    fn aliases_follow_ts_prefix_and_count_per_app_skill() {
+        assert_eq!(alias_prefix("web", "search"), "web-s");
+        assert_eq!(alias_prefix("embed", "view"), "emb-v");
+        assert_eq!(alias_prefix("", ""), "emb-v");
+        assert_eq!(alias_prefix("travel", "search_connections"), "tra-s_c");
+        let body = |id: &str, app: &str| format!("```json\n{{\"embed_id\":\"{id}\",\"app_id\":\"{app}\",\"skill_id\":\"search\"}}\n```\n");
+        let chat = Chat {
+            messages: vec![Message { content: format!("{}{}{}", body(ID, "web"), body(ID2, "web"), body("c", "web")), ..Default::default() }],
+            ..Default::default()
+        };
+        register(&chat);
+        assert_eq!((short_id(ID), short_id(ID2), short_id("c")), ("web-s-1".into(), "web-s-2".into(), "web-s-3".into()));
     }
 
     fn embed(kind: &str, content: Value) -> Item {
@@ -747,7 +815,7 @@ mod tests {
     fn code_detail_shows_file_language_and_code_block() {
         let item = embed("code", serde_json::json!({"language":"tsx","filename":"App.tsx","line_count":3,"code":"export const A = () => <div/>;"}));
         let text = text_of(&detail_rows(&item, 80).unwrap());
-        assert!(text.starts_with("Code  ·  237a754b"));
+        assert!(text.starts_with(&format!("Code  ·  {ID}")));
         assert!(text.contains("File: App.tsx"));
         assert!(text.contains("Language: tsx"));
         assert!(text.contains("Lines: 3"));
@@ -767,7 +835,7 @@ mod tests {
         assert!(rows.iter().flatten().any(|p| p.link == Some(Link::Embed(ID2.into()))));
         // Non-search skills never claim an empty result list.
         let create = embed("app_skill_use", serde_json::json!({"app_id":"projects","skill_id":"create","title":"Recipe Web App","status":"finished"}));
-        assert_eq!(text_of(&detail_rows(&create, 80).unwrap()), "Projects · Create  ·  237a754b\nRecipe Web App");
+        assert_eq!(text_of(&detail_rows(&create, 80).unwrap()), format!("Projects · Create  ·  {ID}\nRecipe Web App"));
     }
 
     #[test]
@@ -786,7 +854,7 @@ mod tests {
     fn unknown_types_get_a_short_card_never_raw_json() {
         let item = embed("mindmap", serde_json::json!({"title":"Plan","nodes":[{"id":"x","secret":"value"}]}));
         let text = text_of(&detail_rows(&item, 80).unwrap());
-        assert_eq!(text, "Mindmap  ·  237a754b\nPlan");
+        assert_eq!(text, format!("Mindmap  ·  {ID}\nPlan"));
         assert!(detail_rows(&Item::default(), 80).is_none());
     }
 }
