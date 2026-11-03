@@ -1,0 +1,100 @@
+schema_version: 1
+id: feature.assistant-answer-composition
+version: 1
+status: draft
+title: Concise and Actionable Mixed-Media Answers
+summary: >
+  Compose useful concise answers with relevant links, existing rich artifacts,
+  and selected image or video results, while limiting unnecessary search,
+  preserving factual support, and respecting requested depth and format.
+
+related_contracts:
+  - specification: feature.chats@7
+    relationship: Reuse progressive rich-document rendering and stable ordered embed identities; it does not define editorial selection or enrichment budgets.
+  - specification: feature.assistant-authored-result-embeds@1
+    relationship: Reuse admitted rich-card types, real resources, source provenance, and truthful actions; it does not determine answer length or whether to spend on media retrieval.
+  - specification: feature.math-assistance@1
+    relationship: Use LaTeX, executed notebooks, or formula sheets when mathematical content calls for them.
+
+scope:
+  includes:
+    - Concise answer composition, useful links, relevance-based image/video search, and existing embed presentation.
+    - Query budgets and reuse across search batches and assistant continuations for the same user request.
+  excludes:
+    - Mandatory media in every answer or a rigid word limit that prevents requested detail.
+    - Automatic image/video generation for decoration, new discovery providers, or relaxed factual verification.
+
+assertions:
+  - id: answer-composition.content.concise-and-actionable
+    type: behavior
+    must: >
+      Lead with the useful answer and use short connected paragraphs, clear steps
+      for procedures, and tables for comparisons when these help. Place useful
+      links, cards, or artifacts beside the relevant explanation, avoiding a
+      duplicate prose inventory of already visible cards. Preserve requested
+      detail, language, format, and accessibility; simple answers can be short
+      prose with no media. A result link or card must enable a useful next action
+      or improve understanding, rather than merely increase visual density.
+    depends_on: [examples.composition]
+  - id: answer-composition.media.relevant-and-real
+    type: behavior
+    must: >
+      Proactively select image search when appearance, identification, location,
+      or visual comparison materially helps, and video search when seeing a
+      process, tutorial, movement, or demonstration materially helps. Select the
+      strongest few real supported results, usually one to three cards, with
+      concise context and meaningful links. Reuse supplied and suitable recent
+      resources first, honoring freshness and access. Use only actual available
+      skills and exact returned or authorized authored embed references; retain
+      source attribution. Never imply a video was watched or proves a claim
+      merely because its search metadata was returned. Respect no-search,
+      text-only, unavailable-tool, and anonymous-access constraints.
+    depends_on: [examples.media]
+  - id: answer-composition.search.bounded-enrichment
+    type: invariant
+    must: >
+      For an ordinary request, default to at most one primary retrieval call,
+      whose batched queries remain bounded by the existing per-request skill
+      limit, and at most one additional image or video enrichment query. Count
+      primary calls and actual media queries, including batch members, across
+      tools, retries, and continuations of that user request. A useful
+      media search can itself satisfy the primary retrieval need where its
+      evidence is sufficient. Do not add an unrelated search solely to obtain
+      media, repeat a sufficient prior search, or silently generate paid media.
+      Explicit comparisons, multi-part research, requested deeper retrieval, or
+      a missing fact essential to a correct answer may justify a bounded expanded
+      search plan under existing budgets. Preserve factual verification and
+      provenance rules and report material unsearched gaps honestly.
+    depends_on: [examples.budget]
+  - id: answer-composition.delivery.consistent-and-cost-aware
+    type: parity
+    must: >
+      Keep relevance routing, available-tool hints, answer instructions, result
+      handoff, and embed-instruction gating consistent for images and videos,
+      including image-only answers and follow-ups. Verify that selected media
+      actually renders at its intended position and opens the real resource
+      across streaming, completion, reload, and supported clients. Validate
+      both useful enrichment and deliberate no-search examples with observed
+      query counts and existing credit accounting. Use default automatic model
+      routing in real assistant validation. Match the user's intended depth
+      without requiring extra retrieval or a second rewrite model per answer.
+    depends_on: [examples.delivery]
+
+applies_to:
+  rest_api: {required: true, role: Existing chat, skill, and embed transport.}
+  cli: {required: true, parity: semantic}
+  sdks:
+    required: true
+    implementations:
+      rust: {required: true}
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    implementations:
+      web: {required: true}
+      apple: {required: true}
+
+examples:
+  file: examples.yml
+  required_groups: [composition, media, budget, delivery]

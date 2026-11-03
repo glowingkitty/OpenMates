@@ -3285,6 +3285,117 @@ async def test_guard_log_diagnostics_do_not_include_suppressed_content(monkeypat
     assert all(private_fixture not in message and 'private-file-name' not in message for message in diagnostics)
 
 
+# contract-test: supporting surface=rest_api assertions=answer-composition.delivery.consistent-and-cost-aware
+@pytest.mark.parametrize("selected,history,expect_embed", [
+    (["images-search"], [], True),
+    ([], [{"role": "tool", "content": "embed_ref: image-result-1\napp_id: images\nskill_id: search"}], True),
+    ([], [], False),
+])
+async def test_composition_and_image_only_guidance_reaches_real_dispatch(
+    monkeypatch, selected, history, expect_embed,
+):
+    from backend.apps.ai.utils.instruction_loader import load_base_instructions
+
+    actual = load_base_instructions()
+    _, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [["A concise answer."]],
+        preprocessing_overrides={"relevant_app_skills": selected},
+        request_overrides={"current_user_content": "Explain these architectural styles.",
+                           "message_history": history},
+    )
+    prompt = calls[0]["system_prompt"]
+    assert actual["base_answer_composition_instruction"] in prompt
+    assert (actual["base_embed_referencing_instruction"] in prompt) is expect_embed
+
+
+# contract-test: supporting surface=rest_api assertions=answer-composition.search.bounded-enrichment
+def test_search_budget_counts_primary_calls_and_both_media_share_one_query():
+    args = {"requests": [{"query": f"image {i}"} for i in range(5)]}
+    admitted, omitted, used = main_processor._bound_answer_search_queries(
+        "images-search", args, {}, expanded=False,
+    )
+    assert len(admitted["requests"]) == 1 and len(omitted) == 4
+    assert args["requests"] and len(args["requests"]) == 5
+    videos, omitted_video, later = main_processor._bound_answer_search_queries(
+        "videos-search", {"requests": [{"query": "demonstration"}]}, used, expanded=False,
+    )
+    assert videos["requests"] == [] and len(omitted_video) == 1
+    assert later == used
+    # One primary call keeps its whole batch (the hard skill limit trims later, 4VXWM).
+    batch = {"requests": [{"query": f"facts {i}"} for i in range(4)]}
+    primary, omitted_primary, used = main_processor._bound_answer_search_queries(
+        "web-search", batch, used, expanded=False,
+    )
+    assert len(primary["requests"]) == 4 and omitted_primary == []
+    assert used == {"media": 1, "primary": 1}
+    # A checkpoint round-trip retains the same budget for a continuation/retry.
+    resumed = json.loads(json.dumps(used))
+    retry, omitted_retry, _ = main_processor._bound_answer_search_queries(
+        "news-search", {"requests": [{"query": "facts"}]}, resumed, expanded=False,
+    )
+    assert retry["requests"] == [] and len(omitted_retry) == 1
+
+
+# contract-test: supporting surface=rest_api assertions=answer-composition.search.bounded-enrichment
+def test_search_budget_expanded_and_essential_fact_exceptions_stay_bounded():
+    args = {"requests": [{"query": str(i)} for i in range(8)]}
+    used = {}
+    for _ in range(main_processor.HARD_LIMIT_SKILL_CALLS):
+        admitted, omitted, used = main_processor._bound_answer_search_queries(
+            "web-search", args, used, expanded=True,
+        )
+        assert len(admitted["requests"]) == 8 and omitted == []
+    blocked, omitted, _ = main_processor._bound_answer_search_queries(
+        "web-search", args, used, expanded=True,
+    )
+    assert blocked["requests"] == [] and len(omitted) == 8
+    essential_args = {**args, "essential_fact_reason": "Need the actual contraindication."}
+    used = {"primary": 1}
+    for _ in range(2):
+        essential, omitted, used = main_processor._bound_answer_search_queries(
+            "web-search", essential_args, used, expanded=False,
+        )
+        assert len(essential["requests"]) == 8 and omitted == []
+        assert "essential_fact_reason" not in essential
+    capped, omitted, _ = main_processor._bound_answer_search_queries(
+        "web-search", essential_args, used, expanded=False,
+    )
+    assert capped["requests"] == [] and len(omitted) == 8
+    # Essential-fact reasons never unlock extra media.
+    media, omitted_media, _ = main_processor._bound_answer_search_queries(
+        "images-search", {"requests": [{"query": "a"}, {"query": "b"}], "essential_fact_reason": "x"},
+        {}, expanded=False,
+    )
+    assert len(media["requests"]) == 1 and len(omitted_media) == 1
+
+
+# contract-test: supporting surface=rest_api assertions=answer-composition.search.bounded-enrichment
+async def test_actual_image_batch_is_clamped_and_video_retry_is_reported_without_dispatch(monkeypatch):
+    dispatched = AsyncMock(return_value=[{"results": [{"id": 1, "results": []}]}])
+    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", dispatched)
+    monkeypatch.setattr(main_processor, "_reserve_skill_credits", AsyncMock(return_value=[]))
+    metadata = {app: SimpleNamespace(skills=[SimpleNamespace(
+        id="search", parallel_safe=True, exclude_fields_for_llm=None, pricing=None, providers=[],
+        tool_schema={"type": "object", "properties": {"requests": {"type": "array", "items": {"type": "object"}}}, "required": ["requests"]},
+    )], instructions=[], focuses=[]) for app in ("images", "videos")}
+    _, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [[{"fake_google_tool_call": "images-search", "arguments": {"requests": [{"query": f"style {i}"} for i in range(5)]}, "tool_call_id": "pictures"}],
+         [{"fake_google_tool_call": "videos-search", "arguments": {"requests": [{"query": "tutorial"}]}, "tool_call_id": "video"}],
+         ["Here is the available visual evidence."]],
+        generated_tools=[{"type": "function", "function": {"name": f"{app}-search", "description": "Search."}} for app in metadata],
+        discovered_apps_metadata=metadata,
+        preprocessing_overrides={"selected_app_ids": list(metadata), "relevant_app_skills": ["images-search", "videos-search"]},
+        request_overrides={"current_user_content": "Show me Gothic architecture."},
+    )
+    assert dispatched.await_count == 1
+    assert dispatched.await_args.kwargs["app_id"] == "images"
+    assert len(dispatched.await_args.kwargs["arguments"]["requests"]) == 1
+    final_history = str(calls[-1]["message_history"])
+    assert "omitted_requests" in final_history and "style 4" in final_history
+    assert "retrieval/enrichment query budget is used" in final_history
+
+
 # contract-test: supporting surface=rest_api assertions=app-memories.selection.source-scoped,app-memories.transparency.loaded-set
 async def test_on_demand_memory_reaches_next_provider_call_and_answer_recovery(monkeypatch):
     from backend.apps.diagrams.diagram_guidance import diagram_guidance_prompt

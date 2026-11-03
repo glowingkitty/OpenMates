@@ -110,3 +110,14 @@ def test_action_suggestions_use_editable_message_links() -> None:
         assert "](/#settings/" not in instruction
         assert "edit" in instruction
         assert "focus" in instruction
+
+
+def test_composition_query_budget_counts_batch_members_and_reuses_results() -> None:
+    instruction = (CODE_BLOCK_INSTRUCTION_PATH.parent / "base_proactive_skill_usage_instruction.md").read_text()
+    assert "one primary retrieval call plus one image OR video enrichment query" in instruction
+    assert "one batched call" in instruction
+    assert "retries, and continuations" in instruction
+    assert "Reuse supplied and suitable recent results first" in instruction
+    assert "missing fact essential to correctness" in instruction
+    assert "text-only" in instruction
+    assert "Never imply you watched a video" in instruction

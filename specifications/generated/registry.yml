@@ -443,6 +443,19 @@ specifications:
     - cli
     - gui.web
     - gui.apple
+  feature.assistant-answer-composition:
+    version: 1
+    status: draft
+    path: features/assistant-answer-composition
+    fingerprint: 427a6c787542f142ec6bbd98abb89b0852fe6a5d4723f2856b17dde59593230c
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   feature.assistant-authored-result-embeds:
     version: 1
     status: draft
@@ -5522,6 +5535,58 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - gui.web
+    - gui.apple
+  answer-composition.content.concise-and-actionable:
+    specification: feature.assistant-answer-composition@1
+    specification_id: feature.assistant-answer-composition
+    type: behavior
+    fingerprint: e4dae4213dd5be37f99739e228ec01dab793173e1e5f3cb5baee9266822a3387
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  answer-composition.media.relevant-and-real:
+    specification: feature.assistant-answer-composition@1
+    specification_id: feature.assistant-answer-composition
+    type: behavior
+    fingerprint: f1594108123331cf1f1c62dc15d0f87fb12e217bf2a59ca64994de1344eab0a1
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  answer-composition.search.bounded-enrichment:
+    specification: feature.assistant-answer-composition@1
+    specification_id: feature.assistant-answer-composition
+    type: invariant
+    fingerprint: f7f327b9ad4bef859c14cc865c425b48cc828350fbd81db8ef1e02e1eaffc366
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  answer-composition.delivery.consistent-and-cost-aware:
+    specification: feature.assistant-answer-composition@1
+    specification_id: feature.assistant-answer-composition
+    type: parity
+    fingerprint: 15f1cff4a91e92120f7f2dfdd8ec599dbba580b4f22225ec0f85e265aaec51d4
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
     - gui.web
     - gui.apple
   authored-results.creation.relevant-and-independent:

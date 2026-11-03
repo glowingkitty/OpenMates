@@ -1241,6 +1241,70 @@ def _limit_request_batch_to_budget(
     return {**parsed_args, "requests": requests[:remaining_requests]}, requests[remaining_requests:]
 
 
+# Discovery queries share a per-user-request budget; reads and execution retain
+# their existing independent admission and hard limits.
+_ANSWER_SEARCH_TOOLS = frozenset({
+    "web-search", "news-search", "images-search", "videos-search", "maps-search",
+    "events-search", "travel-search_connections", "travel-search_stays",
+    "shopping-search_products", "code-search_repos", "nutrition-search_recipes",
+    "social_media-search", "home-search", "electronics-search_components",
+    "design-search_icons", "fitness-search_locations", "fitness-search_classes",
+    "health-search_appointments", "models3d-search", "business-search_trademarks",
+    "hosting-search_domains", "jobs-search",
+})
+_MEDIA_SEARCH_TOOLS = frozenset({"images-search", "videos-search"})
+
+
+def _expanded_answer_search_scope(content: str, focus_id: str | None) -> bool:
+    return focus_id == "web-research" or bool(re.search(
+        r"\b(?:compar(?:e|ison|isons)|research|in[- ]depth|comprehensive|multiple|"
+        r"several|versus|vs\.?|recherch(?:e|er)|vergleiche?|vergleich)\b",
+        content or "", re.IGNORECASE,
+    ))
+
+
+def _bound_answer_search_queries(
+    tool_name: str, arguments: dict, used: dict, *, expanded: bool,
+) -> tuple[dict, list, dict]:
+    """Pure admission shared by placeholder and execution phases.
+
+    Primary retrieval is budgeted per search CALL: an ordinary request gets one
+    primary call whose batch may hold several queries (members beyond the hard
+    skill limit are trimmed later by `_limit_request_batch_to_budget`, issue
+    4VXWM). Media enrichment is budgeted per QUERY: one image or video query.
+    Counters survive retries and continuations via the resume checkpoint; the
+    caller commits them only once a non-reused call is admitted. A supported
+    essential-fact justification permits bounded extra primary calls, never
+    extra decorative media.
+    """
+    updated = dict(used)
+    if tool_name not in _ANSWER_SEARCH_TOOLS:
+        return arguments, [], updated
+    requests = arguments.get("requests")
+    rows = requests if isinstance(requests, list) else [arguments]
+    media = tool_name in _MEDIA_SEARCH_TOOLS
+    essential = arguments.get("essential_fact_reason")
+    essential = isinstance(essential, str) and bool(essential.strip()) and not media
+    if media:
+        limit = HARD_LIMIT_SKILL_CALLS if expanded else 1
+        remaining = max(0, limit - int(updated.get("media", 0)))
+        admitted, omitted = rows[:remaining], rows[remaining:]
+        updated["media"] = int(updated.get("media", 0)) + len(admitted)
+    else:
+        call_limit = HARD_LIMIT_SKILL_CALLS if expanded else (3 if essential else 1)
+        if int(updated.get("primary", 0)) < call_limit:
+            admitted, omitted = rows, []
+            updated["primary"] = int(updated.get("primary", 0)) + 1
+        else:
+            admitted, omitted = [], rows
+    cleaned = {key: value for key, value in arguments.items() if key != "essential_fact_reason"}
+    if isinstance(requests, list):
+        cleaned["requests"] = admitted
+    elif not admitted:
+        cleaned = {"requests": []}
+    return cleaned, omitted, updated
+
+
 INVALID_TOOL_FALLBACK_MESSAGE = (
     "I found relevant information, but I could not complete every requested action automatically. "
     "Here is the best answer I can provide from the available results."
@@ -4284,6 +4348,7 @@ async def handle_main_processing(
         base_instructions["base_ethics_instruction"],
         base_instructions["base_privacy_instruction"],
         base_instructions.get("follow_up_instruction", "") if composer_suggestion_enabled else "",
+        base_instructions.get("base_answer_composition_instruction", ""),
         base_instructions.get("base_link_encouragement_instruction", ""),
         base_instructions.get("base_wikipedia_linking_instruction", ""),
         base_instructions.get("base_url_sourcing_instruction", ""),
@@ -4949,7 +5014,7 @@ async def handle_main_processing(
     # Composite skills that produce embed_refs the LLM can reference inline or as cards.
     # Format must match preselected_skills entries: "app_id-skill_id".
     _EMBED_PRODUCING_PRESELECTED_IDS = {
-        "web-search", "news-search", "videos-search",
+        "web-search", "news-search", "videos-search", "images-search",
         "maps-search", "events-search",
         "travel-search_connections", "travel-search_stays",
         "shopping-search_products",
@@ -5310,6 +5375,14 @@ async def handle_main_processing(
     ) if assigned_app_ids != [] else []
     # Record provenance before Task, Project, Focus, and orchestration tools
     # are merged. Their presence alone does not make app-skill guidance useful.
+    for search_tool in available_tools_for_llm:
+        function = search_tool.get("function", {})
+        if function.get("name") in _ANSWER_SEARCH_TOOLS:
+            parameters = function.setdefault("parameters", {"type": "object"})
+            parameters.setdefault("properties", {})["essential_fact_reason"] = {
+                "type": "string",
+                "description": "Only when an additional factual query is essential to a correct answer: state the missing fact and why existing results cannot support it. Never use for decorative media.",
+            }
     generated_app_skill_names = {
         tool.get("function", {}).get("name") for tool in available_tools_for_llm
         if tool.get("function", {}).get("name")
@@ -6299,6 +6372,10 @@ async def handle_main_processing(
     # Track total skill calls across all iterations to prevent runaway research loops.
     # Each request within a tool call counts as one skill call.
     total_skill_calls = 0
+    answer_search_queries: dict[str, int] = {}
+    expanded_answer_search = _expanded_answer_search_scope(
+        request_data.current_user_content or "", request_data.active_focus_id,
+    )
     streaming_skill_count = 0  # Mirrors total_skill_calls during streaming to suppress over-budget placeholders
     budget_warning_injected = False
     images_search_executed = False  # Track whether images-search ran, to inject embed preview instruction
@@ -6558,6 +6635,7 @@ async def handle_main_processing(
                 "Same-turn selected model or mate changed before resume"
             ) from route_error
         total_skill_calls = int(resume_checkpoint["total_skill_calls"])
+        answer_search_queries = dict(resume_checkpoint.get("answer_search_queries") or {})
         streaming_skill_count = total_skill_calls
         tool_inference_iterations = int(resume_checkpoint["tool_inference_iterations"])
         budget_warning_injected = bool(resume_checkpoint["budget_warning_injected"])
@@ -7266,6 +7344,7 @@ async def handle_main_processing(
         # showing the "processing" state to users before skill execution starts
         inline_placeholder_embeds: Dict[str, Dict[str, Any]] = {}
         search_request_reuse: Dict[str, tuple[dict, list[dict]]] = {}
+        streaming_search_queries = dict(answer_search_queries)
         focus_activation_seen_this_turn = False
 
         # Sync streaming budget counter with execution-phase counter at each iteration start
@@ -7540,6 +7619,12 @@ async def handle_main_processing(
                         if reused and not parsed_args["requests"]:
                             continue  # No new card, budget use, reservation or provider request.
 
+                    parsed_args, _, next_streaming_search_queries = _bound_answer_search_queries(
+                        tool_name, parsed_args, streaming_search_queries, expanded=expanded_answer_search,
+                    )
+                    if tool_name in _ANSWER_SEARCH_TOOLS and parsed_args.get("requests") == []:
+                        continue
+
                     if app_id != "system" and not getattr(request_data, "is_anonymous", False):
                         parsed_args, omitted_inline_budget_requests = _limit_request_batch_to_budget(
                             parsed_args, HARD_LIMIT_SKILL_CALLS - streaming_skill_count
@@ -7589,6 +7674,7 @@ async def handle_main_processing(
                         # The execution phase will also detect this duplicate and skip execution
                         continue
                     
+                    streaming_search_queries = next_streaming_search_queries
                     # === STREAMING-PHASE BUDGET CHECK ===
                     # Count requests in this tool call to check against budget.
                     # Skip placeholder creation entirely when the budget would be exceeded,
@@ -8551,7 +8637,8 @@ async def handle_main_processing(
                     parallel_parsed_args,
                 )
                 if (
-                    (parallel_app_id, parallel_skill_id) in ASYNC_SKILLS
+                    parallel_tool_name in _ANSWER_SEARCH_TOOLS
+                    or (parallel_app_id, parallel_skill_id) in ASYNC_SKILLS
                     or is_legacy_task_runtime_tool_name(parallel_tool_name)
                     or bool(search_request_reuse.get(parallel_tool_call.tool_call_id, ({}, []))[1])
                     or parallel_call_hash in completed_skill_calls
@@ -8733,6 +8820,8 @@ async def handle_main_processing(
             omitted_primary_read_requests: List[Any] = []
             tool_result_content_str: str
             omitted_budget_requests_for_call: List[Any] = []
+            omitted_answer_search_requests: List[Any] = []
+            next_answer_search_queries = dict(answer_search_queries)
 
             if block_split_workflow_authoring and tool_resolver_map.get(tool_name) == ("workflows", "create-or-modify"):
                 placeholder = inline_placeholder_embeds.get(tool_call_id)
@@ -8997,6 +9086,19 @@ async def handle_main_processing(
                     })
                     continue
 
+                parsed_args, omitted_answer_search_requests, next_answer_search_queries = _bound_answer_search_queries(
+                    tool_name, parsed_args, answer_search_queries, expanded=expanded_answer_search,
+                )
+                if omitted_answer_search_requests and parsed_args.get("requests") == []:
+                    current_message_history.append({
+                        "tool_call_id": tool_call_id, "role": "tool", "name": tool_name,
+                        "content": json.dumps({
+                            "status": "skipped", "reason": "This request's retrieval/enrichment query budget is used. Answer from existing evidence and state material unsearched gaps.",
+                            "omitted_requests": omitted_answer_search_requests,
+                        }),
+                    })
+                    continue
+
                 # === SKILL CALL BUDGET CHECK ===
                 # Count requests in this tool call and check against hard limit.
                 # If we've already reached the limit, skip this tool call entirely.
@@ -9150,6 +9252,7 @@ async def handle_main_processing(
                 
                 # Update budget counters (only for non-system tools)
                 if app_id != "system":
+                    answer_search_queries = next_answer_search_queries
                     total_skill_calls += requests_in_this_call
                     logger.info(
                         f"{log_prefix} [SKILL_BUDGET] Executing '{tool_name}' with {requests_in_this_call} request(s), "
@@ -12211,6 +12314,11 @@ async def handle_main_processing(
                         "instruction": "These requests were not executed. Do not cite or invent results for them.",
                     },
                 })
+            if omitted_answer_search_requests:
+                tool_result_content_str += "\n\n" + json.dumps({
+                    "research_budget": {"status": "partial", "omitted_requests": omitted_answer_search_requests,
+                        "instruction": "These queries were not searched. Use existing results and state material unsearched gaps; never invent results."},
+                })
             if omitted_budget_requests_for_call:
                 omitted_queries = [
                     request.get("query") for request in omitted_budget_requests_for_call
@@ -12264,6 +12372,7 @@ async def handle_main_processing(
                 "models_to_try": models_to_try,
                 "selected_mate_id": preprocessing_results.selected_mate_id,
                 "total_skill_calls": total_skill_calls,
+                "answer_search_queries": answer_search_queries,
                 "tool_inference_iterations": tool_inference_iterations,
                 "budget_warning_injected": budget_warning_injected,
                 "images_search_executed": images_search_executed,
