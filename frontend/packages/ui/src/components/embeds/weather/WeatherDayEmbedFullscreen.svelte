@@ -61,16 +61,36 @@
   let icon = $derived(typeof content.icon === 'string' ? content.icon : '');
   let temperatureMinC = $derived(typeof content.temperature_min_c === 'number' ? content.temperature_min_c : undefined);
   let temperatureMaxC = $derived(typeof content.temperature_max_c === 'number' ? content.temperature_max_c : undefined);
-  let precipitationTotalMm = $derived(typeof content.precipitation_total_mm === 'number' ? content.precipitation_total_mm : undefined);
-  let precipitationProbabilityMaxPct = $derived(
-    typeof content.precipitation_probability_max_pct === 'number' ? content.precipitation_probability_max_pct : undefined
-  );
+  // Authored observations use precipitation (amount or structured daily values).
+  // Keep legacy provider fields first and preserve supplied zeroes.
+  let precipitation = $derived(content.precipitation && typeof content.precipitation === 'object'
+    ? content.precipitation as Record<string, unknown> : {});
+  let precipitationTotalMm = $derived(numberValue(content.precipitation_total_mm)
+    ?? numberValue(precipitation.total_mm) ?? numberValue(content.precipitation));
+  let precipitationProbabilityMaxPct = $derived(numberValue(content.precipitation_probability_max_pct)
+    ?? numberValue(precipitation.probability_percent));
   let rainHours = $derived(typeof content.rain_hours === 'number' ? content.rain_hours : undefined);
   let windSpeedMaxKmh = $derived(typeof content.wind_speed_max_kmh === 'number' ? content.wind_speed_max_kmh : undefined);
   let cloudCoverAvgPct = $derived(typeof content.cloud_cover_avg_pct === 'number' ? content.cloud_cover_avg_pct : undefined);
   let humidityAvgPct = $derived(typeof content.relative_humidity_avg_pct === 'number' ? content.relative_humidity_avg_pct : undefined);
-  let hourly = $derived(Array.isArray(content.hourly) ? content.hourly as HourlyWeatherRow[] : []);
+  let hourly = $derived(Array.isArray(content.hourly) ? content.hourly
+    .filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === 'object')
+    .map((row): HourlyWeatherRow => ({
+      time: typeof row.time === 'string' ? row.time : undefined,
+      condition: typeof row.condition === 'string' ? row.condition : undefined,
+      icon: typeof row.icon === 'string' ? row.icon : undefined,
+      temperature_c: numberValue(row.temperature_c),
+      precipitation_mm: numberValue(row.precipitation_mm) ?? numberValue(row.precipitation),
+      precipitation_probability_pct: numberValue(row.precipitation_probability_pct) ?? numberValue(row.precipitation_probability),
+      wind_speed_kmh: numberValue(row.wind_speed_kmh),
+      cloud_cover_pct: numberValue(row.cloud_cover_pct),
+      relative_humidity_pct: numberValue(row.relative_humidity_pct) ?? numberValue(row.humidity),
+    })) : []);
   let formattedDate = $derived(formatFullDate(date));
+
+  function numberValue(value: unknown): number | undefined {
+    return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+  }
 
   function formatTemp(min?: number, max?: number): string {
     if (min === undefined && max === undefined) return '—';

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import LandingExistingEmbed from './LandingExistingEmbed.svelte';
   import PublicLandingPage from '@repo/public-site/components/landing/LandingPage.svelte';
   import type { LandingPublication } from '@repo/public-site/components/landing/landingPageContent';
 
@@ -31,4 +32,11 @@
   ));
 </script>
 
-<PublicLandingPage {appBaseUrl} {websiteBaseUrl} apiBaseUrl={fallbackApiUrl} {serverStatusUrl} {initialLanguage} {initialLanguageMode} {events} {news} {posts} />
+<PublicLandingPage {appBaseUrl} {websiteBaseUrl} apiBaseUrl={fallbackApiUrl} {serverStatusUrl} {initialLanguage} {initialLanguageMode} {events} {news} {posts}>
+  {#snippet eventPreview(activate, onFullscreen, language)}
+    <LandingExistingEmbed mode="preview" {activate} {onFullscreen} {language} />
+  {/snippet}
+  {#snippet eventFullscreen(language, showCalendar)}
+    <LandingExistingEmbed mode="fullscreen" {language} {showCalendar} />
+  {/snippet}
+</PublicLandingPage>

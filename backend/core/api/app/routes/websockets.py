@@ -2927,6 +2927,10 @@ async def _deliver_pending_embeds(
     pending embed_id, reads the vault-encrypted data from cache, decrypts it,
     and sends the plaintext TOON to the client via send_embed_data.
     """
+    # First-party authenticated owner replay; retain only catalog fields already
+    # bound to the pending stored record, without deriving them from its content.
+    from .handlers.websocket_handlers.request_embed_handler import _embed_catalog_context
+
     try:
         # Brief delay to let client finish init (after pending reminders)
         await asyncio.sleep(4)
@@ -2990,6 +2994,7 @@ async def _deliver_pending_embeds(
                 embed_payload = {
                     "embed_id": embed_id,
                     "type": embed_data.get("type", "app_skill_use"),
+                    **_embed_catalog_context(embed_data),
                     "content": plaintext_toon,
                     "status": embed_data["status"],
                     "chat_id": embed_data.get("chat_id", ""),

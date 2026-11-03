@@ -12083,19 +12083,34 @@ export class OpenMatesClient {
           ...(embed.file_path !== undefined ? { file_path: embed.file_path } : {}),
           ...(embed.content_hash !== undefined ? { content_hash: embed.content_hash } : {}),
         };
-        if (!canonical.ok || !head || head.embed_id !== embed.embed_id
-          || head.hashed_embed_id !== hashedEmbedId
-          || head.hashed_user_id !== hashedUserId || head.hashed_chat_id !== hashedChatId
-          || (head.hashed_team_id ?? null) !== (params.teamId ? computeSHA256(params.teamId) : null)
-          || (head.parent_embed_id ?? null) !== parentId
-          || head.hashed_message_id !== hashedMessageId
-          || Object.entries(declaredMetadata).some(([field, value]) => head[field] != null && head[field] !== value)
-          || !matchesCanonicalChildren(head)
-          || !Number.isSafeInteger(version) || version < 1
-          || Number(head.version_number ?? 1) !== version || head.status !== "finished"
-          || typeof head.encrypted_type !== "string" || typeof head.encrypted_content !== "string"
+        // Report only fixed check names and the HTTP status. Ciphertexts,
+        // owner/message hashes, key wrappers and source content stay private.
+        const canonicalChecks: Record<string, boolean> = {
+          read: canonical.ok,
+          head: !!head,
+          identity: !!head && head.embed_id === embed.embed_id && head.hashed_embed_id === hashedEmbedId,
+          owner: !!head && head.hashed_user_id === hashedUserId,
+          chat: !!head && head.hashed_chat_id === hashedChatId,
+          team: !!head && (head.hashed_team_id ?? null) === (params.teamId ? computeSHA256(params.teamId) : null),
+          parent: !!head && (head.parent_embed_id ?? null) === parentId,
+          message: !!head && head.hashed_message_id === hashedMessageId,
+          metadata: !!head && !Object.entries(declaredMetadata)
+            .some(([field, value]) => head[field] != null && head[field] !== value),
+          children: !!head && matchesCanonicalChildren(head),
+          version: !!head && Number.isSafeInteger(version) && version >= 1
+            && Number(head.version_number ?? 1) === version,
+          status: !!head && head.status === "finished",
+          ciphertext: !!head && typeof head.encrypted_type === "string" && typeof head.encrypted_content === "string",
+          wrappers: Array.isArray(canonicalKeys),
+        };
+        const failedChecks = Object.entries(canonicalChecks).filter(([, matched]) => !matched).map(([name]) => name);
+        // Keep explicit guards for TypeScript's control-flow narrowing; the
+        // diagnostic boolean map cannot carry these type refinements forward.
+        if (failedChecks.length > 0 || !head
+          || typeof head.encrypted_content !== "string" || typeof head.encrypted_type !== "string"
           || !Array.isArray(canonicalKeys)) {
-          throw new Error(`Denied embed ${embed.embed_id} has no matching canonical head.`);
+          throw new Error(`Denied embed ${embed.embed_id} has no matching canonical head. `
+            + `Canonical read HTTP ${canonical.status}; failed checks: ${failedChecks.join(", ")}.`);
         }
         const keySubjectHash = computeSHA256(parentId || embed.embed_id);
         const matchesCanonicalSourceAndKeys = async (
@@ -12180,6 +12195,12 @@ export class OpenMatesClient {
         storedHead = false;
       };
       if (canonicalType === undefined && !params.canonicalRecoveryCompleted) {
+      const authoredOutput = embed.type === "authored_results"
+        || Boolean(embed.parent_embed_id && finalized.get(embed.parent_embed_id)?.type === "authored_results");
+      if (authoredOutput && (typeof embed.app_id !== "string" || !/^[a-z][a-z0-9_]{0,63}$/.test(embed.app_id)
+        || typeof embed.skill_id !== "string" || !/^[a-z][a-z0-9_-]{0,63}$/.test(embed.skill_id))) {
+        throw new Error("Authored terminal embed lacks valid app catalog context.");
+      }
       const storeRequestId = randomUUID();
       const storeConfirmed = ws.waitForMessage(
         "store_embed_confirmed",
@@ -12204,7 +12225,10 @@ export class OpenMatesClient {
         version_number: embed.version_number,
         file_path: embed.file_path,
         content_hash: embed.content_hash,
-        ...(embed.type === "diagram_html" ? {
+        ...(authoredOutput ? {
+          app_id: embed.app_id, skill_id: embed.skill_id, chat_id: params.chatId,
+          ...(params.teamId ? { team_id: params.teamId } : {}),
+        } : embed.type === "diagram_html" ? {
           app_id: "diagrams", skill_id: "html", chat_id: params.chatId,
           ...(params.teamId ? { team_id: params.teamId } : {}),
         } : {}),
@@ -12223,7 +12247,13 @@ export class OpenMatesClient {
         // its immutable ciphertext must never be replaced with fresh nonces.
         if (!(error instanceof WebSocketProtocolError)
           || !["embed_write_denied", "embed_revision_conflict"].includes(error.code)) throw error;
-        await reuseCanonical();
+        try {
+          await reuseCanonical();
+        } catch (canonicalError) {
+          if (!(canonicalError instanceof Error)) throw canonicalError;
+          throw new WebSocketProtocolError(error.code,
+            `${canonicalError.message} Original write rejection: ${error.code}; reason: unavailable.`);
+        }
       }
 
       if (storedHead && keys.length > 0) {

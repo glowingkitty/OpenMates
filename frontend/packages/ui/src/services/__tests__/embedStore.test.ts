@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { EmbedStore } from '../embedStore';
 import * as cryptoService from '../cryptoService';
+import * as parsingUtils from '../../message_parsing/utils';
 import type { EmbedStoreEntry } from '../../message_parsing/types';
 
 describe('EmbedStore.putEncrypted ref indexing', () => {
@@ -53,7 +54,8 @@ describe('EmbedStore.getEmbedKey', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.clearAllMocks();
-    (crypto.subtle.digest as any) = vi.fn(async () => new Uint8Array([1, 2, 3, 4]).buffer);
+    new EmbedStore().clearEmbedKeyCache();
+    vi.spyOn(parsingUtils, 'computeSHA256').mockImplementation(async (id) => `hash-${id}`);
   });
 
   // contract-test: supporting surface=gui.web assertions=chats.sync.key-gated-recovery,chats.persistence.client-encrypted
@@ -70,16 +72,16 @@ describe('EmbedStore.getEmbedKey', () => {
       return { parent_embed_id: undefined, embed_ids: undefined };
     });
 
-    vi.spyOn(store, 'getEmbedKeyEntries').mockResolvedValue([
+    vi.spyOn(store, 'getEmbedKeyEntries').mockImplementation(async (hash) => hash === 'hash-parent-embed' ? [
       {
-        hashed_embed_id: 'hashed-parent',
+        hashed_embed_id: 'hash-parent-embed',
         key_type: 'master',
         hashed_chat_id: null,
         encrypted_embed_key: 'wrapped-parent-key',
         hashed_user_id: 'hashed-user',
         created_at: 0
       }
-    ]);
+    ] : []);
 
     const key1 = await store.getEmbedKey('child-embed', 'hashed-chat');
     expect(key1).toBe(expectedKey);
@@ -88,6 +90,43 @@ describe('EmbedStore.getEmbedKey', () => {
     expect(key2).toBe(expectedKey);
 
     expect(cryptoService.unwrapEmbedKeyWithMasterKey).toHaveBeenCalledTimes(1);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=authored-results.lifecycle.encrypted-and-stable,authored-results.actions.truthful-and-explicit
+  it('shares an independently encrypted child with its own key after cold-cache recovery', async () => {
+    const store = new EmbedStore();
+    const childKey = new Uint8Array([1, 2, 3, 4]);
+    const parentKey = new Uint8Array([9, 8, 7, 6]);
+    vi.spyOn(store, 'getRawEntry').mockResolvedValue({ parent_embed_id: 'carrier' });
+    const wrappers = vi.spyOn(store, 'getEmbedKeyEntries').mockResolvedValue([{
+      hashed_embed_id: 'hash-authored-child', key_type: 'master', hashed_chat_id: null,
+      encrypted_embed_key: 'wrapped-child', hashed_user_id: 'owner', created_at: 0,
+    }]);
+    const unwrap = vi.spyOn(cryptoService, 'unwrapEmbedKeyWithMasterKey').mockResolvedValue(childKey);
+    store.setEmbedKeyInCache('carrier', parentKey);
+
+    // Owner rendering can have a chat-scoped key while share generation asks
+    // without a chat ID. Both lookups must resolve the same child authority.
+    expect(await store.getEmbedKey('authored-child', 'chat-hash')).toBe(childKey);
+    expect(await store.getEmbedKey('authored-child')).toBe(childKey);
+    expect(wrappers).toHaveBeenCalledWith('hash-authored-child');
+    expect(unwrap).toHaveBeenCalledWith('wrapped-child', 'authored-child');
+    expect(await store.getEmbedKey('embed:authored-child')).toBe(childKey);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=authored-results.lifecycle.encrypted-and-stable,chats.persistence.client-encrypted
+  it('does not substitute a parent key when a direct child wrapper cannot be unwrapped', async () => {
+    const store = new EmbedStore();
+    store.setEmbedKeyInCache('carrier', new Uint8Array([9, 8, 7, 6]));
+    const parentLookup = vi.spyOn(store, 'getRawEntry').mockResolvedValue({ parent_embed_id: 'carrier' });
+    vi.spyOn(store, 'getEmbedKeyEntries').mockResolvedValue([{
+      hashed_embed_id: 'hash-inaccessible-child', key_type: 'master', hashed_chat_id: null,
+      encrypted_embed_key: 'invalid-wrapper', hashed_user_id: 'owner', created_at: 0,
+    }]);
+    vi.spyOn(cryptoService, 'unwrapEmbedKeyWithMasterKey').mockResolvedValue(null);
+
+    expect(await store.getEmbedKey('inaccessible-child')).toBeNull();
+    expect(parentLookup).not.toHaveBeenCalled();
   });
 
   // contract-test: supporting surface=gui.web assertions=chats.sync.key-gated-recovery,chats.persistence.client-encrypted

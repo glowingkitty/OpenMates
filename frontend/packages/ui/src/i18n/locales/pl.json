@@ -7843,6 +7843,9 @@
         },
         "not_available": {
           "text": "N/D"
+        },
+        "cash_flow": {
+          "text": "Przepływy pieniężne"
         }
       },
       "search_trademarks": {
@@ -8077,6 +8080,11 @@
         "text": "Watermarking"
       }
     },
+    "search_domain": {
+      "minutes": {
+        "text": "{count} min"
+      }
+    },
     "projects": {
       "references": {
         "subtitle": {
@@ -8264,6 +8272,133 @@
       },
       "no_frame": {
         "text": "Brak zapisanego zrzutu ekranu."
+      }
+    },
+    "authoring": {
+      "draft": {
+        "text": "Wersja robocza"
+      },
+      "user_provided": {
+        "text": "Dostarczone przez użytkownika"
+      },
+      "sources": {
+        "text": "Źródła"
+      },
+      "observed_at": {
+        "text": "Zaobserwowano"
+      },
+      "image_credit": {
+        "text": "Autor zdjęcia"
+      },
+      "partial": {
+        "text": "Wynik częściowy"
+      },
+      "uploaded_source": {
+        "text": "Przesłane źródło"
+      },
+      "approximate_location": {
+        "text": "Przybliżona lokalizacja"
+      },
+      "schematic_route": {
+        "text": "Schematyczna trasa"
+      },
+      "unmapped": {
+        "text": "Lokalizacja niedostępna"
+      },
+      "open_source": {
+        "text": "Otwórz stronę źródłową"
+      },
+      "additional_times": {
+        "text": "Dodatkowe terminy"
+      }
+    },
+    "tv": {
+      "movie": {
+        "text": "Film"
+      },
+      "series": {
+        "text": "Serial telewizyjny"
+      },
+      "poster_unavailable": {
+        "text": "Plakat niedostępny"
+      },
+      "synopsis": {
+        "text": "Opis fabuły"
+      },
+      "release_date": {
+        "text": "Data premiery"
+      },
+      "runtime": {
+        "text": "Czas trwania"
+      },
+      "genres": {
+        "text": "Gatunki"
+      },
+      "directors": {
+        "text": "Reżyseria"
+      },
+      "creators": {
+        "text": "Twórcy"
+      },
+      "cast": {
+        "text": "Obsada"
+      },
+      "language": {
+        "text": "Język oryginalny"
+      },
+      "countries": {
+        "text": "Kraje"
+      },
+      "content_rating": {
+        "text": "Kategoria wiekowa"
+      },
+      "score": {
+        "text": "Ocena źródłowa"
+      },
+      "score_votes": {
+        "text": "Liczba głosów: {count}"
+      },
+      "first_air_date": {
+        "text": "Pierwsza emisja"
+      },
+      "last_air_date": {
+        "text": "Ostatnia emisja"
+      },
+      "series_status": {
+        "text": "Status serialu"
+      },
+      "season_count": {
+        "text": "Liczba sezonów: {count}"
+      },
+      "episodes": {
+        "text": "Odcinki"
+      },
+      "episode_count": {
+        "text": "Liczba odcinków: {count}"
+      },
+      "season": {
+        "text": "Sezon {number}"
+      },
+      "specials": {
+        "text": "Odcinki specjalne"
+      },
+      "supplied_seasons": {
+        "text": "Dostarczone sezony"
+      },
+      "partial_seasons": {
+        "text": "Wyświetlane są tylko dostarczone informacje o sezonach."
+      },
+      "year": {
+        "text": "Rok"
+      },
+      "preparing": {
+        "text": "Przygotowywanie tytułu…"
+      },
+      "cancelled": {
+        "text": "Tworzenie tytułu anulowane"
+      },
+      "unavailable": {
+        "text": "Tytuł niedostępny"
       }
     }
   },
@@ -14463,6 +14598,9 @@
     },
     "nighttime": {
       "text": "W nocy"
+    },
+    "instructor": {
+      "text": "Instruktor"
     }
   },
   "rules": {},

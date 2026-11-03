@@ -133,6 +133,7 @@ class EmbedVersionTransactionService:
         bundle_context: Mapping[str, Any] | None = None,
         canonical_metadata_enrichment: Mapping[str, Any] | None = None,
         canonical_precondition: CanonicalEmbedPrecondition | None = None,
+        authored_asset_binding: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Persist one client-encrypted embed under the Project revision lock."""
         token = os.getenv("INTERNAL_API_SHARED_TOKEN")
@@ -151,6 +152,8 @@ class EmbedVersionTransactionService:
                    if canonical_metadata_enrichment is not None else {}),
                 **({"canonical_precondition": validate_canonical_precondition(canonical_precondition)}
                    if canonical_precondition is not None else {}),
+                **({"authored_asset_binding": dict(authored_asset_binding)}
+                   if authored_asset_binding is not None else {}),
             },
         )
         try:

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { homeListingContent, homeImages, homeHasAmenity, homeMatchesFilters, homeMapGeometry, homeApproximate } from './homeListingData';
+import { homeListingContent, homeImages, homeHasAmenity, homeMatchesFilters, homeMapGeometry, homeApproximate, homeRentRows } from './homeListingData';
 
 describe('persisted home listing evidence hydration', () => {
   // contract-test: direct surface=gui.web assertions=home-search.listings.rich-provider-evidence,app-skills.history.renderable
@@ -61,4 +61,48 @@ describe('home location geometry truthfulness', () => {
       expect(homeMapGeometry(value)).toBeUndefined();
     }
   });
+});
+
+// contract-test: supporting surface=gui.web assertions=authored-results.maps.source-faithful-geometry
+describe('authored Home source-described circles', () => {
+  it('retains an explicit authored catalog circle without inferring a district or geocoding', () => {
+    const area = { name: 'Supplied neighborhood', lat: 52.52, lon: 13.405, radius_m: 500 };
+    const content = { authoring: { kind: 'home.listing', origin: 'draft' }, location_area: area };
+    expect(homeMapGeometry(content)).toEqual({ lat: 52.52, lon: 13.405, radiusM: 500, areaBasis: 'description', areaName: 'Supplied neighborhood' });
+    expect(content.location_area).toEqual(area);
+    expect(homeMapGeometry({ location_area: area })).toBeUndefined();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=authored-results.maps.source-faithful-geometry
+  it('never fabricates an extent from an authored centroid or accepts an invalid supplied circle', () => {
+    const authoring = { kind: 'home.listing', origin: 'draft' };
+    expect(homeMapGeometry({ authoring, latitude: 52.52, longitude: 13.405, location_approximate: true })).toBeUndefined();
+    expect(homeMapGeometry({ authoring, location_area: { lat: 52.52, lon: 13.405 } })).toBeUndefined();
+    expect(homeMapGeometry({ authoring, location_area: { lat: 120, lon: 13.405, radius_m: 500 } })).toBeUndefined();
+    expect(homeMapGeometry({ authoring, location_area: { lat: 52.52, lon: 13.405, radius_m: 0 } })).toBeUndefined();
+  });
+});
+
+// contract-test: supporting surface=gui.web assertions=authored-results.content.typed-and-useful,authored-results.facts.provenance-and-drafts
+it('retains supplied named amenities while preserving explicit absence and unlisted unknowns', () => {
+  const listing = homeListingContent({amenities: ['Balcony', 'Bike storage'], furnished: false});
+  expect(listing.amenities).toEqual({balcony: true, 'Bike storage': true});
+  expect(homeHasAmenity(listing, 'balcony')).toBe(true);
+  expect(homeHasAmenity(listing, 'furnished')).toBe(false);
+  expect(homeHasAmenity(listing, 'parking')).toBe(false);
+  expect(listing.amenities).not.toHaveProperty('parking');
+  expect(homeHasAmenity({...listing, balcony: false}, 'balcony')).toBe(false);
+});
+
+// contract-test: supporting surface=gui.web assertions=authored-results.content.typed-and-useful,authored-results.facts.provenance-and-drafts
+it('keeps supplied rent component zeroes, currency and period without calculating totals or defaults', () => {
+  expect(homeRentRows({rent_components: {base_rent: 1200, utilities: 0, currency: 'GBP', period: 'week'}})).toEqual([
+    {key: 'rent_components.base_rent', labelKey: 'cold_rent_eur', value: '1,200 GBP / week'},
+    {key: 'rent_components.utilities', labelKey: 'utilities_eur', value: '0 GBP / week'},
+  ]);
+  expect(homeRentRows({base_rent: 0, rent_components: {utilities: 25}})).toEqual([
+    {key: 'base_rent', labelKey: 'cold_rent_eur', value: '0'},
+    {key: 'rent_components.utilities', labelKey: 'utilities_eur', value: '25'},
+  ]);
+  expect(homeRentRows({})).toEqual([]);
 });

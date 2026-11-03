@@ -44,7 +44,7 @@ export const mount = ((component, options) => {
       marker?.dataset.embedPreviewRegistryKey,
     ));
   }
-  if (source) context.set(EMBED_SOURCE_CHAT_CONTEXT, { chatId: source });
+  if (source && !context.has(EMBED_SOURCE_CHAT_CONTEXT)) context.set(EMBED_SOURCE_CHAT_CONTEXT, { chatId: source });
   const instance = svelteMount(component, { ...options, context });
   const instances = mounted.get(options.target) ?? new Set<ComponentHandle>();
   instances.add(instance);

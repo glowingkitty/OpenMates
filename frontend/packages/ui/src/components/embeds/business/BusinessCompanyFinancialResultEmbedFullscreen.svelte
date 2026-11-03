@@ -1,11 +1,13 @@
 <!--
   frontend/packages/ui/src/components/embeds/business/BusinessCompanyFinancialResultEmbedFullscreen.svelte
 
-  Fullscreen view for one SEC EDGAR company-financial result. It emphasizes
+  Fullscreen view for one company-financial observation. It emphasizes
   auditable source filing metadata and avoids investment-advice framing.
 -->
 
 <script lang="ts">
+  import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from "../../../types/authoredResult";
+  import { getContext } from "svelte";
   import { text } from '@repo/ui';
   import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
   import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
@@ -31,17 +33,35 @@
     onNavigatePrevious,
     onNavigateNext,
   }: Props = $props();
+  const authoredContext = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
+  let isAuthored = $derived(Boolean(authoredContext?.authoring || data?.decodedContent?.authoring));
 
-  let financialContent = $derived({
-    ...(data.embedData ?? {}),
-    ...(data.attrs ?? {}),
-    ...(data.decodedContent ?? {}),
-  } as Record<string, unknown>);
+  let financialContent = $derived.by(() => {
+    const content = {
+      ...(data.embedData ?? {}),
+      ...(data.attrs ?? {}),
+      ...(data.decodedContent ?? {}),
+    } as Record<string, unknown>;
+    return content;
+  });
   let company = $derived(asString(financialContent.company) || asString(financialContent.ticker) || $text('embeds.business.company_financials.result_title'));
   let ticker = $derived(asString(financialContent.ticker));
   let providerSubtitle = $derived([ticker, asString(financialContent.form), asString(financialContent.filed)].filter(Boolean).join(' · '));
-  let sourceUrl = $derived(asString(financialContent.source_url));
-  let currency = $derived(asString(financialContent.currency) || 'USD');
+  let sourceUrl = $derived(asString(financialContent.source_url) || asString(financialContent.url));
+  // Generic supplied observations are not automatically SEC filings. Keep the
+  // existing provider presentation for legacy results and identifiable SEC data.
+  let isSecFiling = $derived(!isAuthored || isSecSource(sourceUrl)
+    || /^(?:10-[KQ]|20-F|40-F|6-K|8-K)(?:\/A)?$/i.test(asString(financialContent.form)));
+
+  function isSecSource(value: string): boolean {
+    try {
+      const hostname = new URL(value).hostname.toLowerCase();
+      return hostname === 'sec.gov' || hostname.endsWith('.sec.gov');
+    } catch {
+      return false;
+    }
+  }
+  let currency = $derived(asString(financialContent.currency) || (isAuthored ? '' : 'USD'));
   let notes = $derived(Array.isArray(financialContent.notes) ? financialContent.notes.filter((note): note is string => typeof note === 'string') : []);
   let rows = $derived([
     ['revenue', $text('embeds.business.company_financials.revenue')],
@@ -49,10 +69,11 @@
     ['operating_income', $text('embeds.business.company_financials.operating_income')],
     ['net_income', $text('embeds.business.company_financials.net_income')],
     ['operating_cash_flow', $text('embeds.business.company_financials.operating_cash_flow')],
+    ['cash_flow', $text('embeds.business.company_financials.cash_flow')],
     ['assets', $text('embeds.business.company_financials.assets')],
     ['liabilities', $text('embeds.business.company_financials.liabilities')],
     ['equity', $text('embeds.business.company_financials.equity')],
-  ].filter(([key]) => typeof financialContent[key] === 'number'));
+  ].filter(([key]) => asNumber(financialContent[key]) !== null));
 
   function asString(value: unknown): string {
     return typeof value === 'string' ? value : '';
@@ -65,6 +86,7 @@
   function formatMoney(value: unknown): string {
     const amount = asNumber(value);
     if (amount === null) return $text('embeds.business.company_financials.not_available');
+    if (!currency) return new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 2 }).format(amount);
     return new Intl.NumberFormat(undefined, {
       style: 'currency',
       currency,
@@ -75,15 +97,17 @@
 
   function formatPeriod(): string {
     const year = asNumber(financialContent.fiscal_year);
-    const quarter = asString(financialContent.fiscal_quarter);
-    if (asString(financialContent.period_type) === 'quarter' && quarter && year) return `${quarter} ${year}`;
+    const quarterNumber = asNumber(financialContent.fiscal_quarter);
+    const quarter = quarterNumber !== null && Number.isInteger(quarterNumber) && quarterNumber >= 1 && quarterNumber <= 4
+      ? `Q${quarterNumber}` : asString(financialContent.fiscal_quarter);
+    if (quarter) return [quarter, year].filter(value => value !== null).join(' ');
     if (year) return `FY ${year}`;
     return asString(financialContent.period_end) || $text('embeds.business.company_financials.period');
   }
 </script>
 
 <ResultEmbedFullscreen
-  result={Object.fromEntries(["company", "ticker", "source_url", "fiscal_year", "fiscal_quarter", "period_end", "currency", "revenue", "net_income"].filter(key => financialContent[key] !== undefined).map(key => [key, financialContent[key]]))}
+  result={Object.fromEntries(["company", "ticker", "source_url", "fiscal_year", "fiscal_quarter", "period_end", "currency", "revenue", "gross_profit", "operating_income", "net_income", "operating_cash_flow", "cash_flow", "assets", "liabilities", "equity"].filter(key => financialContent[key] !== undefined).map(key => [key, financialContent[key]]))}
   appId="business"
   skillId="company_financial_result"
   skillIconName="business"
@@ -99,7 +123,7 @@
 >
   {#snippet embedHeaderCta()}
     {#if sourceUrl}
-      <EmbedHeaderCtaButton label={$text('embeds.business.company_financials.open_filing')} href={sourceUrl} testId="business-open-sec-filing" />
+      <EmbedHeaderCtaButton label={$text(isSecFiling ? 'embeds.business.company_financials.open_filing' : 'embeds.authoring.open_source')} href={sourceUrl} testId={isSecFiling ? "business-open-sec-filing" : "business-open-financial-source"} />
     {/if}
   {/snippet}
 
@@ -109,7 +133,7 @@
   {#snippet detailContent()}
     <div class="business-financial-fullscreen" data-testid="business-financial-result-fullscreen">
       <section class="hero-card">
-        <p class="kicker">{$text('embeds.business.company_financials.sec_filing')}</p>
+        <p class="kicker">{$text(isSecFiling ? 'embeds.business.company_financials.sec_filing' : 'embeds.business.company_financials.result_title')}</p>
         <h2>{company}</h2>
         <p>{formatPeriod()} · {[asString(financialContent.period_start), asString(financialContent.period_end)].filter(Boolean).join(' - ')}</p>
       </section>

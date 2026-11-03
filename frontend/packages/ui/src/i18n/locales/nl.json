@@ -7843,6 +7843,9 @@
         },
         "not_available": {
           "text": "n.v.t."
+        },
+        "cash_flow": {
+          "text": "Kasstroom"
         }
       },
       "search_trademarks": {
@@ -8077,6 +8080,11 @@
         "text": "Watermarking"
       }
     },
+    "search_domain": {
+      "minutes": {
+        "text": "{count} min"
+      }
+    },
     "projects": {
       "references": {
         "subtitle": {
@@ -8264,6 +8272,133 @@
       },
       "no_frame": {
         "text": "Er is geen opgeslagen schermafbeelding beschikbaar."
+      }
+    },
+    "authoring": {
+      "draft": {
+        "text": "Concept"
+      },
+      "user_provided": {
+        "text": "Door gebruiker aangeleverd"
+      },
+      "sources": {
+        "text": "Bronnen"
+      },
+      "observed_at": {
+        "text": "Waargenomen op"
+      },
+      "image_credit": {
+        "text": "Afbeeldingscredit"
+      },
+      "partial": {
+        "text": "Gedeeltelijk resultaat"
+      },
+      "uploaded_source": {
+        "text": "Geüploade bron"
+      },
+      "approximate_location": {
+        "text": "Geschatte locatie"
+      },
+      "schematic_route": {
+        "text": "Schematische route"
+      },
+      "unmapped": {
+        "text": "Locatie niet beschikbaar"
+      },
+      "open_source": {
+        "text": "Bronpagina openen"
+      },
+      "additional_times": {
+        "text": "Andere tijden"
+      }
+    },
+    "tv": {
+      "movie": {
+        "text": "Film"
+      },
+      "series": {
+        "text": "Tv-serie"
+      },
+      "poster_unavailable": {
+        "text": "Poster niet beschikbaar"
+      },
+      "synopsis": {
+        "text": "Samenvatting"
+      },
+      "release_date": {
+        "text": "Releasedatum"
+      },
+      "runtime": {
+        "text": "Speelduur"
+      },
+      "genres": {
+        "text": "Genres"
+      },
+      "directors": {
+        "text": "Regisseurs"
+      },
+      "creators": {
+        "text": "Makers"
+      },
+      "cast": {
+        "text": "Acteurs"
+      },
+      "language": {
+        "text": "Oorspronkelijke taal"
+      },
+      "countries": {
+        "text": "Landen"
+      },
+      "content_rating": {
+        "text": "Leeftijdsclassificatie"
+      },
+      "score": {
+        "text": "Score van de bron"
+      },
+      "score_votes": {
+        "text": "{count} stemmen"
+      },
+      "first_air_date": {
+        "text": "Eerste uitzending"
+      },
+      "last_air_date": {
+        "text": "Laatste uitzending"
+      },
+      "series_status": {
+        "text": "Seriestatus"
+      },
+      "season_count": {
+        "text": "{count} seizoenen"
+      },
+      "episodes": {
+        "text": "Afleveringen"
+      },
+      "episode_count": {
+        "text": "{count} afleveringen"
+      },
+      "season": {
+        "text": "Seizoen {number}"
+      },
+      "specials": {
+        "text": "Specials"
+      },
+      "supplied_seasons": {
+        "text": "Aangeleverde seizoenen"
+      },
+      "partial_seasons": {
+        "text": "Alleen aangeleverde seizoensdetails worden getoond."
+      },
+      "year": {
+        "text": "Jaar"
+      },
+      "preparing": {
+        "text": "Titel voorbereiden…"
+      },
+      "cancelled": {
+        "text": "Titel maken geannuleerd"
+      },
+      "unavailable": {
+        "text": "Titel niet beschikbaar"
       }
     }
   },
@@ -14463,6 +14598,9 @@
     },
     "nighttime": {
       "text": "'s Nachts"
+    },
+    "instructor": {
+      "text": "Instructeur"
     }
   },
   "rules": {},

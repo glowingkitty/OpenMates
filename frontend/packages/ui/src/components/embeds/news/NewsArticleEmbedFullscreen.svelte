@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { getContext, setContext } from 'svelte';
+  import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext, type AuthoredResultMetadata } from '../../../types/authoredResult';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { searchResultImageUrl } from '../../../utils/searchPreviewImages';
   import NewsEmbedFullscreen from './NewsEmbedFullscreen.svelte';
@@ -10,6 +12,13 @@
     onShowChat?: () => void; hasPreviousEmbed?: boolean; hasNextEmbed?: boolean;
     onNavigatePrevious?: () => void; onNavigateNext?: () => void; navigateDirection?: 'previous' | 'next';
   } = $props();
+  // Direct component previews enter through this raw-data adapter too.
+  if (!getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT)) {
+    setContext<AuthoredResultPresentationContext>(AUTHORED_RESULT_PRESENTATION_CONTEXT, {
+      get authoring() { return data.decodedContent.authoring as AuthoredResultMetadata | undefined; },
+      get content() { return data.decodedContent; },
+    });
+  }
   const content = $derived(data.decodedContent);
   const text = (value: unknown): string | undefined => typeof value === 'string' ? value : undefined;
   const metaUrl = $derived(content.meta_url && typeof content.meta_url === 'object' ? content.meta_url as Record<string, unknown> : {});
@@ -21,4 +30,4 @@
   description={text(content.description) ?? text(content.snippet)}
   favicon={text(content.favicon) ?? text(content.favicon_url) ?? text(content.meta_url_favicon) ?? text(content['meta_url.favicon']) ?? text(metaUrl.favicon)}
   image={searchResultImageUrl(content)} extra_snippets={content.extra_snippets as string | string[] | undefined}
-  dataDate={text(content.page_age) ?? text(content.age)} />
+  dataDate={text(content.published_at) ?? text(content.page_age) ?? text(content.age)} />

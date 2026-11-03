@@ -26,7 +26,7 @@ describe('historical source child recovery', () => {
       ? { embed_id: parent, hashed_chat_id: `hash-${chat}`, hashed_user_id: 'hash-owner', status: 'finished' }
       : ref === `embed:${child}` ? localChild ?? null : null);
     vi.spyOn(store, 'storeEmbedKeys').mockResolvedValue();
-    vi.spyOn(store, 'putEncrypted').mockImplementation(async (_ref, row) => { localChild = row; });
+    vi.spyOn(store, 'putEncrypted').mockImplementation(async (_ref, row) => { localChild = { ...row, has_encrypted_content: typeof row.encrypted_content === 'string' }; });
     vi.spyOn(store, 'getEmbedKeyEntries').mockResolvedValue([{ hashed_embed_id: `hash-${parent}`,
       hashed_user_id: 'hash-owner', key_type: 'master', hashed_chat_id: null, encrypted_embed_key: 'wrapped', created_at: 1 }]);
     fetched = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({
@@ -60,10 +60,11 @@ describe('historical source child recovery', () => {
   });
   // contract-test: supporting surface=gui.web assertions=chats.sync.key-gated-recovery,chats.rendering.assistant-document-convergence
   it('aborts writes when the selected chat changes while the request runs', async () => {
-    const response = fetched.getMockImplementation()!;
-    fetched.mockImplementation(async (...args) => {
+    const response = await fetched();
+    fetched.mockClear();
+    fetched.mockImplementation(async () => {
       activeChatStore.setActiveChat('another-chat');
-      return response(...args);
+      return response;
     });
     await recover(store, [child]);
     expect(store.putEncrypted).not.toHaveBeenCalled();
@@ -83,7 +84,7 @@ describe('historical source child recovery', () => {
     const parentRow = (id: string) => ({ embed_id: id, contentRef: `embed:${id}`,
       hashed_chat_id: `hash-${chat}`, hashed_user_id: 'hash-owner', status: 'finished' });
     const cached = new Map(cachedIds.map(id => [id, { ...parentRow(id), parent_embed_id: earlierParent,
-      encrypted_content: 'cached ciphertext' }]));
+      has_encrypted_content: true }]));
     vi.mocked(store.getRawEntry).mockImplementation(async ref => {
       const id = ref.slice('embed:'.length);
       return id === parent || id === earlierParent ? parentRow(id)
@@ -112,11 +113,38 @@ describe('historical source child recovery', () => {
   // contract-test: supporting surface=gui.web assertions=chats.sync.key-gated-recovery,chats.rendering.assistant-document-convergence
   it('still validates cached children when the missing-read allowance is exhausted', async () => {
     localChild = { embed_id: child, parent_embed_id: parent, hashed_chat_id: `hash-${chat}`,
-      hashed_user_id: 'hash-owner', status: 'finished', encrypted_content: 'ciphertext' };
+      hashed_user_id: 'hash-owner', status: 'finished', has_encrypted_content: true };
     const spent = new Set(Array.from({ length: 50 }, (_, i) => `${String(i).padStart(8, '0')}-aaaa-bbbb-cccc-dddddddddddd`));
     await expect(recover(store, [child], spent)).resolves.toEqual([child]);
     expect(fetched).not.toHaveBeenCalled();
   });
+
+  // contract-test: supporting surface=gui.web assertions=chats.sync.key-gated-recovery,chats.rendering.assistant-document-convergence
+  it.each([{ hashed_team_id: 'team' }, { encryption_mode: 'vault' }, { has_encrypted_content: false }])(
+    'rejects cached children outside the readable Personal scope: %j', async (invalid) => {
+      localChild = { embed_id: child, parent_embed_id: parent, hashed_chat_id: `hash-${chat}`,
+        hashed_user_id: 'hash-owner', status: 'finished', has_encrypted_content: true, ...invalid };
+      await expect(recover(store, [child])).resolves.toEqual([]);
+      expect(fetched).not.toHaveBeenCalled();
+    });
+
+  // contract-test: supporting surface=gui.web assertions=chats.sync.key-gated-recovery,chats.rendering.assistant-document-convergence
+  it.each(['separate', 'legacy-json', 'legacy-object'])(
+    'preserves scope metadata without exposing ciphertext for %s rows', async (format) => {
+      vi.mocked(store.getRawEntry).mockRestore();
+      const row = { embed_id: child, parent_embed_id: parent, hashed_team_id: 'team',
+        encryption_mode: 'vault', encrypted_content: 'ciphertext' };
+      const stored = format === 'separate' ? row
+        : { data: format === 'legacy-json' ? JSON.stringify(row) : row };
+      vi.spyOn(chatDB, 'getTransaction').mockResolvedValue({ objectStore: () => ({ get: () => {
+        const request = { result: stored, onsuccess: undefined as undefined | (() => void) };
+        queueMicrotask(() => request.onsuccess?.());
+        return request;
+      } }) } as any);
+      const raw = await store.getRawEntry(`embed:${child}`);
+      expect(raw).toMatchObject({ hashed_team_id: 'team', encryption_mode: 'vault', has_encrypted_content: true });
+      expect(raw).not.toHaveProperty('encrypted_content');
+    });
 
   // contract-test: supporting surface=gui.web assertions=chats.sync.key-gated-recovery,chats.rendering.assistant-document-convergence
   it('does not charge a fresh read allowance for a child still in cooldown', async () => {
@@ -145,7 +173,7 @@ describe('historical source child recovery', () => {
     ]);
     vi.spyOn(store as any, 'collectAllRefRepairCandidatesFromCache').mockReturnValue([]);
     vi.spyOn(store as any, 'collectAllRefRepairCandidatesFromIndexedDb').mockResolvedValue([]);
-    vi.mocked(store.putEncrypted).mockImplementation(async (_ref, row) => { saved = true; localChild = row; });
+    vi.mocked(store.putEncrypted).mockImplementation(async (_ref, row) => { saved = true; localChild = { ...row, has_encrypted_content: typeof row.encrypted_content === 'string' }; });
     vi.spyOn(store, 'get').mockImplementation(async (ref) => {
       if (ref === `embed:${parent}`) return { content: JSON.stringify({ embed_ids: [child] }) };
       if (ref === `embed:${child}` && saved) return { content: JSON.stringify({ embed_ref: 'exact-semantic-ref', app_id: 'images' }) };

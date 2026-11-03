@@ -1,7 +1,8 @@
 <!-- Home result card: uncropped photo or factual location-map fallback in the shared result shell. -->
 
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from "../../../types/authoredResult";
+  import { getContext, onMount } from "svelte";
   import { homePreviewCity, resolveHomePreviewCity } from "./homePreviewLocation";
   import type { HomeMapGeometry } from "./homeListingData";
   import House from '@lucide/svelte/icons/house';
@@ -76,7 +77,10 @@
     isMobile = false,
     resultContext = "auto",
   }: Props = $props();
+  const authoredContext = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
+  let isAuthored = $derived(Boolean(authoredContext?.authoring));
 
+  let displayPriceLabel = $derived(price_label || (isAuthored && typeof authoredContext?.content.price === 'number' ? `${authoredContext.content.price}${typeof authoredContext.content.currency === 'string' ? ` ${authoredContext.content.currency}` : ''}` : ''));
   let imageError = $state(false);
   $effect(() => {
     void image_url;
@@ -94,7 +98,7 @@
   let cityGeometry = $state<HomeMapGeometry>();
   let cityLoading = $state(false);
   const locality = $derived(homePreviewCity(city, address));
-  const suppliedGeometry = $derived(homeMapGeometry({ latitude: lat, longitude: lon, address, location_precision, location_approximate, location: { exact_address: location_exact_address, area: homeObject(location_area) } }));
+  const suppliedGeometry = $derived(homeMapGeometry({ authoring: authoredContext?.authoring, latitude: lat, longitude: lon, address, location_precision, location_approximate, location: { exact_address: location_exact_address, area: homeObject(location_area ?? authoredContext?.content.location_area ?? homeObject(authoredContext?.content.location).area) } }));
   onMount(() => {
     if (!host) return;
     if (typeof IntersectionObserver === 'undefined') { visible = true; return; }
@@ -105,7 +109,7 @@
   $effect(() => {
     cityGeometry = undefined;
     cityLoading = false;
-    if (proxiedImageUrl || suppliedGeometry || !locality || !visible) return;
+    if (isAuthored || proxiedImageUrl || suppliedGeometry || !locality || !visible) return;
     let active = true;
     cityLoading = true;
     void resolveHomePreviewCity(locality).then(value => {
@@ -116,10 +120,10 @@
   const geometry = $derived(suppliedGeometry || cityGeometry);
   const mapCenter = $derived(geometry ? { lat: geometry.lat, lon: geometry.lon } : undefined);
   const mapMarkers = $derived(geometry ? [{ ...geometry, homeLocation: true, testId: geometry.radiusM ? "home-preview-location-area" : "home-preview-location-pin", label: `${geometry.areaBasis === 'city' ? locality || '' : address || title || ''} · ${geometry.radiusM ? $text("home_listing.approximate") : $text("home_listing.building")}` }] : []);
-  let sizeDisplay = $derived(size_sqm ? `${size_sqm} m\u00B2` : undefined);
+  let sizeDisplay = $derived(size_sqm != null ? `${size_sqm} m\u00B2` : undefined);
 
   let roomsDisplay = $derived(
-    rooms ? `${rooms} ${rooms === 1 ? "room" : "rooms"}` : undefined,
+    rooms != null ? `${rooms} ${rooms === 1 ? "room" : "rooms"}` : undefined,
   );
 
 
@@ -162,7 +166,7 @@
       <ResultEmbedCard title={title || $text("home_listing.listing")} media={listingMedia} mediaFit="contain">
         {#snippet badge()}{#if available_from}<EmbedCalendarDate date={available_from} />{/if}{/snippet}
         {#snippet facts()}
-          {#if price_label}<span class="listing-price">{price_label}</span>{/if}
+          {#if displayPriceLabel}<span class="listing-price">{displayPriceLabel}</span>{/if}
           <div class="listing-extra">
             {#if address || provider}<span class="listing-location">{address || provider}</span>{/if}
             {#if sizeDisplay}<span title={sizeDisplay}><House size={14} aria-hidden="true" />{sizeDisplay}</span>{/if}

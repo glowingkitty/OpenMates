@@ -49,6 +49,7 @@ from backend.apps.ai.utils.app_skill_result_groups import sanitize_shopping_visu
 from backend.shared.python_utils.chat_recovery_context import (
     RequiredRecoveryOutputError,
     active_recovery_output_context,
+    active_legacy_output_context,
     active_verified_output_producer,
 )
 
@@ -73,6 +74,26 @@ APPLICATION_THUMBNAIL_LOCK_SECONDS = 30
 APPLICATION_THUMBNAIL_LOCK_RETRY_SECONDS = 0.1
 APPLICATION_THUMBNAIL_LOCK_RETRIES = 50
 IMAGE_SEARCH_PREVIEW_RESULT_LIMIT = 10
+
+
+def _validated_recovery_storage_references(value: Any) -> list[dict[str, str]] | None:
+    """Validate optional server-owned retention metadata; None keeps legacy semantics."""
+    if value is None:
+        return None
+    if not isinstance(value, list) or len(value) > 64:
+        raise RequiredRecoveryOutputError("Invalid output storage references")
+    references: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for entry in value:
+        if not isinstance(entry, dict) or set(entry) != {"bucket", "key"}:
+            raise RequiredRecoveryOutputError("Invalid output storage references")
+        key = entry.get("key")
+        if (entry.get("bucket") != "chatfiles" or not isinstance(key, str)
+                or not key.strip() or len(key) > 4096 or key in seen):
+            raise RequiredRecoveryOutputError("Invalid output storage references")
+        seen.add(key)
+        references.append({"bucket": "chatfiles", "key": key})
+    return references
 WEB_SEARCH_PREVIEW_RESULT_LIMIT = 6
 GENERIC_RESULT_LIST_PREVIEW_RESULT_LIMIT = 6
 APPLICATION_ARTIFACT_SOURCE_EXTENSIONS = (
@@ -3657,6 +3678,8 @@ class EmbedService:
             embed_data = {
                 "embed_id": embed_id,
                 "type": embed_type,
+                "app_id": app_id,
+                "skill_id": skill_id,
                 "chat_id": chat_id,
                 "message_id": message_id,
                 "hashed_chat_id": hashed_chat_id,
@@ -3684,6 +3707,8 @@ class EmbedService:
                 user_id=user_id,
                 user_id_hash=user_id_hash,
                 status="processing",
+                app_id=app_id,
+                skill_id=skill_id,
                 task_id=task_id,
                 is_private=False,
                 is_shared=False,
@@ -6545,7 +6570,14 @@ class EmbedService:
                 or active_verified_output_producer.get() is not None):
             raise RequiredRecoveryOutputError("Composite recovery scope changed")
         try:
-            await self._save_completed_embed_recovery_batch([item["payload"] for item in batch["items"]])
+            await self._save_completed_embed_recovery_batch(
+                [item["payload"] for item in batch["items"]],
+                s3_file_keys_by_embed={
+                    item["payload"]["payload"]["embed_id"]: item["finished_cache_data"].get("s3_file_keys")
+                    for item in batch["items"] if isinstance(item.get("finished_cache_data"), dict)
+                    and item["finished_cache_data"].get("s3_file_keys") is not None
+                },
+            )
             for item in batch["items"]:
                 if not await self._publish_prepared_embed(**item):
                     raise RequiredRecoveryOutputError("Required composite embed delivery failed")
@@ -6555,7 +6587,10 @@ class EmbedService:
         except Exception as exc:
             raise RequiredRecoveryOutputError("Composite embed recovery save or delivery failed") from exc
 
-    async def _save_completed_embed_recovery_batch(self, payloads: list[dict[str, Any]]) -> None:
+    async def _save_completed_embed_recovery_batch(
+        self, payloads: list[dict[str, Any]], *,
+        s3_file_keys_by_embed: dict[str, list[dict[str, str]]] | None = None,
+    ) -> None:
         """Probe and seal bounded ordinary outputs; retain specialized/S3 handling."""
         context = active_recovery_output_context.get()
         if context is None or active_verified_output_producer.get() is not None:
@@ -6563,6 +6598,8 @@ class EmbedService:
         if not payloads:
             return
         data = [payload["payload"] for payload in payloads]
+        references = {embed_id: _validated_recovery_storage_references(value)
+                      for embed_id, value in (s3_file_keys_by_embed or {}).items()}
         if (len({row["embed_id"] for row in data}) != len(data)
                 or len({row["message_id"] for row in data}) != 1
                 or any(row.get("chat_id") != context.target_chat_id
@@ -6570,7 +6607,9 @@ class EmbedService:
             raise RequiredRecoveryOutputError("Composite recovery output identity mismatch")
         if any(row.get("version_history_rows") for row in data):
             for payload in payloads:
-                await self._save_completed_embed_recovery(payload)
+                await self._save_completed_embed_recovery(
+                    payload, s3_file_keys=references.get(payload["payload"]["embed_id"]),
+                )
             return
         # This fresh classification is shared by the bounded group, never cached
         # as permission. Project-owned IDs still require their atomic envelope.
@@ -6594,7 +6633,11 @@ class EmbedService:
             version = int(row.get("version_number") or 1)
             stable = {key: value for key, value in row.items() if key not in ("createdAt", "updatedAt")}
             canonical = json.dumps({"subject_id": row["embed_id"], "kind": "embed", "version": version,
-                                    "content": stable}, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+                                    "content": stable,
+                                    **({"s3_file_keys": references[row["embed_id"]]}
+                                       | {"hashed_message_id": hashlib.sha256(row["message_id"].encode()).hexdigest()}
+                                       if references.get(row["embed_id"]) is not None else {})},
+                                   sort_keys=True, separators=(",", ":"), ensure_ascii=False)
             probes.append({
                 "protocol_version": 1,
                 "record_id": str(uuid.uuid5(uuid.UUID(context.turn_id), f"{context.target_chat_id}:{row['embed_id']}:embed:{version}")),
@@ -6602,6 +6645,8 @@ class EmbedService:
                 "root_chat_id": context.root_chat_id, "target_chat_id": context.target_chat_id,
                 "subject_id": row["embed_id"], "output_kind": "embed", "output_version": version,
                 "content_commitment": recovery.content_commitment(canonical),
+                **({"hashed_message_id": hashlib.sha256(row["message_id"].encode()).hexdigest()}
+                   if references.get(row["embed_id"]) is not None else {}),
             })
         receipts = await recovery.get_replay_outputs(probes)
         pending = []
@@ -6619,12 +6664,17 @@ class EmbedService:
                 output_version=probe["output_version"], content=row,
             )
             output["content_commitment"] = probe["content_commitment"]
+            if references.get(row["embed_id"]) is not None:
+                output["s3_file_keys"] = references[row["embed_id"]]
+                output["hashed_message_id"] = probe["hashed_message_id"]
             pending.append(output)
         if any(len(output["sealed_payload"].encode("utf-8")) > 256 * 1024 for output in pending):
             # Existing verified regional S3 intent/upload/commit protocol remains
             # responsible for large records, including mixed-size result sets.
             for payload in payloads:
-                await self._save_completed_embed_recovery(payload)
+                await self._save_completed_embed_recovery(
+                    payload, s3_file_keys=references.get(payload["payload"]["embed_id"]),
+                )
             return
         if pending:
             await recovery.save_sealed_outputs(pending)
@@ -6687,6 +6737,7 @@ class EmbedService:
     async def _save_completed_embed_recovery(
         self, payload: dict[str, Any], *, producer_child_index: int | None = None,
         producer_final_children: list[dict[str, Any]] | None = None,
+        s3_file_keys: list[dict[str, str]] | None = None,
     ) -> None:
         """Save each finished AI embed/version before exposing it to downstream work."""
         context = active_recovery_output_context.get()
@@ -6694,6 +6745,35 @@ class EmbedService:
         if producer is not None and producer.classification == "registered_ai" and context is None:
             raise RequiredRecoveryOutputError("Registered embed producer lacks a recovery context")
         if context is None:
+            references = _validated_recovery_storage_references(s3_file_keys)
+            if references is not None and not self._volatile_incognito_publication_required():
+                legacy = active_legacy_output_context.get()
+                if legacy is None:
+                    if references:
+                        raise RequiredRecoveryOutputError("Selected media lacks durable output admission")
+                    return
+                data = payload["payload"]
+                if data.get("chat_id") != legacy.target_chat_id or data.get("user_id") != legacy.owner_id:
+                    raise RequiredRecoveryOutputError("Legacy storage reference scope changed")
+                from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+                recovery = ChatRecoveryService(self.directus_service)
+                version = int(data.get("version_number") or 1)
+                stable = {key: value for key, value in data.items() if key not in ("createdAt", "updatedAt")}
+                canonical = json.dumps({"subject_id": data["embed_id"], "kind": "embed", "version": version,
+                                        "content": stable, "s3_file_keys": references,
+                                        "hashed_message_id": hashlib.sha256(data["message_id"].encode()).hexdigest()},
+                                       sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+                await recovery.register_legacy_output_asset_references({
+                    "protocol_version": 1, "task_identity": legacy.legacy_task_identity,
+                    "actor_user_id": legacy.owner_id, "hashed_user_id": legacy.owner_hash,
+                    "root_chat_id": legacy.root_chat_id, "root_turn_id": legacy.root_turn_id,
+                    "root_user_message_id": legacy.root_user_message_id,
+                    "target_chat_id": legacy.target_chat_id, "primary_message_id": data["message_id"],
+                    "embed_id": data["embed_id"], "output_version": version,
+                    "parent_embed_id": data.get("parent_embed_id"),
+                    "content_commitment": recovery.content_commitment(canonical),
+                    "s3_file_keys": references,
+                })
             return
         data = payload["payload"]
         if data.get("chat_id") != context.target_chat_id:
@@ -6730,6 +6810,7 @@ class EmbedService:
         from backend.shared.python_utils.chat_completion_recovery_job import build_sealed_recovery_output_data
         from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
 
+        references = _validated_recovery_storage_references(s3_file_keys)
         outputs = [("embed", int(data.get("version_number") or 1), data)]
         for row in data.get("version_history_rows") or []:
             if isinstance(row, dict) and isinstance(row.get("version_number"), int):
@@ -6741,11 +6822,16 @@ class EmbedService:
                 stable_content = {k: v for k, v in clear_content.items() if k not in ("createdAt", "updatedAt")}
                 canonical_bytes = json.dumps(
                     {"subject_id": data["embed_id"], "kind": output_kind,
-                     "version": output_version, "content": stable_content},
+                     "version": output_version, "content": stable_content,
+                     **({"s3_file_keys": references,
+                         "hashed_message_id": hashlib.sha256(data["message_id"].encode()).hexdigest()}
+                        if output_kind == "embed" and references is not None else {})},
                     sort_keys=True, separators=(",", ":"), ensure_ascii=False,
                 ).encode("utf-8")
                 commitment = recovery_service.content_commitment(canonical_bytes)
-                producer_fields = {"content_commitment": commitment}
+                message_fields = ({"hashed_message_id": hashlib.sha256(data["message_id"].encode()).hexdigest()}
+                                  if output_kind == "embed" and references is not None else {})
+                producer_fields = {"content_commitment": commitment, **message_fields}
                 if producer is not None and producer.classification == "registered_ai":
                     if output_kind == "embed" and producer_child_index is None and data["embed_id"] == producer.primary_embed_id:
                         ordinal = 0
@@ -6773,6 +6859,7 @@ class EmbedService:
                         "kwargs_binding": producer.kwargs_binding,
                         "ordinal": ordinal,
                         "content_commitment": commitment,
+                        **message_fields,
                     })
                     if existing["status"] in ("PENDING", "ACKNOWLEDGED"):
                         continue
@@ -6794,6 +6881,7 @@ class EmbedService:
                         "output_kind": output_kind,
                         "output_version": output_version,
                         "content_commitment": commitment,
+                        **message_fields,
                     })
                     if existing["status"] in ("PENDING", "ACKNOWLEDGED"):
                         continue
@@ -6809,6 +6897,8 @@ class EmbedService:
                     output_version=output_version, content=clear_content,
                 )
                 output.update(producer_fields)
+                if output_kind == "embed" and references is not None:
+                    output["s3_file_keys"] = references
                 s3_service = None
                 if len(str(output["sealed_payload"]).encode("utf-8")) > 256 * 1024:
                     from backend.core.api.app.services.s3.service import S3UploadService
@@ -7035,6 +7125,7 @@ class EmbedService:
                 await self._save_completed_embed_recovery(
                     payload, producer_child_index=producer_child_index,
                     producer_final_children=producer_final_children,
+                    s3_file_keys=(finished_cache_data or {}).get("s3_file_keys"),
                 )
             return await self._publish_prepared_embed(
                 payload, user_id_hash=user_id_hash, finished_cache_data=finished_cache_data,

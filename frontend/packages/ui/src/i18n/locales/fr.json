@@ -7870,6 +7870,9 @@
         },
         "not_available": {
           "text": "N/A"
+        },
+        "cash_flow": {
+          "text": "Flux de trésorerie"
         }
       },
       "search_trademarks": {
@@ -8104,6 +8107,11 @@
         "text": "Watermarking"
       }
     },
+    "search_domain": {
+      "minutes": {
+        "text": "{count} min"
+      }
+    },
     "projects": {
       "references": {
         "subtitle": {
@@ -8291,6 +8299,133 @@
       },
       "no_frame": {
         "text": "Aucune capture enregistrée n’est disponible."
+      }
+    },
+    "authoring": {
+      "draft": {
+        "text": "Brouillon"
+      },
+      "user_provided": {
+        "text": "Fourni par l’utilisateur"
+      },
+      "sources": {
+        "text": "Sources"
+      },
+      "observed_at": {
+        "text": "Observé le"
+      },
+      "image_credit": {
+        "text": "Crédit image"
+      },
+      "partial": {
+        "text": "Résultat partiel"
+      },
+      "uploaded_source": {
+        "text": "Source importée"
+      },
+      "approximate_location": {
+        "text": "Emplacement approximatif"
+      },
+      "schematic_route": {
+        "text": "Itinéraire schématique"
+      },
+      "unmapped": {
+        "text": "Emplacement indisponible"
+      },
+      "open_source": {
+        "text": "Ouvrir la page source"
+      },
+      "additional_times": {
+        "text": "Autres horaires"
+      }
+    },
+    "tv": {
+      "movie": {
+        "text": "Film"
+      },
+      "series": {
+        "text": "Série télévisée"
+      },
+      "poster_unavailable": {
+        "text": "Affiche indisponible"
+      },
+      "synopsis": {
+        "text": "Synopsis"
+      },
+      "release_date": {
+        "text": "Date de sortie"
+      },
+      "runtime": {
+        "text": "Durée"
+      },
+      "genres": {
+        "text": "Genres"
+      },
+      "directors": {
+        "text": "Réalisation"
+      },
+      "creators": {
+        "text": "Créateurs"
+      },
+      "cast": {
+        "text": "Distribution"
+      },
+      "language": {
+        "text": "Langue originale"
+      },
+      "countries": {
+        "text": "Pays"
+      },
+      "content_rating": {
+        "text": "Classification d’âge"
+      },
+      "score": {
+        "text": "Note de la source"
+      },
+      "score_votes": {
+        "text": "{count} votes"
+      },
+      "first_air_date": {
+        "text": "Première diffusion"
+      },
+      "last_air_date": {
+        "text": "Dernière diffusion"
+      },
+      "series_status": {
+        "text": "Statut de la série"
+      },
+      "season_count": {
+        "text": "{count} saisons"
+      },
+      "episodes": {
+        "text": "Épisodes"
+      },
+      "episode_count": {
+        "text": "{count} épisodes"
+      },
+      "season": {
+        "text": "Saison {number}"
+      },
+      "specials": {
+        "text": "Épisodes spéciaux"
+      },
+      "supplied_seasons": {
+        "text": "Saisons fournies"
+      },
+      "partial_seasons": {
+        "text": "Seuls les détails des saisons fournies sont affichés."
+      },
+      "year": {
+        "text": "Année"
+      },
+      "preparing": {
+        "text": "Préparation du titre…"
+      },
+      "cancelled": {
+        "text": "Création du titre annulée"
+      },
+      "unavailable": {
+        "text": "Titre indisponible"
       }
     }
   },
@@ -14490,6 +14625,9 @@
     },
     "nighttime": {
       "text": "La nuit"
+    },
+    "instructor": {
+      "text": "Professeur"
     }
   },
   "rules": {},

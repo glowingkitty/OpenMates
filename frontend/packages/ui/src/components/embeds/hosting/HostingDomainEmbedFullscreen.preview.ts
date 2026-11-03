@@ -9,6 +9,13 @@ const forDomain = (domain: (typeof domainFixtures)[keyof typeof domainFixtures])
 const defaultProps = forDomain(domainFixtures.com);
 export default defaultProps;
 export const variants = {
+  authoredUnknowns: {
+    data: { decodedContent: {
+      type: "hosting_domain", status: "finished", domain_ascii: "example.test",
+      authoring: { schema_version: 1, kind: "hosting.hosting_domain", origin: "draft", sources: [] },
+    }, embedData: { status: "finished" }, attrs: { app_id: "hosting" } },
+  },
+
   missingData: forDomain(domainFixtures.unknown),
   unavailable: forDomain(domainFixtures.org),
   unknown: forDomain(domainFixtures.unknown),

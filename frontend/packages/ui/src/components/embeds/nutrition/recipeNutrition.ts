@@ -107,7 +107,8 @@ function parseIngredients(content: Record<string, unknown>): RecipeResult['ingre
   return raw
     .filter((item): item is Record<string, unknown> => item != null && typeof item === 'object')
     .map((item) => ({
-      amount: asString(item.amount),
+      amount: typeof item.amount === 'number' && Number.isFinite(item.amount)
+        ? String(item.amount) : asString(item.amount),
       unit: asString(item.unit),
       name: asString(item.name) ?? asString(item.text) ?? asString(item.food) ?? ''
     }));
@@ -120,11 +121,14 @@ function parseInstructions(content: Record<string, unknown>): RecipeResult['inst
   }
   if (!Array.isArray(raw)) return [];
   return raw
-    .filter((item): item is Record<string, unknown> => item != null && typeof item === 'object')
-    .map((item) => ({
-      step: asNumber(item.step),
-      text: typeof item.text === 'string' ? item.text : ''
-    }));
+    .flatMap((item, index) => {
+      if (typeof item === 'string') {
+        const text = asString(item);
+        return text ? [{ step: index + 1, text }] : [];
+      }
+      if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
+      return [{ step: asNumber(item.step), text: typeof item.text === 'string' ? item.text : '' }];
+    });
 }
 
 export function parseRecipeResult(embedId: string, content: Record<string, unknown>): RecipeResult {

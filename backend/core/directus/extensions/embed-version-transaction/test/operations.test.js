@@ -22,6 +22,7 @@ function fakeDatabase(initial) {
       const filters = [];
       let countRequested = false;
       let limitRequested = null;
+      let rowLockMode = null;
       const matching = () => (store[table] ?? []).filter((row) => filters.every((filter) => filter(row)));
       const query = {
         where(field, operator, value) {
@@ -50,11 +51,14 @@ function fakeDatabase(initial) {
           } else throw new Error(`Unexpected raw filter: ${sql}`);
           return query;
         },
-        forUpdate() { return query; },
-        forShare() { return query; },
+        forUpdate() { rowLockMode = 'update'; return query; },
+        forShare() { rowLockMode = 'share'; return query; },
         limit(value) { limitRequested = value; return query; },
         count() { countRequested = true; return query; },
         async first() {
+          if (rowLockMode && database.onRowLock) {
+            await database.onRowLock({ table, mode: rowLockMode, rows: matching() });
+          }
           if (countRequested) return { count: matching().length };
           return matching()[0];
         },
@@ -82,7 +86,10 @@ function fakeDatabase(initial) {
       return query;
     };
     knex.raw = async (sql, bindings) => {
-      if (String(sql).includes('pg_advisory_xact_lock')) database.locks.push(bindings[0]);
+      if (String(sql).includes('pg_advisory_xact_lock')) {
+        database.locks.push(bindings[0]);
+        if (database.onAdvisoryLock) await database.onAdvisoryLock(bindings[0]);
+      }
       return String(sql).includes('AS pending')
         ? { rows: [{ pending: database.pendingRecovery ?? false }] } : undefined;
     };
@@ -1578,7 +1585,8 @@ test('serialized legacy wrapper creates and bundle retries share one canonical i
     writeLegacyEmbed(database, body)]);
   assert.equal(database.rows.embed_keys.filter(row => row.key_type === 'chat').length, 1);
   assert.equal(database.rows.embed_keys.filter(row => row.key_type === 'master').length, 1);
-  assert.deepEqual(database.locks, Array(3).fill(`embed:${body.embed_id}`));
+  assert.deepEqual(database.locks, [`embed:${body.embed_id}`, `embed:${body.embed_id}`,
+    `account-recovery:${ACTOR}`, `embed:${body.embed_id}`]);
 });
 
 // contract-test: direct surface=rest_api assertions=projects.files.hosted-ciphertext-commit
@@ -1826,4 +1834,385 @@ test('stale absence bundle retry verifies existing wrappers without repairing or
   await assert.rejects(writeLegacyEmbed(database, body),
     (error) => error.status === 409 && error.code === 'canonical_precondition_mismatch');
   assert.deepEqual(database.rows, missingWrapper);
+});
+
+function authoredAssetFixture() {
+  const hash = (value) => createHash('sha256').update(value).digest('hex');
+  const ownerId = '33333333-3333-4333-8333-333333333333';
+  const actor = hash(ownerId);
+  const embedId = '44444444-4444-4444-8444-444444444444';
+  const chatId = '55555555-5555-4555-8555-555555555555';
+  const messageId = 'assistant-message';
+  const refs = [{ bucket: 'chatfiles', key: 'selected/asset.bin' }];
+  const entry = { embed_id: embedId, output_version: 1, target_chat_id: chatId,
+    hashed_chat_id: hash(chatId), hashed_message_id: hash(messageId), parent_embed_id: null,
+    content_commitment: 'c'.repeat(64), s3_file_keys: refs };
+  const claim = { id: 'legacy-claim', task_identity: 'd'.repeat(64),
+    actor_user_id: ownerId, hashed_user_id: actor, hashed_team_id: null,
+    chat_id: chatId, state: 'CLAIMED', output_asset_references: [entry] };
+  const seed = { embeds: [], project_items: [], chat_recovery_outputs: [],
+    chat_recovery_legacy_batch_claims: [claim],
+    chats: [{ id: chatId, hashed_user_id: actor, hashed_team_id: null }] };
+  const body = { embed_id: embedId, actor_user_hash: actor,
+    authored_asset_binding: { task_identity: claim.task_identity, embed_id: embedId,
+      output_version: 1, content_commitment: entry.content_commitment },
+    payload: { embed_id: embedId, hashed_user_id: actor, hashed_chat_id: entry.hashed_chat_id,
+      hashed_message_id: entry.hashed_message_id, parent_embed_id: null,
+      version_number: 1, encrypted_content: 'opaque-ciphertext', encrypted_type: 'opaque-type',
+      status: 'finished', encryption_mode: 'client' } };
+  return { seed, body, entry, refs, hash };
+}
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,authored-results.media.safe-and-attributed
+test('legacy authored assets promote atomically on create and survive completed-claim retries', async () => {
+  const { seed, body, refs } = authoredAssetFixture();
+  const database = fakeDatabase(seed);
+  assert.equal((await writeLegacyEmbed(database, body)).status, 'created');
+  assert.deepEqual(JSON.parse(database.rows.embeds[0].s3_file_keys), refs);
+  const ledger = structuredClone(database.rows.chat_recovery_legacy_batch_claims[0].output_asset_references);
+  database.rows.chat_recovery_legacy_batch_claims[0].state = 'COMPLETED';
+  database.rows.embeds[0].s3_file_keys = null;
+  await writeLegacyEmbed(database, body);
+  await writeLegacyEmbed(database, body);
+  assert.deepEqual(JSON.parse(database.rows.embeds[0].s3_file_keys), refs);
+  assert.deepEqual(database.rows.chat_recovery_legacy_batch_claims[0].output_asset_references, ledger);
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,authored-results.media.safe-and-attributed
+test('canonical replay with stale precondition repairs refs only after existing exact replay checks', async () => {
+  const { seed, body, refs, hash } = authoredAssetFixture();
+  const database = fakeDatabase(seed);
+  await writeLegacyEmbed(database, body);
+  database.rows.embeds[0].s3_file_keys = null;
+  const replay = { ...body, canonical_precondition: { version: 1, ciphertext_sha256: hash('old-cipher') } };
+  assert.equal((await writeLegacyEmbed(database, replay)).status, 'idempotent');
+  assert.deepEqual(JSON.parse(database.rows.embeds[0].s3_file_keys), refs);
+  database.rows.embeds[0].s3_file_keys = null;
+  await assert.rejects(writeLegacyEmbed(database, { ...replay,
+    payload: { ...body.payload, encrypted_content: 'different-cipher' } }),
+  (error) => error.code === 'canonical_precondition_mismatch');
+  assert.equal(database.rows.embeds[0].s3_file_keys, null);
+  assert.equal(database.rows.embeds[0].encrypted_content, body.payload.encrypted_content);
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,authored-results.media.safe-and-attributed
+test('canonical failure and transient rollback retain the durable authored dependency ledger for retry', async () => {
+  const { seed, body, refs } = authoredAssetFixture();
+  const database = fakeDatabase(seed);
+  const transaction = database.transaction;
+  database.transaction = (callback) => transaction(async (trx) => {
+    await callback(trx);
+    throw new Error('transient-commit-failure');
+  });
+  await assert.rejects(writeLegacyEmbed(database, body), /transient-commit-failure/);
+  assert.deepEqual(database.rows.embeds, []);
+  assert.deepEqual(database.rows.chat_recovery_legacy_batch_claims, seed.chat_recovery_legacy_batch_claims);
+  database.transaction = transaction;
+  await writeLegacyEmbed(database, body);
+  database.rows.chat_recovery_outputs.push({ subject_id: body.embed_id,
+    hashed_user_id: body.actor_user_hash, target_chat_id: seed.chats[0].id,
+    output_kind: 'embed', output_version: 1, state: 'ACKNOWLEDGED',
+    canonical_digest: createHash('sha256').update(body.payload.encrypted_content).digest('hex') });
+  await assert.rejects(writeLegacyEmbed(database, { ...body,
+    payload: { ...body.payload, encrypted_content: 'wrong-ack-cipher' } }),
+  (error) => error.code === 'acknowledged_embed_revision_immutable');
+  assert.deepEqual(JSON.parse(database.rows.embeds[0].s3_file_keys), refs);
+  assert.deepEqual(database.rows.chat_recovery_legacy_batch_claims, seed.chat_recovery_legacy_batch_claims);
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,authored-results.media.safe-and-attributed
+test('authored promotion rejects mismatched durable identity and rolls back canonical writes', async () => {
+  const mutations = [
+    (fixture) => { fixture.seed.chat_recovery_legacy_batch_claims[0].hashed_user_id = 'b'.repeat(64); },
+    (fixture) => { fixture.seed.chat_recovery_legacy_batch_claims[0].actor_user_id = 'other-actor'; },
+    (fixture) => { fixture.seed.chat_recovery_legacy_batch_claims[0].state = 'PREPARED'; },
+    (fixture) => { fixture.seed.chat_recovery_legacy_batch_claims[0].state = 'INVALIDATED'; },
+    (fixture) => { fixture.entry.content_commitment = 'f'.repeat(64); },
+    (fixture) => { fixture.entry.hashed_chat_id = 'f'.repeat(64); },
+    (fixture) => { fixture.entry.hashed_message_id = 'f'.repeat(64); },
+    (fixture) => { fixture.entry.parent_embed_id = 'other-parent'; },
+    (fixture) => { fixture.entry.output_version = 2; },
+    (fixture) => { fixture.entry.target_chat_id = 'different-chat'; },
+    (fixture) => { fixture.entry.s3_file_keys = [{ bucket: 'other', key: 'asset' }]; },
+    (fixture) => { fixture.entry.s3_file_keys = [fixture.refs[0], fixture.refs[0]]; },
+    (fixture) => { fixture.entry.s3_file_keys = [{ bucket: 'chatfiles', key: '   ' }]; },
+    (fixture) => { fixture.seed.chats[0].hashed_user_id = 'f'.repeat(64); },
+  ];
+  for (const mutate of mutations) {
+    const fixture = authoredAssetFixture();
+    mutate(fixture);
+    const database = fakeDatabase(fixture.seed);
+    await assert.rejects(writeLegacyEmbed(database, fixture.body),
+      (error) => error instanceof ProtocolError);
+    assert.deepEqual(database.rows.embeds, []);
+    assert.deepEqual(database.rows.chat_recovery_legacy_batch_claims, fixture.seed.chat_recovery_legacy_batch_claims);
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,authored-results.media.safe-and-attributed
+test('new head uses its own selected refs while old-version replay leaves head and ledger intact', async () => {
+  const { seed, body, entry, refs } = authoredAssetFixture();
+  const second = { ...entry, output_version: 2, content_commitment: 'e'.repeat(64),
+    s3_file_keys: [{ bucket: 'chatfiles', key: 'selected/new-asset.bin' }] };
+  seed.chat_recovery_legacy_batch_claims[0].output_asset_references.push(second);
+  const database = fakeDatabase(seed);
+  await writeLegacyEmbed(database, body);
+  const advance = { ...body,
+    authored_asset_binding: { ...body.authored_asset_binding, output_version: 2,
+      content_commitment: second.content_commitment },
+    payload: { ...body.payload, version_number: 2, encrypted_content: 'opaque-v2' } };
+  await writeLegacyEmbed(database, advance);
+  assert.deepEqual(JSON.parse(database.rows.embeds[0].s3_file_keys), second.s3_file_keys);
+  await assert.rejects(writeLegacyEmbed(database, body),
+    (error) => error.code === 'legacy_embed_revision_conflict');
+  assert.equal(database.rows.embeds[0].version_number, 2);
+  assert.deepEqual(JSON.parse(database.rows.embeds[0].s3_file_keys), second.s3_file_keys);
+  assert.deepEqual(database.rows.chat_recovery_legacy_batch_claims[0].output_asset_references[0].s3_file_keys, refs);
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,authored-results.media.safe-and-attributed
+test('legacy null is a no-op, explicit empty refs clear, and unbound writes retain existing behavior', async () => {
+  for (const nextRefs of [null, []]) {
+    const { seed, body, entry } = authoredAssetFixture();
+    entry.s3_file_keys = nextRefs;
+    body.payload.s3_file_keys = [{ bucket: 'chatfiles', key: 'old.bin' }];
+    seed.chat_recovery_legacy_batch_claims[0].output_asset_references = JSON.stringify([entry]);
+    const database = fakeDatabase(seed);
+    await writeLegacyEmbed(database, body);
+    assert.deepEqual(JSON.parse(database.rows.embeds[0].s3_file_keys),
+      nextRefs === null ? body.payload.s3_file_keys : []);
+  }
+  const { seed, body } = authoredAssetFixture();
+  delete body.authored_asset_binding;
+  seed.chat_recovery_legacy_batch_claims = [];
+  const database = fakeDatabase(seed);
+  await writeLegacyEmbed(database, body);
+  assert.equal(database.rows.embeds[0].s3_file_keys, undefined);
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,authored-results.media.safe-and-attributed
+test('canonical metadata reuse promotes matching refs without changing ciphertext, type, or wrappers', async () => {
+  const { seed, body, refs, hash } = authoredAssetFixture();
+  const database = fakeDatabase(seed);
+  await writeLegacyEmbed(database, body);
+  database.rows.embeds[0].s3_file_keys = null;
+  database.rows.embed_keys = [{ id: 'keep-wrapper', encrypted_embed_key: 'opaque-key' }];
+  const reuse = { embed_id: body.embed_id, actor_user_hash: body.actor_user_hash,
+    authored_asset_binding: body.authored_asset_binding,
+    canonical_metadata_enrichment: { expected_version: 1,
+      expected_ciphertext_sha256: hash(body.payload.encrypted_content) },
+    payload: { embed_id: body.embed_id, hashed_user_id: body.actor_user_hash,
+      hashed_task_id: hash('task') } };
+  assert.equal((await writeLegacyEmbed(database, reuse)).status, 'enriched');
+  assert.deepEqual(JSON.parse(database.rows.embeds[0].s3_file_keys), refs);
+  assert.equal(database.rows.embeds[0].encrypted_content, body.payload.encrypted_content);
+  assert.equal(database.rows.embeds[0].encrypted_type, body.payload.encrypted_type);
+  assert.deepEqual(database.rows.embed_keys, [{ id: 'keep-wrapper', encrypted_embed_key: 'opaque-key' }]);
+  database.rows.embeds[0].version_number = 2;
+  database.rows.embeds[0].s3_file_keys = '[{"bucket":"chatfiles","key":"new-head.bin"}]';
+  await assert.rejects(writeLegacyEmbed(database, reuse),
+    (error) => error.code === 'canonical_metadata_version_conflict');
+  assert.equal(database.rows.embeds[0].s3_file_keys, '[{"bucket":"chatfiles","key":"new-head.bin"}]');
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable
+test('internal authored binding is exact and cannot grant a client payload or bypass Project authority', async () => {
+  for (const patch of [{ output_version: null }, { output_version: '1' },
+    { content_commitment: 'not-a-digest' }, { task_identity: 'not-a-digest' },
+    { embed_id: 'wrong-embed' }, { unknown_field: true }]) {
+    const { seed, body } = authoredAssetFixture();
+    const database = fakeDatabase(seed);
+    await assert.rejects(writeLegacyEmbed(database, { ...body,
+      authored_asset_binding: { ...body.authored_asset_binding, ...patch } }),
+    (error) => error instanceof ProtocolError);
+    assert.deepEqual(database.rows.embeds, []);
+  }
+  const { seed, body, hash } = authoredAssetFixture();
+  seed.project_items.push({ item_type: 'embed', target_id_hash: hash(body.embed_id) });
+  const database = fakeDatabase(seed);
+  await assert.rejects(writeLegacyEmbed(database, body),
+    (error) => error.code === 'project_context_required');
+  assert.deepEqual(database.rows.embeds, []);
+});
+
+// Exercise contended transaction locks independently of fakeDatabase's serialized
+// snapshots. A registrar holds the actual account/claim lock order used by
+// registerLegacyOutputAssetReferences and then asks for the same target chat.
+function transactionLockHarness() {
+  const holders = new Map();
+  const waiting = new Map();
+  const events = [];
+  let notifyBlocked;
+  const writerBlocked = new Promise((resolve) => { notifyBlocked = resolve; });
+  function acquire(owner, resource) {
+    events.push({ owner, resource });
+    const holder = holders.get(resource);
+    if (!holder || holder === owner) {
+      holders.set(resource, owner);
+      return Promise.resolve();
+    }
+    let cursor = holder;
+    while (cursor) {
+      if (cursor === owner) return Promise.reject(new Error('transaction-lock-cycle'));
+      cursor = waiting.get(cursor)?.holder;
+    }
+    return new Promise((resolve) => {
+      waiting.set(owner, { holder, resource, resolve });
+      if (owner === 'writer') notifyBlocked();
+    });
+  }
+  function release(owner) {
+    for (const [resource, holder] of holders) {
+      if (holder !== owner) continue;
+      holders.delete(resource);
+      for (const [nextOwner, pending] of waiting) {
+        if (pending.resource !== resource) continue;
+        waiting.delete(nextOwner);
+        holders.set(resource, nextOwner);
+        pending.resolve();
+        break;
+      }
+    }
+  }
+  return { acquire, release, events, writerBlocked };
+}
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable
+test('authored bundle and enrichment reserve account then claim before contended chat locks',
+  { timeout: 3000 }, async () => {
+    for (const path of ['bundle', 'enrichment']) {
+      const { seed, body, hash, refs } = authoredAssetFixture();
+      const database = fakeDatabase(seed);
+      await writeLegacyEmbed(database, body);
+      database.rows.embeds[0].s3_file_keys = null;
+      let request;
+      if (path === 'bundle') {
+        request = { ...body, bundle_context: { chat_id: seed.chats[0].id,
+          message_id: 'assistant-message', hashed_team_id: null,
+          allow_new_personal_chat: false, key_wrappers: ['master', 'chat'].map((keyType) => ({
+            hashed_embed_id: hash(body.embed_id), hashed_user_id: body.actor_user_hash,
+            hashed_chat_id: keyType === 'chat' ? hash(seed.chats[0].id) : null,
+            key_type: keyType, encrypted_embed_key: `${keyType}-opaque-key`, created_at: 1,
+          })) } };
+      } else {
+        request = { embed_id: body.embed_id, actor_user_hash: body.actor_user_hash,
+          authored_asset_binding: body.authored_asset_binding,
+          canonical_metadata_enrichment: { expected_version: 1,
+            expected_ciphertext_sha256: hash(body.payload.encrypted_content) },
+          payload: { embed_id: body.embed_id, hashed_user_id: body.actor_user_hash,
+            hashed_task_id: hash('producer-task') } };
+      }
+      const locks = transactionLockHarness();
+      const accountLock = `advisory:account-recovery:${body.actor_user_hash}`;
+      const claimLock = 'row:chat_recovery_legacy_batch_claims:legacy-claim';
+      const chatLock = `row:chats:${seed.chats[0].id}`;
+      database.onAdvisoryLock = (name) => locks.acquire('writer', `advisory:${name}`);
+      database.onRowLock = async ({ table, rows }) => {
+        for (const row of rows) await locks.acquire('writer', `row:${table}:${row.id}`);
+      };
+      await locks.acquire('registrar', accountLock);
+      await locks.acquire('registrar', claimLock);
+      const write = writeLegacyEmbed(database, request).finally(() => locks.release('writer'));
+      // If the writer takes chat before claim, this deterministic interleaving
+      // creates a cycle rather than relying on timing or a PostgreSQL timeout.
+      await locks.writerBlocked;
+      await locks.acquire('registrar', chatLock);
+      locks.release('registrar');
+      await write;
+      const writerResources = locks.events.filter((event) => event.owner === 'writer')
+        .map((event) => event.resource);
+      assert.ok(writerResources.indexOf(accountLock) < writerResources.indexOf(claimLock));
+      assert.ok(writerResources.indexOf(claimLock) < writerResources.indexOf(chatLock));
+      assert.deepEqual(JSON.parse(database.rows.embeds[0].s3_file_keys), refs);
+      assert.equal(database.rows.embeds[0].encrypted_content, body.payload.encrypted_content);
+      assert.equal(database.rows.chat_recovery_legacy_batch_claims[0].state, 'CLAIMED');
+    }
+  });
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable
+test('bound ordinary UUIDv4 writes retain the account recovery fence before claim and head writes', async () => {
+  const { seed, body } = authoredAssetFixture();
+  seed.chat_recovery_account_fences = [{ id: body.actor_user_hash }];
+  const database = fakeDatabase(seed);
+  const rowLocks = [];
+  database.onRowLock = async ({ table }) => { rowLocks.push(table); };
+  await assert.rejects(writeLegacyEmbed(database, body),
+    (error) => error.code === 'project_context_required');
+  assert.deepEqual(database.rows.embeds, []);
+  assert.deepEqual(rowLocks, ['chat_recovery_account_fences']);
+  assert.deepEqual(database.rows.chat_recovery_legacy_batch_claims, seed.chat_recovery_legacy_batch_claims);
+});
+
+function messageFence(actor, chatId, messageHash) {
+  const chatHash = createHash('sha256').update(chatId).digest('hex');
+  return { id: testing.messageDeletionFenceId(actor, chatHash, messageHash), scope: 'message',
+    hashed_user_id: actor, hashed_team_id: null, chat_id: chatId, hashed_message_id: messageHash };
+}
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable
+test('message deletion fence UUID matches the independent Python UUIDv5 NIL vector', () => {
+  const hash = (value) => createHash('sha256').update(value).digest('hex');
+  assert.equal(testing.messageDeletionFenceId(ACTOR, hash('chat-a'), hash('message-a')),
+    '0071e27a-c351-5c28-b623-870d1685a2bb');
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable
+test('released ledger cannot let a stale ordinary client recreate a deleted message child', async () => {
+  const { seed, body } = authoredAssetFixture();
+  delete body.authored_asset_binding;
+  seed.chat_recovery_legacy_batch_claims = [];
+  seed.chat_recovery_chat_deletion_fences = [messageFence(body.actor_user_hash,
+    seed.chats[0].id, body.payload.hashed_message_id)];
+  const database = fakeDatabase(seed);
+  const before = structuredClone(database.rows);
+  await assert.rejects(writeLegacyEmbed(database, body),
+    (error) => error.code === 'message_output_deleted');
+  assert.deepEqual(database.rows, before);
+  assert.equal(database.locks[0], `account-recovery:${body.actor_user_hash}`);
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable
+test('canonical message fences reject replay, enrichment and scope substitution without any mutation', async () => {
+  for (const mode of ['replay', 'enrichment', 'omitted-scope', 'replaced-scope']) {
+    const { seed, body, hash } = authoredAssetFixture();
+    const database = fakeDatabase(seed);
+    await writeLegacyEmbed(database, body);
+    database.rows.chat_recovery_legacy_batch_claims = [];
+    database.rows.chat_recovery_chat_deletion_fences = [messageFence(body.actor_user_hash,
+      seed.chats[0].id, body.payload.hashed_message_id)];
+    database.rows.embed_keys = [{ id: 'preserved', encrypted_embed_key: 'opaque-key' }];
+    const request = { ...body };
+    delete request.authored_asset_binding;
+    if (mode === 'enrichment') {
+      request.canonical_metadata_enrichment = { expected_version: 1,
+        expected_ciphertext_sha256: hash(body.payload.encrypted_content) };
+      request.payload = { embed_id: body.embed_id, hashed_user_id: body.actor_user_hash,
+        hashed_task_id: hash('producer-task') };
+    } else if (mode === 'omitted-scope') {
+      request.payload = { embed_id: body.embed_id, hashed_user_id: body.actor_user_hash,
+        updated_at: 42 };
+    } else if (mode === 'replaced-scope') {
+      request.payload = { ...body.payload, hashed_message_id: hash('different-message'),
+        hashed_chat_id: hash('different-chat') };
+    }
+    const before = structuredClone(database.rows);
+    await assert.rejects(writeLegacyEmbed(database, request),
+      (error) => error.code === 'message_output_deleted');
+    assert.deepEqual(database.rows, before);
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable
+test('message deletion fences distinguish exact owner, chat and message from unrelated live writes', async () => {
+  const { seed, body, hash } = authoredAssetFixture();
+  delete body.authored_asset_binding;
+  seed.chat_recovery_legacy_batch_claims = [];
+  seed.chat_recovery_chat_deletion_fences = [
+    messageFence('b'.repeat(64), seed.chats[0].id, body.payload.hashed_message_id),
+    messageFence(body.actor_user_hash, 'another-chat', body.payload.hashed_message_id),
+    messageFence(body.actor_user_hash, seed.chats[0].id, hash('another-message')),
+  ];
+  const database = fakeDatabase(seed);
+  assert.equal((await writeLegacyEmbed(database, body)).status, 'created');
+  assert.equal(database.rows.embeds[0].encrypted_content, body.payload.encrypted_content);
 });

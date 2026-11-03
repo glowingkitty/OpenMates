@@ -9263,6 +9263,9 @@
         },
         "not_available": {
           "text": "N/V"
+        },
+        "cash_flow": {
+          "text": "Cashflow"
         }
       },
       "search_trademarks": {
@@ -9849,6 +9852,133 @@
       },
       "no_frame": {
         "text": "Kein gespeicherter Screenshot verfügbar."
+      }
+    },
+    "authoring": {
+      "draft": {
+        "text": "Entwurf"
+      },
+      "user_provided": {
+        "text": "Vom Nutzer bereitgestellt"
+      },
+      "sources": {
+        "text": "Quellen"
+      },
+      "observed_at": {
+        "text": "Beobachtet am"
+      },
+      "image_credit": {
+        "text": "Bildnachweis"
+      },
+      "partial": {
+        "text": "Teilergebnis"
+      },
+      "uploaded_source": {
+        "text": "Hochgeladene Quelle"
+      },
+      "approximate_location": {
+        "text": "Ungefährer Standort"
+      },
+      "schematic_route": {
+        "text": "Schematische Route"
+      },
+      "unmapped": {
+        "text": "Standort nicht verfügbar"
+      },
+      "open_source": {
+        "text": "Quellseite öffnen"
+      },
+      "additional_times": {
+        "text": "Weitere Zeiten"
+      }
+    },
+    "tv": {
+      "movie": {
+        "text": "Film"
+      },
+      "series": {
+        "text": "Fernsehserie"
+      },
+      "poster_unavailable": {
+        "text": "Poster nicht verfügbar"
+      },
+      "synopsis": {
+        "text": "Inhalt"
+      },
+      "release_date": {
+        "text": "Veröffentlichungsdatum"
+      },
+      "runtime": {
+        "text": "Laufzeit"
+      },
+      "genres": {
+        "text": "Genres"
+      },
+      "directors": {
+        "text": "Regie"
+      },
+      "creators": {
+        "text": "Serienschöpfer"
+      },
+      "cast": {
+        "text": "Besetzung"
+      },
+      "language": {
+        "text": "Originalsprache"
+      },
+      "countries": {
+        "text": "Länder"
+      },
+      "content_rating": {
+        "text": "Altersfreigabe"
+      },
+      "score": {
+        "text": "Quellenbewertung"
+      },
+      "score_votes": {
+        "text": "{count} Stimmen"
+      },
+      "first_air_date": {
+        "text": "Erstausstrahlung"
+      },
+      "last_air_date": {
+        "text": "Letzte Ausstrahlung"
+      },
+      "series_status": {
+        "text": "Serienstatus"
+      },
+      "season_count": {
+        "text": "{count} Staffeln"
+      },
+      "episodes": {
+        "text": "Folgen"
+      },
+      "episode_count": {
+        "text": "{count} Folgen"
+      },
+      "season": {
+        "text": "Staffel {number}"
+      },
+      "specials": {
+        "text": "Sonderfolgen"
+      },
+      "supplied_seasons": {
+        "text": "Bereitgestellte Staffeln"
+      },
+      "partial_seasons": {
+        "text": "Es werden nur bereitgestellte Staffelinfos angezeigt."
+      },
+      "year": {
+        "text": "Jahr"
+      },
+      "preparing": {
+        "text": "Titel wird vorbereitet…"
+      },
+      "cancelled": {
+        "text": "Titelerstellung abgebrochen"
+      },
+      "unavailable": {
+        "text": "Titel nicht verfügbar"
       }
     }
   },
@@ -16817,6 +16947,9 @@
     },
     "nighttime": {
       "text": "Nachts"
+    },
+    "instructor": {
+      "text": "Kursleitung"
     }
   },
   "rules": {

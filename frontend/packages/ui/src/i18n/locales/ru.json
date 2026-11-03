@@ -7843,6 +7843,9 @@
         },
         "not_available": {
           "text": "Н/Д"
+        },
+        "cash_flow": {
+          "text": "Денежный поток"
         }
       },
       "search_trademarks": {
@@ -8077,6 +8080,11 @@
         "text": "Watermarking"
       }
     },
+    "search_domain": {
+      "minutes": {
+        "text": "{count} мин"
+      }
+    },
     "projects": {
       "references": {
         "subtitle": {
@@ -8264,6 +8272,133 @@
       },
       "no_frame": {
         "text": "Сохранённый снимок недоступен."
+      }
+    },
+    "authoring": {
+      "draft": {
+        "text": "Черновик"
+      },
+      "user_provided": {
+        "text": "Предоставлено пользователем"
+      },
+      "sources": {
+        "text": "Источники"
+      },
+      "observed_at": {
+        "text": "Дата наблюдения"
+      },
+      "image_credit": {
+        "text": "Автор изображения"
+      },
+      "partial": {
+        "text": "Частичный результат"
+      },
+      "uploaded_source": {
+        "text": "Загруженный источник"
+      },
+      "approximate_location": {
+        "text": "Примерное местоположение"
+      },
+      "schematic_route": {
+        "text": "Схематичный маршрут"
+      },
+      "unmapped": {
+        "text": "Местоположение недоступно"
+      },
+      "open_source": {
+        "text": "Открыть страницу источника"
+      },
+      "additional_times": {
+        "text": "Другие варианты времени"
+      }
+    },
+    "tv": {
+      "movie": {
+        "text": "Фильм"
+      },
+      "series": {
+        "text": "Телесериал"
+      },
+      "poster_unavailable": {
+        "text": "Постер недоступен"
+      },
+      "synopsis": {
+        "text": "Описание сюжета"
+      },
+      "release_date": {
+        "text": "Дата выхода"
+      },
+      "runtime": {
+        "text": "Продолжительность"
+      },
+      "genres": {
+        "text": "Жанры"
+      },
+      "directors": {
+        "text": "Режиссёры"
+      },
+      "creators": {
+        "text": "Создатели"
+      },
+      "cast": {
+        "text": "В ролях"
+      },
+      "language": {
+        "text": "Язык оригинала"
+      },
+      "countries": {
+        "text": "Страны"
+      },
+      "content_rating": {
+        "text": "Возрастной рейтинг"
+      },
+      "score": {
+        "text": "Оценка источника"
+      },
+      "score_votes": {
+        "text": "Голосов: {count}"
+      },
+      "first_air_date": {
+        "text": "Первая серия"
+      },
+      "last_air_date": {
+        "text": "Последняя серия"
+      },
+      "series_status": {
+        "text": "Статус сериала"
+      },
+      "season_count": {
+        "text": "Сезонов: {count}"
+      },
+      "episodes": {
+        "text": "Эпизоды"
+      },
+      "episode_count": {
+        "text": "Эпизодов: {count}"
+      },
+      "season": {
+        "text": "Сезон {number}"
+      },
+      "specials": {
+        "text": "Спецвыпуски"
+      },
+      "supplied_seasons": {
+        "text": "Предоставленные сезоны"
+      },
+      "partial_seasons": {
+        "text": "Показаны только предоставленные сведения о сезонах."
+      },
+      "year": {
+        "text": "Год"
+      },
+      "preparing": {
+        "text": "Подготовка карточки…"
+      },
+      "cancelled": {
+        "text": "Создание карточки отменено"
+      },
+      "unavailable": {
+        "text": "Карточка недоступна"
       }
     }
   },
@@ -14463,6 +14598,9 @@
     },
     "nighttime": {
       "text": "Ночью"
+    },
+    "instructor": {
+      "text": "Инструктор"
     }
   },
   "rules": {},

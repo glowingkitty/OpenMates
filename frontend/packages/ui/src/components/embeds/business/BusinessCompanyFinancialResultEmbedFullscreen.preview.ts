@@ -44,6 +44,13 @@ const defaultProps = {
 export default defaultProps;
 
 export const variants = {
+  authoredUnknowns: {
+    data: { decodedContent: {
+      type: "company_financial_result", status: "finished", company: "Example Company", revenue: 1250, net_income: 0,
+      authoring: { schema_version: 1, kind: "business.company_financial_result", origin: "draft", sources: [] },
+    }, embedData: { status: "finished" }, attrs: { app_id: "business" } },
+  },
+
   missingData: { ...defaultProps, data: { ...defaultProps.data, decodedContent: { company: 'Example Research', ticker: 'EXAM', currency: 'USD' } } },
   quarterly: {
     ...defaultProps,

@@ -7843,6 +7843,9 @@
         },
         "not_available": {
           "text": "N/A"
+        },
+        "cash_flow": {
+          "text": "Peněžní tok"
         }
       },
       "search_trademarks": {
@@ -8077,6 +8080,11 @@
         "text": "Watermarking"
       }
     },
+    "search_domain": {
+      "minutes": {
+        "text": "{count} min"
+      }
+    },
     "projects": {
       "references": {
         "subtitle": {
@@ -8264,6 +8272,133 @@
       },
       "no_frame": {
         "text": "Uložený snímek není k dispozici."
+      }
+    },
+    "authoring": {
+      "draft": {
+        "text": "Návrh"
+      },
+      "user_provided": {
+        "text": "Poskytnuto uživatelem"
+      },
+      "sources": {
+        "text": "Zdroje"
+      },
+      "observed_at": {
+        "text": "Pozorováno"
+      },
+      "image_credit": {
+        "text": "Autor obrázku"
+      },
+      "partial": {
+        "text": "Částečný výsledek"
+      },
+      "uploaded_source": {
+        "text": "Nahraný zdroj"
+      },
+      "approximate_location": {
+        "text": "Přibližná poloha"
+      },
+      "schematic_route": {
+        "text": "Schematická trasa"
+      },
+      "unmapped": {
+        "text": "Poloha není dostupná"
+      },
+      "open_source": {
+        "text": "Otevřít zdrojovou stránku"
+      },
+      "additional_times": {
+        "text": "Další časy"
+      }
+    },
+    "tv": {
+      "movie": {
+        "text": "Film"
+      },
+      "series": {
+        "text": "Televizní seriál"
+      },
+      "poster_unavailable": {
+        "text": "Plakát není dostupný"
+      },
+      "synopsis": {
+        "text": "Děj"
+      },
+      "release_date": {
+        "text": "Datum vydání"
+      },
+      "runtime": {
+        "text": "Délka"
+      },
+      "genres": {
+        "text": "Žánry"
+      },
+      "directors": {
+        "text": "Režie"
+      },
+      "creators": {
+        "text": "Tvůrci"
+      },
+      "cast": {
+        "text": "Obsazení"
+      },
+      "language": {
+        "text": "Původní jazyk"
+      },
+      "countries": {
+        "text": "Země"
+      },
+      "content_rating": {
+        "text": "Věkové hodnocení"
+      },
+      "score": {
+        "text": "Hodnocení zdroje"
+      },
+      "score_votes": {
+        "text": "Počet hlasů: {count}"
+      },
+      "first_air_date": {
+        "text": "První vysílání"
+      },
+      "last_air_date": {
+        "text": "Poslední vysílání"
+      },
+      "series_status": {
+        "text": "Stav seriálu"
+      },
+      "season_count": {
+        "text": "Počet řad: {count}"
+      },
+      "episodes": {
+        "text": "Epizody"
+      },
+      "episode_count": {
+        "text": "Počet epizod: {count}"
+      },
+      "season": {
+        "text": "Řada {number}"
+      },
+      "specials": {
+        "text": "Speciální epizody"
+      },
+      "supplied_seasons": {
+        "text": "Poskytnuté řady"
+      },
+      "partial_seasons": {
+        "text": "Zobrazeny jsou pouze poskytnuté podrobnosti řad."
+      },
+      "year": {
+        "text": "Rok"
+      },
+      "preparing": {
+        "text": "Příprava titulu…"
+      },
+      "cancelled": {
+        "text": "Vytvoření titulu zrušeno"
+      },
+      "unavailable": {
+        "text": "Titul není dostupný"
       }
     }
   },
@@ -14463,6 +14598,9 @@
     },
     "nighttime": {
       "text": "V noci"
+    },
+    "instructor": {
+      "text": "Instruktor"
     }
   },
   "rules": {},

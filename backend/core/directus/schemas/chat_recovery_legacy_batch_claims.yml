@@ -53,6 +53,10 @@ chat_recovery_legacy_batch_claims:
       type: string
       length: 64
       nullable: true
+    output_asset_references:
+      type: json
+      nullable: true
+      note: "Bounded server-selected references by output identity/version/provenance. Retain pending and historical references until their canonical version is deleted; never a recovery key or detached producer grant."
     state:
       type: string
       length: 16

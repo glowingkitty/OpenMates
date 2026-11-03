@@ -18,12 +18,13 @@
 -->
 
 <script lang="ts">
+  import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from "../../../types/authoredResult";
   import transportIconUrl from '../../../../static/icons/travel.svg';
   import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
   import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { text } from '@repo/ui';
-  import { onDestroy } from 'svelte';
+  import { getContext, onDestroy } from 'svelte';
   import { notificationStore } from '../../../stores/notificationStore';
   import { getApiEndpoint } from '../../../config/api';
   import { embedStore } from '../../../services/embedStore';
@@ -32,6 +33,7 @@
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { downloadCalendarFile, sanitizeCalendarFilename } from '../../../utils/calendarDownload';
   import { proxyImage, MAX_WIDTH_AIRLINE_LOGO_FULLSCREEN } from '../../../utils/imageProxy';
+  import { travelConnectionEndpoints, travelLegPresentation } from './travelConnectionPoints';
   import TravelTimeBadge from './TravelTimeBadge.svelte';
   import { countryCodeToFlag } from '../../../utils/countryFlag';
   import { appSettingsMemoriesStore } from '../../../stores/appSettingsMemoriesStore';
@@ -233,6 +235,8 @@
     onNavigatePrevious,
     onNavigateNext,
   }: Props = $props();
+  const authoredContext = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
+  let isAuthored = $derived(Boolean(authoredContext?.authoring || data?.decodedContent?.authoring));
 
   function readTransferQuality(content: Record<string, unknown>): TransferQuality | undefined {
     if (typeof content.transfer_quality === 'object' && content.transfer_quality !== null) {
@@ -281,7 +285,8 @@
   // Build the connection object from data.decodedContent
   // The decodedContent fields map directly to ConnectionData since ActiveChat
   // previously passed the whole decodedContent as-is to construct the connection prop
-  let dc = $derived(data.decodedContent);
+  let dc = $derived(authoredContext?.presentationContent ?? authoredContext?.content ?? data.decodedContent);
+  let authoredTitle = $derived(isAuthored && typeof dc?.title === "string" ? dc.title.trim() : "");
 
   // Store example flag — set by SkillExamplesSection when browsing app-store examples.
   // When true, interactive actions like booking link lookup are disabled with a notification.
@@ -304,8 +309,7 @@
     booking_provider: typeof dc.booking_provider === 'string' ? dc.booking_provider : undefined,
     booking_token: typeof dc.booking_token === 'string' ? dc.booking_token : undefined,
     booking_context: readBookingContext(dc as Record<string, unknown>),
-    origin: typeof dc.origin === 'string' ? dc.origin : undefined,
-    destination: typeof dc.destination === 'string' ? dc.destination : undefined,
+    ...travelConnectionEndpoints(dc),
     departure: typeof dc.departure === 'string' ? dc.departure : undefined,
     arrival: typeof dc.arrival === 'string' ? dc.arrival : undefined,
     duration: typeof dc.duration === 'string' ? dc.duration : undefined,
@@ -313,7 +317,7 @@
     carriers: Array.isArray(dc.carriers) ? dc.carriers as string[] : undefined,
     carrier_codes: Array.isArray(dc.carrier_codes) ? dc.carrier_codes as string[] : undefined,
     hash: typeof dc.hash === 'string' ? dc.hash : undefined,
-    legs: Array.isArray(dc.legs) ? dc.legs as LegData[] : undefined,
+    legs: travelLegPresentation(dc.legs) as unknown as LegData[] | undefined,
     origin_country_code: typeof dc.origin_country_code === 'string' ? dc.origin_country_code : undefined,
     destination_country_code: typeof dc.destination_country_code === 'string' ? dc.destination_country_code : undefined,
     airline_logo: typeof dc.airline_logo === 'string' ? dc.airline_logo : undefined,
@@ -357,12 +361,14 @@
     switch (conn?.trip_type) {
       case 'round_trip': return 'Round trip';
       case 'multi_city': return 'Multi-city';
-      default: return 'One way';
+      case 'one_way': return 'One way';
+      default: return isAuthored ? '' : 'One way';
     }
   });
   
   // Leg labels
   function getLegLabel(leg: LegData, totalLegs: number): string {
+    if (isAuthored && !Number.isInteger(leg.leg_index)) return '';
     if (totalLegs === 1) return '';
     if (totalLegs === 2) {
       return leg.leg_index === 0 ? 'Outbound' : 'Return';
@@ -429,9 +435,9 @@
     if (!conn) return '';
     const originFlag = conn.origin_country_code ? countryCodeToFlag(conn.origin_country_code) + ' ' : '';
     const destFlag = conn.destination_country_code ? countryCodeToFlag(conn.destination_country_code) + ' ' : '';
-    const originCity = conn.origin?.replace(/\s*\([^)]+\)/, '') || conn.origin || '';
-    const destCity = conn.destination?.replace(/\s*\([^)]+\)/, '') || conn.destination || '';
-    return `${originFlag}${originCity} → ${destFlag}${destCity}`;
+    const originCity = (isAuthored ? conn.origin : conn.origin?.replace(/\s*\([^)]+\)/, '')) || '';
+    const destCity = (isAuthored ? conn.destination : conn.destination?.replace(/\s*\([^)]+\)/, '')) || '';
+    return [`${originFlag}${originCity}`, `${destFlag}${destCity}`].filter(Boolean).join(' → ');
   });
 
   /** Travel class from first segment (e.g., "Economy class") */
@@ -456,6 +462,7 @@
     const conn = connection as MaybeConnection;
     const parts: string[] = [];
     if (routeDisplay) parts.push(routeDisplay);
+    if (authoredTitle && priceHeader) parts.push(priceHeader);
     const meta: string[] = [];
     if (conn?.departure) {
       const d = formatDate(conn.departure);
@@ -470,7 +477,7 @@
   /** Price header: "1.111 EUR | One way" */
   let priceHeader = $derived.by(() => {
     if (!formattedPrice) return '';
-    return `${formattedPrice} | ${tripTypeLabel}`;
+    return [formattedPrice, tripTypeLabel].filter(Boolean).join(' | ');
   });
 
   let optimizationBadge = $derived.by(() => {
@@ -540,6 +547,7 @@
   let failedHeaderLogos = $state<string[]>([]);
   let headerAirlineLogos = $derived.by(() => {
     const conn = connection as MaybeConnection;
+    if (isAuthored) return conn?.airline_logo ? [{ code: conn.booking_provider || '', url: proxyImage(conn.airline_logo, MAX_WIDTH_AIRLINE_LOGO_FULLSCREEN) }] : [];
     const codes = conn?.carrier_codes;
     if (!codes || !Array.isArray(codes) || codes.length === 0) return [];
     return codes.slice(0, 3).map(code => ({
@@ -651,7 +659,7 @@
   $effect(() => {
     const conn = connection as MaybeConnection;
     if (
-      firstAirFlightNumber &&
+      !isAuthored && firstAirFlightNumber &&
       firstDepartureDate &&
       flightTrackState === 'idle' &&
       conn?.transport_method === 'airplane'
@@ -666,6 +674,7 @@
    * Silently falls back to the great-circle arc on any error.
    */
   async function loadFlightDetails(flightNumber: string, departureDate: string) {
+    if (isAuthored) return;
     if (flightTrackState !== 'idle') return;
 
     flightTrackState = 'loading';
@@ -750,6 +759,7 @@
    * Format: https://www.google.com/travel/flights?q=Flights+from+BER+to+BKK+on+2026-03-05
    */
   function buildGoogleFlightsUrl(): string {
+    if (isAuthored) return '';
     const origin = connection.booking_context?.departure_id || connection.origin || '';
     const dest = connection.booking_context?.arrival_id || connection.destination || '';
     const date = connection.booking_context?.outbound_date || connection.departure?.split('T')[0] || '';
@@ -766,6 +776,7 @@
    * Open Google Flights in a new tab as a fallback.
    */
   function handleOpenGoogleFlights() {
+    if (isAuthored) return;
     window.open(buildGoogleFlightsUrl(), '_blank', 'noopener,noreferrer');
     promptToSaveEmbedMemory(buildSaveConfig());
   }
@@ -775,7 +786,7 @@
    * Called when user clicks the "Get booking link" button.
    */
   async function handleLoadBookingLink() {
-    if (!connection.booking_token || bookingState === 'loading') return;
+    if (isAuthored || !connection.booking_token || bookingState === 'loading') return;
 
     if (!$authStore.isAuthenticated) {
       loginInterfaceOpen.set(true);
@@ -854,15 +865,16 @@
    * Called when user clicks the "Book on {provider}" button (loaded state).
    */
   function handleOpenBookingUrl() {
-    if (resolvedBookingUrl) {
-      window.open(resolvedBookingUrl, '_blank', 'noopener,noreferrer');
+    const url = isAuthored ? connection.booking_url : resolvedBookingUrl;
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
     }
     promptToSaveEmbedMemory(buildSaveConfig());
   }
 
   function buildSaveConfig() {
     const title = routeDisplay || routeHeaderWithFlags || 'Travel connection';
-    const bookingUrl = resolvedBookingUrl || connection.booking_url || buildGoogleFlightsUrl();
+    const bookingUrl = (isAuthored ? connection.booking_url || '' : resolvedBookingUrl || connection.booking_url || buildGoogleFlightsUrl());
     return {
       kind: 'travel_connection' as const,
       appId: 'travel',
@@ -889,8 +901,8 @@
   let saveConfig = $derived(buildSaveConfig());
   let savedMemoryEntry = $derived(findSavedEmbedMemoryEntry($appSettingsMemoriesStore, saveConfig));
 
-  let calendarStart = $derived(connection.departure || connection.legs?.[0]?.departure || '');
-  let calendarEnd = $derived(connection.arrival || connection.legs?.at(-1)?.arrival || '');
+  let calendarStart = $derived(connection.departure || (!isAuthored ? connection.legs?.[0]?.departure : undefined) || '');
+  let calendarEnd = $derived(connection.arrival || (!isAuthored ? connection.legs?.at(-1)?.arrival : undefined) || '');
 
   function handleToggleSavedConnection() {
     if (savedMemoryEntry) {
@@ -921,7 +933,7 @@
       }
     }
 
-    const bookingUrl = resolvedBookingUrl || connection.booking_url || buildGoogleFlightsUrl();
+    const bookingUrl = (isAuthored ? connection.booking_url || '' : resolvedBookingUrl || connection.booking_url || buildGoogleFlightsUrl());
     if (bookingUrl) lines.push('', bookingUrl);
 
     return lines.join('\n');
@@ -932,9 +944,10 @@
       title: routeDisplay || routeHeaderWithFlags || 'Travel connection',
       start: calendarStart,
       end: calendarEnd,
+      preserveUnknownEnd: isAuthored,
       location: [connection.origin, connection.destination].filter(Boolean).join(' to '),
       description: buildCalendarDescription(),
-      url: resolvedBookingUrl || connection.booking_url || buildGoogleFlightsUrl(),
+      url: (isAuthored ? connection.booking_url || '' : resolvedBookingUrl || connection.booking_url || buildGoogleFlightsUrl()),
       filename: sanitizeCalendarFilename([connection.origin || 'travel', connection.destination || 'connection', calendarStart.slice(0, 10)].filter(Boolean).join('-')),
     });
   }
@@ -1506,7 +1519,7 @@
       element?.setAttribute('data-testid', 'travel-route-path');
       element?.setAttribute('data-transport-type', 'flight');
       boundsLatLngs.push(...trackLatLngs);
-    } else {
+    } else if (!isAuthored) {
       for (const segment of routeLineSegments) {
         const arcLatLngs = segment.points.map(([lat, lng]) => L!.latLng(lat, lng));
         boundsLatLngs.push(...arcLatLngs);
@@ -1552,7 +1565,7 @@
   onCopy={handleCopy}
   onDownload={handleDownload}
   skillIconName="travel"
-  embedHeaderTitle={priceHeader}
+  embedHeaderTitle={authoredTitle || priceHeader}
   embedHeaderSubtitle={headerSubtitle}
   currentEmbedId={embedId}
   onCalendar={calendarStart ? handleAddToCalendar : undefined}
@@ -1585,13 +1598,13 @@
       {#if $authStore.isAuthenticated}
         <EmbedHeaderCtaButton testId="save-embed-cta" label={savedMemoryEntry ? 'Forget' : 'Add memory'} variant="secondary" iconName="heart" iconOnly pressed={!!savedMemoryEntry} onclick={handleToggleSavedConnection} />
       {/if}
-      {#if bookingState === 'loaded' && resolvedBookingUrl}
-        <EmbedHeaderCtaButton testId="booking-cta" label={$text('embeds.book_on').replace('{provider}', resolvedBookingProvider || primaryCarrier)} onclick={handleOpenBookingUrl} />
-      {:else if bookingState === 'loading'}
+      {#if (isAuthored && connection.booking_url) || (!isAuthored && bookingState === 'loaded' && resolvedBookingUrl)}
+        <EmbedHeaderCtaButton testId="booking-cta" label={isAuthored ? $text('embeds.authoring.open_source') : $text('embeds.book_on').replace('{provider}', resolvedBookingProvider || primaryCarrier)} onclick={handleOpenBookingUrl} />
+      {:else if !isAuthored && bookingState === 'loading'}
         <EmbedHeaderCtaButton testId="booking-cta" label="" variant="loading" />
-      {:else if bookingState === 'error'}
+      {:else if !isAuthored && bookingState === 'error'}
         <EmbedHeaderCtaButton testId="booking-cta" label={$text('embeds.open_google_flights')} onclick={handleOpenGoogleFlights} variant="fallback" />
-      {:else if connection.booking_token && bookingState === 'idle'}
+      {:else if !isAuthored && connection.booking_token && bookingState === 'idle'}
         <EmbedHeaderCtaButton testId="booking-cta" label={$text('embeds.get_booking_link')} onclick={handleLoadBookingLink} />
       {/if}
     </div>
@@ -1599,6 +1612,8 @@
 
   {#snippet summary()}
     {#if formattedPrice}<ResultEmbedInfo icon="euro" label="Fare" value={formattedPrice}>{fareSummary || formattedPrice}</ResultEmbedInfo>{/if}
+    {#if isAuthored && connection.departure}<ResultEmbedInfo icon="clock" label="Departure" value={connection.departure}>{formatTime(connection.departure)}</ResultEmbedInfo>{/if}
+    {#if isAuthored && connection.arrival}<ResultEmbedInfo icon="clock" label="Arrival" value={connection.arrival}>{formatTime(connection.arrival)}</ResultEmbedInfo>{/if}
     {#if connection.duration}<ResultEmbedInfo icon="clock" label="Journey duration" value={connection.duration}>{connection.duration}</ResultEmbedInfo>{/if}
     {#if travelClassLabel}<ResultEmbedInfo icon="armchair" label="Travel class" value={travelClassLabel}>{travelClassLabel}</ResultEmbedInfo>{/if}
   {/snippet}
@@ -1646,6 +1661,14 @@
 
       {#if connection.legs && connection.legs.length > 0}
         {#each connection.legs as leg}
+          {#if leg.segments.length === 0}
+            <div class="summary-fallback" data-testid="connection-partial-leg">
+              {#if leg.origin || leg.destination}<span>{[leg.origin, leg.destination].filter(Boolean).join(' → ')}</span>{/if}
+              {#if leg.departure}<ResultEmbedInfo icon="clock" label="Departure" value={leg.departure}>{formatTime(leg.departure)}</ResultEmbedInfo>{/if}
+              {#if leg.arrival}<ResultEmbedInfo icon="clock" label="Arrival" value={leg.arrival}>{formatTime(leg.arrival)}</ResultEmbedInfo>{/if}
+              {#if leg.duration}<span>{leg.duration}</span>{/if}
+            </div>
+          {/if}
           {#each leg.segments as segment, segIdx}
             {@const depChanged = hasRealtimeChange(segment.departure_time, segment.actual_departure_time)}
             {@const arrChanged = hasRealtimeChange(segment.arrival_time, segment.actual_arrival_time)}

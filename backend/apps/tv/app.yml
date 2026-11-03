@@ -182,22 +182,51 @@ settings_and_memories:
       required:
         - title
         - type
-# Backend authoring admission precedes web renderer registration (CLI-first).
 embed_types:
   - id: movie
     category: direct
-    frontend_type: ""
+    frontend_type: tv-movie
     backend_type: tv_movie
     has_children: false
+    groupable: true
+    preview_component: tv/TVTitleEmbedPreview.svelte
+    fullscreen_component: tv/TVTitleEmbedFullscreen.svelte
+    icon: movies
+    gradient_var: "--color-app-tv"
+    i18n_namespace: embeds.tv.movie
     authoring:
       kind: tv.movie
       schema_id: tv.movie
+    content_catalog:
+      enabled: true
+      diff_editable: false
+      content_type_id: tv_movie
+      name: Movie
+      description: A sourced or explicitly drafted movie title with supplied poster, credits and score context.
+      icon: movies
+      example_key: tv.movie
+      order: 10
   - id: series
     category: direct
-    frontend_type: ""
+    frontend_type: tv-series
     backend_type: tv_series
     has_children: false
+    groupable: true
+    preview_component: tv/TVTitleEmbedPreview.svelte
+    fullscreen_component: tv/TVTitleEmbedFullscreen.svelte
+    icon: tv
+    gradient_var: "--color-app-tv"
+    i18n_namespace: embeds.tv.series
     authoring:
       kind: tv.series
       schema_id: tv.series
+    content_catalog:
+      enabled: true
+      diff_editable: false
+      content_type_id: tv_series
+      name: TV series
+      description: A sourced or explicitly drafted series with supplied posters, totals and partial season details.
+      icon: tv
+      example_key: tv.series
+      order: 20
 skills: []

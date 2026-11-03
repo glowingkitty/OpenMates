@@ -106,13 +106,35 @@ function fakeDatabase(seed, injectedFailure = null, routingSchema = false) {
         where(...args) { addWhere(args); return query; },
         andWhere(...args) { addWhere(args); return query; },
         whereRaw(sql, bindings) {
-          if (sql === '(created_at, id) > (?, ?::uuid)') {
+          if (sql === "coalesce(scope,'chat') = 'chat'") {
+            predicates.push(row => (row.scope ?? 'chat') === 'chat');
+          } else if (sql === '(created_at, id) > (?, ?::uuid)') {
             predicates.push((row) => compare(row.created_at, '>', bindings[0])
               || (compare(row.created_at, '=', bindings[0]) && compare(row.id, '>', bindings[1])));
           } else if (sql === `EXISTS (SELECT 1 FROM chats c WHERE c.id = ${table}.chat_id AND c.hashed_team_id IS NOT NULL)`) {
             predicates.push((row) => (store.chats ?? []).some((chat) => chat.id === row.chat_id && chat.hashed_team_id != null));
           } else if (sql === 'NOT EXISTS (SELECT 1 FROM chat_recovery_outputs o WHERE o.preflight_id = chat_turn_preflights.id AND o.deleted_at IS NULL)') {
             predicates.push((row) => !(store.chat_recovery_outputs ?? []).some((output) => output.preflight_id === row.id && output.deleted_at == null));
+          } else if (sql === "(output_asset_references::jsonb @> ?::jsonb OR (output_asset_references IS NOT NULL AND jsonb_typeof(output_asset_references::jsonb) <> 'array'))") {
+            rawStatements.push({ sql, bindings: structuredClone(bindings) });
+            const identity = JSON.parse(bindings[0])[0];
+            predicates.push((row) => {
+              if (row.output_asset_references == null) return false;
+              let entries = row.output_asset_references;
+              try { if (typeof entries === 'string') entries = JSON.parse(entries); } catch { return true; }
+              return !Array.isArray(entries) || entries.some(entry => entry && Object.entries(identity)
+                .every(([key, value]) => entry[key] === value));
+            });
+          } else if (["(EXISTS (SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(output_asset_references::jsonb) = 'array' THEN output_asset_references::jsonb ELSE '[]'::jsonb END) asset WHERE asset->> ? = ANY(?::text[])) OR jsonb_typeof(output_asset_references::jsonb) <> 'array')",
+            "(EXISTS (SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(output_asset_references::jsonb) = 'array' THEN output_asset_references::jsonb ELSE '[]'::jsonb END) asset WHERE asset->> ? = ANY(?::text[]) AND asset->>'hashed_message_id' = ?) OR jsonb_typeof(output_asset_references::jsonb) <> 'array')"].includes(sql)) {
+            const [field, ids, messageHash] = bindings;
+            predicates.push(row => {
+              let entries = row.output_asset_references;
+              if (entries == null) return false;
+              try { if (typeof entries === 'string') entries = JSON.parse(entries); } catch { return true; }
+              return !Array.isArray(entries) || entries.some(entry => entry && ids.includes(entry[field])
+                && (messageHash == null || entry.hashed_message_id === messageHash));
+            });
           } else {
             throw new Error(`unsupported fake whereRaw: ${sql}`);
           }
@@ -3125,6 +3147,208 @@ test('owner output status proves an acknowledged embed still has canonical encry
   await assert.rejects(executeOperation(database, 'get_output_status', request), /recovery_output_not_found/);
 });
 
+const selectedImageFiles = [
+  { bucket: 'chatfiles', key: 'uploads/selected-image/original.encrypted' },
+  { bucket: 'chatfiles', key: 'uploads/selected-image/preview.encrypted' },
+];
+const selectedImageOutput = (overrides = {}) => ({
+  protocol_version: 1, record_id: '018fdddd-dddd-7ddd-8ddd-dddddddddddd', hashed_user_id: OWNER,
+  root_chat_id: CHAT_ID, target_chat_id: CHAT_ID, turn_id: TURN_ID,
+  preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+  subject_id: JOB_ID, output_kind: 'embed', output_version: 2,
+  chat_key_version: 1, sealed_payload: SEALED_OUTPUT, s3_file_keys: selectedImageFiles,
+  hashed_message_id: sha256('user-message-1'), ...overrides,
+});
+const selectedImageSeed = () => {
+  const seed = preparedSeed();
+  seed.chat_turn_preflights[0].state = 'RUNNING';
+  seed.chat_turn_preflights[0].inference_task_id = TASK_ID;
+  seed.chat_recovery_outputs = [];
+  seed.embeds = [{ embed_id: JOB_ID, hashed_user_id: OWNER, hashed_chat_id: sha256(CHAT_ID),
+    version_number: 2, encrypted_content: 'client-encrypted-image', s3_file_keys: null, hashed_message_id: sha256('user-message-1') }];
+  seed.embed_keys = [
+    { hashed_embed_id: sha256(JOB_ID), hashed_user_id: OWNER, key_type: 'master', encrypted_embed_key: 'master-wrapper' },
+    { hashed_embed_id: sha256(JOB_ID), hashed_user_id: OWNER, key_type: 'chat', hashed_chat_id: sha256(CHAT_ID), encrypted_embed_key: 'chat-wrapper' },
+  ];
+  return seed;
+};
+const selectedImageAck = (overrides = {}) => ({
+  protocol_version: 1, hashed_user_id: OWNER, device_hash: 'device-a',
+  record_id: selectedImageOutput().record_id, canonical_digest: sha256('client-encrypted-image'), ...overrides,
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('selected storage metadata rejects malformed unbounded or duplicate descriptors in single and batch saves', async () => {
+  const invalid = [
+    {}, JSON.stringify(selectedImageFiles), [null], [{}], [{ bucket: 'other', key: 'object' }],
+    [{ bucket: 'chatfiles', key: '' }], [{ bucket: 'chatfiles', key: '  ' }],
+    [{ bucket: 'chatfiles', key: 42 }], [{ bucket: 'chatfiles', key: 'x'.repeat(4097) }],
+    [{ bucket: 'chatfiles', key: 'object', url: 'https://private.invalid' }],
+    [selectedImageFiles[0], selectedImageFiles[0]],
+    Array.from({ length: 65 }, (_, index) => ({ bucket: 'chatfiles', key: `object-${index}` })),
+  ];
+  for (const batch of [false, true]) {
+    for (const refs of invalid) {
+      const database = fakeDatabase(selectedImageSeed());
+      const output = selectedImageOutput({ s3_file_keys: refs });
+      await assert.rejects(executeOperation(database, batch ? 'create_sealed_outputs' : 'create_sealed_output',
+        batch ? { protocol_version: 1, outputs: [output] } : output), /invalid_output_s3_file_keys/);
+      assert.deepEqual(database.rows.chat_recovery_outputs, []);
+    }
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('selected storage metadata has strict retry equality including legacy null and explicit clear', async () => {
+  for (const batch of [false, true]) {
+    const database = fakeDatabase(selectedImageSeed());
+    const output = selectedImageOutput({ content_commitment: COMMITMENT });
+    const save = (value) => executeOperation(database, batch ? 'create_sealed_outputs' : 'create_sealed_output',
+      batch ? { protocol_version: 1, outputs: [value] } : value);
+    await save(output);
+    await save({ ...output, s3_file_keys: selectedImageFiles.map(({ bucket, key }) => ({ key, bucket })) });
+    for (const refs of [null, undefined, [], [selectedImageFiles[0]], [...selectedImageFiles].reverse()]) {
+      await assert.rejects(save({ ...output, s3_file_keys: refs,
+        sealed_payload: JSON.stringify({ ...JSON.parse(SEALED_OUTPUT), ciphertext: b64(17, 6) }) }), /sealed_output_mismatch/);
+    }
+    assert.deepEqual(JSON.parse(database.rows.chat_recovery_outputs[0].s3_file_keys), selectedImageFiles);
+    const randomizedRetry = { ...output, sealed_payload: JSON.stringify({ ...JSON.parse(SEALED_OUTPUT), ciphertext: b64(17, 6) }) };
+    await save(randomizedRetry);
+    assert.equal(database.rows.chat_recovery_outputs[0].sealed_payload, SEALED_OUTPUT);
+  }
+  for (const initial of [undefined, null, []]) {
+    const database = fakeDatabase(selectedImageSeed());
+    const output = selectedImageOutput({ s3_file_keys: initial });
+    await executeOperation(database, 'create_sealed_output', output);
+    await executeOperation(database, 'create_sealed_output', { ...output, s3_file_keys: initial == null ? null : [] });
+    await assert.rejects(executeOperation(database, 'create_sealed_output', {
+      ...output, s3_file_keys: initial == null ? [] : null,
+    }), /sealed_output_mismatch/);
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('selected storage metadata accepts exact bounds and participates in atomic batch rollback', async () => {
+  const refs = Array.from({ length: 64 }, (_, index) => ({ bucket: 'chatfiles', key: `${index}-` + 'x'.repeat(4093) }));
+  const database = fakeDatabase(selectedImageSeed());
+  await executeOperation(database, 'create_sealed_output', selectedImageOutput({ s3_file_keys: refs }));
+  assert.deepEqual(JSON.parse(database.rows.chat_recovery_outputs[0].s3_file_keys), refs);
+  const other = fakeDatabase(selectedImageSeed());
+  await assert.rejects(executeOperation(other, 'create_sealed_outputs', { protocol_version: 1, outputs: [
+    selectedImageOutput(), selectedImageOutput({ record_id: TASK_ID, s3_file_keys: [{ bucket: 'wrong', key: 'object' }] }),
+  ] }), /invalid_output_s3_file_keys/);
+  assert.deepEqual(other.rows.chat_recovery_outputs, []);
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('selected storage metadata is immutable across external writer preparation and finalization', async () => {
+  const database = fakeDatabase(selectedImageSeed());
+  const output = selectedImageOutput();
+  delete output.sealed_payload;
+  Object.assign(output, { payload_s3_key: `chat-recovery/v2/bb/${output.record_id}/${COMMITMENT}.json`,
+    payload_size_bytes: 300000, sealed_payload_digest: COMMITMENT });
+  await executeOperation(database, 'prepare_sealed_output', output);
+  await assert.rejects(executeOperation(database, 'create_sealed_output', {
+    ...output, s3_file_keys: [], payload_verified_regions: ['eu'],
+  }), /sealed_output_mismatch/);
+  assert.equal(database.rows.chat_recovery_outputs[0].state, 'PREPARING');
+  await executeOperation(database, 'create_sealed_output', { ...output, payload_verified_regions: ['eu'] });
+  assert.equal(database.rows.chat_recovery_outputs[0].state, 'PENDING');
+  assert.deepEqual(JSON.parse(database.rows.chat_recovery_outputs[0].s3_file_keys), selectedImageFiles);
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('canonical head reuse promotes selected dependencies before ACK without exposing server metadata', async () => {
+  const database = fakeDatabase(selectedImageSeed());
+  await executeOperation(database, 'create_sealed_output', selectedImageOutput());
+  const statusRequest = selectedImageAck();
+  delete statusRequest.canonical_digest;
+  const status = await executeOperation(database, 'get_output_status', statusRequest);
+  assert.equal(Object.hasOwn(status, 's3_file_keys'), false);
+  await executeOperation(database, 'acknowledge_output_embed', selectedImageAck());
+  assert.deepEqual(JSON.parse(database.rows.embeds[0].s3_file_keys), selectedImageFiles);
+  const row = database.rows.chat_recovery_outputs[0];
+  assert.equal(row.state, 'ACKNOWLEDGED');
+  assert.equal(row.sealed_payload, null);
+  assert.deepEqual(JSON.parse(row.s3_file_keys), selectedImageFiles);
+  database.rows.embeds[0].version_number = 3;
+  database.rows.embeds[0].encrypted_content = 'advanced-head';
+  database.rows.embeds[0].s3_file_keys = JSON.stringify([{ bucket: 'chatfiles', key: 'advanced-object' }]);
+  const retry = await executeOperation(database, 'acknowledge_output_embed', selectedImageAck());
+  assert.equal(retry.idempotent, true);
+  assert.deepEqual(JSON.parse(database.rows.embeds[0].s3_file_keys), [{ bucket: 'chatfiles', key: 'advanced-object' }]);
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('legacy null selected metadata preserves canonical dependencies while explicit empty clears them', async () => {
+  for (const refs of [undefined, null, []]) {
+    const seed = selectedImageSeed();
+    seed.embeds[0].s3_file_keys = JSON.stringify(selectedImageFiles);
+    const database = fakeDatabase(seed);
+    await executeOperation(database, 'create_sealed_output', selectedImageOutput({ s3_file_keys: refs }));
+    await executeOperation(database, 'acknowledge_output_embed', selectedImageAck());
+    assert.deepEqual(JSON.parse(database.rows.embeds[0].s3_file_keys), refs == null ? selectedImageFiles : []);
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('selected dependency promotion fails closed on owner chat subject version digest and wrapper mismatches', async () => {
+  const cases = [
+    [seed => { seed.embeds[0].hashed_user_id = 'f'.repeat(64); }, {}, /canonical_embed_missing/],
+    [seed => { seed.embeds[0].hashed_chat_id = sha256(TASK_ID); }, {}, /canonical_embed_missing/],
+    [seed => { seed.embeds[0].hashed_message_id = sha256('other-message'); }, {}, /canonical_output_mismatch/],
+    [seed => { seed.embeds[0].embed_id = TASK_ID; }, {}, /canonical_embed_missing/],
+    [seed => { seed.embeds[0].version_number = 1; }, {}, /canonical_embed_missing/],
+    [seed => { seed.embeds[0].version_number = 3; }, {}, /canonical_embed_head_advanced/],
+    [() => {}, { canonical_digest: sha256('wrong-ciphertext') }, /canonical_output_mismatch/],
+    [() => {}, { hashed_user_id: 'f'.repeat(64) }, /recovery_output_not_found/],
+    [seed => { seed.embed_keys = seed.embed_keys.filter(key => key.key_type !== 'master'); }, {}, /canonical_embed_key_missing/],
+    [seed => { seed.embed_keys[1].hashed_chat_id = sha256(TASK_ID); }, {}, /canonical_embed_key_missing/],
+    [seed => { seed.embed_keys[0].hashed_user_id = 'f'.repeat(64); }, {}, /canonical_embed_key_missing/],
+  ];
+  for (const [change, request, error] of cases) {
+    const seed = selectedImageSeed();
+    change(seed);
+    const database = fakeDatabase(seed);
+    await executeOperation(database, 'create_sealed_output', selectedImageOutput());
+    await assert.rejects(executeOperation(database, 'acknowledge_output_embed', selectedImageAck(request)), error);
+    assert.equal(database.rows.embeds[0].s3_file_keys, null);
+    assert.equal(database.rows.chat_recovery_outputs[0].state, 'PENDING');
+    assert.equal(database.rows.chat_recovery_outputs[0].sealed_payload, SEALED_OUTPUT);
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('historical version ACK retains selected dependencies without replacing advanced head or expiring them', async () => {
+  const seed = selectedImageSeed();
+  seed.embeds[0].version_number = 3;
+  seed.embeds[0].s3_file_keys = JSON.stringify([{ bucket: 'chatfiles', key: 'current-object' }]);
+  seed.embed_diffs = [{ embed_id: JOB_ID, hashed_user_id: OWNER, version_number: 2,
+    encrypted_patch: 'historical-patch' }];
+  const database = fakeDatabase(seed);
+  await executeOperation(database, 'create_sealed_output', selectedImageOutput());
+  await executeOperation(database, 'acknowledge_output_embed', selectedImageAck({ canonical_source: 'version_row',
+    canonical_digest: testing.digest([null, 'historical-patch']) }));
+  await executeOperation(database, 'cleanup_expired', { protocol_version: 1 }, new Date('2040-01-01T00:00:00Z'));
+  assert.deepEqual(JSON.parse(database.rows.embeds[0].s3_file_keys), [{ bucket: 'chatfiles', key: 'current-object' }]);
+  assert.deepEqual(JSON.parse(database.rows.chat_recovery_outputs[0].s3_file_keys), selectedImageFiles);
+  assert.equal(database.rows.chat_recovery_outputs[0].state, 'ACKNOWLEDGED');
+  assert.equal(database.rows.chat_recovery_outputs[0].sealed_payload, null);
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('selected dependencies and ACK commit atomically and retry after a failed ACK write', async () => {
+  const database = fakeDatabase(selectedImageSeed(), { operation: 'update', table: 'chat_recovery_outputs' });
+  await executeOperation(database, 'create_sealed_output', selectedImageOutput());
+  await assert.rejects(executeOperation(database, 'acknowledge_output_embed', selectedImageAck()), /injected update/);
+  assert.equal(database.rows.embeds[0].s3_file_keys, null);
+  assert.equal(database.rows.chat_recovery_outputs[0].state, 'PENDING');
+  assert.equal(database.rows.chat_recovery_outputs[0].sealed_payload, SEALED_OUTPUT);
+  await executeOperation(database, 'acknowledge_output_embed', selectedImageAck());
+  assert.deepEqual(JSON.parse(database.rows.embeds[0].s3_file_keys), selectedImageFiles);
+  assert.equal(database.rows.chat_recovery_outputs[0].state, 'ACKNOWLEDGED');
+});
+
 test('a progressed embed head acknowledges only against its immutable historical version row', async () => {
   const seed = preparedSeed();
   seed.chat_turn_preflights[0].state = 'RUNNING';
@@ -4085,6 +4309,696 @@ test('legacy child intent binds orchestration prompt and root turn', async () =>
   await assert.rejects(executeOperation(fakeDatabase(seed), 'register_legacy_output_producer',
     { ...body, primary_message_id: 'user-message-1' }, new Date('2029-01-01T00:00:00Z')),
   (error) => error.code === 'legacy_child_identity_mismatch');
+});
+
+async function legacyAssetFixture(kind = 'ORDINARY', injectedFailure = null) {
+  const actor = '018f1212-1212-7121-8121-121212121212';
+  const owner = sha256(actor);
+  const taskIdentity = sha256(`${actor}:${CHAT_ID}:user-message-1`);
+  const now = new Date('2029-01-01T00:00:00Z');
+  const database = fakeDatabase({
+    ...protocolSeed(), directus_users: [{ id: actor, status: 'active' }],
+    chats: [{ id: CHAT_ID, hashed_user_id: owner }], messages: [],
+  }, injectedFailure);
+  const admission = { protocol_version: 1, task_identity: taskIdentity, actor_user_id: actor,
+    hashed_user_id: owner, chat_id: CHAT_ID, first_message_id: 'user-message-1', hashed_team_id: null };
+  if (kind === 'ORDINARY') {
+    await executeOperation(database, 'admit_legacy_inference', admission, now);
+    const dispatch = { ...admission, broker_task_id: taskIdentity, dispatch_binding: COMMITMENT };
+    await executeOperation(database, 'bind_ordinary_legacy_dispatch', dispatch, now);
+    assert.equal((await executeOperation(database, 'claim_legacy_inference_start', dispatch, now)).claimed, true);
+  } else {
+    const batch = { ...admission, celery_task_id: PRODUCER_TASK, batch_commitment: COMMITMENT,
+      members: [{ message_id: 'user-message-1', chat_id: CHAT_ID, hashed_user_id: owner, payload_commitment: COMMITMENT }] };
+    await executeOperation(database, 'prepare_legacy_batch', batch, now);
+    assert.equal((await executeOperation(database, 'claim_legacy_batch', batch, now)).claimed, true);
+  }
+  const request = { protocol_version: 1, task_identity: taskIdentity, actor_user_id: actor, hashed_user_id: owner,
+    root_chat_id: CHAT_ID, root_turn_id: null, root_user_message_id: 'user-message-1', target_chat_id: CHAT_ID,
+    primary_message_id: 'user-message-1', embed_id: JOB_ID, output_version: 1, parent_embed_id: null,
+    content_commitment: COMMITMENT, s3_file_keys: selectedImageFiles };
+  return { database, request, now };
+}
+const legacyAssetLookup = (request, overrides = {}) => ({
+  protocol_version: 1, hashed_user_id: request.hashed_user_id, target_chat_id: request.target_chat_id,
+  embed_id: request.embed_id, output_version: request.output_version,
+  hashed_message_id: sha256(request.primary_message_id), parent_embed_id: request.parent_embed_id, ...overrides,
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('genuinely claimed ordinary and batch legacy outputs durably register exact selected references', async () => {
+  for (const kind of ['ORDINARY', 'BATCH']) {
+    const { database, request } = await legacyAssetFixture(kind);
+    const run = () => executeOperation(database, 'register_legacy_output_asset_references', request);
+    const receipt = { registered: true, task_identity: request.task_identity, embed_id: JOB_ID, output_version: 1 };
+    assert.deepEqual(await run(), { ...receipt, idempotent: false });
+    assert.deepEqual(await run(), { ...receipt, idempotent: true });
+    const stored = JSON.parse(database.rows.chat_recovery_legacy_batch_claims[0].output_asset_references);
+    assert.deepEqual(stored, [{ embed_id: JOB_ID, output_version: 1, target_chat_id: CHAT_ID,
+      hashed_chat_id: sha256(CHAT_ID), hashed_message_id: sha256('user-message-1'), parent_embed_id: null,
+      content_commitment: COMMITMENT, s3_file_keys: selectedImageFiles }]);
+    const found = await executeOperation(database, 'get_legacy_output_asset_binding', legacyAssetLookup(request));
+    assert.deepEqual(found, { binding: { task_identity: request.task_identity, embed_id: JOB_ID,
+      output_version: 1, content_commitment: COMMITMENT } });
+    assert.ok(database.rawStatements.some(row => row.sql.includes('output_asset_references::jsonb @>')));
+    assert.equal(JSON.stringify(found).includes('chatfiles'), false);
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('legacy selected references reject claim state actor owner chat dispatch and task substitutions', async () => {
+  const mutations = [
+    rows => { rows.chat_recovery_legacy_batch_claims[0].state = 'PREPARED'; },
+    rows => { rows.chat_recovery_legacy_batch_claims[0].state = 'COMPLETED'; },
+    rows => { rows.chat_recovery_legacy_batch_claims[0].state = 'INVALIDATED'; },
+    rows => { rows.chat_recovery_legacy_batch_claims[0].worker_completed = true; },
+    rows => { rows.chat_recovery_legacy_batch_claims[0].actor_user_id = TASK_ID; },
+    rows => { rows.chat_recovery_legacy_batch_claims[0].hashed_user_id = 'f'.repeat(64); },
+    rows => { rows.chat_recovery_legacy_batch_claims[0].chat_id = TASK_ID; },
+    rows => { rows.chat_recovery_legacy_batch_claims[0].first_message_id = 'foreign-message'; },
+    rows => { rows.chat_recovery_legacy_batch_claims[0].dispatch_binding = null; },
+    rows => { rows.chat_recovery_legacy_batch_claims[0].broker_task_id = null; },
+    rows => { rows.chat_recovery_legacy_batch_claims[0].kind = 'FAKE'; },
+    rows => { rows.directus_users[0].status = 'suspended'; },
+    rows => { rows.chats[0].hashed_user_id = 'f'.repeat(64); },
+    rows => { rows.chats[0].storage_state = 'deleting'; },
+    rows => { rows.chat_recovery_chat_deletion_fences = [{ id: CHAT_ID }]; },
+  ];
+  for (const mutate of mutations) {
+    const { database, request } = await legacyAssetFixture();
+    mutate(database.rows);
+    await assert.rejects(executeOperation(database, 'register_legacy_output_asset_references', request));
+    assert.equal(database.rows.chat_recovery_legacy_batch_claims[0].output_asset_references, undefined);
+  }
+  for (const change of [{ task_identity: COMMITMENT }, { actor_user_id: TASK_ID },
+    { hashed_user_id: 'f'.repeat(64) }, { primary_message_id: 'foreign-message' }, { s3_file_keys: null }]) {
+    const { database, request } = await legacyAssetFixture();
+    await assert.rejects(executeOperation(database, 'register_legacy_output_asset_references', { ...request, ...change }));
+    assert.equal(database.rows.chat_recovery_legacy_batch_claims[0].output_asset_references, undefined);
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('legacy asset metadata preserves immutable versions and rejects conflicting references or provenance', async () => {
+  const { database, request } = await legacyAssetFixture();
+  await executeOperation(database, 'register_legacy_output_asset_references', request);
+  for (const change of [{ s3_file_keys: [] }, { content_commitment: 'f'.repeat(64) }, { parent_embed_id: TASK_ID },
+    { primary_message_id: request.task_identity }]) {
+    await assert.rejects(executeOperation(database, 'register_legacy_output_asset_references', { ...request, ...change }),
+      /legacy_asset_reference_mismatch/);
+  }
+  await executeOperation(database, 'register_legacy_output_asset_references', {
+    ...request, output_version: 2, content_commitment: 'f'.repeat(64), s3_file_keys: [],
+  });
+  const entries = JSON.parse(database.rows.chat_recovery_legacy_batch_claims[0].output_asset_references);
+  assert.deepEqual(entries.map(row => [row.output_version, row.s3_file_keys]), [[1, selectedImageFiles], [2, []]]);
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('legacy child asset metadata binds the actual orchestration root turn and prompt', async () => {
+  const { database, request } = await legacyAssetFixture();
+  const child = '018fdddd-dddd-7ddd-8ddd-dddddddddddd';
+  database.rows.chats.push({ id: child, hashed_user_id: request.hashed_user_id });
+  database.rows.sub_chat_orchestrations = [{ id: TASK_ID, root_chat_id: CHAT_ID,
+    root_turn_id: TURN_ID, hashed_user_id: request.hashed_user_id }];
+  database.rows.sub_chat_orchestration_children = [{ child_chat_id: child, orchestration_id: TASK_ID, user_message_id: 'child-prompt' }];
+  const body = { ...request, target_chat_id: child, root_turn_id: TURN_ID, primary_message_id: 'child-prompt' };
+  for (const change of [{ root_turn_id: null }, { root_turn_id: TASK_ID }, { primary_message_id: 'foreign-prompt' }]) {
+    await assert.rejects(executeOperation(database, 'register_legacy_output_asset_references', { ...body, ...change }),
+      /legacy_child_identity_mismatch/);
+  }
+  await executeOperation(database, 'register_legacy_output_asset_references', body);
+  assert.deepEqual((await executeOperation(database, 'get_legacy_output_asset_binding', legacyAssetLookup(body))).binding,
+    { task_identity: request.task_identity, embed_id: JOB_ID, output_version: 1, content_commitment: COMMITMENT });
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('legacy asset lookup rejects wrong identity ambiguous claims and malformed stored manifests', async () => {
+  const { database, request } = await legacyAssetFixture();
+  const lookup = legacyAssetLookup(request);
+  assert.deepEqual(await executeOperation(database, 'get_legacy_output_asset_binding', lookup), { binding: null });
+  await executeOperation(database, 'register_legacy_output_asset_references', request);
+  for (const change of [{ hashed_user_id: 'f'.repeat(64) }, { target_chat_id: TASK_ID }, { embed_id: TASK_ID },
+    { output_version: 2 }, { hashed_message_id: COMMITMENT }, { parent_embed_id: TASK_ID }]) {
+    assert.deepEqual(await executeOperation(database, 'get_legacy_output_asset_binding', { ...lookup, ...change }), { binding: null });
+  }
+  const claim = database.rows.chat_recovery_legacy_batch_claims[0];
+  database.rows.chat_recovery_legacy_batch_claims.push({ ...structuredClone(claim), task_identity: 'f'.repeat(64) });
+  await assert.rejects(executeOperation(database, 'get_legacy_output_asset_binding', lookup), /legacy_asset_binding_ambiguous/);
+  database.rows.chat_recovery_legacy_batch_claims.pop();
+  for (const manifest of [{}, 'null', [{ ...JSON.parse(claim.output_asset_references)[0], s3_file_keys: [{ bucket: 'wrong', key: 'x' }] }]]) {
+    claim.output_asset_references = typeof manifest === 'string' ? manifest : JSON.stringify(manifest);
+    await assert.rejects(executeOperation(database, 'get_legacy_output_asset_binding', lookup));
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('legacy asset ledger bounds entry count and total bytes and rolls back failed writes', async () => {
+  const { database, request } = await legacyAssetFixture();
+  await executeOperation(database, 'register_legacy_output_asset_references', { ...request, s3_file_keys: [] });
+  const claim = database.rows.chat_recovery_legacy_batch_claims[0];
+  const entry = JSON.parse(claim.output_asset_references)[0];
+  claim.output_asset_references = JSON.stringify(Array.from({ length: 128 }, (_, index) => ({ ...entry, output_version: index + 1 })));
+  await assert.rejects(executeOperation(database, 'register_legacy_output_asset_references', {
+    ...request, output_version: 129,
+  }), /legacy_asset_references_too_large/);
+  const bounded = await legacyAssetFixture();
+  const refs = Array.from({ length: 64 }, (_, index) => ({ bucket: 'chatfiles', key: `${index}-` + 'x'.repeat(4093) }));
+  await executeOperation(bounded.database, 'register_legacy_output_asset_references', { ...bounded.request, s3_file_keys: refs });
+  await assert.rejects(executeOperation(bounded.database, 'register_legacy_output_asset_references', {
+    ...bounded.request, output_version: 2, s3_file_keys: refs,
+  }), /legacy_asset_references_too_large/);
+  const failed = await legacyAssetFixture('ORDINARY', {
+    operation: 'update', table: 'chat_recovery_legacy_batch_claims', occurrence: 3,
+  });
+  await assert.rejects(executeOperation(failed.database, 'register_legacy_output_asset_references', failed.request), /injected update/);
+  assert.equal(failed.database.rows.chat_recovery_legacy_batch_claims[0].output_asset_references, undefined);
+  await executeOperation(failed.database, 'register_legacy_output_asset_references', failed.request);
+  assert.equal(JSON.parse(failed.database.rows.chat_recovery_legacy_batch_claims[0].output_asset_references).length, 1);
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('legacy selected references survive durable completion lifecycle expiry and protocol cutover', async () => {
+  const { database, request, now } = await legacyAssetFixture();
+  await executeOperation(database, 'register_legacy_output_asset_references', request);
+  const original = database.rows.chat_recovery_legacy_batch_claims[0].output_asset_references;
+  await executeOperation(database, 'mark_legacy_inference_completed', { protocol_version: 1, task_identity: request.task_identity }, now);
+  database.rows.messages.push({ client_message_id: request.task_identity, chat_id: CHAT_ID,
+    hashed_user_id: request.hashed_user_id, role: 'assistant', encrypted_content: 'encrypted-assistant' });
+  await executeOperation(database, 'acknowledge_legacy_persistence', {
+    protocol_version: 1, task_identity: request.task_identity, chat_id: CHAT_ID, hashed_user_id: request.hashed_user_id,
+    assistant_message_id: request.task_identity, ciphertext_digest: sha256('encrypted-assistant'),
+  }, now);
+  assert.equal(database.rows.chat_recovery_legacy_batch_claims[0].state, 'COMPLETED');
+  await executeOperation(database, 'cleanup_expired', { protocol_version: 1 }, new Date('2040-01-01T00:00:00Z'));
+  await executeOperation(database, 'set_sends_paused', { protocol_version: 1, sends_paused: true });
+  await executeOperation(database, 'activate_protocol_epoch', { protocol_version: 1, target_epoch: 1 });
+  assert.equal(database.rows.chat_recovery_legacy_batch_claims[0].output_asset_references, original);
+  assert.ok((await executeOperation(database, 'get_legacy_output_asset_binding', legacyAssetLookup(request))).binding);
+  await assert.rejects(executeOperation(database, 'register_legacy_output_asset_references', { ...request, output_version: 2 }),
+    /legacy_asset_claim_mismatch/);
+});
+
+async function assetDeletionFixture(injectedFailure = null) {
+  const { database, request, now } = await legacyAssetFixture('ORDINARY', injectedFailure);
+  await executeOperation(database, 'register_legacy_output_asset_references', request);
+  await executeOperation(database, 'register_legacy_output_asset_references', {
+    ...request, embed_id: TASK_ID, s3_file_keys: [{ bucket: 'chatfiles', key: 'keep-unrelated-object' }],
+  });
+  const preflight = structuredClone(selectedImageSeed().chat_turn_preflights[0]);
+  preflight.hashed_user_id = request.hashed_user_id;
+  database.rows.chat_turn_preflights = [preflight];
+  database.rows.chat_recovery_outputs = [];
+  await executeOperation(database, 'create_sealed_output', selectedImageOutput({
+    hashed_user_id: request.hashed_user_id, content_commitment: COMMITMENT,
+  }), now);
+  return { database, request, now };
+}
+const inspectAssets = (request, selector = { embed_ids: [JOB_ID] }) => ({
+  protocol_version: 1, hashed_user_id: request.hashed_user_id, ...selector,
+});
+const fenceAssets = (database, request, now, scope = 'chat') => executeOperation(database, 'invalidate_deletion', {
+  protocol_version: 1, hashed_user_id: request.hashed_user_id, scope, ...(scope === 'chat' ? { chat_id: CHAT_ID } : {}),
+}, now);
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('asset deletion inspection requires exact bounded selectors and personal deletion authority', async () => {
+  const { database, request, now } = await assetDeletionFixture();
+  assert.deepEqual(await executeOperation(database, 'inspect_output_asset_references', inspectAssets(request)), { slots: [], next_cursor: null });
+  for (const selector of [{}, { embed_ids: [], target_chat_ids: [] }, { embed_ids: [] },
+    { embed_ids: [JOB_ID, JOB_ID] }, { embed_ids: ['invalid'] }, { target_chat_ids: Array(129).fill(CHAT_ID) }]) {
+    await assert.rejects(executeOperation(database, 'inspect_output_asset_references', inspectAssets(request, selector)),
+      /invalid_asset_reference_selector/);
+  }
+  await fenceAssets(database, request, now);
+  const slots = (await executeOperation(database, 'inspect_output_asset_references', inspectAssets(request))).slots;
+  assert.equal(slots.length, 2);
+  assert.deepEqual(new Set(slots.map(slot => slot.source)), new Set(['sealed', 'legacy']));
+  assert.ok(slots.every(slot => slot.embed_id === JOB_ID && slot.target_chat_id === CHAT_ID
+    && slot.content_commitment === COMMITMENT));
+  assert.deepEqual(await executeOperation(database, 'inspect_output_asset_references', {
+    ...inspectAssets(request), hashed_user_id: 'f'.repeat(64),
+  }), { slots: [], next_cursor: null });
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('asset release removes only exact deleted slots and preserves unrelated claim entries', async () => {
+  const { database, request, now } = await assetDeletionFixture();
+  await fenceAssets(database, request, now);
+  const { slots } = await executeOperation(database, 'inspect_output_asset_references', inspectAssets(request));
+  const released = await executeOperation(database, 'release_output_asset_references', {
+    protocol_version: 1, hashed_user_id: request.hashed_user_id, slots,
+  });
+  assert.equal(released.released.length, 2);
+  assert.deepEqual(released.retained, []);
+  assert.equal(database.rows.chat_recovery_outputs[0].s3_file_keys, null);
+  const entries = JSON.parse(database.rows.chat_recovery_legacy_batch_claims[0].output_asset_references);
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].embed_id, TASK_ID);
+  assert.equal(entries[0].s3_file_keys[0].key, 'keep-unrelated-object');
+  assert.deepEqual((await executeOperation(database, 'inspect_output_asset_references', inspectAssets(request))).slots, []);
+  const retry = await executeOperation(database, 'release_output_asset_references', {
+    protocol_version: 1, hashed_user_id: request.hashed_user_id, slots,
+  });
+  assert.deepEqual(retry.released, []);
+  assert.equal(retry.retained.length, 2, 'a missing record cannot manufacture release authority for a caller-supplied object');
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('asset release retains any surviving head historical version or key wrapper across owners', async () => {
+  for (const survivor of ['head', 'history', 'wrapper']) {
+    const { database, request, now } = await assetDeletionFixture();
+    await fenceAssets(database, request, now);
+    const { slots } = await executeOperation(database, 'inspect_output_asset_references', inspectAssets(request));
+    if (survivor === 'head') database.rows.embeds = [{ embed_id: JOB_ID, hashed_user_id: 'f'.repeat(64) }];
+    if (survivor === 'history') database.rows.embed_diffs = [{ embed_id: JOB_ID, version_number: 99, hashed_user_id: 'f'.repeat(64) }];
+    if (survivor === 'wrapper') database.rows.embed_keys = [{ hashed_embed_id: sha256(JOB_ID), hashed_user_id: 'f'.repeat(64) }];
+    const before = structuredClone(database.rows);
+    const result = await executeOperation(database, 'release_output_asset_references', {
+      protocol_version: 1, hashed_user_id: request.hashed_user_id, slots,
+    });
+    assert.deepEqual(result.released, []);
+    assert.equal(result.retained.length, 2);
+    assert.deepEqual(database.rows, before);
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('asset release rejects stale snapshots forged provenance and lost deletion authority', async () => {
+  for (const change of [
+    slot => ({ ...slot, content_commitment: 'f'.repeat(64) }),
+    slot => ({ ...slot, target_chat_id: TASK_ID }),
+    slot => ({ ...slot, embed_id: TASK_ID }),
+    slot => ({ ...slot, output_version: 10 }),
+    slot => ({ ...slot, s3_file_keys: [{ bucket: 'chatfiles', key: 'forged-object' }] }),
+  ]) {
+    const { database, request, now } = await assetDeletionFixture();
+    await fenceAssets(database, request, now);
+    const { slots } = await executeOperation(database, 'inspect_output_asset_references', inspectAssets(request));
+    const before = structuredClone(database.rows);
+    const result = await executeOperation(database, 'release_output_asset_references', {
+      protocol_version: 1, hashed_user_id: request.hashed_user_id, slots: slots.map(change),
+    });
+    assert.deepEqual(result.released, []);
+    assert.equal(result.retained.length, 2);
+    assert.deepEqual(database.rows, before);
+  }
+  const { database, request, now } = await assetDeletionFixture();
+  await fenceAssets(database, request, now);
+  const { slots } = await executeOperation(database, 'inspect_output_asset_references', inspectAssets(request));
+  database.rows.chat_recovery_chat_deletion_fences = [];
+  const result = await executeOperation(database, 'release_output_asset_references', {
+    protocol_version: 1, hashed_user_id: request.hashed_user_id, slots,
+  });
+  assert.deepEqual(result.released, []);
+  assert.equal(result.retained.length, 2);
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('account asset inspection preserves live Team targets and unrelated children in the same claim', async () => {
+  const { database, request, now } = await assetDeletionFixture();
+  const child = '018fdddd-dddd-7ddd-8ddd-dddddddddddd';
+  database.rows.chats.push({ id: child, hashed_user_id: request.hashed_user_id });
+  database.rows.sub_chat_orchestrations = [{ id: TASK_ID, root_chat_id: CHAT_ID,
+    root_turn_id: TURN_ID, hashed_user_id: request.hashed_user_id }];
+  database.rows.sub_chat_orchestration_children = [{ child_chat_id: child, orchestration_id: TASK_ID, user_message_id: 'child-prompt' }];
+  await executeOperation(database, 'register_legacy_output_asset_references', {
+    ...request, embed_id: OUTBOX_ID, target_chat_id: child, root_turn_id: TURN_ID, primary_message_id: 'child-prompt',
+  });
+  database.rows.chats.find(row => row.id === child).hashed_team_id = TEAM_HASH;
+  await fenceAssets(database, request, now, 'account');
+  const { slots } = await executeOperation(database, 'inspect_output_asset_references', inspectAssets(request, { target_chat_ids: [CHAT_ID, child] }));
+  assert.equal(slots.length, 3);
+  assert.ok(slots.every(slot => slot.target_chat_id === CHAT_ID));
+  database.rows.chats = database.rows.chats.filter(row => row.id !== CHAT_ID);
+  const result = await executeOperation(database, 'release_output_asset_references', {
+    protocol_version: 1, hashed_user_id: request.hashed_user_id, slots,
+  });
+  assert.equal(result.released.length, 3);
+  const remaining = JSON.parse(database.rows.chat_recovery_legacy_batch_claims[0].output_asset_references);
+  assert.equal(remaining.length, 1);
+  assert.equal(remaining[0].target_chat_id, child);
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('asset release rollback restores both legacy and sealed references after a partial transaction failure', async () => {
+  const { database, request, now } = await assetDeletionFixture({
+    operation: 'update', table: 'chat_recovery_outputs', occurrence: 3,
+  });
+  await fenceAssets(database, request, now);
+  const { slots } = await executeOperation(database, 'inspect_output_asset_references', inspectAssets(request));
+  const before = structuredClone(database.rows);
+  const release = () => executeOperation(database, 'release_output_asset_references', {
+    protocol_version: 1, hashed_user_id: request.hashed_user_id, slots,
+  });
+  await assert.rejects(release(), /injected update/);
+  assert.deepEqual(database.rows, before);
+  assert.equal((await release()).released.length, 2);
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('asset release validates bounded exact manifests and preserves account claim embed lock order', async () => {
+  const { database, request, now } = await assetDeletionFixture();
+  await fenceAssets(database, request, now);
+  const { slots } = await executeOperation(database, 'inspect_output_asset_references', inspectAssets(request));
+  for (const invalid of [[slots[0], slots[0]], Array(129).fill(slots[0]),
+    [{ ...slots[0], source: 'unknown' }], [{ ...slots[0], s3_file_keys: null }],
+    [{ ...slots[0], unexpected_key: 'not-allowed' }]]) {
+    await assert.rejects(executeOperation(database, 'release_output_asset_references', {
+      protocol_version: 1, hashed_user_id: request.hashed_user_id, slots: invalid,
+    }), /invalid_asset_reference_slots/);
+  }
+  const before = database.lockEvents.length;
+  await executeOperation(database, 'release_output_asset_references', {
+    protocol_version: 1, hashed_user_id: request.hashed_user_id, slots,
+  });
+  const locks = database.lockEvents.slice(before);
+  assert.equal(locks[0], `advisory:account-recovery:${request.hashed_user_id}`);
+  assert.ok(locks.indexOf('row:chat_recovery_legacy_batch_claims') < locks.indexOf(`advisory:embed:${JOB_ID}`));
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('concurrent fenced registration cannot replace released slots or remove unrelated metadata', async () => {
+  for (const registrationFirst of [true, false]) {
+    const { database, request, now } = await assetDeletionFixture();
+    await fenceAssets(database, request, now);
+    const { slots } = await executeOperation(database, 'inspect_output_asset_references', inspectAssets(request));
+    const register = () => executeOperation(database, 'register_legacy_output_asset_references', {
+      ...request, output_version: 3, s3_file_keys: [{ bucket: 'chatfiles', key: 'racing-object' }],
+    });
+    const release = () => executeOperation(database, 'release_output_asset_references', {
+      protocol_version: 1, hashed_user_id: request.hashed_user_id, slots,
+    });
+    const results = await Promise.allSettled(registrationFirst ? [register(), release()] : [release(), register()]);
+    assert.equal(results[registrationFirst ? 0 : 1].status, 'rejected');
+    assert.equal(results[registrationFirst ? 1 : 0].status, 'fulfilled');
+    const remaining = JSON.parse(database.rows.chat_recovery_legacy_batch_claims[0].output_asset_references);
+    assert.equal(remaining.length, 1);
+    assert.equal(remaining[0].embed_id, TASK_ID);
+    assert.equal(remaining[0].s3_file_keys[0].key, 'keep-unrelated-object');
+  }
+});
+
+const assetPageUuid = index => `018f9999-9999-7999-8999-${index.toString(16).padStart(12, '0')}`;
+async function inspectAllAssetPages(database, request) {
+  const pages = [];
+  let after = null;
+  do {
+    const page = await executeOperation(database, 'inspect_output_asset_references', { ...request, after });
+    assert.ok(page.slots.length <= 128);
+    assert.ok(Buffer.byteLength(JSON.stringify(page), 'utf8') <= 512 * 1024);
+    if (after && page.next_cursor) {
+      const before = [after.source, after.record_id, after.embed_id], next = [page.next_cursor.source, page.next_cursor.record_id, page.next_cursor.embed_id];
+      const firstDifferent = before.findIndex((value, index) => value !== next[index]);
+      assert.ok(firstDifferent >= 0 ? next[firstDifferent] > before[firstDifferent] : page.next_cursor.output_version > after.output_version);
+    }
+    pages.push(page);
+    after = page.next_cursor;
+    assert.ok(pages.length <= 10, 'bounded fixture inventory must make cursor progress');
+  } while (after);
+  return pages;
+}
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('asset inspection pages more than 128 cross-claim and sealed slots and releases each bounded batch', async () => {
+  const { database, request, now } = await assetDeletionFixture();
+  await fenceAssets(database, request, now);
+  const originalClaim = database.rows.chat_recovery_legacy_batch_claims[0];
+  const entry = JSON.parse(originalClaim.output_asset_references).find(value => value.embed_id === JOB_ID);
+  database.rows.chat_recovery_legacy_batch_claims = Array.from({ length: 140 }, (_, index) => ({
+    ...structuredClone(originalClaim), id: assetPageUuid(index), output_asset_references: JSON.stringify([entry]),
+  }));
+  const output = database.rows.chat_recovery_outputs[0];
+  database.rows.chat_recovery_outputs = Array.from({ length: 150 }, (_, index) => ({
+    ...structuredClone(output), id: assetPageUuid(index), output_version: index + 1,
+  }));
+  const inspect = inspectAssets(request, { target_chat_ids: [CHAT_ID] });
+  const pages = await inspectAllAssetPages(database, inspect);
+  const slots = pages.flatMap(page => page.slots);
+  assert.equal(slots.length, 290);
+  assert.equal(new Set(slots.map(slot => `${slot.source}:${slot.record_id}:${slot.embed_id}:${slot.output_version}`)).size, 290);
+  assert.ok(slots.slice(0, 140).every(slot => slot.source === 'legacy'));
+  assert.ok(slots.slice(140).every(slot => slot.source === 'sealed'));
+  for (const page of pages) {
+    const result = await executeOperation(database, 'release_output_asset_references', {
+      protocol_version: 1, hashed_user_id: request.hashed_user_id, slots: page.slots,
+    });
+    assert.equal(result.released.length, page.slots.length);
+    assert.deepEqual(result.retained, []);
+  }
+  assert.deepEqual(await executeOperation(database, 'inspect_output_asset_references', inspect), { slots: [], next_cursor: null });
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('asset cursor resumes within a claim when the entry count fills the previous page', async () => {
+  const { database, request, now } = await assetDeletionFixture();
+  await fenceAssets(database, request, now);
+  database.rows.chat_recovery_outputs = [];
+  const claim = database.rows.chat_recovery_legacy_batch_claims[0];
+  const entry = JSON.parse(claim.output_asset_references)[0];
+  database.rows.chat_recovery_legacy_batch_claims = [
+    { ...structuredClone(claim), id: assetPageUuid(1), output_asset_references: JSON.stringify([entry, { ...entry, output_version: 2 }]) },
+    { ...structuredClone(claim), id: assetPageUuid(2), output_asset_references: JSON.stringify(Array.from({ length: 128 }, (_, index) => ({ ...entry, output_version: index + 1 }))) },
+  ];
+  const pages = await inspectAllAssetPages(database, inspectAssets(request));
+  assert.equal(pages[0].slots.length, 128);
+  assert.deepEqual(pages[0].next_cursor, { source: 'legacy', record_id: assetPageUuid(2), embed_id: JOB_ID, output_version: 126 });
+  assert.deepEqual(pages[1].slots.map(slot => slot.output_version), [127, 128]);
+  assert.equal(pages[1].next_cursor, null);
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('asset cursor resumes an exact claim entry when the byte budget fills before 128 slots', async () => {
+  const { database, request, now } = await assetDeletionFixture();
+  await fenceAssets(database, request, now);
+  database.rows.chat_recovery_outputs = [];
+  const claim = database.rows.chat_recovery_legacy_batch_claims[0];
+  const entry = JSON.parse(claim.output_asset_references)[0];
+  const refs = length => Array.from({ length: 64 }, (_, index) => ({ bucket: 'chatfiles', key: `${index}-` + 'x'.repeat(length) }));
+  database.rows.chat_recovery_legacy_batch_claims = [
+    { ...structuredClone(claim), id: assetPageUuid(1), output_asset_references: JSON.stringify([{ ...entry, s3_file_keys: refs(4093) }]) },
+    { ...structuredClone(claim), id: assetPageUuid(2), output_asset_references: JSON.stringify([
+      { ...entry, output_version: 1, s3_file_keys: refs(2200) },
+      { ...entry, output_version: 2, s3_file_keys: refs(2200) },
+    ]) },
+  ];
+  const pages = await inspectAllAssetPages(database, inspectAssets(request));
+  assert.equal(pages.length, 2);
+  assert.equal(pages[0].slots.length, 2);
+  assert.deepEqual(pages[0].next_cursor, { source: 'legacy', record_id: assetPageUuid(2), embed_id: JOB_ID, output_version: 1 });
+  assert.equal(pages[1].slots.length, 1);
+  assert.equal(pages[1].slots[0].output_version, 2);
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('asset pagination advances through retained candidates and rejects malformed cursor shapes', async () => {
+  const { database, request } = await assetDeletionFixture();
+  const claim = database.rows.chat_recovery_legacy_batch_claims[0];
+  const entry = JSON.parse(claim.output_asset_references)[0];
+  database.rows.chat_recovery_legacy_batch_claims = Array.from({ length: 140 }, (_, index) => ({
+    ...structuredClone(claim), id: assetPageUuid(index), output_asset_references: JSON.stringify([entry]),
+  }));
+  const pages = await inspectAllAssetPages(database, inspectAssets(request));
+  assert.equal(pages[0].slots.length, 0, 'lack of a deletion fence cannot become release authority');
+  assert.ok(pages[0].next_cursor);
+  assert.equal(pages.flatMap(page => page.slots).length, 0);
+  assert.equal(pages.at(-1).next_cursor, null);
+  for (const after of [{}, { source: 'unknown', record_id: JOB_ID, embed_id: JOB_ID, output_version: 1 },
+    { source: 'legacy', record_id: JOB_ID, embed_id: JOB_ID, output_version: 0 },
+    { source: 'legacy', record_id: JOB_ID, embed_id: JOB_ID, output_version: 1, unexpected: true }]) {
+    await assert.rejects(executeOperation(database, 'inspect_output_asset_references', { ...inspectAssets(request), after }), /invalid_asset_reference_cursor/);
+  }
+});
+
+async function messageAssetFixture() {
+  const setup = await assetDeletionFixture();
+  const { database, request, now } = setup;
+  const secondMessage = request.task_identity;
+  database.rows.messages = [
+    { client_message_id: 'user-message-1', chat_id: CHAT_ID, hashed_user_id: request.hashed_user_id, role: 'user' },
+    { client_message_id: secondMessage, chat_id: CHAT_ID, hashed_user_id: request.hashed_user_id, role: 'assistant' },
+  ];
+  await executeOperation(database, 'register_legacy_output_asset_references', {
+    ...request, embed_id: OUTBOX_ID, primary_message_id: secondMessage,
+  });
+  await executeOperation(database, 'create_sealed_output', selectedImageOutput({ record_id: OUTBOX_ID,
+    subject_id: OUTBOX_ID, hashed_user_id: request.hashed_user_id, content_commitment: COMMITMENT,
+    hashed_message_id: sha256(secondMessage),
+  }), now);
+  const fence = () => executeOperation(database, 'invalidate_deletion', { protocol_version: 1,
+    hashed_user_id: request.hashed_user_id, scope: 'message', chat_id: CHAT_ID, message_id: 'user-message-1' }, now);
+  return { ...setup, secondMessage, fence };
+}
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('exact message deletion releases only its assets in a live chat and retries after the row is gone', async () => {
+  const { database, request, secondMessage, fence } = await messageAssetFixture();
+  const expected = { message_deletion_fenced: true, chat_id: CHAT_ID, hashed_message_id: sha256('user-message-1') };
+  assert.deepEqual(await fence(), expected);
+  const row = database.rows.chat_recovery_chat_deletion_fences[0];
+  assert.equal(row.scope, 'message');
+  assert.equal(row.id, '3a34ef76-e550-5527-b2c1-a306a4b0fafa', 'matches the independent Python uuid.uuid5 NIL vector');
+  assert.notEqual(row.id, CHAT_ID);
+  assert.equal(row.hashed_user_id, request.hashed_user_id);
+  assert.equal(row.hashed_message_id, expected.hashed_message_id);
+  assert.deepEqual((await executeOperation(database, 'lookup_chat_deletion_fences', {
+    protocol_version: 1, hashed_user_id: request.hashed_user_id, chat_ids: [CHAT_ID, row.id],
+  })).fenced_chat_ids, []);
+  assert.equal(database.rows.chat_recovery_legacy_batch_claims[0].state, 'CLAIMED');
+  assert.equal(database.rows.chat_recovery_outputs.find(value => value.hashed_message_id === sha256(secondMessage)).state, 'PENDING');
+  database.rows.messages = database.rows.messages.filter(value => value.client_message_id !== 'user-message-1');
+  assert.deepEqual(await fence(), expected);
+  const inspect = inspectAssets(request, { target_chat_ids: [CHAT_ID], hashed_message_id: expected.hashed_message_id });
+  const { slots } = await executeOperation(database, 'inspect_output_asset_references', inspect);
+  assert.equal(slots.length, 3);
+  assert.ok(slots.every(slot => slot.embed_id !== OUTBOX_ID));
+  const released = await executeOperation(database, 'release_output_asset_references', {
+    protocol_version: 1, hashed_user_id: request.hashed_user_id, slots,
+  });
+  assert.equal(released.released.length, 3);
+  assert.deepEqual(released.retained, []);
+  assert.equal(database.rows.chats.length, 1, 'the live chat is never fenced or deleted');
+  const remaining = JSON.parse(database.rows.chat_recovery_legacy_batch_claims[0].output_asset_references);
+  assert.equal(remaining.length, 1);
+  assert.equal(remaining[0].hashed_message_id, sha256(secondMessage));
+  assert.ok(database.rows.chat_recovery_outputs.find(value => value.subject_id === OUTBOX_ID).s3_file_keys);
+  assert.deepEqual((await executeOperation(database, 'inspect_output_asset_references', {
+    ...inspect, hashed_message_id: sha256(secondMessage),
+  })).slots, [], 'another message cannot borrow the first message fence');
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('message fences reject stale legacy new and replayed sealed references while another message remains writable', async () => {
+  const { database, request, secondMessage, fence } = await messageAssetFixture();
+  await fence();
+  await assert.rejects(executeOperation(database, 'register_legacy_output_asset_references', {
+    ...request, embed_id: BILLING_ID,
+  }), /message_output_deleted/);
+  const output = selectedImageOutput({ hashed_user_id: request.hashed_user_id, content_commitment: COMMITMENT });
+  for (const recordId of [output.record_id, TASK_ID]) {
+    await assert.rejects(executeOperation(database, 'create_sealed_output', { ...output, record_id: recordId }), /message_output_deleted/);
+  }
+  const replay = Object.fromEntries(['protocol_version', 'record_id', 'hashed_user_id', 'preflight_id', 'root_chat_id',
+    'target_chat_id', 'subject_id', 'output_kind', 'output_version', 'content_commitment', 'hashed_message_id']
+    .map(field => [field, output[field]]));
+  await assert.rejects(executeOperation(database, 'get_replay_output', replay), /message_output_deleted/);
+  await assert.rejects(executeOperation(database, 'acknowledge_output_embed', selectedImageAck({
+    hashed_user_id: request.hashed_user_id,
+  })), /recovery_output_not_found/);
+  await executeOperation(database, 'register_legacy_output_asset_references', {
+    ...request, embed_id: BILLING_ID, primary_message_id: secondMessage,
+  });
+  await executeOperation(database, 'create_sealed_output', {
+    ...output, record_id: BILLING_ID, subject_id: BILLING_ID, hashed_message_id: sha256(secondMessage),
+  });
+  assert.equal(database.rows.chat_recovery_legacy_batch_claims[0].state, 'CLAIMED');
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('message deletion fences reject foreign owner chat and Team target substitutions', async () => {
+  for (const change of [{ hashed_user_id: 'f'.repeat(64) }, { chat_id: TASK_ID }]) {
+    const { database, request } = await messageAssetFixture();
+    await assert.rejects(executeOperation(database, 'invalidate_deletion', { protocol_version: 1,
+      hashed_user_id: request.hashed_user_id, scope: 'message', chat_id: CHAT_ID, message_id: 'user-message-1', ...change }));
+    assert.deepEqual(database.rows.chat_recovery_chat_deletion_fences ?? [], []);
+  }
+  const { database, fence } = await messageAssetFixture();
+  database.rows.chats[0].hashed_team_id = TEAM_HASH;
+  await assert.rejects(fence(), /chat_not_found/);
+  assert.deepEqual(database.rows.chat_recovery_chat_deletion_fences ?? [], []);
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('owned message deletion can fence pending references without a hot message and cannot revive them', async () => {
+  const { database, request, fence } = await messageAssetFixture();
+  database.rows.messages = [];
+  assert.deepEqual(await fence(), { message_deletion_fenced: true, chat_id: CHAT_ID, hashed_message_id: sha256('user-message-1') });
+  assert.deepEqual(await fence(), { message_deletion_fenced: true, chat_id: CHAT_ID, hashed_message_id: sha256('user-message-1') });
+  await assert.rejects(executeOperation(database, 'register_legacy_output_asset_references', {
+    ...request, embed_id: BILLING_ID,
+  }), /message_output_deleted/);
+  assert.equal(database.rows.chat_recovery_chat_deletion_fences.length, 1);
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('message fencing preserves PREPARING writer leases and exact release waits for the existing settle grace', async () => {
+  const { database, request, now, fence } = await messageAssetFixture();
+  const output = database.rows.chat_recovery_outputs.find(row => row.subject_id === JOB_ID);
+  output.state = 'PREPARING';
+  output.payload_storage = 's3';
+  output.sealed_payload = null;
+  output.payload_s3_key = `chat-recovery/v2/bb/${output.id}/${COMMITMENT}.json`;
+  output.payload_size_bytes = 300000;
+  output.payload_verified_regions = null;
+  output.writer_lease_until = new Date(now.getTime() + 90_000);
+  await fence();
+  const protectedRow = database.rows.chat_recovery_outputs.find(row => row.subject_id === JOB_ID);
+  assert.equal(protectedRow.state, 'PREPARING');
+  assert.equal(protectedRow.deleted_at, undefined);
+  assert.equal(new Date(protectedRow.writer_lease_until).getTime(), now.getTime() + 90_000);
+  const { slots } = await executeOperation(database, 'inspect_output_asset_references', inspectAssets(request, {
+    target_chat_ids: [CHAT_ID], hashed_message_id: sha256('user-message-1'),
+  }));
+  const selected = slots.filter(slot => slot.source === 'sealed');
+  assert.equal(selected.length, 1);
+  const release = when => executeOperation(database, 'release_output_asset_references', {
+    protocol_version: 1, hashed_user_id: request.hashed_user_id, slots: selected,
+  }, when);
+  assert.equal((await release(now)).retained.length, 1);
+  assert.equal((await release(new Date(now.getTime() + 179_999))).retained.length, 1);
+  assert.equal((await release(new Date(now.getTime() + 180_001))).released.length, 1);
+  assert.equal(database.rows.chat_recovery_outputs.find(row => row.subject_id === JOB_ID).s3_file_keys, null);
+  await assert.rejects(executeOperation(database, 'create_sealed_output', selectedImageOutput({
+    hashed_user_id: request.hashed_user_id,
+  })), /message_output_deleted/);
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('selected storage message identity is required and immutable for save and replay probes', async () => {
+  const database = fakeDatabase(selectedImageSeed());
+  const output = selectedImageOutput({ content_commitment: COMMITMENT });
+  await assert.rejects(executeOperation(database, 'create_sealed_output', { ...output, hashed_message_id: null }), /invalid_message_id/);
+  await executeOperation(database, 'create_sealed_output', output);
+  const replay = Object.fromEntries(['protocol_version', 'record_id', 'hashed_user_id', 'preflight_id', 'root_chat_id',
+    'target_chat_id', 'subject_id', 'output_kind', 'output_version', 'content_commitment', 'hashed_message_id']
+    .map(field => [field, output[field]]));
+  for (const state of ['PENDING', 'ACKNOWLEDGED']) {
+    database.rows.chat_recovery_outputs[0].state = state;
+    assert.equal((await executeOperation(database, 'get_replay_output', replay)).status, state);
+    for (const hashed_message_id of [null, sha256('other-message')]) {
+      await assert.rejects(executeOperation(database, 'get_replay_output', { ...replay, hashed_message_id }), /replay_output_mismatch/);
+      await assert.rejects(executeOperation(database, 'create_sealed_output', { ...output, hashed_message_id }),
+        hashed_message_id === null ? /invalid_message_id/ : /sealed_output_mismatch/);
+    }
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('registered producer replay cannot borrow selected assets from another message header', async () => {
+  const database = fakeDatabase(producerSeed());
+  const producer = producerBody();
+  await executeOperation(database, 'register_output_producer', producer);
+  const output = selectedImageOutput({ record_id: PRODUCER_RECORD, subject_id: PRODUCER_EMBED, output_version: 1,
+    producer_intent_id: PRODUCER_TASK, producer_ordinal: 0, producer_task_name: producer.task_name,
+    producer_kwargs_binding: producer.kwargs_binding, content_commitment: COMMITMENT });
+  await executeOperation(database, 'create_sealed_output', output);
+  const probe = { protocol_version: 1, producer_intent_id: PRODUCER_TASK, task_name: producer.task_name,
+    kwargs_binding: producer.kwargs_binding, ordinal: 0, content_commitment: COMMITMENT,
+    hashed_message_id: output.hashed_message_id };
+  assert.equal((await executeOperation(database, 'get_producer_output', probe)).status, 'PENDING');
+  await assert.rejects(executeOperation(database, 'get_producer_output', { ...probe, hashed_message_id: sha256('other-message') }),
+    /producer_content_mismatch/);
+});
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable,storage.background.complete-sealed-recovery
+test('message asset inventory requires one exact target and does not let malformed filters widen scope', async () => {
+  const { database, request, fence } = await messageAssetFixture();
+  await fence();
+  for (const selector of [{ embed_ids: [JOB_ID], hashed_message_id: sha256('user-message-1') },
+    { target_chat_ids: [CHAT_ID, TASK_ID], hashed_message_id: sha256('user-message-1') },
+    { target_chat_ids: [CHAT_ID], hashed_message_id: 'invalid' }]) {
+    await assert.rejects(executeOperation(database, 'inspect_output_asset_references', inspectAssets(request, selector)));
+  }
 });
 
 test('epoch-zero queued batch freezes ordered scope and claims provider execution once', async () => {

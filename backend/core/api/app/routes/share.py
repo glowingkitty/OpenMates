@@ -1436,6 +1436,102 @@ def generate_dummy_encrypted_embed_data(embed_id: str) -> Dict[str, Any]:
         "is_dummy": True  # Internal flag
     }
 
+MAX_AUTHORED_SHARE_CHILDREN = 50
+MAX_LEGACY_SHARE_CHILDREN = 1000
+
+
+def _authored_share_carrier(embed: Dict[str, Any]) -> bool:
+    """Plain routing sidecars identify the new carrier without decrypting content."""
+    return embed.get("app_id") == "ai" and embed.get("skill_id") == "authored_results"
+
+
+def _share_child_matches(parent: Dict[str, Any], child: Dict[str, Any], *, strict: bool) -> bool:
+    """A listed child must remain inside the parent's owner/chat/workspace scope."""
+    parent_id = parent.get("embed_id")
+    if (not parent_id or not parent.get("hashed_user_id") or not parent.get("hashed_chat_id")
+            or child.get("hashed_user_id") != parent["hashed_user_id"]
+            or child.get("hashed_chat_id") != parent["hashed_chat_id"]
+            or child.get("hashed_team_id") != parent.get("hashed_team_id")):
+        return False
+    backlink = child.get("parent_embed_id")
+    if backlink != parent_id and (strict or backlink not in (None, "")):
+        return False
+    return not strict or child.get("status") == "finished"
+
+
+async def _explicit_embed_share_allowed(embed: Dict[str, Any], directus_service: DirectusService) -> bool:
+    """Inherited keys never open an explicitly unshared carrier or sibling.
+
+    Catalog sidecars may not have projected yet. An explicit false share flag
+    therefore fails closed for every new record, while missing legacy flags
+    retain their existing privacy semantics. A shared parent's legitimate graph
+    still grants its children without mutating each child's individual flag.
+    """
+    if _authored_share_carrier(embed):
+        return embed.get("is_shared") is True
+    parent_id = embed.get("parent_embed_id")
+    parent = await directus_service.embed.get_embed_by_id(parent_id) if isinstance(parent_id, str) and parent_id else None
+    if isinstance(parent, dict) and _authored_share_carrier(parent):
+        if (not isinstance(parent.get("embed_ids"), list) or embed.get("embed_id") not in parent["embed_ids"]
+                or not _share_child_matches(parent, embed, strict=True)):
+            return False
+        return embed.get("is_shared") is True or (parent.get("is_shared") is True and parent.get("is_private") is False)
+    if embed.get("is_shared") is False:
+        return (isinstance(parent, dict) and parent.get("is_private") is False
+                and parent.get("is_shared") is not False
+                and isinstance(parent.get("embed_ids"), list) and embed.get("embed_id") in parent["embed_ids"]
+                and _share_child_matches(parent, embed, strict=False))
+    return True
+
+
+async def _shared_embed_children(embed: Dict[str, Any], directus_service: DirectusService) -> List[Dict[str, Any]]:
+    """Expand one declared level only, in order; provenance is never an ACL edge."""
+    ids = embed.get("embed_ids")
+    if not isinstance(ids, list):
+        return []
+    strict = _authored_share_carrier(embed)
+    limit = MAX_AUTHORED_SHARE_CHILDREN if strict else MAX_LEGACY_SHARE_CHILDREN
+    selected = list(dict.fromkeys(value for value in ids if isinstance(value, str) and value and len(value) <= 128))[:limit]
+    children = []
+    for child_id in selected:
+        if child_id == embed.get("embed_id"):
+            continue
+        child = await directus_service.embed.get_embed_by_id(child_id)
+        if (isinstance(child, dict) and child.get("embed_id") == child_id
+                and _share_child_matches(embed, child, strict=strict)):
+            children.append(child)
+    return children
+
+
+async def _shared_child_key_wrappers(
+    embed_id: str, children: List[Dict[str, Any]], directus_service: DirectusService,
+) -> List[Dict[str, Any]]:
+    """Only child wrappers actually addressed to this share key are useful.
+
+    The URL fragment already carries the selected root key. Owner master/chat
+    wrappers and original-upload wrappers do not grant access to a recipient and
+    must not be exported. Legacy inherited-key children need no extra wrappers.
+    """
+    parent_hash = hashlib.sha256(embed_id.encode()).hexdigest()
+    wrappers = []
+    seen = set()
+    for child in children:
+        child_id = child["embed_id"]
+        child_hash = hashlib.sha256(child_id.encode()).hexdigest()
+        keys = await directus_service.embed.get_embed_keys_by_embed_id(child_id)
+        for key in keys or []:
+            if (not isinstance(key, dict) or key.get("key_type") != "embed"
+                    or key.get("parent_embed_id") != parent_hash
+                    or key.get("hashed_embed_id") != child_hash):
+                continue
+            identity = key.get("id") or key.get("encrypted_embed_key")
+            if not isinstance(identity, str) or not identity or identity in seen:
+                continue
+            seen.add(identity)
+            wrappers.append(key)
+    return wrappers
+
+
 @router.get("/embed/{embed_id}")
 @limiter.limit("30/minute")  # Same rate limit as chat sharing
 async def get_shared_embed(
@@ -1469,8 +1565,8 @@ async def get_shared_embed(
         # Missing legacy privacy flags fail closed: embeds are shareable only
         # after an owner explicitly sets is_private=false while sharing.
         is_private = embed.get("is_private", True)
-        if is_private:
-            # Embed is private (unshared) - return dummy data
+        if is_private is not False or not await _explicit_embed_share_allowed(embed, directus_service):
+            # Private or unselected authored records return the same dummy data.
             logger.debug(f"Embed {embed_id} is private (unshared), returning dummy data")
             dummy_data = generate_dummy_encrypted_embed_data(embed_id)
             dummy_data.pop("is_dummy", None)
@@ -1486,31 +1582,9 @@ async def get_shared_embed(
         else:
             logger.warning(f"Embed {embed_id} has no encrypted_content field or it's None/empty")
 
-        # Get child embeds if this is a composite embed (e.g., web search with website children)
-        child_embeds = []
-        embed_ids = embed.get("embed_ids")  # Array of child embed IDs
-        if embed_ids and isinstance(embed_ids, list):
-            for child_embed_id in embed_ids:
-                child_embed = await directus_service.embed.get_embed_by_id(child_embed_id)
-                if child_embed:
-                    child_embeds.append(child_embed)
-
-        # Get embed_keys for this embed and its children
-        # These contain wrapped keys that allow shared embed recipients to decrypt embeds
-        embed_keys = []
-
-        # Get keys for the main embed
-        main_embed_keys = await directus_service.embed.get_embed_keys_by_embed_id(embed_id)
-        if main_embed_keys:
-            embed_keys.extend(main_embed_keys)
-
-        # Get keys for child embeds
-        for child_embed in child_embeds:
-            child_embed_id = child_embed.get("embed_id")
-            if child_embed_id:
-                child_keys = await directus_service.embed.get_embed_keys_by_embed_id(child_embed_id)
-                if child_keys:
-                    embed_keys.extend(child_keys)
+        # The explicit share grants only this legitimate ordered child graph.
+        child_embeds = await _shared_embed_children(embed, directus_service)
+        embed_keys = await _shared_child_key_wrappers(embed_id, child_embeds, directus_service)
 
         code_run_outputs = await directus_service.get_items(
             "code_run_outputs",
@@ -1572,7 +1646,7 @@ async def get_embed_og_metadata(
         # Missing legacy privacy flags fail closed: embeds are shareable only
         # after an owner explicitly sets is_private=false while sharing.
         is_private = embed.get("is_private", True)
-        if is_private:
+        if is_private is not False or not await _explicit_embed_share_allowed(embed, directus_service):
             logger.debug(f"Embed {embed_id} is private (unshared), using fallback metadata")
             return {
                 "title": "Shared Embed - OpenMates",
@@ -1704,8 +1778,15 @@ async def update_embed_share_metadata(
                 updates["is_private"] = True
                 updates["is_shared"] = False
 
-        # Update the embed
-        await directus_service.update_item("embeds", embed_id, updates)
+        # Directus PATCH addresses the row's primary ID, which differs from the
+        # public embed_id for transaction-created embeds. Use the row whose
+        # ownership we checked above and never acknowledge a failed write.
+        directus_id = embed.get("id")
+        if not directus_id:
+            raise HTTPException(status_code=500, detail="Failed to update embed metadata")
+        updated_embed = await directus_service.update_item("embeds", directus_id, updates)
+        if not updated_embed:
+            raise HTTPException(status_code=500, detail="Failed to update embed metadata")
 
         logger.info(f"Updated share metadata for embed {embed_id}: {list(updates.keys())}")
 

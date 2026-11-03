@@ -7843,6 +7843,9 @@
         },
         "not_available": {
           "text": "N/A"
+        },
+        "cash_flow": {
+          "text": "Dòng tiền"
         }
       },
       "search_trademarks": {
@@ -8077,6 +8080,11 @@
         "text": "Watermarking"
       }
     },
+    "search_domain": {
+      "minutes": {
+        "text": "{count} phút"
+      }
+    },
     "projects": {
       "references": {
         "subtitle": {
@@ -8264,6 +8272,133 @@
       },
       "no_frame": {
         "text": "Không có ảnh chụp màn hình đã lưu."
+      }
+    },
+    "authoring": {
+      "draft": {
+        "text": "Bản nháp"
+      },
+      "user_provided": {
+        "text": "Do người dùng cung cấp"
+      },
+      "sources": {
+        "text": "Nguồn"
+      },
+      "observed_at": {
+        "text": "Thời điểm ghi nhận"
+      },
+      "image_credit": {
+        "text": "Ghi công hình ảnh"
+      },
+      "partial": {
+        "text": "Kết quả một phần"
+      },
+      "uploaded_source": {
+        "text": "Nguồn đã tải lên"
+      },
+      "approximate_location": {
+        "text": "Vị trí gần đúng"
+      },
+      "schematic_route": {
+        "text": "Tuyến đường sơ đồ"
+      },
+      "unmapped": {
+        "text": "Không có thông tin vị trí"
+      },
+      "open_source": {
+        "text": "Mở trang nguồn"
+      },
+      "additional_times": {
+        "text": "Các thời gian khác"
+      }
+    },
+    "tv": {
+      "movie": {
+        "text": "Phim điện ảnh"
+      },
+      "series": {
+        "text": "Phim truyền hình"
+      },
+      "poster_unavailable": {
+        "text": "Không có áp phích"
+      },
+      "synopsis": {
+        "text": "Tóm tắt nội dung"
+      },
+      "release_date": {
+        "text": "Ngày phát hành"
+      },
+      "runtime": {
+        "text": "Thời lượng"
+      },
+      "genres": {
+        "text": "Thể loại"
+      },
+      "directors": {
+        "text": "Đạo diễn"
+      },
+      "creators": {
+        "text": "Nhà sáng tạo"
+      },
+      "cast": {
+        "text": "Diễn viên"
+      },
+      "language": {
+        "text": "Ngôn ngữ gốc"
+      },
+      "countries": {
+        "text": "Quốc gia"
+      },
+      "content_rating": {
+        "text": "Phân loại độ tuổi"
+      },
+      "score": {
+        "text": "Điểm từ nguồn"
+      },
+      "score_votes": {
+        "text": "{count} lượt đánh giá"
+      },
+      "first_air_date": {
+        "text": "Phát sóng lần đầu"
+      },
+      "last_air_date": {
+        "text": "Phát sóng gần nhất"
+      },
+      "series_status": {
+        "text": "Trạng thái phim"
+      },
+      "season_count": {
+        "text": "{count} mùa"
+      },
+      "episodes": {
+        "text": "Tập phim"
+      },
+      "episode_count": {
+        "text": "{count} tập"
+      },
+      "season": {
+        "text": "Mùa {number}"
+      },
+      "specials": {
+        "text": "Tập đặc biệt"
+      },
+      "supplied_seasons": {
+        "text": "Các mùa được cung cấp"
+      },
+      "partial_seasons": {
+        "text": "Chỉ hiển thị thông tin mùa đã được cung cấp."
+      },
+      "year": {
+        "text": "Năm"
+      },
+      "preparing": {
+        "text": "Đang chuẩn bị thông tin…"
+      },
+      "cancelled": {
+        "text": "Đã hủy tạo thông tin"
+      },
+      "unavailable": {
+        "text": "Không có thông tin tác phẩm"
       }
     }
   },
@@ -14463,6 +14598,9 @@
     },
     "nighttime": {
       "text": "Ban đêm"
+    },
+    "instructor": {
+      "text": "Hướng dẫn viên"
     }
   },
   "rules": {},

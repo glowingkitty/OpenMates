@@ -112,6 +112,8 @@ import BusinessCompanyFinancialResultEmbedPreview from "../../../embeds/business
 import FinanceCheckAccountsEmbedPreview from "../../../embeds/finance/FinanceCheckAccountsEmbedPreview.svelte";
 import GenericAppSkillEmbedPreview from "../../../embeds/app_skill/GenericAppSkillEmbedPreview.svelte";
 import { embedPreviewRegistry } from "../../../../services/embedPreviewRegistry";
+import { authoredResultMetadata } from "../../../../utils/authoredResultPresentation";
+import { EMBED_SOURCE_CHAT_CONTEXT } from "../../../../types/embedFullscreen";
 import { normalizeFinanceOverview } from "../../../embeds/finance/financeCheckAccountsContent";
 import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte";
 import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
@@ -343,16 +345,19 @@ export class GroupRenderer implements EmbedRenderer {
 
   constructor() {
     this.individualMounters = new Map<string, IndividualMounter>([
+      ["ai-authored-results", (item, row, decoded, target) => this.renderRegistryPreviewComponent(item, row, decoded, target)],
+      ["tv-movie", (item, row, decoded, target) => this.renderRegistryPreviewComponent(item, row, decoded, target)],
+      ["tv-series", (item, row, decoded, target) => this.renderRegistryPreviewComponent(item, row, decoded, target)],
       ["images-generated-image", (item, embedData, decodedContent, content) =>
-        this.renderGeneratedMediaComponent(item, embedData, decodedContent, content)],
+        this.renderRegistryPreviewComponent(item, embedData, decodedContent, content)],
       ["audio-generated-audio", (item, embedData, decodedContent, content) =>
-        this.renderGeneratedMediaComponent(item, embedData, decodedContent, content)],
+        this.renderRegistryPreviewComponent(item, embedData, decodedContent, content)],
       ["music-generated-music", (item, embedData, decodedContent, content) =>
-        this.renderGeneratedMediaComponent(item, embedData, decodedContent, content)],
+        this.renderRegistryPreviewComponent(item, embedData, decodedContent, content)],
       ["videos-generated-video", (item, embedData, decodedContent, content) =>
-        this.renderGeneratedMediaComponent(item, embedData, decodedContent, content)],
+        this.renderRegistryPreviewComponent(item, embedData, decodedContent, content)],
       ["models3d-generated-model", (item, embedData, decodedContent, content) =>
-        this.renderGeneratedMediaComponent(item, embedData, decodedContent, content)],
+        this.renderRegistryPreviewComponent(item, embedData, decodedContent, content)],
       [
         "web-website",
         (item, embedData, decodedContent, content) =>
@@ -636,7 +641,7 @@ export class GroupRenderer implements EmbedRenderer {
     }
   }
 
-  private async renderGeneratedMediaComponent(
+  private async renderRegistryPreviewComponent(
     item: EmbedNodeAttributes,
     embedData: EmbedData | null,
     decodedContent: DecodedEmbedContent | null,
@@ -656,6 +661,7 @@ export class GroupRenderer implements EmbedRenderer {
     content.innerHTML = "";
     const component = mount(resolved.component as Parameters<typeof mount>[0], {
       target: content, props: resolved.props,
+      context: item.sourceChatId ? new Map([[EMBED_SOURCE_CHAT_CONTEXT, { chatId: item.sourceChatId }]]) : undefined,
     });
     mountedComponents.set(content, component);
   }
@@ -679,12 +685,6 @@ export class GroupRenderer implements EmbedRenderer {
     const { attrs, content } = context;
     content.dataset.embedPreviewType = attrs.type;
 
-    console.debug("[GroupRenderer] RENDER CALLED with attrs:", attrs);
-    console.debug(
-      "[GroupRenderer] RENDER CALLED with content element:",
-      content,
-    );
-
     // Load embed content from EmbedStore if contentRef is present
     let embedData = (context.embedData as EmbedData | null | undefined) ?? null;
     let decodedContent = (context.decodedContent as DecodedEmbedContent | null | undefined) ?? null;
@@ -698,11 +698,7 @@ export class GroupRenderer implements EmbedRenderer {
 
         if (embedData && embedData.content) {
           decodedContent = await decodeToonContent(embedData.content);
-          console.debug(
-            "[GroupRenderer] Loaded embed content from EmbedStore:",
-            embedId,
-            decodedContent,
-          );
+          console.debug("[GroupRenderer] Loaded embed", { embedId, type: embedData.type });
         }
       } catch (error) {
         console.error(
@@ -718,6 +714,10 @@ export class GroupRenderer implements EmbedRenderer {
       attrs.type.endsWith("-group");
 
     if (!isGroup) {
+      if (decodedContent && (decodedContent.type === 'authored_results' || authoredResultMetadata(decodedContent))) {
+        await this.renderRegistryPreviewComponent(attrs, embedData, decodedContent, content);
+        return;
+      }
       // This is an individual embed. Look up the mounter in the registry.
       // Architecture: individual type → mounter map replaces scattered if-chains.
       // To add a new type, register it in the constructor's individualMounters Map.
@@ -867,7 +867,10 @@ export class GroupRenderer implements EmbedRenderer {
               console.warn("[GroupRenderer] Could not resolve grouped result", error);
             }
           }
-          if (!isEmbedTargetDisposed(target)) await registeredMounter(item, row, decoded, target);
+          if (!isEmbedTargetDisposed(target)) {
+            if (decoded && authoredResultMetadata(decoded)) await this.renderRegistryPreviewComponent(item, row, decoded, target);
+            else await registeredMounter(item, row, decoded, target);
+          }
         },
       });
       return;

@@ -166,6 +166,7 @@ export {
   type ShareDuration,
 } from "./src/services/embedShareEncryption"; // Export embed share encryption utilities
 export { embedStore } from "./src/services/embedStore"; // Export embed store
+export { decodeToonContent } from "./src/services/embedResolver";
 export type { EmbedKeyEntry } from "./src/services/embedStore";
 export * from "./src/services/embedFullscreenController";
 export * from "./src/services/projectService";

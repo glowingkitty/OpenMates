@@ -20,6 +20,15 @@ chat_recovery_chat_deletion_fences:
     chat_id:
       type: uuid
       required: true
+    scope:
+      type: string
+      length: 16
+      nullable: true
+      note: "Null is a legacy whole-chat fence; message scope fences only its exact hash."
+    hashed_message_id:
+      type: string
+      length: 64
+      nullable: true
     fenced_at:
       type: datetime
       required: true

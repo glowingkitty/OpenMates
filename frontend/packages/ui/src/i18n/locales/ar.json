@@ -7843,6 +7843,9 @@
         },
         "not_available": {
           "text": "غير متاح"
+        },
+        "cash_flow": {
+          "text": "التدفق النقدي"
         }
       },
       "search_trademarks": {
@@ -8077,6 +8080,11 @@
         "text": "Watermarking"
       }
     },
+    "search_domain": {
+      "minutes": {
+        "text": "{count} دقيقة"
+      }
+    },
     "projects": {
       "references": {
         "subtitle": {
@@ -8264,6 +8272,133 @@
       },
       "no_frame": {
         "text": "لا توجد لقطة شاشة محفوظة."
+      }
+    },
+    "authoring": {
+      "draft": {
+        "text": "مسودة"
+      },
+      "user_provided": {
+        "text": "قدّمه المستخدم"
+      },
+      "sources": {
+        "text": "المصادر"
+      },
+      "observed_at": {
+        "text": "وقت الرصد"
+      },
+      "image_credit": {
+        "text": "حقوق الصورة"
+      },
+      "partial": {
+        "text": "نتيجة جزئية"
+      },
+      "uploaded_source": {
+        "text": "مصدر مرفوع"
+      },
+      "approximate_location": {
+        "text": "الموقع التقريبي"
+      },
+      "schematic_route": {
+        "text": "مسار تخطيطي"
+      },
+      "unmapped": {
+        "text": "الموقع غير متاح"
+      },
+      "open_source": {
+        "text": "فتح صفحة المصدر"
+      },
+      "additional_times": {
+        "text": "أوقات إضافية"
+      }
+    },
+    "tv": {
+      "movie": {
+        "text": "فيلم"
+      },
+      "series": {
+        "text": "مسلسل تلفزيوني"
+      },
+      "poster_unavailable": {
+        "text": "الملصق غير متاح"
+      },
+      "synopsis": {
+        "text": "ملخص القصة"
+      },
+      "release_date": {
+        "text": "تاريخ الإصدار"
+      },
+      "runtime": {
+        "text": "المدة"
+      },
+      "genres": {
+        "text": "الأنواع"
+      },
+      "directors": {
+        "text": "المخرجون"
+      },
+      "creators": {
+        "text": "المبدعون"
+      },
+      "cast": {
+        "text": "طاقم التمثيل"
+      },
+      "language": {
+        "text": "اللغة الأصلية"
+      },
+      "countries": {
+        "text": "البلدان"
+      },
+      "content_rating": {
+        "text": "التصنيف العمري"
+      },
+      "score": {
+        "text": "تقييم المصدر"
+      },
+      "score_votes": {
+        "text": "{count} أصوات"
+      },
+      "first_air_date": {
+        "text": "أول عرض"
+      },
+      "last_air_date": {
+        "text": "آخر عرض"
+      },
+      "series_status": {
+        "text": "حالة المسلسل"
+      },
+      "season_count": {
+        "text": "{count} مواسم"
+      },
+      "episodes": {
+        "text": "الحلقات"
+      },
+      "episode_count": {
+        "text": "{count} حلقات"
+      },
+      "season": {
+        "text": "الموسم {number}"
+      },
+      "specials": {
+        "text": "حلقات خاصة"
+      },
+      "supplied_seasons": {
+        "text": "المواسم المقدّمة"
+      },
+      "partial_seasons": {
+        "text": "تُعرض تفاصيل المواسم المقدّمة فقط."
+      },
+      "year": {
+        "text": "السنة"
+      },
+      "preparing": {
+        "text": "جارٍ إعداد العنوان…"
+      },
+      "cancelled": {
+        "text": "أُلغي إنشاء العنوان"
+      },
+      "unavailable": {
+        "text": "العنوان غير متاح"
       }
     }
   },
@@ -14463,6 +14598,9 @@
     },
     "nighttime": {
       "text": "ليلًا"
+    },
+    "instructor": {
+      "text": "المدرّب"
     }
   },
   "rules": {},

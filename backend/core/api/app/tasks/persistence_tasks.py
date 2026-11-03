@@ -1383,6 +1383,7 @@ async def _async_persist_delete_chat(
 
         version_tombstones, orphan_version_ids = await prepare_orphan_embed_version_deletion(
             directus_service=directus_service,
+            target_chat_id=chat_id,
             deleted_embeds=embed_rows_before_delete,
             deleted_embed_row_ids=deleted_embed_ids,
             user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(),
@@ -1568,6 +1569,23 @@ async def _async_persist_delete_message(
             user_id=user_id, chat_id=chat_id, client_message_id=client_message_id,
         )
 
+        from backend.core.api.app.services.storage_reference_service import (
+            activate_storage_tombstones, delete_embed_version_rows, fence_message_for_asset_deletion,
+            load_chat_embed_rows, prepare_orphan_embed_version_deletion,
+        )
+        from backend.shared.python_utils.object_storage_regions import parse_storage_regions
+
+        owner_hash = hashlib.sha256(user_id.encode()).hexdigest()
+        hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+        hashed_message_id = hashlib.sha256(client_message_id.encode()).hexdigest()
+        message_asset_cleanup = await fence_message_for_asset_deletion(
+            directus_service=directus_service, user_id_hash=owner_hash, chat_id=chat_id,
+            message_id=client_message_id,
+        )
+        message_embed_rows = (await load_chat_embed_rows(
+            directus_service=directus_service, hashed_chat_id=hashed_chat_id, hashed_message_id=hashed_message_id,
+        ) if message_asset_cleanup else [])
+
         # 1. Delete the message from Directus
         message_deleted = await directus_service.chat.delete_message_by_client_id(
             chat_id, client_message_id
@@ -1586,12 +1604,21 @@ async def _async_persist_delete_message(
         # 2. Delete associated embeds from Directus (using hashed_message_id lookup)
         # The client provides embed IDs it already identified, but we also do a server-side
         # lookup by hashed_message_id for thoroughness (catches embeds the client may have missed)
-        hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
-        hashed_message_id = hashlib.sha256(client_message_id.encode()).hexdigest()
-
         deleted_embeds = await directus_service.embed.delete_embeds_for_message(
             hashed_chat_id, hashed_message_id, s3_service=s3_service, user_id=user_id
         )
+
+        if message_asset_cleanup:
+            tombstones, version_ids = await prepare_orphan_embed_version_deletion(
+                directus_service=directus_service, deleted_embeds=message_embed_rows,
+                deleted_embed_row_ids=deleted_embeds, user_id_hash=owner_hash,
+                target_chat_id=chat_id, hashed_message_id=hashed_message_id,
+                regions=parse_storage_regions(os.getenv("S3_REGIONS")), now=datetime.now(timezone.utc),
+            )
+            await delete_embed_version_rows(directus_service=directus_service, version_ids=version_ids)
+            await activate_storage_tombstones(
+                directus_service=directus_service, tombstones=tombstones, now=datetime.now(timezone.utc),
+            )
 
         if deleted_embeds:
             from backend.core.api.app.services.storage_reference_service import (

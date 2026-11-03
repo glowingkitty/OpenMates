@@ -24,48 +24,11 @@
   import { handleImageError } from '../../../utils/offlineImageHandler';
   import { text } from '../../../i18n/translations';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
-  import { normalizeEventResult } from './eventResult';
+  import { getContext } from 'svelte';
+  import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from '../../../types/authoredResult';
+  import { eventCalendarBadge, formatEventResultTime, normalizeEventResult, type EventResult } from './eventResult';
 
-  /**
-   * A single event result from the events/search skill backend.
-   * Passed in by EventsSearchEmbedFullscreen after transforming child embed content.
-   */
-  interface EventResult {
-    /** Child embed ID */
-    embed_id: string;
-    id?: string;
-    provider?: string;
-    title?: string;
-    description?: string;
-    url?: string;
-    date_start?: string;
-    date_end?: string;
-    timezone?: string;
-    /** "PHYSICAL" or "ONLINE" */
-    event_type?: string;
-    venue?: {
-      name?: string;
-      address?: string;
-      city?: string;
-      state?: string;
-      country?: string;
-      lat?: number;
-      lon?: number;
-    };
-    organizer?: {
-      id?: string;
-      name?: string;
-      slug?: string;
-    };
-    rsvp_count?: number;
-    is_paid?: boolean;
-    fee?: {
-      amount?: number;
-      currency?: string;
-    };
-    image_url?: string | null;
-    cover_url?: string | null;
-  }
+  const presentation = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
 
   interface Props {
     resultContext?: 'auto' | 'chat' | 'results';
@@ -102,19 +65,17 @@
     event = normalizeEventResult(decodedContent, id);
   }
 
-  let startTime = $derived.by(() => {
-    if (!event.date_start) return '';
-    const date = new Date(event.date_start);
-    if (Number.isNaN(date.getTime())) return '';
-    try { return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone: event.timezone }); }
-    catch { return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }); }
-  });
-  let attribution = $derived([startTime, event.organizer?.name ? `${$text('embeds.video_by')} ${event.organizer.name}` : ''].filter(Boolean).join(', '));
-
-  let eventImageUrl = $derived.by(() => {
-    const rawImageUrl = event.image_url || event.cover_url;
+  const sourceEvent = $derived(normalizeEventResult(presentation?.presentationContent ?? presentation?.content ?? event, id));
+  const previewStatus = $derived(sourceEvent.authoring && ['processing', 'error', 'cancelled'].includes(String(sourceEvent.status))
+    ? sourceEvent.status as 'processing' | 'error' | 'cancelled' : sourceEvent.title ? 'finished' : 'processing');
+  const badge = $derived(eventCalendarBadge(sourceEvent.date_start, sourceEvent.timezone));
+  const startTime = $derived(formatEventResultTime(sourceEvent.date_start, sourceEvent.timezone));
+  const attribution = $derived([startTime, sourceEvent.organizer?.name ? `${$text('embeds.video_by')} ${sourceEvent.organizer.name}` : ''].filter(Boolean).join(', '));
+  const eventImageUrl = $derived.by(() => {
+    const rawImageUrl = sourceEvent.image_url || sourceEvent.cover_url;
     return rawImageUrl ? proxyImage(rawImageUrl, MAX_WIDTH_PREVIEW_THUMBNAIL) : '';
   });
+
 
 
 
@@ -131,17 +92,18 @@
   appId="events"
   skillId="event"
   skillIconName="event"
-  status={event.title ? 'finished' : 'processing'}
-  skillName={event.title || ''}
+  status={previewStatus}
+  authoring={sourceEvent.authoring}
+  skillName={sourceEvent.title || ''}
   {isMobile}
   onFullscreen={onFullscreen}
   onStop={handleStop}
   showStatus={false}
   showSkillIcon={false}
   onEmbedDataUpdated={handleEmbedDataUpdated}
-  hasFullWidthImage={!!eventImageUrl && !event.title}
+  hasFullWidthImage={!!eventImageUrl && !sourceEvent.title}
 >
   {#snippet details()}
-    <EventResultCard title={event.title || 'Event'} imageUrl={eventImageUrl || undefined} date={event.date_start} timezone={event.timezone} {attribution} rsvpCount={event.rsvp_count} {rsvpLabel} onImageError={handleImageError} />
+    <EventResultCard title={sourceEvent.title || $text('embeds.event')} imageUrl={eventImageUrl || undefined} date={badge.date} timezone={badge.timezone} {attribution} rsvpCount={sourceEvent.rsvp_count} {rsvpLabel} onImageError={handleImageError} />
   {/snippet}
 </UnifiedEmbedPreview>

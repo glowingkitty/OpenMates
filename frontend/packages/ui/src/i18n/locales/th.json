@@ -7843,6 +7843,9 @@
         },
         "not_available": {
           "text": "N/A"
+        },
+        "cash_flow": {
+          "text": "กระแสเงินสด"
         }
       },
       "search_trademarks": {
@@ -8077,6 +8080,11 @@
         "text": "Watermarking"
       }
     },
+    "search_domain": {
+      "minutes": {
+        "text": "{count} นาที"
+      }
+    },
     "projects": {
       "references": {
         "subtitle": {
@@ -8264,6 +8272,133 @@
       },
       "no_frame": {
         "text": "ไม่มีภาพหน้าจอที่บันทึกไว้"
+      }
+    },
+    "authoring": {
+      "draft": {
+        "text": "ฉบับร่าง"
+      },
+      "user_provided": {
+        "text": "ผู้ใช้ให้ข้อมูล"
+      },
+      "sources": {
+        "text": "แหล่งที่มา"
+      },
+      "observed_at": {
+        "text": "เวลาที่บันทึก"
+      },
+      "image_credit": {
+        "text": "เครดิตภาพ"
+      },
+      "partial": {
+        "text": "ผลลัพธ์บางส่วน"
+      },
+      "uploaded_source": {
+        "text": "แหล่งข้อมูลที่อัปโหลด"
+      },
+      "approximate_location": {
+        "text": "ตำแหน่งโดยประมาณ"
+      },
+      "schematic_route": {
+        "text": "เส้นทางแบบแผนผัง"
+      },
+      "unmapped": {
+        "text": "ไม่มีข้อมูลตำแหน่ง"
+      },
+      "open_source": {
+        "text": "เปิดหน้าต้นทาง"
+      },
+      "additional_times": {
+        "text": "เวลาเพิ่มเติม"
+      }
+    },
+    "tv": {
+      "movie": {
+        "text": "ภาพยนตร์"
+      },
+      "series": {
+        "text": "ซีรีส์ทีวี"
+      },
+      "poster_unavailable": {
+        "text": "ไม่มีโปสเตอร์"
+      },
+      "synopsis": {
+        "text": "เรื่องย่อ"
+      },
+      "release_date": {
+        "text": "วันที่เข้าฉาย"
+      },
+      "runtime": {
+        "text": "ความยาว"
+      },
+      "genres": {
+        "text": "แนว"
+      },
+      "directors": {
+        "text": "ผู้กำกับ"
+      },
+      "creators": {
+        "text": "ผู้สร้าง"
+      },
+      "cast": {
+        "text": "นักแสดง"
+      },
+      "language": {
+        "text": "ภาษาต้นฉบับ"
+      },
+      "countries": {
+        "text": "ประเทศ"
+      },
+      "content_rating": {
+        "text": "การจัดเรต"
+      },
+      "score": {
+        "text": "คะแนนจากแหล่งที่มา"
+      },
+      "score_votes": {
+        "text": "{count} คะแนนโหวต"
+      },
+      "first_air_date": {
+        "text": "ออกอากาศครั้งแรก"
+      },
+      "last_air_date": {
+        "text": "ออกอากาศล่าสุด"
+      },
+      "series_status": {
+        "text": "สถานะซีรีส์"
+      },
+      "season_count": {
+        "text": "{count} ซีซัน"
+      },
+      "episodes": {
+        "text": "ตอน"
+      },
+      "episode_count": {
+        "text": "{count} ตอน"
+      },
+      "season": {
+        "text": "ซีซัน {number}"
+      },
+      "specials": {
+        "text": "ตอนพิเศษ"
+      },
+      "supplied_seasons": {
+        "text": "ซีซันที่มีข้อมูล"
+      },
+      "partial_seasons": {
+        "text": "แสดงเฉพาะรายละเอียดซีซันที่มีข้อมูลเท่านั้น"
+      },
+      "year": {
+        "text": "ปี"
+      },
+      "preparing": {
+        "text": "กำลังเตรียมข้อมูลเรื่อง…"
+      },
+      "cancelled": {
+        "text": "ยกเลิกการสร้างข้อมูลเรื่องแล้ว"
+      },
+      "unavailable": {
+        "text": "ไม่มีข้อมูลเรื่อง"
       }
     }
   },
@@ -14463,6 +14598,9 @@
     },
     "nighttime": {
       "text": "กลางคืน"
+    },
+    "instructor": {
+      "text": "ผู้สอน"
     }
   },
   "rules": {},

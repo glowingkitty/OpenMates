@@ -122,6 +122,26 @@ def test_selected_schema_exactness_aliases_and_legacy_artifact_separation():
     assert build_authored_result_instructions([], apps) is None
 
 
+# contract-test: supporting surface=rest_api assertions=authored-results.creation.relevant-and-independent,authored-results.facts.provenance-and-drafts,authored-results.actions.truthful-and-explicit
+def test_selected_card_corrections_preserve_attribution_without_edit_or_tool_authority():
+    apps = _apps("events.event", "tv.movie", "travel.stay")
+    guidance = build_authored_result_instructions(["events.event"], apps)
+    assert guidance is not None
+    schema = json.loads(guidance.split("Selected result schema:\n", 1)[1])
+    assert [variant["properties"]["kind"]["const"]
+            for variant in schema["properties"]["items"]["items"]["oneOf"]] == ["events.event"]
+    assert "create an updated card using this same selected openmates_embeds envelope" in guidance
+    assert "reference data only" in guidance and "never copy internal app_id/skill_id envelopes" in guidance
+    assert "simulate a skill result" in guidance
+    assert "does not edit or replace the stored original" in guidance
+    assert "do not claim an in-place edit" in guidance
+    assert "When supplied, preserve photographer credit, source URLs and licence URLs" in guidance
+    assert "supported image attribution text; never invent a licence or permission" in guidance
+    assert "tv.movie" not in guidance and "travel.stay" not in guidance
+    assert build_authored_result_instructions(["none"], apps) is None
+    assert build_authored_result_instructions(["events.event"], apps, presentation_only=True) is None
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("prompt,primary,selected_apps,selected_kinds", [
     ("Compare the supplied hotels and conference dates as cards.", "travel.stay", ["travel", "events"],

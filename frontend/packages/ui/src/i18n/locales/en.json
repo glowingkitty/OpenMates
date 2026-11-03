@@ -9308,6 +9308,9 @@
         },
         "not_available": {
           "text": "N/A"
+        },
+        "cash_flow": {
+          "text": "Cash flow"
         }
       },
       "search_trademarks": {
@@ -9894,6 +9897,133 @@
       },
       "no_frame": {
         "text": "No saved screenshot is available."
+      }
+    },
+    "authoring": {
+      "draft": {
+        "text": "Draft"
+      },
+      "user_provided": {
+        "text": "User-provided"
+      },
+      "sources": {
+        "text": "Sources"
+      },
+      "observed_at": {
+        "text": "Observed at"
+      },
+      "image_credit": {
+        "text": "Image credit"
+      },
+      "partial": {
+        "text": "Partial result"
+      },
+      "uploaded_source": {
+        "text": "Uploaded source"
+      },
+      "approximate_location": {
+        "text": "Approximate location"
+      },
+      "schematic_route": {
+        "text": "Schematic route"
+      },
+      "unmapped": {
+        "text": "Location unavailable"
+      },
+      "open_source": {
+        "text": "Open source page"
+      },
+      "additional_times": {
+        "text": "Additional times"
+      }
+    },
+    "tv": {
+      "movie": {
+        "text": "Movie"
+      },
+      "series": {
+        "text": "TV series"
+      },
+      "poster_unavailable": {
+        "text": "Poster unavailable"
+      },
+      "synopsis": {
+        "text": "Synopsis"
+      },
+      "release_date": {
+        "text": "Release date"
+      },
+      "runtime": {
+        "text": "Runtime"
+      },
+      "genres": {
+        "text": "Genres"
+      },
+      "directors": {
+        "text": "Directors"
+      },
+      "creators": {
+        "text": "Creators"
+      },
+      "cast": {
+        "text": "Cast"
+      },
+      "language": {
+        "text": "Original language"
+      },
+      "countries": {
+        "text": "Countries"
+      },
+      "content_rating": {
+        "text": "Content rating"
+      },
+      "score": {
+        "text": "Source score"
+      },
+      "score_votes": {
+        "text": "{count} votes"
+      },
+      "first_air_date": {
+        "text": "First aired"
+      },
+      "last_air_date": {
+        "text": "Last aired"
+      },
+      "series_status": {
+        "text": "Series status"
+      },
+      "season_count": {
+        "text": "{count} seasons"
+      },
+      "episodes": {
+        "text": "Episodes"
+      },
+      "episode_count": {
+        "text": "{count} episodes"
+      },
+      "season": {
+        "text": "Season {number}"
+      },
+      "specials": {
+        "text": "Specials"
+      },
+      "supplied_seasons": {
+        "text": "Supplied seasons"
+      },
+      "partial_seasons": {
+        "text": "Only supplied season details are shown."
+      },
+      "year": {
+        "text": "Year"
+      },
+      "preparing": {
+        "text": "Preparing title…"
+      },
+      "cancelled": {
+        "text": "Title creation cancelled"
+      },
+      "unavailable": {
+        "text": "Title unavailable"
       }
     }
   },
@@ -17438,6 +17568,9 @@
     },
     "nighttime": {
       "text": "Nighttime"
+    },
+    "instructor": {
+      "text": "Instructor"
     }
   },
   "rules": {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildResultMapMarkers, buildResultRoutePaths, extractResultRoute } from '../resultMapRoutes';
+import { buildResultMapMarkers, buildResultRoutePaths, extractResultRoute, isResultRouteSchematic, compatibleResultPriceCurrency } from '../resultMapRoutes';
 
 describe('shared result route geometry', () => {
   // contract-test: supporting surface=gui.web assertions=travel-search.surface-parity
@@ -51,5 +51,49 @@ describe('shared result route geometry', () => {
     ]);
     expect(markers).toHaveLength(1);
     expect(markers[0]).toMatchObject({radiusM: 600, testId: 'home-location-area', homeLocation: true});
+  });
+});
+
+// contract-test: supporting surface=gui.web assertions=authored-results.maps.source-faithful-geometry
+describe('authored map geometry', () => {
+  it('uses supplied GeoJSON rather than a schematic endpoint connector', () => {
+    const content = {geometry: {type: 'LineString', coordinates: [[11, 48], [12, 49], [13, 52]]}, origin_lat: 1, origin_lon: 2, destination_lat: 3, destination_lon: 4};
+    expect(extractResultRoute(content)).toEqual([{lat:48,lon:11},{lat:49,lon:12},{lat:52,lon:13}]);
+    expect(isResultRouteSchematic(content)).toBe(false);
+    expect(buildResultRoutePaths([{ref:'track',route:extractResultRoute(content),routeSchematic:false}])[0].dashArray).toBeUndefined();
+    expect(buildResultMapMarkers([{ref:'track',title:'Actual track',color:'red',route:extractResultRoute(content),routeSchematic:false}])).toHaveLength(2);
+  });
+  // contract-test: supporting surface=gui.web assertions=authored-results.maps.source-faithful-geometry,authored-results.facts.provenance-and-drafts
+  it('prefers an actual authored flight track to segment endpoint joins', () => {
+    const content = {authoring:{kind:'travel.connection'}, flight_track:{tracks:[{lat:48,lon:11},{lat:49,lon:12},{lat:52,lon:13}]}, legs:[{segments:[{departure_lat:1,departure_lon:2,arrival_lat:3,arrival_lon:4}]}]};
+    expect(extractResultRoute(content)).toEqual([{lat:48,lon:11},{lat:49,lon:12},{lat:52,lon:13}]);
+    expect(isResultRouteSchematic(content)).toBe(false);
+  });
+  // contract-test: supporting surface=gui.web assertions=authored-results.maps.source-faithful-geometry,authored-results.facts.provenance-and-drafts
+  it('keeps two supplied endpoints schematic and rejects invalid GeoJSON', () => {
+    const content = {origin:{lat:48,lon:11},destination:{lat:52,lon:13}};
+    expect(extractResultRoute(content)).toHaveLength(2);
+    expect(isResultRouteSchematic(content)).toBe(true);
+    expect(buildResultRoutePaths([{ref:'connector',route:extractResultRoute(content),routeSchematic:true}])[0].dashArray).toBe('10 10');
+    expect(extractResultRoute({geometry:{type:'LineString',coordinates:[[181,48],[13,52]]}})).toEqual([]);
+  });
+  // contract-test: supporting surface=gui.web assertions=authored-results.maps.source-faithful-geometry,authored-results.facts.provenance-and-drafts
+  it('does not turn an approximate area or unmapped cards into exact pins', () => {
+    const entries = [
+      {ref:'connector',title:'Route',color:'red',route:[{lat:48,lon:11},{lat:52,lon:13}]},
+      {ref:'home',title:'Area',color:'red',homeGeometry:{lat:50,lon:12,radiusM:500}},
+      {ref:'online',title:'Online appointment',color:'red'},
+      {ref:'tv',title:'Series',color:'red'},
+    ];
+    const markers = buildResultMapMarkers(entries,new Set(['connector']));
+    expect(markers).toHaveLength(3);
+    expect(markers.find(marker=>marker.ref==='home')).toMatchObject({radiusM:500,testId:'home-location-area'});
+    expect(markers.flatMap(marker=>marker.relatedRefs)).not.toContain('online');
+  });
+  // contract-test: supporting surface=gui.web assertions=authored-results.maps.source-faithful-geometry,authored-results.facts.provenance-and-drafts
+  it('requires compatible known currencies for price comparisons and preserves zero', () => {
+    expect(compatibleResultPriceCurrency([{price:0,currency:'USD'},{price:5,currency:'usd'}])).toBe('USD');
+    expect(compatibleResultPriceCurrency([{price:0},{price:5,currency:'USD'}])).toBeUndefined();
+    expect(compatibleResultPriceCurrency([{price:1,currency:'EUR'},{price:5,currency:'USD'}])).toBeUndefined();
   });
 });

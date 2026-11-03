@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { authoredResultMetadata } from '../utils/authoredResultPresentation';
 import { storageArchiveFetch } from "../config/api";
 import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
@@ -15598,7 +15599,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         data={{ decodedContent: registryContent }}
                         onClose={handleCloseEmbedFullscreen}
                     />
-                {:else if isModel3DResultFullscreen}
+                {:else if isModel3DResultFullscreen && !authoredResultMetadata(registryContent)}
                     <Model3DResultEmbedFullscreen
                         data={{
                             decodedContent: registryContent,

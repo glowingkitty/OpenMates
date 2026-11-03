@@ -7,8 +7,11 @@ instead of allowing an upload without durable redundancy to be acknowledged.
 
 import sys
 import types
+import io
 
 import pytest
+from starlette.datastructures import Headers, UploadFile
+from starlette.requests import Request
 
 if "python_multipart" not in sys.modules:
     python_multipart_module = types.ModuleType("python_multipart")
@@ -23,6 +26,93 @@ if "multipart.multipart" not in sys.modules:
     sys.modules["multipart.multipart"] = multipart_submodule
 
 from backend.upload.routes import upload_route
+from backend.upload.services.s3_upload import UploadsS3Service
+
+
+_UPLOAD_ENVIRONMENT_CASES = [
+    ("development", None, "dev"),
+    ("dev", None, "dev"),
+    (" Development ", None, "dev"),
+    ("production", None, "prod"),
+    ("prod", None, "prod"),
+    (None, None, "prod"),
+    ("unknown", None, "prod"),
+    ("development", "prod", "prod"),
+    ("production", "dev", "dev"),
+    ("production", "DEV", "dev"),
+    ("development", "unknown", "prod"),
+    ("development", "", "prod"),
+]
+
+
+# contract-test: supporting surface=rest_api assertions=storage.files.reference-safe-single-copy
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server_env, proxy_env, expected_env", _UPLOAD_ENVIRONMENT_CASES)
+async def test_upload_request_core_credentials_and_s3_bucket_agree(
+    monkeypatch, server_env, proxy_env, expected_env,
+):
+    if server_env is None:
+        monkeypatch.delenv("SERVER_ENVIRONMENT", raising=False)
+    else:
+        monkeypatch.setenv("SERVER_ENVIRONMENT", server_env)
+    for env in ("DEV", "PROD"):
+        monkeypatch.setenv(f"{env}_CORE_API_URL", f"https://{env.lower()}.example.test")
+        monkeypatch.setenv(f"{env}_INTERNAL_API_SHARED_TOKEN", f"{env.lower()}-token")
+
+    # Exercise route-level selection through safe PDF reuse, stopping before
+    # encryption/upload. The S3 probe uses the real bucket resolver, without I/O.
+    service = UploadsS3Service()
+    service.region_name = "nbg1"
+    observed = {}
+
+    async def check_file_exists(s3_key, *, target_env, region=None):
+        observed["bucket"] = service.get_bucket_for_env(target_env, region=region)
+        return True
+
+    service.check_file_exists = check_file_exists
+    record = {"embed_id": "old-embed", "aes_key": "existing-key", "files_metadata": {
+        "original": {"s3_key": "owner/hash/embed/original.bin", "active_region": "nbg1"},
+    }}
+
+    async def check_duplicate(core_api_url, internal_token, user_id, content_hash):
+        observed["credentials"] = (core_api_url, internal_token)
+        assert user_id == "owner"
+        return record
+
+    async def handle_pdf(**kwargs):
+        observed["handler_env"] = kwargs["target_env"]
+        assert kwargs["reuse_s3_data"] is record
+        return "pdf-handler-reached"
+
+    monkeypatch.setattr(upload_route, "_check_duplicate_via_api", check_duplicate)
+    monkeypatch.setattr(upload_route, "_handle_pdf_upload", handle_pdf)
+    monkeypatch.setitem(sys.modules, "magic", types.SimpleNamespace(from_buffer=lambda *_args, **_kwargs: "application/pdf"))
+    headers = [] if proxy_env is None else [(b"x-target-env", proxy_env.encode())]
+    request = Request({"type": "http", "headers": headers,
+                       "app": types.SimpleNamespace(state=types.SimpleNamespace(s3=service))})
+    result = await upload_route.upload_file(
+        request=request,
+        file=UploadFile(io.BytesIO(b"%PDF-1.4 test"), filename="test.pdf",
+                        headers=Headers({"content-type": "application/pdf"})),
+        user={"user_id": "owner", "vault_key_id": "owner-vault"},
+    )
+
+    assert result == "pdf-handler-reached"
+    assert observed == {
+        "credentials": (f"https://{expected_env}.example.test", f"{expected_env}-token"),
+        "bucket": "dev-openmates-chatfiles" if expected_env == "dev" else "openmates-chatfiles",
+        "handler_env": expected_env,
+    }
+
+
+# contract-test: supporting surface=rest_api assertions=storage.files.reference-safe-single-copy
+def test_upload_development_requires_configured_core_api(monkeypatch):
+    monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+    monkeypatch.delenv("DEV_CORE_API_URL", raising=False)
+    request = Request({"type": "http", "headers": []})
+    with pytest.raises(upload_route.HTTPException) as error:
+        upload_route._get_core_api_credentials(request)
+    assert error.value.status_code == 503
 
 
 class FailedRegistrationClient:

@@ -93,9 +93,12 @@
   // raw TOON-decoded payloads or normalized search results, so accept both shapes.
   let dc = $derived(data.decodedContent ?? {});
   let rawLocation = $derived(asRecord(dc.location));
-  let displayName = $derived(pickFirstString(dc.displayName, dc.name));
+  let rawCoordinates = $derived(asRecord(dc.coordinates));
+  let displayName = $derived(pickFirstString(dc.displayName, dc.display_name, dc.name));
   let formattedAddress = $derived(pickFirstString(dc.formattedAddress, dc.formatted_address, dc.address));
   let lat = $derived(pickFirstNumber(
+    rawCoordinates?.lat,
+    rawCoordinates?.latitude,
     rawLocation?.latitude,
     rawLocation?.lat,
     dc.location_latitude,
@@ -104,6 +107,9 @@
     dc.lat,
   ));
   let lon = $derived(pickFirstNumber(
+    rawCoordinates?.lon,
+    rawCoordinates?.lng,
+    rawCoordinates?.longitude,
     rawLocation?.longitude,
     rawLocation?.lon,
     rawLocation?.lng,
@@ -120,6 +126,7 @@
   let placeType = $derived(pickFirstString(
     dc.placeType,
     dc.place_type,
+    dc.category,
     Array.isArray(dc.types) ? dc.types[0] : undefined,
   ));
   let imageUrl = $derived(pickFirstString(dc.imageUrl, dc.image_url, dc.photo_url));

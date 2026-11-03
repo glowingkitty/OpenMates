@@ -7843,6 +7843,9 @@
         },
         "not_available": {
           "text": "해당 없음"
+        },
+        "cash_flow": {
+          "text": "현금 흐름"
         }
       },
       "search_trademarks": {
@@ -8077,6 +8080,11 @@
         "text": "Watermarking"
       }
     },
+    "search_domain": {
+      "minutes": {
+        "text": "{count}분"
+      }
+    },
     "projects": {
       "references": {
         "subtitle": {
@@ -8264,6 +8272,133 @@
       },
       "no_frame": {
         "text": "저장된 화면이 없습니다."
+      }
+    },
+    "authoring": {
+      "draft": {
+        "text": "초안"
+      },
+      "user_provided": {
+        "text": "사용자 제공"
+      },
+      "sources": {
+        "text": "출처"
+      },
+      "observed_at": {
+        "text": "확인 시점"
+      },
+      "image_credit": {
+        "text": "이미지 출처"
+      },
+      "partial": {
+        "text": "일부 결과"
+      },
+      "uploaded_source": {
+        "text": "업로드한 자료"
+      },
+      "approximate_location": {
+        "text": "대략적인 위치"
+      },
+      "schematic_route": {
+        "text": "개략적인 경로"
+      },
+      "unmapped": {
+        "text": "위치 정보 없음"
+      },
+      "open_source": {
+        "text": "출처 페이지 열기"
+      },
+      "additional_times": {
+        "text": "추가 시간"
+      }
+    },
+    "tv": {
+      "movie": {
+        "text": "영화"
+      },
+      "series": {
+        "text": "TV 시리즈"
+      },
+      "poster_unavailable": {
+        "text": "포스터 없음"
+      },
+      "synopsis": {
+        "text": "줄거리"
+      },
+      "release_date": {
+        "text": "개봉일"
+      },
+      "runtime": {
+        "text": "상영 시간"
+      },
+      "genres": {
+        "text": "장르"
+      },
+      "directors": {
+        "text": "감독"
+      },
+      "creators": {
+        "text": "제작자"
+      },
+      "cast": {
+        "text": "출연진"
+      },
+      "language": {
+        "text": "원어"
+      },
+      "countries": {
+        "text": "국가"
+      },
+      "content_rating": {
+        "text": "시청 등급"
+      },
+      "score": {
+        "text": "출처 평점"
+      },
+      "score_votes": {
+        "text": "평가 {count}개"
+      },
+      "first_air_date": {
+        "text": "첫 방영일"
+      },
+      "last_air_date": {
+        "text": "마지막 방영일"
+      },
+      "series_status": {
+        "text": "시리즈 상태"
+      },
+      "season_count": {
+        "text": "시즌 {count}개"
+      },
+      "episodes": {
+        "text": "에피소드"
+      },
+      "episode_count": {
+        "text": "에피소드 {count}개"
+      },
+      "season": {
+        "text": "시즌 {number}"
+      },
+      "specials": {
+        "text": "스페셜"
+      },
+      "supplied_seasons": {
+        "text": "제공된 시즌 정보"
+      },
+      "partial_seasons": {
+        "text": "제공된 시즌 정보만 표시됩니다."
+      },
+      "year": {
+        "text": "연도"
+      },
+      "preparing": {
+        "text": "작품 정보 준비 중…"
+      },
+      "cancelled": {
+        "text": "작품 카드 생성 취소됨"
+      },
+      "unavailable": {
+        "text": "작품 정보 없음"
       }
     }
   },
@@ -14463,6 +14598,9 @@
     },
     "nighttime": {
       "text": "밤"
+    },
+    "instructor": {
+      "text": "강사"
     }
   },
   "rules": {},

@@ -117,3 +117,44 @@ ${JSON.stringify(payload)}
     });
   });
 });
+
+// contract-test: supporting surface=gui.web assertions=authored-results.lifecycle.encrypted-and-stable,tv-titles.lifecycle.groups-and-actions
+describe('actual authored result references', () => {
+  it.each(['read', 'write'] as const)('roundtrips backend carrier and TV markers as actual stored nodes in %s mode', mode => {
+    for (const [backendType, frontendType] of [['authored_results', 'ai-authored-results'], ['tv_movie', 'tv-movie'], ['tv_series', 'tv-series']]) {
+      const id = '8d416850-8416-43d4-8677-2ed987da5f29';
+      const payload = { type: backendType, embed_id: id };
+      const markdown = '```json\n' + JSON.stringify(payload) + '\n```';
+      const [attrs] = parseEmbedNodes(markdown, mode);
+      expect(attrs).toMatchObject({ id, type: frontendType, contentRef: `embed:${id}`, status: 'finished' });
+      expect(attrs.type).not.toBe('app-skill-use');
+      expect(attrs.app_id).toBeUndefined();
+      expect(attrs.skill_id).toBeUndefined();
+      const doc = enhanceDocumentWithEmbeds({ type: 'doc', content: [{ type: 'codeBlock', attrs: { language: 'json' },
+        content: [{ type: 'text', text: JSON.stringify(payload) }] }] }, [attrs], mode);
+      expect(JSON.stringify(doc)).not.toContain('"type":"codeBlock"');
+      const stored = tipTapToCanonicalMarkdown({ type: 'doc', content: [{ type: 'embed', attrs: {
+        ...attrs, code: 'private structured payload', aes_key: 'private crypto',
+      } }] });
+      expect(stored).toContain(`"type": "${backendType}"`);
+      expect(stored).not.toContain('private');
+      expect(stored).not.toContain('aes_key');
+      expect(parseEmbedNodes(stored, mode)[0]).toMatchObject({ id, type: frontendType, contentRef: `embed:${id}` });
+      expect(parseEmbedNodes(markdown + '\n\nMore prose', mode)[0].id).toBe(attrs.id);
+    }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=authored-results.lifecycle.encrypted-and-stable
+  it.each(['processing', 'finished', 'cancelled', 'error'] as const)('keeps authored streaming status %s without manufacturing execution metadata', status => {
+    const [node] = parseEmbedNodes('```json\n' + JSON.stringify({ type: 'authored_results', embed_id: 'actual-carrier', status, title: 'My results' }) + '\n```', 'read');
+    expect(node).toMatchObject({ type: 'ai-authored-results', status, title: 'My results', id: 'actual-carrier' });
+    expect(node).not.toHaveProperty('app_id');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=authored-results.lifecycle.encrypted-and-stable
+  it('rejects nonscalar identities and does not complete an unknown status', () => {
+    for (const reference of [{ type: ['authored_results'], embed_id: 'actual' }, { type: 'authored_results', embed_id: { id: 'actual' } }])
+      expect(parseEmbedNodes('```json\n' + JSON.stringify(reference) + '\n```', 'read')).toEqual([]);
+    expect(parseEmbedNodes('```json\n' + JSON.stringify({ type: 'authored_results', embed_id: 'actual', status: 'published' }) + '\n```', 'read')[0].status).toBe('processing');
+  });
+});

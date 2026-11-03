@@ -7843,6 +7843,9 @@
         },
         "not_available": {
           "text": "N/A"
+        },
+        "cash_flow": {
+          "text": "Nakit akışı"
         }
       },
       "search_trademarks": {
@@ -8077,6 +8080,11 @@
         "text": "Watermarking"
       }
     },
+    "search_domain": {
+      "minutes": {
+        "text": "{count} dk"
+      }
+    },
     "projects": {
       "references": {
         "subtitle": {
@@ -8264,6 +8272,133 @@
       },
       "no_frame": {
         "text": "Kayıtlı ekran görüntüsü yok."
+      }
+    },
+    "authoring": {
+      "draft": {
+        "text": "Taslak"
+      },
+      "user_provided": {
+        "text": "Kullanıcı tarafından sağlandı"
+      },
+      "sources": {
+        "text": "Kaynaklar"
+      },
+      "observed_at": {
+        "text": "Gözlem zamanı"
+      },
+      "image_credit": {
+        "text": "Görsel kaynağı"
+      },
+      "partial": {
+        "text": "Kısmi sonuç"
+      },
+      "uploaded_source": {
+        "text": "Yüklenen kaynak"
+      },
+      "approximate_location": {
+        "text": "Yaklaşık konum"
+      },
+      "schematic_route": {
+        "text": "Şematik rota"
+      },
+      "unmapped": {
+        "text": "Konum mevcut değil"
+      },
+      "open_source": {
+        "text": "Kaynak sayfasını aç"
+      },
+      "additional_times": {
+        "text": "Diğer saatler"
+      }
+    },
+    "tv": {
+      "movie": {
+        "text": "Film"
+      },
+      "series": {
+        "text": "Dizi"
+      },
+      "poster_unavailable": {
+        "text": "Afiş mevcut değil"
+      },
+      "synopsis": {
+        "text": "Konu"
+      },
+      "release_date": {
+        "text": "Vizyon tarihi"
+      },
+      "runtime": {
+        "text": "Süre"
+      },
+      "genres": {
+        "text": "Türler"
+      },
+      "directors": {
+        "text": "Yönetmenler"
+      },
+      "creators": {
+        "text": "Yaratıcılar"
+      },
+      "cast": {
+        "text": "Oyuncular"
+      },
+      "language": {
+        "text": "Özgün dil"
+      },
+      "countries": {
+        "text": "Ülkeler"
+      },
+      "content_rating": {
+        "text": "Yaş sınıflandırması"
+      },
+      "score": {
+        "text": "Kaynak puanı"
+      },
+      "score_votes": {
+        "text": "{count} oy"
+      },
+      "first_air_date": {
+        "text": "İlk yayın"
+      },
+      "last_air_date": {
+        "text": "Son yayın"
+      },
+      "series_status": {
+        "text": "Dizi durumu"
+      },
+      "season_count": {
+        "text": "{count} sezon"
+      },
+      "episodes": {
+        "text": "Bölümler"
+      },
+      "episode_count": {
+        "text": "{count} bölüm"
+      },
+      "season": {
+        "text": "Sezon {number}"
+      },
+      "specials": {
+        "text": "Özel bölümler"
+      },
+      "supplied_seasons": {
+        "text": "Sağlanan sezonlar"
+      },
+      "partial_seasons": {
+        "text": "Yalnızca sağlanan sezon ayrıntıları gösterilir."
+      },
+      "year": {
+        "text": "Yıl"
+      },
+      "preparing": {
+        "text": "Başlık hazırlanıyor…"
+      },
+      "cancelled": {
+        "text": "Başlık oluşturma iptal edildi"
+      },
+      "unavailable": {
+        "text": "Başlık mevcut değil"
       }
     }
   },
@@ -14463,6 +14598,9 @@
     },
     "nighttime": {
       "text": "Gece"
+    },
+    "instructor": {
+      "text": "Eğitmen"
     }
   },
   "rules": {},

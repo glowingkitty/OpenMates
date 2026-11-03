@@ -7843,6 +7843,9 @@
         },
         "not_available": {
           "text": "לא זמין"
+        },
+        "cash_flow": {
+          "text": "תזרים מזומנים"
         }
       },
       "search_trademarks": {
@@ -8077,6 +8080,11 @@
         "text": "Watermarking"
       }
     },
+    "search_domain": {
+      "minutes": {
+        "text": "{count} דקות"
+      }
+    },
     "projects": {
       "references": {
         "subtitle": {
@@ -8264,6 +8272,133 @@
       },
       "no_frame": {
         "text": "אין צילום מסך שמור."
+      }
+    },
+    "authoring": {
+      "draft": {
+        "text": "טיוטה"
+      },
+      "user_provided": {
+        "text": "סופק על ידי המשתמש"
+      },
+      "sources": {
+        "text": "מקורות"
+      },
+      "observed_at": {
+        "text": "מועד התצפית"
+      },
+      "image_credit": {
+        "text": "קרדיט לתמונה"
+      },
+      "partial": {
+        "text": "תוצאה חלקית"
+      },
+      "uploaded_source": {
+        "text": "מקור שהועלה"
+      },
+      "approximate_location": {
+        "text": "מיקום משוער"
+      },
+      "schematic_route": {
+        "text": "מסלול סכמטי"
+      },
+      "unmapped": {
+        "text": "המיקום אינו זמין"
+      },
+      "open_source": {
+        "text": "פתיחת דף המקור"
+      },
+      "additional_times": {
+        "text": "מועדים נוספים"
+      }
+    },
+    "tv": {
+      "movie": {
+        "text": "סרט"
+      },
+      "series": {
+        "text": "סדרת טלוויזיה"
+      },
+      "poster_unavailable": {
+        "text": "הכרזה אינה זמינה"
+      },
+      "synopsis": {
+        "text": "תקציר"
+      },
+      "release_date": {
+        "text": "תאריך יציאה"
+      },
+      "runtime": {
+        "text": "משך"
+      },
+      "genres": {
+        "text": "סוגות"
+      },
+      "directors": {
+        "text": "במאים"
+      },
+      "creators": {
+        "text": "יוצרים"
+      },
+      "cast": {
+        "text": "שחקנים"
+      },
+      "language": {
+        "text": "שפת המקור"
+      },
+      "countries": {
+        "text": "מדינות"
+      },
+      "content_rating": {
+        "text": "דירוג גיל"
+      },
+      "score": {
+        "text": "ציון המקור"
+      },
+      "score_votes": {
+        "text": "{count} הצבעות"
+      },
+      "first_air_date": {
+        "text": "שידור ראשון"
+      },
+      "last_air_date": {
+        "text": "שידור אחרון"
+      },
+      "series_status": {
+        "text": "מצב הסדרה"
+      },
+      "season_count": {
+        "text": "{count} עונות"
+      },
+      "episodes": {
+        "text": "פרקים"
+      },
+      "episode_count": {
+        "text": "{count} פרקים"
+      },
+      "season": {
+        "text": "עונה {number}"
+      },
+      "specials": {
+        "text": "פרקים מיוחדים"
+      },
+      "supplied_seasons": {
+        "text": "עונות שסופקו"
+      },
+      "partial_seasons": {
+        "text": "מוצגים רק פרטי העונות שסופקו."
+      },
+      "year": {
+        "text": "שנה"
+      },
+      "preparing": {
+        "text": "מכין את הכותר…"
+      },
+      "cancelled": {
+        "text": "יצירת הכותר בוטלה"
+      },
+      "unavailable": {
+        "text": "הכותר אינו זמין"
       }
     }
   },
@@ -14463,6 +14598,9 @@
     },
     "nighttime": {
       "text": "בשעות הלילה"
+    },
+    "instructor": {
+      "text": "מדריך"
     }
   },
   "rules": {},

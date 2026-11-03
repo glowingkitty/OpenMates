@@ -7843,6 +7843,9 @@
         },
         "not_available": {
           "text": "Ej tillgängligt"
+        },
+        "cash_flow": {
+          "text": "Kassaflöde"
         }
       },
       "search_trademarks": {
@@ -8077,6 +8080,11 @@
         "text": "Watermarking"
       }
     },
+    "search_domain": {
+      "minutes": {
+        "text": "{count} min"
+      }
+    },
     "projects": {
       "references": {
         "subtitle": {
@@ -8264,6 +8272,133 @@
       },
       "no_frame": {
         "text": "Ingen sparad skärmbild finns."
+      }
+    },
+    "authoring": {
+      "draft": {
+        "text": "Utkast"
+      },
+      "user_provided": {
+        "text": "Tillhandahållet av användaren"
+      },
+      "sources": {
+        "text": "Källor"
+      },
+      "observed_at": {
+        "text": "Observerat"
+      },
+      "image_credit": {
+        "text": "Bildkälla"
+      },
+      "partial": {
+        "text": "Delvis resultat"
+      },
+      "uploaded_source": {
+        "text": "Uppladdad källa"
+      },
+      "approximate_location": {
+        "text": "Ungefärlig plats"
+      },
+      "schematic_route": {
+        "text": "Schematisk rutt"
+      },
+      "unmapped": {
+        "text": "Plats saknas"
+      },
+      "open_source": {
+        "text": "Öppna källsidan"
+      },
+      "additional_times": {
+        "text": "Ytterligare tider"
+      }
+    },
+    "tv": {
+      "movie": {
+        "text": "Film"
+      },
+      "series": {
+        "text": "Tv-serie"
+      },
+      "poster_unavailable": {
+        "text": "Affisch saknas"
+      },
+      "synopsis": {
+        "text": "Handling"
+      },
+      "release_date": {
+        "text": "Premiärdatum"
+      },
+      "runtime": {
+        "text": "Speltid"
+      },
+      "genres": {
+        "text": "Genrer"
+      },
+      "directors": {
+        "text": "Regissörer"
+      },
+      "creators": {
+        "text": "Skapare"
+      },
+      "cast": {
+        "text": "Rollista"
+      },
+      "language": {
+        "text": "Originalspråk"
+      },
+      "countries": {
+        "text": "Länder"
+      },
+      "content_rating": {
+        "text": "Åldersgräns"
+      },
+      "score": {
+        "text": "Källans betyg"
+      },
+      "score_votes": {
+        "text": "{count} röster"
+      },
+      "first_air_date": {
+        "text": "Första sändning"
+      },
+      "last_air_date": {
+        "text": "Senaste sändning"
+      },
+      "series_status": {
+        "text": "Seriestatus"
+      },
+      "season_count": {
+        "text": "{count} säsonger"
+      },
+      "episodes": {
+        "text": "Avsnitt"
+      },
+      "episode_count": {
+        "text": "{count} avsnitt"
+      },
+      "season": {
+        "text": "Säsong {number}"
+      },
+      "specials": {
+        "text": "Specialavsnitt"
+      },
+      "supplied_seasons": {
+        "text": "Tillhandahållna säsonger"
+      },
+      "partial_seasons": {
+        "text": "Endast tillhandahållna säsongsdetaljer visas."
+      },
+      "year": {
+        "text": "År"
+      },
+      "preparing": {
+        "text": "Förbereder titel…"
+      },
+      "cancelled": {
+        "text": "Skapandet av titeln avbröts"
+      },
+      "unavailable": {
+        "text": "Titeln är inte tillgänglig"
       }
     }
   },
@@ -14463,6 +14598,9 @@
     },
     "nighttime": {
       "text": "Nattetid"
+    },
+    "instructor": {
+      "text": "Instruktör"
     }
   },
   "rules": {},

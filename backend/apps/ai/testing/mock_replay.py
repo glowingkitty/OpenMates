@@ -739,6 +739,7 @@ async def _recreate_fixture_embeds(
     try:
         from backend.core.api.app.services.embed_service import EmbedService
         embed_service = EmbedService(cache_service, directus_service, encryption_service)
+        embed_service.authoring_reference_index = getattr(request_data, "embed_file_path_index", None) or {}
     except Exception as e:
         logger.error(f"[MOCK] Failed to init EmbedService for embed recreation: {e}")
         return response

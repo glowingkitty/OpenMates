@@ -33,6 +33,8 @@
 -->
 
 <script lang="ts">
+  import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from "../../../types/authoredResult";
+  import { getContext } from "svelte";
   import ResultEmbedCard from '../ResultEmbedCard.svelte';
   import EmbedCalendarDate from '../EmbedCalendarDate.svelte';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
@@ -111,6 +113,8 @@
     publicationDate,
     onFullscreen
   }: Props = $props();
+  const authoredContext = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
+  let isAuthored = $derived(Boolean(authoredContext?.authoring));
   
   // ===========================================
   // FALLBACK State (only used when props are empty)
@@ -181,6 +185,7 @@
    * - Legacy embeds: Still works by fetching metadata as fallback
    */
   let needsMetadataFetch = $derived.by(() => {
+    if (isAuthored) return false;
     // PRIMARY: If we already have an image from props, no fetch needed.
     // We do NOT suppress the fetch based on title/description alone — Brave News
     // often provides title & description but no thumbnail, so we still want to
@@ -208,7 +213,7 @@
    * Images and favicons are loaded via their respective proxy endpoints.
    */
   async function fetchMetadata() {
-    if (!url) return;
+    if (isAuthored || !url) return;
     
     isLoadingMetadata = true;
     metadataError = false;
@@ -273,10 +278,10 @@
   // ===========================================
   
   // Use prop values if provided, otherwise use fetched values
-  let effectiveTitle = $derived(title || fetchedTitle);
-  let effectiveDescription = $derived(description || fetchedDescription);
-  let effectiveFavicon = $derived(favicon || fetchedFavicon);
-  let effectiveImage = $derived(image || fetchedImage);
+  let effectiveTitle = $derived(title || (isAuthored ? undefined : fetchedTitle));
+  let effectiveDescription = $derived(description || (isAuthored ? undefined : fetchedDescription));
+  let effectiveFavicon = $derived(favicon || (isAuthored ? undefined : fetchedFavicon));
+  let effectiveImage = $derived(image || (isAuthored ? undefined : fetchedImage));
   
   // Clean description from HTML tags for safe rendering
   let cleanedDescription = $derived(stripHtmlTags(effectiveDescription));
@@ -302,7 +307,7 @@
       return proxyImage(effectiveFavicon, MAX_WIDTH_FAVICON);
     }
     // Fall back to favicon endpoint which extracts favicon from page URL
-    return proxyFavicon(url);
+    return isAuthored ? '' : proxyFavicon(url);
   });
   
   // Preview image URL - proxy through preview server with max_width for optimization

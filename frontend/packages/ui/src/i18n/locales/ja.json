@@ -7843,6 +7843,9 @@
         },
         "not_available": {
           "text": "N/A"
+        },
+        "cash_flow": {
+          "text": "キャッシュフロー"
         }
       },
       "search_trademarks": {
@@ -8077,6 +8080,11 @@
         "text": "Watermarking"
       }
     },
+    "search_domain": {
+      "minutes": {
+        "text": "{count} 分"
+      }
+    },
     "projects": {
       "references": {
         "subtitle": {
@@ -8264,6 +8272,133 @@
       },
       "no_frame": {
         "text": "保存された画像はありません。"
+      }
+    },
+    "authoring": {
+      "draft": {
+        "text": "下書き"
+      },
+      "user_provided": {
+        "text": "ユーザー提供"
+      },
+      "sources": {
+        "text": "出典"
+      },
+      "observed_at": {
+        "text": "確認日時"
+      },
+      "image_credit": {
+        "text": "画像クレジット"
+      },
+      "partial": {
+        "text": "一部の結果"
+      },
+      "uploaded_source": {
+        "text": "アップロードされた資料"
+      },
+      "approximate_location": {
+        "text": "おおよその場所"
+      },
+      "schematic_route": {
+        "text": "模式的な経路"
+      },
+      "unmapped": {
+        "text": "位置情報なし"
+      },
+      "open_source": {
+        "text": "出典ページを開く"
+      },
+      "additional_times": {
+        "text": "その他の時間"
+      }
+    },
+    "tv": {
+      "movie": {
+        "text": "映画"
+      },
+      "series": {
+        "text": "テレビシリーズ"
+      },
+      "poster_unavailable": {
+        "text": "ポスターなし"
+      },
+      "synopsis": {
+        "text": "あらすじ"
+      },
+      "release_date": {
+        "text": "公開日"
+      },
+      "runtime": {
+        "text": "上映時間"
+      },
+      "genres": {
+        "text": "ジャンル"
+      },
+      "directors": {
+        "text": "監督"
+      },
+      "creators": {
+        "text": "企画・制作"
+      },
+      "cast": {
+        "text": "出演者"
+      },
+      "language": {
+        "text": "原語"
+      },
+      "countries": {
+        "text": "製作国"
+      },
+      "content_rating": {
+        "text": "年齢区分"
+      },
+      "score": {
+        "text": "出典の評価"
+      },
+      "score_votes": {
+        "text": "{count} 件の評価"
+      },
+      "first_air_date": {
+        "text": "初回放送日"
+      },
+      "last_air_date": {
+        "text": "最終放送日"
+      },
+      "series_status": {
+        "text": "シリーズの状況"
+      },
+      "season_count": {
+        "text": "{count} シーズン"
+      },
+      "episodes": {
+        "text": "エピソード"
+      },
+      "episode_count": {
+        "text": "{count} エピソード"
+      },
+      "season": {
+        "text": "シーズン {number}"
+      },
+      "specials": {
+        "text": "特別編"
+      },
+      "supplied_seasons": {
+        "text": "提供されたシーズン情報"
+      },
+      "partial_seasons": {
+        "text": "提供されたシーズン情報のみ表示しています。"
+      },
+      "year": {
+        "text": "年"
+      },
+      "preparing": {
+        "text": "作品情報を準備中…"
+      },
+      "cancelled": {
+        "text": "作品カードの作成を中止しました"
+      },
+      "unavailable": {
+        "text": "作品情報を表示できません"
       }
     }
   },
@@ -14463,6 +14598,9 @@
     },
     "nighttime": {
       "text": "夜間"
+    },
+    "instructor": {
+      "text": "インストラクター"
     }
   },
   "rules": {},

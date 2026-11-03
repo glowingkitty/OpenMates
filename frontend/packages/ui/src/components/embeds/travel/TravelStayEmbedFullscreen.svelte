@@ -16,6 +16,9 @@
 -->
 
 <script lang="ts">
+  import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from "../../../types/authoredResult";
+  import { getContext } from "svelte";
+  import { travelStayFacts, travelStayCoordinates } from './travelStayFacts';
   import EmbedChevron from '../EmbedChevron.svelte';
   import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
   import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
@@ -54,6 +57,8 @@
     total_rate?: string;
     extracted_total_rate?: number;
     currency?: string;
+    check_in?: string;
+    check_out?: string;
     check_in_time?: string;
     check_out_time?: string;
     amenities?: string[];
@@ -86,36 +91,14 @@
     onNavigatePrevious,
     onNavigateNext,
   }: Props = $props();
+  const authoredContext = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
+  let isAuthored = $derived(Boolean(authoredContext?.authoring || data?.decodedContent?.authoring));
 
   // Build the stay object from data.decodedContent
-  let dc = $derived(data.decodedContent);
+  let dc = $derived(authoredContext?.presentationContent ?? authoredContext?.content ?? data.decodedContent);
+  let authoredTitle = $derived(isAuthored && typeof dc?.title === "string" ? dc.title.trim() : "");
 
-  function asNumber(value: unknown): number | undefined {
-    if (typeof value === 'number' && Number.isFinite(value)) return value;
-    if (typeof value === 'string') {
-      const parsed = Number(value);
-      if (Number.isFinite(parsed)) return parsed;
-    }
-    return undefined;
-  }
-
-  function parseGpsCoordinates(content: Record<string, unknown>): StayData['gps_coordinates'] {
-    const rawGps = content.gps_coordinates as Record<string, unknown> | undefined;
-    const latitude = asNumber(rawGps?.latitude)
-      ?? asNumber(rawGps?.lat)
-      ?? asNumber(content.latitude)
-      ?? asNumber(content.lat)
-      ?? asNumber(content.gps_coordinates_latitude);
-    const longitude = asNumber(rawGps?.longitude)
-      ?? asNumber(rawGps?.lon)
-      ?? asNumber(rawGps?.lng)
-      ?? asNumber(content.longitude)
-      ?? asNumber(content.lon)
-      ?? asNumber(content.lng)
-      ?? asNumber(content.gps_coordinates_longitude);
-
-    return latitude !== undefined && longitude !== undefined ? { latitude, longitude } : undefined;
-  }
+  let suppliedFacts = $derived(travelStayFacts(dc));
 
   let stay: StayData = $derived.by(() => {
     return {
@@ -123,17 +106,19 @@
     name: typeof dc.name === 'string' ? dc.name : undefined,
     description: typeof dc.description === 'string' ? dc.description : undefined,
     property_type: typeof dc.property_type === 'string' ? dc.property_type : undefined,
-    link: typeof dc.link === 'string' ? dc.link : undefined,
+    link: isAuthored ? suppliedFacts.sourceUrl : typeof dc.link === 'string' ? dc.link : undefined,
     property_token: typeof dc.property_token === 'string' ? dc.property_token : undefined,
-    gps_coordinates: parseGpsCoordinates(dc),
+    gps_coordinates: travelStayCoordinates(dc),
     hotel_class: typeof dc.hotel_class === 'number' ? dc.hotel_class : undefined,
     overall_rating: typeof dc.overall_rating === 'number' ? dc.overall_rating : undefined,
     reviews: typeof dc.reviews === 'number' ? dc.reviews : undefined,
     rate_per_night: typeof dc.rate_per_night === 'string' ? dc.rate_per_night : undefined,
-    extracted_rate_per_night: typeof dc.extracted_rate_per_night === 'number' ? dc.extracted_rate_per_night : undefined,
+    extracted_rate_per_night: typeof dc.extracted_rate_per_night === 'number' ? dc.extracted_rate_per_night : isAuthored ? suppliedFacts.nightlyRate.amount : undefined,
     total_rate: typeof dc.total_rate === 'string' ? dc.total_rate : undefined,
-    extracted_total_rate: typeof dc.extracted_total_rate === 'number' ? dc.extracted_total_rate : undefined,
+    extracted_total_rate: typeof dc.extracted_total_rate === 'number' ? dc.extracted_total_rate : isAuthored ? suppliedFacts.totalRate.amount : undefined,
     currency: typeof dc.currency === 'string' ? dc.currency : undefined,
+    check_in: suppliedFacts.checkIn,
+    check_out: suppliedFacts.checkOut,
     check_in_time: typeof dc.check_in_time === 'string' ? dc.check_in_time : undefined,
     check_out_time: typeof dc.check_out_time === 'string' ? dc.check_out_time : undefined,
     amenities: Array.isArray(dc.amenities) ? dc.amenities as string[] : undefined,
@@ -158,9 +143,11 @@
   let propertyType = $derived((stay as MaybeStay)?.property_type || '');
   let formattedRating = $derived.by(() => { const s = stay as MaybeStay; return s?.overall_rating != null ? s.overall_rating.toFixed(1) : ''; });
   let formattedReviews = $derived.by(() => { const s = stay as MaybeStay; return s?.reviews != null ? s.reviews.toLocaleString() : ''; });
-  let currency = $derived((stay as MaybeStay)?.currency || 'EUR');
-  let pricePerNight = $derived.by(() => { const s = stay as MaybeStay; return s?.extracted_rate_per_night != null ? Math.round(s.extracted_rate_per_night) : null; });
-  let totalPrice = $derived.by(() => { const s = stay as MaybeStay; return s?.extracted_total_rate != null ? Math.round(s.extracted_total_rate) : null; });
+  let currency = $derived((stay as MaybeStay)?.currency || (isAuthored ? '' : 'EUR'));
+  let nightlyCurrency = $derived(isAuthored ? suppliedFacts.nightlyRate.currency || '' : currency);
+  let totalCurrency = $derived(isAuthored ? suppliedFacts.totalRate.currency || '' : currency);
+  let pricePerNight = $derived.by(() => { const s = stay as MaybeStay; return s?.extracted_rate_per_night != null ? (isAuthored ? s.extracted_rate_per_night : Math.round(s.extracted_rate_per_night)) : null; });
+  let totalPrice = $derived.by(() => { const s = stay as MaybeStay; return s?.extracted_total_rate != null ? (isAuthored ? s.extracted_total_rate : Math.round(s.extracted_total_rate)) : null; });
   let amenities = $derived((stay as MaybeStay)?.amenities || []);
   let nearbyPlaces = $derived((stay as MaybeStay)?.nearby_places || []);
   let bookingUrl = $derived((stay as MaybeStay)?.link || '');
@@ -223,7 +210,7 @@
         property_type: propertyType,
         url: bookingUrl,
         price: totalPrice != null ? `${currency} ${totalPrice}` : (pricePerNight != null ? `${currency} ${pricePerNight}/night` : ''),
-        rating: stay.overall_rating || undefined,
+        rating: stay.overall_rating ?? undefined,
         location: nearbyPlaces.map((place) => place.name).filter(Boolean).join(', '),
         notes: amenities.slice(0, 8).join(', '),
       },
@@ -264,8 +251,8 @@
   skillId="search_stays"
   {onClose}
   skillIconName="search"
-  embedHeaderTitle={name}
-  embedHeaderSubtitle={propertyType || undefined}
+  embedHeaderTitle={authoredTitle || name}
+  embedHeaderSubtitle={authoredTitle ? [name, propertyType].filter(Boolean).join(" · ") || undefined : propertyType || undefined}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
@@ -281,13 +268,13 @@
         <EmbedHeaderCtaButton label={savedMemoryEntry ? 'Forget' : 'Add memory'} variant="secondary" iconName="heart" iconOnly pressed={!!savedMemoryEntry} onclick={handleToggleSavedStay} testId="save-embed-cta" />
       {/if}
       {#if bookingUrl}
-        <EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', 'Google Hotels')} onclick={handleBooking} testId="external-provider-cta" />
+        <EmbedHeaderCtaButton label={isAuthored ? $text('embeds.authoring.open_source') : $text('embeds.open_on_provider').replace('{provider}', 'Google Hotels')} onclick={handleBooking} testId="external-provider-cta" />
       {/if}
     </div>
   {/snippet}
 
   {#snippet summary()}
-    {#if pricePerNight != null}<ResultEmbedInfo icon="euro" label="Price per night" value={`${currency} ${pricePerNight}`} caption="per night">{totalPrice != null ? `${currency} ${totalPrice} total` : 'Total price is not supplied.'}</ResultEmbedInfo>{/if}
+    {#if pricePerNight != null}<ResultEmbedInfo icon="euro" label="Price per night" value={`${nightlyCurrency} ${pricePerNight}`} caption="per night">{totalPrice != null ? `${totalCurrency} ${totalPrice} total` : 'Total price is not supplied.'}</ResultEmbedInfo>{/if}
     {#if formattedRating}<ResultEmbedInfo icon="star" label="Guest rating" value={formattedRating}>{formattedReviews ? `${formattedReviews} reviews` : 'Review count not supplied.'}</ResultEmbedInfo>{/if}
     {#if stars}<ResultEmbedInfo icon="hotel" label="Hotel class" value={stars}>{propertyType || name}</ResultEmbedInfo>{/if}
   {/snippet}
@@ -314,12 +301,12 @@
     <div class="price-section">
       {#if pricePerNight != null}
         <div class="price-main">
-          <span class="price-amount">{currency} {pricePerNight}</span>
+          <span class="price-amount">{nightlyCurrency} {pricePerNight}</span>
           <span class="price-unit">/{$text('embeds.night')}</span>
         </div>
       {/if}
       {#if totalPrice != null}
-        <div class="price-total">{currency} {totalPrice} {$text('embeds.total')}</div>
+        <div class="price-total">{totalCurrency} {totalPrice} {$text('embeds.total')}</div>
       {/if}
     </div>
 
@@ -348,13 +335,13 @@
     {/if}
 
     <!-- Check-in / Check-out -->
-    {#if stay.check_in_time || stay.check_out_time}
+    {#if stay.check_in || stay.check_out || stay.check_in_time || stay.check_out_time}
       <div class="check-times">
-        {#if stay.check_in_time}
-          <div class="check-time"><span class="check-label">{$text('embeds.check_in')}</span><span class="check-value">{stay.check_in_time}</span></div>
+        {#if stay.check_in || stay.check_in_time}
+          <div class="check-time"><span class="check-label">{$text('embeds.check_in')}</span><span class="check-value">{[stay.check_in, stay.check_in_time].filter(Boolean).join(' · ')}</span></div>
         {/if}
-        {#if stay.check_out_time}
-          <div class="check-time"><span class="check-label">{$text('embeds.check_out')}</span><span class="check-value">{stay.check_out_time}</span></div>
+        {#if stay.check_out || stay.check_out_time}
+          <div class="check-time"><span class="check-label">{$text('embeds.check_out')}</span><span class="check-value">{[stay.check_out, stay.check_out_time].filter(Boolean).join(' · ')}</span></div>
         {/if}
       </div>
     {/if}

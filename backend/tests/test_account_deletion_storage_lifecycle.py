@@ -11,6 +11,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import hashlib
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -20,12 +21,34 @@ from backend.core.api.app.services import storage_reference_service
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
+@pytest.fixture(autouse=True)
+def _internal_storage_transaction_token(monkeypatch):
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "unit-test-account-storage-token")
+
+
 class FakeDirectus:
+    base_url = "http://directus.test"
+
     def __init__(self) -> None:
         self.created: list[dict] = []
         self.get_items_calls: list[tuple[str, dict[str, object]]] = []
         self.chats = [{"id": "chat-1", "hashed_user_id": "hashed-user-1", "hashed_team_id": None,
                        "storage_state": "hot", "archive_version": 1}]
+        self.personal_fences = []
+
+    async def _make_api_request(self, _method, _url, **kwargs):
+        body = kwargs["json"]
+        data = body["data"]
+        if body["operation"] == "invalidate_deletion":
+            assert data["scope"] == "chat" and data["chat_id"] in [row["id"] for row in self.chats]
+            self.personal_fences.append({"id": data["chat_id"], "chat_id": data["chat_id"],
+                                         "hashed_user_id": data["hashed_user_id"], "hashed_team_id": None})
+            result = {"chat_deletion_fenced": True, "chat_id": data["chat_id"]}
+        else:
+            assert body["operation"] == "inspect_output_asset_references"
+            assert data["target_chat_ids"] == ["chat-1"]
+            result = {"slots": [], "next_cursor": None}
+        return SimpleNamespace(status_code=200, json=lambda: {"data": result})
 
     async def get_user_fields_direct(self, _user_id: str, _fields: list[str]) -> dict:
         return {"id": "user-1", "profile_image_s3_key": "profiles/user-1.enc"}
@@ -34,6 +57,8 @@ class FakeDirectus:
         self.get_items_calls.append((collection, kwargs))
         if collection == "chats":
             return self.chats
+        if collection == "chat_recovery_chat_deletion_fences":
+            return self.personal_fences
         rows = {
             "embeds": [
                 {
@@ -69,6 +94,7 @@ class FakeDirectus:
             "chat_recovery_outputs": [
                 {"id": "recovery-1", "payload_storage": "s3", "payload_s3_key": "chat-recovery/one.json"}
             ],
+            "chat_recovery_legacy_batch_claims": [],
             "usage_monthly_chat_summaries": [
                 {"id": "usage-1", "archive_s3_key": "usage/archive-1.gz"}
             ],
@@ -191,6 +217,7 @@ async def test_account_deletion_fences_chats_before_inventory() -> None:
     assert count == 1
     assert directus.chats[0]["storage_state"] == "deleting"
     assert directus.chats[0]["archive_version"] == 2
+    assert directus.personal_fences[0]["chat_id"] == "chat-1"
 
 
 # contract-test: direct surface=rest_api assertions=storage.deletion.global-authoritative

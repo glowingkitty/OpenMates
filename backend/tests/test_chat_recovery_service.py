@@ -452,3 +452,31 @@ async def test_personal_draft_registration_preserves_fence_errors(monkeypatch, c
         )
     assert error.value.status_code == status
     assert error.value.code == code
+
+
+# contract-test: direct surface=rest_api assertions=authored-results.media.safe-and-attributed,authored-results.lifecycle.encrypted-and-stable
+@pytest.mark.anyio
+async def test_legacy_asset_registration_preserves_server_metadata_and_requires_exact_receipt(monkeypatch):
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "test-token")
+    body = {"protocol_version": 1, "task_identity": "a" * 64, "embed_id": "child", "output_version": 1,
+            "s3_file_keys": [{"bucket": "chatfiles", "key": "selected"}]}
+    receipt = {"registered": True, "task_identity": body["task_identity"], "embed_id": "child",
+               "output_version": 1, "idempotent": False}
+    directus = FakeDirectus(FakeResponse(200, {"data": receipt}))
+    assert await ChatRecoveryService(directus).register_legacy_output_asset_references(body) == receipt
+    assert directus.calls[0]["json"] == {"operation": "register_legacy_output_asset_references", "data": body}
+    directus.response = FakeResponse(200, {"data": {**receipt, "embed_id": "foreign-child"}})
+    with pytest.raises(RuntimeError, match="receipt"):
+        await ChatRecoveryService(directus).register_legacy_output_asset_references(body)
+
+
+@pytest.mark.parametrize("result", [{}, {"binding": []}, {"binding": {
+    "task_identity": "a" * 64, "embed_id": "foreign", "output_version": 1, "content_commitment": "b" * 64,
+}}, {"binding": {"task_identity": "a" * 64, "embed_id": "child", "output_version": 2, "content_commitment": "b" * 64}}])
+# contract-test: direct surface=rest_api assertions=authored-results.media.safe-and-attributed
+@pytest.mark.anyio
+async def test_legacy_asset_lookup_rejects_missing_or_mismatched_trusted_binding(monkeypatch, result):
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "test-token")
+    directus = FakeDirectus(FakeResponse(200, {"data": result}))
+    with pytest.raises(RuntimeError):
+        await ChatRecoveryService(directus).get_legacy_output_asset_binding({"embed_id": "child", "output_version": 1})

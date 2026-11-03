@@ -24,6 +24,8 @@
 -->
 
 <script lang="ts">
+  import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from "../../../types/authoredResult";
+  import { getContext } from "svelte";
   import { searchResultImageUrl } from '../../../utils/searchPreviewImages';
   import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
@@ -71,6 +73,8 @@
     showChatButton = false,
     onShowChat
   }: Props = $props();
+  const authoredContext = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
+  let isAuthored = $derived(Boolean(authoredContext?.authoring || data?.decodedContent?.authoring));
 
   // Extract fields from data.decodedContent with attrs fallback
   // Use $derived for reactivity — Svelte 5 warns if props are referenced outside closures/deriveds.
@@ -251,7 +255,7 @@
   let faviconUrl = $derived(
     proxyImage(meta_url_favicon, MAX_WIDTH_FAVICON) ||
     proxyImage(favicon, MAX_WIDTH_FAVICON) ||
-    proxyFavicon(url)
+    (isAuthored ? '' : proxyFavicon(url))
   );
 
   // Header image URL - proxy through preview server with max_width for optimization

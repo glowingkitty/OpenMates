@@ -2,6 +2,7 @@
 
 import base64
 import copy
+import hashlib
 import json
 import uuid
 from contextlib import contextmanager
@@ -14,11 +15,17 @@ from toon_format import decode, encode
 from backend.apps.ai.utils.authored_result_fences import get_authoring_definitions
 from backend.core.api.app.services.authored_result_service import authored_child_id, authored_children_for_context
 from backend.core.api.app.services.embed_service import EmbedService
+from backend.core.api.app.services.storage_reference_service import (
+    collect_storage_references,
+    plan_reference_safe_deletions,
+)
 from backend.core.api.app.services.embed_version_transaction_service import is_hosted_project_embed_id
 from backend.shared.python_utils.chat_recovery_context import (
     RecoveryOutputContext,
+    LegacyOutputContext,
     RequiredRecoveryOutputError,
     active_recovery_output_context,
+    active_legacy_output_context,
     active_verified_output_producer,
 )
 from backend.tests.test_authored_result_content import VALID_KIND_DETAILS, valid_authored_item
@@ -89,7 +96,7 @@ def authored_service(monkeypatch):
     scheduled = []
     monkeypatch.setattr(service, "_schedule_embed_persistence_fallback", scheduled.append)
 
-    async def save_batch(payloads):
+    async def save_batch(payloads, **_kwargs):
         cache.order.append(("recovery", [payload["payload"]["embed_id"] for payload in payloads]))
 
     async def save_one(payload, **_kwargs):
@@ -112,15 +119,23 @@ def authored_service(monkeypatch):
         cache.order.clear()
         return created["embed_id"]
 
-    async def update(carrier, items=None, *, status="finished", raw=None, **overrides):
+    async def update(carrier, items=None, *, status="finished", raw=None, legacy=True, **overrides):
         source = raw if raw is not None else json.dumps({
             "schemaVersion": 1, "title": "Supplied private results", "items": items or [],
             "view": {"mode": "cards", "items": [item["id"] for item in items or []]},
         })
-        return await service.update_json_content_embed_content(
-            source_language="openmates_embeds", embed_id=carrier,
-            source_json=source, status=status, **{**args, **overrides},
-        )
+        token = active_legacy_output_context.set(LegacyOutputContext(
+            owner_id=OWNER, owner_hash=OWNER_HASH, legacy_task_identity="a" * 64,
+            root_chat_id=CHAT, root_turn_id=None, root_user_message_id=MESSAGE, target_chat_id=CHAT,
+        )) if legacy and active_recovery_output_context.get() is None else None
+        try:
+            return await service.update_json_content_embed_content(
+                source_language="openmates_embeds", embed_id=carrier,
+                source_json=source, status=status, **{**args, **overrides},
+            )
+        finally:
+            if token is not None:
+                active_legacy_output_context.reset(token)
 
     def record(embed_id):
         return json.loads(cache.values[f"embed:{embed_id}"])
@@ -211,12 +226,14 @@ async def test_all_admitted_kinds_materialize_as_ordered_existing_typed_children
     assert parent["status"] == "finished" and parent["validation"]["status"] == "valid", parent["validation"]
     assert [item["kind"] for item in parent["items"]] == list(VALID_KIND_DETAILS)
     assert parent["view"] == {"mode": "cards", "embeds": h.record(carrier)["embed_ids"]}
+    assert (h.record(carrier)["app_id"], h.record(carrier)["skill_id"]) == ("ai", "authored_results")
     definitions = get_authoring_definitions()
     for supplied, member in zip(items, parent["items"], strict=True):
         row, body = h.record(member["embed_id"]), await h.content(member["embed_id"])
         definition = definitions[supplied["kind"]]
         assert body["type"] == row["type"] == definition["backend_type"]
-        assert body["app_id"] == definition["app_id"] and body["skill_id"] == definition["skill_id"]
+        assert body["app_id"] == row["app_id"] == definition["app_id"]
+        assert body["skill_id"] == row["skill_id"] == definition["skill_id"]
         assert row["parent_embed_id"] == carrier and "embed_ids" not in row
         assert body["authoring"]["kind"] == supplied["kind"]
         assert body["authoring"]["origin"] == "user_provided"
@@ -337,6 +354,132 @@ async def test_selected_uploaded_image_stays_in_intended_child_and_upload_is_unc
     assert h.cache.values[f"embed:{upload}"] == original_upload
     assert upload not in parent["embed_ids"]
     assert all("embed_ids" not in h.record(child) for child in parent["embed_ids"])
+
+
+# contract-test: direct surface=rest_api assertions=authored-results.media.safe-and-attributed,authored-results.lifecycle.encrypted-and-stable,storage.files.reference-safe-single-copy,storage.deletion.global-authoritative
+@pytest.mark.asyncio
+async def test_selected_media_survives_original_upload_removal_without_retaining_unused_assets(authored_service):
+    h = authored_service
+    carrier = await h.create()
+    upload, _ = await _image_reference(h)
+    original_body = await h.content(upload)
+    original_body["files"]["full"] = {"s3_key": "selected-full"}
+    await h.put_reference(upload, original_body, parent="original-upload-parent")
+    original = h.cache.values[f"embed:{upload}"]
+    unused, _ = await _image_reference(h, reference="unused.jpg")
+    unused_body = await h.content(unused)
+    for variant in unused_body["files"].values():
+        variant["s3_key"] = "unused-source-" + variant["s3_key"]
+    await h.put_reference(unused, unused_body, parent="unused-upload-parent")
+    unused_snapshot = h.cache.values[f"embed:{unused}"]
+    h.service.authoring_reference_index = {"venue.jpg": upload, "unused.jpg": unused}
+    illustrated = valid_authored_item("events.event", "illustrated")
+    # Repeated use of one selected image creates only one storage reference/key.
+    illustrated["images"] = [{"embed_ref": "venue.jpg"}, {"embed_ref": "venue.jpg"}]
+    assert await h.update(carrier, [illustrated, valid_authored_item("nutrition.recipe", "plain")])
+    selected, plain = h.record(carrier)["embed_ids"]
+    expected = [{"bucket": "chatfiles", "key": key}
+                for key in ("selected-full", "selected-original", "selected-preview")]
+    assert h.record(selected)["s3_file_keys"] == expected
+    assert json.loads(h.cache.values[f"embed:{selected}:s3_file_keys"]) == expected
+    assert h.record(plain)["s3_file_keys"] == []
+    assert f"embed:{plain}:s3_file_keys" not in h.cache.values
+    assert "s3_file_keys" not in h.record(carrier)
+    assert h.cache.values[f"embed:{upload}"] == original
+    assert h.cache.values[f"embed:{unused}"] == unused_snapshot
+    assert "s3_file_keys" not in h.record(unused)
+    # Removing the source record leaves the authored child's flat dependency
+    # visible to the same collector/planner used by physical deletion.
+    h.cache.values.pop(f"embed:{upload}")
+    surviving = collect_storage_references(embeds=[h.record(selected)], uploads=[])
+    deleting = collect_storage_references(embeds=[], uploads=[{
+        "id": "original-upload-row", "files_metadata": original_body["files"],
+    }])
+    assert surviving.references == {("chatfiles", entry["key"]) for entry in expected}
+    assert surviving.ambiguous == []
+    assert plan_reference_safe_deletions(deleting=deleting, surviving=surviving) == {
+        ("chatfiles", "unselected-variant"),
+    }
+    assert h.record(selected)["parent_embed_id"] == carrier
+    assert upload not in h.record(carrier)["embed_ids"]
+
+
+# contract-test: direct surface=rest_api assertions=authored-results.media.safe-and-attributed,storage.files.reference-safe-single-copy
+@pytest.mark.asyncio
+async def test_replacing_selected_media_clears_old_child_storage_references(authored_service):
+    h = authored_service
+    carrier = await h.create()
+    await _image_reference(h)
+    item = valid_authored_item(local_id="same")
+    item["images"] = [{"embed_ref": "venue.jpg"}]
+    assert await h.update(carrier, [item])
+    child = h.record(carrier)["embed_ids"][0]
+    assert len(h.record(child)["s3_file_keys"]) == 2
+    assert await h.update(carrier, [valid_authored_item(local_id="same")], version_number=2)
+    assert h.record(carrier)["embed_ids"] == [child]
+    assert h.record(child)["s3_file_keys"] == []
+    assert json.loads(h.cache.values[f"embed:{child}:s3_file_keys"]) == []
+    assert collect_storage_references(embeds=[h.record(child)], uploads=[]).references == set()
+
+
+@pytest.mark.parametrize("asset_state", ["foreign", "unindexed", "invalid_key", "missing_files", "public_url"])
+# contract-test: direct surface=rest_api assertions=authored-results.media.safe-and-attributed,storage.files.reference-safe-single-copy
+@pytest.mark.asyncio
+async def test_invalid_or_unselected_media_never_registers_storage_dependencies(authored_service, asset_state):
+    h = authored_service
+    carrier = await h.create()
+    upload, _ = await _image_reference(h, owner_hash="b" * 64 if asset_state == "foreign" else OWNER_HASH)
+    item = valid_authored_item()
+    item["images"] = [{"embed_ref": upload if asset_state == "unindexed" else "venue.jpg"}]
+    if asset_state in {"invalid_key", "missing_files"}:
+        body = await h.content(upload)
+        if asset_state == "invalid_key":
+            body["vault_wrapped_aes_key"], _ = await h.service.encryption_service.encrypt_with_user_key("invalid", VAULT)
+        else:
+            body["files"] = {"unselected": {"s3_key": "private-unused"}}
+        await h.put_reference(upload, body, parent="original-upload-parent")
+    elif asset_state == "public_url":
+        item["images"] = ["https://images.example.org/public.jpg"]
+    assert await h.update(carrier, [item])
+    child = h.record(carrier)["embed_ids"][0]
+    assert h.record(child)["s3_file_keys"] == []
+    assert f"embed:{child}:s3_file_keys" not in h.cache.values
+    assert collect_storage_references(embeds=[h.record(child)], uploads=[]).references == set()
+
+
+# contract-test: direct surface=rest_api assertions=authored-results.media.safe-and-attributed,authored-results.lifecycle.encrypted-and-stable
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", [False, RuntimeError("Cache unavailable")])
+async def test_media_dependency_cache_failure_prevents_unindexed_child_publication(authored_service, monkeypatch, failure):
+    h = authored_service
+    carrier = await h.create()
+    await _image_reference(h)
+    item = valid_authored_item()
+    item["images"] = [{"embed_ref": "venue.jpg"}]
+    failed_set = AsyncMock(side_effect=failure) if isinstance(failure, Exception) else AsyncMock(return_value=failure)
+    monkeypatch.setattr(h.cache, "set", failed_set)
+    with pytest.raises(RequiredRecoveryOutputError, match="storage references"):
+        await h.update(carrier, [item])
+    assert h.cache.events == []
+    assert h.record(carrier)["status"] == "processing"
+
+
+# contract-test: direct surface=rest_api assertions=authored-results.media.safe-and-attributed,authored-results.lifecycle.encrypted-and-stable
+@pytest.mark.asyncio
+async def test_selected_asset_sidecar_does_not_bypass_encrypted_recovery_seal(authored_service):
+    h = authored_service
+    carrier = await h.create()
+    upload, _ = await _image_reference(h)
+    item = valid_authored_item(local_id="illustrated")
+    item["images"] = [{"embed_ref": "venue.jpg"}]
+    h.service._save_completed_embed_recovery_batch.side_effect = RequiredRecoveryOutputError("Seal unavailable")
+    with _recovery_scope(), pytest.raises(RequiredRecoveryOutputError):
+        await h.update(carrier, [item])
+    child = authored_child_id(carrier, "illustrated")
+    assert h.cache.events == [] and h.scheduled == []
+    assert f"embed:{child}" not in h.cache.values
+    assert h.record(carrier)["status"] == "processing"
+    assert h.record(upload)["parent_embed_id"] == "original-upload-parent"
 
 
 @pytest.mark.parametrize("indexed", [False, True])
@@ -528,3 +671,162 @@ async def test_decrypted_payload_cannot_override_outer_owner_chat_or_parent_auth
     assert row["title"] == "Content title"
     assert row["hashed_user_id"] == "foreign-owner" and row["chat_id"] == "foreign-chat"
     assert row["parent_embed_id"] == "real-parent" and row["status"] == "finished"
+
+
+class _DurableAssetRPC:
+    """Only mocks the internal transaction I/O; records survive Redis eviction."""
+    base_url = "http://directus.test"
+
+    def __init__(self):
+        self.outputs = {}
+        self.legacy = {}
+        self.calls = []
+
+    async def get_items(self, collection, params, **_kwargs):
+        if collection == "chat_recovery_outputs":
+            return list(self.outputs.values())
+        if collection == "chat_recovery_legacy_batch_claims":
+            return [{"id": "actual-claim", "output_asset_references": list(self.legacy.values())}]
+        return []
+
+    async def _make_api_request(self, _method, _url, **kwargs):
+        import hashlib
+        body = copy.deepcopy(kwargs["json"])
+        self.calls.append(body)
+        operation, data = body["operation"], body["data"]
+        status = 200
+        if operation == "register_legacy_output_asset_references":
+            slot = (data["embed_id"], data["output_version"])
+            entry = {key: data[key] for key in ("embed_id", "output_version", "target_chat_id",
+                                               "parent_embed_id", "content_commitment", "s3_file_keys")}
+            entry.update(hashed_chat_id=hashlib.sha256(data["target_chat_id"].encode()).hexdigest(),
+                         hashed_message_id=hashlib.sha256(data["primary_message_id"].encode()).hexdigest())
+            if slot in self.legacy and self.legacy[slot] != entry:
+                status, result = 409, {"error": {"code": "legacy_asset_reference_mismatch"}}
+            else:
+                previous = slot in self.legacy
+                self.legacy[slot] = entry
+                result = {"data": {"registered": True, "task_identity": data["task_identity"],
+                                   "embed_id": data["embed_id"], "output_version": data["output_version"],
+                                   "idempotent": previous}}
+        elif operation in {"get_replay_output", "get_replay_outputs", "create_sealed_output", "create_sealed_outputs"}:
+            batch = operation.endswith("outputs")
+            entries = data["outputs"] if batch else [data]
+            receipts = []
+            for entry in entries:
+                record_id = entry["record_id"]
+                existing = self.outputs.get(record_id)
+                if existing and existing["content_commitment"] != entry["content_commitment"]:
+                    status, result = 409, {"error": {"code": "replay_output_mismatch"}}
+                    break
+                if operation.startswith("get_"):
+                    receipts.append({"record_id": record_id, "status": existing["state"] if existing else "ABSENT"})
+                else:
+                    row = self.outputs.setdefault(record_id, {
+                        "id": record_id, **entry, "state": "PENDING", "payload_storage": "inline",
+                    })
+                    receipts.append({"record_id": record_id, "state": row["state"], "payload_storage": "inline"})
+            else:
+                result = {"data": {"outputs": receipts} if batch else receipts[0]}
+        else:
+            raise AssertionError("Unexpected transaction operation")
+        return SimpleNamespace(status_code=status, json=lambda: result)
+
+
+@pytest.mark.parametrize("mode", ["single", "batch"])
+# contract-test: direct surface=rest_api assertions=authored-results.media.safe-and-attributed,authored-results.lifecycle.encrypted-and-stable,storage.files.reference-safe-single-copy,storage.background.complete-sealed-recovery
+@pytest.mark.asyncio
+async def test_sealed_dependency_index_survives_cold_cache_and_binds_retry_commitment(authored_service, monkeypatch, mode):
+    from dataclasses import replace
+    from backend.shared.python_utils.chat_completion_recovery import derive_recovery_keypair
+    from backend.core.api.app.services.storage_reference_service import find_surviving_storage_references
+    h = authored_service
+    carrier = await h.create()
+    await _image_reference(h)
+    item = valid_authored_item(local_id="media")
+    item["images"] = [{"embed_ref": "venue.jpg"}]
+    assert await h.update(carrier, [item])
+    child = h.record(carrier)["embed_ids"][0]
+    refs = copy.deepcopy(h.record(child)["s3_file_keys"])
+    payload = next(event for _, event in h.cache.events if event["payload"]["embed_id"] == child)
+    rpc = _DurableAssetRPC()
+    h.service.directus_service = rpc
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "synthetic-asset-test-token")
+    _, public = derive_recovery_keypair(base64.urlsafe_b64encode(b"k" * 32).decode().rstrip("="), CHAT, 1)
+    with _recovery_scope():
+        token = active_recovery_output_context.set(replace(active_recovery_output_context.get(), public_key=public))
+        try:
+            if mode == "single":
+                await EmbedService._save_completed_embed_recovery(h.service, payload, s3_file_keys=refs)
+            else:
+                await EmbedService._save_completed_embed_recovery_batch(h.service, [payload], s3_file_keys_by_embed={child: refs})
+            assert len(rpc.outputs) == 1
+            row = next(iter(rpc.outputs.values()))
+            assert row["s3_file_keys"] == refs
+            message_hash = hashlib.sha256(payload["payload"]["message_id"].encode()).hexdigest()
+            assert row["hashed_message_id"] == message_hash
+            for call in rpc.calls:
+                if call["operation"] in {"get_replay_output", "get_replay_outputs"}:
+                    probes = call["data"].get("outputs", [call["data"]])
+                    assert all(probe["hashed_message_id"] == message_hash for probe in probes)
+            assert "selected-preview" not in row["sealed_payload"]
+            # Changed asset selection changes the keyed replay commitment, so a
+            # prior PENDING/ACK cannot silently bypass the durable metadata check.
+            with pytest.raises(RuntimeError):
+                if mode == "single":
+                    await EmbedService._save_completed_embed_recovery(h.service, payload, s3_file_keys=[])
+                else:
+                    await EmbedService._save_completed_embed_recovery_batch(h.service, [payload], s3_file_keys_by_embed={child: []})
+        finally:
+            active_recovery_output_context.reset(token)
+    h.cache.values.clear()  # Original upload and every warm/sidecar key expired.
+    candidates = {(entry["bucket"], entry["key"]) for entry in refs}
+    for state in ("PENDING", "ACKNOWLEDGED"):
+        row["state"] = state
+        if state == "ACKNOWLEDGED":
+            row["sealed_payload"] = None  # Ordinary payload pruning cannot release assets.
+        inventory = await find_surviving_storage_references(
+            directus_service=rpc, candidates=candidates, excluded_ids={},
+        )
+        assert inventory.references == candidates and inventory.ambiguous == []
+
+
+# contract-test: direct surface=rest_api assertions=authored-results.media.safe-and-attributed,authored-results.lifecycle.encrypted-and-stable,storage.files.reference-safe-single-copy
+@pytest.mark.asyncio
+async def test_real_legacy_storage_registration_precedes_child_delivery_and_survives_cache_expiry(authored_service, monkeypatch):
+    from backend.core.api.app.services.storage_reference_service import find_surviving_storage_references
+    h = authored_service
+    carrier = await h.create()
+    await _image_reference(h)
+    item = valid_authored_item(local_id="media")
+    item["images"] = [{"embed_ref": "venue.jpg"}]
+    rpc = _DurableAssetRPC()
+    h.service.directus_service = rpc
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "synthetic-asset-test-token")
+    monkeypatch.setattr(h.service, "_save_completed_embed_recovery", EmbedService._save_completed_embed_recovery.__get__(h.service))
+    assert await h.update(carrier, [item])
+    child = h.record(carrier)["embed_ids"][0]
+    entry = rpc.legacy[(child, 1)]
+    assert entry["parent_embed_id"] == carrier and entry["target_chat_id"] == CHAT
+    assert entry["s3_file_keys"] == h.record(child)["s3_file_keys"]
+    request = next(call["data"] for call in rpc.calls if call["operation"] == "register_legacy_output_asset_references")
+    assert request["root_user_message_id"] == MESSAGE and request["actor_user_id"] == OWNER
+    assert len(request["content_commitment"]) == 64
+    h.cache.values.clear()
+    candidates = {(ref["bucket"], ref["key"]) for ref in entry["s3_file_keys"]}
+    inventory = await find_surviving_storage_references(directus_service=rpc, candidates=candidates, excluded_ids={})
+    assert inventory.references == candidates and inventory.ambiguous == []
+
+
+# contract-test: direct surface=rest_api assertions=authored-results.media.safe-and-attributed,authored-results.lifecycle.encrypted-and-stable
+@pytest.mark.asyncio
+async def test_media_without_any_durable_admission_fails_before_sidecar_or_publication(authored_service):
+    h = authored_service
+    carrier = await h.create()
+    await _image_reference(h)
+    item = valid_authored_item()
+    item["images"] = [{"embed_ref": "venue.jpg"}]
+    before = copy.deepcopy(h.cache.values)
+    with pytest.raises(RequiredRecoveryOutputError, match="durable output admission"):
+        await h.update(carrier, [item], legacy=False)
+    assert h.cache.values == before and h.cache.events == []

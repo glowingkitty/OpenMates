@@ -1,11 +1,7 @@
 <script lang="ts">
-  import { onMount, untrack } from 'svelte';
+  import { onMount, untrack, type Snippet } from 'svelte';
   import generalKnowledgeAvatar from '../../assets/landing/general_knowledge.jpeg';
   import businessDevelopmentAvatar from '../../assets/landing/business_development.jpeg';
-  import EmbedPreviewCorner from '../results/EmbedPreviewCorner.svelte';
-  import eventIcon from '../../assets/results/event.svg?url';
-  import eventImage from '../../assets/results/community-event.webp';
-  import EventResultCard from '../results/EventResultCard.svelte';
   import { actionableStages, privacyStages, featureAnimationCopy } from './landingFeatureAnimationContent';
 
   interface Props {
@@ -13,9 +9,11 @@
     active: boolean;
     language: string;
     onComplete: () => void;
+    eventPreview?: Snippet<[activate: boolean, onFullscreen: () => void, language: string]>;
+    eventFullscreen?: Snippet<[language: string, showCalendar: boolean]>;
   }
 
-  let { section, active, language, onComplete }: Props = $props();
+  let { section, active, language, onComplete, eventPreview, eventFullscreen }: Props = $props();
   let mounted = $state(false);
   let visible = $state(true);
   let reducedMotion = $state(false);
@@ -23,6 +21,9 @@
   let sceneElement = $state<HTMLDivElement>();
   let sceneContent = $state<HTMLDivElement>();
   let sceneScale = $state(1);
+  let eventPreviewHost = $state<HTMLDivElement>();
+  let embedExpanded = $state(false);
+  let pointerPosition = $state({ x: 0, y: 0 });
 
   // Fit the natural content, not its animated/transformed bounds. ResizeObserver
   // also catches translated copy and font loading, without measuring every frame.
@@ -44,7 +45,6 @@
     return () => observer.disconnect();
   });
   let completed = false;
-  const eventDate = '2026-08-29T18:30:00+02:00';
   let copy = $derived(featureAnimationCopy[language === 'de' ? 'de' : 'en']);
   let stages = $derived(section === 'actionable' ? actionableStages : privacyStages);
   let durationMs = $derived(stages.reduce((sum, item) => sum + item.durationMs, 0));
@@ -57,11 +57,21 @@
     return { ...stages[stages.length - 1], timeMs: 0 };
   });
   let playing = $derived(active && visible && !reducedMotion);
+  let showCalendar = $derived(scene.id === 'event-details' && (scene.timeMs >= 2000 || elapsedMs >= durationMs));
   let interaction = $derived(scene.id === 'event-preview'
-    ? (scene.timeMs >= 1800 ? 'preview-clicked' : scene.timeMs >= 1000 ? 'preview-targeted' : 'idle')
-    : scene.id === 'provider-cta'
-      ? (scene.timeMs >= 1450 ? 'cta-clicked' : scene.timeMs >= 700 ? 'cta-targeted' : 'idle')
-      : 'idle');
+    ? (scene.timeMs >= 2600 ? 'preview-clicked' : scene.timeMs >= 1000 ? 'preview-targeted' : 'idle')
+    : 'idle');
+
+  // Target the real shared preview control, including its responsive position.
+  $effect(() => {
+    if (interaction === 'idle' || !eventPreviewHost) return;
+    const button = eventPreviewHost.querySelector<HTMLButtonElement>('[data-testid="result-preview-expand"]');
+    const frame = eventPreviewHost.closest('[data-testid="landing-feature-animation"]');
+    if (!button || !frame) return;
+    const target = button.getBoundingClientRect();
+    const bounds = frame.getBoundingClientRect();
+    pointerPosition = { x: target.left + target.width / 2 - bounds.left, y: target.top + target.height / 2 - bounds.top };
+  });
 
   function finish(): void {
     if (completed) return;
@@ -88,7 +98,7 @@
   // the sequence clock and CSS motion, rather than skipping unread scenes.
   $effect(() => {
     if (!mounted || !active) return;
-    if (reducedMotion) { finish(); return; }
+    if (reducedMotion || (section === 'actionable' && (!eventPreview || !eventFullscreen))) { finish(); return; }
     if (!visible || completed) return;
     let frame = 0;
     let previous = performance.now();
@@ -106,7 +116,11 @@
   });
 </script>
 
-<div class="feature-animation" class:playing data-testid="landing-feature-animation" data-section={section} data-active-stage={scene.id} data-interaction-state={interaction} data-playing={playing ? 'true' : 'false'} aria-hidden="true">
+<!-- This is an illustration: reused app controls must not submit, share or
+     receive keyboard focus for the synthetic demonstration ID. Programmatic
+     activation of the real preview's expand callback still drives the story. -->
+<div class="feature-animation" class:playing data-testid="landing-feature-animation" data-section={section} data-active-stage={scene.id} data-interaction-state={interaction} data-embed-expanded={embedExpanded ? 'true' : 'false'} data-fullscreen-view={showCalendar ? 'week' : 'header'} data-playing={playing ? 'true' : 'false'} aria-hidden="true" inert>
+  {#if section === 'actionable'}<span class="illustration-label" data-testid="landing-actionable-illustration">{copy.actionable_event_illustration}</span>{/if}
   {#key scene.id}
     <div class="scene" bind:this={sceneElement} style={`--scene-duration: ${scene.durationMs}ms`}>
       <div class="scene-content" bind:this={sceneContent} style={`--scene-scale: ${sceneScale}`} data-scene-scale={sceneScale}>
@@ -122,12 +136,15 @@
           </div>
         </div>
       {:else if scene.id === 'event-preview'}
-        <div class="event-preview" class:pressed={interaction === 'preview-clicked'} data-testid="landing-actionable-event-preview">
-          <EmbedPreviewCorner background="var(--color-app-events, var(--color-primary))" iconUrl={`url(${JSON.stringify(eventIcon)})`} />
-          <EventResultCard title={copy.actionable_event_title} imageUrl={eventImage} date={eventDate} timezone="Europe/Berlin" locale={language === 'de' ? 'de-DE' : 'en-US'} attribution={new Intl.DateTimeFormat(language === 'de' ? 'de-DE' : 'en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'Europe/Berlin' }).format(new Date(eventDate))} rsvpCount={460} rsvpLabel={copy.actionable_event_rsvps} />
+        <div class="event-preview" bind:this={eventPreviewHost} data-testid="landing-actionable-event-preview">
+          {@render eventPreview?.(interaction === 'preview-clicked', () => { embedExpanded = true; }, language)}
         </div>
-      {:else if scene.id === 'provider-cta'}
-        <div class="provider-cta" class:pressed={interaction === 'cta-clicked'} data-testid="landing-actionable-provider-button">{copy.actionable_event_open_provider}</div>
+      {:else if scene.id === 'event-details'}
+        {#if embedExpanded}
+          <div class="event-details" data-testid="landing-actionable-event-details">
+            {@render eventFullscreen?.(language, showCalendar)}
+          </div>
+        {/if}
       {:else if scene.id === 'encryption-lock'}
         <div class="data-orbit">
           {#each ['chat', 'file', 'folder', 'task'] as name, index}
@@ -152,8 +169,8 @@
       </div>
     </div>
   {/key}
-  {#if scene.id === 'event-preview' || scene.id === 'provider-cta'}
-    <div class="pointer" class:targeted={interaction !== 'idle'} class:clicked={interaction.endsWith('clicked')} data-testid="landing-actionable-pointer">{@render icon('pointer')}</div>
+  {#if scene.id === 'event-preview'}
+    <div class="pointer" class:targeted={interaction !== 'idle'} class:clicked={interaction.endsWith('clicked')} data-testid="landing-actionable-pointer" style={`--pointer-x: ${pointerPosition.x}px; --pointer-y: ${pointerPosition.y}px`}>{@render icon('pointer')}</div>
   {/if}
 </div>
 
@@ -185,12 +202,14 @@
   .assistant { background: var(--color-grey-10); }
   .mate-name { color: var(--color-font-tertiary); font-size: var(--font-size-xs); margin-bottom: var(--spacing-2); }
   .copy { max-width: 30rem; margin: 0; font-size: clamp(1.25rem, 3.8cqi, 1.7rem); font-weight: 800; line-height: 1.35; text-align: center; text-wrap: balance; }
-  /* The app and public demo render the same pure event/card/calendar presentation. */
-  .event-preview { position: relative; container: result-card / inline-size; width: 300px; max-width: 100%; height: 200px; border-radius: 30px; overflow: hidden; background: var(--color-grey-0); box-shadow: 0 8px 24px rgb(0 0 0 / 16%), 0 2px 6px rgb(0 0 0 / 10%); transition: transform 140ms ease; }
-  .provider-cta { padding: var(--spacing-6) var(--spacing-12); border-radius: var(--radius-8); background: var(--color-button-primary); color: var(--color-font-button); box-shadow: var(--shadow-md); font-size: clamp(1rem, 2.8cqi, 1.3rem); font-weight: 800; transition: transform 140ms ease; }
-  .pressed { transform: scale(0.97); }
+  /* The app injects its existing embeds; the public package owns only the host. */
+  .event-preview { width: min(100%, 400px); min-width: 0; }
+  .scene-content:has(.event-details) { height: 100%; }
+  .event-details { position: relative; width: 100%; height: 100%; min-height: 0; overflow: hidden; pointer-events: auto; }
+  .illustration-label { position: absolute; inset: 0 0 auto; text-align: center; font-size: var(--font-size-xxs); color: var(--color-font-tertiary); z-index: 1; padding: var(--spacing-2); }
+  .feature-animation[data-section="actionable"] .scene { padding-top: var(--spacing-12); }
   .pointer { position: absolute; left: 54%; top: calc(100% + 40px); width: 38px; height: 38px; color: var(--color-font-primary); opacity: 0; transform: translate(-15%, -12%) scale(0.82); transition: left 620ms cubic-bezier(0.16, 1, 0.3, 1), top 620ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease, transform 140ms ease; }
-  .pointer.targeted { top: 53%; left: 57%; opacity: 1; transform: translate(-15%, -12%) scale(1); }
+  .pointer.targeted { top: var(--pointer-y); left: var(--pointer-x); opacity: 1; transform: translate(-15%, -12%) scale(1); }
   .pointer.clicked { transform: translate(-15%, -12%) scale(0.78); }
   .pointer::after { position: absolute; left: 4px; top: 4px; width: 18px; height: 18px; border: 2px solid currentColor; border-radius: var(--radius-full); content: ''; opacity: 0; }
   .pointer.clicked::after { animation: click-pulse 420ms ease-out; }

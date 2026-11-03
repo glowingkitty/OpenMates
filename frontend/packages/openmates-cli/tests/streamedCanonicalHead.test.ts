@@ -382,12 +382,69 @@ describe("CLI streamed canonical heads", () => {
     }
   }
 
+  for (const teamId of [null, "authored-team"]) {
+    // contract-test: direct surface=cli assertions=authored-results.lifecycle.encrypted-and-stable,chats.persistence.client-encrypted
+    it(`retains authored parent and typed child catalog context in ${teamId ? "Team" : "Personal"} terminal writes`, async () => {
+      const state = await fixture();
+      (state.client.session as Record<string, unknown>).activeTeamId = teamId;
+      const frames: Array<{ type: string; payload: Record<string, unknown> }> = [];
+      const waiters = new Map<string, (value: unknown) => void>();
+      const ws = {
+        waitForMessage: (type: string) => new Promise(resolve => waiters.set(type, resolve)),
+        sendAsync: async (type: string, payload: Record<string, unknown>) => {
+          frames.push({ type, payload });
+          const replyType = type === "store_embed" ? "store_embed_confirmed" : "store_embed_keys_confirmed";
+          waiters.get(replyType)!({ payload: { request_id: payload.request_id, embed_id: payload.embed_id,
+            created_count: 2, failed_count: 0 } });
+        },
+      };
+      const parent = { embed_id: embedId, type: "authored_results", app_id: "ai", skill_id: "authored_results",
+        content: "authored parent", message_id: "canonical-message", embed_ids: ["authored-child"], status: "finished" };
+      const child = { embed_id: "authored-child", type: "recipe", app_id: "nutrition", skill_id: "search",
+        parent_embed_id: embedId, content: "authored child", message_id: "canonical-message", status: "finished" };
+      await (state.client.persistStreamedEmbeds as (params: unknown) => Promise<void>)({
+        ws, embeds: [child, parent], chatId, chatKeyBytes: chatKey, ownerId, teamId,
+        fallbackMessageId: "canonical-message",
+      });
+      const writes = frames.filter(frame => frame.type === "store_embed").map(frame => frame.payload);
+      assert.deepEqual(writes.map(row => [row.embed_id, row.app_id, row.skill_id, row.chat_id, row.team_id ?? null]),
+        [[embedId, "ai", "authored_results", chatId, teamId], ["authored-child", "nutrition", "search", chatId, teamId]]);
+      assert.equal(writes[1].parent_embed_id, embedId);
+      assert.ok(writes.every(row => row.hashed_message_id === hash("canonical-message")));
+      for (const invalid of [undefined, "foreign app", "../private-value"]) {
+        const count = frames.length;
+        await assert.rejects((state.client.persistStreamedEmbeds as (params: unknown) => Promise<void>)({
+          ws, embeds: [{ ...parent, app_id: invalid, embed_ids: [] }], chatId, chatKeyBytes: chatKey,
+          ownerId, teamId, fallbackMessageId: "canonical-message",
+        }), /lacks valid app catalog context/);
+        assert.equal(frames.length, count);
+      }
+    });
+  }
+
+  // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
+  it("identifies a canonical binding mismatch without exposing its private values", async () => {
+    const state = await fixture();
+    state.head.hashed_message_id = hash("private-other-message");
+    const privateValues = [String(state.head.hashed_message_id), String(state.head.encrypted_content),
+      String(state.wrapper.encrypted_embed_key), content];
+    await assert.rejects(state.run(), (error: Error) => {
+      assert.ok(error instanceof WebSocketProtocolError);
+      assert.equal(error.code, "embed_write_denied");
+      assert.match(error.message, /Original write rejection: embed_write_denied; reason: unavailable\./);
+      assert.match(error.message, /Canonical read HTTP 200; failed checks: message\./);
+      for (const value of privateValues) assert.equal(error.message.includes(value), false);
+      return true;
+    });
+    assert.deepEqual(state.frames.map(frame => frame.type), ["store_embed"]);
+  });
+
   // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
   it("keeps a denied or missing canonical read as a failure", async () => {
     for (const status of [403, 404, 503]) {
       const state = await fixture();
       state.client.http = { get: async () => ({ ok: false, status }) };
-      await assert.rejects(state.run(), /no matching canonical head/);
+      await assert.rejects(state.run(), new RegExp(`Canonical read HTTP ${status}; failed checks: read, head`));
       assert.equal(state.frames.length, 1);
     }
   });

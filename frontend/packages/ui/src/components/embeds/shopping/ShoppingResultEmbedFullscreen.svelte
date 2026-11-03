@@ -9,11 +9,14 @@
 -->
 
 <script lang="ts">
+  import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from "../../../types/authoredResult";
+  import { getContext } from "svelte";
   import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
   import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
+  import { shoppingProductAttributes } from './shoppingProductAttributes';
   import { normalizeShoppingProductImages } from './shoppingProductImages';
   import { proxyImage } from '../../../utils/imageProxy';
 
@@ -64,6 +67,7 @@
     provider?: string;
     country?: string;
     attributes?: ProductAttributes;
+    specifications?: Array<{name: string; value: unknown}>;
   }
 
   interface Props {
@@ -87,6 +91,8 @@
     onNavigatePrevious,
     onNavigateNext,
   }: Props = $props();
+  const authoredContext = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
+  let isAuthored = $derived(Boolean(authoredContext?.authoring || data?.decodedContent?.authoring));
 
   function asString(value: unknown): string | undefined {
     return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
@@ -109,9 +115,8 @@
   }
 
   function parseAttributes(content: Record<string, unknown>): ProductAttributes | undefined {
-    const raw = content.attributes;
-    if (!raw || typeof raw !== 'object') return undefined;
-    const attrs = raw as Record<string, unknown>;
+    const attrs = shoppingProductAttributes(content.attributes, content.specifications);
+    if (!attrs) return undefined;
     return {
       ...attrs,
       is_organic: asBoolean(attrs.is_organic),
@@ -149,7 +154,7 @@
       image_urls: normalizeShoppingProductImages(content.image_urls, content.image_url),
       category_path: asString(content.category_path) || null,
       price: asString(content.price) || null,
-      price_amount: asNumber(content.price_amount) ?? null,
+      price_amount: asNumber(content.price_amount) ?? (isAuthored ? asNumber(content.price) : undefined) ?? null,
       old_price: asString(content.old_price) || null,
       old_price_amount: asNumber(content.old_price_amount) ?? null,
       currency_symbol: asString(content.currency_symbol) || null,
@@ -167,18 +172,19 @@
     };
   }
 
-  let product = $derived(productProp ?? productFromFullscreenData(data, embedId));
+  let product = $derived(productProp ? (productProp.specifications ? {...productProp, attributes: parseAttributes({attributes: productProp.attributes, specifications: productProp.specifications})} : productProp) : productFromFullscreenData(data, embedId));
 
+  let authoredCurrency = $derived(typeof (authoredContext?.content ?? data?.decodedContent)?.currency === 'string' ? String((authoredContext?.content ?? data?.decodedContent)?.currency) : '');
   function formatCents(value: number | null | undefined): string {
     if (value == null || value < 0) return '';
-    return `${(value / 100).toFixed(2).replace('.', ',')} €`;
+    return isAuthored ? `${(value / 100).toFixed(2)} ${authoredCurrency}`.trim() : `${(value / 100).toFixed(2).replace('.', ',')} €`;
   }
 
   function formatAmount(value: number | null | undefined, symbol?: string | null): string {
     if (value == null || value < 0) return '';
-    const currency = symbol || '€';
+    const currency = symbol || (isAuthored ? authoredCurrency : '€');
     const amount = currency === '€' ? value.toFixed(2).replace('.', ',') : value.toFixed(2);
-    return `${currency}${amount}`;
+    return isAuthored && /^[A-Za-z]{3}$/.test(currency) ? `${currency} ${amount}` : `${currency}${amount}`;
   }
 
   function getDisplayPrice(): string {
@@ -325,13 +331,13 @@
   {#snippet detailContent()}
     {#if product.brand || product.grammage}<div class="result-location">{[product.brand, product.grammage].filter(Boolean).join(' · ')}</div>{/if}
     <div class="result-icon-row">
-      <ResultEmbedInfo icon="package-check" label={$text('embeds.shopping.availability')} state={product.is_salable == null ? 'unknown' : product.is_salable ? 'yes' : 'no'}>
+      {#if !isAuthored || product.is_salable != null || product.availability || product.stock != null || colorCount > 0}<ResultEmbedInfo icon="package-check" label={$text('embeds.shopping.availability')} state={product.is_salable == null ? 'unknown' : product.is_salable ? 'yes' : 'no'}>
         <p>{product.availability || (product.is_salable == null ? $text('result_embed.availability_unknown') : product.is_salable ? $text('embeds.shopping.available') : $text('embeds.shopping.not_available'))}</p>
         {#if product.stock != null}<p>{$text('embeds.shopping.stock')}: {stockText}</p>{/if}
         {#if colorCount > 0}<p>{$text('embeds.shopping.colors')}: {colorCount}</p>{/if}
-      </ResultEmbedInfo>
+      </ResultEmbedInfo>{/if}
       {#if product.delivery?.length || product.prime != null}<ResultEmbedInfo icon="truck" label={$text('result_embed.delivery')}>{#each product.delivery || [] as delivery}<p>{delivery}</p>{/each}{#if product.prime != null}<p>Prime: {product.prime ? '✓' : '×'}</p>{/if}</ResultEmbedInfo>{/if}
-      {#if product.attributes}<ResultEmbedInfo icon="leaf" label={$text('result_embed.product_attributes')}>
+      {#if product.attributes && (!isAuthored || Object.values(product.attributes).some(value => value != null && value !== ''))}<ResultEmbedInfo icon="leaf" label={$text('result_embed.product_attributes')}>
         <dl>{#each Object.entries(product.attributes).filter(([, value]) => value != null && value !== '') as [key, value]}<div><dt>{attributeLabel(key)}</dt><dd>{typeof value === 'boolean' ? value ? '✓' : '×' : String(value)}</dd></div>{/each}</dl>
       </ResultEmbedInfo>{/if}
       {#if product.product_id || product.variation_id || product.category_path || product.bought_last_month || product.asin || product.country}<ResultEmbedInfo icon="info" label={$text('embeds.shopping.product_id')}>
@@ -343,6 +349,9 @@
         {#if product.bought_last_month}<p>{product.bought_last_month}</p>{/if}
       </ResultEmbedInfo>{/if}
     </div>
+    {#if isAuthored && product.attributes && Object.values(product.attributes).some(value => value != null && value !== '')}
+      <section class="fabric-details" data-testid="shopping-product-specifications"><h3>{$text('result_embed.product_attributes')}</h3><dl>{#each Object.entries(product.attributes).filter(([, value]) => value != null && value !== '') as [key, value]}<div><dt>{attributeLabel(key)}</dt><dd>{typeof value === 'boolean' ? value ? '✓' : '×' : String(value)}</dd></div>{/each}</dl></section>
+    {/if}
     {#if fabricDetails.length}<section class="fabric-details"><h3>{$text('embeds.shopping.fabric_details')}</h3><dl>{#each fabricDetails as detail}<div><dt>{detail.label}</dt><dd>{detail.value}</dd></div>{/each}</dl></section>{/if}
   {/snippet}
 </ResultEmbedFullscreen>

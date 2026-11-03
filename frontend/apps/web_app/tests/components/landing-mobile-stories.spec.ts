@@ -1,6 +1,6 @@
 import { expect, test } from '../helpers/cookie-audit';
 import { waitForComponentPreview } from '../helpers/component-preview';
-import { privacyStages } from '../../../../packages/public-site/src/components/landing/landingFeatureAnimationContent';
+import { actionableStages, privacyStages } from '../../../../packages/public-site/src/components/landing/landingFeatureAnimationContent';
 
 // playwright-account: not_required reason=isolated_component_preview
 const profiles = [
@@ -22,7 +22,7 @@ for (const profile of profiles) {
     await page.goto(`/dev/preview/landing/LandingPage?${new URLSearchParams({ width: String(profile.width), theme: 'dark', chrome: '0', background: '#161616' })}`, { waitUntil: 'domcontentloaded' });
     await waitForComponentPreview(page, 60_000);
     await expect(page.getByTestId('landing-compose')).toBeVisible();
-    for (const section of ['privacy'] as const) {
+    for (const section of ['actionable', 'privacy'] as const) {
       const feature = page.getByTestId(`landing-feature-${section}`);
       await page.getByTestId('landing-scroll-container').evaluate((element, id) => {
         const target = element.querySelector(`#${id}`)!;
@@ -30,7 +30,7 @@ for (const profile of profiles) {
       }, section);
       await expect(feature).toHaveAttribute('data-story-state', 'playing');
       const animation = feature.getByTestId('landing-feature-animation');
-      const stages = privacyStages;
+      const stages = section === 'actionable' ? actionableStages : privacyStages;
       for (const stage of stages) {
         await expect(animation).toHaveAttribute('data-active-stage', stage.id, { timeout: 6_000 });
         // Inspect the readable part of each CSS scene while its real JS timeline
@@ -78,7 +78,7 @@ for (const profile of profiles) {
             expect(geometry.scale, `desktop ${section}/${stage.id} retains its natural size`).toBeCloseTo(1, 2);
           }
         }
-        if (stage.id === 'personalized-copy' || stage.id === 'memory-permission' || stage.id === 'event-preview') {
+        if (stage.id === 'personalized-copy' || stage.id === 'memory-permission' || stage.id === 'event-preview' || stage.id === 'event-details') {
           await page.screenshot({ path: testInfo.outputPath(`${section}-${stage.id}-${profile.width}.png`) });
         }
       }

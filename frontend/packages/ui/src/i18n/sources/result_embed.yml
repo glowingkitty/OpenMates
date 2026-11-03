@@ -771,3 +771,28 @@ nighttime:
   sv: "Nattetid"
   he: "בשעות הלילה"
   verified_by_human: []
+
+instructor:
+  context: Instructor supplied for a fitness class result
+  en: Instructor
+  de: Kursleitung
+  zh: 教练
+  es: Instructor
+  fr: Professeur
+  pt: Instrutor
+  ru: Инструктор
+  ja: インストラクター
+  ko: 강사
+  it: Istruttore
+  tr: Eğitmen
+  vi: Hướng dẫn viên
+  id: Instruktur
+  pl: Instruktor
+  nl: Instructeur
+  ar: المدرّب
+  hi: प्रशिक्षक
+  th: ผู้สอน
+  cs: Instruktor
+  sv: Instruktör
+  he: מדריך
+  verified_by_human: []

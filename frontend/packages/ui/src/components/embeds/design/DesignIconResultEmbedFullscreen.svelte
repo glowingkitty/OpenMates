@@ -8,6 +8,9 @@
 -->
 
 <script lang="ts">
+  import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from "../../../types/authoredResult";
+  import { getContext } from "svelte";
+  import { text } from '@repo/ui';
   import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
   import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
@@ -39,6 +42,8 @@
     onNavigatePrevious,
     onNavigateNext,
   }: Props = $props();
+  const authoredContext = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
+  let isAuthored = $derived(Boolean(authoredContext?.authoring || data?.decodedContent?.authoring));
 
   function asString(value: unknown): string {
     return typeof value === 'string' ? value : '';
@@ -142,8 +147,8 @@
   let collection = $derived(asString(content.collection_name) || asString(content.prefix));
   let license = $derived(asString(content.license_title) || asString(content.license_spdx));
   let author = $derived(asString(content.author_name));
-  let provider = $derived(asString(content.provider) || 'Iconify');
-  let providerUrl = $derived(iconifyPageUrl(asString(content.prefix), asString(content.name)));
+  let provider = $derived(asString(content.provider) || (isAuthored ? '' : 'Iconify'));
+  let providerUrl = $derived(isAuthored ? asString(content.source_url) || asString(content.url) : iconifyPageUrl(asString(content.prefix), asString(content.name)));
   let width = $derived(asNumber(content.width));
   let height = $derived(asNumber(content.height));
   let isPalette = $derived(content.palette === true);
@@ -238,7 +243,7 @@
 >
   {#snippet embedHeaderCta()}
     {#if providerUrl}
-      <EmbedHeaderCtaButton label={`Open on ${provider}`} href={providerUrl} testId="design-icon-provider-cta" />
+      <EmbedHeaderCtaButton label={isAuthored ? $text("embeds.authoring.open_source") : `Open on ${provider}`} href={providerUrl} testId="design-icon-provider-cta" />
     {/if}
   {/snippet}
 

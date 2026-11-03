@@ -6,6 +6,8 @@
 -->
 
 <script lang="ts">
+  import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from "../../../types/authoredResult";
+  import { getContext } from "svelte";
   import { text } from '@repo/ui';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import EmbedCalendarDate from '../EmbedCalendarDate.svelte';
@@ -37,8 +39,8 @@
     ticker = '',
     fiscalYear = null,
     fiscalQuarter = null,
-    periodType = 'annual',
-    currency = 'USD',
+    periodType,
+    currency,
     revenue = null,
     netIncome = null,
     filed = '',
@@ -49,12 +51,17 @@
     resultContext = 'auto',
     onFullscreen,
   }: Props = $props();
+  const authoredContext = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
+  let isAuthored = $derived(Boolean(authoredContext?.authoring));
 
+  let effectiveCurrency = $derived(isAuthored ? String(authoredContext?.content.currency ?? '') : currency || 'USD');
+  let effectivePeriodType = $derived(isAuthored ? String(authoredContext?.content.period_type ?? '') : periodType || 'annual');
   let title = $derived(company || ticker || $text('embeds.business.company_financials.result_title'));
-  let periodLabel = $derived(formatPeriod(periodType, fiscalYear, fiscalQuarter));
+  let periodLabel = $derived(formatPeriod(effectivePeriodType, fiscalYear, fiscalQuarter));
   let subtitle = $derived([ticker, periodLabel, form].filter(Boolean).join(' · '));
 
   function formatPeriod(type?: string, year?: number | null, quarter?: string | null): string {
+    if (isAuthored && !type && !year) return '';
     if (!year) return type === 'quarter' ? $text('embeds.business.company_financials.quarterly') : $text('embeds.business.company_financials.annual');
     return type === 'quarter' && quarter ? `${quarter} ${year}` : `FY ${year}`;
   }
@@ -67,7 +74,7 @@
     const formatted = new Intl.NumberFormat(undefined, {
       maximumFractionDigits: divisor === 1 ? 0 : 1,
     }).format(value / divisor);
-    return `${currency || ''} ${formatted}${suffix}`.trim();
+    return `${effectiveCurrency} ${formatted}${suffix}`.trim();
   }
 
   function handleStop() {

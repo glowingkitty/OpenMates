@@ -9,8 +9,11 @@
  */
 
 import type { Component } from 'svelte';
+import ResolvedEmbedFullscreen from '../components/embeds/ResolvedEmbedFullscreen.svelte';
+import { authoredResultMetadata } from '../utils/authoredResultPresentation';
 import {
 	EMBED_CHILD_TYPE_MAP,
+	AUTHORED_RESULT_KIND_MAP,
 	EMBED_FULLSCREEN_COMPONENTS,
 	normalizeEmbedType
 } from '../data/embedRegistry.generated';
@@ -45,6 +48,9 @@ export function resolveRegistryKey(
 	decodedContent?: Record<string, unknown>
 ): string | null {
 	const normalized = normalizeEmbedType(embedType);
+	const authoring = decodedContent && authoredResultMetadata(decodedContent);
+	if (authoring) return authoring.kind === 'news.website' ? 'news-article'
+		: AUTHORED_RESULT_KIND_MAP[authoring.kind]?.frontendType ?? normalized;
 	const appId = decodedContent?.app_id ?? extractToonScalar(decodedContent?.content, 'app_id');
 	const skillId = decodedContent?.skill_id ?? extractToonScalar(decodedContent?.content, 'skill_id');
 
@@ -102,6 +108,27 @@ const FULLSCREEN_PATH_OVERRIDES: Record<string, string> = {
 
 const fullscreenComponentPromises = new Map<string, Promise<Component | null>>();
 
+const fullscreenPresentationWrappers = new WeakMap<Component, Component>();
+function withResultPresentation(component: Component): Component {
+	const existing = fullscreenPresentationWrappers.get(component);
+	if (existing) return existing;
+	const wrapped: Component = (anchor, props) => {
+		// Svelte passes getters for reactive props. Keep reading that object on
+		// navigation instead of snapshotting its content or sharing identity.
+		const forwarded = new Proxy({ __fullscreenComponent: component }, {
+			get: (target, key) => key === '__fullscreenComponent' ? target.__fullscreenComponent : Reflect.get(props, key),
+			has: (target, key) => key in target || key in props,
+			ownKeys: target => [...new Set([...Reflect.ownKeys(props), ...Reflect.ownKeys(target)])],
+			getOwnPropertyDescriptor: (target, key) => key === '__fullscreenComponent'
+				? Reflect.getOwnPropertyDescriptor(target, key)
+				: Reflect.has(props, key) ? { configurable: true, enumerable: true, get: () => Reflect.get(props, key) } : undefined,
+		});
+		return ResolvedEmbedFullscreen(anchor, forwarded);
+	};
+	fullscreenPresentationWrappers.set(component, wrapped);
+	return wrapped;
+}
+
 const STATIC_FULLSCREEN_COMPONENTS: Record<string, Component> = {
 	'app:business:company_financials': BusinessCompanyFinancialsEmbedFullscreen,
 	// Avoid a blank/pending shell for the public Models3D example's direct child route.
@@ -120,7 +147,7 @@ export async function loadFullscreenComponent(
 	key: string
 ): Promise<Component | null> {
 	const staticComponent = STATIC_FULLSCREEN_COMPONENTS[key];
-	if (staticComponent) return staticComponent;
+	if (staticComponent) return withResultPresentation(staticComponent);
 
 	const cached = fullscreenComponentPromises.get(key);
 	if (cached) return cached;
@@ -158,7 +185,7 @@ async function loadFullscreenComponentUncached(
 
 	try {
 		const module = await loader();
-		return module.default;
+		return withResultPresentation(module.default);
 	} catch (error) {
 		if (isChunkLoadError(error)) {
 			logChunkLoadError('embedFullscreenResolver', error);

@@ -1019,4 +1019,13 @@
     /* Pause animation on hover for better UX */
     animation-play-state: paused;
   }
+
+  .basic-infos-bar .skill-icon[data-skill-icon="movies"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/movies.svg');
+    mask-image: url('@openmates/ui/static/icons/movies.svg');
+  }
+  .basic-infos-bar .skill-icon[data-skill-icon="tv"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/tv.svg');
+    mask-image: url('@openmates/ui/static/icons/tv.svg');
+  }
 </style>

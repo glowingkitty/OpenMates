@@ -1,6 +1,8 @@
 <!-- Home listing details: shared facts/media layout, uncropped gallery and provider-backed location precision. -->
 
 <script lang="ts">
+  import { getContext } from "svelte";
+  import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from "../../../types/authoredResult";
   import ResultEmbedFullscreen from "../ResultEmbedFullscreen.svelte";
   import EmbedChevron from "../EmbedChevron.svelte";
   import ResultEmbedInfo from "../ResultEmbedInfo.svelte";
@@ -14,6 +16,7 @@
   import { text } from "../../../i18n/translations";
   import {
     homeListingContent,
+    homeRentRows,
     homeNumber,
     homeObject,
     homeImages,
@@ -78,7 +81,8 @@
   // Extract fields from data.decodedContent.
   // Must be $derived so it updates when navigating between results (prev/next).
   // Handles both direct fields and flat TOON format from _flatten_for_toon_tabular.
-  let dc = $derived(homeListingContent(data.decodedContent));
+  const authoredContext = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
+  let dc = $derived(homeListingContent(authoredContext?.presentationContent ?? authoredContext?.content ?? data.decodedContent));
   let url = $derived(typeof dc.url === "string" ? dc.url : "");
   let title = $derived(typeof dc.title === "string" ? dc.title : undefined);
   let price_label = $derived(
@@ -113,7 +117,7 @@
   let visual = $derived(homeObject(dc.visual_assessment));
   function featureLabel(key: string): string {
     return [
-      ...amenityKeys,
+      ...knownAmenityKeys,
       "water",
       "park",
       "transit",
@@ -156,7 +160,8 @@
   function amenityValue(key: string): boolean | undefined {
     return homeBoolean(dc[key]) ?? homeBoolean(amenities[key]);
   }
-  const amenityKeys = [
+  let amenityKeys = $derived([...new Set([...knownAmenityKeys, ...Object.keys(amenities)])]);
+  const knownAmenityKeys = [
     "balcony",
     "furnished",
     "elevator",
@@ -175,12 +180,16 @@
     parking: "car",
     pets_allowed: "paw-print",
   };
+  let rentRows = $derived(homeRentRows(dc));
   let priceRows = $derived(
     priceKeys.filter(
-      (key) => dc[key] !== null && dc[key] !== undefined && dc[key] !== "",
+      (key) => dc[key] !== null && dc[key] !== undefined && dc[key] !== ""
+        && typeof dc[key] !== "object" && !rentRows.some(row => row.key === key),
     ),
   );
   let summaryPrice = $derived.by(() => {
+    const suppliedPrice = rentRows.find(row => row.key === "price" || row.key === "price.amount");
+    if (suppliedPrice) return suppliedPrice.value;
     const amount =
       homeNumber(dc.price) ??
       homeNumber(
@@ -188,7 +197,7 @@
       );
     return amount !== undefined
       ? new Intl.NumberFormat().format(amount)
-      : price_label || undefined;
+      : price_label || rentRows[0]?.value || undefined;
   });
   let priceBasis = $derived(
     dc.price_type === "warm"
@@ -267,11 +276,11 @@
   );
 
   /** Format size with unit */
-  let sizeDisplay = $derived(size_sqm ? `${size_sqm} m\u00B2` : undefined);
+  let sizeDisplay = $derived(size_sqm !== undefined ? `${size_sqm} m\u00B2` : undefined);
 
   /** Format rooms count */
   let roomsDisplay = $derived(
-    rooms ? `${rooms} ${rooms === 1 ? "room" : "rooms"}` : undefined,
+    rooms !== undefined ? `${rooms} ${rooms === 1 ? "room" : "rooms"}` : undefined,
   );
 
   /** Capitalize listing type */
@@ -451,12 +460,13 @@
   {/snippet}
 
   {#snippet summary()}
-    {#if price_label || priceRows.length}<ResultEmbedInfo
+    {#if price_label || priceRows.length || rentRows.length}<ResultEmbedInfo
       icon="euro" label={price_label || $text("home_listing.price")} value={summaryPrice} caption={priceBasis} testId="home-price-info"
     >
       {#snippet children()}
         {#if price_label}<p>{price_label}</p>{/if}
         <dl data-testid="home-price-summary">
+          {#each rentRows as row}<div data-testid="home-rent-component"><dt>{$text(`home_listing.${row.labelKey}`)}</dt><dd>{row.value}</dd></div>{/each}
           {#each priceRows as key}<div><dt>{$text(`home_listing.${key}`)}</dt><dd>{key === "price_type" ? priceBasis || homeEvidence(dc[key]) : homeEvidence(dc[key])}{key.endsWith("_eur") ? " EUR" : ""}</dd></div>{/each}
         </dl>
         {#if provider}<p>{provider} · {$text("home_listing.advertised_evidence")}</p>{/if}
@@ -504,7 +514,7 @@
       {#each amenityKeys as key}
         {@const match = homeObject(homeObject(evidence.amenities)[key])}
         {@const feature = homeObject(homeObject(visual.features)[key])}
-        <ResultEmbedInfo icon={amenityIcons[key]} label={`${featureLabel(key)}: ${yesNo(amenityValue(key))}`} state={amenityValue(key) === true ? "yes" : amenityValue(key) === false ? "no" : "unknown"} testId={`home-amenity-${key}`}>
+        <ResultEmbedInfo icon={amenityIcons[key] ?? "circle-check"} label={`${featureLabel(key)}: ${yesNo(amenityValue(key))}`} state={amenityValue(key) === true ? "yes" : amenityValue(key) === false ? "no" : "unknown"} testId={`home-amenity-${key}`}>
           {#snippet children()}
             <p>{featureLabel(key)}: {yesNo(amenityValue(key))}</p>
             {#if provider}<p>{provider} · {$text("home_listing.advertised_evidence")}</p>{/if}

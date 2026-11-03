@@ -33,6 +33,8 @@
 -->
 
 <script lang="ts">
+  import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from "../../../types/authoredResult";
+  import { getContext } from "svelte";
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import ResultEmbedCard from '../ResultEmbedCard.svelte';
   import { handleImageError } from '../../../utils/offlineImageHandler';
@@ -133,6 +135,8 @@
     publishedAt,
     videoId
   }: Props = $props();
+  const authoredContext = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
+  let isAuthored = $derived(Boolean(authoredContext?.authoring));
   
   // Map skillId to icon name
   const skillIconName = 'video';
@@ -181,7 +185,7 @@
   let effectiveDuration = $derived.by(() => {
     if (durationSeconds !== undefined || durationFormatted) {
       return { 
-        totalSeconds: durationSeconds || 0, 
+        totalSeconds: durationSeconds ?? 0,
         formatted: durationFormatted || '' 
       };
     }
@@ -200,7 +204,7 @@
       return thumbnail;
     }
     // Fallback: construct thumbnail URL from video ID using hqdefault (always available)
-    if (effectiveVideoId) {
+    if (!isAuthored && effectiveVideoId) {
       return `https://img.youtube.com/vi/${effectiveVideoId}/hqdefault.jpg`;
     }
     return '';
@@ -371,7 +375,7 @@
                 // Step 1: if the proxied URL failed, retry with the direct CDN URL.
                 // Step 2: if the direct CDN URL also fails, use offline-aware handler.
                 const img = e.target as HTMLImageElement;
-                if (rawThumbnailUrl && img.src !== rawThumbnailUrl) {
+                if (!isAuthored && rawThumbnailUrl && img.src !== rawThumbnailUrl) {
                   // Proxy failed — retry directly from the YouTube CDN
                   img.src = rawThumbnailUrl;
                 } else {

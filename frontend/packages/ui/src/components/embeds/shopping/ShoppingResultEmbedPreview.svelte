@@ -9,6 +9,8 @@
 -->
 
 <script lang="ts">
+  import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from "../../../types/authoredResult";
+  import { getContext } from "svelte";
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import ResultEmbedCard from '../ResultEmbedCard.svelte';
   import { text } from '@repo/ui';
@@ -80,20 +82,24 @@
     variant = 'small',
     onFullscreen,
   }: Props = $props();
+  const authoredContext = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
+  let isAuthored = $derived(Boolean(authoredContext?.authoring));
 
+  let authoredCurrency = $derived(typeof authoredContext?.content?.currency === 'string' ? String(authoredContext?.content?.currency) : '');
   function formatCents(value: number | null | undefined): string {
     if (value == null || value < 0) return '';
-    return `${(value / 100).toFixed(2).replace('.', ',')} €`;
+    return isAuthored ? `${(value / 100).toFixed(2)} ${authoredCurrency}`.trim() : `${(value / 100).toFixed(2).replace('.', ',')} €`;
   }
 
   function formatAmount(value: number | null | undefined, symbol?: string | null): string {
     if (value == null || value < 0) return '';
-    const currency = symbol || '€';
+    const currency = symbol || (isAuthored ? authoredCurrency : '€');
     const amount = currency === '€' ? value.toFixed(2).replace('.', ',') : value.toFixed(2);
-    return `${currency}${amount}`;
+    return isAuthored && /^[A-Za-z]{3}$/.test(currency) ? `${currency} ${amount}` : `${currency}${amount}`;
   }
 
   function getDisplayPrice(): string {
+    if (isAuthored && typeof authoredContext?.content.price === 'number') return formatAmount(authoredContext.content.price, currency_symbol);
     if (price) return price;
     if (price_eur) return price_eur;
     if (price_amount != null) return formatAmount(price_amount, currency_symbol);

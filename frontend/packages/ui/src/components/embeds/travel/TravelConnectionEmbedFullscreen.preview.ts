@@ -74,6 +74,15 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+  authoredUnknowns: {
+    data: { decodedContent: {
+      type: "connection", status: "finished", title: "Draft Berlin to Hamburg",
+      origin: "Berlin", destination: "Hamburg", total_price: 0, stops: 0,
+      departure: "2030-04-13T12:00:00+02:00", arrival: "2030-04-13T14:00:00+02:00",
+      authoring: { schema_version: 1, kind: "travel.connection", origin: "draft", sources: [] },
+    }, embedData: { status: "finished" }, attrs: { app_id: "travel" } },
+  },
+
   /** Multi-leg connection with stopover */
   multiLeg: {
     data: {

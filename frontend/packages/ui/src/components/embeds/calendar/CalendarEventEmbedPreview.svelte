@@ -11,9 +11,10 @@
     content: Record<string, unknown>;
     status?: Status;
     resultContext?: 'auto' | 'chat' | 'results';
+    presentationOnly?: boolean;
     onFullscreen: () => void;
   }
-  let { id, content, status: statusProp = 'finished', resultContext = 'auto', onFullscreen }: Props = $props();
+  let { id, content, status: statusProp = 'finished', resultContext = 'auto', presentationOnly = false, onFullscreen }: Props = $props();
   let localContent = $state<Record<string, unknown>>({});
   let status = $state<Status>('processing');
   let exportError = $state(false);
@@ -36,7 +37,7 @@
   function ignore() { /* The miniature calendar presents context; shared controls own actions. */ }
 </script>
 
-<UnifiedEmbedPreview {id} resultPreview {resultContext} appId="calendar" skillId="event" skillIconName="calendar" appIconName="calendar"
+<UnifiedEmbedPreview {id} {presentationOnly} resultPreview {resultContext} appId="calendar" skillId="event" skillIconName="calendar" appIconName="calendar"
   {status} skillName={event?.title || $text('calendar_event.unavailable')} {onFullscreen}
   showSkillIcon={false} showStatus={false} onEmbedDataUpdated={updated}>
   {#snippet resultPrimaryAction()}

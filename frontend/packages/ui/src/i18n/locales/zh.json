@@ -7843,6 +7843,9 @@
         },
         "not_available": {
           "text": "不适用"
+        },
+        "cash_flow": {
+          "text": "现金流"
         }
       },
       "search_trademarks": {
@@ -8077,6 +8080,11 @@
         "text": "Watermarking"
       }
     },
+    "search_domain": {
+      "minutes": {
+        "text": "{count} 分钟"
+      }
+    },
     "projects": {
       "references": {
         "subtitle": {
@@ -8264,6 +8272,133 @@
       },
       "no_frame": {
         "text": "没有可用的已保存截图。"
+      }
+    },
+    "authoring": {
+      "draft": {
+        "text": "草稿"
+      },
+      "user_provided": {
+        "text": "用户提供"
+      },
+      "sources": {
+        "text": "来源"
+      },
+      "observed_at": {
+        "text": "观测时间"
+      },
+      "image_credit": {
+        "text": "图片署名"
+      },
+      "partial": {
+        "text": "部分结果"
+      },
+      "uploaded_source": {
+        "text": "已上传的来源"
+      },
+      "approximate_location": {
+        "text": "大致位置"
+      },
+      "schematic_route": {
+        "text": "示意路线"
+      },
+      "unmapped": {
+        "text": "暂无位置信息"
+      },
+      "open_source": {
+        "text": "打开来源页面"
+      },
+      "additional_times": {
+        "text": "其他时间"
+      }
+    },
+    "tv": {
+      "movie": {
+        "text": "电影"
+      },
+      "series": {
+        "text": "电视剧"
+      },
+      "poster_unavailable": {
+        "text": "暂无海报"
+      },
+      "synopsis": {
+        "text": "剧情简介"
+      },
+      "release_date": {
+        "text": "上映日期"
+      },
+      "runtime": {
+        "text": "片长"
+      },
+      "genres": {
+        "text": "类型"
+      },
+      "directors": {
+        "text": "导演"
+      },
+      "creators": {
+        "text": "主创"
+      },
+      "cast": {
+        "text": "演员"
+      },
+      "language": {
+        "text": "原始语言"
+      },
+      "countries": {
+        "text": "国家和地区"
+      },
+      "content_rating": {
+        "text": "分级"
+      },
+      "score": {
+        "text": "来源评分"
+      },
+      "score_votes": {
+        "text": "{count} 次评分"
+      },
+      "first_air_date": {
+        "text": "首播日期"
+      },
+      "last_air_date": {
+        "text": "最近播出日期"
+      },
+      "series_status": {
+        "text": "剧集状态"
+      },
+      "season_count": {
+        "text": "{count} 季"
+      },
+      "episodes": {
+        "text": "集数"
+      },
+      "episode_count": {
+        "text": "{count} 集"
+      },
+      "season": {
+        "text": "第 {number} 季"
+      },
+      "specials": {
+        "text": "特别篇"
+      },
+      "supplied_seasons": {
+        "text": "已提供的季信息"
+      },
+      "partial_seasons": {
+        "text": "仅显示已提供的季信息。"
+      },
+      "year": {
+        "text": "年份"
+      },
+      "preparing": {
+        "text": "正在准备条目…"
+      },
+      "cancelled": {
+        "text": "已取消创建条目"
+      },
+      "unavailable": {
+        "text": "条目不可用"
       }
     }
   },
@@ -14463,6 +14598,9 @@
     },
     "nighttime": {
       "text": "夜间"
+    },
+    "instructor": {
+      "text": "教练"
     }
   },
   "rules": {},

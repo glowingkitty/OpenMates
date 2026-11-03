@@ -7870,6 +7870,9 @@
         },
         "not_available": {
           "text": "N/D"
+        },
+        "cash_flow": {
+          "text": "Fluxo de caixa"
         }
       },
       "search_trademarks": {
@@ -8104,6 +8107,11 @@
         "text": "Watermarking"
       }
     },
+    "search_domain": {
+      "minutes": {
+        "text": "{count} min"
+      }
+    },
     "projects": {
       "references": {
         "subtitle": {
@@ -8291,6 +8299,133 @@
       },
       "no_frame": {
         "text": "Não há nenhuma captura guardada disponível."
+      }
+    },
+    "authoring": {
+      "draft": {
+        "text": "Rascunho"
+      },
+      "user_provided": {
+        "text": "Fornecido pelo usuário"
+      },
+      "sources": {
+        "text": "Fontes"
+      },
+      "observed_at": {
+        "text": "Observado em"
+      },
+      "image_credit": {
+        "text": "Crédito da imagem"
+      },
+      "partial": {
+        "text": "Resultado parcial"
+      },
+      "uploaded_source": {
+        "text": "Fonte enviada"
+      },
+      "approximate_location": {
+        "text": "Localização aproximada"
+      },
+      "schematic_route": {
+        "text": "Rota esquemática"
+      },
+      "unmapped": {
+        "text": "Localização indisponível"
+      },
+      "open_source": {
+        "text": "Abrir página de origem"
+      },
+      "additional_times": {
+        "text": "Outros horários"
+      }
+    },
+    "tv": {
+      "movie": {
+        "text": "Filme"
+      },
+      "series": {
+        "text": "Série de TV"
+      },
+      "poster_unavailable": {
+        "text": "Pôster indisponível"
+      },
+      "synopsis": {
+        "text": "Sinopse"
+      },
+      "release_date": {
+        "text": "Data de lançamento"
+      },
+      "runtime": {
+        "text": "Duração"
+      },
+      "genres": {
+        "text": "Gêneros"
+      },
+      "directors": {
+        "text": "Direção"
+      },
+      "creators": {
+        "text": "Criadores"
+      },
+      "cast": {
+        "text": "Elenco"
+      },
+      "language": {
+        "text": "Idioma original"
+      },
+      "countries": {
+        "text": "Países"
+      },
+      "content_rating": {
+        "text": "Classificação indicativa"
+      },
+      "score": {
+        "text": "Nota da fonte"
+      },
+      "score_votes": {
+        "text": "{count} votos"
+      },
+      "first_air_date": {
+        "text": "Primeira exibição"
+      },
+      "last_air_date": {
+        "text": "Última exibição"
+      },
+      "series_status": {
+        "text": "Status da série"
+      },
+      "season_count": {
+        "text": "{count} temporadas"
+      },
+      "episodes": {
+        "text": "Episódios"
+      },
+      "episode_count": {
+        "text": "{count} episódios"
+      },
+      "season": {
+        "text": "Temporada {number}"
+      },
+      "specials": {
+        "text": "Especiais"
+      },
+      "supplied_seasons": {
+        "text": "Temporadas fornecidas"
+      },
+      "partial_seasons": {
+        "text": "São exibidos apenas os detalhes das temporadas fornecidas."
+      },
+      "year": {
+        "text": "Ano"
+      },
+      "preparing": {
+        "text": "Preparando título…"
+      },
+      "cancelled": {
+        "text": "Criação do título cancelada"
+      },
+      "unavailable": {
+        "text": "Título indisponível"
       }
     }
   },
@@ -14490,6 +14625,9 @@
     },
     "nighttime": {
       "text": "À noite"
+    },
+    "instructor": {
+      "text": "Instrutor"
     }
   },
   "rules": {},

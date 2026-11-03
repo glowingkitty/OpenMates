@@ -7843,6 +7843,9 @@
         },
         "not_available": {
           "text": "लागू नहीं"
+        },
+        "cash_flow": {
+          "text": "नकदी प्रवाह"
         }
       },
       "search_trademarks": {
@@ -8077,6 +8080,11 @@
         "text": "Watermarking"
       }
     },
+    "search_domain": {
+      "minutes": {
+        "text": "{count} मिनट"
+      }
+    },
     "projects": {
       "references": {
         "subtitle": {
@@ -8264,6 +8272,133 @@
       },
       "no_frame": {
         "text": "कोई सहेजा गया स्क्रीनशॉट उपलब्ध नहीं है।"
+      }
+    },
+    "authoring": {
+      "draft": {
+        "text": "मसौदा"
+      },
+      "user_provided": {
+        "text": "उपयोगकर्ता द्वारा दिया गया"
+      },
+      "sources": {
+        "text": "स्रोत"
+      },
+      "observed_at": {
+        "text": "अवलोकन का समय"
+      },
+      "image_credit": {
+        "text": "चित्र श्रेय"
+      },
+      "partial": {
+        "text": "आंशिक परिणाम"
+      },
+      "uploaded_source": {
+        "text": "अपलोड किया गया स्रोत"
+      },
+      "approximate_location": {
+        "text": "अनुमानित स्थान"
+      },
+      "schematic_route": {
+        "text": "सांकेतिक मार्ग"
+      },
+      "unmapped": {
+        "text": "स्थान उपलब्ध नहीं"
+      },
+      "open_source": {
+        "text": "स्रोत पृष्ठ खोलें"
+      },
+      "additional_times": {
+        "text": "अन्य समय"
+      }
+    },
+    "tv": {
+      "movie": {
+        "text": "फ़िल्म"
+      },
+      "series": {
+        "text": "टीवी श्रृंखला"
+      },
+      "poster_unavailable": {
+        "text": "पोस्टर उपलब्ध नहीं"
+      },
+      "synopsis": {
+        "text": "कथासार"
+      },
+      "release_date": {
+        "text": "रिलीज़ की तारीख"
+      },
+      "runtime": {
+        "text": "अवधि"
+      },
+      "genres": {
+        "text": "शैलियाँ"
+      },
+      "directors": {
+        "text": "निर्देशक"
+      },
+      "creators": {
+        "text": "रचनाकार"
+      },
+      "cast": {
+        "text": "कलाकार"
+      },
+      "language": {
+        "text": "मूल भाषा"
+      },
+      "countries": {
+        "text": "देश"
+      },
+      "content_rating": {
+        "text": "आयु वर्गीकरण"
+      },
+      "score": {
+        "text": "स्रोत की रेटिंग"
+      },
+      "score_votes": {
+        "text": "{count} मत"
+      },
+      "first_air_date": {
+        "text": "पहला प्रसारण"
+      },
+      "last_air_date": {
+        "text": "अंतिम प्रसारण"
+      },
+      "series_status": {
+        "text": "श्रृंखला की स्थिति"
+      },
+      "season_count": {
+        "text": "{count} सीज़न"
+      },
+      "episodes": {
+        "text": "एपिसोड"
+      },
+      "episode_count": {
+        "text": "{count} एपिसोड"
+      },
+      "season": {
+        "text": "सीज़न {number}"
+      },
+      "specials": {
+        "text": "विशेष एपिसोड"
+      },
+      "supplied_seasons": {
+        "text": "दिए गए सीज़न"
+      },
+      "partial_seasons": {
+        "text": "केवल दिए गए सीज़न का विवरण दिखाया जाता है।"
+      },
+      "year": {
+        "text": "वर्ष"
+      },
+      "preparing": {
+        "text": "शीर्षक तैयार हो रहा है…"
+      },
+      "cancelled": {
+        "text": "शीर्षक बनाना रद्द किया गया"
+      },
+      "unavailable": {
+        "text": "शीर्षक उपलब्ध नहीं"
       }
     }
   },
@@ -14463,6 +14598,9 @@
     },
     "nighttime": {
       "text": "रात का समय"
+    },
+    "instructor": {
+      "text": "प्रशिक्षक"
     }
   },
   "rules": {},

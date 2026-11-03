@@ -7843,6 +7843,9 @@
         },
         "not_available": {
           "text": "T/A"
+        },
+        "cash_flow": {
+          "text": "Arus kas"
         }
       },
       "search_trademarks": {
@@ -8077,6 +8080,11 @@
         "text": "Watermarking"
       }
     },
+    "search_domain": {
+      "minutes": {
+        "text": "{count} menit"
+      }
+    },
     "projects": {
       "references": {
         "subtitle": {
@@ -8264,6 +8272,133 @@
       },
       "no_frame": {
         "text": "Tidak ada tangkapan layar tersimpan."
+      }
+    },
+    "authoring": {
+      "draft": {
+        "text": "Draf"
+      },
+      "user_provided": {
+        "text": "Disediakan pengguna"
+      },
+      "sources": {
+        "text": "Sumber"
+      },
+      "observed_at": {
+        "text": "Waktu pengamatan"
+      },
+      "image_credit": {
+        "text": "Kredit gambar"
+      },
+      "partial": {
+        "text": "Hasil sebagian"
+      },
+      "uploaded_source": {
+        "text": "Sumber yang diunggah"
+      },
+      "approximate_location": {
+        "text": "Perkiraan lokasi"
+      },
+      "schematic_route": {
+        "text": "Rute skematis"
+      },
+      "unmapped": {
+        "text": "Lokasi tidak tersedia"
+      },
+      "open_source": {
+        "text": "Buka halaman sumber"
+      },
+      "additional_times": {
+        "text": "Waktu lainnya"
+      }
+    },
+    "tv": {
+      "movie": {
+        "text": "Film"
+      },
+      "series": {
+        "text": "Serial TV"
+      },
+      "poster_unavailable": {
+        "text": "Poster tidak tersedia"
+      },
+      "synopsis": {
+        "text": "Sinopsis"
+      },
+      "release_date": {
+        "text": "Tanggal rilis"
+      },
+      "runtime": {
+        "text": "Durasi"
+      },
+      "genres": {
+        "text": "Genre"
+      },
+      "directors": {
+        "text": "Sutradara"
+      },
+      "creators": {
+        "text": "Kreator"
+      },
+      "cast": {
+        "text": "Pemeran"
+      },
+      "language": {
+        "text": "Bahasa asli"
+      },
+      "countries": {
+        "text": "Negara"
+      },
+      "content_rating": {
+        "text": "Klasifikasi usia"
+      },
+      "score": {
+        "text": "Skor sumber"
+      },
+      "score_votes": {
+        "text": "{count} suara"
+      },
+      "first_air_date": {
+        "text": "Tayang perdana"
+      },
+      "last_air_date": {
+        "text": "Terakhir tayang"
+      },
+      "series_status": {
+        "text": "Status serial"
+      },
+      "season_count": {
+        "text": "{count} musim"
+      },
+      "episodes": {
+        "text": "Episode"
+      },
+      "episode_count": {
+        "text": "{count} episode"
+      },
+      "season": {
+        "text": "Musim {number}"
+      },
+      "specials": {
+        "text": "Episode spesial"
+      },
+      "supplied_seasons": {
+        "text": "Musim yang disediakan"
+      },
+      "partial_seasons": {
+        "text": "Hanya detail musim yang disediakan yang ditampilkan."
+      },
+      "year": {
+        "text": "Tahun"
+      },
+      "preparing": {
+        "text": "Menyiapkan judul…"
+      },
+      "cancelled": {
+        "text": "Pembuatan judul dibatalkan"
+      },
+      "unavailable": {
+        "text": "Judul tidak tersedia"
       }
     }
   },
@@ -14463,6 +14598,9 @@
     },
     "nighttime": {
       "text": "Malam hari"
+    },
+    "instructor": {
+      "text": "Instruktur"
     }
   },
   "rules": {},

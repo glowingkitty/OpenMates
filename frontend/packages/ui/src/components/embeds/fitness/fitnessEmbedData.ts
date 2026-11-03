@@ -152,3 +152,22 @@ export function normalizeFitnessSearchContent(
     status: normalizeFitnessStatus(safeContent.status),
   };
 }
+
+/** Supplied class/location facts only: missing and blank values stay unknown. */
+export function getFitnessResultFacts(result: FitnessResult) {
+  const number = (value: unknown) => {
+    if (typeof value !== 'number' && !(typeof value === 'string' && value.trim())) return undefined;
+    const parsed = asNumber(value);
+    return parsed != null && parsed >= 0 ? parsed : undefined;
+  };
+  const string = (value: unknown) => typeof value === 'string' ? value.trim() : '';
+  const spots = number(result.spots_left);
+  return {
+    spots: string(result.spots_display) || (spots == null ? '' : String(spots)),
+    disciplines: [...new Set([...normalizePipedList(result.disciplines), ...normalizePipedList(result.discipline)])],
+    instructor: string(result.instructor),
+    durationMinutes: number(result.duration_minutes),
+    price: number(result.price),
+    currency: string(result.currency),
+  };
+}

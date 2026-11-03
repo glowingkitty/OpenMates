@@ -101,6 +101,10 @@ RECOVERY_OPERATIONS = {
     "admit_legacy_inference",
     "bind_ordinary_legacy_dispatch",
     "claim_legacy_inference_start",
+    "register_legacy_output_asset_references",
+    "get_legacy_output_asset_binding",
+    "inspect_output_asset_references",
+    "release_output_asset_references",
     "prepare_legacy_batch",
     "claim_legacy_batch",
     "release_legacy_inference",
@@ -121,6 +125,33 @@ class ChatRecoveryProtocolError(RuntimeError):
 class ChatRecoveryService:
     def __init__(self, directus_service: Any) -> None:
         self._directus = directus_service
+
+    async def register_legacy_output_asset_references(self, data: Mapping[str, Any]) -> dict[str, Any]:
+        """Bind selected storage metadata to an actual ordinary legacy admission."""
+        result = await self.execute("register_legacy_output_asset_references", dict(data))
+        if (result.get("registered") is not True
+                or type(result.get("idempotent")) is not bool
+                or any(result.get(key) != data.get(key) for key in ("task_identity", "embed_id", "output_version"))):
+            raise RuntimeError("Malformed legacy asset registration receipt")
+        return result
+
+    async def get_legacy_output_asset_binding(self, data: Mapping[str, Any]) -> dict[str, Any] | None:
+        """Read an exact trusted binding; no client plaintext or storage key grant."""
+        result = await self.execute("get_legacy_output_asset_binding", dict(data))
+        if "binding" not in result:
+            raise RuntimeError("Malformed legacy output asset binding")
+        binding = result.get("binding")
+        if binding is None:
+            return None
+        if (not isinstance(binding, dict)
+                or set(binding) != {"task_identity", "embed_id", "output_version", "content_commitment"}
+                or any(not isinstance(binding.get(key), str) or not binding[key]
+                       for key in ("task_identity", "embed_id", "content_commitment"))
+                or type(binding.get("output_version")) is not int):
+            raise RuntimeError("Malformed legacy output asset binding")
+        if binding["embed_id"] != data.get("embed_id") or binding["output_version"] != data.get("output_version"):
+            raise RuntimeError("Legacy output asset binding identity mismatch")
+        return binding
 
     async def register_personal_chat_draft(
         self, *, hashed_user_id: str, chat_id: str, encrypted_chat_key: str, created_at: int, cleanup_attempt_id: str | None = None,

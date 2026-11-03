@@ -1329,6 +1329,27 @@ describe("handleEmbedUpdateImpl", () => {
     }));
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+  it.each([["application", false], ["authored_results", false], ["app_skill_use", true]] as const)(
+    "preserves independent child keys during %s status finalization", async (type, inherited) => {
+      mockComputeSHA256.mockImplementation(async (value: string) => `hash-${value}`);
+      mockEncryptWithEmbedKey.mockImplementation(async value => `encrypted:${value}`);
+      mockWrapEmbedKeyWithMasterKey.mockResolvedValue("wrapped-master-key");
+      mockWrapEmbedKeyWithChatKey.mockResolvedValue("wrapped-chat-key");
+      mockEmbedStore.get.mockResolvedValue({ embed_id: "update-key-parent", type, status: "processing",
+        content: JSON.stringify({ type, status: "finished", app_id: "ai", skill_id: "authored_results" }),
+        chat_id: "chat-1", message_id: "message-1", user_id: "user-1", embed_ids: ["update-independent-child"] });
+      mockEmbedStore.getEmbedKey.mockResolvedValue(new Uint8Array([4, 5, 6]));
+      const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+      await handleEmbedUpdateImpl(service, {
+        type: "embed_update", event_for_client: "embed_update", embed_id: "update-key-parent",
+        chat_id: "chat-1", message_id: "message-1", user_id_uuid: "user-1", user_id_hash: "hash-user-1",
+        status: "finished", child_embed_ids: ["update-independent-child"],
+      });
+      expect(mockEmbedStore.setEmbedKeyInCache.mock.calls.some(([id]) => id === "update-independent-child")).toBe(inherited);
+      expect(mockEmbedStore.setEmbedKeyInCache).toHaveBeenCalledWith("update-key-parent", expect.any(Uint8Array), expect.anything());
+    });
+
   // contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity,chats.local-state.precedence
   it("keeps placeholder embeds processing until final content arrives", async () => {
     const existingEmbed = {
@@ -1494,7 +1515,7 @@ describe("handleSendEmbedDataImpl", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=app-skills.media.application-screenshot,chats.persistence.client-encrypted
-  it.each([["application", false], ["app_skill_use", true]] as const)("keeps referenced application files independent while %s composites preserve inheritance", async (type, inherited) => {
+  it.each([["application", false], ["authored_results", false], ["app_skill_use", true]] as const)("preserves independent child keys for %s and legacy inheritance", async (type, inherited) => {
     const parentKey = new Uint8Array([4, 5, 6]);
     mockChatDB.getChat.mockResolvedValue({ chat_id: "chat-1" });
     mockChatKeyManager.getKeySync.mockReturnValue(new Uint8Array([1, 2, 3]));

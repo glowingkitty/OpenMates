@@ -61,3 +61,32 @@ it('projects event follow-up context without forwarding raw or nested transport 
   expect(result.venue).not.toBe(normalized.venue);
   expect(result.fee).not.toBe(normalized.fee);
 });
+
+// contract-test: supporting surface=gui.web assertions=authored-results.facts.provenance-and-drafts,authored-results.content.typed-and-useful
+it('preserves authored source facts without turning missing price, timezone or times into defaults', () => {
+  const authoring = { schema_version: 1, kind: 'events.event', origin: 'draft', sources: [{ embed_ref: '会議 notes.pdf (2)' }] };
+  const normalized = normalizeEventResult({ title: 'Proposed event', date_start: '2027-01-30',
+    source_url: 'https://example.org/event', organizer: 'Supplied organizer', location: 'Supplied venue',
+    authoring, online: true, online_url: 'https://example.org/meeting' }, 'actual-child');
+  expect(normalized.authoring).toEqual(authoring);
+  expect(normalized).toMatchObject({ date_start: '2027-01-30', date_end: undefined, timezone: undefined,
+    fee: undefined, is_paid: undefined, rsvp_count: undefined, organizer: { name: 'Supplied organizer' },
+    venue: { name: 'Supplied venue' }, url: 'https://example.org/event', online: true });
+});
+
+// contract-test: supporting surface=gui.web assertions=authored-results.facts.provenance-and-drafts,authored-results.media.safe-and-attributed
+it('projects provenance for follow-ups while removing nested secrets and UI-only media URLs', () => {
+  const normalized = normalizeEventResult({ title: 'Supplied event', source_json: 'private raw payload', image_url: 'blob:https://app.example/decrypted',
+    authoring: { schema_version: 1, kind: 'events.event', origin: 'user_provided', observed_at: '2026-10-26T10:00:00Z', aes_key: 'authoring-private',
+      source_json: 'private-structured', images: [{ url: 'https://example.org/picture.jpg', aes_key: 'image-private' }],
+      sources: [{ embed_ref: '会議 notes.pdf (2)', label: 'My notes', aes_key: 'source-private' }] },
+    aes_key: 'event-private', authored_media: [{ aes_key: 'media-private' }],
+  });
+  const projected = projectVisibleEventResult(normalized);
+  expect(projected.authoring).toEqual({ schema_version: 1, kind: 'events.event', origin: 'user_provided', observed_at: '2026-10-26T10:00:00Z',
+    sources: [{ embed_ref: '会議 notes.pdf (2)', label: 'My notes' }] });
+  expect(projected.image_url).toBeUndefined();
+  expect(JSON.stringify(projected)).not.toContain('private');
+  expect(JSON.stringify(projected)).not.toContain('blob:');
+  expect(projected.authoring).not.toBe(normalized.authoring);
+});
