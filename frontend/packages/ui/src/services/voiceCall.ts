@@ -185,6 +185,9 @@ interface NewCallCleanupAttempt {
   turnWrites: Promise<unknown>[];
 }
 
+/** Mic audio left unanswered this long ends the call as lost. */
+export const VOICE_CALL_SERVER_SILENCE_MS = 15_000;
+
 export class VoiceCallController implements VoiceCallControllerLike {
   private cleanupAttempt: NewCallCleanupAttempt | null = null;
   private store = writable<VoiceCallState>({ ...initialVoiceCallState });
@@ -196,6 +199,8 @@ export class VoiceCallController implements VoiceCallControllerLike {
   private privacyRequest: AbortController | null = null;
   private generation = 0;
   private ticker: ReturnType<typeof setInterval> | null = null;
+  /** First microphone chunk sent since the server last answered, or null. */
+  private unansweredAudioSince: number | null = null;
   private startedAt = 0;
   private clockUpdatedAt = 0;
   private activeMillis = 0;
@@ -267,6 +272,14 @@ export class VoiceCallController implements VoiceCallControllerLike {
   private refreshClock(): void {
     if (this.state.status !== 'live') return;
     const now = performance.now();
+    // The server answers every forwarded audio chunk with a usage update. A
+    // socket that stays open but goes silent (e.g. a stalled host) must not
+    // look like a working call while the caller keeps talking.
+    if (this.unansweredAudioSince !== null && now - this.unansweredAudioSince > VOICE_CALL_SERVER_SILENCE_MS) {
+      this.unansweredAudioSince = null;
+      this.fail('connection_lost');
+      return;
+    }
     const activity = this.state.billingActivity;
     if (activity === null || activity.inputListening || activity.processing) this.activeMillis += Math.max(0, now - this.clockUpdatedAt);
     this.clockUpdatedAt = now;
@@ -381,6 +394,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
     this.cleanupAttempt = attempt;
     // Preparation can refuse incomplete/oversized context before opening a
     // socket. Keep its initiating chat bound for diagnostics and handset retry.
+    this.unansweredAudioSince = null;
     this.update({ ...initialVoiceCallState, status: 'connecting', chatId: existingChatId ?? null });
     // The browser's audio activation must occur in the click handler. The mic is
     // captured but never transmitted until the server acknowledges readiness.
@@ -389,6 +403,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
       onAudio: (data) => {
         if (current() && this.state.status === 'live' && !this.state.muted &&
             !this.send({ type: 'mic_audio', data })) this.fail('connection_lost');
+        else if (current() && this.state.status === 'live' && !this.state.muted) this.unansweredAudioSince ??= performance.now();
       },
       onAudioEnd: () => {
         if (current() && this.state.status === 'live' &&
@@ -480,6 +495,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
       };
       socket.onmessage = (event: MessageEvent<string>) => {
         if (generation !== this.generation) return;
+        this.unansweredAudioSince = null;
         try { this.handleMessage(JSON.parse(event.data) as Record<string, unknown>); }
         catch { this.fail('invalid_response'); }
       };

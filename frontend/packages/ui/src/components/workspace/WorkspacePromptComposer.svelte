@@ -3,21 +3,32 @@
   Neutral workspace prompt field for non-chat home surfaces.
   Mirrors the empty chat composer affordance without importing chat sync,
   drafts, embeddings, PII, or credit state. Owning surfaces provide submit
-  behavior and any future microphone pipeline.
+  behavior and start/stop recording; dictation itself matches the canonical
+  composer: live words stream into the field at the caret, the field expands
+  above the compact recording controls, dictated text shimmers while the
+  correction runs, and Send submits once the corrected text is in place.
+  Controls follow the chat composer: an attachment shortcut on the left
+  (camera on touch devices when the host takes photos, files otherwise),
+  the microphone left of Send on the right, a labeled Send while focused and
+  the shared round Send for a blurred draft.
 -->
 
 <script lang="ts">
-  import { tick } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { text } from '../../i18n/translations';
   import RecordAudio from '../enter_message/RecordAudio.svelte';
+  import CompactSendButton from '../enter_message/CompactSendButton.svelte';
+  import { isDesktop } from '../../utils/platform';
   import type { AudioRealtimeTranscriptionHandle } from '../../services/audioRealtimeTranscription';
-  import type { AudioWaveformData } from '../../utils/audioWaveform';
+  import { createTextLiveTranscript, type TextLiveTranscriptController } from '../enter_message/services/textLiveTranscript';
 
   type WorkspaceSurface = 'projects' | 'workflows' | 'tasks' | 'plans';
 
   type SubmitCallback = (value: string) => void | boolean | Promise<void | boolean>;
   type MicCallback = () => void | Promise<void>;
-  type RecordedAudio = { blob: Blob; duration: number; mimeType: string; waveform?: AudioWaveformData; realtime?: AudioRealtimeTranscriptionHandle; liveTranscript?: string };
+  type RecordedAudio = { blob: Blob; mimeType: string; realtime?: AudioRealtimeTranscriptionHandle };
+  /** Audio that produced no transcript; hosts may keep it, e.g. as an attachment. */
+  type UntranscribedAudio = { blob: Blob; mimeType: string; failed: boolean };
 
   let {
     surface,
@@ -37,9 +48,9 @@
     onMicClick,
     fileImport,
     recording = false,
-    onAudioRecorded,
+    onUntranscribedAudio,
     onRecordingClose,
-    recordingSendAction,
+    submitDictationOnFinish = false,
   }: {
     surface: WorkspaceSurface;
     presentation?: 'workspace' | 'embed';
@@ -56,17 +67,32 @@
     micTestId?: string;
     onSubmit: SubmitCallback;
     onMicClick: MicCallback;
-    fileImport?: { label: string; testId: string; onClick: () => void };
+    /** Attachment shortcut; `onCamera` makes it take a photo on touch devices while blurred, like the chat composer. */
+    fileImport?: { label: string; testId: string; onClick: () => void; onCamera?: () => void };
     recording?: boolean;
-    onAudioRecorded?: (event: CustomEvent<RecordedAudio>) => void | Promise<void>;
+    onUntranscribedAudio?: (audio: UntranscribedAudio) => void;
     onRecordingClose?: () => void;
-    recordingSendAction?: { onRequest: () => void };
+    /** Finish submits a cleanly transcribed recording (Send always does). */
+    submitDictationOnFinish?: boolean;
   } = $props();
 
   let textareaElement = $state<HTMLTextAreaElement | null>(null);
+  let recordAudioComponent = $state<RecordAudio>();
+  // One dictation per recording. The recorder can close before its correction
+  // arrives, so a dictation stays valid until it is cancelled or a newer
+  // recording supersedes it; only then are its late callbacks ignored.
+  type Dictation = { live: TextLiveTranscriptController; sendRequested: boolean; superseded: boolean };
+  let dictation = $state.raw<Dictation | null>(null);
+  let latestDictation: Dictation | null = null;
+  let recordingHasText = $state(false);
+  let dictationProcessing = $state(false);
   let focused = $derived(focusActive);
   let expanded = $state(false);
   const hasText = $derived(value.trim().length > 0);
+  // Resolved after mount so server rendering never guesses the device.
+  let touchDevice = $state(false);
+  onMount(() => { touchDevice = !isDesktop(); });
+  const quickCamera = $derived(!!fileImport?.onCamera && touchDevice && !focused);
   const collapsible = $derived(surface === 'workflows' || surface === 'tasks' || presentation === 'embed');
   const collapsed = $derived(collapsible && !focused && !recording);
   // The visible preview never replaces the bound draft or its line breaks.
@@ -79,10 +105,107 @@
     const style = getComputedStyle(textareaElement);
     const lineHeight = Number.parseFloat(style.lineHeight) || 22;
     const maximum = collapsible ? (expanded && !recording ? Number.parseFloat(style.maxHeight) : lineHeight * 4) : 160;
-    const height = collapsed || recording ? lineHeight : expanded ? maximum : collapsible && focused ? lineHeight * 4 : Math.min(textareaElement.scrollHeight, maximum);
+    const recordingLines = recording && recordingHasText ? lineHeight * 4 : lineHeight;
+    const height = collapsed ? lineHeight : recording ? recordingLines : expanded ? maximum : collapsible && focused ? lineHeight * 4 : Math.min(textareaElement.scrollHeight, maximum);
     textareaElement.style.height = `${height}px`;
     if (collapsed) textareaElement.scrollTop = 0;
+    else if (recording) textareaElement.scrollTop = textareaElement.scrollHeight;
   }
+
+  function startDictation(): TextLiveTranscriptController | null {
+    const field = textareaElement;
+    if (!field) return null;
+    // An unfocused field's DOM selection is unreliable (it can reset to 0 once the
+    // recorder takes focus), so dictation continues at the caret it last wrote.
+    let caret = { start: field.value.length, end: field.value.length };
+    if (document.activeElement === field) caret = { start: field.selectionStart, end: field.selectionEnd };
+    else field.setSelectionRange(caret.start, caret.end);
+    return createTextLiveTranscript({
+      read: () => {
+        if (document.activeElement === field) caret = { start: field.selectionStart, end: field.selectionEnd };
+        const end = Math.min(caret.end, field.value.length);
+        return { value: field.value, selectionStart: Math.min(caret.start, end), selectionEnd: end };
+      },
+      write: (next, at) => {
+        field.value = next;
+        value = next;
+        caret = { start: at, end: at };
+        field.setSelectionRange(at, at);
+      },
+    });
+  }
+
+  function handleLiveTranscript(event: CustomEvent<{ transcript: string }>): void {
+    if (!dictation?.live.apply(event.detail.transcript)) return;
+    recordingHasText = dictation.live.hasText();
+  }
+
+  function handleRecordingCancelled(): void {
+    if (dictation) {
+      dictation.superseded = true;
+      dictation.live.discard();
+    }
+    dictation = null;
+    dictationProcessing = false;
+    onRecordingClose?.();
+  }
+
+  // contract-test: direct surface=gui.web assertions=message-input.audio.workspace-dictation
+  async function handleAudioRecorded(event: CustomEvent<RecordedAudio>): Promise<void> {
+    const current = dictation;
+    const overlay = recordAudioComponent;
+    const { blob, mimeType, realtime } = event.detail;
+    if (!current) { realtime?.cancel(); return; }
+    let failed = false;
+    let clean = false;
+    if (realtime) {
+      dictationProcessing = true;
+      try {
+        const { transcript, useCorrected, correctionSkipped } = await realtime.correction;
+        if (current.superseded) return;
+        clean = useCorrected || !!correctionSkipped;
+        // One untouched dictation segment becomes the corrected text; text
+        // edited while speaking stays as arranged.
+        current.live.applyCorrection(transcript);
+      } catch (error) {
+        if (current.superseded) return;
+        console.error('[WorkspacePromptComposer] Transcript correction failed:', error);
+        failed = true;
+      } finally {
+        if (!current.superseded) dictationProcessing = false;
+      }
+    }
+    if (current.superseded) return;
+    const transcribed = current.live.hasText();
+    if (!transcribed) onUntranscribedAudio?.({ blob, mimeType, failed: failed || !realtime });
+    if (!realtime || !transcribed) {
+      // Without corrected text there is nothing for the retained overlay to wait for.
+      await overlay?.completeSend();
+      return;
+    }
+    const submit = current.sendRequested || (submitDictationOnFinish && clean);
+    if (submit && value.trim()) {
+      try { await submitComposer(); } finally { await overlay?.completeSend(); }
+      return;
+    }
+    if (current.sendRequested) await overlay?.completeSend();
+  }
+
+  $effect(() => {
+    if (!recording) {
+      // A pending correction of the closed recording still finishes; it
+      // clears the processing state itself.
+      dictation = null;
+      recordingHasText = false;
+      return;
+    }
+    if (dictation || !textareaElement) return;
+    const live = startDictation();
+    if (!live) return;
+    if (latestDictation) latestDictation.superseded = true;
+    dictationProcessing = false;
+    latestDictation = dictation = { live, sendRequested: false, superseded: false };
+  });
 
   function handleFocusIn(event: FocusEvent): void {
     if (event.target === textareaElement) {
@@ -121,7 +244,8 @@
   }
 
   function handleKeydown(event: KeyboardEvent): void {
-    if (event.isComposing) return;
+    // The recorder owns Enter (finish) and Escape (cancel) while dictating.
+    if (event.isComposing || recording) return;
     if (event.key === 'Escape' && collapsible) {
       event.preventDefault();
       focusActive = false;
@@ -163,6 +287,7 @@
   class:has-text={hasText}
   class:hasFileImport={!!fileImport}
   class:recording
+  class:recording-with-text={recording && recordingHasText}
   class:collapsible
   class:collapsed
   class:expanded
@@ -181,19 +306,19 @@
     void submitComposer();
   }}
 >
-  {#if fileImport && !(presentation === 'embed' && collapsed)}
+  {#if fileImport}
+    {@const label = quickCamera ? $text('enter_message.attachments.take_photo') : fileImport.label}
     <button
       class="workspace-prompt-file"
       type="button"
       data-testid={fileImport.testId}
-      aria-label={fileImport.label}
-      title={fileImport.label}
+      data-attachment-kind={quickCamera ? 'camera' : 'files'}
+      aria-label={label}
+      title={label}
       disabled={disabled || submitting}
       onmousedown={(event) => { if (collapsible) event.preventDefault(); }}
-      onclick={fileImport.onClick}
-    ><span class="clickable-icon icon_files" aria-hidden="true"></span></button>
-  {:else}
-    <span class="workspace-prompt-ai-icon" aria-hidden="true"></span>
+      onclick={() => (quickCamera && fileImport.onCamera ? fileImport.onCamera() : fileImport.onClick())}
+    ><span class="clickable-icon" class:icon_camera={quickCamera} class:icon_files={!quickCamera} aria-hidden="true"></span></button>
   {/if}
   <div class="workspace-prompt-text">
     {#if collapsed && hasText}
@@ -209,7 +334,9 @@
     {disabled}
     readOnly={submitting}
     aria-label={placeholder}
-    oninput={() => void syncTextareaHeight()}
+    class:dictation-processing={dictationProcessing}
+    data-dictation-processing={dictationProcessing ? 'true' : 'false'}
+    oninput={() => { if (textareaElement) dictation?.live.observe(textareaElement.value); void syncTextareaHeight(); }}
     onkeydown={handleKeydown}
   ></textarea>
   </div>
@@ -226,16 +353,8 @@
       onclick={() => void toggleExpanded()}
     ><span class="clickable-icon" class:icon_minimize={expanded} class:icon_fullscreen={!expanded} aria-hidden="true"></span></button>
   {/if}
-  {#if hasText}
+  <div class="workspace-prompt-actions" data-testid={`${inputTestId}-actions`}>
     <button
-      class="workspace-prompt-submit"
-      type="submit"
-      data-testid={submitTestId}
-      disabled={disabled || submitting}
-      onmousedown={(event) => { if (collapsible) event.preventDefault(); }}
-    >{submitting ? submittingLabel : submitLabel}</button>
-  {/if}
-  <button
       class="clickable-icon icon_recordaudio workspace-prompt-mic"
       type="button"
       data-testid={micTestId}
@@ -244,14 +363,33 @@
       onmousedown={(event) => { if (collapsible) event.preventDefault(); }}
       onclick={() => void onMicClick()}
     ></button>
+    {#if hasText && focused}
+      <button
+        class="workspace-prompt-submit"
+        type="submit"
+        data-testid={submitTestId}
+        disabled={disabled || submitting}
+        onmousedown={(event) => { if (collapsible) event.preventDefault(); }}
+      >{submitting ? submittingLabel : submitLabel}</button>
+    {:else if hasText}
+      <CompactSendButton testId={submitTestId} disabled={disabled || submitting} busy={submitting} onclick={() => void submitComposer()} />
+    {/if}
+  </div>
   {#if recording}
-    <RecordAudio initialPosition={{ x: 0, y: 0 }} enableRealtime={true}
-      allowSend={!!recordingSendAction}
-      on:sendrequested={() => recordingSendAction?.onRequest()}
-      correctionContext={surface === 'workflows' ? 'workflow' : undefined}
-      on:audiorecorded={(event) => void onAudioRecorded?.(event)}
-      on:close={() => onRecordingClose?.()}
-      on:cancel={() => onRecordingClose?.()} />
+    <div class="workspace-recording-controls" data-testid={`${inputTestId}-recording-controls`}>
+      <RecordAudio bind:this={recordAudioComponent} initialPosition={{ x: 0, y: 0 }} enableRealtime={true}
+        compact={true}
+        transcriptInEditor={true}
+        retainUntilCorrection={true}
+        retainUntilSend={true}
+        allowSend={true}
+        correctionContext={surface === 'workflows' ? 'workflow' : undefined}
+        on:livetranscript={handleLiveTranscript}
+        on:sendrequested={() => { if (dictation) dictation.sendRequested = true; }}
+        on:audiorecorded={(event) => void handleAudioRecorded(event)}
+        on:close={() => onRecordingClose?.()}
+        on:cancel={handleRecordingCancelled} />
+    </div>
   {/if}
 </form>
 {#if collapsible}
@@ -294,9 +432,51 @@
     padding-right: var(--spacing-5);
   }
 
-  .workspace-prompt-composer.recording {
-    min-height: 220px;
+  /* Dictation: empty capture keeps the compact height; once words arrive the
+     field expands above the compact recording controls, like the chat composer. */
+  form.workspace-prompt-composer.recording {
+    --recording-controls-height: var(--composer-compact-height, 60px);
+    min-height: var(--recording-controls-height);
+    padding: 0;
     border-radius: 24px;
+    overflow: hidden;
+  }
+
+  form.workspace-prompt-composer.recording.recording-with-text {
+    display: block;
+    min-height: var(--composer-focused-height, 180px);
+    padding: var(--spacing-8) var(--spacing-8) calc(var(--recording-controls-height) + var(--spacing-4));
+  }
+
+  .workspace-prompt-composer.recording:not(.recording-with-text) .workspace-prompt-text,
+  .workspace-prompt-composer.recording .workspace-prompt-file,
+  .workspace-prompt-composer.recording .workspace-prompt-actions {
+    display: none;
+  }
+
+  .workspace-prompt-composer.recording textarea { text-align: left; }
+
+  .workspace-recording-controls {
+    position: absolute;
+    inset: auto 0 0;
+    height: var(--recording-controls-height);
+  }
+
+  /* Same sweep as the chat composer's dictated text while correction runs. */
+  textarea.dictation-processing {
+    background: linear-gradient(90deg,
+      var(--color-font-primary) 0%,
+      var(--color-font-primary) 35%,
+      #667eea 45%,
+      #a78bfa 50%,
+      #764ba2 55%,
+      var(--color-font-primary) 65%,
+      var(--color-font-primary) 100%);
+    background-size: 200% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    animation: processing-text-shimmer 1.5s infinite linear;
   }
 
   .workspace-prompt-composer.collapsible.focused:not(.recording) {
@@ -314,30 +494,34 @@
     padding-right: 28px;
   }
 
-  .workspace-prompt-composer.collapsible.focused .workspace-prompt-submit {
-    position: absolute;
-    right: 58px;
-    bottom: 16px;
-    margin: 0;
+  /* Right action group, like the chat composer: the microphone sits left of
+     Send. Empty and resting it holds only the centered-row microphone; a
+     draft adds Send in the row; focus moves the group to the bottom row. */
+  .workspace-prompt-actions {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: var(--spacing-5);
   }
 
-  .workspace-prompt-composer.collapsible.focused .workspace-prompt-ai-icon,
-  .workspace-prompt-composer.collapsible.focused .workspace-prompt-file,
-  .workspace-prompt-composer.collapsible.focused .workspace-prompt-mic {
+  .workspace-prompt-composer:not(.has-text):not(.focused) .workspace-prompt-actions {
+    position: absolute;
+    top: 50%;
+    right: 24px;
+    transform: translateY(-50%);
+  }
+
+  .workspace-prompt-composer.collapsible.focused .workspace-prompt-actions {
+    position: absolute;
+    right: 16px;
+    bottom: 16px;
+  }
+
+  .workspace-prompt-composer.collapsible.focused .workspace-prompt-file {
     top: auto;
+    bottom: 16px;
     transform: none;
   }
-
-  .workspace-prompt-composer.collapsible.focused .workspace-prompt-ai-icon {
-    bottom: 24px;
-  }
-
-  .workspace-prompt-composer.collapsible.focused .workspace-prompt-file,
-  .workspace-prompt-composer.collapsible.focused .workspace-prompt-mic {
-    bottom: 16px;
-  }
-
-  .workspace-prompt-composer.collapsible.focused .workspace-prompt-mic { right: 18px; }
 
   .workspace-prompt-cancel {
     display: block;
@@ -391,8 +575,7 @@
     filter: none;
   }
 
-  .workspace-prompt-composer.collapsible.focused .workspace-prompt-file:hover,
-  .workspace-prompt-composer.collapsible.focused .workspace-prompt-mic:hover {
+  .workspace-prompt-composer.collapsible.focused .workspace-prompt-file:hover {
     transform: scale(1.05);
   }
 
@@ -408,6 +591,7 @@
     .workspace-prompt-composer,
     .workspace-prompt-composer.collapsible textarea,
     .workspace-prompt-cancel { transition: none; }
+    textarea.dictation-processing { animation: none; background: none; color: var(--color-font-secondary, var(--color-font-primary)); }
   }
 
   .workspace-prompt-composer.collapsed textarea {
@@ -473,11 +657,7 @@
       padding-inline: 36px;
     }
 
-    .workspace-prompt-composer[data-surface='workflows']:not(.hasFileImport):not(.has-text) .workspace-prompt-ai-icon {
-      left: 8px;
-    }
-
-    .workspace-prompt-composer[data-surface='workflows']:not(.hasFileImport):not(.has-text) .workspace-prompt-mic {
+    .workspace-prompt-composer[data-surface='workflows']:not(.hasFileImport):not(.has-text):not(.focused) .workspace-prompt-actions {
       right: 8px;
     }
 
@@ -488,24 +668,6 @@
     }
   }
 
-  .workspace-prompt-ai-icon {
-    position: absolute;
-    top: 50%;
-    left: 22px;
-    width: 24px;
-    height: 24px;
-    background: var(--empty-input-placeholder-color, color-mix(in srgb, var(--color-font-primary) 72%, transparent));
-    transform: translateY(-50%);
-    -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
-    mask-image: url('@openmates/ui/static/icons/ai.svg');
-    -webkit-mask-position: center;
-    mask-position: center;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    pointer-events: none;
-  }
 
   textarea {
     width: 100%;
@@ -550,10 +712,6 @@
     font: inherit;
     font-weight: 800;
     cursor: pointer;
-  }
-
-  .workspace-prompt-composer.collapsible.has-text:not(.focused) .workspace-prompt-submit {
-    margin-right: 38px;
   }
 
   .workspace-prompt-file {
@@ -601,17 +759,16 @@
   }
 
   .workspace-prompt-mic {
-    position: absolute;
-    top: 50%;
-    right: 24px;
+    position: relative;
+    flex-shrink: 0;
+    margin: 0;
     background: var(--color-primary);
-    transform: translateY(-50%);
     touch-action: none;
     transition: background-color .15s ease-in-out, scale .15s ease-in-out;
   }
 
   .workspace-prompt-mic:hover {
-    transform: translateY(-50%) scale(1.05);
+    transform: scale(1.05);
   }
 
   @media (max-width: 730px) {
@@ -653,5 +810,4 @@
   .workspace-prompt-composer.embed-presentation.expanded textarea {
     max-height: min(40dvh, 20rem);
   }
-  .embed-presentation.recording { min-height: 220px; }
 </style>

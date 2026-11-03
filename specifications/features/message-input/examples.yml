@@ -360,6 +360,26 @@ live_editor_recording:
   when: The address is detected, then the user presses Finish.
   then: The address is highlighted and can be excluded by tapping, the recording Send control fades out leaving Cancel and Finish, and after Finish the dictated text shows an animated gradient above the still-colored recording controls until the corrected text replaces it.
 
+workspace_dictation:
+- id: fullscreen-followup-dictation-matches-chat
+  given: A user has typed "Keep the mountain." into the follow-up composer of an open fullscreen image result.
+  when: The user taps the microphone, says "make the sky brighter", and then taps Finish.
+  then: The field expands and shows "Keep the mountain. make the sky brighter" as editable text above the same compact recording controls as the chat composer, with Cancel, Finish and Send. After Finish, the dictated words show the animated gradient until "Keep the mountain. Make the sky brighter." remains unsent for review.
+- id: workflow-dictation-submits-on-finish
+  given: A user opens the Workflow workspace with an empty composer.
+  when: The user taps the microphone, says "weather tomorrow at eight", and taps Finish.
+  then: The words appear live in the expanded composer in the same way, and once transcription completes the request is submitted once to create the Workflow. If transcription fails, the words already dictated stay editable and nothing is submitted.
+
+workspace_controls:
+- id: blurred-followup-draft-shows-round-send
+  given: A user has typed "Make the sky brighter" into the follow-up composer of an open fullscreen image result on a laptop.
+  when: The user clicks outside the composer.
+  then: The composer minimizes to one line with the file shortcut on the left (no AI icon), the draft preview, the microphone, and a round orange Send button with only an up arrow on the far right. Clicking into the field again shows the labeled Send button on the right with the microphone left of it.
+- id: phone-followup-shortcut-takes-photo
+  given: A user opens a fullscreen image result on a phone, so its follow-up composer is empty and minimized.
+  when: The user taps the left shortcut.
+  then: The camera picker opens directly without opening the keyboard, the same as in the chat composer.
+
 quick_attachments:
 - id: phone-or-ipad-camera-shortcut
   given: A user has an empty minimized composer on an iPhone or an iPad, even when the iPad uses its desktop-sized viewport.

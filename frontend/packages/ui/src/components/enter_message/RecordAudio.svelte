@@ -317,6 +317,10 @@
                 });
                 void realtimeHandle.correction.catch((error: Error) => {
                     if (isCancelled || realtimeHandedOff || overlayCloseNotified) return;
+                    // After Finish the host owns correction failures through the
+                    // audiorecorded handoff; escalating to cancel here would discard
+                    // live text that is already in the editor.
+                    if (stopIntent === 'finish') return;
                     dispatch('transcriptionerror', error);
                     stopInternal(true);
                 });

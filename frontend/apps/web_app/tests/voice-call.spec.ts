@@ -2332,6 +2332,12 @@ test.describe('Voice mode through ordinary chat', () => {
     await expect(composer).toHaveClass(/call-transcript-active/);
     await expect(composer).not.toHaveClass(/(^|\s)(compact|inline-compact)(\s|$)/);
     expect((await composer.boundingBox())!.height).toBeGreaterThan(100);
+    // Only the spoken words show: no empty-field placeholder, attach or Send row.
+    await expect(composer.getByTestId('action-buttons')).toHaveCount(0);
+    expect(await composer.evaluate(node=>{
+      const empty=node.querySelector('.ProseMirror p.is-editor-empty:first-child');
+      return empty?getComputedStyle(empty,'::before').display:'none';
+    })).toBe('none');
     // Record whether the spoken reply is dimmed word by word while it plays.
     await page.evaluate(()=>{
       const target=window as unknown as {__unspokenSamples?:number[]};

@@ -142,6 +142,28 @@ describe('RecordAudio finalization', () => {
         await unmount(mounted.component);
     });
 
+    // contract-test: direct surface=gui.web assertions=message-input.recording.lifecycle,message-input.audio.workspace-dictation
+    it('keeps a pending Finish when correction fails before MediaRecorder stops', async () => {
+        let rejectCorrection!: (error: Error) => void;
+        realtimeMocks.correction = new Promise((_resolve, reject) => { rejectCorrection = reject; });
+        const mounted = mountRecorder({ realtime: true });
+        await flushMount();
+        const recorder = FakeMediaRecorder.instances[0];
+        recorder.emitData('dictated-audio');
+
+        mounted.target.querySelector<HTMLButtonElement>('[data-testid="record-finish-button"]')!.click();
+        rejectCorrection(new Error('Transcription unavailable'));
+        await flushMount();
+        expect(mounted.cancel).not.toHaveBeenCalled();
+        expect(mounted.transcriptionError).not.toHaveBeenCalled();
+
+        recorder.emitStop();
+        await flushMount();
+        expect(mounted.audioRecorded).toHaveBeenCalledTimes(1);
+        expect(mounted.cancel).not.toHaveBeenCalled();
+        await unmount(mounted.component, { outro: false });
+    });
+
     // contract-test: direct surface=gui.web assertions=message-input.recording.lifecycle,message-input.embeds.gated-send
     it('uses a bounded finish fallback when MediaRecorder never emits stop', async () => {
         realtimeMocks.finish.mockImplementationOnce(() => {

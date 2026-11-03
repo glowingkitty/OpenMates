@@ -666,7 +666,7 @@ specifications:
     version: 12
     status: draft
     path: features/message-input
-    fingerprint: 53cd58f0ab1423687b18050cddc91341a451e71ecb3580401ce55b1c97d72643
+    fingerprint: 97700c674a80d730eba068d9b1cb8f2545110e5909d5a9a52c788a90e6dbd4ee
     required_applies_to:
     - gui.web
     - gui.apple
@@ -8399,7 +8399,23 @@ assertions:
     specification: feature.message-input@12
     specification_id: feature.message-input
     type: behavior
-    fingerprint: 70b56b6ee60a3b4398a85822fe301619292985168d337880eaa5bd33902948ea
+    fingerprint: 6a1ce4b45c464303836f66c099708f1a4d99f02c042d266510aa723309bd9c85
+    required_applies_to:
+    - gui.web
+    - gui.apple
+  message-input.audio.workspace-dictation:
+    specification: feature.message-input@12
+    specification_id: feature.message-input
+    type: behavior
+    fingerprint: 76f3c5966f78a291963c7f291818159b5b428d4f08b6335b69abbe1123525e99
+    required_applies_to:
+    - gui.web
+    - gui.apple
+  message-input.workspace.controls-parity:
+    specification: feature.message-input@12
+    specification_id: feature.message-input
+    type: behavior
+    fingerprint: 1b2813f1a30432a0a3761e2b472a5affa76881f15fde75f72c5f776f28d4dcee
     required_applies_to:
     - gui.web
     - gui.apple

@@ -51,43 +51,73 @@ test('embedded followup uses readable canonical composer geometry and expands wi
   await expect(input).toHaveValue('Keep this followup draft');
 });
 
-for (const theme of ['light', 'dark']) {
-  // contract-test: direct surface=gui.web assertions=apps.requests.natural-language,apps.results.shared-fullscreen
-  test(`embedded followup sparkle is decorative gray and its input surface expands in ${theme}`, async ({ page }) => {
+for (const [theme, device] of [['light', 'desktop'], ['dark', 'touch']] as const) {
+  // contract-test: direct surface=gui.web assertions=message-input.workspace.controls-parity,message-input.actions.visibility,message-input.attachments.quick-access,apps.results.shared-fullscreen
+  test(`embedded followup uses the chat composer controls on ${device} in ${theme}`, async ({ page }) => {
+    if (device === 'touch') {
+      // Touch-first devices report a coarse pointer, like phones and tablets.
+      await page.addInitScript(() => {
+        const original = window.matchMedia.bind(window);
+        window.matchMedia = (query: string) => query.includes('pointer: coarse')
+          ? { ...original(query), matches: true, media: query }
+          : original(query);
+      });
+    }
     await page.goto(`/dev/preview/apps/AppsRequestComposer?chrome=0&theme=${theme}&width=700&variant=embed`);
     await waitForComponentPreview(page);
     const composer = page.getByTestId('apps-request-composer');
     const input = page.getByTestId('apps-request-textarea');
-    const sparkle = composer.locator('.workspace-prompt-ai-icon');
-    await expect(sparkle).toBeVisible();
-    await expect(sparkle).toHaveAttribute('aria-hidden', 'true');
-    await expect(sparkle).toHaveCSS('pointer-events', 'none');
-    expect(await sparkle.evaluate(element => ({
-      tag: element.tagName,
-      button: !!element.closest('button, a, [role="button"]'),
-      tabIndex: (element as HTMLElement).tabIndex,
-    }))).toEqual({ tag: 'SPAN', button: false, tabIndex: -1 });
-    const normalInputGray = await sparkle.evaluate(element => {
-      const probe = document.createElement('span');
-      // The actual normal message input uses this same placeholder color.
-      probe.style.background = 'var(--empty-input-placeholder-color, color-mix(in srgb, var(--color-font-primary) 72%, transparent))';
-      element.parentElement!.appendChild(probe);
-      const color = getComputedStyle(probe).backgroundColor;
-      probe.remove();
-      return color;
-    });
-    await expect(sparkle).toHaveCSS('background-color', normalInputGray);
-    await expect(page.getByTestId('apps-request-add-files')).toHaveCount(0);
-    const iconBounds = (await sparkle.boundingBox())!;
-    // Pointer input on the decorative icon reaches the same clickable field.
-    await page.mouse.click(iconBounds.x + iconBounds.width / 2, iconBounds.y + iconBounds.height / 2);
-    await expect(input).toBeFocused();
+    const shortcut = page.getByTestId('apps-request-add-files');
+    const mic = page.getByTestId('apps-request-mic');
+    // No decorative AI icon: the minimized composer leads with the attachment shortcut.
+    await expect(composer.locator('.workspace-prompt-ai-icon')).toHaveCount(0);
+    await expect(shortcut).toBeVisible();
+    const kind = device === 'touch' ? 'camera' : 'files';
+    await expect(shortcut).toHaveAttribute('data-attachment-kind', kind);
+    await expect(shortcut.locator(`.icon_${kind}`)).toBeVisible();
+    await expect(shortcut).toHaveAccessibleName(device === 'touch' ? 'Take photo' : 'Attach files');
+    // The shortcut opens its picker directly without focusing the field.
+    const picker = page.getByTestId(device === 'touch' ? 'apps-request-camera-input' : 'apps-request-file-input');
+    await picker.evaluate(element => element.addEventListener('click', event => {
+      event.preventDefault();
+      element.setAttribute('data-opened', 'true');
+    }, { once: true }));
+    await shortcut.click();
+    await expect(picker).toHaveAttribute('data-opened', 'true');
+    await expect(input).not.toBeFocused();
+    await expect(composer).not.toHaveClass(/focused/);
+
+    // Focused draft: labeled Send on the right with the microphone left of it.
+    await input.fill('Make the sky brighter');
     await expect(composer).toHaveClass(/focused/);
     await expect.poll(async () => (await composer.boundingBox())!.height).toBeGreaterThanOrEqual(180);
-    await expect(sparkle).toHaveCount(0);
-    await expect(page.getByTestId('apps-request-add-files')).toBeVisible();
+    const labeled = page.getByTestId('apps-request-submit');
+    await expect(labeled).toHaveText('Send');
+    await expect(shortcut).toHaveAttribute('data-attachment-kind', 'files');
+    const [field, micBox, sendBox, fileBox] = await Promise.all([composer.boundingBox(), mic.boundingBox(), labeled.boundingBox(), shortcut.boundingBox()]);
+    expect(micBox!.x + micBox!.width).toBeLessThanOrEqual(sendBox!.x);
+    expect(sendBox!.x + sendBox!.width).toBeLessThanOrEqual(field!.x + field!.width);
+    expect(fileBox!.x + fileBox!.width).toBeLessThan(micBox!.x);
+
+    // Blurred draft: round orange icon-only Send, still right of the microphone.
     await input.press('Escape');
-    await expect(sparkle).toBeVisible();
+    await expect(composer).not.toHaveClass(/focused/);
+    await expect(input).toHaveValue('Make the sky brighter');
+    const round = page.getByTestId('apps-request-submit');
+    await expect(round).toHaveAccessibleName('Send');
+    await expect(round).toHaveText('');
+    await expect(round.locator('svg')).toBeVisible();
+    await expect(round).toHaveCSS('width', '40px');
+    await expect(round).toHaveCSS('height', '40px');
+    await expect(round).toHaveCSS('border-radius', '50%');
+    await expect(shortcut).toHaveAttribute('data-attachment-kind', kind);
+    await waitForComponentMotion(composer);
+    const [rest, restMic, restSend, restFile, restText] = await Promise.all([composer.boundingBox(), mic.boundingBox(), round.boundingBox(), shortcut.boundingBox(), page.getByTestId('apps-request-textarea-preview').boundingBox()]);
+    expect(restFile!.x + restFile!.width).toBeLessThanOrEqual(restText!.x + 1);
+    expect(restText!.x + restText!.width).toBeLessThanOrEqual(restMic!.x + 1);
+    expect(restMic!.x + restMic!.width).toBeLessThanOrEqual(restSend!.x);
+    expect(restSend!.x + restSend!.width).toBeLessThanOrEqual(rest!.x + rest!.width);
+    await composer.screenshot({ path: test.info().outputPath(`embed-followup-blurred-draft-${device}-${theme}.png`) });
   });
 }
 

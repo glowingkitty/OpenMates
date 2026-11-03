@@ -202,6 +202,11 @@
   min-height: var(--composer-focused-height, 180px);
 }
 
+/* The spoken words replace the empty-field placeholder. */
+.message-field.call-transcript-active :global(.ProseMirror p.is-editor-empty:first-child::before) {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .message-field, .scrollable-content { transition: none; }
 }

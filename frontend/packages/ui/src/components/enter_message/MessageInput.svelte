@@ -951,8 +951,10 @@
     // is active — otherwise the onmouseup/touchend handlers on the record button are
     // removed from the DOM before they can fire (because the editor blur clears
     // isMessageFieldFocused after 150ms, hiding ActionButtons mid-interaction).
+    // A live call transcript shows only the expanded field with the spoken
+    // words; the call bar owns the controls, so no attach/Send row appears.
     let shouldShowActionButtons = $derived(
-        !startNewChatOnClick && !isDraftPreview && !recordingLayoutActive && (
+        !startNewChatOnClick && !isDraftPreview && !recordingLayoutActive && !callLiveTranscript && (
             isFullscreen ||
             showActionButtons ||
             anonymousUsageExhausted ||

@@ -289,7 +289,11 @@ test.describe('Workflows input home', () => {
 			failEditorSave = true;
 			await expect(page.getByTestId('workflow-ai-pending-preview')).toHaveCount(0);
 			await expect(page.getByTestId('workspace-detail-title')).toHaveText(shortRequest);
-			await expect(page.getByTestId('workflows-error')).toContainText('Could not save the workflow.');
+			const notice = page.getByTestId('notification').filter({ hasText: 'Could not save the workflow.' });
+			await expect(notice).toBeVisible();
+			// The notification stack overlays the detail header; dismiss it like a user would.
+			await notice.getByTestId('notification-dismiss').click();
+			await expect(notice).toHaveCount(0);
 
 			const updatedWorkflow = {
 				...draft,
@@ -356,7 +360,11 @@ test.describe('Workflows input home', () => {
 			await expect(page.locator('[data-testid="workflow-node-card"][data-node-id="summary"]')).toHaveAttribute('data-ai-change', 'added');
 			await expect(page.getByTestId('workflow-ai-undo')).toBeEnabled();
 			await page.getByTestId('workflow-ai-undo').click();
-			await expect(page.getByTestId('workflows-error')).toContainText('A newer change prevents Undo.');
+			const undoNotice = page.getByTestId('notification').filter({ hasText: 'A newer change prevents Undo.' });
+			await expect(undoNotice).toBeVisible();
+			// The notification stack overlays the detail header; dismiss it like a user would.
+			await undoNotice.getByTestId('notification-dismiss').click();
+			await expect(undoNotice).toHaveCount(0);
 			await expect(page.getByTestId('workflow-ai-open-history')).toBeVisible();
 			await expect(page.getByTestId('workspace-detail-title')).toHaveText(updatedWorkflow.title);
 			undoConflicts = false;
@@ -372,6 +380,9 @@ test.describe('Workflows input home', () => {
 			await expect(page.getByTestId('workflow-unsaved-guard')).toBeVisible();
 			await page.getByTestId('workflow-guard-stay').click();
 			await expect(identityInput).toHaveValue(`${shortRequest} manual draft`);
+			// A focused docked composer makes the rest of the detail inert; leave it first, as a user would.
+			await page.getByTestId('workflow-ai-edit-textarea-cancel').click();
+			await expect(page.getByTestId('workflow-management')).not.toHaveClass(/composer-focused/);
 			await page.getByTestId('workflow-detail-back').click();
 			await expect(page.getByTestId('workflow-unsaved-guard')).toBeVisible();
 			await page.getByTestId('workflow-guard-stay').click();
@@ -422,7 +433,7 @@ test.describe('Workflows input home', () => {
 		}
 	});
 
-	// contract-test: direct surface=gui.web assertions=workflows-ui.mvp.authoring
+	// contract-test: direct surface=gui.web assertions=workflows-ui.mvp.authoring,message-input.audio.workspace-dictation
 	test('streams raw workflow voice requests, recovers transcription failures, and clarifies an edit', async ({ page }: { page: Page }) => {
 		test.setTimeout(120000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
@@ -487,7 +498,12 @@ test.describe('Workflows input home', () => {
 		await expect(page.getByTestId('workflow-input-textarea-expand')).toHaveCount(0);
 		expect((await page.getByTestId('workflow-input-composer').boundingBox())!.height).toBeLessThanOrEqual(230);
 		await expect.poll(() => socketConnections, { timeout: 15000 }).toBeGreaterThan(0);
-		await expect(page.getByTestId('workflow-input-composer').getByTestId('recording-live-transcript')).toContainText('Weather tomorrow', { timeout: 15000 });
+		// Same dictation UI as the chat composer: live words stream into the expanded field.
+		await expect(page.getByTestId('workflow-input-textarea')).toHaveValue('Weather tomorrow', { timeout: 15000 });
+		await expect(page.getByTestId('workflow-input-composer')).toHaveClass(/recording-with-text/);
+		await expect(page.getByTestId('workflow-input-composer').getByTestId('recording-live-transcript')).toHaveCount(0);
+		// The field expands with a height transition.
+		await expect.poll(async () => (await page.getByTestId('workflow-input-composer').boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(170);
 		await page.getByTestId('workflow-input-composer').getByTestId('record-finish-button').click();
 		await expect.poll(() => submittedTexts.length).toBe(1);
 		expect(submittedTexts[0]).toBe('Weather tomorrow at 08:00');
@@ -508,7 +524,7 @@ test.describe('Workflows input home', () => {
 		await expect(page.getByTestId('workflow-input-composer').getByTestId('record-overlay')).toBeVisible();
 		await expect(page.getByTestId('workflow-input-composer').getByTestId('timer-pill')).toContainText('00:01');
 		await page.getByTestId('workflow-input-composer').getByTestId('record-finish-button').click();
-		await expect(page.getByTestId('workflows-error')).toContainText('Could not transcribe this recording. Please record again or type your workflow request.');
+		await expect(page.getByTestId('notification').filter({ hasText: 'Could not transcribe this recording. Please record again or type your workflow request.' })).toBeVisible();
 		await expect(page.getByTestId('workflow-input-textarea')).toHaveValue('');
 		expect(submittedTexts).toHaveLength(1);
 
@@ -524,11 +540,11 @@ test.describe('Workflows input home', () => {
 			emptyTranscription = false;
 			clarifyNextSession = true;
 			rawFinalTranscript = 'Also search for AI meetups and queer meetups';
-			await page.goto(getE2EDebugUrl(`/workflows#workflow-id=${encodeURIComponent(workflowId)}&tab=details`), { waitUntil: 'domcontentloaded' });
+			await page.goto(getE2EDebugUrl(`/#workflow-id=${encodeURIComponent(workflowId)}&workflow-tab=details`), { waitUntil: 'domcontentloaded' });
 			await expect(page.getByTestId('workflow-ai-edit-mic')).toBeVisible();
 			await page.getByTestId('workflow-ai-edit-mic').click();
 			await expect(page.getByTestId('workflow-ai-edit-composer').getByTestId('record-overlay')).toBeVisible();
-			await expect(page.getByTestId('workflow-ai-edit-composer').getByTestId('recording-live-transcript')).toContainText('Weather tomorrow');
+			await expect(page.getByTestId('workflow-ai-edit-textarea')).toHaveValue('Weather tomorrow');
 			await page.getByTestId('workflow-ai-edit-composer').getByTestId('record-finish-button').click();
 			await expect.poll(() => submittedTexts.length).toBe(2);
 			expect(submittedTexts[1]).toBe(rawFinalTranscript);

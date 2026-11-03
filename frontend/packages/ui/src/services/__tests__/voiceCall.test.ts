@@ -120,7 +120,7 @@ vi.mock('../assistantSpeechController', async () => { const { writable } = await
 } }; });
 import { assistantSpeechController } from '../assistantSpeechController';
 
-import { VoiceCallController } from '../voiceCall';
+import { VOICE_CALL_SERVER_SILENCE_MS, VoiceCallController } from '../voiceCall';
 import { VoiceCallAudioGate } from '../voiceCallAudioGate';
 import { VoiceCallContextError } from '../voiceCallMessages';
 
@@ -302,6 +302,36 @@ describe('integrated voice call typed turns', () => {
     expect(canonical.send).not.toHaveBeenCalled();
     expect(persistence.lifecycle).not.toHaveBeenCalled();
     expect(cues.play).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.lifecycle.recovery-and-billing
+  it('ends a live call as lost when uploaded speech goes unanswered by the server', async () => {
+    vi.useFakeTimers();
+    try {
+      const { controller, sockets } = startingController();
+      await controller.start('chat-1');
+      const socket = sockets[0];
+      const gate = gates.instances[0];
+      socket.onopen!();
+      socket.onmessage!({ data: JSON.stringify({ type: 'ready', call_id: 'call-1', speech_output_transport: 'mp3_turn_stream_v2' }) });
+      expect(get(controller).status).toBe('live');
+      // Silence without uploaded audio is a healthy idle call.
+      vi.advanceTimersByTime(30_000);
+      expect(get(controller).status).toBe('live');
+      // Answered audio keeps the call alive.
+      gate.callbacks.onAudio('chunk-1');
+      vi.advanceTimersByTime(10_000);
+      socket.onmessage!({ data: JSON.stringify({ type: 'usage' }) });
+      vi.advanceTimersByTime(10_000);
+      expect(get(controller).status).toBe('live');
+      // Audio the server never answers (e.g. a stalled host) ends the call.
+      gate.callbacks.onAudio('chunk-2');
+      vi.advanceTimersByTime(VOICE_CALL_SERVER_SILENCE_MS + 500);
+      expect(get(controller)).toMatchObject({ status: 'error', error: 'connection_lost' });
+      expect(socket.close).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   // contract-test: direct surface=gui.web assertions=video-call.privacy.first-call-warning,video-call.audio.single-owner

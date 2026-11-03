@@ -46,7 +46,6 @@ test.describe('Workflow prompt composer', () => {
       await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute('data-preview-ready', 'true', { timeout: 30000 });
       const composer = page.getByTestId('workflows-input-composer');
       const input = page.getByTestId('workflows-input-textarea');
-      const icon = composer.locator('.workspace-prompt-ai-icon');
       const mic = page.getByTestId('workflows-input-mic');
       await expect(composer).toBeVisible();
       await expect(input).toHaveAttribute('placeholder', 'Describe workflow change.');
@@ -64,9 +63,10 @@ test.describe('Workflow prompt composer', () => {
 
       const emptyHeight = await input.evaluate((element: HTMLTextAreaElement) => element.scrollHeight);
       expect(emptyHeight).toBeLessThanOrEqual(30);
-      const [iconBox, inputBox, micBox] = await Promise.all([icon.boundingBox(), input.boundingBox(), mic.boundingBox()]);
-      if (!iconBox || !inputBox || !micBox) throw new Error('Composer controls must be measurable.');
-      expect(iconBox.x + iconBox.width).toBeLessThanOrEqual(inputBox.x);
+      // Like the chat composer there is no decorative AI icon; this composer takes no attachments.
+      await expect(composer.locator('.workspace-prompt-ai-icon')).toHaveCount(0);
+      const [inputBox, micBox] = await Promise.all([input.boundingBox(), mic.boundingBox()]);
+      if (!inputBox || !micBox) throw new Error('Composer controls must be measurable.');
       expect(inputBox.x + inputBox.width).toBeLessThanOrEqual(micBox.x);
       await composer.screenshot({ path: test.info().outputPath(`workflow-change-empty-${width}-${theme}.png`) });
       await input.fill('Add a morning summary\nInclude earlier results');
@@ -208,7 +208,7 @@ test.describe('Workflow prompt composer', () => {
     await page.goto(preview(390, 'disabled'), { waitUntil: 'networkidle' });
     await expect(page.getByTestId('workflow-import-button')).toBeDisabled();
     await page.goto(preview(390, 'projects'), { waitUntil: 'networkidle' });
-    await expect(page.locator('.workspace-prompt-ai-icon')).toBeVisible();
+    await expect(page.locator('.workspace-prompt-ai-icon')).toHaveCount(0);
     await expect(page.getByTestId('workflow-import-button')).toHaveCount(0);
   });
 
@@ -426,7 +426,12 @@ test.describe('Workflow prompt composer', () => {
     const composerBox = await composer.boundingBox();
     const recorderBox = await recorder.boundingBox();
     if (!composerBox || !recorderBox) throw new Error('Recording layout must be measurable.');
-    expect(composerBox.height).toBeGreaterThanOrEqual(220);
+    // Without transcribed words the phone composer keeps the chat composer's compact
+    // recording controls; it expands only once live words stream into the field.
+    expect(composerBox.height).toBeGreaterThanOrEqual(48);
+    expect(composerBox.height).toBeLessThanOrEqual(72);
+    expect(recorderBox.height).toBeLessThanOrEqual(64);
+    await expect(composer).not.toHaveClass(/recording-with-text/);
     expect(recorderBox.y).toBeGreaterThanOrEqual(composerBox.y - 1);
     expect(recorderBox.y + recorderBox.height).toBeLessThanOrEqual(composerBox.y + composerBox.height + 1);
     expect(recorderBox.x).toBeGreaterThanOrEqual(0);

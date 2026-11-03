@@ -89,14 +89,6 @@
 		tab: WorkflowTab;
 		runId: string | null;
 	};
-	type WorkflowAudioRecording = {
-		liveTranscript?: string;
-		realtime?: {
-			transcription: Promise<{ transcript: string }>;
-			correction: Promise<{ useCorrected: boolean; correctionSkipped?: boolean; transcriptCorrected?: string }>;
-		};
-	};
-
 	const WORKFLOWS_ROUTE = '/';
 	const WORKFLOW_ID_HASH_PARAM = 'workflow-id';
 	const WORKFLOW_TAB_HASH_PARAM = 'workflow-tab';
@@ -956,39 +948,8 @@
 		return false;
 	}
 
-	async function handleWorkflowAudioRecorded(event: CustomEvent<WorkflowAudioRecording>, target: 'home' | 'editor'): Promise<void> {
-		const { realtime, liveTranscript } = event.detail;
-		let raw = liveTranscript?.trim() ?? '';
-		const review = () => {
-			if (target === 'home') { workflowInputText = raw; homeComposerFocused = !!raw; }
-			else { editorInstruction = raw; editorComposerFocused = !!raw; }
-			if (!raw) routeError = $text('workflows.builder.voice_transcription_failed');
-		};
-		if (!realtime) {
-			review();
-			return;
-		}
-		try {
-			raw = (await realtime.transcription).transcript.trim() || raw;
-			const corrected = await realtime.correction;
-			if (corrected.correctionSkipped) {
-				if (!raw) {
-					review();
-					return;
-				}
-				if (target === 'home') await submitWorkflowInput(raw);
-				else submitEditorInstruction(raw);
-				return;
-			}
-			if (!corrected.useCorrected || !corrected.transcriptCorrected?.trim()) {
-				review();
-				return;
-			}
-			if (target === 'home') await submitWorkflowInput(corrected.transcriptCorrected);
-			else submitEditorInstruction(corrected.transcriptCorrected);
-		} catch {
-			review();
-		}
+	function handleWorkflowUntranscribedAudio(): void {
+		routeError = $text('workflows.builder.voice_transcription_failed');
 	}
 
 	function handoffWorkflowClarification(instruction: string, workflowId?: string): void {
@@ -1681,7 +1642,8 @@
 								onMicClick={() => { voiceTarget = 'home'; }}
 								fileImport={{ label: $text('workflows.builder.file_import_button'), testId: 'workflow-import-button', onClick: () => workflowImportInput?.click() }}
 								recording={voiceTarget === 'home'}
-								onAudioRecorded={(event) => handleWorkflowAudioRecorded(event, 'home')}
+								submitDictationOnFinish={true}
+								onUntranscribedAudio={handleWorkflowUntranscribedAudio}
 								onRecordingClose={() => { voiceTarget = null; }}
 							/>
 							</div>
@@ -1900,7 +1862,7 @@
 									disabled={true} submitting={true} testId="workflow-ai-edit-composer" inputTestId="workflow-ai-edit-textarea"
 									submitTestId="workflow-ai-edit-submit" micTestId="workflow-ai-edit-mic" onSubmit={() => undefined}
 									onMicClick={() => undefined} recording={false}
-									onAudioRecorded={() => undefined} onRecordingClose={() => undefined}/>
+									onRecordingClose={() => undefined}/>
 									{#if saving}<div class="workflow-ai-pending" data-testid="workflow-ai-pending" role="status"><span>{pendingSaveMessage || $text('workflows.builder.processing')}</span><button type="button" data-testid="workflow-ai-stop" disabled={stopRequested} onclick={() => void stopAuthoring()}>{stopRequested ? $text('workflows.builder.ai_stopping') : $text('workflows.builder.stop')}</button></div>{/if}
 							</div>
 						{:else if selectedWorkflow && !displayedRunsView && editorGraph}
@@ -1911,7 +1873,8 @@
 									disabled={!canRenderWorkflowData} submitting={saving || !!pendingSaveSessionId} testId="workflow-ai-edit-composer" inputTestId="workflow-ai-edit-textarea"
 									submitTestId="workflow-ai-edit-submit" micTestId="workflow-ai-edit-mic" onSubmit={submitEditorInstruction}
 									onMicClick={() => { voiceTarget = 'editor'; }} recording={voiceTarget === 'editor'}
-									onAudioRecorded={(event) => handleWorkflowAudioRecorded(event, 'editor')}
+									submitDictationOnFinish={true}
+									onUntranscribedAudio={handleWorkflowUntranscribedAudio}
 									onRecordingClose={() => { voiceTarget = null; }}/>
 								{#if pendingSaveSessionId || authoringPhase}<div class="workflow-ai-pending" data-testid="workflow-ai-pending" role="status"><span>{pendingSaveMessage || (authoringPhase === 'planning' ? 'Planning workflow...' : authoringPhase === 'retrying_node' ? 'Correcting this step...' : authoringPhase === 'validating' ? 'Validating workflow...' : $text('workflows.builder.ai_saving'))}</span>{#if pendingSaveSessionId && saving}<button type="button" data-testid="workflow-ai-stop" disabled={stopRequested} onclick={() => void stopAuthoring()}>{stopRequested ? 'Stopping...' : 'Stop'}</button>{/if}{#if pendingSaveSessionId && !saving}<button type="button" onclick={resumePendingSave}>{$text('workflows.builder.ai_check_status')}</button>{/if}</div>{/if}
 							</div>
