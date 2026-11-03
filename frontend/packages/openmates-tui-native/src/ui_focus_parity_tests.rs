@@ -120,3 +120,32 @@ fn opened_chat_header_has_the_chats_breadcrumb() {
     let text = screen(&mut ui);
     assert!(text.contains("› Chats › Trip plan"));
 }
+
+#[test]
+fn composer_has_model_send_row_and_context_hint() {
+    let mut ui = chats_home();
+    let text = screen(&mut ui);
+    assert!(text.contains("Model: Auto"));
+    assert!(text.contains("Send ↵"));
+    assert!(text.contains("←/→ chat   Enter open   Tab write   Ctrl+B sidebar"));
+    ui.set_chat(Chat { id: "a".into(), title: "Trip".into(), ..Chat::default() });
+    assert!(screen(&mut ui).contains("Enter send   Alt+Enter newline   Esc chats   Ctrl+B sidebar"));
+}
+
+#[test]
+fn opened_chat_has_a_more_action_that_opens_the_palette() {
+    let mut ui = chats_home();
+    ui.set_chat(Chat { id: "a".into(), title: "Trip".into(), ..Chat::default() });
+    assert!(screen(&mut ui).contains("More"));
+    ui.activate(HitAction::Actions);
+    assert!(ui.form.is_some());
+}
+
+#[test]
+fn home_shows_two_wide_cards() {
+    let mut ui = chats_home();
+    let text = screen(&mut ui);
+    assert!(text.contains("Chat 1 of 2"));
+    assert_eq!(home_card_columns(120), 2);
+    assert_eq!(home_card_columns(50), 1);
+}

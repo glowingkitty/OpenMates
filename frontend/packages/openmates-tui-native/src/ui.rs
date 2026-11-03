@@ -1,6 +1,7 @@
 //! Native Ratatui presentation and event controller. No JavaScript, process bridge or ANSI parser.
 mod apps;
 mod editor;
+mod embeds;
 mod markdown;
 mod questions;
 use crate::model::{Chat, Item, Message, Mutation, StreamUpdate, Workspace};
@@ -113,6 +114,7 @@ enum HitAction {
     SettingsEdit,
     Share,
     Download,
+    Actions,
     RevealShare,
     CopyShare,
     QrShare,
@@ -314,6 +316,18 @@ fn field_list<'a>(item: &'a Item, key: &str) -> &'a [Value] {
         .and_then(Value::as_array)
         .map(Vec::as_slice)
         .unwrap_or(&[])
+}
+/// Cards per row: 2 wide cards like the TS carousel on regular terminals.
+fn home_card_columns(width: u16) -> usize {
+    if width >= 70 { 2 } else { (width / 30).clamp(1, 2) as usize }
+}
+/// Context hint under the composer text (TS composer footer, real Rust keys only).
+fn composer_hint(chat_open: bool) -> &'static str {
+    if chat_open {
+        "Enter send   Alt+Enter newline   Esc chats   Ctrl+B sidebar"
+    } else {
+        "←/→ chat   Enter open   Tab write   Ctrl+B sidebar"
+    }
 }
 /// Breadcrumb plus bold title when the row has room for both.
 fn chat_title_line(title: &str, width: u16) -> Line<'static> {
@@ -1600,6 +1614,9 @@ impl Ui {
             return vec![];
         }
         if self.chat.is_some() {
+            if let Some(commands) = self.embed_carousel_key(event.code) {
+                return commands;
+            }
             let links = self.content_links();
             match event.code {
                 KeyCode::Left => self.content_action = self.content_action.saturating_sub(1),
@@ -1875,7 +1892,6 @@ impl Ui {
                 Link::Node(i)=>{self.node_selected=i;self.edit_form(false);vec![]},
                 Link::Run(run)=>{let title=format!("Run {}",text_field(&run,"id"));let content=display_value(&run);self.form=Some(Form::new(&title,FormPurpose::Help,vec![Field::multiline("content","Details",&content)]));vec![]},
                 Link::ProjectFile{project,embed,name}=>{self.download_file_form(&project,&embed,&name);vec![]},
-                Link::Carousel{message,delta}=>{let length=self.chat.as_ref().and_then(|c|c.messages.iter().find(|m|m.id==message)).map(|m|m.embeds.len()).unwrap_or(0);let offset=self.embed_offsets.entry(message).or_default();*offset=(*offset as i32+delta).max(0).min(length.saturating_sub(1)as i32)as usize;self.chat_layout=None;self.hits.clear();vec![]},
                 Link::Url(url)=>vec![UiCommand::OpenUrl(url)],Link::Wiki(id)=>vec![UiCommand::Open(Workspace::Apps,format!("wiki:{id}"))],Link::Embed(id)=>vec![UiCommand::Open(Workspace::Apps,format!("embed:{id}"))],Link::Question(value)=>{self.question_form(value);vec![]}},
 
             HitAction::FormField(i)=>{if let Some(form)=self.form.as_mut(){form.selected=i;self.cycle_field(1);}vec![]},
@@ -1886,7 +1902,7 @@ impl Ui {
             HitAction::Pair=>vec![UiCommand::BeginPair],HitAction::Logout=>vec![UiCommand::Logout],
             HitAction::NextCard(delta)=>{let i=index(self.workspace);self.selected[i]=(self.selected[i]as i32+delta).max(0).min(self.items[i].len().saturating_sub(1)as i32)as usize;vec![]},
             HitAction::SettingsEdit=>{self.settings_form();vec![]},
-            HitAction::Share=>{self.share_form();vec![]},HitAction::Download=>{self.download_form();vec![]},
+            HitAction::Actions=>{self.palette_query.clear();self.form=Some(Form::new("Actions",FormPurpose::Palette,vec![]));vec![]},HitAction::Share=>{self.share_form();vec![]},HitAction::Download=>{self.download_form();vec![]},
         }
     }
     fn send(&mut self) -> Vec<UiCommand> {
@@ -2040,7 +2056,7 @@ impl Ui {
             "/workflow-toggle" => self.activate(HitAction::Toggle),
             "/embed" | "/wiki" if !value.is_empty() => vec![UiCommand::Open(
                 Workspace::Apps,
-                format!("{}:{value}", &name[1..]),
+                format!("{}:{}", &name[1..], if name == "/embed" { embeds::resolve_alias(self.chat.as_ref(), value) } else { value.into() }),
             )],
             "/chat" | "/project" | "/task" | "/workflow" if !value.is_empty() => {
                 let workspace = match name {
@@ -3140,11 +3156,13 @@ impl Ui {
         }
     }
     fn draw_main(&mut self, frame: &mut Frame, area: Rect) {
+        // TS composer carries a model/send row and a context hint under the text.
+        let footer_rows: u16 = if area.height >= 24 { 2 } else { 0 };
         let composer_height = if area.height >= 10 {
             let (rows, _) = self
                 .draft
                 .display(area.width.min(100).saturating_sub(4) as usize, false);
-            (rows.len() as u16 + 2).clamp(3, 7).min(area.height / 2)
+            ((rows.len() as u16 + 2).clamp(3, 7) + footer_rows).min(area.height / 2)
         } else {
             3.min(area.height)
         };
@@ -3180,7 +3198,20 @@ impl Ui {
             " Message · Enter send · Alt+Enter newline "
         };
         frame.render_widget(panel(title, self.focus == Focus::Composer), composer);
-        let inner = inset(composer, 1, 1);
+        let full_inner = inset(composer, 1, 1);
+        let footer_rows = if full_inner.height > footer_rows { footer_rows } else { 0 };
+        let inner = Rect::new(full_inner.x, full_inner.y, full_inner.width, full_inner.height - footer_rows);
+        if footer_rows == 2 {
+            let send = if self.visible_chat_streaming() { "Ctrl+C stop" } else { "Send ↵" };
+            let model = format!("Model: Auto{}{send}", " ".repeat((full_inner.width as usize).saturating_sub(12 + send.width())));
+            let hint = composer_hint(self.chat.is_some());
+            for (offset, text) in [model, hint.to_owned()].into_iter().enumerate() {
+                frame.render_widget(
+                    Paragraph::new(text).style(Style::default().fg(MUTED)),
+                    Rect::new(full_inner.x, inner.bottom() + offset as u16, full_inner.width, 1),
+                );
+            }
+        }
         self.composer_rect = inner;
         self.hit(inner, HitAction::Composer);
         let (rows, (col, row)) = self.draft.display(inner.width as usize, false);
@@ -3307,7 +3338,9 @@ impl Ui {
         if items.is_empty() {
             return;
         }
-        let count = (area.width / 30).clamp(1, 4) as usize;
+        let count = home_card_columns(area.width);
+        let capped = area.width.min(88);
+        let area = Rect::new(area.x + (area.width - capped) / 2, area.y, capped, area.height);
         let selected = self.selected[index(self.workspace)];
         let start = (selected / count) * count;
         let card_width = area.width / count as u16;
@@ -3574,9 +3607,9 @@ impl Ui {
         );
         x += 7;
         let actions = if area.width > 75 {
-            39
+            47
         } else if area.width > 32 {
-            17
+            25
         } else {
             7
         };
@@ -3587,7 +3620,7 @@ impl Ui {
         if area.width > 32 {
             self.button(
                 frame,
-                Rect::new(area.right() - 17, area.y, 9, 1),
+                Rect::new(area.right() - 25, area.y, 10, 1),
                 " ⧉ Copy",
                 HitAction::Copy,
                 false,
@@ -3595,19 +3628,28 @@ impl Ui {
             if area.width > 75 {
                 self.button(
                     frame,
-                    Rect::new(area.right() - 39, area.y, 10, 1),
+                    Rect::new(area.right() - 47, area.y, 10, 1),
                     "Share",
                     HitAction::Share,
                     false,
                 );
                 self.button(
                     frame,
-                    Rect::new(area.right() - 29, area.y, 12, 1),
+                    Rect::new(area.right() - 37, area.y, 12, 1),
                     "Download",
                     HitAction::Download,
                     false,
                 );
             }
+        }
+        if area.width > 32 {
+            self.button(
+                frame,
+                Rect::new(area.right() - 15, area.y, 8, 1),
+                " More",
+                HitAction::Actions,
+                false,
+            );
         }
         self.button(
             frame,
@@ -3623,10 +3665,12 @@ impl Ui {
             area.height.saturating_sub(2),
         );
         let cached = self.chat_layout.take();
+        let mut selected_row = None;
         let rows = if let Some((width, rows)) = cached.filter(|(width, _)| *width == body.width) {
             let _ = width;
             rows
         } else {
+            let selected_embed = self.selected_embed().map(|found| found.id);
             let chat = self.chat.as_ref().unwrap();
             let mut rows: Vec<Row> = vec![];
             for message in &chat.messages {
@@ -3654,45 +3698,9 @@ impl Ui {
                         Style::default().fg(MUTED).italic(),
                     ));
                 }
-                rows.extend(markdown::render(
-                    &message.content,
-                    body.width.saturating_sub(2) as usize,
-                ));
-                if !message.embeds.is_empty() {
-                    rows.push(vec![]);
-                    let offset = self
-                        .embed_offsets
-                        .get(&message.id)
-                        .copied()
-                        .unwrap_or(0)
-                        .min(message.embeds.len().saturating_sub(1));
-                    rows.extend(embed_rows(&message.embeds[offset..], body.width as usize));
-                    if message.embeds.len() > 1 {
-                        rows.push(vec![
-                            markdown::Part {
-                                text: "‹ Previous result  ".into(),
-                                style: Style::default().fg(BLUE),
-                                link: Some(Link::Carousel {
-                                    message: message.id.clone(),
-                                    delta: -1,
-                                }),
-                            },
-                            markdown::Part {
-                                text: format!("{} / {}  ", offset + 1, message.embeds.len()),
-                                style: Style::default().fg(MUTED),
-                                link: None,
-                            },
-                            markdown::Part {
-                                text: "Next result ›".into(),
-                                style: Style::default().fg(BLUE),
-                                link: Some(Link::Carousel {
-                                    message: message.id.clone(),
-                                    delta: 1,
-                                }),
-                            },
-                        ]);
-                    }
-                }
+                let (message_rows, at) = embeds::message_rows(message, body.width as usize, selected_embed.as_deref());
+                selected_row = selected_row.or(at.map(|at| rows.len() + at));
+                rows.extend(message_rows);
                 rows.push(vec![]);
                 rows.push(vec![]);
             }
@@ -3704,6 +3712,7 @@ impl Ui {
             }
             rows
         };
+        self.follow_selected_embed(selected_row, &rows);
         self.paint_rows(frame, body, &rows, self.follow_tail);
         self.chat_layout = Some((body.width, rows));
     }
@@ -4105,7 +4114,9 @@ impl Ui {
                 if item.id.starts_with("embed:") || item.fields.get("content").is_some() =>
             {
                 let results = apps::result_rows(&item, body.width as usize);
-                if results.is_empty() {
+                if let Some(summary) = embeds::detail_rows(&item, body.width as usize) {
+                    rows.extend(summary);
+                } else if results.is_empty() {
                     rows.extend(markdown::render(&embed_content(&item), body.width as usize));
                 } else {
                     rows.extend(results);
@@ -5293,61 +5304,6 @@ fn embed_content(item: &Item) -> String {
         }
     }
     out
-}
-fn embed_rows(embeds: &[Item], width: usize) -> Vec<Row> {
-    let visible = embeds.len().min((width / 28).max(1));
-    let card_width = (width / visible.max(1)).max(4);
-    let mut output = vec![vec![], vec![], vec![], vec![]];
-    for embed in embeds.iter().take(visible) {
-        let color = app_color(&embed.category);
-        let title = markdown::clean(&embed.title);
-        let desc = markdown::clean(&embed.description);
-        let app = text_field(&embed.fields, "app");
-        let skill = text_field(&embed.fields, "skill");
-        let labels = [
-            format!("╭─ {title}"),
-            desc,
-            format!(
-                "{} · {}",
-                if app.is_empty() { &embed.category } else { app },
-                skill
-            ),
-            format!("╰─ /embed {}", embed.id),
-        ];
-        for (i, label) in labels.iter().enumerate() {
-            let mut text = String::new();
-            let mut used = 0;
-            for g in unicode_segmentation::UnicodeSegmentation::graphemes(label.as_str(), true) {
-                if used + g.width() > card_width.saturating_sub(1) {
-                    break;
-                }
-                text.push_str(g);
-                used += g.width();
-            }
-            text.push_str(&" ".repeat(card_width.saturating_sub(text.width())));
-            output[i].push(markdown::Part {
-                text,
-                style: Style::default()
-                    .fg(if i == 1 { TEXT } else { color })
-                    .add_modifier(if i == 0 {
-                        Modifier::BOLD
-                    } else {
-                        Modifier::empty()
-                    }),
-                link: Some(Link::Embed(embed.id.clone())),
-            });
-        }
-    }
-    if embeds.len() > visible {
-        output.push(markdown::styled(
-            format!(
-                "{} more saved results · /embed <id>",
-                embeds.len() - visible
-            ),
-            Style::default().fg(MUTED),
-        ));
-    }
-    output
 }
 fn display_value(value: &Value) -> String {
     match value {
@@ -6582,3 +6538,7 @@ mod cached_chat_tests;
 #[cfg(test)]
 #[path = "ui_focus_parity_tests.rs"]
 mod focus_parity_tests;
+
+#[cfg(test)]
+#[path = "ui_embed_carousel_tests.rs"]
+mod embed_carousel_tests;
