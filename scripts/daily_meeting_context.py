@@ -420,6 +420,24 @@ def parked_code_at_risk(reference_text: str, now: datetime, recovery_dir: Path =
     return rows
 
 
+def product_overview(root: Path) -> dict:
+    """Tagline, short description and core features, read from the README (source of truth)."""
+    path = root / "README.md"
+    if not path.is_file():
+        return {}
+    lines = path.read_text().splitlines()
+    tagline = next((line.strip("* ") for line in lines if line.startswith("**")), "")
+    description = next((line for line in lines if line.startswith("OpenMates is ")), "")
+    features: list[str] = []
+    if "## What makes OpenMates different" in lines:
+        for line in lines[lines.index("## What makes OpenMates different") + 1:]:
+            if line.startswith("## "):
+                break
+            if line.startswith("- "):
+                features.append(line[2:].strip())
+    return {"tagline": tagline, "description": description, "features": features}
+
+
 def focus(root: Path) -> str:
     path = root / "FOCUS.md"
     return path.read_text()[:12000] if path.exists() else ""
@@ -450,6 +468,7 @@ def collect(root: Path, now: datetime, since: datetime, out: Path) -> tuple[dict
         "meeting_date": now.astimezone(TZ).strftime("%A %Y-%m-%d"),
         "window": {"since": since.astimezone(TZ).isoformat(timespec="minutes"),
                    "until": now.astimezone(TZ).isoformat(timespec="minutes")},
+        "product": product_overview(root),
         "focus_file": focus(root),
         "claude_usage": claude_usage(gaps),
         "parked_code_at_risk": parked_code_at_risk(focus(root) + json.dumps(tasks, ensure_ascii=False), now),

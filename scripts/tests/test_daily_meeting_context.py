@@ -149,3 +149,13 @@ def test_parked_code_at_risk_lists_only_referenced_archives_near_purge(tmp_path)
     rows = brief.parked_code_at_risk("TASK-4971: recover agent-33bc first", now, tmp_path)
     assert [r["worktree"] for r in rows] == ["agent-33bc"]
     assert rows[0]["purged"] == "Sat 07 Nov"
+
+
+def test_product_overview_reads_tagline_description_and_features_from_readme(tmp_path):
+    (tmp_path / "README.md").write_text(
+        "# OpenMates\n\n**Your agentic OS. Privacy first.**\n\nOpenMates is an open-source assistant.\n\n"
+        "## What makes OpenMates different\n\n- **Apps inside chat:** search\n- **Privacy:** encrypted\n\n## Next\n- no\n")
+    product = brief.product_overview(tmp_path)
+    assert product == {"tagline": "Your agentic OS. Privacy first.",
+                       "description": "OpenMates is an open-source assistant.",
+                       "features": ["**Apps inside chat:** search", "**Privacy:** encrypted"]}

@@ -20,7 +20,10 @@ def test_render_includes_meeting_script_usage_and_decisions_template_with_gaps()
     evidence = {
         "window": {"since": "2026-11-02T10:00+01:00", "until": "2026-11-03T10:00+01:00"},
         "focus_file": "# Focus\nWeek goals: record videos",
-        "claude_usage": {"weekly": {"used_percent": 62.0, "resets": "Fri 06 Nov 11:00"},
+        "product": {"tagline": "Your agentic operating system", "description": "OpenMates is an assistant.",
+                    "features": ["**Apps inside chat:** search"]},
+        "claude_usage": {"weekly": {"used_percent": 62.0, "resets": "Fri 06 Nov 11:00",
+                                    "week_elapsed_percent": 60, "runs_out": "Fri 06 Nov 04:12"},
                          "five_hour": None},
         "reminders": {}, "tasks": {}, "nightly": {}, "git": {}, "claude_chats": [],
         "gaps": ["Mac offline"],
@@ -29,7 +32,11 @@ def test_render_includes_meeting_script_usage_and_decisions_template_with_gaps()
                            date(2026, 11, 3), datetime(2026, 11, 3, 9, tzinfo=timezone.utc))
     assert "Marketing Week" in text
     assert "DECISIONS 2026-11-03" in text
-    assert "62% of this week's usage spent" in text
+    assert "38% of the weekly limit left" in text
+    assert "runs out **Fri 06 Nov 04:12**" in text
+    assert text.index("weekly limit left") < text.index("How to run this meeting")
+    assert "## About OpenMates" in text and "Your agentic operating system" in text
+    assert "- **Apps inside chat:** search" in text
     assert "record videos" in text
     assert "Mac offline" in text
 

@@ -157,6 +157,28 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
                 f"Mac offline — copy synced {rem.get('fetched_at', '?')[:16]} UTC" if source else "unavailable")
     out.append(f"**Data:** since {ev['window']['since']} · reminders {rem_note} · generated "
                f"{generated.astimezone(TZ):%H:%M}.")
+    usage = (ev.get("claude_usage") or {}).get("weekly")
+    if usage:
+        left = max(0.0, 100 - usage["used_percent"])
+        elapsed = (f", {usage['week_elapsed_percent']}% of the week gone"
+                   if "week_elapsed_percent" in usage else "")
+        pace = (f" At this week's rate it runs out **{usage['runs_out']}**, before the reset."
+                if usage.get("runs_out") else " At this week's rate it lasts until the reset.")
+        out += ["", f"**Claude subscription — {left:.0f}% of the weekly limit left** "
+                    f"({usage['used_percent']:.0f}% used{elapsed}; resets {usage['resets']}).{pace} "
+                    "Plan agent work to fit what is left."]
+    else:
+        out += ["", "**Claude subscription:** weekly usage unavailable (see data gaps)."]
+    product = ev.get("product") or {}
+    if product:
+        out += ["", "## About OpenMates", ""]
+        if product.get("tagline"):
+            out.append(f"**{product['tagline']}**")
+            out.append("")
+        if product.get("description"):
+            out.append(product["description"])
+        if product.get("features"):
+            out += ["", "Core features:"] + [f"- {feature}" for feature in product["features"]]
     out += ["", MEETING_SCRIPT.replace("{date}", today.isoformat()), "## Phase rules", "",
             "- **Marketing Week:** marketing work (storyboards, Remotion video editing, screen "
             "recordings, press outreach, marketing copy) plus bug fixes that clearly block "
@@ -181,14 +203,6 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
                + ", ".join(f"{k} {v}" for k, v in mix.items())
                + f". Marketing repo: {mkt.get('commits_last_7_days', '?')} commits in 7 days "
                f"(last: {mkt.get('last_commit', 'n/a')}).")
-    usage = (ev.get("claude_usage") or {}).get("weekly")
-    if usage:
-        pace = (f" — at this week's rate it runs out **{usage['runs_out']}**" if usage.get("runs_out")
-                else "")
-        elapsed = (f" with {usage['week_elapsed_percent']}% of the week gone"
-                   if "week_elapsed_percent" in usage else "")
-        out.append(f"**Claude subscription:** {usage['used_percent']:.0f}% of this week's usage spent"
-                   f"{elapsed} (resets {usage['resets']}){pace}. Plan agent work to fit what is left.")
     for item in ev.get("parked_code_at_risk") or []:
         out.append(f"**⚠ Parked code purged {item['purged']}:** unlanded worktree {item['worktree']} "
                    f"(archive {item['archive']}) — recover it or decide to drop it.")
