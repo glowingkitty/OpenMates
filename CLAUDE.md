@@ -40,11 +40,13 @@ when a skill or this file points to it.
 
 ## Verification (details: `.claude/rules/testing.md`)
 - Every behavior fix/feature updates relevant E2E coverage; never weaken tests.
-- Builds, tests and benchmarks (cargo, vitest, Playwright, vite build, …) never
-  run on the dev server; the Bash guard blocks them. Use isolated GitHub CI:
-  `sessions.py ci-source` → `ci_coordinator.py submit --mode <rust-check|vitest|
-  pytest|e2e|…>` → `ci_coordinator.py wait <id>`. Local: lint/typecheck,
-  `cargo fmt`, light script pytest. Only real-AI-inference tests run on dev.
+- Builds, unit tests and benchmarks (cargo, vitest, vite build, …) run on the
+  dev server only via `python3 scripts/heavy_slot.py run -- <cmd>` (waits for a
+  healthy host, max 2 at once, CPU/memory capped); the Bash guard blocks direct
+  runs. Product E2E and full suites use isolated GitHub CI: `sessions.py
+  ci-source` → `ci_coordinator.py submit --mode <rust-check|vitest|pytest|e2e|…>`
+  → `ci_coordinator.py wait <id>`. Direct: lint/typecheck, `cargo fmt`, light
+  script pytest.
 - Overloaded host (`scripts/host_load_guard.py`): new sessions/sub-agents are
   refused; run `host_load_guard.py wait` once instead of polling.
 - Existing logs/screenshots/failures are enough to start a fix. After two

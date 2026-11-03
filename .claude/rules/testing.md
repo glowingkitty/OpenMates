@@ -29,11 +29,14 @@ paths:
   fmt/metadata/tree`, and pytest of `scripts/` tooling (light; still refused
   while the host is overloaded).
 - Builds, unit tests and benchmarks (`cargo build/test/check/clippy/run/bench`,
-  `rustc`, `wasm-pack`, vitest, Playwright, `vite`/`svelte-kit`/`pnpm build`,
-  local headless-browser benches): isolated GitHub CI only, e.g.
-  `ci_coordinator.py submit --mode rust-check|rust-wasm|rust-native-dev|vitest|pytest`.
-  `.claude/hooks/bash-guard.sh` enforces this; the only override is the logged
-  `OPENMATES_ALLOW_LOCAL_HEAVY=real-inference` prefix for real-inference runs.
+  `rustc`, `wasm-pack`, vitest, `vite`/`svelte-kit`/`pnpm build`, local
+  headless-browser benches) may run on the dev server only through
+  `python3 scripts/heavy_slot.py run -- <command>`: it waits until
+  `host_load_guard` reports a healthy host, allows at most 2 heavy commands
+  host-wide at once and runs each in a systemd scope capped at 4 CPUs and 6 GB
+  RAM with low priority. `.claude/hooks/bash-guard.sh` blocks direct runs.
+  Prefer isolated GitHub CI (`ci_coordinator.py submit --mode
+  rust-check|rust-wasm|rust-native-dev|vitest|pytest`) for full suites.
 - Product REST/WebSocket, CLI/SDK and browser E2E: isolated GitHub CI only (one
   browser spec per job, disposable backend, fresh accounts). Specs marked
   `reason=isolated_component_preview` use the Vite-only component profile.

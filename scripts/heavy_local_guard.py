@@ -3,14 +3,16 @@
 
 The shared dev server (16 cores, 31 GB, no swap) was driven to load 140-363
 with <1 GB available by parallel agent lanes compiling Rust, running
-Playwright/Chromium benchmarks and vitest locally. Builds and tests therefore
-never run on the server; they run in isolated GitHub CI. `safe_bash_guard.py`
-calls `heavy_reason()` for every parsed invocation (including package-script
-bodies) before its other checks.
+Playwright/Chromium benchmarks and vitest locally at the same time. Heavy
+commands may run on the server only through `scripts/heavy_slot.py run -- <cmd>`,
+which waits for a healthy host, limits concurrency to a few host-wide slots and
+caps CPU/memory per run. Product E2E suites still use isolated GitHub CI.
+`safe_bash_guard.py` calls `heavy_reason()` for every parsed invocation
+(including package-script bodies) before its other checks.
 
-Allowed: `cargo fmt|metadata|tree|...` (see CARGO_LIGHT), `rustfmt`, version
-and help flags, pytest (light script/unit tests; still refused while the host
-is overloaded). Escape hatch for real-AI-inference runs on dev only:
+Allowed directly: `cargo fmt|metadata|tree|...` (see CARGO_LIGHT), `rustfmt`,
+version and help flags, pytest (light script/unit tests; still refused while the
+host is overloaded). Legacy override for real-AI-inference runs on dev:
 prefix the command with `OPENMATES_ALLOW_LOCAL_HEAVY=real-inference`; every use
 is appended to logs/host-load-guard/events.jsonl and is still refused while
 the host is overloaded.
@@ -27,11 +29,11 @@ OVERRIDE_VALUE = "real-inference"
 OVERRIDE_TOKEN = f"{OVERRIDE_ENV}={OVERRIDE_VALUE}"
 
 CI_HINT = (
-    "Builds, tests and benchmarks do not run on the shared dev server; use isolated GitHub CI: "
-    "python3 scripts/sessions.py ci-source -> python3 scripts/ci_coordinator.py submit "
-    "--mode rust-check|rust-wasm|rust-native-dev|vitest|pytest|e2e ... -> "
-    "python3 scripts/ci_coordinator.py wait <id>. Only real-AI-inference runs on dev may "
-    f"opt out with the logged prefix {OVERRIDE_TOKEN}."
+    "Run builds, tests and benchmarks on the dev server through the resource-limited wrapper: "
+    "python3 scripts/heavy_slot.py run -- <command> (waits for a healthy host and a free slot; "
+    "caps CPU and memory). Or use isolated GitHub CI: python3 scripts/sessions.py ci-source -> "
+    "python3 scripts/ci_coordinator.py submit --mode rust-check|rust-wasm|rust-native-dev|vitest|pytest|e2e "
+    "... -> python3 scripts/ci_coordinator.py wait <id>."
 )
 
 # Cargo subcommands that do not compile crates.

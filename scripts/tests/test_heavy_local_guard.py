@@ -2,7 +2,7 @@
 # contract-test-file: tooling
 """Contracts for the Bash guard's heavy local build/test/benchmark block.
 
-Builds, tests and benchmarks run in isolated CI, never on the shared dev host.
+Builds, tests and benchmarks run in isolated CI or through the resource-limited heavy_slot wrapper.
 Run: python3 -m pytest scripts/tests/test_heavy_local_guard.py
 """
 
@@ -78,7 +78,15 @@ def test_heavy_local_commands_are_blocked_with_ci_pointer(command: str, tmp_path
     assert result.returncode == 2, command
     reason = json.loads(result.stderr)["reason"]
     assert "ci_coordinator.py submit" in reason and "rust-check" in reason
-    assert "OPENMATES_ALLOW_LOCAL_HEAVY=real-inference" in reason
+    assert "scripts/heavy_slot.py run --" in reason
+
+
+def test_heavy_command_through_slot_wrapper_is_allowed(tmp_path: Path) -> None:
+    result = run_bash_guard(
+        "python3 scripts/heavy_slot.py run -- cargo build --release",
+        fake_host_env(tmp_path, overloaded=False),
+    )
+    assert result.returncode == 0, result.stderr
 
 
 @pytest.mark.parametrize(
