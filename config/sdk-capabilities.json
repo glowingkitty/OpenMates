@@ -1331,8 +1331,9 @@
       }
     },
     {
-      "description": "Reviewed public SDK capability family: sdk.chats; support must be proved by actual library conformance.",
+      "description": "Reviewed public SDK capability family: sdk.chats. Sixteen shared synthetic API-key vectors prove list, search and load (id, prefix, slug, title) with local decryption of chat metadata, messages and embeds via the API-key-wrapped account key, master-wrapper precedence, null on unauthenticated fields and typed errors in all three SDKs.",
       "domain": "streaming",
+      "fixture": "tests/sdk-conformance/fixtures/sdk-api-key-chats.json",
       "id": "sdk.chats",
       "languages": {
         "npm": {
@@ -1389,10 +1390,16 @@
             "OpenMatesClient.chats.send",
             "OpenMatesClient.chats.share"
           ],
-          "conformance": false,
-          "evidence": [],
+          "conformance": true,
+          "evidence": [
+            "tests/sdk-conformance/runners/sdk-api-key-chats.mjs"
+          ],
           "gaps": [
-            "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
+            "Managed isolated CI must execute these authored direct adapters on exact reviewed source; registration alone implies no runtime pass.",
+            "Send, streaming, cancellation, recovery, message pagination (messages/messagePages), export, fork, share, delete, retry, rewind, follow-ups, incognito and Project link/unlink have no cross-SDK conformance vectors yet.",
+            "Direct (two-participant) chats and TOON-encoded embed content are not covered by the shared vectors.",
+            "List/search/load decryption still runs in language-local code rather than the shared Rust core (npm WASM, Python PyO3).",
+            "Loaded message and embed output names differ: npm uses senderName/modelName/textPreview while Python and Rust use sender_name/model_name/text_preview."
           ],
           "status": "partial"
         },
@@ -1433,21 +1440,43 @@
             "OpenMatesChats.send",
             "OpenMatesChats.share"
           ],
-          "conformance": false,
-          "evidence": [],
+          "conformance": true,
+          "evidence": [
+            "tests/sdk-conformance/runners/sdk-api-key-chats.py"
+          ],
           "gaps": [
-            "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
+            "Managed isolated CI must execute these authored direct adapters on exact reviewed source; registration alone implies no runtime pass.",
+            "Send, streaming, cancellation, recovery, message pagination (messages/messagePages), export, fork, share, delete, retry, rewind, follow-ups, incognito and Project link/unlink have no cross-SDK conformance vectors yet.",
+            "Direct (two-participant) chats and TOON-encoded embed content are not covered by the shared vectors.",
+            "List/search/load decryption still runs in language-local code rather than the shared Rust core (npm WASM, Python PyO3).",
+            "Loaded message and embed output names differ: npm uses senderName/modelName/textPreview while Python and Rust use sender_name/model_name/text_preview."
           ],
           "status": "partial"
         },
         "rust": {
-          "api": [],
-          "conformance": false,
-          "evidence": [],
-          "gaps": [
-            "Equivalent public API and cross-language implementation evidence are not yet established."
+          "api": [
+            "sdk.OpenMates.chats",
+            "sdk_chats",
+            "sdk_chats.ChatListOptions",
+            "sdk_chats.ChatListOptions.limit",
+            "sdk_chats.ChatListOptions.offset",
+            "sdk_chats.Chats",
+            "sdk_chats.Chats.list",
+            "sdk_chats.Chats.load",
+            "sdk_chats.Chats.search"
           ],
-          "status": "missing"
+          "conformance": true,
+          "evidence": [
+            "packages/openmates-rust/examples/sdk-api-key-chats-conformance.rs"
+          ],
+          "gaps": [
+            "Managed isolated CI must execute these authored direct adapters on exact reviewed source; registration alone implies no runtime pass.",
+            "Send, streaming, cancellation, recovery, message pagination (messages/messagePages), export, fork, share, delete, retry, rewind, follow-ups, incognito and Project link/unlink have no cross-SDK conformance vectors yet.",
+            "Direct (two-participant) chats and TOON-encoded embed content are not covered by the shared vectors.",
+            "Rust implements only list/search/load; every other npm/Python chat method, including API-key send/stream/cancel, is missing.",
+            "Direct chats are refused with a typed unavailable error until the account chat identity enrollment exists in Rust; TOON embed content is returned as raw text."
+          ],
+          "status": "partial"
         }
       }
     },
@@ -4349,6 +4378,12 @@
             "SendQueueMode",
             "SendStatus",
             "Session",
+            "account.settings_extra.Account.record_mates_consent",
+            "account.settings_extra.Account.report_issue",
+            "account.settings_extra.Account.report_issue_status",
+            "account.settings_extra.Account.set_ai_model_defaults",
+            "account.settings_extra.Account.set_chat_auto_delete",
+            "account.settings_extra.Account.share_debug_logs",
             "client",
             "client.Client",
             "client.Client.acknowledge_credentials",
@@ -4392,6 +4427,7 @@
             "client.Client.credential_snapshot",
             "client.Client.daily_inspirations",
             "client.Client.detail",
+            "client.Client.discard_chat_details_prefetch",
             "client.Client.display_name_hint",
             "client.Client.download",
             "client.Client.due_soon_saved_item_rows",
@@ -4407,6 +4443,7 @@
             "client.Client.list",
             "client.Client.login_password",
             "client.Client.logout",
+            "client.Client.mention_catalog",
             "client.Client.mutate",
             "client.Client.new",
             "client.Client.open_chat",
@@ -4416,6 +4453,8 @@
             "client.Client.order_chat_list_items_now",
             "client.Client.partially_restored_chats",
             "client.Client.poll_pair",
+            "client.Client.preconnect_socket",
+            "client.Client.prefetch_chat_details",
             "client.Client.prefetch_chat_sync_feed",
             "client.Client.prepare_browser_cold_retained_saved_chat_with_io",
             "client.Client.prepare_browser_credential_cas",
@@ -4471,6 +4510,7 @@
             "client.Client.take_scoped_saved_send_terminal",
             "client.Client.take_session",
             "client.Client.tasks",
+            "client.Client.travel_booking_link",
             "client.Client.try_cached_default_chat_list",
             "client.Client.use_fresh_session_for_recovery",
             "client.Client.user",
@@ -4816,6 +4856,13 @@
             "client.chat_details_cache.SNAPSHOT_FIELD",
             "client.chat_list_freshness.CacheClockEvidence",
             "client.chat_list_freshness.CacheClockEvidence.from_platform",
+            "client.draft_preview.DRAFT_PREVIEW_MAX_UNITS",
+            "client.draft_preview.DraftPreviewNames",
+            "client.draft_preview.MAX_DRAFT_PREVIEW_CONTEXT_BYTES",
+            "client.draft_preview.draft_embed_label",
+            "client.draft_preview.draft_preview",
+            "client.draft_preview.format_draft_preview",
+            "client.draft_preview.parse_draft_preview_context",
             "client.inspirations.Inspiration",
             "client.inspirations.Inspiration.category",
             "client.inspirations.Inspiration.feature_title",
@@ -5119,6 +5166,15 @@
             "mentions.normalize",
             "mentions.parse_mentions",
             "mentions.today_utc",
+            "mentions_list",
+            "mentions_list.LISTABLE_TYPES",
+            "mentions_list.MentionOption",
+            "mentions_list.MentionOption.description",
+            "mentions_list.MentionOption.display_name",
+            "mentions_list.MentionOption.kind",
+            "mentions_list.list_mention_options",
+            "mentions_list.parse_listable_type",
+            "mentions_list.search_mention_options",
             "pairing",
             "pairing.PairBundle",
             "pairing.PairBundle.account_context",

@@ -53,3 +53,12 @@ equality across processes. Exact/over-limit cases use compact deterministic
 expansions. The [local privacy contract](PRIVACY.md) describes the inputs, limits,
 typed refusals and remaining broad privacy-policy gaps. Registration adds three
 fixed adapters, not evidence that those adapters have executed successfully.
+
+`sdk.chats` runs sixteen synthetic API-key vectors from
+`fixtures/sdk-api-key-chats.json` (regenerate deterministically with
+`generate_sdk_api_key_chats.py`) through the public Rust `OpenMates::chats()`,
+npm `client.chats` and Python `client.chats`. An independent peer checks exact
+routes, a single lazy `/v1/sdk/session` exchange and the bearer-only credential
+boundary, then compares a language-neutral projection of the locally decrypted
+list/search/load output. Send, streaming, cancellation and the remaining chat
+methods stay open gaps in the matrix.

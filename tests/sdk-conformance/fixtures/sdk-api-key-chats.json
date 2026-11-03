@@ -1,0 +1,1116 @@
+{
+  "schema_version": 1,
+  "capabilities": {
+    "sdk.chats": {
+      "api_key": "sk-api-chatOwnerA.localSetupSuffix",
+      "device_id": "synthetic-chat-device",
+      "session": {
+        "key_wrapper": {
+          "salt": "ISEhISEhISEhISEhISEhIQ==",
+          "key_iv": "MTExMTExMTExMTEx",
+          "encrypted_key": "hw51VZtpy+lOeHq56tyTivcFK7B97wPHhLjH9a/th+HJHiniGDI3HPBiNb2RJSfN"
+        },
+        "user": {
+          "id": "synthetic-chat-owner"
+        }
+      },
+      "vectors": [
+        {
+          "id": "list-default-decrypts-metadata",
+          "operation": "list",
+          "arguments": {},
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/chats",
+              "query": {
+                "limit": "10",
+                "offset": "0"
+              },
+              "status": 200,
+              "response": {
+                "chats": [
+                  {
+                    "id": "a1a1a1a1-1111-4111-8111-111111111111",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAABiMpJiUliflE4eLoE3kY7kWUP9iM1/OUZG0HWJimL6tLryHNYFyPqIGROjoYwwWJD",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T03pl1plAAAAAAAAAAAAAAACcSxoT6b5S84uIfyM4UGabQrl48/rXvymj+Vw",
+                    "encrypted_chat_summary": "T03pl1plAAAAAAAAAAAAAAADg442rkuy6KIcxwyIL7H4XMhiT2UeBjhQRTIuFdulZ84hw/Ab",
+                    "encrypted_category": "T03pl1plAAAAAAAAAAAAAAAEAK9zvAlvugIDkzs9oHgAmUoKLuk=",
+                    "encrypted_slug": "T03pl1plAAAAAAAAAAAAAAAFAl48IObFwrlIbRiYZVsqy+nATg9mPIpwfld1"
+                  },
+                  {
+                    "id": "b2b2b2b2-2222-4222-8222-222222222222",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAGi1fnpcEPuusLECWWoOyJivoFYN/ay30Sv/5ZIFTZiWS0wU3NPcSg0u102vDbdzZY",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T00n18XFAAAAAAAAAAAAAAAHj0TwIvRPUg/5xnwkz4U0pBP1aJzB8+y4eW8e",
+                    "encrypted_category": "T02lmetlAAAAAAAAAAAAAAAI9TLNpcv4+Qm9BdVQNlRFOgaq3yDGSw==",
+                    "encrypted_slug": "T00n18XFAAAAAAAAAAAAAAAJiGIz/QFsHoRBDOJLvl6JxV/Id/2xmijMkd0="
+                  },
+                  {
+                    "id": "c3c3c3c3-3333-4333-8333-333333333333",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100
+                  }
+                ]
+              }
+            }
+          ],
+          "session": true,
+          "expected": [
+            {
+              "id": "a1a1a1a1-1111-4111-8111-111111111111",
+              "title": "Alpha Notes",
+              "chat_summary": "Weekly alpha summary",
+              "category": "work",
+              "slug": "alpha-notes"
+            },
+            {
+              "id": "b2b2b2b2-2222-4222-8222-222222222222",
+              "title": "Beta  Plans",
+              "chat_summary": null,
+              "category": null,
+              "slug": "beta-plans"
+            },
+            {
+              "id": "c3c3c3c3-3333-4333-8333-333333333333",
+              "title": null,
+              "chat_summary": null,
+              "category": null,
+              "slug": null
+            }
+          ],
+          "expected_error": null
+        },
+        {
+          "id": "list-explicit-page",
+          "operation": "list",
+          "arguments": {
+            "limit": 2,
+            "offset": 4
+          },
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/chats",
+              "query": {
+                "limit": "2",
+                "offset": "4"
+              },
+              "status": 200,
+              "response": {
+                "chats": [
+                  {
+                    "id": "e5e5e5e5-5555-4555-8555-555555555555",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAMLGOKKCDY9lAVjJp/lYd9gdNaTguD6gFE/5F3zbIPmrqRlc0cbsckdruXgkZbCw9N",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T00JanDlAAAAAAAAAAAAAAANYZ2SVkp+rVXNWykRJRrnrFhMHsLlgj1HHcwE5Q=="
+                  }
+                ]
+              }
+            }
+          ],
+          "session": true,
+          "expected": [
+            {
+              "id": "e5e5e5e5-5555-4555-8555-555555555555",
+              "title": "same   title",
+              "chat_summary": null,
+              "category": null,
+              "slug": null
+            }
+          ],
+          "expected_error": null
+        },
+        {
+          "id": "list-empty-needs-no-key",
+          "operation": "list",
+          "arguments": {},
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/chats",
+              "query": {
+                "limit": "10",
+                "offset": "0"
+              },
+              "status": 200,
+              "response": {
+                "chats": []
+              }
+            }
+          ],
+          "session": false,
+          "expected": [],
+          "expected_error": null
+        },
+        {
+          "id": "list-keyless-row-unchanged",
+          "operation": "list",
+          "arguments": {},
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/chats",
+              "query": {
+                "limit": "10",
+                "offset": "0"
+              },
+              "status": 200,
+              "response": {
+                "chats": [
+                  {
+                    "id": "c3c3c3c3-3333-4333-8333-333333333333",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100
+                  }
+                ]
+              }
+            }
+          ],
+          "session": false,
+          "expected": [
+            {
+              "id": "c3c3c3c3-3333-4333-8333-333333333333",
+              "title": null,
+              "chat_summary": null,
+              "category": null,
+              "slug": null
+            }
+          ],
+          "expected_error": null
+        },
+        {
+          "id": "search-matches-decrypted-title",
+          "operation": "search",
+          "arguments": {
+            "query": "  ALPHA "
+          },
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/chats",
+              "query": {
+                "limit": "0",
+                "offset": "0"
+              },
+              "status": 200,
+              "response": {
+                "chats": [
+                  {
+                    "id": "a1a1a1a1-1111-4111-8111-111111111111",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAABiMpJiUliflE4eLoE3kY7kWUP9iM1/OUZG0HWJimL6tLryHNYFyPqIGROjoYwwWJD",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T03pl1plAAAAAAAAAAAAAAACcSxoT6b5S84uIfyM4UGabQrl48/rXvymj+Vw",
+                    "encrypted_chat_summary": "T03pl1plAAAAAAAAAAAAAAADg442rkuy6KIcxwyIL7H4XMhiT2UeBjhQRTIuFdulZ84hw/Ab",
+                    "encrypted_category": "T03pl1plAAAAAAAAAAAAAAAEAK9zvAlvugIDkzs9oHgAmUoKLuk=",
+                    "encrypted_slug": "T03pl1plAAAAAAAAAAAAAAAFAl48IObFwrlIbRiYZVsqy+nATg9mPIpwfld1"
+                  },
+                  {
+                    "id": "b2b2b2b2-2222-4222-8222-222222222222",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAGi1fnpcEPuusLECWWoOyJivoFYN/ay30Sv/5ZIFTZiWS0wU3NPcSg0u102vDbdzZY",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T00n18XFAAAAAAAAAAAAAAAHj0TwIvRPUg/5xnwkz4U0pBP1aJzB8+y4eW8e",
+                    "encrypted_category": "T02lmetlAAAAAAAAAAAAAAAI9TLNpcv4+Qm9BdVQNlRFOgaq3yDGSw==",
+                    "encrypted_slug": "T00n18XFAAAAAAAAAAAAAAAJiGIz/QFsHoRBDOJLvl6JxV/Id/2xmijMkd0="
+                  },
+                  {
+                    "id": "c3c3c3c3-3333-4333-8333-333333333333",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100
+                  },
+                  {
+                    "id": "d4d4d4d4-4444-4444-8444-444444444444",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAK9Hdykhya943KyFJajKBXmX8DKYO8b022U+wg2thgqL4IAtLE+0adzBeJN5en4jMk",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T00JanDlAAAAAAAAAAAAAAALIbiC9AqF2bdh5+Z9yC4rvztyJsIN6H2nuKI="
+                  },
+                  {
+                    "id": "e5e5e5e5-5555-4555-8555-555555555555",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAMLGOKKCDY9lAVjJp/lYd9gdNaTguD6gFE/5F3zbIPmrqRlc0cbsckdruXgkZbCw9N",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T00JanDlAAAAAAAAAAAAAAANYZ2SVkp+rVXNWykRJRrnrFhMHsLlgj1HHcwE5Q=="
+                  }
+                ]
+              }
+            }
+          ],
+          "session": true,
+          "expected": [
+            {
+              "id": "a1a1a1a1-1111-4111-8111-111111111111",
+              "title": "Alpha Notes",
+              "chat_summary": "Weekly alpha summary",
+              "category": "work",
+              "slug": "alpha-notes"
+            }
+          ],
+          "expected_error": null
+        },
+        {
+          "id": "search-pages-local-matches",
+          "operation": "search",
+          "arguments": {
+            "query": "title",
+            "limit": 1,
+            "offset": 1
+          },
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/chats",
+              "query": {
+                "limit": "0",
+                "offset": "0"
+              },
+              "status": 200,
+              "response": {
+                "chats": [
+                  {
+                    "id": "a1a1a1a1-1111-4111-8111-111111111111",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAABiMpJiUliflE4eLoE3kY7kWUP9iM1/OUZG0HWJimL6tLryHNYFyPqIGROjoYwwWJD",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T03pl1plAAAAAAAAAAAAAAACcSxoT6b5S84uIfyM4UGabQrl48/rXvymj+Vw",
+                    "encrypted_chat_summary": "T03pl1plAAAAAAAAAAAAAAADg442rkuy6KIcxwyIL7H4XMhiT2UeBjhQRTIuFdulZ84hw/Ab",
+                    "encrypted_category": "T03pl1plAAAAAAAAAAAAAAAEAK9zvAlvugIDkzs9oHgAmUoKLuk=",
+                    "encrypted_slug": "T03pl1plAAAAAAAAAAAAAAAFAl48IObFwrlIbRiYZVsqy+nATg9mPIpwfld1"
+                  },
+                  {
+                    "id": "b2b2b2b2-2222-4222-8222-222222222222",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAGi1fnpcEPuusLECWWoOyJivoFYN/ay30Sv/5ZIFTZiWS0wU3NPcSg0u102vDbdzZY",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T00n18XFAAAAAAAAAAAAAAAHj0TwIvRPUg/5xnwkz4U0pBP1aJzB8+y4eW8e",
+                    "encrypted_category": "T02lmetlAAAAAAAAAAAAAAAI9TLNpcv4+Qm9BdVQNlRFOgaq3yDGSw==",
+                    "encrypted_slug": "T00n18XFAAAAAAAAAAAAAAAJiGIz/QFsHoRBDOJLvl6JxV/Id/2xmijMkd0="
+                  },
+                  {
+                    "id": "c3c3c3c3-3333-4333-8333-333333333333",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100
+                  },
+                  {
+                    "id": "d4d4d4d4-4444-4444-8444-444444444444",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAK9Hdykhya943KyFJajKBXmX8DKYO8b022U+wg2thgqL4IAtLE+0adzBeJN5en4jMk",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T00JanDlAAAAAAAAAAAAAAALIbiC9AqF2bdh5+Z9yC4rvztyJsIN6H2nuKI="
+                  },
+                  {
+                    "id": "e5e5e5e5-5555-4555-8555-555555555555",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAMLGOKKCDY9lAVjJp/lYd9gdNaTguD6gFE/5F3zbIPmrqRlc0cbsckdruXgkZbCw9N",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T00JanDlAAAAAAAAAAAAAAANYZ2SVkp+rVXNWykRJRrnrFhMHsLlgj1HHcwE5Q=="
+                  }
+                ]
+              }
+            }
+          ],
+          "session": true,
+          "expected": [
+            {
+              "id": "e5e5e5e5-5555-4555-8555-555555555555",
+              "title": "same   title",
+              "chat_summary": null,
+              "category": null,
+              "slug": null
+            }
+          ],
+          "expected_error": null
+        },
+        {
+          "id": "load-uuid-wrapper-precedence",
+          "operation": "load",
+          "arguments": {
+            "chat_id": "a1a1a1a1-1111-4111-8111-111111111111"
+          },
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/chats/a1a1a1a1-1111-4111-8111-111111111111",
+              "status": 200,
+              "response": {
+                "chat": {
+                  "id": "a1a1a1a1-1111-4111-8111-111111111111",
+                  "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAOR7e+WJOhbVG4NCXXwUw3g0dPtjWgmWgbZu2zehuoLUXHp2e+wUYztenJhkYd+wbG",
+                  "created_at": 1700000000,
+                  "updated_at": 1700000100,
+                  "encrypted_title": "T03pl1plAAAAAAAAAAAAAAACcSxoT6b5S84uIfyM4UGabQrl48/rXvymj+Vw",
+                  "encrypted_chat_summary": "T03pl1plAAAAAAAAAAAAAAADg442rkuy6KIcxwyIL7H4XMhiT2UeBjhQRTIuFdulZ84hw/Ab",
+                  "encrypted_category": "T03pl1plAAAAAAAAAAAAAAAEAK9zvAlvugIDkzs9oHgAmUoKLuk=",
+                  "encrypted_slug": "T03pl1plAAAAAAAAAAAAAAAFAl48IObFwrlIbRiYZVsqy+nATg9mPIpwfld1"
+                },
+                "chat_key_wrappers": [
+                  {
+                    "key_type": "master",
+                    "hashed_chat_id": "270083e485f606bea5455bbc7fc928e5da1ab8c5c2581b60920dad9e46f01863",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAPB1uFlQDNzLPLeFII+8DzpwkZKdxq9JfJ50cXYezVsDhcbnT0uJc2qtOrrkWSYgB3"
+                  }
+                ],
+                "messages": [
+                  {
+                    "message_id": "m1",
+                    "role": "user",
+                    "encrypted_content": "T03pl1plAAAAAAAAAAAAAAAQIeUPNwqMD/GSQZNJOVrGdu/luoUDnfU1SIpa"
+                  },
+                  "{\"message_id\": \"m2\", \"role\": \"assistant\", \"encrypted_content\": \"T03pl1plAAAAAAAAAAAAAAAR4Agb8Lp2cXy2WzI76DJT9/T5nlwDOEktYXpwUWxIXMq02kFDRg==\", \"encrypted_category\": \"T03pl1plAAAAAAAAAAAAAAASEhsf+OJKR7K84WB0bCgg0qz+xpq1slqf/vC4AQo5U7k/\"}"
+                ],
+                "embeds": [
+                  {
+                    "embed_id": "emb-master",
+                    "encrypted_type": "T03xuWNlAAAAAAAAAAAAAAAT4khVAx9uTjyTxcUQmvQkfFklW3fFZ3c5+w==",
+                    "encrypted_content": "T03xuWNlAAAAAAAAAAAAAAAUNVg0lWNwe96bJXCM5JSrOPcA/IHipsaicE4E"
+                  },
+                  {
+                    "embed_id": "emb-parent",
+                    "encrypted_type": "T01K9pvFAAAAAAAAAAAAAAAV3C7daKD4HiyPaR1e3Dv8t4FWxBHv6ivpfpY=",
+                    "encrypted_content": "T01K9pvFAAAAAAAAAAAAAAAWH21XD+51YzYnJhbk6Q6dGHKljRBg5J/mEiFFwLgRcZ3bUQ=="
+                  },
+                  {
+                    "embed_id": "emb-child",
+                    "parent_embed_id": "emb-parent",
+                    "encrypted_type": "T01K9pvFAAAAAAAAAAAAAAAXD/85L/pYnnEwpwKJUxcScRxNeYgbwPm9SwEV",
+                    "encrypted_content": "T01K9pvFAAAAAAAAAAAAAAAY5S+AHL9CYRpX7N+aNm/1HYaYaN0fWRDufELr1uBMrYVIv0ejNPQohQDBJHK5PXHbPTCyPZwA+y19nHU0"
+                  },
+                  {
+                    "embed_id": "emb-orphan",
+                    "encrypted_type": "T02lmetlAAAAAAAAAAAAAAAZmoukPxH5mCjLEyN94rx11X+PbKcTPQ=="
+                  }
+                ],
+                "embed_keys": [
+                  {
+                    "hashed_embed_id": "a77b3958a6e8c0d6804fdcd7d2ebb183bdc0d4410e5008c5510e08f5737f5161",
+                    "key_type": "master",
+                    "encrypted_embed_key": "T00QhQZlAAAAAAAAAAAAAAAa6zldKduhY/vN7htD5hUY2ZZUfyBQS5dadnQ0/gvPgS0cd91H76fi0niS+zmsJ48W"
+                  },
+                  {
+                    "hashed_embed_id": "acb509d901a2098409b146c041523a4ea761e4364a0fe3a34051c8ef40299a72",
+                    "key_type": "chat",
+                    "encrypted_embed_key": "T03pl1plAAAAAAAAAAAAAAAbzODKjkqiOqqPqA9HuHpqo2gZRvOSEZLDwosaBWHE+mGtoNrGopbt4P6HMiXrnmmZ"
+                  }
+                ]
+              }
+            }
+          ],
+          "session": true,
+          "expected": {
+            "chat": {
+              "id": "a1a1a1a1-1111-4111-8111-111111111111",
+              "title": "Alpha Notes",
+              "chat_summary": "Weekly alpha summary",
+              "category": "work",
+              "slug": "alpha-notes"
+            },
+            "messages": [
+              {
+                "message_id": "m1",
+                "role": "user",
+                "content": "Hello alpha",
+                "category": null
+              },
+              {
+                "message_id": "m2",
+                "role": "assistant",
+                "content": "Hi, here are results.",
+                "category": "general_knowledge"
+              }
+            ],
+            "embeds": [
+              {
+                "embed_id": "emb-master",
+                "type": "code-code",
+                "content": "print('hi')"
+              },
+              {
+                "embed_id": "emb-parent",
+                "type": "web-search",
+                "content": {
+                  "query": "alpha"
+                }
+              },
+              {
+                "embed_id": "emb-child",
+                "type": "web-website",
+                "content": {
+                  "url": "https://example.invalid/a",
+                  "rank": 1
+                }
+              },
+              {
+                "embed_id": "emb-orphan",
+                "type": null,
+                "content": null
+              }
+            ]
+          },
+          "expected_error": null
+        },
+        {
+          "id": "load-by-slug",
+          "operation": "load",
+          "arguments": {
+            "chat_id": "Alpha-Notes"
+          },
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/chats",
+              "query": {
+                "limit": "0",
+                "offset": "0"
+              },
+              "status": 200,
+              "response": {
+                "chats": [
+                  {
+                    "id": "a1a1a1a1-1111-4111-8111-111111111111",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAABiMpJiUliflE4eLoE3kY7kWUP9iM1/OUZG0HWJimL6tLryHNYFyPqIGROjoYwwWJD",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T03pl1plAAAAAAAAAAAAAAACcSxoT6b5S84uIfyM4UGabQrl48/rXvymj+Vw",
+                    "encrypted_chat_summary": "T03pl1plAAAAAAAAAAAAAAADg442rkuy6KIcxwyIL7H4XMhiT2UeBjhQRTIuFdulZ84hw/Ab",
+                    "encrypted_category": "T03pl1plAAAAAAAAAAAAAAAEAK9zvAlvugIDkzs9oHgAmUoKLuk=",
+                    "encrypted_slug": "T03pl1plAAAAAAAAAAAAAAAFAl48IObFwrlIbRiYZVsqy+nATg9mPIpwfld1"
+                  },
+                  {
+                    "id": "b2b2b2b2-2222-4222-8222-222222222222",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAGi1fnpcEPuusLECWWoOyJivoFYN/ay30Sv/5ZIFTZiWS0wU3NPcSg0u102vDbdzZY",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T00n18XFAAAAAAAAAAAAAAAHj0TwIvRPUg/5xnwkz4U0pBP1aJzB8+y4eW8e",
+                    "encrypted_category": "T02lmetlAAAAAAAAAAAAAAAI9TLNpcv4+Qm9BdVQNlRFOgaq3yDGSw==",
+                    "encrypted_slug": "T00n18XFAAAAAAAAAAAAAAAJiGIz/QFsHoRBDOJLvl6JxV/Id/2xmijMkd0="
+                  },
+                  {
+                    "id": "c3c3c3c3-3333-4333-8333-333333333333",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100
+                  },
+                  {
+                    "id": "d4d4d4d4-4444-4444-8444-444444444444",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAK9Hdykhya943KyFJajKBXmX8DKYO8b022U+wg2thgqL4IAtLE+0adzBeJN5en4jMk",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T00JanDlAAAAAAAAAAAAAAALIbiC9AqF2bdh5+Z9yC4rvztyJsIN6H2nuKI="
+                  },
+                  {
+                    "id": "e5e5e5e5-5555-4555-8555-555555555555",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAMLGOKKCDY9lAVjJp/lYd9gdNaTguD6gFE/5F3zbIPmrqRlc0cbsckdruXgkZbCw9N",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T00JanDlAAAAAAAAAAAAAAANYZ2SVkp+rVXNWykRJRrnrFhMHsLlgj1HHcwE5Q=="
+                  }
+                ]
+              }
+            },
+            {
+              "method": "GET",
+              "path": "/v1/sdk/chats/a1a1a1a1-1111-4111-8111-111111111111",
+              "status": 200,
+              "response": {
+                "chat": {
+                  "id": "a1a1a1a1-1111-4111-8111-111111111111",
+                  "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAOR7e+WJOhbVG4NCXXwUw3g0dPtjWgmWgbZu2zehuoLUXHp2e+wUYztenJhkYd+wbG",
+                  "created_at": 1700000000,
+                  "updated_at": 1700000100,
+                  "encrypted_title": "T03pl1plAAAAAAAAAAAAAAACcSxoT6b5S84uIfyM4UGabQrl48/rXvymj+Vw",
+                  "encrypted_chat_summary": "T03pl1plAAAAAAAAAAAAAAADg442rkuy6KIcxwyIL7H4XMhiT2UeBjhQRTIuFdulZ84hw/Ab",
+                  "encrypted_category": "T03pl1plAAAAAAAAAAAAAAAEAK9zvAlvugIDkzs9oHgAmUoKLuk=",
+                  "encrypted_slug": "T03pl1plAAAAAAAAAAAAAAAFAl48IObFwrlIbRiYZVsqy+nATg9mPIpwfld1"
+                },
+                "chat_key_wrappers": [
+                  {
+                    "key_type": "master",
+                    "hashed_chat_id": "270083e485f606bea5455bbc7fc928e5da1ab8c5c2581b60920dad9e46f01863",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAPB1uFlQDNzLPLeFII+8DzpwkZKdxq9JfJ50cXYezVsDhcbnT0uJc2qtOrrkWSYgB3"
+                  }
+                ],
+                "messages": [
+                  {
+                    "message_id": "m1",
+                    "role": "user",
+                    "encrypted_content": "T03pl1plAAAAAAAAAAAAAAAQIeUPNwqMD/GSQZNJOVrGdu/luoUDnfU1SIpa"
+                  },
+                  "{\"message_id\": \"m2\", \"role\": \"assistant\", \"encrypted_content\": \"T03pl1plAAAAAAAAAAAAAAAR4Agb8Lp2cXy2WzI76DJT9/T5nlwDOEktYXpwUWxIXMq02kFDRg==\", \"encrypted_category\": \"T03pl1plAAAAAAAAAAAAAAASEhsf+OJKR7K84WB0bCgg0qz+xpq1slqf/vC4AQo5U7k/\"}"
+                ],
+                "embeds": [
+                  {
+                    "embed_id": "emb-master",
+                    "encrypted_type": "T03xuWNlAAAAAAAAAAAAAAAT4khVAx9uTjyTxcUQmvQkfFklW3fFZ3c5+w==",
+                    "encrypted_content": "T03xuWNlAAAAAAAAAAAAAAAUNVg0lWNwe96bJXCM5JSrOPcA/IHipsaicE4E"
+                  },
+                  {
+                    "embed_id": "emb-parent",
+                    "encrypted_type": "T01K9pvFAAAAAAAAAAAAAAAV3C7daKD4HiyPaR1e3Dv8t4FWxBHv6ivpfpY=",
+                    "encrypted_content": "T01K9pvFAAAAAAAAAAAAAAAWH21XD+51YzYnJhbk6Q6dGHKljRBg5J/mEiFFwLgRcZ3bUQ=="
+                  },
+                  {
+                    "embed_id": "emb-child",
+                    "parent_embed_id": "emb-parent",
+                    "encrypted_type": "T01K9pvFAAAAAAAAAAAAAAAXD/85L/pYnnEwpwKJUxcScRxNeYgbwPm9SwEV",
+                    "encrypted_content": "T01K9pvFAAAAAAAAAAAAAAAY5S+AHL9CYRpX7N+aNm/1HYaYaN0fWRDufELr1uBMrYVIv0ejNPQohQDBJHK5PXHbPTCyPZwA+y19nHU0"
+                  },
+                  {
+                    "embed_id": "emb-orphan",
+                    "encrypted_type": "T02lmetlAAAAAAAAAAAAAAAZmoukPxH5mCjLEyN94rx11X+PbKcTPQ=="
+                  }
+                ],
+                "embed_keys": [
+                  {
+                    "hashed_embed_id": "a77b3958a6e8c0d6804fdcd7d2ebb183bdc0d4410e5008c5510e08f5737f5161",
+                    "key_type": "master",
+                    "encrypted_embed_key": "T00QhQZlAAAAAAAAAAAAAAAa6zldKduhY/vN7htD5hUY2ZZUfyBQS5dadnQ0/gvPgS0cd91H76fi0niS+zmsJ48W"
+                  },
+                  {
+                    "hashed_embed_id": "acb509d901a2098409b146c041523a4ea761e4364a0fe3a34051c8ef40299a72",
+                    "key_type": "chat",
+                    "encrypted_embed_key": "T03pl1plAAAAAAAAAAAAAAAbzODKjkqiOqqPqA9HuHpqo2gZRvOSEZLDwosaBWHE+mGtoNrGopbt4P6HMiXrnmmZ"
+                  }
+                ]
+              }
+            }
+          ],
+          "session": true,
+          "expected": {
+            "chat": {
+              "id": "a1a1a1a1-1111-4111-8111-111111111111",
+              "title": "Alpha Notes",
+              "chat_summary": "Weekly alpha summary",
+              "category": "work",
+              "slug": "alpha-notes"
+            },
+            "messages": [
+              {
+                "message_id": "m1",
+                "role": "user",
+                "content": "Hello alpha",
+                "category": null
+              },
+              {
+                "message_id": "m2",
+                "role": "assistant",
+                "content": "Hi, here are results.",
+                "category": "general_knowledge"
+              }
+            ],
+            "embeds": [
+              {
+                "embed_id": "emb-master",
+                "type": "code-code",
+                "content": "print('hi')"
+              },
+              {
+                "embed_id": "emb-parent",
+                "type": "web-search",
+                "content": {
+                  "query": "alpha"
+                }
+              },
+              {
+                "embed_id": "emb-child",
+                "type": "web-website",
+                "content": {
+                  "url": "https://example.invalid/a",
+                  "rank": 1
+                }
+              },
+              {
+                "embed_id": "emb-orphan",
+                "type": null,
+                "content": null
+              }
+            ]
+          },
+          "expected_error": null
+        },
+        {
+          "id": "load-by-id-prefix",
+          "operation": "load",
+          "arguments": {
+            "chat_id": "a1a1a1a1-11"
+          },
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/chats",
+              "query": {
+                "limit": "0",
+                "offset": "0"
+              },
+              "status": 200,
+              "response": {
+                "chats": [
+                  {
+                    "id": "a1a1a1a1-1111-4111-8111-111111111111",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAABiMpJiUliflE4eLoE3kY7kWUP9iM1/OUZG0HWJimL6tLryHNYFyPqIGROjoYwwWJD",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T03pl1plAAAAAAAAAAAAAAACcSxoT6b5S84uIfyM4UGabQrl48/rXvymj+Vw",
+                    "encrypted_chat_summary": "T03pl1plAAAAAAAAAAAAAAADg442rkuy6KIcxwyIL7H4XMhiT2UeBjhQRTIuFdulZ84hw/Ab",
+                    "encrypted_category": "T03pl1plAAAAAAAAAAAAAAAEAK9zvAlvugIDkzs9oHgAmUoKLuk=",
+                    "encrypted_slug": "T03pl1plAAAAAAAAAAAAAAAFAl48IObFwrlIbRiYZVsqy+nATg9mPIpwfld1"
+                  },
+                  {
+                    "id": "b2b2b2b2-2222-4222-8222-222222222222",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAGi1fnpcEPuusLECWWoOyJivoFYN/ay30Sv/5ZIFTZiWS0wU3NPcSg0u102vDbdzZY",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T00n18XFAAAAAAAAAAAAAAAHj0TwIvRPUg/5xnwkz4U0pBP1aJzB8+y4eW8e",
+                    "encrypted_category": "T02lmetlAAAAAAAAAAAAAAAI9TLNpcv4+Qm9BdVQNlRFOgaq3yDGSw==",
+                    "encrypted_slug": "T00n18XFAAAAAAAAAAAAAAAJiGIz/QFsHoRBDOJLvl6JxV/Id/2xmijMkd0="
+                  },
+                  {
+                    "id": "c3c3c3c3-3333-4333-8333-333333333333",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100
+                  },
+                  {
+                    "id": "d4d4d4d4-4444-4444-8444-444444444444",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAK9Hdykhya943KyFJajKBXmX8DKYO8b022U+wg2thgqL4IAtLE+0adzBeJN5en4jMk",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T00JanDlAAAAAAAAAAAAAAALIbiC9AqF2bdh5+Z9yC4rvztyJsIN6H2nuKI="
+                  },
+                  {
+                    "id": "e5e5e5e5-5555-4555-8555-555555555555",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAMLGOKKCDY9lAVjJp/lYd9gdNaTguD6gFE/5F3zbIPmrqRlc0cbsckdruXgkZbCw9N",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T00JanDlAAAAAAAAAAAAAAANYZ2SVkp+rVXNWykRJRrnrFhMHsLlgj1HHcwE5Q=="
+                  }
+                ]
+              }
+            },
+            {
+              "method": "GET",
+              "path": "/v1/sdk/chats/a1a1a1a1-1111-4111-8111-111111111111",
+              "status": 200,
+              "response": {
+                "chat": {
+                  "id": "a1a1a1a1-1111-4111-8111-111111111111",
+                  "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAOR7e+WJOhbVG4NCXXwUw3g0dPtjWgmWgbZu2zehuoLUXHp2e+wUYztenJhkYd+wbG",
+                  "created_at": 1700000000,
+                  "updated_at": 1700000100,
+                  "encrypted_title": "T03pl1plAAAAAAAAAAAAAAACcSxoT6b5S84uIfyM4UGabQrl48/rXvymj+Vw",
+                  "encrypted_chat_summary": "T03pl1plAAAAAAAAAAAAAAADg442rkuy6KIcxwyIL7H4XMhiT2UeBjhQRTIuFdulZ84hw/Ab",
+                  "encrypted_category": "T03pl1plAAAAAAAAAAAAAAAEAK9zvAlvugIDkzs9oHgAmUoKLuk=",
+                  "encrypted_slug": "T03pl1plAAAAAAAAAAAAAAAFAl48IObFwrlIbRiYZVsqy+nATg9mPIpwfld1"
+                },
+                "chat_key_wrappers": [
+                  {
+                    "key_type": "master",
+                    "hashed_chat_id": "270083e485f606bea5455bbc7fc928e5da1ab8c5c2581b60920dad9e46f01863",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAPB1uFlQDNzLPLeFII+8DzpwkZKdxq9JfJ50cXYezVsDhcbnT0uJc2qtOrrkWSYgB3"
+                  }
+                ],
+                "messages": [
+                  {
+                    "message_id": "m1",
+                    "role": "user",
+                    "encrypted_content": "T03pl1plAAAAAAAAAAAAAAAQIeUPNwqMD/GSQZNJOVrGdu/luoUDnfU1SIpa"
+                  },
+                  "{\"message_id\": \"m2\", \"role\": \"assistant\", \"encrypted_content\": \"T03pl1plAAAAAAAAAAAAAAAR4Agb8Lp2cXy2WzI76DJT9/T5nlwDOEktYXpwUWxIXMq02kFDRg==\", \"encrypted_category\": \"T03pl1plAAAAAAAAAAAAAAASEhsf+OJKR7K84WB0bCgg0qz+xpq1slqf/vC4AQo5U7k/\"}"
+                ],
+                "embeds": [
+                  {
+                    "embed_id": "emb-master",
+                    "encrypted_type": "T03xuWNlAAAAAAAAAAAAAAAT4khVAx9uTjyTxcUQmvQkfFklW3fFZ3c5+w==",
+                    "encrypted_content": "T03xuWNlAAAAAAAAAAAAAAAUNVg0lWNwe96bJXCM5JSrOPcA/IHipsaicE4E"
+                  },
+                  {
+                    "embed_id": "emb-parent",
+                    "encrypted_type": "T01K9pvFAAAAAAAAAAAAAAAV3C7daKD4HiyPaR1e3Dv8t4FWxBHv6ivpfpY=",
+                    "encrypted_content": "T01K9pvFAAAAAAAAAAAAAAAWH21XD+51YzYnJhbk6Q6dGHKljRBg5J/mEiFFwLgRcZ3bUQ=="
+                  },
+                  {
+                    "embed_id": "emb-child",
+                    "parent_embed_id": "emb-parent",
+                    "encrypted_type": "T01K9pvFAAAAAAAAAAAAAAAXD/85L/pYnnEwpwKJUxcScRxNeYgbwPm9SwEV",
+                    "encrypted_content": "T01K9pvFAAAAAAAAAAAAAAAY5S+AHL9CYRpX7N+aNm/1HYaYaN0fWRDufELr1uBMrYVIv0ejNPQohQDBJHK5PXHbPTCyPZwA+y19nHU0"
+                  },
+                  {
+                    "embed_id": "emb-orphan",
+                    "encrypted_type": "T02lmetlAAAAAAAAAAAAAAAZmoukPxH5mCjLEyN94rx11X+PbKcTPQ=="
+                  }
+                ],
+                "embed_keys": [
+                  {
+                    "hashed_embed_id": "a77b3958a6e8c0d6804fdcd7d2ebb183bdc0d4410e5008c5510e08f5737f5161",
+                    "key_type": "master",
+                    "encrypted_embed_key": "T00QhQZlAAAAAAAAAAAAAAAa6zldKduhY/vN7htD5hUY2ZZUfyBQS5dadnQ0/gvPgS0cd91H76fi0niS+zmsJ48W"
+                  },
+                  {
+                    "hashed_embed_id": "acb509d901a2098409b146c041523a4ea761e4364a0fe3a34051c8ef40299a72",
+                    "key_type": "chat",
+                    "encrypted_embed_key": "T03pl1plAAAAAAAAAAAAAAAbzODKjkqiOqqPqA9HuHpqo2gZRvOSEZLDwosaBWHE+mGtoNrGopbt4P6HMiXrnmmZ"
+                  }
+                ]
+              }
+            }
+          ],
+          "session": true,
+          "expected": {
+            "chat": {
+              "id": "a1a1a1a1-1111-4111-8111-111111111111",
+              "title": "Alpha Notes",
+              "chat_summary": "Weekly alpha summary",
+              "category": "work",
+              "slug": "alpha-notes"
+            },
+            "messages": [
+              {
+                "message_id": "m1",
+                "role": "user",
+                "content": "Hello alpha",
+                "category": null
+              },
+              {
+                "message_id": "m2",
+                "role": "assistant",
+                "content": "Hi, here are results.",
+                "category": "general_knowledge"
+              }
+            ],
+            "embeds": [
+              {
+                "embed_id": "emb-master",
+                "type": "code-code",
+                "content": "print('hi')"
+              },
+              {
+                "embed_id": "emb-parent",
+                "type": "web-search",
+                "content": {
+                  "query": "alpha"
+                }
+              },
+              {
+                "embed_id": "emb-child",
+                "type": "web-website",
+                "content": {
+                  "url": "https://example.invalid/a",
+                  "rank": 1
+                }
+              },
+              {
+                "embed_id": "emb-orphan",
+                "type": null,
+                "content": null
+              }
+            ]
+          },
+          "expected_error": null
+        },
+        {
+          "id": "load-by-collapsed-title",
+          "operation": "load",
+          "arguments": {
+            "chat_id": "  beta plans "
+          },
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/chats",
+              "query": {
+                "limit": "0",
+                "offset": "0"
+              },
+              "status": 200,
+              "response": {
+                "chats": [
+                  {
+                    "id": "a1a1a1a1-1111-4111-8111-111111111111",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAABiMpJiUliflE4eLoE3kY7kWUP9iM1/OUZG0HWJimL6tLryHNYFyPqIGROjoYwwWJD",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T03pl1plAAAAAAAAAAAAAAACcSxoT6b5S84uIfyM4UGabQrl48/rXvymj+Vw",
+                    "encrypted_chat_summary": "T03pl1plAAAAAAAAAAAAAAADg442rkuy6KIcxwyIL7H4XMhiT2UeBjhQRTIuFdulZ84hw/Ab",
+                    "encrypted_category": "T03pl1plAAAAAAAAAAAAAAAEAK9zvAlvugIDkzs9oHgAmUoKLuk=",
+                    "encrypted_slug": "T03pl1plAAAAAAAAAAAAAAAFAl48IObFwrlIbRiYZVsqy+nATg9mPIpwfld1"
+                  },
+                  {
+                    "id": "b2b2b2b2-2222-4222-8222-222222222222",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAGi1fnpcEPuusLECWWoOyJivoFYN/ay30Sv/5ZIFTZiWS0wU3NPcSg0u102vDbdzZY",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T00n18XFAAAAAAAAAAAAAAAHj0TwIvRPUg/5xnwkz4U0pBP1aJzB8+y4eW8e",
+                    "encrypted_category": "T02lmetlAAAAAAAAAAAAAAAI9TLNpcv4+Qm9BdVQNlRFOgaq3yDGSw==",
+                    "encrypted_slug": "T00n18XFAAAAAAAAAAAAAAAJiGIz/QFsHoRBDOJLvl6JxV/Id/2xmijMkd0="
+                  },
+                  {
+                    "id": "c3c3c3c3-3333-4333-8333-333333333333",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100
+                  },
+                  {
+                    "id": "d4d4d4d4-4444-4444-8444-444444444444",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAK9Hdykhya943KyFJajKBXmX8DKYO8b022U+wg2thgqL4IAtLE+0adzBeJN5en4jMk",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T00JanDlAAAAAAAAAAAAAAALIbiC9AqF2bdh5+Z9yC4rvztyJsIN6H2nuKI="
+                  },
+                  {
+                    "id": "e5e5e5e5-5555-4555-8555-555555555555",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAMLGOKKCDY9lAVjJp/lYd9gdNaTguD6gFE/5F3zbIPmrqRlc0cbsckdruXgkZbCw9N",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T00JanDlAAAAAAAAAAAAAAANYZ2SVkp+rVXNWykRJRrnrFhMHsLlgj1HHcwE5Q=="
+                  }
+                ]
+              }
+            },
+            {
+              "method": "GET",
+              "path": "/v1/sdk/chats/b2b2b2b2-2222-4222-8222-222222222222",
+              "status": 200,
+              "response": {
+                "chat": {
+                  "id": "b2b2b2b2-2222-4222-8222-222222222222",
+                  "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAGi1fnpcEPuusLECWWoOyJivoFYN/ay30Sv/5ZIFTZiWS0wU3NPcSg0u102vDbdzZY",
+                  "created_at": 1700000000,
+                  "updated_at": 1700000100,
+                  "encrypted_title": "T00n18XFAAAAAAAAAAAAAAAHj0TwIvRPUg/5xnwkz4U0pBP1aJzB8+y4eW8e",
+                  "encrypted_category": "T02lmetlAAAAAAAAAAAAAAAI9TLNpcv4+Qm9BdVQNlRFOgaq3yDGSw==",
+                  "encrypted_slug": "T00n18XFAAAAAAAAAAAAAAAJiGIz/QFsHoRBDOJLvl6JxV/Id/2xmijMkd0="
+                },
+                "messages": []
+              }
+            }
+          ],
+          "session": true,
+          "expected": {
+            "chat": {
+              "id": "b2b2b2b2-2222-4222-8222-222222222222",
+              "title": "Beta  Plans",
+              "chat_summary": null,
+              "category": null,
+              "slug": "beta-plans"
+            },
+            "messages": [],
+            "embeds": null
+          },
+          "expected_error": null
+        },
+        {
+          "id": "load-ambiguous-title-refused",
+          "operation": "load",
+          "arguments": {
+            "chat_id": "Same Title"
+          },
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/chats",
+              "query": {
+                "limit": "0",
+                "offset": "0"
+              },
+              "status": 200,
+              "response": {
+                "chats": [
+                  {
+                    "id": "a1a1a1a1-1111-4111-8111-111111111111",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAABiMpJiUliflE4eLoE3kY7kWUP9iM1/OUZG0HWJimL6tLryHNYFyPqIGROjoYwwWJD",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T03pl1plAAAAAAAAAAAAAAACcSxoT6b5S84uIfyM4UGabQrl48/rXvymj+Vw",
+                    "encrypted_chat_summary": "T03pl1plAAAAAAAAAAAAAAADg442rkuy6KIcxwyIL7H4XMhiT2UeBjhQRTIuFdulZ84hw/Ab",
+                    "encrypted_category": "T03pl1plAAAAAAAAAAAAAAAEAK9zvAlvugIDkzs9oHgAmUoKLuk=",
+                    "encrypted_slug": "T03pl1plAAAAAAAAAAAAAAAFAl48IObFwrlIbRiYZVsqy+nATg9mPIpwfld1"
+                  },
+                  {
+                    "id": "b2b2b2b2-2222-4222-8222-222222222222",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAGi1fnpcEPuusLECWWoOyJivoFYN/ay30Sv/5ZIFTZiWS0wU3NPcSg0u102vDbdzZY",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T00n18XFAAAAAAAAAAAAAAAHj0TwIvRPUg/5xnwkz4U0pBP1aJzB8+y4eW8e",
+                    "encrypted_category": "T02lmetlAAAAAAAAAAAAAAAI9TLNpcv4+Qm9BdVQNlRFOgaq3yDGSw==",
+                    "encrypted_slug": "T00n18XFAAAAAAAAAAAAAAAJiGIz/QFsHoRBDOJLvl6JxV/Id/2xmijMkd0="
+                  },
+                  {
+                    "id": "c3c3c3c3-3333-4333-8333-333333333333",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100
+                  },
+                  {
+                    "id": "d4d4d4d4-4444-4444-8444-444444444444",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAK9Hdykhya943KyFJajKBXmX8DKYO8b022U+wg2thgqL4IAtLE+0adzBeJN5en4jMk",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T00JanDlAAAAAAAAAAAAAAALIbiC9AqF2bdh5+Z9yC4rvztyJsIN6H2nuKI="
+                  },
+                  {
+                    "id": "e5e5e5e5-5555-4555-8555-555555555555",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAMLGOKKCDY9lAVjJp/lYd9gdNaTguD6gFE/5F3zbIPmrqRlc0cbsckdruXgkZbCw9N",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T00JanDlAAAAAAAAAAAAAAANYZ2SVkp+rVXNWykRJRrnrFhMHsLlgj1HHcwE5Q=="
+                  }
+                ]
+              }
+            }
+          ],
+          "session": true,
+          "expected": null,
+          "expected_error": "invalid"
+        },
+        {
+          "id": "load-unknown-name-refused",
+          "operation": "load",
+          "arguments": {
+            "chat_id": "no such chat"
+          },
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/chats",
+              "query": {
+                "limit": "0",
+                "offset": "0"
+              },
+              "status": 200,
+              "response": {
+                "chats": [
+                  {
+                    "id": "a1a1a1a1-1111-4111-8111-111111111111",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAABiMpJiUliflE4eLoE3kY7kWUP9iM1/OUZG0HWJimL6tLryHNYFyPqIGROjoYwwWJD",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T03pl1plAAAAAAAAAAAAAAACcSxoT6b5S84uIfyM4UGabQrl48/rXvymj+Vw",
+                    "encrypted_chat_summary": "T03pl1plAAAAAAAAAAAAAAADg442rkuy6KIcxwyIL7H4XMhiT2UeBjhQRTIuFdulZ84hw/Ab",
+                    "encrypted_category": "T03pl1plAAAAAAAAAAAAAAAEAK9zvAlvugIDkzs9oHgAmUoKLuk=",
+                    "encrypted_slug": "T03pl1plAAAAAAAAAAAAAAAFAl48IObFwrlIbRiYZVsqy+nATg9mPIpwfld1"
+                  },
+                  {
+                    "id": "b2b2b2b2-2222-4222-8222-222222222222",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAGi1fnpcEPuusLECWWoOyJivoFYN/ay30Sv/5ZIFTZiWS0wU3NPcSg0u102vDbdzZY",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T00n18XFAAAAAAAAAAAAAAAHj0TwIvRPUg/5xnwkz4U0pBP1aJzB8+y4eW8e",
+                    "encrypted_category": "T02lmetlAAAAAAAAAAAAAAAI9TLNpcv4+Qm9BdVQNlRFOgaq3yDGSw==",
+                    "encrypted_slug": "T00n18XFAAAAAAAAAAAAAAAJiGIz/QFsHoRBDOJLvl6JxV/Id/2xmijMkd0="
+                  },
+                  {
+                    "id": "c3c3c3c3-3333-4333-8333-333333333333",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100
+                  },
+                  {
+                    "id": "d4d4d4d4-4444-4444-8444-444444444444",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAK9Hdykhya943KyFJajKBXmX8DKYO8b022U+wg2thgqL4IAtLE+0adzBeJN5en4jMk",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T00JanDlAAAAAAAAAAAAAAALIbiC9AqF2bdh5+Z9yC4rvztyJsIN6H2nuKI="
+                  },
+                  {
+                    "id": "e5e5e5e5-5555-4555-8555-555555555555",
+                    "encrypted_chat_key": "T00QhQZlAAAAAAAAAAAAAAAMLGOKKCDY9lAVjJp/lYd9gdNaTguD6gFE/5F3zbIPmrqRlc0cbsckdruXgkZbCw9N",
+                    "created_at": 1700000000,
+                    "updated_at": 1700000100,
+                    "encrypted_title": "T00JanDlAAAAAAAAAAAAAAANYZ2SVkp+rVXNWykRJRrnrFhMHsLlgj1HHcwE5Q=="
+                  }
+                ]
+              }
+            }
+          ],
+          "session": true,
+          "expected": null,
+          "expected_error": "invalid"
+        },
+        {
+          "id": "load-missing-uuid-invalid",
+          "operation": "load",
+          "arguments": {
+            "chat_id": "c3c3c3c3-3333-4333-8333-333333333333"
+          },
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/chats/c3c3c3c3-3333-4333-8333-333333333333",
+              "status": 404,
+              "response": {
+                "detail": "Not found"
+              }
+            }
+          ],
+          "session": false,
+          "expected": null,
+          "expected_error": "invalid"
+        },
+        {
+          "id": "list-unauthenticated",
+          "operation": "list",
+          "arguments": {},
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/chats",
+              "query": {
+                "limit": "10",
+                "offset": "0"
+              },
+              "status": 401,
+              "response": {
+                "detail": "Invalid API key"
+              }
+            }
+          ],
+          "session": false,
+          "expected": null,
+          "expected_error": "authentication"
+        },
+        {
+          "id": "load-forbidden",
+          "operation": "load",
+          "arguments": {
+            "chat_id": "a1a1a1a1-1111-4111-8111-111111111111"
+          },
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/chats/a1a1a1a1-1111-4111-8111-111111111111",
+              "status": 403,
+              "response": {
+                "detail": "Forbidden"
+              }
+            }
+          ],
+          "session": false,
+          "expected": null,
+          "expected_error": "forbidden"
+        },
+        {
+          "id": "list-server-unavailable",
+          "operation": "list",
+          "arguments": {},
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/chats",
+              "query": {
+                "limit": "10",
+                "offset": "0"
+              },
+              "status": 503,
+              "response": {
+                "detail": "Unavailable"
+              }
+            }
+          ],
+          "session": false,
+          "expected": null,
+          "expected_error": "offline"
+        }
+      ]
+    }
+  }
+}

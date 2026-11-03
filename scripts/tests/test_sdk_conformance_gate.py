@@ -66,6 +66,16 @@ def test_untracked_or_removed_public_api_is_refused():
     gate.validate_matrix(matrix_with(row), inventory, ROOT)
 
 
+def test_one_language_implemented_capability_is_refused():
+    empty = {"rust": [], "npm": [], "python": []}
+    done = support(status="implemented", gaps=(), conformance=True,
+                   evidence=["tests/sdk-conformance/runners/sdk-api-key-chats.py"])
+    row = capability(rust=done)
+    with pytest.raises(ValueError, match="Unsynchronized capability"):
+        gate.validate_matrix(matrix_with(row), empty, ROOT)
+    synced = {language: done for language in LANGUAGES}
+    gate.validate_matrix(matrix_with(capability(**synced)), empty, ROOT)
+
 def test_missing_or_non_test_evidence_is_refused():
     row = capability(npm=support(evidence=["tests/sdk-conformance/does-not-exist.mjs"]))
     with pytest.raises(ValueError, match="Missing or non-repository evidence"):

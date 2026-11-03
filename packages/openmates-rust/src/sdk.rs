@@ -117,6 +117,10 @@ impl OpenMates {
         self.operation_cancel.cancel();
         self.operation_cancel = cancel.child_token();
     }
+    /// Encrypted chat reads, decrypted locally with the API-key-wrapped key.
+    pub fn chats(&mut self) -> crate::sdk_chats::Chats<'_> {
+        crate::sdk_chats::Chats::new(self)
+    }
     pub fn history(&mut self) -> crate::sdk_history::History<'_> {
         crate::sdk_history::History::api_key(self)
     }

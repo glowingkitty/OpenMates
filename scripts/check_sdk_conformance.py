@@ -224,6 +224,7 @@ ADAPTER_OVERRIDES[("python", "session.drafts.v1")] = [sys.executable, "tests/sdk
 # Fixed direct-library adapters; matrix metadata never supplies commands.
 for _identity, _stem, _npm in (
     ("sdk.history", "sdk-api-key-history", "sdk-api-key-history"),
+    ("sdk.chats", "sdk-api-key-chats", "sdk-api-key-chats"),
     ("sdk.drafts", "sdk-api-key-drafts", "api-key-drafts"),
     ("sdk.docs", "sdk-api-key-docs", "sdk-api-key-docs"),
     ("sdk.wikipedia", "sdk-api-key-wikipedia", "sdk-api-key-wikipedia"),
@@ -278,6 +279,8 @@ FIXTURE_SCHEMAS = {
         "tests/sdk-conformance/fixtures/sdk-api-key-embeds-family.schema.json",
     "tests/sdk-conformance/fixtures/sdk-api-key-history.json":
         "tests/sdk-conformance/fixtures/sdk-api-key-history.schema.json",
+    "tests/sdk-conformance/fixtures/sdk-api-key-chats.json":
+        "tests/sdk-conformance/schemas/sdk-api-key-chats.schema.json",
     "tests/sdk-conformance/fixtures/sdk-api-key-drafts.json":
         "tests/sdk-conformance/schemas/sdk-api-key-drafts-fixture.schema.json",
 }
@@ -409,6 +412,15 @@ def require_workflow_file_adapters(capability: dict) -> None:
         raise ValueError("Workflow files require all three actual partial SDK adapters")
 
 
+def require_synchronized_implementation(capability: dict) -> None:
+    """A capability may be claimed implemented only in all three SDKs at once."""
+    statuses = {capability["languages"][language]["status"] for language in LANGUAGES}
+    if "implemented" in statuses and statuses != {"implemented"}:
+        raise ValueError(
+            "Unsynchronized capability implemented in only some SDKs: " + capability["id"]
+        )
+
+
 def validate_matrix(matrix: dict, inventory: dict, root: Path = ROOT) -> list[str]:
     """API inventory is discovered independently of matrix support declarations."""
     for capability in matrix["capabilities"]:
@@ -432,6 +444,7 @@ def validate_matrix(matrix: dict, inventory: dict, root: Path = ROOT) -> list[st
         if identity in seen_ids:
             raise ValueError("Duplicate capability: " + identity)
         seen_ids.add(identity)
+        require_synchronized_implementation(capability)
         for language in LANGUAGES:
             support = capability["languages"][language]
             for api in support["api"]:
@@ -447,6 +460,7 @@ def validate_matrix(matrix: dict, inventory: dict, root: Path = ROOT) -> list[st
                     "frontend/packages/openmates-tui-native/src/runtime_live_tests.rs",
                     "frontend/packages/openmates-tui-native/src/runtime_store.rs",
                     "packages/openmates-rust/examples/sdk-api-key-history-conformance.rs",
+                    "packages/openmates-rust/examples/sdk-api-key-chats-conformance.rs",
                     "packages/openmates-rust/examples/sdk-api-key-drafts-conformance.rs",
                     "packages/openmates-rust/examples/sdk-api-key-docs-conformance.rs",
                     "packages/openmates-rust/examples/sdk-api-key-wikipedia-conformance.rs",
