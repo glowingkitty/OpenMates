@@ -141,6 +141,20 @@ test.describe('Native Rust CLI chat sync feed', () => {
 				}, { timeout: 60_000, intervals: [2_000, 5_000] })
 				.toEqual({ branch: 'feed_hit', first: kept, removedPresent: false });
 
+			// A chat with an encrypted title keeps that title through the feed sync:
+			// device B's feed-hit list shows the same title device A sees.
+			const titleOf = async (cli: ReturnType<typeof device>) => {
+				const out = await cli.run(['chats', 'list', '--json', '--limit', '50']);
+				const chats = (JSON.parse(out.stdout).chats || []) as Array<{ id: string; title: string | null }>;
+				return chats.find((chat) => chat.id === kept)?.title ?? null;
+			};
+			await expect
+				.poll(async () => {
+					const [a, b] = [await titleOf(deviceA), await titleOf(deviceB)];
+					return a !== null && a !== '' && b === a;
+				}, { timeout: 90_000, intervals: [3_000, 5_000] })
+				.toBe(true);
+
 			if (reminderId) {
 				const cancelled = await page.request.delete(`${apiUrl}/v1/settings/reminders/${reminderId}`);
 				expect(cancelled.ok()).toBe(true);

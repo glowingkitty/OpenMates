@@ -308,3 +308,24 @@ async fn prefetch_for_another_cursor_or_owner_is_discarded() {
     assert!(client.feed_prefetch.is_none());
     task.abort();
 }
+
+// contract-test: supporting surface=sdks.rust assertions=sync.delta.metadata-only
+#[test]
+fn feed_pages_never_blank_an_encrypted_title_or_chat_key() {
+    let mut client = seeded();
+    // A messages-only advance and a draft-only change on a titled chat keep its
+    // ciphertext title and key wrapper; only a newer authoritative row replaces it.
+    let advance = page(json!([
+        {"chat_id":A,"hashed_chat_id":super::hashed(A),"kinds":["messages"],"chat_details":row(A, 2, 30)},
+        {"chat_id":B,"hashed_chat_id":super::hashed(B),"kinds":["draft"],
+         "draft":{"encrypted_draft_md":"d","encrypted_draft_preview":"p","draft_v":1}},
+    ]), "e1:7|e2:2");
+    client.apply_chat_sync_page(&advance).unwrap();
+    for id in [A, B] {
+        let cached = &client.chats[id];
+        assert_eq!(cached["encrypted_title"], "cipher", "title kept for {id}");
+        assert_eq!(cached["encrypted_chat_key"], "wrapped", "key kept for {id}");
+    }
+    assert_eq!(client.chats[A]["messages_v"], 2);
+    assert_eq!(client.chats[B]["encrypted_draft_md"], "d");
+}
