@@ -48,6 +48,7 @@ fn supported(invocation: &Invocation) -> bool {
         || super::goal_chat::supported(invocation)
         || super::context::supported(invocation)
         || super::docs::is_public(invocation)
+        || super::parity_extras::supported(invocation)
         || matches!(
             invocation.command_path().as_str(),
             "wiki search" | "wiki show"
@@ -72,6 +73,7 @@ pub fn requirements(invocation: &Invocation) -> Requirements {
             | "apps run"
     ) || invocation.command_path() == "drafts"
         || super::docs::is_public(invocation)
+        || super::parity_extras::is_public(invocation)
         || super::group_help::is_root(invocation)
         || !supported(invocation)
         || invocation.path.first().is_some_and(|v| v == "server");
@@ -91,6 +93,9 @@ pub fn execute_public(invocation: &Invocation) -> Option<Result<CliOutput, CliEr
     if let Some(output) = super::group_help::public(invocation) { return Some(output); }
     if let Some(output) = super::drafts::public(invocation) { return Some(output); }
     if let Some(help) = super::docs::public_help(invocation) {
+        return Some(help);
+    }
+    if let Some(help) = super::parity_extras::help(invocation) {
         return Some(help);
     }
     let path = invocation.command_path();
@@ -1046,6 +1051,9 @@ async fn execute_context_with_inventory(
     }
     if super::context::supported(invocation) {
         return super::context::execute(invocation, client, cancel);
+    }
+    if super::parity_extras::supported(invocation) {
+        return Box::pin(super::parity_extras::execute(invocation, client)).await;
     }
     if super::account::supported(invocation) {
         return Box::pin(super::account::execute(invocation, client)).await;

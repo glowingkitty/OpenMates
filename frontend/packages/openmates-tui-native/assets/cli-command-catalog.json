@@ -19282,11 +19282,11 @@
       "implementation": {
         "parser": "native_clap",
         "handler": null,
-        "status": "unsupported",
-        "module": null
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/parity_extras.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Prints native command help; the group's subcommands are tracked on their own records."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -28234,12 +28234,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.client.travel_booking_link",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/parity_extras.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "--api-key credentials are not supported natively; use a native session.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -33072,11 +33073,11 @@
       "implementation": {
         "parser": "native_clap",
         "handler": null,
-        "status": "unsupported",
-        "module": null
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/parity_extras.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Prints native command help; the group's subcommands are tracked on their own records."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -33995,11 +33996,11 @@
       "implementation": {
         "parser": "native_clap",
         "handler": null,
-        "status": "unsupported",
-        "module": null
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/parity_extras.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Prints native Clap help (npm prints its hand-written help text)."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -34565,12 +34566,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.client.inspirations",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/parity_extras.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Output carries phrase/title/category/feature only; assistant_response, video, follow-up suggestions and opened state are not decoded natively.",
+        "Signed-out public inspirations need a native session; live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -61888,8 +61890,8 @@
   "coverage": {
     "command_patterns": 720,
     "flags": 599,
-    "native_handlers_partial": 645,
-    "unsupported": 75,
+    "native_handlers_partial": 650,
+    "unsupported": 70,
     "feature_complete": false
   },
   "maintenance": {

@@ -1,0 +1,435 @@
+{
+ "comment": "Draft preview vectors. Expected values are the UTF-8 bytes the web generateDraftPreview output encrypts to; frontend/packages/ui vitest asserts the TypeScript output, the Rust draft_preview test asserts the shared core.",
+ "names": {
+  "models": {
+   "claude-4-sonnet": "Claude 4.5 Opus"
+  },
+  "mates": {
+   "sophia": "sophia"
+  },
+  "skills": [
+   "code:get_docs"
+  ],
+  "focus": [
+   "web:research"
+  ],
+  "memories": [
+   "code:projects"
+  ]
+ },
+ "cases": [
+  {
+   "name": "plain-text",
+   "markdown": "Hello   world",
+   "doc": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "Hello   world"
+       }
+      ]
+     }
+    ]
+   },
+   "expected": "Hello world"
+  },
+  {
+   "name": "truncates-at-100",
+   "markdown": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "doc": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+       }
+      ]
+     }
+    ]
+   },
+   "expected": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..."
+  },
+  {
+   "name": "model-mention-node",
+   "markdown": "Ask @ai-model:claude-4-sonnet please",
+   "doc": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "Ask "
+       },
+       {
+        "type": "aiModelMention",
+        "attrs": {
+         "modelId": "claude-4-sonnet"
+        }
+       },
+       {
+        "type": "text",
+        "text": " please"
+       }
+      ]
+     }
+    ]
+   },
+   "expected": "Ask @Claude-4.5-Opus please"
+  },
+  {
+   "name": "unknown-model-node",
+   "markdown": "Hi @ai-model:x-1",
+   "doc": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "Hi"
+       },
+       {
+        "type": "aiModelMention",
+        "attrs": {
+         "modelId": "x-1"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "expected": "Hi @ai-model:x-1"
+  },
+  {
+   "name": "text-mention-syntax",
+   "markdown": "",
+   "doc": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "Use @skill:code:get_docs and @focus:web:research then @memory:code:projects:list ok @mate:sophia"
+       }
+      ]
+     }
+    ]
+   },
+   "expected": "Use @Code-Get-Docs and @Web-Research then @Code-Projects ok @Sophia"
+  },
+  {
+   "name": "unknown-text-mentions-kept",
+   "markdown": "",
+   "doc": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "@skill:code:nope @mate:zed"
+       }
+      ]
+     }
+    ]
+   },
+   "expected": "@skill:code:nope @mate:zed"
+  },
+  {
+   "name": "inline-embeds-in-order",
+   "markdown": "",
+   "doc": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "image"
+        }
+       },
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "web-website"
+        }
+       },
+       {
+        "type": "text",
+        "text": "describe"
+       }
+      ]
+     }
+    ]
+   },
+   "expected": "[Image] [Website] describe"
+  },
+  {
+   "name": "unknown-embed-label",
+   "markdown": "",
+   "doc": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "travel_stays-hotel"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "expected": "[Travel Stays Hotel]"
+  },
+  {
+   "name": "blocks-and-hard-break",
+   "markdown": "",
+   "doc": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "heading",
+      "attrs": {
+       "level": 1
+      },
+      "content": [
+       {
+        "type": "text",
+        "text": "Title"
+       }
+      ]
+     },
+     {
+      "type": "bulletList",
+      "content": [
+       {
+        "type": "listItem",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "one"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "listItem",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "two"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "blockquote",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "quoted"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "a"
+       },
+       {
+        "type": "hardBreak"
+       },
+       {
+        "type": "text",
+        "text": "b"
+       }
+      ]
+     }
+    ]
+   },
+   "expected": "Title one two quoted a b"
+  },
+  {
+   "name": "code-block-only-is-empty",
+   "markdown": "```\nx\n```",
+   "doc": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "codeBlock",
+      "content": [
+       {
+        "type": "text",
+        "text": "x"
+       }
+      ]
+     }
+    ]
+   },
+   "expected": ""
+  },
+  {
+   "name": "mate-and-generic-mention",
+   "markdown": "",
+   "doc": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "mate",
+        "attrs": {
+         "name": "Sophia"
+        }
+       },
+       {
+        "type": "genericMention",
+        "attrs": {
+         "mentionSyntax": "@skill:code:get_docs"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "expected": "@Sophia @Code-Get-Docs"
+  },
+  {
+   "name": "markdown-code-placeholder",
+   "markdown": "Look:\n```python\nprint(1)\n```\nend",
+   "doc": null,
+   "expected": "Look: [Code: print(1)] end"
+  },
+  {
+   "name": "markdown-json-embed",
+   "markdown": "```json\n{\"type\":\"image\",\"embed_id\":\"e1\"}\n```\nhi",
+   "doc": null,
+   "expected": "[Image] hi"
+  },
+  {
+   "name": "markdown-website-embed",
+   "markdown": "see\n```json_embed\n{\"url\":\"https://example.org\"}\n```",
+   "doc": null,
+   "expected": "see [Website]"
+  },
+  {
+   "name": "markdown-long-code-line",
+   "markdown": "```\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n```",
+   "doc": null,
+   "expected": "[Code: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...]"
+  },
+  {
+   "name": "astral-split-at-limit",
+   "markdown": "",
+   "doc": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa😀b"
+       }
+      ]
+     }
+    ]
+   },
+   "expected": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa�..."
+  },
+  {
+   "name": "test-marker-removed",
+   "markdown": "",
+   "doc": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "<<<TEST_LIVE_MOCK:abc>>> hi"
+       }
+      ]
+     }
+    ]
+   },
+   "expected": "hi"
+  },
+  {
+   "name": "unclosed-reference-fence",
+   "markdown": "",
+   "doc": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "x ```json {\"type\":\"pdf\",\"embed_id\":\"1\"}"
+       }
+      ]
+     }
+    ]
+   },
+   "expected": "x [PDF]"
+  },
+  {
+   "name": "unicode-whitespace",
+   "markdown": "",
+   "doc": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "a　 b﻿"
+       }
+      ]
+     }
+    ]
+   },
+   "expected": "a b"
+  }
+ ]
+}
