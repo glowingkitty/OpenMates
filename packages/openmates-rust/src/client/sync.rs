@@ -341,6 +341,11 @@ impl Client {
     }
 
     pub(super) fn apply_draft_projection(&self, row: &Value, item: &mut Item) -> Result<()> {
+        // Draft-less rows need no master key: browser (non-native) credentials
+        // must keep reading ordinary saved chats.
+        if !has_draft(row) {
+            return Ok(());
+        }
         draft_projection(row, &self.require_session()?.master_key, item)
     }
 
@@ -1041,8 +1046,11 @@ impl Client {
 /// TS `chatListItem` parity: a chat with a draft lists "Draft" as its
 /// description and, without a title, the draft preview (master-key
 /// encrypted) as its display title. `fields.has_draft` marks the row.
+fn has_draft(row: &Value) -> bool {
+    row.get("encrypted_draft_md").and_then(Value::as_str).is_some_and(|draft| !draft.is_empty())
+}
 pub(super) fn draft_projection(row: &Value, master: &[u8; 32], item: &mut Item) -> Result<()> {
-    if !row.get("encrypted_draft_md").and_then(Value::as_str).is_some_and(|draft| !draft.is_empty()) {
+    if !has_draft(row) {
         return Ok(());
     }
     if item.title.is_empty() {
@@ -1585,5 +1593,18 @@ mod draft_projection_tests {
         let mut none = Item { fields: json!({}), ..Item::default() };
         draft_projection(&json!({}), &master, &mut none).unwrap();
         assert!(none.title.is_empty() && none.fields.get("has_draft").is_none());
+    }
+
+    // contract-test: engineering
+    #[test]
+    fn draft_less_rows_project_without_native_session_material() {
+        // Browser credentials carry no native Session; ordinary saved reads must not need one.
+        let client = Client::new("https://api.example.invalid", None).unwrap();
+        let mut item = Item { id: "c".into(), title: "Real".into(), fields: json!({}), ..Item::default() };
+        client.apply_draft_projection(&json!({"encrypted_draft_md": ""}), &mut item).unwrap();
+        assert_eq!(item.title, "Real");
+        assert!(item.fields.get("has_draft").is_none());
+        let draft = json!({"encrypted_draft_md": "ciphertext"});
+        assert!(client.apply_draft_projection(&draft, &mut item).is_err());
     }
 }

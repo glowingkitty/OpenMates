@@ -379,14 +379,15 @@ pub(super) fn message_rows(message: &Message, width: usize, selected: Option<&st
         }
         pending.clear();
     };
-    let inline: Vec<String> = segments(&message.content)
-        .into_iter()
+    let parsed = segments(&message.content);
+    let inline: Vec<String> = parsed
+        .iter()
         .filter_map(|segment| match segment {
-            Segment::Embed(found) => Some(found.id),
+            Segment::Embed(found) => Some(found.id.clone()),
             Segment::Text(_) => None,
         })
         .collect();
-    for segment in segments(&message.content) {
+    for segment in parsed {
         match segment {
             Segment::Embed(found) => {
                 if !pending.iter().any(|known| known.id == found.id) {
@@ -623,7 +624,7 @@ pub(super) fn detail_rows(item: &Item, width: usize) -> Option<Vec<Row>> {
                         link: Some(Link::Embed(id.clone())),
                     }]);
                 }
-            } else if status == "finished" {
+            } else if status == "finished" && skill.contains("search") {
                 rows.push(markdown::styled(format!("No {noun}"), Style::default().fg(MUTED)));
             }
         }
@@ -764,6 +765,9 @@ mod tests {
         assert!(text.contains("Provider: Brave"));
         assert!(text.contains("2 results"));
         assert!(rows.iter().flatten().any(|p| p.link == Some(Link::Embed(ID2.into()))));
+        // Non-search skills never claim an empty result list.
+        let create = embed("app_skill_use", serde_json::json!({"app_id":"projects","skill_id":"create","title":"Recipe Web App","status":"finished"}));
+        assert_eq!(text_of(&detail_rows(&create, 80).unwrap()), "Projects · Create  ·  237a754b\nRecipe Web App");
     }
 
     #[test]
