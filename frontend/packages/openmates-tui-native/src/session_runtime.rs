@@ -246,8 +246,11 @@ pub fn prepare_command_cache_admission(client: &mut Client, invocation: &crate::
     if !preserve {
         client.invalidate_chat_list_freshness();
     }
-    // Overlap the warm list's feed page with the session admission that follows.
-    if same_personal_chat_list_scope(client, invocation) {
+    // Overlap the warm list's (and `chats open`'s) feed page with the session
+    // admission that follows.
+    if same_personal_chat_list_scope(client, invocation)
+        || (invocation.command_path() == "chats open" && !invocation.has("api-key"))
+    {
         client.prefetch_chat_sync_feed();
     }
     // A selected read always opens its recovery socket after admission:
