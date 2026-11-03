@@ -190,6 +190,19 @@ async def test_public_and_detailed_decisions_gate_multiple_kinds_without_search_
         assert len(calls) == 1  # Complete public routing retains the zero-question fast path.
 
 
+# contract-test: supporting surface=rest_api assertions=authored-results.creation.relevant-and-independent,authored-results.facts.provenance-and-drafts
+def test_invent_a_recipe_request_is_an_explicit_draft_card_request():
+    definitions = get_authoring_definitions()
+    questions = jev._public_decision_questions(False, definitions)
+    assert "invent, create or draft one" in questions["preview"]["criteria"]["nutrition.recipe"]
+    apps = _apps("nutrition.recipe")
+    prompt = build_authored_result_instructions(["recipe"], apps)
+    assert prompt is not None
+    assert "invent, create, plan or draft" in prompt
+    assert "origin draft" in prompt and "ingredients and steps" in prompt
+    assert "never only a prose copy" in prompt
+
+
 def test_public_criteria_and_catalogue_remain_compact_without_detail_schemas():
     definitions = get_authoring_definitions()
     questions = jev._public_decision_questions(False, definitions)

@@ -696,7 +696,8 @@ async def decide_preprocessing_with_jev(
                                authoring_preview_hints(authoring_candidates).items()],
         "Would structured result cards of this exact kind materially help the latest request? "
         "Select every relevant kind in mixed sets. Research or user-provided facts qualify without "
-        "a discovery skill. Hypothetical drafts qualify only if explicitly requested. "
+        "a discovery skill. Hypothetical drafts qualify only if the user asks to invent, create, plan or draft "
+        "one (for example 'invent a recipe with my ingredients' selects the recipe kind). "
         "Unrelated subjects and mere mentions are false; this authorizes no tools or writes.",
     )
 

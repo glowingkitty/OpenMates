@@ -43,7 +43,7 @@ def admitted_authoring_definitions(apps: Mapping[str, Any] | None) -> dict[str, 
 
 def authoring_preview_hints(definitions: Mapping[str, Mapping[str, Any]]) -> dict[str, str]:
     """Public type hints contain no schemas, provider claims or private data."""
-    return {kind: f"{row['display_name']} cards from research or user-provided facts; drafts only if explicitly requested."
+    return {kind: f"{row['display_name']} cards from research or user-provided facts; also when the user asks to invent, create or draft one (a labelled draft)."
             for kind, row in definitions.items()}
 
 
@@ -109,7 +109,10 @@ def build_authored_result_instructions(
         "Use only actual image URLs or existing authorized image refs; icons/images/videos/3D cards "
         "must refer to real assets. "
         "Use origin researched for sourced observations, user_provided for supplied facts, and draft only "
-        "when the user explicitly requests a clearly labelled hypothetical/draft. Do not invent facts, "
+        "when the user explicitly requests a clearly labelled hypothetical/draft. A request to invent, "
+        "create, plan or draft one (for example a recipe from the ingredients the user has) is exactly "
+        "that request: answer with a short intro, then the card as origin draft with its full details "
+        "(for a recipe: ingredients and steps), never only a prose copy of it. Do not invent facts, "
         "availability, ratings, currency or travel modes, and do not supply defaults for missing fields. "
         "Omit unsupported optional fields; if required facts are missing, explain or ask rather than "
         "fabricating a card. Preserve conflicting sourced observations separately. Do not claim a booking, "
