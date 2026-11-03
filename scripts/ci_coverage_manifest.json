@@ -793,6 +793,7 @@
         "apple-proof-credential-broker.spec.ts",
         "apple-settings-ui-contracts.spec.ts",
         "auth-session-rotation.spec.ts",
+        "logout-multi-tab-versionchange.spec.ts",
         "backup-code-login-flow.spec.ts",
         "backup-codes-settings.spec.ts",
         "audio-recording-deferred-send.spec.ts",

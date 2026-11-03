@@ -14,7 +14,7 @@ import {
   isSignupPath,
 } from "./signupState";
 import { userDB } from "../services/userDB";
-import { chatDB } from "../services/db";
+import { chatDB, IndexedDbDeleteBlockedError } from "../services/db";
 // Import defaultProfile directly for logout reset
 import { userProfile, defaultProfile, updateProfile } from "./userProfile";
 import { resetTwoFAData } from "./twoFAState";
@@ -650,10 +650,17 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
             if (callbacks?.onError) await callbacks.onError(dbError);
           }),
           chatDB.deleteDatabase().catch(async (dbError) => {
-            console.error(
-              "[AuthStore] Failed to delete chatDB database:",
-              dbError,
-            );
+            if (dbError instanceof IndexedDbDeleteBlockedError) {
+              // Cleanup marker stays set; server logout still proceeds.
+              console.warn(
+                `[AuthStore] Chat database deletion blocked by another tab (${dbError.databaseName}); continuing with server logout`,
+              );
+            } else {
+              console.error(
+                "[AuthStore] Failed to delete chatDB database:",
+                dbError,
+              );
+            }
             if (callbacks?.onError) await callbacks.onError(dbError);
           }),
         ]);
