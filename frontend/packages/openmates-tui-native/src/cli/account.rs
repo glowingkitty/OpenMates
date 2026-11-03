@@ -7,6 +7,8 @@
 mod billing;
 mod export_archive;
 mod export_start;
+mod imports;
+mod imports_zip;
 mod memories;
 mod notifications;
 mod reminders;
@@ -47,6 +49,7 @@ pub(super) fn supported(invocation: &Invocation) -> bool {
         || settings_more::supported(invocation)
         || settings_extra::supported(invocation)
         || export_start::supported(invocation)
+        || imports::supported(invocation)
         || notifications::supported(invocation)
         || memories::supported(invocation)
         || is_info(invocation)
@@ -269,6 +272,9 @@ pub(super) async fn execute(
     invocation: &Invocation,
     client: &mut Client,
 ) -> Result<CliOutput, CliError> {
+    if imports::supported(invocation) {
+        return imports::execute(invocation, client).await;
+    }
     if reminders::supported(invocation) {
         return reminders::execute(invocation, client).await;
     }
@@ -539,7 +545,7 @@ mod tests {
             assert!(supported(&invocation(command, &[], &[])), "{command}");
         }
         for command in [
-            "account import chatgpt",
+            "account profile-picture set",
             "settings get",
             "signup",
         ] {

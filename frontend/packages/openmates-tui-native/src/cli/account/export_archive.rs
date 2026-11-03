@@ -494,7 +494,9 @@ pub(super) fn zip(files: &[(String, String)]) -> Result<Vec<u8>, String> {
             h.extend((name.len() as u16).to_le_bytes());
             h.extend(0u16.to_le_bytes());
             if central_entry {
-                h.extend([0u8; 8]);
+                // Comment length, disk number and internal attributes, then
+                // external attributes: 46-byte central entries before the name.
+                h.extend([0u8; 6]);
                 h.extend(0u32.to_le_bytes());
                 h.extend(offset.to_le_bytes());
             }

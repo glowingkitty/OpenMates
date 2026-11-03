@@ -19860,10 +19860,15 @@
       "flags": [
         "api-key",
         "api-url",
+        "domain",
         "dry-run",
         "help",
         "json",
-        "profile"
+        "password",
+        "profile",
+        "select",
+        "source",
+        "yes"
       ],
       "source_locations": [
         {
@@ -19874,12 +19879,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.imports",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/imports.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Archive reading supports stored/deflate ZIP entries without ZIP64; JSON parse error wording differs from Node.",
+        "--api-key credentials are not supported natively; use a native session.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -19901,10 +19908,15 @@
       "flags": [
         "api-key",
         "api-url",
+        "domain",
         "dry-run",
         "help",
         "json",
-        "profile"
+        "password",
+        "profile",
+        "select",
+        "source",
+        "yes"
       ],
       "source_locations": [
         {
@@ -19915,12 +19927,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.imports",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/imports.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Archive reading supports stored/deflate ZIP entries without ZIP64; JSON parse error wording differs from Node.",
+        "--api-key credentials are not supported natively; use a native session.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -19942,11 +19956,15 @@
       "flags": [
         "api-key",
         "api-url",
+        "domain",
         "dry-run",
         "help",
         "json",
+        "password",
         "profile",
-        "source"
+        "select",
+        "source",
+        "yes"
       ],
       "source_locations": [
         {
@@ -19957,12 +19975,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.imports",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/imports.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Archive reading supports stored/deflate ZIP entries without ZIP64; JSON parse error wording differs from Node.",
+        "--api-key credentials are not supported natively; use a native session.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -19984,10 +20004,15 @@
       "flags": [
         "api-key",
         "api-url",
+        "domain",
         "dry-run",
         "help",
         "json",
-        "profile"
+        "password",
+        "profile",
+        "select",
+        "source",
+        "yes"
       ],
       "source_locations": [
         {
@@ -19998,12 +20023,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.imports",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/imports.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Archive reading supports stored/deflate ZIP entries without ZIP64; JSON parse error wording differs from Node.",
+        "--api-key credentials are not supported natively; use a native session.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -20029,7 +20056,11 @@
         "dry-run",
         "help",
         "json",
-        "profile"
+        "password",
+        "profile",
+        "select",
+        "source",
+        "yes"
       ],
       "source_locations": [
         {
@@ -20040,12 +20071,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.imports",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/imports.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Archive reading supports stored/deflate ZIP entries without ZIP64; JSON parse error wording differs from Node.",
+        "--api-key credentials are not supported natively; use a native session.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -20079,12 +20112,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.import_chat",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/imports.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Sends the parsed chat to the legacy plaintext /v1/settings/import-chat route exactly like npm; the server currently rejects that route (HTTP 503) pending the client-encrypted replacement.",
+        "--api-key credentials are not supported natively; use a native session.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -51827,10 +51862,15 @@
       "flags": [
         "api-key",
         "api-url",
+        "domain",
         "dry-run",
         "help",
         "json",
-        "profile"
+        "password",
+        "profile",
+        "select",
+        "source",
+        "yes"
       ],
       "source_locations": [
         {
@@ -51841,12 +51881,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.imports",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/imports.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Archive reading supports stored/deflate ZIP entries without ZIP64; JSON parse error wording differs from Node.",
+        "--api-key credentials are not supported natively; use a native session.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -51869,10 +51911,15 @@
       "flags": [
         "api-key",
         "api-url",
+        "domain",
         "dry-run",
         "help",
         "json",
-        "profile"
+        "password",
+        "profile",
+        "select",
+        "source",
+        "yes"
       ],
       "source_locations": [
         {
@@ -51883,12 +51930,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.imports",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/imports.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Archive reading supports stored/deflate ZIP entries without ZIP64; JSON parse error wording differs from Node.",
+        "--api-key credentials are not supported natively; use a native session.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -51911,11 +51960,15 @@
       "flags": [
         "api-key",
         "api-url",
+        "domain",
         "dry-run",
         "help",
         "json",
+        "password",
         "profile",
-        "source"
+        "select",
+        "source",
+        "yes"
       ],
       "source_locations": [
         {
@@ -51926,12 +51979,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.imports",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/imports.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Archive reading supports stored/deflate ZIP entries without ZIP64; JSON parse error wording differs from Node.",
+        "--api-key credentials are not supported natively; use a native session.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -51954,10 +52009,15 @@
       "flags": [
         "api-key",
         "api-url",
+        "domain",
         "dry-run",
         "help",
         "json",
-        "profile"
+        "password",
+        "profile",
+        "select",
+        "source",
+        "yes"
       ],
       "source_locations": [
         {
@@ -51968,12 +52028,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.imports",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/imports.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Archive reading supports stored/deflate ZIP entries without ZIP64; JSON parse error wording differs from Node.",
+        "--api-key credentials are not supported natively; use a native session.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -52000,7 +52062,11 @@
         "dry-run",
         "help",
         "json",
-        "profile"
+        "password",
+        "profile",
+        "select",
+        "source",
+        "yes"
       ],
       "source_locations": [
         {
@@ -52011,12 +52077,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.imports",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/imports.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Archive reading supports stored/deflate ZIP entries without ZIP64; JSON parse error wording differs from Node.",
+        "--api-key credentials are not supported natively; use a native session.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -52051,12 +52119,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.account.import_chat",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/imports.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Sends the parsed chat to the legacy plaintext /v1/settings/import-chat route exactly like npm; the server currently rejects that route (HTTP 503) pending the client-encrypted replacement.",
+        "--api-key credentials are not supported natively; use a native session.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -61890,8 +61960,8 @@
   "coverage": {
     "command_patterns": 720,
     "flags": 599,
-    "native_handlers_partial": 650,
-    "unsupported": 70,
+    "native_handlers_partial": 662,
+    "unsupported": 58,
     "feature_complete": false
   },
   "maintenance": {
