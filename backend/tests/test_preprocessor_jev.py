@@ -508,7 +508,7 @@ async def test_app_shortlist_selects_multiple_apps_without_unrelated_stage_two_c
         message_history=[{"role": "user", "content": "Find the latest OpenAI news with sources and photos"}],
         topic_areas=["general_misc: General"], available_apps=["news", "web", "images", "travel"],
         available_skills=skills,
-        available_focus_modes=["news-understand: Analyze news", "travel-plan: PRIVATE-UNRELATED-FOCUS"],
+        available_focus_modes=["news-understand: Analyze news", "travel-plan: Plan trips. PRIVATE-UNRELATED-FOCUS"],
         available_settings_and_memories={"news": ["topics"], "travel": ["PRIVATE-UNRELATED-MEMORY"]},
         recent_skill_activity=[], conversation_summary=None, previous_category=None,
         is_first_message=False,

@@ -152,3 +152,16 @@ def test_planners_are_ordinary_preprocessing_candidates(app_id: str, focus_id: s
     assert not focus.get("auto_activate_when_relevant")
     hint = " ".join(focus["preprocessor_hint"].split())
     assert "explicitly asks" in hint and "any language" in hint and "incidentally" in hint
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.activation
+def test_stage_one_catalogue_shows_planner_relevance_hint() -> None:
+    from backend.apps.ai.processing import jev_preprocessing
+
+    app = yaml.safe_load((BACKEND / "apps/openmates/app.yml").read_text())
+    hint = " ".join(next(row for row in app["focuses"] if row["id"] == "plan")["preprocessor_hint"].split())
+    catalogue = jev_preprocessing._app_catalogue(
+        ["openmates"], ["openmates-get-docs: Read OpenMates documentation."], [f"openmates-plan: {hint}"],
+    )
+    assert "plan focus: Select only when the latest message, in any language, explicitly asks the assistant to create" in catalogue[0]
+    assert "task breakdown" in catalogue[0]
