@@ -366,7 +366,7 @@ fn render(
     }
     Ok(())
 }
-fn ordinary_with_root_keys(
+pub(super) fn ordinary_with_root_keys(
     value: &Value,
     root_keys: Option<&[String]>,
 ) -> Result<String, CliError> {

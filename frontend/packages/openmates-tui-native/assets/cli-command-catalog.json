@@ -20379,12 +20379,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.client.upload_profile_image",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/transfers/uploads.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "--json and the success text print the upload response with sorted keys.",
+        "Metadata removal is native; npm's sharp conversions are not available.",
+        "Exercised against loopback doubles only; live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -24315,10 +24317,10 @@
       "positionals": [
         {
           "name": "image",
-          "required": true,
+          "required": false,
           "variadic": false,
           "at": 3,
-          "synopsis": "<image>"
+          "synopsis": "[image]"
         }
       ],
       "flags": [
@@ -24348,12 +24350,16 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.client.upload_file_bytes",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/transfers/uploads.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Extra positional arguments are rejected by the native parser (exit 2) before npm's 'Unexpected argument(s)' message.",
+        "--help uses the native Clap help instead of npm's custom detect-ai help.",
+        "Nested ai_detection metadata prints with sorted keys.",
+        "Metadata removal is native; types needing npm's sharp conversion or document sanitizers are refused.",
+        "Exercised against loopback doubles only; live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -24376,10 +24382,10 @@
       "positionals": [
         {
           "name": "image",
-          "required": true,
+          "required": false,
           "variadic": false,
           "at": 3,
-          "synopsis": "<image>"
+          "synopsis": "[image]"
         }
       ],
       "flags": [
@@ -24399,12 +24405,16 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.client.upload_file_bytes",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/transfers/uploads.rs"
       },
       "gaps": [
-        "Original runtime grammar is reviewed; native handling of this spelling has not been implemented or verified."
+        "Extra positional arguments are rejected by the native parser (exit 2) before npm's 'Unexpected argument(s)' message.",
+        "--help uses the native Clap help instead of npm's custom detect-ai help.",
+        "Nested ai_detection metadata prints with sorted keys.",
+        "Metadata removal is native; types needing npm's sharp conversion or document sanitizers are refused.",
+        "Exercised against loopback doubles only; live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -52443,12 +52453,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.client.upload_profile_image",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/transfers/uploads.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "--json and the success text print the upload response with sorted keys.",
+        "Metadata removal is native; npm's sharp conversions are not available.",
+        "Exercised against loopback doubles only; live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -53396,12 +53408,15 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.client.get_binary",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/transfers/downloads.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Invoice IDs '.' and '..' are refused before the request.",
+        "Downloads are bounded by the shared 16 MiB response limit.",
+        "Native 401/transport failures use native error text.",
+        "Exercised against loopback doubles only; live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -53438,12 +53453,15 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.client.get_binary",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/transfers/downloads.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Invoice IDs '.' and '..' are refused before the request.",
+        "Downloads are bounded by the shared 16 MiB response limit.",
+        "Native 401/transport failures use native error text.",
+        "Exercised against loopback doubles only; live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -55256,12 +55274,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.client.open_sse",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/transfers/stream.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Parsed JSON events print with sorted keys.",
+        "A single SSE event larger than 1 MiB fails the stream.",
+        "Exercised against loopback doubles only; live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59338,10 +59358,10 @@
       "positionals": [
         {
           "name": "team-id",
-          "required": true,
+          "required": false,
           "variadic": false,
           "at": 3,
-          "synopsis": "<team-id>"
+          "synopsis": "[team-id]"
         }
       ],
       "flags": [
@@ -59361,12 +59381,16 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.client.get_binary",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/transfers/downloads.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "A second positional (npm rest[2]) is rejected by the native parser; pass --output/--file instead.",
+        "Native 401/transport failures use native error text instead of the npm fetch error text.",
+        "Team identifiers '.' and '..' are refused before the request instead of being URL-normalized.",
+        "Downloads are bounded by the shared 16 MiB response limit.",
+        "Exercised against loopback doubles only; live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59387,10 +59411,10 @@
       "positionals": [
         {
           "name": "team-id",
-          "required": true,
+          "required": false,
           "variadic": false,
           "at": 3,
-          "synopsis": "<team-id>"
+          "synopsis": "[team-id]"
         }
       ],
       "flags": [
@@ -59410,12 +59434,16 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.client.upload_team_profile_image",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/transfers/uploads.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "A second positional (npm rest[2]) is rejected by the native parser; pass --output/--file instead.",
+        "--json prints the Team record with sorted keys.",
+        "The image file is read before the Team key is loaded, so a missing file is reported before a missing Team key.",
+        "Metadata removal is native: TIFF/HEIC/HEIF/non-V3 BMP conversions and SVG/document sanitizers are refused instead of converted.",
+        "Exercised against loopback doubles only; live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -62090,8 +62118,8 @@
   "coverage": {
     "command_patterns": 720,
     "flags": 604,
-    "native_handlers_partial": 688,
-    "unsupported": 32,
+    "native_handlers_partial": 697,
+    "unsupported": 23,
     "feature_complete": false
   },
   "maintenance": {

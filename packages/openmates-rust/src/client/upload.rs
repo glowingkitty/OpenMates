@@ -48,6 +48,10 @@ pub struct UploadFileResponse {
     pub(crate) aes_key: Zeroizing<String>,
     pub(crate) aes_nonce: Zeroizing<String>,
     pub(crate) vault_wrapped_aes_key: Zeroizing<String>,
+    /// npm `ai_detection` metadata (null when absent).
+    pub ai_detection: Value,
+    /// npm `deduplicated` (undefined becomes null).
+    pub deduplicated: Value,
 }
 
 #[derive(serde::Deserialize)]
@@ -62,6 +66,10 @@ struct RawUpload {
     aes_key: String,
     aes_nonce: String,
     vault_wrapped_aes_key: String,
+    #[serde(default)]
+    ai_detection: Value,
+    #[serde(default)]
+    deduplicated: Value,
 }
 
 /// Parse a successful upload body; required fields missing fail closed.
@@ -80,6 +88,8 @@ pub fn parse_upload_response(bytes: &[u8]) -> Result<UploadFileResponse> {
         aes_key: Zeroizing::new(raw.aes_key),
         aes_nonce: Zeroizing::new(raw.aes_nonce),
         vault_wrapped_aes_key: Zeroizing::new(raw.vault_wrapped_aes_key),
+        ai_detection: raw.ai_detection,
+        deduplicated: raw.deduplicated,
     })
 }
 
@@ -232,7 +242,7 @@ async fn read_body(response: &mut reqwest::Response, limit: usize) -> Result<Zer
 }
 
 impl Client {
-    fn refresh_cookie(&self) -> Result<Option<Zeroizing<String>>> {
+    pub(super) fn refresh_cookie(&self) -> Result<Option<Zeroizing<String>>> {
         self.require_session()?;
         match self.cookies.get("auth_refresh_token") {
             Some(value) => {

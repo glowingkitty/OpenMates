@@ -143,6 +143,8 @@ mod team;
 mod toon;
 pub(crate) mod transport;
 #[cfg(not(target_arch = "wasm32"))] pub mod upload;
+#[cfg(not(target_arch = "wasm32"))] pub mod profile_upload;
+#[cfg(not(target_arch = "wasm32"))] pub use transport::binary_stream::{BinaryResponse, SseMessage, SseOpen, SseParser, SseStream, parse_sse_message};
 mod transport_owned_start;
 mod workflow_delivery;
 mod workspaces;

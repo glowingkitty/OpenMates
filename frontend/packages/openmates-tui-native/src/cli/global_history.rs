@@ -188,7 +188,7 @@ fn radix_number(digits: &str, radix: u32) -> f64 {
     }
     f64::from_bits((((exponent + 1023) as u64) << 52) | (significand & ((1 << 52) - 1)))
 }
-fn js_number(raw: &str) -> f64 {
+pub(super) fn js_number(raw: &str) -> f64 {
     let raw = raw.trim_matches(js_whitespace);
     if raw.is_empty() {
         return 0.0;

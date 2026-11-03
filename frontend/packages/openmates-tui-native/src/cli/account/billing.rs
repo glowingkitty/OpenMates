@@ -2,8 +2,7 @@
 //! SEPA bank-transfer credit and gift-card orders and their status,
 //! purchased gift cards, invoice refunds and low-balance auto top-up, with
 //! the npm handleSettings messages, confirmation and output. Invoice and
-//! credit-note PDF downloads stay unsupported until the SDK transport has a
-//! binary read.
+//! credit-note PDF downloads live in `transfers`.
 use super::settings_more::{confirm, mutation, result, text_output};
 use super::{CliError, CliOutput, Invocation, handlers, path};
 use crate::client::Client;

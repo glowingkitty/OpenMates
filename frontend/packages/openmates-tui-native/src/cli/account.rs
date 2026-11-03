@@ -16,6 +16,7 @@ mod notifications;
 mod reminders;
 mod settings_extra;
 mod settings_more;
+mod transfers;
 #[path = "teams.rs"]
 mod teams;
 #[path = "ideabucket.rs"]
@@ -47,6 +48,7 @@ fn path(invocation: &Invocation) -> String {
 }
 pub(super) fn supported(invocation: &Invocation) -> bool {
     reminders::supported(invocation)
+        || transfers::supported(invocation)
         || billing::supported(invocation)
         || settings_more::supported(invocation)
         || settings_extra::supported(invocation)
@@ -276,6 +278,7 @@ pub(super) async fn execute(
     invocation: &Invocation,
     client: &mut Client,
 ) -> Result<CliOutput, CliError> {
+    if transfers::supported(invocation) { return transfers::execute(invocation, client).await; }
     if imports::supported(invocation) {
         return imports::execute(invocation, client).await;
     }
@@ -555,7 +558,6 @@ mod tests {
             assert!(supported(&invocation(command, &[], &[])), "{command}");
         }
         for command in [
-            "account profile-picture set",
             "settings get",
             "signup",
         ] {

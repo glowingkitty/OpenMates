@@ -582,6 +582,8 @@ fn strip_webm(bytes: &[u8]) -> Option<Vec<u8>> {
     Some(walk.output)
 }
 
+#[path = "upload_privacy_images.rs"]
+pub mod images;
 #[path = "upload_privacy_ogg.rs"]
 mod ogg;
 use ogg::strip_ogg;
