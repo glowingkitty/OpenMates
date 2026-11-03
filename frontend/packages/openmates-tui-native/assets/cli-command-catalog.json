@@ -30876,12 +30876,15 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.client.chat_files",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/chat_media.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Only full canonical chat IDs are accepted; npm 'last', short-ID and slug selectors need a synced cache that one-shot commands do not perform.",
+        "Signed-out bundled example-chat files are not ported.",
+        "Embeds linked to a message only through sync embed rows (not referenced in message text) are not listed.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -30925,12 +30928,15 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.client.fork_chat",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/chat_rewrite.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "--api-key credentials are not supported natively; use a native session.",
+        "Only full canonical chat IDs are accepted; npm 'last', short-ID and slug selectors need a synced cache that one-shot commands do not perform.",
+        "HTTP failures surface as typed SDK errors instead of npm's 'Chat fork failed with HTTP <status>: <body>' text.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -31269,12 +31275,15 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.client.list",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/chat_media.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "--api-key credentials are not supported natively; use a native session.",
+        "Signed-out example-chat and slug targets are not ported.",
+        "Positions come from the synced metadata window rather than npm listChats(n).",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -31560,12 +31569,15 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.client.retry_chat",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/chat_rewrite.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "--api-key credentials are not supported natively; use a native session.",
+        "Only full canonical chat IDs are accepted; npm 'last', short-ID and slug selectors need a synced cache that one-shot commands do not perform.",
+        "--response-timeout is not accepted; HTTP failures surface as typed SDK errors.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -31611,12 +31623,15 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.client.rewind_chat",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/chat_rewrite.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "--api-key credentials are not supported natively; use a native session.",
+        "Only full canonical chat IDs are accepted; npm 'last', short-ID and slug selectors need a synced cache that one-shot commands do not perform.",
+        "--response-timeout is not accepted; HTTP failures surface as typed SDK errors.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -31886,12 +31901,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.client.generate_existing_assistant_speech",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/chat_media.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Only full canonical chat IDs are accepted; npm 'last', short-ID and slug selectors need a synced cache that one-shot commands do not perform.",
+        "Message selection matches the stored message ID (client ID preferred) and its prefixes.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48693,11 +48710,11 @@
       "implementation": {
         "parser": "native_clap",
         "handler": null,
-        "status": "unsupported",
-        "module": null
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/recovery.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Prints the npm usage line; undeclared subcommand words are rejected by the native parser before the handler."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48731,12 +48748,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.plans.recovery_document",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/recovery.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "YAML is semantically identical to npm but not byte-identical (key order, list indentation, quoting); JSON keys are sorted.",
+        "Project selector errors use the SDK message instead of npm's \"Project 'x' not found.\".",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48770,12 +48789,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.plans.recovery_restore",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/recovery.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "JSON keys are sorted; project selector errors use the SDK message.",
+        "Restore apply is covered by unit tests for inputs/validation only; no end-to-end restore proof yet.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48809,12 +48830,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.work.recovery.validate_document",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/recovery.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "JSON keys are sorted rather than npm insertion order."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -62118,8 +62139,8 @@
   "coverage": {
     "command_patterns": 720,
     "flags": 604,
-    "native_handlers_partial": 697,
-    "unsupported": 23,
+    "native_handlers_partial": 707,
+    "unsupported": 13,
     "feature_complete": false
   },
   "maintenance": {

@@ -65998,7 +65998,7 @@ assertions:
       surface: cli
     - &id8297
       path: frontend/apps/web_app/tests/cli-rust-core-essential.spec.ts
-      line: 91
+      line: 92
       name: pair login, whoami, chats list, send/stream, cancel, follow-up, show,
         restart, TUI and logout
       surface: cli
@@ -68961,7 +68961,7 @@ assertions:
       surface: cli
     - &id8761
       path: frontend/apps/web_app/tests/cli-rust-core-essential.spec.ts
-      line: 91
+      line: 92
       name: pair login, whoami, chats list, send/stream, cancel, follow-up, show,
         restart, TUI and logout
       surface: cli
@@ -84120,7 +84120,7 @@ assertions:
       surface: cli
     - &id10626
       path: frontend/apps/web_app/tests/cli-rust-core-essential.spec.ts
-      line: 91
+      line: 92
       name: pair login, whoami, chats list, send/stream, cancel, follow-up, show,
         restart, TUI and logout
       surface: cli
@@ -85455,7 +85455,7 @@ assertions:
       surface: gui.web
     - &id11142
       path: frontend/apps/web_app/tests/cli-rust-core-essential.spec.ts
-      line: 91
+      line: 92
       name: pair login, whoami, chats list, send/stream, cancel, follow-up, show,
         restart, TUI and logout
       surface: cli
@@ -91203,7 +91203,7 @@ assertions:
       surface: cli
     - &id11711
       path: frontend/apps/web_app/tests/cli-rust-core-essential.spec.ts
-      line: 91
+      line: 92
       name: pair login, whoami, chats list, send/stream, cancel, follow-up, show,
         restart, TUI and logout
       surface: cli
@@ -92922,7 +92922,7 @@ assertions:
       surface: gui.web
     - &id11935
       path: frontend/apps/web_app/tests/cli-rust-core-essential.spec.ts
-      line: 91
+      line: 92
       name: pair login, whoami, chats list, send/stream, cancel, follow-up, show,
         restart, TUI and logout
       surface: cli
@@ -97811,7 +97811,7 @@ assertions:
       surface: gui.web
     - &id12507
       path: frontend/apps/web_app/tests/cli-rust-core-essential.spec.ts
-      line: 91
+      line: 92
       name: pair login, whoami, chats list, send/stream, cancel, follow-up, show,
         restart, TUI and logout
       surface: cli
@@ -158139,7 +158139,7 @@ assertions:
     direct_tests:
     - &id20248
       path: frontend/apps/web_app/tests/cli-rust-core-essential.spec.ts
-      line: 91
+      line: 92
       name: pair login, whoami, chats list, send/stream, cancel, follow-up, show,
         restart, TUI and logout
       surface: cli
@@ -182464,7 +182464,7 @@ assertions:
     direct_tests:
     - &id23276
       path: frontend/apps/web_app/tests/cli-rust-core-essential.spec.ts
-      line: 91
+      line: 92
       name: pair login, whoami, chats list, send/stream, cancel, follow-up, show,
         restart, TUI and logout
       surface: cli
@@ -182570,7 +182570,7 @@ assertions:
       surface: rest_api
     - &id23288
       path: frontend/apps/web_app/tests/cli-rust-core-essential.spec.ts
-      line: 91
+      line: 92
       name: pair login, whoami, chats list, send/stream, cancel, follow-up, show,
         restart, TUI and logout
       surface: cli
@@ -184489,7 +184489,7 @@ assertions:
       surface: cli
     - &id23530
       path: frontend/apps/web_app/tests/cli-rust-core-essential.spec.ts
-      line: 91
+      line: 92
       name: pair login, whoami, chats list, send/stream, cancel, follow-up, show,
         restart, TUI and logout
       surface: cli

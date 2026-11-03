@@ -799,6 +799,7 @@ pub use advanced::*;
 
 mod ask;
 pub use ask::{PlanAskOptions, PlanAskUpdate, PlanProposal};
+mod recovery_ops;
 
 #[cfg(all(test,not(target_arch="wasm32")))]
 mod field_interop_tests {

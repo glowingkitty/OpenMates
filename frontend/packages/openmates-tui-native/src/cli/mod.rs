@@ -28,6 +28,7 @@ pub(crate) use handlers::admitted_whoami_output;
 pub(crate) use full_chat_read::{is_full_json as is_full_json_show, options as full_chat_read_options};
 pub use handlers::{is_direct_apps_command,execute_direct_apps_admitted};
 mod history;
+mod parity_chat_recovery;
 mod parity_extras;
 mod parser;
 mod plans;

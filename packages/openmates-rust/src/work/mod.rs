@@ -18,6 +18,7 @@ mod tasks;
 pub use tasks::*;
 mod team_move;
 pub use team_move::*;
+pub mod recovery;
 #[derive(Default, Clone)]
 pub(crate) struct TaskHeaders {
     pub assignee: bool,
