@@ -178,7 +178,7 @@ export async function fetchEmbedVersionContent(
 		throw new Error('Version response does not match the selected version');
 	}
 	if (typeof responseData.content === 'string') return responseData;
-	if (!Array.isArray(responseData.rows) || responseData.rows.at(-1)?.version_number !== versionNumber) {
+	if (!Array.isArray(responseData.rows) || responseData.rows[responseData.rows.length - 1]?.version_number !== versionNumber) {
 		throw new Error('Version response does not match the selected version');
 	}
 	const content = await reconstructEncryptedVersion(embedId, responseData.rows);
@@ -221,11 +221,32 @@ export async function restoreEmbedVersion(
 		throw new Error('Version content was not available for restore');
 	}
 
-	const restoredContent = response.content;
+	const committed = await commitEmbedContentRevision(embedId, response.content, options);
+	return {
+		embed_id: embedId,
+		restored_from_version: versionNumber,
+		version_number: committed.version_number,
+		content_hash: committed.content_hash,
+		content: response.content
+	};
+}
+
+/**
+ * Write `newContent` as the next version of an embed (client-encrypted head +
+ * diff row, mirrored into IndexedDB and synced via store_embed /
+ * store_embed_diff). Used by version restore and by manual content edits such
+ * as sheet cell edits. `options.currentContent` must be the content of
+ * `options.currentVersion` so the stored patch is exact.
+ */
+export async function commitEmbedContentRevision(
+	embedId: string,
+	newContent: string,
+	options: RestoreEmbedVersionOptions
+): Promise<{ version_number: number; content_hash: string }> {
 	const newVersion = options.currentVersion + 1;
-	const restoredPayload = options.buildRestoredContent(restoredContent, newVersion);
+	const restoredPayload = options.buildRestoredContent(newContent, newVersion);
 	const restoredToonContent = await encodeRestoredEmbedContent(restoredPayload);
-	const contentHash = await computeSHA256(restoredContent);
+	const contentHash = await computeSHA256(newContent);
 	const updateResult = await embedStore.prepareVersionRestoreUpdate(
 		embedId,
 		restoredToonContent,
@@ -238,11 +259,11 @@ export async function restoreEmbedVersion(
 
 	const embedKey = await embedStore.getEmbedKey(embedId);
 	if (!embedKey) throw new Error('Embed key not available for version restore');
-	const restorePatch = buildUnifiedDiff(options.currentContent, restoredContent, options.currentVersion, newVersion);
+	const restorePatch = buildUnifiedDiff(options.currentContent, newContent, options.currentVersion, newVersion);
 	const encryptedPatch = await encryptWithEmbedKey(restorePatch, embedKey);
 	if (!encryptedPatch) throw new Error('Failed to encrypt restore patch');
 	const encryptedSnapshot = newVersion % 32 === 0
-		? await encryptWithEmbedKey(restoredContent, embedKey)
+		? await encryptWithEmbedKey(newContent, embedKey)
 		: null;
 
 	const createdAt = Math.floor(Date.now() / 1000);
@@ -256,14 +277,7 @@ export async function restoreEmbedVersion(
 	});
 
 	await syncEncryptedRestore(embedId, newVersion, encryptedPatch, encryptedSnapshot, createdAt, updateResult.storePayload);
-
-	return {
-		embed_id: embedId,
-		restored_from_version: versionNumber,
-		version_number: newVersion,
-		content_hash: contentHash,
-		content: restoredContent
-	};
+	return { version_number: newVersion, content_hash: contentHash };
 }
 
 async function encodeRestoredEmbedContent(payload: Record<string, unknown>): Promise<string> {

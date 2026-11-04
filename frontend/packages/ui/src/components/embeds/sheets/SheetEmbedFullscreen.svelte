@@ -30,7 +30,10 @@
     tableToTSV,
     tableToXlsx,
     colIndexToLetter,
+    type TableCell,
+    setMarkdownTableCell,
   } from './sheetEmbedContent';
+  import { commitEmbedContentRevision } from '../../../services/embedDiffStore';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import { includeOriginalPIIInDraftEmbed, loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
   import { piiVisibilityStore } from '../../../stores/piiVisibilityStore';
@@ -106,8 +109,12 @@
   let dc = $derived(data.decodedContent);
   let attrs = $derived(data.attrs);
   let includedOriginalTableContent = $state<string | null>(null);
+  /** Optimistic content after a local cell edit; cleared once the embed data catches up. */
+  let localTable = $state<string | null>(null);
+  let localVersion = $state<number | null>(null);
   let latestTableContent = $derived(
-      typeof dc.table === 'string' ? dc.table
+      localTable !== null ? localTable
+      : typeof dc.table === 'string' ? dc.table
       : typeof dc.code === 'string' ? dc.code
       : typeof attrs?.code === 'string' ? attrs.code as string
       : ''
@@ -135,7 +142,8 @@
     );
   let focusSheetRange = $derived(data.focusSheetRange ?? null);
   let versionNumber = $derived(
-      typeof dc.version_number === 'number' ? dc.version_number
+      localVersion !== null ? localVersion
+      : typeof dc.version_number === 'number' ? dc.version_number
       : data.embedData?.version_number ?? 1
     );
 
@@ -196,6 +204,94 @@
   let renderTitle = $derived(parsedContent.title);
   let parsedTable = $derived(parsedContent.parsedTable);
   
+  // ── Cell editing (inputs + formulas) ───────────────────────────────
+  // Editing writes raw cell text (numbers or "=formulas") into the markdown
+  // table, re-evaluates the whole grid immediately and persists a new embed
+  // version through embedDiffStore (client-side encrypted).
+  let editMode = $state(false);
+  let activeCell = $state<{ row: number; col: number } | null>(null);
+  let cellDraft = $state('');
+  let persistedTable = '';
+  let persistedVersion = 0;
+  let saveChain: Promise<void> = Promise.resolve();
+  let pendingSaves = $state(0);
+  let isViewingHistory = $derived(includedOriginalTableContent !== null && includedOriginalTableContent !== latestTableContent);
+  let canEdit = $derived(!!embedId && !!chatId && !isDraftEmbed && !hasPII && !isViewingHistory);
+  /** Original (unsorted/unfiltered) data-row index for every row object. */
+  let rowOrigin = $derived(new Map(parsedTable.rows.map((r, i) => [r, i])));
+
+  $effect(() => {
+    const fromData = typeof dc.table === 'string' ? dc.table : typeof dc.code === 'string' ? dc.code : '';
+    if (localTable !== null && fromData === localTable) {
+      localTable = null;
+      localVersion = null;
+    }
+  });
+
+  function startCellEdit(row: number, col: number, cell: TableCell) {
+    if (!editMode || !canEdit) return;
+    activeCell = { row, col };
+    cellDraft = cell.formula ?? cell.content;
+  }
+
+  function cellInputAction(node: HTMLInputElement) {
+    node.focus();
+    node.select();
+  }
+
+  async function persistEdit(prev: string, next: string) {
+    const baseVersion = persistedVersion || versionNumber;
+    const baseContent = persistedTable || prev;
+    try {
+      const result = await commitEmbedContentRevision(embedId!, next, {
+        currentVersion: baseVersion,
+        currentContent: baseContent,
+        chatId,
+        projectId,
+        teamId,
+        buildRestoredContent: (content, newVersion) => ({
+          ...dc,
+          table: content,
+          ...(typeof dc.code === 'string' ? { code: content } : {}),
+          version_number: newVersion,
+        }),
+      });
+      persistedTable = next;
+      persistedVersion = result.version_number;
+      localVersion = result.version_number;
+    } catch (error) {
+      console.error('[SheetEmbedFullscreen] Failed to save cell edit:', error);
+      notificationStore.error(error instanceof Error ? error.message : String(error));
+      localTable = baseContent;
+      persistedTable = baseContent;
+    }
+  }
+
+  function commitCellEdit() {
+    const cell = activeCell;
+    if (!cell) return;
+    activeCell = null;
+    const prev = tableContent;
+    let next: string;
+    try {
+      next = setMarkdownTableCell(prev, cell.row, cell.col, cellDraft);
+    } catch (error) {
+      notificationStore.error(error instanceof Error ? error.message : String(error));
+      return;
+    }
+    if (next === prev) return;
+    localTable = next;
+    pendingSaves += 1;
+    saveChain = saveChain
+      .then(() => persistEdit(prev, next))
+      .finally(() => { pendingSaves -= 1; });
+  }
+
+  function onCellKeydown(event: KeyboardEvent) {
+    if (event.key === 'Enter') { event.preventDefault(); commitCellEdit(); }
+    else if (event.key === 'Escape') { event.preventDefault(); activeCell = null; }
+  }
+
   // Get actual dimensions
   let actualRowCount = $derived(rowCount > 0 ? rowCount : parsedTable.rowCount);
   let actualColCount = $derived(colCount > 0 ? colCount : parsedTable.colCount);
@@ -473,6 +569,24 @@
         </div>
       {/if}
       
+      {#if canEdit}
+        <div class="sheet-edit-bar">
+          <button
+            type="button"
+            class="sheet-edit-toggle"
+            class:sheet-edit-toggle-active={editMode}
+            data-testid="sheet-edit-toggle"
+            aria-pressed={editMode}
+            onclick={() => { if (editMode) commitCellEdit(); editMode = !editMode; activeCell = null; }}
+          >{editMode ? $text('common.done') : $text('common.edit')}</button>
+          {#if pendingSaves > 0}
+            <span class="sheet-edit-status" data-testid="sheet-save-status" data-state="saving">{$text('common.save')}…</span>
+          {:else}
+            <span class="sheet-edit-status" data-testid="sheet-save-status" data-state="saved"></span>
+          {/if}
+        </div>
+      {/if}
+
       <!-- Filter action bar — only shown when filter is toggled on -->
       {#if showFilters}
         <div class="filter-bar">
@@ -557,17 +671,43 @@
               </tr>
             </thead>
             <tbody>
-              {#each displayRows as row, rowIndex}
+              {#each displayRows as row}
+                {@const rowIndex = rowOrigin.get(row) ?? 0}
                 <tr>
                   <td class="row-num">{rowIndex + 1}</td>
                   {#each row as cell, colIndex}
                     {@const linkHtml = replaceInlineLinksInText(cell.content)}
-                    {#if linkHtml}
+                    {#if activeCell && activeCell.row === rowIndex && activeCell.col === colIndex}
+                      <td class="sheet-cell-editing" data-testid="sheet-cell" data-cell={`${colIndexToLetter(colIndex)}${rowIndex + 1}`}>
+                        <input
+                          class="sheet-cell-input"
+                          data-testid="sheet-cell-input"
+                          type="text"
+                          bind:value={cellDraft}
+                          onkeydown={onCellKeydown}
+                          onblur={commitCellEdit}
+                          use:cellInputAction
+                        />
+                      </td>
+                    {:else if editMode && canEdit}
+                      <td
+                        class:sheet-cell-highlight={focusedCells.has(`${rowIndex}:${colIndex}`)}
+                        class:sheet-cell-editable={true}
+                        class:sheet-cell-formula={!!cell.formula}
+                        data-testid="sheet-cell"
+                        data-cell={`${colIndexToLetter(colIndex)}${rowIndex + 1}`}
+                        data-formula={cell.formula ?? undefined}
+                        role="gridcell"
+                        tabindex="0"
+                        onclick={() => startCellEdit(rowIndex, colIndex, cell)}
+                        onkeydown={(e) => { if (e.key === 'Enter') startCellEdit(rowIndex, colIndex, cell); }}
+                      >{cell.content}</td>
+                    {:else if linkHtml}
                       <!-- Cell contains inline links — render as HTML with placeholders -->
                       <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is HTML-escaped via embedLinkUtils.escapeHtml() -->
-                      <td class:sheet-cell-highlight={focusedCells.has(`${rowIndex}:${colIndex}`)}>{@html linkHtml}</td>
+                      <td class:sheet-cell-highlight={focusedCells.has(`${rowIndex}:${colIndex}`)} data-testid="sheet-cell" data-cell={`${colIndexToLetter(colIndex)}${rowIndex + 1}`}>{@html linkHtml}</td>
                     {:else}
-                      <td class:sheet-cell-highlight={focusedCells.has(`${rowIndex}:${colIndex}`)}>{cell.content}</td>
+                      <td class:sheet-cell-highlight={focusedCells.has(`${rowIndex}:${colIndex}`)} class:sheet-cell-formula={!!cell.formula} data-testid="sheet-cell" data-cell={`${colIndexToLetter(colIndex)}${rowIndex + 1}`}>{cell.content}</td>
                     {/if}
                   {/each}
                 </tr>
@@ -696,6 +836,47 @@
     max-width: 180px;
   }
   
+  .sheet-edit-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-4);
+    padding: var(--spacing-3) var(--spacing-6);
+  }
+  .sheet-edit-toggle {
+    padding: var(--spacing-2) var(--spacing-6);
+    border-radius: var(--radius-2);
+    border: 1px solid var(--color-grey-30);
+    background: var(--color-grey-0);
+    color: var(--color-font-primary);
+    cursor: pointer;
+  }
+  .sheet-edit-toggle-active {
+    background: var(--color-primary-start);
+    color: var(--color-grey-0);
+  }
+  .sheet-edit-status {
+    color: var(--color-font-secondary);
+    font-size: var(--font-size-small);
+  }
+  .spreadsheet td.sheet-cell-editable {
+    cursor: cell;
+  }
+  .spreadsheet td.sheet-cell-formula {
+    font-style: italic;
+  }
+  .spreadsheet td.sheet-cell-editing {
+    padding: 0;
+  }
+  .sheet-cell-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: var(--spacing-2) var(--spacing-4);
+    border: 2px solid var(--color-primary-start);
+    background: var(--color-grey-0);
+    color: var(--color-font-primary);
+    font: inherit;
+  }
+
   .filter-input {
     width: 100%;
     padding: var(--spacing-2) var(--spacing-4);

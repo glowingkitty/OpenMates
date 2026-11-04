@@ -4354,6 +4354,7 @@ async def handle_main_processing(
         base_instructions.get("base_url_sourcing_instruction", ""),
         base_instructions.get("base_code_block_instruction", ""),
         base_instructions.get("base_document_generation_instruction", ""),
+        base_instructions.get("base_sheet_formulas_instruction", ""),
     ]
     cacheable_system_prefix = "\n\n".join(filter(None, stable_prefix_parts))
     prompt_parts = [*filter(None, stable_prefix_parts)]

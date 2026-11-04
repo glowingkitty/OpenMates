@@ -1,0 +1,8 @@
+plan_conference_talk:
+  context: Focus mode name
+  en: Plan a conference talk
+  verified_by_human: []
+plan_conference_talk.description:
+  context: Focus mode description
+  en: Decide which talk to submit to a conference and shape it into a strong proposal.
+  verified_by_human: []

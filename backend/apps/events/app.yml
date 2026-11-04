@@ -529,3 +529,21 @@ skills:
             example: false
 
     provider_required: true
+
+focuses:
+  - id: plan_conference_talk
+    icon_image: event.svg
+    name_translation_key: events.plan_conference_talk
+    description_translation_key: events.plan_conference_talk.description
+    process_translation_key: focus_modes.events_plan_conference_talk.process
+    systemprompt_translation_key: focus_modes.events_plan_conference_talk.systemprompt
+    how_to_use:
+      - I work on a large open source project and want to submit a talk, so what should I consider first?
+      - Help me pick a talk idea for FOSDEM from what I've built this year.
+      - Polish my talk proposal abstract for the CFP.
+    preprocessor_hint: >
+      Select when the user wants to submit or plan a talk, workshop or
+      presentation at a conference or meetup, including asking for
+      tips before preparing talk ideas, choosing a topic or writing a
+      proposal. Do not select for finding or listing conferences,
+      travel planning, or general public-speaking coaching.
