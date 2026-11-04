@@ -362,6 +362,31 @@ Alert behavior:
 - API, host, disk, and monitor-staleness failures use the host notifier, so at least one configured email or Discord path remains independent of API and Celery health.
 - Intentionally unconfigured object storage reports `not_configured` and does not open or recover a provider-outage incident.
 
+## Host Software Reporter
+
+Core, upload and preview servers can push a signed, encrypted daily software
+report to a private-network collector (see `deployment/host_reporter/README.md`).
+The CLI installs exactly the payload in `deployment/host_reporter/` and mirrors
+`install.sh`; the collector address comes only from your arguments:
+
+```bash
+sudo "$(command -v openmates)" server host-reporter install --role core \
+  --collector-url https://<collector-private-ip>:<port>/v1/host-report \
+  --collector-cert collector.crt --collector-tls-cert tls.crt
+sudo "$(command -v openmates)" server host-reporter status
+sudo "$(command -v openmates)" server host-reporter uninstall --yes
+```
+
+The collector URL must be `https` with an RFC 1918 or IPv6 ULA address
+literal; it becomes the reporter's only `IPAddressAllow=` entry. Installation
+keeps an existing host signing key and prints the `register-host` command to run
+on the dev server. `--dry-run` lists the files without writing. `status` shows
+the timer, last run result and a classified last push outcome without log text
+or addresses. When a reporter is configured, `server update` (as root) refreshes
+its script, units and apt hook and writes the running image digests to
+`/var/lib/openmates/deployed-images.json`; it never installs an unconfigured
+reporter.
+
 ## Runtime Notifications
 
 Configure one or more host-level notification channels in the installation `.env`:

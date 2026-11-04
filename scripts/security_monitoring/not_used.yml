@@ -1,0 +1,112 @@
+# Technologies OpenMates does not use in any environment.
+#
+# Read by scripts/security_monitoring/inventory.py. Matches on these entries are
+# suppressed by the hourly watcher (security-monitoring.sources.hourly-deterministic).
+# An entry whose name or alias matches anything actually inventoried (lockfiles,
+# images, host packages, dev-host tools) is overridden to "used" in code, so a
+# stale entry can never hide a real exposure (security-monitoring.inventory.explicit).
+# Terms are matched case-insensitively on word boundaries; keep aliases specific.
+schema_version: 1
+entries:
+  - name: Drupal
+    aliases: [Drupal Commerce, Drupal core]
+    reason: "not used: no Drupal or PHP in any environment"
+  - name: PHP
+    aliases: [php-fpm]
+    reason: "not used: no Drupal or PHP in any environment"
+  - name: WordPress
+    aliases: [WooCommerce]
+    reason: "not used: no WordPress or PHP CMS in any environment"
+  - name: Joomla
+    aliases: []
+    reason: "not used: no PHP CMS in any environment"
+  - name: Microsoft Windows
+    aliases: [Windows Server, Windows SMB, Windows Kernel, Win32k, Windows NTLM]
+    reason: "not used: all servers run Linux; no Windows hosts or clients are managed"
+  - name: Microsoft Exchange
+    aliases: [Exchange Server]
+    reason: "not used: no Exchange or Outlook server"
+  - name: Microsoft SharePoint
+    aliases: [SharePoint Server]
+    reason: "not used: no SharePoint"
+  - name: Active Directory
+    aliases: [Microsoft Active Directory]
+    reason: "not used: no directory service"
+  - name: PAN-OS
+    aliases: [Palo Alto Networks GlobalProtect, GlobalProtect]
+    reason: "not used: no Palo Alto Networks appliances"
+  - name: Fortinet
+    aliases: [FortiOS, FortiGate, FortiWeb, FortiManager, FortiClient]
+    reason: "not used: no Fortinet appliances"
+  - name: Ivanti
+    aliases: [Ivanti Connect Secure, Ivanti EPMM, Pulse Secure]
+    reason: "not used: no Ivanti products"
+  - name: Citrix
+    aliases: [Citrix NetScaler, NetScaler ADC, NetScaler Gateway, Citrix Bleed]
+    reason: "not used: no Citrix or NetScaler products"
+  - name: Cisco IOS
+    aliases: [Cisco IOS XE, Cisco ASA, Cisco Firepower]
+    reason: "not used: no Cisco network appliances"
+  - name: SonicWall
+    aliases: [SonicOS]
+    reason: "not used: no SonicWall appliances"
+  - name: Cursor IDE editor extension
+    aliases: [Cursor IDE, Cursor editor, Cursor extension]
+    reason: "no Cursor IDE installed on any host"
+  - name: JetBrains IDEs
+    aliases: [JetBrains, IntelliJ IDEA, PyCharm, WebStorm, TeamCity, YouTrack]
+    reason: "not used: no JetBrains IDE or server products on any host"
+  - name: Kubernetes
+    aliases: [kubelet, kube-apiserver, Ingress NGINX, ingress-nginx]
+    reason: "not used: services run in Docker Compose, not Kubernetes"
+  - name: nginx
+    aliases: [NGINX Plus]
+    reason: "not used: no nginx reverse proxy on any host"
+  - name: Apache HTTP Server
+    aliases: [Apache httpd, apache2]
+    reason: "not used: no Apache web server"
+  - name: Apache Tomcat
+    aliases: [Tomcat]
+    reason: "not used: no Java application servers"
+  - name: MySQL
+    aliases: [MariaDB]
+    reason: "not used: the database is PostgreSQL"
+  - name: Microsoft SQL Server
+    aliases: [MSSQL]
+    reason: "not used: the database is PostgreSQL"
+  - name: Oracle Database
+    aliases: [Oracle WebLogic, Oracle E-Business Suite]
+    reason: "not used: no Oracle products"
+  - name: Jenkins
+    aliases: []
+    reason: "not used: CI runs on GitHub Actions"
+  - name: GitLab
+    aliases: [GitLab CE, GitLab EE]
+    reason: "not used: source hosting and CI are on GitHub"
+  - name: Atlassian Confluence
+    aliases: [Confluence Server, Confluence Data Center]
+    reason: "not used: no Atlassian server products"
+  - name: Atlassian Jira
+    aliases: [Jira Server, Jira Data Center, Bitbucket Server]
+    reason: "not used: no Atlassian server products"
+  - name: Plex
+    aliases: [Plex Media Server]
+    reason: "not used: no media server"
+  - name: Collabora
+    aliases: [Collabora Online]
+    reason: "not used: no office suite server"
+  - name: Nextcloud
+    aliases: [ownCloud]
+    reason: "not used: no file-sync server"
+  - name: VMware
+    aliases: [VMware ESXi, VMware vCenter]
+    reason: "not used: servers are Hetzner instances, no VMware"
+  - name: SAP NetWeaver
+    aliases: [SAP NetWeaver AS]
+    reason: "not used: no SAP products"
+  - name: Zimbra
+    aliases: []
+    reason: "not used: no mail server"
+  - name: Roundcube
+    aliases: []
+    reason: "not used: no webmail"

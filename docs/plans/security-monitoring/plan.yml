@@ -1,0 +1,336 @@
+schema_version: 2
+id: security-monitoring
+title: Automated Security Monitoring and Guarded Remediation
+status: approved
+goal: 'Automated IT security setup: a deterministic script checks sources for new security alerts relevant to our
+  servers and stack (Hetzner, the OS versions of the prod, dev, upload and preview servers, Vercel, our packages,
+  languages and app skill providers). When something could be relevant, an hourly check starts a Claude chat with
+  a skill that researches related security news and evaluates how much, if at all, we are impacted, considering
+  reachability, exploitability and blast radius. If an urgent fix is needed it auto-implements it and deploys to
+  the dev server / dev branch, and sends Discord and email notifications that say when my action is needed (for
+  example to update other servers). Issues that are not relevant for our system must not trigger. Updates respect
+  a release-age wait, except prioritized security fixes. A report that was already triaged must not start a new
+  chat every hour just because I have not acted on it yet.
+
+  '
+specifications:
+- architecture.security-monitoring@1
+- architecture.security-reporting@1
+- architecture.server-management@1
+task: Automated security monitoring and guarded remediation (security slice of TASK-8338)
+scope:
+  in:
+  - scripts/security_monitoring/ package plus scripts/security_monitor.py entry point (inventory, sources, matcher,
+    dispatch state, triage and fix launchers, notifications, health).
+  - Host reporter for core, upload and preview servers, plus a dev-side private-network collector.
+  - SSH vulnerability context and deterministic intrusion signals.
+  - .claude/skills/security-triage and .claude/skills/security-fix instruction sources.
+  - Release-age policy changes (pnpm, Dependabot, supply-chain guard for PyPI, crates and images).
+  - Scheduler registration for the hourly watcher and daily inventory on the dev host.
+  - P0 hardening, namely a lockfile check against the 2026 npm worm IOC lists and SHA-pinning of tag-referenced
+    GitHub Actions.
+  out:
+  - Production deploys, server patching, reboots and secret rotation (manual by design).
+  - Removing globally installed AI tools from the dev host (operator decision).
+decisions:
+- id: D-1
+  decision: The new bundle architecture.security-monitoring reuses the security-reporting ledger, aliases and email
+    delivery instead of changing that Specification.
+  status: active
+  reason: Agreed with the user in the design conversation and encoded in the approved Specification.
+  decided_at: '2026-11-04T13:30:00Z'
+- id: D-2
+  decision: Host reports are pushed over HTTPS to a collector bound only to the dev server's Hetzner private network
+    address. Reports are signed per host with `ssh-keygen -Y sign` and encrypted to the collector with `openssl
+    cms`. Both tools are present on Ubuntu, so the reporter needs no extra packages.
+  status: active
+  reason: Agreed with the user in the design conversation and encoded in the approved Specification.
+  decided_at: '2026-11-04T13:30:00Z'
+- id: D-3
+  decision: Triage and fix run as separate headless `claude -p` invocations with explicit `--allowedTools` and `--disallowedTools`
+    lists and JSON-schema output, never `--dangerously-skip-permissions`. The fix receives only validated verdict
+    fields.
+  status: active
+  reason: Agreed with the user in the design conversation and encoded in the approved Specification.
+  decided_at: '2026-11-04T13:30:00Z'
+- id: D-4
+  decision: Dispatch state, including in-flight lock, per-observation dispatch fingerprint and material-change reasons,
+    lives in a SQLite store under logs/security-monitoring/ outside git.
+  status: active
+  reason: Agreed with the user in the design conversation and encoded in the approved Specification.
+  decided_at: '2026-11-04T13:30:00Z'
+checks:
+- id: C-UNIT
+  required: true
+  description: Light script pytest for scripts/tests/test_security_monitoring_*.py covering matcher dispositions,
+    not-used suppression, no-repeat dispatch, release-age selection, fix path guard, notification routing and content
+    boundary, host report validation and intrusion signals.
+- id: C-SPEC
+  required: true
+  description: python3 scripts/specifications.py validate and check-generated pass, and tests reference architecture.security-monitoring
+    assertions.
+- id: C-DRYRUN
+  required: true
+  description: A real dry run of the hourly watcher against live sources on the dev host completes, sends nothing
+    and mutates no persistent state.
+implementation_state:
+  subject_commit: cff3feee26429f87cc03166801db43aaa66bd8da
+approvals:
+  specification:
+    status: approved
+    approved_at: '2026-11-04T13:30:00Z'
+    reason: The user explicitly approved architecture.security-monitoring@1 including the no-repeat-dispatch amendment
+      they requested.
+  plan:
+    status: approved
+    approved_at: '2026-11-04T13:30:00Z'
+    reason: The user said to go ahead, approve and implement the agreed design.
+scenarios:
+- id: S-1
+  title: Irrelevant advisory is suppressed
+  given:
+  - Drupal is on the not-used list.
+  when:
+  - A critical Drupal advisory is observed.
+  then:
+  - No triage chat or notification; suppression is counted in the digest.
+- id: S-2
+  title: Relevant advisory is triaged once and fixed on dev
+  given:
+  - pnpm-lock.yaml contains an affected package version.
+  when:
+  - The hourly watcher runs repeatedly.
+  then:
+  - One triage chat, one urgent fix deployed to dev, one Discord and email message with a manual checklist, and
+    no repeat chat in later hours.
+- id: S-3
+  title: Server reports and SSH intrusion signals
+  given:
+  - Prod pushes a signed encrypted report over the private network.
+  when:
+  - The report shows an unknown key login.
+  then:
+  - An immediate deterministic intrusion alert is sent.
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: Matcher dispositions, not-used suppression and source-failure handling behave per specification.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-PYTEST-001
+- id: AC-2
+  scenario: S-2
+  text: Dispatch, no-repeat, release-age selection, fix path guard and notification routing behave per specification.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-PYTEST-001
+- id: AC-3
+  scenario: S-3
+  text: Host report validation, staleness and intrusion signals behave per specification.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-PYTEST-001
+- id: AC-4
+  scenario: S-2
+  text: A live dry run of the hourly watcher completes without sending or persisting.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: manual
+  verification_ids:
+  - T-DRYRUN-001
+tests:
+- id: T-PYTEST-001
+  type: pytest
+  file: scripts/tests/test_security_monitoring_*.py
+  command: python3 -m pytest scripts/tests -k security_monitoring
+  covers:
+  - AC-1
+  - AC-2
+  - AC-3
+  assertions:
+  - security-monitoring.inventory.explicit
+  - security-monitoring.sources.hourly-deterministic
+  - security-monitoring.host-reports.private-push
+  - security-monitoring.ssh.vulnerability-and-intrusion
+  - security-monitoring.triage.read-only-structured
+  - security-monitoring.triage.no-repeat-dispatch
+  - security-monitoring.triage.untrusted-input
+  - security-monitoring.release-age.routine
+  - security-monitoring.release-age.security-priority
+  - security-monitoring.autofix.guarded-dev-only
+  - security-monitoring.notifications.deterministic-dual-channel
+  - security-monitoring.health.no-silent-failure
+  - security-monitoring.content.boundary
+  red_phase:
+    required: false
+    expected: fail
+    evidence:
+      status: pending
+      run_id: ''
+      timestamp: '2026-11-04T13:30:00Z'
+      reason: Tests are written with the implementation lanes.
+      summary: pending
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: pending
+      command: python3 -m pytest scripts/tests -k security_monitoring
+      run_id: ''
+      subject_commit: ''
+      timestamp: '2026-11-04T13:30:00Z'
+      summary: pending
+- id: T-DRYRUN-001
+  type: manual
+  file: scripts/security_monitor.py
+  command: DRY_RUN=1 python3 scripts/security_monitor.py hourly
+  covers:
+  - AC-4
+  assertions:
+  - a live dry run sends nothing and persists nothing
+  red_phase:
+    required: false
+    expected: fail
+    evidence:
+      status: pending
+      run_id: ''
+      timestamp: '2026-11-04T13:30:00Z'
+      reason: Tests are written with the implementation lanes.
+      summary: pending
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: pending
+      command: DRY_RUN=1 python3 scripts/security_monitor.py hourly
+      run_id: ''
+      subject_commit: ''
+      timestamp: '2026-11-04T13:30:00Z'
+      summary: pending
+attempts:
+- id: ATTEMPT-1
+  task_id: TASK-1
+  approach: Previous OpenCode cron launchers that dispatched remediation agents per alert.
+  outcome: rejected
+  recorded_at: '2026-09-07T00:00:00Z'
+  reason: Removed under TASK-7543; unbounded cost, no dedup across hours, no read-only triage separation.
+handoff:
+  current_task_id: TASK-1
+  next_action: Implement lanes A-D and verify.
+  command: python3 -m pytest scripts/tests -k security_monitoring
+  expected_outcome: All security monitoring contract tests pass and a live dry run completes.
+  blocker: null
+  last_verified_commit: cff3feee26429f87cc03166801db43aaa66bd8da
+tasks:
+- id: TASK-1
+  title: Inventory, sources, matcher and dispatch state
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    - S-2
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+  expected_files: &id001
+  - scripts/security_monitoring/models.py
+  - scripts/security_monitoring/inventory.py
+  - scripts/security_monitoring/sources.py
+  - scripts/security_monitoring/matcher.py
+  - scripts/security_monitoring/state.py
+  ownership:
+    files: *id001
+    shared_files: []
+  verification:
+  - T-PYTEST-001
+  verification_ids:
+  - T-PYTEST-001
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  independently_deployable: true
+- id: TASK-2
+  title: Host reporter, private-network collector and SSH intrusion signals
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-3
+    acceptance_criteria:
+    - AC-3
+  expected_files: &id002
+  - deployment/host_reporter/
+  - scripts/security_monitoring/host_reports.py
+  ownership:
+    files: *id002
+    shared_files: []
+  verification:
+  - T-PYTEST-001
+  verification_ids:
+  - T-PYTEST-001
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  independently_deployable: true
+- id: TASK-3
+  title: Triage and fix launchers, skills, notifications, health and scheduler
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-2
+    acceptance_criteria:
+    - AC-2
+    - AC-4
+  expected_files: &id003
+  - scripts/security_monitoring/dispatch.py
+  - scripts/security_monitoring/notify.py
+  - scripts/security_monitor.py
+  - .claude/skills/security-triage/SKILL.md
+  - .claude/skills/security-fix/SKILL.md
+  ownership:
+    files: *id003
+    shared_files: []
+  verification:
+  - T-PYTEST-001
+  verification_ids:
+  - T-PYTEST-001
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  independently_deployable: true
+- id: TASK-4
+  title: Release-age policy and P0 hardening
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-2
+    acceptance_criteria:
+    - AC-2
+  expected_files: &id004
+  - pnpm-workspace.yaml
+  - .github/dependabot.yml
+  - scripts/security_monitoring/release_age.py
+  ownership:
+    files: *id004
+    shared_files: []
+  verification:
+  - T-PYTEST-001
+  verification_ids:
+  - T-PYTEST-001
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  independently_deployable: true

@@ -11893,6 +11893,110 @@ assertions:
         - *id1521
         supporting_tests: []
     current_direct_proof: false
+  security-monitoring.inventory.explicit:
+    specification: architecture.security-monitoring@1
+    fingerprint: ce980fab1a7cb4d6ccb267e94085e1306c61494a29cb3fe20ded9f9d68ceb5f6
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  security-monitoring.sources.hourly-deterministic:
+    specification: architecture.security-monitoring@1
+    fingerprint: d9025b08cd6395241037283486d7264d92262386728e020f531b2fc2b48f947f
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  security-monitoring.host-reports.private-push:
+    specification: architecture.security-monitoring@1
+    fingerprint: 5a3221b6c53ebfd2d9323d7ceca243b2c198a670d60a33d05cf7820cbc053c40
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  security-monitoring.ssh.vulnerability-and-intrusion:
+    specification: architecture.security-monitoring@1
+    fingerprint: d0c5b06277468c52cfe41a8c3177458bcc8cb37c38ea66c2557ddfee8506baa0
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  security-monitoring.triage.read-only-structured:
+    specification: architecture.security-monitoring@1
+    fingerprint: 0232405ef9186b99222965054e73b6a6ce4a38c4ffa496efae546730bd6b46f3
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  security-monitoring.triage.no-repeat-dispatch:
+    specification: architecture.security-monitoring@1
+    fingerprint: 57695b36876b640d13009de80e9dd2673aca45551b5dd95ff5ff893b9e931cca
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  security-monitoring.triage.untrusted-input:
+    specification: architecture.security-monitoring@1
+    fingerprint: 8d7e21ab989c5ffe63e84d3954d33679e880475b77818f08efcd801195c561a2
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  security-monitoring.release-age.routine:
+    specification: architecture.security-monitoring@1
+    fingerprint: d66975f3dbad0db7ea597ec1de6b723facd7ac24ba1b24a1ef60821957a9df6c
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  security-monitoring.release-age.security-priority:
+    specification: architecture.security-monitoring@1
+    fingerprint: e2608bf6aca26cd8082b669af7da42f247a8d6d6d4e315921d35ab4aa3da520a
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  security-monitoring.autofix.guarded-dev-only:
+    specification: architecture.security-monitoring@1
+    fingerprint: 4053f87cfad29737b5d09d944f3e4d9c1a61b59ebb36286c4ce6e51501d09fc9
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  security-monitoring.notifications.deterministic-dual-channel:
+    specification: architecture.security-monitoring@1
+    fingerprint: 2c0bf4ba80453a140a4971381ab0f5a809b07937904f1045108f92f2e200bf7c
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  security-monitoring.health.no-silent-failure:
+    specification: architecture.security-monitoring@1
+    fingerprint: 260391090d3e1b456e6ea9f8c25162d81c228316829a4b857474c9a5d156d5dc
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  security-monitoring.content.boundary:
+    specification: architecture.security-monitoring@1
+    fingerprint: 84fb5ff1244b9e428d7e96480748e14277e04bdcac53bd79bd50358cb5e08e21
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
   security-reporting.processing.deterministic:
     specification: architecture.security-reporting@1
     fingerprint: b5356beb461780926e078b57074b2108aa21168ef48837a860cabdff86945a00
