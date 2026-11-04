@@ -45,3 +45,8 @@ def test_discord_text_carries_link_not_document():
     text = briefing.discord_text(date(2026, 11, 3), "https://example.invalid/briefing.md")
     assert "https://example.invalid/briefing.md" in text
     assert "Marketing Week" in text and len(text) < 600
+
+
+def test_meeting_script_asks_exactly_one_question_at_a_time():
+    assert "exactly one question at a time" in briefing.MEETING_SCRIPT
+    assert "at most 3 questions" not in briefing.MEETING_SCRIPT

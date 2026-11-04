@@ -25,7 +25,9 @@ What may be worked on is defined in [`FOCUS.md`](../../../FOCUS.md)
      `scripts/response_media.py` (private S3 link, 48 h), then posts the link to Discord (`DISCORD_WEBHOOK_DAILY_MEETING`, else
      `DISCORD_WEBHOOK_DEV_NIGHTLY`).
 3. **Meeting:** download the PDF from the Discord link, attach it in the
-   daily-meeting chat in the Claude app and start a voice call. It ends with a `DECISIONS <date>` note.
+   daily-meeting chat in the Claude app and start a voice call. Claude asks
+   exactly one question at a time, with a recommendation, then waits. The meeting
+   ends with a `DECISIONS <date>` note.
 4. **Write-back:** paste the note into a Claude Code chat on the dev server; the
    `daily-meeting-and-orchestration` skill updates FOCUS.md, Reminders and
    OpenMates Tasks and can start the approved work chats.
