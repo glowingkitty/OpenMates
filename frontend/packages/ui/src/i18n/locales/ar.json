@@ -19597,6 +19597,48 @@
       "title_placeholder": {
         "text": "صِف المشكلة بإيجاز — ماذا حدث وأين؟"
       },
+      "issue_text_label": {
+        "text": "ماذا حدث؟"
+      },
+      "issue_text_placeholder": {
+        "text": "ماذا حدث؟ صِف ما هو معطّل أو ما الذي حدث بشكل خاطئ، وأي تفاصيل تساعدنا على إعادة إنتاج المشكلة."
+      },
+      "attach_image": {
+        "text": "صورة"
+      },
+      "dictation_failed": {
+        "text": "فشل الإملاء. حاول مرة أخرى أو اكتب بلاغك."
+      },
+      "quick_actions_label": {
+        "text": "إضافة إلى التقرير"
+      },
+      "upload_screenshot": {
+        "text": "رفع لقطة شاشة"
+      },
+      "select_ui_element": {
+        "text": "تحديد عنصر في الواجهة"
+      },
+      "record_voice": {
+        "text": "تسجيل صوتي (حتى دقيقتين)"
+      },
+      "dictation_unavailable_today": {
+        "text": "التسجيل الصوتي غير متاح اليوم. حاول مرة أخرى غدًا."
+      },
+      "dictation_recording_limit": {
+        "text": "التسجيلات الصوتية للتقارير محدودة بدقيقتين."
+      },
+      "send_to_claude_chat_label": {
+        "text": "إرسال مباشرة إلى محادثة Claude"
+      },
+      "send_to_claude_chat_hint": {
+        "text": "يبدأ محادثة Claude جديدة على خادم التطوير تحقق في هذا البلاغ وتصلحه."
+      },
+      "confirmation_claude_chat_queued": {
+        "text": "ستبدأ محادثة Claude العمل على هذا البلاغ خلال دقيقة تقريبًا."
+      },
+      "confirmation_claude_chat_unavailable": {
+        "text": "تعذر وضع محادثة Claude في قائمة الانتظار. انسخ معرّف البلاغ وابدأ محادثة يدويًا."
+      },
       "title_required": {
         "text": "الوصف الموجز مطلوب"
       },
@@ -19642,11 +19684,8 @@
       "actual_behaviour_hint": {
         "text": "اختياري — صف ما حدث بشكل خاطئ"
       },
-      "share_chat_label": {
-        "text": "مشاركة الدردشة الحالية مع هذا التقرير"
-      },
-      "share_chat_hint": {
-        "text": "يتيح هذا للمسؤول عرض الدردشة للمساعدة في تصحيح المشكلة."
+      "chat_included_notice": {
+        "text": "يتم تضمين دردشتك الحالية في هذا التقرير حتى نتمكن من تصحيح المشكلة."
       },
       "url_label": {
         "text": "رابط الدردشة المشتركة أو التضمين"
@@ -19808,9 +19847,6 @@
       },
       "element_picker_hint": {
         "text": "انقر على أي عنصر في الصفحة لالتقاط بنية HTML الخاصة به لأغراض التصحيح"
-      },
-      "element_picker_button": {
-        "text": "اختر عنصرًا"
       },
       "element_picker_active": {
         "text": "جارٍ الاختيار..."

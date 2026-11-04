@@ -351,6 +351,7 @@
         "settings-chat-viewport.spec.ts",
         "composer-mobile-keyboard.spec.ts",
         "components/report-issue-confirmation.spec.ts",
+        "components/report-issue-composer.spec.ts",
         "components/settings-usage-overview.spec.ts",
         "components/embed-workspace.spec.ts",
         "components/embed-version-timeline.spec.ts",

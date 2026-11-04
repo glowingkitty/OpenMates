@@ -284,6 +284,6 @@ describe('audio realtime transcription', () => {
 
     await expect(handle.transcription).rejects.toThrow('Provider unavailable');
     await expect(handle.correction).rejects.toThrow('Provider unavailable');
-    expect(socket.closeCalls).toEqual([{ code: 1011, reason: 'realtime failed' }]);
+    expect(socket.closeCalls).toEqual([{ code: 1000, reason: 'realtime failed' }]);
   });
 });

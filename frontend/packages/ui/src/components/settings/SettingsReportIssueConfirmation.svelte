@@ -19,6 +19,7 @@
         SettingsButton,
         SettingsCard,
         SettingsDetailRow,
+        SettingsInfoBox,
         SettingsPageContainer,
         SettingsSectionHeading,
     } from './elements';
@@ -94,28 +95,23 @@
                 dataTestid="report-issue-summary"
             >
                 <SettingsDetailRow
-                    label={$text('settings.report_issue.title_label')}
+                    label={$text('settings.report_issue.issue_text_label')}
                     value={reportSummary.title}
                 />
-                {#if reportSummary.userFlow}
-                    <SettingsDetailRow
-                        label={$text('settings.report_issue.user_flow_label')}
-                        value={reportSummary.userFlow}
-                    />
-                {/if}
-                {#if reportSummary.expectedBehaviour}
-                    <SettingsDetailRow
-                        label={$text('settings.report_issue.expected_behaviour_label')}
-                        value={reportSummary.expectedBehaviour}
-                    />
-                {/if}
-                {#if reportSummary.actualBehaviour}
-                    <SettingsDetailRow
-                        label={$text('settings.report_issue.actual_behaviour_label')}
-                        value={reportSummary.actualBehaviour}
-                    />
-                {/if}
             </SettingsCard>
+        </SettingsPageContainer>
+    {/if}
+
+    {#if reportSummary?.claudeChatStatus}
+        <SettingsPageContainer maxWidth="narrow">
+            <SettingsInfoBox
+                type={reportSummary.claudeChatStatus === 'queued' ? 'success' : 'warning'}
+                data-testid="report-issue-claude-chat-status"
+            >
+                {$text(reportSummary.claudeChatStatus === 'queued'
+                    ? 'settings.report_issue.confirmation_claude_chat_queued'
+                    : 'settings.report_issue.confirmation_claude_chat_unavailable')}
+            </SettingsInfoBox>
         </SettingsPageContainer>
     {/if}
 

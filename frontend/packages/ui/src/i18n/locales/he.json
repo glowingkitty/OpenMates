@@ -19597,6 +19597,48 @@
       "title_placeholder": {
         "text": "תאר בקצרה את הבעיה — מה קרה ואיפה?"
       },
+      "issue_text_label": {
+        "text": "מה קרה?"
+      },
+      "issue_text_placeholder": {
+        "text": "מה קרה? תארו מה שבור או השתבש, וכל פרט שיעזור לנו לשחזר את הבעיה."
+      },
+      "attach_image": {
+        "text": "תמונה"
+      },
+      "dictation_failed": {
+        "text": "ההכתבה נכשלה. נסו שוב או הקלידו את הדיווח."
+      },
+      "quick_actions_label": {
+        "text": "הוספה לדיווח"
+      },
+      "upload_screenshot": {
+        "text": "העלאת צילום מסך"
+      },
+      "select_ui_element": {
+        "text": "בחירת רכיב בממשק"
+      },
+      "record_voice": {
+        "text": "הקלטת קול (עד 2 דקות)"
+      },
+      "dictation_unavailable_today": {
+        "text": "הקלטת קול אינה זמינה היום. נסו שוב מחר."
+      },
+      "dictation_recording_limit": {
+        "text": "הקלטות קול לדיווחים מוגבלות ל-2 דקות."
+      },
+      "send_to_claude_chat_label": {
+        "text": "שליחה ישירה לצ'אט Claude"
+      },
+      "send_to_claude_chat_hint": {
+        "text": "פותח צ'אט Claude חדש בשרת הפיתוח שחוקר ומתקן את הדיווח."
+      },
+      "confirmation_claude_chat_queued": {
+        "text": "צ'אט Claude יתחיל לעבוד על הדיווח תוך כדקה."
+      },
+      "confirmation_claude_chat_unavailable": {
+        "text": "לא ניתן היה להכניס את צ'אט Claude לתור. העתיקו את מזהה הדיווח ופתחו צ'אט ידנית."
+      },
       "title_required": {
         "text": "נדרש תיאור קצר"
       },
@@ -19642,11 +19684,8 @@
       "actual_behaviour_hint": {
         "text": "אופציונלי — תאר מה השתבש"
       },
-      "share_chat_label": {
-        "text": "שיתוף הצ'אט הנוכחי עם דיווח זה"
-      },
-      "share_chat_hint": {
-        "text": "זה מאפשר למנהל המערכת לצפות בצ'אט כדי לעזור בפתרון הבעיה."
+      "chat_included_notice": {
+        "text": "הצ'אט הנוכחי שלך מצורף לדיווח זה כדי שנוכל לבדוק את הבעיה."
       },
       "url_label": {
         "text": "כתובת URL של צ'אט משותף או הטמעה"
@@ -19808,9 +19847,6 @@
       },
       "element_picker_hint": {
         "text": "יש להקיש על רכיב כלשהו בדף כדי ללכוד את מבנה ה-HTML שלו לצורך ניפוי שגיאות"
-      },
-      "element_picker_button": {
-        "text": "בחירת רכיב"
       },
       "element_picker_active": {
         "text": "בוחר..."

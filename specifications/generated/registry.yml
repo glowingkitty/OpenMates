@@ -649,7 +649,7 @@ specifications:
     version: 1
     status: draft
     path: features/issue-reporting
-    fingerprint: f9cdb55edee3439ff77c6e41190fde2e4f245e34fce198a6159109323dae9375
+    fingerprint: 52f066d60492e43dfca36ebeea4313861bc669e9e06749e7f99f0ca3409c2ae6
     required_applies_to:
     - rest_api
     - gui.web
@@ -8124,7 +8124,34 @@ assertions:
     specification: feature.issue-reporting@1
     specification_id: feature.issue-reporting
     type: behavior
-    fingerprint: 735b46cb18f6a1b0fd241d210c3d2a59b3308f29a4305e4682000c2b6865789e
+    fingerprint: c09b50b830b6b1c54f78ff2f23db038d8227934dc13b108905fe5632c42e9aa5
+    required_applies_to:
+    - rest_api
+    - gui.web
+    - gui.apple
+  issue-reporting.form.single-text-quick-actions:
+    specification: feature.issue-reporting@1
+    specification_id: feature.issue-reporting
+    type: behavior
+    fingerprint: 521a3abe7ead037594e0e79de11d2c7891d1f43c4a13dbf5e61145b605cad35c
+    required_applies_to:
+    - rest_api
+    - gui.web
+    - gui.apple
+  issue-reporting.form.free-limited-dictation:
+    specification: feature.issue-reporting@1
+    specification_id: feature.issue-reporting
+    type: behavior
+    fingerprint: ebc44b03ef7129f7dcc655823777eefbdab9c7a3f070164dc4f99eb159a91742
+    required_applies_to:
+    - rest_api
+    - gui.web
+    - gui.apple
+  issue-reporting.automation.admin-dev-claude-chat:
+    specification: feature.issue-reporting@1
+    specification_id: feature.issue-reporting
+    type: behavior
+    fingerprint: 37338724ad86d882511739d895286c9cad33b6c8c9021b68dd72b2d36c1ea475
     required_applies_to:
     - rest_api
     - gui.web

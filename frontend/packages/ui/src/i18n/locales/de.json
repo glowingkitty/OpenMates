@@ -22648,6 +22648,48 @@
       "title_placeholder": {
         "text": "Beschreibe kurz das Problem — was ist passiert und wo?"
       },
+      "issue_text_label": {
+        "text": "Was ist passiert?"
+      },
+      "issue_text_placeholder": {
+        "text": "Was ist passiert? Beschreibe, was kaputt ist oder schiefgelaufen ist, und alle Details, die uns beim Nachstellen helfen."
+      },
+      "attach_image": {
+        "text": "Bild"
+      },
+      "dictation_failed": {
+        "text": "Diktieren fehlgeschlagen. Bitte versuche es erneut oder tippe deinen Bericht."
+      },
+      "quick_actions_label": {
+        "text": "Zum Bericht hinzufügen"
+      },
+      "upload_screenshot": {
+        "text": "Screenshot hochladen"
+      },
+      "select_ui_element": {
+        "text": "UI-Element auswählen"
+      },
+      "record_voice": {
+        "text": "Sprache aufnehmen (bis zu 2 Minuten)"
+      },
+      "dictation_unavailable_today": {
+        "text": "Sprachaufnahme ist heute nicht mehr verfügbar. Versuche es morgen erneut."
+      },
+      "dictation_recording_limit": {
+        "text": "Sprachaufnahmen für Berichte sind auf 2 Minuten begrenzt."
+      },
+      "send_to_claude_chat_label": {
+        "text": "Direkt an Claude-Chat senden"
+      },
+      "send_to_claude_chat_hint": {
+        "text": "Startet einen neuen Claude-Chat auf dem Entwicklungsserver, der diesen Bericht untersucht und behebt."
+      },
+      "confirmation_claude_chat_queued": {
+        "text": "Ein Claude-Chat beginnt in etwa einer Minute mit der Arbeit an diesem Bericht."
+      },
+      "confirmation_claude_chat_unavailable": {
+        "text": "Der Claude-Chat konnte nicht eingeplant werden. Kopiere die Issue-ID und starte einen Chat manuell."
+      },
       "title_required": {
         "text": "Eine Kurzbeschreibung ist erforderlich"
       },
@@ -22693,11 +22735,8 @@
       "actual_behaviour_hint": {
         "text": "Optional — beschreibe, was schief gelaufen ist"
       },
-      "share_chat_label": {
-        "text": "Aktuellen Chat mit diesem Bericht teilen"
-      },
-      "share_chat_hint": {
-        "text": "Dadurch kann der Administrator den Chat einsehen, um das Problem zu beheben."
+      "chat_included_notice": {
+        "text": "Dein aktueller Chat wird diesem Bericht beigefügt, damit wir das Problem analysieren können."
       },
       "url_label": {
         "text": "Geteilte Chat- oder Embed-URL"
@@ -22859,9 +22898,6 @@
       },
       "element_picker_hint": {
         "text": "Tippe auf ein beliebiges Element auf der Seite, um dessen HTML-Struktur für die Fehlersuche zu erfassen"
-      },
-      "element_picker_button": {
-        "text": "Element auswählen"
       },
       "element_picker_active": {
         "text": "Auswählen..."

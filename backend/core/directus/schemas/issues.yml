@@ -99,26 +99,26 @@ issues:
       type: string
       length: 20
       nullable: true
-      note: "Legacy admin-requested agent action for a retired automatic handoff. Kept for old records only."
+      note: "Admin agent handoff action. 'claude_chat' = development-server Send to Claude chat (utils/claude_issue_dispatch.py); older values are from a retired OpenCode handoff."
 
     agent_status:
       type: string
       length: 20
       nullable: true
-      note: "Legacy automatic agent handoff status. Kept for old records only."
+      note: "Agent handoff status: 'queued' (request written for the host dispatcher) or 'unavailable' (requested but could not be queued)."
 
     agent_session_title:
       type: string
       length: 100
       nullable: true
-      note: "Legacy session title from a retired automatic issue handoff."
+      note: "Legacy session title from a retired automatic issue handoff (not written by the Claude chat handoff)."
 
     agent_error:
       type: text
       nullable: true
-      note: "Legacy host-side poller error from retired automatic issue handoff."
+      note: "Why an agent handoff could not be queued (agent_status=unavailable)."
 
     agent_started_at:
       type: timestamp
       nullable: true
-      note: "Legacy timestamp from a retired automatic issue handoff."
+      note: "When the agent handoff was requested."

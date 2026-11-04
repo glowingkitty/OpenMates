@@ -19597,6 +19597,48 @@
       "title_placeholder": {
         "text": "Mô tả ngắn gọn sự cố — chuyện gì đã xảy ra và ở đâu?"
       },
+      "issue_text_label": {
+        "text": "Đã xảy ra chuyện gì?"
+      },
+      "issue_text_placeholder": {
+        "text": "Đã xảy ra chuyện gì? Mô tả phần bị lỗi hoặc trục trặc và mọi chi tiết giúp chúng tôi tái hiện lỗi."
+      },
+      "attach_image": {
+        "text": "Hình ảnh"
+      },
+      "dictation_failed": {
+        "text": "Đọc chính tả thất bại. Vui lòng thử lại hoặc nhập báo cáo."
+      },
+      "quick_actions_label": {
+        "text": "Thêm vào báo cáo"
+      },
+      "upload_screenshot": {
+        "text": "Tải ảnh chụp màn hình lên"
+      },
+      "select_ui_element": {
+        "text": "Chọn thành phần giao diện"
+      },
+      "record_voice": {
+        "text": "Ghi âm giọng nói (tối đa 2 phút)"
+      },
+      "dictation_unavailable_today": {
+        "text": "Hôm nay không thể ghi âm nữa. Vui lòng thử lại vào ngày mai."
+      },
+      "dictation_recording_limit": {
+        "text": "Bản ghi âm cho báo cáo giới hạn trong 2 phút."
+      },
+      "send_to_claude_chat_label": {
+        "text": "Gửi thẳng đến cuộc trò chuyện Claude"
+      },
+      "send_to_claude_chat_hint": {
+        "text": "Bắt đầu một cuộc trò chuyện Claude mới trên máy chủ phát triển để điều tra và sửa báo cáo này."
+      },
+      "confirmation_claude_chat_queued": {
+        "text": "Một cuộc trò chuyện Claude sẽ bắt đầu xử lý báo cáo này trong khoảng một phút."
+      },
+      "confirmation_claude_chat_unavailable": {
+        "text": "Không thể xếp hàng cuộc trò chuyện Claude. Hãy sao chép ID sự cố và bắt đầu trò chuyện thủ công."
+      },
       "title_required": {
         "text": "Cần có mô tả ngắn"
       },
@@ -19642,11 +19684,8 @@
       "actual_behaviour_hint": {
         "text": "Tùy chọn — mô tả những gì đã xảy ra sai"
       },
-      "share_chat_label": {
-        "text": "Chia se cuoc tro chuyen hien tai voi bao cao nay"
-      },
-      "share_chat_hint": {
-        "text": "Dieu nay cho phep quan tri vien xem cuoc tro chuyen de giup go loi van de."
+      "chat_included_notice": {
+        "text": "Cuộc trò chuyện hiện tại được đính kèm vào báo cáo này để chúng tôi gỡ lỗi."
       },
       "url_label": {
         "text": "URL trò chuyện được chia sẻ hoặc nhúng"
@@ -19808,9 +19847,6 @@
       },
       "element_picker_hint": {
         "text": "Chạm vào bất kỳ phần tử nào trên trang để chụp cấu trúc HTML của nó để gỡ lỗi"
-      },
-      "element_picker_button": {
-        "text": "Chọn phần tử"
       },
       "element_picker_active": {
         "text": "Đang chọn..."

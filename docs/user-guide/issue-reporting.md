@@ -3,7 +3,7 @@ status: active
 doc_type: guide
 audience:
   - users
-last_verified: 2026-06-11
+last_verified: 2026-11-02
 claims:
   - id: user-guide-issue-reporting-source
     type: unit
@@ -23,12 +23,17 @@ If something is not working correctly, you can report it through OpenMates. Your
 ## How to Report an Issue
 
 1. Open the **issue reporting** form (available from the settings or help menu).
-2. Fill in:
-   - **Title** -- A short description of the problem.
-   - **Description** -- What happened, what you expected, and steps to reproduce it.
-   - **Contact email** (optional) -- If you want to be notified about a fix.
-   - **Chat or page link** (optional) -- If the problem happened in a specific chat.
-3. Submit the report.
+2. Describe **what happened**, what went wrong, and any extra context in the single text field.
+3. Optionally use the small icon buttons under the field (hover for a tooltip):
+   - **Upload screenshot** (signed-in users) -- attach a screenshot or photo.
+   - **Select UI element** -- tap the part of the screen that looks broken so its structure is included.
+   - **Record voice** -- describe the problem out loud; the transcript is added to the field so you can edit it.
+     Voice recording for reports is free, limited to 2 minutes per recording and, for signed-in users, 30 minutes per day.
+     Once today's limit is used up, the button is greyed out until tomorrow.
+4. If you are not signed in, you can optionally leave an email address so the team can follow up.
+5. Submit the report.
+
+If you are in a chat when you report, that chat is included with the report (the form shows a notice) so the team can see what went wrong.
 
 Your browser and device information are included automatically to help with troubleshooting.
 
@@ -37,13 +42,13 @@ Your browser and device information are included automatically to help with trou
 - Your report is **sent by email** to the admin.
 - A record is stored securely with sensitive details (email, location, device info) encrypted.
 - Console logs from your browser may be included to help diagnose the problem.
-- The team investigates and, if you provided an email, may follow up with questions or a fix.
+- The team investigates and, if you are signed in or left an email address, may follow up by email with questions or a fix.
 
 ## Privacy
 
 - Sensitive fields (email, device info, location) are encrypted at rest.
-- Your report does not include any of your chat content unless you explicitly paste it into the description.
-- You can report anonymously by leaving the contact email blank.
+- If you report from inside a chat, an encrypted link to that chat and its latest messages are attached so the team can debug it. Chat text is removed from attached console logs.
+- You can report without an account; guest reports include a contact email only if you enter one.
 
 ## Tips
 

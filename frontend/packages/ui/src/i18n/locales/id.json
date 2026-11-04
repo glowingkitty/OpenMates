@@ -19597,6 +19597,48 @@
       "title_placeholder": {
         "text": "Jelaskan masalah secara singkat — apa yang terjadi dan di mana?"
       },
+      "issue_text_label": {
+        "text": "Apa yang terjadi?"
+      },
+      "issue_text_placeholder": {
+        "text": "Apa yang terjadi? Jelaskan apa yang rusak atau salah, serta detail yang membantu kami mereproduksinya."
+      },
+      "attach_image": {
+        "text": "Gambar"
+      },
+      "dictation_failed": {
+        "text": "Dikte gagal. Coba lagi atau ketik laporan Anda."
+      },
+      "quick_actions_label": {
+        "text": "Tambahkan ke laporan"
+      },
+      "upload_screenshot": {
+        "text": "Unggah tangkapan layar"
+      },
+      "select_ui_element": {
+        "text": "Pilih elemen UI"
+      },
+      "record_voice": {
+        "text": "Rekam suara (hingga 2 menit)"
+      },
+      "dictation_unavailable_today": {
+        "text": "Rekaman suara tidak tersedia hari ini. Coba lagi besok."
+      },
+      "dictation_recording_limit": {
+        "text": "Rekaman suara untuk laporan dibatasi 2 menit."
+      },
+      "send_to_claude_chat_label": {
+        "text": "Kirim langsung ke chat Claude"
+      },
+      "send_to_claude_chat_hint": {
+        "text": "Memulai chat Claude baru di server pengembangan yang menyelidiki dan memperbaiki laporan ini."
+      },
+      "confirmation_claude_chat_queued": {
+        "text": "Chat Claude akan mulai menangani laporan ini dalam sekitar satu menit."
+      },
+      "confirmation_claude_chat_unavailable": {
+        "text": "Chat Claude tidak dapat dimasukkan ke antrean. Salin ID masalah dan mulai chat secara manual."
+      },
       "title_required": {
         "text": "Deskripsi singkat wajib diisi"
       },
@@ -19642,11 +19684,8 @@
       "actual_behaviour_hint": {
         "text": "Opsional — jelaskan apa yang salah"
       },
-      "share_chat_label": {
-        "text": "Bagikan chat saat ini dengan laporan ini"
-      },
-      "share_chat_hint": {
-        "text": "Ini memungkinkan admin untuk melihat chat untuk membantu debug masalah."
+      "chat_included_notice": {
+        "text": "Chat Anda saat ini disertakan dalam laporan ini agar kami dapat men-debug masalahnya."
       },
       "url_label": {
         "text": "URL chat atau embed yang dibagikan"
@@ -19808,9 +19847,6 @@
       },
       "element_picker_hint": {
         "text": "Ketuk elemen mana saja di halaman untuk menangkap struktur HTML-nya untuk debugging"
-      },
-      "element_picker_button": {
-        "text": "Pilih elemen"
       },
       "element_picker_active": {
         "text": "Memilih..."

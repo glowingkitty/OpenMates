@@ -19597,6 +19597,48 @@
       "title_placeholder": {
         "text": "Krótko opisz problem — co się stało i gdzie?"
       },
+      "issue_text_label": {
+        "text": "Co się stało?"
+      },
+      "issue_text_placeholder": {
+        "text": "Co się stało? Opisz, co nie działa lub poszło nie tak, oraz szczegóły, które pomogą nam to odtworzyć."
+      },
+      "attach_image": {
+        "text": "Obraz"
+      },
+      "dictation_failed": {
+        "text": "Dyktowanie nie powiodło się. Spróbuj ponownie lub wpisz zgłoszenie."
+      },
+      "quick_actions_label": {
+        "text": "Dodaj do zgłoszenia"
+      },
+      "upload_screenshot": {
+        "text": "Prześlij zrzut ekranu"
+      },
+      "select_ui_element": {
+        "text": "Wybierz element interfejsu"
+      },
+      "record_voice": {
+        "text": "Nagraj głos (do 2 minut)"
+      },
+      "dictation_unavailable_today": {
+        "text": "Nagrywanie głosu jest dziś niedostępne. Spróbuj ponownie jutro."
+      },
+      "dictation_recording_limit": {
+        "text": "Nagrania głosowe do zgłoszeń są ograniczone do 2 minut."
+      },
+      "send_to_claude_chat_label": {
+        "text": "Wyślij bezpośrednio do czatu Claude"
+      },
+      "send_to_claude_chat_hint": {
+        "text": "Uruchamia nowy czat Claude na serwerze deweloperskim, który zbada i naprawi to zgłoszenie."
+      },
+      "confirmation_claude_chat_queued": {
+        "text": "Czat Claude zacznie pracę nad tym zgłoszeniem w ciągu około minuty."
+      },
+      "confirmation_claude_chat_unavailable": {
+        "text": "Nie udało się dodać czatu Claude do kolejki. Skopiuj ID zgłoszenia i rozpocznij czat ręcznie."
+      },
       "title_required": {
         "text": "Krótki opis jest wymagany"
       },
@@ -19642,11 +19684,8 @@
       "actual_behaviour_hint": {
         "text": "Opcjonalne — opisz co poszło nie tak"
       },
-      "share_chat_label": {
-        "text": "Udostepnij biezacy czat z tym zgloszeniem"
-      },
-      "share_chat_hint": {
-        "text": "Umozliwia to administratorowi podglad czatu w celu pomocy w debugowaniu problemu."
+      "chat_included_notice": {
+        "text": "Bieżący czat jest dołączany do tego zgłoszenia, abyśmy mogli zbadać problem."
       },
       "url_label": {
         "text": "URL udostępnionego czatu lub osadzenia"
@@ -19808,9 +19847,6 @@
       },
       "element_picker_hint": {
         "text": "Dotknij dowolnego elementu na stronie, aby przechwycić jego strukturę HTML do debugowania"
-      },
-      "element_picker_button": {
-        "text": "Wybierz element"
       },
       "element_picker_active": {
         "text": "Wybieranie..."

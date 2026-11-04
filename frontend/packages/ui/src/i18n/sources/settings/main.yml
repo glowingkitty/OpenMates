@@ -10166,6 +10166,342 @@ report_issue.title_placeholder:
   sv: Beskriv problemet kortfattat — vad hände och var?
   he: תאר בקצרה את הבעיה — מה קרה ואיפה?
   verified_by_human: []
+report_issue.issue_text_label:
+  context: Heading above the single free-text field of the Report Issue form
+  en: What happened?
+  de: Was ist passiert?
+  zh: 发生了什么？
+  es: ¿Qué pasó?
+  fr: Que s'est-il passé ?
+  pt: O que aconteceu?
+  ru: Что произошло?
+  ja: 何が起こりましたか？
+  ko: 무슨 일이 있었나요?
+  it: Cosa è successo?
+  tr: Ne oldu?
+  vi: Đã xảy ra chuyện gì?
+  id: Apa yang terjadi?
+  pl: Co się stało?
+  nl: Wat is er gebeurd?
+  ar: ماذا حدث؟
+  hi: क्या हुआ?
+  th: เกิดอะไรขึ้น?
+  cs: Co se stalo?
+  sv: Vad hände?
+  he: מה קרה?
+  verified_by_human: []
+report_issue.issue_text_placeholder:
+  context: Placeholder of the single free-text Report Issue field; asks for details about what happened and what is broken
+  en: "What happened? Describe what is broken or went wrong, and any details that help us reproduce it."
+  de: "Was ist passiert? Beschreibe, was kaputt ist oder schiefgelaufen ist, und alle Details, die uns beim Nachstellen helfen."
+  zh: "发生了什么？请描述哪里坏了或出了问题，以及任何能帮助我们复现的细节。"
+  es: "¿Qué pasó? Describe qué está roto o qué salió mal, y cualquier detalle que nos ayude a reproducirlo."
+  fr: "Que s'est-il passé ? Décrivez ce qui ne fonctionne pas et tout détail qui nous aide à reproduire le problème."
+  pt: "O que aconteceu? Descreva o que está quebrado ou deu errado e qualquer detalhe que nos ajude a reproduzir."
+  ru: "Что произошло? Опишите, что сломалось или пошло не так, и любые детали, которые помогут нам это воспроизвести."
+  ja: "何が起きましたか？何が壊れているか、何がうまくいかなかったか、再現に役立つ詳細を記入してください。"
+  ko: "무슨 일이 있었나요? 무엇이 고장 났거나 잘못되었는지, 재현에 도움이 되는 세부 정보를 적어 주세요."
+  it: "Cosa è successo? Descrivi cosa non funziona e qualsiasi dettaglio che ci aiuti a riprodurre il problema."
+  tr: "Ne oldu? Neyin bozuk olduğunu veya ters gittiğini ve sorunu yeniden üretmemize yardımcı olacak ayrıntıları yazın."
+  vi: "Đã xảy ra chuyện gì? Mô tả phần bị lỗi hoặc trục trặc và mọi chi tiết giúp chúng tôi tái hiện lỗi."
+  id: "Apa yang terjadi? Jelaskan apa yang rusak atau salah, serta detail yang membantu kami mereproduksinya."
+  pl: "Co się stało? Opisz, co nie działa lub poszło nie tak, oraz szczegóły, które pomogą nam to odtworzyć."
+  nl: "Wat is er gebeurd? Beschrijf wat er kapot is of misging en alle details die ons helpen het na te bootsen."
+  ar: "ماذا حدث؟ صِف ما هو معطّل أو ما الذي حدث بشكل خاطئ، وأي تفاصيل تساعدنا على إعادة إنتاج المشكلة."
+  hi: "क्या हुआ? बताएं कि क्या टूटा है या क्या गलत हुआ, और ऐसे विवरण जो इसे दोहराने में हमारी मदद करें।"
+  th: "เกิดอะไรขึ้น? อธิบายว่าอะไรเสียหรือผิดพลาด และรายละเอียดที่ช่วยให้เราทำซ้ำปัญหาได้"
+  cs: "Co se stalo? Popište, co nefunguje nebo se pokazilo, a podrobnosti, které nám pomohou problém zopakovat."
+  sv: "Vad hände? Beskriv vad som är trasigt eller gick fel och detaljer som hjälper oss att återskapa det."
+  he: "מה קרה? תארו מה שבור או השתבש, וכל פרט שיעזור לנו לשחזר את הבעיה."
+  verified_by_human: []
+report_issue.attach_image:
+  context: Short button label under the report text to attach an image or screenshot
+  en: Image
+  de: Bild
+  zh: 图片
+  es: Imagen
+  fr: Image
+  pt: Imagem
+  ru: Изображение
+  ja: 画像
+  ko: 이미지
+  it: Immagine
+  tr: Görsel
+  vi: Hình ảnh
+  id: Gambar
+  pl: Obraz
+  nl: Afbeelding
+  ar: صورة
+  hi: छवि
+  th: รูปภาพ
+  cs: Obrázek
+  sv: Bild
+  he: תמונה
+  verified_by_human: []
+report_issue.dictation_failed:
+  context: Error shown when voice dictation in the Report Issue form could not be transcribed
+  en: Dictation failed. Please try again or type your report.
+  de: Diktieren fehlgeschlagen. Bitte versuche es erneut oder tippe deinen Bericht.
+  zh: 语音输入失败。请重试或直接输入你的报告。
+  es: El dictado falló. Inténtalo de nuevo o escribe tu reporte.
+  fr: La dictée a échoué. Réessayez ou saisissez votre signalement.
+  pt: O ditado falhou. Tente novamente ou digite seu relato.
+  ru: Не удалось распознать диктовку. Попробуйте снова или введите отчёт вручную.
+  ja: 音声入力に失敗しました。もう一度試すか、入力してください。
+  ko: 받아쓰기에 실패했습니다. 다시 시도하거나 직접 입력해 주세요.
+  it: Dettatura non riuscita. Riprova o scrivi la segnalazione.
+  tr: Dikte başarısız oldu. Lütfen tekrar deneyin veya raporunuzu yazın.
+  vi: Đọc chính tả thất bại. Vui lòng thử lại hoặc nhập báo cáo.
+  id: Dikte gagal. Coba lagi atau ketik laporan Anda.
+  pl: Dyktowanie nie powiodło się. Spróbuj ponownie lub wpisz zgłoszenie.
+  nl: Dicteren is mislukt. Probeer het opnieuw of typ je melding.
+  ar: فشل الإملاء. حاول مرة أخرى أو اكتب بلاغك.
+  hi: डिक्टेशन विफल रहा। कृपया फिर से प्रयास करें या अपनी रिपोर्ट टाइप करें।
+  th: การพูดเพื่อพิมพ์ล้มเหลว โปรดลองอีกครั้งหรือพิมพ์รายงานของคุณ
+  cs: Diktování se nezdařilo. Zkuste to znovu nebo hlášení napište.
+  sv: Dikteringen misslyckades. Försök igen eller skriv din rapport.
+  he: ההכתבה נכשלה. נסו שוב או הקלידו את הדיווח.
+  verified_by_human: []
+report_issue.quick_actions_label:
+  context: Accessible label for the group of icon buttons under the Report Issue text field
+  en: "Add to report"
+  de: "Zum Bericht hinzufügen"
+  zh: "添加到报告"
+  es: "Añadir al informe"
+  fr: "Ajouter au rapport"
+  pt: "Adicionar ao relatório"
+  ru: "Добавить к отчёту"
+  ja: "レポートに追加"
+  ko: "보고서에 추가"
+  it: "Aggiungi al report"
+  tr: "Rapora ekle"
+  vi: "Thêm vào báo cáo"
+  id: "Tambahkan ke laporan"
+  pl: "Dodaj do zgłoszenia"
+  nl: "Toevoegen aan rapport"
+  ar: "إضافة إلى التقرير"
+  hi: "रिपोर्ट में जोड़ें"
+  th: "เพิ่มลงในรายงาน"
+  cs: "Přidat k hlášení"
+  sv: "Lägg till i rapporten"
+  he: "הוספה לדיווח"
+  verified_by_human: []
+report_issue.upload_screenshot:
+  context: Tooltip and accessible label of the icon button that uploads a screenshot to an issue report
+  en: "Upload screenshot"
+  de: "Screenshot hochladen"
+  zh: "上传截图"
+  es: "Subir captura de pantalla"
+  fr: "Téléverser une capture d'écran"
+  pt: "Enviar captura de tela"
+  ru: "Загрузить скриншот"
+  ja: "スクリーンショットをアップロード"
+  ko: "스크린샷 업로드"
+  it: "Carica screenshot"
+  tr: "Ekran görüntüsü yükle"
+  vi: "Tải ảnh chụp màn hình lên"
+  id: "Unggah tangkapan layar"
+  pl: "Prześlij zrzut ekranu"
+  nl: "Screenshot uploaden"
+  ar: "رفع لقطة شاشة"
+  hi: "स्क्रीनशॉट अपलोड करें"
+  th: "อัปโหลดภาพหน้าจอ"
+  cs: "Nahrát snímek obrazovky"
+  sv: "Ladda upp skärmbild"
+  he: "העלאת צילום מסך"
+  verified_by_human: []
+report_issue.select_ui_element:
+  context: Tooltip and accessible label of the icon button that lets the user select a broken UI element for an issue report
+  en: "Select UI element"
+  de: "UI-Element auswählen"
+  zh: "选择界面元素"
+  es: "Seleccionar elemento de la interfaz"
+  fr: "Sélectionner un élément de l'interface"
+  pt: "Selecionar elemento da interface"
+  ru: "Выбрать элемент интерфейса"
+  ja: "UI要素を選択"
+  ko: "UI 요소 선택"
+  it: "Seleziona elemento dell'interfaccia"
+  tr: "Arayüz öğesi seç"
+  vi: "Chọn thành phần giao diện"
+  id: "Pilih elemen UI"
+  pl: "Wybierz element interfejsu"
+  nl: "UI-element selecteren"
+  ar: "تحديد عنصر في الواجهة"
+  hi: "UI तत्व चुनें"
+  th: "เลือกองค์ประกอบ UI"
+  cs: "Vybrat prvek rozhraní"
+  sv: "Välj gränssnittselement"
+  he: "בחירת רכיב בממשק"
+  verified_by_human: []
+report_issue.record_voice:
+  context: Tooltip and accessible label of the icon button that records a voice description which is transcribed into the issue report text (max two minutes)
+  en: "Record voice (up to 2 minutes)"
+  de: "Sprache aufnehmen (bis zu 2 Minuten)"
+  zh: "录音（最长 2 分钟）"
+  es: "Grabar voz (hasta 2 minutos)"
+  fr: "Enregistrer la voix (jusqu'à 2 minutes)"
+  pt: "Gravar voz (até 2 minutos)"
+  ru: "Записать голос (до 2 минут)"
+  ja: "音声を録音（最大2分）"
+  ko: "음성 녹음(최대 2분)"
+  it: "Registra voce (fino a 2 minuti)"
+  tr: "Ses kaydet (en fazla 2 dakika)"
+  vi: "Ghi âm giọng nói (tối đa 2 phút)"
+  id: "Rekam suara (hingga 2 menit)"
+  pl: "Nagraj głos (do 2 minut)"
+  nl: "Spraak opnemen (max. 2 minuten)"
+  ar: "تسجيل صوتي (حتى دقيقتين)"
+  hi: "आवाज़ रिकॉर्ड करें (2 मिनट तक)"
+  th: "บันทึกเสียง (สูงสุด 2 นาที)"
+  cs: "Nahrát hlas (až 2 minuty)"
+  sv: "Spela in röst (upp till 2 minuter)"
+  he: "הקלטת קול (עד 2 דקות)"
+  verified_by_human: []
+report_issue.dictation_unavailable_today:
+  context: Tooltip of the greyed-out record button once the daily free voice transcription limit for issue reports is used up
+  en: "Voice recording is unavailable for today. Try again tomorrow."
+  de: "Sprachaufnahme ist heute nicht mehr verfügbar. Versuche es morgen erneut."
+  zh: "今天的语音录制已不可用，请明天再试。"
+  es: "La grabación de voz no está disponible hoy. Inténtalo de nuevo mañana."
+  fr: "L'enregistrement vocal n'est plus disponible aujourd'hui. Réessayez demain."
+  pt: "A gravação de voz não está disponível hoje. Tente novamente amanhã."
+  ru: "Запись голоса сегодня недоступна. Попробуйте завтра."
+  ja: "本日は音声録音を利用できません。明日もう一度お試しください。"
+  ko: "오늘은 음성 녹음을 사용할 수 없습니다. 내일 다시 시도해 주세요."
+  it: "La registrazione vocale non è disponibile per oggi. Riprova domani."
+  tr: "Ses kaydı bugün kullanılamıyor. Yarın tekrar deneyin."
+  vi: "Hôm nay không thể ghi âm nữa. Vui lòng thử lại vào ngày mai."
+  id: "Rekaman suara tidak tersedia hari ini. Coba lagi besok."
+  pl: "Nagrywanie głosu jest dziś niedostępne. Spróbuj ponownie jutro."
+  nl: "Spraakopname is vandaag niet meer beschikbaar. Probeer het morgen opnieuw."
+  ar: "التسجيل الصوتي غير متاح اليوم. حاول مرة أخرى غدًا."
+  hi: "आज के लिए वॉइस रिकॉर्डिंग उपलब्ध नहीं है। कल फिर से कोशिश करें।"
+  th: "วันนี้ไม่สามารถบันทึกเสียงได้แล้ว โปรดลองอีกครั้งพรุ่งนี้"
+  cs: "Nahrávání hlasu je pro dnešek nedostupné. Zkuste to zítra."
+  sv: "Röstinspelning är inte tillgänglig i dag. Försök igen i morgon."
+  he: "הקלטת קול אינה זמינה היום. נסו שוב מחר."
+  verified_by_human: []
+report_issue.dictation_recording_limit:
+  context: Notice shown when an issue report voice recording reaches the two-minute limit
+  en: "Voice recordings for reports are limited to 2 minutes."
+  de: "Sprachaufnahmen für Berichte sind auf 2 Minuten begrenzt."
+  zh: "报告的语音录制最长 2 分钟。"
+  es: "Las grabaciones de voz para informes están limitadas a 2 minutos."
+  fr: "Les enregistrements vocaux des rapports sont limités à 2 minutes."
+  pt: "As gravações de voz para relatórios são limitadas a 2 minutos."
+  ru: "Голосовые записи для отчётов ограничены 2 минутами."
+  ja: "レポートの音声録音は2分までです。"
+  ko: "보고서 음성 녹음은 최대 2분입니다."
+  it: "Le registrazioni vocali per i report sono limitate a 2 minuti."
+  tr: "Raporlar için ses kayıtları 2 dakika ile sınırlıdır."
+  vi: "Bản ghi âm cho báo cáo giới hạn trong 2 phút."
+  id: "Rekaman suara untuk laporan dibatasi 2 menit."
+  pl: "Nagrania głosowe do zgłoszeń są ograniczone do 2 minut."
+  nl: "Spraakopnames voor rapporten zijn beperkt tot 2 minuten."
+  ar: "التسجيلات الصوتية للتقارير محدودة بدقيقتين."
+  hi: "रिपोर्ट के लिए वॉइस रिकॉर्डिंग 2 मिनट तक सीमित है।"
+  th: "การบันทึกเสียงสำหรับรายงานจำกัดไว้ที่ 2 นาที"
+  cs: "Hlasové nahrávky k hlášením jsou omezeny na 2 minuty."
+  sv: "Röstinspelningar för rapporter är begränsade till 2 minuter."
+  he: "הקלטות קול לדיווחים מוגבלות ל-2 דקות."
+  verified_by_human: []
+report_issue.send_to_claude_chat_label:
+  context: Admin-only toggle on the development server; when on, submitting the report starts a Claude Code chat that works on it
+  en: Send to Claude chat directly
+  de: Direkt an Claude-Chat senden
+  zh: 直接发送到 Claude 对话
+  es: Enviar directamente al chat de Claude
+  fr: Envoyer directement au chat Claude
+  pt: Enviar diretamente para o chat do Claude
+  ru: Отправить сразу в чат Claude
+  ja: Claude チャットに直接送信
+  ko: Claude 채팅으로 바로 보내기
+  it: Invia direttamente alla chat di Claude
+  tr: Doğrudan Claude sohbetine gönder
+  vi: Gửi thẳng đến cuộc trò chuyện Claude
+  id: Kirim langsung ke chat Claude
+  pl: Wyślij bezpośrednio do czatu Claude
+  nl: Direct naar Claude-chat sturen
+  ar: إرسال مباشرة إلى محادثة Claude
+  hi: सीधे Claude चैट में भेजें
+  th: ส่งไปยังแชท Claude โดยตรง
+  cs: Odeslat přímo do chatu Claude
+  sv: Skicka direkt till Claude-chatt
+  he: שליחה ישירה לצ'אט Claude
+  verified_by_human: []
+report_issue.send_to_claude_chat_hint:
+  context: Hint under the admin-only development-server toggle that starts a Claude Code chat for the report
+  en: Starts a new Claude chat on the development server that investigates and fixes this report.
+  de: Startet einen neuen Claude-Chat auf dem Entwicklungsserver, der diesen Bericht untersucht und behebt.
+  zh: 在开发服务器上启动新的 Claude 对话，调查并修复此报告。
+  es: Inicia un nuevo chat de Claude en el servidor de desarrollo que investiga y corrige este reporte.
+  fr: Lance un nouveau chat Claude sur le serveur de développement qui analyse et corrige ce signalement.
+  pt: Inicia um novo chat do Claude no servidor de desenvolvimento que investiga e corrige este relato.
+  ru: Запускает новый чат Claude на сервере разработки, который исследует и исправляет эту проблему.
+  ja: 開発サーバーで新しい Claude チャットを開始し、このレポートを調査・修正します。
+  ko: 개발 서버에서 새 Claude 채팅을 시작해 이 보고서를 조사하고 수정합니다.
+  it: Avvia una nuova chat di Claude sul server di sviluppo che analizza e corregge questa segnalazione.
+  tr: Geliştirme sunucusunda bu raporu inceleyip düzelten yeni bir Claude sohbeti başlatır.
+  vi: Bắt đầu một cuộc trò chuyện Claude mới trên máy chủ phát triển để điều tra và sửa báo cáo này.
+  id: Memulai chat Claude baru di server pengembangan yang menyelidiki dan memperbaiki laporan ini.
+  pl: Uruchamia nowy czat Claude na serwerze deweloperskim, który zbada i naprawi to zgłoszenie.
+  nl: Start een nieuwe Claude-chat op de ontwikkelserver die deze melding onderzoekt en oplost.
+  ar: يبدأ محادثة Claude جديدة على خادم التطوير تحقق في هذا البلاغ وتصلحه.
+  hi: डेवलपमेंट सर्वर पर एक नई Claude चैट शुरू करता है जो इस रिपोर्ट की जाँच करके उसे ठीक करती है।
+  th: เริ่มแชท Claude ใหม่บนเซิร์ฟเวอร์พัฒนาเพื่อตรวจสอบและแก้ไขรายงานนี้
+  cs: Spustí na vývojovém serveru nový chat Claude, který hlášení prošetří a opraví.
+  sv: Startar en ny Claude-chatt på utvecklingsservern som undersöker och åtgärdar rapporten.
+  he: פותח צ'אט Claude חדש בשרת הפיתוח שחוקר ומתקן את הדיווח.
+  verified_by_human: []
+report_issue.confirmation_claude_chat_queued:
+  context: Admin-only confirmation note after a report was sent to a Claude chat on the development server
+  en: A Claude chat will start working on this report within about a minute.
+  de: Ein Claude-Chat beginnt in etwa einer Minute mit der Arbeit an diesem Bericht.
+  zh: 大约一分钟内将有 Claude 对话开始处理此报告。
+  es: Un chat de Claude empezará a trabajar en este reporte en aproximadamente un minuto.
+  fr: Un chat Claude commencera à traiter ce signalement dans environ une minute.
+  pt: Um chat do Claude começará a trabalhar neste relato em cerca de um minuto.
+  ru: Чат Claude начнёт работу над этой проблемой примерно через минуту.
+  ja: 約1分以内に Claude チャットがこのレポートの対応を開始します。
+  ko: 약 1분 안에 Claude 채팅이 이 보고서 작업을 시작합니다.
+  it: Una chat di Claude inizierà a lavorare su questa segnalazione entro circa un minuto.
+  tr: Bir Claude sohbeti yaklaşık bir dakika içinde bu rapor üzerinde çalışmaya başlayacak.
+  vi: Một cuộc trò chuyện Claude sẽ bắt đầu xử lý báo cáo này trong khoảng một phút.
+  id: Chat Claude akan mulai menangani laporan ini dalam sekitar satu menit.
+  pl: Czat Claude zacznie pracę nad tym zgłoszeniem w ciągu około minuty.
+  nl: Een Claude-chat begint binnen ongeveer een minuut aan deze melding.
+  ar: ستبدأ محادثة Claude العمل على هذا البلاغ خلال دقيقة تقريبًا.
+  hi: लगभग एक मिनट में एक Claude चैट इस रिपोर्ट पर काम शुरू करेगी।
+  th: แชท Claude จะเริ่มดำเนินการกับรายงานนี้ภายในประมาณหนึ่งนาที
+  cs: Chat Claude začne na hlášení pracovat přibližně do minuty.
+  sv: En Claude-chatt börjar arbeta med rapporten inom ungefär en minut.
+  he: צ'אט Claude יתחיל לעבוד על הדיווח תוך כדקה.
+  verified_by_human: []
+report_issue.confirmation_claude_chat_unavailable:
+  context: Admin-only confirmation warning when the report could not be handed to a Claude chat on the development server
+  en: The Claude chat could not be queued. Copy the issue ID and start a chat manually.
+  de: Der Claude-Chat konnte nicht eingeplant werden. Kopiere die Issue-ID und starte einen Chat manuell.
+  zh: 无法排队 Claude 对话。请复制问题 ID 并手动开始对话。
+  es: No se pudo poner en cola el chat de Claude. Copia el ID del problema e inicia un chat manualmente.
+  fr: Impossible de mettre le chat Claude en file d'attente. Copiez l'ID du signalement et lancez un chat manuellement.
+  pt: Não foi possível enfileirar o chat do Claude. Copie o ID do problema e inicie um chat manualmente.
+  ru: Не удалось поставить чат Claude в очередь. Скопируйте ID проблемы и запустите чат вручную.
+  ja: Claude チャットをキューに追加できませんでした。課題 ID をコピーして手動でチャットを開始してください。
+  ko: Claude 채팅을 대기열에 넣지 못했습니다. 이슈 ID를 복사해 직접 채팅을 시작하세요.
+  it: Impossibile mettere in coda la chat di Claude. Copia l'ID della segnalazione e avvia una chat manualmente.
+  tr: Claude sohbeti sıraya alınamadı. Sorun kimliğini kopyalayıp sohbeti elle başlatın.
+  vi: Không thể xếp hàng cuộc trò chuyện Claude. Hãy sao chép ID sự cố và bắt đầu trò chuyện thủ công.
+  id: Chat Claude tidak dapat dimasukkan ke antrean. Salin ID masalah dan mulai chat secara manual.
+  pl: Nie udało się dodać czatu Claude do kolejki. Skopiuj ID zgłoszenia i rozpocznij czat ręcznie.
+  nl: De Claude-chat kon niet in de wachtrij worden gezet. Kopieer de issue-ID en start handmatig een chat.
+  ar: تعذر وضع محادثة Claude في قائمة الانتظار. انسخ معرّف البلاغ وابدأ محادثة يدويًا.
+  hi: Claude चैट कतार में नहीं जोड़ी जा सकी। इश्यू ID कॉपी करें और चैट मैन्युअल रूप से शुरू करें।
+  th: ไม่สามารถเข้าคิวแชท Claude ได้ คัดลอก ID ปัญหาแล้วเริ่มแชทด้วยตนเอง
+  cs: Chat Claude se nepodařilo zařadit do fronty. Zkopírujte ID hlášení a spusťte chat ručně.
+  sv: Claude-chatten kunde inte köas. Kopiera ärende-ID:t och starta en chatt manuellt.
+  he: לא ניתן היה להכניס את צ'אט Claude לתור. העתיקו את מזהה הדיווח ופתחו צ'אט ידנית.
+  verified_by_human: []
 report_issue.title_required:
   context: Error message when short description is empty
   en: A short description is required
@@ -10526,53 +10862,29 @@ report_issue.actual_behaviour_hint:
   sv: Valfritt — beskriv vad som gick fel
   he: אופציונלי — תאר מה השתבש
   verified_by_human: []
-report_issue.share_chat_label:
-  context: Label for the toggle that enables sharing the current chat or embed with the issue report
-  en: Share current chat with this report
-  de: Aktuellen Chat mit diesem Bericht teilen
-  zh: 将当前聊天分享到此报告
-  es: Compartir chat actual con este informe
-  fr: Partager le chat actuel avec ce rapport
-  pt: Compartilhar chat atual com este relatorio
-  ru: Поделиться текущим чатом в этом отчете
-  ja: 現在のチャットをこのレポートに共有
-  ko: 현재 채팅을 이 보고서와 공유
-  it: Condividi la chat corrente con questo report
-  tr: Mevcut sohbeti bu raporla paylas
-  vi: Chia se cuoc tro chuyen hien tai voi bao cao nay
-  id: Bagikan chat saat ini dengan laporan ini
-  pl: Udostepnij biezacy czat z tym zgloszeniem
-  nl: Deel huidige chat met dit rapport
-  ar: مشاركة الدردشة الحالية مع هذا التقرير
-  hi: वर्तमान चैट को इस रिपोर्ट के साथ साझा करें
-  th: แชร์แชทปัจจุบันกับรายงานนี้
-  cs: Sdilet aktualni chat s timto hlasenim
-  sv: Dela aktuell chatt med denna rapport
-  he: "שיתוף הצ'אט הנוכחי עם דיווח זה"
-  verified_by_human: []
-report_issue.share_chat_hint:
-  context: Hint text explaining what sharing the chat does when the toggle is enabled
-  en: This allows the admin to view the chat to help debug the issue.
-  de: Dadurch kann der Administrator den Chat einsehen, um das Problem zu beheben.
-  zh: 这允许管理员查看聊天以帮助调试问题。
-  es: Esto permite al administrador ver el chat para ayudar a depurar el problema.
-  fr: Cela permet a l'administrateur de voir le chat pour aider a deboguer le probleme.
-  pt: Isso permite que o administrador veja o chat para ajudar a depurar o problema.
-  ru: Это позволяет администратору просматривать чат для помощи в отладке проблемы.
-  ja: これにより、管理者がチャットを確認して問題のデバッグに役立てることができます。
-  ko: 이를 통해 관리자가 채팅을 보고 문제를 디버그하는 데 도움을 줄 수 있습니다.
-  it: Questo permette all'amministratore di visualizzare la chat per aiutare a risolvere il problema.
-  tr: Bu, yoneticinin sorunu ayiklamaya yardimci olmak icin sohbeti goruntulemesine olanak tanir.
-  vi: Dieu nay cho phep quan tri vien xem cuoc tro chuyen de giup go loi van de.
-  id: Ini memungkinkan admin untuk melihat chat untuk membantu debug masalah.
-  pl: Umozliwia to administratorowi podglad czatu w celu pomocy w debugowaniu problemu.
-  nl: Hiermee kan de beheerder de chat bekijken om het probleem te helpen debuggen.
-  ar: يتيح هذا للمسؤول عرض الدردشة للمساعدة في تصحيح المشكلة.
-  hi: यह व्यवस्थापक को समस्या को डीबग करने में मदद करने के लिए चैट देखने की अनुमति देता है।
-  th: สิ่งนี้ช่วยให้ผู้ดูแลระบบดูแชทเพื่อช่วยแก้ไขปัญหา
-  cs: To umoznuje administratorovi zobrazit chat pro pomoc s ladenenim problemu.
-  sv: Detta gor att administratoren kan se chatten for att hjalpa med felsoning.
-  he: "זה מאפשר למנהל המערכת לצפות בצ'אט כדי לעזור בפתרון הבעיה."
+report_issue.chat_included_notice:
+  context: Notice under the issue report form saying the active chat is automatically attached to the report
+  en: Your current chat is included with this report so we can debug the issue.
+  de: Dein aktueller Chat wird diesem Bericht beigefügt, damit wir das Problem analysieren können.
+  zh: 当前聊天会附加到此报告中，以便我们调试问题。
+  es: Tu chat actual se incluye en este informe para que podamos depurar el problema.
+  fr: Votre chat actuel est joint à ce rapport afin que nous puissions analyser le problème.
+  pt: Seu chat atual é incluído neste relatório para que possamos depurar o problema.
+  ru: Текущий чат прикрепляется к этому отчёту, чтобы мы могли разобраться с проблемой.
+  ja: 問題を調査できるよう、現在のチャットがこのレポートに含まれます。
+  ko: 문제를 디버그할 수 있도록 현재 채팅이 이 보고서에 포함됩니다.
+  it: La chat corrente viene inclusa in questo report per aiutarci a risolvere il problema.
+  tr: Sorunu inceleyebilmemiz için mevcut sohbetiniz bu rapora eklenir.
+  vi: Cuộc trò chuyện hiện tại được đính kèm vào báo cáo này để chúng tôi gỡ lỗi.
+  id: Chat Anda saat ini disertakan dalam laporan ini agar kami dapat men-debug masalahnya.
+  pl: Bieżący czat jest dołączany do tego zgłoszenia, abyśmy mogli zbadać problem.
+  nl: Je huidige chat wordt bij dit rapport gevoegd zodat we het probleem kunnen onderzoeken.
+  ar: يتم تضمين دردشتك الحالية في هذا التقرير حتى نتمكن من تصحيح المشكلة.
+  hi: आपकी मौजूदा चैट इस रिपोर्ट में शामिल की जाती है ताकि हम समस्या को डीबग कर सकें।
+  th: แชทปัจจุบันของคุณจะแนบไปกับรายงานนี้เพื่อให้เราตรวจสอบปัญหาได้
+  cs: Aktuální chat je přiložen k tomuto hlášení, abychom mohli problém prošetřit.
+  sv: Din aktuella chatt bifogas i rapporten så att vi kan felsöka problemet.
+  he: "הצ'אט הנוכחי שלך מצורף לדיווח זה כדי שנוכל לבדוק את הבעיה."
   verified_by_human: []
 report_issue.url_label:
   context: Label for shared chat or embed URL input field
@@ -11917,30 +12229,6 @@ report_issue.element_picker_hint:
   cs: Klepněte na libovolný prvek na stránce a zachyťte jeho HTML strukturu pro ladění
   sv: Tryck på vilket element som helst på sidan för att fånga dess HTML-struktur för felsökning
   he: יש להקיש על רכיב כלשהו בדף כדי ללכוד את מבנה ה-HTML שלו לצורך ניפוי שגיאות
-  verified_by_human: []
-report_issue.element_picker_button:
-  context: Button label to start the DOM element picker mode (clicking/tapping a broken UI element)
-  en: Pick Element
-  de: Element auswählen
-  zh: 选择元素
-  es: Seleccionar elemento
-  fr: Sélectionner un élément
-  pt: Selecionar elemento
-  ru: Выбрать элемент
-  ja: 要素を選択
-  ko: 요소 선택
-  it: Seleziona elemento
-  tr: Öğeyi seç
-  vi: Chọn phần tử
-  id: Pilih elemen
-  pl: Wybierz element
-  nl: Selecteer element
-  ar: اختر عنصرًا
-  hi: तत्व चुनें
-  th: เลือกองค์ประกอบ
-  cs: Vybrat prvek
-  sv: Välj element
-  he: בחירת רכיב
   verified_by_human: []
 report_issue.element_picker_active:
   context: Label shown on the pick-element button while the picker mode is active (user is selecting an element)

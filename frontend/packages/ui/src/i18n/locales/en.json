@@ -23310,6 +23310,48 @@
       "title_placeholder": {
         "text": "Briefly describe the issue — what happened and where?"
       },
+      "issue_text_label": {
+        "text": "What happened?"
+      },
+      "issue_text_placeholder": {
+        "text": "What happened? Describe what is broken or went wrong, and any details that help us reproduce it."
+      },
+      "attach_image": {
+        "text": "Image"
+      },
+      "dictation_failed": {
+        "text": "Dictation failed. Please try again or type your report."
+      },
+      "quick_actions_label": {
+        "text": "Add to report"
+      },
+      "upload_screenshot": {
+        "text": "Upload screenshot"
+      },
+      "select_ui_element": {
+        "text": "Select UI element"
+      },
+      "record_voice": {
+        "text": "Record voice (up to 2 minutes)"
+      },
+      "dictation_unavailable_today": {
+        "text": "Voice recording is unavailable for today. Try again tomorrow."
+      },
+      "dictation_recording_limit": {
+        "text": "Voice recordings for reports are limited to 2 minutes."
+      },
+      "send_to_claude_chat_label": {
+        "text": "Send to Claude chat directly"
+      },
+      "send_to_claude_chat_hint": {
+        "text": "Starts a new Claude chat on the development server that investigates and fixes this report."
+      },
+      "confirmation_claude_chat_queued": {
+        "text": "A Claude chat will start working on this report within about a minute."
+      },
+      "confirmation_claude_chat_unavailable": {
+        "text": "The Claude chat could not be queued. Copy the issue ID and start a chat manually."
+      },
       "title_required": {
         "text": "A short description is required"
       },
@@ -23355,11 +23397,8 @@
       "actual_behaviour_hint": {
         "text": "Optional — describe what went wrong"
       },
-      "share_chat_label": {
-        "text": "Share current chat with this report"
-      },
-      "share_chat_hint": {
-        "text": "This allows the admin to view the chat to help debug the issue."
+      "chat_included_notice": {
+        "text": "Your current chat is included with this report so we can debug the issue."
       },
       "url_label": {
         "text": "Shared chat or embed URL"
@@ -23521,9 +23560,6 @@
       },
       "element_picker_hint": {
         "text": "Tap any element on the page to capture its HTML structure for debugging"
-      },
-      "element_picker_button": {
-        "text": "Pick Element"
       },
       "element_picker_active": {
         "text": "Picking..."

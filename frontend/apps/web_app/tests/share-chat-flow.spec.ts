@@ -266,7 +266,8 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 		});
 	});
 	await navigateToReportIssue(page);
-	await expect(page.locator('#share-chat-toggle')).toBeChecked();
+	await expect(page.getByTestId('report-issue-chat-included')).toBeVisible();
+	await expect(page.locator('#share-chat-toggle')).toHaveCount(0);
 	await page.getByTestId('report-issue-title').fill('Shared chat decryption verification');
 	const visibleChatBody = await page.evaluate((marker: string) => {
 		const visibleChatBody = Array.from(document.querySelectorAll(
@@ -330,23 +331,6 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 	} finally {
 		await viewerContext.close();
 	}
-
-	// ── Step 7: Explicit opt-out omits every plaintext/chat-link field ────
-	await page.getByTestId('report-issue-submit-another').click();
-	const shareChatToggle = page.locator('#share-chat-toggle');
-	await expect(shareChatToggle).toBeChecked();
-	// The styled toggle's checkbox is hidden; its visible label is the user control.
-	const shareChatToggleLabel = page.locator('label[for="share-chat-toggle"]');
-	await expect(shareChatToggleLabel).toBeVisible();
-	await shareChatToggleLabel.click();
-	await expect(shareChatToggle).not.toBeChecked();
-	await page.getByTestId('report-issue-title').fill('Report without shared chat context');
-	await page.getByTestId('report-issue-submit').click();
-	await expect(page.getByTestId('report-issue-confirmation')).toBeVisible({ timeout: 10000 });
-	expect(reportPayloads).toHaveLength(2);
-	expect(reportPayloads[1].chat_or_embed_url).toBeNull();
-	expect(reportPayloads[1].last_messages_html).toBeNull();
-	logCheckpoint('Report opt-out omitted both the shared URL and rendered message HTML.');
 
 	logCheckpoint('Share chat flow test completed successfully.');
 });

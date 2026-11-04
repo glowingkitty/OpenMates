@@ -19597,6 +19597,48 @@
       "title_placeholder": {
         "text": "Beskriv problemet kortfattat — vad hände och var?"
       },
+      "issue_text_label": {
+        "text": "Vad hände?"
+      },
+      "issue_text_placeholder": {
+        "text": "Vad hände? Beskriv vad som är trasigt eller gick fel och detaljer som hjälper oss att återskapa det."
+      },
+      "attach_image": {
+        "text": "Bild"
+      },
+      "dictation_failed": {
+        "text": "Dikteringen misslyckades. Försök igen eller skriv din rapport."
+      },
+      "quick_actions_label": {
+        "text": "Lägg till i rapporten"
+      },
+      "upload_screenshot": {
+        "text": "Ladda upp skärmbild"
+      },
+      "select_ui_element": {
+        "text": "Välj gränssnittselement"
+      },
+      "record_voice": {
+        "text": "Spela in röst (upp till 2 minuter)"
+      },
+      "dictation_unavailable_today": {
+        "text": "Röstinspelning är inte tillgänglig i dag. Försök igen i morgon."
+      },
+      "dictation_recording_limit": {
+        "text": "Röstinspelningar för rapporter är begränsade till 2 minuter."
+      },
+      "send_to_claude_chat_label": {
+        "text": "Skicka direkt till Claude-chatt"
+      },
+      "send_to_claude_chat_hint": {
+        "text": "Startar en ny Claude-chatt på utvecklingsservern som undersöker och åtgärdar rapporten."
+      },
+      "confirmation_claude_chat_queued": {
+        "text": "En Claude-chatt börjar arbeta med rapporten inom ungefär en minut."
+      },
+      "confirmation_claude_chat_unavailable": {
+        "text": "Claude-chatten kunde inte köas. Kopiera ärende-ID:t och starta en chatt manuellt."
+      },
       "title_required": {
         "text": "En kort beskrivning krävs"
       },
@@ -19642,11 +19684,8 @@
       "actual_behaviour_hint": {
         "text": "Valfritt — beskriv vad som gick fel"
       },
-      "share_chat_label": {
-        "text": "Dela aktuell chatt med denna rapport"
-      },
-      "share_chat_hint": {
-        "text": "Detta gor att administratoren kan se chatten for att hjalpa med felsoning."
+      "chat_included_notice": {
+        "text": "Din aktuella chatt bifogas i rapporten så att vi kan felsöka problemet."
       },
       "url_label": {
         "text": "Delad chatt- eller inbäddnings-URL"
@@ -19808,9 +19847,6 @@
       },
       "element_picker_hint": {
         "text": "Tryck på vilket element som helst på sidan för att fånga dess HTML-struktur för felsökning"
-      },
-      "element_picker_button": {
-        "text": "Välj element"
       },
       "element_picker_active": {
         "text": "Väljer..."

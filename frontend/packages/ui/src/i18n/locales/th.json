@@ -19597,6 +19597,48 @@
       "title_placeholder": {
         "text": "อธิบายปัญหาสั้นๆ — เกิดอะไรขึ้นและที่ไหน?"
       },
+      "issue_text_label": {
+        "text": "เกิดอะไรขึ้น?"
+      },
+      "issue_text_placeholder": {
+        "text": "เกิดอะไรขึ้น? อธิบายว่าอะไรเสียหรือผิดพลาด และรายละเอียดที่ช่วยให้เราทำซ้ำปัญหาได้"
+      },
+      "attach_image": {
+        "text": "รูปภาพ"
+      },
+      "dictation_failed": {
+        "text": "การพูดเพื่อพิมพ์ล้มเหลว โปรดลองอีกครั้งหรือพิมพ์รายงานของคุณ"
+      },
+      "quick_actions_label": {
+        "text": "เพิ่มลงในรายงาน"
+      },
+      "upload_screenshot": {
+        "text": "อัปโหลดภาพหน้าจอ"
+      },
+      "select_ui_element": {
+        "text": "เลือกองค์ประกอบ UI"
+      },
+      "record_voice": {
+        "text": "บันทึกเสียง (สูงสุด 2 นาที)"
+      },
+      "dictation_unavailable_today": {
+        "text": "วันนี้ไม่สามารถบันทึกเสียงได้แล้ว โปรดลองอีกครั้งพรุ่งนี้"
+      },
+      "dictation_recording_limit": {
+        "text": "การบันทึกเสียงสำหรับรายงานจำกัดไว้ที่ 2 นาที"
+      },
+      "send_to_claude_chat_label": {
+        "text": "ส่งไปยังแชท Claude โดยตรง"
+      },
+      "send_to_claude_chat_hint": {
+        "text": "เริ่มแชท Claude ใหม่บนเซิร์ฟเวอร์พัฒนาเพื่อตรวจสอบและแก้ไขรายงานนี้"
+      },
+      "confirmation_claude_chat_queued": {
+        "text": "แชท Claude จะเริ่มดำเนินการกับรายงานนี้ภายในประมาณหนึ่งนาที"
+      },
+      "confirmation_claude_chat_unavailable": {
+        "text": "ไม่สามารถเข้าคิวแชท Claude ได้ คัดลอก ID ปัญหาแล้วเริ่มแชทด้วยตนเอง"
+      },
       "title_required": {
         "text": "จำเป็นต้องมีคำอธิบายสั้นๆ"
       },
@@ -19642,11 +19684,8 @@
       "actual_behaviour_hint": {
         "text": "ไม่บังคับ — อธิบายสิ่งที่ผิดพลาด"
       },
-      "share_chat_label": {
-        "text": "แชร์แชทปัจจุบันกับรายงานนี้"
-      },
-      "share_chat_hint": {
-        "text": "สิ่งนี้ช่วยให้ผู้ดูแลระบบดูแชทเพื่อช่วยแก้ไขปัญหา"
+      "chat_included_notice": {
+        "text": "แชทปัจจุบันของคุณจะแนบไปกับรายงานนี้เพื่อให้เราตรวจสอบปัญหาได้"
       },
       "url_label": {
         "text": "URL แชทที่แชร์หรือการฝัง"
@@ -19808,9 +19847,6 @@
       },
       "element_picker_hint": {
         "text": "แตะองค์ประกอบใดก็ได้บนหน้าเพื่อจับโครงสร้าง HTML สำหรับการแก้ไขข้อผิดพลาด"
-      },
-      "element_picker_button": {
-        "text": "เลือกองค์ประกอบ"
       },
       "element_picker_active": {
         "text": "กำลังเลือก..."

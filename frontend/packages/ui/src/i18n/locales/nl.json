@@ -19597,6 +19597,48 @@
       "title_placeholder": {
         "text": "Beschrijf het probleem kort — wat is er gebeurd en waar?"
       },
+      "issue_text_label": {
+        "text": "Wat is er gebeurd?"
+      },
+      "issue_text_placeholder": {
+        "text": "Wat is er gebeurd? Beschrijf wat er kapot is of misging en alle details die ons helpen het na te bootsen."
+      },
+      "attach_image": {
+        "text": "Afbeelding"
+      },
+      "dictation_failed": {
+        "text": "Dicteren is mislukt. Probeer het opnieuw of typ je melding."
+      },
+      "quick_actions_label": {
+        "text": "Toevoegen aan rapport"
+      },
+      "upload_screenshot": {
+        "text": "Screenshot uploaden"
+      },
+      "select_ui_element": {
+        "text": "UI-element selecteren"
+      },
+      "record_voice": {
+        "text": "Spraak opnemen (max. 2 minuten)"
+      },
+      "dictation_unavailable_today": {
+        "text": "Spraakopname is vandaag niet meer beschikbaar. Probeer het morgen opnieuw."
+      },
+      "dictation_recording_limit": {
+        "text": "Spraakopnames voor rapporten zijn beperkt tot 2 minuten."
+      },
+      "send_to_claude_chat_label": {
+        "text": "Direct naar Claude-chat sturen"
+      },
+      "send_to_claude_chat_hint": {
+        "text": "Start een nieuwe Claude-chat op de ontwikkelserver die deze melding onderzoekt en oplost."
+      },
+      "confirmation_claude_chat_queued": {
+        "text": "Een Claude-chat begint binnen ongeveer een minuut aan deze melding."
+      },
+      "confirmation_claude_chat_unavailable": {
+        "text": "De Claude-chat kon niet in de wachtrij worden gezet. Kopieer de issue-ID en start handmatig een chat."
+      },
       "title_required": {
         "text": "Een korte beschrijving is verplicht"
       },
@@ -19642,11 +19684,8 @@
       "actual_behaviour_hint": {
         "text": "Optioneel — beschrijf wat er fout ging"
       },
-      "share_chat_label": {
-        "text": "Deel huidige chat met dit rapport"
-      },
-      "share_chat_hint": {
-        "text": "Hiermee kan de beheerder de chat bekijken om het probleem te helpen debuggen."
+      "chat_included_notice": {
+        "text": "Je huidige chat wordt bij dit rapport gevoegd zodat we het probleem kunnen onderzoeken."
       },
       "url_label": {
         "text": "Gedeelde chat- of embed-URL"
@@ -19808,9 +19847,6 @@
       },
       "element_picker_hint": {
         "text": "Tik op een element op de pagina om de HTML-structuur voor foutopsporing vast te leggen"
-      },
-      "element_picker_button": {
-        "text": "Selecteer element"
       },
       "element_picker_active": {
         "text": "Selecteren..."

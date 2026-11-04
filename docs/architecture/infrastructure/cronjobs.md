@@ -74,6 +74,7 @@ Automatic agent launches were turned off and their obsolete scheduling implement
 | `update_obsidian_daily_note.py` | Daily-note statistics and activity |
 | Managed GitHub test schedules | Separate CI ownership; scheduler removal does not dispatch or relocate tests |
 | `sessions.py` routing/deploy and worktree reconciliation | Shared repository lifecycle, separate from retired automatic chat scheduling |
+| `claude_dispatch.py issues` / `prod-errors` | Every minute: admin dev issue reports to Claude chats; hourly: deterministic prod chat-failure check that opens an investigation chat ([claude-dispatch.md](claude-dispatch.md)) |
 | `_daily_meeting_helper.py dry-run` | Manual data gathering and prompt preview without launching AI |
 | Manual transcript/review tools and Claude compatibility | Preserved for existing records and explicit use |
 

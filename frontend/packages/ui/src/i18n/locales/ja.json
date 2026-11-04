@@ -19597,6 +19597,48 @@
       "title_placeholder": {
         "text": "問題を簡潔に説明してください — 何が起こりましたか？どこで？"
       },
+      "issue_text_label": {
+        "text": "何が起こりましたか？"
+      },
+      "issue_text_placeholder": {
+        "text": "何が起きましたか？何が壊れているか、何がうまくいかなかったか、再現に役立つ詳細を記入してください。"
+      },
+      "attach_image": {
+        "text": "画像"
+      },
+      "dictation_failed": {
+        "text": "音声入力に失敗しました。もう一度試すか、入力してください。"
+      },
+      "quick_actions_label": {
+        "text": "レポートに追加"
+      },
+      "upload_screenshot": {
+        "text": "スクリーンショットをアップロード"
+      },
+      "select_ui_element": {
+        "text": "UI要素を選択"
+      },
+      "record_voice": {
+        "text": "音声を録音（最大2分）"
+      },
+      "dictation_unavailable_today": {
+        "text": "本日は音声録音を利用できません。明日もう一度お試しください。"
+      },
+      "dictation_recording_limit": {
+        "text": "レポートの音声録音は2分までです。"
+      },
+      "send_to_claude_chat_label": {
+        "text": "Claude チャットに直接送信"
+      },
+      "send_to_claude_chat_hint": {
+        "text": "開発サーバーで新しい Claude チャットを開始し、このレポートを調査・修正します。"
+      },
+      "confirmation_claude_chat_queued": {
+        "text": "約1分以内に Claude チャットがこのレポートの対応を開始します。"
+      },
+      "confirmation_claude_chat_unavailable": {
+        "text": "Claude チャットをキューに追加できませんでした。課題 ID をコピーして手動でチャットを開始してください。"
+      },
       "title_required": {
         "text": "簡単な説明は必須です"
       },
@@ -19642,11 +19684,8 @@
       "actual_behaviour_hint": {
         "text": "任意 — 何が問題だったかを説明してください"
       },
-      "share_chat_label": {
-        "text": "現在のチャットをこのレポートに共有"
-      },
-      "share_chat_hint": {
-        "text": "これにより、管理者がチャットを確認して問題のデバッグに役立てることができます。"
+      "chat_included_notice": {
+        "text": "問題を調査できるよう、現在のチャットがこのレポートに含まれます。"
       },
       "url_label": {
         "text": "共有チャットまたは埋め込みURL"
@@ -19808,9 +19847,6 @@
       },
       "element_picker_hint": {
         "text": "ページ上の任意の要素をタップして、デバッグ用にHTML構造をキャプチャします"
-      },
-      "element_picker_button": {
-        "text": "要素を選択"
       },
       "element_picker_active": {
         "text": "選択中..."

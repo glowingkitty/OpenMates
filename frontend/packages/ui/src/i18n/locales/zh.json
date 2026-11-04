@@ -19597,6 +19597,48 @@
       "title_placeholder": {
         "text": "简要描述问题 — 发生了什么，在哪里？"
       },
+      "issue_text_label": {
+        "text": "发生了什么？"
+      },
+      "issue_text_placeholder": {
+        "text": "发生了什么？请描述哪里坏了或出了问题，以及任何能帮助我们复现的细节。"
+      },
+      "attach_image": {
+        "text": "图片"
+      },
+      "dictation_failed": {
+        "text": "语音输入失败。请重试或直接输入你的报告。"
+      },
+      "quick_actions_label": {
+        "text": "添加到报告"
+      },
+      "upload_screenshot": {
+        "text": "上传截图"
+      },
+      "select_ui_element": {
+        "text": "选择界面元素"
+      },
+      "record_voice": {
+        "text": "录音（最长 2 分钟）"
+      },
+      "dictation_unavailable_today": {
+        "text": "今天的语音录制已不可用，请明天再试。"
+      },
+      "dictation_recording_limit": {
+        "text": "报告的语音录制最长 2 分钟。"
+      },
+      "send_to_claude_chat_label": {
+        "text": "直接发送到 Claude 对话"
+      },
+      "send_to_claude_chat_hint": {
+        "text": "在开发服务器上启动新的 Claude 对话，调查并修复此报告。"
+      },
+      "confirmation_claude_chat_queued": {
+        "text": "大约一分钟内将有 Claude 对话开始处理此报告。"
+      },
+      "confirmation_claude_chat_unavailable": {
+        "text": "无法排队 Claude 对话。请复制问题 ID 并手动开始对话。"
+      },
       "title_required": {
         "text": "需要简短描述"
       },
@@ -19642,11 +19684,8 @@
       "actual_behaviour_hint": {
         "text": "可选 — 描述出了什么问题"
       },
-      "share_chat_label": {
-        "text": "将当前聊天分享到此报告"
-      },
-      "share_chat_hint": {
-        "text": "这允许管理员查看聊天以帮助调试问题。"
+      "chat_included_notice": {
+        "text": "当前聊天会附加到此报告中，以便我们调试问题。"
       },
       "url_label": {
         "text": "共享聊天或嵌入 URL"
@@ -19808,9 +19847,6 @@
       },
       "element_picker_hint": {
         "text": "点击页面上的任意元素以捕获其HTML结构用于调试"
-      },
-      "element_picker_button": {
-        "text": "选择元素"
       },
       "element_picker_active": {
         "text": "选择中..."

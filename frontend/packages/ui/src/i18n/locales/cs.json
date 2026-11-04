@@ -19597,6 +19597,48 @@
       "title_placeholder": {
         "text": "Stručně popište problém — co se stalo a kde?"
       },
+      "issue_text_label": {
+        "text": "Co se stalo?"
+      },
+      "issue_text_placeholder": {
+        "text": "Co se stalo? Popište, co nefunguje nebo se pokazilo, a podrobnosti, které nám pomohou problém zopakovat."
+      },
+      "attach_image": {
+        "text": "Obrázek"
+      },
+      "dictation_failed": {
+        "text": "Diktování se nezdařilo. Zkuste to znovu nebo hlášení napište."
+      },
+      "quick_actions_label": {
+        "text": "Přidat k hlášení"
+      },
+      "upload_screenshot": {
+        "text": "Nahrát snímek obrazovky"
+      },
+      "select_ui_element": {
+        "text": "Vybrat prvek rozhraní"
+      },
+      "record_voice": {
+        "text": "Nahrát hlas (až 2 minuty)"
+      },
+      "dictation_unavailable_today": {
+        "text": "Nahrávání hlasu je pro dnešek nedostupné. Zkuste to zítra."
+      },
+      "dictation_recording_limit": {
+        "text": "Hlasové nahrávky k hlášením jsou omezeny na 2 minuty."
+      },
+      "send_to_claude_chat_label": {
+        "text": "Odeslat přímo do chatu Claude"
+      },
+      "send_to_claude_chat_hint": {
+        "text": "Spustí na vývojovém serveru nový chat Claude, který hlášení prošetří a opraví."
+      },
+      "confirmation_claude_chat_queued": {
+        "text": "Chat Claude začne na hlášení pracovat přibližně do minuty."
+      },
+      "confirmation_claude_chat_unavailable": {
+        "text": "Chat Claude se nepodařilo zařadit do fronty. Zkopírujte ID hlášení a spusťte chat ručně."
+      },
       "title_required": {
         "text": "Krátký popis je povinný"
       },
@@ -19642,11 +19684,8 @@
       "actual_behaviour_hint": {
         "text": "Volitelné — popište co se pokazilo"
       },
-      "share_chat_label": {
-        "text": "Sdilet aktualni chat s timto hlasenim"
-      },
-      "share_chat_hint": {
-        "text": "To umoznuje administratorovi zobrazit chat pro pomoc s ladenenim problemu."
+      "chat_included_notice": {
+        "text": "Aktuální chat je přiložen k tomuto hlášení, abychom mohli problém prošetřit."
       },
       "url_label": {
         "text": "URL sdíleného chatu nebo vložení"
@@ -19808,9 +19847,6 @@
       },
       "element_picker_hint": {
         "text": "Klepněte na libovolný prvek na stránce a zachyťte jeho HTML strukturu pro ladění"
-      },
-      "element_picker_button": {
-        "text": "Vybrat prvek"
       },
       "element_picker_active": {
         "text": "Výběr..."

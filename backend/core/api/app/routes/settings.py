@@ -2856,6 +2856,13 @@ class IssueReportRequest(BaseModel):
             "Non-admin reports default to true (always send)."
         ),
     )
+    send_to_claude_chat: bool = Field(
+        False,
+        description=(
+            "Admin-only, development-server-only: queue a new Claude Code chat that "
+            "investigates and fixes this report. Ignored for non-admins and on production."
+        ),
+    )
 
 
 class IssueReportResponse(BaseModel):
@@ -2869,6 +2876,9 @@ class IssueReportResponse(BaseModel):
     # Surfaced synchronously so E2E tests can assert the screenshot path worked
     # without needing an admin API key.
     screenshot_uploaded: bool = False
+    # Admin dev handoff: "queued" when a Claude chat request was written for the
+    # host dispatcher, "unavailable" when it was requested but could not be queued.
+    claude_chat_status: Optional[Literal["queued", "unavailable"]] = None
 
 
 @router.post(
@@ -3352,8 +3362,13 @@ async def report_issue(
             f"email_notification={issue_data.send_email_notification}"
         )
 
-        # Linear is intentionally no longer used. Automatic OpenMates Task
-        # creation is a separate future change and is out of scope here.
+        claude_chat_status = await _queue_admin_claude_chat(
+            directus_service,
+            requested=issue_data.send_to_claude_chat,
+            is_from_admin=is_from_admin,
+            issue_id=issue_id,
+            short_issue_id=short_issue_id,
+        )
 
         return IssueReportResponse(
             success=True,
@@ -3361,11 +3376,39 @@ async def report_issue(
             issue_id=issue_id,  # Return issue ID so frontend can display it for admin lookup
             short_issue_id=short_issue_id,
             screenshot_uploaded=bool(encrypted_screenshot_s3_key),
+            claude_chat_status=claude_chat_status,
         )
         
     except Exception as e:
         logger.error(f"Error processing issue report: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to submit issue report. Please try again later.")
+
+
+async def _queue_admin_claude_chat(
+    directus_service: DirectusService,
+    *,
+    requested: bool,
+    is_from_admin: bool,
+    issue_id: str,
+    short_issue_id: str,
+) -> Optional[str]:
+    """Queue the dev-only admin Claude chat handoff; None when not applicable."""
+    from backend.core.api.app.utils.claude_issue_dispatch import handoff_admin_issue
+
+    result = handoff_admin_issue(
+        requested=requested, is_admin=is_from_admin, issue_id=issue_id, short_issue_id=short_issue_id,
+    )
+    if result is None:
+        return None
+    log = logger.info if result.status == "queued" else logger.error
+    log(f"Claude chat handoff for issue {short_issue_id}: {result.status} ({result.detail})")
+    await directus_service.update_item("issues", issue_id, {
+        "agent_action": "claude_chat",
+        "agent_status": result.status,
+        "agent_error": None if result.status == "queued" else result.detail[:1000],
+        "agent_started_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return result.status
 
 
 class IssueStatusResponse(BaseModel):

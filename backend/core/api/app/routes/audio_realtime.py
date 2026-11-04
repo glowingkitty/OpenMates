@@ -18,7 +18,7 @@ import uuid
 from typing import Any, Optional, Callable
 
 import aiohttp
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
+from fastapi import APIRouter, Depends, Request, WebSocket, WebSocketDisconnect, status
 
 from backend.apps.audio.pricing import (
     REALTIME_TRANSCRIPTION_CREDITS_PER_MINUTE,
@@ -27,7 +27,14 @@ from backend.apps.audio.pricing import (
     REALTIME_TRANSCRIPTION_PROVIDER_COST_USD_PER_MINUTE,
     calculate_realtime_transcription_credits,
 )
+from backend.core.api.app.models.user import User
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_cache_service, get_current_user
 from backend.core.api.app.routes.auth_ws import get_current_user_ws
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.limiter import limiter
+from backend.core.api.app.services.report_issue_dictation_quota import (
+    REPORT_DICTATION_PURPOSE, ReportDictationDenied, ReportDictationQuota,
+)
 from backend.core.api.app.services.guest_transcription_meter import (
     GuestTranscriptionDenied, GuestTranscriptionMeter, GUEST_IDLE_SECONDS,
     GUEST_WALL_SECONDS, GUEST_MAX_TRANSCRIPT_CHARACTERS,
@@ -197,6 +204,10 @@ async def _bill_realtime_usage(
     )
 
 
+async def _report_dictation_settled() -> None:
+    """Report dictation usage was reserved per chunk; nothing is charged."""
+
+
 def _correction_enabled(context: Optional[str]) -> bool:
     """Preserve the workflow rollout switch for both streaming and finalization."""
     return context != "workflow" or os.getenv(
@@ -336,6 +347,25 @@ async def _optional_transcription_actor(websocket: WebSocket) -> Optional[dict]:
     return None
 
 
+# First-party client surface (session auth only, not in the developer API):
+# lets the Report Issue form grey out its record button once the free daily
+# dictation budget is spent. Read-only; reveals only the caller's own counter.
+@router.get("/report-issue-dictation-quota")
+@limiter.limit("60/minute")
+async def report_issue_dictation_quota(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> dict[str, int | bool]:
+    user_id_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
+    try:
+        quota = await ReportDictationQuota(cache_service, user_id_hash).status()
+    except ReportDictationDenied:
+        return {"available": False, "remaining_seconds": 0, "daily_limit_seconds": 0,
+                "max_recording_seconds": 0, "resets_in_seconds": 0}
+    return {"available": quota["remaining_seconds"] > 0, **quota}
+
+
 # First-party browser surface. Guests get no account/file/workflow ownership;
 # every paid provider attempt is guarded by atomic anonymous budget admission.
 @router.websocket("/realtime-transcription")
@@ -360,8 +390,16 @@ async def realtime_transcription(
     user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
     user_data = (auth_data.get("user_data") or {}) if auth_data else {}
     credits = user_data.get("credits")
+    # Report Issue dictation (signed-in users) is free but bounded per
+    # recording and per day; it never touches account credits.
+    report_quota = (
+        ReportDictationQuota(websocket.app.state.cache_service, user_id_hash)
+        if not guest and websocket.query_params.get("purpose") == REPORT_DICTATION_PURPOSE
+        else None
+    )
     if (
-        is_payment_enabled()
+        report_quota is None
+        and is_payment_enabled()
         and isinstance(credits, (int, float))
         and credits < REALTIME_TRANSCRIPTION_MINIMUM_CREDITS
     ):
@@ -397,6 +435,14 @@ async def realtime_transcription(
 
     if not guest:
         await websocket.accept()
+    if report_quota is not None:
+        try:
+            await report_quota.admit()
+        except ReportDictationDenied as exc:
+            await websocket.send_json({"type": "session.error", "code": exc.code, "message": str(exc)})
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            await _release_stream_lock(lock_client, lock_key, lock_token)
+            return
     bytes_received = 0
     guest_forwarded_bytes = 0
     guest_audio_ambiguous = False
@@ -546,6 +592,8 @@ async def realtime_transcription(
                                     raise GuestTranscriptionDenied("invalid_audio_chunk")
                                 if guest:
                                     await guest.reserve_audio((guest_forwarded_bytes + len(decoded)) / PCM_BYTES_PER_SECOND)
+                                elif report_quota is not None:
+                                    await report_quota.reserve((bytes_received + len(decoded)) / PCM_BYTES_PER_SECOND)
                                 bytes_received += len(decoded)
                                 peak_pcm = max(peak_pcm, max((abs(sample) for (sample,) in
                                     struct.iter_unpack("<h", decoded[:len(decoded) // 2 * 2])), default=0))
@@ -651,7 +699,9 @@ async def realtime_transcription(
                                 )
                                 provider_done = True
                                 billing_task = asyncio.create_task(
-                                    guest.settle_audio(guest_forwarded_bytes / PCM_BYTES_PER_SECOND) if guest else _bill_realtime_usage(
+                                    guest.settle_audio(guest_forwarded_bytes / PCM_BYTES_PER_SECOND) if guest
+                                    else _report_dictation_settled() if report_quota is not None
+                                    else _bill_realtime_usage(
                                         websocket,
                                         user_id=user_id,
                                         user_id_hash=user_id_hash,
@@ -702,6 +752,7 @@ async def realtime_transcription(
         try:
             await websocket.send_json(
                 {"type": "session.error", "message": ("Free recording unavailable. Please try again or create an account." if guest else str(exc)[:240]),
+                 **({"code": exc.code} if isinstance(exc, ReportDictationDenied) else {}),
                  **({"code": exc.code if isinstance(exc, GuestTranscriptionDenied) else "anonymous_meter_unavailable",
                      "signup_required": isinstance(exc, GuestTranscriptionDenied) and exc.signup_required} if guest else {})}
             )
@@ -721,7 +772,7 @@ async def realtime_transcription(
         # The provider may have accepted audio before either side disconnects.
         # Settle that usage even when no transcription.done event arrives; the
         # provider request ID keeps a retry idempotent.
-        if (bytes_received or guest) and billing_task is None:
+        if (bytes_received or guest) and billing_task is None and report_quota is None:
             try:
                 if guest:
                     if guest_audio_ambiguous:

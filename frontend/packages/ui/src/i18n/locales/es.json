@@ -19624,6 +19624,48 @@
       "title_placeholder": {
         "text": "Describe brevemente el problema — ¿qué pasó y dónde?"
       },
+      "issue_text_label": {
+        "text": "¿Qué pasó?"
+      },
+      "issue_text_placeholder": {
+        "text": "¿Qué pasó? Describe qué está roto o qué salió mal, y cualquier detalle que nos ayude a reproducirlo."
+      },
+      "attach_image": {
+        "text": "Imagen"
+      },
+      "dictation_failed": {
+        "text": "El dictado falló. Inténtalo de nuevo o escribe tu reporte."
+      },
+      "quick_actions_label": {
+        "text": "Añadir al informe"
+      },
+      "upload_screenshot": {
+        "text": "Subir captura de pantalla"
+      },
+      "select_ui_element": {
+        "text": "Seleccionar elemento de la interfaz"
+      },
+      "record_voice": {
+        "text": "Grabar voz (hasta 2 minutos)"
+      },
+      "dictation_unavailable_today": {
+        "text": "La grabación de voz no está disponible hoy. Inténtalo de nuevo mañana."
+      },
+      "dictation_recording_limit": {
+        "text": "Las grabaciones de voz para informes están limitadas a 2 minutos."
+      },
+      "send_to_claude_chat_label": {
+        "text": "Enviar directamente al chat de Claude"
+      },
+      "send_to_claude_chat_hint": {
+        "text": "Inicia un nuevo chat de Claude en el servidor de desarrollo que investiga y corrige este reporte."
+      },
+      "confirmation_claude_chat_queued": {
+        "text": "Un chat de Claude empezará a trabajar en este reporte en aproximadamente un minuto."
+      },
+      "confirmation_claude_chat_unavailable": {
+        "text": "No se pudo poner en cola el chat de Claude. Copia el ID del problema e inicia un chat manualmente."
+      },
       "title_required": {
         "text": "Se requiere una descripción breve"
       },
@@ -19669,11 +19711,8 @@
       "actual_behaviour_hint": {
         "text": "Opcional — describe qué salió mal"
       },
-      "share_chat_label": {
-        "text": "Compartir chat actual con este informe"
-      },
-      "share_chat_hint": {
-        "text": "Esto permite al administrador ver el chat para ayudar a depurar el problema."
+      "chat_included_notice": {
+        "text": "Tu chat actual se incluye en este informe para que podamos depurar el problema."
       },
       "url_label": {
         "text": "URL de chat compartido o incrustación"
@@ -19835,9 +19874,6 @@
       },
       "element_picker_hint": {
         "text": "Toca cualquier elemento de la página para capturar su estructura HTML para depuración"
-      },
-      "element_picker_button": {
-        "text": "Seleccionar elemento"
       },
       "element_picker_active": {
         "text": "Seleccionando..."

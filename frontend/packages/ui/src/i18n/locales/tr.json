@@ -19597,6 +19597,48 @@
       "title_placeholder": {
         "text": "Sorunu kısaca açıklayın — ne oldu ve nerede?"
       },
+      "issue_text_label": {
+        "text": "Ne oldu?"
+      },
+      "issue_text_placeholder": {
+        "text": "Ne oldu? Neyin bozuk olduğunu veya ters gittiğini ve sorunu yeniden üretmemize yardımcı olacak ayrıntıları yazın."
+      },
+      "attach_image": {
+        "text": "Görsel"
+      },
+      "dictation_failed": {
+        "text": "Dikte başarısız oldu. Lütfen tekrar deneyin veya raporunuzu yazın."
+      },
+      "quick_actions_label": {
+        "text": "Rapora ekle"
+      },
+      "upload_screenshot": {
+        "text": "Ekran görüntüsü yükle"
+      },
+      "select_ui_element": {
+        "text": "Arayüz öğesi seç"
+      },
+      "record_voice": {
+        "text": "Ses kaydet (en fazla 2 dakika)"
+      },
+      "dictation_unavailable_today": {
+        "text": "Ses kaydı bugün kullanılamıyor. Yarın tekrar deneyin."
+      },
+      "dictation_recording_limit": {
+        "text": "Raporlar için ses kayıtları 2 dakika ile sınırlıdır."
+      },
+      "send_to_claude_chat_label": {
+        "text": "Doğrudan Claude sohbetine gönder"
+      },
+      "send_to_claude_chat_hint": {
+        "text": "Geliştirme sunucusunda bu raporu inceleyip düzelten yeni bir Claude sohbeti başlatır."
+      },
+      "confirmation_claude_chat_queued": {
+        "text": "Bir Claude sohbeti yaklaşık bir dakika içinde bu rapor üzerinde çalışmaya başlayacak."
+      },
+      "confirmation_claude_chat_unavailable": {
+        "text": "Claude sohbeti sıraya alınamadı. Sorun kimliğini kopyalayıp sohbeti elle başlatın."
+      },
       "title_required": {
         "text": "Kısa açıklama gereklidir"
       },
@@ -19642,11 +19684,8 @@
       "actual_behaviour_hint": {
         "text": "İsteğe bağlı — neyin yanlış gittiğini açıklayın"
       },
-      "share_chat_label": {
-        "text": "Mevcut sohbeti bu raporla paylas"
-      },
-      "share_chat_hint": {
-        "text": "Bu, yoneticinin sorunu ayiklamaya yardimci olmak icin sohbeti goruntulemesine olanak tanir."
+      "chat_included_notice": {
+        "text": "Sorunu inceleyebilmemiz için mevcut sohbetiniz bu rapora eklenir."
       },
       "url_label": {
         "text": "Paylaşılan sohbet veya gömme URL'si"
@@ -19808,9 +19847,6 @@
       },
       "element_picker_hint": {
         "text": "Hata ayıklama için HTML yapısını yakalamak üzere sayfadaki herhangi bir öğeye dokunun"
-      },
-      "element_picker_button": {
-        "text": "Öğeyi seç"
       },
       "element_picker_active": {
         "text": "Seçiliyor..."

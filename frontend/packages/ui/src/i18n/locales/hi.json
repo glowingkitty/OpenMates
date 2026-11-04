@@ -19597,6 +19597,48 @@
       "title_placeholder": {
         "text": "समस्या का संक्षेप में वर्णन करें — क्या हुआ और कहाँ?"
       },
+      "issue_text_label": {
+        "text": "क्या हुआ?"
+      },
+      "issue_text_placeholder": {
+        "text": "क्या हुआ? बताएं कि क्या टूटा है या क्या गलत हुआ, और ऐसे विवरण जो इसे दोहराने में हमारी मदद करें।"
+      },
+      "attach_image": {
+        "text": "छवि"
+      },
+      "dictation_failed": {
+        "text": "डिक्टेशन विफल रहा। कृपया फिर से प्रयास करें या अपनी रिपोर्ट टाइप करें।"
+      },
+      "quick_actions_label": {
+        "text": "रिपोर्ट में जोड़ें"
+      },
+      "upload_screenshot": {
+        "text": "स्क्रीनशॉट अपलोड करें"
+      },
+      "select_ui_element": {
+        "text": "UI तत्व चुनें"
+      },
+      "record_voice": {
+        "text": "आवाज़ रिकॉर्ड करें (2 मिनट तक)"
+      },
+      "dictation_unavailable_today": {
+        "text": "आज के लिए वॉइस रिकॉर्डिंग उपलब्ध नहीं है। कल फिर से कोशिश करें।"
+      },
+      "dictation_recording_limit": {
+        "text": "रिपोर्ट के लिए वॉइस रिकॉर्डिंग 2 मिनट तक सीमित है।"
+      },
+      "send_to_claude_chat_label": {
+        "text": "सीधे Claude चैट में भेजें"
+      },
+      "send_to_claude_chat_hint": {
+        "text": "डेवलपमेंट सर्वर पर एक नई Claude चैट शुरू करता है जो इस रिपोर्ट की जाँच करके उसे ठीक करती है।"
+      },
+      "confirmation_claude_chat_queued": {
+        "text": "लगभग एक मिनट में एक Claude चैट इस रिपोर्ट पर काम शुरू करेगी।"
+      },
+      "confirmation_claude_chat_unavailable": {
+        "text": "Claude चैट कतार में नहीं जोड़ी जा सकी। इश्यू ID कॉपी करें और चैट मैन्युअल रूप से शुरू करें।"
+      },
       "title_required": {
         "text": "संक्षिप्त विवरण आवश्यक है"
       },
@@ -19642,11 +19684,8 @@
       "actual_behaviour_hint": {
         "text": "वैकल्पिक — बताएं क्या गलत हुआ"
       },
-      "share_chat_label": {
-        "text": "वर्तमान चैट को इस रिपोर्ट के साथ साझा करें"
-      },
-      "share_chat_hint": {
-        "text": "यह व्यवस्थापक को समस्या को डीबग करने में मदद करने के लिए चैट देखने की अनुमति देता है।"
+      "chat_included_notice": {
+        "text": "आपकी मौजूदा चैट इस रिपोर्ट में शामिल की जाती है ताकि हम समस्या को डीबग कर सकें।"
       },
       "url_label": {
         "text": "साझा चैट या एम्बेड URL"
@@ -19808,9 +19847,6 @@
       },
       "element_picker_hint": {
         "text": "डीबगिंग के लिए HTML संरचना कैप्चर करने के लिए पृष्ठ पर किसी भी तत्व पर टैप करें"
-      },
-      "element_picker_button": {
-        "text": "तत्व चुनें"
       },
       "element_picker_active": {
         "text": "चुन रहे हैं..."

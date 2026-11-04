@@ -19624,6 +19624,48 @@
       "title_placeholder": {
         "text": "Décrivez brièvement le problème — que s'est-il passé et où ?"
       },
+      "issue_text_label": {
+        "text": "Que s'est-il passé ?"
+      },
+      "issue_text_placeholder": {
+        "text": "Que s'est-il passé ? Décrivez ce qui ne fonctionne pas et tout détail qui nous aide à reproduire le problème."
+      },
+      "attach_image": {
+        "text": "Image"
+      },
+      "dictation_failed": {
+        "text": "La dictée a échoué. Réessayez ou saisissez votre signalement."
+      },
+      "quick_actions_label": {
+        "text": "Ajouter au rapport"
+      },
+      "upload_screenshot": {
+        "text": "Téléverser une capture d'écran"
+      },
+      "select_ui_element": {
+        "text": "Sélectionner un élément de l'interface"
+      },
+      "record_voice": {
+        "text": "Enregistrer la voix (jusqu'à 2 minutes)"
+      },
+      "dictation_unavailable_today": {
+        "text": "L'enregistrement vocal n'est plus disponible aujourd'hui. Réessayez demain."
+      },
+      "dictation_recording_limit": {
+        "text": "Les enregistrements vocaux des rapports sont limités à 2 minutes."
+      },
+      "send_to_claude_chat_label": {
+        "text": "Envoyer directement au chat Claude"
+      },
+      "send_to_claude_chat_hint": {
+        "text": "Lance un nouveau chat Claude sur le serveur de développement qui analyse et corrige ce signalement."
+      },
+      "confirmation_claude_chat_queued": {
+        "text": "Un chat Claude commencera à traiter ce signalement dans environ une minute."
+      },
+      "confirmation_claude_chat_unavailable": {
+        "text": "Impossible de mettre le chat Claude en file d'attente. Copiez l'ID du signalement et lancez un chat manuellement."
+      },
       "title_required": {
         "text": "Une description courte est requise"
       },
@@ -19669,11 +19711,8 @@
       "actual_behaviour_hint": {
         "text": "Facultatif — décrivez ce qui s'est mal passé"
       },
-      "share_chat_label": {
-        "text": "Partager le chat actuel avec ce rapport"
-      },
-      "share_chat_hint": {
-        "text": "Cela permet a l'administrateur de voir le chat pour aider a deboguer le probleme."
+      "chat_included_notice": {
+        "text": "Votre chat actuel est joint à ce rapport afin que nous puissions analyser le problème."
       },
       "url_label": {
         "text": "URL de chat partagé ou d'intégration"
@@ -19835,9 +19874,6 @@
       },
       "element_picker_hint": {
         "text": "Appuyez sur n'importe quel élément de la page pour capturer sa structure HTML à des fins de débogage"
-      },
-      "element_picker_button": {
-        "text": "Sélectionner un élément"
       },
       "element_picker_active": {
         "text": "Sélection en cours..."

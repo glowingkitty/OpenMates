@@ -17,6 +17,36 @@ role_aware_form:
     when: The report form becomes ready.
     then: Administrator automation choices may be shown without making them available to an ordinary user.
 
+single_text_form:
+  - id: one-description-with-quick-actions
+    given: A signed-in user opens Report Issue.
+    when: The form becomes ready.
+    then: One description field asking what happened and what is broken is shown with compact Upload screenshot, Select UI element, and Record voice icon buttons underneath, no separate what-did-you-do, expected, or actual fields, no contact email field, and a notice that the active chat is included instead of a share toggle.
+  - id: dictation-appends-editable-text
+    given: A guest has typed a first sentence into the description.
+    when: The guest dictates a second sentence and finishes recording.
+    then: The corrected transcript is appended on a new line as editable text, without uploading audio, and no image action is offered to the guest.
+
+dictation_limits:
+  - id: free-dictation-within-budget
+    given: A signed-in user with zero credits has used none of today's report dictation budget.
+    when: The user records a ten-second voice description from the Report Issue form.
+    then: The transcript is added to the description, no credits are charged, and ten seconds are counted against the thirty-minute daily budget.
+  - id: daily-budget-spent
+    given: A signed-in user has already used thirty minutes of report dictation today.
+    when: The user opens Report Issue or a recording reaches the limit.
+    then: The record button is greyed out with a "try again tomorrow" tooltip, the server refuses further report dictation, and a single recording never exceeds two minutes.
+
+admin_claude_chat:
+  - id: admin-dev-report-starts-claude-chat
+    given: An administrator reports an issue on the development server with the default "Send to Claude chat directly" toggle on.
+    when: The report is accepted.
+    then: An identifier-only request is queued, a new Claude Code chat opens for the issue within about a minute, and the confirmation says the chat was queued.
+  - id: no-handoff-when-off-or-not-admin-dev
+    given: An administrator switches the toggle off, or a non-administrator or any production user submits a request that claims send_to_claude_chat.
+    when: The API processes the report.
+    then: Nothing is queued, claude_chat_status is null, and the confirmation shows no Claude chat status.
+
 long_title:
   - id: detailed-observation-is-accepted
     given: A user writes a title longer than 500 characters describing a multi-part product failure.

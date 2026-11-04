@@ -78,6 +78,10 @@
         transcriptInEditor?: boolean;
         /** Temporarily fade out direct Send (e.g. while detected private data awaits review). */
         sendHidden?: boolean;
+        /** Report Issue dictation: free, server-capped transcription. */
+        purpose?: 'report_issue';
+        /** Finish the recording automatically after this many seconds. */
+        maxDurationSeconds?: number;
     }
     let {
         initialPosition,
@@ -94,6 +98,8 @@
         allowSend = false,
         transcriptInEditor = false,
         sendHidden = false,
+        purpose,
+        maxDurationSeconds,
     }: Props = $props();
     let overlayGeneration = 0;
 
@@ -314,6 +320,7 @@
                     onTranscript: setLiveTranscript,
                     onStatus: (value) => { realtimeStatus = value; },
                     correctionContext,
+                    purpose,
                 });
                 void realtimeHandle.correction.catch((error: Error) => {
                     if (isCancelled || realtimeHandedOff || overlayCloseNotified) return;
@@ -574,7 +581,10 @@
     function startRecordingTimer() {
         stopRecordingTimer();
         recordingTime = 0;
-        recordingInterval = setInterval(() => { recordingTime++; }, 1000);
+        recordingInterval = setInterval(() => {
+            recordingTime++;
+            if (maxDurationSeconds && recordingTime >= maxDurationSeconds) stop();
+        }, 1000);
     }
 
     function stopRecordingTimer() {

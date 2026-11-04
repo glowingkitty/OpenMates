@@ -147,9 +147,8 @@ test.describe('Report Issue Context Fallback', () => {
 		});
 
 		await navigateToReportIssue(page, logCheckpoint);
-		await expect(page.locator('#share-chat-toggle')).toBeChecked();
-		await page.getByTestId('report-issue-title').fill('New chat report with unavailable sharing');
-		await page.getByTestId('report-issue-user-flow').fill('Started a new chat and opened the report form.');
+		await expect(page.getByTestId('report-issue-chat-included')).toBeVisible();
+		await page.getByTestId('report-issue-title').fill('New chat report with unavailable sharing. Started a new chat and opened the report form.');
 		await page.evaluate((marker: string) => {
 			const message = document.createElement('div');
 			message.setAttribute('data-message-id', 'share-failure-privacy-probe');
@@ -170,7 +169,7 @@ test.describe('Report Issue Context Fallback', () => {
 		expect(reportPayload).not.toBeNull();
 		expect(reportPayload?.chat_or_embed_url).toBeNull();
 		expect(reportPayload?.last_messages_html).toBeNull();
-		expect(reportPayload?.description).toContain('Started a new chat');
+		expect(reportPayload?.title).toContain('Started a new chat');
 		expect(reportPayload?.runtime_debug_state).toEqual(expect.any(Object));
 		expect(reportPayload?.device_info).toEqual(expect.any(Object));
 		expect(reportPayload?.console_logs).toEqual(expect.any(String));
@@ -178,7 +177,7 @@ test.describe('Report Issue Context Fallback', () => {
 		expect(reportPayload?.console_logs).toContain('[SHARE-KEY-REDACTED]');
 		expect(JSON.stringify(reportPayload)).not.toContain(plaintextMarker);
 		expect(JSON.stringify(reportPayload)).not.toContain('secret-report-share-key-material');
-		expect(JSON.stringify(reportPayload)).not.toContain('#key=');
+		expect(JSON.stringify(reportPayload)).not.toMatch(/#key=(?!\[SHARE-KEY-REDACTED\])/);
 		expect(shareFailureWarnings).toHaveLength(1);
 		expect(shareFailureWarnings.join('\n')).not.toContain('#key=');
 		logCheckpoint('Report submitted without optional chat data after share metadata returned 404.');
