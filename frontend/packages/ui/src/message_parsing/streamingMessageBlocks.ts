@@ -263,6 +263,13 @@ export function createAssistantRenderPlan(
   markdown: string,
   options: CreateAssistantRenderPlanOptions,
 ): AssistantRenderPlan {
+  // A final plan re-opened as a streaming one (focus activation message merged
+  // with its continuation) was partitioned under final semantics, which commit
+  // list/table/quote blocks that streaming keeps in the tail. Diffing across
+  // that phase change looks like a non-local divergence, so start a new stream.
+  if (options.previous?.phase === "final" && options.phase === "streaming") {
+    options = { ...options, previous: undefined };
+  }
   const partition = partitionAuthoredMarkdown(markdown, options.phase);
   const occurrences = new Map<string, number>();
   const previousOccurrences = new Map<string, number>();
