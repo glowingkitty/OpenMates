@@ -5743,6 +5743,12 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     let startNewChatPlaceholderMode = $derived(
         !!currentChat?.chat_id && (isDemoChat(currentChat.chat_id) || isNewsletterChat(currentChat.chat_id))
     );
+    // While a call transcript fills the composer, it is the only visible content:
+    // no New chat button beside it and no Cancel pill below it.
+    let callTranscriptComposerActive = $derived(
+        !!$voiceCallController.liveTranscript &&
+        ($voiceCallController.status === 'live' || $voiceCallController.status === 'connecting')
+    );
     let showNewChatButtonBesideInput = $derived(
         createButtonVisible &&
         (
@@ -15280,11 +15286,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                     </button>
                                 </div>
                             {:else}
-                            <div class="message-input-action-row" class:has-new-chat-button={showNewChatButtonBesideInput} class:composer-focused={messageInputFocused}>
+                            <div class="message-input-action-row" class:has-new-chat-button={showNewChatButtonBesideInput} class:composer-focused={messageInputFocused || callTranscriptComposerActive}>
                                 {#if showNewChatButtonBesideInput}
                                     <div
                                         class="new-chat-button-wrapper new-chat-cta-wrapper input-new-chat-wrapper"
-                                        class:hidden-for-input={messageInputFocused}
+                                        class:hidden-for-input={messageInputFocused || callTranscriptComposerActive}
                                     >
                                         <button
                                             class="new-chat-cta-button"
@@ -15370,7 +15376,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
                         <!-- Cancel / Save draft pill: shown below the input when focused in a chat
                              that has the new-chat button. Blurs the editor to restore compact mode. -->
-                        {#if messageInputFocused && !$recordingState.showRecordAudioUI}
+                        {#if messageInputFocused && !callTranscriptComposerActive && !$recordingState.showRecordAudioUI}
                             <button
                                 class="input-dismiss-button"
                                 data-testid="input-dismiss-button"

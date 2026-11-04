@@ -26646,7 +26646,7 @@ assertions:
       surface: rest_api
     - &id3433
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2662
+      line: 2669
       name: keeps continuous playback progress conservative on interruption while
         retaining the complete rich answer
       surface: gui.web
@@ -61337,13 +61337,13 @@ assertions:
       surface: rest_api
     - &id7702
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2434
+      line: 2441
       name: keeps call audio ephemeral, caches later manual Speak once, and removes
         its audio access when the chat is deleted
       surface: gui.web
     - &id7703
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2662
+      line: 2669
       name: keeps continuous playback progress conservative on interruption while
         retaining the complete rich answer
       surface: gui.web
@@ -62130,7 +62130,7 @@ assertions:
       surface: gui.web
     - &id7787
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2434
+      line: 2441
       name: keeps call audio ephemeral, caches later manual Speak once, and removes
         its audio access when the chat is deleted
       surface: gui.web
@@ -63502,7 +63502,7 @@ assertions:
       surface: rest_api
     - &id7969
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2434
+      line: 2441
       name: keeps call audio ephemeral, caches later manual Speak once, and removes
         its audio access when the chat is deleted
       surface: gui.web
@@ -162844,13 +162844,13 @@ assertions:
       surface: gui.web
     - &id20910
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2434
+      line: 2441
       name: keeps call audio ephemeral, caches later manual Speak once, and removes
         its audio access when the chat is deleted
       surface: gui.web
     - &id20911
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2662
+      line: 2669
       name: keeps continuous playback progress conservative on interruption while
         retaining the complete rich answer
       surface: gui.web
@@ -165555,19 +165555,19 @@ assertions:
       surface: gui.web
     - &id21181
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2434
+      line: 2441
       name: keeps call audio ephemeral, caches later manual Speak once, and removes
         its audio access when the chat is deleted
       surface: gui.web
     - &id21182
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2611
+      line: 2618
       name: attaches the exact encrypted camera source to the ordinary user request
         on ${viewport.name}
       surface: gui.web
     - &id21183
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2643
+      line: 2650
       name: speaks one localized waiting confirmation for a slow German turn without
         creating a second assistant message
       surface: gui.web
@@ -166490,7 +166490,7 @@ assertions:
       surface: gui.web
     - &id21327
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2611
+      line: 2618
       name: attaches the exact encrypted camera source to the ordinary user request
         on ${viewport.name}
       surface: gui.web
@@ -167406,7 +167406,7 @@ assertions:
       surface: gui.web
     - &id21402
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2611
+      line: 2618
       name: attaches the exact encrypted camera source to the ordinary user request
         on ${viewport.name}
       surface: gui.web
@@ -167564,7 +167564,7 @@ assertions:
     direct_tests:
     - &id21457
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2611
+      line: 2618
       name: attaches the exact encrypted camera source to the ordinary user request
         on ${viewport.name}
       surface: gui.web
@@ -168314,7 +168314,7 @@ assertions:
       surface: rest_api
     - &id21530
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2662
+      line: 2669
       name: keeps continuous playback progress conservative on interruption while
         retaining the complete rich answer
       surface: gui.web
@@ -168717,19 +168717,19 @@ assertions:
       surface: gui.web
     - &id21612
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2434
+      line: 2441
       name: keeps call audio ephemeral, caches later manual Speak once, and removes
         its audio access when the chat is deleted
       surface: gui.web
     - &id21613
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2643
+      line: 2650
       name: speaks one localized waiting confirmation for a slow German turn without
         creating a second assistant message
       surface: gui.web
     - &id21614
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2662
+      line: 2669
       name: keeps continuous playback progress conservative on interruption while
         retaining the complete rich answer
       surface: gui.web
@@ -169412,7 +169412,7 @@ assertions:
       surface: rest_api
     - &id21660
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2643
+      line: 2650
       name: speaks one localized waiting confirmation for a slow German turn without
         creating a second assistant message
       surface: gui.web
@@ -169513,13 +169513,13 @@ assertions:
       surface: gui.web
     - &id21698
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2611
+      line: 2618
       name: attaches the exact encrypted camera source to the ordinary user request
         on ${viewport.name}
       surface: gui.web
     - &id21699
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2662
+      line: 2669
       name: keeps continuous playback progress conservative on interruption while
         retaining the complete rich answer
       surface: gui.web

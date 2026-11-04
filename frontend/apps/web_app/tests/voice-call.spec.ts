@@ -2331,7 +2331,14 @@ test.describe('Voice mode through ordinary chat', () => {
     const composer=page.getByTestId('message-field');
     await expect(composer).toHaveClass(/call-transcript-active/);
     await expect(composer).not.toHaveClass(/(^|\s)(compact|inline-compact)(\s|$)/);
-    expect((await composer.boundingBox())!.height).toBeGreaterThan(100);
+    // The expanded surface is sized to the spoken text: no empty gap above it,
+    // and neither New chat nor Cancel appear beside/below it during a call.
+    const composerBox=(await composer.boundingBox())!;
+    const transcriptBox=(await liveTranscript.boundingBox())!;
+    expect(transcriptBox.y-composerBox.y).toBeLessThan(24);
+    expect(composerBox.height).toBeLessThan(transcriptBox.height+64);
+    await expect(page.getByTestId('new-chat-button')).toBeHidden();
+    await expect(page.getByTestId('input-dismiss-button')).toHaveCount(0);
     // Only the spoken words show: no empty-field placeholder, attach or Send row.
     await expect(composer.getByTestId('action-buttons')).toHaveCount(0);
     expect(await composer.evaluate(node=>{

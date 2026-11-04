@@ -196,10 +196,25 @@
   min-height: var(--composer-focused-height, 180px);
 }
 
-/* A caller's live transcript opens the composer like focus does, without
-   focusing the editor (no keyboard on touch devices). */
+/* A caller's live transcript uses the expanded (focused) surface but is sized
+   to the spoken text only: no toolbar reserve, no empty gap, scroll when long. */
 .message-field.call-transcript-active:not(.fullscreen-expanded):not(.recording-active):not(.maps-open) {
-  min-height: var(--composer-focused-height, 180px);
+  min-height: 0;
+  padding: 0 0 var(--spacing-6) 0;
+}
+
+.message-field.call-transcript-active .scrollable-content {
+  flex-grow: 0;
+  padding-top: var(--spacing-4, 8px);
+  max-height: min(40vh, 240px);
+}
+
+.message-field.call-transcript-active .content-wrapper {
+  min-height: 0;
+}
+
+.message-field.call-transcript-active :global(.call-live-transcript) {
+  padding-top: 0;
 }
 
 /* The spoken words replace the empty-field placeholder. */
