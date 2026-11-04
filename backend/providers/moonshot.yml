@@ -42,10 +42,12 @@ models:
         name: "Together AI"
         model_id: "moonshotai/Kimi-K2.6" # Together AI model identifier (primary)
         region: "US" # Server region for UI display
+        country: "US"
       - id: "openrouter"
         name: "OpenRouter"
         model_id: "moonshotai/kimi-k2.6" # OpenRouter's model identifier (fallback)
         region: "US" # Server region for UI display
+        country: "US"
     pricing:
       tokens:
         input:
@@ -94,10 +96,12 @@ models:
         name: "Together AI"
         model_id: "moonshotai/Kimi-K2.7-Code"
         region: "US" # Server region for UI display
+        country: "US"
       - id: "openrouter"
         name: "OpenRouter"
         model_id: "moonshotai/kimi-k2.7-code"
         region: "US" # Server region for UI display (fallback)
+        country: "US"
     pricing:
       tokens:
         input:
@@ -150,6 +154,7 @@ models:
         name: "Together AI"
         model_id: "moonshotai/Kimi-K3"
         region: "US" # Server region for UI display
+        country: "US"
     pricing:
       tokens:
         input:

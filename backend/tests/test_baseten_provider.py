@@ -42,14 +42,16 @@ def test_key_prefers_vault_and_rejects_import_sentinel(monkeypatch):
         asyncio.run(resolve_api_key())
 
 
-def test_together_is_primary_with_openrouter_fallback_and_baseten_retained(monkeypatch):
+def test_mistral_is_default_with_us_fallbacks_and_baseten_retained(monkeypatch):
     provider = yaml.safe_load(
         (Path(__file__).parents[1] / "providers/deepseek.yml").read_text()
     )
     model = next(m for m in provider["models"] if m["id"] == "deepseek-v4.1-flash")
-    assert model["default_server"] == "together"
-    assert [s["id"] for s in model["servers"]] == ["together", "openrouter", "baseten"]
-    assert model["servers"][0]["model_id"] == "deepseek-ai/DeepSeek-V4.1-Flash-1017"
+    assert model["default_server"] == "mistral"
+    assert [s["id"] for s in model["servers"]] == ["mistral", "together", "openrouter", "baseten"]
+    assert model["servers"][0]["model_id"] == "deepseek-v4-1-flash-1017"
+    assert model["servers"][0]["region"] == "EU"
+    assert model["servers"][1]["model_id"] == "deepseek-ai/DeepSeek-V4.1-Flash-1017"
     assert model["provider_overrides"]["only"] == ["baseten"]
     assert model["provider_overrides"]["allow_fallbacks"] is False
     assert set(model["cache_pricing"]["eligible_hosts"]) == {"together", "openrouter", "baseten"}

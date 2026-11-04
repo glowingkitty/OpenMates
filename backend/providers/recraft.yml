@@ -48,6 +48,7 @@ models:
         name: "Recraft API"
         model_id: "recraftv4_1"
         region: "US"
+        country: "US"
     pricing:
       per_unit:
         credits: 50 # $0.04 / $0.001 = 40 break-even; 50 credits = $0.05 charged (~25% margin)
@@ -73,6 +74,7 @@ models:
         name: "Recraft API"
         model_id: "recraftv4_1_pro"
         region: "US"
+        country: "US"
     pricing:
       per_unit:
         credits: 250 # $0.25 / $0.001 = 250 credits (exact break-even, no markup)
@@ -98,6 +100,7 @@ models:
         name: "Recraft API"
         model_id: "recraftv4_1_vector"
         region: "US"
+        country: "US"
     pricing:
       per_unit:
         credits: 100 # $0.08 / $0.001 = 80 break-even; 100 credits = $0.10 charged (~25% margin)
@@ -123,6 +126,7 @@ models:
         name: "Recraft API"
         model_id: "recraftv4_1_pro_vector"
         region: "US"
+        country: "US"
     pricing:
       per_unit:
         credits: 300 # $0.30 / $0.001 = 300 credits (exact break-even, no markup)
@@ -148,6 +152,7 @@ models:
         name: "Recraft API"
         model_id: "vectorize"
         region: "US"
+        country: "US"
     pricing:
       per_unit:
         credits: 15 # $0.01 / $0.001 = 10 break-even; 15 credits = $0.015 charged (~50% margin)

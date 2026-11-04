@@ -27,8 +27,9 @@ models:
     name: "DeepSeek V4.1 Flash"
     description: >-
       DeepSeek V4.1 Flash, pinned to the October 17, 2026 snapshot, with native
-      vision, reasoning and tool calling. Together AI is primary, with OpenRouter
-      routing to the same Baseten snapshot as fallback. Direct Baseten remains available.
+      vision, reasoning and tool calling. Mistral (EU) is the default host for
+      privacy, with Together AI (US) and OpenRouter routing to the same Baseten
+      snapshot as fallbacks. Direct Baseten remains available.
     country_origin: "CN"
     for_app_skill: "ai.ask"
     release_date: "2026-09-10"
@@ -36,17 +37,28 @@ models:
     allow_auto_select: true
     reasoning: true
     external_ids:
+      mistral: "deepseek-v4-1-flash-1017"
       together: "deepseek-ai/DeepSeek-V4.1-Flash-1017"
       baseten: "deepseek-ai/DeepSeek-V4.1-Flash-1017"
       openrouter: "deepseek/deepseek-v4.1-flash-20261017"
     input_types: [text, image]
     output_types: [text]
-    default_server: "together"
+    default_server: "mistral"
     servers:
+      - id: "mistral"
+        name: "Mistral"
+        model_id: "deepseek-v4-1-flash-1017"
+        region: "EU"
+        country: "FR"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "high", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          source_url: https://docs.mistral.ai/studio/conversations/reasoning
       - id: "together"
         name: "Together AI"
         model_id: "deepseek-ai/DeepSeek-V4.1-Flash-1017"
         region: "US"
+        country: "US"
         reasoning_control:
           parameter: reasoning_effort
           levels: {LOW: "1", MEDIUM: "25", HIGH: "50", EXTRA_HIGH: "100"}
@@ -55,6 +67,7 @@ models:
         name: "OpenRouter (Baseten)"
         model_id: "deepseek/deepseek-v4.1-flash-20261017"
         region: "global"
+        country: "US"
         reasoning_control:
           parameter: reasoning_effort
           levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
@@ -63,6 +76,7 @@ models:
         name: "Baseten"
         model_id: "deepseek-ai/DeepSeek-V4.1-Flash-1017"
         region: "global"
+        country: "US"
         reasoning_control:
           parameter: reasoning_effort
           levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "max"}
@@ -131,6 +145,7 @@ models:
         model_id: "deepseek-ai/DeepSeek-V4-Pro-0813"
         health_check_preferred: true # Known serverless probe; the cheapest configured model requires a dedicated endpoint.
         region: "US" # Server region for UI display
+        country: "US"
       - id: "openrouter"
         reasoning_control:
           parameter: reasoning_effort
@@ -139,6 +154,7 @@ models:
         name: "OpenRouter API"
         model_id: "deepseek/deepseek-v4-pro"
         region: "US" # Server region for UI display
+        country: "US"
     pricing:
       tokens:
         input:
@@ -190,6 +206,7 @@ models:
         name: "OpenRouter API"
         model_id: "deepseek/deepseek-v4-flash"
         region: "US" # Server region for UI display
+        country: "US"
     provider_overrides:
       order: ["atlas-cloud"] # Try AtlasCloud first through OpenRouter provider routing
       allow_fallbacks: true # Keep OpenRouter fallback routing if AtlasCloud is unavailable

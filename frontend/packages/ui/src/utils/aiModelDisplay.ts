@@ -6,6 +6,7 @@
  */
 
 import type { AIModelMetadata } from '../data/modelsMetadata';
+import { countryCodeToFlag } from './countryFlag';
 import providerDisplayData from '../data/aiProviderDisplay.json';
 
 export type AiCapabilityLevel = 'low' | 'medium' | 'high' | 'max';
@@ -104,4 +105,21 @@ export function getRecommendedModelForTier(
             - Math.abs(rank[getModelCapabilityLevel(b)] - targetRank);
         return capabilityDistance || a.id.localeCompare(b.id);
     })[0] ?? null;
+}
+
+/**
+ * Flag emoji for the default server region of a model: a specific country when
+ * the server declares one (or the region is a known cloud region such as
+ * eu-central-1), otherwise the EU or US flag. Empty for unknown/global regions.
+ */
+export function getModelServerFlag(model: AIModelMetadata): string {
+    const servers = model.servers ?? [];
+    const server = servers.find((s) => s.id === model.default_server) ?? servers[0];
+    if (!server) return '';
+    if (server.country) return countryCodeToFlag(server.country);
+    const region = String(server.region).toLowerCase();
+    if (region === 'eu-central-1') return countryCodeToFlag('DE');
+    if (region === 'eu') return countryCodeToFlag('EU');
+    if (region === 'us' || region.startsWith('us-')) return countryCodeToFlag('US');
+    return '';
 }

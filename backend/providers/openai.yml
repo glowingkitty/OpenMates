@@ -40,6 +40,7 @@ models:
         name: "OpenAI API"
         model_id: "gpt-image-2"
         region: "US"
+        country: "US"
     pricing:
       per_unit:
         credits: 250 # High quality 1024 output is estimated at ~$0.211; 250 credits avoids loss and covers overhead.
@@ -89,6 +90,7 @@ models:
         name: "OpenAI API"
         model_id: "gpt-6-astra"
         region: "US"
+        country: "US"
     pricing:
       tokens:
         input:
@@ -176,6 +178,7 @@ models:
         name: "OpenAI API"
         model_id: "gpt-6.1-sol"
         region: "US"
+        country: "US"
     pricing:
       tokens:
         input:
@@ -264,6 +267,7 @@ models:
         name: "OpenAI API"
         model_id: "gpt-6-luna"
         region: "US"
+        country: "US"
     pricing:
       tokens:
         input:
@@ -348,6 +352,7 @@ models:
         name: "OpenAI API"
         model_id: "gpt-5.6-terra"
         region: "US"
+        country: "US"
     pricing:
       tokens:
         input:
@@ -430,6 +435,7 @@ models:
         name: "OpenAI API"
         model_id: "gpt-6-sol"
         region: "US"
+        country: "US"
     pricing:
       tokens:
         input: { per_credit_unit: 165 }
@@ -496,6 +502,7 @@ models:
         name: "OpenAI API"
         model_id: "gpt-5.6-sol"
         region: "US"
+        country: "US"
     # Historical pre-promotion tariff; future replacement remains unpublished.
     # The undated promotion below does not switch on November 22.
     pricing:
@@ -621,6 +628,7 @@ models:
         name: "OpenAI API"
         model_id: "gpt-5.6-luna"
         region: "US"
+        country: "US"
     pricing:
       tokens:
         input: { per_credit_unit: 1600 }
@@ -687,6 +695,7 @@ models:
         name: "OpenAI API"
         model_id: "gpt-5.5"
         region: "US"
+        country: "US"
     pricing:
       tokens:
         input: { per_credit_unit: 65 }
@@ -749,6 +758,7 @@ models:
         name: "OpenAI API"
         model_id: "gpt-5.5-pro"
         region: "US"
+        country: "US"
     pricing:
       tokens:
         input: { per_credit_unit: 11 }
@@ -806,6 +816,7 @@ models:
         name: "OpenAI API"
         model_id: "gpt-5.4"
         region: "US"
+        country: "US"
     pricing:
       tokens:
         input: { per_credit_unit: 130 }
@@ -868,6 +879,7 @@ models:
         name: "OpenAI API"
         model_id: "gpt-5.4-pro"
         region: "US"
+        country: "US"
     pricing:
       tokens:
         input: { per_credit_unit: 11 }
@@ -925,6 +937,7 @@ models:
         name: "OpenAI API"
         model_id: "gpt-5.4-mini"
         region: "US"
+        country: "US"
     pricing:
       tokens:
         input: { per_credit_unit: 440 }
@@ -972,6 +985,7 @@ models:
         name: "OpenAI API"
         model_id: "gpt-5.4-nano"
         region: "US"
+        country: "US"
     pricing:
       tokens:
         input: { per_credit_unit: 1600 }
@@ -1018,6 +1032,7 @@ models:
         name: "OpenAI API"
         model_id: "gpt-5.2"
         region: "US"
+        country: "US"
     pricing:
       tokens:
         input: { per_credit_unit: 190 }
@@ -1065,6 +1080,7 @@ models:
         name: "OpenAI API"
         model_id: "gpt-5.2-pro"
         region: "US"
+        country: "US"
     pricing:
       tokens:
         input: { per_credit_unit: 15 }
@@ -1110,6 +1126,7 @@ models:
         name: "OpenAI API"
         model_id: "gpt-5.1"
         region: "US"
+        country: "US"
     pricing:
       tokens:
         input: { per_credit_unit: 265 }
@@ -1159,6 +1176,7 @@ models:
         model_id: "openai.gpt-oss-120b-1:0" # Bedrock model ID
         aws_region: "eu-central-1"
         region: "EU"
+        country: "DE"
       - id: "openrouter"
         reasoning_control:
           parameter: reasoning_effort
@@ -1167,6 +1185,7 @@ models:
         name: "OpenRouter API"
         model_id: "openai/gpt-oss-120b"
         region: "US"
+        country: "US"
     # Provider overrides to force Cerebras as the provider
     provider_overrides:
       order: ["cerebras"] # try Cerebras first (and only)
@@ -1220,6 +1239,7 @@ models:
         name: "OpenRouter API"
         model_id: "openai/gpt-oss-safeguard-20b"
         region: "US"
+        country: "US"
     pricing:
       tokens:
         input:
@@ -1255,10 +1275,12 @@ models:
         name: "Groq API"
         model_id: "openai/gpt-oss-safeguard-20b" # Groq API model identifier
         region: "US" # Server region for UI display
+        country: "US"
       - id: "openrouter"
         name: "OpenRouter API"
         model_id: "openai/gpt-oss-safeguard-20b" # OpenRouter model identifier
         region: "US" # Server region for UI display
+        country: "US"
     pricing: # Model-specific base pricing
       tokens:
         input:

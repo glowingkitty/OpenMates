@@ -32,6 +32,7 @@ models:
         name: "ElevenLabs"
         model_id: "eleven_text_to_sound_v2"
         region: "US"
+        country: "US"
     pricing:
       per_second: 20
     costs:
@@ -58,6 +59,7 @@ models:
         name: "ElevenLabs"
         model_id: "eleven_flash_v2_5"
         region: "US"
+        country: "US"
     pricing:
       per_second: 2
     costs:
@@ -83,6 +85,7 @@ models:
         name: "ElevenLabs"
         model_id: "eleven_multilingual_v2"
         region: "US"
+        country: "US"
     pricing:
       per_second: 4
     costs:
@@ -108,6 +111,7 @@ models:
         name: "ElevenLabs"
         model_id: "eleven_v3"
         region: "US"
+        country: "US"
     pricing:
       per_second: 4
     costs:
@@ -133,6 +137,7 @@ models:
         name: "ElevenLabs"
         model_id: "eleven_v3_conversational"
         region: "US"
+        country: "US"
     pricing:
       per_second: 2
     costs:
@@ -156,6 +161,7 @@ models:
         name: "ElevenLabs"
         model_id: "eleven_v4"
         region: "US"
+        country: "US"
     pricing:
       per_second: 4
     costs:
@@ -180,6 +186,7 @@ models:
         name: "ElevenLabs"
         model_id: "eleven_v4_turbo"
         region: "US"
+        country: "US"
     pricing:
       per_second: 2
     costs:

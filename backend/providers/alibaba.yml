@@ -38,6 +38,7 @@ models:
         name: "Cerebras"
         model_id: "qwen-3.8-27b"
         region: "US"
+        country: "US"
     pricing:
       tokens:
         input:
@@ -74,21 +75,24 @@ models:
       - image
     output_types:
       - text
-    default_server: "cerebras" # Default to Cerebras for ultra-fast inference
+    default_server: "aws_bedrock" # EU-first hosting policy
     servers:
-      - id: "cerebras"
-        name: "Cerebras"
-        model_id: "qwen-3-235b-a22b-instruct-2507" # Direct Cerebras model identifier (Preview model)
-        region: "US" # Server region for UI display
       - id: "aws_bedrock"
         name: "AWS Bedrock"
         model_id: "qwen.qwen3-235b-a22b-2507-v1:0" # Bedrock model ID
         aws_region: "eu-central-1"
         region: "EU"
+        country: "DE"
+      - id: "cerebras"
+        name: "Cerebras"
+        model_id: "qwen-3-235b-a22b-instruct-2507" # Direct Cerebras model identifier (Preview model)
+        region: "US" # Server region for UI display
+        country: "US"
       - id: "openrouter"
         name: "OpenRouter"
         model_id: "qwen/qwen3-235b-a22b-2507" # OpenRouter's model identifier (fallback when Cerebras is unavailable)
         region: "US" # Server region for UI display
+        country: "US"
     pricing:
       tokens:
         input:

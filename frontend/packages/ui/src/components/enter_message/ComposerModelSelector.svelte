@@ -13,7 +13,7 @@
     import { getProviderIconUrl } from '../../data/providerIcons';
     import { isProviderHealthy } from '../../stores/appHealthStore';
     import { userProfile } from '../../stores/userProfile';
-    import { compareAiModels, compareAiProviders, getAiProviderDisplay, getModelCapabilityLevel, isEligibleLegacyAiModel, splitAiProviderModels } from '../../utils/aiModelDisplay';
+    import { compareAiModels, compareAiProviders, getAiProviderDisplay, getModelCapabilityLevel, getModelServerFlag, isEligibleLegacyAiModel, splitAiProviderModels } from '../../utils/aiModelDisplay';
     import { aiModelSelectionValue } from '../../utils/aiModelSelection';
 
     interface Props {
@@ -40,6 +40,7 @@
         )
     ));
     const selectedModel = $derived(models.find((model) => aiModelSelectionValue(model) === selection) ?? null);
+    const selectedFlag = $derived(ready && selectedModel ? getModelServerFlag(selectedModel) : "");
     const selectedLabel = $derived(ready
         ? selectedModel
             ? selectedModel.name
@@ -174,10 +175,10 @@
                     />
                 </span>
             </span>
-            <span class="model-selector-label" data-testid="composer-model-selector-label">{selectedLabel}</span>
+            <span class="model-selector-label" data-testid="composer-model-selector-label">{selectedLabel}{selectedFlag ? ` ${selectedFlag}` : ""}</span>
         {:else}
             <span class="selector-icon" aria-hidden="true"><span class="clickable-icon icon_ai"></span></span>
-            <span class="model-selector-label" data-testid="composer-model-selector-label">{selectedLabel}</span>
+            <span class="model-selector-label" data-testid="composer-model-selector-label">{selectedLabel}{selectedFlag ? ` ${selectedFlag}` : ""}</span>
         {/if}
     </button>
 
@@ -214,7 +215,7 @@
                                     />
                                 </span>
                             </span>
-                            <strong>{model.name}</strong>
+                            <strong>{model.name}{#if getModelServerFlag(model)} <span class="model-server-flag" data-testid="composer-model-server-flag">{getModelServerFlag(model)}</span>{/if}</strong>
                         </button>
                         <Toggle
                             checked={isSelected}

@@ -9,6 +9,7 @@ export interface ModelServerInfo {
   id: string;
   name: string;
   region: "EU" | "US" | "APAC" | "global";
+  country?: string;
 }
 
 export interface ModelPricingPerUnit {

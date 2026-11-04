@@ -33,6 +33,7 @@ models:
         name: "fal.ai"
         model_id: "fal-ai/flux-2/klein/9b/base"
         region: "US" # Server region for UI display
+        country: "US"
       # - id: "bfl"
       #   name: "BFL API"
     pricing:
@@ -63,6 +64,7 @@ models:
         name: "fal.ai"
         model_id: "fal-ai/flux-2/klein/4b/base/edit"
         region: "US"
+        country: "US"
     pricing:
       per_unit:
         credits: 15

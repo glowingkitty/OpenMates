@@ -63,6 +63,7 @@ from backend.core.api.app.services.team_chat_ai_service import format_sender_att
 from backend.core.api.app.utils.config_manager import config_manager
 from backend.core.api.app.services.cache import CacheService
 from backend.shared.python_schemas.llm_usage import normalize_provider_usage
+from backend.shared.python_utils.server_policy import effective_default_server_id, order_servers
 from backend.shared.python_utils.billing_utils import (
     calculate_cache_aware_supplier_cost,
     is_cache_tariff_admissible,
@@ -698,17 +699,23 @@ def resolve_default_server_from_provider_config(model_id: str) -> tuple:
             logger.debug(f"Model '{model_suffix}' not found in provider '{provider_id}' config. Cannot resolve default server.")
             return (None, None)
         
-        # Get default server and servers list
-        default_server_id = model_config.get("default_server")
+        # Hosting policy (hard-coded): never a CN/HK/MO server, EU before non-EU.
+        # The YAML default_server is only honoured when it is the best allowed one.
         servers = model_config.get("servers", [])
-        
-        if not default_server_id:
-            logger.debug(f"Model '{model_id}' has no default_server configured.")
-            return (None, None)
         
         if not servers:
             logger.debug(f"Model '{model_id}' has no servers configured.")
             return (None, None)
+
+        default_server_id = effective_default_server_id(model_config)
+        if not default_server_id:
+            logger.warning(f"Model '{model_id}' has no server allowed by the hosting-region policy.")
+            return (None, None)
+        if default_server_id != model_config.get("default_server"):
+            logger.warning(
+                f"Model '{model_id}': default_server '{model_config.get('default_server')}' overridden "
+                f"by hosting-region policy -> '{default_server_id}'."
+            )
         
         # Find the default server in the servers list
         default_server_config = None
@@ -783,19 +790,19 @@ def resolve_fallback_servers_from_provider_config(model_id: str) -> List[str]:
             logger.debug(f"Model '{model_suffix}' not found in provider '{provider_id}' config. Cannot resolve fallbacks.")
             return []
         
-        # Get default server and servers list
-        default_server_id = model_config.get("default_server")
+        # Same hosting-region policy as the default: blocked servers are dropped
+        # and the remaining fallbacks are tried EU first.
         servers = model_config.get("servers", [])
         
         if not servers:
             logger.debug(f"Model '{model_id}' has no servers configured. No fallbacks available.")
             return []
+
+        default_server_id = effective_default_server_id(model_config)
         
-        # Build fallback list (all servers except the default_server)
+        # Build fallback list (all allowed servers except the default)
         fallback_models = []
-        for server in servers:
-            if not isinstance(server, dict):
-                continue
+        for server in order_servers(servers):
             
             server_id = server.get("id")
             server_model_id = server.get("model_id")

@@ -10,6 +10,7 @@ import {
     compareAiProviders,
     getAiProviderDisplay,
     getModelCapabilityLevel,
+    getModelServerFlag,
     getRecommendedModelForTier,
     isEligibleLegacyAiModel,
     splitAiProviderModels,
@@ -146,5 +147,23 @@ describe('AI model settings display contract', () => {
         expect(getRecommendedModelForTier(candidates, 'simple')?.provider_id).toBe('economy');
         expect(getRecommendedModelForTier(candidates, 'complex')?.provider_id).toBe('premium');
         expect(getRecommendedModelForTier(candidates, 'most-demanding')?.provider_id).toBe('reasoning');
+    });
+});
+
+describe('getModelServerFlag', () => {
+    const withServer = (server: Record<string, string>, defaultServer = 'a') =>
+        ({ ...model('p', 'P', 'low'), default_server: defaultServer, servers: [{ id: 'a', name: 'A', ...server }] }) as AIModelMetadata;
+
+    // contract-test: supporting surface=gui.web assertions=ai-model-routing.catalog.capability-recommendation-variants
+    it('maps the default server region to a flag', () => {
+        expect(getModelServerFlag(withServer({ region: 'US' }))).toBe('🇺🇸');
+        expect(getModelServerFlag(withServer({ region: 'EU' }))).toBe('🇪🇺');
+        expect(getModelServerFlag(withServer({ region: 'eu-central-1' }))).toBe('🇩🇪');
+    });
+
+    // contract-test: supporting surface=gui.web assertions=ai-model-routing.catalog.capability-recommendation-variants
+    it('prefers a specific country and ignores global regions', () => {
+        expect(getModelServerFlag(withServer({ region: 'EU', country: 'FR' }))).toBe('🇫🇷');
+        expect(getModelServerFlag(withServer({ region: 'global' }))).toBe('');
     });
 });

@@ -152,6 +152,7 @@ function parseProviderYaml(providerId, filePath) {
         id: server.id,
         name: server.name,
         region: server.region || "US", // Default to US if not specified
+        ...(server.country ? { country: server.country } : {}),
       }));
 
       // Extract pricing information for display.
@@ -414,6 +415,8 @@ export interface ModelServerInfo {
     name: string;
     /** Server region: EU, US, APAC, or global */
     region: 'EU' | 'US' | 'APAC' | 'global';
+    /** Optional ISO 3166-1 alpha-2 country when the host is in one known country */
+    country?: string;
 }
 
 /**
