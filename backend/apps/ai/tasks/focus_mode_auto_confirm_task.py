@@ -100,7 +100,7 @@ async def _async_focus_mode_auto_confirm(
     from backend.apps.ai.tasks.async_skill_continuation import async_skill_latest_user_turn_key
     from backend.shared.python_utils.focus_continuation_history import (
         FocusContinuationHistoryError, current_focus_source_turn, publish_current_focus_continuation_failure,
-        rebuild_focus_continuation_history, source_user_message_id,
+        rebuild_focus_continuation_history, resolve_continuation_embed_references, source_user_message_id,
     )
     
     log_prefix = f"[FocusModeAutoConfirm][Task: {task_id[:8]}][Chat: {chat_id[:8]}]"
@@ -196,6 +196,13 @@ async def _async_focus_mode_auto_confirm(
         logger.warning(f"{log_prefix} Focus continuation history unavailable: {exc.code}")
         await publish_current_focus_continuation_failure(cache_service, pending_context)
         return
+    from backend.core.api.app.services.embed_service import EmbedService
+    embed_file_path_index = await resolve_continuation_embed_references(
+        message_history,
+        embed_service=EmbedService(cache_service=cache_service, directus_service=directus_service,
+                                   encryption_service=encryption_service),
+        user_vault_key_id=user_vault_key_id, log_prefix=log_prefix,
+    )
 
     if not await current_focus_source_turn(cache_service, pending_context):
         logger.info(f"{log_prefix} Focus source turn changed before acceptance")
@@ -245,6 +252,7 @@ async def _async_focus_mode_auto_confirm(
             "user_id": user_id,
             "user_id_hash": user_id_hash,
             "message_history": message_history,
+            "embed_file_path_index": embed_file_path_index or None,
             "chat_has_title": chat_has_title,
             "is_incognito": is_incognito,
             "mate_id": mate_id,

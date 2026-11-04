@@ -11,6 +11,7 @@ from backend.shared.python_utils.focus_continuation_history import (
     FocusContinuationHistoryError,
     publish_current_focus_continuation_failure,
     rebuild_focus_continuation_history,
+    resolve_continuation_embed_references,
 )
 
 
@@ -374,3 +375,30 @@ async def test_cache_listener_forwards_only_current_owner_scoped_failure(monkeyp
         "message": "Focus continuation could not complete. Please try again.",
         "chat_id": "chat", "user_message_id": "source",
     }
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.history-events
+@pytest.mark.asyncio
+async def test_continuation_resolves_the_attached_card_like_the_first_turn() -> None:
+    attached = 'Tips for the talk?\n```json\n{"type": "event", "embed_id": "fosdem"}\n```'
+    history = [
+        {"role": "user", "content": "Which conferences?"},
+        {"role": "assistant", "content": '```json\n{"type": "authored_results", "embed_id": "list"}\n```'},
+        {"role": "user", "content": attached},
+    ]
+
+    async def resolve(*, content, user_vault_key_id, log_prefix, seen_embed_refs):
+        assert user_vault_key_id == "vault-key"
+        name = "FOSDEM 2027" if '"fosdem"' in content else "conference list"
+        return content.split("```json")[0] + f"```toon\ntitle: {name}\n```", {name: "id"}
+
+    index = await resolve_continuation_embed_references(
+        history, embed_service=SimpleNamespace(resolve_embed_references_in_content=resolve),
+        user_vault_key_id="vault-key",
+    )
+
+    assert history[0]["content"] == "Which conferences?"
+    assert "title: conference list" in history[1]["content"]
+    assert history[2]["content"].startswith("Tips for the talk?")
+    assert "title: FOSDEM 2027" in history[2]["content"] and '"embed_id"' not in history[2]["content"]
+    assert index == {"conference list": "id", "FOSDEM 2027": "id"}
