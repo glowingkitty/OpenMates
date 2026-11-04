@@ -131,3 +131,24 @@ def test_code_instruction_offers_self_contained_interactive_html_visuals() -> No
     assert "only inline CSS, inline JavaScript, inline SVG or canvas" in instruction
     assert "prefers-reduced-motion" in instruction
     assert "Do not add a visual to simple factual answers" in instruction
+
+
+def test_explanatory_science_questions_prefer_video_enrichment() -> None:
+    instruction = (CODE_BLOCK_INSTRUCTION_PATH.parent / "base_proactive_skill_usage_instruction.md").read_text()
+    assert "how something works" in instruction
+    assert "choose a video over an image" in instruction
+
+
+def test_sheet_prose_never_recomputes_numbers() -> None:
+    instruction = (CODE_BLOCK_INSTRUCTION_PATH.parent / "base_sheet_formulas_instruction.md").read_text()
+    assert "Never recompute or round numbers in prose" in instruction
+    assert "never disagree" in instruction
+
+
+def test_price_products_asks_first_and_quotes_only_sheet_numbers() -> None:
+    root = CODE_BLOCK_INSTRUCTION_PATH.parents[2]
+    skill = (root / "business/focus_modes/price-products/SKILL.md").read_text()
+    assert "Do NOT build a sheet" in skill
+    assert "never recompute" in skill
+    assert "what should I charge" in skill
+    assert "what should I charge" in " ".join((root / "business/app.yml").read_text().split())

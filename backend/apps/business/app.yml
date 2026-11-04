@@ -457,8 +457,9 @@ focuses:
       - I'm a freelance photographer. Work out a fair day rate.
     preprocessor_hint: >
       Select when the user wants to set, check or justify prices for
-      products or services they make or sell, or works out costs,
-      margins or break-even. Do not select for company valuation,
+      products or services they make or sell: price my products, outfits
+      or candles, what should I charge, fair day rate, costs, margins or
+      break-even. Do not select for company valuation,
       taxes or accounting, stock-market questions, or comparing shop
       prices when buying.
 
