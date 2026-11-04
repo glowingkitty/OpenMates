@@ -24,6 +24,7 @@ from backend.apps.ai.utils.authored_result_fences import (
     get_authoring_definitions,
     normalize_authored_results_source,
 )
+from backend.core.api.app.services.event_embed_enrichment import enrich_event_coordinates
 from backend.shared.python_utils.chat_recovery_context import (
     RequiredRecoveryOutputError,
     active_legacy_output_context,
@@ -259,6 +260,7 @@ async def update_authored_results_embed(
                 and not _has_resolved_resource(item.kind, content)):
             warnings.append({"code": "unavailable_resource", "path": "items"})
             continue
+        content = await enrich_event_coordinates(item.backend_type, content, log_prefix)
         child_id = authored_child_id(embed_id, item.local_id)
         content.update({
             "type": item.backend_type, "app_id": item.app_id, "skill_id": item.skill_id,

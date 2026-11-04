@@ -8317,6 +8317,9 @@
       "open_source": {
         "text": "פתיחת דף המקור"
       },
+      "open_domain": {
+        "text": "פתיחת {domain}"
+      },
       "additional_times": {
         "text": "מועדים נוספים"
       }

@@ -8317,6 +8317,9 @@
       "open_source": {
         "text": "Otwórz stronę źródłową"
       },
+      "open_domain": {
+        "text": "Otwórz {domain}"
+      },
       "additional_times": {
         "text": "Dodatkowe terminy"
       }

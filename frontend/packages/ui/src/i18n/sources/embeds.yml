@@ -14612,6 +14612,31 @@ authoring.open_source:
   he: "פתיחת דף המקור"
   verified_by_human: []
 
+authoring.open_domain:
+  context: "Button that opens the event's own website; {domain} is its hostname, e.g. fosdem.org"
+  en: "Open {domain}"
+  de: "{domain} öffnen"
+  zh: "打开 {domain}"
+  es: "Abrir {domain}"
+  fr: "Ouvrir {domain}"
+  pt: "Abrir {domain}"
+  ru: "Открыть {domain}"
+  ja: "{domain} を開く"
+  ko: "{domain} 열기"
+  it: "Apri {domain}"
+  tr: "{domain} adresini aç"
+  vi: "Mở {domain}"
+  id: "Buka {domain}"
+  pl: "Otwórz {domain}"
+  nl: "{domain} openen"
+  ar: "فتح {domain}"
+  hi: "{domain} खोलें"
+  th: "เปิด {domain}"
+  cs: "Otevřít {domain}"
+  sv: "Öppna {domain}"
+  he: "פתיחת {domain}"
+  verified_by_human: []
+
 authoring.additional_times:
   context: "Additional supplied appointment times without a claim of live availability"
   en: "Additional times"

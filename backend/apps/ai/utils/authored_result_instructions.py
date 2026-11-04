@@ -79,6 +79,20 @@ def normalize_authoring_previews(previews: Iterable[str], definitions: Mapping[s
     return result
 
 
+# Kind-specific authoring quality guidance; facts still come only from sources.
+_KIND_GUIDANCE: dict[str, str] = {
+    "events.event": (
+        "For each event card write description as one full paragraph (4-6 sentences, about 60-120 "
+        "words) grounded only in your web search/read results: what the event is, who it is for, its "
+        "format or focus, what makes it notable, and where and when it takes place. Use web search "
+        "and image search to find an official logo, banner or venue photo and put that exact found "
+        "URL in image_url (credit its source in the image attribution when supported); omit image_url "
+        "when no search result supplies one. Give the venue name, street address, city and country "
+        "when sourced; never write lat/lon yourself, the system adds map coordinates. "
+    ),
+}
+
+
 def build_authored_result_instructions(
     previews: Iterable[str], apps: Mapping[str, Any] | None, *, presentation_only: bool = False,
 ) -> str | None:
@@ -90,6 +104,7 @@ def build_authored_result_instructions(
     if not selected:
         return None
     schema = get_authored_results_schema(selected)
+    kind_guidance = "".join(_KIND_GUIDANCE[kind] for kind in selected if kind in _KIND_GUIDANCE)
     return (
         "For relevant structured result cards, use a JSON fenced block labelled openmates_embeds. "
         "Use schemaVersion 1 and the exact selected kind schemas below. This is result presentation, "
@@ -125,6 +140,6 @@ def build_authored_result_instructions(
         "fabricating a card. Preserve conflicting sourced observations separately. Do not claim a booking, "
         "calendar write, publication or successful tool call from creating cards. Existing source access "
         "and reading restrictions still apply. Continue using existing code, calendar, document, email "
-        "and other artifact formats for those artifacts. Selected result schema:\n"
+        "and other artifact formats for those artifacts. " + kind_guidance + "Selected result schema:\n"
         + json.dumps(schema, ensure_ascii=False, separators=(",", ":"))
     )

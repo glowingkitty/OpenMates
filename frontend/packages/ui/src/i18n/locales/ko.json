@@ -8317,6 +8317,9 @@
       "open_source": {
         "text": "출처 페이지 열기"
       },
+      "open_domain": {
+        "text": "{domain} 열기"
+      },
       "additional_times": {
         "text": "추가 시간"
       }

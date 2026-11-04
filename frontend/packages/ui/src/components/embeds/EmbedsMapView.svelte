@@ -283,7 +283,7 @@
       lon: (Math.min(...lons) + Math.max(...lons)) / 2,
     };
   });
-  const visualTabs = $derived<VisualTab[]>(cardsOnly ? [] : includeAllResults ? [{id: 'map', label: 'Map'}] : deriveVisualTabs(Boolean(mapCenter), calendarEntries.length > 0));
+  const visualTabs = $derived<VisualTab[]>(cardsOnly ? [] : includeAllResults ? (mapCenter ? [{id: 'map', label: 'Map'}] : []) : deriveVisualTabs(Boolean(mapCenter), calendarEntries.length > 0));
   const selectedVisualTab = $derived.by(() => {
     if (visualTabs.some((tab) => tab.id === activeVisualTab)) return activeVisualTab;
     return visualTabs[0]?.id ?? 'map';
@@ -353,6 +353,8 @@
     const lon = firstNumber(lonValue);
     if (lat == null || lon == null) return null;
     if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
+    // 0/0 is a placeholder ("null island"), never a real venue: no map for it.
+    if (lat === 0 && lon === 0) return null;
     return { lat, lon };
   }
 

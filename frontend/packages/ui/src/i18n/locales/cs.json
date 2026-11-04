@@ -8317,6 +8317,9 @@
       "open_source": {
         "text": "Otevřít zdrojovou stránku"
       },
+      "open_domain": {
+        "text": "Otevřít {domain}"
+      },
       "additional_times": {
         "text": "Další časy"
       }

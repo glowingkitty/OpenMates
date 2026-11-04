@@ -9897,6 +9897,9 @@
       "open_source": {
         "text": "Quellseite öffnen"
       },
+      "open_domain": {
+        "text": "{domain} öffnen"
+      },
       "additional_times": {
         "text": "Weitere Zeiten"
       }

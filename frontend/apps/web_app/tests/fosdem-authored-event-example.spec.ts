@@ -126,6 +126,12 @@ for (const width of [390, 1440]) {
       await expect(fullscreen).toContainText(/CC\s*BY\s*3\.0/i);
       await expect(fullscreen.locator(`a[href="${LICENCE}"]`).first()).toBeVisible();
       await publicImage(fullscreen.locator('img.event-image'));
+      const eventUrl = String(event.url ?? event.source_url ?? '');
+      if (/^https?:\/\//.test(eventUrl)) {
+        // The open action names the event's own site, never a generic label.
+        const domain = new URL(eventUrl).hostname.replace(/^www\./i, '');
+        await expect(fullscreen.getByTestId('external-provider-cta')).toContainText(`Open ${domain}`);
+      }
       return fullscreen;
     };
     let fullscreen = await openEvent();

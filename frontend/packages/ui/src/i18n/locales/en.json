@@ -9950,6 +9950,9 @@
       "open_source": {
         "text": "Open source page"
       },
+      "open_domain": {
+        "text": "Open {domain}"
+      },
       "additional_times": {
         "text": "Additional times"
       }

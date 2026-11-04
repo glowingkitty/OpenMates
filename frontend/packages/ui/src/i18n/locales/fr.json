@@ -8344,6 +8344,9 @@
       "open_source": {
         "text": "Ouvrir la page source"
       },
+      "open_domain": {
+        "text": "Ouvrir {domain}"
+      },
       "additional_times": {
         "text": "Autres horaires"
       }

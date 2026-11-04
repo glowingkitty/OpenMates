@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeEventResult, projectVisibleEventResult } from '../eventResult';
+import { eventResultSourceDomain, normalizeEventResult, projectVisibleEventResult, validEventCoordinates } from '../eventResult';
 
 // contract-test: supporting surface=gui.web assertions=events-search.surface-parity
 describe('event serialization normalization', () => {
@@ -89,4 +89,21 @@ it('projects provenance for follow-ups while removing nested secrets and UI-only
   expect(JSON.stringify(projected)).not.toContain('private');
   expect(JSON.stringify(projected)).not.toContain('blob:');
   expect(projected.authoring).not.toBe(normalized.authoring);
+});
+
+
+// contract-test: supporting surface=gui.web assertions=events-search.surface-parity
+it('admits only finite, in-range, non-null-island coordinates for event maps', () => {
+  expect(validEventCoordinates('50.81', 4.38)).toEqual({ lat: 50.81, lon: 4.38 });
+  for (const [lat, lon] of [[0, 0], [undefined, 4], [Number.NaN, 4], [91, 0], [10, 181], ['x', 1]] as const) {
+    expect(validEventCoordinates(lat, lon)).toBeUndefined();
+  }
+});
+
+// contract-test: supporting surface=gui.web assertions=events-search.surface-parity
+it('labels the open-website action with the bare hostname and rejects unsafe links', () => {
+  expect(eventResultSourceDomain('https://www.fosdem.org/2027/')).toBe('fosdem.org');
+  expect(eventResultSourceDomain('https://events.linuxfoundation.org/kubecon')).toBe('events.linuxfoundation.org');
+  expect(eventResultSourceDomain('javascript:alert(1)')).toBeUndefined();
+  expect(eventResultSourceDomain(undefined)).toBeUndefined();
 });

@@ -20,6 +20,7 @@ from toon_format import encode, decode
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.cache_reminder_mixin import EMBED_CACHE_EXTENDED_TTL
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.event_embed_enrichment import enrich_event_coordinates
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.shared.python_schemas.embed_status import (
     EmbedStatus,
@@ -5827,6 +5828,7 @@ class EmbedService:
                         child_type, enriched_result = await self._enrich_repo_result_if_needed(
                             child_type, result, log_prefix
                         )
+                        enriched_result = await enrich_event_coordinates(child_type, enriched_result, log_prefix)
 
                         # Generate embed_id for child
                         child_embed_id = self._registered_child_embed_id(embed_id, child_index)
@@ -7262,6 +7264,7 @@ class EmbedService:
                         child_type, enriched_result = await self._enrich_repo_result_if_needed(
                             child_type, result, log_prefix
                         )
+                        enriched_result = await enrich_event_coordinates(child_type, enriched_result, log_prefix)
 
                         # Generate embed_id for child
                         child_embed_id = self._registered_child_embed_id(parent_embed_id, child_index)

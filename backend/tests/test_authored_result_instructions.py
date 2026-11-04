@@ -213,6 +213,17 @@ def test_researched_event_lists_are_answered_with_one_card_per_item_and_a_plain_
     assert "Do not invent facts" in prompt
 
 
+def test_event_cards_get_grounded_paragraph_image_and_venue_guidance_only_for_events():
+    prompt = build_authored_result_instructions(["events.event"], _apps("events.event"))
+    assert prompt is not None
+    assert "4-6 sentences, about 60-120 words" in prompt
+    assert "image search to find an official logo" in prompt
+    assert "omit image_url when no search result supplies one" in prompt
+    assert "never write lat/lon yourself" in prompt
+    recipe = build_authored_result_instructions(["nutrition.recipe"], _apps("nutrition.recipe"))
+    assert recipe is not None and "60-120 words" not in recipe
+
+
 def test_public_criteria_and_catalogue_remain_compact_without_detail_schemas():
     definitions = get_authoring_definitions()
     questions = jev._public_decision_questions(False, definitions)

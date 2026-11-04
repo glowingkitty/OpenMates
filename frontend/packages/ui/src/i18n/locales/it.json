@@ -8344,6 +8344,9 @@
       "open_source": {
         "text": "Apri pagina fonte"
       },
+      "open_domain": {
+        "text": "Apri {domain}"
+      },
       "additional_times": {
         "text": "Altri orari"
       }

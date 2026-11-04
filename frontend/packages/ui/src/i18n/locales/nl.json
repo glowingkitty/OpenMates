@@ -8317,6 +8317,9 @@
       "open_source": {
         "text": "Bronpagina openen"
       },
+      "open_domain": {
+        "text": "{domain} openen"
+      },
       "additional_times": {
         "text": "Andere tijden"
       }

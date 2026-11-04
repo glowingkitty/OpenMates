@@ -13,7 +13,7 @@
 <script lang="ts">
   import { getContext } from 'svelte';
   import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from '../../../types/authoredResult';
-  import { formatEventResultDate, formatEventResultTime, isEventDateOnly, eventResultSourceUrl, normalizeEventResult, projectVisibleEventResult } from './eventResult';
+  import { formatEventResultDate, formatEventResultTime, isEventDateOnly, eventResultSourceDomain, eventResultSourceUrl, normalizeEventResult, validEventCoordinates, projectVisibleEventResult } from './eventResult';
   import { eventCalendarInput, downloadEventResultCalendarFile } from './eventCalendar';
   import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
@@ -139,9 +139,7 @@
 
   // Map data — only when venue has coordinates
   let mapCenter = $derived(
-    !isOnline && event.venue?.lat != null && event.venue?.lon != null
-      ? { lat: event.venue.lat, lon: event.venue.lon }
-      : undefined
+    !isOnline ? validEventCoordinates(event.venue?.lat, event.venue?.lon) : undefined
   );
 
   let mapMarkers = $derived(
@@ -172,7 +170,9 @@
   });
   let openButtonText = $derived.by(() => {
     if (!sourceUrl) return '';
-    return providerLabel ? $text('embeds.open_on_provider').replace('{provider}', providerLabel)
+    if (providerLabel) return $text('embeds.open_on_provider').replace('{provider}', providerLabel);
+    const domain = eventResultSourceDomain(sourceUrl);
+    return domain ? $text('embeds.authoring.open_domain').replace('{domain}', domain)
       : $text('embeds.authoring.open_source');
   });
 

@@ -8317,6 +8317,9 @@
       "open_source": {
         "text": "Kaynak sayfasını aç"
       },
+      "open_domain": {
+        "text": "{domain} adresini aç"
+      },
       "additional_times": {
         "text": "Diğer saatler"
       }

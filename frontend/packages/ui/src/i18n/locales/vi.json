@@ -8317,6 +8317,9 @@
       "open_source": {
         "text": "Mở trang nguồn"
       },
+      "open_domain": {
+        "text": "Mở {domain}"
+      },
       "additional_times": {
         "text": "Các thời gian khác"
       }

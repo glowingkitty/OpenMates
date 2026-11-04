@@ -33,6 +33,15 @@ const number = (value: unknown): number | undefined => {
   return undefined;
 };
 
+/** A map needs a finite, in-range pair; 0/0 ("null island") is a placeholder, not a venue. */
+export function validEventCoordinates(lat: unknown, lon: unknown): { lat: number; lon: number } | undefined {
+  const latitude = number(lat), longitude = number(lon);
+  if (latitude === undefined || longitude === undefined) return;
+  if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return;
+  if (latitude === 0 && longitude === 0) return;
+  return { lat: latitude, lon: longitude };
+}
+
 /** Preserve raw/additive fields while restoring only the known nested event data. */
 export function normalizeEventResult(content: Record<string, unknown>, embedId = string(content.embed_id) || ''): EventResult {
   const venue = record(content.venue) ?? record(content.location)
@@ -174,4 +183,12 @@ export function eventResultSourceUrl(value: unknown): string | undefined {
     const url = new URL(value);
     return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password ? value : undefined;
   } catch { return; }
+}
+
+/** Hostname shown on the open-website button ("fosdem.org"), without a leading www. */
+export function eventResultSourceDomain(value: unknown): string | undefined {
+  const safe = eventResultSourceUrl(value);
+  if (!safe) return;
+  const host = new URL(safe).hostname.replace(/^www\./i, '');
+  return host || undefined;
 }
