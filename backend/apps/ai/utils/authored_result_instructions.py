@@ -88,7 +88,11 @@ _KIND_GUIDANCE: dict[str, str] = {
         "and image search to find an official logo, banner or venue photo and put that exact found "
         "URL in image_url (credit its source in the image attribution when supported); omit image_url "
         "when no search result supplies one. Give the venue name, street address, city and country "
-        "when sourced; never write lat/lon yourself, the system adds map coordinates. "
+        "when sourced; never write lat/lon yourself, the system adds map coordinates. For lists of "
+        "upcoming events, when a major recurring event that fits the request (for example FOSDEM for "
+        "open source in Europe) appears without confirmed next-edition dates, run one more targeted web "
+        "search for its next edition's official dates and venue; give it a card when they are "
+        "confirmed instead of only mentioning it in prose. "
     ),
 }
 

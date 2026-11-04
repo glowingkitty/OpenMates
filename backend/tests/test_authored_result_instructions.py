@@ -220,6 +220,7 @@ def test_event_cards_get_grounded_paragraph_image_and_venue_guidance_only_for_ev
     assert "image search to find an official logo" in prompt
     assert "omit image_url when no search result supplies one" in prompt
     assert "never write lat/lon yourself" in prompt
+    assert "run one more targeted web search for its next edition" in prompt
     recipe = build_authored_result_instructions(["nutrition.recipe"], _apps("nutrition.recipe"))
     assert recipe is not None and "60-120 words" not in recipe
 
