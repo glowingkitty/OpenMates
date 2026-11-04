@@ -234,6 +234,12 @@
     cellDraft = cell.formula ?? cell.content;
   }
 
+  function toggleEditMode() {
+    if (editMode) commitCellEdit();
+    editMode = !editMode;
+    activeCell = null;
+  }
+
   function cellInputAction(node: HTMLInputElement) {
     node.focus();
     node.select();
@@ -535,6 +541,12 @@
   showPIIIncludeOriginal={canIncludeOriginalPII}
   onIncludeOriginalPII={includeOriginalPII}
   skipInitialScrollReset={!!focusSheetRange}
+  onEdit={canEdit ? toggleEditMode : undefined}
+  editActive={editMode}
+  editPlacement="share"
+  editTestId="sheet-edit-toggle"
+  editLabel={$text('common.edit')}
+  reportInMore={true}
 >
   {#snippet content()}
     <div class="sheet-fullscreen">
@@ -569,22 +581,14 @@
         </div>
       {/if}
       
+      <!-- Edit toggle lives in the shared top bar (round pen button before Share).
+           The save status overlays the grid corner so it never shifts the table. -->
       {#if canEdit}
-        <div class="sheet-edit-bar">
-          <button
-            type="button"
-            class="sheet-edit-toggle"
-            class:sheet-edit-toggle-active={editMode}
-            data-testid="sheet-edit-toggle"
-            aria-pressed={editMode}
-            onclick={() => { if (editMode) commitCellEdit(); editMode = !editMode; activeCell = null; }}
-          >{editMode ? $text('common.done') : $text('common.edit')}</button>
-          {#if pendingSaves > 0}
-            <span class="sheet-edit-status" data-testid="sheet-save-status" data-state="saving">{$text('common.save')}…</span>
-          {:else}
-            <span class="sheet-edit-status" data-testid="sheet-save-status" data-state="saved"></span>
-          {/if}
-        </div>
+        {#if pendingSaves > 0}
+          <span class="sheet-edit-status" data-testid="sheet-save-status" data-state="saving" role="status">{$text('common.save')}…</span>
+        {:else}
+          <span class="sheet-edit-status" data-testid="sheet-save-status" data-state="saved" role="status"></span>
+        {/if}
       {/if}
 
       <!-- Filter action bar — only shown when filter is toggled on -->
@@ -697,6 +701,7 @@
                         data-testid="sheet-cell"
                         data-cell={`${colIndexToLetter(colIndex)}${rowIndex + 1}`}
                         data-formula={cell.formula ?? undefined}
+                        title={cell.formula ?? undefined}
                         role="gridcell"
                         tabindex="0"
                         onclick={() => startCellEdit(rowIndex, colIndex, cell)}
@@ -705,9 +710,9 @@
                     {:else if linkHtml}
                       <!-- Cell contains inline links — render as HTML with placeholders -->
                       <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is HTML-escaped via embedLinkUtils.escapeHtml() -->
-                      <td class:sheet-cell-highlight={focusedCells.has(`${rowIndex}:${colIndex}`)} data-testid="sheet-cell" data-cell={`${colIndexToLetter(colIndex)}${rowIndex + 1}`}>{@html linkHtml}</td>
+                      <td class:sheet-cell-highlight={focusedCells.has(`${rowIndex}:${colIndex}`)} class:sheet-cell-formula={!!cell.formula} data-testid="sheet-cell" data-cell={`${colIndexToLetter(colIndex)}${rowIndex + 1}`} data-formula={cell.formula ?? undefined} title={cell.formula ?? undefined}>{@html linkHtml}</td>
                     {:else}
-                      <td class:sheet-cell-highlight={focusedCells.has(`${rowIndex}:${colIndex}`)} class:sheet-cell-formula={!!cell.formula} data-testid="sheet-cell" data-cell={`${colIndexToLetter(colIndex)}${rowIndex + 1}`}>{cell.content}</td>
+                      <td class:sheet-cell-highlight={focusedCells.has(`${rowIndex}:${colIndex}`)} class:sheet-cell-formula={!!cell.formula} data-testid="sheet-cell" data-cell={`${colIndexToLetter(colIndex)}${rowIndex + 1}`} data-formula={cell.formula ?? undefined} title={cell.formula ?? undefined} tabindex={cell.formula ? 0 : undefined}>{cell.content}</td>
                     {/if}
                   {/each}
                 </tr>
@@ -761,6 +766,7 @@
      the page background colour so the table edge aligns cleanly.
      We target the parent classes via :global() from within this scope. */
   .sheet-fullscreen {
+    position: relative;
     display: flex;
     flex-direction: column;
     width: 100%;
@@ -836,33 +842,27 @@
     max-width: 180px;
   }
   
-  .sheet-edit-bar {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-4);
-    padding: var(--spacing-3) var(--spacing-6);
-  }
-  .sheet-edit-toggle {
-    padding: var(--spacing-2) var(--spacing-6);
-    border-radius: var(--radius-2);
-    border: 1px solid var(--color-grey-30);
-    background: var(--color-grey-0);
-    color: var(--color-font-primary);
-    cursor: pointer;
-  }
-  .sheet-edit-toggle-active {
-    background: var(--color-primary-start);
-    color: var(--color-grey-0);
-  }
   .sheet-edit-status {
+    position: absolute;
+    top: var(--spacing-2);
+    right: var(--spacing-6);
+    z-index: var(--z-index-raised-3);
+    pointer-events: none;
     color: var(--color-font-secondary);
-    font-size: var(--font-size-small);
+    font-size: var(--font-size-xxs);
   }
   .spreadsheet td.sheet-cell-editable {
     cursor: cell;
   }
-  .spreadsheet td.sheet-cell-formula {
+  /* Calculated (formula) cells: dark-orange italic value so they stand apart
+     from text and hard-coded numbers. Formula text: title + data-formula. */
+  .spreadsheet tbody td.sheet-cell-formula {
+    color: var(--color-sheet-formula);
     font-style: italic;
+  }
+  .spreadsheet td.sheet-cell-formula:focus-visible {
+    outline: 2px solid var(--color-primary-start);
+    outline-offset: -2px;
   }
   .spreadsheet td.sheet-cell-editing {
     padding: 0;
@@ -917,17 +917,27 @@
   
   /* ── Spreadsheet wrapper — scrolls both axes ───────────── */
   
+  /* The grid starts below the gradient banner, which already clears the
+     floating top bar. No padding-top here: sticky header offsets are measured
+     from the scroll container's padding edge, so a top padding left a band in
+     which scrolled rows showed ABOVE the sticky header rows. */
   .spreadsheet-wrapper {
     flex: 1;
+    min-height: 0;
     overflow: auto;
-    /* Top padding to clear the floating top-bar buttons (~70px) */
-    padding-top: 70px;
+    margin-top: var(--spacing-8);
   }
   
   /* ── Table: theme-adaptive, thin grid, no rounding ──────── */
   
+  /* Separate (not collapsed) borders: Chromium mis-paints sticky header cells
+     in collapsed-border tables inside an offset scroller — scrolled data rows
+     showed through and above the sticky header. Each cell draws only its
+     right/bottom edge; the outer top/left edges come from the header row and
+     the row-number gutter, so the grid still looks single-lined. */
   .spreadsheet {
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     font-size: var(--font-size-xs);
     line-height: 1.4;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -943,7 +953,9 @@
   /* All cells: thin grey border on every edge */
   .spreadsheet th,
   .spreadsheet td {
-    border: 1px solid var(--color-grey-25);
+    border: 0;
+    border-right: 1px solid var(--color-grey-25);
+    border-bottom: 1px solid var(--color-grey-25);
     padding: var(--spacing-3) var(--spacing-6);
     text-align: left;
     vertical-align: top;
@@ -957,17 +969,26 @@
   
   /* ── Header rows ─────────────────────────────────────── */
   
+  /* The whole header block (letter row + name row) is ONE sticky unit with an
+     opaque background. Per-cell sticky offsets drifted from the real row
+     heights (gutter filter button, mobile padding) and let scrolled data rows
+     show through the gaps between the two header rows. */
+  .spreadsheet thead {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-index-raised-2);
+    background: var(--color-grey-10);
+  }
+
   .spreadsheet thead th {
     background: var(--color-grey-10);
     font-weight: 600;
     color: var(--color-font-primary);
-    position: sticky;
-    z-index: var(--z-index-raised-2);
   }
   
   /* Column letter row (A, B, C...) — sits at the very top */
   .col-letter-row th {
-    top: 0;
+    border-top: 1px solid var(--color-grey-25);
     border-bottom: 1px solid var(--color-grey-30);
     font-weight: 500;
     font-size: var(--font-size-tiny);
@@ -985,10 +1006,8 @@
     user-select: none;
   }
   
-  /* Data header row — offset below the column-letter row */
+  /* Data header row — directly below the column-letter row */
   .spreadsheet thead tr:nth-child(2) th {
-    /* Height of col-letter row: ~24px (2px padding + 11px font + borders) */
-    top: 25px;
     border-bottom: 2px solid var(--color-grey-30);
   }
   
@@ -1043,6 +1062,7 @@
     max-width: 40px;
     padding: var(--spacing-3) var(--spacing-2);
     user-select: none;
+    border-left: 1px solid var(--color-grey-25);
     border-right: 2px solid var(--color-grey-30);
   }
   

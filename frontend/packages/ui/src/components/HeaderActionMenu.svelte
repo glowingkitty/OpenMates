@@ -28,6 +28,8 @@
     triggerTestId,
     menuTestId,
     compactMoreOnly = false,
+    reportInMenu = false,
+    leadingAction,
   }: {
     report: Snippet;
     share: Snippet;
@@ -44,6 +46,10 @@
     triggerTestId?: string;
     menuTestId?: string;
     compactMoreOnly?: boolean;
+    /** Opt-in: list Report Issue inside More instead of the primary row. */
+    reportInMenu?: boolean;
+    /** Opt-in: an always-visible action rendered directly before Share/More. */
+    leadingAction?: Snippet;
   } = $props();
   const SHARE_MIN_WIDTH = 460;
   const REPORT_LABEL_MIN_WIDTH = 640;
@@ -64,7 +70,7 @@
   const menuId = $props.id();
   const overflowCount = $derived(actionCount + Number(hasShare && (hasPriorityAction || containerWidth < SHARE_MIN_WIDTH)));
   // Keep Share in More whenever sensitive-data controls occupy the primary slot.
-  const hasOverflowActions = $derived(compactMoreOnly || forceOverflow || overflowCount >= 2 || (hasPriorityAction && overflowCount > 0));
+  const hasOverflowActions = $derived(compactMoreOnly || forceOverflow || reportInMenu || overflowCount >= 2 || (hasPriorityAction && overflowCount > 0));
 
   $effect(() => {
     if (!hasOverflowActions) open = false;
@@ -196,12 +202,15 @@
 >
   <div class="primary-actions">
     {#if !compactMoreOnly}
+    {#if !reportInMenu}
     <div
       class="report-action"
       class:show-label={containerWidth >= REPORT_LABEL_MIN_WIDTH}
     >
       {@render report()}
     </div>
+    {/if}
+    {#if leadingAction}<div class="leading-action">{@render leadingAction()}</div>{/if}
     {#if hasPriorityAction && priorityAction}
       <div class="priority-action">{@render priorityAction()}</div>
     {:else if hasShare && containerWidth >= SHARE_MIN_WIDTH}<div class="share-action">
@@ -209,7 +218,7 @@
       </div>{/if}
     {@render restoreChat?.()}
     {/if}
-    {#if !compactMoreOnly && overflowCount === 1 && !hasPriorityAction && !forceOverflow}
+    {#if !compactMoreOnly && overflowCount === 1 && !hasPriorityAction && !forceOverflow && !reportInMenu}
       <div class="direct-action">
         {#if hasShare && containerWidth < SHARE_MIN_WIDTH}{@render share()}{/if}
         {#if actionCount === 1}{@render actions()}{/if}
@@ -266,7 +275,7 @@
             ><span class="page-triangle" aria-hidden="true"></span></button>
           {/if}
           <div class="more-page" bind:this={pageHost}>
-            {#if compactMoreOnly}{@render report()}{/if}
+            {#if compactMoreOnly || reportInMenu}{@render report()}{/if}
             {#if hasShare && (compactMoreOnly || hasPriorityAction || containerWidth < SHARE_MIN_WIDTH)}{@render share()}{/if}
             {#if compactMoreOnly && hasPriorityAction && priorityAction}{@render priorityAction()}{/if}
             {@render actions()}

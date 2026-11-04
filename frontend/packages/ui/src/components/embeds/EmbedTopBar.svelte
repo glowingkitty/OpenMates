@@ -59,6 +59,12 @@
     /** Optional primary edit action beside Close for editable embeds. */
     onEdit?: () => void;
     editActive?: boolean;
+    /** 'close' (default) keeps Edit beside Close; 'share' shows it before Share. */
+    editPlacement?: 'close' | 'share';
+    editTestId?: string;
+    editLabel?: string;
+    /** Opt-in: Report Issue is listed in More instead of the primary row. */
+    reportInMore?: boolean;
     closeTestId?: string;
     onShare?: () => void;
     onCopy?: () => void;
@@ -100,6 +106,10 @@
     onClose,
     onEdit,
     editActive = false,
+    editPlacement = 'close',
+    editTestId = 'embed-edit-button',
+    editLabel,
+    reportInMore = false,
     closeTestId = 'embed-minimize',
     onShare,
     onCopy,
@@ -142,8 +152,19 @@
   ].filter(Boolean).length + (headerActions ? Math.max(1, headerActionCount) : 0));
 </script>
 
+{#snippet editButton()}
+  <div class="button-wrapper" class:edit-active={editActive}>
+    <button class="header-action" type="button" use:tooltip data-testid={editTestId}
+      onclick={onEdit} aria-label={editLabel ?? $text('diagrams.edit')}
+      aria-pressed={editActive}>
+      <span class="clickable-icon edit-icon top-button" data-testid="embed-edit-icon" aria-hidden="true"></span>
+      <span class="action-label">{editLabel ?? $text('diagrams.edit')}</span>
+    </button>
+  </div>
+{/snippet}
+
 <div class="embed-top-bar" use:headerOverlayControls>
-  <HeaderActionMenu hasShare={showShare} hasPriorityAction={Boolean((showPIIToggle && onTogglePII) || headerPrimaryAction)} actionCount={secondaryActionCount} forceOverflow={!!onImport}>
+  <HeaderActionMenu reportInMenu={reportInMore} leadingAction={onEdit && editPlacement === 'share' ? editButton : undefined} hasShare={showShare} hasPriorityAction={Boolean((showPIIToggle && onTogglePII) || headerPrimaryAction)} actionCount={secondaryActionCount} forceOverflow={!!onImport}>
     {#snippet report()}
       <!-- Report Issue (always shown) -->
       <div class="button-wrapper">
@@ -392,16 +413,7 @@
       {/if}{/snippet}
     {#snippet close()}
       <div class="close-action-row">
-        {#if onEdit}
-        <div class="button-wrapper">
-          <button class="header-action" type="button" use:tooltip data-testid="embed-edit-button"
-            onclick={onEdit} aria-label={$text('diagrams.edit')}
-            aria-pressed={editActive}>
-            <span class="clickable-icon edit-icon top-button" data-testid="embed-edit-icon" aria-hidden="true"></span>
-            <span class="action-label">{$text('diagrams.edit')}</span>
-          </button>
-        </div>
-        {/if}
+        {#if onEdit && editPlacement === 'close'}{@render editButton()}{/if}
         <div class="button-wrapper">
         <button
           class="header-action"
@@ -421,6 +433,14 @@
 <style>
   .primary-action-group { display: flex; align-items: center; gap: var(--spacing-4); }
   .edit-icon { -webkit-mask-image: url('@openmates/ui/static/icons/edit.svg'); mask-image: url('@openmates/ui/static/icons/edit.svg'); }
+  /* Pressed edit toggle: filled primary pill with a white pen; over the banner
+     a stronger translucent fill plus a white ring keeps the state legible. */
+  .button-wrapper.edit-active { background-color: var(--color-primary-start); }
+  .button-wrapper.edit-active .clickable-icon.top-button { filter: brightness(0) invert(1); }
+  .button-wrapper.edit-active:global([data-header-overlay]) {
+    background-color: rgb(255 255 255 / 45%) !important;
+    box-shadow: inset 0 0 0 2px #fff, var(--shadow-md);
+  }
   .close-action-row { display: flex; align-items: center; gap: var(--spacing-4); }
   .import-icon { -webkit-mask-image: var(--icon-url-upload); mask-image: var(--icon-url-upload); }
   /* Top bar overlays the gradient header — position absolute so the header

@@ -345,9 +345,9 @@
                     {@const wikiHtml = replaceWikiLinksInText(cleanCellContent)}
                     {#if wikiHtml}
                       <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is HTML-escaped via embedLinkUtils.escapeHtml() -->
-                      <td>{@html wikiHtml}</td>
+                      <td class:sheet-cell-formula={!!cell.formula} data-formula={cell.formula ?? undefined} title={cell.formula ?? undefined}>{@html wikiHtml}</td>
                     {:else}
-                      <td>{cleanCellContent}</td>
+                      <td class:sheet-cell-formula={!!cell.formula} data-formula={cell.formula ?? undefined} title={cell.formula ?? undefined}>{cleanCellContent}</td>
                     {/if}
                   {/each}
                   {#if hiddenColCount > 0}
@@ -479,6 +479,12 @@
     white-space: nowrap;
   }
   
+  /* Calculated (formula) cells: dark-orange italic value (formula in title). */
+  .preview-table td.sheet-cell-formula {
+    color: var(--color-sheet-formula);
+    font-style: italic;
+  }
+
   .preview-table tbody tr:nth-child(even) td {
     background: var(--color-grey-10);
   }

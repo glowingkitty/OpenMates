@@ -104,6 +104,11 @@
     /** Optional primary edit action in the top-right chrome. */
     onEdit?: () => void;
     editActive?: boolean;
+    /** Opt-in Edit placement/labels and Report-in-More layout (see EmbedTopBar). */
+    editPlacement?: 'close' | 'share';
+    editTestId?: string;
+    editLabel?: string;
+    reportInMore?: boolean;
     /** Optional artboard surround color for embeds with their own page background. */
     contentBackgroundColor?: string;
     /** Chat embeds close on chat selection; independent workspace details do not. */
@@ -382,6 +387,10 @@
     onClose,
     onEdit,
     editActive = false,
+    editPlacement = 'close',
+    editTestId = 'embed-edit-button',
+    editLabel,
+    reportInMore = false,
     contentBackgroundColor,
     closeOnChatSelection = fullscreenLifetime?.closeOnChatSelection ?? true,
     owningChatId,
@@ -1524,6 +1533,10 @@
       onClose={handleClose}
       {onEdit}
       {editActive}
+      {editPlacement}
+      {editTestId}
+      {editLabel}
+      {reportInMore}
       {closeTestId}
       onShare={handleShare}
       onCopy={handleCopy}
