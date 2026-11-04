@@ -15,6 +15,7 @@ Commands:
   check    One evaluation; delivers when triggered (--dry-run prints instead).
   watch    Repeat ``check`` every --interval seconds (run in the background).
   message  Print the wrap-up message that would be sent.
+  resend   One-time follow-up with the current message to the chats already messaged this window.
   ping     Delivery self-test: send a harmless test line to one chat (--to NAME).
 """
 
@@ -315,6 +316,33 @@ def run_ping(name: str) -> int:
     return 0
 
 
+def run_resend(directory: Path | None = None, now: datetime | None = None) -> int:
+    """One-time follow-up with the current message to the chats of this window's first message."""
+    directory = directory or state_dir()
+    now = now or datetime.now(timezone.utc)
+    used, resets = fetch_weekly_usage()
+    record = load_record(directory)
+    if not record or record.get("window") != window_key(resets) or not record.get("sent_at"):
+        raise DeliveryFailed("nothing was sent in this weekly window, so there is nothing to follow up")
+    if record.get("resent_at"):
+        raise DeliveryFailed(f"follow-up already sent at {record['resent_at']}")
+    own = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
+    targets = [t for t in record.get("targets", []) if t.get("sessionId") != own]
+    if not targets:
+        raise DeliveryFailed("the first message had no targets")
+    root = repository_root(Path.cwd())
+    mode, warning = sender_mode(targets)
+    if warning:
+        record["warning"] = warning
+        log(warning)
+    hours = (resets - now).total_seconds() / 3600
+    record["resent_result"] = deliver(targets, wrapup_message(used, resets, hours), root, mode)
+    record["resent_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    save_record(directory, record)
+    log(f"follow-up delivered to {len(targets)} chats: {record['resent_result'][:300]}")
+    return 0
+
+
 def run_status(threshold: float, min_hours: float) -> int:
     used, resets = fetch_weekly_usage()
     record = load_record(state_dir())
@@ -330,7 +358,7 @@ def run_status(threshold: float, min_hours: float) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("command", choices=["status", "check", "watch", "message", "ping"])
+    parser.add_argument("command", choices=["status", "check", "watch", "message", "ping", "resend"])
     parser.add_argument("--to", help="chat name for ping")
     parser.add_argument("--threshold", type=float, default=THRESHOLD_PERCENT)
     parser.add_argument("--min-hours", type=float, default=MIN_HOURS_TO_RESET)
@@ -345,6 +373,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "status":
             return run_status(args.threshold, args.min_hours)
+        if args.command == "resend":
+            return run_resend()
         if args.command == "ping":
             return run_ping(args.to or "")
         if args.command == "check":

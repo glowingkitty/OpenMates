@@ -126,3 +126,32 @@ def test_failed_delivery_is_retried_then_abandoned(tmp_path: Path, monkeypatch) 
     monkeypatch.setattr(guard, "deliver", fail)
     actions = [guard.run_check(False, 90, 24, 30, tmp_path, NOW).action for _ in range(guard.MAX_ATTEMPTS + 1)]
     assert actions == ["trigger"] * guard.MAX_ATTEMPTS + ["gave_up"]
+
+
+def test_resend_follows_up_once_to_the_recorded_chats(tmp_path: Path, monkeypatch) -> None:
+    reset = resets_in(48)
+    guard.save_record(tmp_path, {"window": guard.window_key(reset), "sent_at": "x", "targets": [
+        {"name": "a", "sessionId": "s1", "permissionMode": "auto"},
+        {"name": "me", "sessionId": "own", "permissionMode": "auto"}]})
+    monkeypatch.setattr(guard, "fetch_weekly_usage", lambda: (91.0, reset))
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "own")
+    sent: list[list[str]] = []
+    monkeypatch.setattr(guard, "deliver", lambda targets, message, root, mode: sent.append([t["name"] for t in targets]) or "ok")
+    assert guard.run_resend(tmp_path, NOW) == 0
+    assert sent == [["a"]]
+    try:
+        guard.run_resend(tmp_path, NOW)
+    except guard.DeliveryFailed as error:
+        assert "already sent" in str(error)
+    else:
+        raise AssertionError("second follow-up must be refused")
+
+
+def test_resend_refused_when_nothing_was_sent(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(guard, "fetch_weekly_usage", lambda: (91.0, resets_in(48)))
+    try:
+        guard.run_resend(tmp_path, NOW)
+    except guard.DeliveryFailed as error:
+        assert "nothing was sent" in str(error)
+    else:
+        raise AssertionError("resend without a first message must be refused")
