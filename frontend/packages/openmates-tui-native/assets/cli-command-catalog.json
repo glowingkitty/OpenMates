@@ -940,6 +940,9 @@
       "caddy-profile",
       "category",
       "channel",
+      "collector-cert",
+      "collector-tls-cert",
+      "collector-url",
       "compact",
       "config",
       "confirm-spend-credits",
@@ -971,6 +974,7 @@
       "keep-data",
       "model",
       "name",
+      "no-enable",
       "official-cloud",
       "openmates-cloud-path",
       "openmatescloud-path",
@@ -2940,6 +2944,45 @@
           "path": "frontend/packages/openmates-cli/src/cli.ts",
           "line": 15229,
           "symbol": "printAppsHelp"
+        }
+      ]
+    },
+    {
+      "long": "collector-cert",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/server/host_reporter.rs",
+          "line": 1,
+          "symbol": "execute"
+        }
+      ]
+    },
+    {
+      "long": "collector-tls-cert",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/server/host_reporter.rs",
+          "line": 1,
+          "symbol": "execute"
+        }
+      ]
+    },
+    {
+      "long": "collector-url",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/server/host_reporter.rs",
+          "line": 1,
+          "symbol": "execute"
         }
       ]
     },
@@ -11834,6 +11877,19 @@
         }
       ],
       "native_semantics": "Registry entry only; generated-file download suppression requires per-handler support and validation."
+    },
+    {
+      "long": "no-enable",
+      "arity": "switch",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/server/host_reporter.rs",
+          "line": 1,
+          "symbol": "execute"
+        }
+      ]
     },
     {
       "long": "no-internet",
@@ -50650,6 +50706,176 @@
     {
       "path": [
         "server",
+        "host-reporter"
+      ],
+      "summary": "Install, inspect or remove the signed host software reporter",
+      "usages": [
+        "server host-reporter"
+      ],
+      "positionals": [],
+      "flags": [
+        "api-key",
+        "api-url",
+        "help",
+        "json",
+        "profile"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/server/host_reporter.rs",
+          "line": 1,
+          "symbol": "execute"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
+        "owner": "native_server_worker"
+      },
+      "gaps": [
+        "Native-only command (no npm CLI counterpart); Linux systemd only, platform verification on core/upload/preview servers pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "server",
+        "host-reporter",
+        "install"
+      ],
+      "summary": "Install or update the host reporter (systemd units, apt hook, collector allowlist, signing key)",
+      "usages": [
+        "server host-reporter install --role core|upload|preview --collector-url https://<collector-private-ip>:<port>/v1/host-report --collector-cert FILE --collector-tls-cert FILE [--no-enable] [--dry-run]"
+      ],
+      "positionals": [],
+      "flags": [
+        "api-key",
+        "api-url",
+        "collector-cert",
+        "collector-tls-cert",
+        "collector-url",
+        "dry-run",
+        "help",
+        "json",
+        "no-enable",
+        "profile",
+        "role"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/server/host_reporter.rs",
+          "line": 1,
+          "symbol": "execute"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
+        "owner": "native_server_worker"
+      },
+      "gaps": [
+        "Native-only command (no npm CLI counterpart); Linux systemd only, platform verification on core/upload/preview servers pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "server",
+        "host-reporter",
+        "status"
+      ],
+      "summary": "Show the host reporter timer, last run and last push outcome",
+      "usages": [
+        "server host-reporter status"
+      ],
+      "positionals": [],
+      "flags": [
+        "api-key",
+        "api-url",
+        "help",
+        "json",
+        "profile"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/server/host_reporter.rs",
+          "line": 1,
+          "symbol": "execute"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
+        "owner": "native_server_worker"
+      },
+      "gaps": [
+        "Native-only command (no npm CLI counterpart); Linux systemd only, platform verification on core/upload/preview servers pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "server",
+        "host-reporter",
+        "uninstall"
+      ],
+      "summary": "Remove the host reporter, its units, configuration and signing key",
+      "usages": [
+        "server host-reporter uninstall --yes"
+      ],
+      "positionals": [],
+      "flags": [
+        "api-key",
+        "api-url",
+        "help",
+        "json",
+        "profile",
+        "yes"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/server/host_reporter.rs",
+          "line": 1,
+          "symbol": "execute"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
+        "owner": "native_server_worker"
+      },
+      "gaps": [
+        "Native-only command (no npm CLI counterpart); Linux systemd only, platform verification on core/upload/preview servers pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "server",
         "notifications"
       ],
       "summary": "Send labeled runtime-health notification delivery tests",
@@ -62137,9 +62363,9 @@
     "Remote command protection is Linux-specific; unsupported hosts must fail closed."
   ],
   "coverage": {
-    "command_patterns": 720,
-    "flags": 604,
-    "native_handlers_partial": 707,
+    "command_patterns": 724,
+    "flags": 608,
+    "native_handlers_partial": 711,
     "unsupported": 13,
     "feature_complete": false
   },

@@ -49,7 +49,7 @@ jobs:
       TOOLCHAIN: '1.98.1'
       CHECK: python3 scripts/ci_rust_checks.py run
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
       - name: Install Rust ${{ env.TOOLCHAIN }} with fmt, clippy and wasm32
@@ -64,7 +64,7 @@ jobs:
             --component rustfmt,clippy --target wasm32-unknown-unknown
           rustup default "$TOOLCHAIN"
           rustc -vV
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '24'
       - name: Install TypeScript for the SDK web-decoder interop tests
@@ -81,7 +81,7 @@ jobs:
       # One cache for the workspace, keyed on the root Cargo.lock. A lockfile
       # change falls back to the newest entry, so unchanged dependencies stay
       # warm. Save on failure too: failing tests must not force the next run cold.
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           shared-key: workspace
           workspaces: '. -> target'
@@ -112,7 +112,7 @@ jobs:
 
       - name: Upload release CLI and WASM
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: openmates-rust-${{ runner.arch }}-${{ github.sha }}
           retention-days: 14
@@ -122,7 +122,7 @@ jobs:
             target/wasm32-unknown-unknown/release/openmates_browser_bindings.wasm
       - name: Upload check logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: rust-check-logs-${{ runner.arch }}
           retention-days: 7

@@ -9,6 +9,7 @@ mod cleanup;
 mod configuration;
 mod data;
 mod fs;
+mod host_reporter;
 mod local_models;
 mod monitoring;
 mod notifications;
@@ -1059,6 +1060,16 @@ fn validate_options(action: &str, args: &[String], flags: &Flags) -> Result<()> 
         "monitoring install-service" => &["role", "dry-run"],
         "monitoring report-watchdog" => &["role"],
         "monitoring digest" => &["role", "channel", "test"],
+        "host-reporter" | "host-reporter status" => &[],
+        "host-reporter install" => &[
+            "role",
+            "collector-url",
+            "collector-cert",
+            "collector-tls-cert",
+            "no-enable",
+            "dry-run",
+        ],
+        "host-reporter uninstall" => &["yes"],
         "notifications test" => &["role", "channel", "event-kind", "compact"],
         "env" | "env list" => &["role", "category"],
         "env get" => &["role"],
@@ -1250,6 +1261,10 @@ pub async fn execute_cancellable(
             }
             if action == "register" {
                 return configuration::register(&flags, &state);
+            }
+            // Host-level systemd service; independent of any server.json installation.
+            if action == "host-reporter" || action.starts_with("host-reporter ") {
+                return host_reporter::execute(&action, &flags);
             }
             let saved = config(&state)?;
             let selected_path = match text(&flags, "path") {

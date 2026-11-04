@@ -31,6 +31,17 @@ for name in (
     "caddy/preview/Caddyfile",
 ):
     FILES["assets/selfhost/" + name] = str(TEMPLATES / name)
+# Host reporter payload installed by `openmates server host-reporter install`
+# (source of truth: deployment/host_reporter/).
+for name in (
+    "openmates-host-reporter",
+    "README.md",
+    "systemd/openmates-host-facts-privileged.service",
+    "systemd/openmates-host-reporter.service",
+    "systemd/openmates-host-reporter.timer",
+    "systemd/99openmates-host-report",
+):
+    FILES["assets/host_reporter/" + name] = "deployment/host_reporter/" + name
 
 
 def synchronize(root: Path = ROOT, *, check: bool = False) -> dict:

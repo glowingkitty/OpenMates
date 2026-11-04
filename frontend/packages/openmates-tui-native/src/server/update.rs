@@ -778,6 +778,10 @@ pub(super) fn execute(
             step(c, &target, "monitoring-service")?;
             monitoring::execute("monitoring install-service", c, &Flags::new())?;
         }
+        // Refresh an already-configured host reporter and record running image
+        // digests for it; an unconfigured reporter is never installed here.
+        step(c, &target, "host-reporter")?;
+        let host_reporter = host_reporter::after_update(c)?;
         let revision = provenance(c, &target)?;
         let installed = if c.install_mode == "image" {
             target.clone()
@@ -801,7 +805,7 @@ pub(super) fn execute(
             ));
         }
         Ok(
-            json!({"command":"update","status":"success","mode":c.install_mode,"targetImageTag":target,"runtimeVerification":runtime,"completionEmailDelivery":delivery}),
+            json!({"command":"update","status":"success","mode":c.install_mode,"targetImageTag":target,"runtimeVerification":runtime,"hostReporter":host_reporter,"completionEmailDelivery":delivery}),
         )
     })();
     if result.is_err() {

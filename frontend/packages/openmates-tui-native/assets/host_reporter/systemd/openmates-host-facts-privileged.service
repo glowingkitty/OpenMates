@@ -1,0 +1,47 @@
+# Root pre-step for the OpenMates host reporter.
+# Reads root-only SSH, account, sudoers, socket-owner and package-integrity
+# facts and writes a sanitized JSON file (mode 0600) that the unprivileged
+# reporter receives via LoadCredential=. It has no IP networking, cannot write
+# outside its runtime directory and keeps only read capabilities.
+[Unit]
+Description=OpenMates host facts (privileged, read-only collection)
+Documentation=file:///usr/local/lib/openmates/host-reporter/README.md
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/bin/python3 -I /usr/local/lib/openmates/host-reporter/openmates-host-reporter collect-privileged --output /run/openmates-host-facts
+RuntimeDirectory=openmates-host-facts
+RuntimeDirectoryMode=0700
+# Keep facts.json after this oneshot exits so the reporter can load it.
+RuntimeDirectoryPreserve=yes
+UMask=0077
+# Read any file (sshd host keys, sudoers, authorized_keys, package files) and
+# see socket owners for `ss -p`; nothing that writes or changes ownership.
+CapabilityBoundingSet=CAP_DAC_READ_SEARCH CAP_SYS_PTRACE
+AmbientCapabilities=
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @mount @swap @reboot @module @raw-io @clock @cpu-emulation @debug @obsolete
+# Netlink is required for `ss`; no IP sockets at all.
+RestrictAddressFamilies=AF_UNIX AF_NETLINK
+IPAddressDeny=any
+Nice=19
+IOSchedulingClass=idle
+TimeoutStartSec=45min

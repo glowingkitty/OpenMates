@@ -55,7 +55,7 @@ jobs:
           set -euo pipefail
           [[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "checkout_ref must be a full 40-character commit SHA"; exit 1; }
           echo "checkout_ref=$TARGET_SHA" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ steps.target.outputs.checkout_ref }}
           fetch-depth: 0

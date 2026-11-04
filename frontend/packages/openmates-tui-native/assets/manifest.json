@@ -9,12 +9,42 @@
     {
       "path": "assets/cli-command-catalog.json",
       "source": "config/cli-command-catalog.json",
-      "sha256": "3146b126a5fb6c4f8415226f66b62738f18e5dbb9dc0c5cc96a207f6a9a6ffdf"
+      "sha256": "f5e63e843ff8aed151b06923e50084773d02306e216e40afe8d087c796098573"
     },
     {
       "path": "assets/example-chat-index.json",
       "source": "config/cli-example-chat-index.json",
       "sha256": "6359504ab78ef48a86e54064c1df21e3c71e4af4f0c0668d910c5dacdf411220"
+    },
+    {
+      "path": "assets/host_reporter/README.md",
+      "source": "deployment/host_reporter/README.md",
+      "sha256": "2b1006bfb439452313b872d07c43807c2c9aa5ae99c45f21759cd3f3fc07ef3b"
+    },
+    {
+      "path": "assets/host_reporter/openmates-host-reporter",
+      "source": "deployment/host_reporter/openmates-host-reporter",
+      "sha256": "d18f28e2aeceec003a393289aa8d8239f2e63679099660f8f97c46141bf13cbf"
+    },
+    {
+      "path": "assets/host_reporter/systemd/99openmates-host-report",
+      "source": "deployment/host_reporter/systemd/99openmates-host-report",
+      "sha256": "c7b3f508718747bba6eeb0c835c79ebf6f59755419f2ff276f4d178524132169"
+    },
+    {
+      "path": "assets/host_reporter/systemd/openmates-host-facts-privileged.service",
+      "source": "deployment/host_reporter/systemd/openmates-host-facts-privileged.service",
+      "sha256": "518401f90123e842f3674d55ea1b5ac11f48a389f9670ebf1614cecc4d973fe7"
+    },
+    {
+      "path": "assets/host_reporter/systemd/openmates-host-reporter.service",
+      "source": "deployment/host_reporter/systemd/openmates-host-reporter.service",
+      "sha256": "5b44b4a336afa0ee32ca55be32dcc79c2098d25fd680e99b11fe946aa15c2cf5"
+    },
+    {
+      "path": "assets/host_reporter/systemd/openmates-host-reporter.timer",
+      "source": "deployment/host_reporter/systemd/openmates-host-reporter.timer",
+      "sha256": "9b49ef9affb0078e2f4b41abb03b184a5ad602081dca7e421c3f914ac212f7c0"
     },
     {
       "path": "assets/licenses/legacy-cli-MIT.txt",

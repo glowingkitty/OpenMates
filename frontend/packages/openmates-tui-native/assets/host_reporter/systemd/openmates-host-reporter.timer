@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily OpenMates host software report
+
+[Timer]
+OnBootSec=10min
+OnCalendar=daily
+RandomizedDelaySec=2h
+Persistent=true
+Unit=openmates-host-reporter.service
+
+[Install]
+WantedBy=timers.target

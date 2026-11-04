@@ -3,6 +3,9 @@ packages:
   - "frontend/packages/*"
   - "tooling/*"
 
-# Delay newly published package versions so fast-moving supply-chain attacks
-# can be detected and removed before CI resolves them.
-minimumReleaseAge: 2880
+# Routine dependency policy: resolve only versions published at least 7 days
+# ago (10080 minutes) so fast-moving supply-chain attacks can be detected and
+# removed before CI resolves them. Security fixes follow the 72-hour rules in
+# specifications/architecture/security-monitoring (scripts/security_monitoring/
+# release_age.py) and are applied with an explicit, reviewed exception.
+minimumReleaseAge: 10080

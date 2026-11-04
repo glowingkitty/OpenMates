@@ -1,0 +1,45 @@
+# Dev-host collector for OpenMates host reports. NOT installed automatically.
+# Replace @OPENMATES_ROOT@ (canonical checkout) and @OPERATOR_USER@ before
+# installing, and add a drop-in with one IPAddressAllow=<server-private-ip>/32
+# line per reporting server (see deployment/host_reporter/README.md).
+# The bind address comes from SECURITY_HOST_COLLECTOR_BIND in @OPENMATES_ROOT@/.env
+# (gitignored); the collector refuses to start without it or on a non-private address.
+[Unit]
+Description=OpenMates host report collector (private network only)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@OPERATOR_USER@
+WorkingDirectory=@OPENMATES_ROOT@
+ExecStart=/usr/bin/python3 -I @OPENMATES_ROOT@/scripts/security_monitoring/host_collector.py serve
+Restart=on-failure
+RestartSec=30
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ReadWritePaths=@OPENMATES_ROOT@/logs/security-monitoring
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+# Servers are allowed by an operator drop-in (IPAddressAllow=<server-private-ip>/32).
+IPAddressDeny=any
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

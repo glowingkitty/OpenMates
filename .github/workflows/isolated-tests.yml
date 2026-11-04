@@ -193,13 +193,13 @@ jobs:
               output.write(f'CI_SDK_STARTED_MONOTONIC={started}\n')
               output.write(f'CI_SDK_DEADLINE_MONOTONIC={started + 5400}\n')
           PYSDK
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && 15 || 360 }}
         with:
           ref: ${{ inputs.checkout_ref }}
           path: subject
           persist-credentials: false
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && 15 || 360 }}
         with:
           ref: ${{ inputs.harness_commit || github.sha }}
@@ -301,12 +301,12 @@ jobs:
           echo "BUILD_COMMIT_SHA=$EXPECTED_SOURCE" >> "$GITHUB_ENV"
           echo '127.0.0.2 api.dev.openmates.org app.dev.openmates.org' | sudo tee -a /etc/hosts
           echo '127.0.0.1 storage.ci.test' | sudo tee -a /etc/hosts
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && 10 || 360 }}
         if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles' && inputs.mode != 'rust-native-dev' && inputs.mode != 'rust-check' && inputs.mode != 'rust-wasm'
         with:
           package_json_file: subject/package.json
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && 10 || 360 }}
         if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles' && inputs.mode != 'rust-native-dev' && inputs.mode != 'rust-check' && inputs.mode != 'rust-wasm'
         with:
@@ -325,7 +325,7 @@ jobs:
           native="$(python3 ../tooling/scripts/ci_artifacts.py native-capability --source "$BUILD_COMMIT_SHA" --key "${{ inputs.preparation_key }}")"
           test "$native" = true || test "$native" = false
           echo "CI_NATIVE_PREPARED=$native" >> "$GITHUB_ENV"
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         id: setup-python
         timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && 10 || 360 }}
         with:
@@ -378,7 +378,7 @@ jobs:
         run: test "${{ steps.profile.outputs.uploads }}" = "${{ inputs.prepare_upload }}"
       - name: Log in to GHCR for compatible runtime images
         if: inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke' || inputs.mode == 'backend-probe'
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -457,7 +457,7 @@ jobs:
             echo "$kind=$(python3 ../tooling/scripts/ci_runtime_images.py key --kind "$kind")" >> "$GITHUB_OUTPUT"
           done
           python3 ../tooling/scripts/ci_runtime_images.py schema-contract >> "$GITHUB_OUTPUT"
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
         if: >-
           (inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') &&
           (steps.images.outputs.api != 'true' ||
@@ -473,7 +473,7 @@ jobs:
         run: python3 ../tooling/scripts/ci_production_rust_browser.py prepare
       - name: Restore web Rust core dependency cache
         if: env.CI_LANE_WEB_RUST_CORE == 'true'
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         env:
           RUSTUP_TOOLCHAIN: '1.98.1'
         with:
@@ -503,7 +503,7 @@ jobs:
         run: pnpm --filter @repo/ui build
       - name: Build cached API dependencies and current source
         if: (inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') && steps.images.outputs.api != 'true'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: ./subject
           file: ./subject/backend/core/api/Dockerfile.selfhost
@@ -514,7 +514,7 @@ jobs:
           labels: org.openmates.ci.runtime-key=${{ steps.runtime_keys.outputs.api }}
       - name: Build restricted offline formula worker
         if: inputs.mode == 'e2e' && inputs.specs_json == '["formula-sheet-editing.spec.ts"]'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: ./subject
           file: ./subject/backend/formula_worker/Dockerfile
@@ -529,7 +529,7 @@ jobs:
           ((inputs.preparation_key != '' && inputs.prepare_upload == 'true') ||
            (inputs.preparation_key == '' && steps.profile.outputs.uploads == 'true')) &&
           steps.images.outputs.upload != 'true'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: ./subject
           file: ./subject/backend/upload/Dockerfile
@@ -540,7 +540,7 @@ jobs:
           labels: org.openmates.ci.runtime-key=${{ steps.runtime_keys.outputs.upload }}
       - name: Build current Directus extensions
         if: (inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') && steps.images.outputs.cms != 'true'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: ./subject/backend/core/directus
           load: true
@@ -550,7 +550,7 @@ jobs:
           labels: org.openmates.ci.runtime-key=${{ steps.runtime_keys.outputs.cms }}
       - name: Build current schema initializer
         if: (inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') && steps.images.outputs.setup != 'true'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: ./subject/backend/core/directus
           file: ./subject/backend/core/directus/Dockerfile.setup.selfhost
@@ -564,7 +564,7 @@ jobs:
         run: python3 ../tooling/scripts/ci_schema_bundle.py
       - name: Build missing prepared schema carrier
         if: inputs.mode == 'prepare' && steps.images.outputs.schema != 'true'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: ./subject/test-results/ci-private
           file: ./subject/scripts/ci_schema_image.Dockerfile
@@ -742,7 +742,7 @@ jobs:
       # crate-only rebuild. Candidate patches restore but never save.
       - name: Restore native release Rust dependency cache
         if: inputs.mode == 'prepare' && env.CI_NATIVE_PREPARED == 'true'
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         env:
           RUSTUP_TOOLCHAIN: '1.98.1'
         with:
@@ -854,7 +854,7 @@ jobs:
           rustup toolchain install 1.98.1 --profile minimal --target wasm32-unknown-unknown
           rustup default 1.98.1
           rustc -vV
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         if: inputs.mode == 'rust-check'
         with:
           node-version: '24'
@@ -878,7 +878,7 @@ jobs:
         run: python3 -m pip install "cryptography>=41"
       - name: Restore Rust check dependency cache
         if: inputs.mode == 'rust-check'
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           shared-key: isolated-rust-check
           workspaces: subject -> target
@@ -1045,7 +1045,7 @@ jobs:
           --source "$BUILD_COMMIT_SHA"
           --candidate-tree "$CI_CANDIDATE_TREE"
           --harness-commit "$CI_HARNESS_COMMIT"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: isolated-test-results
@@ -1108,7 +1108,7 @@ jobs:
           if-no-files-found: error
       - name: Retain bounded failed Rust WASM stage privately
         if: always() && (inputs.mode == 'rust-wasm' || (env.CI_LANE_RUST_BROWSER == 'true'))
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: isolated-rust-wasm-private-diagnostics
           retention-days: 7
@@ -1118,7 +1118,7 @@ jobs:
           if-no-files-found: ignore
       - name: Retain backend diagnostic raw process output privately
         if: always() && inputs.mode == 'backend-probe'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: isolated-backend-probe-private-diagnostics
           retention-days: 7
@@ -1126,7 +1126,7 @@ jobs:
           if-no-files-found: ignore
       - name: Retain exact private storage diagnostics after credential cleanup
         if: always() && (contains(inputs.specs_json, 'storage-capacity-') || contains(inputs.specs_json, 'storage-accountability-integration.spec.ts'))
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: isolated-storage-private-diagnostics
           retention-days: 7
@@ -1141,7 +1141,7 @@ jobs:
           if-no-files-found: ignore
       - name: Retain original documentation screenshot output
         if: always() && contains(inputs.specs_json, 'docs-screenshot-generator.spec.ts')
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: documentation-screenshots
           retention-days: 7
