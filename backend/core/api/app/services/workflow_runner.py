@@ -640,6 +640,11 @@ class WorkflowRunner:
             for edge in candidates:
                 if edge.branch == branch or (branch == "yes" and edge.branch == "true") or (branch == "no" and edge.branch == "false"):
                     return edge.to_node
+            if branch == "unsure" and node.config.get("result_type") != "options":
+                # An unconnected Unsure branch follows the Else (no) path rather than ending silently.
+                fallback = next((edge.to_node for edge in candidates if edge.branch in {"no", "false"}), None)
+                if fallback:
+                    return fallback
             return next((edge.to_node for edge in candidates if edge.branch in {None, "default"}), None)
         for edge in candidates:
             if edge.branch in {None, "default"}:

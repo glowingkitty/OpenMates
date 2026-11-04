@@ -891,3 +891,17 @@ def test_preview_rejects_oversized_model_document_before_graph_work():
     raw = {"operation": "create", "title": "Weather", "description": "A" * 70_000}
     with pytest.raises(ValueError, match="size limit"):
         compile_authoring_preview(raw, selection("weather.forecast"), "UTC")
+
+
+def test_create_without_delivery_gets_default_chat_send_for_final_ask_ai():
+    raw = plan([
+        {"kind": "app", "id": "forecast", "capability": "weather.forecast",
+         "input": {"location": "Paris", "days": 1}},
+        {"kind": "ask_ai", "id": "summary",
+         "prompt": [{"text": "Pick events: "}, ref("forecast", "results")]},
+    ], schedule={"type": "weekly", "time": "16:00", "weekdays": ["friday"]})
+    result = compile_authoring_plan(raw, selection("weather.forecast", "ai.ask"), "Europe/Berlin")
+    nodes = result["graph"]["nodes"]
+    assert nodes[-1]["type"] == "send_chat_message"
+    assert nodes[-1]["config"]["message"] == "{{ $nodes.summary.output.answer }}"
+    assert any("new chat" in note for note in result["assumptions"])
