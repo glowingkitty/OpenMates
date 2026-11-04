@@ -51,6 +51,6 @@ client.listWorkflows=async()=>[];client.listUserTasks=async()=>[];
 const {createTuiWorkspaceCache}=await import('../../src/tuiWorkspaceCache.ts');
 await createTuiWorkspaceCache(client.getSession(),()=>client.getSession()).set('ai-model-catalog-v1',[
  {id:'openai/gpt-6-astra',name:'GPT-6 Astra',providerId:'openai',providerName:'OpenAI',description:'Synthetic model availability',available:true},
- {id:'qwen/qwen3-235b-a22b-2507',name:'Qwen 3',providerId:'qwen',providerName:'Qwen',description:'Synthetic model availability',available:true}]);
+ {id:'qwen/qwen-3.8-27b',name:'Qwen 3',providerId:'qwen',providerName:'Qwen',description:'Synthetic model availability',available:true}]);
 client.setInteractiveChatViewer=async()=>{};
 await runTui(client,new TuiTerminal(),noStartupPrompts);

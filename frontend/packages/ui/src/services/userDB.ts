@@ -918,6 +918,7 @@ class UserDatabaseService {
       );
       const disabledAiModelsRequest = store.get("disabled_ai_models");
       const disabledAiServersRequest = store.get("disabled_ai_servers");
+      const serverRegionPreferenceRequest = store.get("server_region_preference");
       const defaultAppSkillModelsRequest = store.get("default_app_skill_models");
       const followUpSuggestionsEnabledRequest = store.get("follow_up_suggestions_enabled");
       const quickTipsEnabledRequest = store.get("quick_tips_enabled");
@@ -1163,6 +1164,11 @@ class UserDatabaseService {
             profile.disabled_ai_servers = undefined;
           }
         }
+      };
+
+      serverRegionPreferenceRequest.onsuccess = () => {
+        profile.server_region_preference =
+          serverRegionPreferenceRequest.result === "global" ? "global" : "eu";
       };
 
       defaultAppSkillModelsRequest.onsuccess = () => {
@@ -1615,6 +1621,13 @@ class UserDatabaseService {
         store.put(
           JSON.stringify(partialData.disabled_ai_servers),
           "disabled_ai_servers",
+        );
+      }
+
+      if (partialData.server_region_preference !== undefined) {
+        store.put(
+          partialData.server_region_preference === "global" ? "global" : "eu",
+          "server_region_preference",
         );
       }
 

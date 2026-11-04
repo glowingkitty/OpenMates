@@ -40,7 +40,8 @@
         )
     ));
     const selectedModel = $derived(models.find((model) => aiModelSelectionValue(model) === selection) ?? null);
-    const selectedFlag = $derived(ready && selectedModel ? getModelServerFlag(selectedModel) : "");
+    const serverRegionPreference = $derived($userProfile.server_region_preference === "global" ? "global" : "eu");
+    const selectedFlag = $derived(ready && selectedModel ? getModelServerFlag(selectedModel, serverRegionPreference) : "");
     const selectedLabel = $derived(ready
         ? selectedModel
             ? selectedModel.name
@@ -215,7 +216,7 @@
                                     />
                                 </span>
                             </span>
-                            <strong>{model.name}{#if getModelServerFlag(model)} <span class="model-server-flag" data-testid="composer-model-server-flag">{getModelServerFlag(model)}</span>{/if}</strong>
+                            <strong>{model.name}{#if getModelServerFlag(model, serverRegionPreference)} <span class="model-server-flag" data-testid="composer-model-server-flag">{getModelServerFlag(model, serverRegionPreference)}</span>{/if}</strong>
                         </button>
                         <Toggle
                             checked={isSelected}

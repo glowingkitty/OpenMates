@@ -1512,6 +1512,15 @@
       "preview_hide": {
         "text": "Sembunyikan pratinjau"
       },
+      "view_code": {
+        "text": "Lihat kode"
+      },
+      "view_visual": {
+        "text": "Lihat visual"
+      },
+      "interactive_html_blocked": {
+        "text": "Visual ini mencoba membuka halaman lain dan dihentikan."
+      },
       "search_repos": {
         "text": "Cari repo",
         "description": {
@@ -15339,6 +15348,15 @@
         "quick_tips_description": {
           "text": "Menampilkan tips produk sesekali setelah asisten membalas. Matikan ini jika kamu tidak ingin OpenMates membuat kartu tips cepat."
         },
+        "server_region": {
+          "text": "Wilayah server"
+        },
+        "prefer_eu_servers": {
+          "text": "Utamakan server UE"
+        },
+        "prefer_eu_servers_description": {
+          "text": "Aktif (default): model AI berjalan di server UE terlebih dahulu, wilayah lain hanya sebagai cadangan. Nonaktif: Tercepat, global – OpenMates memilih server tercepat di seluruh dunia."
+        },
         "quick_tips_enabled": {
           "text": "Tips cepat diaktifkan."
         },
@@ -16056,9 +16074,6 @@
         "skill": {
           "ask": {
             "model": {
-              "qwen3_235b_a22b_2507": {
-                "text": "Qwen 3 256b"
-              },
               "claude_haiku_4_5_20251001": {
                 "text": "Claude Haiku 4.5"
               },

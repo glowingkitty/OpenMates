@@ -1512,6 +1512,15 @@
       "preview_hide": {
         "text": "Dölj förhandsgranskning"
       },
+      "view_code": {
+        "text": "Visa kod"
+      },
+      "view_visual": {
+        "text": "Visa visualisering"
+      },
+      "interactive_html_blocked": {
+        "text": "Den här visualiseringen försökte öppna en annan sida och stoppades."
+      },
       "search_repos": {
         "text": "Sök repon",
         "description": {
@@ -15339,6 +15348,15 @@
         "quick_tips_description": {
           "text": "Visar tillfälliga produkttips efter assistentens svar. Stäng av detta om du inte vill att OpenMates ska generera snabbtipskort."
         },
+        "server_region": {
+          "text": "Serverregion"
+        },
+        "prefer_eu_servers": {
+          "text": "Föredra EU-servrar"
+        },
+        "prefer_eu_servers_description": {
+          "text": "På (standard): AI-modeller körs först på EU-servrar, andra regioner endast som reserv. Av: Snabbast, globalt – OpenMates väljer den snabbaste servern i världen."
+        },
         "quick_tips_enabled": {
           "text": "Snabbtips aktiverade."
         },
@@ -16056,9 +16074,6 @@
         "skill": {
           "ask": {
             "model": {
-              "qwen3_235b_a22b_2507": {
-                "text": "Qwen 3 256b"
-              },
               "claude_haiku_4_5_20251001": {
                 "text": "Claude Haiku 4.5"
               },

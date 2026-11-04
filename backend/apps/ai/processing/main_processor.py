@@ -7228,6 +7228,7 @@ async def handle_main_processing(
                         ),
                         requested_reasoning_level=requested_reasoning_level,
                         allowed_server_ids=permitted_automatic_servers,
+                        server_region_preference=(request_data.user_preferences or {}).get("server_region_preference", "eu"),
                         first_substantive_timeout_seconds=mercury_deadline,
                         secrets_manager=secrets_manager,
                         tools=iteration_tools,

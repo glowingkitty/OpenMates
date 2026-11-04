@@ -8,8 +8,8 @@ last_verified: 2026-09-03
 ## Catalog
 
 OpenMates exposes `alibaba/qwen-3.8-27b` as a Cerebras-primary, low-capability,
-explicit-selection-only `ai.ask` model. The `@fast` alias remains mapped to
-`alibaba/qwen3-235b-a22b-2507` until a stronger comparison supports changing it.
+explicit-selection-only `ai.ask` model. The `@fast` alias maps to it since
+Qwen3 235B A22B 2507 was removed from the catalog (outdated).
 
 Official Cerebras documentation lists `qwen-3.8-27b` at approximately 1,500
 tokens/second, with 128k paid context, 40k paid maximum output, and developer

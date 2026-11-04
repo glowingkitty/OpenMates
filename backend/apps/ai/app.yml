@@ -30,8 +30,8 @@ model_aliases:
     model_id: gpt-6-astra
     icon: crown
   - id: fast
-    # Hardcoded: Qwen 3 256b via Cerebras — the fastest inference available
-    model_id: qwen3-235b-a22b-2507
+    # Hardcoded: Mercury 3 (Inception diffusion LLM) — the fastest model in the catalog
+    model_id: mercury-3
     icon: lightning
 
 skills:

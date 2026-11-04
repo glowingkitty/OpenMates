@@ -235,6 +235,8 @@ function parseProviderYaml(providerId, filePath) {
         // Default server for this model
         default_server:
           model.default_server || (servers.length > 0 ? servers[0].id : null),
+        // Server used by the "Fastest, global" region preference (optional)
+        fastest_server: model.fastest_server || null,
         // Pricing for display
         pricing: Object.keys(pricing).length > 0 ? pricing : null,
         temporary_prices: (model.temporary_prices || []).map(({ id, effective_from, expires_on, guaranteed_through, source_url, reviewed_on, eligible_hosts, processing_tier, regions, pricing: tariff }) => ({
@@ -354,6 +356,13 @@ function generateTypeScript(models) {
       if (model.default_server) {
         lines.push(
           `        default_server: ${JSON.stringify(model.default_server)},`,
+        );
+      }
+
+      // Add fastest_server if present
+      if (model.fastest_server) {
+        lines.push(
+          `        fastest_server: ${JSON.stringify(model.fastest_server)},`,
         );
       }
 
@@ -500,6 +509,8 @@ export interface AIModelMetadata {
     servers?: ModelServerInfo[];
     /** Default server ID for this model */
     default_server?: string;
+    /** Server used by the "Fastest, global" region preference */
+    fastest_server?: string;
     /** Pricing information (token-based, per-unit, or per-minute depending on model type) */
     pricing?: ModelPricing;
     temporary_prices?: PublicTemporaryPrice<ModelPricing>[];

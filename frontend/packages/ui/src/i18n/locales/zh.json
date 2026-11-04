@@ -1512,6 +1512,15 @@
       "preview_hide": {
         "text": "隐藏预览"
       },
+      "view_code": {
+        "text": "查看代码"
+      },
+      "view_visual": {
+        "text": "查看可视化"
+      },
+      "interactive_html_blocked": {
+        "text": "此可视化内容试图打开其他页面，已被阻止。"
+      },
       "search_repos": {
         "text": "搜索仓库",
         "description": {
@@ -15339,6 +15348,15 @@
         "quick_tips_description": {
           "text": "在助手回复后偶尔显示产品提示。如果你不希望 OpenMates 生成快捷提示卡片，请关闭此选项。"
         },
+        "server_region": {
+          "text": "服务器区域"
+        },
+        "prefer_eu_servers": {
+          "text": "优先使用欧盟服务器"
+        },
+        "prefer_eu_servers_description": {
+          "text": "开启（默认）：AI 模型优先在欧盟服务器上运行，其他地区仅作备用。关闭：最快、全球——OpenMates 在全球范围内选择最快的服务器。"
+        },
         "quick_tips_enabled": {
           "text": "快捷提示已启用。"
         },
@@ -16056,9 +16074,6 @@
         "skill": {
           "ask": {
             "model": {
-              "qwen3_235b_a22b_2507": {
-                "text": "Qwen 3 256b"
-              },
               "claude_haiku_4_5_20251001": {
                 "text": "Claude Haiku 4.5"
               },

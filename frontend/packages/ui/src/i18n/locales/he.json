@@ -1512,6 +1512,15 @@
       "preview_hide": {
         "text": "הסתר תצוגה מקדימה"
       },
+      "view_code": {
+        "text": "הצג קוד"
+      },
+      "view_visual": {
+        "text": "הצג תצוגה חזותית"
+      },
+      "interactive_html_blocked": {
+        "text": "התצוגה החזותית ניסתה לפתוח דף אחר ונעצרה."
+      },
       "search_repos": {
         "text": "חיפוש מאגרים",
         "description": {
@@ -15339,6 +15348,15 @@
         "quick_tips_description": {
           "text": "מציג מדי פעם טיפים על המוצר לאחר תשובות העוזר. כבה אפשרות זו אם אינך רוצה ש-OpenMates יפיק כרטיסי טיפים מהירים."
         },
+        "server_region": {
+          "text": "אזור שרתים"
+        },
+        "prefer_eu_servers": {
+          "text": "העדף שרתים באיחוד האירופי"
+        },
+        "prefer_eu_servers_description": {
+          "text": "פעיל (ברירת מחדל): מודלי AI רצים קודם בשרתים באיחוד האירופי, ואזורים אחרים משמשים רק כגיבוי. כבוי: המהיר ביותר, גלובלי – OpenMates בוחר את השרת המהיר ביותר בעולם."
+        },
         "quick_tips_enabled": {
           "text": "הטיפים המהירים הופעלו."
         },
@@ -16056,9 +16074,6 @@
         "skill": {
           "ask": {
             "model": {
-              "qwen3_235b_a22b_2507": {
-                "text": "Qwen 3 256b"
-              },
               "claude_haiku_4_5_20251001": {
                 "text": "Claude Haiku 4.5"
               },

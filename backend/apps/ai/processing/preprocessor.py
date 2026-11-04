@@ -1957,7 +1957,7 @@ async def _select_main_model(
     # See docs/architecture/model-aliases.md for design rationale.
     MODEL_ALIAS_TO_MODEL_ID = {
         "best": "gpt-6-astra",
-        "fast": "qwen3-235b-a22b-2507",
+        "fast": "mercury-3",
     }
     if user_overrides and user_overrides.best_model_category and not user_overrides.model_id:
         best_category = user_overrides.best_model_category

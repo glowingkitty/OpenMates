@@ -1512,6 +1512,15 @@
       "preview_hide": {
         "text": "Voorbeeld verbergen"
       },
+      "view_code": {
+        "text": "Code bekijken"
+      },
+      "view_visual": {
+        "text": "Visual bekijken"
+      },
+      "interactive_html_blocked": {
+        "text": "Deze visual probeerde een andere pagina te openen en is gestopt."
+      },
       "search_repos": {
         "text": "Repo's zoeken",
         "description": {
@@ -15339,6 +15348,15 @@
         "quick_tips_description": {
           "text": "Toont af en toe producttips na antwoorden van de assistent. Schakel dit uit als je niet wilt dat OpenMates kaarten met snelle tips genereert."
         },
+        "server_region": {
+          "text": "Serverregio"
+        },
+        "prefer_eu_servers": {
+          "text": "EU-servers voorkeur geven"
+        },
+        "prefer_eu_servers_description": {
+          "text": "Aan (standaard): AI-modellen draaien eerst op EU-servers, andere regio's alleen als terugval. Uit: snelste, wereldwijd – OpenMates kiest de snelste server ter wereld."
+        },
         "quick_tips_enabled": {
           "text": "Snelle tips ingeschakeld."
         },
@@ -16056,9 +16074,6 @@
         "skill": {
           "ask": {
             "model": {
-              "qwen3_235b_a22b_2507": {
-                "text": "Qwen 3 256b"
-              },
               "claude_haiku_4_5_20251001": {
                 "text": "Claude Haiku 4.5"
               },

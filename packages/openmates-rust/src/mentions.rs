@@ -13,7 +13,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 /// `@best` / `@fast` aliases (mentions.ts MODEL_ALIASES).
-pub const MODEL_ALIASES: &[(&str, &str)] = &[("best", "gpt-6-astra"), ("fast", "qwen3-235b-a22b-2507")];
+pub const MODEL_ALIASES: &[(&str, &str)] = &[("best", "gpt-6-astra"), ("fast", "mercury-3")];
 
 /// Mate category id → display name (client.ts MATE_NAMES, same order).
 pub const MATE_NAMES: &[(&str, &str)] = &[
@@ -78,8 +78,8 @@ const CHAT_MODELS: &[ModelRow] = &[
     ("gemini-3.5-flash-lite", "Gemini 3.5 Flash-Lite", None, None, None),
     ("deepseek-v4-pro", "DeepSeek V4 Pro", None, None, None),
     ("deepseek-v4-flash", "DeepSeek V4 Flash", None, None, None),
-    ("qwen3-235b-a22b-2507", "Qwen 3 256b", None, None, None),
     ("qwen-3.8-27b", "Qwen 3.8 27B", None, None, None),
+    ("mercury-3", "Mercury 3", None, None, None),
     ("kimi-k2.5", "Kimi K2.5", None, None, None),
     ("kimi-k2.6", "Kimi K2.6", None, None, None),
     ("kimi-k3", "Kimi K3", None, None, None),

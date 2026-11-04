@@ -827,7 +827,7 @@ models:
     cache_pricing:
       enabled: false
       write_billing: separate
-      eligible_hosts: [anthropic, aws_bedrock]
+      eligible_hosts: [anthropic]
       source_url: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
       reviewed_on: "2026-10-06"
       status: proposed_pending_provider_evidence
@@ -877,19 +877,8 @@ models:
     output_types:
       - text
     # NOTE: temperature parameter is deprecated for this model — handled in anthropic_direct_api.py
-    default_server: "aws_bedrock" # EU-first hosting policy
+    default_server: "anthropic" # Bedrock EU denies this account access to Opus 4.7 (checked 2026-11-04); re-add aws_bedrock once granted
     servers:
-      - id: "aws_bedrock"
-        reasoning_control:
-          parameter: reasoning_effort
-          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high"}
-          adaptive_thinking: true
-          source_url: https://docs.aws.amazon.com/bedrock/latest/userguide/claude-messages-adaptive-thinking.html
-        name: "AWS Bedrock"
-        model_id: "eu.anthropic.claude-opus-4-7" # Research preview on AWS
-        aws_region: "eu-central-1"
-        region: "EU"
-        country: "DE"
       - id: "anthropic"
         reasoning_control:
           parameter: reasoning_effort

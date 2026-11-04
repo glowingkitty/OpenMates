@@ -17,6 +17,7 @@ class ModelRoutingRestrictions(BaseModel):
     model_config = ConfigDict(extra="forbid")
     disabled_ai_models: List[RoutingModelId] = Field(default_factory=list, max_length=256)
     disabled_ai_servers: Dict[RoutingModelId, RoutingServerList] = Field(default_factory=dict, max_length=256)
+    server_region_preference: Literal["eu", "global"] = "eu"
 
 
 class AskSkillRequest(BaseModel):

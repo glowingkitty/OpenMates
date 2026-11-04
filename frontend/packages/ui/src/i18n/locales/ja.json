@@ -1512,6 +1512,15 @@
       "preview_hide": {
         "text": "プレビューを非表示"
       },
+      "view_code": {
+        "text": "コードを表示"
+      },
+      "view_visual": {
+        "text": "ビジュアルを表示"
+      },
+      "interactive_html_blocked": {
+        "text": "このビジュアルは別のページを開こうとしたため停止されました。"
+      },
       "search_repos": {
         "text": "リポジトリを検索",
         "description": {
@@ -15339,6 +15348,15 @@
         "quick_tips_description": {
           "text": "アシスタントの回答後に、製品のヒントを時々表示します。OpenMatesによるクイックチップカードの生成を希望しない場合は、これをオフにしてください。"
         },
+        "server_region": {
+          "text": "サーバーリージョン"
+        },
+        "prefer_eu_servers": {
+          "text": "EUサーバーを優先"
+        },
+        "prefer_eu_servers_description": {
+          "text": "オン（デフォルト）：AIモデルはまずEUのサーバーで実行され、他の地域は代替としてのみ使われます。オフ：最速・グローバル – OpenMatesが世界中で最も速いサーバーを選びます。"
+        },
         "quick_tips_enabled": {
           "text": "クイックチップを有効にしました。"
         },
@@ -16056,9 +16074,6 @@
         "skill": {
           "ask": {
             "model": {
-              "qwen3_235b_a22b_2507": {
-                "text": "Qwen 3 256b"
-              },
               "claude_haiku_4_5_20251001": {
                 "text": "Claude Haiku 4.5"
               },

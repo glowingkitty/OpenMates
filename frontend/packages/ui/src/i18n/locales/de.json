@@ -1523,6 +1523,15 @@
       "preview_hide": {
         "text": "Vorschau ausblenden"
       },
+      "view_code": {
+        "text": "Code anzeigen"
+      },
+      "view_visual": {
+        "text": "Visualisierung anzeigen"
+      },
+      "interactive_html_blocked": {
+        "text": "Diese Visualisierung wollte eine andere Seite öffnen und wurde gestoppt."
+      },
       "search_repos": {
         "text": "Repos suchen",
         "description": {
@@ -17821,6 +17830,15 @@
         "quick_tips_description": {
           "text": "Zeigt gelegentliche Produkttipps nach Antworten des Assistenten. Deaktiviere dies, wenn OpenMates keine Kurztipp-Karten generieren soll."
         },
+        "server_region": {
+          "text": "Serverregion"
+        },
+        "prefer_eu_servers": {
+          "text": "EU-Server bevorzugen"
+        },
+        "prefer_eu_servers_description": {
+          "text": "An (Standard): KI-Modelle laufen zuerst auf EU-Servern, andere Regionen nur als Ausweichlösung. Aus: Schnellste, global – OpenMates wählt weltweit den schnellsten Server."
+        },
         "quick_tips_enabled": {
           "text": "Kurztipps aktiviert."
         },
@@ -18652,9 +18670,6 @@
         "skill": {
           "ask": {
             "model": {
-              "qwen3_235b_a22b_2507": {
-                "text": "Qwen 3 256b"
-              },
               "claude_haiku_4_5_20251001": {
                 "text": "Claude Haiku 4.5"
               },

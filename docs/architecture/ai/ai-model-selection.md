@@ -148,7 +148,8 @@ Each LLM provider has a YAML config in [`backend/providers/`](../../backend/prov
 - **`country_origin`**: ISO 3166-1 alpha-2 code (used for China-sensitive filtering)
 - **`allow_auto_select`**: Whether the model participates in leaderboard fallback selection; pinned request profiles are resolved separately. Argon is pinned only for max and excluded from general leaderboard picks.
 - **`external_ids`**: Cross-platform ID mappings (LMArena, OpenRouter)
-- **`default_server`** and **`servers`**: Provider routing (e.g., AWS Bedrock primary, direct API fallback)
+- **`default_server`** and **`servers`**: Provider routing (e.g., AWS Bedrock primary, direct API fallback). Every server declares `region` and an ISO `country` (operator/hosting jurisdiction).
+- **`fastest_server`** (optional): The server tried first when the user picks "Fastest, global" instead of the default "Prefer EU servers" (Settings > AI).
 - **`servers[].model_id`** and **`reasoning_effort`**: Provider-specific upstream IDs and reasoning controls for catalog variants such as Sol Max
 - **`pricing`/`costs`**: Token pricing for billing
 
@@ -236,6 +237,14 @@ Only a failed retry advances to the next permitted model in order; provider
 diversity cannot reorder this list. Two answer-only attempts bound recovery.
 
 Foreground decision processing has a separate availability boundary: Jev runs primarily through TypeSafeAI, with OpenRouter as a transport fallback, while Gemini preprocessing remains an independently hosted fallback. Request safety similarly falls back to Mistral, and ambiguous prompt-injection decisions fall back to GPT-OSS Safeguard for exact-span redaction.
+
+## Server Region Policy
+
+`backend/shared/python_utils/server_policy.py` enforces hosting rules in code, independent of the YAML:
+
+- Servers in or operated from CN/HK/MO are never used; OpenRouter requests always carry `provider.ignore` for Chinese operators (`backend/scripts/check_openrouter_upstream_regions.py` re-checks the list against OpenRouter's provider data).
+- With the default `eu` preference, EU servers are always tried before non-EU ones, so the effective `default_server` is the first allowed EU server. `backend/tests/test_server_policy.py` fails if a catalog model lists servers out of order, lacks a `country`, or defaults to a worse server.
+- With the `global` preference (per-turn `server_region_preference` in `model_routing_restrictions`), `fastest_server` is tried first, then the remaining servers in EU-first order.
 
 ## Edge Cases
 

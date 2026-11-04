@@ -64,3 +64,25 @@ def test_catalog_servers_follow_policy(provider_id, model):
         assert not is_server_blocked(server)
     assert [s["id"] for s in servers] == [s["id"] for s in order_servers(servers)], "servers must be EU-first"
     assert model["default_server"] == effective_default_server_id(model), "default_server must be the best allowed host"
+
+
+def test_global_preference_tries_the_fastest_server_first_but_never_blocked_ones():
+    servers = [
+        {"id": "eu", "region": "EU", "country": "FR"},
+        {"id": "us", "region": "US", "country": "US"},
+        {"id": "cn", "region": "global", "country": "CN"},
+    ]
+    model = {"servers": servers, "fastest_server": "us"}
+    assert effective_default_server_id(model) == "eu"
+    assert effective_default_server_id(model, "global") == "us"
+    assert [s["id"] for s in order_servers(servers, "global", "us")] == ["us", "eu"]
+    assert [s["id"] for s in order_servers(servers, "global", "cn")] == ["eu", "us"]
+    assert effective_default_server_id(model, "nonsense") == "eu"
+    assert effective_default_server_id({"servers": servers}, "global") == "eu"
+
+
+@pytest.mark.parametrize("provider_id,model", list(_catalog_models()), ids=lambda v: v if isinstance(v, str) else v["id"])
+def test_fastest_server_is_an_allowed_server_of_the_model(provider_id, model):
+    fastest = model.get("fastest_server")
+    if fastest:
+        assert fastest in [s["id"] for s in order_servers(model["servers"])]

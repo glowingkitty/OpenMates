@@ -1512,6 +1512,15 @@
       "preview_hide": {
         "text": "Ẩn bản xem trước"
       },
+      "view_code": {
+        "text": "Xem mã"
+      },
+      "view_visual": {
+        "text": "Xem hình ảnh trực quan"
+      },
+      "interactive_html_blocked": {
+        "text": "Hình ảnh trực quan này đã cố mở trang khác và đã bị dừng."
+      },
       "search_repos": {
         "text": "Tìm repo",
         "description": {
@@ -15339,6 +15348,15 @@
         "quick_tips_description": {
           "text": "Hiển thị các mẹo sản phẩm thỉnh thoảng sau khi trợ lý trả lời. Tắt tính năng này nếu bạn không muốn OpenMates tạo các thẻ mẹo nhanh."
         },
+        "server_region": {
+          "text": "Khu vực máy chủ"
+        },
+        "prefer_eu_servers": {
+          "text": "Ưu tiên máy chủ EU"
+        },
+        "prefer_eu_servers_description": {
+          "text": "Bật (mặc định): mô hình AI chạy trên máy chủ EU trước, các khu vực khác chỉ dùng dự phòng. Tắt: Nhanh nhất, toàn cầu – OpenMates chọn máy chủ nhanh nhất trên thế giới."
+        },
         "quick_tips_enabled": {
           "text": "Đã bật mẹo nhanh."
         },
@@ -16056,9 +16074,6 @@
         "skill": {
           "ask": {
             "model": {
-              "qwen3_235b_a22b_2507": {
-                "text": "Qwen 3 256b"
-              },
               "claude_haiku_4_5_20251001": {
                 "text": "Claude Haiku 4.5"
               },

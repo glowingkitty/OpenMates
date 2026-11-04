@@ -162,6 +162,16 @@ describe('getModelServerFlag', () => {
     });
 
     // contract-test: supporting surface=gui.web assertions=ai-model-routing.catalog.capability-recommendation-variants
+    it('shows the fastest server flag when the user prefers Fastest, global', () => {
+        const fast = {
+            ...model('p', 'P', 'low'), default_server: 'a', fastest_server: 'b',
+            servers: [{ id: 'a', name: 'A', region: 'EU', country: 'FR' }, { id: 'b', name: 'B', region: 'US', country: 'US' }],
+        } as AIModelMetadata;
+        expect(getModelServerFlag(fast)).toBe('🇫🇷');
+        expect(getModelServerFlag(fast, 'global')).toBe('🇺🇸');
+    });
+
+    // contract-test: supporting surface=gui.web assertions=ai-model-routing.catalog.capability-recommendation-variants
     it('prefers a specific country and ignores global regions', () => {
         expect(getModelServerFlag(withServer({ region: 'EU', country: 'FR' }))).toBe('🇫🇷');
         expect(getModelServerFlag(withServer({ region: 'global' }))).toBe('');

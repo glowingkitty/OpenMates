@@ -1512,6 +1512,15 @@
       "preview_hide": {
         "text": "미리보기 숨기기"
       },
+      "view_code": {
+        "text": "코드 보기"
+      },
+      "view_visual": {
+        "text": "시각화 보기"
+      },
+      "interactive_html_blocked": {
+        "text": "이 시각화가 다른 페이지를 열려고 해서 중지되었습니다."
+      },
       "search_repos": {
         "text": "저장소 검색",
         "description": {
@@ -15339,6 +15348,15 @@
         "quick_tips_description": {
           "text": "어시스턴트 응답 후 가끔 제품 팁을 표시합니다. OpenMates가 퀵 팁 카드를 생성하지 않도록 하려면 이 기능을 끄세요."
         },
+        "server_region": {
+          "text": "서버 지역"
+        },
+        "prefer_eu_servers": {
+          "text": "EU 서버 우선 사용"
+        },
+        "prefer_eu_servers_description": {
+          "text": "켜짐(기본값): AI 모델이 EU 서버에서 먼저 실행되며 다른 지역은 대체용으로만 사용됩니다. 꺼짐: 가장 빠른 글로벌 – OpenMates가 전 세계에서 가장 빠른 서버를 선택합니다."
+        },
         "quick_tips_enabled": {
           "text": "퀵 팁이 활성화되었습니다."
         },
@@ -16056,9 +16074,6 @@
         "skill": {
           "ask": {
             "model": {
-              "qwen3_235b_a22b_2507": {
-                "text": "Qwen 3 256b"
-              },
               "claude_haiku_4_5_20251001": {
                 "text": "Claude Haiku 4.5"
               },

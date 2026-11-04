@@ -107,14 +107,18 @@ export function getRecommendedModelForTier(
     })[0] ?? null;
 }
 
+export type ServerRegionPreference = 'eu' | 'global';
+
 /**
- * Flag emoji for the default server region of a model: a specific country when
- * the server declares one (or the region is a known cloud region such as
- * eu-central-1), otherwise the EU or US flag. Empty for unknown/global regions.
+ * Flag emoji for the server a model runs on first: the default (EU-first)
+ * server, or the model's `fastest_server` when the user prefers "Fastest,
+ * global". A specific country wins over the region; cloud region ids such as
+ * eu-central-1 map to their country. Empty for unknown/global regions.
  */
-export function getModelServerFlag(model: AIModelMetadata): string {
+export function getModelServerFlag(model: AIModelMetadata, preference: ServerRegionPreference = 'eu'): string {
     const servers = model.servers ?? [];
-    const server = servers.find((s) => s.id === model.default_server) ?? servers[0];
+    const preferredId = preference === 'global' && model.fastest_server ? model.fastest_server : model.default_server;
+    const server = servers.find((s) => s.id === preferredId) ?? servers[0];
     if (!server) return '';
     if (server.country) return countryCodeToFlag(server.country);
     const region = String(server.region).toLowerCase();

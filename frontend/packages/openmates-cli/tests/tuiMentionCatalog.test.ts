@@ -6,7 +6,7 @@ import { buildTuiMentionCatalog, extractTuiMention, searchTuiMentionCatalog, typ
 
 const models: TuiModelEntry[] = [
   { id: "openai/gpt-6-astra", name: "GPT-6 Astra", providerId: "openai", providerName: "OpenAI", description: "reasoning", available: true },
-  { id: "qwen/qwen3-235b-a22b-2507", name: "Qwen 3", providerId: "qwen", providerName: "Qwen", description: "fast", available: true },
+  { id: "inception/mercury-3", name: "Mercury 3", providerId: "inception", providerName: "Inception", description: "fast", available: true },
   { id: "openai/gpt-6-sol", name: "GPT-6 Sol", providerId: "openai", providerName: "OpenAI", description: "coding", available: true },
   { id: "openai/hidden", name: "Hidden", providerId: "openai", providerName: "OpenAI", description: "hidden", available: false },
 ];
@@ -42,7 +42,7 @@ test("catalog uses live available models and emits backend wire tokens", () => {
   const byId = (id: string) => catalog.find(item => item.id === id);
   assert.equal(byId("model:openai/gpt-6-astra")?.wireSyntax, "@ai-model:gpt-6-astra:openai");
   assert.equal(byId("alias:best")?.wireSyntax, "@best-model:best");
-  assert.equal(byId("alias:fast")?.modelId, "qwen/qwen3-235b-a22b-2507");
+  assert.equal(byId("alias:fast")?.modelId, "inception/mercury-3");
   assert.equal(byId("model:openai/hidden"), undefined);
   assert.equal(byId("skill:ai:ask"), undefined);
   assert.equal(byId("mate:software_development")?.wireSyntax, "@mate:software_development");

@@ -1512,6 +1512,15 @@
       "preview_hide": {
         "text": "Skrýt náhled"
       },
+      "view_code": {
+        "text": "Zobrazit kód"
+      },
+      "view_visual": {
+        "text": "Zobrazit vizualizaci"
+      },
+      "interactive_html_blocked": {
+        "text": "Tato vizualizace se pokusila otevřít jinou stránku a byla zastavena."
+      },
       "search_repos": {
         "text": "Hledat repozitáře",
         "description": {
@@ -15339,6 +15348,15 @@
         "quick_tips_description": {
           "text": "Po odpovědích asistenta občas zobrazí tipy k produktu. Vypni tuto možnost, pokud nechceš, aby OpenMates generoval karty s rychlými tipy."
         },
+        "server_region": {
+          "text": "Oblast serverů"
+        },
+        "prefer_eu_servers": {
+          "text": "Upřednostnit servery v EU"
+        },
+        "prefer_eu_servers_description": {
+          "text": "Zapnuto (výchozí): modely AI běží nejdříve na serverech v EU, jiné oblasti jen jako záloha. Vypnuto: nejrychlejší, globálně – OpenMates vybere nejrychlejší server na světě."
+        },
         "quick_tips_enabled": {
           "text": "Rychlé tipy zapnuty."
         },
@@ -16056,9 +16074,6 @@
         "skill": {
           "ask": {
             "model": {
-              "qwen3_235b_a22b_2507": {
-                "text": "Qwen 3 256b"
-              },
               "claude_haiku_4_5_20251001": {
                 "text": "Claude Haiku 4.5"
               },

@@ -657,7 +657,7 @@ def _sanitize_assistant_history_content(content: str, log_prefix: str) -> str:
         log_prefix=log_prefix,
     )
 
-def resolve_default_server_from_provider_config(model_id: str) -> tuple:
+def resolve_default_server_from_provider_config(model_id: str, server_region_preference: str = "eu") -> tuple:
     """
     Resolves the default server and transformed model ID from provider configuration.
     
@@ -707,11 +707,11 @@ def resolve_default_server_from_provider_config(model_id: str) -> tuple:
             logger.debug(f"Model '{model_id}' has no servers configured.")
             return (None, None)
 
-        default_server_id = effective_default_server_id(model_config)
+        default_server_id = effective_default_server_id(model_config, server_region_preference)
         if not default_server_id:
             logger.warning(f"Model '{model_id}' has no server allowed by the hosting-region policy.")
             return (None, None)
-        if default_server_id != model_config.get("default_server"):
+        if server_region_preference == "eu" and default_server_id != model_config.get("default_server"):
             logger.warning(
                 f"Model '{model_id}': default_server '{model_config.get('default_server')}' overridden "
                 f"by hosting-region policy -> '{default_server_id}'."
@@ -748,7 +748,7 @@ def resolve_default_server_from_provider_config(model_id: str) -> tuple:
         return (None, None)
 
 
-def resolve_fallback_servers_from_provider_config(model_id: str) -> List[str]:
+def resolve_fallback_servers_from_provider_config(model_id: str, server_region_preference: str = "eu") -> List[str]:
     """
     Resolves fallback server model IDs from provider configuration.
     
@@ -798,11 +798,11 @@ def resolve_fallback_servers_from_provider_config(model_id: str) -> List[str]:
             logger.debug(f"Model '{model_id}' has no servers configured. No fallbacks available.")
             return []
 
-        default_server_id = effective_default_server_id(model_config)
+        default_server_id = effective_default_server_id(model_config, server_region_preference)
         
         # Build fallback list (all allowed servers except the default)
         fallback_models = []
-        for server in order_servers(servers):
+        for server in order_servers(servers, server_region_preference, model_config.get("fastest_server")):
             
             server_id = server.get("id")
             server_model_id = server.get("model_id")
@@ -2061,6 +2061,7 @@ async def call_main_llm_stream(
     private_logging: bool = False,
     first_substantive_timeout_seconds: Optional[float] = None,
     allowed_server_ids: Optional[set[str]] = None,
+    server_region_preference: str = "eu",
 ) -> AsyncIterator[str]:
     # Anonymous accounting reserves one dispatched attempt at a time. Returning
     # failures to its caller preserves ambiguous holds and makes any retry earn
@@ -2147,7 +2148,7 @@ async def call_main_llm_stream(
     # This enables per-model fallbacks (e.g., Google AI Studio -> OpenRouter) configured in provider YAML.
     fallback_servers = []
     if "/" in model_id:
-        fallback_servers = resolve_fallback_servers_from_provider_config(model_id)
+        fallback_servers = resolve_fallback_servers_from_provider_config(model_id, server_region_preference)
         if fallback_servers:
             logger.info(f"{log_prefix} Resolved {len(fallback_servers)} fallback server(s) for model '{model_id}': {fallback_servers}")
 
@@ -2158,7 +2159,7 @@ async def call_main_llm_stream(
         
         # Resolve default_server for any provider that defines it in provider YAML.
         # This allows routing "provider/model" to a concrete server like "openrouter/*" or "google_ai_studio/*".
-        default_server_id, transformed_model_id = resolve_default_server_from_provider_config(model_id)
+        default_server_id, transformed_model_id = resolve_default_server_from_provider_config(model_id, server_region_preference)
         if default_server_id and transformed_model_id:
             logger.info(f"{log_prefix} Resolved default server '{default_server_id}' for model '{model_id}'. Using transformed model_id: '{transformed_model_id}'")
             model_id = transformed_model_id

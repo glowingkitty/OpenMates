@@ -538,7 +538,7 @@
                         />
                     </div>
                     <div class="model-info">
-                        <span class="model-name" data-testid="model-name">{model.name}{#if getModelServerFlag(model)} <span data-testid="model-server-flag">{getModelServerFlag(model)}</span>{/if}</span>
+                        <span class="model-name" data-testid="model-name">{model.name}{#if getModelServerFlag(model, $userProfile.server_region_preference === 'global' ? 'global' : 'eu')} <span data-testid="model-server-flag">{getModelServerFlag(model, $userProfile.server_region_preference === 'global' ? 'global' : 'eu')}</span>{/if}</span>
                         <span class="model-provider">{$text('enter_message.mention_dropdown.from_provider').replace('{provider}', model.provider_name)}</span>
                     </div>
                     {#if isAuthenticated}

@@ -44,6 +44,7 @@ models:
     input_types: [text, image]
     output_types: [text]
     default_server: "mistral"
+    fastest_server: "together" # used for the "Fastest, global" region preference
     servers:
       - id: "mistral"
         name: "Mistral"

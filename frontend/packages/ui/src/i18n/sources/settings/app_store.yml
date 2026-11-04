@@ -3145,31 +3145,6 @@ skills.model_detail.servers:
 
 # AI Ask skill model names — used as the page title when deep-linking directly to a model detail page.
 # Model names are proper nouns and do not require translation; all locales use the same English value.
-ai.skill.ask.model.qwen3_235b_a22b_2507:
-  context: Display name for the Qwen 3 256b AI model, shown as the settings page title when navigating directly to this model
-  en: Qwen 3 256b
-  de: Qwen 3 256b
-  zh: Qwen 3 256b
-  es: Qwen 3 256b
-  fr: Qwen 3 256b
-  pt: Qwen 3 256b
-  ru: Qwen 3 256b
-  ja: Qwen 3 256b
-  ko: Qwen 3 256b
-  it: Qwen 3 256b
-  tr: Qwen 3 256b
-  vi: Qwen 3 256b
-  id: Qwen 3 256b
-  pl: Qwen 3 256b
-  nl: Qwen 3 256b
-  ar: Qwen 3 256b
-  hi: Qwen 3 256b
-  th: Qwen 3 256b
-  cs: Qwen 3 256b
-  sv: Qwen 3 256b
-  he: Qwen 3 256b
-  verified_by_human: []
-
 ai.skill.ask.model.claude_haiku_4_5_20251001:
   context: Display name for the Claude Haiku 4.5 AI model, shown as the settings page title when navigating directly to this model
   en: Claude Haiku 4.5

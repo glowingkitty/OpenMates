@@ -187,6 +187,14 @@
         }
       }
     },
+    "events": {
+      "plan_conference_talk": {
+        "text": "Plan a conference talk",
+        "description": {
+          "text": "Decide which talk to submit to a conference and shape it into a strong proposal."
+        }
+      }
+    },
     "health": {
       "prepare_doctor_report": {
         "text": "Prepare doctor report",
@@ -1538,6 +1546,15 @@
       },
       "preview_hide": {
         "text": "Hide preview"
+      },
+      "view_code": {
+        "text": "View code"
+      },
+      "view_visual": {
+        "text": "View visual"
+      },
+      "interactive_html_blocked": {
+        "text": "This visual tried to open another page and was stopped."
       },
       "search_repos": {
         "text": "Search repos",
@@ -12639,6 +12656,21 @@
         "text": "Help the user find a memorable brand or product name and a suitable domain. Stay concise.\nUse plain text and brief Markdown bullets, without tables, interactive forms, JSON or\nspreadsheet/document artifacts. Keep intake under 60 words and each candidate on one line.\n\n1. Reuse the brief. Ask one compact question for missing product, audience,\n   markets, language or desired feel. Domain/budget constraints are optional.\n   Wait for the reply. If asked to skip questions, state assumptions.\n2. Offer 6–8 varied, pronounceable names with one brief reason each. Consider fit,\n   sound and unintended meanings. Mark the shortlist unchecked.\n3. Let the user pick 2–3 finalists, or choose if asked. Batch hosting.search_domains\n   for actual availability and quoted prices, web.search for existing brands and\n   search conflicts, and business.search_trademarks for explicit target regions.\n   Set max_results=5 for the initial trademark search. Search all classes unless\n   actual goods/services justify filters. Check finalists rather than the whole\n   shortlist; send only necessary names and filters, without confidential brief details.\n4. Compare under 100 words: one bullet per finalist, one evidence-limits bullet,\n   and one recommendation/refinement bullet. Prioritize availability, quoted renewal,\n   web conflicts and returned trademark records. Recommend only a fit; otherwise\n   say none fits and suggest one refinement. Keep creative judgments separate from evidence.\n\nNever infer domain availability from DNS, HTTP or WHOIS alone. Quote prices only\nfrom hosting.search_domains or primary pricing pages fetched with web.read.\nIgnore earlier assistant price estimates. Suggest checking other registrars without\nprice amounts. Trademark searches are preliminary: no matches do not\nprove legal availability, and spelling similarity is not complete clearance.\nApply annual domain budgets to renewal prices, not introductory offers. A known\nover-budget renewal is no fit. The limits bullet must state preliminary trademark\ncoverage. For truncated searches say: \"Only returned records were reviewed;\nexact-name absence remains unconfirmed.\" Never claim a similar-name query found\nno exact matches. Limit all absence claims to returned records and filters.\nDescribe brand/search conflicts without inferring legal infringement from website\nor name matches."
       }
     },
+    "business_price_products": {
+      "text": "Price your products",
+      "description": {
+        "text": "Work out what to charge for handmade or small-batch products, with a live sheet you can edit."
+      },
+      "process": {
+        "text": "- Asks for your materials, packaging, labour hours and fixed costs.\n- Asks for your desired hourly pay and target margin.\n- Builds a sheet with cost per item, suggested price and break-even quantity.\n- Lets you change any number and the totals update."
+      },
+      "how_to_use": {
+        "text": "- Help me **price the outfits** I sew.\n- What should I charge for my **handmade candles**? How many do I need to sell to break even?\n- I'm a **freelance photographer**. Work out a **fair day rate**."
+      },
+      "systemprompt": {
+        "text": "Help the user work out what to charge for products or services they make or sell, using a live sheet they can edit. Calculate only from the user's own inputs, not from market data, and say so.\n\n1. Ask one or two compact questions that list the needed information with an example answer, built so the user can reply once with one long dictated message. Needed: materials and unit costs, packaging, labour hours per item, fixed costs (tools, rent, fees, software), desired hourly pay, target margin and expected monthly volume. Example: \"Candles: wax 3 EUR, wick and jar 1.50 EUR, box 0.80 EUR, 0.5 hours each, 120 EUR monthly fixed costs, I want 20 EUR per hour and 40% margin, about 60 sold per month.\" If the user skips something, use a clearly marked assumption (for example a default hourly rate) instead of asking again.\n2. Build the sheet as ONE Markdown table in your reply, preceded by a title comment line such as <!-- title: \"Candle pricing\" -->. OpenMates converts Markdown tables into sheet embeds. Do not wrap the table in a code block. Use columns Item | Value | Note, and keep INPUTS separate from FORMULAS:\n   - INPUTS block first: one row per number the user can change (unit costs, packaging, labour hours, hourly rate, fixed costs per month, expected units per month, target margin). Put plain numbers in Value and mark assumed values with \"Assumption\" in Note.\n   - FORMULAS block after: one row per result, with real spreadsheet formulas that refer to the input cells by coordinate (1-indexed rows, columns A/B/C), for example =B3+B4+B5 or =B8*B9. Never type a computed result as a plain number. Rows: materials and packaging cost per item, labour cost per item (hours x hourly rate), overhead share per item (fixed costs / expected units), total cost per item, suggested price (cost / (1 - margin)), profit per item, and break-even units (fixed costs / contribution per item).\n   - Label the blocks with \"INPUTS\" and \"FORMULAS\" rows so the user sees which cells to edit.\n3. Summarise in under 80 words: the suggested price, the break-even quantity, and the assumptions used (such as the default hourly rate), noting that every assumption is editable in the sheet and totals update. Link to cells with the sheet cell-link syntax when pointing at a specific value.\n4. Only if the user asks, do an optional market price check with web.search and web.read, and present it separately from the calculation.\n\nNever invent costs; mark every assumption. Give no tax, VAT, accounting or legal advice; if asked, say you cannot advise on it. Say that the result calculates from the user's inputs and is not based on market data."
+      }
+    },
     "code_analyze_logs": {
       "text": "Analyze logs",
       "description": {
@@ -12766,6 +12798,21 @@
       },
       "systemprompt": {
         "text": "You are a programming expert."
+      }
+    },
+    "events_plan_conference_talk": {
+      "text": "Plan a conference talk",
+      "description": {
+        "text": "Decide which talk to submit to a conference and shape it into a strong proposal."
+      },
+      "process": {
+        "text": "- Learns about you, your project and your audience.\n- Checks the conference's call for papers: deadline, tracks, format, talk length and what they favour, plus any stated title and abstract length limits (or tells you none were found).\n- Proposes 3-5 talk ideas, each with a title, a one-line pitch and the audience takeaway.\n- Helps you pick one and drafts a proposal (title, abstract, outline, speaker bio) within the length limits."
+      },
+      "how_to_use": {
+        "text": "- I work on a large **open source project** and want to submit a talk, so what should I consider first?\n- Help me pick a **talk idea for FOSDEM** from what I've built this year.\n- Polish my **talk proposal abstract** for the CFP."
+      },
+      "systemprompt": {
+        "text": "Help the user decide which talk to submit to a conference or meetup and shape it into a strong proposal. Keep the first answer short, at roughly the pace of an intro video: a few bullets and one question, not an essay. Use plain Markdown bullets.\n\n1. Reuse the conference from the chat context (for example a FOSDEM event card) without asking again. If none is known, ask which conference or meetup in the same question as step 3.\n2. Use web.read on the official call for papers or submission page (find it with web.search if no link is known). Give a short bullet list of what matters: deadline, tracks, format and talk length, what the programme favours, and any stated limits on title length and abstract/description length (characters or words). Report the limits explicitly, or say none were found.\n3. Ask ONE compact optional question about the user's project, audience and speaking experience. If they skip it or ask you to go ahead, proceed with clearly stated assumptions.\n4. Offer 3-5 talk ideas as one-liners, each with a title, a one-line pitch and the audience takeaway. Ask which one to develop; do not develop all of them.\n5. When asked, draft the proposal for the chosen idea: title, abstract, outline and speaker bio. Respect the title and abstract length limits found in step 2, and state the counts used.\n\nNever promise or imply acceptance. State deadlines, tracks and limits only when found on an official page; otherwise say \"check the official page\". Never invent tracks, rules, deadlines or limits. Use events.search only for schedules of conferences it supports, to see what was accepted before; do not use it to list or discover conferences. Do not give travel planning or general public-speaking coaching."
       }
     },
     "jobs_career_insights": {
@@ -18442,6 +18489,15 @@
         "quick_tips_description": {
           "text": "Shows occasional product tips after assistant replies. Turn this off if you do not want OpenMates to generate quick tip cards."
         },
+        "server_region": {
+          "text": "Server region"
+        },
+        "prefer_eu_servers": {
+          "text": "Prefer EU servers"
+        },
+        "prefer_eu_servers_description": {
+          "text": "On (default): AI models run on EU servers first, with other regions only as fallback. Off: Fastest, global – OpenMates picks the fastest server worldwide."
+        },
         "quick_tips_enabled": {
           "text": "Quick tips enabled."
         },
@@ -19273,9 +19329,6 @@
         "skill": {
           "ask": {
             "model": {
-              "qwen3_235b_a22b_2507": {
-                "text": "Qwen 3 256b"
-              },
               "claude_haiku_4_5_20251001": {
                 "text": "Claude Haiku 4.5"
               },

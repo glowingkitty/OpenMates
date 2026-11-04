@@ -1512,6 +1512,15 @@
       "preview_hide": {
         "text": "Önizlemeyi gizle"
       },
+      "view_code": {
+        "text": "Kodu göster"
+      },
+      "view_visual": {
+        "text": "Görseli göster"
+      },
+      "interactive_html_blocked": {
+        "text": "Bu görsel başka bir sayfa açmaya çalıştı ve durduruldu."
+      },
       "search_repos": {
         "text": "Repo ara",
         "description": {
@@ -15339,6 +15348,15 @@
         "quick_tips_description": {
           "text": "Asistan yanıtlarından sonra ara sıra ürün ipuçları gösterir. OpenMates'in hızlı ipucu kartları oluşturmasını istemiyorsan bunu kapat."
         },
+        "server_region": {
+          "text": "Sunucu bölgesi"
+        },
+        "prefer_eu_servers": {
+          "text": "AB sunucularını tercih et"
+        },
+        "prefer_eu_servers_description": {
+          "text": "Açık (varsayılan): Yapay zeka modelleri önce AB sunucularında çalışır, diğer bölgeler yalnızca yedek olarak kullanılır. Kapalı: En hızlı, küresel – OpenMates dünya genelinde en hızlı sunucuyu seçer."
+        },
         "quick_tips_enabled": {
           "text": "Hızlı ipuçları etkinleştirildi."
         },
@@ -16056,9 +16074,6 @@
         "skill": {
           "ask": {
             "model": {
-              "qwen3_235b_a22b_2507": {
-                "text": "Qwen 3 256b"
-              },
               "claude_haiku_4_5_20251001": {
                 "text": "Claude Haiku 4.5"
               },

@@ -492,7 +492,7 @@
                 // Map alias to resolved model ID for deep link
                 const aliasModelMap: Record<string, string> = {
                     'best': 'claude-fable-5',
-                    'fast': 'qwen3-235b-a22b-2507',
+                    'fast': 'mercury-3',
                 };
                 const resolvedModelId = aliasModelMap[category];
                 if (resolvedModelId) {

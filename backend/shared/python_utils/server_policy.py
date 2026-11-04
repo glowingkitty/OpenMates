@@ -2,9 +2,12 @@
 
 Rules enforced in code (not only in provider YAML):
 1. Servers hosted in or operated from China (CN/HK/MO) are never used.
-2. EU servers are always tried before any non-EU server (US, global, ...);
-   the relative order of non-EU servers is kept. The first server of that order
-   is the effective default.
+2. With the default "eu" preference, EU servers are always tried before any
+   non-EU server (US, global, ...); the relative order of non-EU servers is kept.
+   The first server of that order is the effective default.
+3. With the user's "global" ("Fastest, global") preference, the model's
+   ``fastest_server`` (if declared) is tried first, then the remaining servers
+   in the "eu" order. Blocked servers stay excluded in both modes.
 
 A server entry in ``backend/providers/*.yml`` carries ``region`` (EU/US/global
 or a cloud region id) and, where the hosting jurisdiction is known, an ISO
@@ -13,6 +16,8 @@ or a cloud region id) and, where the hosting jurisdiction is known, an ISO
 """
 
 from typing import Any, Dict, List, Mapping, Optional
+
+REGION_PREFERENCES = ("eu", "global")
 
 BLOCKED_COUNTRIES = frozenset({"CN", "HK", "MO"})
 
@@ -60,15 +65,31 @@ def server_region_rank(server: Mapping[str, Any]) -> int:
     return 0 if region == "eu" or (country is not None and country in EU_COUNTRIES) else 1
 
 
-def order_servers(servers: List[Mapping[str, Any]]) -> List[Mapping[str, Any]]:
-    """Drop blocked servers and order the rest EU first (stable within a rank)."""
+def normalize_region_preference(preference: Optional[str]) -> str:
+    """Return a valid preference; anything unknown means the privacy-first "eu"."""
+    return preference if preference in REGION_PREFERENCES else "eu"
+
+
+def order_servers(
+    servers: List[Mapping[str, Any]],
+    preference: Optional[str] = "eu",
+    fastest_server_id: Optional[str] = None,
+) -> List[Mapping[str, Any]]:
+    """Drop blocked servers; order EU first, or fastest first for "global"."""
     allowed = [s for s in servers if isinstance(s, Mapping) and not is_server_blocked(s)]
-    return sorted(allowed, key=server_region_rank)
+    ordered = sorted(allowed, key=server_region_rank)
+    if normalize_region_preference(preference) == "global" and fastest_server_id:
+        ordered.sort(key=lambda s: s.get("id") != fastest_server_id)
+    return ordered
 
 
-def effective_default_server_id(model_config: Mapping[str, Any]) -> Optional[str]:
+def effective_default_server_id(
+    model_config: Mapping[str, Any], preference: Optional[str] = "eu",
+) -> Optional[str]:
     """Best allowed server id for a catalog model, regardless of YAML default."""
-    ordered = order_servers(list(model_config.get("servers") or []))
+    ordered = order_servers(
+        list(model_config.get("servers") or []), preference, model_config.get("fastest_server"),
+    )
     return ordered[0].get("id") if ordered else None
 
 
