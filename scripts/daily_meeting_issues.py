@@ -9,6 +9,7 @@ Docs: docs/contributing/guides/daily-meeting.md
 
 from __future__ import annotations
 
+from datetime import date, timedelta
 import json
 import os
 import subprocess
@@ -61,3 +62,44 @@ def linear_issues(gaps: list[str], api_key: str | None = None) -> list[dict] | N
              "priority": n.get("priorityLabel") or "", "assignee": (n.get("assignee") or {}).get("name", ""),
              "labels": [label["name"] for label in n["labels"]["nodes"]],
              "updated": n["updatedAt"][:10]} for n in data["data"]["issues"]["nodes"]]
+
+
+BATCH = 10
+REVIEW_PAUSE_DAYS = 30
+
+
+def _task_number(task: dict) -> int:
+    digits = "".join(ch for ch in str(task.get("id") or "") if ch.isdigit())
+    return int(digits) if digits else 10**9
+
+
+def cleanup_candidates(tasks: list[dict] | None, github: list[dict] | None, linear: list[dict] | None,
+                       reviewed: dict[str, str], today: date, batch: int = BATCH) -> dict:
+    """Oldest open items per tracker for the backlog cleanup part of the meeting.
+
+    Items the user kept in a recent meeting (`reviewed`: id -> ISO date) are skipped for
+    REVIEW_PAUSE_DAYS so the same keepers do not return every day. Tasks have no
+    timestamps, so the lowest Task numbers (created first) count as oldest.
+    """
+    cutoff = (today - timedelta(days=REVIEW_PAUSE_DAYS)).isoformat()
+
+    def fresh(item: dict) -> bool:
+        return reviewed.get(str(item["id"]), "") < cutoff
+
+    open_tasks = [t for t in (tasks or []) if t.get("status") in {"todo", "backlog", "blocked"}]
+    return {
+        "tasks": {"total": len(open_tasks),
+                  "batch": sorted(filter(fresh, open_tasks), key=_task_number)[:batch]},
+        "github": {"total": len(github or []),
+                   "batch": sorted(filter(fresh, github or []), key=lambda i: i["updated"])[:batch]},
+        "linear": {"total": len(linear or []),
+                   "batch": sorted(filter(fresh, linear or []), key=lambda i: i["updated"])[:batch]},
+    }
+
+
+def load_reviewed(path) -> dict[str, str]:
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return {}
+    return {str(k): str(v) for k, v in data.items()} if isinstance(data, dict) else {}

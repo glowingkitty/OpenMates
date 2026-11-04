@@ -18,6 +18,8 @@ Reminders:
 - "<exact title>" -> done | move YYYY-MM-DD HH:MM | keep
 New reminders:
 - "<title>" (OpenMates|Personal Tasks, YYYY-MM-DD HH:MM)
+Cleanup:
+- <GitHub #123 | Linear ABC-1 | TASK-123> -> close | delete | merge <other id> | delay | keep
 Parking lot:
 + … | - …
 Week goals: unchanged | …
@@ -54,14 +56,30 @@ only when an item is ambiguous (e.g. a reminder title matches none or several).
    96033196-e4b1-431e-b773-ba221e952fed --title … --description
    "<goal, done-criterion, date>" --priority … --assign external-ai`). Parking-lot
    items that already have Tasks move to `backlog`. Never mark incomplete work Done.
-4. **Work chats** (optional, ask once with a recommendation): one Claude chat per
+4. **Cleanup** (the `Cleanup:` lines; the meeting also tidies the to-do lists):
+   - Tasks: `close`/`delete` → `openmates tasks delete <id> --confirm` only if the note
+     says delete, else mark obsolete work via `tasks edit --status backlog` plus an
+     activity note (`tasks history`/`restore` can undo a delete); `merge X` → add an
+     activity note on both pointing at each other, then delete or close the duplicate;
+     `delay` → `--status backlog --add-label build-week-<date>` and a parking-lot line;
+     `keep` → leave as is.
+   - GitHub: `close`/`delete` → `gh issue close <n> --reason "not planned" --comment
+     "Closed in the daily backlog cleanup: <reason>"` (`gh issue delete` only when the
+     note says delete); `merge X` → comment "Duplicate of #X" and close; `delay` → add
+     the label `later` (create if missing) with a comment.
+   - Linear: needs `LINEAR_API_KEY`; archive via the GraphQL `issueArchive` mutation, or
+     list the Linear ids in the closing summary for the user to do by hand if no key.
+   - Record every `keep` in `logs/daily-meetings/cleanup-reviewed.json` (`{"<id>":
+     "YYYY-MM-DD"}`, private) so it is not offered again for 30 days.
+   Report counts and any failures by id.
+5. **Work chats** (optional, ask once with a recommendation): one Claude chat per
    agent task — `create_session` with the `dev-server:OpenMates…` bridge
    environment and a handoff naming the Task ID, goal, done-criterion and "read
    FOCUS.md and run `sessions.py start` first"; resume an existing chat with
    `send_message`. Respect the current phase in FOCUS.md.
 
-Close with ≤6 lines: focus, tasks with Task IDs, reminders changed, parking-lot
-changes, chats started.
+Close with ≤6 lines: focus, tasks with Task IDs, reminders changed, items cleaned up,
+parking-lot changes, chats started.
 
 ## Pipeline reference
 - `mac_reminders.py sync` (cron, every 30 min) keeps a private copy in

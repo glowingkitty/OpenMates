@@ -354,6 +354,16 @@ def issue_trackers(gaps: list[str]) -> dict:
             "linear": daily_meeting_issues.linear_issues(gaps)}
 
 
+def cleanup_batch(out: Path, tasks: list[dict] | None, issues: dict, today: str) -> dict:
+    """Oldest open Tasks / GitHub / Linear items to review (see daily_meeting_issues.cleanup_candidates)."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import daily_meeting_issues  # noqa: E402 - sibling script, path set just above
+
+    reviewed = daily_meeting_issues.load_reviewed(out / "cleanup-reviewed.json")
+    return daily_meeting_issues.cleanup_candidates(
+        tasks, issues.get("github"), issues.get("linear"), reviewed, datetime.fromisoformat(today).date())
+
+
 def reminders(gaps: list[str]) -> dict | None:
     """Live from the Mac when it is online, else the copy synced every 30 minutes."""
     sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -475,6 +485,8 @@ def collect(root: Path, now: datetime, since: datetime, out: Path) -> tuple[dict
     tasks = task_snapshot(gaps)
     snapshots = sorted(p for p in out.glob("*-tasks.json") if p.name[:10] < today)
     previous = json.loads(snapshots[-1].read_text()) if snapshots else None
+    issues = issue_trackers(gaps)
+    cleanup = cleanup_batch(out, tasks, issues, today)
     chats = claude_chats(since)
     if not chats:
         gaps.append("no Claude Code chats found on the dev server for this window")
@@ -493,7 +505,8 @@ def collect(root: Path, now: datetime, since: datetime, out: Path) -> tuple[dict
         "marketing": marketing(since),
         "tasks": task_summary(tasks, previous, {c["session"] for c in chats}),
         "nightly": nightly(root, since),
-        "issues": issue_trackers(gaps),
+        "issues": issues,
+        "cleanup": cleanup,
         "reminders": reminders(gaps),
         "gaps": gaps,
     }

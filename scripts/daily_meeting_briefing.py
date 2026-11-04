@@ -116,7 +116,15 @@ single focus** — propose one from the week's goals; (3) go through overdue and
 today/tomorrow reminders **in groups** (done / move to a date and time you suggest / \
 keep), not one by one. Every moved or new reminder needs a **time of day**, never \
 just a date — suggest one; (4) agree **up to 3 tasks**; (5) parking-lot additions/removals and \
-week-goal changes; (6) read back and output the decisions note.
+week-goal changes; (6) **backlog cleanup**, time-boxed to ~5 minutes — see below; \
+(7) read back and output the decisions note.
+- **Backlog cleanup** (section 4): the meeting is not only for prioritizing today but \
+also for keeping the to-do lists healthy. Take the batch in groups of 3-5 related items \
+(one question per group, with your recommendation): which can be **closed or deleted** \
+(obsolete, done, no longer wanted), **merged** into another (duplicates), **delayed** \
+(park for a later Build Week) or **kept**. Be critical: say when an item looks stale, \
+vague or contradicts the current goals. In a Marketing Week, recommend delaying \
+non-marketing items. Never decide for the founder; deletion needs a clear "yes".
 - Ask clarifying questions in these directions: what blocks this week's goals; \
 deadlines at risk; loose ends from yesterday's chats (finish, park or drop?); \
 whether too many chats are running (and whether the remaining weekly Claude usage \
@@ -135,6 +143,8 @@ Reminders:
 - "<exact reminder title>" -> done | move YYYY-MM-DD HH:MM | keep
 New reminders:
 - "<title>" (OpenMates|Personal Tasks, YYYY-MM-DD HH:MM)
+Cleanup:
+- <GitHub #123 | Linear ABC-1 | TASK-123> -> close | delete | merge <other id> | delay | keep
 Parking lot:
 + <added item> | - <removed item>
 Week goals: <unchanged | new goals>
@@ -153,6 +163,23 @@ def _issue_section(title: str, rows: list[dict] | None, extra: str) -> list[str]
     if len(rows) > 15:
         out.append(f"- … {len(rows) - 15} more")
     return out + [""]
+
+
+def _cleanup_section(cleanup: dict) -> list[str]:
+    out = ["## 4. Backlog cleanup", "",
+           "The meeting also tidies the to-do lists. Review this batch (oldest first): "
+           "close/delete what is obsolete, merge duplicates, delay what should wait, keep the rest.", ""]
+    labels = (("tasks", "OpenMates Tasks (todo, backlog, blocked)", lambda t: f"{t['id']} {t['title']} "
+                                                                                  f"[{t.get('status')}, {t.get('priority')}]"),
+              ("github", "GitHub issues", lambda i: f"{i['id']} {i['title']} (last activity {i['updated']})"),
+              ("linear", "Linear issues", lambda i: f"{i['id']} {i['title']} ({i.get('state')}, "
+                                                    f"last activity {i['updated']})"))
+    for key, title, line in labels:
+        part = cleanup.get(key) or {}
+        out.append(f"**{title}: {part.get('total', 0)} open, {len(part.get('batch', []))} to review today**")
+        out += [f"- {line(item)}" for item in part.get("batch", [])] or ["- nothing to review"]
+        out.append("")
+    return out
 
 
 def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> str:
@@ -250,7 +277,8 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
     if ev.get("gaps"):
         out += ["", "**Data gaps:** " + " · ".join(ev["gaps"])]
 
-    out += ["", "---", "", "## Appendix A — Reminders, next 7 days", ""]
+    out += [""] + _cleanup_section(ev.get("cleanup") or {})
+    out += ["---", "", "## Appendix A — Reminders, next 7 days", ""]
     by_day: dict[str, list[str]] = {}
     for item in rem.get("due_next_days", []):
         by_day.setdefault(_due_label(item)[:10], []).append(_reminder_line(item))

@@ -53,3 +53,13 @@ with one alarm at that time, so Reminders and Calendar show the same moment.
 canonical checkout, is listed in `.gitignore` and must never be committed: this
 repository is public. Personal items (health, appointments, finances) never belong
 in it or anywhere else in the repository.
+
+## Backlog cleanup
+The meeting also keeps the to-do lists healthy. Section 4 of the briefing lists a
+batch of the oldest open OpenMates Tasks (todo, backlog, blocked), GitHub issues and
+Linear issues (10 per tracker; items kept in the last 30 days are skipped, see
+`logs/daily-meetings/cleanup-reviewed.json`). Claude takes them in groups of 3-5,
+asks one question per group with a recommendation (close or delete, merge, delay,
+keep) and records the answers in the `Cleanup:` lines of the decisions note. The
+`daily-meeting-and-orchestration` skill applies them: Tasks via `openmates tasks`,
+GitHub via `gh issue close` (as not planned, with a comment), Linear via the API.
