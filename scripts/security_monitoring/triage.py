@@ -260,12 +260,21 @@ def validate_verdict(raw: Any, expected: set[str]) -> TriageVerdict:
     environments = raw.get("environments_assessed")
     if not isinstance(environments, list) or not environments or any(env not in ENVIRONMENTS for env in environments):
         raise TriageError("invalid_environments_assessed")
-    fix = _proposed_fix(raw.get("proposed_fix"))
-    if outcome == "not_affected" and fix is not None:
-        raise TriageError("fix_on_not_affected")
+    raw_fix = raw.get("proposed_fix")
     actions = raw.get("manual_actions")
     if not isinstance(actions, list) or len(actions) > MAX_MANUAL_ACTIONS or not all(isinstance(a, str) and 0 < len(a) <= 300 for a in actions):
         raise TriageError("invalid_manual_actions")
+    actions = list(actions)
+    if isinstance(raw_fix, dict) and raw_fix.get("target_files") == []:
+        # Host-installed tools/OS packages have no repo file to change: an operator action, not an auto-fix.
+        package = _optional_text(raw_fix.get("package"), "package") or "the affected component"
+        target = _optional_text(raw_fix.get("target_version"), "target_version", 100)
+        if len(actions) < MAX_MANUAL_ACTIONS:
+            actions.append(f"Update {package}{' to ' + target if target else ''} outside the repository (no repo file to change)."[:300])
+        raw_fix = None
+    fix = _proposed_fix(raw_fix)
+    if outcome == "not_affected" and fix is not None:
+        raise TriageError("fix_on_not_affected")
     return TriageVerdict(
         observation_identity=identity,
         outcome=outcome,

@@ -176,6 +176,12 @@ def test_invalid_verdicts_fail_closed():
     ):
         with pytest.raises(triage.TriageError):
             triage.parse_output(envelope([broken]), {obs.identity})
+    host_tool = {**good, "outcome": "affected_fix_soon", "not_affected_reason": None,
+                 "proposed_fix": {"fix_class": "dependency_bump", "target_files": [], "package": "@google/gemini-cli",
+                                  "from_version": "0.38.2", "target_version": "0.39.1", "mitigation": None}}
+    converted = triage.parse_output(envelope([host_tool]), {obs.identity})[0]
+    assert converted.proposed_fix is None
+    assert converted.manual_actions[-1].startswith("Update @google/gemini-cli to 0.39.1 outside the repository")
     with pytest.raises(triage.TriageError):
         triage.parse_output(envelope([]), {obs.identity})
     with pytest.raises(triage.TriageError):

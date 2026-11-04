@@ -48,6 +48,8 @@ in the required JSON schema and nothing else. Contract:
   classes `dependency_bump`, `image_digest_bump`, `malicious_package_removal`,
   `config_mitigation`, with explicit repo-relative `target_files` and an
   explicit `target_version` (oldest fixing version) or `mitigation`.
+  Host-installed tools, OS packages and kernels have no repo file: set
+  `proposed_fix` to null and put the update in `manual_actions`.
 - `affected_fix_soon`: affected and plausibly reachable, not urgent.
 - `affected_low`: affected but impractical to exploit here.
 - `not_affected`: only with a `not_affected_reason` (`component_not_present`,
