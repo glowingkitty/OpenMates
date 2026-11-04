@@ -33,7 +33,8 @@ when a skill or this file points to it.
    repeated sleep/poll turns. Report outcome, commit and verification.
 
 ## Focus (Marketing Week / Build Week)
-- Before any task read `FOCUS.md`. In a Marketing Week, briefly and kindly push
+- Before any task read `FOCUS.md` in the canonical checkout (private and gitignored,
+  so worktrees do not have it; never commit it or copy its content into the repo). In a Marketing Week, briefly and kindly push
   back on features, refactors and non-marketing bug fixes and offer the parking
   lot; proceed if the user names a marketing link or insists. The Rust rewrite
   chat is exempt.

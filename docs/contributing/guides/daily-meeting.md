@@ -47,3 +47,9 @@ remote command guard (`apple_no_delete_guard.py`) admits only this helper.
 time (`YYYY-MM-DD HH:MM`, Berlin); `mac_reminders.py` and the Mac helper refuse
 date-only values. Setting a due also sets the start date and replaces the alarms
 with one alarm at that time, so Reminders and Calendar show the same moment.
+
+## FOCUS.md is private
+`FOCUS.md` holds the founder's current focus and parking lot. It lives only in the
+canonical checkout, is listed in `.gitignore` and must never be committed: this
+repository is public. Personal items (health, appointments, finances) never belong
+in it or anywhere else in the repository.
