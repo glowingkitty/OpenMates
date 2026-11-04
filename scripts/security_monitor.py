@@ -52,11 +52,14 @@ def render_crontab(existing: str, project_root: Path) -> str:
         retained.pop()
     root = project_root.resolve()
     log = f"{root}/logs/security-monitoring/cron.log"
+    home = Path.home()
+    # cron starts with a minimal PATH; triage needs claude, Task creation needs openmates, sources need gh.
+    env = f"PATH={home}/.local/bin:{home}/.npm-global/bin:/usr/local/bin:/usr/bin:/bin"
     block = [
         BEGIN_MARKER,
         "# Hourly deterministic advisory watcher (+ triage/fix dispatch) and daily digest.",
-        f"20 * * * * cd {root} && /usr/bin/python3 scripts/security_monitor.py hourly >> {log} 2>&1",
-        f"40 6 * * * cd {root} && /usr/bin/python3 scripts/security_monitor.py digest >> {log} 2>&1",
+        f"20 * * * * cd {root} && {env} /usr/bin/python3 scripts/security_monitor.py hourly >> {log} 2>&1",
+        f"40 6 * * * cd {root} && {env} /usr/bin/python3 scripts/security_monitor.py digest >> {log} 2>&1",
         END_MARKER,
     ]
     return "\n".join([*retained, "", *block]).strip() + "\n"
