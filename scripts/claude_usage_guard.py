@@ -38,6 +38,7 @@ THRESHOLD_PERCENT = 90.0
 MIN_HOURS_TO_RESET = 24.0
 ACTIVE_MINUTES = 30
 MAX_ATTEMPTS = 3
+WRAPUP_MINUTES = 10
 DEFAULT_INTERVAL_SECONDS = 600
 SENDER_MODEL = "haiku"
 SENDER_MODES = {"acceptEdits", "auto", "bypassPermissions", "dontAsk", "plan"}  # `claude -p --permission-mode` choices
@@ -125,17 +126,20 @@ def decide(used: float, resets: datetime, now: datetime, record: dict | None,
 def wrapup_message(used: float, resets: datetime, hours: float) -> str:
     reset_text = resets.astimezone(LOCAL_TZ).strftime("%a %d %b %H:%M")
     return (
-        f"URGENT: weekly Claude usage is at {used:.0f}% with {hours:.0f}h until the reset - stop your work now.\n"
+        f"Weekly Claude usage is at {used:.0f}% with {hours:.0f}h until the reset - please wind this chat down "
+        f"in an orderly way within about {WRAPUP_MINUTES} minutes.\n"
         f"Automated by scripts/claude_usage_guard.py (set up by the user). The weekly limit resets {reset_text}; "
-        "the remaining budget must not be burned.\n"
-        "1. Do not start new work, sub-agents, CI runs or long waits. Stop what is running unless step 2 applies.\n"
-        "2. Exception: if a dev deploy is verified and only the final publish remains "
-        "(sessions.py deploy / wait-deploy), finish it, then stop. If it is not that close, do not push it.\n"
+        "the remaining budget has to last until then, so no new work starts now.\n"
+        "1. Do not start new work, sub-agents, CI runs or long waits.\n"
+        f"2. Finish what is nearly done: if a deploy, verification or merge can be completed in about {WRAPUP_MINUTES} "
+        "minutes (the work is verified and only publishing or a short CI wait is left), complete it properly, then stop. "
+        "Anything longer: stop at the next safe point. Never rush or push unverified work.\n"
         "3. Leave the workspace consistent (no half-applied edits). No raw git commit/push/stash.\n"
-        "4. Update your linked OpenMates Task(s) with the true status (never mark incomplete work Done): "
-        "where the work stands, session id and workspace, what is verified and what is not.\n"
-        "5. Make your final reply an overview of what remains open and the recommended next steps in order, "
-        "starting with the first concrete command or file to resume from.\n"
+        "4. Before you stop, update your linked OpenMates Task(s) so anyone can continue without reading this chat: "
+        "honest status (never Done while incomplete), session id and workspace, commits/deploys already made, what is "
+        "verified and how, what is not, blockers, and the exact next command or file to resume from. "
+        "If unfinished work has no Task, create one with /new-task.\n"
+        "5. Your final reply is a short overview of what remains open and the recommended next steps in order.\n"
         "Then stop and do nothing further until the user writes to you or the limit resets. "
         "An explicit newer instruction from the user overrides this message."
     )

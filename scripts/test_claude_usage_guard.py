@@ -58,8 +58,10 @@ def test_gives_up_after_max_failed_attempts() -> None:
 
 def test_message_states_usage_reset_and_required_steps() -> None:
     text = guard.wrapup_message(91.4, resets_in(40), 40)
-    assert text.splitlines()[0].startswith("URGENT: weekly Claude usage is at 91%")
-    for needle in ("final publish remains", "OpenMates Task", "recommended next steps", "overrides this message"):
+    assert text.splitlines()[0].startswith("Weekly Claude usage is at 91%")
+    assert "orderly way" in text and "URGENT" not in text
+    for needle in ("can be completed in about 10 minutes", "exact next command or file", "/new-task",
+                   "recommended next steps", "overrides this message"):
         assert needle in text
 
 
