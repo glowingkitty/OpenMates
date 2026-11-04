@@ -155,3 +155,18 @@ def test_resend_refused_when_nothing_was_sent(tmp_path: Path, monkeypatch) -> No
         assert "nothing was sent" in str(error)
     else:
         raise AssertionError("resend without a first message must be refused")
+
+
+def test_reset_time_wobble_around_the_hour_is_the_same_window(tmp_path: Path, monkeypatch) -> None:
+    """Regression: 10:59:58 vs 11:00:01 flipped the hour-floored key and re-sent to every chat."""
+    early = datetime(2026, 11, 6, 10, 59, 58, tzinfo=timezone.utc)
+    late = datetime(2026, 11, 6, 11, 0, 1, tzinfo=timezone.utc)
+    record = {"window": guard.window_key(early), "sent_at": "x"}
+    assert guard.window_key(early) != guard.window_key(late)
+    assert guard.decide(95, late, NOW, record).action == "already_sent"
+    assert guard.decide(95, late + timedelta(days=7), NOW + timedelta(days=7), record).action == "trigger"
+    monkeypatch.setattr(guard, "list_background_agents", lambda: [])
+    monkeypatch.setattr(guard, "transcripts", lambda root: {})
+    guard.save_record(tmp_path, record)
+    monkeypatch.setattr(guard, "fetch_weekly_usage", lambda: (95.0, late))
+    assert guard.run_check(False, 90, 24, 30, tmp_path, NOW - timedelta(days=5)).action == "already_sent"

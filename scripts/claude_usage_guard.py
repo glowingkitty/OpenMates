@@ -40,6 +40,7 @@ MIN_HOURS_TO_RESET = 24.0
 ACTIVE_MINUTES = 30
 MAX_ATTEMPTS = 3
 WRAPUP_MINUTES = 10
+WINDOW_TOLERANCE = timedelta(hours=12)
 DEFAULT_INTERVAL_SECONDS = 600
 SENDER_MODEL = "haiku"
 SENDER_MODES = {"acceptEdits", "auto", "bypassPermissions", "dontAsk", "plan"}  # `claude -p --permission-mode` choices
@@ -100,12 +101,23 @@ def window_key(resets: datetime) -> str:
     return resets.astimezone(timezone.utc).replace(minute=0, second=0, microsecond=0).isoformat()
 
 
+def same_window(record: dict | None, resets: datetime) -> bool:
+    """True when the stored record belongs to the weekly window ending at ``resets``.
+
+    The endpoint's reset time wobbles by about a minute (10:59 vs 11:00), which flips an
+    hour-floored key, so windows are matched by a tolerance far below the 7-day length.
+    """
+    if not record or not record.get("window"):
+        return False
+    return abs(parse_ts(record["window"]) - resets) < WINDOW_TOLERANCE
+
+
 def decide(used: float, resets: datetime, now: datetime, record: dict | None,
            threshold: float = THRESHOLD_PERCENT, min_hours: float = MIN_HOURS_TO_RESET) -> Decision:
     """Pure decision: what this check should do for the current weekly window."""
     hours = (resets - now).total_seconds() / 3600
     window = window_key(resets)
-    if record and record.get("window") == window:
+    if same_window(record, resets):
         if record.get("sent_at"):
             action = "already_sent"
         elif record.get("attempts", 0) >= MAX_ATTEMPTS:
@@ -272,7 +284,7 @@ def run_check(dry_run: bool, threshold: float, min_hours: float, active_minutes:
         log(f"dry run: would message {len(targets)} chats: {[t['name'] for t in targets]}")
         print(message)
         return decision
-    attempts = (record or {}).get("attempts", 0) if (record or {}).get("window") == decision.window else 0
+    attempts = record.get("attempts", 0) if same_window(record, resets) else 0
     record = {"window": decision.window, "attempts": attempts + 1, "used_percent": used,
               "targets": targets, "triggered_at": now.isoformat(timespec="seconds")}
     if not targets:
@@ -322,7 +334,7 @@ def run_resend(directory: Path | None = None, now: datetime | None = None) -> in
     now = now or datetime.now(timezone.utc)
     used, resets = fetch_weekly_usage()
     record = load_record(directory)
-    if not record or record.get("window") != window_key(resets) or not record.get("sent_at"):
+    if not same_window(record, resets) or not record.get("sent_at"):
         raise DeliveryFailed("nothing was sent in this weekly window, so there is nothing to follow up")
     if record.get("resent_at"):
         raise DeliveryFailed(f"follow-up already sent at {record['resent_at']}")
@@ -350,7 +362,7 @@ def run_status(threshold: float, min_hours: float) -> int:
     print(f"weekly usage {used:.1f}% | resets {resets.astimezone(LOCAL_TZ):%a %d %b %H:%M} "
           f"({decision.hours_to_reset:.1f}h) | action now: {decision.action}")
     print(f"rule: >= {threshold:.0f}% used and > {min_hours:.0f}h to reset, once per weekly window")
-    current = record if record and record.get("window") == decision.window else None
+    current = record if same_window(record, resets) else None
     print("this window: " + (json.dumps({k: v for k, v in current.items() if k != "targets"}, indent=2)
                               if current else "nothing sent"))
     return 0
