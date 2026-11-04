@@ -170,3 +170,30 @@ def test_reset_time_wobble_around_the_hour_is_the_same_window(tmp_path: Path, mo
     guard.save_record(tmp_path, record)
     monkeypatch.setattr(guard, "fetch_weekly_usage", lambda: (95.0, late))
     assert guard.run_check(False, 90, 24, 30, tmp_path, NOW - timedelta(days=5)).action == "already_sent"
+
+
+def test_reserve_tier_triggers_at_3_percent_left_with_more_than_10h() -> None:
+    args = (guard.RESERVE_THRESHOLD_PERCENT, guard.RESERVE_MIN_HOURS_TO_RESET)
+    assert guard.decide(96.9, resets_in(20), NOW, None, *args).action == "below_threshold"
+    assert guard.decide(97.0, resets_in(10.5), NOW, None, *args).action == "trigger"
+    assert guard.decide(99.0, resets_in(10.0), NOW, None, *args).action == "near_reset"
+
+
+def test_reserve_tier_fires_even_when_wrapup_already_sent(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(guard, "fetch_weekly_usage", lambda: (98.0, resets_in(30)))
+    monkeypatch.setattr(guard, "list_background_agents", lambda: [{"name": "a", "sessionId": "s", "status": "busy"}])
+    monkeypatch.setattr(guard, "transcripts", lambda root: {})
+    sent: list[str] = []
+    monkeypatch.setattr(guard, "deliver", lambda targets, message, root, mode: sent.append(message) or "ok")
+    guard.save_record(tmp_path, {"window": guard.window_key(resets_in(30)), "sent_at": "x"})
+    assert guard.run_check(False, 90, 24, 30, tmp_path, NOW).action == "already_sent"
+    assert guard.run_check(False, 97, 10, 30, tmp_path, NOW, tier=guard.RESERVE_TIER).action == "trigger"
+    assert guard.run_check(False, 97, 10, 30, tmp_path, NOW, tier=guard.RESERVE_TIER).action == "already_sent"
+    assert len(sent) == 1 and sent[0].startswith("EMERGENCY RESERVE")
+    assert (tmp_path / "state-reserve.json").exists()
+
+
+def test_reserve_message_demands_an_immediate_stop() -> None:
+    text = guard.reserve_message(97.6, resets_in(30), 30)
+    assert "EMERGENCY RESERVE" in text and "usage is at 98%" in text and "stop this chat now" in text
+    assert "exact next command or file" in text and "overrides this message" in text

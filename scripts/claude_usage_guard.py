@@ -4,10 +4,12 @@
 Deterministic decision, minimal model use. Every check:
   1. reads the subscription's weekly (seven_day) usage from the account endpoint
      Claude Code's /usage uses (read-only, undocumented, failures are reported),
-  2. triggers when used >= THRESHOLD percent AND more than MIN_HOURS remain until the
-     reset (close to the reset it is cheaper to just wait),
-  3. at most once per weekly window, lists the active chats and delivers one fixed
-     message to each through a restricted headless ``claude -p`` that may only call
+  2. evaluates two tiers, each triggering when used >= its threshold AND more than its
+     minimum hours remain until the reset (close to the reset it is cheaper to wait):
+       wrapup   >= 90% used (10% left), > 24h to reset: orderly wind-down,
+       reserve  >= 97% used (3% left),  > 10h to reset: stop now, keep an emergency reserve,
+  3. at most once per tier and weekly window, lists the active chats and delivers one
+     fixed message to each through a restricted headless ``claude -p`` that may only call
      ListAgents/SendMessage (the supported way to reach a running, mid-turn chat).
 
 Commands:
@@ -37,6 +39,12 @@ from agent_peers import repository_root, transcripts
 
 THRESHOLD_PERCENT = 90.0
 MIN_HOURS_TO_RESET = 24.0
+RESERVE_THRESHOLD_PERCENT = 97.0
+RESERVE_MIN_HOURS_TO_RESET = 10.0
+WRAPUP_TIER = "wrapup"
+RESERVE_TIER = "reserve"
+TIERS = (WRAPUP_TIER, RESERVE_TIER)
+RESERVE_STOP_MINUTES = 3
 ACTIVE_MINUTES = 30
 MAX_ATTEMPTS = 3
 WRAPUP_MINUTES = 10
@@ -158,6 +166,28 @@ def wrapup_message(used: float, resets: datetime, hours: float) -> str:
     )
 
 
+def reserve_message(used: float, resets: datetime, hours: float) -> str:
+    reset_text = resets.astimezone(LOCAL_TZ).strftime("%a %d %b %H:%M")
+    return (
+        f"EMERGENCY RESERVE: weekly Claude usage is at {used:.0f}% (about {100 - used:.0f}% left) with {hours:.0f}h "
+        f"until the reset - stop this chat now, within about {RESERVE_STOP_MINUTES} minutes.\n"
+        f"Automated by scripts/claude_usage_guard.py (set up by the user). The weekly limit resets {reset_text}; "
+        "the last few percent are kept as an emergency reserve and must not be spent on normal work.\n"
+        "1. Start nothing: no new work, sub-agents, CI runs, deploys or waits. Cancel pending waits.\n"
+        "2. Reach the next safe point (no half-applied edits; no raw git commit/push/stash) and stop. "
+        "Do not rush or publish unverified work.\n"
+        "3. With minimal output, record in your linked OpenMates Task(s) the honest status (never Done while "
+        "incomplete), session id and workspace, what is verified, and the exact next command or file to resume from. "
+        "If unfinished work has no Task, create one with /new-task.\n"
+        "4. Final reply: two lines at most. Then do nothing further until the user writes to you or the limit resets. "
+        "An explicit newer instruction from the user overrides this message."
+    )
+
+
+def tier_message(tier: str, used: float, resets: datetime, hours: float) -> str:
+    return (reserve_message if tier == RESERVE_TIER else wrapup_message)(used, resets, hours)
+
+
 def list_background_agents() -> list[dict]:
     try:
         result = subprocess.run(["claude", "agents", "--json"], capture_output=True, text=True,
@@ -252,34 +282,39 @@ def deliver(targets: list[dict], message: str, root: Path, mode: str) -> str:
     return str(outcome.get("result", ""))
 
 
-def load_record(directory: Path) -> dict | None:
+def state_file(tier: str) -> str:
+    """Per-tier record name; the wrap-up tier keeps the original ``state.json``."""
+    return "state.json" if tier == WRAPUP_TIER else f"state-{tier}.json"
+
+
+def load_record(directory: Path, tier: str = WRAPUP_TIER) -> dict | None:
     try:
-        return json.loads((directory / "state.json").read_text())
+        return json.loads((directory / state_file(tier)).read_text())
     except FileNotFoundError:
         return None
 
 
-def save_record(directory: Path, record: dict) -> None:
+def save_record(directory: Path, record: dict, tier: str = WRAPUP_TIER) -> None:
     directory.mkdir(parents=True, exist_ok=True, mode=0o700)
-    temporary = directory / "state.json.tmp"
+    temporary = directory / f"{state_file(tier)}.tmp"
     temporary.write_text(json.dumps(record, indent=2, sort_keys=True))
-    temporary.replace(directory / "state.json")
+    temporary.replace(directory / state_file(tier))
 
 
 def run_check(dry_run: bool, threshold: float, min_hours: float, active_minutes: int,
-              directory: Path | None = None, now: datetime | None = None) -> Decision:
+              directory: Path | None = None, now: datetime | None = None, tier: str = WRAPUP_TIER) -> Decision:
     directory = directory or state_dir()
     now = now or datetime.now(timezone.utc)
     used, resets = fetch_weekly_usage()
-    record = load_record(directory)
+    record = load_record(directory, tier)
     decision = decide(used, resets, now, record, threshold, min_hours)
-    log(f"weekly usage {used:.1f}%, {decision.hours_to_reset:.1f}h to reset -> {decision.action}")
+    log(f"[{tier}] weekly usage {used:.1f}%, {decision.hours_to_reset:.1f}h to reset -> {decision.action}")
     if decision.action != "trigger":
         return decision
     root = repository_root(Path.cwd())
     targets = active_targets(list_background_agents(), root, time.time(), active_minutes,
                              os.environ.get("CLAUDE_CODE_SESSION_ID", ""))
-    message = wrapup_message(used, resets, decision.hours_to_reset)
+    message = tier_message(tier, used, resets, decision.hours_to_reset)
     if dry_run:
         log(f"dry run: would message {len(targets)} chats: {[t['name'] for t in targets]}")
         print(message)
@@ -290,7 +325,7 @@ def run_check(dry_run: bool, threshold: float, min_hours: float, active_minutes:
     if not targets:
         record["sent_at"] = now.isoformat(timespec="seconds")
         record["result"] = "no active chats at trigger time"
-        save_record(directory, record)
+        save_record(directory, record, tier)
         log("no active chats; window marked handled")
         return decision
     mode, warning = sender_mode(targets)
@@ -305,7 +340,7 @@ def run_check(dry_run: bool, threshold: float, min_hours: float, active_minutes:
     except DeliveryFailed as error:
         record["error"] = str(error)
         log(f"delivery attempt {record['attempts']}/{MAX_ATTEMPTS} failed: {error}")
-    save_record(directory, record)
+    save_record(directory, record, tier)
     return decision
 
 
@@ -355,16 +390,17 @@ def run_resend(directory: Path | None = None, now: datetime | None = None) -> in
     return 0
 
 
-def run_status(threshold: float, min_hours: float) -> int:
+def run_status(rules: dict[str, tuple[float, float]]) -> int:
     used, resets = fetch_weekly_usage()
-    record = load_record(state_dir())
-    decision = decide(used, resets, datetime.now(timezone.utc), record, threshold, min_hours)
-    print(f"weekly usage {used:.1f}% | resets {resets.astimezone(LOCAL_TZ):%a %d %b %H:%M} "
-          f"({decision.hours_to_reset:.1f}h) | action now: {decision.action}")
-    print(f"rule: >= {threshold:.0f}% used and > {min_hours:.0f}h to reset, once per weekly window")
-    current = record if same_window(record, resets) else None
-    print("this window: " + (json.dumps({k: v for k, v in current.items() if k != "targets"}, indent=2)
-                              if current else "nothing sent"))
+    print(f"weekly usage {used:.1f}% | resets {resets.astimezone(LOCAL_TZ):%a %d %b %H:%M}")
+    for tier, (threshold, min_hours) in rules.items():
+        record = load_record(state_dir(), tier)
+        decision = decide(used, resets, datetime.now(timezone.utc), record, threshold, min_hours)
+        print(f"[{tier}] {decision.hours_to_reset:.1f}h to reset | action now: {decision.action}")
+        print(f"[{tier}] rule: >= {threshold:.0f}% used and > {min_hours:.0f}h to reset, once per weekly window")
+        current = record if same_window(record, resets) else None
+        print(f"[{tier}] this window: " + (json.dumps({k: v for k, v in current.items() if k != "targets"}, indent=2)
+                                          if current else "nothing sent"))
     return 0
 
 
@@ -374,27 +410,39 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--to", help="chat name for ping")
     parser.add_argument("--threshold", type=float, default=THRESHOLD_PERCENT)
     parser.add_argument("--min-hours", type=float, default=MIN_HOURS_TO_RESET)
+    parser.add_argument("--reserve-threshold", type=float, default=RESERVE_THRESHOLD_PERCENT)
+    parser.add_argument("--reserve-min-hours", type=float, default=RESERVE_MIN_HOURS_TO_RESET)
     parser.add_argument("--active-minutes", type=int, default=ACTIVE_MINUTES)
     parser.add_argument("--interval", type=int, default=DEFAULT_INTERVAL_SECONDS)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
+    rules = {WRAPUP_TIER: (args.threshold, args.min_hours),
+             RESERVE_TIER: (args.reserve_threshold, args.reserve_min_hours)}
+
+    def check_all() -> None:
+        # Reserve first: it is the more urgent message; each tier fires once per window.
+        for tier in (RESERVE_TIER, WRAPUP_TIER):
+            run_check(args.dry_run, *rules[tier], args.active_minutes, tier=tier)
+
     if args.command == "message":
-        print(wrapup_message(args.threshold, datetime.now(timezone.utc) + timedelta(hours=args.min_hours + 1),
-                             args.min_hours + 1))
+        for tier, (threshold, min_hours) in rules.items():
+            print(f"--- {tier} ---")
+            print(tier_message(tier, threshold, datetime.now(timezone.utc) + timedelta(hours=min_hours + 1),
+                               min_hours + 1))
         return 0
     try:
         if args.command == "status":
-            return run_status(args.threshold, args.min_hours)
+            return run_status(rules)
         if args.command == "resend":
             return run_resend()
         if args.command == "ping":
             return run_ping(args.to or "")
         if args.command == "check":
-            run_check(args.dry_run, args.threshold, args.min_hours, args.active_minutes)
+            check_all()
             return 0
         while True:
             try:
-                run_check(args.dry_run, args.threshold, args.min_hours, args.active_minutes)
+                check_all()
             except (UsageUnavailable, DeliveryFailed) as error:
                 log(f"check failed, will retry: {error}")
             time.sleep(args.interval)
