@@ -169,3 +169,28 @@ def test_previous_meeting_prefers_the_latest_earlier_decisions_note(tmp_path):
     (folder / "2026-11-04-decisions.md").write_text("DECISIONS 2026-11-04")
     assert brief.previous_meeting(tmp_path, "2026-11-04") == {
         "date": "2026-11-03", "decisions": "DECISIONS 2026-11-03\nFocus: recordings"}
+
+
+def test_chat_steered_only_by_other_sessions_stays_in_the_overview(tmp_path):
+    path = tmp_path / "peer-driven.jsonl"
+    path.write_text("\n".join([
+        _line(type="ai-title", aiTitle="settings-toggles"),
+        _line(type="user", timestamp="2026-11-02T09:00:00Z", turnOrigin="peer",
+              message={"content": "Another Claude session asked you to wrap up and send a handover"}),
+        _line(type="assistant", timestamp="2026-11-02T09:05:00Z",
+              message={"content": [{"type": "text", "text": "Handover: toggles deployed, tests pending."}]}),
+    ]))
+    summary = brief.summarize_transcript(path, datetime(2026, 11, 1, tzinfo=timezone.utc))
+    assert summary["user_prompts"] == []
+    assert summary["steered_by_other_sessions"][0].startswith("Another Claude session")
+    assert summary["final_reply"].startswith("Handover")
+
+
+def test_titled_chat_without_activity_in_window_is_skipped(tmp_path):
+    path = tmp_path / "idle.jsonl"
+    path.write_text("\n".join([
+        _line(type="ai-title", aiTitle="old-work"),
+        _line(type="assistant", timestamp="2026-10-01T09:05:00Z",
+              message={"content": [{"type": "text", "text": "Done long ago, nothing since."}]}),
+    ]))
+    assert brief.summarize_transcript(path, datetime(2026, 11, 1, tzinfo=timezone.utc)) is None

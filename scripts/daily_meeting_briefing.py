@@ -289,7 +289,7 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
     out += ["## Appendix B — Claude chats since the last meeting", ""]
     summaries = {c.get("session"): c.get("summary") for c in chats_summary.get("chats", [])}
     for chat in ev.get("claude_chats", []):
-        text = summaries.get(chat["session"]) or chat.get("title") or (chat.get("user_prompts") or [""])[0][:120]
+        text = summaries.get(chat["session"]) or chat.get("title") or (chat.get("user_prompts") or (chat.get("steered_by_other_sessions") or [""]))[0][:120]
         out.append(f"- {chat['last_activity']} — **{chat.get('title') or 'untitled'}**: {text}")
     out += ["", "## Appendix C — Tasks", ""]
     for label, key in (("In progress", "in_progress"), ("Blocked", "blocked"), ("Top todo", "todo_top")):

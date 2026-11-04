@@ -90,7 +90,7 @@ def _text_blocks(content) -> list[str]:
 
 
 def summarize_transcript(path: Path, since: datetime) -> dict | None:
-    prompts, replies, title, first, last, branch, tools = [], [], "", None, None, "", set()
+    prompts, replies, steered, title, first, last, branch, tools = [], [], [], "", None, None, "", set()
     try:
         lines = path.read_text(errors="replace").splitlines()
     except OSError:
@@ -115,20 +115,30 @@ def summarize_transcript(path: Path, since: datetime) -> dict | None:
         texts = [t for t in _text_blocks((row.get("message") or {}).get("content")) if t.strip()]
         if not texts:
             continue
-        if kind == "user" and row.get("turnOrigin", (row.get("origin") or {}).get("kind")) == "human":
+        origin = row.get("turnOrigin", (row.get("origin") or {}).get("kind"))
+        if kind == "user" and origin == "human":
             body = "\n".join(texts)
             if not body.lstrip().startswith("<"):  # skip injected reminders/command wrappers
                 prompts.append(clean(body, 600))
+        elif kind == "user" and origin == "peer":
+            steered.append(clean("\n".join(texts), 300))
         elif kind == "assistant":
             replies.append("\n".join(texts))
-    if not prompts or (len(prompts) == 1 and len(prompts[0]) < 25):
-        return None  # empty or trivial chats ("login", "hi") are noise
+    if first is None:
+        return None  # touched (e.g. archived or indexed) but nothing happened in the window
+    if prompts and len(prompts) == 1 and len(prompts[0]) < 25 and not steered:
+        return None  # trivial chats ("login", "hi") are noise
+    if not prompts and not (steered or title or sum(len(r) for r in replies) >= 80):
+        return None  # nothing substantive happened in the window
+    # No human prompt in the window: the chat was steered by other sessions or by automation
+    # (or resumed remotely). It still did work, so it stays in the overview.
     return {
         "session": path.stem,
         "title": clean(title, 120),
         "started": first.astimezone(TZ).strftime("%a %H:%M"),
         "last_activity": last.astimezone(TZ).strftime("%a %H:%M"),
         "branch": branch,
+        "steered_by_other_sessions": steered[:3],
         "user_prompts": prompts[:6] + ([f"(+{len(prompts) - 6} more prompts)"] if len(prompts) > 6 else []),
         "final_reply": clean(replies[-1], 1500) if replies else "",
         "_sort": last.isoformat(),
