@@ -94,3 +94,51 @@ skills.search.description:
   sv: Hitta användarägda arbetsflöden som matchar en chattavsikt.
   he: מציאת תהליכי עבודה בבעלות המשתמש שמתאימים לכוונת הצ'אט.
   verified_by_human: [en, de]
+skills.run:
+  context: Skill name for running an existing user workflow from chat
+  en: Run Workflow
+  de: Workflow ausführen
+  zh: 运行工作流
+  es: Ejecutar flujo de trabajo
+  fr: Exécuter un workflow
+  pt: Executar fluxo de trabalho
+  ru: Запустить рабочий процесс
+  ja: ワークフローを実行
+  ko: 워크플로 실행
+  it: Esegui workflow
+  tr: İş akışını çalıştır
+  vi: Chạy quy trình công việc
+  id: Jalankan alur kerja
+  pl: Uruchom przepływ pracy
+  nl: Workflow uitvoeren
+  ar: تشغيل سير العمل
+  hi: वर्कफ़्लो चलाएं
+  th: เรียกใช้เวิร์กโฟลว์
+  cs: Spustit pracovní postup
+  sv: Kör arbetsflöde
+  he: הפעלת תהליך עבודה
+  verified_by_human: []
+skills.run.description:
+  context: Skill description for running an existing user workflow from chat
+  en: Run one of your existing workflows from the chat.
+  de: Führe einen deiner bestehenden Workflows direkt im Chat aus.
+  zh: 在聊天中运行你现有的某个工作流。
+  es: Ejecuta uno de tus flujos de trabajo existentes desde el chat.
+  fr: Exécutez l'un de vos workflows existants depuis le chat.
+  pt: Execute um dos seus fluxos de trabalho existentes pelo chat.
+  ru: Запустите один из ваших рабочих процессов прямо из чата.
+  ja: 既存のワークフローをチャットから実行します。
+  ko: 채팅에서 기존 워크플로 중 하나를 실행하세요.
+  it: Esegui uno dei tuoi workflow esistenti dalla chat.
+  tr: Mevcut iş akışlarından birini sohbetten çalıştır.
+  vi: Chạy một trong các quy trình công việc hiện có của bạn ngay trong cuộc trò chuyện.
+  id: Jalankan salah satu alur kerja yang sudah ada dari obrolan.
+  pl: Uruchom jeden ze swoich istniejących przepływów pracy z poziomu czatu.
+  nl: Voer een van je bestaande workflows uit vanuit de chat.
+  ar: شغّل أحد سير العمل الموجودة لديك من المحادثة.
+  hi: चैट से अपने मौजूदा वर्कफ़्लो में से किसी एक को चलाएं।
+  th: เรียกใช้เวิร์กโฟลว์ที่มีอยู่ของคุณจากแชต
+  cs: Spusťte jeden ze svých stávajících pracovních postupů přímo z chatu.
+  sv: Kör ett av dina befintliga arbetsflöden från chatten.
+  he: הפעילו אחד מתהליכי העבודה הקיימים שלכם מתוך הצ'אט.
+  verified_by_human: []

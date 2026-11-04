@@ -1342,6 +1342,22 @@ ${apps}
 }
 
 /**
+ * Build the app metadata object in memory (no file output). Reused by
+ * validate-app-translation-keys.js so the deploy gate checks exactly the
+ * translation keys the generated appsMetadata.ts will reference.
+ *
+ * @returns {Object} Map of appId -> parsed app metadata
+ */
+export function buildAppsMetadata() {
+  const appsMetadata = {};
+  for (const { appId, filePath } of findAppYamlFiles()) {
+    const appMetadata = parseAppYaml(appId, filePath);
+    if (appMetadata) appsMetadata[appId] = appMetadata;
+  }
+  return appsMetadata;
+}
+
+/**
  * Main function to generate appsMetadata.ts
  */
 function main() {

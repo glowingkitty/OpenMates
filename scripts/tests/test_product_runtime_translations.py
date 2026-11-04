@@ -48,8 +48,9 @@ def test_prepare_publishes_validated_commit_artifact_and_reuses_it(monkeypatch, 
     calls = []
 
     def run(command, *, cwd, capture_output, text):
-        calls.append(Path(command[-1]).name)
-        if command[-1].endswith("build-translations.js"):
+        calls.append(Path(command[1]).name)
+        assert ("--skip-app-keys" in command) == command[1].endswith("validate-locales.js")
+        if command[1].endswith("build-translations.js"):
             locales = Path(cwd) / "src/i18n/locales"
             locales.mkdir()
             (locales / "en.json").write_text('{"email":{"completed":{"text":"Ready"}}}\n', encoding="utf-8")

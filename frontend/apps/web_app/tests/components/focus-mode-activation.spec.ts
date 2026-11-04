@@ -85,12 +85,32 @@ test.describe('Focus activation component history', () => {
         await page.waitForTimeout(PROOF.tutorial.minimumHoldMs);
         await proof.attach();
     });
+    // contract-test: supporting surface=gui.web assertions=settings-ui.localization.visible-content-resolves
+    test('business focus shows the parent app icon and a translated name', async ({ page }) => {
+        await page.goto('/dev/preview/embeds/focus_mode/FocusModeActivationEmbed?chrome=0&variant=businessPriceProducts');
+        await waitForComponentPreview(page);
+        const bar = page.getByTestId('focus-mode-bar');
+        await expect(page.getByTestId('focus-status-label')).toHaveText('Price your products');
+        await expect(bar).not.toContainText('[T:');
+        const icon = page.getByTestId('focus-app-icon');
+        await expect(icon).toHaveAttribute('data-icon', 'business');
+        const { glyph, expected } = await icon.evaluate((el) => {
+            const probe = document.createElement('div');
+            probe.style.backgroundImage = 'var(--icon-url-business)';
+            document.body.appendChild(probe);
+            const resolved = getComputedStyle(probe).backgroundImage;
+            probe.remove();
+            return { glyph: getComputedStyle(el, '::after').backgroundImage, expected: resolved };
+        });
+        expect(expected).toMatch(/^url\(/);
+        expect(glyph).toBe(expected);
+        await bar.screenshot({ path: test.info().outputPath('business-focus-activation.png') });
+    });
     // contract-test: direct surface=gui.web assertions=focus-modes.countdown
     test('explicit live pending activation remains cancellable', async ({ page }) => {
-        const query = new URLSearchParams({ chrome: '0', props: JSON.stringify({
-            id: 'live-focus-record', alreadyActive: false, pendingUntil: Date.now() + 4000,
-        }) });
-        await page.goto(`/dev/preview/embeds/focus_mode/FocusModeActivationEmbed?${query}`);
+        // The countdown variant computes its deadline when the preview loads in the browser; a
+        // spec-side Date.now() deadline could already be past after a slow CI page load.
+        await page.goto('/dev/preview/embeds/focus_mode/FocusModeActivationEmbed?chrome=0&variant=countdown');
         await waitForComponentPreview(page);
         await expect(page.getByTestId('focus-progress-bar')).toBeVisible();
         await page.getByTestId('focus-mode-bar').click();

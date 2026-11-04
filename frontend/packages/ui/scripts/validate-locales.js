@@ -12,6 +12,8 @@
  * 5. Validates translation keys in matesMetadata.ts against en.json
  * 6. Validates legal document builder keys against en.json
  * 7. Cross-locale completeness: checks all non-English locales have the same keys as en.json
+ * 8. App metadata / focus mode / static label keys (validate-app-translation-keys.js):
+ *    app.yml + SKILL.md keys resolve in en.json, focus names/descriptions exist in every locale
  * 
  * This ensures the build fails early if locale files are missing, malformed,
  * contain broken translation keys, or have missing translations in any locale.
@@ -467,7 +469,7 @@ function validateCrossLocaleCompleteness(parsedLocales) {
 
 // ─── Main ───────────────────────────────────────────────────────────────────
 
-function validateLocales() {
+async function validateLocales() {
     let hasErrors = false;
 
     // ── Step 1: Check locale files exist and are valid JSON ──
@@ -633,6 +635,29 @@ function validateLocales() {
         console.warn('⚠️  en.json not available — skipping cross-locale completeness check');
     }
 
+    // ── Step 8: App metadata, focus mode and static label keys ──
+    // Blocking: these keys are referenced dynamically (e.g. app_focus_modes.<app>.<mode>)
+    // and would otherwise only surface as [T:key] placeholders at runtime.
+    console.log('\n🔍 Step 8: Validating app metadata, focus mode and static label translation keys...\n');
+    let appKeyErrorCount = 0;
+    if (process.argv.includes('--skip-app-keys')) {
+        // Only for product runtime artifact staging (scripts/product_runtime_translations.py), which
+        // copies locale sources without backend/apps; the deploy/prepare gates always run this step.
+        console.log('⏭️  Skipped (--skip-app-keys)');
+    } else if (enLocale) {
+        const { runAppTranslationKeyCheck } = await import('./validate-app-translation-keys.js');
+        const appKeyErrors = await runAppTranslationKeyCheck({ locales: parsedLocales, languageCodes: LANGUAGE_CODES });
+        appKeyErrorCount = appKeyErrors.length;
+        if (appKeyErrors.length > 0) {
+            hasErrors = true;
+            for (const err of appKeyErrors) console.error(`❌ ${err}`);
+        } else {
+            console.log('✓ App metadata, focus mode and static label translation keys resolve');
+        }
+    } else {
+        console.warn('⚠️  en.json not available — skipping app metadata key validation');
+    }
+
     // ── Summary ──
     if (hasErrors) {
         console.error('\n' + '═'.repeat(70));
@@ -665,6 +690,9 @@ function validateLocales() {
             console.error(`\n   Broken legal content keys: ${legalObjectKeyCount}`);
         }
 
+        if (appKeyErrorCount > 0) {
+            console.error(`\n   App metadata / focus mode / static label key errors: ${appKeyErrorCount}`);
+        }
         console.error('\n⚠️  The build cannot proceed with translation errors.');
         console.error('   Fix the issues above, then run "npm run build:translations && npm run validate:locales".');
         console.error('═'.repeat(70));
@@ -675,4 +703,4 @@ function validateLocales() {
 }
 
 // Run validation
-validateLocales();
+await validateLocales();
