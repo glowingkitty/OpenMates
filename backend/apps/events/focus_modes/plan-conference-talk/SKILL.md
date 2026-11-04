@@ -5,11 +5,12 @@ icon: event.svg
 name: Plan a conference talk
 description: Decide which talk to submit to a conference and shape it into a strong proposal.
 preprocessor-hint: >
-  Select when the user wants to submit or plan a talk, workshop or
-  presentation at a conference or meetup, including asking for tips before
-  preparing talk ideas, choosing a topic or writing a proposal. Do not select
-  for finding or listing conferences, travel planning, or general public-
-  speaking coaching.
+  Select when the user wants to submit, propose, plan or give a talk,
+  session, workshop or presentation at a conference or meetup, including
+  asking for tips or advice before submitting a talk or planning talk
+  ideas, answering a CFP (call for papers or proposals), or choosing a
+  talk topic, title or abstract. Do not select for only finding or listing
+  conferences, travel planning, or general public-speaking coaching.
 allowed-apps: [events, web]
 allowed-skills: [web:search, web:read, events:search]
 lang: en

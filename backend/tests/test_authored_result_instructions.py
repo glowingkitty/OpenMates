@@ -203,6 +203,16 @@ def test_invent_a_recipe_request_is_an_explicit_draft_card_request():
     assert "never only a prose copy" in prompt
 
 
+# contract-test: supporting surface=rest_api assertions=authored-results.creation.relevant-and-independent
+def test_researched_event_lists_are_answered_with_one_card_per_item_and_a_plain_intro():
+    prompt = build_authored_result_instructions(["events.event"], _apps("events.event"))
+    assert prompt is not None
+    assert "the cards are the answer: create one card per item" in prompt
+    assert "never only a prose or bullet list" in prompt
+    assert "plain-language sentence saying what the cards show" in prompt
+    assert "Do not invent facts" in prompt
+
+
 def test_public_criteria_and_catalogue_remain_compact_without_detail_schemas():
     definitions = get_authoring_definitions()
     questions = jev._public_decision_questions(False, definitions)
