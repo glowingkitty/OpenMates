@@ -159,6 +159,7 @@ MARKER_CHAT_EPOCH_SPECS = frozenset(
         "workflow-metadata-warmup.spec.ts",
         "connection-resilience.spec.ts",
         "chat-saved-followup-admission.spec.ts",
+        "chat-reload-followup-send.spec.ts",
         "skill-web-search.spec.ts",
         "native-cache-selected-tools.spec.ts",
     }

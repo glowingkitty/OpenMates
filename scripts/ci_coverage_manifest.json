@@ -599,6 +599,7 @@
         "connection-resilience.spec.ts",
         "chat-followup-recovery-disabled.spec.ts",
         "chat-saved-followup-admission.spec.ts",
+        "chat-reload-followup-send.spec.ts",
         "daily-inspiration-chat-flow.spec.ts",
         "default-model-cli.spec.ts",
         "default-model-settings-proof.spec.ts",

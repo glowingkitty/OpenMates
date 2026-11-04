@@ -866,11 +866,16 @@ export async function handleSend(
   try {
   recordSendDebugStep("send_guard_acquired", { currentChatId });
   recordSendPreparationPhase('send_accepted');
-  const privacyAtClick = captureSendPrivacy(activePIIExclusions);
   const submittedEditorDoc = editor.state.doc;
   const submittedEditorText = editor.getText();
   const submittedEditorJSON = structuredClone(editor.getJSON());
   const submittedEditorContent = structuredClone(submittedEditorJSON);
+  // Privacy preferences hydrate asynchronously after a reload: a cold cache is
+  // only authoritative once the encrypted account sync lands. Capturing earlier
+  // makes assertCurrent() abort the send silently, so wait for that signal first
+  // (the click's editor snapshot is already immutable).
+  if (!get(personalDataStore.enhancementReady)) await personalDataStore.waitForEnhancementReady();
+  const privacyAtClick = captureSendPrivacy(activePIIExclusions);
   const submittedEmbeds = submittedEmbedNodes(submittedEditorContent);
   for (const node of submittedEmbeds) {
     const attrs = node.attrs;
