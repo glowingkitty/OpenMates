@@ -121,7 +121,8 @@ week-goal changes; (6) read back and output the decisions note.
 deadlines at risk; loose ends from yesterday's chats (finish, park or drop?); \
 whether too many chats are running (and whether the remaining weekly Claude usage \
 covers the planned agent work — if it runs out before the reset, cut agent work first); \
-parked code that is about to be purged; reminders whose date no longer makes sense.
+parked code that is about to be purged; open GitHub issues and Linear issues \
+(Appendix D) that block a goal or can be closed or parked; reminders whose date no longer makes sense.
 - Finish with the decisions note **exactly in this format** in a code block, so it \
 can be pasted back to the development server:
 
@@ -140,6 +141,18 @@ Week goals: <unchanged | new goals>
 Notes: <anything else>
 ```
 """
+
+
+def _issue_section(title: str, rows: list[dict] | None, extra: str) -> list[str]:
+    if rows is None:
+        return [f"**{title}:** unavailable — see data gaps.", ""]
+    out = [f"**{title} ({len(rows)} open)** — newest activity first, top 15:"]
+    for row in rows[:15]:
+        tags = ", ".join(filter(None, [row.get(extra), *row.get("labels", [])[:3]]))
+        out.append(f"- {row['id']} {row['title']}" + (f" ({tags})" if tags else ""))
+    if len(rows) > 15:
+        out.append(f"- … {len(rows) - 15} more")
+    return out + [""]
 
 
 def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> str:
@@ -259,7 +272,11 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
         if len(rows) > 25:
             out.append(f"- … {len(rows) - 25} more")
         out.append("")
-    out += ["## Appendix D — Commits on dev", ""]
+    issues = ev.get("issues") or {}
+    out += ["## Appendix D — GitHub and Linear issues", ""]
+    out += _issue_section("GitHub issues", issues.get("github"), "")
+    out += _issue_section("Linear issues", issues.get("linear"), "state")
+    out += ["## Appendix E — Commits on dev", ""]
     out += [f"- {c['when']} {c['subject']}" for c in commits[:80]]
     if len(commits) > 80:
         out.append(f"- … {len(commits) - 80} more")

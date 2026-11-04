@@ -345,6 +345,15 @@ def marketing(since: datetime, repo: Path = MARKETING_REPO) -> dict:
             "last_commit": clean(last, 160)}
 
 
+def issue_trackers(gaps: list[str]) -> dict:
+    """Open GitHub and Linear issues (scripts/daily_meeting_issues.py)."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import daily_meeting_issues  # noqa: E402 - sibling script, path set just above
+
+    return {"github": daily_meeting_issues.github_issues(gaps),
+            "linear": daily_meeting_issues.linear_issues(gaps)}
+
+
 def reminders(gaps: list[str]) -> dict | None:
     """Live from the Mac when it is online, else the copy synced every 30 minutes."""
     sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -484,6 +493,7 @@ def collect(root: Path, now: datetime, since: datetime, out: Path) -> tuple[dict
         "marketing": marketing(since),
         "tasks": task_summary(tasks, previous, {c["session"] for c in chats}),
         "nightly": nightly(root, since),
+        "issues": issue_trackers(gaps),
         "reminders": reminders(gaps),
         "gaps": gaps,
     }

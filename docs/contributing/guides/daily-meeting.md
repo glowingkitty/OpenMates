@@ -13,7 +13,10 @@ What may be worked on is defined in [`FOCUS.md`](../../../FOCUS.md)
 2. **Weekdays 10:00 Europe/Berlin** `scripts/daily_meeting_briefing.py --scheduled`:
    - `scripts/daily_meeting_context.py collect` gathers Claude Code chats since
      the last meeting, commits (incl. `openmates-marketing`), OpenMates Tasks
-     changes, nightly tests, FOCUS.md and the reminders (live, else the copy);
+     changes, nightly tests, open GitHub issues (`gh`) and Linear issues
+     (`scripts/daily_meeting_issues.py`; needs `LINEAR_API_KEY` in the cron
+     environment, else reported as a data gap), FOCUS.md and the reminders (live,
+     else the copy);
    - Gemini Flash (`scripts/_gemini_flash_container.py`, run inside the `api`
      container with the Vault key) summarizes the chats — Claude Code stores only
      titles, no summaries;
