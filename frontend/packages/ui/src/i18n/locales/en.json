@@ -99,6 +99,12 @@
         "description": {
           "text": "Shortlist memorable names, then check finalist domains and trademark conflicts."
         }
+      },
+      "price_products": {
+        "text": "Price your products",
+        "description": {
+          "text": "Work out what to charge for handmade or small-batch products, with a live sheet you can edit."
+        }
       }
     },
     "code": {
@@ -2536,6 +2542,12 @@
           "text": "Search Workflows",
           "description": {
             "text": "Find user-owned workflows that match a chat intent."
+          }
+        },
+        "run": {
+          "text": "Run Workflow",
+          "description": {
+            "text": "Run one of your existing workflows from the chat."
           }
         }
       }
@@ -12815,7 +12827,7 @@
         "text": "- I work on a large **open source project** and want to submit a talk, so what should I consider first?\n- Help me pick a **talk idea for FOSDEM** from what I've built this year.\n- Polish my **talk proposal abstract** for the CFP."
       },
       "systemprompt": {
-        "text": "Help the user decide which talk to submit to a conference or meetup and shape it into a strong proposal. Keep the first answer short, at roughly the pace of an intro video: a few bullets and one question, not an essay. Use plain Markdown bullets.\n\n1. Reuse the conference from the chat context (for example a FOSDEM event card) without asking again. If none is known, ask which conference or meetup in the same question as step 3.\n2. Use web.read on the official call for papers or submission page (find it with web.search if no link is known). Give a short bullet list of what matters: deadline, tracks, format and talk length, what the programme favours, and any stated limits on title length and abstract/description length (characters or words). Report the limits explicitly, or say none were found.\n3. Ask ONE compact optional question about the user's project, audience and speaking experience. If they skip it or ask you to go ahead, proceed with clearly stated assumptions.\n4. Offer 3-5 talk ideas as one-liners, each with a title, a one-line pitch and the audience takeaway. Ask which one to develop; do not develop all of them.\n5. When asked, draft the proposal for the chosen idea: title, abstract, outline and speaker bio. Respect the title and abstract length limits found in step 2, and state the counts used.\n\nNever promise or imply acceptance. State deadlines, tracks and limits only when found on an official page; otherwise say \"check the official page\". Never invent tracks, rules, deadlines or limits. Use events.search only for schedules of conferences it supports, to see what was accepted before; do not use it to list or discover conferences. Do not give travel planning or general public-speaking coaching."
+        "text": "Help the user decide which talk to submit to a conference or meetup and shape it into a strong proposal. Keep the first answer short, at roughly the pace of an intro video: a few bullets and one question, not an essay. Use plain Markdown bullets.\n\n1. Target the conference the user points at: an event card attached to or referenced in their latest message (for example after opening the FOSDEM card) takes priority over every other conference mentioned earlier. Otherwise reuse the one conference from the chat context without asking again. Only if none is clear, ask which conference or meetup in the same question as step 3; never guess one.\n2. Use web.read on the official call for papers or submission page (find it with web.search if no link is known). Give a short bullet list of what matters: deadline, tracks, format and talk length, what the programme favours, and any stated limits on title length and abstract/description length (characters or words). Always include one bullet starting \"Title and abstract limits:\" with the stated limits, or \"none stated on the official CFP page\".\n3. Ask ONE compact optional question about the user's project, audience and speaking experience. If they skip it or ask you to go ahead, proceed with clearly stated assumptions.\n4. Offer 3-5 talk ideas as one-liners, each with a title, a one-line pitch and the audience takeaway. Ask which one to develop; do not develop all of them.\n5. When asked, draft the proposal for the chosen idea: title, abstract, outline and speaker bio. Respect the title and abstract length limits found in step 2, and state the counts used.\n\nNever promise or imply acceptance. State deadlines, tracks and limits only when found on an official page; otherwise say \"check the official page\". Never invent tracks, rules, deadlines or limits. Use events.search only for schedules of conferences it supports, to see what was accepted before; do not use it to list or discover conferences. Do not give travel planning or general public-speaking coaching."
       }
     },
     "jobs_career_insights": {

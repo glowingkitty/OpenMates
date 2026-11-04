@@ -84,18 +84,22 @@ async def _cached_geocode(query: str, city: str, country: str) -> tuple[float, f
     return result
 
 
-async def enrich_event_coordinates(embed_type: str, content: dict[str, Any], log_prefix: str = "") -> dict[str, Any]:
+async def enrich_event_coordinates(
+    embed_type: str, content: dict[str, Any], log_prefix: str = "", *, trust_supplied: bool = True,
+) -> dict[str, Any]:
     """Add venue lat/lon to an in-person event that has a place but no valid coordinates.
 
     Invalid supplied coordinates (0/0, NaN, out of range) are removed so no
     renderer can show a map for them. Online events are left unchanged.
+    ``trust_supplied=False`` (assistant-authored cards) discards any model-written
+    pair and geocodes the named venue instead, so a map is never a model guess.
     """
     if embed_type not in EVENT_EMBED_TYPES or not isinstance(content, dict):
         return content
     venue = _venue(content)
     if venue is None or content.get("online") is True or venue.get("online") is True:
         return content
-    if valid_coordinates(venue.get("lat"), venue.get("lon")):
+    if trust_supplied and valid_coordinates(venue.get("lat"), venue.get("lon")):
         return content
     venue.pop("lat", None)
     venue.pop("lon", None)

@@ -260,7 +260,7 @@ async def update_authored_results_embed(
                 and not _has_resolved_resource(item.kind, content)):
             warnings.append({"code": "unavailable_resource", "path": "items"})
             continue
-        content = await enrich_event_coordinates(item.backend_type, content, log_prefix)
+        content = await enrich_event_coordinates(item.backend_type, content, log_prefix, trust_supplied=False)
         child_id = authored_child_id(embed_id, item.local_id)
         content.update({
             "type": item.backend_type, "app_id": item.app_id, "skill_id": item.skill_id,

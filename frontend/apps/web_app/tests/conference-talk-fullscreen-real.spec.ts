@@ -11,6 +11,9 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const enabled = process.env.CONFERENCE_TALK_REAL_DEV === '1';
 const APP = 'https://app.dev.openmates.org';
 const chatId = process.env.CONFERENCE_TALK_CHAT_ID || '';
+const eventEmbedId = process.env.CONFERENCE_TALK_EVENT_EMBED_ID || '';
+// Images are optional facts: assert them only when the saved card has one.
+const expectImage = process.env.CONFERENCE_TALK_EXPECT_IMAGE === '1';
 const profile = path.join(process.env.OPENMATES_STATE_DIR || '/tmp', 'conference-talk-profile');
 const FOLLOW_UP = 'Awesome. I work on a large open source project and would love to submit a talk. '
   + 'Any tips I should consider before I plan out talk ideas for the conference?';
@@ -27,8 +30,9 @@ async function login(page: Page) {
 }
 
 // contract-test: direct surface=gui.web assertions=authored-results.creation.relevant-and-independent,authored-results.media.safe-and-attributed
-test('FOSDEM card fullscreen shows image, real map and domain link; its follow-up activates Plan a conference talk', async ({ baseURL: _baseURL }, info) => {
+test('FOSDEM card fullscreen shows its real map and domain link; its follow-up activates Plan a conference talk', async ({ baseURL: _baseURL }, info) => {
   expect(chatId).toMatch(/^[a-f0-9-]{36}$/);
+  expect(eventEmbedId).toMatch(/^[a-f0-9-]{36}$/);
   const ctx = await chromium.launchPersistentContext(profile, { headless: true, baseURL: APP,
     executablePath: process.env.PW_CHROMIUM, viewport: { width: 1400, height: 1000 },
     recordVideo: { dir: info.outputPath('recordings'), size: { width: 1400, height: 1000 } } });
@@ -36,16 +40,17 @@ test('FOSDEM card fullscreen shows image, real map and domain link; its follow-u
     const page = ctx.pages()[0] || await ctx.newPage();
     await login(page);
     await page.goto(`/#chat-id=${chatId}`);
-    const card = page.locator('[data-testid="embed-preview"]').filter({ hasText: /FOSDEM/i }).first();
-    await expect(card).toBeVisible({ timeout: 60_000 });
-    await expect(card.locator('img').first()).toBeVisible({ timeout: 30_000 });
+    const card = page.locator(`[data-testid="embed-preview"][data-embed-id="${eventEmbedId}"]`).first();
+    await expect(card).toBeAttached({ timeout: 60_000 });
     await card.scrollIntoViewIfNeeded();
+    await expect(card).toContainText(/FOSDEM/i);
+    if (expectImage) await expect(card.getByRole('img').first()).toBeVisible({ timeout: 30_000 });
     if (await card.getAttribute('role') === 'button') await card.click();
     else { await card.hover(); await card.getByTestId('result-preview-expand').click(); }
     const fullscreen = page.getByTestId('embed-fullscreen-overlay').last();
     await expect(fullscreen).toBeVisible();
     await expect(fullscreen.getByTestId('embed-header-title')).toContainText(/FOSDEM/i);
-    await expect(fullscreen.locator('img.event-image')).toBeVisible({ timeout: 30_000 });
+    if (expectImage) await expect(fullscreen.getByRole('img', { name: /FOSDEM/i }).first()).toBeVisible({ timeout: 30_000 });
     // Server-side geocoding gives the Brussels venue a real map (never 0/0).
     await expect(fullscreen.getByTestId('embed-leaflet-map').first()).toBeVisible({ timeout: 30_000 });
     await expect(fullscreen.getByTestId('external-provider-cta')).toContainText('Open fosdem.org');

@@ -342,3 +342,13 @@ def test_conference_talk_focus_is_proposed_for_a_natural_talk_submission_request
         has_active_focus=False, chat_depth=0, is_continuation=False,
         exact_skill_request=False, explicit_focus_request=False, apps_enabled=True,
     ) == "events-plan_conference_talk"
+
+
+# contract-test: supporting surface=cli assertions=focus-modes.natural-request
+def test_conference_talk_focus_targets_the_attached_event_card_and_always_states_limits() -> None:
+    skill = (Path(__file__).resolve().parents[1] / "apps/events/focus_modes/plan-conference-talk/SKILL.md").read_text()
+    prompt = skill.split("## System prompt", 1)[1]
+    assert "an event card attached to or referenced in their latest message" in prompt
+    assert "takes priority over every other conference mentioned earlier" in prompt
+    assert "never guess one" in prompt
+    assert '"Title and abstract limits:"' in prompt

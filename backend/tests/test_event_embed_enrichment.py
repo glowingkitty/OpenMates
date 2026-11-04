@@ -76,3 +76,15 @@ def test_geocoder_timeout_leaves_event_without_map(monkeypatch):
     content = {"location": "Brussels"}
     result = asyncio.run(enrichment.enrich_event_coordinates("event_result", content))
     assert result["venue"] == {"name": "Brussels"}
+
+
+# contract-test: supporting surface=rest_api assertions=authored-results.facts.provenance-and-drafts
+def test_authored_cards_replace_model_written_coordinates_with_geocoded_venue(monkeypatch):
+    calls = []
+    monkeypatch.setattr(enrichment, "geocode_address", _fake_geocoder(calls))
+    authored = {"venue": {"name": "ULB Solbosch", "city": "Brussels", "lat": 50.851, "lon": 4.352}}
+    asyncio.run(enrichment.enrich_event_coordinates("event", authored, trust_supplied=False))
+    assert (authored["venue"]["lat"], authored["venue"]["lon"]) == (50.8129, 4.3817)
+    provider = {"venue": {"name": "Hall", "city": "Brussels", "lat": 50.851, "lon": 4.352}}
+    asyncio.run(enrichment.enrich_event_coordinates("event", provider))
+    assert provider["venue"]["lat"] == 50.851 and len(calls) == 1
