@@ -290,6 +290,57 @@ test('stop during new chat creation restores the sent message as a draft', async
 	}
 });
 
+// contract-test: direct surface=gui.web assertions=drafts.draft-only.lifecycle
+test('stop after the first response output keeps the new chat and its messages', async ({ page }: { page: any }) => {
+	test.skip(IS_PROOF_CAPTURE, 'Proof profiles record only the late draft activation navigation contract.');
+	test.slow();
+	test.setTimeout(150000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	const logCheckpoint = createSignupLogger('STOP_NEW_CHAT_AFTER_OUTPUT');
+	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
+		filenamePrefix: 'stop-new-chat-after-output'
+	});
+	await archiveExistingScreenshots(logCheckpoint);
+
+	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
+	await startNewChat(page, logCheckpoint);
+
+	let shouldTryCleanup = false;
+	try {
+		const sentText = 'Stop this answer only after it has started streaming.';
+		const messageEditor = page.getByTestId('message-editor');
+		await expect(messageEditor).toBeVisible({ timeout: 15000 });
+		await insertComposerText(page, messageEditor, withMockMarker(sentText, 'chat_flow_capital', 'slow'), sentText);
+		await expectDraftComposer(page, sentText);
+
+		const sendButton = page.locator('[data-action="send-message"]');
+		await expect(sendButton).toBeEnabled({ timeout: 5000 });
+		await sendButton.click();
+		shouldTryCleanup = true;
+
+		// Wait until the assistant has started responding, then press Stop.
+		await expect(page.getByTestId('message-assistant').first()).toBeVisible({ timeout: 60000 });
+		const stopButton = page.getByTestId('stop-processing-button');
+		await expect(stopButton).toBeVisible({ timeout: 10000 });
+		const chatUrlBeforeStop = page.url();
+		await stopButton.click();
+		logCheckpoint('Clicked Stop after assistant output started.');
+		await expect(stopButton).not.toBeVisible({ timeout: 15000 });
+
+		// The chat and the sent message must survive; the draft must not be restored.
+		await expect(page.getByTestId('message-user')).toHaveCount(1, { timeout: 10000 });
+		await expect(page.getByTestId('message-assistant').first()).toBeVisible();
+		await expect(messageEditor).not.toContainText(sentText);
+		expect(page.url()).toBe(chatUrlBeforeStop);
+		await takeStepScreenshot(page, 'chat-kept-after-stop-with-output');
+	} finally {
+		if (shouldTryCleanup) {
+			await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'cleanup');
+		}
+	}
+});
+
 // contract-test: direct surface=gui.web assertions=drafts.draft-only.lifecycle,chat-navigation.open.local-first-coherent,message-input.drafts.preview-persistence
 test('late draft persistence cannot override a newer explicit chat selection', async ({ page }: { page: any }, testInfo: any) => {
 	test.slow();

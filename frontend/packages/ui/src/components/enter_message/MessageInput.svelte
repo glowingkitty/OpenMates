@@ -2873,6 +2873,16 @@
 
         const unsubscribeAiTyping = aiTypingStore.subscribe(value => {
             currentTypingStatus = value;
+            // Once the AI is producing output for the pending new chat, Stop must only cancel
+            // the AI task. Deleting the chat and restoring the draft applies solely before output.
+            if (
+                value.isTyping &&
+                pendingNewChatDraftRestore &&
+                value.chatId &&
+                value.chatId === (pendingNewChatDraftRestore.chatId ?? currentChatId)
+            ) {
+                pendingNewChatDraftRestore = null;
+            }
         });
 
         // Subscribe to the text store so that when the locale JSON finishes loading
