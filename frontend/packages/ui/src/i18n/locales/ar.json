@@ -8354,7 +8354,7 @@
         "text": "فتح صفحة المصدر"
       },
       "open_domain": {
-        "text": "فتح {domain}"
+        "text": "فتح على {domain}"
       },
       "additional_times": {
         "text": "أوقات إضافية"

@@ -230,6 +230,7 @@
   media={eventImageUrl ? resultMedia : undefined}
   result={followupResult}
   authoring={event.authoring}
+  authoringPlacement="bottom"
   appId="events"
   skillId="event"
   {onClose}

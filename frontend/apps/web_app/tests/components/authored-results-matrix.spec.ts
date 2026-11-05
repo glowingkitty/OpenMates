@@ -269,6 +269,14 @@ for (const width of [390, 1100]) for (const theme of ['light', 'dark'] as const)
     await expect(fullscreen).toHaveAttribute('data-embed-id', authoredChild('events.event').embed_id);
     await expect(fullscreen.getByTestId('embed-header-title')).toHaveText('Supplied: events.event');
     await expect(fullscreen.getByTestId('authored-result-context').getByRole('link', { name: 'Supplied test reference' })).toHaveAttribute('href', 'https://example.org/reference');
+    // Sources, observed-at and credits form a SOURCES section at the very bottom, not a block under the date chip.
+    const sources = fullscreen.getByTestId('result-sources');
+    await expect(sources.getByRole('heading', { name: 'Sources' })).toBeVisible();
+    await expect(sources.getByRole('link', { name: 'Supplied test reference' })).toBeVisible();
+    await expect(sources).toContainText('Observed at');
+    await expect(fullscreen.getByTestId('authored-result-context')).toHaveCount(1);
+    expect(await sources.evaluate(element => element.parentElement?.lastElementChild === element)).toBe(true);
+    await expect(fullscreen.getByTestId('external-provider-cta')).toContainText('Open on example.org');
     await authoredCapture(page, testInfo, `event-failed-source-image-${width}-${theme}`);
   });
 

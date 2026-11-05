@@ -72,3 +72,20 @@ it('uses the bounded content retry when the key becomes readable without another
   await vi.advanceTimersByTimeAsync(20_000);
   expect(mocks.resolve).toHaveBeenCalledTimes(reads);
 });
+
+// contract-test: supporting surface=gui.web assertions=events-search.surface-parity
+it('does not show the source domain on a researched event card but keeps the draft badge', async () => {
+  const authoring = { schema_version: 1, kind: 'events.event', sources: [{ url: 'https://fosdem.org/2027/', label: 'FOSDEM' }] };
+  const mountCard = async (origin: string) => {
+    if (component) await unmount(component);
+    component = mount(EventEmbedPreview, { target,
+      props: { id: eventId, event: { ...event, embed_id: eventId, authoring: { ...authoring, origin } } as never, onFullscreen: () => {} } });
+    await tick();
+  };
+  await mountCard('researched');
+  expect(target.textContent).toContain(event.title);
+  expect(target.textContent).not.toContain('fosdem.org');
+  expect(target.querySelector('[data-testid="authored-result-provenance"]')).toBeNull();
+  await mountCard('draft');
+  expect(target.querySelector('[data-testid="authored-result-origin"]')?.textContent).toBe('Draft');
+});

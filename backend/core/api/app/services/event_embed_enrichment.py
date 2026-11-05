@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 EVENT_EMBED_TYPES = {"event", "event_result"}
 GEOCODE_TIMEOUT_SECONDS = 10.0
 _CACHE_MAX_ENTRIES = 512
-_cache: "OrderedDict[tuple[str, str, str], tuple[float, float] | None]" = OrderedDict()
+_cache: "OrderedDict[tuple[str, str, str, str], tuple[float, float] | None]" = OrderedDict()
 
 
 def valid_coordinates(lat: Any, lon: Any) -> tuple[float, float] | None:
@@ -64,15 +64,24 @@ def _venue(content: dict[str, Any]) -> dict[str, Any] | None:
     return None
 
 
-async def _cached_geocode(query: str, city: str, country: str) -> tuple[float, float] | None:
-    key = (query.lower(), city.lower(), country.lower())
+async def _venue_geocode(address: str, name: str, city: str, country: str) -> tuple[float, float] | None:
+    """Most precise first: street address, then venue/campus name, then city centre."""
+    for query in dict.fromkeys(q for q in (address, name) if q):
+        coords = await geocode_address(
+            query, city=city or None, country=country or None, allow_city_fallback=False,
+        )
+        if coords:
+            return coords
+    return await geocode_address(address or name or None, city=city or None, country=country or None)
+
+async def _cached_geocode(address: str, name: str, city: str, country: str) -> tuple[float, float] | None:
+    key = (address.lower(), name.lower(), city.lower(), country.lower())
     if key in _cache:
         _cache.move_to_end(key)
         return _cache[key]
     try:
         coords = await asyncio.wait_for(
-            geocode_address(query or None, city=city or None, country=country or None),
-            timeout=GEOCODE_TIMEOUT_SECONDS,
+            _venue_geocode(address, name, city, country), timeout=GEOCODE_TIMEOUT_SECONDS,
         )
     except asyncio.TimeoutError:
         logger.info("Event geocoding timed out; event keeps no map")
@@ -82,7 +91,6 @@ async def _cached_geocode(query: str, city: str, country: str) -> tuple[float, f
     if len(_cache) > _CACHE_MAX_ENTRIES:
         _cache.popitem(last=False)
     return result
-
 
 async def enrich_event_coordinates(
     embed_type: str, content: dict[str, Any], log_prefix: str = "", *, trust_supplied: bool = True,
@@ -107,10 +115,9 @@ async def enrich_event_coordinates(
     city, country = _text(venue.get("city")), _text(venue.get("country"))
     # Prefer the street address; a named venue (e.g. a campus) is the next most
     # precise query. The helper falls back to the city when neither resolves.
-    query = address or name
-    if not (query or city):
+    if not (address or name or city):
         return content
-    coords = await _cached_geocode(query, city, country)
+    coords = await _cached_geocode(address, name, city, country)
     if coords:
         venue["lat"], venue["lon"] = coords
         logger.debug("%s Event venue geocoded server-side", log_prefix)

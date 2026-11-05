@@ -15,7 +15,7 @@ def _clear_cache():
 
 
 def _fake_geocoder(calls, result=(50.8129, 4.3817)):
-    async def fake(address, city=None, country=None):
+    async def fake(address, city=None, country=None, *, allow_city_fallback=True):
         calls.append((address, city, country))
         return result
     return fake
@@ -52,7 +52,8 @@ def test_null_island_is_stripped_and_regeocoded(monkeypatch):
     content = {"venue": {"address": "Av. Franklin Roosevelt 50", "city": "Brussels", "lat": 0, "lon": 0}}
     result = asyncio.run(enrichment.enrich_event_coordinates("event", content))
     assert "lat" not in result["venue"] and "lon" not in result["venue"]
-    assert calls == [("Av. Franklin Roosevelt 50", "Brussels", None)]
+    # Strict address attempt first, then the city-level last resort.
+    assert calls == [("Av. Franklin Roosevelt 50", "Brussels", None)] * 2
 
 
 # contract-test: supporting surface=rest_api assertions=authored-results.facts.provenance-and-drafts
@@ -88,3 +89,16 @@ def test_authored_cards_replace_model_written_coordinates_with_geocoded_venue(mo
     provider = {"venue": {"name": "Hall", "city": "Brussels", "lat": 50.851, "lon": 4.352}}
     asyncio.run(enrichment.enrich_event_coordinates("event", provider))
     assert provider["venue"]["lat"] == 50.851 and len(calls) == 1
+
+
+# contract-test: supporting surface=rest_api assertions=authored-results.facts.provenance-and-drafts
+def test_full_address_then_venue_name_are_tried_before_city_centre(monkeypatch):
+    seen = []
+    async def fake(address, city=None, country=None, *, allow_city_fallback=True):
+        seen.append((address, allow_city_fallback))
+        return (50.8129, 4.3817) if address == "ULB Solbosch Campus" else None
+    monkeypatch.setattr(enrichment, "geocode_address", fake)
+    venue = {"name": "ULB Solbosch Campus", "address": "Avenue Franklin Roosevelt 50", "city": "Brussels", "country": "Belgium"}
+    result = asyncio.run(enrichment.enrich_event_coordinates("event", {"venue": venue}, trust_supplied=False))
+    assert result["venue"]["lat"] == 50.8129
+    assert seen == [("Avenue Franklin Roosevelt 50", False), ("ULB Solbosch Campus", False)]

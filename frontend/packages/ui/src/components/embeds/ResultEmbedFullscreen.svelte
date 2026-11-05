@@ -32,6 +32,8 @@
 
   type Props = Omit<ComponentProps<typeof UnifiedEmbedFullscreen>, "content" | "fixedBottom" | "floatingBottom"> & {
     authoring?: AuthoredResultMetadata;
+    /** Where sources/observed-at/credits are shown: under the summary (default) or as a bottom Sources section. */
+    authoringPlacement?: "top" | "bottom";
     /** Visible, safe result metadata only; never encryption keys or transport records. */
     result: Record<string, unknown>;
     summary?: Snippet;
@@ -53,6 +55,7 @@
   // svelte-ignore custom_element_props_identifier
   let {
     authoring: authoringProp,
+    authoringPlacement = "top",
     result, summary, media, detailContent, identity, mediaLayout = "standard",
     mapCenter, mapMarkers = [], mapZoom = 15, mapPath = [], mapPaths = [],
     mapPathColor, mapScrollWheelZoom = false, onMapReady, staticMapImageUrl,
@@ -194,7 +197,7 @@
       {#if summary}<div class="result-summary" data-testid="result-facts">
         {@render summary()}
       </div>{/if}
-      {#if authoring}<AuthoredResultContextInfo {authoring} />{/if}
+      {#if authoring && authoringPlacement === "top"}<AuthoredResultContextInfo {authoring} />{/if}
       {#if media || hasMap}
         <div
           class="result-media"
@@ -229,6 +232,7 @@
       {/if}
       {#if identity}<div class="result-identity-content">{@render identity()}</div>{/if}
       {#if detailContent}<div class="result-detail-content">{@render detailContent()}</div>{/if}
+      {#if authoring && authoringPlacement === "bottom"}<div class="result-sources-content" data-testid="result-sources"><AuthoredResultContextInfo {authoring} section /></div>{/if}
     </div>
   {/snippet}
   {#snippet fixedBottom()}
@@ -295,6 +299,7 @@
     background: var(--color-grey-25);
   }
   .result-identity-content { width: min(100%, 48rem); }
+  .result-sources-content { width: min(100%, 48rem); }
   .result-detail-content {
     width: min(100%, 34rem);
     display: flex;

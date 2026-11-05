@@ -211,6 +211,10 @@ def test_researched_event_lists_are_answered_with_one_card_per_item_and_a_plain_
     assert "never only a prose or bullet list" in prompt
     assert "plain-language sentence saying what the cards show" in prompt
     assert "Do not invent facts" in prompt
+    # Cards first; the later per-item list must not link the source page's website embed.
+    assert "Then add the openmates_embeds block first" in prompt
+    assert "later per-item text names carded items in plain words" in prompt
+    assert "link a website embed only for a page without a card" in prompt
 
 
 def test_event_cards_get_grounded_paragraph_image_and_venue_guidance_only_for_events():

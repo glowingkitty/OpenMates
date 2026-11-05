@@ -1909,6 +1909,26 @@
     scrollbar-width: thin;
   }
 
+  /* Touch devices hide overlay scrollbars, so more cards to the right go unnoticed.
+     Resetting the standard properties lets the classic always-visible webkit bar apply. */
+  @media (hover: none) {
+    .map-view-carousel {
+      scrollbar-width: auto;
+      scrollbar-color: auto;
+    }
+    .map-view-carousel::-webkit-scrollbar {
+      height: 4px;
+    }
+    .map-view-carousel::-webkit-scrollbar-track {
+      background: transparent;
+      margin-inline: 14px;
+    }
+    .map-view-carousel::-webkit-scrollbar-thumb {
+      background-color: var(--color-grey-60);
+      border-radius: 2px;
+    }
+  }
+
   .map-view-card {
     display: block;
     flex: 0 0 300px;
@@ -2019,6 +2039,8 @@
       box-sizing: border-box;
       flex: 0 0 auto;
       min-width: 0;
+      /* Always leave a peek of the next card as a swipe affordance. */
+      width: min(300px, calc(100cqw - 64px));
       scroll-snap-align: start;
       scroll-snap-stop: always;
     }

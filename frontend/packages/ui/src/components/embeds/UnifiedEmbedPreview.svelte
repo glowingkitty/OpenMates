@@ -59,6 +59,8 @@
    */
   interface Props {
     authoring?: AuthoredResultMetadata;
+    /** Hide the source-domain badge of researched results (draft/user-provided badges stay). */
+    hideSourceDomain?: boolean;
     /** Unique embed ID */
     id: string;
     inputEmbedIds?: string[];
@@ -122,6 +124,7 @@
   
   let {
     authoring: authoringProp,
+    hideSourceDomain = false,
     id,
     inputEmbedIds: inputEmbedIdsProp,
     presentationOnly = false,
@@ -155,6 +158,8 @@
     actionButton
   }: Props = $props();
   const authoring = $derived(authoringProp ?? authoredPresentation?.authoring);
+// Researched results would show only the source domain; some cards (events) omit it.
+  const showProvenance = $derived(!!authoring && !(hideSourceDomain && authoring.origin === 'researched'));
   
   type EmbedStatus = 'processing' | 'finished' | 'error' | 'cancelled';
 
@@ -947,7 +952,7 @@
 <div
   bind:this={previewElement}
   class="unified-embed-preview"
-  class:authored-preview={!!authoring}
+  class:authored-preview={showProvenance}
   class:result-preview={usesResultShell}
   class:intrinsic-preview={isAssistantResult && !resultPreview}
   class:plain-content-preview={isPlainTextResult}
@@ -1083,7 +1088,7 @@
       </div>
     </div>
   {/if}
-  {#if authoring}<div class="authored-origin" data-testid="authored-result-provenance"><AuthoredResultContextInfo {authoring} compact /></div>{/if}
+  {#if authoring && showProvenance}<div class="authored-origin" data-testid="authored-result-provenance"><AuthoredResultContextInfo {authoring} compact /></div>{/if}
 </div>
 
 <style>

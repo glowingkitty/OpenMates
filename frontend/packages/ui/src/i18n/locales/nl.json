@@ -8354,7 +8354,7 @@
         "text": "Bronpagina openen"
       },
       "open_domain": {
-        "text": "{domain} openen"
+        "text": "Openen op {domain}"
       },
       "additional_times": {
         "text": "Andere tijden"

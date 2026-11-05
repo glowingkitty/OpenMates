@@ -99,7 +99,9 @@ for (const width of [390, 1440]) {
       await expect(card).toHaveCount(1);
       await card.scrollIntoViewIfNeeded();
       await expect(card).toContainText(String(event.title));
-      await expect(card.getByTestId('authored-result-context')).toHaveAttribute('data-origin', 'researched');
+      // The event preview card must not show the source domain.
+      await expect(card.getByTestId('authored-result-context')).toHaveCount(0);
+      await expect(card).not.toContainText('fosdem.org');
       await publicImage(card.getByRole('img', {name:String(event.title),exact:true}));
       if (await card.getAttribute('role') === 'button') {
         // Authored collection entries are complete result-card buttons.

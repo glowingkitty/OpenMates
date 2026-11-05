@@ -131,9 +131,15 @@ async def geocode_address(
     address: Optional[str],
     city: Optional[str] = None,
     country: Optional[str] = None,
+    *,
+    allow_city_fallback: bool = True,
 ) -> Optional[Tuple[float, float]]:
     """
     Resolve a street address (or city) to (lat, lon).
+
+    ``allow_city_fallback=False`` returns None instead of a city-centre point
+    when the address itself cannot be resolved, so callers can try other
+    venue queries before accepting city precision.
 
     Strategy:
     1. If address is provided, query Nominatim for address-level precision.
@@ -158,6 +164,9 @@ async def geocode_address(
         coords = await _nominatim_query(query)
         if coords:
             return coords
+
+    if not allow_city_fallback:
+        return None
 
     # Step 2: fast local city lookup (no address, or Nominatim failed)
     if city:

@@ -53,7 +53,13 @@ test('FOSDEM card fullscreen shows its real map and domain link; its follow-up a
     if (expectImage) await expect(fullscreen.getByRole('img', { name: /FOSDEM/i }).first()).toBeVisible({ timeout: 30_000 });
     // Server-side geocoding gives the Brussels venue a real map (never 0/0).
     await expect(fullscreen.getByTestId('embed-leaflet-map').first()).toBeVisible({ timeout: 30_000 });
-    await expect(fullscreen.getByTestId('external-provider-cta')).toContainText('Open fosdem.org');
+    await expect(fullscreen.getByTestId('external-provider-cta')).toContainText('Open on fosdem.org');
+    // Sources, observed-at and image credit live in a bottom SOURCES section, not under the date chip.
+    const sources = fullscreen.getByTestId('result-sources');
+    await expect(sources).toContainText(/sources/i);
+    await expect(sources.getByRole('link').first()).toBeVisible();
+    await expect(fullscreen.getByTestId('authored-result-context')).toHaveCount(1);
+    await expect(sources.getByTestId('authored-result-context')).toHaveCount(1);
     await page.screenshot({ path: info.outputPath('fosdem-fullscreen.png') });
 
     const composer = fullscreen.getByTestId('apps-request-composer');

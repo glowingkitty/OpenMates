@@ -94,6 +94,7 @@
   skillIconName="event"
   status={previewStatus}
   authoring={sourceEvent.authoring}
+  hideSourceDomain
   skillName={sourceEvent.title || ''}
   {isMobile}
   onFullscreen={onFullscreen}
