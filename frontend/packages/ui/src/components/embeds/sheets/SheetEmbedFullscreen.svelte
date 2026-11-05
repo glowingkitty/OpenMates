@@ -394,6 +394,9 @@
     });
   });
 
+  /** Rendered grid width (cell padding included); sizes the pin cover to the full scrollable width. */
+  let gridWidthPx = $state(0);
+
   // Build status text
   let statusText = $derived.by(() => {
     if (actualRowCount === 0 && actualColCount === 0) return '';
@@ -617,10 +620,13 @@
         </div>
       {/if}
       
-      <!-- Spreadsheet area — scrolls both directions -->
+      <!-- Masks scrolled rows in the band behind the floating top bar, above the pinned header row -->
+      <div class="sheet-pin-cover" style:min-width="{gridWidthPx}px" aria-hidden="true"></div>
+
+      <!-- Spreadsheet area — natural height; the fullscreen content area scrolls it -->
       <div class="spreadsheet-wrapper" bind:this={tableContainerEl}>
         {#if parsedTable.headers.length > 0}
-          <table class="spreadsheet">
+          <table class="spreadsheet" bind:clientWidth={gridWidthPx}>
             <colgroup>
               <!-- Row-number gutter: fixed 40px -->
               <col style="width: 40px; min-width: 40px; max-width: 40px;" />
@@ -765,15 +771,44 @@
      var(--color-grey-20) (dark grey). For the spreadsheet look we match
      the page background colour so the table edge aligns cleanly.
      We target the parent classes via :global() from within this scope. */
+  /* No fixed height and no overflow clipping: the table renders at its natural
+     height and the shared .content-area (header banner + sheet) is the ONE
+     scroll surface, so the banner scrolls away and edit mode keeps the full
+     grid. Pinned header row and gutter column stick to that same scroller. */
   .sheet-fullscreen {
     position: relative;
     display: flex;
     flex-direction: column;
     width: 100%;
-    height: 100%;
-    overflow: hidden;
+  }
+
+  /* Wide tables scroll horizontally in the same surface (the base content-area
+     clips x). The banner stays pinned to the left edge while scrolling sideways. */
+  :global(.unified-embed-fullscreen-overlay:has(.sheet-fullscreen) .content-area) {
+    overflow-x: auto;
+  }
+  :global(.unified-embed-fullscreen-overlay:has(.sheet-fullscreen) .content-area > .embed-header) {
+    position: sticky;
+    left: 0;
   }
   
+  /* The floating top bar (close, edit, share) overlays the top of the scroll
+     surface, so the pinned header row sticks just below it. The zero-height
+     sticky cover paints the surface colour over that band so scrolled rows never
+     show above the pinned header. At scroll top it sits under the header row. */
+  .sheet-fullscreen {
+    --sheet-pin-top: 64px;
+  }
+  .sheet-pin-cover {
+    position: sticky;
+    top: 0;
+    height: var(--sheet-pin-top);
+    margin-bottom: calc(-1 * var(--sheet-pin-top));
+    flex-shrink: 0;
+    z-index: var(--z-index-raised-2);
+    background: var(--embed-content-background);
+  }
+
   /* Bottom gradient → fade to page background instead of grey */
   :global(.unified-embed-fullscreen-overlay:has(.sheet-fullscreen) .bottom-gradient) {
     background: linear-gradient(to bottom, transparent 0%, var(--color-grey-0) 100%) !important;
@@ -915,16 +950,13 @@
     background: var(--color-error-light);
   }
   
-  /* ── Spreadsheet wrapper — scrolls both axes ───────────── */
+  /* ── Spreadsheet wrapper — natural height, scrolled by .content-area ── */
   
   /* The grid starts below the gradient banner, which already clears the
      floating top bar. No padding-top here: sticky header offsets are measured
      from the scroll container's padding edge, so a top padding left a band in
      which scrolled rows showed ABOVE the sticky header rows. */
   .spreadsheet-wrapper {
-    flex: 1;
-    min-height: 0;
-    overflow: auto;
     margin-top: var(--spacing-8);
   }
   
@@ -975,7 +1007,7 @@
      show through the gaps between the two header rows. */
   .spreadsheet thead {
     position: sticky;
-    top: 0;
+    top: var(--sheet-pin-top);
     z-index: var(--z-index-raised-2);
     background: var(--color-grey-10);
   }

@@ -100083,7 +100083,7 @@ assertions:
       surface: gui.web
     - &id12803
       path: frontend/apps/web_app/tests/components/sheet-fullscreen.spec.ts
-      line: 220
+      line: 269
       name: sheet chat preview marks calculated cells with their formula
       surface: gui.web
     - &id12804
