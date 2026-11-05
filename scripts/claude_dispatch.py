@@ -42,7 +42,21 @@ PROD_STATE_FILE = STATE_ROOT / "prod-errors-state.json"
 LAUNCH_LOG = STATE_ROOT / "launches.jsonl"
 CLAUDE_MODEL = os.getenv("CLAUDE_DISPATCH_MODEL", "claude-sonnet-5-5")
 CLAUDE_EFFORT = os.getenv("CLAUDE_DISPATCH_EFFORT", "high")
-CLAUDE_BIN = os.getenv("CLAUDE_BIN") or shutil.which("claude") or str(Path.home() / ".local/bin/claude")
+
+
+def resolve_claude_bin() -> str:
+    """Pick the Claude CLI. Cron's PATH (/usr/bin:/bin) finds a stale system install
+    that rejects `--permission-mode auto`, so prefer the user install over PATH."""
+    explicit = os.getenv("CLAUDE_BIN")
+    if explicit:
+        return explicit
+    user_install = Path.home() / ".local/bin/claude"
+    if user_install.is_file() and os.access(user_install, os.X_OK):
+        return str(user_install)
+    return shutil.which("claude") or str(user_install)
+
+
+CLAUDE_BIN = resolve_claude_bin()
 
 UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 SHORT_ID_RE = re.compile(r"^[A-HJ-NP-Z2-9]{5}$")

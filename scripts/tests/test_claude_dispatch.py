@@ -25,6 +25,28 @@ def _queue(tmp_path, name, payload):
     (tmp_path / "queue" / name).write_text(json.dumps(payload))
 
 
+# contract-test: supporting surface=tooling assertions=issue-reporting.automation.admin-dev-claude-chat
+def test_claude_bin_prefers_user_install_over_stale_path_binary(tmp_path, monkeypatch):
+    user_bin = tmp_path / ".local" / "bin"
+    user_bin.mkdir(parents=True)
+    (user_bin / "claude").write_text("#!/bin/sh\n")
+    (user_bin / "claude").chmod(0o755)
+    monkeypatch.setattr(dispatch.Path, "home", classmethod(lambda cls: tmp_path))
+    monkeypatch.setattr(dispatch.shutil, "which", lambda _name: "/usr/bin/claude")
+    monkeypatch.delenv("CLAUDE_BIN", raising=False)
+    assert dispatch.resolve_claude_bin() == str(user_bin / "claude")
+
+
+# contract-test: supporting surface=tooling assertions=issue-reporting.automation.admin-dev-claude-chat
+def test_claude_bin_explicit_override_wins_and_path_is_the_fallback(tmp_path, monkeypatch):
+    monkeypatch.setattr(dispatch.Path, "home", classmethod(lambda cls: tmp_path))
+    monkeypatch.setattr(dispatch.shutil, "which", lambda _name: "/usr/bin/claude")
+    monkeypatch.setenv("CLAUDE_BIN", "/opt/custom/claude")
+    assert dispatch.resolve_claude_bin() == "/opt/custom/claude"
+    monkeypatch.delenv("CLAUDE_BIN")
+    assert dispatch.resolve_claude_bin() == "/usr/bin/claude"
+
+
 # contract-test: supporting surface=gui.web assertions=issue-reporting.automation.admin-dev-claude-chat
 def test_issue_queue_launches_one_chat_per_valid_request(isolated_state):
     _queue(isolated_state, "issue-ABCDE.json", {"kind": "issue", "issue_id": ISSUE_ID, "short_issue_id": "ABCDE"})
