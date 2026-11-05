@@ -136,6 +136,8 @@
 		initializeTheme();
 		themeInitialized = true;
 		initializeUiFont();
+		// Shared Rust core Worker (flag-on builds only; folded away and unbundled otherwise).
+		if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1' && browser) void import('$lib/rustCore/shared/sharedWorkerStart').then((shared) => shared.startSharedRustCore());
 		applyBrowserChromeTheme(document.documentElement.getAttribute('data-theme') || 'light');
 		// Only dictionary/local preference readiness gates app text. Auth and sync start afterwards.
 		await setupI18n();
