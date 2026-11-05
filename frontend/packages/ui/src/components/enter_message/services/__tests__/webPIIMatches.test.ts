@@ -175,4 +175,23 @@ describe('browser model PII span adaptation', () => {
       ['ADDRESS', 'Hauptstrasse'], ['ADDRESS', '5'], ['ADDRESS', '10115'], ['ADDRESS', 'Berlin'],
     ]);
   });
+
+  // contract-test: infrastructure
+  it('does not treat a standalone sentence-initial interjection as a given name', () => {
+    const text = 'Awesome. I work on a large open source project.';
+    expect(mergeWebPIIMatches(text, [entity(text, 'Awesome')])).toEqual([]);
+    const great = 'Great, thanks!';
+    expect(mergeWebPIIMatches(great, [entity(great, 'Great'), entity(great, 'thanks')])).toEqual([]);
+  });
+
+  // contract-test: infrastructure
+  it('still flags real names, including full names and titles', () => {
+    const text = 'Awesome. Maria Schmidt wrote to Dr. Weber.';
+    const matches = mergeWebPIIMatches(text, [
+      entity(text, 'Awesome'), entity(text, 'Maria'), entity(text, 'Schmidt', 'SURNAME'), entity(text, 'Weber', 'SURNAME'),
+    ]);
+    expect(matches.map(match => match.match)).toEqual(['Maria', 'Schmidt', 'Weber']);
+    const will = 'Will called me.';
+    expect(mergeWebPIIMatches(will, [entity(will, 'Will')]).map(match => match.match)).toEqual(['Will']);
+  });
 });
