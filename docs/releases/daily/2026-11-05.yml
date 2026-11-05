@@ -1,0 +1,1996 @@
+schema_version: 1
+cadence: daily
+date: '2026-11-05'
+generated_at: '2026-11-05T14:32:22+00:00'
+range:
+  since: 24 hours ago
+  until: null
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 24
+  section_counts:
+    features: 5
+    bug_fixes: 14
+    improvements: 0
+    docs: 2
+    tests: 2
+    infrastructure: 0
+    internal: 0
+    other: 1
+  newsletter_ready_items: 0
+  user_facing_items: 14
+  dev_only_items: 24
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: embed:web:browse
+    kind: embed
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:web
+    source: backend/apps/web/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: skill:events:search
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:events
+    source: backend/apps/events/app.yml
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:travel:get_flight
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:travel
+    source: backend/apps/travel/app.yml
+  - id: skill:web:browse
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:web
+    source: backend/apps/web/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: reminders delete action for explicit delete decisions'
+    section: features
+    commits:
+    - a17c6510f6
+    authored_at: '2026-11-05T12:00:57+00:00'
+    changed_paths:
+    - .claude/skills/daily-meeting-and-orchestration/SKILL.md
+    - scripts/_apple_reminders_remote.py
+    - scripts/mac_reminders.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: production/dev alerts (reported issues, repeating errors) at the top of the daily briefing'
+    section: features
+    commits:
+    - 8f5fea1355
+    authored_at: '2026-11-05T11:03:26+00:00'
+    changed_paths:
+    - .claude/skills/daily-meeting-and-orchestration/SKILL.md
+    - docs/contributing/guides/daily-meeting.md
+    - scripts/daily_meeting_briefing.py
+    - scripts/daily_meeting_context.py
+    - scripts/daily_meeting_health.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: event cards geocoded server-side, map only with valid coords, ''Open {domain}'' link, fuller grounded descriptions'
+    section: features
+    commits:
+    - 257681f667
+    authored_at: '2026-11-04T14:51:49+00:00'
+    changed_paths:
+    - backend/apps/ai/utils/authored_result_instructions.py
+    - backend/core/api/app/services/authored_result_service.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/api/app/services/event_embed_enrichment.py
+    - backend/tests/test_authored_result_instructions.py
+    - backend/tests/test_event_embed_enrichment.py
+    - frontend/apps/web_app/tests/conference-talk-fullscreen-real.spec.ts
+    - frontend/apps/web_app/tests/fosdem-authored-event-example.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/events/__tests__/eventResult.test.ts
+    - frontend/packages/ui/src/components/embeds/events/eventResult.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, embed:events:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: simplified Report Issue form and automatic dev Claude-chat dispatch for admin reports'
+    section: features
+    commits:
+    - af17bcec16
+    authored_at: '2026-11-04T14:40:08+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/audio_realtime.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/services/report_issue_dictation_quota.py
+    - backend/core/api/app/utils/claude_issue_dispatch.py
+    - backend/core/directus/schemas/issues.yml
+    - backend/core/docker-compose.override.yml
+    - backend/scripts/check_prod_chat_failures.py
+    - backend/tests/test_check_prod_chat_failures.py
+    - backend/tests/test_claude_issue_dispatch.py
+    - backend/tests/test_report_issue_dictation_quota.py
+    - docs/architecture/infrastructure/claude-dispatch.md
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/plans/report-issue-reliability/plan.yml
+    - docs/user-guide/issue-reporting.md
+    - frontend/apps/web_app/tests/anonymous-child-embeds.spec.ts
+    - frontend/apps/web_app/tests/components/report-issue-composer.spec.ts
+    - frontend/apps/web_app/tests/components/report-issue-confirmation.spec.ts
+    - frontend/apps/web_app/tests/console-monitor.ts
+    - frontend/apps/web_app/tests/report-issue-context-fallback.spec.ts
+    - frontend/apps/web_app/tests/report-issue-email-fallback.spec.ts
+    - frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    - frontend/apps/web_app/tests/storage-capacity-replay.spec.ts
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    - frontend/packages/ui/src/components/settings/ReportIssueComposer.preview.ts
+    - frontend/packages/ui/src/components/settings/ReportIssueComposer.svelte
+    - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+    - frontend/packages/ui/src/components/settings/SettingsReportIssueConfirmation.preview.ts
+    - frontend/packages/ui/src/components/settings/SettingsReportIssueConfirmation.svelte
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/src/services/__tests__/audioRealtimeTranscription.test.ts
+    - frontend/packages/ui/src/services/audioRealtimeTranscription.ts
+    - frontend/packages/ui/src/stores/reportIssueStore.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/claude_dispatch.py
+    - scripts/tests/test_claude_dispatch.py
+    - specifications/features/issue-reporting/examples.yml
+    - specifications/features/issue-reporting/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: server region preference (EU default / Fastest, global); remove Qwen3 235B; @fast -> Mercury 3'
+    section: features
+    commits:
+    - 2d89714338
+    authored_at: '2026-11-04T14:34:59+00:00'
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/testing/fixtures/model_override_qwen.json
+    - backend/apps/ai/testing/fixtures/model_override_switch_qwen.json
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/providers/alibaba.yml
+    - backend/providers/anthropic.yml
+    - backend/providers/deepseek.yml
+    - backend/scripts/test_qwen_function_calling.py
+    - backend/shared/python_utils/server_policy.py
+    - backend/tests/test_server_policy.py
+    - docs/architecture/ai/ai-model-selection.md
+    - docs/architecture/ai/qwen38-fast-evaluation.md
+    - frontend/apps/web_app/tests/ai-server-region-preference.spec.ts
+    - frontend/apps/web_app/tests/model-override.spec.ts
+    - frontend/packages/openmates-cli/src/mentions.ts
+    - frontend/packages/openmates-cli/tests/fixtures/tui-cache-startup-proof.mjs
+    - frontend/packages/openmates-cli/tests/tuiMentionCatalog.test.ts
+    - frontend/packages/openmates-cli/tests/tuiMentions.test.ts
+    - frontend/packages/openmates-cli/tests/tuiModelSelectorShell.test.ts
+    - frontend/packages/ui/scripts/generate-models-metadata.js
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/enter_message/ComposerModelSelector.svelte
+    - frontend/packages/ui/src/components/enter_message/__tests__/modelRoutingMentions.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts
+    - frontend/packages/ui/src/components/settings/AiAskSkillSettings.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAI.svelte
+    - frontend/packages/ui/src/data/modelsMetadata.d.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/settings/ai_ask.yml
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    - frontend/packages/ui/src/services/__tests__/modelRoutingRestrictions.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+    - frontend/packages/ui/src/services/modelRoutingRestrictions.ts
+    - frontend/packages/ui/src/services/userDB.ts
+    - frontend/packages/ui/src/stores/userProfile.ts
+    - frontend/packages/ui/src/utils/__tests__/aiModelDisplay.test.ts
+    - frontend/packages/ui/src/utils/aiModelDisplay.ts
+    - packages/openmates-rust/src/mentions.rs
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: event embeds show sources at the bottom, visible carousel on mobile, venue geocoding'
+    section: bug_fixes
+    commits:
+    - 4733976b8d
+    authored_at: '2026-11-05T14:16:14+00:00'
+    changed_paths:
+    - backend/apps/ai/utils/authored_result_instructions.py
+    - backend/core/api/app/services/event_embed_enrichment.py
+    - backend/shared/python_utils/geo_utils.py
+    - backend/tests/test_authored_result_instructions.py
+    - backend/tests/test_event_embed_enrichment.py
+    - frontend/apps/web_app/tests/components/authored-results-matrix.spec.ts
+    - frontend/apps/web_app/tests/conference-talk-fullscreen-real.spec.ts
+    - frontend/apps/web_app/tests/fosdem-authored-event-example.spec.ts
+    - frontend/packages/ui/src/components/embeds/AuthoredResultContextInfo.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/ResultEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedPreview.test.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, embed:events:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep new chat when Stop is pressed after AI output started'
+    section: bug_fixes
+    commits:
+    - 0109e71b0b
+    authored_at: '2026-11-05T14:12:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: sheet fullscreen scrolls as one surface so the table keeps full height'
+    section: bug_fixes
+    commits:
+    - 667adc822c
+    authored_at: '2026-11-05T13:56:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/sheet-fullscreen.spec.ts
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: dispatch Claude chats with the user install, not the stale cron PATH binary'
+    section: bug_fixes
+    commits:
+    - edc86013e8
+    authored_at: '2026-11-05T13:39:11+00:00'
+    changed_paths:
+    - scripts/claude_dispatch.py
+    - scripts/tests/test_claude_dispatch.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: disable Browse skill and embed on dev until preview works'
+    section: bug_fixes
+    commits:
+    - 8bac0a7314
+    authored_at: '2026-11-05T13:30:59+00:00'
+    changed_paths:
+    - backend/config/backend_config.dev.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: PDF read/view keep file index and Vault key when called with a page list'
+    section: bug_fixes
+    commits:
+    - 6fc9fe34b9
+    authored_at: '2026-11-05T10:57:58+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/tests/test_skill_executor_context_preserved.py
+    - frontend/apps/web_app/tests/pdf-flow.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: standalone interjections like Awesome are not flagged as given names'
+    section: bug_fixes
+    commits:
+    - 3a3d69a2b2
+    authored_at: '2026-11-05T10:35:18+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/webPIIMatches.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/webPIIMatches.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: converge focus activation + continuation merge in streaming render plan'
+    section: bug_fixes
+    commits:
+    - 6ed15c9e80
+    authored_at: '2026-11-04T17:14:42+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/__tests__/focusContinuationMerge.test.ts
+    - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: focus continuation resolves attached embed cards so the talk focus targets the card the user opened'
+    section: bug_fixes
+    commits:
+    - 7dc9020adc
+    authored_at: '2026-11-04T15:41:11+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/focus_mode_auto_confirm_task.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/focus_mode_rejected_handler.py
+    - backend/shared/python_utils/focus_continuation_history.py
+    - backend/tests/test_focus_continuation_history.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: upcoming-event lists search the next edition of major recurring events (FOSDEM) before demoting them to prose'
+    section: bug_fixes
+    commits:
+    - 47ddd574d9
+    authored_at: '2026-11-04T15:25:12+00:00'
+    changed_paths:
+    - backend/apps/ai/utils/authored_result_instructions.py
+    - backend/tests/test_authored_result_instructions.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: talk focus targets the attached event card and states CFP limits; authored event maps never use model coordinates'
+    section: bug_fixes
+    commits:
+    - fc7634b845
+    authored_at: '2026-11-04T15:15:16+00:00'
+    changed_paths:
+    - backend/apps/events/focus_modes/plan-conference-talk/SKILL.md
+    - backend/core/api/app/services/authored_result_service.py
+    - backend/core/api/app/services/event_embed_enrichment.py
+    - backend/tests/test_event_embed_enrichment.py
+    - backend/tests/test_focus_mode_routing.py
+    - frontend/apps/web_app/tests/conference-talk-fullscreen-real.spec.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:events'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: focus activation shows parent app icon; translate new focus modes; deploy gate for missing translation keys'
+    section: bug_fixes
+    commits:
+    - a7a9a0748a
+    authored_at: '2026-11-04T15:08:50+00:00'
+    changed_paths:
+    - docs/architecture/data/translations.md
+    - frontend/apps/web_app/tests/components/focus-mode-activation.spec.ts
+    - frontend/packages/ui/scripts/generate-apps-metadata.js
+    - frontend/packages/ui/scripts/validate-app-translation-keys.js
+    - frontend/packages/ui/scripts/validate-app-translation-keys.test.mjs
+    - frontend/packages/ui/scripts/validate-locales.js
+    - frontend/packages/ui/src/components/embeds/focus_mode/FocusModeActivationEmbed.preview.ts
+    - frontend/packages/ui/src/components/embeds/focus_mode/FocusModeActivationEmbed.svelte
+    - frontend/packages/ui/src/i18n/sources/app_focus_modes/business.yml
+    - frontend/packages/ui/src/i18n/sources/app_focus_modes/events.yml
+    - frontend/packages/ui/src/i18n/sources/app_focus_modes/tasks.yml
+    - frontend/packages/ui/src/i18n/sources/app_focus_modes/workflows.yml
+    - frontend/packages/ui/src/i18n/sources/app_skills/workflows.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/business_price_products.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/events_plan_conference_talk.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/tasks_daily_meeting_and_orchestration.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/workflows_clarify_workflows.yml
+    - scripts/product_runtime_translations.py
+    - scripts/tests/test_product_runtime_translations.py
+    - scripts/tests/test_validate_app_translation_keys.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: sheet fullscreen round Edit pen in header, pinned header row, orange formula cells'
+    section: bug_fixes
+    commits:
+    - 652a9efb8b
+    authored_at: '2026-11-04T15:03:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/sheet-fullscreen.spec.ts
+    - frontend/packages/ui/src/components/HeaderActionMenu.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedPreview.svelte
+    - frontend/packages/ui/src/tokens/sources/colors.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: voice call composer shows transcript-only active state without New chat or Cancel'
+    section: bug_fixes
+    commits:
+    - 8bd9ef3657
+    authored_at: '2026-11-04T14:43:59+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: reminders delete wording'
+    section: docs
+    commits:
+    - 26700d2b96
+    authored_at: '2026-11-05T12:01:18+00:00'
+    changed_paths:
+    - docs/contributing/guides/daily-meeting.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: daily meeting syncs live reminders before writing'
+    section: docs
+    commits:
+    - 70b7f22d75
+    authored_at: '2026-11-05T11:58:23+00:00'
+    changed_paths:
+    - .claude/skills/daily-meeting-and-orchestration/SKILL.md
+    - docs/contributing/guides/daily-meeting.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: cover daily briefing alerts (issues, error grouping, privacy)'
+    section: tests
+    commits:
+    - f19d76746f
+    authored_at: '2026-11-05T11:04:55+00:00'
+    changed_paths:
+    - scripts/tests/test_daily_meeting_health.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: real dev sheet edit-recalc-persist spec (env-gated)'
+    section: tests
+    commits:
+    - 42d208ef3a
+    authored_at: '2026-11-05T10:44:36+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/sheet-edit-real.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other:
+  - title: Merge main into dev preserving guest transcription hotfix
+    section: other
+    commits:
+    - a191ee2dfe
+    authored_at: '2026-11-05T14:04:46+00:00'
+    changed_paths: []
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+unreleased_progress:
+  dev_only:
+  - title: 'fix: event embeds show sources at the bottom, visible carousel on mobile, venue geocoding'
+    commits:
+    - 4733976b8d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+  - title: 'fix: keep new chat when Stop is pressed after AI output started'
+    commits:
+    - 0109e71b0b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Merge main into dev preserving guest transcription hotfix
+    commits:
+    - a191ee2dfe
+    section: other
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: sheet fullscreen scrolls as one surface so the table keeps full height'
+    commits:
+    - 667adc822c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: dispatch Claude chats with the user install, not the stale cron PATH binary'
+    commits:
+    - edc86013e8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: disable Browse skill and embed on dev until preview works'
+    commits:
+    - 8bac0a7314
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: reminders delete wording'
+    commits:
+    - 26700d2b96
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: reminders delete action for explicit delete decisions'
+    commits:
+    - a17c6510f6
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: daily meeting syncs live reminders before writing'
+    commits:
+    - 70b7f22d75
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: cover daily briefing alerts (issues, error grouping, privacy)'
+    commits:
+    - f19d76746f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: production/dev alerts (reported issues, repeating errors) at the top of the daily briefing'
+    commits:
+    - 8f5fea1355
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: PDF read/view keep file index and Vault key when called with a page list'
+    commits:
+    - 6fc9fe34b9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test: real dev sheet edit-recalc-persist spec (env-gated)'
+    commits:
+    - 42d208ef3a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: standalone interjections like Awesome are not flagged as given names'
+    commits:
+    - 3a3d69a2b2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: converge focus activation + continuation merge in streaming render plan'
+    commits:
+    - 6ed15c9e80
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: focus continuation resolves attached embed cards so the talk focus targets the card the user opened'
+    commits:
+    - 7dc9020adc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: upcoming-event lists search the next edition of major recurring events (FOSDEM) before demoting them to prose'
+    commits:
+    - 47ddd574d9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: talk focus targets the attached event card and states CFP limits; authored event maps never use model coordinates'
+    commits:
+    - fc7634b845
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+  - title: 'fix: focus activation shows parent app icon; translate new focus modes; deploy gate for missing translation keys'
+    commits:
+    - a7a9a0748a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: sheet fullscreen round Edit pen in header, pinned header row, orange formula cells'
+    commits:
+    - 652a9efb8b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: event cards geocoded server-side, map only with valid coords, ''Open {domain}'' link, fuller grounded descriptions'
+    commits:
+    - 257681f667
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+  - title: 'fix: voice call composer shows transcript-only active state without New chat or Cancel'
+    commits:
+    - 8bd9ef3657
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: simplified Report Issue form and automatic dev Claude-chat dispatch for admin reports'
+    commits:
+    - af17bcec16
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: server region preference (EU default / Fastest, global); remove Qwen3 235B; @fast -> Mercury 3'
+    commits:
+    - 2d89714338
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: focus activation shows parent app icon; translate new focus modes; deploy gate for missing translation keys'
+    commits:
+    - a7a9a0748a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: server region preference (EU default / Fastest, global); remove Qwen3 235B; @fast -> Mercury 3'
+    commits:
+    - 2d89714338
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: event embeds show sources at the bottom, visible carousel on mobile, venue geocoding'
+    commits:
+    - 4733976b8d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    newsletter_ready: false
+  - title: 'fix: keep new chat when Stop is pressed after AI output started'
+    commits:
+    - 0109e71b0b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: sheet fullscreen scrolls as one surface so the table keeps full height'
+    commits:
+    - 667adc822c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: PDF read/view keep file index and Vault key when called with a page list'
+    commits:
+    - 6fc9fe34b9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: standalone interjections like Awesome are not flagged as given names'
+    commits:
+    - 3a3d69a2b2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: focus continuation resolves attached embed cards so the talk focus targets the card the user opened'
+    commits:
+    - 7dc9020adc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: upcoming-event lists search the next edition of major recurring events (FOSDEM) before demoting them to prose'
+    commits:
+    - 47ddd574d9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: talk focus targets the attached event card and states CFP limits; authored event maps never use model coordinates'
+    commits:
+    - fc7634b845
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    newsletter_ready: false
+  - title: 'fix: focus activation shows parent app icon; translate new focus modes; deploy gate for missing translation keys'
+    commits:
+    - a7a9a0748a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: sheet fullscreen round Edit pen in header, pinned header row, orange formula cells'
+    commits:
+    - 652a9efb8b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: event cards geocoded server-side, map only with valid coords, ''Open {domain}'' link, fuller grounded descriptions'
+    commits:
+    - 257681f667
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    newsletter_ready: false
+  - title: 'fix: voice call composer shows transcript-only active state without New chat or Cancel'
+    commits:
+    - 8bd9ef3657
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: simplified Report Issue form and automatic dev Claude-chat dispatch for admin reports'
+    commits:
+    - af17bcec16
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: server region preference (EU default / Fastest, global); remove Qwen3 235B; @fast -> Mercury 3'
+    commits:
+    - 2d89714338
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 4733976b8da3a350b053250870b452f6f846d627
+    short_sha: 4733976b8d
+    authored_at: '2026-11-05T14:16:14+00:00'
+    subject: 'fix: event embeds show sources at the bottom, visible carousel on mobile, venue geocoding'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/utils/authored_result_instructions.py
+    - backend/core/api/app/services/event_embed_enrichment.py
+    - backend/shared/python_utils/geo_utils.py
+    - backend/tests/test_authored_result_instructions.py
+    - backend/tests/test_event_embed_enrichment.py
+    - frontend/apps/web_app/tests/components/authored-results-matrix.spec.ts
+    - frontend/apps/web_app/tests/conference-talk-fullscreen-real.spec.ts
+    - frontend/apps/web_app/tests/fosdem-authored-event-example.spec.ts
+    - frontend/packages/ui/src/components/embeds/AuthoredResultContextInfo.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/ResultEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedPreview.test.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - embed:events:search
+  - sha: 0109e71b0bd3eaad032d473ff38a507b8b580900
+    short_sha: 0109e71b0b
+    authored_at: '2026-11-05T14:12:34+00:00'
+    subject: 'fix: keep new chat when Stop is pressed after AI output started'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: a191ee2dfe8b3f9984126d52b82168ad89bd731a
+    short_sha: a191ee2dfe
+    authored_at: '2026-11-05T14:04:46+00:00'
+    subject: Merge main into dev preserving guest transcription hotfix
+    in_main: false
+    in_dev: true
+    changed_paths: []
+    related_feature_ids: []
+  - sha: 667adc822c5a3685dfcdcd9d085022c8918c4dee
+    short_sha: 667adc822c
+    authored_at: '2026-11-05T13:56:21+00:00'
+    subject: 'fix: sheet fullscreen scrolls as one surface so the table keeps full height'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/sheet-fullscreen.spec.ts
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: edc86013e83dfdc041c88c691aa3df855a7a3e36
+    short_sha: edc86013e8
+    authored_at: '2026-11-05T13:39:11+00:00'
+    subject: 'fix: dispatch Claude chats with the user install, not the stale cron PATH binary'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/claude_dispatch.py
+    - scripts/tests/test_claude_dispatch.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 8bac0a73140da375a05b524d792ef0db360a46af
+    short_sha: 8bac0a7314
+    authored_at: '2026-11-05T13:30:59+00:00'
+    subject: 'fix: disable Browse skill and embed on dev until preview works'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/config/backend_config.dev.yml
+    related_feature_ids: []
+  - sha: 26700d2b962ea317b56e2ec920a224a1768634c4
+    short_sha: 26700d2b96
+    authored_at: '2026-11-05T12:01:18+00:00'
+    subject: 'docs: reminders delete wording'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/contributing/guides/daily-meeting.md
+    related_feature_ids: []
+  - sha: a17c6510f60642986c3d846ad842611ea0df97f6
+    short_sha: a17c6510f6
+    authored_at: '2026-11-05T12:00:57+00:00'
+    subject: 'feat: reminders delete action for explicit delete decisions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/skills/daily-meeting-and-orchestration/SKILL.md
+    - scripts/_apple_reminders_remote.py
+    - scripts/mac_reminders.py
+    related_feature_ids: []
+  - sha: 70b7f22d75ef1b332ce5fe783a6cac0ad020d453
+    short_sha: 70b7f22d75
+    authored_at: '2026-11-05T11:58:23+00:00'
+    subject: 'docs: daily meeting syncs live reminders before writing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/skills/daily-meeting-and-orchestration/SKILL.md
+    - docs/contributing/guides/daily-meeting.md
+    related_feature_ids: []
+  - sha: f19d76746f1a3362b39d6d7cf257add55fa1cd9b
+    short_sha: f19d76746f
+    authored_at: '2026-11-05T11:04:55+00:00'
+    subject: 'test: cover daily briefing alerts (issues, error grouping, privacy)'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests/test_daily_meeting_health.py
+    related_feature_ids: []
+  - sha: 8f5fea1355f626d51da96d9e64f2b71ef01caa7d
+    short_sha: 8f5fea1355
+    authored_at: '2026-11-05T11:03:26+00:00'
+    subject: 'feat: production/dev alerts (reported issues, repeating errors) at the top of the daily briefing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/skills/daily-meeting-and-orchestration/SKILL.md
+    - docs/contributing/guides/daily-meeting.md
+    - scripts/daily_meeting_briefing.py
+    - scripts/daily_meeting_context.py
+    - scripts/daily_meeting_health.py
+    related_feature_ids: []
+  - sha: 6fc9fe34b95cc9ea1ff662e29f3ae298332f706c
+    short_sha: 6fc9fe34b9
+    authored_at: '2026-11-05T10:57:58+00:00'
+    subject: 'fix: PDF read/view keep file index and Vault key when called with a page list'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/tests/test_skill_executor_context_preserved.py
+    - frontend/apps/web_app/tests/pdf-flow.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 42d208ef3a7155ea60980fd84f662ff804493c66
+    short_sha: 42d208ef3a
+    authored_at: '2026-11-05T10:44:36+00:00'
+    subject: 'test: real dev sheet edit-recalc-persist spec (env-gated)'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/sheet-edit-real.spec.ts
+    related_feature_ids: []
+  - sha: 3a3d69a2b2a3bddc70775339dce80adb7caf7f01
+    short_sha: 3a3d69a2b2
+    authored_at: '2026-11-05T10:35:18+00:00'
+    subject: 'fix: standalone interjections like Awesome are not flagged as given names'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/webPIIMatches.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/webPIIMatches.ts
+    related_feature_ids: []
+  - sha: 6ed15c9e80949420822a612e5ab273ba7a66a1f1
+    short_sha: 6ed15c9e80
+    authored_at: '2026-11-04T17:14:42+00:00'
+    subject: 'fix: converge focus activation + continuation merge in streaming render plan'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/__tests__/focusContinuationMerge.test.ts
+    - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
+    related_feature_ids: []
+  - sha: 7dc9020adc19607185a68f4fd295c243e5cac286
+    short_sha: 7dc9020adc
+    authored_at: '2026-11-04T15:41:11+00:00'
+    subject: 'fix: focus continuation resolves attached embed cards so the talk focus targets the card the user opened'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/focus_mode_auto_confirm_task.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/focus_mode_rejected_handler.py
+    - backend/shared/python_utils/focus_continuation_history.py
+    - backend/tests/test_focus_continuation_history.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 47ddd574d97043d1a94e2dcf2f22b7c729ac7f49
+    short_sha: 47ddd574d9
+    authored_at: '2026-11-04T15:25:12+00:00'
+    subject: 'fix: upcoming-event lists search the next edition of major recurring events (FOSDEM) before demoting them to
+      prose'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/utils/authored_result_instructions.py
+    - backend/tests/test_authored_result_instructions.py
+    related_feature_ids:
+    - app:ai
+  - sha: fc7634b845f9a8c16562de4c5a384665225e0eb5
+    short_sha: fc7634b845
+    authored_at: '2026-11-04T15:15:16+00:00'
+    subject: 'fix: talk focus targets the attached event card and states CFP limits; authored event maps never use model coordinates'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/events/focus_modes/plan-conference-talk/SKILL.md
+    - backend/core/api/app/services/authored_result_service.py
+    - backend/core/api/app/services/event_embed_enrichment.py
+    - backend/tests/test_event_embed_enrichment.py
+    - backend/tests/test_focus_mode_routing.py
+    - frontend/apps/web_app/tests/conference-talk-fullscreen-real.spec.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:events
+  - sha: a7a9a0748a307033ef70b90351b18289c46adb87
+    short_sha: a7a9a0748a
+    authored_at: '2026-11-04T15:08:50+00:00'
+    subject: 'fix: focus activation shows parent app icon; translate new focus modes; deploy gate for missing translation
+      keys'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/data/translations.md
+    - frontend/apps/web_app/tests/components/focus-mode-activation.spec.ts
+    - frontend/packages/ui/scripts/generate-apps-metadata.js
+    - frontend/packages/ui/scripts/validate-app-translation-keys.js
+    - frontend/packages/ui/scripts/validate-app-translation-keys.test.mjs
+    - frontend/packages/ui/scripts/validate-locales.js
+    - frontend/packages/ui/src/components/embeds/focus_mode/FocusModeActivationEmbed.preview.ts
+    - frontend/packages/ui/src/components/embeds/focus_mode/FocusModeActivationEmbed.svelte
+    - frontend/packages/ui/src/i18n/sources/app_focus_modes/business.yml
+    - frontend/packages/ui/src/i18n/sources/app_focus_modes/events.yml
+    - frontend/packages/ui/src/i18n/sources/app_focus_modes/tasks.yml
+    - frontend/packages/ui/src/i18n/sources/app_focus_modes/workflows.yml
+    - frontend/packages/ui/src/i18n/sources/app_skills/workflows.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/business_price_products.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/events_plan_conference_talk.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/tasks_daily_meeting_and_orchestration.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/workflows_clarify_workflows.yml
+    - scripts/product_runtime_translations.py
+    - scripts/tests/test_product_runtime_translations.py
+    - scripts/tests/test_validate_app_translation_keys.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 652a9efb8bf9fb113dcfc532132236b82c34133f
+    short_sha: 652a9efb8b
+    authored_at: '2026-11-04T15:03:58+00:00'
+    subject: 'fix: sheet fullscreen round Edit pen in header, pinned header row, orange formula cells'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/sheet-fullscreen.spec.ts
+    - frontend/packages/ui/src/components/HeaderActionMenu.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedPreview.svelte
+    - frontend/packages/ui/src/tokens/sources/colors.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 257681f6672cf46dcc43e53c744b350a54c8d58d
+    short_sha: 257681f667
+    authored_at: '2026-11-04T14:51:49+00:00'
+    subject: 'feat: event cards geocoded server-side, map only with valid coords, ''Open {domain}'' link, fuller grounded
+      descriptions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/utils/authored_result_instructions.py
+    - backend/core/api/app/services/authored_result_service.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/api/app/services/event_embed_enrichment.py
+    - backend/tests/test_authored_result_instructions.py
+    - backend/tests/test_event_embed_enrichment.py
+    - frontend/apps/web_app/tests/conference-talk-fullscreen-real.spec.ts
+    - frontend/apps/web_app/tests/fosdem-authored-event-example.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/events/__tests__/eventResult.test.ts
+    - frontend/packages/ui/src/components/embeds/events/eventResult.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - embed:events:search
+  - sha: 8bd9ef3657a8f8b76b05595d98f3d0beae2ce284
+    short_sha: 8bd9ef3657
+    authored_at: '2026-11-04T14:43:59+00:00'
+    subject: 'fix: voice call composer shows transcript-only active state without New chat or Cancel'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: af17bcec161f7fb8f65b789657ff35a9a845be2f
+    short_sha: af17bcec16
+    authored_at: '2026-11-04T14:40:08+00:00'
+    subject: 'feat: simplified Report Issue form and automatic dev Claude-chat dispatch for admin reports'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/audio_realtime.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/services/report_issue_dictation_quota.py
+    - backend/core/api/app/utils/claude_issue_dispatch.py
+    - backend/core/directus/schemas/issues.yml
+    - backend/core/docker-compose.override.yml
+    - backend/scripts/check_prod_chat_failures.py
+    - backend/tests/test_check_prod_chat_failures.py
+    - backend/tests/test_claude_issue_dispatch.py
+    - backend/tests/test_report_issue_dictation_quota.py
+    - docs/architecture/infrastructure/claude-dispatch.md
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/plans/report-issue-reliability/plan.yml
+    - docs/user-guide/issue-reporting.md
+    - frontend/apps/web_app/tests/anonymous-child-embeds.spec.ts
+    - frontend/apps/web_app/tests/components/report-issue-composer.spec.ts
+    - frontend/apps/web_app/tests/components/report-issue-confirmation.spec.ts
+    - frontend/apps/web_app/tests/console-monitor.ts
+    - frontend/apps/web_app/tests/report-issue-context-fallback.spec.ts
+    - frontend/apps/web_app/tests/report-issue-email-fallback.spec.ts
+    - frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    - frontend/apps/web_app/tests/storage-capacity-replay.spec.ts
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    - frontend/packages/ui/src/components/settings/ReportIssueComposer.preview.ts
+    - frontend/packages/ui/src/components/settings/ReportIssueComposer.svelte
+    - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+    - frontend/packages/ui/src/components/settings/SettingsReportIssueConfirmation.preview.ts
+    - frontend/packages/ui/src/components/settings/SettingsReportIssueConfirmation.svelte
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/src/services/__tests__/audioRealtimeTranscription.test.ts
+    - frontend/packages/ui/src/services/audioRealtimeTranscription.ts
+    - frontend/packages/ui/src/stores/reportIssueStore.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/claude_dispatch.py
+    - scripts/tests/test_claude_dispatch.py
+    - specifications/features/issue-reporting/examples.yml
+    - specifications/features/issue-reporting/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: 2d89714338eccf4ac6c01dabf8d7c2bdaa7f4871
+    short_sha: 2d89714338
+    authored_at: '2026-11-04T14:34:59+00:00'
+    subject: 'feat: server region preference (EU default / Fastest, global); remove Qwen3 235B; @fast -> Mercury 3'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/testing/fixtures/model_override_qwen.json
+    - backend/apps/ai/testing/fixtures/model_override_switch_qwen.json
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/providers/alibaba.yml
+    - backend/providers/anthropic.yml
+    - backend/providers/deepseek.yml
+    - backend/scripts/test_qwen_function_calling.py
+    - backend/shared/python_utils/server_policy.py
+    - backend/tests/test_server_policy.py
+    - docs/architecture/ai/ai-model-selection.md
+    - docs/architecture/ai/qwen38-fast-evaluation.md
+    - frontend/apps/web_app/tests/ai-server-region-preference.spec.ts
+    - frontend/apps/web_app/tests/model-override.spec.ts
+    - frontend/packages/openmates-cli/src/mentions.ts
+    - frontend/packages/openmates-cli/tests/fixtures/tui-cache-startup-proof.mjs
+    - frontend/packages/openmates-cli/tests/tuiMentionCatalog.test.ts
+    - frontend/packages/openmates-cli/tests/tuiMentions.test.ts
+    - frontend/packages/openmates-cli/tests/tuiModelSelectorShell.test.ts
+    - frontend/packages/ui/scripts/generate-models-metadata.js
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/enter_message/ComposerModelSelector.svelte
+    - frontend/packages/ui/src/components/enter_message/__tests__/modelRoutingMentions.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts
+    - frontend/packages/ui/src/components/settings/AiAskSkillSettings.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAI.svelte
+    - frontend/packages/ui/src/data/modelsMetadata.d.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/settings/ai_ask.yml
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    - frontend/packages/ui/src/services/__tests__/modelRoutingRestrictions.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+    - frontend/packages/ui/src/services/modelRoutingRestrictions.ts
+    - frontend/packages/ui/src/services/userDB.ts
+    - frontend/packages/ui/src/stores/userProfile.ts
+    - frontend/packages/ui/src/utils/__tests__/aiModelDisplay.test.ts
+    - frontend/packages/ui/src/utils/aiModelDisplay.ts
+    - packages/openmates-rust/src/mentions.rs
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+llm_summary:
+  overview: OpenMates focused on AI infrastructure and search refinements, introducing server region preferences and server-side
+    geocoding for event cards. The update also includes significant UI improvements for spreadsheet embeds and the issue reporting
+    experience.
+  released_changes: []
+  bug_fixes:
+  - text: PII detection was refined to prevent standalone interjections like "Awesome" from being incorrectly flagged as personal
+      names.
+    evidence:
+      commits:
+      - 3a3d69a2b2
+    release_status: dev_only
+  - text: The PDF processing logic now preserves file indices and Vault keys when handling specific page lists.
+    evidence:
+      commits:
+      - 6fc9fe34b9
+    release_status: dev_only
+  - text: Event embeds were updated to display sources at the bottom, improve mobile carousel visibility, and ensure maps
+      use geocoded coordinates rather than model-generated guesses.
+    evidence:
+      commits:
+      - 4733976b8d
+      - fc7634b845
+    release_status: dev_only
+  - text: Fullscreen spreadsheet views now scroll as a single surface with pinned headers and improved formula cell styling.
+    evidence:
+      commits:
+      - 667adc822c
+      - 652a9efb8b
+    release_status: dev_only
+  - text: Chat drafts are now preserved if the user stops AI generation after output has already started.
+    evidence:
+      commits:
+      - 0109e71b0b
+    release_status: dev_only
+  - text: The voice call composer was adjusted to show a transcript-only active state without conflicting navigation options.
+    evidence:
+      commits:
+      - 8bd9ef3657
+    release_status: dev_only
+  unreleased_progress:
+  - text: OpenMates added server region preferences (EU or Fastest) and updated the @fast mention to utilize Mercury 3.
+    evidence:
+      commits:
+      - 2d89714338
+    release_status: dev_only
+  - text: Event search now utilizes server-side geocoding and improved logic for recurring events like FOSDEM.
+    evidence:
+      commits:
+      - 257681f667
+      - 47ddd574d9
+    release_status: dev_only
+  - text: A simplified Report Issue form was introduced, featuring automatic dispatch for administrative reports.
+    evidence:
+      commits:
+      - af17bcec16
+    release_status: dev_only
+  - text: A new delete action was added to the reminders integration for explicit task management.
+    evidence:
+      commits:
+      - a17c6510f6
+    release_status: dev_only
+  internal_progress:
+  - text: The daily briefing now includes automated alerts for reported issues and repeating errors.
+    evidence:
+      commits:
+      - 8f5fea1355
+      - f19d76746f
+    release_status: dev_only
+  - text: Fixed a path resolution issue for Claude-based issue dispatching in cron environments.
+    evidence:
+      commits:
+      - edc86013e8
+    release_status: dev_only
+  - text: Implemented a deployment gate to validate translation keys for new focus modes.
+    evidence:
+      commits:
+      - a7a9a0748a
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: AI server region preferences and Mercury 3 model updates.
+      evidence:
+        commits:
+        - 2d89714338
+      reason: This feature is currently in development and has not been merged to the main branch.
+    - text: Server-side geocoding for event search cards.
+      evidence:
+        commits:
+        - 257681f667
+      reason: This feature is currently in development and has not been merged to the main branch.
+    - text: Simplified issue reporting flow.
+      evidence:
+        commits:
+        - af17bcec16
+      reason: This feature is currently in development and has not been merged to the main branch.
+    rationale: No user-facing changes were released to the main branch during this period. All updates are currently in the
+      development branch.
+  social_video_recommendations:
+  - idea: Demonstrate the new event search cards featuring integrated maps and grounded descriptions.
+    priority: Medium
+    reason: The geocoding and map integration provide a clear visual improvement to the search experience.
+    evidence:
+      commits:
+      - 257681f667
+  quality_notes:
+  - All changes are currently limited to the development branch and have not reached production.
+  - The Browse skill has been temporarily disabled in development environments while preview functionality is being refined.
+  validation_warnings: []
