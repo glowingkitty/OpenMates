@@ -1,0 +1,279 @@
+{
+  "protocol_version": 1,
+  "capability": "sdk.apps",
+  "credential_modes": [
+    "personal_cookie_session",
+    "explicit_api_key"
+  ],
+  "cases": [
+    {
+      "id": "sync-direct",
+      "input": {
+        "app": "web",
+        "skill": "search",
+        "input": {
+          "requests": [
+            {
+              "query": "synthetic fixture"
+            }
+          ]
+        }
+      },
+      "response": {
+        "success": true,
+        "credits_charged": 1,
+        "data": {
+          "results": [
+            {
+              "title": "Fixture result"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "success": true,
+        "credits_charged": 1,
+        "data": {
+          "results": [
+            {
+              "title": "Fixture result"
+            }
+          ]
+        }
+      },
+      "skill_post_count": 1,
+      "forbidden_routes": [
+        "/v1/apps/workspace/results",
+        "/v1/chats"
+      ],
+      "canonical_retention": false
+    },
+    {
+      "id": "async-direct",
+      "response": {
+        "success": true,
+        "credits_charged": 1,
+        "data": {
+          "task_id": "task-1"
+        }
+      },
+      "task": {
+        "task_id": "task-1",
+        "status": "completed",
+        "result": {
+          "results": [
+            {
+              "title": "Async fixture"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "success": true,
+        "credits_charged": 1,
+        "data": {
+          "results": [
+            {
+              "title": "Async fixture"
+            }
+          ]
+        }
+      },
+      "skill_post_count": 1,
+      "forbidden_routes": [
+        "/v1/apps/workspace/results",
+        "/v1/chats"
+      ],
+      "canonical_retention": false
+    },
+    {
+      "id": "interactive-retained",
+      "canonical_retention": true,
+      "required_states": [
+        "processing",
+        "finished"
+      ],
+      "encrypted_input_and_output": true,
+      "chat_creation": false
+    },
+    {
+      "id": "cancel-after-dispatch",
+      "skill_post_count": 1,
+      "result_publication": false,
+      "automatic_retry": false,
+      "canonical_retention": false
+    },
+    {
+      "id": "json-file-default",
+      "json": true,
+      "destinations": null,
+      "downloads": 0
+    },
+    {
+      "id": "explicit-file",
+      "json": true,
+      "output": "fixture.bin",
+      "private_partial_mode": "0600",
+      "publish": "atomic_replace_after_complete",
+      "provider_credentials": false
+    },
+    {
+      "id": "pending-a-failed-b",
+      "task_ids": [
+        "task-a",
+        "task-b"
+      ],
+      "observations": [
+        {
+          "task_id": "task-a",
+          "status": "pending"
+        },
+        {
+          "task_id": "task-b",
+          "status": "failed"
+        }
+      ],
+      "must_observe_failure_before_a_completion": true,
+      "skill_post_count": 1
+    },
+    {
+      "id": "single-task-array",
+      "task_ids": [
+        "task-a"
+      ],
+      "task_result": {
+        "results": [
+          {
+            "title": "A"
+          }
+        ],
+        "request_count": 1
+      },
+      "expected_data": {
+        "results": [
+          {
+            "title": "A"
+          }
+        ],
+        "request_count": 1,
+        "result_count": 1,
+        "items": [],
+        "post_count": 0
+      }
+    },
+    {
+      "id": "original-policy-final-boundary",
+      "deny_after_result": [
+        "original_gate_after_permissive_replacement",
+        "current_privacy_tightening",
+        "caller_cancel",
+        "store_generation"
+      ],
+      "stdout_publication": false,
+      "file_publication": false,
+      "task_id_error_publication": false,
+      "owned_buffers_wiped_on_refusal_or_drop": true
+    },
+    {
+      "id": "held-a-c-consumed-b-then-d",
+      "task_ids": [
+        "task-a",
+        "task-b",
+        "task-c",
+        "task-d"
+      ],
+      "phases": [
+        "hold_a_c_headers_or_bodies",
+        "rust_accept_b_result",
+        "release_d_body",
+        "rust_accept_d_result",
+        "release_a_c"
+      ],
+      "expected_result_order": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "skill_post_count": 1,
+      "canonical_retention": false
+    },
+    {
+      "id": "four-equal-slow-original-reads",
+      "task_ids": [
+        "task-a",
+        "task-b",
+        "task-c",
+        "task-d"
+      ],
+      "before_any_response_release": {
+        "all_original_gets_reached_server": true,
+        "skill_post_count": 1
+      },
+      "expected_result_order": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ]
+    },
+    {
+      "id": "held-a-later-failed-b",
+      "a_headers_or_body": "held",
+      "b_responses": [
+        "pending",
+        "failed"
+      ],
+      "failure_observed_before_a_release": true,
+      "skill_post_count": 1
+    },
+    {
+      "id": "cancel-all-held-original-reads",
+      "all_original_reads_started": true,
+      "release_held_responses": false,
+      "result_publication": false,
+      "automatic_retry": false,
+      "skill_post_count": 1
+    },
+    {
+      "id": "live-original-cookie-lineage-unreadable-binding",
+      "original_live_observers": [
+        "A",
+        "B"
+      ],
+      "binding_unreadable_at": [
+        "scope_check",
+        "sibling_issue",
+        "changed_actual_header_apply"
+      ],
+      "expected": {
+        "both_original_observers_revoked": true,
+        "restoring_binding_rearms_original_observers": false,
+        "actual_rotated_cookies_preserved": true,
+        "automatic_recapture_or_reset": false
+      },
+      "empty_registry_control": {
+        "ordinary_cookie_rotation_preserved": true,
+        "missing_owner_read_authority_granted": false
+      },
+      "caller_gate_returning_ok_cannot_hide": [
+        "child_cancel",
+        "parent_cancel",
+        "denial"
+      ]
+    }
+  ],
+  "status": "proposed_unrun",
+  "credential_mode_routes": {
+    "personal_cookie_session": "Client.run_direct_app_skill, new staged source; execution unrun",
+    "explicit_api_key": "existing sdk.OpenMates generated code/get_docs typed CLI only; all generated CLI/artifact destinations remain unported"
+  },
+  "execution_limits": {
+    "task_ids_max": 64,
+    "each_response_bytes_max": 16777216,
+    "aggregate_observed_raw_or_retained_serialized_bytes_max": 1073741824,
+    "common_timeout_seconds": 1200,
+    "allocator_heap_bound_claimed": false,
+    "retained_interactive_polling_unchanged": true
+  }
+}

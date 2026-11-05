@@ -29,24 +29,28 @@ DELIVERY_OWNER = OWNER.removeprefix("user_sha256:")
 def run(run_id: str, *, at: int = START, trigger: str = "schedule", status: str = "completed", owner: str = OWNER) -> dict:
     return {"run_id": run_id, "workflow_id": "workflow-1", "hashed_user_id": owner,
             "trigger_type": trigger, "accepted_at": at, "status": status,
-            "started_at": at + 1, "finished_at": at + 4,
+            "started_at": at + 1, "finished_at": min(at + 4, END - 1),
             "encrypted_output_summary": "secret-output"}
 
 
 class FakeDirectus:
     def __init__(self, *, runs: list[dict] | None = None, deliveries: list[dict] | None = None,
                  workflows: list[dict] | None = None, blobs: list[dict] | None = None,
-                 user: dict | None = None) -> None:
-        self.collections = {"workflow_runs": runs or [], "workflow_chat_deliveries": deliveries or [],
+                 user: dict | None = None, cap: int = 200) -> None:
+        self.collections = {"workflow_runs": runs or [], "workflow_chat_deliveries": [{"created_at": START, **row} for row in deliveries or []],
                             "workflows": workflows or [], "workflow_encrypted_blobs": blobs or []}
+        self.cap = cap
         self.user = user
         self.calls: list[tuple[str, dict]] = []
 
-    async def get_items(self, collection: str, *, params: dict, admin_required: bool, raise_on_error: bool = False):
+    async def get_items(self, collection: str, *, params: dict, admin_required: bool, raise_on_error: bool = False, no_cache: bool = False):
         assert admin_required
         self.calls.append((collection, params))
-        start = (params.get("page", 1) - 1) * params.get("limit", 200)
-        return self.collections.get(collection, [])[start:start + params.get("limit", 200)]
+        start = params.get("offset", (params.get("page", 1) - 1) * params.get("limit", 200))
+        rows = self.collections.get(collection, [])
+        if params.get("sort"):
+            rows = sorted(rows, key=lambda row: tuple(str(row.get(key, "")) for key in params["sort"].split(",")))
+        return rows[start:start + min(self.cap, params.get("limit", 200))]
 
     async def get_user_fields_direct(self, user_id: str, fields: list[str], *, no_cache=False):
         assert user_id == "alice"
@@ -66,7 +70,7 @@ async def test_digest_uses_owner_schedule_and_half_open_utc_window(monkeypatch):
     now = int(datetime.now(timezone.utc).timestamp())
     directus = FakeDirectus(runs=[
         run("first", at=START), run("second", at=END - 1, status="failed"),
-        run("at-end", at=END), run("before", at=START - 1),
+        run("at-end", at=END), {**run("before", at=START - 1), "finished_at": START - 1},
         run("manual", trigger="manual"), run("test", trigger="test"),
         run("event", trigger="event"), run("other-owner", owner="user_sha256:other"),
         run("deleted", status="deleted"),
@@ -94,12 +98,14 @@ async def test_digest_uses_owner_schedule_and_half_open_utc_window(monkeypatch):
     assert digest["delivery_expired_count"] == 2
     assert digest["delivery_failed_count"] == 1
     assert digest["rows"][0]["delivery_expired_count"] == 2
-    assert [row["run_id"] for row in digest["rows"]] == ["first", "second"]
-    assert digest["rows"][0]["url"] == "https://app.example.test/#workflow-id=workflow-1&workflow-tab=runs&run-id=first"
+    assert digest["workflow_count"] == 1
+    assert digest["rows"][0]["run_count"] == 2
+    assert digest["rows"][0]["run_id"] == "second"
+    assert digest["rows"][0]["url"] == "https://app.example.test/#workflow-id=workflow-1&workflow-tab=runs&run-id=second"
     assert "secret-output" not in json.dumps(digest)
     query = directus.calls[0][1]["filter"]["_and"]
     assert {"trigger_type": {"_in": ["schedule"]}} in query
-    assert {"accepted_at": {"_gte": START, "_lt": END}} in query
+    assert {"accepted_at": {"_lt": END}} in query
     assert "expires_at,client_persisted_at" in directus.calls[1][1]["fields"]
 
 
@@ -108,7 +114,7 @@ async def test_digest_uses_owner_schedule_and_half_open_utc_window(monkeypatch):
 async def test_empty_digest_has_no_delivery_query_or_email(monkeypatch):
     directus = FakeDirectus(runs=[run("manual", trigger="manual")])
     assert await collect_workflow_digest(directus, "alice", CUTOFF) is None
-    assert [collection for collection, _ in directus.calls] == ["workflow_runs"]
+    assert [collection for collection, _ in directus.calls] == ["workflow_runs", "workflow_runs"]
 
     send_once = AsyncMock()
     monkeypatch.setattr(sender, "send_email_once", send_once)
@@ -161,7 +167,7 @@ async def test_sender_drops_preview_when_content_consent_changes_before_send(mon
     monkeypatch.setattr(sender, "send_email_once", send_once)
     task = SimpleNamespace(directus_service=directus, encryption_service=object(), email_template_service=fake_email_service())
     assert await sender.send_user_workflow_digest(task, "alice", CUTOFF) == "sent"
-    assert "Private title" not in json.dumps(send_once.await_args.kwargs["context"])
+    assert "Private title" in json.dumps(send_once.await_args.kwargs["context"])
     assert "Private message" not in json.dumps(send_once.await_args.kwargs["context"])
     assert load_user.await_count == 2
 
@@ -173,7 +179,8 @@ async def test_reserved_send_rechecks_unsubscribe_and_redacts_preview(monkeypatc
             "email_notification_preferences": {"workflowRuns": True, "includeContent": True},
             "email_notification_preference_choices": {"includeContent": {"source": "user", "value": True}},
             "vault_key_id": "key-1"}
-    without_preview = {**user, "email_notification_preferences": {"workflowRuns": True, "includeContent": False}}
+    without_preview = {**user, "email_notification_preferences": {"workflowRuns": True, "includeContent": False},
+                       "email_notification_preference_choices": {"includeContent": {"source": "user", "value": False}}}
     unsubscribed = {**user, "email_notification_preferences": {"workflowRuns": False, "includeContent": False}}
     directus = FakeDirectus(runs=[run("first")], user=user)
     load_user = AsyncMock(side_effect=[user, user, without_preview])
@@ -434,3 +441,240 @@ async def test_production_digest_late_gate_rejects_cutoff_crossed_during_credent
         task, "alice", cutoff, require_current_cutoff=True,
     ) == "ineligible_at_dispatch"
     assert gates == [True, False]
+
+
+# contract-test: supporting surface=rest_api assertions=notifications.workflow-digest.daily-activity
+@pytest.mark.asyncio
+async def test_exhaustive_grouped_pages_overflow_late_completion_and_cutoff():
+    records = [{**run(f"hourly-{i:04}", at=START + i), "workflow_id": "hourly"} for i in range(240)]
+    records += [{**run(f"other-{i}", status="failed" if i == 0 else "completed"), "workflow_id": f"other-{i:02}"} for i in range(12)]
+    records += [
+        {**run("late", at=START - 86400), "workflow_id": "late", "finished_at": START},
+        {**run("ongoing", at=START - 86400, status="waiting"), "workflow_id": "ongoing", "finished_at": None},
+        {**run("future-result", at=START - 86400), "workflow_id": "future", "finished_at": END},
+        {**run("old", at=START - 86400), "finished_at": START - 1},
+    ]
+    deliveries = [{"delivery_id": f"delivery-{i:04}", "run_id": "hourly-0000", "hashed_user_id": DELIVERY_OWNER,
+                   "status": "acknowledged"} for i in range(241)]
+    directus = FakeDirectus(runs=records, deliveries=deliveries)
+    result = await collect_workflow_digest(directus, "alice", CUTOFF)
+    assert result["run_count"] == 255
+    assert result["workflow_count"] == 16
+    assert len(result["rows"]) == 10 and result["omitted_count"] == 6
+    assert result["delivery_acknowledged_count"] == 241
+    assert result["status_counts"]["in_progress"] == 2
+    assert "waiting" not in result["status_counts"]
+    assert result["rows"][0]["attention"]
+    assert len([call for collection, call in directus.calls if collection == "workflow_runs"]) == 3
+    assert all(call["limit"] == 200 for _, call in directus.calls)
+    assert all(len(call["filter"]["_and"][1]["run_id"]["_in"]) <= 100
+               for collection, call in directus.calls if collection == "workflow_chat_deliveries")
+
+
+# contract-test: supporting surface=rest_api assertions=notifications.workflow-digest.readable-identity,notifications.content.privacy-boundary
+@pytest.mark.parametrize("choices,expected", [({}, True), ({"includeContent": {"source": "user", "value": False}}, False),
+    ({"includeContent": {"source": "default", "value": False}}, True), ("invalid", False)])
+def test_workflow_identity_preserves_explicit_hide_choice(choices, expected):
+    from backend.core.api.app.services.notification_email_preferences import workflow_identity_enabled
+    assert workflow_identity_enabled({"email_notification_preferences": {"includeContent": False},
+                                      "email_notification_preference_choices": choices}) is expected
+
+
+# contract-test: supporting surface=rest_api assertions=notifications.workflow-digest.readable-identity,notifications.content.privacy-boundary
+@pytest.mark.parametrize("darkmode", [False, True])
+def test_grouped_email_renders_escaped_identity_readable_cards_and_actions(darkmode):
+    from pathlib import Path
+    from lxml import html
+    from backend.core.api.app.services.email.renderer import render_mjml_template
+    from backend.core.api.app.services.email_template import html_to_plain_text
+    from backend.core.api.app.services.translations import TranslationService
+    row = {"workflow_id": "workflow-1", "title": "Daily <script>weather</script> & news", "run_count": 24,
+           "status_counts": {"completed": 23, "failed": 1}, "activity_time": "2026-10-01 08:59 UTC",
+           "attention": True, "workflow_url": "https://app.example.test/#workflow-id=workflow-1&workflow-tab=runs",
+           "url": "https://app.example.test/#workflow-id=workflow-1&workflow-tab=runs&run-id=run-24",
+           "output_preview": "Selected <script>message</script>\nSecond line"}
+    row.update({f"delivery_{key}_count": 0 for key in ("pending", "acknowledged", "cancelled", "expired", "failed")})
+    context = {"t": TranslationService().get_translations("en"), "darkmode": darkmode,
+               "run_count": 24, "workflow_count": 1, "rows": [row], "status_counts": row["status_counts"],
+               "window_start": "2026-09-30 09:00 UTC", "window_end": "2026-10-01 09:00 UTC",
+               "notification_icon_url": "https://app.example.test/images/email/reminder-notification.png",
+               "workflows_url": "https://app.example.test/#workflows", "settings_url": "https://app.example.test/#settings/notifications/chat",
+               "omitted_count": 2, **{key: value for key, value in row.items() if key.startswith("delivery_")}}
+    rendered = render_mjml_template(str(Path(__file__).parents[1] / "core/api/templates/email"), "workflow-run-digest", context)
+    document = html.fromstring(rendered)
+    assert not document.xpath("//script")
+    assert document.xpath('//img[@src=$src]', src=context["notification_icon_url"])
+    for destination in (row["workflow_url"], row["url"], context["workflows_url"], context["settings_url"]):
+        assert document.xpath('//a[@href=$href]', href=destination)
+    plain = html_to_plain_text(rendered)
+    assert row["title"] in plain and "Runs: 24" in plain
+    assert "Selected <script>message</script>" in plain and "Second line" in plain
+    assert "#ff553b" in rendered and "border-radius:24px" in rendered.replace(" ", "")
+
+
+# contract-test: supporting surface=rest_api assertions=notifications.workflow-digest.daily-activity,notifications.content.privacy-boundary
+@pytest.mark.asyncio
+async def test_opted_in_preview_excludes_messages_created_after_reporting_cutoff():
+    envelope = json.dumps({"ciphertext": "cipher", "vault_key_id": "key-1"})
+    base = {"run_id": "first", "workflow_id": "workflow-1", "hashed_user_id": DELIVERY_OWNER,
+            "status": "acknowledged", "expires_at": int(datetime.now(timezone.utc).timestamp()) + 100,
+            "encrypted_payload": envelope}
+    directus = FakeDirectus(deliveries=[
+        {**base, "delivery_id": "after", "created_at": END},
+        {**base, "delivery_id": "before", "created_at": END - 1},
+    ])
+    encryption = SimpleNamespace(decrypt_with_user_key=AsyncMock(return_value=json.dumps({"message": "Inside the reporting window"})))
+    result = await load_workflow_message_previews(directus, encryption, user_id="alice", vault_key_id="key-1",
+        rows=[{"run_id": "first", "workflow_id": "workflow-1"}], window_end=END)
+    assert result == {"first": "Inside the reporting window"}
+    encryption.decrypt_with_user_key.assert_awaited_once()
+
+
+# contract-test: supporting surface=rest_api assertions=notifications.workflow-digest.daily-activity,notifications.delivery.idempotent
+@pytest.mark.asyncio
+@pytest.mark.parametrize("state", ["sent", "failed", "processing", "skipped"])
+async def test_digest_early_ledger_check_only_skips_definitively_sent(monkeypatch, state):
+    from backend.core.api.app.services.email_delivery_guard import build_delivery_id, build_delivery_key
+    delivery_id = build_delivery_id(build_delivery_key(email_type="daily_notification", campaign_key="workflowRuns",
+        recipient_kind="directus_user", recipient_id="alice", stage=CUTOFF.date().isoformat()))
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=[{"id": delivery_id, "status": state}]))
+    collect = AsyncMock(return_value=None)
+    monkeypatch.setattr(sender, "collect_workflow_digest", collect)
+    result = await sender.send_user_workflow_digest(SimpleNamespace(directus_service=directus), "alice", CUTOFF)
+    assert result == ("already_reserved" if state == "sent" else "empty")
+    assert collect.await_count == (0 if state == "sent" else 1)
+    assert directus.get_items.await_args.kwargs["no_cache"] is True
+
+
+class RecoveryCache:
+    def __init__(self, client):
+        self.connection = client
+
+    @property
+    async def client(self):
+        return self.connection
+
+
+def recovery_task(pages):
+    client = SimpleNamespace(set=AsyncMock(return_value=True), eval=AsyncMock(return_value=1))
+    return SimpleNamespace(directus_service=SimpleNamespace(get_items=AsyncMock(side_effect=pages)),
+        cache_service=RecoveryCache(client), cleanup_services=AsyncMock()), client
+
+
+def recovery_user(user_id):
+    return {"id": user_id, "email_notifications_enabled": True,
+            "email_notification_preferences": {"workflowRuns": True}}
+
+
+# contract-test: supporting surface=rest_api assertions=notifications.workflow-digest.daily-activity,notifications.delivery.idempotent
+@pytest.mark.asyncio
+async def test_recovery_uses_latest_only_ordered_offsets_and_never_other_daily_handlers(monkeypatch):
+    monkeypatch.setattr(dispatcher, "initialize_notification_email_services", AsyncMock())
+    monkeypatch.setattr(dispatcher, "USER_PAGE_SIZE", 2)
+    handler = SimpleNamespace(send=AsyncMock(), should_send=Mock(), notification_key="backupReminder")
+    monkeypatch.setattr(dispatcher, "HANDLERS", [handler])
+    task, client = recovery_task([[recovery_user("a"), recovery_user("b")], [recovery_user("c")], []])
+    send = AsyncMock(side_effect=["sent", "already_reserved", "empty"])
+    monkeypatch.setattr(dispatcher, "send_user_workflow_digest", send)
+    result = await dispatcher._async_recover_workflow_digests(task)
+    assert result == {"checked_users": 3, "sent_workflowRuns": 1, "failed_users": 0, "status": "complete"}
+    assert task.directus_service.get_items.await_args_list[1].kwargs["params"]["offset"] == 2
+    cutoffs = {call.args[2] for call in send.await_args_list}
+    assert len(cutoffs) == 1
+    assert sender._is_current_digest_cutoff(int(next(iter(cutoffs)).timestamp()))
+    assert all(call.kwargs == {"require_current_cutoff": True} for call in send.await_args_list)
+    handler.send.assert_not_awaited()
+    handler.should_send.assert_not_called()
+    assert client.set.await_args.kwargs == {"nx": True, "ex": 900}
+    client.eval.assert_awaited_once()
+    task.cleanup_services.assert_awaited_once()
+
+
+# contract-test: supporting surface=rest_api assertions=notifications.workflow-digest.daily-activity,notifications.delivery.idempotent
+@pytest.mark.asyncio
+async def test_recovery_continues_after_user_failure_and_duplicate_sweep_is_locked(monkeypatch):
+    monkeypatch.setattr(dispatcher, "initialize_notification_email_services", AsyncMock())
+    task, client = recovery_task([[recovery_user("a"), recovery_user("b")], []])
+    send = AsyncMock(side_effect=[RuntimeError("temporary database failure"), "sent"])
+    retry = Mock()
+    monkeypatch.setattr(dispatcher, "send_user_workflow_digest", send)
+    monkeypatch.setattr(dispatcher, "queue_workflow_digest_retry", retry)
+    result = await dispatcher._async_recover_workflow_digests(task)
+    assert result["failed_users"] == 1 and result["sent_workflowRuns"] == 1
+    retry.assert_called_once()
+    assert retry.call_args.args[0] == "a" and retry.call_args.args[2] == 1
+    client.set.return_value = False
+    task.directus_service.get_items.reset_mock()
+    assert (await dispatcher._async_recover_workflow_digests(task))["status"] == "locked"
+    task.directus_service.get_items.assert_not_awaited()
+    assert send.await_count == 2
+
+
+# contract-test: supporting surface=rest_api assertions=notifications.workflow-digest.daily-activity
+@pytest.mark.asyncio
+async def test_recovery_stops_when_cutoff_rolls_during_user_page_read(monkeypatch):
+    monkeypatch.setattr(dispatcher, "initialize_notification_email_services", AsyncMock())
+    task, _ = recovery_task([[recovery_user("a")]])
+    checks = Mock(side_effect=[True, True, False])
+    monkeypatch.setattr(dispatcher, "_is_current_digest_cutoff", checks)
+    send = AsyncMock()
+    monkeypatch.setattr(dispatcher, "send_user_workflow_digest", send)
+    assert (await dispatcher._async_recover_workflow_digests(task))["status"] == "expired_cutoff"
+    send.assert_not_awaited()
+    task.cleanup_services.assert_awaited_once()
+
+
+# contract-test: supporting surface=rest_api assertions=notifications.workflow-digest.daily-activity
+@pytest.mark.asyncio
+async def test_digest_exhausts_lower_effective_cap_and_delivery_cutoff():
+    from backend.core.api.app.services.workflow_digest_service import _rows
+    runs = [run(f"run-{index:04}") for index in range(251)]
+    deliveries = [{"delivery_id": f"delivery-{index:04}", "run_id": "run-0000", "hashed_user_id": DELIVERY_OWNER,
+                   "status": "acknowledged", "created_at": END - 1} for index in range(253)]
+    deliveries += [{"delivery_id": f"boundary-{index}", "run_id": "run-0000", "hashed_user_id": DELIVERY_OWNER,
+                    "status": "acknowledged", "created_at": created} for index, created in enumerate((END, END + 1, None))]
+    directus = FakeDirectus(runs=runs, deliveries=deliveries, cap=37)
+    digest = await collect_workflow_digest(directus, "alice", CUTOFF)
+    assert digest["run_count"] == 251 and digest["rows"][0]["run_count"] == 251
+    assert digest["delivery_acknowledged_count"] == 253
+    assert digest["rows"][0]["delivery_acknowledged_count"] == 253
+    assert len([params for collection, params in directus.calls if collection == "workflow_runs"]) == 8
+    assert {"created_at": {"_lt": END}} in next(params["filter"]["_and"] for collection, params in directus.calls if collection == "workflow_chat_deliveries")
+    # The same iterator backs bounded identity/blob prefetches.
+    rows = await _rows(directus, "workflow_runs", fields="run_id", filters={}, sort="run_id")
+    assert len(rows) == 251
+
+
+# contract-test: supporting surface=rest_api assertions=notifications.workflow-digest.daily-activity
+@pytest.mark.asyncio
+async def test_recovery_exhausts_lower_effective_user_cap(monkeypatch):
+    monkeypatch.setattr(dispatcher, "initialize_notification_email_services", AsyncMock())
+    users = [recovery_user(f"user-{index:04}") for index in range(251)]
+    task, _ = recovery_task([])
+
+    async def capped_users(collection, *, params, **kwargs):
+        assert collection == "directus_users" and params["sort"] == "id"
+        # Match Directus UUID constraints: never issue unsupported id _gt.
+        assert all("id" not in item for item in params["filter"]["_and"])
+        return users[params["offset"]:params["offset"] + 37]
+
+    task.directus_service.get_items.side_effect = capped_users
+    send = AsyncMock(return_value="already_reserved")
+    monkeypatch.setattr(dispatcher, "send_user_workflow_digest", send)
+    result = await dispatcher._async_recover_workflow_digests(task)
+    assert result["status"] == "complete" and result["checked_users"] == 251
+    assert send.await_count == 251
+    assert task.directus_service.get_items.await_count == 8
+
+
+# contract-test: supporting surface=rest_api assertions=notifications.workflow-digest.daily-activity,notifications.delivery.idempotent
+@pytest.mark.asyncio
+async def test_recovery_fails_closed_if_provider_repeats_offset_page(monkeypatch):
+    monkeypatch.setattr(dispatcher, "initialize_notification_email_services", AsyncMock())
+    task, _ = recovery_task([[recovery_user("a")], [recovery_user("a")]])
+    send = AsyncMock(return_value="already_reserved")
+    monkeypatch.setattr(dispatcher, "send_user_workflow_digest", send)
+    result = await dispatcher._async_recover_workflow_digests(task)
+    assert result["status"] == "unavailable" and result["checked_users"] == 1
+    assert send.await_count == 1
+    assert task.directus_service.get_items.await_args.kwargs["params"]["offset"] == 1

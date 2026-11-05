@@ -99,6 +99,12 @@
         "description": {
           "text": "Shortlist memorable names, then check finalist domains and trademark conflicts."
         }
+      },
+      "price_products": {
+        "text": "Price your products",
+        "description": {
+          "text": "Work out what to charge for handmade or small-batch products, with a live sheet you can edit."
+        }
       }
     },
     "code": {
@@ -184,6 +190,14 @@
         "text": "Check security",
         "description": {
           "text": "Audit configuration files for security vulnerabilities and exposure."
+        }
+      }
+    },
+    "events": {
+      "plan_conference_talk": {
+        "text": "Plan a conference talk",
+        "description": {
+          "text": "Decide which talk to submit to a conference and shape it into a strong proposal."
         }
       }
     },
@@ -1508,6 +1522,9 @@
         },
         "cancelling": {
           "text": "Stopping code run..."
+        },
+        "automatic_compatible": {
+          "text": "Automatic (compatible)"
         }
       },
       "run_code": {
@@ -1535,6 +1552,15 @@
       },
       "preview_hide": {
         "text": "Hide preview"
+      },
+      "view_code": {
+        "text": "View code"
+      },
+      "view_visual": {
+        "text": "View visual"
+      },
+      "interactive_html_blocked": {
+        "text": "This visual tried to open another page and was stopped."
       },
       "search_repos": {
         "text": "Search repos",
@@ -2270,7 +2296,7 @@
             "text": "**Find** organic whole milk at ExampleGrocer"
           },
           "2": {
-            "text": "**Compare prices** for spaghetti on ExampleGrocer and Amazon"
+            "text": "**Compare prices** for spaghetti at different supermarkets"
           },
           "3": {
             "text": "What **vegan cheese** options are available at ExampleGrocer?"
@@ -2500,7 +2526,7 @@
       "browse": {
         "text": "Browse",
         "description": {
-          "text": "Browse websites and return observed information as JSON."
+          "text": "Browse websites and return JSON. Browser compute is billed per second, plus AI usage. Paused compute is free."
         }
       }
     },
@@ -2516,6 +2542,12 @@
           "text": "Search Workflows",
           "description": {
             "text": "Find user-owned workflows that match a chat intent."
+          }
+        },
+        "run": {
+          "text": "Run Workflow",
+          "description": {
+            "text": "Run one of your existing workflows from the chat."
           }
         }
       }
@@ -5250,6 +5282,12 @@
       },
       "remember": {
         "text": "Remember"
+      },
+      "more_options": {
+        "text": "Show more options"
+      },
+      "previous_options": {
+        "text": "Show previous options"
       }
     },
     "explain_in_new_chat": {
@@ -7848,6 +7886,33 @@
       },
       "message_preview": {
         "text": "Message preview"
+      },
+      "workflows": {
+        "text": "Workflows"
+      },
+      "workflow": {
+        "text": "Workflow"
+      },
+      "view_workflow": {
+        "text": "View Workflow"
+      },
+      "view_latest_run": {
+        "text": "View latest run"
+      },
+      "view_all": {
+        "text": "View all Workflows"
+      },
+      "last_activity": {
+        "text": "Latest activity"
+      },
+      "in_progress": {
+        "text": "In progress at cutoff"
+      },
+      "more_workflows": {
+        "text": "more Workflows in this reporting period"
+      },
+      "attention": {
+        "text": "Needs attention"
       }
     },
     "storage_billing_notice_date_policy": {
@@ -8762,9 +8827,6 @@
     "view_on_google_hotels": {
       "text": "View on Google Hotels"
     },
-    "view_on_meetup": {
-      "text": "View on Gathering"
-    },
     "loading_map": {
       "text": "Loading map..."
     },
@@ -9275,6 +9337,9 @@
         },
         "not_available": {
           "text": "N/A"
+        },
+        "cash_flow": {
+          "text": "Cash flow"
         }
       },
       "search_trademarks": {
@@ -9858,6 +9923,139 @@
       },
       "stopping": {
         "text": "Stopping…"
+      },
+      "no_frame": {
+        "text": "No saved screenshot is available."
+      }
+    },
+    "authoring": {
+      "draft": {
+        "text": "Draft"
+      },
+      "user_provided": {
+        "text": "User-provided"
+      },
+      "sources": {
+        "text": "Sources"
+      },
+      "observed_at": {
+        "text": "Observed at"
+      },
+      "image_credit": {
+        "text": "Image credit"
+      },
+      "partial": {
+        "text": "Partial result"
+      },
+      "uploaded_source": {
+        "text": "Uploaded source"
+      },
+      "approximate_location": {
+        "text": "Approximate location"
+      },
+      "schematic_route": {
+        "text": "Schematic route"
+      },
+      "unmapped": {
+        "text": "Location unavailable"
+      },
+      "open_source": {
+        "text": "Open source page"
+      },
+      "open_domain": {
+        "text": "Open on {domain}"
+      },
+      "additional_times": {
+        "text": "Additional times"
+      }
+    },
+    "tv": {
+      "movie": {
+        "text": "Movie"
+      },
+      "series": {
+        "text": "TV series"
+      },
+      "poster_unavailable": {
+        "text": "Poster unavailable"
+      },
+      "synopsis": {
+        "text": "Synopsis"
+      },
+      "release_date": {
+        "text": "Release date"
+      },
+      "runtime": {
+        "text": "Runtime"
+      },
+      "genres": {
+        "text": "Genres"
+      },
+      "directors": {
+        "text": "Directors"
+      },
+      "creators": {
+        "text": "Creators"
+      },
+      "cast": {
+        "text": "Cast"
+      },
+      "language": {
+        "text": "Original language"
+      },
+      "countries": {
+        "text": "Countries"
+      },
+      "content_rating": {
+        "text": "Content rating"
+      },
+      "score": {
+        "text": "Source score"
+      },
+      "score_votes": {
+        "text": "{count} votes"
+      },
+      "first_air_date": {
+        "text": "First aired"
+      },
+      "last_air_date": {
+        "text": "Last aired"
+      },
+      "series_status": {
+        "text": "Series status"
+      },
+      "season_count": {
+        "text": "{count} seasons"
+      },
+      "episodes": {
+        "text": "Episodes"
+      },
+      "episode_count": {
+        "text": "{count} episodes"
+      },
+      "season": {
+        "text": "Season {number}"
+      },
+      "specials": {
+        "text": "Specials"
+      },
+      "supplied_seasons": {
+        "text": "Supplied seasons"
+      },
+      "partial_seasons": {
+        "text": "Only supplied season details are shown."
+      },
+      "year": {
+        "text": "Year"
+      },
+      "preparing": {
+        "text": "Preparing title…"
+      },
+      "cancelled": {
+        "text": "Title creation cancelled"
+      },
+      "unavailable": {
+        "text": "Title unavailable"
       }
     }
   },
@@ -10243,16 +10441,16 @@
         "text": "Personal data checks could not finish. Your message was not sent. Retry the checks and send again."
       },
       "banner_title": {
-        "text": "Sensitive data detected"
+        "text": "{count}× sensitive data detected"
       },
       "banner_description": {
-        "text": "Found {summary}. These will be replaced with placeholders before sending. Click on highlighted text to keep original."
+        "text": "These will be replaced with placeholders before sending. Click highlighted text to send the original instead."
       },
       "undo_all": {
         "text": "Undo all replacements"
       },
       "undo_all_short": {
-        "text": "Undo All"
+        "text": "Undo all"
       },
       "click_to_restore": {
         "text": "Click to keep original"
@@ -10720,6 +10918,70 @@
       },
       "follow_up_6": {
         "text": "Compare the alien biology of Gethenians and Oankali"
+      }
+    },
+    "browse_example_domain": {
+      "title": {
+        "text": "Extract website information as JSON"
+      },
+      "summary": {
+        "text": "Browse Example Domain and return its complete statement with a source URL as structured JSON."
+      },
+      "message_1": {
+        "text": "Use the Web app Browse skill to extract the full visible English statement from [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a). Return JSON with two required fields: purpose, containing the full statement verbatim including its caveats, and source_url, containing the current page URL. This is an extraction task with no additional website interaction requested. Limit the browser session to 40 credits."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bac3644b-0f9c-48cd-bad9-22d265d938a1\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nThe extraction is complete. Here is the result:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"88b9349a-9529-4835-a507-f54e5f24a30f\"}\n```\n\nThe page is the standard Example Domain placeholder, and the statement above is its full visible English text, including the caveat that it is not a service and should not be relied on for testing or monitoring."
+      },
+      "follow_up_1": {
+        "text": "Search for additional placeholder domains and standard templates"
+      },
+      "follow_up_2": {
+        "text": "Explain how Example Domain is typically used for documentation"
+      },
+      "follow_up_3": {
+        "text": "Browse another website URL for its text content"
+      },
+      "follow_up_4": {
+        "text": "List common placeholder text conventions in web development"
+      },
+      "follow_up_5": {
+        "text": "Read public HTTPS pages directly from a provided URL"
+      },
+      "follow_up_6": {
+        "text": "Compare Example Domain with other reserved test domains"
+      }
+    },
+    "browse_heading_json": {
+      "title": {
+        "text": "Read a web page with Browse"
+      },
+      "summary": {
+        "text": "Use a browser to find a page heading and return the result with its source URL as JSON."
+      },
+      "message_1": {
+        "text": "Use the Browse skill to open [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) and return the exact main heading and source URL as JSON. Use the browser session for this task."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"5f0e7070-da89-4cd1-9447-52f63f4fd826\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nThe Browse session opened the page and returned the following:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"c0e67189-7fb4-4e88-a3ab-f66d75ea01a2\"}\n```\n\nThe page at `https://httpbin.org/html` serves a sample HTML document whose main heading is **\"Herman Melville - Moby-Dick\"** (a snippet from the novel's first chapter, \"Loomings\")."
+      },
+      "follow_up_1": {
+        "text": "Search for historical analysis of Herman Melville Moby Dick"
+      },
+      "follow_up_2": {
+        "text": "Explain the significance of the opening chapter of Moby-Dick"
+      },
+      "follow_up_3": {
+        "text": "Read public documentation about web browser automation techniques"
+      },
+      "follow_up_4": {
+        "text": "Compare different digital formats for reading classic literature"
+      },
+      "follow_up_5": {
+        "text": "Search for online literary archives featuring classic American novels"
+      },
+      "follow_up_6": {
+        "text": "Summarize the main themes of Herman Melville's work"
       }
     },
     "building_maintenance_email": {
@@ -12409,6 +12671,21 @@
         "text": "Help the user find a memorable brand or product name and a suitable domain. Stay concise.\nUse plain text and brief Markdown bullets, without tables, interactive forms, JSON or\nspreadsheet/document artifacts. Keep intake under 60 words and each candidate on one line.\n\n1. Reuse the brief. Ask one compact question for missing product, audience,\n   markets, language or desired feel. Domain/budget constraints are optional.\n   Wait for the reply. If asked to skip questions, state assumptions.\n2. Offer 6–8 varied, pronounceable names with one brief reason each. Consider fit,\n   sound and unintended meanings. Mark the shortlist unchecked.\n3. Let the user pick 2–3 finalists, or choose if asked. Batch hosting.search_domains\n   for actual availability and quoted prices, web.search for existing brands and\n   search conflicts, and business.search_trademarks for explicit target regions.\n   Set max_results=5 for the initial trademark search. Search all classes unless\n   actual goods/services justify filters. Check finalists rather than the whole\n   shortlist; send only necessary names and filters, without confidential brief details.\n4. Compare under 100 words: one bullet per finalist, one evidence-limits bullet,\n   and one recommendation/refinement bullet. Prioritize availability, quoted renewal,\n   web conflicts and returned trademark records. Recommend only a fit; otherwise\n   say none fits and suggest one refinement. Keep creative judgments separate from evidence.\n\nNever infer domain availability from DNS, HTTP or WHOIS alone. Quote prices only\nfrom hosting.search_domains or primary pricing pages fetched with web.read.\nIgnore earlier assistant price estimates. Suggest checking other registrars without\nprice amounts. Trademark searches are preliminary: no matches do not\nprove legal availability, and spelling similarity is not complete clearance.\nApply annual domain budgets to renewal prices, not introductory offers. A known\nover-budget renewal is no fit. The limits bullet must state preliminary trademark\ncoverage. For truncated searches say: \"Only returned records were reviewed;\nexact-name absence remains unconfirmed.\" Never claim a similar-name query found\nno exact matches. Limit all absence claims to returned records and filters.\nDescribe brand/search conflicts without inferring legal infringement from website\nor name matches."
       }
     },
+    "business_price_products": {
+      "text": "Price your products",
+      "description": {
+        "text": "Work out what to charge for handmade or small-batch products, with a live sheet you can edit."
+      },
+      "process": {
+        "text": "- Asks for your materials, packaging, labour hours and fixed costs.\n- Asks for your desired hourly pay and target margin.\n- Builds a sheet with cost per item, suggested price and break-even quantity.\n- Lets you change any number and the totals update."
+      },
+      "how_to_use": {
+        "text": "- Help me **price the outfits** I sew.\n- What should I charge for my **handmade candles**? How many do I need to sell to break even?\n- I'm a **freelance photographer**. Work out a **fair day rate**."
+      },
+      "systemprompt": {
+        "text": "Help the user work out what to charge for products or services they make or sell, using a live sheet they can edit. Calculate only from the user's own inputs, not from market data, and say so.\n\n1. Ask one or two compact questions that list the needed information with an example answer, built so the user can reply once with one long dictated message. Needed: materials and unit costs, packaging, labour hours per item, fixed costs (tools, rent, fees, software), desired hourly pay, target margin and expected monthly volume. Example: \"Candles: wax 3 EUR, wick and jar 1.50 EUR, box 0.80 EUR, 0.5 hours each, 120 EUR monthly fixed costs, I want 20 EUR per hour and 40% margin, about 60 sold per month.\" If the user skips something, use a clearly marked assumption (for example a default hourly rate) instead of asking again.\n2. Build the sheet as ONE Markdown table in your reply, preceded by a title comment line such as <!-- title: \"Candle pricing\" -->. OpenMates converts Markdown tables into sheet embeds. Do not wrap the table in a code block. Use columns Item | Value | Note, and keep INPUTS separate from FORMULAS:\n   - INPUTS block first: one row per number the user can change (unit costs, packaging, labour hours, hourly rate, fixed costs per month, expected units per month, target margin). Put plain numbers in Value and mark assumed values with \"Assumption\" in Note.\n   - FORMULAS block after: one row per result, with real spreadsheet formulas that refer to the input cells by coordinate (1-indexed rows, columns A/B/C), for example =B3+B4+B5 or =B8*B9. Never type a computed result as a plain number. Rows: materials and packaging cost per item, labour cost per item (hours x hourly rate), overhead share per item (fixed costs / expected units), total cost per item, suggested price (cost / (1 - margin)), profit per item, and break-even units (fixed costs / contribution per item).\n   - Label the blocks with \"INPUTS\" and \"FORMULAS\" rows so the user sees which cells to edit.\n3. Summarise in under 80 words: the suggested price, the break-even quantity, and the assumptions used (such as the default hourly rate), noting that every assumption is editable in the sheet and totals update. Link to cells with the sheet cell-link syntax when pointing at a specific value.\n4. Only if the user asks, do an optional market price check with web.search and web.read, and present it separately from the calculation.\n\nNever invent costs; mark every assumption. Give no tax, VAT, accounting or legal advice; if asked, say you cannot advise on it. Say that the result calculates from the user's inputs and is not based on market data."
+      }
+    },
     "code_analyze_logs": {
       "text": "Analyze logs",
       "description": {
@@ -12536,6 +12813,21 @@
       },
       "systemprompt": {
         "text": "You are a programming expert."
+      }
+    },
+    "events_plan_conference_talk": {
+      "text": "Plan a conference talk",
+      "description": {
+        "text": "Decide which talk to submit to a conference and shape it into a strong proposal."
+      },
+      "process": {
+        "text": "- Learns about you, your project and your audience.\n- Checks the conference's call for papers: deadline, tracks, format, talk length and what they favour, plus any stated title and abstract length limits (or tells you none were found).\n- Proposes 3-5 talk ideas, each with a title, a one-line pitch and the audience takeaway.\n- Helps you pick one and drafts a proposal (title, abstract, outline, speaker bio) within the length limits."
+      },
+      "how_to_use": {
+        "text": "- I work on a large **open source project** and want to submit a talk, so what should I consider first?\n- Help me pick a **talk idea for FOSDEM** from what I've built this year.\n- Polish my **talk proposal abstract** for the CFP."
+      },
+      "systemprompt": {
+        "text": "Help the user decide which talk to submit to a conference or meetup and shape it into a strong proposal. Keep the first answer short, at roughly the pace of an intro video: a few bullets and one question, not an essay. Use plain Markdown bullets.\n\n1. Target the conference the user points at: an event card attached to or referenced in their latest message (for example after opening the FOSDEM card) takes priority over every other conference mentioned earlier. Otherwise reuse the one conference from the chat context without asking again. Only if none is clear, ask which conference or meetup in the same question as step 3; never guess one.\n2. Use web.read on the official call for papers or submission page (find it with web.search if no link is known). Give a short bullet list of what matters: deadline, tracks, format and talk length, what the programme favours, and any stated limits on title length and abstract/description length (characters or words). Always include one bullet starting \"Title and abstract limits:\" with the stated limits, or \"none stated on the official CFP page\".\n3. Ask ONE compact optional question about the user's project, audience and speaking experience. If they skip it or ask you to go ahead, proceed with clearly stated assumptions.\n4. Offer 3-5 talk ideas as one-liners, each with a title, a one-line pitch and the audience takeaway. Ask which one to develop; do not develop all of them.\n5. When asked, draft the proposal for the chosen idea: title, abstract, outline and speaker bio. Respect the title and abstract length limits found in step 2, and state the counts used.\n\nNever promise or imply acceptance. State deadlines, tracks and limits only when found on an official page; otherwise say \"check the official page\". Never invent tracks, rules, deadlines or limits. Use events.search only for schedules of conferences it supports, to see what was accepted before; do not use it to list or discover conferences. Do not give travel planning or general public-speaking coaching."
       }
     },
     "jobs_career_insights": {
@@ -14426,6 +14718,19 @@
               "text": "JobTech receives selected job keywords, named location, remote preference, publication window and result count for Swedish vacancy search."
             }
           }
+        },
+        "local_privacy": {
+          "desert_ant_labs": {
+            "heading": {
+              "text": "Local text protection — Redact by Desert Ant Labs (Netherlands)"
+            },
+            "description": {
+              "text": "Enhanced text detection uses Redact by Desert Ant Labs and is enabled by default. Text inference runs locally in your browser. OpenMates hosts the approved model and runtime assets; web users do not need to download them from Hugging Face. Turning off enhanced detection in privacy settings stops Redact use and its licensing requests while keeping the complete basic text detector available.\n\nRedact requires SDK licensing and activation requests directly from your browser to Desert Ant Labs. These requests include a browser installation UUID used for license/device counting, model and SDK versions, platform, the application hostname and a signed license token. OpenMates controls local persistence of the installation identifier and uses it only as license metadata. The vendor also sees your IP address, browser request headers (including Origin) and request timing. Text being scanned, detection results, placeholder mappings and your OpenMates account ID are not included in these requests.\n\nDesert Ant Labs acts as an independent controller for this licensing telemetry under its license. This feature is not anonymous or wholly offline, and OpenMates does not promise a particular vendor retention period. Local detection can miss personal data. Typed-message protection does not cover voice audio, raw transcripts, uploaded files, reference images, calendar content or provider-specific inputs unless a feature explicitly says otherwise."
+            }
+          },
+          "license_link": {
+            "text": "Desert Ant Labs license (including licensing telemetry)"
+          }
         }
       },
       "title": {
@@ -14985,7 +15290,7 @@
             "text": "Do third-party providers receive my content?"
           },
           "answer": {
-            "text": "Yes, when you choose a model or use a provider-powered feature, the content needed for that request may be sent to the provider. Eligible typed chat messages use client-side placeholder substitution for recognized personal details and secrets. Anything not detected may be sent as typed, and the protection does not cover voice recordings, raw transcripts, uploaded files, reference images, calendar content, or structured skill inputs unless a feature explicitly says otherwise."
+            "text": "Yes, when you choose a model or use a provider-powered feature, the content needed for that request may be sent to the provider. Eligible typed chat messages use client-side placeholder substitution for recognized personal details and secrets. Anything not detected may be sent as typed, and the protection does not cover voice recordings, raw transcripts, uploaded files, reference images, calendar content, or structured skill inputs unless a feature explicitly says otherwise. Enhanced text detection uses Redact by Desert Ant Labs locally, with limited licensing metadata sent directly to the vendor as described below."
           }
         },
         "voice_recordings": {
@@ -17325,6 +17630,9 @@
     },
     "nighttime": {
       "text": "Nighttime"
+    },
+    "instructor": {
+      "text": "Instructor"
     }
   },
   "rules": {
@@ -18196,6 +18504,15 @@
         "quick_tips_description": {
           "text": "Shows occasional product tips after assistant replies. Turn this off if you do not want OpenMates to generate quick tip cards."
         },
+        "server_region": {
+          "text": "Server region"
+        },
+        "prefer_eu_servers": {
+          "text": "Prefer EU servers"
+        },
+        "prefer_eu_servers_description": {
+          "text": "On (default): AI models run on EU servers first, with other regions only as fallback. Off: Fastest, global – OpenMates picks the fastest server worldwide."
+        },
         "quick_tips_enabled": {
           "text": "Quick tips enabled."
         },
@@ -19027,9 +19344,6 @@
         "skill": {
           "ask": {
             "model": {
-              "qwen3_235b_a22b_2507": {
-                "text": "Qwen 3 256b"
-              },
               "claude_haiku_4_5_20251001": {
                 "text": "Claude Haiku 4.5"
               },
@@ -20141,19 +20455,19 @@
           "text": "Saving..."
         },
         "email_chat_how_it_works": {
-          "text": "Chat emails are sent when you're away. Successful scheduled Workflow runs get a completion email and a daily summary."
+          "text": "Chat emails are sent when you are away. Workflow activity gets one daily email only, without Workflow-status push or in-app alerts. Workflow-created chats and messages follow your normal chat notification settings."
         },
         "email_workflow_runs": {
           "text": "Workflow runs"
         },
         "email_workflow_runs_desc": {
-          "text": "Completion emails for successful scheduled Workflow runs, plus a daily summary"
+          "text": "One daily email summarizing scheduled Workflow activity; chat messages follow normal chat settings."
         },
         "email_include_content": {
-          "text": "Include titles and previews in email"
+          "text": "Include private titles and previews"
         },
         "email_include_content_desc": {
-          "text": "Allow chat and workflow titles and previews in email. Your email provider can read this content."
+          "text": "Allow chat titles and message previews in email. Daily Workflow summaries normally include names and outcomes; explicitly hiding content also hides those names. Your email provider can read included content."
         },
         "email_webhooks": {
           "text": "Webhook Chats"
@@ -21605,9 +21919,6 @@
         "text": "Hide personal data",
         "chats": {
           "text": "Chats"
-        },
-        "description": {
-          "text": "OpenMates will auto replace sensitive data with placeholders, before sending them to the OpenMates server and any external provider, to protect your privacy. Replaced data are visually highlighted. You can always click on a replaced data entry to overwrite the replacement, or turn off the functionality completely here."
         }
       },
       "enhanced_pii_model": {
@@ -22160,6 +22471,9 @@
             "text": "{count}d remaining"
           }
         }
+      },
+      "enhanced_protection": {
+        "text": "Enhanced personal data protection"
       }
     },
     "terms_and_conditions": {
@@ -23011,6 +23325,48 @@
       "title_placeholder": {
         "text": "Briefly describe the issue — what happened and where?"
       },
+      "issue_text_label": {
+        "text": "What happened?"
+      },
+      "issue_text_placeholder": {
+        "text": "What happened? Describe what is broken or went wrong, and any details that help us reproduce it."
+      },
+      "attach_image": {
+        "text": "Image"
+      },
+      "dictation_failed": {
+        "text": "Dictation failed. Please try again or type your report."
+      },
+      "quick_actions_label": {
+        "text": "Add to report"
+      },
+      "upload_screenshot": {
+        "text": "Upload screenshot"
+      },
+      "select_ui_element": {
+        "text": "Select UI element"
+      },
+      "record_voice": {
+        "text": "Record voice (up to 2 minutes)"
+      },
+      "dictation_unavailable_today": {
+        "text": "Voice recording is unavailable for today. Try again tomorrow."
+      },
+      "dictation_recording_limit": {
+        "text": "Voice recordings for reports are limited to 2 minutes."
+      },
+      "send_to_claude_chat_label": {
+        "text": "Send to Claude chat directly"
+      },
+      "send_to_claude_chat_hint": {
+        "text": "Starts a new Claude chat on the development server that investigates and fixes this report."
+      },
+      "confirmation_claude_chat_queued": {
+        "text": "A Claude chat will start working on this report within about a minute."
+      },
+      "confirmation_claude_chat_unavailable": {
+        "text": "The Claude chat could not be queued. Copy the issue ID and start a chat manually."
+      },
       "title_required": {
         "text": "A short description is required"
       },
@@ -23056,11 +23412,8 @@
       "actual_behaviour_hint": {
         "text": "Optional — describe what went wrong"
       },
-      "share_chat_label": {
-        "text": "Share current chat with this report"
-      },
-      "share_chat_hint": {
-        "text": "This allows the admin to view the chat to help debug the issue."
+      "chat_included_notice": {
+        "text": "Your current chat is included with this report so we can debug the issue."
       },
       "url_label": {
         "text": "Shared chat or embed URL"
@@ -23222,9 +23575,6 @@
       },
       "element_picker_hint": {
         "text": "Tap any element on the page to capture its HTML structure for debugging"
-      },
-      "element_picker_button": {
-        "text": "Pick Element"
       },
       "element_picker_active": {
         "text": "Picking..."
@@ -25060,7 +25410,7 @@
       "text": "Test for free"
     },
     "version_title": {
-      "text": "v0.28"
+      "text": "v0.29"
     },
     "domain_not_allowed": {
       "text": "E-Mail domain not allowed."

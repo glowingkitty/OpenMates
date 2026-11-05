@@ -7,6 +7,9 @@
 -->
 
 <script lang="ts">
+  import { getContext } from 'svelte';
+  import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from '../../../types/authoredResult';
+  import { fitnessClassCalendarTiming } from './fitnessClassCalendar';
   import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
   import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import { text } from '@repo/ui';
@@ -23,6 +26,7 @@
     getFitnessResultUrl,
     normalizeFitnessSkillId,
     normalizePipedList,
+    getFitnessResultFacts,
     type FitnessResult,
   } from './fitnessEmbedData';
 
@@ -46,7 +50,10 @@
     onNavigateNext,
   }: Props = $props();
 
-  let result: FitnessResult = $derived(data.decodedContent as FitnessResult);
+  const authoredContext = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
+  let isAuthored = $derived(Boolean(authoredContext?.authoring || data?.decodedContent?.authoring));
+  let result: FitnessResult = $derived((authoredContext?.presentationContent ?? data.decodedContent) as FitnessResult);
+  let suppliedFacts = $derived(getFitnessResultFacts(result));
   let skillId = $derived(normalizeFitnessSkillId(result.skill_id, result.app_skill_id === 'search_locations' ? 'search_locations' : 'search_classes'));
   let title = $derived(getFitnessResultTitle(result));
   let address = $derived(getFitnessResultAddress(result));
@@ -54,7 +61,7 @@
   let lon = $derived(asNumber(result.lon ?? result.venue_lon));
   let distance = $derived(asNumber(result.distance_km));
   let plans = $derived(normalizePipedList(result.plans_required));
-  let disciplines = $derived(normalizePipedList(result.disciplines));
+  let disciplines = $derived(suppliedFacts.disciplines);
   let detailUrl = $derived(getFitnessResultUrl(result));
   let imageUrl = $derived(proxyImage(getFitnessResultImageUrl(result), MAX_WIDTH_HEADER_IMAGE));
   let mapCenter = $derived(lat !== undefined && lon !== undefined ? { lat, lon } : undefined);
@@ -64,30 +71,14 @@
     return address || '';
   });
 
-  function timeFromRange(value: unknown, index: 0 | 1): string {
-    const matches = Array.from(asText(value).matchAll(/\b(\d{1,2}):(\d{2})\b/g));
-    const match = matches[index];
-    if (!match) return '';
-    const hours = Number(match[1]);
-    const minutes = Number(match[2]);
-    if (!Number.isFinite(hours) || !Number.isFinite(minutes) || hours > 23 || minutes > 59) return '';
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-  }
-
-  function classDateTime(date: unknown, timeRange: unknown, index: 0 | 1): string {
-    const classDate = asText(date);
-    const time = timeFromRange(timeRange, index);
-    return classDate && time ? `${classDate}T${time}:00` : classDate;
-  }
-
-  let calendarStart = $derived(skillId === 'search_classes' ? classDateTime(result.date, result.time_range, 0) : '');
-  let calendarEnd = $derived(skillId === 'search_classes' ? classDateTime(result.date, result.time_range, 1) : '');
+  let calendarTiming = $derived(fitnessClassCalendarTiming(result.date, result.time_range, isAuthored));
+  let calendarStart = $derived(skillId === 'search_classes' ? calendarTiming.start : '');
 
   function buildCalendarDescription(): string {
     return [
       result.class_type ? `Class: ${asText(result.class_type)}` : '',
       result.category ? `Category: ${asText(result.category)}` : '',
-      result.spots_display ? `Spots: ${asText(result.spots_display)}` : '',
+      suppliedFacts.spots ? `Spots: ${suppliedFacts.spots}` : '',
       plans.length > 0 ? `Plans: ${plans.join(', ')}` : '',
       detailUrl,
     ].filter(Boolean).join('\n');
@@ -96,8 +87,9 @@
   function handleAddToCalendar() {
     downloadCalendarFile({
       title: title || 'Fitness class',
+      ...calendarTiming,
       start: calendarStart,
-      end: calendarEnd || undefined,
+      end: calendarTiming.end || undefined,
       location: [result.venue_name, address].map(asText).filter(Boolean).join(', '),
       description: buildCalendarDescription(),
       url: detailUrl,
@@ -110,7 +102,8 @@
     title, provider: asText(result.provider), url: detailUrl, skill_id: skillId,
     address, distance_km: distance, date: asText(result.date), time_range: asText(result.time_range),
     venue_name: asText(result.venue_name), class_type: asText(result.class_type), category: asText(result.category),
-    attendance_mode: asText(result.attendance_mode), spots_display: asText(result.spots_display),
+    attendance_mode: asText(result.attendance_mode), spots_display: suppliedFacts.spots,
+    instructor: suppliedFacts.instructor, duration_minutes: suppliedFacts.durationMinutes, price: suppliedFacts.price, currency: suppliedFacts.currency,
     plans_required: plans, disciplines,
   });
 </script>
@@ -119,7 +112,9 @@
   {#snippet embedHeaderCta()}{#if detailUrl}<EmbedHeaderCtaButton label={$text('embeds.fitness.open_provider').replace('{provider}', asText(result.provider_name) || asText(result.provider))} href={detailUrl} testId="fitness-open-provider" />{/if}{/snippet}
   {#snippet summary()}
     {#if distance !== undefined}<ResultEmbedInfo icon="map-pin" label={$text('result_embed.distance')} value={`${distance.toFixed(2)} km`}><p>{distance.toFixed(2)} km</p></ResultEmbedInfo>{/if}
-    {#if result.spots_display}<ResultEmbedInfo icon="users" label={$text('result_embed.spots')} value={asText(result.spots_display)}><p>{asText(result.spots_display)}</p></ResultEmbedInfo>{/if}
+    {#if suppliedFacts.spots}<ResultEmbedInfo icon="users" label={$text('result_embed.spots')} value={suppliedFacts.spots} testId="fitness-spots"><p>{suppliedFacts.spots}</p></ResultEmbedInfo>{/if}
+    {#if suppliedFacts.durationMinutes != null}<ResultEmbedInfo icon="clock" label={$text('common.duration')} value={$text('embeds.search_domain.minutes').replace('{count}', String(suppliedFacts.durationMinutes))} testId="fitness-duration" />{/if}
+    {#if suppliedFacts.price != null}<ResultEmbedInfo icon="tag" label={$text('embeds.results_view.price')} value={`${suppliedFacts.price} ${suppliedFacts.currency}`.trim()} testId="fitness-price" />{/if}
     {#if skillId === 'search_classes' && result.time_range}<ResultEmbedInfo icon="clock" label={$text('common.duration')} value={asText(result.time_range)}><p>{asText(result.date)} · {asText(result.time_range)}</p></ResultEmbedInfo>{/if}
   {/snippet}
   {#snippet resultMedia()}{#if imageUrl}<img class="fitness-detail-image" src={imageUrl} alt={title} loading="lazy" onerror={() => { failedImage = imageUrl; }} crossorigin="anonymous" />{/if}{/snippet}
@@ -129,7 +124,8 @@
       {#if skillId === 'search_classes'}<p class="result-description">{[result.date, result.time_range, result.class_type, result.category].map(asText).filter(Boolean).join(' · ')}</p>{/if}
       <div class="result-icon-row">
         {#if result.attendance_mode}<ResultEmbedInfo icon="users" label={$text('result_embed.mode')} value={asText(result.attendance_mode)}><p>{asText(result.attendance_mode)}</p></ResultEmbedInfo>{/if}
-        {#if disciplines.length}<ResultEmbedInfo icon="activity" label={$text('result_embed.disciplines')}>{#each disciplines as discipline}<p>{discipline}</p>{/each}</ResultEmbedInfo>{/if}
+        {#if disciplines.length}<ResultEmbedInfo icon="activity" label={$text('result_embed.disciplines')} value={isAuthored ? disciplines.join(', ') : undefined}>{#each disciplines as discipline}<p>{discipline}</p>{/each}</ResultEmbedInfo>{/if}
+        {#if suppliedFacts.instructor}<ResultEmbedInfo icon="user" label={$text('result_embed.instructor')} value={suppliedFacts.instructor} testId="fitness-instructor"><p>{suppliedFacts.instructor}</p></ResultEmbedInfo>{/if}
         {#if plans.length}<ResultEmbedInfo icon="ticket" label={$text('navigation.plans')}>{#each plans as plan}<p>{plan}</p>{/each}</ResultEmbedInfo>{/if}
       </div>
     </div>

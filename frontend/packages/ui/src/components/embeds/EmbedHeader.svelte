@@ -1092,4 +1092,13 @@
   .static-presentation .header-cta-area,
   .static-presentation .deco-icon { animation: none; }
   .static-presentation .deco-icon { transform: rotate(var(--deco-rotate)); }
+
+  :global([data-skill-icon="movies"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/movies.svg');
+    mask-image: url('@openmates/ui/static/icons/movies.svg');
+  }
+  :global([data-skill-icon="tv"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/tv.svg');
+    mask-image: url('@openmates/ui/static/icons/tv.svg');
+  }
 </style>

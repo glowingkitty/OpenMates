@@ -38,7 +38,9 @@ const DEFAULT_STANDALONE_PREFIX = "TASK";
 const PRIORITY_LEVELS = ["none", "low", "medium", "high", "urgent"] as const;
 const LABEL_INDEX_INFO = "openmates-task-label-index-v1";
 const EXTERNAL_CHAT_INDEX_INFO = "openmates-task-external-chat-index-v1";
-const EXTERNAL_CHAT_PROVIDERS = ["codex"] as const;
+const EXTERNAL_CHAT_PROVIDERS = ["codex", "claude"] as const;
+export type ExternalChatProvider = typeof EXTERNAL_CHAT_PROVIDERS[number];
+const CLAUDE_SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const BLOCKED_REASON_CODES = [
   "needs_user_input",
   "waiting_for_approval",
@@ -58,7 +60,7 @@ export interface TaskLookupScope {
   projectId?: string;
   planId?: string;
   labelHashes?: string[];
-  externalChatProvider?: "codex";
+  externalChatProvider?: ExternalChatProvider;
   externalChatLookupHash?: string;
   priority?: number;
   teamId?: string | null;
@@ -192,7 +194,7 @@ export interface TaskUpdateOptions {
 }
 
 export interface ExternalChatRef {
-  provider: "codex";
+  provider: ExternalChatProvider;
   id: string;
 }
 
@@ -207,11 +209,18 @@ export function parseExternalChatRef(value: string): ExternalChatRef {
   const provider = value.slice(0, separator).trim().toLowerCase();
   const id = value.slice(separator + 1).trim();
   if (separator <= 0 || !id) throw new Error("--external-chat requires provider:id.");
-  if (!(EXTERNAL_CHAT_PROVIDERS as readonly string[]).includes(provider)) throw new Error(`Unsupported external chat provider '${provider}'. Use codex.`);
-  return { provider: provider as ExternalChatRef["provider"], id };
+  return assertExternalChatRef({ provider: provider as ExternalChatRef["provider"], id });
+}
+
+/** Shared by CLI flags and SDK objects so every provider:id is validated before hashing. */
+export function assertExternalChatRef<T extends ExternalChatRef>(ref: T): T {
+  if (!(EXTERNAL_CHAT_PROVIDERS as readonly string[]).includes(ref.provider)) throw new Error(`Unsupported external chat provider '${ref.provider}'. Use codex or claude.`);
+  if (ref.provider === "claude" && !CLAUDE_SESSION_ID.test(ref.id)) throw new Error("Claude Code external chat ids must be session UUIDs (CLAUDE_CODE_SESSION_ID).");
+  return ref;
 }
 
 export function externalChatLookupHash(masterKey: Uint8Array, context: ExternalChatRef): string {
+  assertExternalChatRef(context);
   const indexKey = Buffer.from(hkdfSync("sha256", Buffer.from(masterKey), Buffer.alloc(0), EXTERNAL_CHAT_INDEX_INFO, 32));
   return createHmac("sha256", indexKey).update(`${context.provider}\u0000${context.id}`).digest("hex");
 }

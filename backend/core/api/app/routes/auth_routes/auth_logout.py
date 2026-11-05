@@ -1,3 +1,5 @@
+from backend.core.api.app.utils.session_principal_consistency import restrict_expected_cookie_principal
+
 from fastapi import APIRouter, Depends, Request, Response, Cookie
 import logging
 import hashlib
@@ -27,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 # SECURITY: verify_allowed_origin prevents CSRF attacks — a cross-site form POST cannot
 # forge the Origin header, so logout cannot be triggered from an attacker-controlled page.
-@router.post("/logout", response_model=LogoutResponse, dependencies=[Depends(verify_allowed_origin)])
+@router.post("/logout", response_model=LogoutResponse, dependencies=[Depends(verify_allowed_origin), Depends(restrict_expected_cookie_principal)])
 async def logout(
     request: Request,
     response: Response,
@@ -224,7 +226,7 @@ async def logout(
         )
 
 # SECURITY: verify_allowed_origin prevents CSRF-triggered logout of all sessions.
-@router.post("/logout-all", response_model=LogoutResponse, dependencies=[Depends(verify_allowed_origin)])
+@router.post("/logout-all", response_model=LogoutResponse, dependencies=[Depends(verify_allowed_origin), Depends(restrict_expected_cookie_principal)])
 async def logout_all(
     request: Request,
     response: Response,
@@ -309,7 +311,7 @@ async def logout_all(
         )
 
 # SECURITY: verify_allowed_origin prevents CSRF-triggered policy violation logout + cache wipe.
-@router.post("/policy-violation-logout", dependencies=[Depends(verify_allowed_origin)])
+@router.post("/policy-violation-logout", dependencies=[Depends(verify_allowed_origin), Depends(restrict_expected_cookie_principal)])
 async def policy_violation_logout(
     request: Request,
     response: Response,

@@ -9,11 +9,10 @@ import { flushSync, mount, unmount } from 'svelte';
 import AppsRequestComposer from '../AppsRequestComposer.svelte';
 
 const probe = vi.hoisted(() => ({ props: {} as {
-  onAudioRecorded: (event: CustomEvent) => Promise<void>;
+  onUntranscribedAudio: (audio: { blob: Blob; mimeType: string; failed: boolean }) => void;
   onSubmit: (text: string) => Promise<boolean>;
   onMicClick: () => void;
   onRecordingClose: () => void;
-  recordingSendAction?: { onRequest: () => void };
 } }));
 vi.mock('../../workspace/WorkspacePromptComposer.svelte', () => ({
   default: (_anchor: unknown, props: typeof probe.props) => { probe.props = props; },
@@ -31,9 +30,7 @@ function deferred<T>() {
 
 // contract-test: supporting surface=gui.web assertions=apps.requests.natural-language
 describe('Apps composer lifetime', () => {
-  it.each(['success', 'failure'] as const)('discards late audio %s after scope remount', async outcome => {
-    const correction = deferred<{ transcript: string }>();
-    const transcription = deferred<{ transcript: string }>();
+  it('discards late untranscribed audio after scope remount', async () => {
     let value = 'Old draft';
     let files: File[] = [];
     const component = mount(AppsRequestComposer, { target: document.createElement('div'), props: {
@@ -41,16 +38,11 @@ describe('Apps composer lifetime', () => {
       get files() { return files; }, set files(next) { files = next; }, onSubmit: async () => false,
     } });
     flushSync();
-    const pending = probe.props.onAudioRecorded(new CustomEvent('audioRecorded', { detail: {
-      blob: new Blob(['private audio']), mimeType: 'audio/webm',
-      realtime: { finish: vi.fn(), correction: correction.promise, transcription: transcription.promise },
-    } }));
+    const keep = probe.props.onUntranscribedAudio;
     await unmount(component);
     value = 'New owner draft';
     const newFile = new File(['new'], 'new.txt'); files = [newFile];
-    if (outcome === 'success') correction.resolve({ transcript: 'Old private transcript' });
-    else { correction.reject(new Error('correction failed')); transcription.reject(new Error('transcription failed')); }
-    await pending;
+    keep({ blob: new Blob(['private audio']), mimeType: 'audio/webm', failed: true });
     expect(value).toBe('New owner draft');
     expect(files).toEqual([newFile]);
   });
@@ -77,33 +69,20 @@ describe('Apps composer lifetime', () => {
 });
 
 // contract-test: supporting surface=gui.web assertions=message-input.audio.editable-transcript,apps.results.shared-fullscreen
-describe('Fullscreen recording Send', () => {
-  it.each([true, false])('waits for correction and preserves the draft when accepted=%s', async accepted => {
-    const correction = deferred<{ transcript: string }>();
+describe('Untranscribed recording', () => {
+  it('keeps audio without a transcript as an attachment', () => {
     let value = 'Keep the mountain.';
-    const attachment = new File(['notes'], 'notes.txt');
-    let files = [attachment];
-    const onSubmit = vi.fn(async () => accepted);
+    let files: File[] = [];
     const component = mount(AppsRequestComposer, { target: document.createElement('div'), props: {
       appId: 'images', presentation: 'embed',
       get value() { return value; }, set value(next) { value = next; },
-      get files() { return files; }, set files(next) { files = next; }, onSubmit,
+      get files() { return files; }, set files(next) { files = next; }, onSubmit: vi.fn(async () => true),
     } });
     flushSync();
     probe.props.onMicClick();
-    probe.props.recordingSendAction!.onRequest();
-    const pending = probe.props.onAudioRecorded(new CustomEvent('audiorecorded', { detail: {
-      blob: new Blob(['audio']), mimeType: 'audio/webm',
-      realtime: { finish: vi.fn(), correction: correction.promise, transcription: Promise.resolve({ transcript: 'raw words' }) },
-    } }));
-    // RecordAudio closes immediately after handing the audio to its owner.
-    probe.props.onRecordingClose();
-    expect(onSubmit).not.toHaveBeenCalled();
-    correction.resolve({ transcript: 'Make the sky brighter.' });
-    await pending;
-    expect(onSubmit).toHaveBeenCalledExactlyOnceWith('Keep the mountain.\nMake the sky brighter.', [attachment]);
-    expect(value).toBe(accepted ? '' : 'Keep the mountain.\nMake the sky brighter.');
-    expect(files).toEqual(accepted ? [] : [attachment]);
-    await unmount(component);
+    probe.props.onUntranscribedAudio({ blob: new Blob(['audio']), mimeType: 'audio/webm', failed: false });
+    expect(value).toBe('Keep the mountain.');
+    expect(files.map(file => [file.name, file.type])).toEqual([['recording.webm', 'audio/webm']]);
+    void unmount(component);
   });
 });

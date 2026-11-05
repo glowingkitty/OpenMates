@@ -427,6 +427,29 @@ async def _authorize_team_profile_image_upload(
 # replaced with the server-set value, so it cannot be spoofed.
 # ---------------------------------------------------------------------------
 
+def _get_target_environment(request: Request) -> str:
+    """Resolve trusted proxy routing, or the configured local environment."""
+    target_env = request.headers.get("X-Target-Env")
+    if target_env is not None:
+        # Preserve the proxy contract: only its explicit dev value selects dev.
+        return "dev" if target_env.lower() == "dev" else "prod"
+    server_env = os.environ.get("SERVER_ENVIRONMENT", "production").strip().lower()
+    return "dev" if server_env in {"dev", "development"} else "prod"
+
+
+EXPECTED_PRINCIPAL_HEADER = "X-OpenMates-Expected-Principal"
+PRINCIPAL_MISMATCH_DETAIL = {"error": "session_principal_mismatch"}
+
+
+def _is_principal_mismatch_body(resp: httpx.Response) -> bool:
+    """Only the core API's closed owner-consistency refusal is relayed as 403."""
+    try:
+        body = resp.json()
+    except ValueError:
+        return False
+    return isinstance(body, dict) and body.get("detail") == PRINCIPAL_MISMATCH_DETAIL
+
+
 def _get_core_api_credentials(request: Request) -> tuple[str, str]:
     """
     Return the (core_api_url, internal_token) pair for this request.
@@ -434,15 +457,16 @@ def _get_core_api_credentials(request: Request) -> tuple[str, str]:
     Reads the X-Target-Env header set by Caddy:
       - "prod" → PROD_CORE_API_URL + PROD_INTERNAL_API_SHARED_TOKEN
       - "dev"  → DEV_CORE_API_URL  + DEV_INTERNAL_API_SHARED_TOKEN
-      - missing/other → falls back to PROD (safest default)
+      - missing → uses SERVER_ENVIRONMENT (dev/development selects DEV)
+      - other/unconfigured → falls back to PROD
     """
-    target_env = request.headers.get("X-Target-Env", "prod").lower()
+    target_env = _get_target_environment(request)
 
     if target_env == "dev":
         core_api_url = os.environ.get("DEV_CORE_API_URL", "")
         internal_token = os.environ.get("DEV_INTERNAL_API_SHARED_TOKEN", "")
         if not core_api_url:
-            logger.error("[Upload] X-Target-Env=dev but DEV_CORE_API_URL is not set")
+            logger.error("[Upload] Dev target selected but DEV_CORE_API_URL is not set")
             raise HTTPException(status_code=503, detail="Dev core API not configured")
     else:
         core_api_url = os.environ.get("PROD_CORE_API_URL", "http://api:8000")
@@ -478,19 +502,28 @@ async def get_authenticated_user(
 
     core_api_url, internal_token = _get_core_api_credentials(request)
 
+    expected_principals = request.headers.getlist(EXPECTED_PRINCIPAL_HEADER)
+    # A non-ASCII value can never be a canonical UUID and cannot be forwarded
+    # as an HTTP header, so it gets the same closed refusal without upload work.
+    if any(not value.isascii() for value in expected_principals):
+        raise HTTPException(status_code=403, detail=PRINCIPAL_MISMATCH_DETAIL)
+
     try:
+        # Forward every optional owner assertion value unchanged; the core API
+        # refuses duplicates, malformed values and other owners.
+        headers = [
+            ("X-Internal-Service-Token", internal_token),
+            ("X-Refresh-Token", refresh_token),
+            *((EXPECTED_PRINCIPAL_HEADER, value) for value in expected_principals),
+        ]
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(
-                f"{core_api_url}/internal/validate-token",
-                headers={
-                    "X-Internal-Service-Token": internal_token,
-                    "X-Refresh-Token": refresh_token,
-                },
-            )
+            resp = await client.get(f"{core_api_url}/internal/validate-token", headers=headers)
         if resp.status_code == 200:
             return resp.json()
         elif resp.status_code == 401:
             raise HTTPException(status_code=401, detail="Invalid or expired token")
+        elif resp.status_code == 403 and _is_principal_mismatch_body(resp):
+            raise HTTPException(status_code=403, detail=PRINCIPAL_MISMATCH_DETAIL)
         else:
             logger.error(f"[Upload Auth] Core API returned {resp.status_code}: {resp.text[:200]}")
             raise HTTPException(status_code=502, detail="Authentication service unavailable")
@@ -751,10 +784,10 @@ async def upload_file(
     # Core API connection details — selected based on X-Target-Env header set by Caddy
     core_api_url, internal_token = _get_core_api_credentials(request)
 
-    # Determine which S3 bucket to use (dev vs prod) based on the same header.
+    # Determine which S3 bucket to use with the same environment resolution.
     # This ensures the s3_base_url in the response points to the correct bucket
     # for the requesting environment (prevents CORS failures on dev).
-    target_env = request.headers.get("X-Target-Env", "prod").lower()
+    target_env = _get_target_environment(request)
 
     upload_start = time.monotonic()
 
@@ -2073,7 +2106,7 @@ async def upload_profile_image(
     upload_start = time.monotonic()
 
     core_api_url, internal_token = _get_core_api_credentials(request)
-    target_env = request.headers.get("X-Target-Env", "prod").lower()
+    target_env = _get_target_environment(request)
 
     # --- 1. Read file bytes ---
     file_bytes = await file.read()
@@ -2326,7 +2359,7 @@ async def upload_team_profile_image(
     log_prefix = f"[TeamProfileUpload] [team:{team_id[:8]}...] [user:{user_id[:8]}...]"
     upload_start = time.monotonic()
     core_api_url, internal_token = _get_core_api_credentials(request)
-    target_env = request.headers.get("X-Target-Env", "prod").lower()
+    target_env = _get_target_environment(request)
     await _authorize_team_profile_image_upload(
         core_api_url=core_api_url,
         internal_token=internal_token,

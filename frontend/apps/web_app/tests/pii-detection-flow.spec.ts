@@ -308,15 +308,15 @@ test('pii detection with 3 entries, click-to-exclude 1, send with 2 placeholders
 	const bannerTitle = piiBanner.getByTestId('banner-title');
 	const bannerTitleText = await bannerTitle.textContent();
 	logCheckpoint(`Banner title: "${bannerTitleText}"`);
-	// Title should be "Sensitive data detected" (or translated equivalent)
-	expect(bannerTitleText).toBeTruthy();
+	// Title carries the detection count, e.g. "3× sensitive data detected"
+	expect(bannerTitleText?.trim()).toMatch(/^3× /);
 
 	const bannerDescription = piiBanner.getByTestId('banner-description');
 	const bannerDescText = await bannerDescription.textContent();
 	logCheckpoint(`Banner description: "${bannerDescText}"`);
-	// Description should mention found PII counts
+	// Description explains placeholders and how to send an original instead
 	expect(bannerDescText).toBeTruthy();
-	expect(bannerDescText.toLowerCase()).toContain('found');
+	expect(bannerDescText.toLowerCase()).toContain('placeholders');
 
 	await takeStepScreenshot(page, 'pii-banner-verified');
 

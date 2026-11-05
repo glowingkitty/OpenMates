@@ -22,6 +22,9 @@ MAX_PENDING_SPANS = 64
 AUTHORITY_INTERVAL_SECONDS = 0.5
 PUBLISH_TIMEOUT_SECONDS = 1.0
 AUDIO_CHUNK_BYTES = 32 * 1024
+MAX_WORD_STARTS_PER_EVENT = 512
+# mp3_44100_128 is constant-bitrate: 16 bytes per millisecond.
+MP3_BYTES_PER_MS = 16
 SAFE_ERROR = "Speech is temporarily unavailable."
 logger = logging.getLogger(__name__)
 
@@ -84,7 +87,9 @@ class RealtimeSpeechTurn:
         self._provider_factory, self._prepare = provider_factory, prepare
         self._ensure_active, self._safety_check, self._credit_check = ensure_active, safety_check, credit_check
         self._publish, self._finalize = publish_event, finalize
-        self._queue: asyncio.Queue[str | None] = asyncio.Queue(MAX_PENDING_SPANS + 1)
+        # Each span carries its already-running safety decision, so the semantic
+        # check overlaps earlier synthesis instead of serializing after it.
+        self._queue: asyncio.Queue[tuple[str, asyncio.Task[bool]] | None] = asyncio.Queue(MAX_PENDING_SPANS + 1)
         self._prepare_task: asyncio.Task[int] | None = None
         self._task: asyncio.Task[None] | None = None
         self._provider: Any = None
@@ -103,6 +108,47 @@ class RealtimeSpeechTurn:
         self._on_first_audio = on_first_audio
         self._finalized = False
         self._cancelled_for_timeout = False
+        self._open_task: asyncio.Task[None] | None = None
+        self._authority_checked_at: float | None = None
+        # Display-only word progress: exact submitted text, a cursor matching
+        # provider alignment characters into it, and the running timeline.
+        self._spoken_source = ""
+        self._event_audio_bytes = 0
+        self._alignment_cursor = 0
+        self._alignment_words = 0
+        self._alignment_timeline_ms: float | None = None
+
+    def prewarm(self) -> None:
+        """Open the provider transport before the first released span.
+
+        Only the connection is opened: no text, credits or track state are
+        involved until ``enqueue``. An unused transport closes on cancel/wait.
+        """
+        if self._provider is not None or self._closed:
+            return
+        self._provider = self._provider_factory()
+        self._open_task = asyncio.create_task(self._provider.open())
+        self._open_task.add_done_callback(lambda task: task.cancelled() or task.exception())
+
+    async def _close_unused_prewarm(self) -> None:
+        if self._task is not None or self._provider is None:
+            return
+        if self._open_task is not None:
+            self._open_task.cancel()
+            await asyncio.gather(self._open_task, return_exceptions=True)
+        provider, self._provider = self._provider, None
+        try:
+            await provider.cancel()
+        except Exception:
+            logger.warning("Realtime speech prewarmed transport cleanup failed")
+
+    async def _ensure_recently_active(self) -> None:
+        """Authority check for hot paths; the watcher re-checks every interval."""
+        now = monotonic()
+        if self._authority_checked_at is not None and now - self._authority_checked_at < AUTHORITY_INTERVAL_SECONDS:
+            return
+        await self._ensure_active()
+        self._authority_checked_at = monotonic()
 
     async def prepare(self) -> None:
         """Publish/claim track metadata before any semantic status or paid work."""
@@ -129,7 +175,7 @@ class RealtimeSpeechTurn:
             raise RealtimeTurnUnavailable("Speech input bound exceeded")
         self._seen.add(identity)
         self._queued_characters += len(submitted)
-        self._queue.put_nowait(submitted)
+        self._queue.put_nowait((submitted, asyncio.create_task(self._safety_check(submitted))))
         if self._task is None:
             self._task = asyncio.create_task(self._run())
 
@@ -141,13 +187,16 @@ class RealtimeSpeechTurn:
         # One extra reserved queue slot guarantees EOS never waits on paid work.
         self._queue.put_nowait(None)
 
-    async def _emit(self, phase: str, audio: bytes | None = None) -> None:
+    async def _emit(self, phase: str, audio: bytes | None = None,
+                    word_starts: list[list[int]] | None = None) -> None:
         payload = {**self.context, "execution_version": self._execution_version,
                    "attempt_id": self._attempt_id, "phase": phase,
                    "chunk_index": self._chunk_index, "mime_type": "audio/mpeg"}
         owner = payload.pop("user_id_hash")
         if audio is not None:
             payload["audio_data"] = base64.b64encode(audio).decode("ascii")
+        if word_starts is not None:
+            payload["word_starts"] = word_starts
         envelope = {"type": "assistant_speech_audio", "chat_id": payload["chat_id"],
                     "message_id": payload["message_id"], "user_id_hash": owner, "payload": payload}
         try:
@@ -164,24 +213,27 @@ class RealtimeSpeechTurn:
     async def _write(self) -> None:
         count = 0
         while True:
-            text = await self._queue.get()
-            if text is None:
+            item = await self._queue.get()
+            if item is None:
                 await self._ensure_active()
                 await self._provider.finish_input()
                 return
-            await self._ensure_active()
-            if not await self._safety_check(text):
+            text, safety = item
+            await self._ensure_recently_active()
+            if not await safety:
                 raise RealtimeTurnUnavailable("Speech safeguard denied")
             await self._credit_check(count + len(text))
             await self._ensure_active()
             await self._provider.append_text(text)
+            self._spoken_source += text
             count += len(text)
             await self._provider.flush()
 
     async def _read(self) -> None:
         completed = False
         async for event in self._provider.audio_events():
-            await self._ensure_active()
+            await self._ensure_recently_active()
+            self._event_audio_bytes = len(event.audio_bytes or b"")
             if event.audio_bytes:
                 audio = event.audio_bytes
                 if not isinstance(audio, bytes) or self._audio_bytes + len(audio) > MAX_TURN_AUDIO_BYTES:
@@ -196,8 +248,11 @@ class RealtimeSpeechTurn:
                 for offset in range(0, len(audio), AUDIO_CHUNK_BYTES):
                     await self._emit("chunk", audio[offset:offset + AUDIO_CHUNK_BYTES])
                     self._chunk_index += 1
-            # Alignment timebase is provider-unspecified until independently
-            # proved. Never guess positions from its text or chunk boundaries.
+            # Heard boundaries never use alignment. Word starts below are a
+            # display-only estimate for highlighting spoken text.
+            word_starts = self._word_starts(getattr(event, "alignment", None))
+            if word_starts and self._audio_started:
+                await self._emit("words", word_starts=word_starts)
             if event.final:
                 completed = True
                 break
@@ -205,6 +260,34 @@ class RealtimeSpeechTurn:
             raise RealtimeTurnUnavailable("Speech provider did not complete")
         await self._ensure_active()
         await self._emit("end")
+
+    def _word_starts(self, alignment: Any) -> list[list[int]]:
+        """Map one provider alignment event onto [word_index, start_ms] pairs.
+
+        Real Eleven v4 events restart at 0 ms and can omit leading characters,
+        so start times accumulate per event from the first aligned audio offset
+        and characters are matched forward into the exact submitted text.
+        """
+        if alignment is None:
+            return []
+        chars, starts = alignment.chars, alignment.char_start_times_ms
+        ends = [start + duration for start, duration in zip(starts, alignment.char_durations_ms)]
+        if self._alignment_timeline_ms is None:
+            self._alignment_timeline_ms = (self._audio_bytes - self._event_audio_bytes) / MP3_BYTES_PER_MS
+        source, cursor, rows = self._spoken_source, self._alignment_cursor, []
+        for char, start in zip(chars, starts):
+            position = source.find(char, cursor, cursor + 64)
+            if position < 0:
+                continue
+            for index in range(cursor, position + len(char)):
+                if not source[index].isspace() and (index == 0 or source[index - 1].isspace()):
+                    if index == position and len(rows) < MAX_WORD_STARTS_PER_EVENT:
+                        rows.append([self._alignment_words, int(self._alignment_timeline_ms + start)])
+                    self._alignment_words = min(self._alignment_words + 1, 65_535)
+            cursor = position + len(char)
+        self._alignment_cursor = cursor
+        self._alignment_timeline_ms += max(ends, default=0)
+        return rows
 
     async def _watch_authority(self) -> None:
         while True:
@@ -219,9 +302,11 @@ class RealtimeSpeechTurn:
             async with asyncio.timeout(self._max_seconds):
                 await self._ensure_active()
                 stage = "provider_setup"
-                self._provider = self._provider_factory()
+                if self._provider is None:
+                    self._provider = self._provider_factory()
+                    self._open_task = asyncio.create_task(self._provider.open())
                 authority = asyncio.create_task(self._watch_authority())
-                opening = asyncio.create_task(self._provider.open())
+                opening = self._open_task
                 children = [opening, authority]
                 stage = "opening"
                 done, _ = await asyncio.wait(children, return_when=asyncio.FIRST_COMPLETED)
@@ -273,7 +358,9 @@ class RealtimeSpeechTurn:
                 except Exception:
                     logger.warning("Realtime speech transport cleanup failed")
             while not self._queue.empty():
-                self._queue.get_nowait()
+                item = self._queue.get_nowait()
+                if item is not None:
+                    item[1].cancel()
             try:
                 submitted = int(self._provider.submitted_characters) if success and self._provider else 0
                 self._finalized = True
@@ -300,9 +387,13 @@ class RealtimeSpeechTurn:
                 await self._finalize(False, 0)
             except Exception:
                 logger.warning("Realtime speech unstarted claim cleanup unavailable")
+        await self._close_unused_prewarm()
 
     async def wait(self) -> None:
         """Keep the request loop alive only after canonical final work finished."""
+        if self._task is None:
+            # A response with no speakable prose never used its prewarmed transport.
+            await self._close_unused_prewarm()
         if self._task is not None:
             remaining = max(0.01, self._max_seconds - (monotonic() - self._started))
             try:
@@ -410,6 +501,11 @@ def create_realtime_speech_turn(*, metadata: Mapping[str, object], user_id: str,
             text=text, voice=profile.key, accent="en_us", style="natural",
             secrets_manager=secrets_manager, trusted_narration=True,
         )
+        if not decision.approved:
+            # Category only (allowlisted shape); never the spoken text.
+            category = str(decision.category or "")
+            logger.warning("Realtime speech safety denied category=%s",
+                           category if category.replace("_", "").isalnum() and len(category) <= 48 else "other")
         return bool(decision.approved)
 
     async def credits(characters: int) -> None:

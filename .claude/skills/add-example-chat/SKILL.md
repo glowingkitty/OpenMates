@@ -1,5 +1,5 @@
 ---
-name: openmates:add-example-chat
+name: add-example-chat
 description: Create a new hardcoded example chat from a real OpenMates CLI chat, then verify the deployed example page
 user-invocable: true
 argument-hint: "<prompt-or-share-url-with-key>"

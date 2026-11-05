@@ -3,7 +3,7 @@
 # This YAML is the single source of truth for the privacy policy. The user-facing
 # policy is rendered from the i18n keys in
 # frontend/packages/ui/src/i18n/sources/legal/privacy.yml via
-# frontend/packages/ui/src/legal/buildLegalContent.ts. Any change here must be
+# frontend/packages/public-site/src/legal/buildLegalContent.ts. Any change here must be
 # mirrored in the i18n source, and translations rebuilt via
 # `cd frontend/packages/ui && npm run build:translations`.
 #
@@ -72,7 +72,10 @@ quick_answers:
     placeholders before sending, but anything not detected may be sent as
     typed. This protection does not apply to recordings, raw transcripts,
     uploaded files, reference images, calendar content, or provider-specific
-    search fields unless a feature explicitly says otherwise.
+    search fields unless a feature explicitly says otherwise. Redact by Desert Ant
+    Labs runs locally for enhanced text detection but sends limited licensing
+    metadata directly from your browser to the vendor; see the local privacy
+    protection provider group below.
   voice_recordings: >
     When you use audio recording, audio travels over TLS through the OpenMates
     backend hosted by Hetzner and is sent to Mistral for transcription. Realtime
@@ -293,6 +296,39 @@ data_categories:
 # legal/privacy.yml. See .claude/agents/privacy-policy-sync.md (follow-up task)
 # for automation.
 provider_groups:
+
+  # Browser-local detection with separate mandatory vendor licensing traffic.
+  local_privacy_protection:
+    description: >
+      Enhanced browser text detection uses Redact by Desert Ant Labs and is
+      enabled by default. Turning off enhanced detection in privacy settings
+      keeps the complete basic detector available without using Redact.
+    providers:
+      desert_ant_labs:
+        privacy_policy: https://desertant.com/privacy/ # verified 2026-10-28
+        license: https://license.desertant.com/1.0 # verified 2026-10-28
+        location: Netherlands
+        role: Independent controller of SDK licensing telemetry
+        used_for:
+          - Local enhanced personal-data detection in eligible text
+          - Mandatory SDK licensing, activation and monthly active device counting
+        data_shared:
+          - Browser installation UUID used for licensing; OpenMates controls its local storage and uses it only as license metadata
+          - Model and SDK versions, platform, application hostname and signed license token
+          - IP address, browser request headers including Origin, and request timing visible to the vendor
+        data_not_shared:
+          - Text being scanned, detection results, placeholder mappings and OpenMates account ID
+        data_handling: >
+          Text inference runs in your browser. Approved model and runtime assets
+          are hosted by OpenMates, so web users do not download them from Hugging
+          Face. Required licensing and activation requests go directly from the
+          browser to Desert Ant Labs. This is not an anonymous or wholly offline
+          feature. The vendor is a controller for this telemetry under its
+          license; we do not promise a particular vendor retention period.
+          Disabling enhanced detection stops Redact use and its licensing
+          requests; basic text protection remains available. Detection can miss
+          personal data and does not extend typed-message protection to audio,
+          raw transcripts, files or provider-specific inputs.
 
   # =====================================================================
   # Group A — Always active. Every user's data touches these.

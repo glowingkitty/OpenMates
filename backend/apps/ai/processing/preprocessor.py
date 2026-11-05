@@ -51,6 +51,7 @@ from backend.apps.ai.processing.focus_mode_routing import (
     resolve_subchat_enablement,
 )
 from backend.apps.ai.processing.jev_preprocessing import decide_preprocessing_with_jev, _complete_public_decisions
+from backend.apps.ai.processing.plan_focus_routing import PLANNER_FOCUS_IDS, select_explicit_plan_focus
 from backend.apps.ai.utils.authored_result_instructions import admitted_authoring_definitions
 from backend.apps.ai.testing.voice_pipeline_fixture import voice_preprocessing_scope
 from backend.apps.ai.assistant_speech.voice_context import build_voice_heard_context
@@ -1956,7 +1957,7 @@ async def _select_main_model(
     # See docs/architecture/model-aliases.md for design rationale.
     MODEL_ALIAS_TO_MODEL_ID = {
         "best": "gpt-6-astra",
-        "fast": "qwen3-235b-a22b-2507",
+        "fast": "mercury-3",
     }
     if user_overrides and user_overrides.best_model_category and not user_overrides.model_id:
         best_category = user_overrides.best_model_category
@@ -2622,7 +2623,9 @@ async def handle_preprocessing(
                 for skill in (getattr(metadata, "skills", None) or [])
                 if (app_id, skill.id) not in {("ai", "ask"), ("projects", "search")}
             ]
-            public_focuses = [f"{app_id}-{focus.id}"
+            # Public app.yml relevance hints let stage one keep a Focus's app.
+            public_focuses = [f"{app_id}-{focus.id}: {focus.preprocessor_hint.strip()}" if focus.preprocessor_hint
+                              else f"{app_id}-{focus.id}"
                               for app_id, metadata in (discovered_apps_metadata or {}).items()
                               for focus in (getattr(metadata, "focuses", None) or [])]
             project_early_feedback: Dict[str, Any] = {}
@@ -3151,6 +3154,11 @@ async def handle_preprocessing(
                                       if f"{app_id}-{skill_id}" in available_skill_ids)
                 forced_app_ids.extend(app_id for app_id, focus_id in user_overrides.focus_modes
                                       if f"{app_id}-{focus_id}" in available_focus_mode_ids)
+                if user_overrides.plan_requested:
+                    # @plan names no planner id: keep every planner app in scope
+                    # so the detailed pass can rank code vs generic planning.
+                    forced_app_ids.extend(focus.split("-", 1)[0] for focus in sorted(PLANNER_FOCUS_IDS)
+                                          if focus in available_focus_mode_ids)
             explicit_skills = _resolve_explicit_skill_mentions_from_latest_user_text(
                 request_data.message_history, available_skill_ids,
             ) + _resolve_explicit_natural_search_intent(request_data.message_history, available_skill_ids)
@@ -3394,6 +3402,11 @@ async def handle_preprocessing(
                                       if f"{app_id}-{skill_id}" in available_skill_ids)
                 forced_app_ids.extend(app_id for app_id, focus_id in user_overrides.focus_modes
                                       if f"{app_id}-{focus_id}" in available_focus_mode_ids)
+                if user_overrides.plan_requested:
+                    # @plan names no planner id: keep every planner app in scope
+                    # so the detailed pass can rank code vs generic planning.
+                    forced_app_ids.extend(focus.split("-", 1)[0] for focus in sorted(PLANNER_FOCUS_IDS)
+                                          if focus in available_focus_mode_ids)
                 forced_app_ids.extend(app_id for app_id, memory_id, _ in user_overrides.memory_categories
                                       if memory_id in (user_app_settings_and_memories_metadata or {}).get(app_id, []))
                 forced_app_ids.extend(app_id for app_id, category_id, _ in user_overrides.memory_entries
@@ -4109,6 +4122,20 @@ async def handle_preprocessing(
                 logger.debug(f"{log_prefix} Preprocessing selected no relevant focus modes.")
         else:
             logger.debug(f"{log_prefix} No focus mode preselection from preprocessing.")
+
+    # --- User override: explicit @plan ---
+    # @plan is consent like an @focus mention but names no planner. Use the
+    # planner the detailed pass ranked for this (multilingual) message, else the
+    # generic planner; main processing then activates it immediately.
+    if (user_overrides and user_overrides.plan_requested and not user_requested_focus_only
+            and not request_data.active_focus_id):
+        explicit_plan_focus = select_explicit_plan_focus(validated_relevant_focus_modes, available_focus_mode_ids)
+        if explicit_plan_focus:
+            validated_relevant_focus_modes = [explicit_plan_focus]
+            user_requested_focus_only = True
+            logger.info(f"{log_prefix} USER_OVERRIDE: @plan resolved to focus mode '{explicit_plan_focus}'")
+        else:
+            logger.warning(f"{log_prefix} USER_OVERRIDE: @plan requested but no planner focus mode is available")
 
     # Plain Project-name matches are shortlists. Main processing routes a unique
     # eligible match through the standard cancellable countdown. Structured

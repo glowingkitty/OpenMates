@@ -123,6 +123,61 @@ def test_zero_progress_cleanup_is_coalesced_and_backs_off(tmp_path):
         assert len(calls) == 2  # pressure and cron request share one pass
 
 
+def test_old_workspace_ceiling_does_not_freeze_ci_and_keeps_its_peak(tmp_path):
+    c, root, now, usage = fixture(tmp_path)
+    oldest = c.request(root, 70, operation="workspace", thread=str(uuid.uuid4()),
+                       min_free=50, max_used_percent=85, min_inodes=10)
+    now[0] += 61
+    ci = request(c, root, operation="ci-source", amount=10)
+    large = request(c, root, operation="large", amount=140)
+    with c.leadership():
+        c.tick(recovery_margin=0)
+        assert c.get(oldest["id"])["state"] == "waiting"
+        assert "ceiling=85" in c.get(oldest["id"])["reason"]
+        assert "21 additional bytes" in c.get(oldest["id"])["reason"]
+        assert c.get(ci["id"])["state"] == "granted"
+        assert c.get(large["id"])["state"] == "waiting"
+        # The older workspace gets first use of capacity recovered by cleanup.
+        usage[0] = Usage(1000, 750, 250)
+        c.tick(recovery_margin=0)
+        assert c.get(oldest["id"])["state"] == "granted"
+
+
+def test_paused_grant_does_not_reclaim_capacity_until_retry_or_backoff(tmp_path):
+    c, root, now, _ = fixture(tmp_path)
+    first = request(c, root)
+    with c.leadership():
+        c.tick(recovery_margin=0)
+        c.defer(first["id"])
+        next_row = request(c, root, operation="other", amount=140)
+        c.tick(recovery_margin=0)
+        assert c.get(first["id"])["state"] == "waiting"
+        assert c.get(next_row["id"])["state"] == "granted"
+        granted = c.get(next_row["id"])
+        c.claim(next_row["id"], granted["grant_id"])
+        c.release(next_row["id"])
+        # A real owner retry reactivates its durable ticket immediately.
+        assert request(c, root, thread=first["thread"])["id"] == first["id"]
+        c.tick(recovery_margin=0)
+        assert c.get(first["id"])["state"] == "granted"
+        c.defer(first["id"])
+        now[0] += disk.GRANT_SECONDS + 1
+        c.tick(recovery_margin=0)
+        assert c.get(first["id"])["state"] == "granted"
+
+
+def test_paused_waiter_does_not_earmark_capacity_for_other_work(tmp_path):
+    c, root, now, _ = fixture(tmp_path)
+    first = request(c, root, amount=140)
+    now[0] += 61
+    c.defer(first["id"])
+    other = request(c, root, operation="ready", amount=70)
+    with c.leadership():
+        c.tick(recovery_margin=0)
+        assert c.get(first["id"])["state"] == "waiting"
+        assert c.get(other["id"])["state"] == "granted"
+
+
 def test_cleanup_remeasures_before_resuming_and_keeps_recovery_margin(tmp_path):
     c, root, now, usage = fixture(tmp_path, free=100, used=900, kinds=("managed",))
     row = request(c, root)
@@ -335,3 +390,81 @@ def test_disable_preserves_waits_and_refuses_live_grants(tmp_path):
         c.disable(root)
         assert disk.configured(root) is None
         assert c.get(row["id"])["state"] == "waiting"
+
+
+def test_background_cleanup_does_not_block_admission_and_coalesces_inflight(tmp_path):
+    c, root, now, usage = fixture(tmp_path, free=20, used=980, kinds=('managed',))
+    started = threading.Event()
+    finish = threading.Event()
+    calls = []
+    def cleaner(repository, kind):
+        calls.append((repository, kind))
+        started.set()
+        assert finish.wait(5)
+        return {'deleted': []}
+    with c.leadership(), c.background_cleanup() as dispatch:
+        c.enqueue_maintenance(root, 'managed')
+        c.tick(cleaner=cleaner, cleanup_dispatch=dispatch, recovery_margin=0)
+        assert started.wait(2)
+        try:
+            c.enqueue_maintenance(root, 'managed')
+            now[0] += disk.CLEANUP_BACKOFF + 1
+            allocation = request(c, root)
+            usage[0] = Usage(1000, 500, 500)
+            c.tick(cleaner=cleaner, cleanup_dispatch=dispatch, recovery_margin=0)
+            with c.db() as db:
+                assert db.execute("SELECT state FROM requests WHERE id=?", (allocation['id'],)).fetchone()[0] == 'granted'
+            assert len(calls) == 1
+            with c.db() as db:
+                assert db.execute("SELECT COUNT(*) FROM events WHERE kind='cleanup'").fetchone()[0] == 0
+        finally:
+            finish.set()
+    with c.db() as db:
+        assert db.execute("SELECT state FROM maintenance").fetchone()[0] == 'complete'
+        assert db.execute("SELECT COUNT(*) FROM events WHERE kind='cleanup'").fetchone()[0] == 1
+
+
+def test_background_cleanup_worker_failure_is_recorded_and_retried_after_backoff(tmp_path):
+    c, root, now, _ = fixture(tmp_path, kinds=('managed',))
+    def broken(*_):
+        raise ValueError('bounded worker failure')
+    with c.leadership():
+        c.enqueue_maintenance(root, 'managed')
+        with c.background_cleanup() as dispatch:
+            c.tick(cleaner=broken, cleanup_dispatch=dispatch)
+        with c.db() as db:
+            row = db.execute("SELECT state,reason FROM maintenance").fetchone()
+            assert row['state'] == 'waiting' and 'bounded worker failure' in row['reason']
+        calls = []
+        c.tick(cleaner=lambda *args: calls.append(args))
+        assert calls == []
+        now[0] += disk.CLEANUP_BACKOFF + 1
+        c.tick(cleaner=lambda *args: calls.append(args))
+        assert len(calls) == 1
+
+
+def test_proactive_cleanup_runs_all_kinds_on_cadence_without_waiting_requests(tmp_path):
+    c, root, now, usage = fixture(tmp_path, free=500, used=500, kinds=('managed', 'host'))
+    calls = []
+    def cleaner(repository, kind):
+        calls.append(kind)
+        return {'deleted': []}
+    with c.leadership():
+        c.tick(cleaner=cleaner, recovery_margin=0)
+        assert calls == []  # non-proactive ticks still only react to waiting work
+        c.tick(cleaner=cleaner, recovery_margin=0, proactive=True)
+        assert sorted(calls) == ['host', 'managed']
+        now[0] += disk.PROACTIVE_PRESSURE_INTERVAL + 1
+        c.tick(cleaner=cleaner, recovery_margin=0, proactive=True)
+        assert len(calls) == 2  # below the pressure threshold the long cadence applies
+        usage[0] = Usage(1000, 850, 150)
+        c.tick(cleaner=cleaner, recovery_margin=0, proactive=True)
+        assert len(calls) == 4  # high usage shortens the cadence
+        c.tick(cleaner=cleaner, recovery_margin=0, proactive=True)
+        assert len(calls) == 4
+    with c.db() as db:
+        assert {row[0] for row in db.execute("SELECT state FROM maintenance")} == {'complete'}
+
+
+def test_host_cleanup_kind_is_registered():
+    assert 'host' in disk.KINDS

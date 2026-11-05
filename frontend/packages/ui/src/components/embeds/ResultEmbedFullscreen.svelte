@@ -7,6 +7,9 @@
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from "../../utils/imageProxy";
   import AppsRequestComposer from "../apps/AppsRequestComposer.svelte";
   import { text } from "../../i18n/translations";
+  import AuthoredResultContextInfo from './AuthoredResultContextInfo.svelte';
+  import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultMetadata, type AuthoredResultPresentationContext } from '../../types/authoredResult';
+  import { visibleAuthoredResult } from '../../utils/authoredResultPresentation';
   import { authStore } from "../../stores/authState";
   import { activeTeamContext } from "../../stores/teamStore";
   import { notificationStore } from "../../stores/notificationStore";
@@ -28,6 +31,9 @@
   } from "../../types/embedFullscreen";
 
   type Props = Omit<ComponentProps<typeof UnifiedEmbedFullscreen>, "content" | "fixedBottom" | "floatingBottom"> & {
+    authoring?: AuthoredResultMetadata;
+    /** Where sources/observed-at/credits are shown: under the summary (default) or as a bottom Sources section. */
+    authoringPlacement?: "top" | "bottom";
     /** Visible, safe result metadata only; never encryption keys or transport records. */
     result: Record<string, unknown>;
     summary?: Snippet;
@@ -48,11 +54,21 @@
   // This Svelte-only adapter forwards the fullscreen API; it is not a custom element.
   // svelte-ignore custom_element_props_identifier
   let {
+    authoring: authoringProp,
+    authoringPlacement = "top",
     result, summary, media, detailContent, identity, mediaLayout = "standard",
     mapCenter, mapMarkers = [], mapZoom = 15, mapPath = [], mapPaths = [],
     mapPathColor, mapScrollWheelZoom = false, onMapReady, staticMapImageUrl,
     ...fullscreen
   }: Props = $props();
+  const authoredPresentation = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
+  const authoring = $derived(authoringProp ?? authoredPresentation?.authoring);
+  const suppliedTitle = $derived(authoring && typeof authoredPresentation?.content.title === 'string'
+    && authoredPresentation.content.title.trim() ? authoredPresentation.content.title : undefined);
+  const headerTitle = $derived(suppliedTitle ?? fullscreen.embedHeaderTitle);
+  const headerSubtitle = $derived(suppliedTitle && fullscreen.embedHeaderTitle && fullscreen.embedHeaderTitle !== suppliedTitle
+    ? [...new Set([fullscreen.embedHeaderTitle, fullscreen.embedHeaderSubtitle].filter(Boolean))].join(' · ')
+    : fullscreen.embedHeaderSubtitle);
   const appId = $derived(fullscreen.appId);
   const currentEmbedId = $derived(fullscreen.currentEmbedId);
   const onClose = $derived(fullscreen.onClose);
@@ -116,7 +132,7 @@
       const context = {
         embed_id: currentEmbedId,
         chat_id: sourceChat?.chatId ?? undefined,
-        result,
+        result: authoring ? visibleAuthoredResult(result) : result,
       };
       if (actions) {
         const accepted = await actions.onSubmit(value, attachments, context);
@@ -167,7 +183,7 @@
   }
 </script>
 
-<UnifiedEmbedFullscreen {...fullscreen} floatingBottom={true}>
+<UnifiedEmbedFullscreen {...fullscreen} embedHeaderTitle={headerTitle} embedHeaderSubtitle={headerSubtitle} floatingBottom={true}>
   {#snippet content()}
     <div
       bind:this={contentElement}
@@ -181,6 +197,7 @@
       {#if summary}<div class="result-summary" data-testid="result-facts">
         {@render summary()}
       </div>{/if}
+      {#if authoring && authoringPlacement === "top"}<AuthoredResultContextInfo {authoring} />{/if}
       {#if media || hasMap}
         <div
           class="result-media"
@@ -215,6 +232,7 @@
       {/if}
       {#if identity}<div class="result-identity-content">{@render identity()}</div>{/if}
       {#if detailContent}<div class="result-detail-content">{@render detailContent()}</div>{/if}
+      {#if authoring && authoringPlacement === "bottom"}<div class="result-sources-content" data-testid="result-sources"><AuthoredResultContextInfo {authoring} section /></div>{/if}
     </div>
   {/snippet}
   {#snippet fixedBottom()}
@@ -270,11 +288,18 @@
     overflow: hidden;
   }
   .result-media-panel { overflow: visible; background: transparent; }
+  .result-embed-content:not(.immersive) .result-media-panel > :global(img.result-primary-media) {
+    display: block;
+    width: 100%;
+    height: var(--result-media-height);
+    object-fit: contain;
+  }
   .result-map {
     height: var(--result-media-height);
     background: var(--color-grey-25);
   }
   .result-identity-content { width: min(100%, 48rem); }
+  .result-sources-content { width: min(100%, 48rem); }
   .result-detail-content {
     width: min(100%, 34rem);
     display: flex;

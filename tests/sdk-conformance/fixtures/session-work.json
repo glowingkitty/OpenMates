@@ -1,0 +1,313 @@
+{
+  "schema_version": 1,
+  "provenance": "Synthetic public master/Team key material from project-create.json. Actual shared Rust cookie workspace services encrypt payloads; one test-only ephemeral loopback peer independently decrypts and checks wire requests. No CLI/profile inheritance, product network, or inference.",
+  "capabilities": {
+    "session.work-crud.v1": {
+      "account": {
+        "session_id": "synthetic-work-session",
+        "cookie": "synthetic-work-initial",
+        "master_key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8="
+      },
+      "team": {
+        "team_id": "88888888-8888-4888-8888-888888888888",
+        "team_key_b64": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8=",
+        "encrypted_team_key": "T00JE61leRgLKbxm229jbLWO8xpiE1KLRbYSMmNfED7TvaZXCyYnc08uB0FAXIQw7F60wFEdKKjsJr97P9unys3x"
+      },
+      "input": {
+        "tasks": {
+          "title": "Synthetic private Task",
+          "description": "Synthetic client-only description",
+          "labels": [
+            "private"
+          ],
+          "due_at": 2000000000
+        },
+        "projects": {
+          "name": "Synthetic private Project",
+          "description": "Synthetic client-only description",
+          "write_mode": "always_ask"
+        }
+      },
+      "vectors": [
+        {
+          "id": "tasks-personal-crud",
+          "mode": "crud",
+          "family": "tasks",
+          "team": false
+        },
+        {
+          "id": "tasks-team-crud",
+          "mode": "crud",
+          "family": "tasks",
+          "team": true
+        },
+        {
+          "id": "projects-personal-crud",
+          "mode": "crud",
+          "family": "projects",
+          "team": false
+        },
+        {
+          "id": "projects-team-crud",
+          "mode": "crud",
+          "family": "projects",
+          "team": true
+        },
+        {
+          "id": "unknown-boundary",
+          "mode": "unknown"
+        },
+        {
+          "id": "confirmation-boundary",
+          "mode": "confirmation"
+        },
+        {
+          "id": "scope-boundary",
+          "mode": "scope"
+        },
+        {
+          "id": "policy-boundary",
+          "mode": "policy"
+        },
+        {
+          "id": "close-boundary",
+          "mode": "close"
+        },
+        {
+          "id": "cancel-boundary",
+          "mode": "cancel",
+          "expected_first_error": "cancelled",
+          "required_assertions": "Explicit cancellation rejects both in-flight and queued callers with typed cancelled; active HTTP still settles rotated credentials, queued request never starts, and a fresh operation succeeds."
+        },
+        {
+          "id": "saved-consumer-close",
+          "mode": "saved_consumer_close",
+          "chat_selector": "new",
+          "required_assertions": [
+            "actual-encrypted-saved-admission",
+            "same-id-cancel-and-terminal-drain",
+            "no-replay-of-turn-or-message-identities",
+            "no-model-provider-override",
+            "quarantined-A-is-not-settled-but-explicit-independent-B-uses-original-parent"
+          ],
+          "expected_admissions": 2,
+          "successor_chat_selector": "new"
+        },
+        {
+          "id": "saved-host-abort",
+          "mode": "saved_host_abort",
+          "chat_selector": "existing",
+          "required_assertions": [
+            "actual-encrypted-saved-admission",
+            "same-id-cancel-and-terminal-drain",
+            "no-replay-of-turn-or-message-identities",
+            "no-model-provider-override",
+            "quarantined-A-is-not-settled-but-explicit-independent-B-uses-original-parent"
+          ],
+          "expected_admissions": 2,
+          "successor_chat_selector": "new"
+        },
+        {
+          "id": "saved-stale-terminal",
+          "mode": "saved_stale_terminal",
+          "chat_selector": "existing",
+          "required_assertions": [
+            "actual-encrypted-saved-admission",
+            "same-id-cancel-and-terminal-drain",
+            "no-replay-of-turn-or-message-identities",
+            "no-model-provider-override"
+          ],
+          "expected_admissions": 2
+        },
+        {
+          "id": "saved-global-cancel",
+          "mode": "saved_global_cancel",
+          "chat_selector": "new",
+          "required_assertions": [
+            "actual-encrypted-saved-admission",
+            "same-id-cancel-and-terminal-drain",
+            "no-replay-of-turn-or-message-identities",
+            "no-model-provider-override",
+            "global-cancel-refuses-old-A-allocation-but-fresh-B-uses-genuine-unchanged-parent"
+          ],
+          "expected_admissions": 2,
+          "successor_chat_selector": "new"
+        },
+        {
+          "id": "saved-close-no-rearm",
+          "mode": "saved_close_no_rearm",
+          "chat_selector": "existing",
+          "required_assertions": [
+            "actual-encrypted-saved-admission",
+            "same-id-cancel-and-terminal-drain",
+            "no-replay-of-turn-or-message-identities",
+            "no-model-provider-override"
+          ],
+          "expected_admissions": 1
+        },
+        {
+          "id": "saved-auth-denial",
+          "mode": "saved_auth_denial",
+          "chat_selector": "new",
+          "required_assertions": [
+            "actual-auth-denial",
+            "same-id-cancel-and-terminal-drain",
+            "no-replay-of-turn-or-message-identities",
+            "no-model-provider-override"
+          ],
+          "expected_admissions": 0
+        },
+        {
+          "id": "saved-pre-effect-abort",
+          "mode": "saved_pre_effect_abort",
+          "chat_selector": "new",
+          "expected_admissions": 1,
+          "required_assertions": [
+            "actual-authenticated-snapshot-future-drains-before-parent-transition",
+            "same-id-cancel-and-terminal-drain",
+            "no-replay-of-turn-or-message-identities",
+            "no-model-provider-override",
+            "permitted-fresh-B-after-pre-effect-cancel"
+          ]
+        },
+        {
+          "id": "saved-same-chat-after-uncertain",
+          "mode": "saved_same_chat_after_uncertain",
+          "chat_selector": "existing",
+          "successor_chat_selector": "same",
+          "expected_admissions": 2,
+          "required_assertions": [
+            "actual-encrypted-saved-admission",
+            "same-id-cancel-and-terminal-drain",
+            "no-replay-of-turn-or-message-identities",
+            "no-model-provider-override",
+            "same-chat-B-uses-live-canonical-predecessor-version-without-settling-A"
+          ]
+        },
+        {
+          "id": "saved-queued-import-revoke",
+          "mode": "saved_queued_import_revoke",
+          "chat_selector": "existing",
+          "expected_admissions": 2,
+          "required_assertions": [
+            "actual-encrypted-saved-admission",
+            "same-id-cancel-and-terminal-drain",
+            "no-replay-of-turn-or-message-identities",
+            "no-model-provider-override",
+            "original-queued-release-refuses-retired-identity-or-successor-phase"
+          ],
+          "rust_release_evidence": "public original queue retirement plus authored crate-private actual opaque-allocation tests; no public testing helper"
+        },
+        {
+          "id": "saved-queued-close-revoke",
+          "mode": "saved_queued_close_revoke",
+          "chat_selector": "existing",
+          "expected_admissions": 1,
+          "required_assertions": [
+            "actual-encrypted-saved-admission",
+            "same-id-cancel-and-terminal-drain",
+            "no-replay-of-turn-or-message-identities",
+            "no-model-provider-override",
+            "original-queued-release-refuses-retired-identity-or-successor-phase"
+          ],
+          "rust_release_evidence": "public original queue retirement plus authored crate-private actual opaque-allocation tests; no public testing helper"
+        },
+        {
+          "id": "saved-queued-successor-terminal",
+          "mode": "saved_queued_successor_terminal",
+          "chat_selector": "existing",
+          "expected_admissions": 2,
+          "required_assertions": [
+            "actual-encrypted-saved-admission",
+            "same-id-cancel-and-terminal-drain",
+            "no-replay-of-turn-or-message-identities",
+            "no-model-provider-override",
+            "original-queued-release-refuses-retired-identity-or-successor-phase"
+          ],
+          "rust_release_evidence": "public original queue retirement plus authored crate-private actual opaque-allocation tests; no public testing helper"
+        },
+        {
+          "id": "saved-active-task-cancel",
+          "mode": "saved_active_task_cancel",
+          "chat_selector": "new",
+          "successor_chat_selector": "new",
+          "expected_admissions": 2,
+          "required_assertions": [
+            "actual-encrypted-saved-admission",
+            "same-id-cancel-and-terminal-drain",
+            "no-replay-of-turn-or-message-identities",
+            "no-model-provider-override",
+            "actual-live-content-before-exact-A-task-cancel-request",
+            "task-revocation-request-is-not-original-turn-settlement"
+          ]
+        },
+        {
+          "id": "saved-queued-malformed-revoke",
+          "mode": "saved_queued_malformed_revoke",
+          "chat_selector": "existing",
+          "expected_admissions": 1,
+          "required_assertions": [
+            "actual-encrypted-saved-admission",
+            "same-id-cancel-and-terminal-drain",
+            "no-replay-of-turn-or-message-identities",
+            "no-model-provider-override",
+            "malformed-replacement-retires-old-output-without-auth-change-claim"
+          ],
+          "rust_release_evidence": "public queued retirement plus actual private held-allocation case; no public testing helper"
+        },
+        {
+          "id": "saved-owned-apps-success",
+          "mode": "saved_owned_apps_success",
+          "chat_selector": "new",
+          "expected_admissions": 1,
+          "required_assertions": [
+            "actual-encrypted-A-admitted-and-original-socket-held",
+            "public-Apps-B-completes-exact-shared-Item-projection-before-A",
+            "actual-rotated-cookie-used-by-A-canonical-reread",
+            "same-original-A-completes-without-rearm-or-replay"
+          ]
+        },
+        {
+          "id": "saved-owned-apps-cancel-headers",
+          "mode": "saved_owned_apps_cancel_headers",
+          "chat_selector": "new",
+          "expected_admissions": 1,
+          "required_assertions": [
+            "actual-A-receive-held-through-independent-Apps-B",
+            "second-real-Apps-request-requires-first-B-rotated-cookie-before-cancel",
+            "only-original-B-caller-cancels-no-global-A-cancellation",
+            "newest-real-header-cookie-survives-B-cancel-and-A-completes"
+          ]
+        },
+        {
+          "id": "saved-owned-apps-pre-cancel",
+          "mode": "saved_owned_apps_pre_cancel",
+          "chat_selector": "new",
+          "expected_admissions": 1,
+          "required_assertions": [
+            "actual-encrypted-A-admitted-and-original-socket-held",
+            "pre-dispatch-B-cancellation-starts-zero-Apps-requests",
+            "npm-preaborted-signal-python-prestarted-taskcancel-rust-unpolled-future-drop",
+            "same-original-A-completes-without-successor-or-replay"
+          ]
+        }
+      ],
+      "saved_stream": {
+        "account": {
+          "session_id": "synthetic-work-session",
+          "cookie": "synthetic-work-initial",
+          "master_key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+          "owner_id": "11111111-1111-4111-8111-111111111111"
+        },
+        "protocol": {
+          "app_origin": "https://app.example.invalid",
+          "initial_chat_id": "22222222-2222-4222-8222-222222222222",
+          "initial_chat_key": "CwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCws=",
+          "input": "Synthetic saved SDK cancellation",
+          "fresh_messages_v": 0,
+          "embed_id": "unused-synthetic-embed"
+        }
+      }
+    }
+  }
+}

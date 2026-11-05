@@ -4,7 +4,7 @@
  * Never run automatically or in CI. Run only after scoped dev deployment and a
  * dev lease, using a separately paired disposable account with paid credits.
  *
- * Prerequisites: current built CLI dist/index.js, Node with strip-types support,
+ * Prerequisites: current built CLI dist/cli-internal-client.js, Node with strip-types support,
  * the existing CLI test loader, Google/Jev providers, Project + Workflow APIs,
  * ask worker/postprocessor, encrypted hosted CAS, source-write settlement.
  *
@@ -44,12 +44,12 @@ requireValue(stateDirectory && isAbsolute(stateDirectory) && existsSync(stateDir
 requireValue(realpathSync(stateDirectory).startsWith(realpathSync(tmpdir()) + '/')
   && basename(stateDirectory).startsWith('openmates-authoring-live.'), 'fresh_tmp_state_required');
 requireValue(/^(?:https:\/\/api\.dev\.openmates\.org|http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?)$/.test(apiUrl), 'dev_target_required');
-requireValue(existsSync(join(cliDirectory, 'dist/index.js')), 'current_cli_build_required');
+requireValue(existsSync(join(cliDirectory, 'dist/cli-internal-client.js')), 'current_cli_build_required');
 // Provider/transport helpers may emit debugging logs. This standalone harness
 // exposes only its explicitly selected, content-free evidence below.
 for (const method of ['log', 'info', 'debug', 'warn', 'error']) console[method] = () => {};
 
-const { OpenMatesClient } = await import('../frontend/packages/openmates-cli/dist/index.js');
+const { OpenMatesClient } = await import('../frontend/packages/openmates-cli/dist/cli-internal-client.js');
 const { encryptWithAesGcmCombined, encryptBytesWithAesGcm, decryptWithAesGcmCombined } = await import('../frontend/packages/openmates-cli/src/crypto.ts');
 const { projectItemRevision, boundedAuthoringHistory } = await import('../frontend/packages/openmates-cli/src/cliProjectAuthoring.ts');
 const { persistCliProjectAuthoringJob, AuthoringSaveApprovalRequired } = await import('../frontend/packages/openmates-cli/src/cliProjectAuthoringSave.ts');

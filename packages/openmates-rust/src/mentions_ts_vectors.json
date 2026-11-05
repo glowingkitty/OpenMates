@@ -1,0 +1,543 @@
+{
+ "today": "2026-11-02",
+ "apps": [
+  {
+   "id": "web",
+   "name": "Web",
+   "skills": [
+    {
+     "id": "search",
+     "name": "Search"
+    },
+    {
+     "id": "read",
+     "name": "Read"
+    }
+   ],
+   "focus_modes": [
+    {
+     "id": "research",
+     "name": "Research"
+    }
+   ],
+   "settings_and_memories": []
+  },
+  {
+   "id": "code",
+   "name": "Code",
+   "skills": [
+    {
+     "id": "get_docs",
+     "name": "Get Docs"
+    }
+   ],
+   "focus_modes": [],
+   "settings_and_memories": [
+    {
+     "id": "projects",
+     "name": "Projects"
+    },
+    {
+     "id": "preferred_technologies",
+     "name": "Preferred technologies",
+     "type": "single"
+    }
+   ]
+  },
+  {
+   "id": "travel",
+   "name": "Travel",
+   "skills": [
+    {
+     "id": "search_connections",
+     "name": "Search connections"
+    }
+   ],
+   "focus_modes": [
+    {
+     "id": "trip_planning",
+     "name": "Trip planning"
+    }
+   ],
+   "settings_and_memories": []
+  }
+ ],
+ "memoryEntries": [
+  {
+   "id": "abc123",
+   "app_id": "code",
+   "item_type": "projects",
+   "title": "MyApp"
+  }
+ ],
+ "vectors": [
+  {
+   "message": "@Gemini-3.8-Flash what is 2+2?",
+   "processedMessage": "@ai-model:gemini-3.8-flash what is 2+2?",
+   "resolved": [
+    {
+     "original": "@Gemini-3.8-Flash",
+     "type": "model",
+     "wireSyntax": "@ai-model:gemini-3.8-flash",
+     "displayName": "@Gemini-3.8-Flash"
+    }
+   ],
+   "filePaths": [],
+   "unresolved": []
+  },
+  {
+   "message": "Ask @gemini-3.8-flash and @Claude-Opus-5.5 please",
+   "processedMessage": "Ask @ai-model:gemini-3.8-flash and @ai-model:claude-opus-5-5 please",
+   "resolved": [
+    {
+     "original": "@gemini-3.8-flash",
+     "type": "model",
+     "wireSyntax": "@ai-model:gemini-3.8-flash",
+     "displayName": "@Gemini-3.8-Flash"
+    },
+    {
+     "original": "@Claude-Opus-5.5",
+     "type": "model",
+     "wireSyntax": "@ai-model:claude-opus-5-5",
+     "displayName": "@Claude-Opus-5.5"
+    }
+   ],
+   "filePaths": [],
+   "unresolved": []
+  },
+  {
+   "message": "@best summarize",
+   "processedMessage": "@best-model:best summarize",
+   "resolved": [
+    {
+     "original": "@best",
+     "type": "model_alias",
+     "wireSyntax": "@best-model:best",
+     "displayName": "@Best"
+    }
+   ],
+   "filePaths": [],
+   "unresolved": []
+  },
+  {
+   "message": "@FAST hi",
+   "processedMessage": "@best-model:fast hi",
+   "resolved": [
+    {
+     "original": "@FAST",
+     "type": "model_alias",
+     "wireSyntax": "@best-model:fast",
+     "displayName": "@Fast"
+    }
+   ],
+   "filePaths": [],
+   "unresolved": []
+  },
+  {
+   "message": "@Sophia help me with Rust",
+   "processedMessage": "@mate:software_development help me with Rust",
+   "resolved": [
+    {
+     "original": "@Sophia",
+     "type": "mate",
+     "wireSyntax": "@mate:software_development",
+     "displayName": "@Sophia"
+    }
+   ],
+   "filePaths": [],
+   "unresolved": []
+  },
+  {
+   "message": "@mate:software_development review",
+   "processedMessage": "@mate:software_development review",
+   "resolved": [
+    {
+     "original": "@mate:software_development",
+     "type": "mate",
+     "wireSyntax": "@mate:software_development",
+     "displayName": "@Sophia"
+    }
+   ],
+   "filePaths": [],
+   "unresolved": []
+  },
+  {
+   "message": "@mate:unknown_category hi",
+   "processedMessage": "@mate:unknown_category hi",
+   "resolved": [],
+   "filePaths": [],
+   "unresolved": [
+    {
+     "original": "@mate:unknown_category",
+     "suggestions": []
+    }
+   ]
+  },
+  {
+   "message": "@Web-Search latest news and @Code-Get-Docs for tokio",
+   "processedMessage": "@skill:web:search latest news and @skill:code:get_docs for tokio",
+   "resolved": [
+    {
+     "original": "@Web-Search",
+     "type": "skill",
+     "wireSyntax": "@skill:web:search",
+     "displayName": "@Web-Search"
+    },
+    {
+     "original": "@Code-Get-Docs",
+     "type": "skill",
+     "wireSyntax": "@skill:code:get_docs",
+     "displayName": "@Code-Get-Docs"
+    }
+   ],
+   "filePaths": [],
+   "unresolved": []
+  },
+  {
+   "message": "@web-search @code-get_docs",
+   "processedMessage": "@skill:web:search @skill:code:get_docs",
+   "resolved": [
+    {
+     "original": "@web-search",
+     "type": "skill",
+     "wireSyntax": "@skill:web:search",
+     "displayName": "@Web-Search"
+    },
+    {
+     "original": "@code-get_docs",
+     "type": "skill",
+     "wireSyntax": "@skill:code:get_docs",
+     "displayName": "@Code-Get-Docs"
+    }
+   ],
+   "filePaths": [],
+   "unresolved": []
+  },
+  {
+   "message": "@Web-Research deep dive",
+   "processedMessage": "@focus:web:research deep dive",
+   "resolved": [
+    {
+     "original": "@Web-Research",
+     "type": "focus_mode",
+     "wireSyntax": "@focus:web:research",
+     "displayName": "@Web-Research"
+    }
+   ],
+   "filePaths": [],
+   "unresolved": []
+  },
+  {
+   "message": "@focus:travel:trip_planning Kyoto",
+   "processedMessage": "@focus:travel:trip_planning Kyoto",
+   "resolved": [
+    {
+     "original": "@focus:travel:trip_planning",
+     "type": "focus_mode",
+     "wireSyntax": "@focus:travel:trip_planning",
+     "displayName": "@Travel-Trip-Planning"
+    }
+   ],
+   "filePaths": [],
+   "unresolved": []
+  },
+  {
+   "message": "@focus:travel:nope Kyoto",
+   "processedMessage": "@focus:travel:nope Kyoto",
+   "resolved": [],
+   "filePaths": [],
+   "unresolved": [
+    {
+     "original": "@focus:travel:nope",
+     "suggestions": []
+    }
+   ]
+  },
+  {
+   "message": "@Travel-Trip-Planning weekend",
+   "processedMessage": "@focus:travel:trip_planning weekend",
+   "resolved": [
+    {
+     "original": "@Travel-Trip-Planning",
+     "type": "focus_mode",
+     "wireSyntax": "@focus:travel:trip_planning",
+     "displayName": "@Travel-Trip-Planning"
+    }
+   ],
+   "filePaths": [],
+   "unresolved": []
+  },
+  {
+   "message": "@Code-Projects list mine",
+   "processedMessage": "@memory:code:projects:list list mine",
+   "resolved": [
+    {
+     "original": "@Code-Projects",
+     "type": "settings_memory",
+     "wireSyntax": "@memory:code:projects:list",
+     "displayName": "@Code-Projects"
+    }
+   ],
+   "filePaths": [],
+   "unresolved": []
+  },
+  {
+   "message": "@Code-Preferred-Technologies hmm",
+   "processedMessage": "@memory:code:preferred_technologies:single hmm",
+   "resolved": [
+    {
+     "original": "@Code-Preferred-Technologies",
+     "type": "settings_memory",
+     "wireSyntax": "@memory:code:preferred_technologies:single",
+     "displayName": "@Code-Preferred-Technologies"
+    }
+   ],
+   "filePaths": [],
+   "unresolved": []
+  },
+  {
+   "message": "@Code-Projects-MyApp status",
+   "processedMessage": "@memory-entry:code:projects:abc123 status",
+   "resolved": [
+    {
+     "original": "@Code-Projects-MyApp",
+     "type": "settings_memory_entry",
+     "wireSyntax": "@memory-entry:code:projects:abc123",
+     "displayName": "@Code-Projects-MyApp"
+    }
+   ],
+   "filePaths": [],
+   "unresolved": []
+  },
+  {
+   "message": "@Code-MyApp status",
+   "processedMessage": "@memory-entry:code:projects:abc123 status",
+   "resolved": [
+    {
+     "original": "@Code-MyApp",
+     "type": "settings_memory_entry",
+     "wireSyntax": "@memory-entry:code:projects:abc123",
+     "displayName": "@Code-Projects-MyApp"
+    }
+   ],
+   "filePaths": [],
+   "unresolved": []
+  },
+  {
+   "message": "@Mistral-Large-4 bonjour",
+   "processedMessage": "@ai-model:mistral-large-4:mistral bonjour",
+   "resolved": [
+    {
+     "original": "@Mistral-Large-4",
+     "type": "model",
+     "wireSyntax": "@ai-model:mistral-large-4:mistral",
+     "displayName": "@Mistral-Large-4"
+    }
+   ],
+   "filePaths": [],
+   "unresolved": []
+  },
+  {
+   "message": "@Claude-Opus-4.5 old",
+   "processedMessage": "@ai-model:claude-opus-4-5-20251101 old",
+   "resolved": [
+    {
+     "original": "@Claude-Opus-4.5",
+     "type": "model",
+     "wireSyntax": "@ai-model:claude-opus-4-5-20251101",
+     "displayName": "@Claude-Opus-4.5"
+    }
+   ],
+   "filePaths": [],
+   "unresolved": []
+  },
+  {
+   "message": "@GPT-5.4-nano tiny",
+   "processedMessage": "@ai-model:gpt-5.4-nano tiny",
+   "resolved": [
+    {
+     "original": "@GPT-5.4-nano",
+     "type": "model",
+     "wireSyntax": "@ai-model:gpt-5.4-nano",
+     "displayName": "@GPT-5.4-nano"
+    }
+   ],
+   "filePaths": [],
+   "unresolved": []
+  },
+  {
+   "message": "@Unknwn-Thing hello",
+   "processedMessage": "@Unknwn-Thing hello",
+   "resolved": [],
+   "filePaths": [],
+   "unresolved": [
+    {
+     "original": "@Unknwn-Thing",
+     "suggestions": []
+    }
+   ]
+  },
+  {
+   "message": "@Sophie typo",
+   "processedMessage": "@Sophie typo",
+   "resolved": [],
+   "filePaths": [],
+   "unresolved": [
+    {
+     "original": "@Sophie",
+     "suggestions": [
+      "@Sophia"
+     ]
+    }
+   ]
+  },
+  {
+   "message": "@./src/main.rs and @/etc/hosts and @~/notes.md and @../up.txt",
+   "processedMessage": "@./src/main.rs and @/etc/hosts and @~/notes.md and @../up.txt",
+   "resolved": [],
+   "filePaths": [
+    "./src/main.rs",
+    "/etc/hosts",
+    "~/notes.md",
+    "../up.txt"
+   ],
+   "unresolved": []
+  },
+  {
+   "message": "@TASK-12, see @wiki:Rust_(programming_language) and @wikipedia:en:Rust",
+   "processedMessage": "@TASK-12, see @wiki:Rust_(programming_language) and @wikipedia:en:Rust",
+   "resolved": [],
+   "filePaths": [],
+   "unresolved": []
+  },
+  {
+   "message": "email me at user@example.com",
+   "processedMessage": "email me at user@example.com",
+   "resolved": [],
+   "filePaths": [],
+   "unresolved": []
+  },
+  {
+   "message": "@Sophia@Burton chained",
+   "processedMessage": "@Sophia@Burton chained",
+   "resolved": [
+    {
+     "original": "@Sophia",
+     "type": "mate",
+     "wireSyntax": "@mate:software_development",
+     "displayName": "@Sophia"
+    }
+   ],
+   "filePaths": [],
+   "unresolved": []
+  },
+  {
+   "message": "@Sophia, comma",
+   "processedMessage": "@mate:software_development comma",
+   "resolved": [
+    {
+     "original": "@Sophia,",
+     "type": "mate",
+     "wireSyntax": "@mate:software_development",
+     "displayName": "@Sophia"
+    }
+   ],
+   "filePaths": [],
+   "unresolved": []
+  },
+  {
+   "message": "@Sophia\tand\n@Burton",
+   "processedMessage": "@mate:software_development\tand\n@mate:business_development",
+   "resolved": [
+    {
+     "original": "@Sophia",
+     "type": "mate",
+     "wireSyntax": "@mate:software_development",
+     "displayName": "@Sophia"
+    },
+    {
+     "original": "@Burton",
+     "type": "mate",
+     "wireSyntax": "@mate:business_development",
+     "displayName": "@Burton"
+    }
+   ],
+   "filePaths": [],
+   "unresolved": []
+  },
+  {
+   "message": "x @ y @@z @",
+   "processedMessage": "x @ y @@z @",
+   "resolved": [],
+   "filePaths": [],
+   "unresolved": []
+  },
+  {
+   "message": "@Sophia @Sophia twice",
+   "processedMessage": "@mate:software_development @mate:software_development twice",
+   "resolved": [
+    {
+     "original": "@Sophia",
+     "type": "mate",
+     "wireSyntax": "@mate:software_development",
+     "displayName": "@Sophia"
+    },
+    {
+     "original": "@Sophia",
+     "type": "mate",
+     "wireSyntax": "@mate:software_development",
+     "displayName": "@Sophia"
+    }
+   ],
+   "filePaths": [],
+   "unresolved": []
+  },
+  {
+   "message": "no mentions",
+   "processedMessage": "no mentions",
+   "resolved": [],
+   "filePaths": [],
+   "unresolved": []
+  },
+  {
+   "message": "@Gemini-3.8-Flash",
+   "processedMessage": "@ai-model:gemini-3.8-flash",
+   "resolved": [
+    {
+     "original": "@Gemini-3.8-Flash",
+     "type": "model",
+     "wireSyntax": "@ai-model:gemini-3.8-flash",
+     "displayName": "@Gemini-3.8-Flash"
+    }
+   ],
+   "filePaths": [],
+   "unresolved": []
+  },
+  {
+   "message": "Tschüss @Lisa ünïcode",
+   "processedMessage": "Tschüss @mate:life_coach_psychology ünïcode",
+   "resolved": [
+    {
+     "original": "@Lisa",
+     "type": "mate",
+     "wireSyntax": "@mate:life_coach_psychology",
+     "displayName": "@Lisa"
+    }
+   ],
+   "filePaths": [],
+   "unresolved": []
+  },
+  {
+   "message": "@openmates in a team",
+   "processedMessage": "@openmates in a team",
+   "resolved": [],
+   "filePaths": [],
+   "unresolved": [
+    {
+     "original": "@openmates",
+     "suggestions": []
+    }
+   ]
+  }
+ ]
+}

@@ -17,6 +17,27 @@ from backend.core.api.app.services.session_security_state import (
 
 logger = logging.getLogger(__name__)
 
+async def _validate_secondary_ws_principal(
+    cache_service, directus_service, token_hash: str, expected_user_id: str,
+) -> str:
+    """Same existing signed-query authority checks; never a REST credential.
+
+    The owner comparison runs first so a second session naming another
+    account is refused before any deadline or legacy-ledger effect.
+    """
+    link = await cache_service.get(f"{cache_service.SESSION_KEY_PREFIX}{token_hash}")
+    principal = canonical_session_user_id(link)
+    if not principal or principal != expected_user_id:
+        raise HTTPException(401, "Invalid session")
+    await get_pair_deadline_hash(directus_service, cache_service, token_hash)
+    state = await get_session_state_cached(
+        directus_service, cache_service, token_hash, user_id=principal, allow_risk=False,
+    )
+    if state is None:
+        await ensure_legacy_session_hash_state(directus_service, cache_service, token_hash, principal)
+    return principal
+
+
 async def get_current_user_ws(
     websocket: WebSocket
 ) -> Optional[dict]:
@@ -54,6 +75,19 @@ async def get_current_user_ws(
     # supply a short-lived signed ws_token in the query string.
     auth_refresh_token = websocket.cookies.get("auth_refresh_token")
     verified_ws_hash: str | None = None
+    secondary_ws_hash: str | None = None
+    # Dual-principal check applies only when a cookie AND a token query are
+    # both supplied; query-only (Safari fallback) admission is unchanged.
+    if auth_refresh_token and "token" in websocket.query_params:
+        query_values = websocket.query_params.getlist("token")
+        query_token = query_values[0] if len(query_values) == 1 else None
+        if not query_token or len(query_token) > 512:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid session")
+            return None
+        secondary_ws_hash = verify_ws_token(query_token)
+        if not secondary_ws_hash:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid session")
+            return None
 
     if not auth_refresh_token:
         # Fallback to query parameter for browsers that don't send cookies in WebSocket upgrade requests.
@@ -139,6 +173,17 @@ async def get_current_user_ws(
             await websocket.close(code=status.WS_1011_INTERNAL_ERROR, reason="Server error")
             # Return None to signal authentication failure - connection already closed, no need to raise
             return None
+
+        # A valid HMAC assertion selecting this exact already-validated hash
+        # shares the same live authority checks; do not duplicate DB lookups.
+        # Different rotation/session hashes must be independently validated.
+        if secondary_ws_hash is not None and secondary_ws_hash != session_hash:
+            secondary_principal = await _validate_secondary_ws_principal(
+                cache_service, directus_service, secondary_ws_hash, user_id,
+            )
+            if secondary_principal != user_id:
+                await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid session")
+                return None
 
         if security_state is None:
             # A signed ws_token or cookie plus a matching cached session link

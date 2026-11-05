@@ -131,9 +131,9 @@ test.describe('Report Issue Email Fallback', () => {
 			await page.waitForTimeout(1500);
 		}
 
-		await page.getByTestId('report-issue-user-flow').fill('I opened a chat, wrote a message, and pressed send.');
-		await page.getByTestId('report-issue-expected-behaviour').fill('The message should be sent.');
-		await page.getByTestId('report-issue-actual-behaviour').fill('The sending indicator never stops.');
+		await titleInput.fill(
+			'Messages remain stuck while sending\nI opened a chat, wrote a message, and pressed send. The sending indicator never stops.'
+		);
 
 		await emailFallback.evaluate((element: HTMLElement) => {
 			element.scrollIntoView({ block: 'center' });
@@ -154,10 +154,10 @@ test.describe('Report Issue Email Fallback', () => {
 		expect(body.split('\n')[0]).toBe(
 			'[ RECOMMENDATION: Add screenshots to this email, to show what is broken ]'
 		);
-		expect(body).toContain('Short description:\nMessages remain stuck while sending');
-		expect(body).toContain('What I did:\nI opened a chat, wrote a message, and pressed send.');
-		expect(body).toContain('Expected behavior:\nThe message should be sent.');
-		expect(body).toContain('Actual behavior:\nThe sending indicator never stops.');
+		expect(body).toContain(
+			'What happened:\nMessages remain stuck while sending\nI opened a chat, wrote a message, and pressed send. The sending indicator never stops.'
+		);
+		expect(body).not.toMatch(/What I did:|Expected behavior:|Actual behavior:/);
 		expect(body).toContain('Shared chat or embed:\nNot shared');
 		expect(body).toContain('Technical context:');
 		expect(body).not.toMatch(

@@ -69,6 +69,8 @@ const mathFormulas = new Map<string, { tex: string; display: boolean }>();
 
 const SETTINGS_MARKDOWN_LINK_RE = /(?<!!)\[([^\]\n]+)\]\(((?:\/?#settings)[^\n]*?)\)/g;
 
+const CURRENCY_MAGNITUDE_SUFFIX_RE = /^(?:[KkMBT]|bn|mn|bln|mln|mm)(?![A-Za-z$])/;
+
 function isCurrencyLikeDollar(text: string, dollarIndex: number): boolean {
   if (text[dollarIndex] !== "$") return false;
 
@@ -104,6 +106,13 @@ function isCurrencyLikeDollar(text: string, dollarIndex: number): boolean {
     if (lookAhead < text.length && /[\\^_{}]/.test(text[lookAhead])) {
       return false;
     }
+  }
+
+  // Amounts with a magnitude suffix ("$4.4B", "$35bn", "$3k") are currency.
+  // The suffix must not be followed by another letter or a closing "$", so
+  // formulas such as "$2n$", "$3x$" or "$3m$" keep rendering as math.
+  if (CURRENCY_MAGNITUDE_SUFFIX_RE.test(text.slice(numberEnd))) {
+    return true;
   }
 
   // Accept end of string, whitespace, punctuation, or markdown syntax characters (* for bold/italic, ~ for strikethrough)
@@ -170,6 +179,12 @@ function extractMathFormulas(markdownText: string): {
   return { processed, formulas };
 }
 
+const INLINE_MATH_TAG = "om-inline-math";
+
+function inlineMathPlaceholder(id: number | string): string {
+  return `<${INLINE_MATH_TAG} data-math-id="${id}"></${INLINE_MATH_TAG}>`;
+}
+
 function extractProseMathFormulas(
   markdownText: string,
   formulas: Map<string, { tex: string; display: boolean }>,
@@ -227,7 +242,11 @@ function extractProseMathFormulas(
         continue;
       }
 
-      if (isCurrencyLikeDollar(processed, search)) {
+      // A "$" glued to the formula and followed by whitespace closes it, even
+      // when a number follows: in "$\approx$ 4 bytes" the "$ 4" is not currency.
+      const closesFormula =
+        searchPrev !== "" && !/\s/.test(searchPrev) && (searchNext === "" || /\s/.test(searchNext));
+      if (!closesFormula && isCurrencyLikeDollar(processed, search)) {
         continue;
       }
 
@@ -247,7 +266,10 @@ function extractProseMathFormulas(
     }
 
     const formula = processed.slice(cursor + 1, closing);
-    const placeholder = `<!-- MATH_INLINE_${placeholderCounter} -->`;
+    // Inline math uses an inline HTML element, not an HTML comment: markdown-it
+    // treats a line that starts with "<!--" as a raw HTML block, so a paragraph
+    // opening with "$E=mc^2$ ..." lost its formula and broke out of the <p>.
+    const placeholder = inlineMathPlaceholder(placeholderCounter);
     formulas.set(placeholder, { tex: formula.trim(), display: false });
     placeholderCounter++;
     inlineProcessed += placeholder;
@@ -811,8 +833,7 @@ function convertNodeToTiptap(node: Node): any {
     // Comment text content is just the text between <!-- and -->, so we need to match the pattern
     if (
       comment &&
-      (comment.trim().startsWith("MATH_BLOCK_") ||
-        comment.trim().startsWith("MATH_INLINE_"))
+      comment.trim().startsWith("MATH_BLOCK_")
     ) {
       const trimmedComment = comment.trim();
       // Try to find the math data - the key includes the full comment syntax
@@ -840,6 +861,15 @@ function convertNodeToTiptap(node: Node): any {
   const element = node as Element;
   const tagName = element.tagName.toLowerCase();
   const content: any[] = [];
+
+  if (tagName === INLINE_MATH_TAG) {
+    const mathData = mathFormulas.get(
+      inlineMathPlaceholder(element.getAttribute("data-math-id") ?? ""),
+    );
+    return mathData
+      ? { type: "inlineMath", attrs: { latex: mathData.tex } }
+      : null;
+  }
 
   // Handle KaTeX-rendered math elements before processing children
   // This is a fallback in case comment nodes don't work

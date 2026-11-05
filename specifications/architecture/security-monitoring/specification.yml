@@ -1,0 +1,146 @@
+schema_version: 1
+id: architecture.security-monitoring
+version: 1
+status: draft
+title: Automated Security Monitoring and Guarded Remediation
+summary: >
+  A deterministic hourly watcher matches new security advisories, exploitation
+  signals and vendor incidents against an explicit inventory of everything
+  OpenMates runs and builds with. Only relevant matches start a read-only AI
+  triage that judges applicability, reachability, exploitability and blast
+  radius. Urgent verdicts start a separate guarded fix that deploys to dev only,
+  and deterministic Discord and email notifications tell the operator what was
+  done and which actions remain manual. Servers report their software state
+  privately to the dev server, and SSH intrusion signals alert immediately.
+
+scope:
+  includes:
+    - Generated asset inventory, including an explicit not-used list with reasons.
+    - Hourly deterministic advisory, exploitation, vendor and news source checks with matching, scoring and deduplication.
+    - Signed, encrypted host software reports pushed from core, upload and preview servers to the dev server over the Hetzner private network.
+    - OpenSSH vulnerability context and deterministic SSH and host intrusion signals.
+    - Read-only AI triage with a structured verdict and durable not-affected records.
+    - Release-age policy for routine updates and prioritized security fixes.
+    - Guarded automatic fixes deployed to the dev branch and dev server only.
+    - Deterministic Discord and email notifications, health signals and operator checklists.
+  excludes:
+    - Automatic production deploys, production or upload or preview server patching, reboots, or secret rotation.
+    - Inbound management access to servers from the dev server, or any public endpoint for host reports.
+    - Third-party root-privileged monitoring agents on servers.
+    - Replacing the existing deterministic ledger, digest and critical-alert semantics of architecture.security-reporting, which this Specification reuses.
+    - Public REST, SDK, web or Apple product surfaces.
+
+models:
+  Asset:
+    identity: {type: stable_id, required: true, constraints: {ecosystem_name_version_and_environment_scoped: true}}
+    kind:
+      type: enum
+      values: [package, container_image, os_package, kernel, runtime, vendor, skill_provider, dev_tool, ci_action]
+      required: true
+    environments:
+      type: array
+      required: true
+      constraints: {values: [prod, dev, upload, preview, vercel, ci, dev_tools, apple_client]}
+    exposure: {type: enum, values: [internet_facing, internal, build_only, client_only], required: true}
+    usage: {type: enum, values: [used, not_used], required: true, constraints: {not_used_requires_reason: true}}
+  Observation:
+    identity: {type: stable_id, required: true, constraints: {aliases_normalized: true}}
+    source: {type: string, required: true}
+    match_strength: {type: enum, values: [exact_version, version_range, name_only, vendor_only, none], required: true}
+    signals: {type: object, required: true, constraints: {severity: required, known_exploited: required, exploit_probability: optional}}
+    disposition: {type: enum, values: [triage, digest_only, suppressed_not_used, suppressed_recorded_verdict], required: true}
+  TriageVerdict:
+    outcome: {type: enum, values: [not_affected, affected_low, affected_fix_soon, urgent], required: true}
+    not_affected_reason:
+      type: enum
+      values: [component_not_present, version_not_affected, vulnerable_code_not_present, not_reachable, mitigated]
+      nullable: true
+    environments_assessed: {type: array, required: true}
+    reachability: {type: string, required: true}
+    exploitability: {type: string, required: true}
+    blast_radius: {type: string, required: true}
+    proposed_fix: {type: object, nullable: true, constraints: {fix_class_allowlisted: true, target_version_explicit: true}}
+    manual_actions: {type: array, required: true}
+  HostReport:
+    host_role: {type: enum, values: [core, upload, preview], required: true}
+    generated_at: {type: timestamp, required: true}
+    contents:
+      type: object
+      required: true
+      constraints:
+        allowlisted_fields: [os_release, running_kernel, installed_kernels, reboot_required, package_versions, pending_security_updates, deployed_image_digests, listening_ports, sshd_effective_settings, authorized_key_fingerprints, ssh_config_checksums, successful_ssh_logins, local_accounts_and_sudoers, package_file_integrity]
+    integrity: {type: object, required: true, constraints: {signed_per_host: true, encrypted_to_dev_collector: true}}
+
+assertions:
+  - id: security-monitoring.inventory.explicit
+    type: invariant
+    must: A deterministic job regenerates the asset inventory at least daily and after each dev deploy from lockfiles and manifests (pnpm, PyPI requirements, Cargo, Swift packages), Dockerfile and compose images with digests, the latest host report per server, GitHub Actions references, configured skill providers, vendors (Hetzner, Vercel, GitHub) and dev-host tools. Each asset records environments and exposure. Technologies that OpenMates does not use are listed explicitly as not_used with a reason, and a tool installed on any host is never classified not_used. An inventory that could not read a required source is marked incomplete and cannot justify a not-affected decision.
+    depends_on: [models.Asset]
+  - id: security-monitoring.sources.hourly-deterministic
+    type: behavior
+    must: Every hour, without AI inference, the watcher queries package advisory sources (OSV including malicious-package records, GitHub advisories, Dependabot alerts), OS and image security trackers (Ubuntu notices and the Debian and Alpine trackers for used base images), exploitation signals (CISA known-exploited catalog, exploit-probability scores), upstream security advisories for used runtimes, services and dev tools, vendor security bulletins, and a bounded set of security news feeds. Each item is normalized, deduplicated through the security-reporting ledger aliases, matched to inventory assets with an explicit match strength, and given one disposition. Exact or range matches on used assets, and any match on a known-exploited item, go to triage; name-only or vendor-only news goes to triage only when critical or known exploited, otherwise to the digest. Matches on not_used assets and items covered by a still-valid recorded verdict are suppressed with the reason logged. A source failure is recorded as incomplete coverage, never as a clean result.
+    depends_on: [models.Observation]
+  - id: security-monitoring.host-reports.private-push
+    type: security
+    must: Each core, upload and preview server runs a host reporter as a systemd service with a transient unprivileged identity (no login account, password, shell, sudo or container-socket access), installed and updated through the OpenMates server-management CLI. It runs daily, at boot and after package installation, collects only the allowlisted HostReport fields, signs the report with a per-host key, encrypts it to the dev collector, and pushes it over HTTPS to a collector that listens only on the Hetzner private network address. The dev server holds no credentials for the servers and never pulls. The collector rejects unknown senders, invalid signatures, replays and out-of-allowlist fields, and stores accepted reports outside git. A server without an accepted report for 36 hours raises a deterministic alert.
+    depends_on: [models.HostReport]
+  - id: security-monitoring.ssh.vulnerability-and-intrusion
+    type: security
+    must: OpenSSH, its linked libraries and the kernel are matched against advisories using each server's exact versions, and triage receives the effective sshd settings (password and root login, port, connection and grace limits) to judge exposure. Deterministically and without waiting for triage, an immediate Discord and email alert is raised when a host report shows a successful SSH login with a key fingerprint not on the expected list, a new authorized key, a changed SSH configuration checksum, a new local account or sudoers entry, or a package file whose content no longer matches its package. Each alert is raised once per change and stays open until the operator acknowledges it or a later report shows the expected state.
+    depends_on: [models.HostReport]
+  - id: security-monitoring.triage.read-only-structured
+    type: behavior
+    must: When an hourly run produces new triage-bound observations, one batched headless Claude triage chat is started using the security triage skill, within a configured daily run limit and per-run time limit. The chat can read and search the repository and inventory, search and fetch public web sources, and run only allowlisted read-only commands; it has no write, deploy, push, secret, notification or permission-changing capability. For every observation it returns a schema-valid TriageVerdict covering each relevant environment, reachability through actual imports, call sites and configuration, exploitability (network reachability, authentication, public exploit, known exploitation) and blast radius (user data and encryption keys, Vault secrets, CI and dev-host tokens, Apple clients). A not_affected verdict is stored with its reason and suppresses the same advisory and asset until the asset version, inventory or advisory changes. Invalid, missing or timed-out output is recorded as a failed triage and notified, never treated as not affected.
+    depends_on: [models.TriageVerdict]
+  - id: security-monitoring.triage.no-repeat-dispatch
+    type: invariant
+    must: Each observation is dispatched to triage at most once per material change. At most one triage chat runs at a time, and observations found while it runs wait for the next run instead of starting a parallel chat. An observation that is already triaged, being triaged or attached to an open incident never starts a new chat because the operator has not yet acted, acknowledged or read a notification. Unresolved incidents are carried forward in the daily digest and their open Task instead. Re-triage happens only on a material change, namely a new affected asset version or environment, a severity increase, first known exploitation, a public exploit, or a changed or withdrawn advisory, and the reason is recorded.
+    depends_on: [models.Observation, models.TriageVerdict]
+  - id: security-monitoring.triage.untrusted-input
+    type: security
+    must: Advisory text, news, package contents and web pages are untrusted input. Instructions inside them never change the triage chat's tools, verdict schema or destination. The fix step receives only validated structured verdict fields and never raw fetched text, and repository agent configuration, hooks and instructions are loaded only from the reviewed dev revision.
+  - id: security-monitoring.release-age.routine
+    type: invariant
+    must: Routine dependency and base-image updates use only versions published at least 7 days earlier across npm, PyPI, crates and container image digests, enforced deterministically in package-manager configuration where supported and in the supply-chain check otherwise. Newly introduced transitive dependencies meet the same age. The Dependabot routine cooldown is 7 days.
+  - id: security-monitoring.release-age.security-priority
+    type: behavior
+    must: Security fixes bypass the routine wait. The fix selects the oldest version that resolves the advisory, not the latest. Age is measured from the fixed version's publication. A fixed version at least 72 hours old may be applied immediately. A younger version may be applied only for an urgent verdict that found the issue reachable and either internet-facing or known exploited, and only if deterministic checks pass, namely no malicious-package record, the same publisher or trusted-publishing identity as the previous version, and no new install scripts, dependencies, or obfuscated or binary content in the diff from the previous version. Otherwise an allowlisted mitigation is applied, and the version bump is scheduled once it qualifies.
+  - id: security-monitoring.autofix.guarded-dev-only
+    type: security
+    must: Only an urgent verdict with an allowlisted fix class (dependency or lockfile bump, base-image digest bump, malicious-package removal, configuration mitigation) starts a separate fix chat. It works in its own session workspace, cannot modify agent configuration, CI workflows, deployment templates, secrets or the security monitoring code itself, must pass the release-age rules and isolated CI, and publishes only to the dev branch and dev server through the standard session deploy. A failed dev smoke check after deploy reverts the change. Auto-fixes are rate limited per day. Production deploys, server patching, reboots and secret rotation are never performed automatically and are listed as manual actions.
+    depends_on: [models.TriageVerdict.proposed_fix]
+  - id: security-monitoring.notifications.deterministic-dual-channel
+    type: behavior
+    must: Notifications are rendered by deterministic templates from verdict and run records, never written or sent by an agent, and delivered to a dedicated security Discord webhook and through the security-reporting email delivery. Urgent verdicts and SSH or host intrusion alerts send Discord and email immediately. Fix-soon verdicts send Discord immediately, create an OpenMates Task, and appear in the email digest. Low and not-affected outcomes appear only in the daily digest. Each immediate message states the advisory, affected environments, verdict with evidence summary, what was done automatically (commit and dev deploy state), and an explicit operator checklist of remaining manual actions. Each incident notifies once per channel.
+  - id: security-monitoring.health.no-silent-failure
+    type: failure
+    must: A failed or incomplete source query, failed or timed-out triage, a fix that fails CI or is reverted, a stale host report, a stopped watcher, or an exhausted run or fix limit with pending urgent work each produce an immediate deterministic Discord and email alert. The daily digest confirms the watcher ran and lists coverage, so absence of alerts is never the only evidence of safety.
+  - id: security-monitoring.content.boundary
+    type: privacy
+    must: Discord and email messages contain advisory identifiers, affected asset names and versions, environments, verdicts, commit references and checklists only. They never contain secrets, credentials, raw host reports, server IP addresses, login source addresses, raw agent transcripts, exploit code or user data. Host reports and triage transcripts stay on the dev server outside git with bounded retention.
+
+applies_to:
+  rest_api:
+    required: false
+    role: No public API. The host-report collector listens only on the private network.
+  cli:
+    required: true
+    role: The OpenMates server-management CLI installs and updates the host reporter on core, upload and preview servers. The watcher and triage dispatch are engineering scripts.
+  sdks:
+    required: false
+    role: No npm or pip SDK surface.
+    implementations:
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: false
+    role: Operator Discord and email output only.
+    implementations:
+      web: {required: false}
+      apple: {required: false}
+    exceptions: []
+  systems: [dev_server, prod_server, upload_server, preview_server, vercel, github]
+
+examples:
+  file: examples.yml
+  required_groups: [inventory, matching, host_reports, ssh, triage, triage_dispatch, untrusted_input, release_age, autofix, notifications, health, content_boundary]

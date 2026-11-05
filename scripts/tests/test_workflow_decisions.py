@@ -175,3 +175,42 @@ def test_missing_history_does_not_restart_stopped_work_or_grant_a_pass():
         matching_receipt([record], preserve_stop=True, **scope)["provenance_status"]
         == "unavailable"
     )
+
+
+CLAUDE_SESSION = "6f1c2b9e-3d4a-4c1e-9a2b-1234567890ab"
+
+
+def _write_claude_transcript(home, rows):
+    import json
+
+    project = home / "projects" / "-home-dev-project"
+    project.mkdir(parents=True)
+    (project / f"{CLAUDE_SESSION}.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+
+
+def test_claude_transcript_human_turn_is_the_decision_source(tmp_path, monkeypatch):
+    import _workflow_decisions as decisions
+
+    human = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    _write_claude_transcript(tmp_path, [
+        {"type": "user", "uuid": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "sessionId": CLAUDE_SESSION,
+         "message": {"role": "user", "content": [{"type": "tool_result", "content": "Stop the UI proof"}]}},
+        {"type": "user", "uuid": "cccccccc-cccc-4ccc-8ccc-cccccccccccc", "sessionId": CLAUDE_SESSION,
+         "origin": {"kind": "task-notification"}, "message": {"role": "user", "content": "Stop the UI proof"}},
+        {"type": "user", "uuid": human, "sessionId": CLAUDE_SESSION, "origin": {"kind": "human"},
+         "message": {"role": "user", "content": "Please stop the UI proof for this task."}},
+        {"type": "assistant", "uuid": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+         "message": {"role": "assistant", "content": "Stop the UI proof"}},
+    ])
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path))
+    source = {"provider": "claude", "session_id": CLAUDE_SESSION, "message_id": ""}
+    source["message_id"] = decisions.find_user_message_id(source, "stop the UI proof")
+    assert source["message_id"] == human
+    record = make_receipt(target="task-1", surface="proof", revision="abc1234", decision="stop",
+                          source=source, quote="stop the UI proof")
+    assert record["source"]["provider"] == "claude"
+    assert matching_receipt([record], target="task-1", surface="proof", revision="abc1234")
+    with pytest.raises(ValueError):
+        decisions.read_user_message({**source, "message_id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc"})
+    with pytest.raises(ValueError, match="invalid Claude session id"):
+        decisions.read_user_message({**source, "session_id": "../escape"})

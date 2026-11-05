@@ -7,6 +7,7 @@ import path from 'node:path';
 
 // Tooling contract: landing conversion must not silently publish an example
 // without the real source conversation's follow-up suggestions.
+// contract-test: supporting surface=gui.web assertions=public-example-chats.admission.reviewed-complete
 test('landing conversion requires source follow-ups without rejecting legacy conversion', () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'example-followups-'));
   const fixture = path.join(directory, 'chat.json');
@@ -53,6 +54,7 @@ import {
   withPromotedAppSkillUseMessages,
 } from '../create-example-chat-from-share.mjs';
 
+// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
 test('strips private generated files encoded as a delimiter-bearing TOON array', () => {
   const source = 'app_id: images\nstatus: finished\nfiles[3:]:\n'
     + '  - variant: preview\n    s3_key: private-object\n    width: 1024\n'
@@ -79,6 +81,7 @@ test('validates research citations against the complete shared group and rejects
   assert.throws(() => validateExtractedChat({ ...chat, sub_chats: [] }), /embed refs not present/);
 });
 
+// contract-test: supporting surface=gui.web assertions=public-example-chats.admission.reviewed-complete
 test('reads generated catalog order after embedded CSS border declarations', () => {
   const source = formatTs({
     chat_id: 'source-chat',
@@ -116,6 +119,7 @@ test('converts a real multi-skill focus activation to its public renderer type w
   assert.equal(embed.type, 'focus_mode_activation');
 });
 
+// contract-test: supporting surface=gui.web assertions=public-example-chats.admission.reviewed-complete
 test('normalizes only a leading UI model selection while preserving typed prose and model provenance', () => {
   const prose = 'Could you summarize this PDF?\nPlease focus on the budget.';
   const chat = normalizeLeadingModelSelection({
@@ -143,6 +147,7 @@ test('normalizes only a leading UI model selection while preserving typed prose 
   assert.match(rendered, /"model_name": "Gemini 3\.5 Pro"/);
 });
 
+// contract-test: supporting surface=gui.web assertions=public-example-chats.admission.reviewed-complete
 test('normalizes a providerless CLI model selector only when the real reply confirms its model', () => {
   const prose = 'I need an English-speaking GP appointment in Berlin next week.';
   const chat = normalizeLeadingModelSelection({
@@ -162,6 +167,7 @@ test('normalizes a providerless CLI model selector only when the real reply conf
   assert.equal(chat.messages[2].source_model_selection, undefined);
 });
 
+// contract-test: supporting surface=gui.web assertions=public-example-chats.admission.reviewed-complete
 test('leaves app directives, malformed selectors, and non-leading model text intact', () => {
   const contents = [
     '@skill:web:search Find a source',
@@ -184,6 +190,7 @@ test('leaves app directives, malformed selectors, and non-leading model text int
   assert.equal(chat.messages.at(-1).content, '@ai-model:gemini-3.5-pro:google An answer');
 });
 
+// contract-test: supporting surface=gui.web assertions=public-example-chats.admission.reviewed-complete
 test('enables model selection normalization only through the explicit import flag', () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'example-model-selection-'));
   const fixture = path.join(directory, 'chat.json');
@@ -212,6 +219,7 @@ test('enables model selection normalization only through the explicit import fla
   }
 });
 
+// contract-test: supporting surface=gui.web assertions=public-example-chats.speech.reviewed-public-playback
 test('requires reviewed content-addressed public speech fixtures', () => {
   const digest = 'a'.repeat(64);
   const chat = {
@@ -240,6 +248,7 @@ test('requires reviewed content-addressed public speech fixtures', () => {
   assert.doesNotMatch(JSON.stringify(published.public_speech), /source_chat|vault|aes|private|provider|s3_key/i);
 });
 
+// contract-test: supporting surface=gui.web assertions=public-example-chats.speech.reviewed-public-playback
 test('rejects mutable or non-S3 public speech URLs', () => {
   const chat = { chat_id: 'source-chat', messages: [{ message_id: 'assistant-1', role: 'assistant', content: 'Hello.' }], embeds: [] };
   const digest = 'a'.repeat(64);
@@ -255,6 +264,7 @@ test('rejects mutable or non-S3 public speech URLs', () => {
   assert.throws(() => attachReviewedPublicSpeech(chat, manifest(canonical, 'b'.repeat(64))), /public example S3/i);
 });
 
+// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
 test('normalizes compact weather rain radar embeds for public example rendering', () => {
   const compactContent = `app_id: weather
 skill_id: rain_radar
@@ -290,6 +300,7 @@ status: finished`;
   assert.match(sanitized, /^timeline\[2\]\{frame_id,timestamp,kind,label,rain_at_location_mm_5min,max_intensity,rain_area_pct\}:$/m);
 });
 
+// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
 test('removes standalone app-skill placeholder markers from example messages', () => {
   const sanitized = sanitizeExampleMessageContent(`Before
 
@@ -372,6 +383,7 @@ test('rejects incomplete capability examples and keeps only reviewed public appl
   assert.doesNotThrow(() => validateLandingCandidate({ ...base, embeds: [{ embed_id: 'a', type: 'application', content: JSON.stringify(safe) }] }, 'code'));
 });
 
+// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
 test('removes internal task event system messages from public examples', () => {
   const chat = removeInternalTaskEventMessages({
     chat_id: 'source-chat',
@@ -397,6 +409,7 @@ test('removes internal task event system messages from public examples', () => {
   assert.deepEqual(chat.sub_chats[0].messages.map((message) => message.message_id), ['sub-assistant-1']);
 });
 
+// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
 test('inlines embeds_map_view code embeds as message-level map-view fences', () => {
   const chat = inlineEmbedsMapViewCodeEmbeds({
     chat_id: 'source-chat',
@@ -434,6 +447,7 @@ test('inlines embeds_map_view code embeds as message-level map-view fences', () 
   assert.deepEqual(chat.embeds.map((embed) => embed.embed_id), ['place-a-id']);
 });
 
+// contract-test: supporting surface=gui.web assertions=public-example-chats.admission.reviewed-complete
 test('promotes parent app-skill embeds as markdown when child embeds are already visible', () => {
   const content = 'Routes: [08:27](embed:route-a) and [08:56](embed:route-b)';
   const chat = withPromotedAppSkillUseMessages({
@@ -492,6 +506,7 @@ test('promotes saved sub-chat skill parents once when the root needs no promotio
   assert.equal(source.sub_chats[0].messages[0].content, 'Full child report.');
 });
 
+// contract-test: supporting surface=gui.web assertions=public-example-chats.admission.reviewed-complete
 test('promotes unreferenced parent app-skill embeds as markdown references', () => {
   const chat = withPromotedAppSkillUseMessages({
     chat_id: 'source-chat',
@@ -579,6 +594,7 @@ test('admits an original user video in either registered spelling only with comp
   }
 });
 
+// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
 test('keeps code image-to-html app-skill promotion as JSON for audit compatibility', () => {
   const chat = withPromotedAppSkillUseMessages({
     chat_id: 'source-chat',
@@ -601,6 +617,7 @@ test('keeps code image-to-html app-skill promotion as JSON for audit compatibili
   assert.match(chat.messages[0].content, /^```json\n\{"type":"app_skill_use","embed_id":"parent-skill-use"/);
 });
 
+// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
 test('continues to strip private encrypted storage fields', () => {
   const sanitized = sanitizeEmbedContent(`app_id: weather
 skill_id: rain_radar
@@ -706,6 +723,7 @@ status: finished`);
   assert.match(sanitized, /^status: finished$/m);
 });
 
+// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
 test('strips nested screenshot storage metadata and preserves following public fields', () => {
   const sanitized = sanitizeEmbedContent(`type: document
 title: Public document
@@ -723,6 +741,7 @@ summary: Public summary`);
   assert.match(sanitized, /^summary: Public summary$/m);
 });
 
+// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
 test('strips private generated audio columns from app-skill result tables', () => {
   const sanitized = sanitizeEmbedContent(`app_id: audio
 skill_id: speak
@@ -741,6 +760,7 @@ status: finished`);
   );
 });
 
+// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
 test('strips transient task persistence fields from static task embeds', () => {
   const sanitized = sanitizeEmbedContent(`type: task
 parent_app_skill_type: app_skill_use
@@ -757,6 +777,7 @@ embed_ref: review-transcript`);
   assert.match(sanitized, /^status: todo$/m);
 });
 
+// contract-test: supporting surface=gui.web assertions=public-example-chats.admission.reviewed-complete
 test('annotates example chats with full usage entries and summed response credits', () => {
   const chat = {
     chat_id: 'source-chat',
@@ -808,6 +829,7 @@ test('annotates example chats with full usage entries and summed response credit
   assert.deepEqual(annotated.sub_chats[0].usage_entries.map((entry) => entry.id), ['source-sub-chat-usage-1']);
 });
 
+// contract-test: supporting surface=gui.web assertions=public-example-chats.admission.reviewed-complete
 test('serializes full usage entries into generated example chat data', () => {
   const chat = annotateChatWithUsage({
     chat_id: 'source-chat',
@@ -871,6 +893,7 @@ test('serializes full usage entries into generated example chat data', () => {
 
 // Explicit public fixtures carry only reviewed fictional mapping sidecars.
 // Conversion must preserve both supported locations without inventing mappings.
+// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
 test('preserves explicit public PII mappings on messages and embeds', () => {
   const mappings = [
     { placeholder: '[EMAIL_1_com]', original: 'lena.hoffmann@example.com', type: 'EMAIL' },
@@ -895,4 +918,96 @@ test('preserves explicit public PII mappings on messages and embeds', () => {
   assert.deepEqual(embeds[0].pii_mappings, mappings);
   assert.equal(Object.hasOwn(embeds[1], 'pii_mappings'), false);
   assert.equal(embeds[0].content, 'content: Contact [EMAIL_1_com] or [PHONE_1_147]');
+});
+
+// Structural conversion fixtures only; never a transcript or a publishable example.
+function authoredConversionFixture(toon = false) {
+  const ids = ['film', 'event', 'series'];
+  const items = ids.map((embed_id, index) => ({ embed_id, kind: ['tv.movie', 'events.event', 'tv.series'][index],
+    title: ['Film "Example", subtitle', 'Event', 'Series'][index], embed_ref: `${embed_id}-ref` }));
+  const graph = { type: 'authored_results', embed_ids: ids, items, view: { mode: 'cards', embeds: ['film', 'event'] } };
+  const carrier = { embed_id: 'carrier', type: 'authored_results', embed_ids: null, parent_embed_id: null,
+    content: toon ? 'type: authored_results\nembed_ids[3]: film,event,series\nitems[3]{embed_id,kind,title,embed_ref}:\n'
+      + '  film,tv.movie,"Film \\"Example\\", subtitle",film-ref\n  event,events.event,Event,event-ref\n'
+      + '  series,tv.series,Series,series-ref\nview:\n  mode: cards\n  embeds[2]: film,event'
+      : JSON.stringify(graph) };
+  const children = items.map((item, index) => ({ embed_id: item.embed_id, parent_embed_id: 'carrier', embed_ids: null,
+    type: ['tv_movie', 'event', 'tv_series'][index],
+    content: toon ? `type: ${['tv_movie', 'event', 'tv_series'][index]}\ntitle: ${item.embed_id}\nauthoring:\n  kind: ${item.kind}\n  origin: researched`
+      : JSON.stringify({ type: ['tv_movie', 'event', 'tv_series'][index], title: item.title,
+        authoring: { kind: item.kind, origin: 'researched', sources: [{ url: 'https://example.org/source', label: 'Source' }],
+          images: ['https://example.org/licensed-venue.jpg'] } }) }));
+  return { chat_id: 'structural-fixture', messages: [{ message_id: 'fixture-message', role: 'assistant', content: '[!](embed:carrier)' }],
+    embeds: [children[2], carrier, children[1], children[0]] };
+}
+
+const authoredFormatMetadata = {
+  slug: 'structural-authored-fixture', snake: 'structural_authored_fixture', chatId: 'example-structural-authored-fixture',
+  title: 'Structural fixture', summary: '', icon: 'code', category: 'general_knowledge',
+  keywords: [], followUps: [], featured: false, order: 1, appSkillExamples: [],
+  appFocusModeExamples: [], appSettingsMemoryExamples: [], contentEmbedExamples: [], activeFocusId: null,
+};
+
+// contract-test: supporting surface=gui.web assertions=authored-results.lifecycle.encrypted-and-stable,public-example-chats.surface.semantic-parity
+for (const toon of [false, true]) test(`preserves authored carrier order and real mixed TV types (${toon ? 'TOON' : 'JSON'})`, () => {
+  const chat = authoredConversionFixture(toon);
+  const original = structuredClone(chat);
+  assert.doesNotThrow(() => validateExtractedChat(chat));
+  const generated = formatTs(chat, authoredFormatMetadata);
+  const embeds = JSON.parse(generated.match(/  embeds: (\[[\s\S]*?\n\]),/)[1]);
+  assert.deepEqual(embeds.find((embed) => embed.embed_id === 'carrier').embed_ids, ['film', 'event', 'series']);
+  assert.deepEqual(embeds.map((embed) => embed.type), ['tv_series', 'authored_results', 'event', 'tv_movie']);
+  assert.equal(embeds.find((embed) => embed.embed_id === 'film').content, original.embeds[3].content);
+  assert.deepEqual(chat, original);
+});
+
+// contract-test: supporting surface=gui.web assertions=authored-results.lifecycle.encrypted-and-stable,public-example-chats.transcript.safe-rendering
+test('rejects incomplete, reordered, foreign-parent or mistyped authored result graphs', () => {
+  const mutations = [
+    (chat) => { chat.embeds = chat.embeds.filter((embed) => embed.embed_id !== 'film'); },
+    (chat) => { chat.embeds[3].parent_embed_id = 'foreign-carrier'; },
+    (chat) => { chat.embeds[1].embed_ids = ['series', 'event', 'film']; },
+    (chat) => { chat.embeds[3].type = 'app_skill_use'; },
+    (chat) => { chat.embeds[3].content = chat.embeds[3].content.replace('tv.movie', 'tv.series'); },
+    (chat) => { chat.embeds.push({ ...chat.embeds[3], embed_id: 'unselected' }); },
+    (chat) => { chat.embeds.push({ ...chat.embeds[3] }); },
+    (chat) => { const graph = JSON.parse(chat.embeds[1].content); graph.view.embeds = ['unselected']; chat.embeds[1].content = JSON.stringify(graph); },
+    (chat) => { chat.sub_chats = [{ chat_id: 'other-chat', messages: [{ role: 'assistant', content: 'Structural child.' }], embeds: [chat.embeds.pop()] }]; },
+  ];
+  for (const mutate of mutations) {
+    const chat = authoredConversionFixture();
+    mutate(chat);
+    assert.throws(() => validateExtractedChat(chat), /Authored result/i);
+  }
+});
+
+// contract-test: supporting surface=gui.web assertions=authored-results.media.safe-and-attributed,public-example-chats.transcript.safe-rendering
+test('removes entire selected encrypted media and raw transport blocks while preserving public provenance', () => {
+  const content = {
+    type: 'event', title: 'Venue', authoring: { kind: 'events.event', origin: 'user_provided', observed_at: '2026-10-26T10:00:00+01:00',
+      sources: [{ url: 'https://example.org/source', label: 'Source' }], images: ['https://example.org/licensed-venue.jpg'] },
+    authored_media: [{ source_embed_id: 'private-upload', aes_key: 'private-aes', aes_nonce: 'private-nonce',
+      s3_base_url: 'https://private-bucket.example', files: { preview: { s3_key: 'private-file' } } }],
+    source_json: '{"owner_id":"private-owner","aes_key":"private-key"}', hashed_user_id: 'private-hash',
+    hashed_team_id: 'private-team-owner',
+  };
+  const sanitized = JSON.parse(sanitizeEmbedContent(JSON.stringify(content)));
+  assert.deepEqual(sanitized, { type: content.type, title: content.title, authoring: content.authoring });
+  const toon = 'type: event\nauthoring:\n  origin: user_provided\n  images[1]: https://example.org/licensed-venue.jpg\n'
+    + 'authored_media[1]:\n  - source_embed_id: private-upload\n    aes_key: private-aes\n    files:\n      preview:\n        s3_key: private-file\n'
+    + 'source_json: "{\\"user_id\\":\\"private-owner\\"}"\nhashed_user_id: private-hash\ntitle: Venue';
+  const cleanToon = sanitizeEmbedContent(toon);
+  assert.doesNotMatch(cleanToon, /private-|authored_media|source_json|hashed_user_id/);
+  assert.match(cleanToon, /origin: user_provided/);
+  assert.match(cleanToon, /https:\/\/example.org\/licensed-venue.jpg/);
+});
+
+// contract-test: supporting surface=gui.web assertions=authored-results.media.safe-and-attributed,public-example-chats.transcript.safe-rendering
+test('fails publication conversion clearly rather than silently removing a requested encrypted photo', () => {
+  const chat = authoredConversionFixture();
+  const child = JSON.parse(chat.embeds[3].content);
+  child.authored_media = [{ aes_key: 'private-key', files: { preview: { s3_key: 'private-file' } } }];
+  chat.embeds[3].content = JSON.stringify(child);
+  assert.throws(() => validateExtractedChat(chat), /selected encrypted authored media/);
+  assert.throws(() => formatTs(chat, authoredFormatMetadata), /does not silently omit selected photos/);
 });

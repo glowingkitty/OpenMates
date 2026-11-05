@@ -39,7 +39,7 @@ def test_write_claim_conflict_message_is_actionable_not_a_naked_id() -> None:
             "task": "Strengthen epoch-one recovery request-correlation verification",
             "last_active": sessions._now_iso(),
             "zellij_session": "recovery-worker",
-            "codex_task_id": "codex-task-123",
+            "agent_task_id": "agent-task-123",
         },
     )
 

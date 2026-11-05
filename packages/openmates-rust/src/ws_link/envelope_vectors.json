@@ -1,0 +1,145 @@
+{
+ "generator": "websocketService.ts onmessage envelope rule (node JSON.parse)",
+ "vectors": [
+  {
+   "frame": "{\"type\":\"pong\"}",
+   "type": "pong",
+   "source": "whole_frame",
+   "payload": {
+    "type": "pong"
+   },
+   "error_message": null
+  },
+  {
+   "frame": "{\"type\":\"ai_message_update\",\"payload\":{\"chat_id\":\"c1\",\"sequence\":3,\"full_content_so_far\":\"Hi \\u00e9\"}}",
+   "type": "ai_message_update",
+   "source": "payload",
+   "payload": {
+    "chat_id": "c1",
+    "sequence": 3,
+    "full_content_so_far": "Hi é"
+   },
+   "error_message": null
+  },
+  {
+   "frame": "{\"type\":\"phase_1_last_chat_ready\",\"payload\":null}",
+   "type": "phase_1_last_chat_ready",
+   "source": "payload",
+   "payload": null,
+   "error_message": null
+  },
+  {
+   "frame": "{\"type\":\"webhook_chat\",\"payload\":[1,2,3]}",
+   "type": "webhook_chat",
+   "source": "payload",
+   "payload": [
+    1,
+    2,
+    3
+   ],
+   "error_message": null
+  },
+  {
+   "frame": "{\"event\":\"message_highlight_added\",\"chat_id\":\"c1\",\"highlight\":{\"id\":\"h1\"}}",
+   "type": "message_highlight_added",
+   "source": "whole_frame",
+   "payload": {
+    "event": "message_highlight_added",
+    "chat_id": "c1",
+    "highlight": {
+     "id": "h1"
+    }
+   },
+   "error_message": null
+  },
+  {
+   "frame": "{\"type\":7,\"event\":\"user_notification\",\"text\":\"x\"}",
+   "type": "user_notification",
+   "source": "whole_frame",
+   "payload": {
+    "type": 7,
+    "event": "user_notification",
+    "text": "x"
+   },
+   "error_message": null
+  },
+  {
+   "frame": "{\"type\":\"err\\\"or\\u0020x\",\"payload\":\"plain\"}",
+   "type": "err\"or x",
+   "source": "payload",
+   "payload": "plain",
+   "error_message": null
+  },
+  {
+   "frame": "{\"type\":\"error\",\"payload\":{\"message\":\"Authentication failed. Please log in again.\"}}",
+   "type": "error",
+   "source": "payload",
+   "payload": {
+    "message": "Authentication failed. Please log in again."
+   },
+   "error_message": "Authentication failed. Please log in again."
+  },
+  {
+   "frame": "{\"type\":\"error\",\"payload\":\"Session expired\"}",
+   "type": "error",
+   "source": "payload",
+   "payload": "Session expired",
+   "error_message": "Session expired"
+  },
+  {
+   "frame": "{\"type\":\"error\",\"payload\":{\"code\":\"version_conflict\",\"message\":\"Encrypted completion recovery was rejected.\"}}",
+   "type": "error",
+   "source": "payload",
+   "payload": {
+    "code": "version_conflict",
+    "message": "Encrypted completion recovery was rejected."
+   },
+   "error_message": "Encrypted completion recovery was rejected."
+  },
+  {
+   "frame": "{\"type\":\"error\",\"payload\":{\"message\":42}}",
+   "type": "error",
+   "source": "payload",
+   "payload": {
+    "message": 42
+   },
+   "error_message": null
+  },
+  {
+   "frame": "{\"payload\":{\"a\":1}}",
+   "error": "unknown_structure"
+  },
+  {
+   "frame": "[1,2]",
+   "error": "unknown_structure"
+  },
+  {
+   "frame": "\"text\"",
+   "error": "unknown_structure"
+  },
+  {
+   "frame": "null",
+   "error": "parse"
+  },
+  {
+   "frame": "{\"type\":\"pong\"",
+   "error": "parse"
+  },
+  {
+   "frame": "not json",
+   "error": "parse"
+  },
+  {
+   "frame": "  {\"type\":\"request_app_settings_memories\",\"payload\":{\"chat_id\":\"c2\",\"requested_keys\":[\"code-preferences\"]}}  ",
+   "type": "request_app_settings_memories",
+   "source": "payload",
+   "payload": {
+    "chat_id": "c2",
+    "requested_keys": [
+     "code-preferences"
+    ]
+   },
+   "error_message": null
+  }
+ ]
+}

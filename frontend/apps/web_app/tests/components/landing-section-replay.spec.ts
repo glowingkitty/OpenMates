@@ -39,12 +39,12 @@ for (const width of [390, 1440]) {
       await expect(section.locator('.story-copy')).toHaveCount(0);
       await expect(media).toHaveCount(0);
       await expect(section.getByTestId(`landing-skip-${id}`)).toBeVisible();
-      if (id === 'privacy') {
+      if (id === 'privacy' || id === 'actionable') {
         await expect(section.getByTestId('landing-feature-animation')).toHaveCount(1);
         await section.getByTestId(`landing-skip-${id}`).click();
       } else {
         await expect(section.getByTestId('landing-feature-animation')).toHaveCount(0);
-        // No invented demo: visible title time naturally reveals the real content.
+        // Other sections retain their brief title introduction.
       }
       await expect(section).toHaveAttribute('data-story-state', 'complete', { timeout: 8_000 });
       await expect(section.locator('.story-copy')).toHaveCSS('opacity', '1');
@@ -120,7 +120,7 @@ for (const width of [390, 1440]) {
     await expect(actionable).toHaveAttribute('data-story-state', 'playing');
     await expect(actionable.getByTestId('landing-skip-actionable')).toBeVisible();
     await expect(actionable.getByTestId('landing-feature-media-actionable')).toHaveCount(0);
-    await expect(actionable.getByTestId('landing-feature-animation')).toHaveCount(0);
+    await expect(actionable.getByTestId('landing-feature-animation')).toHaveCount(1);
     await actionable.getByTestId('landing-skip-actionable').click();
     await expect(actionable).toHaveAttribute('data-story-state', 'complete');
     await expect(actionable.locator('.story-copy p')).toBeVisible();

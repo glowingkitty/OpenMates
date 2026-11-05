@@ -266,7 +266,10 @@ class ElevenLabsRealtimeSession:
         empty_audio_noop = (value.get("audio") == "" and not final and not final_for_turn
                             and value.get("alignment") is None and set(value) <= noop_fields)
         terminal_empty_audio = (final or final_for_turn) and value.get("audio") in (None, "")
-        if "audio" in value and not terminal_empty_audio and not empty_audio_noop:
+        # Real v4 also sends alignment for already-delivered audio with
+        # {"audio":""}; it carries timing only and must not fail the turn.
+        alignment_only = value.get("audio") == "" and isinstance(value.get("alignment"), dict)
+        if "audio" in value and not terminal_empty_audio and not empty_audio_noop and not alignment_only:
             encoded = value["audio"]
             if not isinstance(encoded, str) or not encoded or len(encoded) > (MAX_AUDIO_CHUNK_BYTES + 2) // 3 * 4:
                 raise ElevenLabsRealtimeError("audio_limit")

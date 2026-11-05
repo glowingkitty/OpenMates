@@ -1,6 +1,5 @@
 """Guard the component-first UI verification workflow.
 
-The canonical Claude skill and generated Codex mirror must stay equal.
 The contract requires URL-configured bare previews and a dedicated component
 spec directory before broader use-case Playwright verification.
 """
@@ -12,11 +11,6 @@ from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 CANONICAL_SKILL = REPOSITORY_ROOT / ".claude/skills/verify-component-preview/SKILL.md"
-MIRRORED_SKILL = REPOSITORY_ROOT / ".agents/skills/verify-component-preview/SKILL.md"
-
-
-def test_component_preview_skill_mirror_matches_canonical() -> None:
-    assert MIRRORED_SKILL.read_text(encoding="utf-8") == CANONICAL_SKILL.read_text(encoding="utf-8")
 
 
 def test_component_preview_skill_requires_bare_component_first() -> None:

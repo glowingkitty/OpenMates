@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openmates.org/schemas/sdk-capabilities-v1.json",
+  "title": "OpenMates cross-SDK capability and conformance matrix",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "languages", "fixture", "capabilities"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "languages": {"const": ["rust", "npm", "python"]},
+    "fixture": {"const": "tests/sdk-conformance/fixtures/core.json"},
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/capability"}
+    }
+  },
+  "$defs": {
+    "support": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "api", "evidence", "gaps", "conformance"],
+      "properties": {
+        "status": {"enum": ["implemented", "partial", "missing"]},
+        "api": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "evidence": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "gaps": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 12}},
+        "conformance": {"type": "boolean"}
+      },
+      "allOf": [
+        {"if": {"properties": {"status": {"const": "implemented"}}}, "then": {"properties": {"evidence": {"minItems": 1}, "gaps": {"maxItems": 0}, "conformance": {"const": true}}}},
+        {"if": {"properties": {"status": {"enum": ["partial", "missing"]}}}, "then": {"properties": {"gaps": {"minItems": 1}}}}
+      ]
+    },
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "description", "domain", "languages"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z][a-z0-9.-]+$"},
+        "description": {"type": "string", "minLength": 16},
+        "fixture": {"type": "string", "pattern": "^tests/sdk-conformance/fixtures/[a-z0-9][a-z0-9.-]*\\.json$"},
+        "domain": {"enum": ["auth", "operations", "encryption", "streaming", "recovery", "errors", "configuration"]},
+        "languages": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["rust", "npm", "python"],
+          "properties": {
+            "rust": {"$ref": "#/$defs/support"},
+            "npm": {"$ref": "#/$defs/support"},
+            "python": {"$ref": "#/$defs/support"}
+          }
+        }
+      }
+    }
+  }
+}

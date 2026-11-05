@@ -16,6 +16,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import HTTPException
+from starlette.datastructures import Headers
 
 from backend.core.api.app.utils import api_key_auth
 
@@ -84,8 +85,8 @@ async def test_unified_auth_preserves_api_key_device_approval_error(monkeypatch)
     )
 
     request = SimpleNamespace(
-        headers={"Authorization": "Bearer sk-api-test"},
-        app=SimpleNamespace(state=SimpleNamespace()),
+        headers=Headers({"Authorization": "Bearer sk-api-test"}),
+        app=SimpleNamespace(headers=Headers({}), state=SimpleNamespace()),
     )
 
     with pytest.raises(HTTPException) as exc:
@@ -119,7 +120,7 @@ async def test_session_auth_state_uses_server_associated_connection_hash(monkeyp
                 }
             }
 
-    request = SimpleNamespace(state=SimpleNamespace())
+    request = SimpleNamespace(headers=Headers({}), state=SimpleNamespace())
 
     await _set_session_auth_state(request, Cache(), "user-1", refresh_token)
 
@@ -184,7 +185,7 @@ async def test_unified_auth_does_not_turn_temporary_refresh_failure_into_unautho
         auth_dependencies, "get_current_user",
         AsyncMock(side_effect=HTTPException(status_code=503, detail="Session verification temporarily unavailable")),
     )
-    request = SimpleNamespace(headers={}, state=SimpleNamespace())
+    request = SimpleNamespace(headers=Headers({}), state=SimpleNamespace())
     with pytest.raises(HTTPException) as error:
         await auth_dependencies.get_current_user_or_api_key(
             request=request, response=SimpleNamespace(),
@@ -192,3 +193,32 @@ async def test_unified_auth_does_not_turn_temporary_refresh_failure_into_unautho
             refresh_token="old-secret",
         )
     assert error.value.status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_authenticated_cookie_switch_after_fresh_proof_cannot_reach_business_effect(monkeypatch):
+    _stub_auth_dependency_imports(monkeypatch)
+    from backend.core.api.app.routes.auth_routes import auth_dependencies as auth
+    from starlette.requests import Request
+    owner_a = "11111111-1111-4111-8111-111111111111"
+    owner_b = "22222222-2222-4222-8222-222222222222"
+    async def resolved(_cache, _directus, token, **_kwargs):
+        return token
+    monkeypatch.setattr(auth, "resolve_session_credential", resolved)
+    monkeypatch.setattr(auth, "ensure_legacy_session_state", AsyncMock())
+    monkeypatch.setattr(auth, "queue_rotated_session_cookie", AsyncMock())
+    async def cached(token):
+        return {"user_id": owner_a if token == "cookie-a" else owner_b, "username": "synthetic", "vault_key_id": "synthetic"}
+    cache = SimpleNamespace(get_user_by_token=cached, get=AsyncMock(return_value={}))
+    directus = SimpleNamespace(admin=SimpleNamespace(repair_cached_admin_status=AsyncMock()))
+    request = Request({"type": "http", "headers": [(b"x-openmates-expected-principal", owner_a.encode())]})
+    fresh = await auth.get_current_user(directus, cache, "cookie-a", SimpleNamespace(), request)
+    assert fresh.id == owner_a
+    effects = []
+    async def mutation(cookie):
+        user = await auth.get_current_user(directus, cache, cookie, SimpleNamespace(), request)
+        effects.append(user.id)
+    with pytest.raises(HTTPException) as error:
+        await mutation("cookie-b")
+    assert error.value.status_code == 403 and effects == []
+    assert error.value.detail == {"error": "session_principal_mismatch"}

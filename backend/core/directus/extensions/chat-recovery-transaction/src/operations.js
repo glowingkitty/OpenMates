@@ -181,7 +181,7 @@ const OPERATION_FIELDS = Object.freeze({
     'protocol_version', 'record_id', 'hashed_user_id', 'root_chat_id', 'target_chat_id',
     'turn_id', 'preflight_id', 'inference_task_id', 'subject_id', 'output_kind',
     'output_version', 'chat_key_version', 'message_role', 'sealed_payload', 'payload_s3_key',
-    'payload_size_bytes', 'sealed_payload_digest', 'payload_verified_regions',
+    'payload_size_bytes', 'sealed_payload_digest', 'payload_verified_regions', 's3_file_keys', 'hashed_message_id',
     'producer_intent_id', 'producer_ordinal', 'producer_task_name',
     'producer_kwargs_binding', 'content_commitment',
   ]),
@@ -189,7 +189,7 @@ const OPERATION_FIELDS = Object.freeze({
     'protocol_version', 'record_id', 'hashed_user_id', 'root_chat_id', 'target_chat_id',
     'turn_id', 'preflight_id', 'inference_task_id', 'subject_id', 'output_kind',
     'output_version', 'chat_key_version', 'message_role', 'payload_s3_key',
-    'payload_size_bytes', 'sealed_payload_digest',
+    'payload_size_bytes', 'sealed_payload_digest', 's3_file_keys', 'hashed_message_id',
     'producer_intent_id', 'producer_ordinal', 'producer_task_name',
     'producer_kwargs_binding', 'content_commitment',
   ]),
@@ -222,12 +222,12 @@ const OPERATION_FIELDS = Object.freeze({
   ]),
   get_producer_output: new Set([
     'protocol_version', 'producer_intent_id', 'task_name', 'kwargs_binding',
-    'ordinal', 'content_commitment',
+    'ordinal', 'content_commitment', 'hashed_message_id',
   ]),
   get_replay_output: new Set([
     'protocol_version', 'record_id', 'hashed_user_id', 'preflight_id',
     'root_chat_id', 'target_chat_id', 'subject_id', 'output_kind',
-    'output_version', 'content_commitment',
+    'output_version', 'content_commitment', 'hashed_message_id',
   ]),
   classify_untagged_output_producer: new Set([
     'protocol_version', 'task_uuid', 'task_name', 'hashed_user_id',
@@ -306,7 +306,7 @@ const OPERATION_FIELDS = Object.freeze({
     'protocol_version', 'job_id', 'hashed_user_id', 'device_hash', 'lease_generation',
     'lease_token', 'expected_messages_v', 'encrypted_assistant_message',
   ]),
-  invalidate_deletion: new Set(['protocol_version', 'hashed_user_id', 'scope', 'chat_id', 'device_hash', 'empty_call_cleanup']),
+  invalidate_deletion: new Set(['protocol_version', 'hashed_user_id', 'scope', 'chat_id', 'device_hash', 'empty_call_cleanup', 'message_id']),
   invalidate_rewind: new Set(['protocol_version', 'hashed_user_id', 'chat_id']),
   lookup_chat_deletion_fences: new Set(['protocol_version', 'hashed_user_id', 'chat_ids']),
   cleanup_expired: new Set(['protocol_version', 'failure_alerts_enabled']),
@@ -337,6 +337,17 @@ const OPERATION_FIELDS = Object.freeze({
     'first_message_id', 'hashed_team_id', 'task_identity', 'celery_task_id',
     'members', 'batch_commitment',
   ]),
+  register_legacy_output_asset_references: new Set([
+    'protocol_version', 'task_identity', 'actor_user_id', 'hashed_user_id', 'root_chat_id', 'root_turn_id',
+    'root_user_message_id', 'target_chat_id', 'primary_message_id', 'embed_id', 'output_version',
+    'parent_embed_id', 'content_commitment', 's3_file_keys',
+  ]),
+  get_legacy_output_asset_binding: new Set([
+    'protocol_version', 'hashed_user_id', 'target_chat_id', 'embed_id', 'output_version',
+    'hashed_message_id', 'parent_embed_id',
+  ]),
+  inspect_output_asset_references: new Set(['protocol_version', 'hashed_user_id', 'embed_ids', 'target_chat_ids', 'after', 'hashed_message_id']),
+  release_output_asset_references: new Set(['protocol_version', 'hashed_user_id', 'slots']),
   mark_legacy_inference_completed: new Set(['protocol_version', 'task_identity']),
   acknowledge_legacy_persistence: new Set([
     'protocol_version', 'task_identity', 'chat_id', 'hashed_user_id',
@@ -2699,6 +2710,17 @@ const stablePreflightUuid = (preflightId, name) => {
   const hex = bytes.toString('hex');
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 };
+const messageDeletionFenceId = (ownerHash, chatId, messageHash) => stablePreflightUuid(
+  '00000000-0000-0000-0000-000000000000',
+  `message-delete:${ownerHash}:${hashIdentifier(chatId)}:${messageHash}`,
+);
+async function messageDeletionFenced(trx, ownerHash, chatId, messageHash) {
+  if (messageHash == null) return false;
+  return Boolean(await trx(CHAT_DELETION_FENCES).where({
+    id: messageDeletionFenceId(ownerHash, chatId, messageHash), scope: 'message',
+    hashed_user_id: ownerHash, chat_id: chatId, hashed_message_id: messageHash,
+  }).first());
+}
 
 async function holdInferenceOutbox(trx, row, ownerHash, taskId, billingId, outboxId, now) {
   await trx(OUTBOX).insert({
@@ -4282,6 +4304,7 @@ async function getProducerOutput(database, raw) {
   const ordinal = integer(body.ordinal, 'invalid_producer_ordinal');
   const commitment = body.content_commitment === undefined
     ? null : hexDigest(body.content_commitment, 'invalid_content_commitment');
+  const messageHash = body.hashed_message_id == null ? null : hexDigest(body.hashed_message_id, 'invalid_message_id');
   return database.transaction(async (trx) => {
     const intent = await registeredProducer(trx, id, name, binding, true);
     await checkedProducerAuthority(trx, intent);
@@ -4289,6 +4312,8 @@ async function getProducerOutput(database, raw) {
     const row = await trx(OUTPUTS).where({ producer_intent_id: id, producer_ordinal: ordinal }).first();
     if (!row) return { status: 'ABSENT' };
     if (row.deleted_at || row.state === 'DELETED') fail(409, 'producer_output_invalidated');
+    if ((row.hashed_message_id ?? null) !== messageHash) fail(409, 'producer_content_mismatch');
+    if (await messageDeletionFenced(trx, row.hashed_user_id, row.target_chat_id, messageHash)) fail(409, 'message_output_deleted');
     if (commitment === null) return { status: row.state, record_id: row.id };
     if (row.content_commitment !== commitment) fail(409, 'producer_content_mismatch');
     return {
@@ -4367,6 +4392,7 @@ async function getReplayOutput(database, raw, transaction = null) {
     output_kind: string(body.output_kind, 'invalid_output_kind', 24),
     output_version: integer(body.output_version, 'invalid_output_version'),
     content_commitment: hexDigest(body.content_commitment, 'invalid_content_commitment'),
+    hashed_message_id: body.hashed_message_id == null ? null : hexDigest(body.hashed_message_id, 'invalid_message_id'),
   };
   const run = async (trx) => {
     await requireUnfencedRecoveryAccount(trx, identity.hashed_user_id);
@@ -4377,10 +4403,13 @@ async function getReplayOutput(database, raw, transaction = null) {
       || preflight.chat_id !== identity.root_chat_id) fail(409, 'inference_not_running');
     await authorizedOutputChat(trx, identity.root_chat_id, identity.hashed_user_id);
     await authorizedOutputChat(trx, identity.target_chat_id, identity.hashed_user_id);
+    if (await messageDeletionFenced(trx, identity.hashed_user_id, identity.target_chat_id, identity.hashed_message_id)) {
+      fail(409, 'message_output_deleted');
+    }
     const row = await trx(OUTPUTS).where({ id: identity.id }).forUpdate().first();
     if (!row) return { status: 'ABSENT' };
     if (row.producer_intent_id || row.deleted_at
-      || Object.entries(identity).some(([key, value]) => row[key] !== value)) {
+      || Object.entries(identity).some(([key, value]) => (key === 'hashed_message_id' ? row[key] ?? null : row[key]) !== value)) {
       fail(409, 'replay_output_mismatch');
     }
     return { status: row.state, ...producerOutputReceipt(row) };
@@ -4400,6 +4429,343 @@ function producerOutputReceipt(row) {
   };
 }
 
+function outputS3FileKeys(raw) {
+  if (raw == null) return null;
+  if (!Array.isArray(raw) || raw.length > 64) fail(400, 'invalid_output_s3_file_keys');
+  const seen = new Set();
+  return raw.map((value) => {
+    const entry = exactKeys(value, new Set(['bucket', 'key']), ['bucket', 'key'], 'invalid_output_s3_file_keys');
+    if (entry.bucket !== 'chatfiles' || typeof entry.key !== 'string' || !entry.key.trim()
+      || Array.from(entry.key).length > 4096 || seen.has(entry.key)) fail(400, 'invalid_output_s3_file_keys');
+    seen.add(entry.key);
+    return { bucket: 'chatfiles', key: entry.key };
+  });
+}
+
+function storedOutputS3FileKeys(row) {
+  let value = row.s3_file_keys;
+  if (typeof value === 'string') {
+    try { value = JSON.parse(value); } catch { fail(409, 'invalid_output_s3_file_keys'); }
+  }
+  return outputS3FileKeys(value);
+}
+
+function legacyOutputAssetReferences(raw) {
+  if (raw == null) return [];
+  let values = raw;
+  if (typeof values === 'string') {
+    try { values = JSON.parse(values); } catch { fail(409, 'legacy_asset_state_corrupt'); }
+  }
+  if (!Array.isArray(values) || values.length > 128
+    || Buffer.byteLength(JSON.stringify(values), 'utf8') > 512 * 1024) fail(409, 'legacy_asset_state_corrupt');
+  const seen = new Set();
+  return values.map((value) => {
+    const entry = exactKeys(value, new Set(['embed_id', 'output_version', 'target_chat_id', 'hashed_chat_id',
+      'hashed_message_id', 'parent_embed_id', 'content_commitment', 's3_file_keys']),
+    ['embed_id', 'output_version', 'target_chat_id', 'hashed_chat_id', 'hashed_message_id', 'parent_embed_id',
+      'content_commitment', 's3_file_keys'], 'legacy_asset_state_corrupt');
+    uuid(entry.embed_id, 'legacy_asset_state_corrupt');
+    uuid(entry.target_chat_id, 'legacy_asset_state_corrupt');
+    if (integer(entry.output_version, 'legacy_asset_state_corrupt') < 1
+      || entry.hashed_chat_id !== hashIdentifier(entry.target_chat_id)) fail(409, 'legacy_asset_state_corrupt');
+    hexDigest(entry.hashed_message_id, 'legacy_asset_state_corrupt');
+    hexDigest(entry.content_commitment, 'legacy_asset_state_corrupt');
+    if (entry.parent_embed_id !== null) uuid(entry.parent_embed_id, 'legacy_asset_state_corrupt');
+    const refs = outputS3FileKeys(entry.s3_file_keys);
+    const slot = `${entry.embed_id}:${entry.output_version}`;
+    if (refs === null || seen.has(slot)) fail(409, 'legacy_asset_state_corrupt');
+    seen.add(slot);
+    return { ...entry, s3_file_keys: refs };
+  });
+}
+
+async function checkedLegacyAssetAuthority(trx, claim, targetChatId, messageHash = null) {
+  await requireUnfencedRecoveryAccount(trx, claim.hashed_user_id);
+  if (await trx(CHAT_DELETION_FENCES).whereIn('id', [...new Set([claim.chat_id, targetChatId])]).first()) {
+    fail(409, 'producer_chat_deleted');
+  }
+  if (await messageDeletionFenced(trx, claim.hashed_user_id, targetChatId, messageHash)) fail(409, 'message_output_deleted');
+  const actor = await trx('directus_users').where({ id: claim.actor_user_id }).first();
+  if (!actor || actor.status !== 'active' || hashIdentifier(claim.actor_user_id) !== claim.hashed_user_id) {
+    fail(404, 'legacy_producer_actor_not_found');
+  }
+  const root = await authorizedOutputChat(trx, claim.chat_id, claim.hashed_user_id);
+  const target = targetChatId === claim.chat_id ? root
+    : await authorizedOutputChat(trx, targetChatId, claim.hashed_user_id);
+  if ((root.hashed_team_id || null) !== (claim.hashed_team_id || null)
+    || (target.hashed_team_id || null) !== (root.hashed_team_id || null)) fail(409, 'producer_team_scope_changed');
+}
+
+async function registerLegacyOutputAssetReferences(database, raw) {
+  const body = operationBody(raw, 'register_legacy_output_asset_references');
+  const taskIdentity = hexDigest(body.task_identity, 'invalid_task_identity');
+  const actorId = uuid(body.actor_user_id, 'invalid_actor_id');
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner');
+  const rootChatId = uuid(body.root_chat_id, 'invalid_root_chat_id');
+  const targetChatId = uuid(body.target_chat_id, 'invalid_target_chat_id');
+  const rootMessageId = string(body.root_user_message_id, 'invalid_message_id', 255);
+  const primaryMessageId = string(body.primary_message_id, 'invalid_message_id', 255);
+  const rootTurnId = body.root_turn_id == null ? null : uuid(body.root_turn_id, 'invalid_turn_id');
+  const refs = outputS3FileKeys(body.s3_file_keys);
+  if (refs === null) fail(400, 'invalid_output_s3_file_keys');
+  const entry = {
+    embed_id: uuid(body.embed_id, 'invalid_embed_id'), output_version: integer(body.output_version, 'invalid_output_version'),
+    target_chat_id: targetChatId, hashed_chat_id: hashIdentifier(targetChatId),
+    hashed_message_id: hashIdentifier(primaryMessageId),
+    parent_embed_id: body.parent_embed_id == null ? null : uuid(body.parent_embed_id, 'invalid_parent_embed_id'),
+    content_commitment: hexDigest(body.content_commitment, 'invalid_content_commitment'), s3_file_keys: refs,
+  };
+  if (entry.output_version < 1 || ownerHash !== hashIdentifier(actorId)
+    || taskIdentity !== hashIdentifier(`${actorId}:${rootChatId}:${rootMessageId}`)) fail(409, 'legacy_asset_identity_mismatch');
+  return database.transaction(async (trx) => {
+    await requireUnfencedRecoveryAccount(trx, ownerHash);
+    await lockRecoveryChats(trx, rootChatId, targetChatId);
+    const claim = await trx(LEGACY_BATCH_CLAIMS).where({ task_identity: taskIdentity }).forUpdate().first();
+    if (!claim || claim.state !== 'CLAIMED' || claim.worker_completed
+      || claim.actor_user_id !== actorId || claim.hashed_user_id !== ownerHash
+      || claim.chat_id !== rootChatId || claim.first_message_id !== rootMessageId
+      || typeof claim.broker_task_id !== 'string' || !claim.broker_task_id
+      || (claim.kind === 'ORDINARY' ? !HEX_64_RE.test(claim.dispatch_binding ?? '')
+        : claim.kind !== 'BATCH' || claim.broker_task_id !== claim.id || !HEX_64_RE.test(claim.batch_commitment ?? ''))) {
+      fail(409, 'legacy_asset_claim_mismatch');
+    }
+    await checkedLegacyAssetAuthority(trx, claim, targetChatId, entry.hashed_message_id);
+    if (targetChatId === rootChatId) {
+      if (![rootMessageId, claim.broker_task_id].includes(primaryMessageId)) fail(409, 'legacy_asset_identity_mismatch');
+    } else {
+      if (!rootTurnId) fail(409, 'legacy_child_identity_mismatch');
+      const child = await trx(ORCHESTRATION_CHILDREN).where({
+        child_chat_id: targetChatId, user_message_id: primaryMessageId,
+      }).first();
+      const orchestration = child && await trx(ORCHESTRATIONS).where({ id: child.orchestration_id }).first();
+      if (!orchestration || orchestration.root_chat_id !== rootChatId || orchestration.root_turn_id !== rootTurnId
+        || orchestration.hashed_user_id !== ownerHash
+        || (orchestration.hashed_team_id || null) !== (claim.hashed_team_id || null)) fail(409, 'legacy_child_identity_mismatch');
+    }
+    const entries = legacyOutputAssetReferences(claim.output_asset_references);
+    const existing = entries.find(value => value.embed_id === entry.embed_id && value.output_version === entry.output_version);
+    if (existing) {
+      if (stableJson(existing) !== stableJson(entry)) fail(409, 'legacy_asset_reference_mismatch');
+      return { registered: true, task_identity: taskIdentity, embed_id: entry.embed_id,
+        output_version: entry.output_version, idempotent: true };
+    }
+    const next = [...entries, entry];
+    if (next.length > 128 || Buffer.byteLength(JSON.stringify(next), 'utf8') > 512 * 1024) {
+      fail(413, 'legacy_asset_references_too_large');
+    }
+    await trx(LEGACY_BATCH_CLAIMS).where({ task_identity: taskIdentity, state: 'CLAIMED' })
+      .update({ output_asset_references: JSON.stringify(next) });
+    return { registered: true, task_identity: taskIdentity, embed_id: entry.embed_id,
+      output_version: entry.output_version, idempotent: false };
+  });
+}
+
+async function getLegacyOutputAssetBinding(database, raw) {
+  const body = operationBody(raw, 'get_legacy_output_asset_binding');
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner');
+  const identity = {
+    embed_id: uuid(body.embed_id, 'invalid_embed_id'), output_version: integer(body.output_version, 'invalid_output_version'),
+    target_chat_id: uuid(body.target_chat_id, 'invalid_target_chat_id'),
+    hashed_chat_id: hashIdentifier(body.target_chat_id),
+    hashed_message_id: hexDigest(body.hashed_message_id, 'invalid_message_id'),
+    parent_embed_id: body.parent_embed_id == null ? null : uuid(body.parent_embed_id, 'invalid_parent_embed_id'),
+  };
+  if (identity.output_version < 1) fail(400, 'invalid_output_version');
+  return database.transaction(async (trx) => {
+    await requireUnfencedRecoveryAccount(trx, ownerHash);
+    const claims = await trx(LEGACY_BATCH_CLAIMS).where({ hashed_user_id: ownerHash })
+      .whereIn('state', ['CLAIMED', 'COMPLETED'])
+      .whereRaw("(output_asset_references::jsonb @> ?::jsonb OR (output_asset_references IS NOT NULL AND jsonb_typeof(output_asset_references::jsonb) <> 'array'))",
+        [JSON.stringify([identity])]).limit(2)
+      .select(['task_identity', 'actor_user_id', 'hashed_user_id', 'hashed_team_id', 'chat_id', 'state', 'output_asset_references']);
+    if (claims.length > 1) fail(409, 'legacy_asset_binding_ambiguous');
+    if (claims.length === 0) return { binding: null };
+    const claim = claims[0];
+    const entries = legacyOutputAssetReferences(claim.output_asset_references);
+    const matches = entries.filter(entry => Object.entries(identity).every(([key, value]) => entry[key] === value));
+    if (matches.length !== 1) fail(409, 'legacy_asset_state_corrupt');
+    await checkedLegacyAssetAuthority(trx, claim, identity.target_chat_id, identity.hashed_message_id);
+    return { binding: { task_identity: claim.task_identity, embed_id: identity.embed_id,
+      output_version: identity.output_version, content_commitment: matches[0].content_commitment } };
+  });
+}
+
+function outputAssetSlot(source, recordId, entry) {
+  return { source, record_id: recordId, embed_id: entry.embed_id ?? entry.subject_id,
+    output_version: entry.output_version, target_chat_id: entry.target_chat_id,
+    content_commitment: entry.content_commitment ?? null,
+    s3_file_keys: source === 'legacy' ? entry.s3_file_keys : storedOutputS3FileKeys(entry) };
+}
+
+function outputAssetSlots(raw) {
+  if (!Array.isArray(raw) || raw.length > 128
+    || Buffer.byteLength(JSON.stringify(raw), 'utf8') > 512 * 1024) fail(400, 'invalid_asset_reference_slots');
+  const seen = new Set();
+  return raw.map(value => {
+    const slot = exactKeys(value, new Set(['source', 'record_id', 'embed_id', 'output_version', 'target_chat_id',
+      'content_commitment', 's3_file_keys']), ['source', 'record_id', 'embed_id', 'output_version', 'target_chat_id',
+      'content_commitment', 's3_file_keys'], 'invalid_asset_reference_slots');
+    if (!['sealed', 'legacy'].includes(slot.source)) fail(400, 'invalid_asset_reference_slots');
+    uuid(slot.record_id, 'invalid_asset_reference_slots');
+    uuid(slot.embed_id, 'invalid_asset_reference_slots');
+    uuid(slot.target_chat_id, 'invalid_asset_reference_slots');
+    if (integer(slot.output_version, 'invalid_asset_reference_slots') < 1) fail(400, 'invalid_asset_reference_slots');
+    if (slot.content_commitment !== null) hexDigest(slot.content_commitment, 'invalid_asset_reference_slots');
+    const refs = outputS3FileKeys(slot.s3_file_keys);
+    const id = `${slot.source}:${slot.record_id}:${slot.embed_id}:${slot.output_version}`;
+    if (refs === null || seen.has(id)) fail(400, 'invalid_asset_reference_slots');
+    seen.add(id);
+    return { ...slot, s3_file_keys: refs };
+  });
+}
+
+async function personalAssetDeletionFenced(trx, ownerHash, targetChatId, originalTeam, messageHash = null) {
+  if (originalTeam) return false;
+  const chat = await trx(CHATS).where({ id: targetChatId }).first();
+  if (chat && (chat.hashed_team_id || chat.hashed_user_id !== ownerHash)) return false;
+  const fence = await trx(CHAT_DELETION_FENCES).where({ id: targetChatId, hashed_user_id: ownerHash })
+    .whereRaw("coalesce(scope,'chat') = 'chat'").first();
+  if (fence && !fence.hashed_team_id) return true;
+  if (await messageDeletionFenced(trx, ownerHash, targetChatId, messageHash)) return true;
+  return Boolean(await trx(ACCOUNT_FENCES).where({ id: ownerHash }).first());
+}
+
+function outputAssetCursor(raw) {
+  if (raw == null) return null;
+  const value = exactKeys(raw, new Set(['source', 'record_id', 'embed_id', 'output_version']),
+    ['source', 'record_id', 'embed_id', 'output_version'], 'invalid_asset_reference_cursor');
+  if (!['legacy', 'sealed'].includes(value.source)) fail(400, 'invalid_asset_reference_cursor');
+  uuid(value.record_id, 'invalid_asset_reference_cursor');
+  uuid(value.embed_id, 'invalid_asset_reference_cursor');
+  if (integer(value.output_version, 'invalid_asset_reference_cursor') < 1) fail(400, 'invalid_asset_reference_cursor');
+  return { ...value };
+}
+const assetCursorForSlot = slot => ({ source: slot.source, record_id: slot.record_id,
+  embed_id: slot.embed_id, output_version: slot.output_version });
+const compareAssetCursors = (left, right) => left.source.localeCompare(right.source)
+  || left.record_id.localeCompare(right.record_id) || left.embed_id.localeCompare(right.embed_id)
+  || left.output_version - right.output_version;
+
+async function inspectOutputAssetReferences(database, raw) {
+  const body = operationBody(raw, 'inspect_output_asset_references');
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner');
+  if ((body.embed_ids === undefined) === (body.target_chat_ids === undefined)) fail(400, 'invalid_asset_reference_selector');
+  const ids = body.embed_ids ?? body.target_chat_ids;
+  if (!Array.isArray(ids) || ids.length < 1 || ids.length > 128 || new Set(ids).size !== ids.length) {
+    fail(400, 'invalid_asset_reference_selector');
+  }
+  ids.forEach(value => uuid(value, 'invalid_asset_reference_selector'));
+  const messageHash = body.hashed_message_id == null ? null : hexDigest(body.hashed_message_id, 'invalid_message_id');
+  if (messageHash !== null && (!body.target_chat_ids || ids.length !== 1)) fail(400, 'invalid_asset_reference_selector');
+  const after = outputAssetCursor(body.after);
+  return database.transaction(async trx => {
+    await lockIdentity(trx, `account-recovery:${ownerHash}`);
+    const field = body.embed_ids ? 'embed_id' : 'target_chat_id';
+    const slots = [];
+    let scanned = 0, lastScanned = null;
+    const page = () => ({ slots, next_cursor: lastScanned });
+    const consider = async (slot, originalTeam, slotMessageHash) => {
+      const cursor = assetCursorForSlot(slot);
+      if (after && compareAssetCursors(cursor, after) <= 0) return false;
+      if (scanned >= 128) return true;
+      if (slot.s3_file_keys !== null
+        && await personalAssetDeletionFenced(trx, ownerHash, slot.target_chat_id, originalTeam, slotMessageHash)) {
+        const normalized = outputAssetSlots([slot])[0];
+        if (Buffer.byteLength(JSON.stringify({ slots: [...slots, normalized], next_cursor: cursor }), 'utf8') > 512 * 1024) {
+          if (slots.length === 0) fail(413, 'asset_reference_inventory_too_large');
+          return true;
+        }
+        slots.push(normalized);
+      }
+      scanned += 1;
+      lastScanned = cursor;
+      return false;
+    };
+    for (const source of ['legacy', 'sealed']) {
+      if (after && source.localeCompare(after.source) < 0) continue;
+      let query;
+      if (source === 'legacy') {
+        query = trx(LEGACY_BATCH_CLAIMS).where({ hashed_user_id: ownerHash }).whereNotNull('output_asset_references')
+          .whereRaw(`(EXISTS (SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(output_asset_references::jsonb) = 'array' THEN output_asset_references::jsonb ELSE '[]'::jsonb END) asset WHERE asset->> ? = ANY(?::text[])${messageHash === null ? '' : " AND asset->>'hashed_message_id' = ?"}) OR jsonb_typeof(output_asset_references::jsonb) <> 'array')`,
+            messageHash === null ? [field, ids] : [field, ids, messageHash]);
+      } else {
+        query = trx(OUTPUTS).where({ hashed_user_id: ownerHash }).whereIn('output_kind', ['embed', 'diff'])
+          .whereNotNull('s3_file_keys').whereIn(body.embed_ids ? 'subject_id' : field, ids);
+        if (messageHash !== null) query = query.where({ hashed_message_id: messageHash });
+      }
+      if (after?.source === source) query = query.andWhere('id', source === 'legacy' ? '>=' : '>', after.record_id);
+      const rows = await query.orderBy('id', 'asc').limit(129).select(source === 'legacy'
+        ? ['id', 'hashed_team_id', 'output_asset_references']
+        : ['id', 'subject_id', 'output_version', 'target_chat_id', 'root_hashed_team_id', 'content_commitment', 's3_file_keys', 'hashed_message_id']);
+      for (const row of rows) {
+        if (source === 'legacy') {
+          const entries = legacyOutputAssetReferences(row.output_asset_references).filter(entry => ids.includes(entry[field])
+            && (messageHash === null || entry.hashed_message_id === messageHash))
+            .sort((a, b) => a.embed_id.localeCompare(b.embed_id) || a.output_version - b.output_version);
+          for (const entry of entries) {
+            if (await consider(outputAssetSlot(source, row.id, entry), row.hashed_team_id, entry.hashed_message_id)) return page();
+          }
+        } else if (await consider(outputAssetSlot(source, row.id, row), row.root_hashed_team_id, row.hashed_message_id)) return page();
+      }
+      // A full bounded row window cannot certify that there is no later row.
+      if (rows.length === 129) return page();
+    }
+    return { slots, next_cursor: null };
+  });
+}
+
+async function releaseOutputAssetReferences(database, raw, now) {
+  const body = operationBody(raw, 'release_output_asset_references');
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner');
+  const slots = outputAssetSlots(body.slots);
+  return database.transaction(async trx => {
+    await lockIdentity(trx, `account-recovery:${ownerHash}`);
+    const released = [], retained = [];
+    for (const slot of [...slots].sort((a, b) => `${a.source}:${a.record_id}:${a.embed_id}:${a.output_version}`
+      .localeCompare(`${b.source}:${b.record_id}:${b.embed_id}:${b.output_version}`))) {
+      const table = slot.source === 'legacy' ? LEGACY_BATCH_CLAIMS : OUTPUTS;
+      const row = await trx(table).where({ id: slot.record_id, hashed_user_id: ownerHash }).forUpdate().first();
+      const entries = row && slot.source === 'legacy' ? legacyOutputAssetReferences(row.output_asset_references) : [];
+      const entry = slot.source === 'legacy'
+        ? entries.find(value => value.embed_id === slot.embed_id && value.output_version === slot.output_version)
+        : row && ['embed', 'diff'].includes(row.output_kind) && storedOutputS3FileKeys(row) !== null ? row : null;
+      const originalTeam = slot.source === 'legacy' ? row?.hashed_team_id : row?.root_hashed_team_id;
+      if (!entry || stableJson(outputAssetSlot(slot.source, row.id, entry)) !== stableJson(slot)
+        || !await personalAssetDeletionFenced(trx, ownerHash, slot.target_chat_id, originalTeam, entry.hashed_message_id)) {
+        retained.push(slot);
+        continue;
+      }
+      if (slot.source === 'sealed' && (row.state === 'PREPARING' || row.writer_lease_until != null)) {
+        // Match storage_reference_service.ARCHIVE_WRITER_SETTLE_GRACE_SECONDS:
+        // an exact fence stops commit, but an in-flight regional copy must settle.
+        const lease = row.writer_lease_until == null ? NaN : new Date(row.writer_lease_until).getTime();
+        if (!Number.isFinite(lease) || lease + 90_000 > now.getTime()) {
+          retained.push(slot);
+          continue;
+        }
+      }
+      // Match canonical writer lock order: account -> claim/output -> embed.
+      await lockIdentity(trx, `embed:${slot.embed_id}`);
+      if (await trx(EMBEDS).where({ embed_id: slot.embed_id }).first()
+        || await trx(EMBED_DIFFS).where({ embed_id: slot.embed_id }).first()
+        || await trx(EMBED_KEYS).where({ hashed_embed_id: hashIdentifier(slot.embed_id) }).first()) {
+        retained.push(slot);
+        continue;
+      }
+      if (slot.source === 'legacy') {
+        await trx(table).where({ id: row.id, hashed_user_id: ownerHash }).update({
+          output_asset_references: JSON.stringify(entries.filter(value =>
+            value.embed_id !== slot.embed_id || value.output_version !== slot.output_version)),
+        });
+      } else {
+        await trx(table).where({ id: row.id, hashed_user_id: ownerHash }).update({ s3_file_keys: null });
+      }
+      released.push(slot);
+    }
+    return { released, retained };
+  });
+}
+
 async function createSealedOutput(database, raw, now, preparing = false, transaction = null) {
   const body = operationBody(raw, preparing ? 'prepare_sealed_output' : 'create_sealed_output');
   const identity = {
@@ -4415,12 +4781,18 @@ async function createSealedOutput(database, raw, now, preparing = false, transac
     chat_key_version: integer(body.chat_key_version, 'invalid_key_version'),
     message_role: body.output_kind === 'message'
       ? string(body.message_role ?? 'assistant', 'invalid_message_role', 16) : null,
+    hashed_message_id: body.hashed_message_id == null ? null : hexDigest(body.hashed_message_id, 'invalid_message_id'),
   };
   if (!OUTPUT_KINDS.has(identity.output_kind) || identity.output_version < 1 || identity.chat_key_version < 1) {
     fail(400, 'invalid_output_identity');
   }
   if ((identity.output_kind === 'message' && !['user', 'assistant'].includes(identity.message_role))
     || (identity.output_kind !== 'message' && body.message_role != null)) fail(400, 'invalid_message_role');
+  const s3FileKeys = outputS3FileKeys(body.s3_file_keys);
+  if (s3FileKeys !== null && !['embed', 'diff'].includes(identity.output_kind)) {
+    fail(400, 'invalid_output_s3_file_keys');
+  }
+  if (s3FileKeys !== null && identity.hashed_message_id === null) fail(400, 'invalid_message_id');
   const producerId = body.producer_intent_id === undefined
     ? null : uuid(body.producer_intent_id, 'invalid_producer_intent_id');
   if (!producerId && ['producer_ordinal', 'producer_task_name', 'producer_kwargs_binding']
@@ -4465,6 +4837,9 @@ async function createSealedOutput(database, raw, now, preparing = false, transac
   const run = async (trx) => {
     await requireUnfencedRecoveryAccount(trx, identity.hashed_user_id);
     await lockRecoveryChats(trx, identity.root_chat_id, identity.target_chat_id);
+    if (await messageDeletionFenced(trx, identity.hashed_user_id, identity.target_chat_id, identity.hashed_message_id)) {
+      fail(409, 'message_output_deleted');
+    }
     let producer = null;
     if (producerId) {
       producer = await registeredProducer(trx, producerId, producerName, producerBinding, true);
@@ -4484,12 +4859,15 @@ async function createSealedOutput(database, raw, now, preparing = false, transac
         .where({ producer_intent_id: producerId, producer_ordinal: producerOrdinal }).forUpdate().first();
       if (priorOutput && priorOutput.id !== recordId) {
         if (priorOutput.content_commitment !== contentCommitment) fail(409, 'producer_content_mismatch');
+        if ((priorOutput.hashed_message_id ?? null) !== identity.hashed_message_id) fail(409, 'sealed_output_mismatch');
+        if (stableJson(storedOutputS3FileKeys(priorOutput)) !== stableJson(s3FileKeys)) fail(409, 'sealed_output_mismatch');
         if (priorOutput.deleted_at || priorOutput.state === 'DELETED') fail(409, 'producer_output_invalidated');
         return producerOutputReceipt(priorOutput);
       }
     }
     const existing = await trx(OUTPUTS).where({ id: recordId }).forUpdate().first();
     if (existing) {
+      if (stableJson(storedOutputS3FileKeys(existing)) !== stableJson(s3FileKeys)) fail(409, 'sealed_output_mismatch');
       if (!producer && contentCommitment) {
         const preflight = await trx(PREFLIGHTS).where({ id: identity.preflight_id }).forUpdate().first();
         if (!preflight || preflight.state !== 'RUNNING' || preflight.deletion_invalidated_at
@@ -4500,7 +4878,7 @@ async function createSealedOutput(database, raw, now, preparing = false, transac
       }
       if (Object.entries(identity).some(([key, value]) =>
         (key === 'message_role' && identity.output_kind === 'message'
-          ? (existing[key] || 'assistant') : existing[key]) !== value)) fail(409, 'sealed_output_mismatch');
+          ? (existing[key] || 'assistant') : key === 'hashed_message_id' ? existing[key] ?? null : existing[key]) !== value)) fail(409, 'sealed_output_mismatch');
       if (producer && (existing.producer_intent_id !== producerId
         || Number(existing.producer_ordinal) !== producerOrdinal
         || existing.content_commitment !== contentCommitment)) fail(409, 'producer_content_mismatch');
@@ -4565,6 +4943,7 @@ async function createSealedOutput(database, raw, now, preparing = false, transac
       root_hashed_team_id: rootChat.hashed_team_id || null,
       sealed_payload_digest: payloadDigest, payload_storage: inline ? 'inline' : 's3',
       payload_s3_key: payloadKey, payload_size_bytes: payloadSize,
+      s3_file_keys: s3FileKeys === null ? null : JSON.stringify(s3FileKeys),
       payload_verified_regions: verifiedRegions ? JSON.stringify(verifiedRegions) : null,
       state: preparing ? 'PREPARING' : 'PENDING', created_at: now,
       writer_lease_until: preparing ? new Date(now.getTime() + 90_000) : null,
@@ -4680,6 +5059,7 @@ async function getOutputStatus(database, raw) {
       if (hasMaster && hasChat) {
         const headMatches = row.output_kind === 'embed'
           && Number(embed.version_number || 1) === row.output_version
+          && (row.hashed_message_id == null || row.hashed_message_id === embed.hashed_message_id)
           && digest(embed.encrypted_content) === row.canonical_digest;
         let versionMatches = false;
         if (!headMatches) {
@@ -5005,6 +5385,8 @@ async function acknowledgeOutputEmbed(database, raw, now) {
     if (row.output_kind === 'diff' && canonicalSource !== 'version_row') fail(409, 'canonical_source_mismatch');
     if (row.output_kind === 'embed' && canonicalSource === 'head'
       && Number(embed.version_number || 1) !== row.output_version) fail(409, 'canonical_embed_head_advanced');
+    if (canonicalSource === 'head' && row.hashed_message_id != null
+      && embed.hashed_message_id !== row.hashed_message_id) fail(409, 'canonical_output_mismatch');
     let persistedDigest = digest(embed.encrypted_content);
     if (row.output_kind === 'diff' || canonicalSource === 'version_row') {
       const diff = await trx(EMBED_DIFFS).where({
@@ -5014,6 +5396,20 @@ async function acknowledgeOutputEmbed(database, raw, now) {
       persistedDigest = digest([diff.encrypted_snapshot || null, diff.encrypted_patch || null]);
     }
     if (persistedDigest !== canonicalDigest) fail(409, 'canonical_output_mismatch');
+    const s3FileKeys = storedOutputS3FileKeys(row);
+    if (s3FileKeys !== null && canonicalSource === 'head') {
+      // Only the exact verified head may receive this output's selected assets.
+      // Historical version ACKs retain their references on the recovery row.
+      let promotion = trx(EMBEDS).where({
+        embed_id: row.subject_id, hashed_user_id: ownerHash,
+        hashed_chat_id: hashIdentifier(row.target_chat_id),
+        encrypted_content: embed.encrypted_content,
+      });
+      promotion = embed.version_number == null ? promotion.whereNull('version_number')
+        : promotion.where({ version_number: embed.version_number });
+      const promoted = await promotion.update({ s3_file_keys: JSON.stringify(s3FileKeys) });
+      if (promoted !== 1) fail(409, 'canonical_output_mismatch');
+    }
     await trx(OUTPUTS).where({ id: row.id, state: 'PENDING' }).update({
       state: 'ACKNOWLEDGED', acknowledged_at: now,
       canonical_digest: canonicalDigest, sealed_payload: null,
@@ -5326,8 +5722,9 @@ async function invalidateDeletion(database, raw, now) {
   const body = operationBody(raw, 'invalidate_deletion');
   const ownerHash = string(body.hashed_user_id, 'invalid_owner', 64);
   const scope = string(body.scope, 'invalid_invalidation_scope', 16);
-  if (!['chat', 'account', 'device'].includes(scope)) fail(400, 'invalid_invalidation_scope');
-  const chatId = scope === 'chat' ? uuid(body.chat_id, 'invalid_chat_id') : null;
+  if (!['chat', 'account', 'device', 'message'].includes(scope)) fail(400, 'invalid_invalidation_scope');
+  const chatId = ['chat', 'message'].includes(scope) ? uuid(body.chat_id, 'invalid_chat_id') : null;
+  const messageId = scope === 'message' ? string(body.message_id, 'invalid_message_id', 255) : null;
   const deviceHash = scope === 'device' ? string(body.device_hash, 'invalid_device', 128) : null;
   return database.transaction(async (trx) => {
     if (scope === 'device') {
@@ -5338,6 +5735,27 @@ async function invalidateDeletion(database, raw, now) {
       return { invalidated_leases: count };
     }
     await lockIdentity(trx, `account-recovery:${ownerHash}`);
+    if (scope === 'message') {
+      await lockRecoveryChats(trx, chatId);
+      const messageHash = hashIdentifier(messageId);
+      const fenceId = messageDeletionFenceId(ownerHash, chatId, messageHash);
+      const prior = await trx(CHAT_DELETION_FENCES).where({ id: fenceId }).first();
+      const chat = await trx(CHATS).where({ id: chatId }).first();
+      if (prior && (prior.scope !== 'message' || prior.chat_id !== chatId
+        || prior.hashed_user_id !== ownerHash || prior.hashed_message_id !== messageHash || prior.hashed_team_id)) {
+        fail(409, 'message_deletion_fence_mismatch');
+      }
+      // This exact personal-owner fence grants no Team or whole-chat deletion.
+      if ((chat && (chat.hashed_team_id || chat.hashed_user_id !== ownerHash)) || (!chat && !prior)) fail(404, 'chat_not_found');
+      if (!prior) {
+        await trx(CHAT_DELETION_FENCES).insert({ id: fenceId, scope: 'message', hashed_user_id: ownerHash,
+          hashed_team_id: null, chat_id: chatId, hashed_message_id: messageHash, fenced_at: now });
+      }
+      await trx(OUTPUTS).where({ hashed_user_id: ownerHash, target_chat_id: chatId, hashed_message_id: messageHash })
+        .whereNotIn('state', ['PREPARING'])
+        .whereNull('deleted_at').update({ state: 'DELETED', deleted_at: now });
+      return { message_deletion_fenced: true, chat_id: chatId, hashed_message_id: messageHash };
+    }
     if (scope === 'account') {
       await assertNoPendingTeamAccountRecovery(trx, ownerHash);
       await trx(CALL_CLEANUP).where({ hashed_user_id: ownerHash }).delete();
@@ -5347,7 +5765,7 @@ async function invalidateDeletion(database, raw, now) {
     } else {
       await lockIdentity(trx, `chat-recovery-delete:${chatId}`);
       const chat = await trx(CHATS).where({ id: chatId }).forUpdate().first();
-      const prior = await trx(CHAT_DELETION_FENCES).where({ id: chatId }).first();
+      const prior = await trx(CHAT_DELETION_FENCES).where({ id: chatId }).whereRaw("coalesce(scope,'chat') = 'chat'").first();
       const emptyCallCleanup = body.empty_call_cleanup === undefined ? null
         : await assertEmptyCallCleanup(trx, chat, prior, ownerHash, chatId, body.empty_call_cleanup);
       if (!chat && !prior) fail(404, 'chat_not_found');
@@ -5372,7 +5790,7 @@ async function invalidateDeletion(database, raw, now) {
       if (!prior) {
         await trx(CHAT_DELETION_FENCES).insert({
           id: chatId, hashed_user_id: ownerHash, hashed_team_id: teamHash,
-          chat_id: chatId, fenced_at: now,
+          chat_id: chatId, scope: 'chat', hashed_message_id: null, fenced_at: now,
         });
       }
       return {
@@ -5412,7 +5830,7 @@ async function lookupChatDeletionFences(database, raw) {
   if (new Set(chatIds).size !== chatIds.length) fail(400, 'duplicate_chat_id');
   if (!chatIds.length) return { fenced_chat_ids: [] };
   const rows = await database(CHAT_DELETION_FENCES)
-    .whereIn('id', chatIds).select(['chat_id', 'hashed_user_id', 'hashed_team_id']);
+    .whereIn('id', chatIds).whereRaw("coalesce(scope,'chat') = 'chat'").select(['chat_id', 'hashed_user_id', 'hashed_team_id']);
   const fenced = new Set();
   for (const row of rows) {
     if (!row.hashed_team_id) {
@@ -5638,6 +6056,10 @@ export const operations = Object.freeze({
   claim_legacy_inference_start: claimLegacyInferenceStart,
   prepare_legacy_batch: prepareLegacyBatch,
   claim_legacy_batch: claimLegacyBatch,
+  register_legacy_output_asset_references: registerLegacyOutputAssetReferences,
+  get_legacy_output_asset_binding: getLegacyOutputAssetBinding,
+  inspect_output_asset_references: inspectOutputAssetReferences,
+  release_output_asset_references: releaseOutputAssetReferences,
   mark_legacy_inference_completed: markLegacyInferenceCompleted,
   acknowledge_legacy_persistence: acknowledgeLegacyPersistence,
   authorize_legacy_completion: authorizeLegacyCompletion,

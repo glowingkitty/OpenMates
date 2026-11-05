@@ -35,12 +35,12 @@ def test_binding_modes_are_mutually_exclusive() -> None:
     assert sessions.validate_worktree_binding_mode({"binding_mode": "worktree_routed"}) == "worktree_routed"
 
 
-def test_register_session_reuses_codex_binding_when_description_changes(monkeypatch):
+def test_register_session_reuses_agent_binding_when_description_changes(monkeypatch):
     sessions = load_sessions_module()
     task = "01a08fff-fdcb-7270-97bf-76e608bed3b5"
-    data = {"sessions": {"old1": {"task": "old task", "codex_task_id": task, "codex_host": "test-host"}}}
+    data = {"sessions": {"old1": {"task": "old task", "agent_task_id": task, "agent_host": "test-host"}}}
     monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
-    sid, _, _, _, created = sessions.register_session_record({"task": "new task", "codex_task_id": task, "codex_host": "test-host"})
+    sid, _, _, _, created = sessions.register_session_record({"task": "new task", "agent_task_id": task, "agent_host": "test-host"})
     assert sid == "old1" and created is False
     assert list(data["sessions"]) == ["old1"]
 
@@ -171,7 +171,6 @@ def test_completion_can_still_close_an_owned_private_zellij_session(monkeypatch)
     monkeypatch.setattr(sessions, '_load_sessions', lambda: data)
     monkeypatch.setattr(sessions, '_session_is_control_plane_repo', lambda _: False)
     monkeypatch.setattr(sessions, 'finalize_session_worktree', lambda *a, **k: None)
-    monkeypatch.setattr(sessions, '_linear_complete_session', lambda *a: None)
     monkeypatch.setitem(sys.modules, '_zellij_utils', types.SimpleNamespace(kill_session=killed.append))
     sessions.cmd_end(argparse.Namespace(session='abcd', force=False))
     assert killed == ['private-worker']

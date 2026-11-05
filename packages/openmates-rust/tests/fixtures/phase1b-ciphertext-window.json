@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "provenance": "Public synthetic independent Python AES-GCM ciphertext from existing session-message-window fixture; bounded Phase1b protocol only, not account/product/full-history evidence.",
+  "event_type": "phase_1b_chat_content_ready",
+  "chat_id": "22222222-2222-4222-8222-222222222222",
+  "metadata": {
+    "id": "22222222-2222-4222-8222-222222222222",
+    "encrypted_chat_key": "T00JE61lJK3zAQKPLRb/InSZ2UraSfLWhMwvGpRRB3uR+/mBRGPtc6crCfU+yp6lY8pf59bI7vrsYt478IEDZicz",
+    "encrypted_title": "T02HJLFlqvIyBkYQgFmoerUB69PTKDjOv2zjcZvH7JDXmFHw6tgi/vtzMUeSXLIzUISXB/dx9fs=",
+    "encrypted_category": "T02HJLFl7bLNO3TJma9w8LcF8tYMLwRr6Fi+kPi2+smHrBY6EBFdNHE=",
+    "messages_v": 5
+  },
+  "payload": {
+    "team_id": null,
+    "context_epoch": 0,
+    "chats": [
+      {
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "messages": [
+          "{\"id\": \"10000000-0000-4000-8000-000000000003\", \"client_message_id\": \"10000000-0000-4000-8000-000000000003\", \"chat_id\": \"22222222-2222-4222-8222-222222222222\", \"created_at\": 1700000003, \"role\": \"user\", \"encrypted_content\": \"T02HJLFlShSlpwNROBWCXoSnuLRhfFlp2nak+lRBfBMqrn/qyo6nt0chqlp/P6QQuwEiulJhG95XlyVHNKk=\", \"encrypted_sender_name\": \"T02HJLFlI2ekzfJfi2eY8NmeNuTaNxLrxtkEohh3BtNDJSLciRFa5PAxm1ZU69gc\", \"encrypted_thinking_content\": \"T02HJLFlNZQgjbwU6w+6mPAFY8akbDtxz5PYFS+keHuP6KEd/AVlcglEKPjVc9X/A/x4WsZe\"}",
+          "{\"id\": \"10000000-0000-4000-8000-000000000004\", \"client_message_id\": \"10000000-0000-4000-8000-000000000004\", \"chat_id\": \"22222222-2222-4222-8222-222222222222\", \"created_at\": 1700000004, \"role\": \"assistant\", \"encrypted_content\": \"T02HJLFlwOEs3W++l2Pgj6ftgoN/UzSzRqIOvNSXmip4U5NX9xtD7X+QmnFHY9ktTgXLdjfgmONnQqWsR70=\", \"encrypted_sender_name\": \"T02HJLFlu8Pn3a5XTBXUINlPNQx5AfnKGKtT1SuP3JUGn0c8FxpwvyL0miY2MYiW\", \"encrypted_thinking_content\": \"T02HJLFlSr3+Gv2V2okf3yH5F1KrfqKRNvlkbJdV86BN2Vb4YBdTF6aRhaqwVxSMwLZzc9mA\"}"
+        ],
+        "server_message_count": 5,
+        "compression_checkpoints": [],
+        "message_window": {
+          "has_more_before": true,
+          "start_cursor": {
+            "created_at": 1700000003,
+            "message_id": "10000000-0000-4000-8000-000000000003"
+          },
+          "oversized_message": false,
+          "oversized_message_cursor": null
+        }
+      }
+    ]
+  },
+  "expected": {
+    "window_count": 1,
+    "message_count": 2,
+    "server_message_count": 5,
+    "has_more_before": true,
+    "history_complete": false,
+    "no_complete_history_entry": true
+  }
+}

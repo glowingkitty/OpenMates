@@ -1,0 +1,725 @@
+schema_version: 1
+cadence: daily
+date: '2026-11-01'
+generated_at: '2026-11-02T00:47:12+00:00'
+range:
+  since: '2026-11-01T00:00:00+00:00'
+  until: '2026-11-02T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 13
+  section_counts:
+    features: 0
+    bug_fixes: 0
+    improvements: 0
+    docs: 0
+    tests: 13
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 0
+  dev_only_items: 13
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: embed:web:browse
+    kind: embed
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:web
+    source: backend/apps/web/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: skill:events:search
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:events
+    source: backend/apps/events/app.yml
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:travel:get_flight
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:travel
+    source: backend/apps/travel/app.yml
+  - id: skill:web:browse
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:web
+    source: backend/apps/web/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features: []
+  bug_fixes: []
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: register coherent Rust core workflow checkpoint'
+    section: tests
+    commits:
+    - 1fccb9559
+    authored_at: '2026-11-01T22:24:05+00:00'
+    changed_paths:
+    - scripts/ci_sdk_candidate_authorities.json
+    - scripts/ci_sdk_candidate_authorities/5aa158a653c448b361cca16ebba532162496467a8d65ff50bd8aaf04aa82d680.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: provision recorder dependencies and register Rust checkpoint'
+    section: tests
+    commits:
+    - a6043df4f
+    authored_at: '2026-11-01T20:58:05+00:00'
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/ci_sdk_candidate_authorities.json
+    - scripts/ci_sdk_candidate_authorities/98c3278b2e6482fbd2a5a8aaf8d46d620a01e35be2300650801e273dea1c7848.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: register the integrated Rust workflow checkpoint source'
+    section: tests
+    commits:
+    - f3897e1e8
+    authored_at: '2026-11-01T19:14:51+00:00'
+    changed_paths:
+    - scripts/ci_sdk_candidate_authorities.json
+    - scripts/ci_sdk_candidate_authorities/9a48094cf1fcd196afebd6e30d13139c0c31017e672e8ebb5f79395e070cd339.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: register integrated runnable Rust checkpoint'
+    section: tests
+    commits:
+    - 5e243ffce
+    authored_at: '2026-11-01T17:42:32+00:00'
+    changed_paths:
+    - scripts/ci_sdk_candidate_authorities.json
+    - scripts/ci_sdk_candidate_authorities/b2f88df4b0b64d565bd9ce563a29ec5c6ac87fad85fcc4ad76af9320d5c50b30.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: register attributable SDK packaging diagnostic checkpoint'
+    section: tests
+    commits:
+    - 26dfe317c
+    authored_at: '2026-11-01T16:03:02+00:00'
+    changed_paths:
+    - scripts/ci_sdk_candidate_authorities.json
+    - scripts/ci_sdk_candidate_authorities/b4e3c3eb40872bb7aa7579999be8351370c492b2a71e2eb565d293af48188408.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: register repaired Rust checkpoint and report memory provenance'
+    section: tests
+    commits:
+    - 8cc36149a
+    authored_at: '2026-11-01T15:35:08+00:00'
+    changed_paths:
+    - scripts/ci_client_contained_probe.py
+    - scripts/ci_sdk_candidate_authorities.json
+    - scripts/ci_sdk_candidate_authorities/be650aaeb69e2a2d161f9deb5f654c5c3e6e15cd7f61bbd888c555b7e0a0a148.json
+    - scripts/tests/test_ci_client_contained_probe.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: classify native fetch failures with bounded diagnostics'
+    section: tests
+    commits:
+    - 55e049ae7
+    authored_at: '2026-11-01T15:24:10+00:00'
+    changed_paths:
+    - scripts/ci_native_dev.py
+    - scripts/tests/test_ci_native_dev.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: register exact coherent Rust client checkpoint source'
+    section: tests
+    commits:
+    - 6b1ff7204
+    authored_at: '2026-11-01T14:25:01+00:00'
+    changed_paths:
+    - scripts/ci_sdk_candidate_authorities.json
+    - scripts/ci_sdk_candidate_authorities/6afbe13b4607668c7775c051a28e20776d5d4d618e3cbb0efa3ee28d87266c07.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: keep memory probe retries inside owned launch state'
+    section: tests
+    commits:
+    - 533d2685d
+    authored_at: '2026-11-01T13:21:17+00:00'
+    changed_paths:
+    - scripts/ci_client_contained_probe.py
+    - scripts/tests/test_ci_client_contained_probe.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: record bounded RSS counter diagnostics without changing acceptance'
+    section: tests
+    commits:
+    - 36f392171
+    authored_at: '2026-11-01T12:27:11+00:00'
+    changed_paths:
+    - scripts/ci_client_contained_fixture.c
+    - scripts/ci_client_contained_probe.py
+    - scripts/tests/test_ci_client_contained_probe.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: include exact legacy crypto fixture in Rust compiler inputs'
+    section: tests
+    commits:
+    - da3a118e2
+    authored_at: '2026-11-01T12:16:44+00:00'
+    changed_paths:
+    - scripts/ci_native_dev.py
+    - scripts/ci_sdk_conformance.py
+    - scripts/tests/test_ci_legacy_layout_compiler_inputs.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: admit the verified native checkpoint source for isolated CI'
+    section: tests
+    commits:
+    - e1ce3722b
+    authored_at: '2026-11-01T11:06:35+00:00'
+    changed_paths:
+    - scripts/ci_sdk_candidate_authorities.json
+    - scripts/ci_sdk_candidate_authorities/a0f60bc22ca85c8d48417a5f087ff9973b0913f24cc2c3ffab3a41aa8d109ada.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: isolate contained memory probe attempts and preserve diagnostics'
+    section: tests
+    commits:
+    - 0d5e68741
+    authored_at: '2026-11-01T10:25:26+00:00'
+    changed_paths:
+    - scripts/ci_client_contained_probe.py
+    - scripts/tests/test_ci_client_contained_probe.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'test: register coherent Rust core workflow checkpoint'
+    commits:
+    - 1fccb9559
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: provision recorder dependencies and register Rust checkpoint'
+    commits:
+    - a6043df4f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: register the integrated Rust workflow checkpoint source'
+    commits:
+    - f3897e1e8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: register integrated runnable Rust checkpoint'
+    commits:
+    - 5e243ffce
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: register attributable SDK packaging diagnostic checkpoint'
+    commits:
+    - 26dfe317c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: register repaired Rust checkpoint and report memory provenance'
+    commits:
+    - 8cc36149a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: classify native fetch failures with bounded diagnostics'
+    commits:
+    - 55e049ae7
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: register exact coherent Rust client checkpoint source'
+    commits:
+    - 6b1ff7204
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: keep memory probe retries inside owned launch state'
+    commits:
+    - 533d2685d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: record bounded RSS counter diagnostics without changing acceptance'
+    commits:
+    - 36f392171
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: include exact legacy crypto fixture in Rust compiler inputs'
+    commits:
+    - da3a118e2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: admit the verified native checkpoint source for isolated CI'
+    commits:
+    - e1ce3722b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: isolate contained memory probe attempts and preserve diagnostics'
+    commits:
+    - 0d5e68741
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter: []
+  social_or_video: []
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 1fccb955945e26a5dd2ea7c047c8e862037fe823
+    short_sha: 1fccb9559
+    authored_at: '2026-11-01T22:24:05+00:00'
+    subject: 'test: register coherent Rust core workflow checkpoint'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_candidate_authorities.json
+    - scripts/ci_sdk_candidate_authorities/5aa158a653c448b361cca16ebba532162496467a8d65ff50bd8aaf04aa82d680.json
+    related_feature_ids: []
+  - sha: a6043df4fefd1c7cc5af1595321c6a8080e7ed7c
+    short_sha: a6043df4f
+    authored_at: '2026-11-01T20:58:05+00:00'
+    subject: 'test: provision recorder dependencies and register Rust checkpoint'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/ci_sdk_candidate_authorities.json
+    - scripts/ci_sdk_candidate_authorities/98c3278b2e6482fbd2a5a8aaf8d46d620a01e35be2300650801e273dea1c7848.json
+    related_feature_ids: []
+  - sha: f3897e1e83e8596c583f22d11d13892ed17e26ca
+    short_sha: f3897e1e8
+    authored_at: '2026-11-01T19:14:51+00:00'
+    subject: 'test: register the integrated Rust workflow checkpoint source'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_candidate_authorities.json
+    - scripts/ci_sdk_candidate_authorities/9a48094cf1fcd196afebd6e30d13139c0c31017e672e8ebb5f79395e070cd339.json
+    related_feature_ids: []
+  - sha: 5e243ffce3f20ce5d660cede17a06ba4bb063bff
+    short_sha: 5e243ffce
+    authored_at: '2026-11-01T17:42:32+00:00'
+    subject: 'test: register integrated runnable Rust checkpoint'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_candidate_authorities.json
+    - scripts/ci_sdk_candidate_authorities/b2f88df4b0b64d565bd9ce563a29ec5c6ac87fad85fcc4ad76af9320d5c50b30.json
+    related_feature_ids: []
+  - sha: 26dfe317c23965f2b8f8fa05263b2c56f22ae3df
+    short_sha: 26dfe317c
+    authored_at: '2026-11-01T16:03:02+00:00'
+    subject: 'test: register attributable SDK packaging diagnostic checkpoint'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_candidate_authorities.json
+    - scripts/ci_sdk_candidate_authorities/b4e3c3eb40872bb7aa7579999be8351370c492b2a71e2eb565d293af48188408.json
+    related_feature_ids: []
+  - sha: 8cc36149a27dc5fe125e03acb962c088b03ffef6
+    short_sha: 8cc36149a
+    authored_at: '2026-11-01T15:35:08+00:00'
+    subject: 'test: register repaired Rust checkpoint and report memory provenance'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_client_contained_probe.py
+    - scripts/ci_sdk_candidate_authorities.json
+    - scripts/ci_sdk_candidate_authorities/be650aaeb69e2a2d161f9deb5f654c5c3e6e15cd7f61bbd888c555b7e0a0a148.json
+    - scripts/tests/test_ci_client_contained_probe.py
+    related_feature_ids: []
+  - sha: 55e049ae7b88e745275bb463fb09526d3f1c7e38
+    short_sha: 55e049ae7
+    authored_at: '2026-11-01T15:24:10+00:00'
+    subject: 'test: classify native fetch failures with bounded diagnostics'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_native_dev.py
+    - scripts/tests/test_ci_native_dev.py
+    related_feature_ids: []
+  - sha: 6b1ff72041ac842aedd3f91a140ba324d6d579c6
+    short_sha: 6b1ff7204
+    authored_at: '2026-11-01T14:25:01+00:00'
+    subject: 'test: register exact coherent Rust client checkpoint source'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_candidate_authorities.json
+    - scripts/ci_sdk_candidate_authorities/6afbe13b4607668c7775c051a28e20776d5d4d618e3cbb0efa3ee28d87266c07.json
+    related_feature_ids: []
+  - sha: 533d2685db0269315661eb04307d59bb323e0a00
+    short_sha: 533d2685d
+    authored_at: '2026-11-01T13:21:17+00:00'
+    subject: 'test: keep memory probe retries inside owned launch state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_client_contained_probe.py
+    - scripts/tests/test_ci_client_contained_probe.py
+    related_feature_ids: []
+  - sha: 36f3921717152a87588bb183e740a5ab9dc2b541
+    short_sha: 36f392171
+    authored_at: '2026-11-01T12:27:11+00:00'
+    subject: 'test: record bounded RSS counter diagnostics without changing acceptance'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_client_contained_fixture.c
+    - scripts/ci_client_contained_probe.py
+    - scripts/tests/test_ci_client_contained_probe.py
+    related_feature_ids: []
+  - sha: da3a118e2a6d95e437d1c62b2abccde8550c6816
+    short_sha: da3a118e2
+    authored_at: '2026-11-01T12:16:44+00:00'
+    subject: 'test: include exact legacy crypto fixture in Rust compiler inputs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_native_dev.py
+    - scripts/ci_sdk_conformance.py
+    - scripts/tests/test_ci_legacy_layout_compiler_inputs.py
+    related_feature_ids: []
+  - sha: e1ce3722b0112d67e9a925a2d8366bf522dbf22f
+    short_sha: e1ce3722b
+    authored_at: '2026-11-01T11:06:35+00:00'
+    subject: 'test: admit the verified native checkpoint source for isolated CI'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_candidate_authorities.json
+    - scripts/ci_sdk_candidate_authorities/a0f60bc22ca85c8d48417a5f087ff9973b0913f24cc2c3ffab3a41aa8d109ada.json
+    related_feature_ids: []
+  - sha: 0d5e687415f8e456deba05eefab2b457420f13fd
+    short_sha: 0d5e68741
+    authored_at: '2026-11-01T10:25:26+00:00'
+    subject: 'test: isolate contained memory probe attempts and preserve diagnostics'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_client_contained_probe.py
+    - scripts/tests/test_ci_client_contained_probe.py
+    related_feature_ids: []
+llm_summary:
+  overview: Development focused on internal testing infrastructure, specifically regarding SDK checkpointing, memory diagnostics,
+    and CI pipeline reliability.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: Native development scripts now include better classification for fetch failures and support for legacy crypto fixtures
+      in compiler inputs.
+    evidence:
+      commits:
+      - 55e049ae7
+      - da3a118e2
+    release_status: dev_only
+  internal_progress:
+  - text: OpenMates registered several new SDK candidate checkpoints and Rust workflow sources to stabilize the CI pipeline.
+    evidence:
+      commits:
+      - 1fccb9559
+      - a6043df4f
+      - f3897e1e8
+      - 5e243ffce
+      - 26dfe317c
+      - 8cc36149a
+      - 6b1ff7204
+      - e1ce3722b
+    release_status: dev_only
+  - text: Internal memory diagnostic tools were refined, including improvements to RSS counter recording and isolated memory
+      probe retries.
+    evidence:
+      commits:
+      - 533d2685d
+      - 36f392171
+      - 0d5e68741
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Internal CI and testing infrastructure updates.
+      evidence:
+        commits:
+        - 1fccb9559
+        - a6043df4f
+        - f3897e1e8
+        - 5e243ffce
+        - 26dfe317c
+        - 8cc36149a
+        - 55e049ae7
+        - 6b1ff7204
+        - 533d2685d
+        - 36f392171
+        - da3a118e2
+        - e1ce3722b
+        - 0d5e68741
+      reason: All changes are dev-only testing and CI infrastructure updates that are not user-facing.
+    rationale: There were no user-facing features or bug fixes released in this period; all work was restricted to internal
+      development and testing environments.
+  social_video_recommendations: []
+  quality_notes:
+  - The update introduces more granular memory provenance reporting and diagnostic counters for the CI environment.
+  validation_warnings: []

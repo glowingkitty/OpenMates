@@ -130,7 +130,7 @@ def _result(root: Path, name: str, source: str, *, state="success", delivery="de
     (path / "test-results" / "ci-artifacts.json").write_text("{}")
     (path / "receipt.json").write_text(json.dumps({"id": name, "source_commit": source,
                                                      "state": state, "cleanup": {"run_id": "1"}}))
-    (path / "codex-evidence.json").write_text(json.dumps({"records": {
+    (path / "ci-evidence.json").write_text(json.dumps({"records": {
         "evidence": {"recording": "available", "upload": "uploaded", "delivery": delivery}
     }}))
     old = time.time() - budget.RESULT_AGE_SECONDS - 3600
@@ -203,7 +203,7 @@ def test_cleanup_requires_reviewed_manifest_and_keeps_pending_and_failure(tmp_pa
     result = budget.cleanup(tmp_path, manifest=manifest)
     assert result["removed"] == [str(good)]
     assert (good / "receipt.json").exists()
-    assert (good / "codex-evidence.json").exists()
+    assert (good / "ci-evidence.json").exists()
     assert not (good / "test-results/large.webm").exists()
     assert (good / "test-results/ci-startup-phases.json").exists()
     assert (good / "test-results/ci-runtime-images.json").exists()
@@ -405,3 +405,78 @@ def test_inventory_counts_shared_worktree_inode_once(tmp_path):
                 + (second / "own.bin").stat().st_blocks) * 512
     assert report["totals"]["worktrees"] == expected
     assert all(item["action"] == "retain" for item in report["entries"])
+
+
+def test_legacy_evidence_inventory_still_counts_as_delivered(tmp_path):
+    (tmp_path / "codex-evidence.json").write_text(json.dumps({"records": {
+        "evidence": {"recording": "available", "upload": "uploaded", "delivery": "delivered"}
+    }}))
+    assert budget._evidence_complete(tmp_path)
+
+
+def _age(path: Path, seconds: float) -> None:
+    old = time.time() - seconds
+    for entry in [path, *path.rglob("*")]:
+        os.utime(entry, (old, old), follow_symlinks=False)
+
+
+def test_stale_cap_removes_old_failed_and_undelivered_payloads_but_keeps_receipts(tmp_path):
+    source = "a" * 40
+    failed = _result(tmp_path, "failure01", source, state="failure")
+    undelivered = _result(tmp_path, "undeliv01", source, delivery="pending")
+    recent_failure = _result(tmp_path, "failure02", source, state="failure")
+    for path in (failed, undelivered):
+        _age(path, budget.STALE_PAYLOAD_SECONDS + 3600)
+    _queue(tmp_path, [("failure01", source, "failure"), ("undeliv01", source, "success"),
+                      ("failure02", source, "failure")])
+    manifest = budget.inventory(tmp_path)
+    choices = {Path(item["path"]).name: item for item in manifest["entries"]}
+    assert choices["failure01"]["reason"] == "stale_terminal_result"
+    assert choices["undeliv01"]["reason"] == "stale_terminal_result"
+    assert choices["failure02"]["reason"] == "non_success_or_active_job"
+    removed = budget.cleanup(tmp_path, manifest=manifest)["removed"]
+    assert sorted(removed) == sorted([str(failed), str(undelivered)])
+    assert not (failed / "test-results/large.webm").exists()
+    assert (failed / "receipt.json").exists()
+    assert (recent_failure / "test-results/large.webm").exists()
+
+
+def test_stale_cap_never_removes_running_or_active_owner_payloads(tmp_path):
+    source = "a" * 40
+    running = _result(tmp_path, "running01", source)
+    owned = _result(tmp_path, "owned0001", source, state="failure")
+    for path in (running, owned):
+        _age(path, budget.STALE_PAYLOAD_SECONDS + 3600)
+    path = tmp_path / "logs/ci-coordinator/queue.sqlite3"
+    path.parent.mkdir(parents=True)
+    with sqlite3.connect(path) as db:
+        db.execute("CREATE TABLE jobs (id TEXT, source TEXT, state TEXT, owner TEXT)")
+        db.executemany("INSERT INTO jobs VALUES (?,?,?,?)", [
+            ("running01", "b" * 40, "running", "other"), ("owned0001", source, "failure", "live")])
+    sessions = tmp_path / ".claude/sessions.json"
+    sessions.parent.mkdir(parents=True)
+    sessions.write_text(json.dumps({"sessions": {"live": {"worktree": {"status": "active"}}}}))
+    choices = {Path(item["path"]).name: item for item in budget.inventory(tmp_path)["entries"]}
+    assert choices["running01"]["action"] == "retain"
+    assert choices["owned0001"]["action"] == "retain"
+    assert choices["owned0001"]["reason"] != "stale_terminal_result"
+
+
+def test_stale_candidate_patch_is_removed_and_manifest_kept(tmp_path):
+    _queue(tmp_path, [])
+    old_source, new_source = "c" * 40, "d" * 40
+    for source in (old_source, new_source):
+        candidate = tmp_path / "logs/ci-candidates" / source
+        candidate.mkdir(parents=True)
+        (candidate / "manifest.json").write_text(json.dumps({"source": source, "session": "gone"}))
+        (candidate / "candidate.patch.gz").write_bytes(b"old compressed patch")
+    _age(tmp_path / "logs/ci-candidates" / old_source, budget.STALE_PAYLOAD_SECONDS + 3600)
+    manifest = budget.inventory(tmp_path)
+    choices = {Path(item["path"]).name: item for item in manifest["entries"]}
+    assert choices[old_source]["reason"] == "stale_candidate_payload"
+    assert choices[new_source]["reason"] == "candidate_source_or_recovery_patch"
+    budget.cleanup(tmp_path, manifest=manifest)
+    old = tmp_path / "logs/ci-candidates" / old_source
+    assert not (old / "candidate.patch.gz").exists()
+    assert (old / "manifest.json").exists()
+    assert (tmp_path / "logs/ci-candidates" / new_source / "candidate.patch.gz").exists()

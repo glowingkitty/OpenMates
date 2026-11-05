@@ -1,0 +1,157 @@
+{
+  "description": "Pure extracted TypeScript formatter oracle on original synthetic values; separate known-order fixture records the unresolved shared Value limitation.",
+  "cases": [
+    {
+      "id": "index-key-order",
+      "value": {
+        "2": "two",
+        "10": "ten",
+        "01": "leading",
+        "4294967295": "non-index"
+      },
+      "ordinary": "  \u001b[2m2                   \u001b[0m two\n  \u001b[2m10                  \u001b[0m ten\n  \u001b[2m01                  \u001b[0m leading\n  \u001b[2m4294967295          \u001b[0m non-index\n"
+    },
+    {
+      "id": "null",
+      "value": null,
+      "ordinary": "(empty)\n"
+    },
+    {
+      "id": "empty-object",
+      "value": {},
+      "ordinary": ""
+    },
+    {
+      "id": "empty-list",
+      "value": [],
+      "ordinary": "(empty list)\n"
+    },
+    {
+      "id": "text",
+      "value": "encrypted reminder contents are opaque",
+      "ordinary": "encrypted reminder contents are opaque\n"
+    },
+    {
+      "id": "boolean",
+      "value": false,
+      "ordinary": "false\n"
+    },
+    {
+      "id": "number",
+      "value": 123,
+      "ordinary": "123\n"
+    },
+    {
+      "id": "raw-reminders",
+      "value": {
+        "count": 2,
+        "encrypted_metadata": "ciphertext-not-decrypted",
+        "reminders": [
+          {
+            "encrypted_content": "cipher-A",
+            "id": "r1",
+            "status": "active"
+          },
+          {
+            "encrypted_content": "cipher-B",
+            "id": "r2"
+          }
+        ],
+        "unknown_future": {
+          "version": 3
+        }
+      },
+      "ordinary": "  \u001b[2mcount               \u001b[0m 2\n  \u001b[2mencrypted_metadata  \u001b[0m ciphertext-not-decrypted\n\n  \u001b[1mreminders\u001b[0m  \u001b[2m(2)\u001b[0m\n    \u001b[2mencrypted_content   \u001b[0m cipher-A\n    \u001b[2mid                  \u001b[0m r1\n    \u001b[2mstatus              \u001b[0m active\n  \u001b[2m────────────────────────────────────────\u001b[0m\n    \u001b[2mencrypted_content   \u001b[0m cipher-B\n    \u001b[2mid                  \u001b[0m r2\n  \u001b[1munknown_future\u001b[0m\n    \u001b[2mversion             \u001b[0m 3\n"
+    },
+    {
+      "id": "mixed-array",
+      "value": [
+        null,
+        0,
+        false,
+        "text",
+        {
+          "id": "r"
+        },
+        [
+          1,
+          2
+        ]
+      ],
+      "ordinary": "null\n0\nfalse\ntext\n  \u001b[2mid                  \u001b[0m r\n\u001b[2m────────────────────────────────────────\u001b[0m\n1\n2\n"
+    },
+    {
+      "id": "object-arrays",
+      "value": {
+        "a": [],
+        "b": [
+          null,
+          "x"
+        ],
+        "c": [
+          1,
+          null,
+          {
+            "q": 2
+          }
+        ],
+        "d": {
+          "nested": true
+        },
+        "e": null
+      },
+      "ordinary": "  \u001b[2ma                   \u001b[0m (none)\n\n  \u001b[1mb\u001b[0m  \u001b[2m(2)\u001b[0m\n  null\n  x\n  \u001b[2mc                   \u001b[0m 1, , [object Object]\n  \u001b[1md\u001b[0m\n    \u001b[2mnested              \u001b[0m true\n"
+    },
+    {
+      "id": "invoices",
+      "value": {
+        "invoices": [
+          {
+            "amount": " 3.50 ",
+            "bank_transfer_reference": " ref ",
+            "credits_purchased": 10,
+            "date": " 2026-10-28 ",
+            "is_gift_card": true,
+            "refund_status": "pending",
+            "transaction_status": "paid"
+          }
+        ],
+        "ignored": "specialized legacy response"
+      },
+      "ordinary": "\n  \u001b[1mInvoices\u001b[0m  \u001b[2m(1)\u001b[0m\n\n    2026-10-28  \u001b[2m€3.50\u001b[0m  10 credits  \u001b[33m[pending]\u001b[0m  \u001b[35m[gift card]\u001b[0m  \u001b[36m[paid]\u001b[0m\n  \u001b[2m      Bank transfer reference \u001b[0m ref\n"
+    },
+    {
+      "id": "empty-invoices",
+      "value": {
+        "invoices": []
+      },
+      "ordinary": "\n  \u001b[1mInvoices\u001b[0m  \u001b[2m(0)\u001b[0m\n"
+    },
+    {
+      "id": "billing",
+      "value": {
+        "auto_topup_amount": 5,
+        "auto_topup_currency": "eur",
+        "auto_topup_enabled": true,
+        "auto_topup_threshold": 20,
+        "credits": 42,
+        "invoices": [],
+        "payment_tier": "free",
+        "unknown": {
+          "version": 2
+        }
+      },
+      "ordinary": "\u001b[1mBilling\n\u001b[0m\n  \u001b[2mCredits         \u001b[0m 42\n  \u001b[2mPayment tier    \u001b[0m free\n  \u001b[2mAuto top-up     \u001b[0m enabled\n  \u001b[2m  Threshold     \u001b[0m 20 credits\n  \u001b[2m  Amount        \u001b[0m 5 credits\n  \u001b[2m  Currency      \u001b[0m EUR\n  \u001b[2munknown         \u001b[0m {\"version\":2}\n"
+    },
+    {
+      "id": "billing-null",
+      "value": {
+        "credits": null,
+        "current_credits": null,
+        "invoices": null,
+        "payment_tier": null
+      },
+      "ordinary": "\u001b[1mBilling\n\u001b[0m\n  \u001b[2mCredits         \u001b[0m null\n  \u001b[2mPayment tier    \u001b[0m null\n"
+    }
+  ]
+}

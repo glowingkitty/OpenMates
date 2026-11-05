@@ -1,0 +1,159 @@
+{
+  "version": 1,
+  "capabilities": {
+    "work.project-workflow-file-sync.v1": {
+      "account": {
+        "session_id": "synthetic-session",
+        "cookie": "synthetic-cookie",
+        "master_key": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=",
+        "hashed_email": "synthetic-workflow-files"
+      },
+      "owner_id": "55555555-5555-4555-8555-555555555555",
+      "project_id": "22222222-2222-4222-8222-222222222222",
+      "workflow_id": "11111111-1111-4111-8111-111111111111",
+      "chat_id": "33333333-3333-4333-8333-333333333333",
+      "item_id": "44444444-4444-4444-8444-444444444444",
+      "team_id": "66666666-6666-4666-8666-666666666666",
+      "source_id": "source",
+      "source_session_id": "source-session",
+      "expected_version": "version-2",
+      "app_origin": "http://127.0.0.1",
+      "project_key_b64": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI=",
+      "path": "workflows/updated.workflow.yml",
+      "old_yaml": "title: Old\n",
+      "expected_yaml": "format: openmates-workflow\nformat_version: 1\nworkflow:\n  title: Updated\n  description: null\n  run_content_retention: last_5\n  graph:\n    version: 1\n    trigger_node_id: null\n    nodes: []\n    edges: []\n    variables: {}\n    limits: {}\n    ui_layout: {}\nbinding_requirements: []\n",
+      "vectors": [
+        {
+          "id": "create-saved",
+          "status": "saved"
+        },
+        {
+          "id": "update-saved",
+          "mode": "update",
+          "status": "saved"
+        },
+        {
+          "id": "approval-pending",
+          "approved_paths": [],
+          "status": "pending",
+          "error": "write_approval_required"
+        },
+        {
+          "id": "unapproved-exact-path",
+          "approved_paths": [
+            "else/updated.workflow.yml"
+          ],
+          "status": "pending",
+          "error": "write_approval_required"
+        },
+        {
+          "id": "apply-and-show",
+          "mode": "apply-and-show",
+          "approved_paths": [],
+          "status": "saved"
+        },
+        {
+          "id": "source-offline",
+          "mode": "source-offline",
+          "status": "pending",
+          "error": "source_offline"
+        },
+        {
+          "id": "source-missing",
+          "mode": "source-missing",
+          "status": "pending",
+          "error": "source_selection_required"
+        },
+        {
+          "id": "focus-mismatch",
+          "mode": "focus-mismatch",
+          "status": "pending",
+          "error": "project_focus_required"
+        },
+        {
+          "id": "remote-queued",
+          "mode": "queued",
+          "status": "pending"
+        },
+        {
+          "id": "remote-conflict",
+          "mode": "conflict",
+          "status": "conflict"
+        },
+        {
+          "id": "tuple-ack",
+          "mode": "tuple-ack",
+          "status": "saved"
+        },
+        {
+          "id": "bad-after-hash",
+          "mode": "bad-after-hash",
+          "status": "pending"
+        },
+        {
+          "id": "version-race",
+          "mode": "version-race",
+          "status": "conflict",
+          "error": "workflow_version_changed"
+        },
+        {
+          "id": "pending-404-rotation",
+          "mode": "pending-404",
+          "status": "saved"
+        },
+        {
+          "id": "unknown-404-no-retry",
+          "mode": "unknown-404",
+          "status": "failed",
+          "error": "workflow_file_write_failed"
+        },
+        {
+          "id": "metadata-denied",
+          "mode": "metadata-denied",
+          "sdk_error": "offline"
+        },
+        {
+          "id": "cancel-held-result",
+          "mode": "cancel-held",
+          "sdk_error": "cancelled"
+        },
+        {
+          "id": "foreign-item-scope",
+          "mode": "foreign-item-scope",
+          "sdk_error": "forbidden"
+        },
+        {
+          "id": "invalid-approval-path",
+          "approved_paths": [
+            "../outside.workflow.yml"
+          ],
+          "sdk_error": "invalid_argument",
+          "early": true
+        },
+        {
+          "id": "no-auth",
+          "mode": "noauth",
+          "sdk_error": "authentication",
+          "early": true
+        },
+        {
+          "id": "privacy-denial",
+          "mode": "policy-denied",
+          "sdk_error": "forbidden",
+          "early": true
+        },
+        {
+          "id": "ambiguous-team-scope",
+          "mode": "bad-scope",
+          "sdk_error": "invalid_argument",
+          "early": true
+        },
+        {
+          "id": "wrong-original-master",
+          "mode": "wrong-master",
+          "sdk_error": "crypto"
+        }
+      ]
+    }
+  }
+}

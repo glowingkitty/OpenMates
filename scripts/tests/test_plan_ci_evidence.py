@@ -3,7 +3,7 @@
 Validate execution provenance without requiring a shared dev deployment.
 An older tested ancestor cannot prove a newer implementation correct.
 These tests use local Git fixtures and never dispatch product tests.
-See docs/architecture/codex-orchestration.md for delivery ownership.
+See docs/architecture/test-orchestration.md for delivery ownership.
 """
 
 from pathlib import Path

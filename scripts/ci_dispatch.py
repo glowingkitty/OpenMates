@@ -50,7 +50,7 @@ def ensure_coordinator(root: Path):
     return manager("is-active", "--quiet", UNIT_NAME).returncode == 0
 
 
-def select_specs(root: Path, args, source: str) -> list[str]:
+def select_specs(root: Path, args, source: str, held: dict | None = None) -> list[str]:
     """Discover only files and policy from the immutable test subject."""
     payload = subprocess.check_output(
         [
@@ -76,10 +76,10 @@ def select_specs(root: Path, args, source: str) -> list[str]:
                     target = snapshot / path
                     target.parent.mkdir(parents=True, exist_ok=True)
                     target.write_bytes(archive.extractfile(member).read())
-        return select_snapshot_specs(snapshot, args)
+        return select_snapshot_specs(snapshot, args, held)
 
 
-def select_snapshot_specs(root: Path, args) -> list[str]:
+def select_snapshot_specs(root: Path, args, held: dict | None = None) -> list[str]:
     folder = root / "frontend/apps/web_app/tests"
     if args.spec:
         names = args.spec
@@ -92,6 +92,7 @@ def select_snapshot_specs(root: Path, args) -> list[str]:
             (p.relative_to(folder).as_posix() for p in folder.rglob("*.spec.ts")),
             manifest=manifest,
             spec_dir=folder,
+            held=held,
         )
         if args.daily:
             plan = policy.daily_plan(
@@ -277,11 +278,13 @@ def run(argv: list[str]) -> int:
     held_specs = []
     held_reasons = {}
     selected_specs = []
+    # Nightly runs hold unclassified AI specs (reported) instead of aborting.
+    unclassified = {} if args.daily else None
     # Validate scheduled browser selection before queuing units. Previously a
     # newly unclassified AI spec left two orphan unit jobs and no daily record.
     if args.spec or args.suite in ("all", "playwright", "cli"):
         try:
-            selected_specs = select_specs(root, args, source)
+            selected_specs = select_specs(root, args, source, unclassified)
         except Exception as exc:
             if args.daily:
                 write_daily_manifest(
@@ -312,6 +315,9 @@ def run(argv: list[str]) -> int:
             from scripts.ci_coverage import partition
             specs, held_reasons = partition(specs)
             held_specs = list(held_reasons)
+        if unclassified:
+            held_reasons = {**held_reasons, **unclassified}
+            held_specs = [*held_specs, *unclassified]
         from scripts.ci_coverage import execution_mode, runtime_batches
         modes = {
             spec: execution_mode(spec, spec_source(root, source, spec))

@@ -8,8 +8,8 @@ Focus phases are optional. An imported `AGENTS.md` or `CLAUDE.md` supplies a Pro
 
 | Source | Storage | Inclusion |
 |---|---|---|
-| App-provided | Reviewed Markdown in `backend/apps/<app>/memories/` | Automatically selected when relevant from the authoritative eligible app catalog |
-| Project | Encrypted Project documents under `.openmates/memories/` | Automatically selected when relevant within the currently active, authorized Project Focus |
+| App-provided | Reviewed Markdown in `backend/apps/<app>/memories/` | Automatically selected or loaded on demand from the authoritative eligible app catalog |
+| Project | Encrypted Project documents under `.openmates/memories/` | Automatically selected or loaded on demand within the currently active, authorized Project Focus |
 | Personal or team | Existing encrypted app memory entries | Existing per-conversation request, selection, approval or rejection; an explicit mention includes only the named category/entry |
 
 Examples of Project Memories include “The staging API uses port 8001”, “The current prototype targets tablet browsers” and “The team prefers Svelte components.” A Focus such as “Investigate this project's failure” defines the work process. A Specification such as “A rejected memory request must disclose no content” defines an obligation. Personal notes about a Project retain personal consent; their subject does not confer Project access.
@@ -19,6 +19,20 @@ Public documents contain exactly `title`, `description`, and `when_to_use` in YA
 Discovery uses the existing Memory cards for both sources: a small **Public** label with a white web icon for published app documents, and **Private** with a white lock icon for user-created memory types. Both labels appear at the top left in the description text color. Visibility describes publication and encryption; it does not grant access. Personal memory consent and active Project access remain separate loading policies.
 
 Project source records, access and Focus activation are checked again after asynchronous selection/decryption. A source revision change invalidates the selected snapshot. Deactivation prevents future inclusion; content previously included in a chat remains part of that chat. Other selected Project document kinds still supply their existing Focus or Specification context.
+
+First-party inference also offers internal `find_memories` and `load_memories`
+context tools independently of preprocessing selection. Discovery returns bounded,
+authorized metadata. Loading resolves complete documents and inserts them into
+the next model request's system prompt; the tool result acknowledges the exact
+loaded revisions. These operations use the existing Loaded memories presentation.
+They do not execute an app skill or change personal/team consent.
+
+The server retains only owner/chat/turn-bound document identities and revisions
+for continuation. It rechecks access and revisions before each request, removes
+revoked context, and discards native provider transcripts whose Memory fingerprint
+no longer matches. Full documents are never silently truncated to fit the loading
+budget. Diagram type Memories additionally resolve their complete common
+references and template through the diagram manifest adapter.
 
 ## Discovery, consent and receipts
 

@@ -7,7 +7,6 @@ they are sent back for Directus storage.
 """
 
 import hashlib
-import json
 import logging
 from typing import Any, Dict
 
@@ -17,7 +16,7 @@ from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.services.embed_version_transaction_service import (
-    requires_atomic_project_embed_write,
+    EmbedVersionTransactionService, EmbedVersionTransactionError, requires_atomic_project_embed_write,
 )
 
 logger = logging.getLogger(__name__)
@@ -25,27 +24,6 @@ logger = logging.getLogger(__name__)
 
 def _user_hash(user_id: str) -> str:
     return hashlib.sha256(user_id.encode()).hexdigest()
-
-
-async def _read_existing_row(
-    directus_service: DirectusService,
-    embed_id: str,
-    version_number: int,
-    hashed_user_id: str,
-) -> Dict[str, Any] | None:
-    params = {
-        "filter": {
-            "embed_id": {"_eq": embed_id},
-            "version_number": {"_eq": version_number},
-            "hashed_user_id": {"_eq": hashed_user_id},
-        },
-        "limit": 1,
-    }
-    if hasattr(directus_service, "read_items"):
-        rows = await directus_service.read_items("embed_diffs", params=params)
-    else:
-        rows = await directus_service.get_items("embed_diffs", params=params)
-    return (rows or [None])[0]
 
 
 async def _send_store_embed_diff_confirmed(
@@ -177,41 +155,28 @@ async def handle_store_embed_diff(
 
             row["created_at"] = int(time.time())
 
-        canonical_digest = hashlib.sha256(json.dumps(
-            [row["encrypted_snapshot"], row["encrypted_patch"]],
-            separators=(",", ":"), ensure_ascii=False,
-        ).encode("utf-8")).hexdigest()
-
-        existing = await _read_existing_row(
-            directus_service,
-            embed_id,
-            version_number,
-            authenticated_user_hash,
-        )
-        if existing:
-            # History rows are immutable. Snapshot backfills use the fenced
-            # transaction endpoint, never this legacy WebSocket writer.
-            if (any(existing.get(field) != row[field] for field in (
-                "encrypted_snapshot", "encrypted_patch",
-            )) or (payload.get("created_at") and existing.get("created_at") != row["created_at"])):
-                await manager.send_personal_message(
-                    {"type": "error", "payload": {"message": "Immutable embed version mismatch"}},
-                    user_id,
-                    device_fingerprint_hash,
-                )
-                return
-            await _send_store_embed_diff_confirmed(
-                manager,
-                user_id,
-                device_fingerprint_hash,
-                request_id,
-                embed_id,
-                version_number,
-                canonical_digest,
+        transaction_row = {key: row[key] for key in (
+            "version_number", "encrypted_snapshot", "encrypted_patch",
+        )}
+        if payload.get("created_at"):
+            transaction_row["created_at"] = row["created_at"]
+        try:
+            result = await EmbedVersionTransactionService(directus_service).write_legacy_embed_diff(
+                embed_id, transaction_row, user_id=user_id,
             )
+        except EmbedVersionTransactionError as exc:
+            conflict = exc.code in {"immutable_version_mismatch", "ambiguous_history"}
+            await manager.send_personal_message({"type": "error", "payload": {
+                "message": "Immutable embed version mismatch" if conflict else "Embed history write rejected",
+                "code": "embed_diff_conflict" if conflict else "embed_diff_unavailable",
+                "request_id": request_id, "embed_id": embed_id, "version_number": version_number,
+            }}, user_id, device_fingerprint_hash)
             return
-
-        await directus_service.create_item("embed_diffs", row)
+        canonical_digest = result["canonical_digest"]
+        if result.get("idempotent"):
+            await _send_store_embed_diff_confirmed(manager, user_id, device_fingerprint_hash,
+                request_id, embed_id, version_number, canonical_digest)
+            return
         logger.info("Stored encrypted embed diff row embed=%s version=%s", embed_id, version_number)
 
         await manager.broadcast_to_user(

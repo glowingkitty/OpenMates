@@ -1,0 +1,224 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "provenance",
+    "capabilities"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "provenance": {
+      "type": "string"
+    },
+    "capabilities": {
+      "type": "object",
+      "required": [
+        "sdk.drafts"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "sdk.drafts": {
+          "type": "object",
+          "required": [
+            "vectors",
+            "open_parity_limits",
+            "credential",
+            "session",
+            "wrong_account_session",
+            "project_grant_session"
+          ],
+          "properties": {
+            "vectors": {
+              "type": "array",
+              "minItems": 15,
+              "maxItems": 15,
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "kind"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "enum": [
+                      "record",
+                      "wrong-account-key",
+                      "project-grant-not-account-key",
+                      "corrupt-markdown",
+                      "missing",
+                      "empty-list",
+                      "anonymous",
+                      "http-error"
+                    ]
+                  },
+                  "draft": {
+                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                    "title": "Read-only encrypted account draft record",
+                    "type": "object",
+                    "required": [
+                      "chat_id",
+                      "encrypted_draft_md",
+                      "draft_v"
+                    ],
+                    "properties": {
+                      "chat_id": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                      },
+                      "encrypted_draft_md": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "encrypted_draft_preview": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "draft_v": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    },
+                    "additionalProperties": true
+                  },
+                  "expected_error": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "integer",
+                    "minimum": 400,
+                    "maximum": 599
+                  },
+                  "markdown": {
+                    "type": "string"
+                  },
+                  "preview": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "additionalProperties": true,
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "kind": {
+                          "const": "record"
+                        }
+                      }
+                    },
+                    "then": {
+                      "required": [
+                        "draft",
+                        "markdown",
+                        "preview"
+                      ]
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "kind": {
+                          "const": "http-error"
+                        }
+                      }
+                    },
+                    "then": {
+                      "required": [
+                        "status",
+                        "expected_error",
+                        "rust_error"
+                      ]
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "kind": {
+                          "enum": [
+                            "wrong-account-key",
+                            "project-grant-not-account-key",
+                            "corrupt-markdown",
+                            "anonymous"
+                          ]
+                        }
+                      }
+                    },
+                    "then": {
+                      "required": [
+                        "expected_error"
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            "open_parity_limits": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "status",
+                  "draft",
+                  "previews",
+                  "npm_preview_utf16"
+                ],
+                "properties": {
+                  "draft": {
+                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                    "title": "Read-only encrypted account draft record",
+                    "type": "object",
+                    "required": [
+                      "chat_id",
+                      "encrypted_draft_md",
+                      "draft_v"
+                    ],
+                    "properties": {
+                      "chat_id": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                      },
+                      "encrypted_draft_md": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "encrypted_draft_preview": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "draft_v": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    },
+                    "additionalProperties": true
+                  },
+                  "status": {
+                    "const": "open-existing-sdk-divergence"
+                  }
+                }
+              }
+            },
+            "credential": {
+              "const": "sk-api-synthetic.synthetic"
+            }
+          }
+        }
+      }
+    }
+  }
+}

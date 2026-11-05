@@ -37,6 +37,7 @@ from backend.core.api.app.routes import anonymous  # noqa: E402 # Anonymous free
 from backend.core.api.app.routes import reminder_email_preview  # noqa: E402
 from backend.core.api.app.routes import internal_api  # noqa: E402 # Import the new internal API router
 from backend.core.api.app.routes import recent_work_internal  # noqa: E402
+from backend.core.api.app.routes import chat_sync_feed  # noqa: E402 # Chat sync feed (architecture.sync@2)
 from backend.core.api.app.routes import internal_health  # noqa: E402
 from backend.core.api.app.routes import apps_workspace_requests, apps_workspace_recommendations, apps_workspace_public  # noqa: E402
 from backend.core.api.app.routes import apps_workspace  # noqa: E402 # Import after logging/tracing setup
@@ -86,6 +87,7 @@ from backend.core.api.app.routes import learning_mode  # noqa: E402 # Account-wi
 from backend.core.api.app.routes import teams  # noqa: E402 # Teams V1 endpoints
 from backend.core.api.app.routes import workflows  # noqa: E402 # Server-side Workflows V1 endpoints
 from backend.core.api.app.routes import user_plans  # noqa: E402 # User-facing Plans V1 endpoints
+from backend.core.api.app.routes import user_specifications  # noqa: E402
 from backend.core.api.app.routes import user_tasks  # noqa: E402 # User-facing Tasks V1 endpoints
 from backend.core.api.app.routes import developer_metadata_api  # noqa: E402 # Safe developer metadata for encrypted product objects
 from backend.core.api.app.routes import workspace_history  # noqa: E402 # Workspace history and undo endpoints
@@ -949,6 +951,11 @@ async def lifespan(app: FastAPI):
     from backend.core.api.app.services.project_task_sync_service import ProjectTaskSyncService
     app.state.project_task_sync = ProjectTaskSyncService(app.state.directus_service, app.state.cache_service)
     app.state.project_task_sync_listener_task = asyncio.create_task(app.state.project_task_sync.listen())
+    from backend.core.api.app.services.chat_sync_feed_service import ChatSyncFeedService
+    app.state.chat_sync_feed = ChatSyncFeedService(
+        app.state.directus_service, app.state.cache_service, app.state.encryption_service,
+    )
+    app.state.chat_sync_feed_listener_task = asyncio.create_task(app.state.chat_sync_feed.listen())
 
     # Start Redis Pub/Sub listener task
     logger.info("Starting Redis Pub/Sub listener for cache events as a background task...")
@@ -1125,6 +1132,13 @@ async def lifespan(app: FastAPI):
         app.state.project_task_sync_listener_task.cancel()
         try:
             await app.state.project_task_sync_listener_task
+        except asyncio.CancelledError:
+            pass
+
+    if hasattr(app.state, 'chat_sync_feed_listener_task'):
+        app.state.chat_sync_feed_listener_task.cancel()
+        try:
+            await app.state.chat_sync_feed_listener_task
         except asyncio.CancelledError:
             pass
 
@@ -1383,11 +1397,13 @@ def create_app() -> FastAPI:
     
     # Web app only routers - excluded from API schema (use web app auth, not API keys)
     app.include_router(websockets.router, include_in_schema=False)  # WebSocket endpoints - web app only
+    app.include_router(chat_sync_feed.router, include_in_schema=False)  # Chat change feed - session-authenticated first-party clients only
     app.include_router(chats.router, include_in_schema=False)  # Encrypted chat reads - session-authenticated first-party clients
     app.include_router(direct_chats.router, include_in_schema=False)  # Client-encrypted Team direct chats and account key enrollment
     app.include_router(storage_routes.router, include_in_schema=False)  # Encrypted cold archive reads - first-party clients only
     app.include_router(internal_api.router, include_in_schema=False)  # Internal API router - service-to-service communication only
     app.include_router(recent_work_internal.router, include_in_schema=False)
+    app.include_router(chat_sync_feed.internal_router, include_in_schema=False)  # Internal chat-sync commit hints
     app.include_router(internal_health.router, include_in_schema=False)
     app.include_router(apps_workspace_requests.router, include_in_schema=False)
     app.include_router(apps_workspace_recommendations.router, include_in_schema=False)
@@ -1448,6 +1464,7 @@ def create_app() -> FastAPI:
     app.include_router(workflows.router, include_in_schema=True)  # Workflows V1 - web/CLI/SDK/Apple authenticated API
     app.include_router(teams.router, include_in_schema=False)  # Teams V1 can contain sensitive membership/billing context; hide until route-level developer docs are classified
     app.include_router(user_plans.router, include_in_schema=False)  # Plans carry client-side encrypted content; expose only safe metadata via developer_metadata_api
+    app.include_router(user_specifications.router, include_in_schema=False)  # Encrypted first-party Project documents
     app.include_router(user_tasks.router, include_in_schema=False)  # Tasks carry client-side encrypted content; expose only safe metadata via developer_metadata_api
     app.include_router(workspace_history.router, include_in_schema=False)  # Workspace history can reference encrypted objects; official clients only until classified
     app.include_router(ideabucket.router, include_in_schema=False)  # IdeaBucket stores encrypted bucket data; official clients only

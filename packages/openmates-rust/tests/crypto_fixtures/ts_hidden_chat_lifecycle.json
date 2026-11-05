@@ -1,0 +1,220 @@
+{
+  "schema_version": 1,
+  "synthetic_only": true,
+  "provenance": "Produced by tests/crypto_fixtures/ts_hidden_chat_lifecycle/generate.cjs running the actual web TypeScript modules listed in ts_sources (sha256 of source at generation) with a deterministic SHA-256 RNG and controlled clock. Every wrapper was re-read by the same TS reader before writing.",
+  "ts_sources": {
+    "frontend/packages/ui/src/services/cryptoService.ts": "23e2f488e14a824104aa848d8df3b76fd89962232f24131ec78e1d251808668b",
+    "frontend/packages/ui/src/services/encryption/MetadataEncryptor.ts": "e6e9e4bda2af41648c767fd3e6be1cf331fd37c414b04bce7073d6df06a63301",
+    "frontend/packages/ui/src/services/encryption/MessageEncryptor.ts": "c793448ab58f4738158e359330823c0fc02b5c187e1a90f72f447c188a8ec79b",
+    "frontend/packages/ui/src/services/hiddenChatService.ts": "3289c7e164f2dbc9779e2b296d2875c5115318ba38e5e031335ffd97ccf8b866"
+  },
+  "keys": {
+    "master_b64": "ExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ew=",
+    "email_salt_b64": "o6qxuL/GzdTb4unw9/4FDBMaISgvNj1E",
+    "chat_key_b64": "REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0=",
+    "normal_chat_key_b64": "SE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiE=",
+    "other_hidden_chat_key_b64": "TFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiU="
+  },
+  "codes": [
+    {
+      "label": "min-ascii",
+      "code": "4821",
+      "combined_secret_b64": "YPG7N4pfnVR9DdOmlbQ9IsYTkonav/L87k9hYTL17Bw=",
+      "encrypted_chat_key": "q+8upk0TeuXv0p/z4TuFsbAJXqmLb5SWpYummaPJ1jzSnNhsxeb0hk81zKBajSWBZL9Cxcbd0HPzfHVa"
+    },
+    {
+      "label": "max-ascii",
+      "code": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "combined_secret_b64": "ioXw4Vv59NGlZdMN2CibRq11TWQbXuLZcJfi7q56Qi0=",
+      "encrypted_chat_key": "TkiwDvwk2+uI02/tOx2CrqN2sqRliuBWSelkx6TJKXPeTwwBOk5w43Zvw8nJ0UuAGoOJ3W0auYY2NUHA"
+    },
+    {
+      "label": "umlaut-emoji",
+      "code": "Grüße🔒",
+      "combined_secret_b64": "wnkfRiniagwEVb1+AVRXSSfAHZpV6j0yNvq7QPllQ7I=",
+      "encrypted_chat_key": "elo9/ZRhhwLqfdWVRDdCFEyrZVh2nDNQFI/pAjLMNej3dWzgT5lBvgaUL9yIJZ7pLMniyUH2lr6YXYkp"
+    },
+    {
+      "label": "astral-only-min",
+      "code": "🔒🔒",
+      "combined_secret_b64": "cRIHqs17vRc5Y2ZXJsjhBdusvSw+SdWDHTiNDVknXag=",
+      "encrypted_chat_key": "G04mMPzq3t6OEk+JV+n9zfgUnPNcJTMMz/yAcXiFm7g29SRos0LHDXV6RZUzw85n9uIxYQx/cDQyLbDm"
+    },
+    {
+      "label": "cjk",
+      "code": "日本語コード",
+      "combined_secret_b64": "vu/X85h5Q6xBbO2IOW086ykhQ/UuXaL0+cbsznrXYls=",
+      "encrypted_chat_key": "3ky4OpWG7sGzrCnngmun5Y1ZeUOL8a7NYcPWq/rJSr0/rzrRC61oF5MihqlYmuDlXF0DRyI3rGrXJe7F"
+    },
+    {
+      "label": "max-astral",
+      "code": "🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒",
+      "combined_secret_b64": "oMdHk/BCDLJ1iIZlGmo4JxPoXFuxCzOuuEoa+b3l0mA=",
+      "encrypted_chat_key": "YI+hzu4erUVxYIW6Tiv8o96WxcFq5391vNf0CtNmZmW9kKQu5Fck0XtpvHyJLjN9J6HIaW7CmepP0SYO"
+    }
+  ],
+  "invalid_codes": [
+    "abc",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "🔒a",
+    "🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒",
+    ""
+  ],
+  "stored_chats": [
+    {
+      "chat_id": "hidden-a",
+      "encrypted_chat_key": "FSEfkBm8vtRpG7MbOwzJTw9FW3VC49K8XBAB9FnCI9S3N5EWVNhuuB31WJfNciFq97efU/IoIurFDXoW"
+    },
+    {
+      "chat_id": "hidden-b",
+      "encrypted_chat_key": "6kcUYnuChEAHFZbG73IMAH5VON8XAc5XJo9MYQFqwvRBBY4t+ORH2kkYBUDI/bLaRcr7ycnyUiK//m4A"
+    },
+    {
+      "chat_id": "normal",
+      "encrypted_chat_key": "HevzCW4YfX8oenTLbKO36v9aKMhzknPuWcAWPMaEnS+9r7hESb+iPu2stIuU+5SSKglD7MjpSSvZQTdD"
+    },
+    {
+      "chat_id": "empty",
+      "encrypted_chat_key": ""
+    }
+  ],
+  "locked_classification": [
+    {
+      "chat_id": "hidden-a",
+      "class": "locked_candidate",
+      "chat_key_b64": null
+    },
+    {
+      "chat_id": "hidden-b",
+      "class": "locked_candidate",
+      "chat_key_b64": null
+    },
+    {
+      "chat_id": "normal",
+      "class": "normal",
+      "chat_key_b64": "SE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiE="
+    }
+  ],
+  "unlock": {
+    "code": "4821",
+    "decrypted_count": 1
+  },
+  "unlocked_classification": [
+    {
+      "chat_id": "hidden-a",
+      "class": "hidden",
+      "chat_key_b64": "REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0="
+    },
+    {
+      "chat_id": "hidden-b",
+      "class": "locked_candidate",
+      "chat_key_b64": null
+    },
+    {
+      "chat_id": "normal",
+      "class": "normal",
+      "chat_key_b64": "SE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiE="
+    }
+  ],
+  "verified_unlock": {
+    "code": "7777",
+    "verified_encrypted_chat_key": "aI221iI4DmUCxEFnERSLuzGojQQGdzlOllycT/qA5MgCEjjjBOPrYwx9TJIi+F6tXnoT0JBjHQQJGQi5",
+    "decrypted_count": 1
+  },
+  "zero_unlock": {
+    "code": "0000",
+    "decrypted_count": 0
+  },
+  "unhide": {
+    "chat_id": "hidden-a",
+    "source_encrypted_chat_key": "FSEfkBm8vtRpG7MbOwzJTw9FW3VC49K8XBAB9FnCI9S3N5EWVNhuuB31WJfNciFq97efU/IoIurFDXoW",
+    "encrypted_chat_key": "dMqf0Xv/dWtxUSSVqZF8smqiLI0Yd0K4MQtOzfZvDWrMvxsWAvAZ0GFrtu5kT8XFlv/5M482gJQDRVoE"
+  },
+  "rate_limit": {
+    "max_failed_attempts": 3,
+    "lockout_ms": 30000,
+    "steps": [
+      {
+        "label": "short-1",
+        "now_ms": 1790000000000,
+        "code": "ab",
+        "salt_missing": false,
+        "outcome": "failed",
+        "remaining_s": 0,
+        "is_unlocked": false
+      },
+      {
+        "label": "short-2",
+        "now_ms": 1790000001000,
+        "code": "abc",
+        "salt_missing": false,
+        "outcome": "failed",
+        "remaining_s": 0,
+        "is_unlocked": false
+      },
+      {
+        "label": "short-3-locks",
+        "now_ms": 1790000002000,
+        "code": "x",
+        "salt_missing": false,
+        "outcome": "failed",
+        "remaining_s": 30,
+        "is_unlocked": false
+      },
+      {
+        "label": "during-lockout",
+        "now_ms": 1790000012500,
+        "code": "4821",
+        "salt_missing": false,
+        "outcome": "locked_out",
+        "remaining_s": 20,
+        "is_unlocked": false
+      },
+      {
+        "label": "still-locked",
+        "now_ms": 1790000030500,
+        "code": "4821",
+        "salt_missing": false,
+        "outcome": "locked_out",
+        "remaining_s": 2,
+        "is_unlocked": false
+      },
+      {
+        "label": "after-expiry",
+        "now_ms": 1790000031500,
+        "code": "4821",
+        "salt_missing": false,
+        "outcome": "locked_out",
+        "remaining_s": 1,
+        "is_unlocked": false
+      },
+      {
+        "label": "salt-missing-counts-twice",
+        "now_ms": 1790000032500,
+        "code": "4821",
+        "salt_missing": true,
+        "outcome": "failed",
+        "remaining_s": 0,
+        "is_unlocked": false
+      },
+      {
+        "label": "short-after-salt-locks",
+        "now_ms": 1790000033500,
+        "code": "zz",
+        "salt_missing": false,
+        "outcome": "failed",
+        "remaining_s": 30,
+        "is_unlocked": false
+      },
+      {
+        "label": "expired-again",
+        "now_ms": 1790000063500,
+        "code": "4821",
+        "salt_missing": false,
+        "outcome": "unlocked",
+        "remaining_s": 0,
+        "is_unlocked": true
+      }
+    ]
+  }
+}

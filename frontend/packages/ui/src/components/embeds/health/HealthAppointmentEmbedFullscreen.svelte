@@ -17,6 +17,11 @@
 -->
 
 <script lang="ts">
+  import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from "../../../types/authoredResult";
+  import { getContext } from "svelte";
+  import { healthAppointmentName, healthAppointmentSlot } from "./healthAppointmentData";
+  import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from "../../../utils/imageProxy";
+  import { handleImageError } from "../../../utils/offlineImageHandler";
   import ResultEmbedFullscreen from "../ResultEmbedFullscreen.svelte";
   import ResultEmbedInfo from "../ResultEmbedInfo.svelte";
   import { getLucideIcon } from "../../../utils/categoryUtils";
@@ -54,6 +59,7 @@
     embed_id: string;
     /** ISO datetime for this specific appointment slot */
     slot_datetime?: string;
+    timezone?: string;
     name?: string;
     speciality?: string;
     address?: string;
@@ -104,12 +110,14 @@
     onNavigatePrevious,
     onNavigateNext,
   }: Props = $props();
+  const authoredContext = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
+  let isAuthored = $derived(Boolean(authoredContext?.authoring || data?.decodedContent?.authoring));
 
   // Build appointment object from data.decodedContent.
   // Must be $derived so it updates when navigating between results (prev/next).
   // Handles both nested gps_coordinates object (from search transformer) and flat TOON
   // fields (gps_coordinates_latitude, gps_coordinates_longitude — from _flatten_for_toon_tabular).
-  let dc = $derived(data.decodedContent);
+  let dc = $derived(authoredContext?.presentationContent ?? authoredContext?.content ?? data.decodedContent);
 
   /** Parse a number from unknown value (handles TOON string→number edge cases). */
   function asNumber(v: unknown): number | undefined {
@@ -173,7 +181,8 @@
   let appointment: AppointmentData = $derived.by(() => ({
     embed_id: asString(dc.embed_id) || embedId || "",
     slot_datetime: asString(dc.slot_datetime),
-    name: asString(dc.name),
+    name: healthAppointmentName(dc),
+    timezone: asString(dc.timezone),
     speciality: asString(dc.speciality),
     address: asString(dc.address),
     gps_coordinates: parseGps(dc),
@@ -200,22 +209,9 @@
     accessibility: asStringArray(dc.accessibility),
   }));
 
-  /** Format an ISO slot as a short "Sat, 14:00" label for the alternate-times list. */
+  /** Alternate slots retain the same supplied timezone as the primary slot. */
   function formatAlternateSlot(iso: string): string {
-    try {
-      const dt = new Date(iso);
-      return (
-        dt.toLocaleDateString([], {
-          weekday: "short",
-          day: "numeric",
-          month: "short",
-        }) +
-        " · " +
-        dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-      );
-    } catch {
-      return iso;
-    }
+    return healthAppointmentSlot(iso, appointment.timezone).label;
   }
 
   /** Map accessibility flag keys to translated labels. */
@@ -236,22 +232,11 @@
 
   // appointment is always an object (from $derived.by above), so alias directly
   let activeAppointment = $derived(appointment);
+  let photoUrl = $derived(proxyImage(asString(dc.image_url), MAX_WIDTH_HEADER_IMAGE));
+  let failedPhoto = $state<string>();
 
   function formatSlot(iso: string): string {
-    try {
-      const dt = new Date(iso);
-      return (
-        dt.toLocaleDateString([], {
-          weekday: "long",
-          month: "long",
-          day: "numeric",
-        }) +
-        " \u00b7 " +
-        dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-      );
-    } catch {
-      return iso;
-    }
+    return healthAppointmentSlot(iso, appointment.timezone).label;
   }
 
   let effectiveSlotDatetime = $derived(
@@ -284,6 +269,7 @@
   let addressLines = $derived(getAddressLines(activeAppointment?.address));
 
   /** Booking platform name for labels/disclaimer — falls back to a generic word. */
+  let priceCurrency = $derived(typeof dc.currency === 'string' ? dc.currency : isAuthored ? '' : 'EUR');
   let providerName = $derived(
     activeAppointment?.provider_platform?.trim() || "the provider",
   );
@@ -304,8 +290,11 @@
       : `${$text("result_embed.insurance")}: ${insuranceValue}`,
   );
 
+  let authoredTitle = $derived(isAuthored ? asString(dc?.title)?.trim() : undefined);
+
   /** Header title: formatted appointment date/time (most important info at a glance) */
   let headerTitle = $derived.by(() => {
+    if (authoredTitle) return authoredTitle;
     if (effectiveSlotDatetime) return formatSlot(effectiveSlotDatetime);
     return (
       activeAppointment?.name ||
@@ -317,9 +306,10 @@
   /** Header subtitle: doctor name + speciality (secondary context) */
   let headerSubtitle = $derived.by(() => {
     const parts: string[] = [];
-    if (effectiveSlotDatetime && activeAppointment?.name)
+    if ((effectiveSlotDatetime || authoredTitle) && activeAppointment?.name)
       parts.push(activeAppointment.name);
     if (activeAppointment?.speciality) parts.push(activeAppointment.speciality);
+    if (authoredTitle && effectiveSlotDatetime) parts.push(formatSlot(effectiveSlotDatetime));
     return parts.join(" · ") || undefined;
   });
 
@@ -396,7 +386,7 @@
         ? `Provider: ${activeAppointment.provider_platform}`
         : "",
       activeAppointment?.price != null
-        ? `Price: ${activeAppointment.price} EUR`
+        ? `Price: ${activeAppointment.price} ${priceCurrency}`
         : "",
       bookingUrl,
     ]
@@ -412,6 +402,8 @@
     downloadCalendarFile({
       title: calendarTitle,
       start: effectiveSlotDatetime || "",
+      preserveUnknownEnd: isAuthored,
+      timezone: activeAppointment.timezone,
       location: activeAppointment?.address,
       description: buildCalendarDescription(),
       url: bookingUrl,
@@ -424,8 +416,19 @@
   }
 </script>
 
+{#snippet appointmentMedia()}
+  {#if photoUrl && failedPhoto !== photoUrl}
+    <img class="result-primary-media" src={photoUrl} alt={activeAppointment.name || headerTitle}
+      data-testid="health-appointment-fullscreen-image" loading="lazy"
+      onerror={(event) => { failedPhoto = photoUrl; handleImageError(event.currentTarget); }} />
+  {:else}
+    <p role="status">{$text("home_listing.photo_unavailable")}</p>
+  {/if}
+{/snippet}
+
 {#if activeAppointment}
   <ResultEmbedFullscreen
+    media={photoUrl ? appointmentMedia : undefined}
     appId="health"
     decorationIconName="calendar"
     skillId="appointment"
@@ -447,13 +450,13 @@
     {#snippet summary()}
       {#if activeAppointment.rating != null}<ResultEmbedInfo
           icon="star"
-          label={`${activeAppointment.rating.toFixed(1)} · ${activeAppointment.rating_count ?? 0} ${$text("embeds.health.reviews")}`}
+          label={`${activeAppointment.rating.toFixed(1)} · ${activeAppointment.rating_count != null ? `${activeAppointment.rating_count} ${$text("embeds.health.reviews")}` : isAuthored ? '' : `0 ${$text("embeds.health.reviews")}`}`}
           value={activeAppointment.rating.toFixed(1)}
         />{/if}
       {#if activeAppointment.price != null}<ResultEmbedInfo
           icon="euro"
-          label={`${activeAppointment.price} EUR`}
-          value={`${activeAppointment.price} EUR`}
+          label={`${activeAppointment.price} ${priceCurrency}`}
+          value={`${activeAppointment.price} ${priceCurrency}`}
         />{/if}
       {#if activeAppointment.insurance}<ResultEmbedInfo
           icon="users"
@@ -511,14 +514,14 @@
         {#if activeAppointment.additional_slot_datetimes?.length}
           <ResultEmbedInfo
             icon="calendar-days"
-            label={$text("embeds.health.also_available")}
+            label={$text(isAuthored ? "embeds.authoring.additional_times" : "embeds.health.also_available")}
             testId="health-alternate-info"
           >
             <!-- Alternate slot times for the same doctor (from _group_slots_by_doctor) -->
             {#if activeAppointment.additional_slot_datetimes && activeAppointment.additional_slot_datetimes.length > 0}
               <div class="alternate-slots">
                 <div class="section-title">
-                  {$text("embeds.health.also_available")}
+                  {$text(isAuthored ? "embeds.authoring.additional_times" : "embeds.health.also_available")}
                 </div>
                 <div class="alternate-slots-list">
                   {#each activeAppointment.additional_slot_datetimes as altIso}

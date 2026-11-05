@@ -1,0 +1,62 @@
+schema_version: 1
+specification: architecture.session-owner-consistency@1
+
+header_restriction:
+  - id: header-alone-grants-nothing
+    given: A request carries X-OpenMates-Expected-Principal for Alice's account id but no session cookie or API key.
+    when: It calls an authenticated route.
+    then: The request is refused as unauthenticated exactly as it would be without the header.
+  - id: matching-header-passes
+    given: Alice is signed in and her browser sends her own account id in the header.
+    when: She creates a project.
+    then: The project is created as before.
+
+http_enforcement:
+  - id: switched-cookie-refused
+    given: The Rust browser client expects Alice, but the cookie it now sends belongs to Bob.
+    when: It posts a new chat message.
+    then: The server answers 403 with {"error":"session_principal_mismatch"}, mentions neither account id, and stores nothing.
+  - id: old-client-without-header
+    given: An older web client that never sends the header is signed in as Alice.
+    when: It posts a new chat message.
+    then: The message is accepted exactly as before.
+
+logout:
+  - id: mismatched-logout-keeps-session
+    given: A tab that expects Alice sends logout while the cookie belongs to Bob.
+    when: It calls /logout with the header.
+    then: The server answers 403 and Bob's session cookies and server session remain intact.
+  - id: legacy-logout-unchanged
+    given: A client signed in as Alice calls /logout without the header.
+    when: The request is handled.
+    then: Her session is cleared exactly as before.
+
+websocket:
+  - id: rotated-query-same-owner-admitted
+    given: Alice's cookie is fresh and the ws_token query is from her previous rotation of the same account.
+    when: The browser opens the WebSocket.
+    then: Both are validated, both resolve to Alice, and the connection is admitted.
+  - id: query-for-other-owner-closed
+    given: The cookie belongs to Alice but the signed ws_token query belongs to Bob, or is invalid, expired or revoked.
+    when: The browser opens the WebSocket.
+    then: The server closes with 1008 before accepting the connection and nothing is synced.
+
+uploads:
+  - id: mismatched-upload-refused
+    given: The Rust browser client expects Alice, but the cookie sent to the upload service belongs to Bob.
+    when: It uploads an image with the header.
+    then: The upload service forwards the header, the core API refuses with session_principal_mismatch, and the upload service answers 403 without scanning, encrypting or storing the file.
+  - id: legacy-upload-unchanged
+    given: The TypeScript web client signed in as Alice uploads an image without the header.
+    when: The upload service validates the session.
+    then: The upload proceeds exactly as before.
+
+capabilities:
+  - id: session-advertises-both
+    given: A signed-in browser calls the session endpoint on a server with enforcement live.
+    when: The session response returns.
+    then: It contains client_security_capabilities ["expected-principal-v1","ws-dual-principal-v1"], and the Rust browser client allows writes.
+  - id: old-server-blocks-rust-writes
+    given: An older server returns a session response without client_security_capabilities.
+    when: The Rust browser client tries to create a project.
+    then: The client refuses locally with browser_owner_consistency_unsupported and sends no write.

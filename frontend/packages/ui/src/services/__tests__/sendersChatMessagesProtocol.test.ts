@@ -321,7 +321,7 @@ describe("sendersChatMessages protocol fences", () => {
 		expect(retry.sealed).toBe(first.sealed);
 		expect(retry.payload).toEqual(original);
 		expect((retry.payload.inference_request as typeof original.inference_request).model_routing_restrictions)
-			.toEqual({ disabled_ai_models: ["mercury-3"], disabled_ai_servers: { "mercury-3": ["inception"] } });
+			.toEqual({ disabled_ai_models: ["mercury-3"], disabled_ai_servers: { "mercury-3": ["inception"] }, server_region_preference: "eu" });
 		await expect(retainOrReuseDurableTurnPreflight({ ...identity, finalContent: "changed ref" }, retryCandidate, storage))
 			.rejects.toThrow("changed account, key, scope, content, or ciphertext");
 		await expect(retainOrReuseDurableTurnPreflight({ ...identity, accountId: "another-owner" }, retryCandidate, storage))

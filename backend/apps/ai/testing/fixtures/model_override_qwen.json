@@ -10,8 +10,8 @@
     "icon_names": [
       "map"
     ],
-    "selected_model_id": "alibaba/qwen3-235b-a22b-2507",
-    "selected_model_name": "Qwen 3 256b",
+    "selected_model_id": "alibaba/qwen-3.8-27b",
+    "selected_model_name": "Qwen 3.8 27B",
     "mate_id": "george",
     "chat_summary": "User asked for the capital city of Germany.",
     "chat_tags": [
@@ -26,7 +26,7 @@
   },
   "typing_started": {
     "category": "general_knowledge",
-    "model_name": "Qwen 3 256b",
+    "model_name": "Qwen 3.8 27B",
     "provider_name": "Cerebras",
     "server_region": "US",
     "icon_names": [
@@ -40,6 +40,6 @@
     "prompt_tokens": null,
     "completion_tokens": null,
     "total_credits": null,
-    "model_name": "Qwen 3 256b"
+    "model_name": "Qwen 3.8 27B"
   }
 }

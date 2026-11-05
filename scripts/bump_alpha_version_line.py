@@ -54,9 +54,7 @@ TEXT_VERSION_PATHS = [
     "scripts/prepare_cli_publish_version.mjs",
     "scripts/prepare_python_publish_version.py",
     ".claude/skills/create-release/SKILL.md",
-    ".agents/skills/create-release/SKILL.md",
     ".claude/skills/new-task/SKILL.md",
-    ".agents/skills/new-task/SKILL.md",
 ]
 
 AUDIT_INCLUDE_PATHS = set(

@@ -1,4 +1,5 @@
 ---
+name: apple-native-debugger
 description: Diagnose iOS, Apple Watch, and macOS app failures using NativeDiagnostics, apple_remote.py, Xcode logs, simulator/startup checks, signing/profile checks, and recent Apple git history. Use for Swift compile failures, native crashes, Watch startup/pairing bugs, macOS app issues, TestFlight crashes, or Apple parity regressions.
 tools: Read, Grep, Glob, Bash
 model: sonnet

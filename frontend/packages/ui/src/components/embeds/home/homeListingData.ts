@@ -9,6 +9,39 @@ export function homeObject(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 const HOME_AMENITIES = ['pets_allowed', 'balcony', 'terrace', 'garden', 'elevator', 'furnished', 'parking'];
+/** Supplied named amenities confirm only the names listed; omissions stay unknown. */
+export function homeAmenities(value: unknown): Record<string, unknown> {
+  if (!Array.isArray(value)) return homeObject(value);
+  return Object.fromEntries(value.filter((item): item is string => typeof item === 'string' && !!item.trim()).map(item => {
+    const name = item.trim();
+    const knownKey = name.toLowerCase().replaceAll(' ', '_');
+    return [HOME_AMENITIES.includes(knownKey) ? knownKey : name, true];
+  }));
+}
+
+export interface HomeRentRow { key: string; labelKey: string; value: string }
+/** Render admitted rent components with their supplied units; never sum or infer a currency. */
+export function homeRentRows(content: Record<string, unknown>): HomeRentRow[] {
+  const rows: HomeRentRow[] = [];
+  const labelKeys: Record<string, string> = { price: 'price', amount: 'price', base_rent: 'cold_rent_eur', warm_rent: 'warm_rent_eur', utilities: 'utilities_eur', heating: 'heating_costs_eur', deposit: 'deposit', min: 'price', max: 'price' };
+  function add(key: string, field: string, amount: unknown, currency: unknown, period: unknown) {
+    const number = homeNumber(amount);
+    if (number === undefined) return;
+    const unit = typeof currency === 'string' ? currency.trim() : '';
+    const basis = typeof period === 'string' ? period.trim() : '';
+    rows.push({key, labelKey: labelKeys[field] ?? 'price', value: `${field === 'min' ? '≥ ' : field === 'max' ? '≤ ' : ''}${new Intl.NumberFormat().format(number)}${unit ? ` ${unit}` : ''}${basis ? ` / ${basis}` : ''}`});
+  }
+  for (const field of ['price', 'base_rent', 'warm_rent', 'utilities', 'heating', 'deposit']) add(field, field, content[field], content.currency, undefined);
+  for (const namespace of ['price', 'rent_components']) {
+    const money = homeObject(content[namespace]);
+    const currency = money.currency ?? content.currency;
+    const amount = homeNumber(money.amount) ?? (homeNumber(money.amount_cents) === undefined ? undefined : homeNumber(money.amount_cents)! / 100);
+    add(`${namespace}.amount`, 'amount', amount, currency, money.period ?? money.basis);
+    for (const field of ['base_rent', 'warm_rent', 'utilities', 'heating', 'deposit', 'min', 'max']) add(`${namespace}.${field}`, field, money[field], currency, money.period ?? money.basis);
+    if (typeof money.label === 'string' && money.label.trim()) rows.push({key: `${namespace}.label`, labelKey: 'price', value: money.label.trim()});
+  }
+  return rows;
+}
 const HOME_NEIGHBORHOOD_CATEGORIES = ['water', 'park', 'transit', 'groceries', 'school'];
 
 /** Rebuild only schema-defined TOON paths; underscores inside field names are significant. */
@@ -16,7 +49,7 @@ export function homeListingContent(value: unknown): Record<string, unknown> {
   const raw = homeObject(value);
   const listing = { ...raw };
   for (const namespace of ['amenities', 'location', 'match_evidence', 'visual_assessment', 'neighborhood']) {
-    const rebuilt = { ...homeObject(raw[namespace]) };
+    const rebuilt = { ...(namespace === 'amenities' ? homeAmenities(raw[namespace]) : homeObject(raw[namespace])) };
     for (const [key, field] of Object.entries(raw)) {
       if (!key.startsWith(`${namespace}_`)) continue;
       const suffix = key.slice(namespace.length + 1);
@@ -81,6 +114,7 @@ export interface HomeMapGeometry {
   lon: number;
   radiusM?: number;
   areaBasis?: 'description' | 'district' | 'city';
+  areaName?: string;
 }
 /** Only the explicit provider-backed exact-address contract permits a home pin. */
 export function homeExactLocation(raw: Record<string, unknown>): boolean {
@@ -104,16 +138,21 @@ export function homeMapGeometry(raw: Record<string, unknown>): HomeMapGeometry |
     return latitude !== undefined && longitude !== undefined && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180
       ? {lat: latitude, lon: longitude} : undefined;
   };
-  const center = coordinate(area.latitude, area.longitude);
+  const authored = homeObject(content.authoring).kind === 'home.listing';
+  const center = coordinate(area.latitude ?? (authored ? area.lat : undefined), area.longitude ?? (authored ? area.lon : undefined));
   const radiusM = homeNumber(area.radius_m);
-  if (center && radiusM !== undefined && radiusM > 0 && ['description', 'district', 'city'].includes(String(area.basis))) {
-    return {...center, radiusM, areaBasis: area.basis as HomeMapGeometry['areaBasis']};
+  const areaBasis = ['description', 'district', 'city'].includes(String(area.basis))
+    ? area.basis as HomeMapGeometry['areaBasis']
+    : authored && (area.basis == null || area.basis === '') ? 'description' : undefined;
+  if (center && radiusM !== undefined && radiusM > 0 && areaBasis) {
+    return {...center, radiusM, areaBasis,
+      ...(authored && typeof area.name === 'string' && area.name.trim() ? { areaName: area.name.trim() } : {})};
   }
   // A legacy approximate center has no known extent: never invent a pin or radius.
   return homeExactLocation(content) ? coordinate(content.latitude, content.longitude) : undefined;
 }
 export function homeMapLabel(geometry: HomeMapGeometry, translate: (key: string) => string): string {
-  return geometry.radiusM ? `${translate(`home_listing.area_${geometry.areaBasis}`)} · ${geometry.radiusM} m ${translate('home_listing.radius')}`
+  return geometry.radiusM ? `${geometry.areaName ? `${geometry.areaName} · ` : ''}${translate(`home_listing.area_${geometry.areaBasis}`)} · ${geometry.radiusM} m ${translate('home_listing.radius')}`
     : translate('home_listing.building');
 }
 /** Render scalar provider facts only: no raw HTML and no implicit certainty. */

@@ -99,6 +99,12 @@
         "description": {
           "text": "Vyberte zapamatovatelné názvy a poté prověřte domény a kolize ochranných známek finalistů."
         }
+      },
+      "price_products": {
+        "text": "Nacenit své produkty",
+        "description": {
+          "text": "Spočítejte, kolik si účtovat za ruční nebo malosériové výrobky, s živou tabulkou, kterou můžete upravovat."
+        }
       }
     },
     "code": {
@@ -184,6 +190,14 @@
         "text": "Zkontrolovat bezpečnost",
         "description": {
           "text": "Prověřte konfigurační soubory na bezpečnostní zranitelnosti a vystavení."
+        }
+      }
+    },
+    "events": {
+      "plan_conference_talk": {
+        "text": "Naplánovat přednášku na konferenci",
+        "description": {
+          "text": "Rozhodněte, jakou přednášku přihlásit na konferenci, a připravte z ní silný návrh."
         }
       }
     },
@@ -336,6 +350,14 @@
         }
       }
     },
+    "tasks": {
+      "daily_meeting_and_orchestration": {
+        "text": "Denní porada a koordinace",
+        "description": {
+          "text": "Zvolte dnešní priority a koordinujte úkoly a chaty projektu až do dokončení."
+        }
+      }
+    },
     "videos": {
       "analyze_video": {
         "text": "Analyzovat video",
@@ -383,6 +405,14 @@
           "3": {
             "text": "Prozkoumej **příčiny** vzestupu rychlé módy a její environmentální důsledky"
           }
+        }
+      }
+    },
+    "workflows": {
+      "clarify_workflows": {
+        "text": "Upřesnit pracovní postupy",
+        "description": {
+          "text": "Doplňte chybějící podrobnosti jednoho či více pracovních postupů před jejich vytvořením nebo změnou."
         }
       }
     }
@@ -1512,6 +1542,15 @@
       "preview_hide": {
         "text": "Skrýt náhled"
       },
+      "view_code": {
+        "text": "Zobrazit kód"
+      },
+      "view_visual": {
+        "text": "Zobrazit vizualizaci"
+      },
+      "interactive_html_blocked": {
+        "text": "Tato vizualizace se pokusila otevřít jinou stránku a byla zastavena."
+      },
       "search_repos": {
         "text": "Hledat repozitáře",
         "description": {
@@ -2464,7 +2503,7 @@
       "browse": {
         "text": "Procházet",
         "description": {
-          "text": "Procházejte weby a vracejte zjištěné informace jako JSON."
+          "text": "Procházejte webové stránky a získejte výsledky v JSON. Výpočetní čas prohlížeče je účtován po sekundách, plus využití AI. Pozastavený výpočet je zdarma."
         }
       }
     },
@@ -2480,6 +2519,12 @@
           "text": "Hledat pracovní postupy",
           "description": {
             "text": "Najděte pracovní postupy vlastněné uživatelem, které odpovídají záměru chatu."
+          }
+        },
+        "run": {
+          "text": "Spustit pracovní postup",
+          "description": {
+            "text": "Spusťte jeden ze svých stávajících pracovních postupů přímo z chatu."
           }
         }
       }
@@ -4157,6 +4202,12 @@
       },
       "remember": {
         "text": "Remember"
+      },
+      "more_options": {
+        "text": "Zobrazit další možnosti"
+      },
+      "previous_options": {
+        "text": "Zobrazit předchozí možnosti"
       }
     },
     "explain_in_new_chat": {
@@ -7327,9 +7378,6 @@
     "view_on_google_hotels": {
       "text": "Zobrazit na Google Hotels"
     },
-    "view_on_meetup": {
-      "text": "Zobrazit na Gathering"
-    },
     "loading_map": {
       "text": "Načítání mapy..."
     },
@@ -7840,6 +7888,9 @@
         },
         "not_available": {
           "text": "N/A"
+        },
+        "cash_flow": {
+          "text": "Peněžní tok"
         }
       },
       "search_trademarks": {
@@ -8074,6 +8125,11 @@
         "text": "Watermarking"
       }
     },
+    "search_domain": {
+      "minutes": {
+        "text": "{count} min"
+      }
+    },
     "projects": {
       "references": {
         "subtitle": {
@@ -8258,6 +8314,139 @@
       },
       "stopping": {
         "text": "Zastavování…"
+      },
+      "no_frame": {
+        "text": "Uložený snímek není k dispozici."
+      }
+    },
+    "authoring": {
+      "draft": {
+        "text": "Návrh"
+      },
+      "user_provided": {
+        "text": "Poskytnuto uživatelem"
+      },
+      "sources": {
+        "text": "Zdroje"
+      },
+      "observed_at": {
+        "text": "Pozorováno"
+      },
+      "image_credit": {
+        "text": "Autor obrázku"
+      },
+      "partial": {
+        "text": "Částečný výsledek"
+      },
+      "uploaded_source": {
+        "text": "Nahraný zdroj"
+      },
+      "approximate_location": {
+        "text": "Přibližná poloha"
+      },
+      "schematic_route": {
+        "text": "Schematická trasa"
+      },
+      "unmapped": {
+        "text": "Poloha není dostupná"
+      },
+      "open_source": {
+        "text": "Otevřít zdrojovou stránku"
+      },
+      "open_domain": {
+        "text": "Otevřít na {domain}"
+      },
+      "additional_times": {
+        "text": "Další časy"
+      }
+    },
+    "tv": {
+      "movie": {
+        "text": "Film"
+      },
+      "series": {
+        "text": "Televizní seriál"
+      },
+      "poster_unavailable": {
+        "text": "Plakát není dostupný"
+      },
+      "synopsis": {
+        "text": "Děj"
+      },
+      "release_date": {
+        "text": "Datum vydání"
+      },
+      "runtime": {
+        "text": "Délka"
+      },
+      "genres": {
+        "text": "Žánry"
+      },
+      "directors": {
+        "text": "Režie"
+      },
+      "creators": {
+        "text": "Tvůrci"
+      },
+      "cast": {
+        "text": "Obsazení"
+      },
+      "language": {
+        "text": "Původní jazyk"
+      },
+      "countries": {
+        "text": "Země"
+      },
+      "content_rating": {
+        "text": "Věkové hodnocení"
+      },
+      "score": {
+        "text": "Hodnocení zdroje"
+      },
+      "score_votes": {
+        "text": "Počet hlasů: {count}"
+      },
+      "first_air_date": {
+        "text": "První vysílání"
+      },
+      "last_air_date": {
+        "text": "Poslední vysílání"
+      },
+      "series_status": {
+        "text": "Stav seriálu"
+      },
+      "season_count": {
+        "text": "Počet řad: {count}"
+      },
+      "episodes": {
+        "text": "Epizody"
+      },
+      "episode_count": {
+        "text": "Počet epizod: {count}"
+      },
+      "season": {
+        "text": "Řada {number}"
+      },
+      "specials": {
+        "text": "Speciální epizody"
+      },
+      "supplied_seasons": {
+        "text": "Poskytnuté řady"
+      },
+      "partial_seasons": {
+        "text": "Zobrazeny jsou pouze poskytnuté podrobnosti řad."
+      },
+      "year": {
+        "text": "Rok"
+      },
+      "preparing": {
+        "text": "Příprava titulu…"
+      },
+      "cancelled": {
+        "text": "Vytvoření titulu zrušeno"
+      },
+      "unavailable": {
+        "text": "Titul není dostupný"
       }
     }
   },
@@ -8612,10 +8801,10 @@
     },
     "pii": {
       "banner_title": {
-        "text": "Detekována citlivá data"
+        "text": "Detekováno {count}× citlivých dat"
       },
       "banner_description": {
-        "text": "Nalezeno: {summary}. Před odesláním budou nahrazeny zástupnými symboly. Klikněte na zvýrazněný text pro zachování originálu."
+        "text": "Před odesláním budou nahrazeny zástupnými symboly. Klikněte na zvýrazněný text a odešlete originál."
       },
       "undo_all": {
         "text": "Vrátit zpět všechny náhrady"
@@ -9089,6 +9278,70 @@
       },
       "follow_up_6": {
         "text": "Porovnej mimozemskou biologii Getheňanů a Oankaliů"
+      }
+    },
+    "browse_example_domain": {
+      "title": {
+        "text": "Extrahovat informace z webu jako JSON"
+      },
+      "summary": {
+        "text": "Procházejte Example Domain a vraťte její úplné prohlášení se zdrojovou URL jako strukturovaný JSON."
+      },
+      "message_1": {
+        "text": "Použijte dovednost Procházení webové aplikace k extrakci úplného viditelného anglického prohlášení z [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a). Vraťte JSON se dvěma povinnými poli: purpose, obsahující doslovné úplné prohlášení včetně jeho výhrad, a source_url, obsahující URL aktuální stránky. Jedná se o úkol extrakce bez požadavku na další interakci s webem. Omezte relaci prohlížeče na 40 kreditů."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bac3644b-0f9c-48cd-bad9-22d265d938a1\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nExtrakce je dokončena. Zde je výsledek:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"88b9349a-9529-4835-a507-f54e5f24a30f\"}\n```\n\nStránka je standardní zástupný symbol Example Domain a výše uvedené prohlášení je jeho úplný viditelný anglický text, včetně výhrady, že se nejedná o službu a nemělo by se na ni spoléhat při testování nebo monitorování."
+      },
+      "follow_up_1": {
+        "text": "Vyhledat další zástupné domény a standardní šablony"
+      },
+      "follow_up_2": {
+        "text": "Vysvětlit, jak se Example Domain obvykle používá v dokumentaci"
+      },
+      "follow_up_3": {
+        "text": "Procházet jinou URL adresu webu pro získání textového obsahu"
+      },
+      "follow_up_4": {
+        "text": "Seznam běžných konvencí pro zástupný text ve vývoji webu"
+      },
+      "follow_up_5": {
+        "text": "Číst veřejné HTTPS stránky přímo z poskytnuté URL adresy"
+      },
+      "follow_up_6": {
+        "text": "Porovnat Example Domain s jinými vyhrazenými testovacími doménami"
+      }
+    },
+    "browse_heading_json": {
+      "title": {
+        "text": "Přečti si webovou stránku pomocí Prohlížení"
+      },
+      "summary": {
+        "text": "Použij prohlížeč k nalezení nadpisu stránky a vrať výsledek se zdrojovou URL adresou ve formátu JSON."
+      },
+      "message_1": {
+        "text": "Použij dovednost Prohlížení k otevření [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) a vrať přesný hlavní nadpis a zdrojovou URL adresu jako JSON. Pro tento úkol použij relaci prohlížeče."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"5f0e7070-da89-4cd1-9447-52f63f4fd826\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nRelace Prohlížení otevřela stránku a vrátila následující:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"c0e67189-7fb4-4e88-a3ab-f66d75ea01a2\"}\n```\n\nStránka na `https://httpbin.org/html` poskytuje ukázkový HTML dokument, jehož hlavním nadpisem je **„Herman Melville - Moby-Dick“** (úryvek z první kapitoly románu „Loomings“)."
+      },
+      "follow_up_1": {
+        "text": "Vyhledej historickou analýzu díla Bílá velryba od Hermana Melvilla"
+      },
+      "follow_up_2": {
+        "text": "Vysvětli význam úvodní kapitoly Bílé velryby"
+      },
+      "follow_up_3": {
+        "text": "Přečti si veřejnou dokumentaci o technikách automatizace webového prohlížeče"
+      },
+      "follow_up_4": {
+        "text": "Porovnej různé digitální formáty pro čtení klasické literatury"
+      },
+      "follow_up_5": {
+        "text": "Vyhledej online literární archivy s klasickými americkými romány"
+      },
+      "follow_up_6": {
+        "text": "Shrň hlavní témata díla Hermana Melvilla"
       }
     },
     "building_maintenance_email": {
@@ -10775,6 +11028,12 @@
         "text": "- Pochopit zadání\n- vybrat názvy\n- prověřit finalisty\n- porovnat důkazy"
       }
     },
+    "business_price_products": {
+      "text": "Nacenit své produkty",
+      "description": {
+        "text": "Spočítejte, kolik si účtovat za ruční nebo malosériové výrobky, s živou tabulkou, kterou můžete upravovat."
+      }
+    },
     "code_analyze_logs": {
       "text": "Analyzovat protokoly",
       "description": {
@@ -10902,6 +11161,12 @@
       },
       "systemprompt": {
         "text": "Jste odborník na programování."
+      }
+    },
+    "events_plan_conference_talk": {
+      "text": "Naplánovat přednášku na konferenci",
+      "description": {
+        "text": "Rozhodněte, jakou přednášku přihlásit na konferenci, a připravte z ní silný návrh."
       }
     },
     "jobs_career_insights": {
@@ -11048,6 +11313,12 @@
         "text": "Jste odborný poradce pro vzdělávání a kariéru. Vaší rolí je pomáhat uživatelům objevit správný titul a obor studia prostřednictvím promyšlených, strategických otázek. Použijte sokratovskou metodu k vedení k sebeobjevování spíše než pouhému radění. Pomozte jim pochopit jejich skutečné zájmy, silné stránky a hodnoty. Pokládejte doplňující otázky pro hlubší zkoumání a odhalování vzorů. Poskytujte personalizovaná doporučení na základě jejich odpovědí."
       }
     },
+    "tasks_daily_meeting_and_orchestration": {
+      "text": "Denní porada a koordinace",
+      "description": {
+        "text": "Zvolte dnešní priority a koordinujte úkoly a chaty projektu až do dokončení."
+      }
+    },
     "videos_analyze_video": {
       "text": "Analyzovat video",
       "description": {
@@ -11105,6 +11376,12 @@
       },
       "systemprompt": {
         "text": "Jste důsledný výzkumník ověřující soupeřící vysvětlení pomocí primárních důkazů. Otázka nemusí podporovat hlubší příběh ani tvrzení o úmyslu. Nemusíte hledat skrytý motiv; přijměte běžné vysvětlení, pokud je důkazy podporují.\n\nPracovní postup výzkumu:\n- Nejprve rozhodni, zda otázka uživatele vyžaduje hloubkový výzkum, nebo krátkou odpověď. Pokud je otázka široká, aktuální, sporná, politická, ekonomická, souvisí s trhem nebo se ptá, proč se něco stalo, přistupuj k ní jako k hloubkovému výzkumu.\n- Požádej o upřesnění pouze tehdy, pokud je rozsah zadání uživatele příliš nejednoznačný na to, aby bylo možné provést odpovědný výzkum. Jinak začni s výzkumem.\n- Před vyhledáváním uveď hlavní hypotézy nebo úhly pohledu, které musíš ověřit. Zahrň povrchní vysvětlení, alternativní vysvětlení, motivace, kdo z toho těží, kdo ztrácí, tržní nebo politickou strukturu, historii regulace a protiargumenty.\n- V hlavním chatu vyžadujícím složitý výzkum MUSÍ být první akcí nástroje start_sub_chats před web-search nebo web-read. Delegujte souběžně přesně tři odlišné úhly a před syntézou vyčkejte na všechny zprávy. Každému podchatu uložte používat web-search a web-read, opírat podstatná tvrzení o primární zdroje s výhradami odpovídajícími jejich rozsahu a vrátit zjištění se zdroji.\n- Důležité mezery přiznejte; v pokračování nezakládejte další skupiny výzkumu ani nehádejte chybějící důkazy.\n- Po dokončení tří výzkumných podchatů hlavní chat syntetizuje zprávy a pomocí web-read čte primární dokumenty k podstatným sporům, které zprávy nevyřešily. Nespouštějte čtvrtý podchat ani placenou opravnou sérii. Pokud výzkum či čtení selže, poctivě uveďte omezení a podejte jen omezenou odpověď s výhradami. Pokračování ani výzkumný podchat nesmí spouštět další podchaty.\n- Používej web-search opakovaně s různými úhly vyhledávání. Nespoléhej na jeden zřejmý dotaz. Například otázka na zvýšení cen by měla vést k vyhledávání nabídkových šoků, firemních zisků, koncentrace trhu, šetření regulačních orgánů, lobbingu, výplat akcionářům a dopadu na spotřebitele, pokud je to relevantní.\n- U důležitých zdrojů používej web-read místo spoléhání pouze na úryvky z výsledků vyhledávání. Upřednostňuj původní zdroje, vládní data nebo data regulačních orgánů, dokumenty podané společnostmi, soudní záznamy, akademické práce, důvěryhodnou žurnalistiku a přímé zprávy před shrnutími.\n- Hodnoť kvalitu zdrojů podle aktuálnosti, relevance, autority, přesnosti a účelu. Používej laterální čtení: ověřuj důležitá tvrzení napříč nezávislými zdroji a podle možností je sleduj zpět k primárním důkazům.\n- Výslovně zkoumej motivace. Urči hlavní strany, co každá z nich chce, z jakých přesvědčení lidí každá strana těží a jaké důkazy podporují nebo oslabují jejich příběh.\n\nPráce s důkazy:\n- Odděluj potvrzené důkazy, silné úsudky, věrohodné interpretace a nepodložené spekulace.\n- Považuj zveřejněnou žalobu nebo obvinění za potvrzení, že tvrzení bylo vzneseno, nikoli že se údajné jednání stalo. Rozlišuj navrhovaná narovnání od narovnání schválených soudem a oba typy od soudních zjištění nebo přiznání; samotné narovnání neprokazuje protiprávní jednání. Před důležitým závěrem o protiprávním jednání nebo právním vyřešení věci přímo přečti podkladovou žalobu, rozhodnutí, narovnání nebo oficiální zprávu pomocí web-read; pokud nejsou dostupné, uveď toto omezení. Instruuj výzkumníky v podřízených chatech, aby uváděli důkazní status a zdroj každého důležitého tvrzení, a zachovej tento status v závěrečné syntéze místo povýšení obvinění nebo návrhu na potvrzené protiprávní jednání.\n- Nikdy neuváděj korupci, manipulaci, podvod nebo zlou vůli jako fakt, pokud to zdroje nepodporují. Pokud důkazy ukazují na cenotvornou sílu, obavy z koordinace, dohled regulačních orgánů nebo podezřelé motivace, formuluj to opatrně a cituj důkazy.\n- K tvrzením z jediného zdroje přistupuj opatrně. Pokud jsou důkazy slabé, sporné, zastaralé nebo nedostupné, uveď to přímo.\n- Před závěrečnou syntézou slaďte tři zprávy a jejich primární důkazy. Vynech nepodložené přesné údaje, kauzální tvrzení a právní závěry nebo je opatři výhradami. Pokud zdroj pro ověření není dostupný, označ nevyřešené tvrzení místo toho, abys je předkládal jako potvrzené. Dokument nazvaný Proposed Final Judgment neprokazuje schválení soudem; oficiální žaloba potvrzuje, že obvinění byla podána, nikoli že o nich bylo soudně rozhodnuto. Zachovej tyto výhrady vedle tvrzení v každé části, včetně krátké odpovědi a závěru; pozdější odstavec o nejistotě nenapraví přehnané tvrzení předložené jako potvrzené.\n- Zahrň protiargumenty a nezávadná vysvětlení. Hlubší vysvětlení není automaticky pravdivější než povrchní vysvětlení.\n\nVýchozí struktura výstupu:\n\nU složitého hloubkového výzkumu MUSÍ konečná odpověď použít přesně těchto šest nadpisů, bez nahrazení jejich názvů:\n\n## Short Answer\nUveď stručnou odpověď v rozsahu 3–5 vět.\n\n## Surface Explanation\nVysvětli běžné nebo oficiální vysvětlení, které lidé pravděpodobně uslyší.\n\n## What Else May Be Going On\nAlternativní vysvětlení, pobídky, strukturu a načasování testujte jen jako hypotézy. Uveďte, když důkazy nepodporují hlubší vysvětlení nebo závěr o úmyslu.\n\n## Evidence\nUveď klíčová zjištění doložená zdroji podle jednotlivých tvrzení. Jasně přiřaď významná tvrzení ke zdrojům.\n\n## Counterarguments\nVysvětli, co by mohlo oslabit, zkomplikovat nebo vyvrátit hlubší vysvětlení.\n\n## Bottom Line\nUveď, co je potvrzeno, co je pravděpodobné, co je věrohodné, ale neprokázané, a co zůstává nejisté.\n\nChování při navazujících otázkách:\n- Nabízej cílené navazující zprávy, pokud jsou užitečné, například o firemních ziscích, historii regulace, dopadu na spotřebitele, možnostech veřejných politik, časové ose nebo přehledu zdroj po zdroji.\n- U navazujících otázek v rámci aktivního chatu hloubkového výzkumu zachovej konverzační tón, pokud uživatel nepožádá o další úplnou zprávu.\n\n- Před významným kvantitativním, příčinným či právním závěrem přečtěte primární zdroj pomocí web-read. Úryvky vyhledávání zdroje pouze nacházejí, neověřují. Pokud čtení selže nebo zdroj není dostupný, označte tvrzení za nevyřešené a uveďte omezení.\n- Při hlavní syntéze připravte před závěrečným závěrem stručný číslovaný přehled tvrzení a důkazů pro každé podstatné kvantitativní, kauzální tvrzení, tvrzení o úmyslu a právním stavu včetně jeho URL. Vyžadujte stručný výsledek pro každé: podložené, s výhradami, vyvrácené nebo nevyřešené; přesné URL; období, území, populaci, metriku a právní stav. Zařaďte přehled do Evidence a dokončete každé podstatné tvrzení před Bottom Line; ponechte Short Answer první a všech šest nadpisů v požadovaném pořadí. Vynechané nebo useknuté výsledky zůstávají neověřené.\n- U každého tvrzení ve všech oddílech zachovejte rozsah zdroje: období, území, populaci či produkt, metriku či jmenovatel, předpoklady a pozorování nebo modelovaný kontrafaktuální výsledek. Nezobecňujte podskupiny, odhady, scénáře, historická rozpětí či typické trvání na univerzální či trvalé závěry. Výhody, zisky a pobídky samy neprokazují úmysl ani příčinný podíl. Neověřená tvrzení vynechte nebo výslovně omezte; absence není podpora.\n\n- U každého výzkumného podchatu směřujte k 600–900 slovům v šesti povinných oddílech a 6–10 odlišným podstatným zjištěním v číslovaném přehledu důkazů. Každá položka obsahuje tvrzení, stav důkazů, přesné URL primárního zdroje a příslušný rozsah či omezení. Jinde odkazujte na čísla místo opakování důkazů. Upřednostněte zjištění potřebná pro zadanou otázku včetně podstatných protidůkazů; vynechte popis hledání, opakované pozadí a nepoužitá URL. Jde o cíle psaní, ne pravidla ořezání ani pevné stropy: zachovejte nutné výhrady a uveďte nevyřešené podstatné otázky.\n\n- U každého podstatného kvantitativního, kauzálního tvrzení, tvrzení o úmyslu či právu uveďte krátký přesný citát z primárního zdroje nebo přesnou položku primární tabulky s obdobím a metrikou, propojenou s URL a stavem důkazů. Označte podložené jen tehdy, když základ přímo podporuje přesné tvrzení i rozsah; jinak úsudek nebo nevyřešené. URL ani agregát celého zdroje nestačí. Základ uveďte v číslovaném přehledu Evidence před Bottom Line; znovu používejte ID důkazů a neopakujte citace. Short Answer smí obsahovat jen podložená tvrzení nebo tvrzení s výhradami; nikdy nezvyšujte stav z výzkumné zprávy.\n\n- Odlišujte metriky a cenové rozdíly od zisku a motivu. Provozní či výrobní doba není univerzální minimum ani mez. Srovnávaná období řaďte chronologicky a ověřte směr změny. Ověřte soud a totožnost případu; odlišujte náhradu přiznanou porotou od zákonného ztrojnásobení a navržená vyrovnání od schválených. Tyto rozdíly i nevyřešené meze zachovejte u tvrzení v každé části."
+      }
+    },
+    "workflows_clarify_workflows": {
+      "text": "Upřesnit pracovní postupy",
+      "description": {
+        "text": "Doplňte chybějící podrobnosti jednoho či více pracovních postupů před jejich vytvořením nebo změnou."
       }
     }
   },
@@ -14393,6 +14670,9 @@
     },
     "nighttime": {
       "text": "V noci"
+    },
+    "instructor": {
+      "text": "Instruktor"
     }
   },
   "rules": {},
@@ -15131,6 +15411,15 @@
         "quick_tips_description": {
           "text": "Po odpovědích asistenta občas zobrazí tipy k produktu. Vypni tuto možnost, pokud nechceš, aby OpenMates generoval karty s rychlými tipy."
         },
+        "server_region": {
+          "text": "Oblast serverů"
+        },
+        "prefer_eu_servers": {
+          "text": "Upřednostnit servery v EU"
+        },
+        "prefer_eu_servers_description": {
+          "text": "Zapnuto (výchozí): modely AI běží nejdříve na serverech v EU, jiné oblasti jen jako záloha. Vypnuto: nejrychlejší, globálně – OpenMates vybere nejrychlejší server na světě."
+        },
         "quick_tips_enabled": {
           "text": "Rychlé tipy zapnuty."
         },
@@ -15848,9 +16137,6 @@
         "skill": {
           "ask": {
             "model": {
-              "qwen3_235b_a22b_2507": {
-                "text": "Qwen 3 256b"
-              },
               "claude_haiku_4_5_20251001": {
                 "text": "Claude Haiku 4.5"
               },
@@ -16932,10 +17218,10 @@
           "text": "Ukládání..."
         },
         "email_chat_how_it_works": {
-          "text": "E-maily o chatech se posílají, když jste pryč. Po úspěšném dokončení naplánovaného Workflow dostanete e-mail a denní souhrn."
+          "text": "Jeden denní e-mail shrnuje naplánované Workflow; zprávy se řídí běžným nastavením chatu."
         },
         "email_workflow_runs_desc": {
-          "text": "E-maily po úspěšném dokončení naplánovaných Workflow a denní souhrn"
+          "text": "Jeden denní e-mail shrnuje naplánované Workflow; zprávy se řídí běžným nastavením chatu."
         },
         "email_webhooks": {
           "text": "Webhook chaty"
@@ -18070,9 +18356,6 @@
         "text": "Skrýt osobní údaje",
         "chats": {
           "text": "Chaty"
-        },
-        "description": {
-          "text": "OpenMates automaticky nahradí citlivá data zástupnými symboly před jejich odesláním na server OpenMates a externím poskytovatelům, aby chránil vaše soukromí. Nahrazená data jsou vizuálně zvýrazněna. Vždy můžete kliknout na nahrazenou datovou položku a přepsat nahrazení, nebo zde funkci zcela vypnout."
         }
       },
       "enhanced_pii_model": {
@@ -19377,6 +19660,48 @@
       "title_placeholder": {
         "text": "Stručně popište problém — co se stalo a kde?"
       },
+      "issue_text_label": {
+        "text": "Co se stalo?"
+      },
+      "issue_text_placeholder": {
+        "text": "Co se stalo? Popište, co nefunguje nebo se pokazilo, a podrobnosti, které nám pomohou problém zopakovat."
+      },
+      "attach_image": {
+        "text": "Obrázek"
+      },
+      "dictation_failed": {
+        "text": "Diktování se nezdařilo. Zkuste to znovu nebo hlášení napište."
+      },
+      "quick_actions_label": {
+        "text": "Přidat k hlášení"
+      },
+      "upload_screenshot": {
+        "text": "Nahrát snímek obrazovky"
+      },
+      "select_ui_element": {
+        "text": "Vybrat prvek rozhraní"
+      },
+      "record_voice": {
+        "text": "Nahrát hlas (až 2 minuty)"
+      },
+      "dictation_unavailable_today": {
+        "text": "Nahrávání hlasu je pro dnešek nedostupné. Zkuste to zítra."
+      },
+      "dictation_recording_limit": {
+        "text": "Hlasové nahrávky k hlášením jsou omezeny na 2 minuty."
+      },
+      "send_to_claude_chat_label": {
+        "text": "Odeslat přímo do chatu Claude"
+      },
+      "send_to_claude_chat_hint": {
+        "text": "Spustí na vývojovém serveru nový chat Claude, který hlášení prošetří a opraví."
+      },
+      "confirmation_claude_chat_queued": {
+        "text": "Chat Claude začne na hlášení pracovat přibližně do minuty."
+      },
+      "confirmation_claude_chat_unavailable": {
+        "text": "Chat Claude se nepodařilo zařadit do fronty. Zkopírujte ID hlášení a spusťte chat ručně."
+      },
       "title_required": {
         "text": "Krátký popis je povinný"
       },
@@ -19422,11 +19747,8 @@
       "actual_behaviour_hint": {
         "text": "Volitelné — popište co se pokazilo"
       },
-      "share_chat_label": {
-        "text": "Sdilet aktualni chat s timto hlasenim"
-      },
-      "share_chat_hint": {
-        "text": "To umoznuje administratorovi zobrazit chat pro pomoc s ladenenim problemu."
+      "chat_included_notice": {
+        "text": "Aktuální chat je přiložen k tomuto hlášení, abychom mohli problém prošetřit."
       },
       "url_label": {
         "text": "URL sdíleného chatu nebo vložení"
@@ -19588,9 +19910,6 @@
       },
       "element_picker_hint": {
         "text": "Klepněte na libovolný prvek na stránce a zachyťte jeho HTML strukturu pro ladění"
-      },
-      "element_picker_button": {
-        "text": "Vybrat prvek"
       },
       "element_picker_active": {
         "text": "Výběr..."
@@ -20730,7 +21049,7 @@
       "text": "Vyzkoušet zdarma"
     },
     "version_title": {
-      "text": "v0.28"
+      "text": "v0.29"
     },
     "domain_not_allowed": {
       "text": "E-mailová doména není povolena."

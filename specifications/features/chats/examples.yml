@@ -356,11 +356,18 @@ related_work_selection:
 - id: relevant-cross-project-work
   assertion_ids:
   - chats.context.related-work-selection
-  given: SocialHub debugging has a same-Project retry Task, a relevant shared-queue chat in another authorized Project
-    that finished ten minutes ago, and unrelated active design work.
+  given: SocialHub debugging under the live SocialHub Project focus has a same-Project retry Task, a relevant SocialHub
+    queue chat that finished ten minutes ago, and a shared-queue chat in another Project that the user did not mention.
   when: Jev selects related summaries for the retry investigation.
-  then: Useful retry/queue context is included with status and freshness; unrelated work is excluded. The other
-    Project is not activated and its files/Tasks are not claimed.
+  then: The retry Task and SocialHub queue chat are included with status and freshness; the other Project's chat is
+    not read or selected. No other Project is activated and its files/Tasks are not claimed.
+- id: regular-chat-no-chat-summaries
+  assertion_ids:
+  - chats.context.related-work-selection
+  given: A regular chat without Project focus or chat mention, while another chat about the same bug finished five
+    minutes ago.
+  when: Jev selects related work.
+  then: Only authorized Task summaries can be selected; the other chat's summary is not read.
 direction_assessment:
 - id: causal-discovery-versus-redesign
   assertion_ids:

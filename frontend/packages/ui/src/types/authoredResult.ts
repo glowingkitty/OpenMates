@@ -22,6 +22,16 @@ export interface AuthoredResultMetadata {
 	images?: AuthoredResultImage[];
 }
 
+/** UI-only context; the original encrypted content remains the source of truth. */
+export const AUTHORED_RESULT_PRESENTATION_CONTEXT = Symbol('authored-result-presentation');
+
+export interface AuthoredResultPresentationContext {
+	readonly authoring: AuthoredResultMetadata | undefined;
+	readonly content: Record<string, unknown>;
+	/** Mounted view only: safe public images and owned decrypted media URLs. */
+	readonly presentationContent?: Record<string, unknown>;
+}
+
 /** Kept inside encrypted content. Never persist plaintext keys or blob URLs elsewhere. */
 export interface AuthoredResultMedia {
 	source_embed_id: string;

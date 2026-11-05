@@ -46,7 +46,8 @@ async def test_uncertainty_never_becomes_completion(choice, confidence, expected
 async def test_provider_failure_retains_speech_without_logging_private_error(caplog):
     with patch(f"{MODULE}.JevDecisionClient") as client:
         client.return_value.evaluate = AsyncMock(side_effect=RuntimeError("PRIVATE transcript/provider body"))
-        assert await classify_voice_turn_completion("PRIVATE", None) == "uncertain"
+        # A failed decision is reported distinctly so the call can retry it.
+        assert await classify_voice_turn_completion("PRIVATE", None) == "unavailable"
     assert "RuntimeError" in caplog.text
     assert "PRIVATE" not in caplog.text
 

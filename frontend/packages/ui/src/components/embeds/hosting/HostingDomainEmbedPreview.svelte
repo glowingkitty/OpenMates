@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from "../../../types/authoredResult";
+  import { getContext } from "svelte";
   import ResultEmbedCard from '../ResultEmbedCard.svelte';
   import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
 
@@ -17,6 +19,8 @@
   }
 
   let { id, domain, content, isMobile = false, presentationOnly = false, resultContext = 'auto', onFullscreen }: Props = $props();
+  const authoredContext = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
+  let isAuthored = $derived(Boolean(authoredContext?.authoring));
   let result = $derived(domain ?? normalizeDomain(id, content ?? {}));
   let registrationTier = $derived(headlineTier(result.registration_tiers));
   let renewalTier = $derived(headlineTier(result.renewal_tiers));
@@ -27,7 +31,7 @@
     ? $text('embeds.hosting.search_domains.available')
     : result.availability === 'unavailable'
       ? $text('embeds.hosting.search_domains.unavailable')
-      : $text('embeds.hosting.search_domains.could_not_check'));
+      : $text(isAuthored ? 'result_embed.availability_unknown' : 'embeds.hosting.search_domains.could_not_check'));
   let displayDomain = $derived(result.domain_unicode || result.domain_ascii);
 </script>
 
@@ -52,10 +56,10 @@
       <ResultEmbedCard title={displayDomain} sourceLabel={result.provider} description={statusLabel} textFirst={true}>
         {#snippet facts()}
           <ResultEmbedInfo icon="Globe" label={statusLabel} state={result.availability === 'available' ? 'yes' : result.availability === 'unavailable' ? 'no' : 'unknown'}>{#snippet children()}{statusLabel}{#if result.premium}<p>{$text('embeds.hosting.search_domains.premium')}</p>{/if}{#each result.restrictions as restriction}<p>{restriction}</p>{/each}{/snippet}</ResultEmbedInfo>
-          <ResultEmbedInfo icon="Banknote" label={$text('embeds.hosting.search_domains.registration')} value={registration ? formatTierMoney(registrationTier, result.currency || 'EUR', $text('embeds.hosting.search_domains.year')) : $text('embeds.hosting.search_domains.price_unavailable')} testId="hosting-domain-registration">
-            {#snippet children()}{#if registration}{formatTierMoney(registrationTier, result.currency || 'EUR', $text('embeds.hosting.search_domains.year'))}<p>{minimum === 1 ? $text('embeds.hosting.search_domains.first_year') : minimum ? $text('embeds.hosting.search_domains.minimum_years').replace('{count}', String(minimum)) : ''}</p>{#if registration.basis === 'excluding'}<p>{$text('embeds.hosting.search_domains.tax_excluded')}</p>{/if}{#if isFirstYearOffer(registrationTier)}<p>{$text('embeds.hosting.search_domains.first_year_offer')}</p>{/if}{:else}{$text('embeds.hosting.search_domains.price_unavailable')}{/if}{/snippet}
+          <ResultEmbedInfo icon="Banknote" label={$text('embeds.hosting.search_domains.registration')} value={registration ? formatTierMoney(registrationTier, result.currency || (isAuthored ? '' : 'EUR'), $text('embeds.hosting.search_domains.year')) : $text('embeds.hosting.search_domains.price_unavailable')} testId="hosting-domain-registration">
+            {#snippet children()}{#if registration}{formatTierMoney(registrationTier, result.currency || (isAuthored ? '' : 'EUR'), $text('embeds.hosting.search_domains.year'))}<p>{registrationTier?.years !== undefined && minimum ? `${minimum} ${$text(minimum === 1 ? 'embeds.hosting.search_domains.year' : 'embeds.hosting.search_domains.years')}` : minimum === 1 ? $text('embeds.hosting.search_domains.first_year') : minimum ? $text('embeds.hosting.search_domains.minimum_years').replace('{count}', String(minimum)) : ''}</p>{#if registration.basis === 'excluding'}<p>{$text('embeds.hosting.search_domains.tax_excluded')}</p>{/if}{#if isFirstYearOffer(registrationTier)}<p>{$text('embeds.hosting.search_domains.first_year_offer')}</p>{/if}{:else}{$text('embeds.hosting.search_domains.price_unavailable')}{/if}{/snippet}
           </ResultEmbedInfo>
-          {#if renewal}<ResultEmbedInfo icon="RefreshCw" label={$text('embeds.hosting.search_domains.renewal')} testId="hosting-domain-renewal">{#snippet children()}{$text('embeds.hosting.search_domains.renewal_price').replace('{price}', formatTierMoney(renewalTier, result.currency || 'EUR', $text('embeds.hosting.search_domains.year')) || '')}{#if renewal.basis === 'excluding'}<p>{$text('embeds.hosting.search_domains.tax_excluded')}</p>{/if}{/snippet}</ResultEmbedInfo>{/if}
+          {#if renewal}<ResultEmbedInfo icon="RefreshCw" label={$text('embeds.hosting.search_domains.renewal')} testId="hosting-domain-renewal">{#snippet children()}{$text('embeds.hosting.search_domains.renewal_price').replace('{price}', formatTierMoney(renewalTier, result.currency || (isAuthored ? '' : 'EUR'), $text('embeds.hosting.search_domains.year')) || '')}{#if renewal.basis === 'excluding'}<p>{$text('embeds.hosting.search_domains.tax_excluded')}</p>{/if}{/snippet}</ResultEmbedInfo>{/if}
         {/snippet}
       </ResultEmbedCard>
     </div>

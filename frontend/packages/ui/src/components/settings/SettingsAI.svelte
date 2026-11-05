@@ -29,6 +29,7 @@
     const defaultMostDemanding = $derived($userProfile.default_ai_model_most_demanding ?? null);
     const followUpSuggestionsEnabled = $derived($userProfile.follow_up_suggestions_enabled !== false);
     const quickTipsEnabled = $derived($userProfile.quick_tips_enabled !== false);
+    const preferEuServers = $derived($userProfile.server_region_preference !== 'global');
     const aiModels = $derived(modelsMetadata.filter((model) => model.for_app_skill === 'ai.ask'));
     const providerFamilies = $derived.by(() => {
         const providers = new Map<string, AIModelMetadata>();
@@ -60,6 +61,10 @@
             icon: 'ai',
             title: display.brandName,
         });
+    }
+
+    function setPreferEuServers(nextValue: boolean): void {
+        updateProfile({ server_region_preference: nextValue ? 'eu' : 'global' });
     }
 
     async function saveResponseSetting(
@@ -100,6 +105,13 @@
                     </div>
                 </section>
             {/if}
+
+            <section class="ai-section" data-testid="ai-server-region-group">
+                <SettingsItem type="heading" icon="settings" title={$text('settings.ai_ask.ai_ask_settings.server_region')} />
+                <div class="ai-row-list">
+                    <SettingsItem type="ai-row" icon="settings" title={$text('settings.ai_ask.ai_ask_settings.prefer_eu_servers')} subtitleBottom={$text('settings.ai_ask.ai_ask_settings.prefer_eu_servers_description')} hasToggle={true} checked={preferEuServers} data-testid="ai-server-region-eu-toggle" onClick={() => setPreferEuServers(!preferEuServers)} />
+                </div>
+            </section>
 
             <section class="ai-section" data-testid="ai-models-accounts-group">
                 <SettingsItem type="heading" icon="ai" title={$text('settings.ai_ask.ai_ask_settings.models_and_accounts')} />

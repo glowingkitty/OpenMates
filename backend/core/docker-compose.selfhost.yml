@@ -1,7 +1,7 @@
 name: openmates-core
 
 x-openmates-api-image: &openmates-api-image
-  image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-api:${OPENMATES_IMAGE_TAG:-v0.28.0}
+  image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-api:${OPENMATES_IMAGE_TAG:-v0.29.0}
 
 x-openmates-worker-base: &openmates-worker-base
   <<: *openmates-api-image
@@ -99,7 +99,7 @@ services:
 
   cms:
     container_name: cms
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-directus:${OPENMATES_IMAGE_TAG:-v0.28.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-directus:${OPENMATES_IMAGE_TAG:-v0.29.0}
     restart: unless-stopped
     env_file: ../../.env
     environment:
@@ -163,7 +163,7 @@ services:
 
   cms-setup:
     container_name: cms-setup
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-cms-setup:${OPENMATES_IMAGE_TAG:-v0.28.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-cms-setup:${OPENMATES_IMAGE_TAG:-v0.29.0}
     env_file: ../../.env
     environment:
       ADMIN_EMAIL: ${DATABASE_ADMIN_EMAIL}
@@ -178,6 +178,7 @@ services:
       ACCOUNT_CHAT_KEYS_MIGRATION_PATH: "/usr/src/app/migrations/migrate_account_chat_keys.sql"
       NOTIFICATION_EMAIL_MIGRATION_PATH: "/usr/src/app/migrations/migrate_notification_email_preferences.sql"
       USER_TASK_MIGRATION_PATH: "/usr/src/app/migrations/migrate_user_task_indexes.sql"
+      CHAT_SYNC_FEED_MIGRATION_PATH: "/usr/src/app/migrations/migrate_chat_sync_feed.sql"
       USER_WORK_CONTROL_MIGRATION_PATH: "/usr/src/app/migrations/migrate_user_work_control_indexes.sql"
       USAGE_OVERVIEW_MIGRATION_PATH: "/usr/src/app/migrations/migrate_usage_overview_indexes.sql"
       PROJECT_OWNER_CONTEXT_MIGRATION_PATH: "/usr/src/app/migrations/migrate_project_owner_context.sql"
@@ -358,7 +359,7 @@ services:
 
   app-docs-worker:
     <<: *openmates-worker-base
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-docs-worker:${OPENMATES_IMAGE_TAG:-v0.28.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-docs-worker:${OPENMATES_IMAGE_TAG:-v0.29.0}
     container_name: app-docs-worker
     mem_limit: "${APP_DOCS_WORKER_MEMORY_LIMIT:-1536m}"
     environment:
@@ -435,7 +436,7 @@ services:
 
   vault-setup:
     container_name: vault-setup
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-vault-setup:${OPENMATES_IMAGE_TAG:-v0.28.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-vault-setup:${OPENMATES_IMAGE_TAG:-v0.29.0}
     env_file: ../../.env
     environment:
       VAULT_ADDR: "http://vault:8200"
@@ -560,7 +561,7 @@ services:
 
   admin-sidecar:
     container_name: core-admin-sidecar
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-admin-sidecar:${OPENMATES_IMAGE_TAG:-v0.28.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-admin-sidecar:${OPENMATES_IMAGE_TAG:-v0.29.0}
     restart: unless-stopped
     environment:
       ADMIN_LOG_API_KEY: "${SECRET__CORE_SERVER__ADMIN_LOG_API_KEY:-}"
@@ -596,7 +597,7 @@ services:
 
   webapp:
     container_name: webapp
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-webapp:${OPENMATES_IMAGE_TAG:-v0.28.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-webapp:${OPENMATES_IMAGE_TAG:-v0.29.0}
     restart: unless-stopped
     ports:
       - "5173:5173"

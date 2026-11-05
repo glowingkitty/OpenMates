@@ -1,0 +1,117 @@
+{
+  "fixture_id": "authored_selected_media",
+  "recorded_at": "2026-10-26T10:00:00Z",
+  "speed_profile": "instant",
+  "user_message_snippet": "Keep this selected illustration on the supplied recipe card.",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "general_knowledge",
+    "title": "Selected illustration and supplied recipe",
+    "icon_names": [
+      "cards"
+    ],
+    "selected_model_id": "automatic",
+    "selected_model_name": "Assistant",
+    "mate_id": "default",
+    "chat_summary": "One selected uploaded illustration on a supplied recipe; an unrelated event remains independent.",
+    "chat_tags": [
+      "authored-selected-media"
+    ],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.4,
+    "complexity": "simple",
+    "steps": []
+  },
+  "typing_started": {
+    "category": "general_knowledge",
+    "model_name": "Assistant",
+    "provider_name": "Fixture",
+    "server_region": "EU"
+  },
+  "response": "Here is the supplied recipe with only your selected uploaded illustration.\n\n```json\n{\"type\":\"authored_results\",\"embed_id\":\"2ec7de35-30cd-4f8d-8e25-339a12ab5de9\"}\n```\n\nThe unrelated upload is not an image for this card.",
+  "embeds": {
+    "2ec7de35-30cd-4f8d-8e25-339a12ab5de9": {
+      "type": "authored_results",
+      "document": {
+        "schemaVersion": 1,
+        "title": "Selected illustration and independent record",
+        "items": [
+          {
+            "id": "selected-recipe",
+            "kind": "nutrition.recipe",
+            "title": "Supplied lentil recipe",
+            "origin": "user_provided",
+            "details": {
+              "title": "Lentil soup",
+              "servings": 2,
+              "total_time_minutes": 30,
+              "ingredients": [
+                {
+                  "name": "Red lentils",
+                  "amount": 150,
+                  "unit": "g"
+                }
+              ],
+              "instructions": [
+                "Rinse lentils.",
+                "Simmer until tender."
+              ]
+            },
+            "images": [
+              {
+                "embed_ref": "authored-selected-image.jpg",
+                "caption": "Selected uploaded illustration",
+                "attribution": "Disposable CI image fixture"
+              }
+            ]
+          },
+          {
+            "id": "independent-event",
+            "kind": "events.event",
+            "title": "Independent supplied event",
+            "origin": "user_provided",
+            "details": {
+              "date_start": "2027-01-30T09:00:00+01:00",
+              "date_end": "2027-01-30T18:00:00+01:00",
+              "venue": {
+                "name": "Supplied venue",
+                "city": "Brussels"
+              }
+            }
+          }
+        ],
+        "view": {
+          "mode": "cards",
+          "items": [
+            "selected-recipe",
+            "independent-event"
+          ]
+        }
+      }
+    }
+  },
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": 120,
+    "completion_tokens": 65,
+    "total_credits": 5,
+    "model_name": "Assistant"
+  },
+  "postprocessing": {
+    "follow_up_request_suggestions": [],
+    "new_chat_request_suggestions": [],
+    "harmful_response": 0.0,
+    "top_recommended_apps_for_user": [],
+    "chat_summary": "One selected uploaded illustration remains with its supplied recipe card.",
+    "chat_tags": [
+      "authored-selected-media"
+    ],
+    "share_cta_text": "Review the supplied recipe and its selected illustration.",
+    "updated_chat_title": null,
+    "daily_inspiration_topic_suggestions": [],
+    "quick_tip_slugs": [],
+    "task_proposals": [],
+    "task_update_proposals": []
+  }
+}

@@ -33,6 +33,7 @@ models:
         name: Inception
         model_id: mercury-3
         region: US
+        country: "US"
     pricing:
       tokens:
         input:

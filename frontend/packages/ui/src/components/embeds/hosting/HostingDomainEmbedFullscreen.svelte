@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from "../../../types/authoredResult";
+  import { getContext } from "svelte";
   import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
   import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
@@ -18,6 +20,8 @@
   }
 
   let { data, domain, embedId, onClose, hasPreviousEmbed = false, hasNextEmbed = false, onNavigatePrevious, onNavigateNext }: Props = $props();
+  const authoredContext = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
+  let isAuthored = $derived(Boolean(authoredContext?.authoring || data?.decodedContent?.authoring));
   let result = $derived(domain ?? normalizeDomain(embedId || '', data?.decodedContent ?? {}));
   let registration = $derived(headlineTier(result.registration_tiers));
   let renewal = $derived(headlineTier(result.renewal_tiers));
@@ -27,7 +31,7 @@
     ? $text('embeds.hosting.search_domains.available')
     : result.availability === 'unavailable'
       ? $text('embeds.hosting.search_domains.unavailable')
-      : $text('embeds.hosting.search_domains.could_not_check'));
+      : $text(isAuthored ? 'result_embed.availability_unknown' : 'embeds.hosting.search_domains.could_not_check'));
 
   function term(tier: DomainTier): string {
     const minimum = years(tier);
@@ -38,13 +42,13 @@
   }
 
   function price(tier: DomainTier): string {
-    return formatTierMoney(tier, result.currency || 'EUR', $text('embeds.hosting.search_domains.year'))
+    return formatTierMoney(tier, result.currency || (isAuthored ? '' : 'EUR'), $text('embeds.hosting.search_domains.year'))
       || $text('embeds.hosting.search_domains.price_unavailable');
   }
 
   function taxLabel(tier: DomainTier | undefined): string {
     const value = quote(tier);
-    if (!value) return $text('embeds.hosting.search_domains.tax_unknown');
+    if (!value || value.basis === 'unknown') return $text('embeds.hosting.search_domains.tax_unknown');
     const rate = numberValue(tier?.tax_rate) ?? numberValue(tier?.product_taxes?.[0]?.rate);
     const basis = value.basis === 'including' ? $text('embeds.hosting.search_domains.tax_included') : $text('embeds.hosting.search_domains.tax_excluded');
     return rate === undefined ? basis : `${basis} (${rate}%)`;
@@ -87,9 +91,9 @@
       <section data-testid="hosting-domain-registration">
         <h2>{$text('embeds.hosting.search_domains.registration')}</h2>
         {#if registration && quote(registration)}
-          <p class="headline">{price(registration)} <span>{years(registration) === 1 ? $text('embeds.hosting.search_domains.first_year') : years(registration) ? $text('embeds.hosting.search_domains.minimum_years').replace('{count}', String(years(registration))) : term(registration)}</span></p>
+          <p class="headline">{price(registration)} <span>{registration.years !== undefined ? term(registration) : years(registration) === 1 ? $text('embeds.hosting.search_domains.first_year') : years(registration) ? $text('embeds.hosting.search_domains.minimum_years').replace('{count}', String(years(registration))) : term(registration)}</span></p>
           {#if isFirstYearOffer(registration)}
-            <p>{$text('embeds.hosting.search_domains.first_year_offer')} · {$text('embeds.hosting.search_domains.normal_registration')} {formatMoney(normalRegistration(registration)!, result.currency || 'EUR')} / {$text('embeds.hosting.search_domains.year')}</p>
+            <p>{$text('embeds.hosting.search_domains.first_year_offer')} · {$text('embeds.hosting.search_domains.normal_registration')} {formatMoney(normalRegistration(registration)!, result.currency || (isAuthored ? '' : 'EUR'))} / {$text('embeds.hosting.search_domains.year')}</p>
           {/if}
         {:else}<p>{$text('embeds.hosting.search_domains.price_unavailable')}</p>{/if}
       </section>
@@ -102,10 +106,10 @@
 
       <section>
         <h2>{$text('embeds.hosting.search_domains.quote_details')}</h2>
-        <div class="field"><span>{$text('embeds.hosting.search_domains.currency')}</span><strong>{result.currency || 'EUR'}</strong></div>
+        <div class="field"><span>{$text('embeds.hosting.search_domains.currency')}</span><strong>{registration?.currency || result.currency || (isAuthored ? '' : 'EUR')}</strong></div>
         {#if result.country}<div class="field"><span>{$text('embeds.hosting.search_domains.tax_country').replace('{country}', result.country)}</span></div>{/if}
         <div class="field"><span>{$text('embeds.hosting.search_domains.tax')}</span><strong>{taxLabel(registration)}</strong></div>
-        {#if registration && years(registration)}<div class="field"><span>{$text('embeds.hosting.search_domains.minimum_term')}</span><strong>{years(registration)} {years(registration) === 1 ? $text('embeds.hosting.search_domains.year') : $text('embeds.hosting.search_domains.years')}</strong></div>{/if}
+        {#if registration && years(registration)}<div class="field"><span>{$text(registration.years !== undefined ? 'embeds.hosting.search_domains.term' : 'embeds.hosting.search_domains.minimum_term')}</span><strong>{years(registration)} {years(registration) === 1 ? $text('embeds.hosting.search_domains.year') : $text('embeds.hosting.search_domains.years')}</strong></div>{/if}
         {#if result.premium === true}<div class="field"><span>{$text('embeds.hosting.search_domains.premium')}</span><strong>{$text('embeds.hosting.search_domains.yes')}</strong></div>{/if}
         {#if checked}<div class="field"><span>{$text('embeds.hosting.search_domains.checked_at').replace('{date}', checked)}</span></div>{/if}
       </section>

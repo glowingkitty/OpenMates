@@ -8,7 +8,29 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from promote_production_webapp import promote
-from verify_production_webapp import validate_url
+from verify_production_webapp import record_console, validate_url
+from types import SimpleNamespace
+
+
+# contract-test: tooling
+def test_pinned_runtime_diagnostics_are_retained_but_errors_stay_fatal():
+    source = 'blob:https://app.openmates.org/12345678-abcd-1234-abcd-123456789012'
+    info = 'INFO: [compiled_model.cc:966] Flatbuffer model initialized directly from incoming litert model.'
+    warning = 'WARNING: [npu_registry.cc:34] NPU accelerator could not be loaded and registered: kLiteRtStatusErrorNotFound.'
+    view = {'errors': [], 'runtime_diagnostics': []}
+    for text in [info, warning]:
+        record_console(SimpleNamespace(type='error', text=text, location={'url': source}), view)
+    assert [item['text'] for item in view['runtime_diagnostics']] == [info, warning]
+    assert view['errors'] == []
+    for text, url in [(info.replace('INFO:', 'ERROR:'), source),
+                      (info + ' unexpected detail', source),
+                      ('INFO: unrecognized runtime failure', source),
+                      ('abort: failed to initialize model', source),
+                      (info, 'https://app.openmates.org/page.js'),
+                      (info, source.replace('app.openmates.org', 'evil.example'))]:
+        record_console(SimpleNamespace(type='error', text=text, location={'url': url}), view)
+    assert len(view['errors']) == 6
+    assert len(view['runtime_diagnostics']) == 2
 
 
 class FakeVercel:

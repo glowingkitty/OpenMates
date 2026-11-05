@@ -7991,13 +7991,13 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'videos',
   'app_namespace_py': 'videos',
   'app_namespace_ts': 'videos',
-  'description': 'Search for videos, documentaries, tutorials, and clips on the web. Keep query '
+  'description': 'Search for videos, documentaries, tutorials, and clips on the web. Also select '
+                 'it proactively for how-to, repair, technique, exercise, or other procedure '
+                 'questions where seeing the process materially helps, instead of writing long '
+                 'step lists; skip it for abstract, data-only, or simple answers. Keep query '
                  'focused on the topic. Whenever the user states a viewing or learning purpose, '
                  'audience level, desired depth, format, authority, or other preference that '
-                 'should change ordering, put it in relevance_criteria even if related words could '
-                 'also be added to query. Example: query "RAG tutorial" with relevance_criteria '
-                 '"Advanced, hands-on production guidance with deployment and evaluation details." '
-                 'Keep country, language, safe-',
+                 'should change ordering, put it in relevan',
   'description_key': 'videos.search.description',
   'schema': {'properties': {'requests': {'description': 'REQUIRED: Array of search request objects '
                                                         'for parallel processing (up to 5 '
@@ -9857,7 +9857,7 @@ class VideosAppSkills:
         return self._run_skill("videos", "get_transcript", input_data, prompt_injection_protection=prompt_injection_protection)
 
     def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Search for videos, documentaries, tutorials, and clips on the web. Keep query focused on the topic. Whenever the user states a viewing or learning purpose, audience level, desired depth, format, authority, or other preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Example: query "RAG tutorial" with relevance_criteria "Advanced, hands-on production guidance with deployment and evaluation details." Keep country, language, safe-
+        """Search for videos, documentaries, tutorials, and clips on the web. Also select it proactively for how-to, repair, technique, exercise, or other procedure questions where seeing the process materially helps, instead of writing long step lists; skip it for abstract, data-only, or simple answers. Keep query focused on the topic. Whenever the user states a viewing or learning purpose, audience level, desired depth, format, authority, or other preference that should change ordering, put it in relevan
 
         Description key: videos.search.description
         Skill: videos/search

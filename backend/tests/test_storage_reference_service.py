@@ -10,8 +10,14 @@ from __future__ import annotations
 
 import importlib
 import hashlib
+from types import SimpleNamespace
 
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def _internal_storage_transaction_token(monkeypatch):
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "unit-test-scoped-storage-token")
 
 
 def _module():
@@ -19,6 +25,8 @@ def _module():
 
 
 class _Directus:
+    base_url = "http://directus.test"
+
     def __init__(self) -> None:
         self.rows = {
             "account_export_parts": [{"id": "part-1"}],
@@ -31,6 +39,18 @@ class _Directus:
         }
         self.deleted: list[tuple[str, list[str]]] = []
         self.queries: list[tuple[str, dict]] = []
+
+    async def _make_api_request(self, _method, _url, **kwargs):
+        body, data = kwargs["json"], kwargs["json"]["data"]
+        assert body["operation"] == "invalidate_deletion" and data["scope"] == "chat"
+        assert data["chat_id"] == "personal" and data["hashed_user_id"] == "owner"
+        self.rows.setdefault("chat_recovery_chat_deletion_fences", []).append({
+            "id": data["chat_id"], "chat_id": data["chat_id"],
+            "hashed_user_id": data["hashed_user_id"], "hashed_team_id": None,
+        })
+        return SimpleNamespace(status_code=200, json=lambda: {"data": {
+            "chat_deletion_fenced": True, "chat_id": data["chat_id"],
+        }})
 
     async def get_items(self, collection: str, *, params: dict, **_kwargs: object) -> list[dict]:
         self.queries.append((collection, params))
@@ -99,11 +119,12 @@ async def test_account_deletion_fences_and_removes_only_personal_chat_archive_ro
 
         async def get_items(self, collection: str, *, params: dict, **_kwargs: object) -> list[dict]:
             filters = params.get("filter", {})
-            def matched(row: dict) -> bool:
+            def matched(row: dict, conditions=filters) -> bool:
                 return all(
-                    (row.get(field) == condition["_eq"] if "_eq" in condition else
+                    (any(matched(row, option) for option in condition) if field == "_or" else
+                     row.get(field) == condition["_eq"] if "_eq" in condition else
                      row.get(field) is None if condition.get("_null") else False)
-                    for field, condition in filters.items()
+                    for field, condition in conditions.items()
                 )
             rows = [row for row in self.rows.get(collection, []) if matched(row)]
             return rows[:int(params.get("limit", 500))]
@@ -122,6 +143,7 @@ async def test_account_deletion_fences_and_removes_only_personal_chat_archive_ro
     ) == 1
     assert directus.rows["chats"][0]["storage_state"] == "deleting"
     assert directus.rows["chats"][1]["storage_state"] == "hot"
+    assert [row["chat_id"] for row in directus.rows["chat_recovery_chat_deletion_fences"]] == ["personal"]
     deleted = await module.delete_account_storage_reference_rows(
         directus_service=directus, user_id="user", user_id_hash="owner",
     )

@@ -9,9 +9,15 @@ strings, which prevents guard false positives during workflow research.
 from __future__ import annotations
 
 import json
+import os
 import shlex
 import sys
 from pathlib import Path
+
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import heavy_local_guard  # noqa: E402 - sibling module; path set up above for direct-file loading
 
 
 SEPARATORS = {";", "&", "&&", "||", "|", "(", ")"}
@@ -43,6 +49,35 @@ COMPOSE_OPTIONS_WITH_VALUES = {
     "--profile",
     "--project-directory",
 }
+
+
+# Commands that are allowed locally but must not start while the host is overloaded.
+LOAD_GATED_BINARIES = {"svelte-check", "tsc", "tsup", "eslint", "pytest"}
+_heavy_override = False
+
+
+def heavy_local_reason(command: str, args: list[str], full_command: str) -> str | None:
+    """Block builds/tests/benchmarks on the shared host (see heavy_local_guard)."""
+    reason = heavy_local_guard.heavy_reason(command, args)
+    is_python_pytest = command.startswith("python") and args[:2] == ["-m", "pytest"]
+    if reason is None and command not in LOAD_GATED_BINARIES and not is_python_pytest:
+        return None
+    if reason is not None and not _heavy_override:
+        return heavy_local_guard.block_message(reason)
+    import host_load_guard  # Lazy: only commands that add real load pay for /proc sampling.
+
+    what = f"heavy local command ({reason})" if reason else f"local {'pytest' if is_python_pytest else command} run"
+    if reason is not None:
+        try:
+            host_load_guard.append_event(
+                host_load_guard.state_dir(),
+                "heavy_local_override",
+                {"reason": reason, "command": full_command[:500], "cwd": str(Path.cwd()),
+                 "session": os.environ.get("CLAUDE_CODE_SESSION_ID", "")},
+            )
+        except OSError as error:
+            print(f"safe_bash_guard: could not log heavy override: {error}", file=sys.stderr)
+    return host_load_guard.gate(what)
 
 
 def block(reason: str) -> int:
@@ -513,6 +548,11 @@ def check_package_script(cwd: Path, script: str, *, visited: set[tuple[Path, str
             if nested:
                 return nested
             continue
+        heavy = heavy_local_guard.heavy_reason(executable, command_args)
+        if heavy and not _heavy_override:
+            return heavy_local_guard.block_message(
+                f"script {package_json.relative_to(REPO_ROOT)}:{script} runs heavy work ({heavy})"
+            )
         if executable == "node" and "--test" in command_args:
             continue
         if executable == "turbo":
@@ -618,7 +658,9 @@ def shell_command_payload(args: list[str]) -> str | None:
 
 
 def main(argv: list[str]) -> int:
+    global _heavy_override
     command = argv[1] if len(argv) > 1 else ""
+    _heavy_override = heavy_local_guard.override_requested(tokenize(command))
     cwd = Path.cwd().resolve()
     try:
         cwd.relative_to(REPO_ROOT)
@@ -645,7 +687,9 @@ def main(argv: list[str]) -> int:
                     )
                 pending.append((payload, candidate_cwd))
                 continue
-            reason = check_invocation(executable, args, cwd=candidate_cwd)
+            reason = heavy_local_reason(executable, args, command) or check_invocation(
+                executable, args, cwd=candidate_cwd
+            )
             if reason:
                 return block(reason)
     return 0

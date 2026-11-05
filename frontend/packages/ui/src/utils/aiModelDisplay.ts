@@ -6,6 +6,7 @@
  */
 
 import type { AIModelMetadata } from '../data/modelsMetadata';
+import { countryCodeToFlag } from './countryFlag';
 import providerDisplayData from '../data/aiProviderDisplay.json';
 
 export type AiCapabilityLevel = 'low' | 'medium' | 'high' | 'max';
@@ -104,4 +105,25 @@ export function getRecommendedModelForTier(
             - Math.abs(rank[getModelCapabilityLevel(b)] - targetRank);
         return capabilityDistance || a.id.localeCompare(b.id);
     })[0] ?? null;
+}
+
+export type ServerRegionPreference = 'eu' | 'global';
+
+/**
+ * Flag emoji for the server a model runs on first: the default (EU-first)
+ * server, or the model's `fastest_server` when the user prefers "Fastest,
+ * global". A specific country wins over the region; cloud region ids such as
+ * eu-central-1 map to their country. Empty for unknown/global regions.
+ */
+export function getModelServerFlag(model: AIModelMetadata, preference: ServerRegionPreference = 'eu'): string {
+    const servers = model.servers ?? [];
+    const preferredId = preference === 'global' && model.fastest_server ? model.fastest_server : model.default_server;
+    const server = servers.find((s) => s.id === preferredId) ?? servers[0];
+    if (!server) return '';
+    if (server.country) return countryCodeToFlag(server.country);
+    const region = String(server.region).toLowerCase();
+    if (region === 'eu-central-1') return countryCodeToFlag('DE');
+    if (region === 'eu') return countryCodeToFlag('EU');
+    if (region === 'us' || region.startsWith('us-')) return countryCodeToFlag('US');
+    return '';
 }

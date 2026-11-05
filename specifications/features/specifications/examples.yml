@@ -11,6 +11,26 @@ specification_revisions:
     input: {specification: feature.teams, revision: 4, content_hash: hash-4}
     expect: {revision_4_approved: true, editable_in_place: false}
 
+specification_authoring:
+  - id: chat-created-specification-can-be-edited-directly
+    given: A user discusses a recipe app in an OpenMates chat linked to a cloud Project.
+    when: The assistant creates its Specification and the user edits a requirement in the readable Specification detail view.
+    then: The edit creates a saved revision of that same Specification. Reopening the chat or Project shows the saved requirement and its revision state.
+  - id: chat-edit-and-failed-save-remain-truthful
+    given: The user has a saved recipe app Specification and asks in chat to add JSON export.
+    when: The assistant proposes the edit but saving the new revision fails.
+    then: The existing saved revision remains available, the proposed change is preserved for retry, and the chat and detail view report the failed save without claiming JSON export has been saved or approved.
+
+specification_edit_conflicts:
+  - id: concurrent-edit-preserves-both-versions
+    given: Two authorized views have opened revision four of a Specification.
+    when: One view saves revision five and the other attempts to save different changes based on revision four.
+    then: The second save reports a conflict. Revision five remains saved, the second proposal stays available for review or rebasing, and no approval is transferred to the stale proposal.
+  - id: current-base-saves-new-draft
+    given: Revision five is the current approved Specification and an authorized editor has loaded it.
+    when: The editor saves a material requirement change based on revision five.
+    then: A new draft revision is saved without changing revision five or inheriting its approval, and the editor sees the new saved revision.
+
 specification_composition:
   - id: reusable-ui-specification
     input: {behavior: shared_checkout, substantial: true, reusable: true, independent_owner: payments}

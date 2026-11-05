@@ -24,11 +24,16 @@ except ModuleNotFoundError:
 
 TARGET = "sdk-lockfiles"
 BUDGET = 1200
+# Root Cargo workspace members. One root Cargo.toml/Cargo.lock; the patched
+# third-party crates referenced by the root [patch.crates-io] are inputs too.
 ROOTS = ("packages/openmates-rust", "packages/openmates-session-bindings",
          "frontend/packages/openmates-tui-native", "packages/openmates-browser-bindings")
-LOCKS = tuple(name + "/Cargo.lock" for name in ROOTS)
-ORIGINAL_LOCKS = LOCKS[:3]
-STAGES = ("sdk-lock", "session-lock", "native-lock", "browser-lock")
+WORKSPACE_FILES = ("Cargo.toml", "Cargo.lock")
+THIRD_PARTY = "packages/third_party"
+SCOPES = (*ROOTS, *WORKSPACE_FILES, THIRD_PARTY)
+LOCKS = ("Cargo.lock",)
+ORIGINAL_LOCKS = LOCKS
+STAGES = ("workspace-lock",)
 FAILURES = frozenset({"admission", "identity", "source", "deadline", "disk", "toolchain", "cargo", "outputs", "cleanup", "unclassified"})
 
 
@@ -37,18 +42,22 @@ def validate_targets(targets):
 
 
 def commands():
-    return [["cargo", "+1.98.1", "update", "--manifest-path", root + "/Cargo.toml", "-p", "openmates-sdk"]
-            if root != ROOTS[-1] else
-            ["cargo", "+1.98.1", "generate-lockfile", "--manifest-path", root + "/Cargo.toml"]
-            for root in ROOTS]
+    # Minimal refresh of workspace member entries in the single root lock.
+    return [["cargo", "+1.98.1", "update", "--workspace", "--manifest-path", "Cargo.toml"]]
 
 
 def owned(name):
     """Closed source scopes: never Cargo config, Git hooks or account state."""
+    if name in WORKSPACE_FILES:
+        return True
+    if name.startswith(THIRD_PARTY + "/"):
+        # Declared bench/example targets must exist for Cargo to load the patch.
+        tail = Path(name[len(THIRD_PARTY) + 1:])
+        return len(tail.parts) > 1 and not any(part.startswith(".") for part in tail.parts)
     for root in ROOTS:
         if name.startswith(root + "/"):
             tail = Path(name[len(root) + 1:])
-            return (tail.as_posix() in {"Cargo.toml", "Cargo.lock", "build.rs"}
+            return (tail.as_posix() in {"Cargo.toml", "build.rs"}
                     or (tail.parts[0] in {"src", "tests", "fixtures", "examples", "assets"}
                         and tail.suffix in {".rs", ".json", ".txt", ".md", ".yaml", ".yml", ".toml"}))
     return False
@@ -56,7 +65,7 @@ def owned(name):
 
 def source_inputs_from_git(root, source):
     sdk.require(isinstance(source, str) and re.fullmatch(r"[0-9a-f]{40}", source), "identity")
-    listing = subprocess.check_output(["git", "ls-tree", "-r", "-z", source, "--", *ROOTS], cwd=root, timeout=15)
+    listing = subprocess.check_output(["git", "ls-tree", "-r", "-z", source, "--", *SCOPES], cwd=root, timeout=15)
     entries = []
     for raw in listing.split(b"\0"):
         if not raw:
@@ -100,9 +109,9 @@ def source_inputs_from_git(root, source):
 
 
 def snapshot(root, expected):
-    names = subprocess.check_output(["git", "ls-files", "-z", "--", *ROOTS], cwd=root, timeout=15).decode().split("\0")
+    names = subprocess.check_output(["git", "ls-files", "-z", "--", *SCOPES], cwd=root, timeout=15).decode().split("\0")
     sdk.require({name for name in names if name and owned(name)} == set(expected), "source")
-    others = subprocess.check_output(["git", "ls-files", "--others", "--exclude-standard", "-z", "--", *ROOTS], cwd=root, timeout=15).decode().split("\0")
+    others = subprocess.check_output(["git", "ls-files", "--others", "--exclude-standard", "-z", "--", *SCOPES], cwd=root, timeout=15).decode().split("\0")
     sdk.require(not any(name and owned(name) for name in others), "source")
     return {name: sdk.sha(sdk.regular(root / name)) for name in expected}
 
@@ -126,6 +135,20 @@ class LockCommands(sdk.Commands):
 
 
 def validate_manifests(work):
+    """Members: crates.io or in-workspace path dependencies only. Root: the
+    workspace definition plus [patch.crates-io] limited to packages/third_party."""
+    members = {work / name for name in ROOTS}
+    third_party = (work / THIRD_PARTY).resolve()
+    root_manifest = tomllib.loads(sdk.regular(work / "Cargo.toml").decode())
+    workspace = root_manifest.get("workspace")
+    sdk.require(isinstance(workspace, dict) and sorted(workspace.get("members", [])) == sorted(ROOTS)
+                and not any(key in root_manifest for key in ("package", "replace", "dependencies")), "source")
+    patch = root_manifest.get("patch", {})
+    sdk.require(set(patch) <= {"crates-io"}, "source")
+    for entry in patch.get("crates-io", {}).values():
+        sdk.require(isinstance(entry, dict) and set(entry) == {"path"} and isinstance(entry["path"], str)
+                    and not Path(entry["path"]).is_absolute()
+                    and (work / entry["path"]).resolve().parent == third_party, "source")
     for root in ROOTS:
         manifest = work / root / "Cargo.toml"
         def visit(value):
@@ -135,7 +158,7 @@ def validate_manifests(work):
                     path = value["path"]
                     sdk.require(isinstance(path, str) and not Path(path).is_absolute(), "source")
                     resolved = (manifest.parent / path).resolve()
-                    sdk.require(resolved in {work / name for name in ROOTS}, "source")
+                    sdk.require(resolved in members, "source")
                 for item in value.values():
                     visit(item)
             elif isinstance(value, list):
@@ -143,9 +166,9 @@ def validate_manifests(work):
                     visit(item)
         # Target/bin/example path fields point to source files rather than dependency roots.
         parsed = tomllib.loads(sdk.regular(manifest).decode())
-        for section in ("dependencies", "dev-dependencies", "build-dependencies", "target", "patch", "replace"):
+        sdk.require(not any(key in parsed for key in ("patch", "replace", "workspace")), "source")
+        for section in ("dependencies", "dev-dependencies", "build-dependencies", "target"):
             if section in parsed:
-                sdk.require(section not in {"patch", "replace"}, "source")
                 visit(parsed[section])
 
 

@@ -41,7 +41,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Fail the build if a cached base image retains the vulnerable native decoder.
+# Verify the actual decoder so cached base images cannot reintroduce the vulnerability.
 RUN python -c "import ctypes; decoder = ctypes.CDLL('libbrotlidec.so.1'); decoder.BrotliDecoderErrorString.argtypes = [ctypes.c_int]; decoder.BrotliDecoderErrorString.restype = ctypes.c_char_p; assert decoder.BrotliDecoderErrorString(-17).decode().endswith('BLOCK_SWITCH')"
 
 # Set working directory
@@ -52,6 +52,9 @@ COPY backend/preview/requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
+# Pillow wheels bundle an unpatched Brotli decoder; swap in the patched system one.
+COPY backend/core/api/docker/replace_pillow_brotli.py /tmp/replace_pillow_brotli.py
+RUN python /tmp/replace_pillow_brotli.py && rm /tmp/replace_pillow_brotli.py
 
 # Copy application code and shared provider modules used by preview routes
 COPY backend/preview/ .

@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from backend.core.api.app.utils.session_principal_consistency import (
+    require_expected_owner_before_refresh, require_expected_principal,
+)
+
 from fastapi import Request, HTTPException, status
 import logging
 import time
@@ -194,6 +198,8 @@ async def verify_authenticated_user(
         if not user_data:
             logger.info("No session data in cache for token - attempting fallback validation with Directus")
             
+            # A mismatched owner assertion must not rotate the refresh token.
+            await require_expected_owner_before_refresh(request, directus_service, refresh_token)
             # Try to refresh the token with Directus - this validates the refresh token
             refresh_success, auth_data, refresh_message = await refresh_session_token(cache_service, directus_service, refresh_token)
             
@@ -295,6 +301,10 @@ async def verify_authenticated_user(
         if not user_id:
             logger.warning("Invalid user data - missing user_id")
             return False, {}, refresh_token, "authentication_failed"
+
+        # Owner assertion precedes legacy-state enrollment, device checks and
+        # cookie publication so a mismatch never returns another owner's data.
+        require_expected_principal(request, user_id)
 
         await ensure_legacy_session_state(
             directus_service, cache_service, refresh_token, user_id,

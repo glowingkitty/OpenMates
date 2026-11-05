@@ -1,5 +1,5 @@
 ---
-name: openmates:add-api
+name: add-api
 description: Integrate a new external API provider (research, wrapper, test script, docs)
 user-invocable: true
 argument-hint: "<provider-name>"
@@ -15,29 +15,24 @@ If missing, ask the user what API they want to integrate.
 
 You are integrating a new external API provider. This is a research-first workflow — never rely on training data for API details.
 
-### Step 0: Confirm Permitted Access
+### Step 0: Confirm an Official API
 
-Follow the provider-specific data integration policy in `AGENTS.md`. Use only:
+Follow the provider-specific data integration policy in `.claude/rules/provider-integrations.md`. Use only:
 
-- A provider-supported documented API whose published terms permit the intended use.
-- An explicitly licensed open-data feed permitting the intended use.
-- Written authorization covering the intended automated access and downstream use.
+- The provider's official, documented API.
+- An official open-data feed.
 
-Published official API terms or a feed licence are sufficient when they cover
-the proposed use. Do not require a separate email, partnership or provider
-contact in that case. If permission is unclear, report the gap; do not contact
-the provider without user instruction or implement an unsupported fallback.
+Confirm the official documentation supports the intended use. If that is
+unclear, report the gap; do not contact the provider without user instruction
+or implement an unsupported fallback.
 
-Record the documentation/terms/licence URL and review date, permitted endpoints,
-and relevant commercial-use, display/redistribution, retention, attribution,
-privacy and rate-limit conditions. A website's own browser/mobile endpoints,
-an intermediary's API, browser automation, low volume or silence in terms do
-not by themselves establish source permission. Do not bypass source access
-controls or implement platform-specific scraping without the required written
-authorization.
+Record the API documentation URL and review date, the endpoints used, and their
+usage, attribution, privacy and rate-limit conditions. Never use a website's own
+browser/mobile endpoints, a reseller of another platform's data, browser
+automation or platform-specific scraping, and do not bypass access controls.
 
 General on-demand public-page reading follows the separate `web.read` boundary
-in `AGENTS.md` and the guide: honor applicable crawler exclusions, use no proxy
+in `.claude/rules/provider-integrations.md` and the guide: honor applicable crawler exclusions, use no proxy
 or access-control bypass, and preserve complete extracted text in saved embeds.
 That boundary does not authorize a provider-specific connector or hidden API.
 
@@ -47,7 +42,7 @@ That boundary does not authorize a provider-specific connector or hidden API.
 python3 scripts/sessions.py context --doc api
 ```
 
-Read the guide output carefully — it contains the permission policy, test script template, and documentation template.
+Read the guide output carefully — it contains the official-API policy, test script template, and documentation template.
 
 ### Step 1: Research
 
@@ -56,7 +51,7 @@ Before writing any code:
 1. **Search for official API docs** — use web search, never assume from training data
 2. **Check existing work** — look in `docs/architecture/`, `docs/apis/`, and `backend/shared/providers/`
 3. **Identify key details:**
-   - Permission basis for the exact access and downstream use, with source URL and review date
+   - Official API documentation URL and review date
    - Authentication method (API key, OAuth2, etc.)
    - Endpoints needed and their request/response formats
    - Rate limits and pricing
@@ -151,7 +146,7 @@ Use the template from the guide loaded above.
 
 Create `docs/apis/{provider_name}.md` with:
 - Overview and purpose
-- Permission basis and reviewed official terms, feed licence, or written authorization
+- Official API documentation URL and review date
 - Authentication details (type, vault key name)
 - Endpoints used (URL, method, purpose)
 - Input/output structure tables
@@ -170,15 +165,12 @@ Read `.claude/rules/privacy.md` and check if updates are needed:
 
 Ask the user if privacy policy updates are needed for this provider.
 
-### Step 7: When No Permitted Interface Exists
+### Step 7: When No Official API Exists
 
-Report the capability gap and suggest a documented API or licensed-data
-alternative. Do not reverse-engineer consumer website/mobile interfaces or
-replace the missing interface with a scraper, proxy, browser workflow or
-platform-specific agent instructions. An expressly authorized interface can
-proceed only within the written authorization's scope and the same research,
-privacy, contract and verification requirements above. Respectful request rates,
-`robots.txt` and fragility warnings do not substitute for permission.
+Report the capability gap and suggest an official API alternative. Do not
+reverse-engineer consumer website/mobile interfaces or replace the missing
+interface with a scraper, proxy, browser workflow or platform-specific agent
+instructions.
 
 ## Rules
 

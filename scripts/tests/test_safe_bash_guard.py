@@ -23,9 +23,27 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 GUARD = PROJECT_ROOT / "scripts" / "safe_bash_guard.py"
 
 
+def _healthy_host_env() -> dict[str, str]:
+    """Pin the load gate to a healthy fake /proc so results don't track host load."""
+    import os
+    import tempfile
+
+    root = Path(tempfile.mkdtemp(prefix="safe-bash-guard-proc-"))
+    (root / "loadavg").write_text("0.10 0.10 0.10 1/1 1\n")
+    (root / "meminfo").write_text("MemAvailable: 20971520 kB\n")
+    env = {k: v for k, v in os.environ.items() if k != "OPENMATES_IGNORE_HOST_LOAD"}
+    env["OPENMATES_HOST_LOAD_PROC"] = str(root)
+    env["OPENMATES_HOST_LOAD_STATE_DIR"] = str(root / "state")
+    return env
+
+
+HEALTHY_HOST_ENV = _healthy_host_env()
+
+
 def run_guard(command: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["python3", str(GUARD), command],
+        env=HEALTHY_HOST_ENV,
         cwd=PROJECT_ROOT,
         check=False,
         capture_output=True,
@@ -102,17 +120,27 @@ def test_allows_scoped_static_frontend_checks() -> None:
         "pnpm --dir frontend/apps/web_app lint",
         "pnpm --dir frontend/apps/web_app check",
         "pnpm --dir frontend/apps/web_app check-types",
-        "pnpm --dir frontend/packages/ui test:run",
-        "pnpm --dir frontend/packages/openmates-cli build",
         "pnpm exec tsc --noEmit",
         "pnpm exec tsc --watch=false --noEmit",
         "npx eslint frontend/packages/ui/src",
+    ]
+    for command in commands:
+        result = run_guard(command)
+        assert result.returncode == 0, (command, result.stderr)
+
+
+def test_local_unit_tests_and_builds_go_to_ci() -> None:
+    # Builds/tests never run on the shared dev host (2026-11-03 overload incident).
+    commands = [
+        "pnpm --dir frontend/packages/ui test:run",
+        "pnpm --dir frontend/packages/openmates-cli build",
         "npx vitest run frontend/packages/ui/src/example.test.ts",
         "npx vitest run --watch false frontend/packages/ui/src/example.test.ts",
     ]
     for command in commands:
         result = run_guard(command)
-        assert result.returncode == 0, (command, result.stderr)
+        assert result.returncode == 2, command
+        assert "ci_coordinator.py submit" in json.loads(result.stderr)["reason"]
 
 
 def test_blocks_dev_browser_product_and_watching_commands() -> None:

@@ -36,7 +36,7 @@ on:
         default: ''
       mode:
         type: choice
-        options: [prepare, backend-probe, component, e2e, artifact, codex, pytest, vitest, selfhost, visual-smoke, sdk-conformance, sdk-lockfiles, rust-wasm, rust-native-dev]
+        options: [prepare, backend-probe, component, e2e, artifact, codex, pytest, vitest, selfhost, visual-smoke, sdk-conformance, sdk-lockfiles, rust-wasm, rust-native-dev, rust-check]
         default: e2e
       preparation_key:
         description: Exact immutable preparation identity supplied by the coordinator
@@ -87,8 +87,8 @@ permissions:
 jobs:
   test:
     if: github.event_name == 'workflow_dispatch'
-    runs-on: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && fromJSON('["self-hosted","Linux","X64","openmates-capacity"]') || inputs.mode == 'rust-native-dev' && fromJSON('["ubuntu-24.04-arm"]') || fromJSON('["ubuntu-latest"]') }}
-    timeout-minutes: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && 2880 || inputs.mode == 'selfhost' && 120 || inputs.mode == 'backend-probe' && 12 || 60 }}
+    runs-on: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && fromJSON('["self-hosted","Linux","X64","openmates-capacity"]') || (inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && fromJSON('["ubuntu-24.04-arm"]') || fromJSON('["ubuntu-latest"]') }}
+    timeout-minutes: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && 2880 || inputs.mode == 'selfhost' && 120 || (inputs.mode == 'sdk-conformance' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && 120 || (startsWith(inputs.specs_json, '["rust-core-') || startsWith(inputs.specs_json, '["web-rust-core-')) && 90 || inputs.mode == 'backend-probe' && 12 || 60 }}
     defaults:
       run:
         working-directory: subject
@@ -116,6 +116,15 @@ jobs:
       E2E_USE_LIVE_MOCKS: '1'
       DOCKER_BUILD_RECORD_UPLOAD: 'false'
       NODE_OPTIONS: --max-old-space-size=6144
+      # Rust lane selectors by spec-name pattern instead of closed specs_json
+      # allowlists. A new rust-core-* spec joins its lane without a workflow
+      # edit; the lane scripts still validate the exact targets they support.
+      # Opt-in shared Rust core in the web app: web-rust-core-* specs build the
+      # WASM package and a VITE_OPENMATES_RUST_CORE=1 web app in the same job.
+      CI_LANE_WEB_RUST_CORE: ${{ inputs.mode == 'e2e' && startsWith(inputs.specs_json, '["web-rust-core-') }}
+      CI_LANE_RUST_BROWSER: ${{ inputs.mode == 'e2e' && (startsWith(inputs.specs_json, '["rust-core-') || inputs.specs_json == '["web-essential-startup-performance.spec.ts"]') }}
+      CI_LANE_RUST_PRODUCTION_BROWSER: ${{ inputs.mode == 'e2e' && (startsWith(inputs.specs_json, '["rust-core-') || inputs.specs_json == '["web-essential-startup-performance.spec.ts"]') && inputs.specs_json != '["rust-core-browser-session.spec.ts"]' && inputs.specs_json != '["rust-core-browser-password-entry.spec.ts"]' }}
+      CI_LANE_RUST_BROWSER_CLI: ${{ inputs.mode == 'e2e' && (startsWith(inputs.specs_json, '["rust-core-') || inputs.specs_json == '["web-essential-startup-performance.spec.ts"]') && inputs.specs_json != '["rust-core-browser-session.spec.ts"]' && inputs.specs_json != '["rust-core-browser-password-entry.spec.ts"]' && !contains(inputs.specs_json, 'rust-core-production-') && !contains(inputs.specs_json, 'rust-core-ordinary-login-retention') }}
     steps:
       - name: Start bounded private native compilation clock
         if: inputs.mode == 'rust-native-dev'
@@ -126,7 +135,7 @@ jobs:
           started = time.monotonic()
           with open(os.environ['GITHUB_ENV'], 'a') as output:
               output.write(f'CI_NATIVE_DEV_STARTED_MONOTONIC={started}\n')
-              output.write(f'CI_NATIVE_DEV_DEADLINE_MONOTONIC={started + 2700}\n')
+              output.write(f'CI_NATIVE_DEV_DEADLINE_MONOTONIC={started + 5400}\n')
           PYNATIVE
       - name: Start bounded self-host clock
         if: inputs.mode == 'selfhost'
@@ -141,7 +150,7 @@ jobs:
               output.write(f'CI_SELFHOST_CLEANUP_DEADLINE_MONOTONIC={started + 7020}\n')
           PYSELFHOST
       - name: Start bounded same-source browser package clock
-        if: inputs.mode == 'e2e' && (inputs.specs_json == '["rust-core-browser-session.spec.ts"]' || inputs.specs_json == '["rust-core-browser-password-entry.spec.ts"]' || (inputs.specs_json == '["rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-saved-paging.spec.ts"]'))
+        if: env.CI_LANE_RUST_BROWSER == 'true'
         working-directory: ${{ github.workspace }}
         run: |
           python3 - <<'PYBROWSER'
@@ -149,7 +158,7 @@ jobs:
           started = time.monotonic()
           with open(os.environ['GITHUB_ENV'], 'a') as output:
               output.write(f'CI_BROWSER_PACKAGE_STARTED_MONOTONIC={started}\n')
-              output.write(f'CI_BROWSER_PACKAGE_DEADLINE_MONOTONIC={started + 1800}\n')
+              output.write(f'CI_BROWSER_PACKAGE_DEADLINE_MONOTONIC={started + 3600}\n')
           PYBROWSER
       - name: Start bounded Rust WASM compilation clock
         if: inputs.mode == 'rust-wasm'
@@ -160,7 +169,7 @@ jobs:
           started = time.monotonic()
           with open(os.environ['GITHUB_ENV'], 'a') as output:
               output.write(f'CI_RUST_WASM_STARTED_MONOTONIC={started}\n')
-              output.write(f'CI_RUST_WASM_DEADLINE_MONOTONIC={started + 2700}\n')
+              output.write(f'CI_RUST_WASM_DEADLINE_MONOTONIC={started + 5400}\n')
           PYWASM
       - name: Start bounded SDK lock preparation clock
         if: inputs.mode == 'sdk-lockfiles'
@@ -182,20 +191,22 @@ jobs:
           started = time.monotonic()
           with open(os.environ['GITHUB_ENV'], 'a') as output:
               output.write(f'CI_SDK_STARTED_MONOTONIC={started}\n')
-              output.write(f'CI_SDK_DEADLINE_MONOTONIC={started + 2700}\n')
+              output.write(f'CI_SDK_DEADLINE_MONOTONIC={started + 5400}\n')
           PYSDK
-      - uses: actions/checkout@v4
-        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 5 || 360 }}
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && 15 || 360 }}
         with:
           ref: ${{ inputs.checkout_ref }}
           path: subject
           persist-credentials: false
-      - uses: actions/checkout@v4
-        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 5 || 360 }}
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && 15 || 360 }}
         with:
           ref: ${{ inputs.harness_commit || github.sha }}
           path: tooling
-          sparse-checkout: scripts
+          sparse-checkout: |
+            scripts
+            .github/workflows
           persist-credentials: false
       - name: Require private preparation transport ticket
         if: >-
@@ -204,7 +215,7 @@ jobs:
            inputs.preparation_key != '')
         run: python3 ../tooling/scripts/ci_preparation_transport.py validate
       - name: Create private Node supplier toolcache
-        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles' && inputs.mode != 'rust-native-dev'
+        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles' && inputs.mode != 'rust-native-dev' && inputs.mode != 'rust-check'
         run: |
           # Hosted images chmod /opt recursively to 0777, including cached Node.
           # Use a fresh private supplier; keep the producer's world-write
@@ -212,12 +223,12 @@ jobs:
           supplier_cache=$(mktemp -d "$RUNNER_TEMP/openmates-node-supplier.XXXXXXXX")
           echo "OPENMATES_CI_NODE_SUPPLIER_CACHE=$supplier_cache" >> "$GITHUB_ENV"
       - name: Download verified official Node supplier
-        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 3 || 360 }}
-        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles' && inputs.mode != 'rust-native-dev'
+        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && 10 || 360 }}
+        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles' && inputs.mode != 'rust-native-dev' && inputs.mode != 'rust-check'
         run: python3 ../tooling/scripts/ci_download_node_supplier.py
       - name: Stage attested runner Node before candidate code or dependencies
-        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 3 || 360 }}
-        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles' && inputs.mode != 'rust-native-dev'
+        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && 10 || 360 }}
+        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles' && inputs.mode != 'rust-native-dev' && inputs.mode != 'rust-check'
         env:
           OPENMATES_CI_EXPECTED_SOURCE: ${{ inputs.source_commit }}
         # RUNNER_* step env is overwritten by runner context injection. Set the
@@ -227,7 +238,7 @@ jobs:
           RUNNER_TOOL_CACHE="$OPENMATES_CI_NODE_SUPPLIER_CACHE"
           "$OPENMATES_CI_NODE_SUPPLIER" ../tooling/scripts/ci_stage_node_runtime.mjs stage
       - name: Reconstruct and verify exact detached source
-        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 5 || 360 }}
+        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && 15 || 360 }}
         env:
           EXPECTED_SOURCE: ${{ inputs.source_commit }}
           EXPECTED_TREE: ${{ inputs.candidate_tree }}
@@ -290,35 +301,65 @@ jobs:
           echo "BUILD_COMMIT_SHA=$EXPECTED_SOURCE" >> "$GITHUB_ENV"
           echo '127.0.0.2 api.dev.openmates.org app.dev.openmates.org' | sudo tee -a /etc/hosts
           echo '127.0.0.1 storage.ci.test' | sudo tee -a /etc/hosts
-      - uses: pnpm/action-setup@v4
-        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 3 || 360 }}
-        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles' && inputs.mode != 'rust-native-dev' && inputs.mode != 'rust-wasm'
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && 10 || 360 }}
+        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles' && inputs.mode != 'rust-native-dev' && inputs.mode != 'rust-check' && inputs.mode != 'rust-wasm'
         with:
           package_json_file: subject/package.json
-      - uses: actions/setup-node@v4
-        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 3 || 360 }}
-        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles' && inputs.mode != 'rust-native-dev' && inputs.mode != 'rust-wasm'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && 10 || 360 }}
+        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles' && inputs.mode != 'rust-native-dev' && inputs.mode != 'rust-check' && inputs.mode != 'rust-wasm'
         with:
           node-version: '24'
           cache: pnpm
           cache-dependency-path: subject/pnpm-lock.yaml
       - name: Restore pinned Node after package-manager cache setup
-        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 1 || 360 }}
-        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles' && inputs.mode != 'rust-native-dev'
+        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && 5 || 360 }}
+        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles' && inputs.mode != 'rust-native-dev' && inputs.mode != 'rust-check'
         run: |
           env -u NODE_OPTIONS -u NODE_PATH "$OPENMATES_CI_NODE" ../tooling/scripts/ci_stage_node_runtime.mjs verify
           dirname "$OPENMATES_CI_NODE" >> "$GITHUB_PATH"
-      - uses: actions/setup-python@v5
-        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 3 || 360 }}
+      - name: Resolve optional native capability from exact preparation key
+        if: inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
+        run: |
+          native="$(python3 ../tooling/scripts/ci_artifacts.py native-capability --source "$BUILD_COMMIT_SHA" --key "${{ inputs.preparation_key }}")"
+          test "$native" = true || test "$native" = false
+          echo "CI_NATIVE_PREPARED=$native" >> "$GITHUB_ENV"
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        id: setup-python
+        timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && 10 || 360 }}
         with:
-          python-version: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && '3.12' || '3.13' }}
+          update-environment: ${{ env.CI_NATIVE_PREPARED != 'true' }}
+          python-version: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && '3.12' || '3.13' }}
           cache: ${{ inputs.mode == 'pytest' && 'pip' || '' }}
           cache-dependency-path: |
             subject/backend/requirements-dev.txt
             subject/backend/core/api/requirements.txt
             subject/packages/openmates-python/pyproject.toml
+      - name: Verify clean Python for native preparation and consumption
+        if: env.CI_NATIVE_PREPARED == 'true'
+        env:
+          CI_SETUP_PYTHON: ${{ steps.setup-python.outputs.python-path }}
+        run: |
+          /usr/bin/python3 -I - <<'PYCLEAN'
+          import os, pathlib, subprocess
+          if any(name.startswith('LD_') for name in os.environ):
+              raise SystemExit('native_python_environment_refused')
+          selected = pathlib.Path(os.environ['CI_SETUP_PYTHON'])
+          if not selected.is_absolute() or not selected.is_file():
+              raise SystemExit('native_python_path_refused')
+          try:
+              result = subprocess.run([str(selected), '-I', '-c', 'import sys,ssl;assert sys.version_info[:2]==(3,13)'], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+          except (OSError, subprocess.TimeoutExpired):
+              raise SystemExit('native_python_bootstrap_refused')
+          if result.returncode:
+              raise SystemExit('native_python_bootstrap_refused')
+          with open(os.environ['GITHUB_PATH'], 'a') as stream:
+              stream.write(str(selected.parent) + '\n')
+          print('native_python_clean_verified')
+          PYCLEAN
       - name: Install workspace dependencies
-        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles' && inputs.mode != 'rust-native-dev' && inputs.mode != 'rust-wasm' && inputs.mode != 'sdk-conformance'
+        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles' && inputs.mode != 'rust-native-dev' && inputs.mode != 'rust-check' && inputs.mode != 'rust-wasm' && inputs.mode != 'sdk-conformance'
         run: pnpm install --frozen-lockfile
       - name: Stage exact capacity calibration and rate settings
         if: inputs.capacity_configuration != '' || contains(inputs.specs_json, 'storage-capacity-target.spec.ts')
@@ -337,7 +378,7 @@ jobs:
         run: test "${{ steps.profile.outputs.uploads }}" = "${{ inputs.prepare_upload }}"
       - name: Log in to GHCR for compatible runtime images
         if: inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke' || inputs.mode == 'backend-probe'
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -351,6 +392,10 @@ jobs:
         run: >-
           python3 ../tooling/scripts/ci_preparation_transport.py download
           --directory test-results/ci-preparation-download
+      - name: Install exact Rust tools for native preparation identity
+        if: env.CI_NATIVE_PREPARED == 'true'
+        continue-on-error: true
+        run: rustup toolchain install 1.98.1 --profile minimal
       - name: Verify and restore prepared web and CLI bytes
         id: artifacts
         if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
@@ -360,6 +405,7 @@ jobs:
             --candidate-tree "$CI_CANDIDATE_TREE" \
             --include-cli "${{ inputs.prepare_cli }}" \
             --include-upload "${{ inputs.prepare_upload }}" \
+            --include-native-cli "${CI_NATIVE_PREPARED:-false}" \
             --expected-key "${{ inputs.preparation_key }}" \
             --harness-commit "$CI_HARNESS_COMMIT" \
             --input-dir test-results/ci-preparation-download
@@ -411,7 +457,7 @@ jobs:
             echo "$kind=$(python3 ../tooling/scripts/ci_runtime_images.py key --kind "$kind")" >> "$GITHUB_OUTPUT"
           done
           python3 ../tooling/scripts/ci_runtime_images.py schema-contract >> "$GITHUB_OUTPUT"
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
         if: >-
           (inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') &&
           (steps.images.outputs.api != 'true' ||
@@ -422,18 +468,42 @@ jobs:
              (inputs.preparation_key == '' && steps.profile.outputs.uploads == 'true')) &&
             steps.images.outputs.upload != 'true'))
       - name: Prepare exact production-loader browser package
-        if: inputs.mode == 'e2e' && (inputs.specs_json == '["rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-saved-paging.spec.ts"]')
-        timeout-minutes: 30
+        if: env.CI_LANE_RUST_PRODUCTION_BROWSER == 'true'
+        timeout-minutes: 60
         run: python3 ../tooling/scripts/ci_production_rust_browser.py prepare
+      - name: Restore web Rust core dependency cache
+        if: env.CI_LANE_WEB_RUST_CORE == 'true'
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        env:
+          RUSTUP_TOOLCHAIN: '1.98.1'
+        with:
+          shared-key: isolated-web-rust-core
+          workspaces: subject -> target
+          cache-bin: 'true'
+          cache-on-failure: 'true'
+          save-if: ${{ inputs.candidate_patch_sha256 == '' }}
+      - name: Build opt-in web Rust core package
+        if: env.CI_LANE_WEB_RUST_CORE == 'true'
+        timeout-minutes: 45
+        env:
+          RUSTUP_TOOLCHAIN: '1.98.1'
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal --target wasm32-unknown-unknown
+          if ! wasm-bindgen --version 2>/dev/null | grep -q '0.2.129'; then
+            cargo install wasm-bindgen-cli --version 0.2.129 --locked
+          fi
+          node frontend/apps/web_app/scripts/build-rust-core-web.mjs "$PWD/target/web-rust-core-pkg"
+          echo "OPENMATES_RUST_CORE_PKG=$PWD/target/web-rust-core-pkg" >> "$GITHUB_ENV"
+          echo "VITE_OPENMATES_RUST_CORE=1" >> "$GITHUB_ENV"
       - name: Generate UI build inputs once
         if: >-
           inputs.mode == 'prepare' ||
           ((inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') &&
-           (steps.artifacts.outputs.web != 'true' || steps.images.outputs.api != 'true' || (inputs.specs_json == '["rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-saved-paging.spec.ts"]')))
+           (steps.artifacts.outputs.web != 'true' || steps.images.outputs.api != 'true' || env.CI_LANE_RUST_PRODUCTION_BROWSER == 'true' || env.CI_LANE_WEB_RUST_CORE == 'true'))
         run: pnpm --filter @repo/ui build
       - name: Build cached API dependencies and current source
         if: (inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') && steps.images.outputs.api != 'true'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: ./subject
           file: ./subject/backend/core/api/Dockerfile.selfhost
@@ -442,13 +512,24 @@ jobs:
           cache-from: type=gha,scope=ci-api
           cache-to: ${{ inputs.candidate_patch_sha256 == '' && 'type=gha,scope=ci-api,mode=max' || '' }}
           labels: org.openmates.ci.runtime-key=${{ steps.runtime_keys.outputs.api }}
+      - name: Build restricted offline formula worker
+        if: inputs.mode == 'e2e' && inputs.specs_json == '["formula-sheet-editing.spec.ts"]'
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: ./subject
+          file: ./subject/backend/formula_worker/Dockerfile
+          load: true
+          tags: openmates-ci-formula-worker:local
+          cache-from: type=gha,scope=ci-formula-worker
+          cache-to: ${{ inputs.candidate_patch_sha256 == '' && 'type=gha,scope=ci-formula-worker,mode=max' || '' }}
+          labels: org.openmates.ci.source-commit=${{ inputs.source_commit }}
       - name: Build cached upload dependencies and current source
         if: >-
           (inputs.mode == 'prepare' || inputs.mode == 'e2e') &&
           ((inputs.preparation_key != '' && inputs.prepare_upload == 'true') ||
            (inputs.preparation_key == '' && steps.profile.outputs.uploads == 'true')) &&
           steps.images.outputs.upload != 'true'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: ./subject
           file: ./subject/backend/upload/Dockerfile
@@ -459,7 +540,7 @@ jobs:
           labels: org.openmates.ci.runtime-key=${{ steps.runtime_keys.outputs.upload }}
       - name: Build current Directus extensions
         if: (inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') && steps.images.outputs.cms != 'true'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: ./subject/backend/core/directus
           load: true
@@ -469,7 +550,7 @@ jobs:
           labels: org.openmates.ci.runtime-key=${{ steps.runtime_keys.outputs.cms }}
       - name: Build current schema initializer
         if: (inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') && steps.images.outputs.setup != 'true'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: ./subject/backend/core/directus
           file: ./subject/backend/core/directus/Dockerfile.setup.selfhost
@@ -483,7 +564,7 @@ jobs:
         run: python3 ../tooling/scripts/ci_schema_bundle.py
       - name: Build missing prepared schema carrier
         if: inputs.mode == 'prepare' && steps.images.outputs.schema != 'true'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: ./subject/test-results/ci-private
           file: ./subject/scripts/ci_schema_image.Dockerfile
@@ -510,24 +591,175 @@ jobs:
       - name: Build local web app
         if: >-
           inputs.mode == 'prepare' ||
-          ((inputs.mode == 'e2e' && !contains(inputs.specs_json, 'storage-accountability-integration.spec.ts') || inputs.mode == 'visual-smoke') && (steps.artifacts.outputs.web != 'true' || (inputs.specs_json == '["rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-saved-paging.spec.ts"]')))
+          ((inputs.mode == 'e2e' && !contains(inputs.specs_json, 'storage-accountability-integration.spec.ts') && inputs.specs_json != '["cli-memory-readiness.spec.ts"]' || inputs.mode == 'visual-smoke') && (steps.artifacts.outputs.web != 'true' || env.CI_LANE_RUST_PRODUCTION_BROWSER == 'true' || env.CI_LANE_WEB_RUST_CORE == 'true'))
         env:
           OPENMATES_CI_PRECOMPRESS: '0'
         run: |
           cp frontend/apps/web_app/svelte.config.docker.js frontend/apps/web_app/svelte.config.js
           node frontend/apps/web_app/scripts/process-docs.js
           case "$CI_TEST_MODE:$CI_SPECS_JSON" in
-            'e2e:["rust-core-production-saved-session.spec.ts"]'|'e2e:["rust-core-production-platform.spec.ts"]'|'e2e:["rust-core-production-saved-session.spec.ts","rust-core-production-platform.spec.ts"]'|'e2e:["rust-core-production-platform.spec.ts","rust-core-production-saved-session.spec.ts"]'|'e2e:["rust-core-production-local-cursor.spec.ts"]'|'e2e:["rust-core-production-saved-session.spec.ts","rust-core-production-local-cursor.spec.ts"]'|'e2e:["rust-core-production-platform.spec.ts","rust-core-production-local-cursor.spec.ts"]'|'e2e:["rust-core-production-local-cursor.spec.ts","rust-core-production-saved-session.spec.ts"]'|'e2e:["rust-core-production-local-cursor.spec.ts","rust-core-production-platform.spec.ts"]'|'e2e:["rust-core-production-saved-paging.spec.ts"]'|'e2e:["rust-core-production-saved-session.spec.ts","rust-core-production-saved-paging.spec.ts"]'|'e2e:["rust-core-production-platform.spec.ts","rust-core-production-saved-paging.spec.ts"]'|'e2e:["rust-core-production-local-cursor.spec.ts","rust-core-production-saved-paging.spec.ts"]'|'e2e:["rust-core-production-saved-paging.spec.ts","rust-core-production-saved-session.spec.ts"]'|'e2e:["rust-core-production-saved-paging.spec.ts","rust-core-production-platform.spec.ts"]'|'e2e:["rust-core-production-saved-paging.spec.ts","rust-core-production-local-cursor.spec.ts"]'|'e2e:["rust-core-ordinary-login-retention.spec.ts"]'|'e2e:["rust-core-production-saved-session.spec.ts","rust-core-ordinary-login-retention.spec.ts"]'|'e2e:["rust-core-production-platform.spec.ts","rust-core-ordinary-login-retention.spec.ts"]'|'e2e:["rust-core-production-local-cursor.spec.ts","rust-core-ordinary-login-retention.spec.ts"]'|'e2e:["rust-core-production-saved-paging.spec.ts","rust-core-ordinary-login-retention.spec.ts"]'|'e2e:["rust-core-ordinary-login-retention.spec.ts","rust-core-production-saved-session.spec.ts"]'|'e2e:["rust-core-ordinary-login-retention.spec.ts","rust-core-production-platform.spec.ts"]'|'e2e:["rust-core-ordinary-login-retention.spec.ts","rust-core-production-local-cursor.spec.ts"]'|'e2e:["rust-core-ordinary-login-retention.spec.ts","rust-core-production-saved-paging.spec.ts"]')
-              python3 ../tooling/scripts/ci_production_rust_browser.py build ;;
-            *) pnpm --dir frontend/apps/web_app exec vite build ;;
+            'e2e:["web-essential-startup-performance.spec.ts"]')
+              /usr/bin/python3 -I - "${{ inputs.harness_commit || github.sha }}" <<'PAIRED_TOOLING'
+          import hashlib,os,re,stat,subprocess,sys
+          from pathlib import Path
+          
+          def require(value, code="paired_profile_refused"):
+              if not value:
+                  raise ValueError(code)
+          
+          def digest(data):
+              return hashlib.sha256(data).hexdigest()
+          
+          def read_regular(path, limit):
+              if path.resolve() != path:
+                  raise ValueError("unsafe_path")
+              with os.fdopen(os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK), "rb") as stream:
+                  before = os.fstat(stream.fileno())
+                  if (not stat.S_ISREG(before.st_mode) or before.st_size > limit
+                          or before.st_mode & 0o002 or before.st_uid not in (0, os.getuid())):
+                      raise ValueError("unsafe_file")
+                  data = stream.read(limit + 1)
+                  after = os.fstat(stream.fileno())
+                  # Deliberately exclude atime, which our own reads may change.
+                  def identity(s):
+                      return (s.st_dev, s.st_ino, s.st_mode, s.st_size,
+                              s.st_uid, s.st_gid, s.st_nlink, s.st_mtime_ns, s.st_ctime_ns)
+                  if len(data) > limit or identity(before) != identity(after) or identity(after) != identity(path.lstat()):
+                      raise ValueError("changed_file")
+                  return data
+          
+          def tooling_snapshot(harness):
+              """Closed helper bytes must be the actual independently published harness.
+          
+              The workflow also checks them before this module's first import with a fresh
+              Python bytecode cache. This is a held-file check, not a same-UID sandbox.
+              """
+              require(re.fullmatch(r"[a-f0-9]{40}", harness), "paired_harness_identity")
+              tooling = Path("../tooling").resolve()
+              clean = {
+                  "PATH": os.defpath,
+                  "LANG": "C.UTF-8",
+                  "GIT_CONFIG_NOSYSTEM": "1",
+                  "GIT_CONFIG_GLOBAL": "/dev/null",
+              }
+              actual = (
+                  subprocess.check_output(
+                      ["/usr/bin/git", "--no-replace-objects", "rev-parse", "HEAD"],
+                      cwd=tooling,
+                      env=clean,
+                      timeout=30,
+                  )
+                  .decode()
+                  .strip()
+              )
+              require(actual == harness, "paired_harness_identity")
+              tree = subprocess.check_output(
+                  [
+                      "/usr/bin/git",
+                      "--no-replace-objects",
+                      "ls-tree",
+                      "-r",
+                      "-z",
+                      harness,
+                      "scripts",
+                  ],
+                  cwd=tooling,
+                  env=clean,
+                  timeout=30,
+              )
+              require(len(tree) <= 4 * 1024**2, "paired_tooling_tree_limit")
+              expected = {}
+              for row in tree.split(b"\0"):
+                  if not row:
+                      continue
+                  header, raw_name = row.split(b"\t", 1)
+                  mode, kind, oid = header.decode().split(" ")
+                  name = raw_name.decode("utf-8")
+                  if name.endswith(".py"):
+                      require(
+                          mode in {"100644", "100755"}
+                          and kind == "blob"
+                          and re.fullmatch(r"[a-f0-9]{40}", oid)
+                          and re.fullmatch(r"scripts/[A-Za-z0-9_./-]+\.py", name)
+                          and ".." not in Path(name).parts
+                      )
+                      expected[name] = oid
+              require(1 <= len(expected) <= 4096, "paired_tooling_tree_limit")
+              found = set()
+              for directory, dirs, files in os.walk(tooling / "scripts", followlinks=False):
+                  require(
+                      all(not (Path(directory) / name).is_symlink() for name in dirs),
+                      "paired_tooling_shadow",
+                  )
+                  dirs[:] = [
+                      name for name in dirs if name != "__pycache__"
+                  ]  # fresh isolated cache is used by workflow
+                  for name in files:
+                      file = Path(directory) / name
+                      require(
+                          not file.name.endswith((".pyc", ".pyo", ".so", ".pyd")),
+                          "paired_tooling_shadow",
+                      )
+                      if name.endswith(".py"):
+                          found.add(file.relative_to(tooling).as_posix())
+              require(found == set(expected), "paired_tooling_shadow")
+              rows, total = {}, 0
+              for name, oid in sorted(expected.items()):
+                  raw = read_regular(tooling / name, 4 * 1024**2)
+                  total += len(raw)
+                  require(
+                      total <= 64 * 1024**2
+                      and hashlib.sha1(
+                          b"blob " + str(len(raw)).encode() + b"\0" + raw
+                      ).hexdigest()
+                      == oid,
+                      "paired_tooling_changed",
+                  )
+                  rows[name] = digest(raw)
+              return rows
+          
+          tooling_snapshot(sys.argv[1])
+          PAIRED_TOOLING
+              env -u PYTHONHOME -u PYTHONSTARTUP -u PYTHONINSPECT PYTHONPATH="$PWD/../tooling/scripts" PYTHONPYCACHEPREFIX="$(mktemp -d)" /usr/bin/python3 ../tooling/scripts/ci_web_paired_profile.py build ;;
+            *)
+              if [ "$CI_LANE_RUST_PRODUCTION_BROWSER" = true ]; then
+                python3 ../tooling/scripts/ci_production_rust_browser.py build
+              else
+                pnpm --dir frontend/apps/web_app exec vite build
+              fi ;;
           esac
           pnpm --dir frontend/apps/web_app exec node scripts/audit-example-seo.js
       - name: Build local CLI only when consumed
         if: >-
-          inputs.prepare_cli == 'true' &&
+          !(inputs.mode == 'e2e' && inputs.specs_json == '["cli-memory-readiness.spec.ts"]') &&
+          (inputs.prepare_cli == 'true' || env.CI_LANE_RUST_BROWSER_CLI == 'true') &&
           (inputs.mode == 'prepare' ||
            (inputs.mode == 'e2e' && steps.artifacts.outputs.cli != 'true'))
         run: pnpm --filter openmates build
+      # Same rust-cache pattern as .github/workflows/rust.yml: the native
+      # release build uses the stable ~/.cargo and crate target paths, so a
+      # restored dependency build turns the cold release compile into a
+      # crate-only rebuild. Candidate patches restore but never save.
+      - name: Restore native release Rust dependency cache
+        if: inputs.mode == 'prepare' && env.CI_NATIVE_PREPARED == 'true'
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        env:
+          RUSTUP_TOOLCHAIN: '1.98.1'
+        with:
+          shared-key: isolated-native-release-cli
+          # Root Cargo workspace (key: root Cargo.lock); the contract keeps the
+          # release --target-dir under the openmates package directory.
+          workspaces: subject -> frontend/packages/openmates-tui-native/target
+          cache-bin: 'false'
+          cache-on-failure: 'true'
+          save-if: ${{ inputs.candidate_patch_sha256 == '' }}
+      - name: Build required exact-source native release payload
+        if: inputs.mode == 'prepare' && env.CI_NATIVE_PREPARED == 'true'
+        run: |
+          python3 ../tooling/scripts/ci_artifacts.py native-build \
+            --source "$BUILD_COMMIT_SHA" \
+            --candidate-tree "$CI_CANDIDATE_TREE" \
+            --harness-commit "$CI_HARNESS_COMMIT"
       - name: Export cold runtime images into private preparation bundle
         if: inputs.mode == 'prepare'
         run: |
@@ -540,7 +772,8 @@ jobs:
           actual_key="$(python3 ../tooling/scripts/ci_artifacts.py key \
             --source "$BUILD_COMMIT_SHA" \
             --include-cli "${{ inputs.prepare_cli }}" \
-            --include-upload "${{ inputs.prepare_upload }}")"
+            --include-upload "${{ inputs.prepare_upload }}" \
+            --include-native-cli "${CI_NATIVE_PREPARED:-false}")"
           test "$actual_key" = "${{ inputs.preparation_key }}"
           python3 ../tooling/scripts/ci_artifacts.py create \
             --source "$BUILD_COMMIT_SHA" \
@@ -548,6 +781,7 @@ jobs:
             --harness-commit "$CI_HARNESS_COMMIT" \
             --include-cli "${{ inputs.prepare_cli }}" \
             --include-upload "${{ inputs.prepare_upload }}" \
+            --include-native-cli "${CI_NATIVE_PREPARED:-false}" \
             --runtime-receipt test-results/ci-runtime-images.json \
             --output-dir test-results/ci-preparation
       - name: Upload immutable private preparation bundle
@@ -571,7 +805,7 @@ jobs:
         timeout-minutes: 1
         run: python3 ../tooling/scripts/isolated_worker_broker_probe.py probe
       - name: Install browser
-        if: inputs.mode == 'component' || (inputs.mode == 'e2e' && !contains(inputs.specs_json, 'storage-accountability-integration.spec.ts')) || inputs.mode == 'artifact' || inputs.mode == 'visual-smoke'
+        if: inputs.mode == 'component' || (inputs.mode == 'e2e' && !contains(inputs.specs_json, 'storage-accountability-integration.spec.ts') && inputs.specs_json != '["cli-memory-readiness.spec.ts"]') || inputs.mode == 'artifact' || inputs.mode == 'visual-smoke'
         working-directory: subject/frontend/apps/web_app
         timeout-minutes: 10
         run: |
@@ -592,25 +826,207 @@ jobs:
           else
             npx playwright install --with-deps chromium
           fi
-          if ! command -v ffmpeg >/dev/null || ! command -v Xvfb >/dev/null || ! command -v zutty >/dev/null; then
-            sudo apt-get update
-            sudo apt-get install -y ffmpeg xvfb zutty
+          # Recorder OS dependencies belong to this existing privileged runner
+          # provisioning boundary, never the same-UID native command owner.
+          recorder_missing=false
+          for executable in zutty xdotool Xvfb ffmpeg xsetroot script; do
+            if [[ ! -x "/usr/bin/$executable" ]]; then recorder_missing=true; fi
+          done
+          if [[ ! -r /usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf ]]; then recorder_missing=true; fi
+          if [[ "$recorder_missing" == true ]]; then
+            sudo apt-get -o Acquire::AllowInsecureRepositories=false -o APT::Get::AllowUnauthenticated=false -o Acquire::Retries=0 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update
+            sudo apt-get -o Acquire::AllowInsecureRepositories=false -o APT::Get::AllowUnauthenticated=false -o Acquire::Retries=0 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install --yes --no-install-recommends zutty fonts-dejavu-core x11-xserver-utils xdotool ffmpeg xvfb util-linux
           fi
+          for executable in zutty xdotool Xvfb ffmpeg xsetroot script; do
+            test -x "/usr/bin/$executable"
+          done
+          test -r /usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf
       - name: Provision empty runner-local Codex thread
-        if: inputs.mode == 'codex' || (inputs.mode == 'e2e' && contains(inputs.specs_json, 'tasks-flow.spec.ts'))
+        if: inputs.mode == 'codex' || (inputs.mode == 'e2e' && (contains(inputs.specs_json, 'tasks-flow.spec.ts') || contains(inputs.specs_json, 'project-task-sync.spec.ts')))
         run: node ../tooling/scripts/ci_codex_fixture.mjs start
       - name: Install installer workflow parser
         if: inputs.mode == 'selfhost'
         run: python3 -m pip install pyyaml==6.0.2
+      - name: Install Rust toolchain for Rust check
+        if: inputs.mode == 'rust-check'
+        timeout-minutes: 15
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal --target wasm32-unknown-unknown
+          rustup default 1.98.1
+          rustc -vV
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        if: inputs.mode == 'rust-check'
+        with:
+          node-version: '24'
+      - name: Install TypeScript for the SDK web-decoder interop tests
+        if: inputs.mode == 'rust-check'
+        timeout-minutes: 10
+        run: |
+          version="$(node -p "require('./frontend/apps/web_app/package.json').devDependencies.typescript")"
+          npm install --prefix "$RUNNER_TEMP/web-decoder-ts" --no-save --no-package-lock \
+            --ignore-scripts --no-audit --no-fund "typescript@$version"
+          mkdir -p frontend/apps/web_app/node_modules
+          ln -sfn "$RUNNER_TEMP/web-decoder-ts/node_modules/typescript" \
+            frontend/apps/web_app/node_modules/typescript
+      # The Rust tests spawn the synthetic Python peers in tests/sdk-conformance
+      # (and openmates-tui-native/tests/support), which import `cryptography`.
+      # setup-python's interpreter lacks it, so each peer exited before printing
+      # its endpoint and the tests failed with "peer JSON".
+      - name: Install Python packages for the synthetic SDK test peers
+        if: inputs.mode == 'rust-check'
+        timeout-minutes: 5
+        run: python3 -m pip install "cryptography>=41"
+      - name: Restore Rust check dependency cache
+        if: inputs.mode == 'rust-check'
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          shared-key: isolated-rust-check
+          workspaces: subject -> target
+          cache-bin: 'false'
+          cache-on-failure: 'true'
+          save-if: ${{ inputs.candidate_patch_sha256 == '' }}
       - name: Run selected checks
-        timeout-minutes: ${{ inputs.mode == 'sdk-lockfiles' && 21 || (inputs.mode == 'sdk-conformance' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && 46 || 360 }}
+        timeout-minutes: ${{ inputs.mode == 'sdk-lockfiles' && 21 || (inputs.mode == 'sdk-conformance' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && 100 || 360 }}
         if: inputs.mode != 'prepare' && inputs.mode != 'backend-probe'
         env:
           CI_TEST_MODE: ${{ inputs.mode }}
           CI_SPECS_JSON: ${{ inputs.specs_json }}
-        run: python3 ../tooling/scripts/ci_run_tests.py
+        run: |
+          if [ "$CI_TEST_MODE:$CI_SPECS_JSON" = 'e2e:["web-essential-startup-performance.spec.ts"]' ]; then
+            /usr/bin/python3 -I - "${{ inputs.harness_commit || github.sha }}" <<'PAIRED_TOOLING'
+          import hashlib,os,re,stat,subprocess,sys
+          from pathlib import Path
+          
+          def require(value, code="paired_profile_refused"):
+              if not value:
+                  raise ValueError(code)
+          
+          def digest(data):
+              return hashlib.sha256(data).hexdigest()
+          
+          def read_regular(path, limit):
+              if path.resolve() != path:
+                  raise ValueError("unsafe_path")
+              with os.fdopen(os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK), "rb") as stream:
+                  before = os.fstat(stream.fileno())
+                  if (not stat.S_ISREG(before.st_mode) or before.st_size > limit
+                          or before.st_mode & 0o002 or before.st_uid not in (0, os.getuid())):
+                      raise ValueError("unsafe_file")
+                  data = stream.read(limit + 1)
+                  after = os.fstat(stream.fileno())
+                  # Deliberately exclude atime, which our own reads may change.
+                  def identity(s):
+                      return (s.st_dev, s.st_ino, s.st_mode, s.st_size,
+                              s.st_uid, s.st_gid, s.st_nlink, s.st_mtime_ns, s.st_ctime_ns)
+                  if len(data) > limit or identity(before) != identity(after) or identity(after) != identity(path.lstat()):
+                      raise ValueError("changed_file")
+                  return data
+          
+          def tooling_snapshot(harness):
+              """Closed helper bytes must be the actual independently published harness.
+          
+              The workflow also checks them before this module's first import with a fresh
+              Python bytecode cache. This is a held-file check, not a same-UID sandbox.
+              """
+              require(re.fullmatch(r"[a-f0-9]{40}", harness), "paired_harness_identity")
+              tooling = Path("../tooling").resolve()
+              clean = {
+                  "PATH": os.defpath,
+                  "LANG": "C.UTF-8",
+                  "GIT_CONFIG_NOSYSTEM": "1",
+                  "GIT_CONFIG_GLOBAL": "/dev/null",
+              }
+              actual = (
+                  subprocess.check_output(
+                      ["/usr/bin/git", "--no-replace-objects", "rev-parse", "HEAD"],
+                      cwd=tooling,
+                      env=clean,
+                      timeout=30,
+                  )
+                  .decode()
+                  .strip()
+              )
+              require(actual == harness, "paired_harness_identity")
+              tree = subprocess.check_output(
+                  [
+                      "/usr/bin/git",
+                      "--no-replace-objects",
+                      "ls-tree",
+                      "-r",
+                      "-z",
+                      harness,
+                      "scripts",
+                  ],
+                  cwd=tooling,
+                  env=clean,
+                  timeout=30,
+              )
+              require(len(tree) <= 4 * 1024**2, "paired_tooling_tree_limit")
+              expected = {}
+              for row in tree.split(b"\0"):
+                  if not row:
+                      continue
+                  header, raw_name = row.split(b"\t", 1)
+                  mode, kind, oid = header.decode().split(" ")
+                  name = raw_name.decode("utf-8")
+                  if name.endswith(".py"):
+                      require(
+                          mode in {"100644", "100755"}
+                          and kind == "blob"
+                          and re.fullmatch(r"[a-f0-9]{40}", oid)
+                          and re.fullmatch(r"scripts/[A-Za-z0-9_./-]+\.py", name)
+                          and ".." not in Path(name).parts
+                      )
+                      expected[name] = oid
+              require(1 <= len(expected) <= 4096, "paired_tooling_tree_limit")
+              found = set()
+              for directory, dirs, files in os.walk(tooling / "scripts", followlinks=False):
+                  require(
+                      all(not (Path(directory) / name).is_symlink() for name in dirs),
+                      "paired_tooling_shadow",
+                  )
+                  dirs[:] = [
+                      name for name in dirs if name != "__pycache__"
+                  ]  # fresh isolated cache is used by workflow
+                  for name in files:
+                      file = Path(directory) / name
+                      require(
+                          not file.name.endswith((".pyc", ".pyo", ".so", ".pyd")),
+                          "paired_tooling_shadow",
+                      )
+                      if name.endswith(".py"):
+                          found.add(file.relative_to(tooling).as_posix())
+              require(found == set(expected), "paired_tooling_shadow")
+              rows, total = {}, 0
+              for name, oid in sorted(expected.items()):
+                  raw = read_regular(tooling / name, 4 * 1024**2)
+                  total += len(raw)
+                  require(
+                      total <= 64 * 1024**2
+                      and hashlib.sha1(
+                          b"blob " + str(len(raw)).encode() + b"\0" + raw
+                      ).hexdigest()
+                      == oid,
+                      "paired_tooling_changed",
+                  )
+                  rows[name] = digest(raw)
+              return rows
+          
+          tooling_snapshot(sys.argv[1])
+          PAIRED_TOOLING
+            env -u PYTHONHOME -u PYTHONSTARTUP -u PYTHONINSPECT PYTHONPATH="$PWD/../tooling/scripts" PYTHONPYCACHEPREFIX="$(mktemp -d)" /usr/bin/python3 ../tooling/scripts/ci_run_tests.py
+          else
+            python3 ../tooling/scripts/ci_run_tests.py
+          fi
+      - name: Explain failed Rust lane in the job log
+        if: >-
+          failure() &&
+          (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' ||
+           inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' ||
+           env.CI_LANE_RUST_BROWSER == 'true' || env.CI_NATIVE_PREPARED == 'true')
+        run: python3 ../tooling/scripts/ci_rust_checks.py explain --root .
       - name: Stop runner-private Codex daemon
-        if: always() && (inputs.mode == 'codex' || (inputs.mode == 'e2e' && contains(inputs.specs_json, 'tasks-flow.spec.ts')))
+        if: always() && (inputs.mode == 'codex' || (inputs.mode == 'e2e' && (contains(inputs.specs_json, 'tasks-flow.spec.ts') || contains(inputs.specs_json, 'project-task-sync.spec.ts'))))
         run: node ../tooling/scripts/ci_codex_fixture.mjs stop
       - name: Collect bounded stack diagnostics
         if: always() && (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke' || inputs.mode == 'backend-probe')
@@ -621,7 +1037,15 @@ jobs:
       - name: Remove attested runner Node only when identities still match
         if: always() && env.OPENMATES_CI_NODE_STATE != ''
         run: env -u NODE_OPTIONS -u NODE_PATH "$OPENMATES_CI_NODE" ../tooling/scripts/ci_stage_node_runtime.mjs cleanup
-      - uses: actions/upload-artifact@v4
+      - name: Project finite native preparation diagnostic
+        id: native-preparation-diagnostic
+        if: always() && inputs.mode == 'prepare' && env.CI_NATIVE_PREPARED == 'true'
+        run: >-
+          python3 ../tooling/scripts/ci_artifacts.py native-diagnostic
+          --source "$BUILD_COMMIT_SHA"
+          --candidate-tree "$CI_CANDIDATE_TREE"
+          --harness-commit "$CI_HARNESS_COMMIT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: isolated-test-results
@@ -630,6 +1054,7 @@ jobs:
             subject/test-results/ci-environment.json
             subject/test-results/ci-startup-phases.json
             subject/test-results/ci-artifacts.json
+            ${{ steps.native-preparation-diagnostic.outputs.path }}
             subject/test-results/ci-web-production-inventory.json
             subject/test-results/ci-web-performance-binding.json
             subject/test-results/ci-runtime-images.json
@@ -643,6 +1068,7 @@ jobs:
             subject/test-results/ci-codex.json
             subject/test-results/ci-cleanup.json
             subject/test-results/ci-selfhost-steps.json
+            subject/test-results/cargo-install-smoke.json
             subject/test-results/ci-selfhost-scope.json
             subject/test-results/ci-selfhost-update-progress.json
             subject/test-results/selfhost-chat-readiness-source-volume-absent.json
@@ -662,6 +1088,7 @@ jobs:
             subject/test-results/ci-sdk-lockfiles.json
             subject/test-results/ci-rust-wasm.json
             subject/test-results/ci-native-dev.json
+            subject/test-results/rust-check/
             subject/test-results/rust-wasm/openmates_browser_bindings.wasm
             subject/test-results/rust-wasm/package-manifest.json
             subject/test-results/rust-wasm/package/openmates_browser.js
@@ -669,10 +1096,9 @@ jobs:
             subject/test-results/rust-wasm/package/openmates_browser.d.ts
             subject/test-results/rust-wasm/package/openmates_browser_bg.wasm.d.ts
             subject/test-results/rust-wasm/package/snippets/openmates-browser-bindings-????????????????/inline0.js
-            subject/test-results/sdk-lockfiles/packages/openmates-rust/Cargo.lock
-            subject/test-results/sdk-lockfiles/packages/openmates-session-bindings/Cargo.lock
-            subject/test-results/sdk-lockfiles/frontend/packages/openmates-tui-native/Cargo.lock
-            subject/test-results/sdk-lockfiles/packages/openmates-browser-bindings/Cargo.lock
+            subject/test-results/rust-wasm/package/snippets/openmates-sdk-????????????????/inline0.js
+            subject/test-results/rust-wasm/package/snippets/openmates-sdk-????????????????/src/platform/browser_metadata_native.js
+            subject/test-results/sdk-lockfiles/Cargo.lock
             subject/test-results/ci-spec-*.json
             subject/test-results/ci-pytest.json
             subject/test-results/ci-unit-*
@@ -681,8 +1107,8 @@ jobs:
             subject/frontend/apps/web_app/test-results/
           if-no-files-found: error
       - name: Retain bounded failed Rust WASM stage privately
-        if: always() && (inputs.mode == 'rust-wasm' || (inputs.mode == 'e2e' && (inputs.specs_json == '["rust-core-browser-session.spec.ts"]' || inputs.specs_json == '["rust-core-browser-password-entry.spec.ts"]' || (inputs.specs_json == '["rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-production-saved-paging.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-local-cursor.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-paging.spec.ts","rust-core-ordinary-login-retention.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-local-cursor.spec.ts"]' || inputs.specs_json == '["rust-core-ordinary-login-retention.spec.ts","rust-core-production-saved-paging.spec.ts"]'))))
-        uses: actions/upload-artifact@v4
+        if: always() && (inputs.mode == 'rust-wasm' || (env.CI_LANE_RUST_BROWSER == 'true'))
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: isolated-rust-wasm-private-diagnostics
           retention-days: 7
@@ -692,7 +1118,7 @@ jobs:
           if-no-files-found: ignore
       - name: Retain backend diagnostic raw process output privately
         if: always() && inputs.mode == 'backend-probe'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: isolated-backend-probe-private-diagnostics
           retention-days: 7
@@ -700,7 +1126,7 @@ jobs:
           if-no-files-found: ignore
       - name: Retain exact private storage diagnostics after credential cleanup
         if: always() && (contains(inputs.specs_json, 'storage-capacity-') || contains(inputs.specs_json, 'storage-accountability-integration.spec.ts'))
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: isolated-storage-private-diagnostics
           retention-days: 7
@@ -715,7 +1141,7 @@ jobs:
           if-no-files-found: ignore
       - name: Retain original documentation screenshot output
         if: always() && contains(inputs.specs_json, 'docs-screenshot-generator.spec.ts')
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: documentation-screenshots
           retention-days: 7

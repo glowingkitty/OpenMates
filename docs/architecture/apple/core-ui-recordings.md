@@ -23,7 +23,7 @@ storage, and offline-send work becomes executable; do not select the whole suite
    inspect its duration and representative frames. Bind each exported clip to
    the test/result, source manifest, app version/build and target. A pass alone
    does not establish complete visual parity or real-service/device behavior.
-5. Show the playable video attachments in the final Codex response. Keep personal
+5. Show the playable video attachments in the final agent response. Keep personal
    account content private. Retain available failure/retry clips and clearly label
    fixture evidence. A missing video remains a visual-proof gap; retry export or
    upload from retained results without rerunning an otherwise passing test.

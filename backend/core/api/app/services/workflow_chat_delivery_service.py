@@ -93,6 +93,7 @@ class WorkflowChatDelivery:
     run_id: str | None = None
     node_id: str | None = None
     revision: int = 0
+    notify_chat_message: bool = False
 
 
 class WorkflowChatDeliveryRepository(Protocol):
@@ -166,7 +167,8 @@ class DirectusWorkflowChatDeliveryRepository:
         if delivery.workflow_id and (delivery.run_id or delivery.node_id == CHAT_DEFINITION_NODE_ID):
             from backend.core.api.app.services.workflow_delivery_history import runtime_transaction
             result = runtime_transaction(self, action="save_delivery", workflow_id=delivery.workflow_id,
-                                         run_id=delivery.run_id, hashed_user_id="user_sha256:" + payload["hashed_user_id"], delivery=payload)
+                                         run_id=delivery.run_id, hashed_user_id="user_sha256:" + payload["hashed_user_id"], delivery=payload,
+                                         **({"notification_owner_user_id": delivery.owner_id} if delivery.notify_chat_message else {}))
             return self._delivery_from_record(result["delivery"], owner_id=delivery.owner_id)
         existing = self._find_one({"delivery_id": {"_eq": delivery.delivery_id}}, fields="id")
         if existing:
@@ -352,7 +354,7 @@ class WorkflowChatDeliveryService:
         chat_id: str | None = None, delivery_id: str | None = None,
         message_id: str | None = None, workflow_id: str | None = None,
         run_id: str | None = None, node_id: str | None = None,
-        embeds: list[dict[str, Any]] | None = None,
+        embeds: list[dict[str, Any]] | None = None, notify_chat_message: bool = False,
     ) -> WorkflowChatDelivery:
         if not title or not message:
             raise ValueError("title and message are required")
@@ -363,13 +365,13 @@ class WorkflowChatDeliveryService:
         encrypted_payload = self._cipher.encrypt_delivery(owner_id=owner_id, delivery_id=delivery_id, payload=payload)
         return self.create_encrypted_delivery(owner_id=owner_id, encrypted_payload=encrypted_payload,
             expires_at=expires_at, chat_id=chat_id, delivery_id=delivery_id, message_id=message_id,
-            workflow_id=workflow_id, run_id=run_id, node_id=node_id)
+            workflow_id=workflow_id, run_id=run_id, node_id=node_id, notify_chat_message=notify_chat_message)
 
     def create_encrypted_delivery(
         self, *, owner_id: str, encrypted_payload: str, expires_at: int | None,
         chat_id: str | None = None, delivery_id: str | None = None,
         message_id: str | None = None, workflow_id: str | None = None,
-        run_id: str | None = None, node_id: str | None = None,
+        run_id: str | None = None, node_id: str | None = None, notify_chat_message: bool = False,
     ) -> WorkflowChatDelivery:
         if not owner_id or not encrypted_payload:
             raise ValueError("owner_id and encrypted_payload are required")
@@ -382,7 +384,8 @@ class WorkflowChatDeliveryService:
         delivery = WorkflowChatDelivery(delivery_id=delivery_id or str(uuid.uuid4()),
             chat_id=chat_id or str(uuid.uuid4()), message_id=message_id or str(uuid.uuid4()),
             owner_id=owner_id, owner_hash=_owner_hash(owner_id), encrypted_payload=encrypted_payload,
-            created_at=now, expires_at=expires_at, workflow_id=workflow_id, run_id=run_id, node_id=node_id)
+            created_at=now, expires_at=expires_at, workflow_id=workflow_id, run_id=run_id, node_id=node_id,
+            notify_chat_message=notify_chat_message)
         with self._lock:
             existing = self._repository.get_delivery(delivery.delivery_id, owner_id)
             if existing:
@@ -490,7 +493,15 @@ class WorkflowChatDeliveryService:
                 return self._snapshot(delivery)
             delivery.client_persistence = persistence
             delivery = self._repository.save_delivery(delivery)
+            self._queue_message_notification(delivery)
             return self._snapshot(delivery)
+
+    def _queue_message_notification(self, delivery: WorkflowChatDelivery) -> None:
+        """Best-effort wakeup; durable per-message admission recovers a lost queue."""
+        if not isinstance(self._repository, DirectusWorkflowChatDeliveryRepository) or not delivery.run_id:
+            return
+        from backend.core.api.app.services.workflow_chat_notification_service import enqueue_delivery_notification
+        enqueue_delivery_notification(delivery.delivery_id)
 
     def acknowledge_delivery(
         self,

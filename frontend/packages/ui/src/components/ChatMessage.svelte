@@ -71,6 +71,8 @@
   import WorkflowRunActivity from './embeds/workflows/WorkflowRunActivity.svelte';
   import { workflowRunProvenance } from './embeds/workflows/workflowRunProvenance';
   import { assistantSpeechController } from '../services/assistantSpeechController';
+  import { voiceCallSpokenProgress } from '../services/voiceCallSpokenProgressStore';
+  import { setSpokenWords } from '../utils/spokenWordHighlight';
   import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
   
   // Define types for message content parts
@@ -234,6 +236,14 @@
     if ($assistantSpeechPlayer.messageId !== messageId || $assistantSpeechPlayer.status !== 'playing') return null;
     return $assistantSpeechPlayer.regions.find((region) => region.active)?.sequence ?? null;
   });
+  // Live call replies dim word by word instead of per block (see voiceCallSpokenProgress).
+  // Without an active call the progress is null; a message lacking messageId
+  // must not match that null progress and read `.words` from it.
+  let spokenWords = $derived.by(() => {
+    const progress = $voiceCallSpokenProgress;
+    return role === 'assistant' && progress !== null && progress.messageId === messageId ? progress.words : null;
+  });
+  let blockSpeechSegment = $derived(spokenWords === null ? activeSpeechSegment : null);
   
   // State for thinking section expansion
   // Keep source identity intact when props contain a plain saved document.
@@ -1291,6 +1301,18 @@
    *  thinking section, and truncation controls so their text nodes don't
    *  pollute highlight-anchor capture/resolution. */
   let messageBodyElement = $state<HTMLElement>();
+
+  // Re-measure while dimmed: streamed text extends the unspoken range.
+  $effect(() => {
+    const root = messageBodyElement;
+    const words = spokenWords;
+    if (!root) return;
+    setSpokenWords(root, words);
+    if (words === null) return;
+    const observer = new MutationObserver(() => setSpokenWords(root, words));
+    observer.observe(root, { childList: true, subtree: true, characterData: true });
+    return () => { observer.disconnect(); setSpokenWords(root, null); };
+  });
 
   /**
    * Counter incremented each time ReadOnlyMessage signals that its TipTap editor has
@@ -3657,8 +3679,8 @@
                 {piiMappings}
                 {piiRevealed}
                 {role}
-                speechActiveSegment={activeSpeechSegment}
-                speechPlaying={activeSpeechSegment !== null}
+                speechActiveSegment={blockSpeechSegment}
+                speechPlaying={blockSpeechSegment !== null}
                 on:message-embed-click={handleEmbedClick}
             />
           {:else if hasExampleChatsPlaceholder}
@@ -3695,8 +3717,8 @@
                   content={run.document} chatId={currentChatId}
                   isStreaming={status === 'streaming'} {_embedUpdateTimestamp}
                   {selectable} {piiMappings} {piiRevealed} {role}
-                  speechActiveSegment={activeSpeechSegment}
-                  speechPlaying={activeSpeechSegment !== null}
+                  speechActiveSegment={blockSpeechSegment}
+                  speechPlaying={blockSpeechSegment !== null}
                   on:message-embed-click={handleEmbedClick}
                 />
               {/if}
@@ -3712,8 +3734,8 @@
                 {piiMappings}
                 {piiRevealed}
                 {role}
-                speechActiveSegment={activeSpeechSegment}
-                speechPlaying={activeSpeechSegment !== null}
+                speechActiveSegment={blockSpeechSegment}
+                speechPlaying={blockSpeechSegment !== null}
                 on:message-embed-click={handleEmbedClick}
             />
           {/if}

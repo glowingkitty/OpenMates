@@ -445,6 +445,23 @@ focuses:
       Select when the user wants help creating or choosing a brand, business or
       product name and its domain, including Help me find a name for my new product.
       For a standalone trademark or domain lookup, use the relevant search skill.
+  - id: price_products
+    icon_image: business.svg
+    name_translation_key: business.price_products
+    description_translation_key: business.price_products.description
+    process_translation_key: focus_modes.business_price_products.process
+    systemprompt_translation_key: focus_modes.business_price_products.systemprompt
+    how_to_use:
+      - Help me price the outfits I sew.
+      - What should I charge for my handmade candles? How many do I need to sell to break even?
+      - I'm a freelance photographer. Work out a fair day rate.
+    preprocessor_hint: >
+      Select when the user wants to set, check or justify prices for
+      products or services they make or sell: price my products, outfits
+      or candles, what should I charge, fair day rate, costs, margins or
+      break-even. Do not select for company valuation,
+      taxes or accounting, stock-market questions, or comparing shop
+      prices when buying.
 
 marketing_discovery:
   skills:

@@ -70,6 +70,7 @@ def preparation_key(
     *,
     include_cli: bool = True,
     include_upload: bool = False,
+    include_native_cli: bool = False,
     build_environment: Mapping[str, str] | None = None,
     toolchain: Mapping[str, str] | None = None,
 ) -> str:
@@ -80,7 +81,9 @@ def preparation_key(
     candidate can live in a different checkout or be reconstructed remotely.
     """
 
-    if len(source) != 40 or any(character not in "0123456789abcdef" for character in source):
+    if len(source) != 40 or any(
+        character not in "0123456789abcdef" for character in source
+    ):
         raise ValueError("Preparation source must be a full lowercase commit SHA")
     payload = {
         "format_version": FORMAT_VERSION,
@@ -97,7 +100,23 @@ def preparation_key(
         ),
         "toolchain": dict(sorted((toolchain or DEFAULT_TOOLCHAIN).items())),
     }
+    if include_native_cli:
+        if not include_cli or include_upload:
+            raise ValueError(
+                "Native preparation requires the closed CLI-only capability"
+            )
+        try:
+            from scripts.ci_native_release import CONTRACT
+        except ModuleNotFoundError:
+            from ci_native_release import CONTRACT
+        payload["native_cli"] = CONTRACT
     return hashlib.sha256(canonical_json(payload)).hexdigest()
+
+
+def native_preparation(source: str, key: str) -> bool:
+    return key == preparation_key(
+        source, include_cli=True, include_upload=False, include_native_cli=True
+    )
 
 
 def _archive_directory(source: Path, destination: Path) -> dict[str, Any]:
@@ -112,12 +131,19 @@ def _archive_directory(source: Path, destination: Path) -> dict[str, Any]:
                 root_info.mode = 0o755
                 root_info.mtime = 0
                 archive.addfile(root_info)
-                for path in sorted(source.rglob("*"), key=lambda item: item.relative_to(source).as_posix()):
-                    relative = PurePosixPath(source.name) / path.relative_to(source).as_posix()
+                for path in sorted(
+                    source.rglob("*"),
+                    key=lambda item: item.relative_to(source).as_posix(),
+                ):
+                    relative = (
+                        PurePosixPath(source.name) / path.relative_to(source).as_posix()
+                    )
                     info = tarfile.TarInfo(relative.as_posix())
                     info.mtime = 0
                     if path.is_symlink():
-                        raise RuntimeError(f"Prepared outputs may not contain symlinks: {path}")
+                        raise RuntimeError(
+                            f"Prepared outputs may not contain symlinks: {path}"
+                        )
                     if path.is_dir():
                         info.type = tarfile.DIRTYPE
                         info.mode = 0o755
@@ -158,6 +184,7 @@ def create_bundle(
     harness_commit: str,
     include_cli: bool,
     include_upload: bool,
+    include_native_cli: bool = False,
     runtime_receipt: Path | None = None,
     build_environment: Mapping[str, str] | None = None,
     toolchain: Mapping[str, str] | None = None,
@@ -168,6 +195,7 @@ def create_bundle(
         source,
         include_cli=include_cli,
         include_upload=include_upload,
+        include_native_cli=include_native_cli,
         build_environment=environment,
         toolchain=selected_toolchain,
     )
@@ -202,6 +230,31 @@ def create_bundle(
             ),
             "destination": "frontend/packages/openmates-cli/dist",
         }
+    native_available = False
+    if include_native_cli:
+        try:
+            try:
+                from scripts import ci_native_release as native
+            except ModuleNotFoundError:
+                import ci_native_release as native
+            artifacts["native_cli"] = native.package(
+                root, output_dir, source, candidate_tree, harness_commit
+            )
+            native_available = True
+        except (OSError, ValueError, subprocess.SubprocessError) as error:
+            # Only the explicit exact-scope native opt-in reaches this branch.
+            # A producer refusal cannot dispatch a known-cold dependent proof.
+            try:
+                native.diagnostic_checkpoint(
+                    root,
+                    native.diagnostic_identity(source, candidate_tree, harness_commit),
+                    "package",
+                    failure=error,
+                    before_cleanup=True,
+                )
+            except BaseException:
+                pass
+            raise ValueError("Required native preparation unavailable") from None
     runtime_images = _load_runtime_receipt(runtime_receipt)
     bundle_bytes = sum(
         path.stat().st_size for path in output_dir.rglob("*") if path.is_file()
@@ -227,6 +280,8 @@ def create_bundle(
         "artifacts": artifacts,
         "runtime_images": runtime_images,
     }
+    if include_native_cli:
+        manifest["capabilities"]["native_cli"] = native_available
     temporary = output_dir / f".{MANIFEST_NAME}.tmp"
     temporary.write_bytes(canonical_json(manifest) + b"\n")
     temporary.replace(output_dir / MANIFEST_NAME)
@@ -368,10 +423,14 @@ def _bundle_path(input_dir: Path, relative: object) -> Path:
 
 def _extract_archive(archive_path: Path, destination: Path, expected_root: str) -> None:
     destination_parent = destination.parent.resolve()
-    if destination.is_symlink() or not destination.resolve().is_relative_to(destination_parent):
+    if destination.is_symlink() or not destination.resolve().is_relative_to(
+        destination_parent
+    ):
         raise RuntimeError("artifact_destination_unsafe")
     destination_parent.mkdir(parents=True, exist_ok=True)
-    temporary = Path(tempfile.mkdtemp(prefix=f".{destination.name}-", dir=destination_parent))
+    temporary = Path(
+        tempfile.mkdtemp(prefix=f".{destination.name}-", dir=destination_parent)
+    )
     try:
         with tarfile.open(archive_path, "r:gz") as archive:
             for member in archive.getmembers():
@@ -404,6 +463,7 @@ def restore_bundle(
     candidate_tree: str,
     include_cli: bool,
     include_upload: bool,
+    include_native_cli: bool = False,
     expected_key: str = "",
     harness_commit: str = "",
     build_environment: Mapping[str, str] | None = None,
@@ -415,6 +475,7 @@ def restore_bundle(
         source,
         include_cli=include_cli,
         include_upload=include_upload,
+        include_native_cli=include_native_cli,
         build_environment=environment,
         toolchain=selected_toolchain,
     )
@@ -442,6 +503,8 @@ def restore_bundle(
         "preparation_key_mismatch": manifest_key != calculated_key,
         "build_environment_mismatch": manifest.get("build_environment") != environment,
         "toolchain_mismatch": manifest.get("toolchain") != selected_toolchain,
+        "native_cli_capability_missing": include_native_cli
+        and manifest.get("capabilities", {}).get("native_cli") is not True,
         "cli_capability_missing": include_cli
         and not manifest.get("capabilities", {}).get("cli"),
         "upload_capability_missing": include_upload
@@ -452,9 +515,7 @@ def restore_bundle(
         return _fallback(
             root, source, calculated_key, reason, manifest_key=manifest_key
         )
-    required = ["web", "web_preview", "translations"] + (
-        ["cli"] if include_cli else []
-    )
+    required = ["web", "web_preview", "translations"] + (["cli"] if include_cli else [])
     artifacts = manifest.get("artifacts")
     if not isinstance(artifacts, dict):
         return _fallback(root, source, calculated_key, "artifact_manifest_malformed")
@@ -478,7 +539,9 @@ def restore_bundle(
             _validated_members(archive_path, expected_root)
             validated.append((archive_path, destination, expected_root))
         runtime_images = manifest.get("runtime_images", {})
-        for image in runtime_images.get("images", []) if isinstance(runtime_images, dict) else []:
+        for image in (
+            runtime_images.get("images", []) if isinstance(runtime_images, dict) else []
+        ):
             archive_name = image.get("archive_path")
             if not archive_name:
                 continue
@@ -488,11 +551,42 @@ def restore_bundle(
                 or archive_path.stat().st_size != image.get("archive_size")
                 or sha256_file(archive_path) != image.get("archive_sha256")
             ):
-                raise RuntimeError(f"{image.get('kind', 'runtime')}_image_archive_mismatch")
+                raise RuntimeError(
+                    f"{image.get('kind', 'runtime')}_image_archive_mismatch"
+                )
     except (OSError, tarfile.TarError, RuntimeError) as exc:
-        return _fallback(root, source, calculated_key, str(exc), manifest_key=manifest_key)
+        return _fallback(
+            root, source, calculated_key, str(exc), manifest_key=manifest_key
+        )
     for archive_path, destination, expected_root in validated:
         _extract_archive(archive_path, destination, expected_root)
+    if include_native_cli:
+        try:
+            try:
+                from scripts import ci_native_release as native
+            except ModuleNotFoundError:
+                import ci_native_release as native
+            item = artifacts.get("native_cli")
+            if not isinstance(item, dict):
+                raise ValueError("native_missing")
+            native.restore(
+                root, input_dir, item, source, candidate_tree, expected_harness
+            )
+        except (
+            OSError,
+            ValueError,
+            TypeError,
+            RecursionError,
+            subprocess.SubprocessError,
+            tarfile.TarError,
+        ):
+            return _fallback(
+                root,
+                source,
+                calculated_key,
+                "native_release_invalid",
+                manifest_key=manifest_key,
+            )
     return _write_receipt(
         root,
         {
@@ -534,7 +628,9 @@ def export_runtime_images(
 
     receipt = _load_runtime_receipt(receipt_path)
     kinds = [str(item.get("kind", "")) for item in receipt["images"]]
-    if len(kinds) != len(set(kinds)) or not {"api", "cms", "setup", "schema"}.issubset(kinds):
+    if len(kinds) != len(set(kinds)) or not {"api", "cms", "setup", "schema"}.issubset(
+        kinds
+    ):
         raise RuntimeError("Runtime image receipt is incomplete or contains duplicates")
     images_dir = output_dir / "images"
     images_dir.mkdir(parents=True, exist_ok=True)
@@ -582,7 +678,9 @@ def export_runtime_images(
         size = temporary.stat().st_size
         if size > max_image_bytes or total + size > max_total_bytes:
             temporary.unlink(missing_ok=True)
-            raise RuntimeError("Cold runtime image archives exceed the preparation limit")
+            raise RuntimeError(
+                "Cold runtime image archives exceed the preparation limit"
+            )
         temporary.replace(destination)
         total += size
         entry = {
@@ -619,13 +717,16 @@ def main() -> int:
     parser.add_argument(
         "--root",
         type=Path,
-        default=Path(os.environ.get("OPENMATES_CI_SOURCE_ROOT", Path(__file__).parent.parent)),
+        default=Path(
+            os.environ.get("OPENMATES_CI_SOURCE_ROOT", Path(__file__).parent.parent)
+        ),
     )
     sub = parser.add_subparsers(dest="command", required=True)
     key_parser = sub.add_parser("key")
     key_parser.add_argument("--source", required=True)
     key_parser.add_argument("--include-cli", type=boolean, default=True)
     key_parser.add_argument("--include-upload", type=boolean, default=False)
+    key_parser.add_argument("--include-native-cli", type=boolean, default=False)
     create = sub.add_parser("create")
     create.add_argument("--source", required=True)
     create.add_argument("--candidate-tree", required=True)
@@ -634,6 +735,7 @@ def main() -> int:
     create.add_argument("--include-upload", type=boolean, required=True)
     create.add_argument("--output-dir", type=Path, required=True)
     create.add_argument("--runtime-receipt", type=Path)
+    create.add_argument("--include-native-cli", type=boolean, default=False)
     restore = sub.add_parser("restore")
     restore.add_argument("--source", required=True)
     restore.add_argument("--candidate-tree", default="")
@@ -642,11 +744,23 @@ def main() -> int:
     restore.add_argument("--expected-key", default="")
     restore.add_argument("--harness-commit", default="")
     restore.add_argument("--input-dir", type=Path, required=True)
+    restore.add_argument("--include-native-cli", type=boolean, default=False)
+    native_capability = sub.add_parser("native-capability")
+    native_capability.add_argument("--source", required=True)
+    native_capability.add_argument("--key", default="")
+    native_build = sub.add_parser("native-build")
+    for name in ("source", "candidate-tree", "harness-commit"):
+        native_build.add_argument("--" + name, required=True)
+    native_diagnostic = sub.add_parser("native-diagnostic")
+    for name in ("source", "candidate-tree", "harness-commit"):
+        native_diagnostic.add_argument("--" + name, required=True)
     export = sub.add_parser("export-images")
     export.add_argument("--receipt", type=Path, required=True)
     export.add_argument("--output-dir", type=Path, required=True)
     export.add_argument("--max-image-bytes", type=int, default=DEFAULT_MAX_IMAGE_BYTES)
-    export.add_argument("--max-total-bytes", type=int, default=DEFAULT_MAX_TOTAL_IMAGE_BYTES)
+    export.add_argument(
+        "--max-total-bytes", type=int, default=DEFAULT_MAX_TOTAL_IMAGE_BYTES
+    )
     runtime_fallback = sub.add_parser("runtime-fallback")
     runtime_fallback.add_argument("--reason", required=True)
     args = parser.parse_args()
@@ -657,6 +771,7 @@ def main() -> int:
                 args.source,
                 include_cli=args.include_cli,
                 include_upload=args.include_upload,
+                include_native_cli=args.include_native_cli,
             )
         )
     elif args.command == "create":
@@ -668,6 +783,7 @@ def main() -> int:
             harness_commit=args.harness_commit,
             include_cli=args.include_cli,
             include_upload=args.include_upload,
+            include_native_cli=args.include_native_cli,
             runtime_receipt=args.runtime_receipt,
         )
         write_producer_results(
@@ -682,10 +798,32 @@ def main() -> int:
             candidate_tree=args.candidate_tree,
             include_cli=args.include_cli,
             include_upload=args.include_upload,
+            include_native_cli=args.include_native_cli,
             expected_key=args.expected_key,
             harness_commit=args.harness_commit,
         )
         print(json.dumps(receipt, sort_keys=True))
+    elif args.command == "native-capability":
+        print("true" if native_preparation(args.source, args.key) else "false")
+    elif args.command == "native-diagnostic":
+        try:
+            from scripts import ci_native_release as native
+        except ModuleNotFoundError:
+            import ci_native_release as native
+        native.publish_diagnostic(
+            root, args.source, args.candidate_tree, args.harness_commit
+        )
+        if os.environ.get("GITHUB_OUTPUT"):
+            with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+                output.write(
+                    "path=tooling/test-results/ci-native-release-diagnostic.json\n"
+                )
+    elif args.command == "native-build":
+        try:
+            from scripts import ci_native_release as native
+        except ModuleNotFoundError:
+            import ci_native_release as native
+        native.build(root, args.source, args.candidate_tree, args.harness_commit)
     elif args.command == "export-images":
         result = export_runtime_images(
             root,

@@ -1,0 +1,481 @@
+title:
+  context: "Title of example chat: Read a web page with Browse"
+  en: "Read a web page with Browse"
+  de: Webseite mit Browse lesen
+  zh: 使用“浏览”功能阅读网页
+  es: Leer una página web con Navegar
+  fr: Lire une page web avec Browse
+  pt: Ler uma página web com o Browse
+  ru: Чтение веб-страницы с помощью Browse
+  ja: 「Browse」でウェブページを読み込む
+  ko: Browse로 웹 페이지 읽기
+  it: Leggere una pagina web con Sfoglia
+  tr: Gözat ile bir web sayfasını oku
+  vi: Đọc trang web bằng tính năng Duyệt web
+  id: Baca halaman web dengan Browse
+  pl: Przeczytaj stronę internetową za pomocą funkcji Przeglądaj
+  nl: Een webpagina lezen met Browse
+  ar: "قراءة صفحة ويب باستخدام ميزة \"التصفح\""
+  hi: Browse के साथ वेब पेज पढ़ें
+  th: อ่านหน้าเว็บด้วย Browse
+  cs: Přečti si webovou stránku pomocí Prohlížení
+  sv: Läs en webbsida med Browse
+  he: קריאת דף אינטרנט באמצעות Browse
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Read a web page with Browse"
+  en: "Use a browser to find a page heading and return the result with its source URL as JSON."
+  de: Verwende einen Browser, um eine Seitenüberschrift zu finden und das Ergebnis mit der Quell-URL als JSON zurückzugeben.
+  zh: 使用浏览器查找页面标题，并以 JSON 格式返回结果及其源 URL。
+  es: Usa un navegador para encontrar el encabezado de una página y devuelve el resultado con su URL de origen en formato JSON.
+  fr: "Utilise un navigateur pour trouver le titre d'une page et renvoie le résultat avec son URL source au format JSON."
+  pt: Usa um navegador para encontrar o cabeçalho de uma página e devolve o resultado com o URL de origem em formato JSON.
+  ru: Используй браузер, чтобы найти заголовок страницы и вернуть результат вместе с исходным URL в формате JSON.
+  ja: ブラウザを使用してページの見出しを見つけ、その結果をソースURLとともにJSON形式で返します。
+  ko: 브라우저를 사용하여 페이지 제목을 찾고 그 결과와 소스 URL을 JSON으로 반환합니다.
+  it: "Usa un browser per trovare l'intestazione di una pagina e restituisci il risultato con il suo URL di origine in formato JSON."
+  tr: "Bir sayfa başlığını bulmak için tarayıcı kullan ve sonucu kaynak URL'si ile birlikte JSON olarak döndür."
+  vi: Sử dụng trình duyệt để tìm tiêu đề trang và trả về kết quả cùng với URL nguồn dưới dạng JSON.
+  id: Gunakan browser untuk menemukan judul halaman dan mengembalikan hasilnya beserta URL sumbernya sebagai JSON.
+  pl: Użyj przeglądarki, aby znaleźć nagłówek strony i zwróć wynik wraz z adresem URL źródła w formacie JSON.
+  nl: Gebruik een browser om een paginakop te vinden en retourneer het resultaat met de bron-URL als JSON.
+  ar: استخدم متصفحاً للعثور على عنوان صفحة وإرجاع النتيجة مع عنوان URL المصدر بتنسيق JSON.
+  hi: पेज हेडिंग खोजने के लिए ब्राउज़र का उपयोग करें और परिणाम को उसके स्रोत URL के साथ JSON के रूप में वापस करें।
+  th: ใช้เบราว์เซอร์เพื่อค้นหาหัวข้อของหน้าและส่งคืนผลลัพธ์พร้อม URL ต้นทางในรูปแบบ JSON
+  cs: Použij prohlížeč k nalezení nadpisu stránky a vrať výsledek se zdrojovou URL adresou ve formátu JSON.
+  sv: Använd en webbläsare för att hitta en sidrubrik och returnera resultatet med dess käll-URL som JSON.
+  he: שימוש בדפדפן כדי למצוא כותרת של דף והחזרת התוצאה עם כתובת ה-URL של המקור כ-JSON.
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Read a web page with Browse. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use the Browse skill to open [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) and return the exact main heading and source URL as JSON. Use the browser session for this task."
+  de: "Verwende den Browse-Skill, um [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) zu öffnen und die genaue Hauptüberschrift sowie die Quell-URL als JSON zurückzugeben. Nutze die Browser-Sitzung für diese Aufgabe."
+  zh: "使用“浏览”技能打开 [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821)，并以 JSON 格式返回准确的主标题和源 URL。请在此任务中使用浏览器会话。"
+  es: "Usa la función Navegar para abrir [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) y devuelve el encabezado principal exacto y la URL de origen en formato JSON. Usa la sesión del navegador para esta tarea."
+  fr: "Utilise la compétence Browse pour ouvrir [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) et renvoie le titre principal exact et l'URL source au format JSON. Utilise la session du navigateur pour cette tâche."
+  pt: "Usa a funcionalidade Browse para abrir [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) e devolve o cabeçalho principal exato e o URL de origem em formato JSON. Usa a sessão do navegador para esta tarefa."
+  ru: "Используй навык Browse, чтобы открыть [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821), и верни точный главный заголовок и исходный URL в формате JSON. Используй сессию браузера для этой задачи."
+  ja: "Browseスキルを使用して[!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821)を開き、正確なメイン見出しとソースURLをJSON形式で返してください。このタスクにはブラウザセッションを使用してください。"
+  ko: "Browse 기능을 사용하여 [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821)을 열고 정확한 메인 제목과 소스 URL을 JSON으로 반환해 줘. 이 작업에는 브라우저 세션을 사용해."
+  it: "Usa la funzione Sfoglia per aprire [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) e restituisci l'intestazione principale esatta e l'URL di origine in formato JSON. Usa la sessione del browser per questa attività."
+  tr: "[!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) adresini açmak için Gözat yeteneğini kullan ve tam ana başlığı ve kaynak URL'yi JSON olarak döndür. Bu görev için tarayıcı oturumunu kullan."
+  vi: "Sử dụng kỹ năng Duyệt web để mở [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) và trả về chính xác tiêu đề chính và URL nguồn dưới dạng JSON. Sử dụng phiên trình duyệt cho nhiệm vụ này."
+  id: "Gunakan fitur Browse untuk membuka [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) dan mengembalikan judul utama yang tepat serta URL sumber sebagai JSON. Gunakan sesi browser untuk tugas ini."
+  pl: "Użyj umiejętności Przeglądaj, aby otworzyć [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) i zwróć dokładny nagłówek główny oraz adres URL źródła jako JSON. Wykorzystaj do tego zadania sesję przeglądarki."
+  nl: "Gebruik de Browse-vaardigheid om [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) te openen en de exacte hoofdkop en bron-URL als JSON te retourneren. Gebruik de browsersessie voor deze taak."
+  ar: "استخدم مهارة التصفح لفتح [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) وإرجاع العنوان الرئيسي الدقيق وعنوان URL المصدر بتنسيق JSON. استخدم جلسة المتصفح لهذه المهمة."
+  hi: "[!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) खोलने के लिए Browse स्किल का उपयोग करें और सटीक मुख्य हेडिंग और स्रोत URL को JSON के रूप में वापस करें। इस कार्य के लिए ब्राउज़र सेशन का उपयोग करें।"
+  th: "ใช้ทักษะ Browse เพื่อเปิด [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) และส่งคืนหัวข้อหลักที่ถูกต้องและ URL ต้นทางในรูปแบบ JSON ใช้เซสชันเบราว์เซอร์สำหรับงานนี้"
+  cs: "Použij dovednost Prohlížení k otevření [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) a vrať přesný hlavní nadpis a zdrojovou URL adresu jako JSON. Pro tento úkol použij relaci prohlížeče."
+  sv: "Använd Browse-färdigheten för att öppna [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) och returnera den exakta huvudrubriken och käll-URL:en som JSON. Använd webbläsarsessionen för denna uppgift."
+  he: "השתמש במיומנות ה-Browse כדי לפתוח את [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) ולהחזיר את הכותרת הראשית המדויקת ואת כתובת ה-URL של המקור כ-JSON. השתמש בסשן הדפדפן עבור משימה זו."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Read a web page with Browse. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |2-
+    ```json
+    {"type":"app_skill_use","embed_id":"5f0e7070-da89-4cd1-9447-52f63f4fd826","app_id":"web","skill_id":"browse"}
+    ```
+
+    The Browse session opened the page and returned the following:
+
+    ```json
+    {"type": "code", "embed_id": "c0e67189-7fb4-4e88-a3ab-f66d75ea01a2"}
+    ```
+
+    The page at `https://httpbin.org/html` serves a sample HTML document whose main heading is **"Herman Melville - Moby-Dick"** (a snippet from the novel's first chapter, "Loomings").
+  de: |
+    ```json
+    {"type":"app_skill_use","embed_id":"5f0e7070-da89-4cd1-9447-52f63f4fd826","app_id":"web","skill_id":"browse"}
+    ```
+    
+    Die Browse-Sitzung hat die Seite geöffnet und Folgendes zurückgegeben:
+    
+    ```json
+    {"type": "code", "embed_id": "c0e67189-7fb4-4e88-a3ab-f66d75ea01a2"}
+    ```
+    
+    Die Seite unter `https://httpbin.org/html` stellt ein Beispiel-HTML-Dokument bereit, dessen Hauptüberschrift **„Herman Melville - Moby-Dick“** lautet (ein Ausschnitt aus dem ersten Kapitel des Romans, „Loomings“).
+  zh: |
+    ```json
+    {"type":"app_skill_use","embed_id":"5f0e7070-da89-4cd1-9447-52f63f4fd826","app_id":"web","skill_id":"browse"}
+    ```
+    
+    “浏览”会话已打开页面并返回以下内容：
+    
+    ```json
+    {"type": "code", "embed_id": "c0e67189-7fb4-4e88-a3ab-f66d75ea01a2"}
+    ```
+    
+    位于 `https://httpbin.org/html` 的页面提供了一个示例 HTML 文档，其主标题为 **“Herman Melville - Moby-Dick”**（该小说第一章“Loomings”的片段）。
+  es: |
+    ```json
+    {"type":"app_skill_use","embed_id":"5f0e7070-da89-4cd1-9447-52f63f4fd826","app_id":"web","skill_id":"browse"}
+    ```
+    
+    La sesión de Navegar abrió la página y devolvió lo siguiente:
+    
+    ```json
+    {"type": "code", "embed_id": "c0e67189-7fb4-4e88-a3ab-f66d75ea01a2"}
+    ```
+    
+    La página en `https://httpbin.org/html` ofrece un documento HTML de muestra cuyo encabezado principal es **"Herman Melville - Moby-Dick"** (un fragmento del primer capítulo de la novela, "Loomings").
+  fr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"5f0e7070-da89-4cd1-9447-52f63f4fd826","app_id":"web","skill_id":"browse"}
+    ```
+    
+    La session Browse a ouvert la page et a renvoyé ce qui suit :
+    
+    ```json
+    {"type": "code", "embed_id": "c0e67189-7fb4-4e88-a3ab-f66d75ea01a2"}
+    ```
+    
+    La page à l'adresse `https://httpbin.org/html` propose un exemple de document HTML dont le titre principal est **"Herman Melville - Moby-Dick"** (un extrait du premier chapitre du roman, "Loomings").
+  pt: |
+    ```json
+    {"type":"app_skill_use","embed_id":"5f0e7070-da89-4cd1-9447-52f63f4fd826","app_id":"web","skill_id":"browse"}
+    ```
+    
+    A sessão do Browse abriu a página e devolveu o seguinte:
+    
+    ```json
+    {"type": "code", "embed_id": "c0e67189-7fb4-4e88-a3ab-f66d75ea01a2"}
+    ```
+    
+    A página em `https://httpbin.org/html` apresenta um documento HTML de exemplo cujo cabeçalho principal é **"Herman Melville - Moby-Dick"** (um excerto do primeiro capítulo do romance, "Loomings").
+  ru: |
+    ```json
+    {"type":"app_skill_use","embed_id":"5f0e7070-da89-4cd1-9447-52f63f4fd826","app_id":"web","skill_id":"browse"}
+    ```
+    
+    В сессии Browse была открыта страница и получены следующие данные:
+    
+    ```json
+    {"type": "code", "embed_id": "c0e67189-7fb4-4e88-a3ab-f66d75ea01a2"}
+    ```
+    
+    Страница по адресу `https://httpbin.org/html` содержит пример HTML-документа, главным заголовком которого является **«Herman Melville - Moby-Dick»** (отрывок из первой главы романа «Loomings»).
+  ja: |
+    ```json
+    {"type":"app_skill_use","embed_id":"5f0e7070-da89-4cd1-9447-52f63f4fd826","app_id":"web","skill_id":"browse"}
+    ```
+    
+    Browseセッションでページを開き、以下を返しました：
+    
+    ```json
+    {"type": "code", "embed_id": "c0e67189-7fb4-4e88-a3ab-f66d75ea01a2"}
+    ```
+    
+    `https://httpbin.org/html`のページは、メイン見出しが**「Herman Melville - Moby-Dick」**（小説の第1章「Loomings」のスニペット）であるサンプルHTMLドキュメントを提供しています。
+  ko: |
+    ```json
+    {"type":"app_skill_use","embed_id":"5f0e7070-da89-4cd1-9447-52f63f4fd826","app_id":"web","skill_id":"browse"}
+    ```
+    
+    Browse 세션에서 페이지를 열어 다음 내용을 반환했습니다:
+    
+    ```json
+    {"type": "code", "embed_id": "c0e67189-7fb4-4e88-a3ab-f66d75ea01a2"}
+    ```
+    
+    `https://httpbin.org/html` 페이지는 샘플 HTML 문서를 제공하며, 메인 제목은 **"Herman Melville - Moby-Dick"** (소설의 첫 장인 "Loomings"의 발췌본)입니다.
+  it: |
+    ```json
+    {"type":"app_skill_use","embed_id":"5f0e7070-da89-4cd1-9447-52f63f4fd826","app_id":"web","skill_id":"browse"}
+    ```
+    
+    La sessione di navigazione ha aperto la pagina e ha restituito quanto segue:
+    
+    ```json
+    {"type": "code", "embed_id": "c0e67189-7fb4-4e88-a3ab-f66d75ea01a2"}
+    ```
+    
+    La pagina all'indirizzo `https://httpbin.org/html` fornisce un documento HTML di esempio la cui intestazione principale è **"Herman Melville - Moby-Dick"** (un frammento del primo capitolo del romanzo, "Loomings").
+  tr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"5f0e7070-da89-4cd1-9447-52f63f4fd826","app_id":"web","skill_id":"browse"}
+    ```
+    
+    Gözat oturumu sayfayı açtı ve şunları döndürdü:
+    
+    ```json
+    {"type": "code", "embed_id": "c0e67189-7fb4-4e88-a3ab-f66d75ea01a2"}
+    ```
+    
+    `https://httpbin.org/html` adresindeki sayfa, ana başlığı **"Herman Melville - Moby-Dick"** (romanının ilk bölümü olan "Loomings"den bir kesit) olan örnek bir HTML belgesi sunar.
+  vi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"5f0e7070-da89-4cd1-9447-52f63f4fd826","app_id":"web","skill_id":"browse"}
+    ```
+    
+    Phiên Duyệt web đã mở trang và trả về kết quả sau:
+    
+    ```json
+    {"type": "code", "embed_id": "c0e67189-7fb4-4e88-a3ab-f66d75ea01a2"}
+    ```
+    
+    Trang tại `https://httpbin.org/html` cung cấp một tài liệu HTML mẫu có tiêu đề chính là **"Herman Melville - Moby-Dick"** (một đoạn trích từ chương đầu tiên của tiểu thuyết, "Loomings").
+  id: |
+    ```json
+    {"type":"app_skill_use","embed_id":"5f0e7070-da89-4cd1-9447-52f63f4fd826","app_id":"web","skill_id":"browse"}
+    ```
+    
+    Sesi Browse membuka halaman tersebut dan mengembalikan hal berikut:
+    
+    ```json
+    {"type": "code", "embed_id": "c0e67189-7fb4-4e88-a3ab-f66d75ea01a2"}
+    ```
+    
+    Halaman di `https://httpbin.org/html` menyediakan contoh dokumen HTML yang judul utamanya adalah **"Herman Melville - Moby-Dick"** (cuplikan dari bab pertama novel tersebut, "Loomings").
+  pl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"5f0e7070-da89-4cd1-9447-52f63f4fd826","app_id":"web","skill_id":"browse"}
+    ```
+    
+    Sesja przeglądania otworzyła stronę i zwróciła następujące dane:
+    
+    ```json
+    {"type": "code", "embed_id": "c0e67189-7fb4-4e88-a3ab-f66d75ea01a2"}
+    ```
+    
+    Strona pod adresem `https://httpbin.org/html` udostępnia przykładowy dokument HTML, którego głównym nagłówkiem jest **„Herman Melville – Moby Dick”** (fragment pierwszego rozdziału powieści pt. „Majaki”).
+  nl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"5f0e7070-da89-4cd1-9447-52f63f4fd826","app_id":"web","skill_id":"browse"}
+    ```
+    
+    De Browse-sessie heeft de pagina geopend en het volgende geretourneerd:
+    
+    ```json
+    {"type": "code", "embed_id": "c0e67189-7fb4-4e88-a3ab-f66d75ea01a2"}
+    ```
+    
+    De pagina op `https://httpbin.org/html` toont een voorbeeld van een HTML-document waarvan de hoofdkop **"Herman Melville - Moby-Dick"** is (een fragment uit het eerste hoofdstuk van de roman, "Loomings").
+  ar: |
+    ```json
+    {"type":"app_skill_use","embed_id":"5f0e7070-da89-4cd1-9447-52f63f4fd826","app_id":"web","skill_id":"browse"}
+    ```
+    
+    فتحت جلسة التصفح الصفحة وأرجعت ما يلي:
+    
+    ```json
+    {"type": "code", "embed_id": "c0e67189-7fb4-4e88-a3ab-f66d75ea01a2"}
+    ```
+    
+    تقدم الصفحة في `https://httpbin.org/html` مستند HTML تجريبياً عنوانه الرئيسي هو **"Herman Melville - Moby-Dick"** (مقتطف من الفصل الأول للرواية، "Loomings").
+  hi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"5f0e7070-da89-4cd1-9447-52f63f4fd826","app_id":"web","skill_id":"browse"}
+    ```
+    
+    Browse सेशन ने पेज खोला और निम्नलिखित परिणाम दिए:
+    
+    ```json
+    {"type": "code", "embed_id": "c0e67189-7fb4-4e88-a3ab-f66d75ea01a2"}
+    ```
+    
+    `https://httpbin.org/html` पर मौजूद पेज एक नमूना HTML दस्तावेज़ प्रदान करता है जिसकी मुख्य हेडिंग **"Herman Melville - Moby-Dick"** है (उपन्यास के पहले अध्याय, "Loomings" का एक अंश)।
+  th: |
+    ```json
+    {"type":"app_skill_use","embed_id":"5f0e7070-da89-4cd1-9447-52f63f4fd826","app_id":"web","skill_id":"browse"}
+    ```
+    
+    เซสชัน Browse เปิดหน้าเว็บและส่งคืนข้อมูลต่อไปนี้:
+    
+    ```json
+    {"type": "code", "embed_id": "c0e67189-7fb4-4e88-a3ab-f66d75ea01a2"}
+    ```
+    
+    หน้าเว็บที่ `https://httpbin.org/html` ให้บริการเอกสาร HTML ตัวอย่างซึ่งมีหัวข้อหลักคือ **"Herman Melville - Moby-Dick"** (ข้อความสั้นๆ จากบทแรกของนวนิยายเรื่อง "Loomings")
+  cs: |
+    ```json
+    {"type":"app_skill_use","embed_id":"5f0e7070-da89-4cd1-9447-52f63f4fd826","app_id":"web","skill_id":"browse"}
+    ```
+    
+    Relace Prohlížení otevřela stránku a vrátila následující:
+    
+    ```json
+    {"type": "code", "embed_id": "c0e67189-7fb4-4e88-a3ab-f66d75ea01a2"}
+    ```
+    
+    Stránka na `https://httpbin.org/html` poskytuje ukázkový HTML dokument, jehož hlavním nadpisem je **„Herman Melville - Moby-Dick“** (úryvek z první kapitoly románu „Loomings“).
+  sv: |
+    ```json
+    {"type":"app_skill_use","embed_id":"5f0e7070-da89-4cd1-9447-52f63f4fd826","app_id":"web","skill_id":"browse"}
+    ```
+    
+    Browse-sessionen öppnade sidan och returnerade följande:
+    
+    ```json
+    {"type": "code", "embed_id": "c0e67189-7fb4-4e88-a3ab-f66d75ea01a2"}
+    ```
+    
+    Sidan på `https://httpbin.org/html` tillhandahåller ett exempel på ett HTML-dokument vars huvudrubrik är **"Herman Melville - Moby-Dick"** (ett utdrag från romanens första kapitel, "Loomings").
+  he: |
+    ```json
+    {"type":"app_skill_use","embed_id":"5f0e7070-da89-4cd1-9447-52f63f4fd826","app_id":"web","skill_id":"browse"}
+    ```
+    
+    סשן ה-Browse פתח את הדף והחזיר את התוצאה הבאה:
+    
+    ```json
+    {"type": "code", "embed_id": "c0e67189-7fb4-4e88-a3ab-f66d75ea01a2"}
+    ```
+    
+    הדף בכתובת `https://httpbin.org/html` מציג מסמך HTML לדוגמה שהכותרת הראשית שלו היא **"Herman Melville - Moby-Dick"** (קטע מהפרק הראשון של הרומן, "Loomings").
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Search for historical analysis of Herman Melville Moby Dick"
+  de: Suche nach einer historischen Analyse von Herman Melvilles Moby Dick
+  zh: 搜索赫尔曼·梅尔维尔《白鲸》的历史分析
+  es: Busca análisis históricos de Moby Dick de Herman Melville
+  fr: "Rechercher une analyse historique de Moby Dick d'Herman Melville"
+  pt: Pesquisar análise histórica de Moby Dick de Herman Melville
+  ru: Найди исторический анализ «Моби Дика» Германа Мелвилла
+  ja: ハーマン・メルヴィルの『白鯨』の歴史的分析を検索する
+  ko: 허먼 멜빌의 모비딕에 대한 역사적 분석 검색
+  it: "Cerca un'analisi storica di Moby Dick di Herman Melville"
+  tr: "Herman Melville Moby Dick'in tarihsel analizini ara"
+  vi: Tìm kiếm phân tích lịch sử về tác phẩm Moby Dick của Herman Melville
+  id: Cari analisis sejarah Herman Melville Moby Dick
+  pl: "Wyszukaj analizę historyczną powieści Moby Dick Hermana Melville'a"
+  nl: Zoek naar historische analyses van Herman Melvilles Moby Dick
+  ar: "ابحث عن تحليل تاريخي لرواية \"موبي ديك\" لهيرمان ملفيل"
+  hi: Herman Melville की Moby Dick के ऐतिहासिक विश्लेषण के लिए खोजें
+  th: ค้นหาการวิเคราะห์เชิงประวัติศาสตร์ของ Herman Melville Moby Dick
+  cs: Vyhledej historickou analýzu díla Bílá velryba od Hermana Melvilla
+  sv: Sök efter historisk analys av Herman Melvilles Moby Dick
+  he: חיפוש ניתוח היסטורי של מובי דיק מאת הרמן מלוויל
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Explain the significance of the opening chapter of Moby-Dick"
+  de: Erkläre die Bedeutung des ersten Kapitels von Moby-Dick
+  zh: 解释《白鲸》开篇章节的意义
+  es: Explica la importancia del capítulo inicial de Moby-Dick
+  fr: "Expliquer l'importance du chapitre d'ouverture de Moby-Dick"
+  pt: Explica o significado do capítulo de abertura de Moby-Dick
+  ru: Объясни значимость первой главы «Моби Дика»
+  ja: 『白鯨』の冒頭の章の重要性を説明する
+  ko: 모비딕 첫 장의 중요성 설명
+  it: Spiega il significato del capitolo di apertura di Moby Dick
+  tr: "Moby-Dick'in açılış bölümünün önemini açıkla"
+  vi: Giải thích ý nghĩa của chương mở đầu trong Moby-Dick
+  id: Jelaskan signifikansi bab pembuka Moby-Dick
+  pl: Wyjaśnij znaczenie pierwszego rozdziału Moby Dicka
+  nl: Leg de betekenis van het openingshoofdstuk van Moby-Dick uit
+  ar: "اشرح أهمية الفصل الافتتاحي لرواية \"موبي ديك\""
+  hi: Moby-Dick के शुरुआती अध्याय के महत्व को समझाएं
+  th: อธิบายความสำคัญของบทเปิดเรื่องของ Moby-Dick
+  cs: Vysvětli význam úvodní kapitoly Bílé velryby
+  sv: Förklara betydelsen av det inledande kapitlet i Moby-Dick
+  he: הסבר את החשיבות של פרק הפתיחה של מובי דיק
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Read public documentation about web browser automation techniques"
+  de: Lies die öffentliche Dokumentation über Techniken zur Webbrowser-Automatisierung
+  zh: 阅读关于网页浏览器自动化技术的公开文档
+  es: Lee documentación pública sobre técnicas de automatización de navegadores web
+  fr: "Lire la documentation publique sur les techniques d'automatisation des navigateurs web"
+  pt: Ler documentação pública sobre técnicas de automação de navegadores web
+  ru: Прочитай открытую документацию о методах автоматизации веб-браузеров
+  ja: ウェブブラウザ自動化技術に関する公開ドキュメントを読む
+  ko: 웹 브라우저 자동화 기술에 관한 공개 문서 읽기
+  it: Leggi la documentazione pubblica sulle tecniche di automazione dei browser web
+  tr: Web tarayıcı otomasyon teknikleri hakkındaki genel belgeleri oku
+  vi: Đọc tài liệu công khai về các kỹ thuật tự động hóa trình duyệt web
+  id: Baca dokumentasi publik tentang teknik otomatisasi browser web
+  pl: Przeczytaj publiczną dokumentację na temat technik automatyzacji przeglądarek internetowych
+  nl: Lees publieke documentatie over technieken voor webbrowserautomatisering
+  ar: اقرأ الوثائق العامة حول تقنيات أتمتة متصفح الويب
+  hi: वेब ब्राउज़र ऑटोमेशन तकनीकों के बारे में सार्वजनिक दस्तावेज़ पढ़ें
+  th: อ่านเอกสารสาธารณะเกี่ยวกับเทคนิคการทำงานอัตโนมัติของเว็บเบราว์เซอร์
+  cs: Přečti si veřejnou dokumentaci o technikách automatizace webového prohlížeče
+  sv: Läs offentlig dokumentation om tekniker för webbläsarautomatisering
+  he: קריאת תיעוד ציבורי על טכניקות לאוטומציה של דפדפני אינטרנט
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "Compare different digital formats for reading classic literature"
+  de: Vergleiche verschiedene digitale Formate zum Lesen klassischer Literatur
+  zh: 比较阅读经典文学作品的不同数字格式
+  es: Compara diferentes formatos digitales para leer literatura clásica
+  fr: Comparer différents formats numériques pour lire de la littérature classique
+  pt: Comparar diferentes formatos digitais para ler literatura clássica
+  ru: Сравни различные цифровые форматы для чтения классической литературы
+  ja: 古典文学を読むためのさまざまなデジタル形式を比較する
+  ko: 고전 문학 독서를 위한 다양한 디지털 형식 비교
+  it: Confronta diversi formati digitali per la lettura della letteratura classica
+  tr: Klasik edebiyat okumak için farklı dijital formatları karşılaştır
+  vi: So sánh các định dạng kỹ thuật số khác nhau để đọc văn học kinh điển
+  id: Bandingkan berbagai format digital untuk membaca sastra klasik
+  pl: Porównaj różne formaty cyfrowe do czytania klasyki literatury
+  nl: Vergelijk verschillende digitale formaten voor het lezen van klassieke literatuur
+  ar: قارن بين التنسيقات الرقمية المختلفة لقراءة الأدب الكلاسيكي
+  hi: क्लासिक साहित्य पढ़ने के लिए विभिन्न डिजिटल फॉर्मेट की तुलना करें
+  th: เปรียบเทียบรูปแบบดิจิทัลต่างๆ สำหรับการอ่านวรรณกรรมคลาสสิก
+  cs: Porovnej různé digitální formáty pro čtení klasické literatury
+  sv: Jämför olika digitala format för att läsa klassisk litteratur
+  he: השוואה בין פורמטים דיגיטליים שונים לקריאת ספרות קלאסית
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Search for online literary archives featuring classic American novels"
+  de: Suche nach Online-Literaturarchiven mit klassischen amerikanischen Romanen
+  zh: 搜索包含经典美国小说的在线文学档案
+  es: Busca archivos literarios en línea que incluyan novelas clásicas estadounidenses
+  fr: Rechercher des archives littéraires en ligne proposant des romans classiques américains
+  pt: Pesquisar arquivos literários online com romances clássicos americanos
+  ru: Найди онлайн-архивы литературы с классическими американскими романами
+  ja: 古典的なアメリカ小説を特集しているオンライン文学アーカイブを検索する
+  ko: 미국 고전 소설을 다루는 온라인 문학 아카이브 검색
+  it: Cerca archivi letterari online che presentano classici del romanzo americano
+  tr: Klasik Amerikan romanlarını içeren çevrimiçi edebiyat arşivlerini ara
+  vi: Tìm kiếm các kho lưu trữ văn học trực tuyến có các tiểu thuyết kinh điển của Mỹ
+  id: Cari arsip sastra online yang menampilkan novel klasik Amerika
+  pl: Wyszukaj internetowe archiwa literackie zawierające klasyczne powieści amerykańskie
+  nl: Zoek naar online literaire archieven met klassieke Amerikaanse romans
+  ar: ابحث عن أرشيفات أدبية على الإنترنت تضم روايات أمريكية كلاسيكية
+  hi: क्लासिक अमेरिकी उपन्यासों वाले ऑनलाइन साहित्यिक अभिलेखागार खोजें
+  th: ค้นหาคลังวรรณกรรมออนไลน์ที่มีนวนิยายอเมริกันคลาสสิก
+  cs: Vyhledej online literární archivy s klasickými americkými romány
+  sv: Sök efter litterära arkiv online med klassiska amerikanska romaner
+  he: חיפוש ארכיונים ספרותיים מקוונים הכוללים רומנים אמריקאיים קלאסיים
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Summarize the main themes of Herman Melville's work"
+  de: Fasse die Hauptthemen von Herman Melvilles Werk zusammen
+  zh: 总结赫尔曼·梅尔维尔作品的主要主题
+  es: Resume los temas principales de la obra de Herman Melville
+  fr: "Résumer les thèmes principaux de l'œuvre d'Herman Melville"
+  pt: Resume os temas principais da obra de Herman Melville
+  ru: Кратко изложи основные темы творчества Германа Мелвилла
+  ja: ハーマン・メルヴィル作品の主なテーマを要約する
+  ko: 허먼 멜빌 작품의 주요 주제 요약
+  it: "Riassumi i temi principali dell'opera di Herman Melville"
+  tr: "Herman Melville'in eserlerinin ana temalarını özetle"
+  vi: Tóm tắt các chủ đề chính trong tác phẩm của Herman Melville
+  id: Ringkas tema-tema utama karya Herman Melville
+  pl: "Podsumuj główne motywy twórczości Hermana Melville'a"
+  nl: "Vat de hoofdthema's van het werk van Herman Melville samen"
+  ar: لخص الموضوعات الرئيسية لأعمال هيرمان ملفيل
+  hi: Herman Melville के काम के मुख्य विषयों का सारांश दें
+  th: สรุปธีมหลักของผลงานของ Herman Melville
+  cs: Shrň hlavní témata díla Hermana Melvilla
+  sv: Sammanfatta huvudtemana i Herman Melvilles verk
+  he: סיכום התמות העיקריות ביצירתו של הרמן מלוויל
+  verified_by_human: []
+

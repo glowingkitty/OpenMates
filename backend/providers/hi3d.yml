@@ -36,6 +36,7 @@ models:
         name: Hi3D API
         model_id: hitem3dv2.1-fast-pbr
         region: global
+        country: "US"
     pricing:
       per_unit:
         credits: 25

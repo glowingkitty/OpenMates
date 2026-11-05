@@ -1,11 +1,10 @@
 ---
-description: Embed component development standards
-globs:
-  - "**/embed*"
+paths:
+  - "**/embed*/**"
+  - "**/*Embed*"
   - "frontend/packages/ui/src/components/embeds/**"
-  - "backend/apps/*/skills/embed*"
+  - "backend/apps/*/skills/**"
 ---
-
 ## Embed Development
 
 - **Mandatory result design:** Read `docs/design-guide/result-embeds.md` before

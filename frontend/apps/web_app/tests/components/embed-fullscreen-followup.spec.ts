@@ -47,6 +47,13 @@ async function prepareVoiceFollowup(page: import('@playwright/test').Page) {
     } });
   });
   await page.addInitScript(() => sessionStorage.setItem('ws_token', 'component-recording-token'));
+  // Dictation must not log a correction or realtime failure on the happy path.
+  const dictationErrors: string[] = [];
+  const consoleLines: string[] = [];
+  page.on('console', message => {
+    if (/WorkspacePromptComposer|RecordAudio|[Rr]ealtime/.test(message.text())) consoleLines.push(`${message.type()}: ${message.text()}`);
+    if (message.type() === 'error' && /WorkspacePromptComposer|RecordAudio|[Rr]ealtime/.test(message.text())) dictationErrors.push(message.text());
+  });
   let releaseCorrection = () => { throw new Error('Recording has not finished'); };
   let correctionPending = false;
   await page.routeWebSocket(/\/v1\/apps\/audio\/realtime-transcription(?:\?|$)/, socket => {
@@ -65,11 +72,30 @@ async function prepareVoiceFollowup(page: import('@playwright/test').Page) {
       releaseCorrection = () => socket.send(JSON.stringify({ type: 'correction.done', transcript: 'Make the sky brighter.' }));
     });
   });
-  return { pending: () => correctionPending, release: () => releaseCorrection() };
+  return { pending: () => correctionPending, release: () => releaseCorrection(), errors: () => dictationErrors, log: () => consoleLines.join('\n') };
+}
+
+/** Same dictation UI as the chat composer: live words in the expanded field above compact controls. */
+async function expectLiveDictationInField(fullscreen: import('@playwright/test').Locator) {
+  const input = fullscreen.getByTestId('apps-request-textarea');
+  await expect(input).toHaveValue('Keep the mountain. make the sky brighter');
+  await expect(input).toBeVisible();
+  const composer = fullscreen.getByTestId('apps-request-composer');
+  await expect(composer).toHaveClass(/recording-with-text/);
+  await expect(fullscreen.getByTestId('recording-live-transcript')).toHaveCount(0);
+  // The field expands with a height transition; measure once it has opened.
+  await expect.poll(async () => (await composer.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(170);
+  await waitForComponentMotion(composer);
+  const field = (await composer.boundingBox())!;
+  const text = (await input.boundingBox())!;
+  const controls = (await fullscreen.getByTestId('apps-request-textarea-recording-controls').boundingBox())!;
+  expect(controls.height).toBeLessThanOrEqual(64);
+  expect(text.y + text.height).toBeLessThanOrEqual(controls.y + 1);
+  expect(controls.y + controls.height).toBeLessThanOrEqual(field.y + field.height + 1);
 }
 
 for (const [width, theme] of [[390, 'light'], [1280, 'dark']] as const) {
-  // contract-test: supporting surface=gui.web assertions=message-input.actions.visibility,message-input.audio.editable-transcript,apps.results.shared-fullscreen
+  // contract-test: supporting surface=gui.web assertions=message-input.actions.visibility,message-input.audio.workspace-dictation,message-input.audio.editable-transcript,apps.results.shared-fullscreen
   test(`fullscreen recording Send submits corrected speech once at ${width}px in ${theme}`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     const correction = await prepareVoiceFollowup(page);
@@ -80,7 +106,7 @@ for (const [width, theme] of [[390, 'light'], [1280, 'dark']] as const) {
     await fullscreen.getByTestId('apps-request-textarea').fill('Keep the mountain.');
     await fullscreen.getByTestId('apps-request-mic').click();
     const overlay = fullscreen.getByTestId('record-overlay');
-    await expect(overlay).toContainText('make the sky brighter');
+    await expectLiveDictationInField(fullscreen);
     const send = overlay.getByTestId('record-send-button');
     await expect(send).toBeVisible();
     await expect(send).toBeEnabled();
@@ -103,10 +129,13 @@ for (const [width, theme] of [[390, 'light'], [1280, 'dark']] as const) {
     await send.press('Enter');
     await expect.poll(correction.pending).toBe(true);
     await expect(fullscreen).toBeVisible();
-    await expect(fullscreen.getByTestId('apps-request-textarea')).toBeDisabled();
+    // Like the chat composer, dictated text shimmers until the correction lands.
+    await expect(fullscreen.getByTestId('apps-request-textarea')).toHaveAttribute('data-dictation-processing', 'true');
+    await expect(overlay).toBeVisible();
     await expect(page.getByTestId('followup-destination')).toHaveCount(0);
     correction.release();
     await expect(page.getByTestId('followup-destination')).toHaveText('e2e-fullscreen-followup-source');
+    expect(correction.errors()).toEqual([]);
     const document = page.getByTestId('followup-document');
     await expect(document).toContainText('Keep the mountain.');
     await expect(document).toContainText('Make the sky brighter.');
@@ -116,7 +145,7 @@ for (const [width, theme] of [[390, 'light'], [1280, 'dark']] as const) {
 }
 
 for (const action of ['finish', 'cancel'] as const) {
-  // contract-test: supporting surface=gui.web assertions=message-input.recording.lifecycle,message-input.audio.editable-transcript,apps.results.shared-fullscreen
+  // contract-test: supporting surface=gui.web assertions=message-input.recording.lifecycle,message-input.audio.workspace-dictation,message-input.audio.editable-transcript,apps.results.shared-fullscreen
   test(`fullscreen recording ${action} preserves the draft without sending`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 900 });
     const correction = await prepareVoiceFollowup(page);
@@ -128,16 +157,21 @@ for (const action of ['finish', 'cancel'] as const) {
     await input.fill('Keep the mountain.');
     await fullscreen.getByTestId('apps-request-mic').click();
     const overlay = fullscreen.getByTestId('record-overlay');
-    await expect(overlay).toContainText('make the sky brighter');
+    await expectLiveDictationInField(fullscreen);
     await expect(overlay.getByTestId('record-send-button')).toBeVisible();
     await overlay.getByTestId(`record-${action}-button`).click();
     if (action === 'finish') {
       await expect.poll(correction.pending).toBe(true);
+      await expect(input).toHaveAttribute('data-dictation-processing', 'true');
       correction.release();
     }
     await expect(overlay).toHaveCount(0);
+    if (action === 'finish') expect(correction.errors()).toEqual([]);
     await expect(input).toBeEnabled();
-    await expect(input).toHaveValue(action === 'finish' ? 'Keep the mountain.\nMake the sky brighter.' : 'Keep the mountain.');
+    await expect(input, correction.log()).toHaveValue(action === 'finish' ? 'Keep the mountain. Make the sky brighter.' : 'Keep the mountain.');
+    await expect(input).toHaveAttribute('data-dictation-processing', 'false');
+    // Transcribed speech never falls back to an audio attachment.
+    await expect(fullscreen.getByText('recording.webm')).toHaveCount(0);
     await expect(fullscreen).toBeVisible();
     await expect(page.getByTestId('followup-destination')).toHaveCount(0);
   });

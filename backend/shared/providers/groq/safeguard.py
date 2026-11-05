@@ -390,6 +390,13 @@ class GroqSafeguardClient:
         narration_context = (
             "This text is an OpenMates assistant response being read in a fixed OpenMates voice. "
             "Mentions of, reporting about, or quotations from real people are not imitation requests. "
+            # Live calls read news and search results aloud; a topic-level block
+            # cut a spoken news summary mid-answer (issue 3RZXL).
+            "Reporting, summarizing, explaining or warning about news, crime, fraud, scams, conflicts, threats "
+            "or other sensitive topics is ordinary assistant speech: allow it. Block only when the spoken words "
+            "themselves would deceive or harm the listener, such as requesting credentials or payments, speaking "
+            "as a real person in the first person, or giving fake authority instructions. Topic sensitivity or "
+            "uncertainty about the topic alone is not a reason to block this narration. "
             if trusted_narration
             else "This is a user-authored audio.speak request. "
         )
@@ -440,35 +447,44 @@ class GroqSafeguardClient:
                 },
             )
 
+        response = None
+        raw_text = ""
         try:
             response = await request_completion()
         except Exception as exc:
             if not _is_groq_output_parse_failure(exc):
                 logger.error("[GroqSafeguard] Audio speech safety API error: %s", exc, exc_info=True)
                 return AudioSpeechSafeguardResult(error=str(exc))
-            logger.warning(
-                "[GroqSafeguard] Audio speech safety tool-call parse failed; retrying once"
-            )
-            try:
-                response = await request_completion()
-            except Exception as retry_exc:
-                logger.error(
-                    "[GroqSafeguard] Audio speech safety API retry failed: %s",
-                    retry_exc,
-                    exc_info=True,
+            # Groq returns the rejected generation; a complete decision in it is
+            # the model's real verdict, so only an unreadable one costs a retry.
+            raw_text = _failed_generation_verdict_text(exc)
+            if not raw_text:
+                logger.warning(
+                    "[GroqSafeguard] Audio speech safety tool-call parse failed; retrying once"
                 )
-                return AudioSpeechSafeguardResult(error=str(retry_exc))
+                try:
+                    response = await request_completion()
+                except Exception as retry_exc:
+                    raw_text = (_failed_generation_verdict_text(retry_exc)
+                                if _is_groq_output_parse_failure(retry_exc) else "")
+                    if not raw_text:
+                        logger.error(
+                            "[GroqSafeguard] Audio speech safety API retry failed: %s",
+                            retry_exc,
+                            exc_info=True,
+                        )
+                        return AudioSpeechSafeguardResult(error=str(retry_exc))
 
-        raw_text = ""
-        try:
-            message = response.choices[0].message
-            tool_calls = getattr(message, "tool_calls", None) or []
-            if tool_calls:
-                raw_text = tool_calls[0].function.arguments or ""
-            else:
-                raw_text = (message.content or "").strip()
-        except Exception:
-            pass
+        if response is not None:
+            try:
+                message = response.choices[0].message
+                tool_calls = getattr(message, "tool_calls", None) or []
+                if tool_calls:
+                    raw_text = tool_calls[0].function.arguments or ""
+                else:
+                    raw_text = (message.content or "").strip()
+            except (AttributeError, IndexError, TypeError):
+                raw_text = ""
 
         verdict = _parse_verdict(raw_text)
         approved = verdict.decision == "allow"
@@ -541,11 +557,41 @@ def _parse_verdict(text: str) -> SafeguardVerdict:
     )
 
 
+_FAILED_GENERATION_DECISION = re.compile(r'"decision"\s*:\s*"(allow|block|escalate)"')
+_FAILED_GENERATION_CATEGORY = re.compile(r'"category"\s*:\s*"([^"\\]{1,80})"')
+
+
+def _failed_generation_verdict_text(exc: BaseException) -> str:
+    """Recover the decision from Groq's ``failed_generation`` of a malformed tool call.
+
+    Truncated or tool-less JSON still names the model's decision; returning it
+    avoids failing closed on output-format noise. Unreadable output returns "".
+    """
+    body = getattr(exc, "body", None)
+    error = body.get("error") if isinstance(body, dict) else None
+    generation = error.get("failed_generation") if isinstance(error, dict) else None
+    if not isinstance(generation, str) or not generation:
+        return ""
+    decisions = set(_FAILED_GENERATION_DECISION.findall(generation))
+    if len(decisions) != 1:
+        return ""
+    category = _FAILED_GENERATION_CATEGORY.search(generation)
+    return json.dumps({"decision": decisions.pop(),
+                       "category": category.group(1) if category else "",
+                       "severity": "", "reasoning": "", "discrepancies": ""})
+
+
 def _is_groq_output_parse_failure(exc: BaseException) -> bool:
-    """True when Groq rejects a forced tool call because model output was unparsable."""
+    """True when Groq rejects a forced tool call because model output was unusable.
+
+    ``tool_use_failed`` ("model did not call a tool") is the same malformed-output
+    class: live voice calls saw ~3% of benign assistant clauses answered as bare
+    JSON, which fail-closed into a block and cut the spoken reply.
+    """
 
     message = str(exc).lower()
-    return "output_parse_failed" in message or "parsing failed" in message
+    return ("output_parse_failed" in message or "parsing failed" in message
+            or "tool_use_failed" in message)
 
 
 def _extract_json_object(text: str) -> Optional[Dict[str, Any]]:

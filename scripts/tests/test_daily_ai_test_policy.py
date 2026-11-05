@@ -201,3 +201,18 @@ def test_audit_rejects_missing_raw_httpx_guard(monkeypatch, tmp_path):
     assert audit._audit_raw_http_dispatch_guard() == [
         "raw httpx transport guard is incomplete in backend/shared/testing/mock_context.py"
     ]
+
+
+def test_scheduled_discovery_holds_unclassified_ai_specs_instead_of_aborting(tmp_path):
+    policy = load_module("daily_ai_policy_held", POLICY_PATH)
+    manifest = {"schema_version": 2, "specs": {}, "daily_canaries": {"fixed": [], "rotating": []}}
+    (tmp_path / "ordinary.spec.ts").write_text("test('settings', () => {})")
+    (tmp_path / "unmarked-ai.spec.ts").write_text("sendMessage(page, 'real')")
+    (tmp_path / "comment-only.spec.ts").write_text(
+        "// helper used to call sendMessage( elsewhere\n/* 'chats', 'new' */\ntest('x', () => {})")
+    held: dict[str, str] = {}
+    discovered = policy.discover_specs(
+        ["ordinary.spec.ts", "unmarked-ai.spec.ts", "comment-only.spec.ts"],
+        manifest=manifest, spec_dir=tmp_path, held=held)
+    assert discovered == ["comment-only.spec.ts", "ordinary.spec.ts"]
+    assert held == {"unmarked-ai.spec.ts": policy.UNCLASSIFIED_HOLD_REASON}

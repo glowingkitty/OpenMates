@@ -375,14 +375,53 @@ Use `chats.send()` for anonymous AI chat with automatic routing; `apps.ai.ask()`
 requires an account. With an API key, use `saveToAccount: true` when you want the
 chat saved to the OpenMates account.
 
+### API keys only, never the CLI login
+
+The SDK authenticates only with an API key you pass explicitly (or configure via
+`OPENMATES_API_KEY`). It is completely separate from the `openmates` command
+line: it never reads the CLI's `~/.openmates/session.json`, its state directory
+or the OS keychain, so a script can use a different account than the one logged
+in to the CLI. Create an API key in Settings → Developers. Each key carries its
+own wrapped copy of your account key, so the SDK decrypts your chats locally,
+in memory, with only that key.
+
+Since 0.30.0 the root `OpenMatesClient` is the API-key client and requires
+`apiKey`; constructing it without one throws `OpenMatesApiKeyRequiredError`
+(code `OPENMATES_SDK_API_KEY_REQUIRED`). The former `session` and
+`loadStoredSession` options are rejected.
+
+```typescript
+import { OpenMatesClient } from "openmates";
+
+const om = new OpenMatesClient({ apiKey: process.env.MY_OPENMATES_KEY! });
+```
+
+### Native session SDK (preview)
+
+`openmates/sdk/v1` exports `SessionClient`, `RustApiKeyClient` and related
+types. Every operation runs in the shared OpenMates Rust core through a native
+Node-API module loaded from `native/<platform>-<arch>.node`; the SDK never
+launches the CLI and never reads CLI login state. Its password/imported-session
+login modes (`loginPassword()`, `importSession()`) are deprecated: public SDKs
+are API-key only, and these modes are removed once every capability they offer
+is available through API-key authentication (tracked in
+`config/sdk-capabilities.json`). Use an API key for new integrations. If the native
+module for your platform is missing or incompatible, construction throws
+`SessionClientError` with code `native_binding_unavailable` (no TypeScript
+fallback). The SDK is moving to one portable WebAssembly build of the core
+(`wasm/openmates_sdk_bg.wasm`, for Node, Deno, Bun, edge and browsers): privacy
+helpers, task ordering and embed-version reconstruction already use it. Prebuilt
+artifacts are not yet published; from a source checkout run
+`npm run build:sdk:wasm` and `npm run build:sdk:native`.
+
 ## Versioning
 
-OpenMates shows the short product line, for example `v0.28`, in the web app.
+OpenMates shows the short product line, for example `v0.29`, in the web app.
 The npm package uses exact artifact versions:
 
-- `0.28.0-alpha.N` is a prerelease from the `dev` branch published under the
+- `0.29.0-alpha.N` is a prerelease from the `dev` branch published under the
   `alpha` npm tag.
-- `0.28.0` is a stable release from `main` published under the `latest` npm tag.
+- `0.29.0` is a stable release from `main` published under the `latest` npm tag.
 
 Install stable releases with `npm install -g openmates`. Install prereleases with
 `npm install -g openmates@alpha`.

@@ -8,6 +8,9 @@ from fastapi import WebSocket
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.tasks.celery_config import app as celery_app # Celery app instance
 from backend.core.api.app.services.cache import CacheService
+from backend.shared.python_utils.ai_task_cancellation import (
+    CANCELLATION_INTENT_TTL_SECONDS, cancellation_intent_key,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +28,8 @@ async def handle_cancel_ai_task(
     
     This handler:
     1. Sends a revocation signal to Celery to stop the task
-    2. Clears the active_ai_task marker in cache so the typing indicator stops immediately
+    2. Releases an empty chat, or retains ownership until queued follow-ups hand off.
+       The cancellation acknowledgement stops the originating client's indicator.
     
     Payload is expected to contain:
     {
@@ -60,15 +64,27 @@ async def handle_cancel_ai_task(
         logger.info(f"{log_prefix} Received request to cancel AI task_id: {task_id_to_cancel}, chat_id: {chat_id}")
 
         try:
+            # SIGUSR1 may reach the worker before Celery records REVOKED. Persist
+            # the owner's intent first so terminal cleanup cannot misclassify Stop
+            # as a timeout and skip encrypted completion recovery.
+            if chat_id:
+                if not cache_service:
+                    cache_service = CacheService()
+                intent_saved = await cache_service.set(
+                    cancellation_intent_key(user_id, chat_id, task_id_to_cancel),
+                    "1", ttl=CANCELLATION_INTENT_TTL_SECONDS,
+                )
+                if not intent_saved:
+                    raise RuntimeError("Cancellation intent could not be recorded")
             # Revoke the task. terminate=True sends SIGTERM.
             # The task needs to be designed to handle this signal or check for is_revoked().
             # Our AI task checks is_revoked().
             celery_app.control.revoke(task_id_to_cancel, terminate=True, signal='SIGUSR1') # Using SIGUSR1 as tasks.py checks is_revoked
             logger.info(f"{log_prefix} Revocation signal sent for task_id: {task_id_to_cancel}")
 
-            # CRITICAL: Clear the active_ai_task marker immediately so the typing indicator stops
-            # The task's exception handler will also try to clear this, but we do it here proactively
-            # to ensure the UI updates immediately without waiting for the task to process the signal
+            # The worker's failure cleanup needs this fence to hand off accepted
+            # follow-ups. Release only an empty queue, atomically with admission;
+            # a plain matching clear strands followers when Stop races cleanup.
             if chat_id:
                 focus_cancelled = False
                 paused_cancelled = False
@@ -85,13 +101,15 @@ async def handle_cancel_ai_task(
                     focus_cancelled = await cancel_focus_execution(
                         cache_service, user_id, chat_id, task_id_to_cancel,
                     )
-                    cleared = focus_cancelled or await cache_service.clear_active_ai_task_if_matches(
-                        chat_id, task_id_to_cancel,
+                    cleared = focus_cancelled or (
+                        await cache_service.complete_active_ai_task_if_queue_empty(
+                            chat_id, task_id_to_cancel,
+                        ) == 1
                     )
                     if cleared:
                         logger.info(f"{log_prefix} Cleared active_ai_task marker for chat {chat_id}")
                     else:
-                        logger.debug(f"{log_prefix} active_ai_task marker not found for chat {chat_id} (may already be cleared)")
+                        logger.debug(f"{log_prefix} Retained queued or superseded active task ownership for chat {chat_id}")
                 except Exception as cache_err:
                     logger.warning(f"{log_prefix} Failed to clear active_ai_task marker: {cache_err}")
                 try:

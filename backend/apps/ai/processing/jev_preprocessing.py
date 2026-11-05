@@ -111,17 +111,24 @@ def _app_catalogue(available_apps: Iterable[str], available_skills: Iterable[str
         short_hint = " ".join(hint.split()).split(". ", 1)[0][:100]
         if short_hint:
             examples[app_id].append(short_hint)
+    focus_examples: dict[str, list[str]] = {app_id: [] for app_id in app_ids}
     for entry in available_focus_modes:
-        identifier = entry.partition(": ")[0]
+        identifier, _, hint = entry.partition(": ")
         if identifier.startswith("project-"):
             continue
         app_id = _app_id(identifier, app_ids)
         if app_id is not None:
-            names[app_id].append(identifier[len(app_id) + 1:].replace("_", " ") + " focus")
+            focus_name = identifier[len(app_id) + 1:].replace("_", " ") + " focus"
+            names[app_id].append(focus_name)
+            # A focus is selectable only when stage one keeps its app, so its
+            # relevance hint must be visible here, not just its bare name.
+            short_hint = " ".join(hint.split()).split(". ", 1)[0][:180]
+            if short_hint:
+                focus_examples[app_id].append(f"{focus_name}: {short_hint}")
     catalogue = []
     for app_id in app_ids:
         skills_and_focuses = f"capabilities {', '.join(names[app_id])}" if names[app_id] else ""
-        example_hints = "; ".join(examples[app_id][:2])
+        example_hints = "; ".join(focus_examples[app_id][:2] + examples[app_id][:2])
         provider_names = ", ".join(dict.fromkeys(providers[app_id]))
         provider_hint = f"providers {provider_names}" if provider_names else ""
         authored = ", ".join(f"{kind} ({row['display_name']})" for kind, row in
@@ -689,7 +696,8 @@ async def decide_preprocessing_with_jev(
                                authoring_preview_hints(authoring_candidates).items()],
         "Would structured result cards of this exact kind materially help the latest request? "
         "Select every relevant kind in mixed sets. Research or user-provided facts qualify without "
-        "a discovery skill. Hypothetical drafts qualify only if explicitly requested. "
+        "a discovery skill. Hypothetical drafts qualify only if the user asks to invent, create, plan or draft "
+        "one (for example 'invent a recipe with my ingredients' selects the recipe kind). "
         "Unrelated subjects and mere mentions are false; this authorizes no tools or writes.",
     )
 

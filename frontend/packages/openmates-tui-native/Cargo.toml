@@ -1,0 +1,124 @@
+[package]
+name = "openmates"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98.1"
+description = "OpenMates CLI/TUI and Rust SDK (re-exported as openmates::sdk)"
+license = "MIT"
+repository = "https://github.com/glowingkitty/OpenMates"
+readme = "README.md"
+autobins = false
+include = ["Cargo.toml", "Cargo.lock", "README.md", "LICENSE", "NOTICE", "src/**", "assets/**", "tests/**/*.rs", "tests/**/*.json", "examples/**/*.rs"]
+publish = false
+
+[lib]
+name = "openmates"
+path = "src/lib.rs"
+
+[[bin]]
+name = "openmates"
+path = "src/main.rs"
+required-features = ["cli"]
+
+[[example]]
+name = "tui-benchmark"
+path = "src/bin/tui-benchmark.rs"
+required-features = ["cli"]
+
+[features]
+default = ["cli"]
+# Terminal UI/CLI application. SDK-only users: default-features = false.
+cli = [
+    "dep:ratatui",
+    "dep:crossterm",
+    "dep:tokio",
+    "dep:tokio-util",
+    "dep:tokio-tungstenite",
+    "dep:reqwest",
+    "dep:futures-util",
+    "dep:serde",
+    "dep:serde_json",
+    "dep:aes-gcm",
+    "dep:aes",
+    "dep:argon2",
+    "dep:hkdf",
+    "dep:pbkdf2",
+    "dep:hmac",
+    "dep:sha2",
+    "dep:base64",
+    "dep:rand",
+    "dep:zeroize",
+    "dep:x25519-dalek",
+    "dep:crypto_box",
+    "dep:opaque-ke",
+    "dep:keyring",
+    "dep:uuid",
+    "dep:url",
+    "dep:pulldown-cmark",
+    "dep:unicode-width",
+    "dep:unicode-segmentation",
+    "dep:directories",
+    "dep:fs2",
+    "dep:rustix",
+    "dep:generic-array",
+    "dep:unicode-normalization",
+    "dep:clap",
+    "dep:qrcode",
+    "dep:regex",
+    "dep:arboard",
+    "dep:webbrowser",
+    "dep:tar",
+    "dep:flate2",
+    "dep:scrypt",
+    "dep:serde_yaml",
+    "dep:time",
+]
+
+[dependencies]
+openmates-sdk = { version = "=0.1.0", path = "../../../packages/openmates-rust", features = ["workflow-yaml"] }
+ratatui = { version = "=0.30.2", default-features = false, features = ["crossterm"], optional = true }
+crossterm = { version = "=0.29.0", features = ["event-stream"], optional = true }
+tokio = { version = "=1.54.1", features = ["rt-multi-thread", "macros", "sync", "time", "signal", "fs", "io-util", "net", "process"], optional = true }
+tokio-util = { version = "0.7", optional = true }
+tokio-tungstenite = { version = "0.28", features = ["rustls-tls-webpki-roots"], optional = true }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"], optional = true }
+futures-util = { version = "0.3", optional = true }
+serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1", optional = true }
+aes-gcm = { version = "0.10", features = ["zeroize"], optional = true }
+aes = { version = "0.8", features = ["zeroize"], optional = true }
+argon2 = { version = "0.5", features = ["zeroize"], optional = true }
+hkdf = { version = "0.12", optional = true }
+pbkdf2 = { version = "0.12", optional = true }
+hmac = { version = "0.12", optional = true }
+sha2 = { version = "0.10", optional = true }
+base64 = { version = "0.22", optional = true }
+rand = { version = "0.8", optional = true }
+zeroize = { version = "1", features = ["derive"], optional = true }
+x25519-dalek = { version = "2", features = ["static_secrets"], optional = true }
+crypto_box = { version = "0.9", features = ["std"], optional = true }
+opaque-ke = { version = "=4.0.0", features = ["argon2"], optional = true }
+keyring = { version = "3", features = ["apple-native", "windows-native", "async-secret-service", "tokio", "crypto-rust"], optional = true }
+uuid = { version = "1", features = ["v4", "serde"], optional = true }
+url = { version = "2", optional = true }
+pulldown-cmark = { version = "0.13", optional = true }
+unicode-width = { version = "0.2", optional = true }
+unicode-segmentation = { version = "1", optional = true }
+directories = { version = "6", optional = true }
+fs2 = { version = "0.4", optional = true }
+rustix = { version = "1", features = ["fs", "process", "termios"], optional = true }
+generic-array = { version = "0.14", optional = true }
+unicode-normalization = { version = "0.1", optional = true }
+clap = { version = "4", features = ["derive", "string"], optional = true }
+qrcode = { version = "0.14", default-features = false, optional = true }
+regex = { version = "1", optional = true }
+arboard = { version = "3", default-features = false, optional = true }
+webbrowser = { version = "1", optional = true }
+tar = { version = "0.4", optional = true }
+flate2 = { version = "1", optional = true }
+scrypt = { version = "0.11", default-features = false, optional = true }
+serde_yaml = { package = "yaml_serde", version = "=0.10.7", optional = true }
+time = { version = "0.3", features = ["formatting", "parsing", "serde", "local-offset"], optional = true }
+
+[dev-dependencies]
+tempfile = "3"

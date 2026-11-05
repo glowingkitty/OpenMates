@@ -1,8 +1,8 @@
 # Reminder email redesign
 
-Updated 2026-10-23. Task: TASK-4084; session: faf0. Status: deployed to dev. Isolated email delivery and responsive rendering passed;
+Updated 2026-10-28. Task: TASK-4084; implementation session: faf0; completion session: f4fe. Status: complete. Isolated email delivery and responsive rendering passed;
 all 3 reminder/navigation and all 4 shared-guest cases pass isolated CI with
-verified cleanup. Dev commit `bc279722` is active and both test emails have provider-confirmed delivery. The supplied root command remains necessary to persist the working Caddy route across restarts.
+verified cleanup. Dev deployment at `bc279722` and both provider-confirmed test email deliveries are recorded below. Gateway startup persistence was verified on 2026-10-28.
 The user approved the rendered-card design,
 requested embed descriptions, and authorized implementation, testing, both test
 emails and the related specification updates. The executable record is
@@ -175,15 +175,21 @@ matches the deployed static asset. The private receipt is retained at
 `/tmp/faf0-reminder-send-receipt.json`. Destination records remain in the
 clearly named verification folder so the emails' links and images keep working.
 
-The working preview gateway is active. Persisting it in root-owned
-`/etc/caddy/Caddyfile` needs this operator command on the dev host:
+On 2026-10-28 the operator confirmed running the dev Caddy installer. Direct
+verification found that `/etc/caddy/Caddyfile` matches the current
+`deployment/dev_server/Caddyfile` byte for byte. Caddy is active; the saved and
+live configurations contain the GET/HEAD reminder-preview route and the private
+path log exclusion. A public request with a deliberately invalid capability
+reaches the backend's expected uniform unavailable response without an Origin
+header. The startup-persistence handoff is complete; no restart was needed for
+this verification.
 
-```bash
-sudo bash /home/superdev/projects/OpenMates/deployment/apply-caddy-config.sh /home/superdev/projects/OpenMates/deployment/dev_server/Caddyfile
-```
-
-The non-root adaptation check passed. Startup-file verification remains pending
-until the operator runs that command; this is the remaining operational handoff.
+Production also returns the expected backend unavailable response. The user's
+read-only file output confirms that its saved Caddyfile already contains the
+GET/HEAD reminder-preview handler forwarding to localhost:8000. No equivalent
+routing update is needed there. Production log exclusion was not independently
+inspected and no production mutation was made. The completion receipt is
+`/tmp/faf0-gateway-completion-receipt.json`.
 
 The related approved behavior is recorded under
 `specifications/features/notifications`. CI, deployment and both provider-confirmed deliveries are recorded above. Production activation remains outside this task.

@@ -46,8 +46,10 @@
   import { getCodeRunOutputForEmbed } from '../../../services/db/codeRunOutputs';
   import { sendRequestCodeRunOutputImpl, sendUpsertCodeRunOutputImpl } from '../../../services/sendersCodeRunOutputs';
   import { chatDB } from '../../../services/db';
-  import { isCodeRunSupported } from './codeRunSupport';
+  import { AUTOMATIC_DEPENDENCY_VERSION, defaultDependencyVersion, dependencyPackageSpec, isCodeRunSupported } from './codeRunSupport';
   import CodePreviewPane from './CodePreviewPane.svelte';
+  import InteractiveHtmlFrame from './InteractiveHtmlFrame.svelte';
+  import { resolveCodePreviewKind } from './interactiveHtmlSandbox';
   import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import ChildEmbedOverlay from '../ChildEmbedOverlay.svelte';
@@ -381,41 +383,17 @@
 
   // ── Preview/Render mode ─────────────────────────────────────────────
 
-  /** Languages that support preview rendering. */
-  const PREVIEWABLE_LANGUAGES = new Set(['markdown', 'md', 'html', 'htm', 'xml']);
+  let previewKind = $derived(resolveCodePreviewKind(renderLanguage, renderFilename));
+  let isPreviewable = $derived(previewKind !== null);
+  let isInteractiveHtml = $derived(previewKind === 'interactive-html');
+  let previewType = $derived(previewKind === 'markdown' ? ('markdown' as const) : ('html' as const));
 
-  /** File extensions that support preview rendering. */
-  const PREVIEWABLE_EXTENSIONS = new Set(['.md', '.markdown', '.html', '.htm']);
-
-  /**
-   * Whether this code embed supports preview rendering.
-   * True for markdown/HTML content (detected by language or filename extension).
-   */
-  let isPreviewable = $derived.by(() => {
-    if (PREVIEWABLE_LANGUAGES.has(renderLanguage.toLowerCase())) return true;
-    if (renderFilename) {
-      const ext = renderFilename.slice(renderFilename.lastIndexOf('.')).toLowerCase();
-      if (PREVIEWABLE_EXTENSIONS.has(ext)) return true;
-    }
-    return false;
-  });
-
-  /**
-   * Determine the preview type based on language/filename.
-   * Returns 'markdown' or 'html'.
-   */
-  let previewType = $derived.by(() => {
-    const lang = renderLanguage.toLowerCase();
-    if (lang === 'markdown' || lang === 'md') return 'markdown' as const;
-    if (renderFilename) {
-      const ext = renderFilename.slice(renderFilename.lastIndexOf('.')).toLowerCase();
-      if (ext === '.md' || ext === '.markdown') return 'markdown' as const;
-    }
-    return 'html' as const;
-  });
-
-  /** Whether preview mode is currently active (toggled by the preview button). */
+  /** Preview toggle state. HTML visuals open live by default; code is one click away. */
   let previewActive = $state(false);
+  let interactivePreviewDefaulted = false;
+  $effect(() => {
+    if (isInteractiveHtml && !interactivePreviewDefaulted) { interactivePreviewDefaulted = true; previewActive = true; }
+  });
 
   const INSTALL_SNIPPET_LANGUAGES = new Set(['bash', 'sh', 'shell', 'terminal', 'console']);
   const PYTHON_PACKAGE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*(?:\[[A-Za-z0-9_,.-]+\])?(?:(?:==|~=|!=|<=|>=|<|>)[A-Za-z0-9.*+!_-]+)?$/;
@@ -1078,10 +1056,6 @@
     };
   }
 
-  function dependencyPackageSpec(ecosystem: CodeRunDependencyInstall['ecosystem'], packageName: string, version: string): string {
-    return ecosystem === 'python' ? `${packageName}==${version}` : `${packageName}@${version}`;
-  }
-
   function formatDependencyReleaseDate(value?: string | null): string {
     if (!value) return '';
     const date = new Date(value);
@@ -1090,7 +1064,7 @@
   }
 
   function dependencySuggestionCandidate(suggestion: CodeRunDependencySuggestion): CodeRunFileCandidate {
-    const version = suggestion.latest_version;
+    const version = defaultDependencyVersion(suggestion.ecosystem, suggestion.latest_version);
     const packageSpec = dependencyPackageSpec(suggestion.ecosystem, suggestion.package, version);
     const released = formatDependencyReleaseDate(suggestion.latest_released_at);
     return {
@@ -1099,8 +1073,8 @@
       kind: 'dependency',
       title: suggestion.package,
       subtitle: released
-        ? $text('app_skills.code.run.detected_import_latest_release', { values: { importName: suggestion.import_name, version, releaseDate: released } })
-        : $text('app_skills.code.run.detected_import_latest', { values: { importName: suggestion.import_name, version } }),
+        ? $text('app_skills.code.run.detected_import_latest_release', { values: { importName: suggestion.import_name, version: suggestion.latest_version, releaseDate: released } })
+        : $text('app_skills.code.run.detected_import_latest', { values: { importName: suggestion.import_name, version: suggestion.latest_version } }),
       selected: true,
       required: false,
       dependencyPackage: suggestion.package,
@@ -1581,7 +1555,7 @@
         {/if}
         {#if isPreviewable}
           <EmbedHeaderCtaButton
-            label={previewActive ? $text('app_skills.code.preview_hide') : $text('app_skills.code.preview_show')}
+            label={isInteractiveHtml ? $text(previewActive ? 'app_skills.code.view_code' : 'app_skills.code.view_visual') : $text(previewActive ? 'app_skills.code.preview_hide' : 'app_skills.code.preview_show')}
             onclick={togglePreview}
             variant="secondary"
             testId="embed-preview-button"
@@ -1637,6 +1611,7 @@
           class:split-active={splitPaneActive}
           class:preview-split-active={outputPaneActive}
           class:code-run-pane-active={codeRunOverlayActive}
+          class:visual-only={isInteractiveHtml && previewActive && !codeRunOverlayActive}
         >
           <div
             class="code-panel"
@@ -1665,7 +1640,7 @@
           <!-- Preview panel keeps the existing side-by-side rendering behavior. -->
           {#if previewActive}
             <div class="preview-panel">
-              <CodePreviewPane code={renderCodeContent} {previewType} />
+              {#if isInteractiveHtml}<InteractiveHtmlFrame code={renderCodeContent} title={renderFilename || displayLanguage} interactive={true} />{:else}<CodePreviewPane code={renderCodeContent} {previewType} />{/if}
             </div>
           {/if}
 
@@ -1755,10 +1730,14 @@
                                   <span class="code-run-dependency-version-row">
                                     <span>{$text('app_skills.code.run.version')}</span>
                                     <select
+                                      aria-label={`${candidate.title} · ${$text('app_skills.code.run.version')}`}
                                       value={candidate.selectedVersion}
                                       onclick={(event) => event.stopPropagation()}
                                       onchange={(event) => updateDependencyVersion(candidate.id, (event.currentTarget as HTMLSelectElement).value)}
                                     >
+                                      {#if candidate.dependencyInstall?.ecosystem === 'python'}
+                                        <option value={AUTOMATIC_DEPENDENCY_VERSION}>{$text('app_skills.code.run.automatic_compatible')}</option>
+                                      {/if}
                                       {#each candidate.dependencyVersionOptions as option}
                                         {@const released = formatDependencyReleaseDate(option.released_at)}
                                         <option value={option.version}>{option.version}{released ? ` · ${released}` : ''}</option>
@@ -2022,6 +2001,9 @@
   .code-panel.code-panel-code-run-split {
     display: none;
   }
+
+  .code-split-wrapper.visual-only .code-panel { display: none; }
+  .code-split-wrapper.visual-only .preview-panel { width: 100%; flex: 1 1 100%; }
 
   .preview-panel {
     width: 70%;

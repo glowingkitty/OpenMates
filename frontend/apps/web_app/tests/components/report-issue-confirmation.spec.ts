@@ -8,10 +8,7 @@ import { expect, test } from '../helpers/cookie-audit';
 // playwright-account: not_required reason=isolated_component_preview
 
 const SUMMARY_VALUES = [
-	'The confirmation page did not show what I submitted.',
-	'I opened Report Issue, completed each description field, and submitted the form.',
-	'The confirmation should summarize the report I just sent.',
-	'Only the issue ID and a thank-you message were shown.'
+	'I opened Report Issue and submitted it, but the confirmation page did not show what I wrote. I expected a summary of my report.'
 ];
 
 test.describe('Report Issue confirmation component preview', () => {

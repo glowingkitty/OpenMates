@@ -1,0 +1,9 @@
+{
+  "status": "required-unrun",
+  "originalBaseline": "frontend/packages/ui/src/utils/embedVersionReconstruction.ts",
+  "comparisons": ["Rust shared core vs maintained TypeScript reconstruction", "Rust native CLI vs maintained TypeScript CLI full operation", "Rust direct SDK vs new npm direct SDK same explicit account key/cache and exact outputs"],
+  "cases": ["single snapshot", "snapshot plus Unicode patch", "32-row bounded response", "legacy 10000-row maximum within byte limits", "wrong key and malformed chain refusal", "atomic output file replace and fsync"],
+  "requiredMetrics": ["separate CPU processing", "end-to-end median and p95", "request count", "transferred bytes", "peak RSS", "cold vs warm key/cache"],
+  "acceptance": "Rust must be no slower than TypeScript for comparable supported work; preserve failed/partial samples; no workload or security weakening",
+  "notImplemented": "Matched actual performance runner and execution remain required before release. Existing generic SDK benchmark floors are not changed."
+}

@@ -44,7 +44,7 @@ const controllerForCall = async () => {
 };
 const beginAudio = async (overrides: Parameters<typeof audioEvent>[0] = {}) => {
   audio(overrides); audio({ ...overrides, phase: "chunk", audio_data: btoa("mp3-first") });
-  const media = TestMediaSource.instances.at(-1)!;
+  const media = TestMediaSource.instances[TestMediaSource.instances.length - 1]!;
   media.open();
   await flushSpeechPromises();
   return media;
@@ -712,6 +712,24 @@ it('uses validated native source time rather than received bytes to report compl
   await controller.close();
 });
 
+// contract-test: supporting surface=gui.web assertions=video-call.audio.spoken-rich-response
+it('reports display-only spoken word progress from native time and settles on interruption',async()=>{
+  const {controller,media,player}=await beginTurn();
+  expect(controller.spokenWordProgress).toEqual({responseId:'message',words:0,began:true,settled:false});
+  audio({...turnTrack,phase:'words',chunk_index:1,word_starts:[[0,0],[1,400],[2,900]]});
+  audio({...turnTrack,phase:'words',chunk_index:1,word_starts:[[1,1000]]});
+  player.currentTime=0.5;
+  expect(controller.spokenWordProgress?.words).toBe(2);
+  player.currentTime=5;
+  expect(controller.spokenWordProgress?.words).toBe(3);
+  // Word rows never become audio bytes or heard coverage.
+  expect(media.buffer.appended).toHaveLength(1);
+  expect(controller.playbackBoundary?.completed_sequences).toEqual([]);
+  await controller.stop();
+  expect(controller.spokenWordProgress?.settled).toBe(true);
+  await controller.close();
+});
+
 // contract-test: supporting surface=gui.web assertions=video-call.audio.intentional-interruption,assistant-speech.playback.live-call-streaming
 it('rejects wrong turn attempts and canceled finalization without claiming unheard clauses',async()=>{
   const {controller,media,player}=await beginTurn();
@@ -766,7 +784,7 @@ it('refuses unbound finite membership seals for a continuous response rather tha
 // contract-test: supporting surface=gui.web assertions=assistant-speech.playback.live-call-streaming,video-call.audio.single-owner,video-call.privacy
 it.each([false, true])("streams via iPhone ManagedMediaSource before provider completion (primed=%s)", async (primed) => {
   class ManagedSource extends TestMediaSource {
-    static isTypeSupported = vi.fn((mime: string) => mime === "audio/mpeg");
+    static isTypeSupported = vi.fn((mime?: string) => mime === "audio/mpeg");
   }
   vi.stubGlobal("MediaSource", undefined);
   vi.stubGlobal("ManagedMediaSource", ManagedSource);
@@ -813,7 +831,7 @@ it("selects the managed API when desktop MSE rejects MP3, while rejecting browse
   vi.stubGlobal("ManagedMediaSource", ManagedSource);
   expect(supportsAssistantSpeechStream()).toBe(true);
   const source = new AssistantSpeechStream(vi.fn());
-  expect(TestMediaSource.instances.at(-1)).toBeInstanceOf(ManagedSource);
+  expect(TestMediaSource.instances[TestMediaSource.instances.length - 1]).toBeInstanceOf(ManagedSource);
   source.dispose();
   ManagedSource.isTypeSupported.mockReturnValue(false);
   expect(supportsAssistantSpeechStream()).toBe(false);

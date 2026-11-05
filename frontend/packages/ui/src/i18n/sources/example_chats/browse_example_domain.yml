@@ -1,0 +1,481 @@
+title:
+  context: "Title of example chat: Extract website information as JSON"
+  en: "Extract website information as JSON"
+  de: Website-Informationen als JSON extrahieren
+  zh: 以 JSON 格式提取网站信息
+  es: Extraer información de un sitio web como JSON
+  fr: "Extraire les informations d'un site web en JSON"
+  pt: Extrair informações de sites como JSON
+  ru: Извлечение информации с сайта в JSON
+  ja: ウェブサイトの情報をJSONとして抽出する
+  ko: 웹사이트 정보를 JSON으로 추출
+  it: Estrai informazioni dal sito web come JSON
+  tr: Web sitesi bilgilerini JSON olarak çıkar
+  vi: Trích xuất thông tin trang web dưới dạng JSON
+  id: Ekstrak informasi situs web sebagai JSON
+  pl: Wyodrębnij informacje ze strony jako JSON
+  nl: Website-informatie extraheren als JSON
+  ar: استخراج معلومات الموقع الإلكتروني بتنسيق JSON
+  hi: वेबसाइट की जानकारी JSON के रूप में निकालें
+  th: ดึงข้อมูลเว็บไซต์เป็น JSON
+  cs: Extrahovat informace z webu jako JSON
+  sv: Extrahera webbplatsinformation som JSON
+  he: חילוץ מידע מאתר כ-JSON
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Extract website information as JSON"
+  en: "Browse Example Domain and return its complete statement with a source URL as structured JSON."
+  de: Example Domain durchsuchen und die vollständige Erklärung mit einer Quell-URL als strukturiertes JSON zurückgeben.
+  zh: 浏览 Example Domain 并以结构化 JSON 形式返回其完整声明及来源 URL。
+  es: Navega por Example Domain y devuelve su declaración completa con una URL de origen como JSON estructurado.
+  fr: Parcourez Example Domain et renvoyez sa déclaration complète avec une URL source sous forme de JSON structuré.
+  pt: Navegue pelo Example Domain e retorne sua declaração completa com uma URL de origem como JSON estruturado.
+  ru: Просмотрите Example Domain и получите полное описание вместе с исходным URL в виде структурированного JSON.
+  ja: Example Domainを閲覧し、その全文をソースURLとともに構造化されたJSONとして返します。
+  ko: Example Domain을 탐색하고 소스 URL이 포함된 구조화된 JSON 형식으로 전체 문장을 반환합니다.
+  it: Naviga su Example Domain e restituisci la sua dichiarazione completa con un URL di origine come JSON strutturato.
+  tr: "Example Domain'e göz atın ve kaynak URL'si ile birlikte tam ifadesini yapılandırılmış JSON olarak döndürün."
+  vi: Duyệt Example Domain và trả về nội dung đầy đủ cùng với URL nguồn dưới dạng JSON có cấu trúc.
+  id: Jelajahi Example Domain dan kembalikan pernyataan lengkapnya dengan URL sumber sebagai JSON terstruktur.
+  pl: Przeglądaj Example Domain i zwróć jej pełne oświadczenie wraz z adresem URL źródła jako ustrukturyzowany JSON.
+  nl: Browse naar Example Domain en retourneer de volledige verklaring met een bron-URL als gestructureerde JSON.
+  ar: تصفح Example Domain واسترجع بيانه الكامل مع رابط المصدر بتنسيق JSON مهيكل.
+  hi: Example Domain ब्राउज़ करें और सोर्स URL के साथ इसका पूरा विवरण स्ट्रक्चर्ड JSON के रूप में लौटाएं।
+  th: เรียกดู Example Domain และส่งคืนข้อความฉบับเต็มพร้อม URL แหล่งที่มาในรูปแบบโครงสร้าง JSON
+  cs: Procházejte Example Domain a vraťte její úplné prohlášení se zdrojovou URL jako strukturovaný JSON.
+  sv: Surfa till Example Domain och returnera dess fullständiga meddelande med en käll-URL som strukturerad JSON.
+  he: גלישה ב-Example Domain והחזרת ההצהרה המלאה שלו יחד עם כתובת URL של המקור כ-JSON מובנה.
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Extract website information as JSON. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use the Web app Browse skill to extract the full visible English statement from [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a). Return JSON with two required fields: purpose, containing the full statement verbatim including its caveats, and source_url, containing the current page URL. This is an extraction task with no additional website interaction requested. Limit the browser session to 40 credits."
+  de: "Verwende die Browse-Funktion der Web-App, um die vollständige sichtbare englische Erklärung von [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a) zu extrahieren. Gib ein JSON mit zwei erforderlichen Feldern zurück: „purpose“ mit der vollständigen Erklärung im Wortlaut einschließlich aller Vorbehalte und „source_url“ mit der aktuellen Seiten-URL. Dies ist eine Extraktionsaufgabe ohne weitere angeforderte Website-Interaktion. Begrenze die Browser-Sitzung auf 40 Credits."
+  zh: "使用 Web 应用的 Browse 技能从 [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a) 中提取完整的可见英文声明。返回包含两个必填字段的 JSON：purpose（逐字包含完整声明及其注意事项）和 source_url（包含当前页面 URL）。这是一项提取任务，不需要额外的网站交互。将浏览器会话限制在 40 个额度内。"
+  es: "Usa la función Browse de la aplicación Web para extraer la declaración completa visible en inglés de [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a). Devuelve un JSON con dos campos obligatorios: purpose, que contenga la declaración completa textualmente incluyendo sus advertencias, y source_url, que contenga la URL de la página actual. Esta es una tarea de extracción sin interacción adicional solicitada con el sitio web. Limita la sesión del navegador a 40 créditos."
+  fr: "Utilisez la compétence de navigation de l'application Web pour extraire l'intégralité de la déclaration visible en anglais de [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a). Renvoyez un objet JSON avec deux champs obligatoires : « purpose », contenant la déclaration complète mot pour mot, y compris ses réserves, et « source_url », contenant l'URL de la page actuelle. Il s'agit d'une tâche d'extraction sans interaction supplémentaire demandée avec le site web. Limitez la session du navigateur à 40 crédits."
+  pt: "Use a skill Browse do app Web para extrair a declaração completa em inglês visível de [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a). Retorne um JSON com dois campos obrigatórios: purpose, contendo a declaração completa na íntegra, incluindo suas ressalvas, e source_url, contendo a URL da página atual. Esta é uma tarefa de extração sem solicitação de interação adicional com o site. Limite a sessão do navegador a 40 créditos."
+  ru: "Используйте навык Browse веб-приложения, чтобы извлечь полное видимое утверждение на английском языке из [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a). Верните JSON с двумя обязательными полями: purpose, содержащее полный текст утверждения дословно, включая примечания, и source_url, содержащее URL текущей страницы. Это задача по извлечению данных, дополнительное взаимодействие с сайтом не требуется. Ограничьте сессию браузера 40 кредитами."
+  ja: "WebアプリのBrowseスキルを使用して、[!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a) から表示されている英文の全文を抽出してください。2つの必須フィールドを持つJSONを返してください：purpose（注意事項を含む全文をそのまま格納）、source_url（現在のページのURLを格納）。これは抽出タスクであり、ウェブサイトとの追加のやり取りは不要です。ブラウザセッションは40クレジットに制限してください。"
+  ko: "웹 앱의 탐색(Browse) 기능을 사용하여 [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a)에서 보이는 전체 영어 문장을 추출하세요. 두 개의 필수 필드를 포함한 JSON을 반환해야 합니다. purpose 필드에는 주의 사항을 포함한 전체 문장을 토씨 하나 틀리지 않고 그대로 담고, source_url 필드에는 현재 페이지 URL을 담으세요. 이 작업은 추출 작업이며 추가적인 웹사이트 상호작용은 필요하지 않습니다. 브라우저 세션은 40크레딧으로 제한하세요."
+  it: "Usa la funzione Naviga dell'app Web per estrarre l'intera dichiarazione visibile in inglese da [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a). Restituisci un JSON con due campi obbligatori: purpose, contenente la dichiarazione completa testuale incluse le avvertenze, e source_url, contenente l'URL della pagina corrente. Questa è un'attività di estrazione senza ulteriori interazioni richieste con il sito web. Limita la sessione del browser a 40 crediti."
+  tr: "[!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a) adresindeki görünür İngilizce ifadenin tamamını çıkarmak için Web uygulaması Göz Atma yeteneğini kullan. İki zorunlu alan içeren bir JSON döndür: uyarıları da dahil olmak üzere ifadenin tamamını kelimesi kelimesine içeren `purpose` ve mevcut sayfa URL'sini içeren `source_url`. Bu bir veri çıkarma görevidir ve ek bir web sitesi etkileşimi istenmemektedir. Tarayıcı oturumunu 40 krediyle sınırla."
+  vi: "Sử dụng kỹ năng Duyệt của ứng dụng Web để trích xuất toàn bộ nội dung tiếng Anh hiển thị từ [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a). Trả về JSON với hai trường bắt buộc: purpose, chứa nguyên văn toàn bộ nội dung bao gồm cả các lưu ý, và source_url, chứa URL của trang hiện tại. Đây là tác vụ trích xuất và không yêu cầu tương tác thêm với trang web. Giới hạn phiên trình duyệt ở mức 40 tín dụng."
+  id: "Gunakan skill Browse aplikasi Web untuk mengekstrak pernyataan bahasa Inggris lengkap yang terlihat dari [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a). Kembalikan JSON dengan dua kolom wajib: purpose, yang berisi pernyataan lengkap kata demi kata termasuk peringatannya, dan source_url, yang berisi URL halaman saat ini. Ini adalah tugas ekstraksi tanpa permintaan interaksi situs web tambahan. Batasi sesi browser hingga 40 kredit."
+  pl: "Użyj umiejętności Przeglądania aplikacji Web, aby wyodrębnić pełne widoczne oświadczenie w języku angielskim z [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a). Zwróć JSON z dwoma wymaganymi polami: purpose, zawierające pełne oświadczenie dosłownie wraz z zastrzeżeniami, oraz source_url, zawierające aktualny adres URL strony. Jest to zadanie wyodrębniania danych bez dodatkowych interakcji ze stroną. Ogranicz sesję przeglądarki do 40 kredytów."
+  nl: "Gebruik de Browse-skill van de Web-app om de volledige zichtbare Engelse verklaring te extraheren uit [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a). Retourneer JSON met twee verplichte velden: purpose, met de volledige verklaring letterlijk inclusief de voorbehouden, en source_url, met de huidige pagina-URL. Dit is een extractietaak waarbij geen aanvullende website-interactie is vereist. Beperk de browsersessie tot 40 credits."
+  ar: "استخدم مهارة التصفح (Browse) في تطبيق الويب لاستخراج البيان الإنجليزي الكامل المرئي من [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a). أعد النتيجة بتنسيق JSON مع حقلين مطلوبين: purpose، ويحتوي على البيان الكامل حرفيًا بما في ذلك التنبيهات الواردة فيه، و source_url، ويحتوي على رابط الصفحة الحالي. هذه مهمة استخراج ولا يُطلب أي تفاعل إضافي مع الموقع. حدد جلسة المتصفح بـ 40 رصيدًا."
+  hi: "[!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a) से पूर्ण दृश्यमान अंग्रेजी विवरण निकालने के लिए वेब ऐप ब्राउज़ स्किल का उपयोग करें। दो आवश्यक फ़ील्ड के साथ JSON लौटाएं: purpose, जिसमें इसकी चेतावनियों सहित पूरा विवरण शब्दशः हो, और source_url, जिसमें वर्तमान पेज का URL हो। यह एक निष्कर्षण कार्य है जिसमें किसी अतिरिक्त वेबसाइट इंटरैक्शन का अनुरोध नहीं किया गया है। ब्राउज़र सत्र को 40 क्रेडिट तक सीमित रखें।"
+  th: "ใช้ทักษะ Browse ของเว็บแอปเพื่อดึงข้อความภาษาอังกฤษฉบับเต็มที่ปรากฏจาก [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a) ส่งคืน JSON ที่มีฟิลด์ที่จำเป็นสองฟิลด์ ได้แก่ purpose ซึ่งประกอบด้วยข้อความฉบับเต็มตามตัวอักษรรวมถึงข้อควรระวัง และ source_url ซึ่งประกอบด้วย URL ของหน้าปัจจุบัน นี่คืองานดึงข้อมูลโดยไม่มีการร้องขอให้โต้ตอบกับเว็บไซต์เพิ่มเติม จำกัดเซสชันเบราว์เซอร์ไว้ที่ 40 เครดิต"
+  cs: "Použijte dovednost Procházení webové aplikace k extrakci úplného viditelného anglického prohlášení z [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a). Vraťte JSON se dvěma povinnými poli: purpose, obsahující doslovné úplné prohlášení včetně jeho výhrad, a source_url, obsahující URL aktuální stránky. Jedná se o úkol extrakce bez požadavku na další interakci s webem. Omezte relaci prohlížeče na 40 kreditů."
+  sv: "Använd webbappens Browse-färdighet för att extrahera hela det synliga engelska meddelandet från [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a). Returnera JSON med två obligatoriska fält: purpose, som innehåller hela meddelandet ordagrant inklusive dess förbehåll, och source_url, som innehåller den aktuella sidans webbadress. Detta är en extraheringsuppgift utan krav på ytterligare interaktion med webbplatsen. Begränsa webbläsarsessionen till 40 krediter."
+  he: "השתמש במיומנות ה-Browse של אפליקציית ה-Web כדי לחלץ את ההצהרה המלאה באנגלית הגלויה לעין מתוך [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a). החזר JSON עם שני שדות חובה: purpose, המכיל את ההצהרה המלאה מילה במילה כולל הסייגים שלה, ו-source_url, המכיל את כתובת ה-URL הנוכחית של הדף. זוהי משימת חילוץ ללא בקשה לאינטראקציה נוספת עם האתר. הגבל את סשן הדפדפן ל-40 קרדיטים."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Extract website information as JSON. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |2-
+    ```json
+    {"type":"app_skill_use","embed_id":"bac3644b-0f9c-48cd-bad9-22d265d938a1","app_id":"web","skill_id":"browse"}
+    ```
+
+    The extraction is complete. Here is the result:
+
+    ```json
+    {"type": "code", "embed_id": "88b9349a-9529-4835-a507-f54e5f24a30f"}
+    ```
+
+    The page is the standard Example Domain placeholder, and the statement above is its full visible English text, including the caveat that it is not a service and should not be relied on for testing or monitoring.
+  de: |
+    ```json
+    {"type":"app_skill_use","embed_id":"bac3644b-0f9c-48cd-bad9-22d265d938a1","app_id":"web","skill_id":"browse"}
+    ```
+    
+    Die Extraktion ist abgeschlossen. Hier ist das Ergebnis:
+    
+    ```json
+    {"type": "code", "embed_id": "88b9349a-9529-4835-a507-f54e5f24a30f"}
+    ```
+    
+    Die Seite ist der Standard-Platzhalter für Example Domain, und die obige Erklärung ist der vollständige sichtbare englische Text, einschließlich des Hinweises, dass es sich nicht um einen Dienst handelt und man sich für Tests oder Monitoring nicht darauf verlassen sollte.
+  zh: |
+    ```json
+    {"type":"app_skill_use","embed_id":"bac3644b-0f9c-48cd-bad9-22d265d938a1","app_id":"web","skill_id":"browse"}
+    ```
+    
+    提取已完成。结果如下：
+    
+    ```json
+    {"type": "code", "embed_id": "88b9349a-9529-4835-a507-f54e5f24a30f"}
+    ```
+    
+    该页面是标准的 Example Domain 占位符，上述声明是其完整的可见英文文本，包括关于它不是一项服务且不应依赖其进行测试或监控的注意事项。
+  es: |
+    ```json
+    {"type":"app_skill_use","embed_id":"bac3644b-0f9c-48cd-bad9-22d265d938a1","app_id":"web","skill_id":"browse"}
+    ```
+    
+    La extracción se ha completado. Aquí está el resultado:
+    
+    ```json
+    {"type": "code", "embed_id": "88b9349a-9529-4835-a507-f54e5f24a30f"}
+    ```
+    
+    La página es el marcador de posición estándar de Example Domain, y la declaración anterior es su texto completo visible en inglés, incluyendo la advertencia de que no es un servicio y no se debe confiar en él para pruebas o monitoreo.
+  fr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"bac3644b-0f9c-48cd-bad9-22d265d938a1","app_id":"web","skill_id":"browse"}
+    ```
+    
+    L'extraction est terminée. Voici le résultat :
+    
+    ```json
+    {"type": "code", "embed_id": "88b9349a-9529-4835-a507-f54e5f24a30f"}
+    ```
+    
+    La page est l'espace réservé standard d'Example Domain, et la déclaration ci-dessus est son texte intégral visible en anglais, y compris la réserve précisant qu'il ne s'agit pas d'un service et qu'il ne doit pas être utilisé pour des tests ou de la surveillance.
+  pt: |
+    ```json
+    {"type":"app_skill_use","embed_id":"bac3644b-0f9c-48cd-bad9-22d265d938a1","app_id":"web","skill_id":"browse"}
+    ```
+    
+    A extração foi concluída. Aqui está o resultado:
+    
+    ```json
+    {"type": "code", "embed_id": "88b9349a-9529-4835-a507-f54e5f24a30f"}
+    ```
+    
+    A página é o marcador de posição padrão do Example Domain, e a declaração acima é o seu texto completo em inglês visível, incluindo a ressalva de que não é um serviço e não deve ser usado para testes ou monitoramento.
+  ru: |
+    ```json
+    {"type":"app_skill_use","embed_id":"bac3644b-0f9c-48cd-bad9-22d265d938a1","app_id":"web","skill_id":"browse"}
+    ```
+    
+    Извлечение завершено. Вот результат:
+    
+    ```json
+    {"type": "code", "embed_id": "88b9349a-9529-4835-a507-f54e5f24a30f"}
+    ```
+    
+    Эта страница является стандартной заглушкой Example Domain, а приведенный выше текст — это ее полное видимое содержимое на английском языке, включая примечание о том, что она не является сервисом и на нее не следует полагаться при тестировании или мониторинге.
+  ja: |
+    ```json
+    {"type":"app_skill_use","embed_id":"bac3644b-0f9c-48cd-bad9-22d265d938a1","app_id":"web","skill_id":"browse"}
+    ```
+    
+    抽出が完了しました。結果は以下の通りです：
+    
+    ```json
+    {"type": "code", "embed_id": "88b9349a-9529-4835-a507-f54e5f24a30f"}
+    ```
+    
+    このページは標準的なExample Domainのプレースホルダーであり、上記の記述は、これがサービスではなく、テストやモニタリングに依存すべきではないという注意事項を含む、表示されている英文の全文です。
+  ko: |
+    ```json
+    {"type":"app_skill_use","embed_id":"bac3644b-0f9c-48cd-bad9-22d265d938a1","app_id":"web","skill_id":"browse"}
+    ```
+    
+    추출이 완료되었습니다. 결과는 다음과 같습니다.
+    
+    ```json
+    {"type": "code", "embed_id": "88b9349a-9529-4835-a507-f54e5f24a30f"}
+    ```
+    
+    해당 페이지는 표준 Example Domain 플레이스홀더이며, 위의 문장은 서비스가 아니므로 테스트나 모니터링 용도로 의존해서는 안 된다는 주의 사항을 포함하여 페이지에 보이는 전체 영어 텍스트입니다.
+  it: |
+    ```json
+    {"type":"app_skill_use","embed_id":"bac3644b-0f9c-48cd-bad9-22d265d938a1","app_id":"web","skill_id":"browse"}
+    ```
+    
+    L'estrazione è completa. Ecco il risultato:
+    
+    ```json
+    {"type": "code", "embed_id": "88b9349a-9529-4835-a507-f54e5f24a30f"}
+    ```
+    
+    La pagina è il segnaposto standard di Example Domain e la dichiarazione sopra riportata è il suo testo completo visibile in inglese, inclusa l'avvertenza che non si tratta di un servizio e che non deve essere utilizzato per test o monitoraggio.
+  tr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"bac3644b-0f9c-48cd-bad9-22d265d938a1","app_id":"web","skill_id":"browse"}
+    ```
+    
+    Veri çıkarma işlemi tamamlandı. İşte sonuç:
+    
+    ```json
+    {"type": "code", "embed_id": "88b9349a-9529-4835-a507-f54e5f24a30f"}
+    ```
+    
+    Sayfa, standart Example Domain yer tutucusudur ve yukarıdaki ifade, bir hizmet olmadığı ve test veya izleme için güvenilmemesi gerektiği uyarısı da dahil olmak üzere, görünür İngilizce metnin tamamıdır.
+  vi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"bac3644b-0f9c-48cd-bad9-22d265d938a1","app_id":"web","skill_id":"browse"}
+    ```
+    
+    Quá trình trích xuất đã hoàn tất. Đây là kết quả:
+    
+    ```json
+    {"type": "code", "embed_id": "88b9349a-9529-4835-a507-f54e5f24a30f"}
+    ```
+    
+    Trang này là nội dung giữ chỗ tiêu chuẩn của Example Domain và nội dung ở trên là toàn bộ văn bản tiếng Anh hiển thị của trang, bao gồm cả lưu ý rằng đây không phải là một dịch vụ và không nên dựa vào đó để thử nghiệm hoặc giám sát.
+  id: |
+    ```json
+    {"type":"app_skill_use","embed_id":"bac3644b-0f9c-48cd-bad9-22d265d938a1","app_id":"web","skill_id":"browse"}
+    ```
+    
+    Ekstraksi selesai. Berikut hasilnya:
+    
+    ```json
+    {"type": "code", "embed_id": "88b9349a-9529-4835-a507-f54e5f24a30f"}
+    ```
+    
+    Halaman tersebut adalah placeholder standar Example Domain, dan pernyataan di atas adalah teks bahasa Inggris lengkap yang terlihat, termasuk peringatan bahwa ini bukan layanan dan tidak boleh diandalkan untuk pengujian atau pemantauan.
+  pl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"bac3644b-0f9c-48cd-bad9-22d265d938a1","app_id":"web","skill_id":"browse"}
+    ```
+    
+    Wyodrębnianie zakończone. Oto wynik:
+    
+    ```json
+    {"type": "code", "embed_id": "88b9349a-9529-4835-a507-f54e5f24a30f"}
+    ```
+    
+    Strona jest standardowym symbolem zastępczym Example Domain, a powyższe oświadczenie to jej pełny widoczny tekst w języku angielskim, w tym zastrzeżenie, że nie jest to usługa i nie należy na niej polegać w celach testowych ani monitorowania.
+  nl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"bac3644b-0f9c-48cd-bad9-22d265d938a1","app_id":"web","skill_id":"browse"}
+    ```
+    
+    De extractie is voltooid. Hier is het resultaat:
+    
+    ```json
+    {"type": "code", "embed_id": "88b9349a-9529-4835-a507-f54e5f24a30f"}
+    ```
+    
+    De pagina is de standaard Example Domain-placeholder, en de bovenstaande verklaring is de volledige zichtbare Engelse tekst, inclusief het voorbehoud dat het geen service is en dat er niet op mag worden vertrouwd voor testen of monitoring.
+  ar: |
+    ```json
+    {"type":"app_skill_use","embed_id":"bac3644b-0f9c-48cd-bad9-22d265d938a1","app_id":"web","skill_id":"browse"}
+    ```
+    
+    اكتملت عملية الاستخراج. إليك النتيجة:
+    
+    ```json
+    {"type": "code", "embed_id": "88b9349a-9529-4835-a507-f54e5f24a30f"}
+    ```
+    
+    الصفحة هي الصفحة البديلة القياسية لـ Example Domain، والبيان أعلاه هو نصها الإنجليزي الكامل المرئي، بما في ذلك التنبيه بأنه ليس خدمة ولا ينبغي الاعتماد عليه للاختبار أو المراقبة.
+  hi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"bac3644b-0f9c-48cd-bad9-22d265d938a1","app_id":"web","skill_id":"browse"}
+    ```
+    
+    निष्कर्षण पूरा हो गया है। यहाँ परिणाम है:
+    
+    ```json
+    {"type": "code", "embed_id": "88b9349a-9529-4835-a507-f54e5f24a30f"}
+    ```
+    
+    पेज मानक Example Domain प्लेसहोल्डर है, और ऊपर दिया गया विवरण इसका पूर्ण दृश्यमान अंग्रेजी टेक्स्ट है, जिसमें यह चेतावनी भी शामिल है कि यह कोई सेवा नहीं है और परीक्षण या निगरानी के लिए इस पर भरोसा नहीं किया जाना चाहिए।
+  th: |
+    ```json
+    {"type":"app_skill_use","embed_id":"bac3644b-0f9c-48cd-bad9-22d265d938a1","app_id":"web","skill_id":"browse"}
+    ```
+    
+    การดึงข้อมูลเสร็จสมบูรณ์ นี่คือผลลัพธ์:
+    
+    ```json
+    {"type": "code", "embed_id": "88b9349a-9529-4835-a507-f54e5f24a30f"}
+    ```
+    
+    หน้านี้เป็นหน้าตัวอย่างมาตรฐานของ Example Domain และข้อความด้านบนคือข้อความภาษาอังกฤษฉบับเต็มที่ปรากฏ รวมถึงข้อควรระวังที่ระบุว่านี่ไม่ใช่บริการและไม่ควรนำไปใช้ในการทดสอบหรือตรวจสอบความพร้อมใช้งานของระบบ
+  cs: |
+    ```json
+    {"type":"app_skill_use","embed_id":"bac3644b-0f9c-48cd-bad9-22d265d938a1","app_id":"web","skill_id":"browse"}
+    ```
+    
+    Extrakce je dokončena. Zde je výsledek:
+    
+    ```json
+    {"type": "code", "embed_id": "88b9349a-9529-4835-a507-f54e5f24a30f"}
+    ```
+    
+    Stránka je standardní zástupný symbol Example Domain a výše uvedené prohlášení je jeho úplný viditelný anglický text, včetně výhrady, že se nejedná o službu a nemělo by se na ni spoléhat při testování nebo monitorování.
+  sv: |
+    ```json
+    {"type":"app_skill_use","embed_id":"bac3644b-0f9c-48cd-bad9-22d265d938a1","app_id":"web","skill_id":"browse"}
+    ```
+    
+    Extraheringen är klar. Här är resultatet:
+    
+    ```json
+    {"type": "code", "embed_id": "88b9349a-9529-4835-a507-f54e5f24a30f"}
+    ```
+    
+    Sidan är den vanliga platshållaren för Example Domain, och meddelandet ovan är dess fullständiga synliga engelska text, inklusive förbehållet att det inte är en tjänst och inte bör användas för testning eller övervakning.
+  he: |
+    ```json
+    {"type":"app_skill_use","embed_id":"bac3644b-0f9c-48cd-bad9-22d265d938a1","app_id":"web","skill_id":"browse"}
+    ```
+    
+    החילוץ הושלם. להלן התוצאה:
+    
+    ```json
+    {"type": "code", "embed_id": "88b9349a-9529-4835-a507-f54e5f24a30f"}
+    ```
+    
+    הדף הוא ה-placeholder הסטנדרטי של Example Domain, וההצהרה לעיל היא הטקסט המלא באנגלית הגלוי לעין, כולל הסייג שזהו אינו שירות ואין להסתמך עליו לצורכי בדיקה או ניטור.
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Search for additional placeholder domains and standard templates"
+  de: Nach weiteren Platzhalter-Domains und Standardvorlagen suchen
+  zh: 搜索其他占位符域名和标准模板
+  es: Buscar dominios de marcador de posición adicionales y plantillas estándar
+  fr: "Rechercher d'autres domaines d'exemple et modèles standard"
+  pt: Pesquisar domínios de marcador de posição adicionais e modelos padrão
+  ru: Найти другие домены-заполнители и стандартные шаблоны
+  ja: 追加のプレースホルダー用ドメインや標準テンプレートを検索する
+  ko: 추가적인 플레이스홀더 도메인 및 표준 템플릿 검색
+  it: Cerca altri domini segnaposto e modelli standard
+  tr: Ek yer tutucu alan adlarını ve standart şablonları ara
+  vi: Tìm kiếm thêm các miền giữ chỗ và mẫu chuẩn khác
+  id: Cari domain placeholder tambahan dan templat standar
+  pl: Wyszukaj dodatkowe domeny zastępcze i standardowe szablony
+  nl: Zoek naar extra placeholder-domeinen en standaardtemplates
+  ar: البحث عن نطاقات بديلة إضافية وقوالب قياسية
+  hi: अतिरिक्त प्लेसहोल्डर डोमेन और मानक टेम्पलेट खोजें
+  th: ค้นหาโดเมนตัวอย่างเพิ่มเติมและเทมเพลตมาตรฐาน
+  cs: Vyhledat další zástupné domény a standardní šablony
+  sv: Sök efter ytterligare platshållardomäner och standardmallar
+  he: חיפוש דומיינים נוספים המשמשים כ-placeholder ותבניות סטנדרטיות
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Explain how Example Domain is typically used for documentation"
+  de: Erklären, wie Example Domain typischerweise für Dokumentationen verwendet wird
+  zh: 解释 Example Domain 通常如何用于文档编写
+  es: Explicar cómo se utiliza habitualmente Example Domain para documentación
+  fr: Expliquer comment Example Domain est généralement utilisé pour la documentation
+  pt: Explicar como o Example Domain é normalmente usado para documentação
+  ru: Объяснить, как Example Domain обычно используется в документации
+  ja: Example Domainがドキュメントで一般的にどのように使用されるか説明する
+  ko: Example Domain이 문서화에 일반적으로 어떻게 사용되는지 설명
+  it: Spiega come viene solitamente utilizzato Example Domain per la documentazione
+  tr: "Example Domain'in dokümantasyon için genellikle nasıl kullanıldığını açıkla"
+  vi: Giải thích cách Example Domain thường được dùng cho tài liệu hướng dẫn
+  id: Jelaskan bagaimana Example Domain biasanya digunakan untuk dokumentasi
+  pl: Wyjaśnij, jak domena Example Domain jest zazwyczaj używana w dokumentacji
+  nl: Leg uit hoe Example Domain doorgaans wordt gebruikt voor documentatie
+  ar: شرح كيفية استخدام Example Domain عادةً في التوثيق
+  hi: बताएं कि दस्तावेज़ीकरण के लिए आमतौर पर Example Domain का उपयोग कैसे किया जाता है
+  th: อธิบายว่าโดยปกติแล้ว Example Domain ถูกนำไปใช้ในเอกสารประกอบอย่างไร
+  cs: Vysvětlit, jak se Example Domain obvykle používá v dokumentaci
+  sv: Förklara hur Example Domain vanligtvis används för dokumentation
+  he: הסבר כיצד נעשה שימוש ב-Example Domain בדרך כלל לצורכי תיעוד
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Browse another website URL for its text content"
+  de: Eine andere Website-URL nach Textinhalten durchsuchen
+  zh: 浏览另一个网站 URL 以获取其文本内容
+  es: Navegar por otra URL de sitio web para obtener su contenido de texto
+  fr: Parcourir une autre URL de site web pour son contenu textuel
+  pt: Navegar em outra URL de site para obter seu conteúdo de texto
+  ru: Извлечь текстовое содержимое с другого URL-адреса
+  ja: 別のウェブサイトのURLを閲覧してテキストコンテンツを取得する
+  ko: 다른 웹사이트 URL을 탐색하여 텍스트 콘텐츠 확인
+  it: Naviga in un altro URL di un sito web per leggerne il contenuto testuale
+  tr: "Metin içeriği için başka bir web sitesi URL'sine göz at"
+  vi: Duyệt một URL trang web khác để lấy nội dung văn bản
+  id: Jelajahi URL situs web lain untuk konten teksnya
+  pl: Przejdź pod inny adres URL, aby pobrać jego treść tekstową
+  nl: Browse naar een andere website-URL voor de tekstinhoud ervan
+  ar: تصفح رابط موقع إلكتروني آخر لاستخراج محتواه النصي
+  hi: किसी अन्य वेबसाइट URL की टेक्स्ट सामग्री ब्राउज़ करें
+  th: เรียกดู URL เว็บไซต์อื่นเพื่อดูเนื้อหาที่เป็นข้อความ
+  cs: Procházet jinou URL adresu webu pro získání textového obsahu
+  sv: Surfa till en annan webbadress för dess textinnehåll
+  he: גלישה בכתובת אתר אחרת כדי לחלץ את תוכן הטקסט שלה
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "List common placeholder text conventions in web development"
+  de: Gängige Platzhaltertext-Konventionen in der Webentwicklung auflisten
+  zh: 列出 Web 开发中常见的占位文本惯例
+  es: Listar convenciones comunes de texto de marcador de posición en desarrollo web
+  fr: Lister les conventions de texte de remplissage courantes en développement web
+  pt: Listar convenções comuns de texto de marcador de posição no desenvolvimento web
+  ru: Перечислить распространенные соглашения о текстах-заполнителях в веб-разработке
+  ja: ウェブ開発における一般的なプレースホルダーテキストの慣習をリストアップする
+  ko: 웹 개발에서 흔히 쓰이는 플레이스홀더 텍스트 관례 목록화
+  it: Elenca le convenzioni comuni per i testi segnaposto nello sviluppo web
+  tr: Web geliştirmedeki yaygın yer tutucu metin kurallarını listele
+  vi: Liệt kê các quy ước văn bản giữ chỗ phổ biến trong phát triển web
+  id: Daftar konvensi teks placeholder umum dalam pengembangan web
+  pl: Wymień typowe konwencje tekstów zastępczych w tworzeniu stron WWW
+  nl: Lijst met veelvoorkomende placeholder-tekstconventies in webontwikkeling
+  ar: قائمة باتفاقيات النصوص البديلة الشائعة في تطوير الويب
+  hi: वेब डेवलपमेंट में सामान्य प्लेसहोल्डर टेक्स्ट परंपराओं को सूचीबद्ध करें
+  th: รายการข้อความตัวอย่าง (placeholder text) ที่นิยมใช้ในการพัฒนาเว็บ
+  cs: Seznam běžných konvencí pro zástupný text ve vývoji webu
+  sv: Lista vanliga konventioner för platshållartext inom webbutveckling
+  he: רשימת מוסכמות נפוצות לטקסט placeholder בפיתוח אתרים
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Read public HTTPS pages directly from a provided URL"
+  de: Öffentliche HTTPS-Seiten direkt von einer bereitgestellten URL lesen
+  zh: 直接从提供的 URL 读取公开的 HTTPS 页面
+  es: Leer páginas HTTPS públicas directamente desde una URL proporcionada
+  fr: "Lire des pages HTTPS publiques directement à partir d'une URL fournie"
+  pt: Ler páginas HTTPS públicas diretamente de uma URL fornecida
+  ru: Прочитать публичные HTTPS-страницы напрямую по указанному URL
+  ja: 提供されたURLから公開HTTPSページを直接読み込む
+  ko: 제공된 URL에서 공개 HTTPS 페이지를 직접 읽기
+  it: Leggi le pagine HTTPS pubbliche direttamente da un URL fornito
+  tr: "Sağlanan bir URL'den herkese açık HTTPS sayfalarını doğrudan oku"
+  vi: Đọc trực tiếp các trang HTTPS công khai từ một URL được cung cấp
+  id: Baca halaman HTTPS publik secara langsung dari URL yang diberikan
+  pl: Czytaj publiczne strony HTTPS bezpośrednio z podanego adresu URL
+  nl: "Lees openbare HTTPS-pagina's rechtstreeks vanaf een opgegeven URL"
+  ar: قراءة صفحات HTTPS العامة مباشرة من رابط مقدم
+  hi: दिए गए URL से सीधे सार्वजनिक HTTPS पेज पढ़ें
+  th: อ่านหน้า HTTPS สาธารณะโดยตรงจาก URL ที่ระบุ
+  cs: Číst veřejné HTTPS stránky přímo z poskytnuté URL adresy
+  sv: Läs offentliga HTTPS-sidor direkt från en angiven webbadress
+  he: קריאת דפי HTTPS ציבוריים ישירות מכתובת אתר שסופקה
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Compare Example Domain with other reserved test domains"
+  de: Example Domain mit anderen reservierten Test-Domains vergleichen
+  zh: 将 Example Domain 与其他保留的测试域名进行比较
+  es: Comparar Example Domain con otros dominios de prueba reservados
+  fr: "Comparer Example Domain avec d'autres domaines de test réservés"
+  pt: Comparar o Example Domain com outros domínios de teste reservados
+  ru: Сравнить Example Domain с другими зарезервированными тестовыми доменами
+  ja: Example Domainを他の予約済みテストドメインと比較する
+  ko: Example Domain을 다른 예약된 테스트 도메인과 비교
+  it: Confronta Example Domain con altri domini di test riservati
+  tr: "Example Domain'i diğer ayrılmış test alan adlarıyla karşılaştır"
+  vi: So sánh Example Domain với các miền thử nghiệm được bảo lưu khác
+  id: Bandingkan Example Domain dengan domain pengujian cadangan lainnya
+  pl: Porównaj Example Domain z innymi zarezerwowanymi domenami testowymi
+  nl: Vergelijk Example Domain met andere gereserveerde testdomeinen
+  ar: مقارنة Example Domain بنطاقات الاختبار المحجوزة الأخرى
+  hi: अन्य आरक्षित टेस्ट डोमेन के साथ Example Domain की तुलना करें
+  th: เปรียบเทียบ Example Domain กับโดเมนทดสอบที่สงวนไว้อื่นๆ
+  cs: Porovnat Example Domain s jinými vyhrazenými testovacími doménami
+  sv: Jämför Example Domain med andra reserverade testdomäner
+  he: השוואה בין Example Domain לדומיינים שמורים אחרים לבדיקות
+  verified_by_human: []
+

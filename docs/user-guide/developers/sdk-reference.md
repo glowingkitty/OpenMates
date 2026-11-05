@@ -160,6 +160,7 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.embeds.share()` | `om.embeds.share()` | `id, expires, password` | `id, expires, password` | `object` |
 | `om.embeds.show()` | `om.embeds.show()` | `id` | `id` | `object` |
 | `om.embeds.version()` | `om.embeds.version()` | `id, version` | `id, version` | `object` |
+| `om.embeds.versionContent()` | `om.embeds.version_content()` | `id, version` | `id, version` | `object` |
 | `om.embeds.versions()` | `om.embeds.versions()` | `id` | `id` | `object` |
 
 ## `feedback`
@@ -280,6 +281,7 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.projects.archive()` | `om.projects.archive()` | `id, context` | `id, personal, team_id` | `object` |
 | `om.projects.ask()` | `om.projects.ask()` | `instruction, create, update, updates, exact_delete, exact_deletes` | `instruction, create, update, updates, exact_delete, exact_deletes` | `object` |
 | `om.projects.create()` | `om.projects.create()` | `name, slug, description, icon, color, pinned, archived, context` | `input, personal, team_id` | `object` |
+| `om.projects.createSource()` | `om.projects.create_source()` | `project, input, context` | `project, input, input` | `object` |
 | `om.projects.delete()` | `om.projects.delete()` | `id, confirmed` | `id, confirmed, personal, team_id` | `object` |
 | `om.projects.history()` | `om.projects.history()` | `id, limit` | `id, limit, personal, team_id` | `list` |
 | `om.projects.list()` | `om.projects.list()` | `include_archived` | `personal, team_id, include_archived` | `list` |
@@ -287,6 +289,8 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.projects.show()` | `om.projects.show()` | `id, context` | `id, personal, team_id` | `object` |
 | `om.projects.unarchive()` | `om.projects.unarchive()` | `id, context` | `id, personal, team_id` | `object` |
 | `om.projects.update()` | `om.projects.update()` | `id, input, context` | `id, input, personal, team_id` | `object` |
+| `om.projects.updateSourceCapabilities()` | `om.projects.update_source_capabilities()` | `project, source, input, context` | `project, source_id, input, input` | `object` |
+| `om.projects.watchTasks()` | `om.projects.watch_tasks()` | `project, source_id, checkpoint, input` | `project, source_id, input, checkpoint` | `object` |
 
 ## `reminders`
 

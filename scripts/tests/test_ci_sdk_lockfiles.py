@@ -58,15 +58,19 @@ class LockPreparationTests(unittest.TestCase):
         for targets in ([], ["sdk-conformance"], ["sdk-lockfiles", "sdk-lockfiles"]):
             with self.assertRaises(lane.sdk.Refused):
                 lane.validate_targets(targets)
-        self.assertTrue(all(command[2] == "update" and command[-2:] == ["-p", "openmates-sdk"] for command in lane.commands()[:3]))
-        self.assertEqual(lane.commands()[-1][2], "generate-lockfile")
-        self.assertTrue(all(command[1] == "+1.98.1" for command in lane.commands()))
+        # Root Cargo workspace: one minimal member refresh of the single lock.
+        self.assertEqual(lane.commands(), [["cargo", "+1.98.1", "update", "--workspace", "--manifest-path", "Cargo.toml"]])
+        self.assertEqual(lane.LOCKS, ("Cargo.lock",))
 
     def test_source_scope_excludes_state_and_configuration(self):
         for name in (".cargo/config.toml", "backend/apps/secrets.json", "packages/openmates-rust/.env",
                      "packages/openmates-rust/target/file.rs", "packages/openmates-rust/state.json"):
             self.assertFalse(lane.owned(name), name)
         self.assertTrue(lane.owned(lane.ROOTS[-1] + "/src/lib.rs"))
+        self.assertTrue(lane.owned("Cargo.toml") and lane.owned("Cargo.lock"))
+        self.assertTrue(lane.owned("packages/third_party/voprf/src/lib.rs"))
+        self.assertFalse(lane.owned("packages/third_party/.hidden"))
+        self.assertFalse(lane.owned(lane.ROOTS[0] + "/Cargo.lock"))
 
     def test_valid_receipt(self):
         self.assertTrue(self.valid(self.fixture()))
@@ -193,8 +197,10 @@ class LockRunTests(unittest.TestCase):
                 (crate / "src").mkdir(parents=True)
                 (crate / "Cargo.toml").write_text('[package]\nname="fixture"\nversion="0.1.0"\n')
                 (crate / "src" / ("main.rs" if root == lane.ROOTS[2] else "lib.rs")).write_text("// fixture\n")
-            for name in (lane.LOCKS if scenario == "refresh" else lane.ORIGINAL_LOCKS):
+            for name in lane.LOCKS:
                 (subject / name).write_bytes(lock)
+            (subject / "Cargo.toml").write_text(
+                "[workspace]\nmembers = [" + ", ".join('"' + root + '"' for root in lane.ROOTS) + "]\n")
             before = {str(path.relative_to(subject)): lane.sdk.sha(path.read_bytes())
                       for path in subject.rglob("*") if path.is_file()}
             source, tree, harness = "a" * 40, "b" * 40, "c" * 40
@@ -397,13 +403,9 @@ class LockGitSourceTests(unittest.TestCase):
         with patch.object(lane.subprocess, "check_output", return_value=listing), patch.object(lane.subprocess, "run", side_effect=run):
             return lane.source_inputs_from_git(Path("/inert-subject"), "a" * 40)
 
-    def test_initial_missing_browser_and_refresh_present_browser_sources_are_accepted(self):
-        for browser_lock in (False, True):
-            inputs = self.inputs(browser_lock)
-            self.assertTrue(all(name in inputs for name in lane.ORIGINAL_LOCKS))
-            self.assertEqual(lane.LOCKS[-1] in inputs, browser_lock)
-            if browser_lock:
-                self.assertEqual(inputs[lane.LOCKS[-1]], lane.sdk.sha(lane.LOCKS[-1].encode()))
+    def test_root_workspace_lock_source_is_required_and_hashed(self):
+        inputs = self.inputs(True)
+        self.assertEqual(inputs["Cargo.lock"], lane.sdk.sha(b"Cargo.lock"))
 
     def test_missing_mandatory_lock_refused_for_both_source_shapes(self):
         for browser_lock in (False, True):

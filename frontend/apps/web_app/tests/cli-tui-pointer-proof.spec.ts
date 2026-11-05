@@ -17,7 +17,7 @@ type ChatFixture={chatId:string;ownerId:string;embedId:string;assistantMessageId
 	chat:Record<string,unknown>;messages:Record<string,unknown>[];messageIds:string[]};
 
 function sdk(apiUrl:string,home:string,cli:string,program:string,input:unknown={}):any {
-	const modulePath=path.join(path.dirname(cli),'index.js');
+	const modulePath=path.join(path.dirname(cli),'cli-internal-client.js');
 	const source=`
 		const {pathToFileURL}=require('node:url');
 		const {randomUUID,randomBytes,createHash,webcrypto}=require('node:crypto');
@@ -145,7 +145,7 @@ function seedEmbedAndCache(apiUrl:string,home:string,cli:string,fixture:ChatFixt
 
 function seedWorkspaceCache(apiUrl:string,home:string,cli:string,workspace:{projectId:string;taskId:string;
 	workflowId:string;projectName:string;taskTitle:string;workflowTitle:string;workflowDetail:unknown}):void {
-	const dist=path.join(path.dirname(cli),'index.js');
+	const dist=path.join(path.dirname(cli),'cli-internal-client.js');
 	const sourceDir=path.join(ROOT,'frontend/packages/openmates-cli/src');
 	const loader=path.join(ROOT,'frontend/packages/openmates-cli/tests/loader.mjs');
 	const script=`
@@ -204,7 +204,7 @@ function seedWorkspaceCache(apiUrl:string,home:string,cli:string,workspace:{proj
 
 function installAdapter(home:string,cli:string,chatId:string):{captureFile:string;restore:()=>void} {
 	const adapterPath=path.join(home,'pointer-adapter.mjs'),captureFile=path.join(home,'pointer-sent.jsonl');
-	const modulePath=path.join(path.dirname(cli),'index.js');
+	const modulePath=path.join(path.dirname(cli),'cli-internal-client.js');
 	fs.writeFileSync(adapterPath,`
 		import fs from 'node:fs';import {pathToFileURL} from 'node:url';
 		const {OpenMatesClient}=await import(pathToFileURL(${JSON.stringify(modulePath)}).href);

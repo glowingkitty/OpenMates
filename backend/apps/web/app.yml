@@ -557,11 +557,17 @@ skills:
     provider_required: false
     providers: []
     pricing:
-      fixed: 0
+      # Display the current 2-vCPU/4-GiB compute rate. Browse meters actual
+      # resource seconds and model usage itself; generic dispatch has no duration
+      # to bill and must not add a second charge.
+      per_minute: 5.52
     api_config:
       expose_post: false
     sdk_exposed: true
     external_data: true
+    workflow:
+      available: false
+      unavailable_reason: Browse workflow execution and resumable user handoff are not implemented yet.
     exclude_fields_for_llm:
     - screenshot_base64
     - metrics.model_calls

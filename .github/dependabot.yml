@@ -14,11 +14,14 @@ updates:
       timezone: Etc/UTC
     open-pull-requests-limit: 0
     labels: [dependencies, javascript]
+    # Routine release-age policy is 7 days (security-monitoring.release-age.routine).
+    # Major versions keep the longer 30-day cooldown on purpose: they carry
+    # breaking changes and are never urgent security fixes by themselves.
     cooldown: &safe-cooldown
-      default-days: 14
+      default-days: 7
       semver-major-days: 30
-      semver-minor-days: 14
-      semver-patch-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 7
     groups:
       tiptap:
         patterns: ["@tiptap/*", "prosemirror-*"]

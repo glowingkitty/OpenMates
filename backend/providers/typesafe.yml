@@ -21,10 +21,12 @@ models:
         name: "TypeSafe"
         model_id: "jev-1.14.0"
         region: "US"
+        country: "US"
       - id: "openrouter"
         name: "OpenRouter"
         model_id: "typesafe/jev-1.14"
         region: "global"
+        country: "US"
     pricing:
       tokens:
         input:
@@ -54,10 +56,12 @@ models:
         name: "TypeSafe"
         model_id: "jev-1.13.0"
         region: "US"
+        country: "US"
       - id: "openrouter"
         name: "OpenRouter"
         model_id: "typesafe/jev-1.13"
         region: "global"
+        country: "US"
     pricing:
       tokens:
         input:

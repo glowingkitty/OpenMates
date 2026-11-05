@@ -42,11 +42,6 @@ async def _handle_call_lifecycle(
     from backend.core.api.app.routes.handlers.websocket_handlers.call_message_completed_handler import _invalidate_message_caches
     service = ChatRecoveryService(directus_service)
     async with manager.empty_call_cleanup_gate(user_id):
-        if not manager.all_user_connections_support_empty_call_cleanup(user_id):
-            await service.execute("update_call_cleanup_candidate", {
-                "protocol_version": 1, "hashed_user_id": owner_hash,
-                "chat_id": chat_id, "mode": "disqualify",
-            })
         stored = await service.execute("persist_call_lifecycle", {
             "protocol_version": 1, "hashed_user_id": owner_hash, "chat_id": chat_id,
             "message_id": message_id, "encrypted_content": content, "created_at": created_at,

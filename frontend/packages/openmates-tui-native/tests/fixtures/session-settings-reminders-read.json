@@ -1,0 +1,647 @@
+{
+  "version": 1,
+  "capability": "session.settings-reminders-read",
+  "registration": "prerequisite-only-not-public",
+  "request": {
+    "method": "GET",
+    "path": "/v1/settings/reminders",
+    "query": null,
+    "body": null,
+    "team_header": false
+  },
+  "retry": {
+    "only_status": 429,
+    "max_retries": 1,
+    "delay_ms": 61000
+  },
+  "cases": [
+    {
+      "id": "complete-encrypted-raw-response",
+      "session": true,
+      "responses": [
+        {
+          "status": 200,
+          "body": "{\"reminders\": [{\"id\": \"synthetic-reminder\", \"encrypted_title\": \"AAAA==\", \"title\": \"\\u6771\\u4eac \\ud83d\\udc08\", \"status\": \"pending\", \"unknown\": {\"retain\": true}}], \"count\": 19, \"next\": null, \"extension\": [\"keep\", {\"a\": 1}]}",
+          "headers": []
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "requests": 1,
+        "wait_ms": [],
+        "value": {
+          "reminders": [
+            {
+              "id": "synthetic-reminder",
+              "encrypted_title": "AAAA==",
+              "title": "東京 🐈",
+              "status": "pending",
+              "unknown": {
+                "retain": true
+              }
+            }
+          ],
+          "count": 19,
+          "next": null,
+          "extension": [
+            "keep",
+            {
+              "a": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "null",
+      "session": true,
+      "responses": [
+        {
+          "status": 200,
+          "body": "null",
+          "headers": []
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "requests": 1,
+        "wait_ms": [],
+        "value": null
+      }
+    },
+    {
+      "id": "array",
+      "session": true,
+      "responses": [
+        {
+          "status": 200,
+          "body": "[1,\"two\",null]",
+          "headers": []
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "requests": 1,
+        "wait_ms": [],
+        "value": [
+          1,
+          "two",
+          null
+        ]
+      }
+    },
+    {
+      "id": "scalar",
+      "session": true,
+      "responses": [
+        {
+          "status": 200,
+          "body": "17",
+          "headers": []
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "requests": 1,
+        "wait_ms": [],
+        "value": 17
+      }
+    },
+    {
+      "id": "empty-body",
+      "session": true,
+      "responses": [
+        {
+          "status": 200,
+          "body": "",
+          "headers": []
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "requests": 1,
+        "wait_ms": [],
+        "value": {}
+      }
+    },
+    {
+      "id": "malformed-json",
+      "session": true,
+      "responses": [
+        {
+          "status": 200,
+          "body": "{\"private\":",
+          "headers": []
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "requests": 1,
+        "wait_ms": [],
+        "value": {}
+      }
+    },
+    {
+      "id": "html-body",
+      "session": true,
+      "responses": [
+        {
+          "status": 200,
+          "body": "<html>legacy proxy</html>",
+          "headers": []
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "requests": 1,
+        "wait_ms": [],
+        "value": {}
+      }
+    },
+    {
+      "id": "cookie-rotation-malformed-body",
+      "session": true,
+      "responses": [
+        {
+          "status": 200,
+          "body": "{",
+          "headers": [
+            [
+              "Set-Cookie",
+              "auth_refresh_token=rotated; Path=/; HttpOnly"
+            ]
+          ]
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "requests": 1,
+        "wait_ms": [],
+        "value": {}
+      }
+    },
+    {
+      "id": "invalid-cookie-malformed-body",
+      "session": true,
+      "responses": [
+        {
+          "status": 200,
+          "body": "{",
+          "headers": [
+            [
+              "Set-Cookie",
+              "bad.name=unsafe; Path=/"
+            ]
+          ]
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "requests": 1,
+        "wait_ms": [],
+        "error": "Protocol",
+        "http_status": null
+      }
+    },
+    {
+      "id": "oversize-malformed-body",
+      "session": true,
+      "responses": [
+        {
+          "status": 200,
+          "body": "{",
+          "headers": [
+            [
+              "Content-Length",
+              "16777217"
+            ]
+          ]
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "requests": 1,
+        "wait_ms": [],
+        "error": "Protocol",
+        "http_status": null
+      }
+    },
+    {
+      "id": "owner-denial",
+      "session": true,
+      "responses": [
+        {
+          "status": 403,
+          "body": "{\"detail\":{\"error\":\"session_principal_mismatch\"}}",
+          "headers": []
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "requests": 1,
+        "wait_ms": [],
+        "error": "Expired",
+        "http_status": null
+      }
+    },
+    {
+      "id": "forbidden-malformed-body",
+      "session": true,
+      "responses": [
+        {
+          "status": 403,
+          "body": "{",
+          "headers": []
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "requests": 1,
+        "wait_ms": [],
+        "error": "Forbidden",
+        "http_status": 403
+      }
+    },
+    {
+      "id": "expired-malformed-body",
+      "session": true,
+      "responses": [
+        {
+          "status": 401,
+          "body": "{",
+          "headers": []
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "requests": 1,
+        "wait_ms": [],
+        "error": "Expired",
+        "http_status": 401
+      }
+    },
+    {
+      "id": "server-error-malformed-body",
+      "session": true,
+      "responses": [
+        {
+          "status": 500,
+          "body": "{",
+          "headers": []
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "requests": 1,
+        "wait_ms": [],
+        "error": "Offline",
+        "http_status": 500
+      }
+    },
+    {
+      "id": "no-session",
+      "session": false,
+      "responses": [],
+      "expected": {
+        "ok": false,
+        "requests": 0,
+        "wait_ms": [],
+        "error": "Authentication",
+        "http_status": null
+      }
+    },
+    {
+      "id": "one-429-retry-cookie-preserved",
+      "session": true,
+      "responses": [
+        {
+          "status": 429,
+          "body": "{",
+          "headers": [
+            [
+              "Set-Cookie",
+              "auth_refresh_token=rotated; Path=/"
+            ]
+          ]
+        },
+        {
+          "status": 200,
+          "body": "{\"reminders\": [{\"id\": \"synthetic-reminder\", \"encrypted_title\": \"AAAA==\", \"title\": \"\\u6771\\u4eac \\ud83d\\udc08\", \"status\": \"pending\", \"unknown\": {\"retain\": true}}], \"count\": 19, \"next\": null, \"extension\": [\"keep\", {\"a\": 1}]}",
+          "headers": []
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "requests": 2,
+        "wait_ms": [
+          61000
+        ],
+        "value": {
+          "reminders": [
+            {
+              "id": "synthetic-reminder",
+              "encrypted_title": "AAAA==",
+              "title": "東京 🐈",
+              "status": "pending",
+              "unknown": {
+                "retain": true
+              }
+            }
+          ],
+          "count": 19,
+          "next": null,
+          "extension": [
+            "keep",
+            {
+              "a": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "second-429-no-third-retry",
+      "session": true,
+      "responses": [
+        {
+          "status": 429,
+          "body": "{",
+          "headers": []
+        },
+        {
+          "status": 429,
+          "body": "{",
+          "headers": []
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "requests": 2,
+        "wait_ms": [
+          61000
+        ],
+        "error": "Offline",
+        "http_status": 429
+      }
+    },
+    {
+      "id": "429-cookie-failure-no-retry",
+      "session": true,
+      "responses": [
+        {
+          "status": 429,
+          "body": "{",
+          "headers": [
+            [
+              "Set-Cookie",
+              "bad.name=unsafe"
+            ]
+          ]
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "requests": 1,
+        "wait_ms": [],
+        "error": "Protocol",
+        "http_status": null
+      }
+    },
+    {
+      "id": "429-body-limit-no-retry",
+      "session": true,
+      "responses": [
+        {
+          "status": 429,
+          "body": "{",
+          "headers": [
+            [
+              "Content-Length",
+              "16777217"
+            ]
+          ]
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "requests": 1,
+        "wait_ms": [],
+        "error": "Protocol",
+        "http_status": null
+      }
+    },
+    {
+      "id": "redirect-malformed-body",
+      "session": true,
+      "responses": [
+        {
+          "status": 302,
+          "body": "{",
+          "headers": [
+            [
+              "Location",
+              "https://never-contact.example.invalid/"
+            ]
+          ]
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "requests": 1,
+        "wait_ms": [],
+        "error": "Forbidden",
+        "http_status": null
+      }
+    },
+    {
+      "id": "truncate-body",
+      "action": "truncate_body",
+      "session": true,
+      "responses": [
+        {
+          "status": 200,
+          "body": "{",
+          "headers": [
+            [
+              "Content-Length",
+              "100"
+            ]
+          ]
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "requests": 1,
+        "wait_ms": [],
+        "error": "Offline",
+        "http_status": null
+      }
+    },
+    {
+      "id": "cancel-body",
+      "action": "cancel_body",
+      "session": true,
+      "responses": [
+        {
+          "status": 200,
+          "body": "{",
+          "headers": [
+            [
+              "Set-Cookie",
+              "auth_refresh_token=rotated; Path=/"
+            ]
+          ]
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "requests": 1,
+        "wait_ms": [],
+        "error": "Cancelled",
+        "http_status": null
+      }
+    },
+    {
+      "id": "cancel-retry",
+      "action": "cancel_retry",
+      "session": true,
+      "responses": [
+        {
+          "status": 429,
+          "body": "{",
+          "headers": []
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "requests": 1,
+        "wait_ms": [],
+        "error": "Cancelled",
+        "http_status": null
+      }
+    },
+    {
+      "id": "root-insertion-order",
+      "session": true,
+      "responses": [
+        {
+          "status": 200,
+          "body": "{\"z\":1,\"a\":2}",
+          "headers": []
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "requests": 1,
+        "wait_ms": [],
+        "value": {
+          "z": 1,
+          "a": 2
+        },
+        "root_keys": [
+          "z",
+          "a"
+        ],
+        "serialized_json": "{\"z\":1,\"a\":2}"
+      }
+    },
+    {
+      "id": "root-js-index-order",
+      "session": true,
+      "responses": [
+        {
+          "status": 200,
+          "body": "{\"10\":\"ten\",\"2\":\"two\",\"01\":\"leading\",\"z\":1,\"a\":2,\"4294967295\":\"not-index\"}",
+          "headers": []
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "requests": 1,
+        "wait_ms": [],
+        "value": {
+          "10": "ten",
+          "2": "two",
+          "01": "leading",
+          "z": 1,
+          "a": 2,
+          "4294967295": "not-index"
+        },
+        "root_keys": [
+          "2",
+          "10",
+          "01",
+          "z",
+          "a",
+          "4294967295"
+        ],
+        "serialized_json": "{\"2\":\"two\",\"10\":\"ten\",\"01\":\"leading\",\"z\":1,\"a\":2,\"4294967295\":\"not-index\"}"
+      }
+    },
+    {
+      "id": "root-duplicate-escaped-order",
+      "session": true,
+      "responses": [
+        {
+          "status": 200,
+          "body": "{\"z\":1,\"\\u0061\":2,\"z\":3,\"é\":4}",
+          "headers": []
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "requests": 1,
+        "wait_ms": [],
+        "value": {
+          "z": 3,
+          "a": 2,
+          "é": 4
+        },
+        "root_keys": [
+          "z",
+          "a",
+          "é"
+        ],
+        "serialized_json": "{\"z\":3,\"a\":2,\"é\":4}"
+      }
+    },
+    {
+      "id": "valid-depth129-refuses",
+      "session": true,
+      "responses": [
+        {
+          "status": 200,
+          "body": "{\"extension\":[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[0]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]}",
+          "headers": []
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "requests": 1,
+        "wait_ms": [],
+        "error": "Unavailable",
+        "http_status": null,
+        "message": "The settings response exceeds the supported JSON limits or representation."
+      }
+    },
+    {
+      "id": "valid-numeric-range-refuses",
+      "session": true,
+      "responses": [
+        {
+          "status": 200,
+          "body": "1e400",
+          "headers": []
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "requests": 1,
+        "wait_ms": [],
+        "error": "Unavailable",
+        "http_status": null,
+        "message": "The settings response exceeds the supported JSON limits or representation."
+      }
+    }
+  ]
+}

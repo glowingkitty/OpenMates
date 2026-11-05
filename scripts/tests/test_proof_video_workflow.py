@@ -52,7 +52,7 @@ def test_resolve_current_context_matches_session_commit_and_passing_spec() -> No
     sessions = {
         "sessions": {
             "abcd": {
-                "codex_task_id": "ses_current",
+                "agent_task_id": "ses_current",
                 "mode": "feature",
             }
         }
@@ -76,7 +76,7 @@ def test_resolve_current_context_matches_session_commit_and_passing_spec() -> No
 
     context = workflow.resolve_current_context(
         sessions,
-        codex_task_id="ses_current",
+        agent_task_id="ses_current",
         subject_commit=commit,
         spec_name="example.spec.ts",
         test_runs=runs,
@@ -132,7 +132,7 @@ def test_proof_sources_use_shared_control_plane_results() -> None:
     assert workflow.PROOF_SOURCE_DIR == workflow.CONTROL_PLANE_ROOT / "test-results" / "proof-video-sources"
 
 
-@pytest.mark.parametrize("provider", ["codex", "explicit"])
+@pytest.mark.parametrize("provider", ["claude", "codex", "explicit"])
 def test_start_current_uses_deployed_session_commit_from_linked_worktree(
     provider: str,
     tmp_path: Path,
@@ -148,7 +148,7 @@ def test_start_current_uses_deployed_session_commit_from_linked_worktree(
             {
                 "sessions": {
                     "abcd": {
-                        "codex_task_id": "ses_current",
+                        "agent_task_id": "ses_current",
                         "worktree": {"merged_commit": deployed_commit},
                     }
                 }
@@ -170,9 +170,12 @@ def test_start_current_uses_deployed_session_commit_from_linked_worktree(
         ),
         encoding="utf-8",
     )
-    for variable in ("CODEX_THREAD_ID", "CODEX_SESSION_ID"):
+    for variable in ("CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID", "CODEX_SESSION_ID"):
         monkeypatch.delenv(variable, raising=False)
-    if provider != "explicit":
+    if provider == "claude":
+        monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses_current")
+    elif provider == "codex":
+        # Legacy fallback identity for records bound by the retired Codex workflow.
         monkeypatch.setenv("CODEX_THREAD_ID", "ses_current")
     monkeypatch.setattr(workflow, "SESSIONS_FILE", sessions_file)
     monkeypatch.setattr(workflow, "PROOF_SOURCE_DIR", proof_sources)
@@ -202,7 +205,7 @@ def test_start_current_disambiguates_numeric_cli_run_id(
             {
                 "sessions": {
                     "abcd": {
-                        "codex_task_id": "ses_current",
+                        "agent_task_id": "ses_current",
                         "worktree": {"merged_commit": deployed_commit},
                     }
                 }
@@ -251,7 +254,7 @@ def test_start_current_disambiguates_proof_source_run_id(
             {
                 "sessions": {
                     "abcd": {
-                        "codex_task_id": "ses_current",
+                        "agent_task_id": "ses_current",
                         "worktree": {"merged_commit": deployed_commit},
                     }
                 }
@@ -344,8 +347,8 @@ def test_resolve_current_context_rejects_ambiguous_passing_runs() -> None:
 
     with pytest.raises(workflow.WorkflowError, match="multiple passing runs"):
         workflow.resolve_current_context(
-            {"sessions": {"abcd": {"codex_task_id": "ses_current"}}},
-            codex_task_id="ses_current",
+            {"sessions": {"abcd": {"agent_task_id": "ses_current"}}},
+            agent_task_id="ses_current",
             subject_commit=commit,
             spec_name="example.spec.ts",
             test_runs=runs,
@@ -360,8 +363,8 @@ def test_resolve_current_context_accepts_same_run_with_multiple_video_sources() 
     ]
 
     context = workflow.resolve_current_context(
-        {"sessions": {"abcd": {"codex_task_id": "ses_current"}}},
-        codex_task_id="ses_current",
+        {"sessions": {"abcd": {"agent_task_id": "ses_current"}}},
+        agent_task_id="ses_current",
         subject_commit=commit,
         spec_name="example.spec.ts",
         test_runs=runs,
@@ -471,8 +474,8 @@ def test_approved_contract_rejects_tampered_payload_with_embedded_old_hash(tmp_p
 def test_context_rejects_local_or_unverified_passing_run() -> None:
     with pytest.raises(workflow.WorkflowError, match="deployed passing run"):
         workflow.resolve_current_context(
-            {"sessions": {"abcd": {"codex_task_id": "ses_current"}}},
-            codex_task_id="ses_current",
+            {"sessions": {"abcd": {"agent_task_id": "ses_current"}}},
+            agent_task_id="ses_current",
             subject_commit="abc1234",
             spec_name="frontend/apps/web_app/tests/example.spec.ts",
             test_runs=[
@@ -2471,14 +2474,18 @@ def test_review_run_rejects_mismatched_cached_request_provenance(
         workflow.review_run(run_dir=second_dir, correction_round=0, correction_kind="none", reviewer_runner=reviewer)
 
 
-def test_default_reviewer_accepts_only_codex_request_bound_result(tmp_path: Path):
+@pytest.mark.parametrize("reviewer_identity", [
+    "claude:11111111-1111-4111-8111-111111111111",
+    "codex://threads/11111111-1111-4111-8111-111111111111",
+])
+def test_default_reviewer_accepts_only_agent_request_bound_result(tmp_path: Path, reviewer_identity: str):
     from scripts.spec_demo import review_request_hash
     prompt = tmp_path / "review-prompt-round-0.json"
     request = {"frame_index_hash": "synthetic-frames"}
     prompt.write_text(json.dumps({"review_request": request}))
     result_path = tmp_path / "review-result-round-0.json"
     result = {
-        "reviewer_session_id": "codex://threads/11111111-1111-4111-8111-111111111111",
+        "reviewer_session_id": reviewer_identity,
         "review_request_hash": review_request_hash(request),
     }
     result_path.write_text(json.dumps(result))
@@ -2491,7 +2498,11 @@ def test_default_reviewer_accepts_only_codex_request_bound_result(tmp_path: Path
         workflow._default_reviewer_runner(prompt, run_dir=tmp_path, correction_round=0)
     result["reviewer_session_id"] = "ses_legacy"
     result_path.write_text(json.dumps(result))
-    with pytest.raises(workflow.WorkflowError, match="actual codex"):
+    with pytest.raises(workflow.WorkflowError, match="actual agent session"):
+        workflow._default_reviewer_runner(prompt, run_dir=tmp_path, correction_round=0)
+    result["reviewer_session_id"] = "claude:not-a-uuid"
+    result_path.write_text(json.dumps(result))
+    with pytest.raises(workflow.WorkflowError, match="actual agent session"):
         workflow._default_reviewer_runner(prompt, run_dir=tmp_path, correction_round=0)
 
 
@@ -2549,8 +2560,8 @@ def test_review_run_rejects_frame_path_escape_before_inference(
 @pytest.mark.parametrize("records, kwargs", [
     ({"abcd": {}}, {}),
     ({"abcd": {}}, {"repository_session_id": "missing"}),
-    ({"abcd": {"retired_provider_id": "thread"}}, {"codex_task_id": "thread"}),
-    ({"abcd": {"codex_task_id": "thread"}, "ef01": {"codex_task_id": "thread"}}, {"codex_task_id": "thread"}),
+    ({"abcd": {"retired_provider_id": "thread"}}, {"agent_task_id": "thread"}),
+    ({"abcd": {"agent_task_id": "thread"}, "ef01": {"codex_task_id": "thread"}}, {"agent_task_id": "thread"}),
 ])
 def test_proof_session_resolution_rejects_missing_ambiguous_or_wrong_provider(records, kwargs):
     with pytest.raises(workflow.WorkflowError):

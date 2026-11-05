@@ -13,6 +13,7 @@
     import { loginWithPasswordVersions, requirePasswordCredentialVersion, derivePasswordV2, migrateUnlockedLegacyPassword } from '../services/passwordV2';
     import { updateProfile } from '../stores/userProfile';
     import { getSessionId } from '../utils/sessionId';
+    import { rustAuthEnabled, rustPasswordLogin, prewarmRustAuth, type RustPasswordLoginOutcome } from '../services/rustCore/authOperation';
     import {
         notificationStore,
         SECURITY_REMINDER_NOTIFICATION_DURATION_MS,
@@ -149,6 +150,7 @@
 
     // Start animation in preview mode if no app name is selected
     onMount(() => {
+        if (!previewMode) prewarmRustAuth();
         if (previewMode && tfa_required) tfaRequiredState = true;
         if (previewMode && !tfaAppName) {
             animationInterval = setInterval(() => {
@@ -210,10 +212,21 @@
             }
             const emailEncryptionKey = cryptoService.getEmailEncryptionKeyForApi();
             if (emailEncryptionKey) fields.email_encryption_key = emailEncryptionKey;
-            const { response, data } = await loginWithPasswordVersions({
-                password, hashedEmail: hashed_email, userEmailSalt,
-                sessionId: getSessionId(), fields,
-            });
+            let rustUnlock: RustPasswordLoginOutcome | null = null;
+            const { response, data } = rustAuthEnabled()
+                ? await (async () => {
+                    rustUnlock = await rustPasswordLogin({
+                        email, password, sessionId: getSessionId(),
+                        userEmailSalt: cryptoService.uint8ArrayToBase64(userEmailSalt),
+                        emailEncryptionKey: emailEncryptionKey ?? null, stayLoggedIn,
+                        tfa: tfaRequiredState && tfaCode ? { code: tfaCode, type: isBackupMode ? 'backup' : 'otp' } : null,
+                    });
+                    return { response: { status: rustUnlock.status, ok: rustUnlock.ok }, data: rustUnlock.data };
+                })()
+                : await loginWithPasswordVersions({
+                    password, hashedEmail: hashed_email, userEmailSalt,
+                    sessionId: getSessionId(), fields,
+                });
             if (response.status === 429) {
                 isRateLimited = true;
                 localStorage.setItem('passwordTfaRateLimit', Date.now().toString());
@@ -317,7 +330,7 @@
                     }
                 } else {
                     // Login successful (no 2FA required)
-                    await handleSuccessfulLogin(data);
+                    await handleSuccessfulLogin(data, rustUnlock);
                 }
             } else {
                 if (data.tfa_required) {
@@ -450,7 +463,7 @@
     // The fix: dispatch loginSuccess immediately after critical crypto succeeds, then
     // run non-critical operations in a separate non-blocking block.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- login response shape is validated by backend schemas
-    async function handleSuccessfulLogin(data: any) {
+    async function handleSuccessfulLogin(data: any, rustUnlock: RustPasswordLoginOutcome | null = null) {
         console.debug('[PasswordAndTfaOtp] [1/5] handleSuccessfulLogin called with data:', {
             hasUser: !!data.user,
             hasEncryptedKey: !!data.user?.encrypted_key,
@@ -494,6 +507,27 @@
         let legacyEmailSalt: Uint8Array | null = null;
         // Decrypt and save master key (Web Crypto API)
         try {
+            if (rustUnlock) {
+                // Rust already ran the same checks and unwrap; map its outcome onto the TS messages.
+                if (rustUnlock.kind !== 'unlocked' || !rustUnlock.key) {
+                    console.error('[PasswordAndTfaOtp] Rust unlock failed:', rustUnlock.code);
+                    errorMessage = rustUnlock.code === 'login_failed' ? $text('login.login_failed')
+                        : rustUnlock.code === 'unwrap_failed' ? 'Failed to decrypt master key. Please try again.'
+                        : 'Error during key decryption. Please try again.';
+                    return;
+                }
+                if (rustUnlock.credentialVersion === 1) {
+                    unlockedMasterKey = rustUnlock.key;
+                    legacyEmailSalt = cryptoService.getEmailSalt();
+                }
+                try {
+                    await cryptoService.saveKeyToSession(rustUnlock.key, stayLoggedIn);
+                } catch (saveError) {
+                    console.error('[PasswordAndTfaOtp] CRITICAL: Failed to save master key to IndexedDB!', saveError);
+                    errorMessage = 'Failed to save login data. Please try refreshing the page or using a different browser.';
+                    return;
+                }
+            } else {
             // Decode salt from base64
             const saltString = atob(data.user.salt);
             const salt = new Uint8Array(saltString.length);
@@ -538,6 +572,7 @@
                 console.error('[PasswordAndTfaOtp] CRITICAL: Failed to save master key to IndexedDB!', saveError);
                 errorMessage = 'Failed to save login data. Please try refreshing the page or using a different browser.';
                 return;
+            }
             }
         } catch (e) {
             console.error('[PasswordAndTfaOtp] Error during key decryption:', e);

@@ -6,6 +6,8 @@ Security: returns only API-key-wrapped master key material, never plaintext keys
 Scope: SDK bootstrap routes; chat execution routes are added in later slices.
 """
 
+from backend.core.api.app.utils.session_principal_consistency import require_expected_principal
+
 import hashlib
 import importlib
 import inspect
@@ -246,7 +248,9 @@ async def _authenticate_sdk_request(request: Request) -> dict[str, Any]:
 
     api_key = auth_header.removeprefix("Bearer ").strip()
     try:
-        return await get_api_key_auth_service(request).authenticate_api_key(api_key, request=request)
+        authenticated = await get_api_key_auth_service(request).authenticate_api_key(api_key, request=request)
+        require_expected_principal(request, authenticated.get("user_id"))
+        return authenticated
     except DeviceNotApprovedError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except ApiKeyNotFoundError as exc:
@@ -932,14 +936,14 @@ async def _dispatch_sdk_surface(
                 raise HTTPException(status_code=400, detail="Docs search query must be 200 characters or fewer")
             docs_routes = _sdk_route_module("docs_routes")
 
-            return {"results": await _sdk_route_handler(docs_routes.search_docs)(query)}
+            return {"results": await _sdk_route_handler(docs_routes.search_docs)(request, query)}
         docs_routes = _sdk_route_module("docs_routes")
 
         if path == "":
-            return await _sdk_route_handler(docs_routes.list_docs)()
+            return await _sdk_route_handler(docs_routes.list_docs)(request)
         if path.endswith("/download"):
             path = path.removesuffix("/download")
-        response = await _sdk_route_handler(docs_routes.get_doc)(path)
+        response = await _sdk_route_handler(docs_routes.get_doc)(request, path)
         content = response.body.decode("utf-8") if isinstance(response.body, bytes) else str(response.body)
         return {"slug": path, "content": content}
 

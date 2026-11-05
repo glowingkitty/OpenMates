@@ -178,3 +178,69 @@ async def test_sidebar_includes_only_the_requesting_users_authoritative_encrypte
         await sidebar_chat_metadata(SidebarChatMetadataRequest(chat_ids=['foreign']), request, current_user=SimpleNamespace(id='user-1'))
     assert error.value.status_code == 404
     cache.get_user_draft_from_cache.assert_not_awaited()
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,teams.direct-chat.participant-isolation
+@pytest.mark.asyncio
+async def test_selected_read_details_opt_in_keeps_default_wire_exact_and_allowlists_ciphertext():
+    source = {
+        'id': 'owned', 'created_at': 0, 'updated_at': 1700000000000,
+        'last_edited_overall_timestamp': 1700000001,
+        'encrypted_follow_up_request_suggestions': 'authenticated-ciphertext',
+        'unknown_private_field': 'never-project', 'messages': [{'content': 'never-project'}],
+    }
+    chat = SimpleNamespace(check_chat_ownership=AsyncMock(return_value=True),
+                           get_chat_metadata=AsyncMock(return_value=source))
+    cache = SimpleNamespace(get_user_draft_from_cache=AsyncMock(return_value=None))
+    directus = SimpleNamespace(chat=chat, get_items=AsyncMock(return_value=[]),
+        chat_key_wrapper=SimpleNamespace(get_wrappers_by_hashed_chat_ids_batch=AsyncMock(return_value=[])))
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(cache_service=cache, directus_service=directus)))
+    legacy = await sidebar_chat_metadata(SidebarChatMetadataRequest(chat_ids=['owned']), request, current_user=SimpleNamespace(id='owner'))
+    detailed = await sidebar_chat_metadata(SidebarChatMetadataRequest(chat_ids=['owned'], include_read_details=True), request, current_user=SimpleNamespace(id='owner'))
+    row = detailed['chats'][0]
+    details = row.pop('read_details')
+    assert detailed == legacy
+    assert legacy['chats'][0]['created_at'] == '0'
+    assert legacy['chats'][0]['updated_at'] == '1700000000000'
+    assert details == {'created_at': 0, 'updated_at': 1700000000000,
+        'last_edited_overall_timestamp': 1700000001,
+        'encrypted_follow_up_request_suggestions': 'authenticated-ciphertext'}
+    assert 'encrypted_follow_up_request_suggestions' not in legacy['chats'][0]
+    assert 'unknown_private_field' not in row and 'messages' not in row
+    chat.check_chat_ownership.assert_awaited_with('owned', 'owner')
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,teams.direct-chat.participant-isolation
+@pytest.mark.asyncio
+async def test_selected_read_details_does_not_bypass_personal_or_team_acl_or_read_drafts_on_denial():
+    from hashlib import sha256
+    from backend.core.api.app.services.directus.team_methods import TeamPermissionError
+    chat = SimpleNamespace(check_chat_ownership=AsyncMock(return_value=False), get_chat_metadata=AsyncMock(return_value={
+        'id': 'owned', 'hashed_team_id': sha256(b'team').hexdigest(),
+        'encrypted_follow_up_request_suggestions': 'team-ciphertext',
+    }))
+    cache = SimpleNamespace(get_user_draft_from_cache=AsyncMock(return_value=None))
+    directus = SimpleNamespace(chat=chat, team=SimpleNamespace(require_team_role=AsyncMock()),
+        get_items=AsyncMock(return_value=[]), chat_key_wrapper=SimpleNamespace(get_wrappers_by_hashed_chat_ids_batch=AsyncMock(return_value=[])))
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(cache_service=cache, directus_service=directus)))
+    body = SidebarChatMetadataRequest(chat_ids=['owned'], include_read_details=True)
+    with pytest.raises(HTTPException) as denied:
+        await sidebar_chat_metadata(body, request, current_user=SimpleNamespace(id='outsider'))
+    assert denied.value.status_code == 404
+    cache.get_user_draft_from_cache.assert_not_awaited()
+    result = await sidebar_chat_metadata(body, request, team_id='team', current_user=SimpleNamespace(id='member'))
+    assert result['chats'][0]['read_details']['encrypted_follow_up_request_suggestions'] == 'team-ciphertext'
+    directus.team.require_team_role.assert_awaited_with('team', 'member', {'owner', 'admin', 'member', 'viewer'})
+    cache.get_user_draft_from_cache.reset_mock()
+    directus.team.require_team_role.side_effect = TeamPermissionError('denied')
+    with pytest.raises(HTTPException) as denied:
+        await sidebar_chat_metadata(body, request, team_id='team', current_user=SimpleNamespace(id='outsider'))
+    assert denied.value.status_code == 403
+    cache.get_user_draft_from_cache.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.parametrize('invalid', [None, 0, 1, 'true', [], {}])
+def test_selected_read_details_flag_is_strict_boolean(invalid):
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError):
+        SidebarChatMetadataRequest(chat_ids=['owned'], include_read_details=invalid)

@@ -36,7 +36,7 @@ describe('composer model mention routing', () => {
     // contract-test: direct surface=gui.web assertions=ai-model-routing.composer.mention-to-exact-selection
     it('resolves best and fast aliases to concrete provider/model selections', () => {
         expect(resolveModelAliasSelection('best')).toBe('openai/gpt-6-astra');
-        expect(resolveModelAliasSelection('fast')).toBe('alibaba/qwen3-235b-a22b-2507');
+        expect(resolveModelAliasSelection('fast')).toBe('inception/mercury-3');
     });
 
     // contract-test: supporting surface=gui.web assertions=ai-model-routing.composer.mention-to-exact-selection
@@ -46,18 +46,18 @@ describe('composer model mention routing', () => {
 
     // contract-test: direct surface=gui.web assertions=ai-model-routing.chat-selection.encrypted-user-chat-scope,ai-model-routing.precedence.chat-over-tier-over-auto
     it('normalizes deployed server-prefixed values to stable model-provider identity', () => {
-        expect(canonicalizeAiModelSelection('cerebras/qwen3-235b-a22b-2507')).toBe(
-            'alibaba/qwen3-235b-a22b-2507',
+        expect(canonicalizeAiModelSelection('cerebras/qwen-3.8-27b')).toBe(
+            'alibaba/qwen-3.8-27b',
         );
     });
 
     // contract-test: direct surface=gui.web assertions=ai-model-routing.unavailable.notify-reset-auto
     it('requires at least one enabled healthy hosting route', () => {
-        const selection = 'alibaba/qwen3-235b-a22b-2507';
+        const selection = 'alibaba/qwen-3.8-27b';
         expect(isAiModelSelectionUsable(selection, {}, (serverId) => serverId === 'cerebras')).toBe(true);
         expect(isAiModelSelectionUsable(
             selection,
-            { disabledServers: { 'qwen3-235b-a22b-2507': ['cerebras'] } },
+            { disabledServers: { 'qwen-3.8-27b': ['cerebras'] } },
             (serverId) => serverId === 'cerebras',
         )).toBe(false);
     });

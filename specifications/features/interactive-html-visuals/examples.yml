@@ -1,0 +1,32 @@
+schema_version: 1
+specification: feature.interactive-html-visuals@1
+
+render:
+  - id: animated-visual-in-card-and-fullscreen
+    given: The assistant finished an answer containing an html code fence with an animated solar system drawn on a canvas.
+    when: Alice looks at the chat and then clicks the card.
+    then: The card shows the planets moving instead of HTML source; fullscreen opens on the moving, clickable visual, and "View code" shows the source with copy and download, while "View visual" switches back.
+  - id: streaming-and-other-languages
+    given: An HTML embed is still streaming, and the same answer also contains a Python snippet and a Markdown file.
+    when: Alice watches the answer arrive.
+    then: The HTML embed shows its source until it is finished and then turns into the live visual; the Python and Markdown embeds keep their existing previews.
+
+security:
+  - id: hostile-page-stays-contained
+    given: An uploaded HTML file contains a script that reads document.cookie and localStorage, calls fetch to an external server, loads an external image, and sets location to another site.
+    when: Alice opens a chat that shows this file.
+    then: The script sees only its own empty sandbox storage, the fetch and image are blocked by the content policy, the navigation is cancelled or the visual is replaced by a "stopped" notice, and the app, the account and other embeds are unaffected.
+  - id: offscreen-cards-stop
+    given: A long chat contains ten animated HTML visuals.
+    when: Alice scrolls so that only one is near the screen.
+    then: Only the visible one runs; the others are unmounted until they come back into view.
+
+assistant:
+  - id: mechanism-explained-with-visual
+    given: Alice asks how a four-stroke engine works.
+    when: The assistant answers.
+    then: It gives a short explanation and one self-contained animated HTML visual of the four strokes with labelled phases, without external libraries or network loads.
+  - id: no-visual-when-not-useful
+    given: Bob asks for the capital of Portugal, and Carol asks for a text-only explanation of photosynthesis.
+    when: The assistant answers.
+    then: Neither answer contains an HTML visual.

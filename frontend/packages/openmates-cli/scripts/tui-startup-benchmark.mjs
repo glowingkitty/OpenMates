@@ -6,7 +6,7 @@ import {resolve,join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {performance} from 'node:perf_hooks';
 const args=process.argv.slice(2),arg=name=>args[args.indexOf(name)+1];
-const modulePath=resolve(args.includes('--module')?arg('--module'):'dist/index.js');
+const modulePath=resolve(args.includes('--module')?arg('--module'):'dist/cli-internal-client.js');
 const startImport=performance.now();
 const {OpenMatesClient}=await import(pathToFileURL(modulePath).href);
 const importMs=performance.now()-startImport;

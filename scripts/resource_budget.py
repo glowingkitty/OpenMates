@@ -7,6 +7,10 @@ schedules cleanup for migrated repositories. Callers never clean on admission.
 """
 
 from __future__ import annotations
+try:
+    from scripts.agent_identity import agent_thread_id
+except ModuleNotFoundError:
+    from agent_identity import agent_thread_id
 
 from contextlib import contextmanager
 from datetime import datetime
@@ -29,9 +33,17 @@ GIB = 1024 ** 3
 MIN_FREE = 30 * GIB
 MAX_USED_PERCENT = 85
 RESULT_AGE_SECONDS = 14 * 24 * 3600
+# Hard age cap: after this, terminal CI payloads and candidate patches of
+# inactive owners are disposable even when failed or never delivered. Receipts
+# and manifests stay, so history and identities remain inspectable.
+STALE_PAYLOAD_SECONDS = 21 * 24 * 3600
+TERMINAL_JOB_STATES = frozenset({"success", "failure", "cancelled"})
+CANDIDATE_PAYLOAD_NAMES = ("candidate.patch", "candidate.patch.gz")
 RESULT_ID = re.compile(r"[A-Za-z0-9_-]{6,100}")
 RETAINED_RESULT_NAMES = frozenset({
-    "receipt.json", "ci-cleanup.json", "codex-evidence.json", "codex-evidence.lock",
+    "receipt.json", "ci-cleanup.json", "ci-evidence.json", "ci-evidence.lock",
+    # Inventories written before the ci_evidence rename.
+    "codex-evidence.json", "codex-evidence.lock",
     "ci-environment.json", "ci-results.json", "ci-startup-phases.json",
     "ci-runtime-images.json", "ci-artifacts.json",
 })
@@ -189,7 +201,7 @@ def reserve(root: Path, amount: int, *, min_free: int = MIN_FREE,
     except ModuleNotFoundError:
         from disk_coordinator import canonical_repository, configured
     root = canonical_repository(root)
-    thread = os.environ.get("CODEX_THREAD_ID", "") if thread is None else thread
+    thread = agent_thread_id() if thread is None else thread
     coordinated = _coordinated_reserve(root, amount, min_free=min_free,
         max_used_percent=max_used_percent, operation=operation, thread=thread, task_id=task_id)
     if coordinated:
@@ -334,7 +346,10 @@ def _payload_snapshot(paths: list[Path], base: Path) -> str:
 
 
 def _evidence_complete(directory: Path) -> bool:
-    path = directory / "codex-evidence.json"
+    path = directory / "ci-evidence.json"
+    if not path.is_file():
+        # Inventories written before the ci_evidence rename.
+        path = directory / "codex-evidence.json"
     if not path.is_file():
         return False
     try:
@@ -371,6 +386,23 @@ def _integrated_candidate(path: Path, root: Path, rows: list[dict] | None,
         return check.returncode == 0
     except (OSError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired):
         return False
+
+
+def _stale_candidate(path: Path, rows: list[dict] | None, active_owners: set[str] | None,
+                     pending_sources: set[str], now: float) -> list[Path]:
+    """Candidate patch payloads abandoned past the hard age cap."""
+    if rows is None or active_owners is None or path.name in pending_sources:
+        return []
+    manifest = path / "manifest.json"
+    try:
+        newest = max(child.lstat().st_mtime for child in path.iterdir())
+        session = json.loads(manifest.read_text()).get("session") if manifest.is_file() else None
+    except (OSError, ValueError, AttributeError):
+        return []
+    if now - newest < STALE_PAYLOAD_SECONDS or session in active_owners:
+        return []
+    return [path / name for name in CANDIDATE_PAYLOAD_NAMES
+            if (path / name).is_file() and not (path / name).is_symlink()]
 
 
 def inventory(root: Path, *, now: float | None = None, count_bytes: bool = True) -> dict:
@@ -426,6 +458,15 @@ def inventory(root: Path, *, now: float | None = None, count_bytes: bool = True)
                                                "inode": patch.stat().st_ino}],
                                 payload_snapshot=_payload_snapshot([patch], path),
                                 reclaim_bytes=_bytes(patch)[0])
+                elif safe and not runtime_busy and (
+                        stale := _stale_candidate(path, rows, active_owners, pending_sources, now)):
+                    item.update(action="remove_candidate_patch", reason="stale_candidate_payload",
+                                payload_paths=[str(p) for p in stale],
+                                payload_info=[{"path": str(p), "size": p.stat().st_size,
+                                               "mtime_ns": p.stat().st_mtime_ns,
+                                               "inode": p.stat().st_ino} for p in stale],
+                                payload_snapshot=_payload_snapshot(stale, path),
+                                reclaim_bytes=sum(_bytes(p)[0] for p in stale))
             elif not safe:
                 item["reason"] = "unsafe_or_unreadable_payload"
             elif rows is None or active_owners is None or not RESULT_ID.fullmatch(path.name):
@@ -436,24 +477,35 @@ def inventory(root: Path, *, now: float | None = None, count_bytes: bool = True)
                 try:
                     proof = json.loads(receipt.read_text())
                     identity_ok = row and proof.get("id") == path.name and proof.get("source_commit") == row["source"]
-                    age_ok = now - receipt.stat().st_mtime >= RESULT_AGE_SECONDS
+                    age = now - receipt.stat().st_mtime
+                    age_ok = age >= RESULT_AGE_SECONDS
                 except (OSError, ValueError):
                     identity_ok = age_ok = False
-                    proof = {}
-                if not identity_ok:
-                    item["reason"] = "unverified_result_identity"
+                    age, proof = 0, {}
+                stale = bool(identity_ok and age >= STALE_PAYLOAD_SECONDS
+                             and row["state"] in TERMINAL_JOB_STATES
+                             and row["owner"] not in active_owners
+                             and row["source"] not in pending_sources and not runtime_busy)
+                removable = "stale_terminal_result" if stale else "terminal_delivered_success"
+                retain_reason = None
+                if stale:
+                    pass
+                elif not identity_ok:
+                    retain_reason = "unverified_result_identity"
                 elif row["state"] != "success" or proof.get("state") != "success":
-                    item["reason"] = "non_success_or_active_job"
+                    retain_reason = "non_success_or_active_job"
                 elif row["owner"] in active_owners:
-                    item["reason"] = "active_session_owner"
+                    retain_reason = "active_session_owner"
                 elif row["source"] in pending_sources:
-                    item["reason"] = "pending_source_consumer"
+                    retain_reason = "pending_source_consumer"
                 elif runtime_busy:
-                    item["reason"] = "runtime_lease_or_operation"
+                    retain_reason = "runtime_lease_or_operation"
                 elif not age_ok:
-                    item["reason"] = "retention_window"
+                    retain_reason = "retention_window"
                 elif not _evidence_complete(path):
-                    item["reason"] = "evidence_delivery_pending"
+                    retain_reason = "evidence_delivery_pending"
+                if retain_reason:
+                    item["reason"] = retain_reason
                 else:
                     payload = [child for child in path.rglob("*")
                                if child.is_file() and child.name not in RETAINED_RESULT_NAMES]
@@ -465,7 +517,7 @@ def inventory(root: Path, *, now: float | None = None, count_bytes: bool = True)
                              "mtime_ns": child.stat().st_mtime_ns, "inode": child.stat().st_ino}
                             for child in payload
                         ]
-                        item.update(action="remove_result_payload", reason="terminal_delivered_success",
+                        item.update(action="remove_result_payload", reason=removable,
                                     payload_paths=[str(child) for child in payload],
                                     payload_info=payload_info,
                                     payload_snapshot=_payload_snapshot(payload, path),

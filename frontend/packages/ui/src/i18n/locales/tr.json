@@ -99,6 +99,12 @@
         "description": {
           "text": "Akılda kalıcı adları seçin, ardından finalistlerin alan adlarını ve marka çakışmalarını kontrol edin."
         }
+      },
+      "price_products": {
+        "text": "Ürünlerini fiyatlandır",
+        "description": {
+          "text": "El yapımı veya küçük seri ürünler için ne kadar isteyeceğini düzenlenebilir canlı bir tabloyla hesapla."
+        }
       }
     },
     "code": {
@@ -184,6 +190,14 @@
         "text": "Güvenliği kontrol et",
         "description": {
           "text": "Güvenlik açıkları ve maruz kalma riskleri için yapılandırma dosyalarını denetleyin."
+        }
+      }
+    },
+    "events": {
+      "plan_conference_talk": {
+        "text": "Konferans konuşması planla",
+        "description": {
+          "text": "Bir konferansa hangi konuşmayı göndereceğine karar ver ve onu güçlü bir teklife dönüştür."
         }
       }
     },
@@ -336,6 +350,14 @@
         }
       }
     },
+    "tasks": {
+      "daily_meeting_and_orchestration": {
+        "text": "Günlük toplantı ve koordinasyon",
+        "description": {
+          "text": "Bugünün önceliklerini seç ve proje görevlerini ve sohbetlerini tamamlanana kadar koordine et."
+        }
+      }
+    },
     "videos": {
       "analyze_video": {
         "text": "Video analizi",
@@ -383,6 +405,14 @@
           "3": {
             "text": "Hızlı modanın yükselişinin **nedenlerini** ve çevresel sonuçlarını araştır"
           }
+        }
+      }
+    },
+    "workflows": {
+      "clarify_workflows": {
+        "text": "İş akışlarını netleştir",
+        "description": {
+          "text": "Bir veya daha fazla iş akışını oluşturmadan ya da değiştirmeden önce eksik ayrıntıları netleştir."
         }
       }
     }
@@ -1512,6 +1542,15 @@
       "preview_hide": {
         "text": "Önizlemeyi gizle"
       },
+      "view_code": {
+        "text": "Kodu göster"
+      },
+      "view_visual": {
+        "text": "Görseli göster"
+      },
+      "interactive_html_blocked": {
+        "text": "Bu görsel başka bir sayfa açmaya çalıştı ve durduruldu."
+      },
       "search_repos": {
         "text": "Repo ara",
         "description": {
@@ -2464,7 +2503,7 @@
       "browse": {
         "text": "Gezin",
         "description": {
-          "text": "Web sitelerinde gezinin ve gözlemlenen bilgileri JSON olarak alın."
+          "text": "Web sitelerine göz atın ve JSON döndürün. Tarayıcı kullanımı saniye başına, artı yapay zeka kullanımı üzerinden ücretlendirilir. Duraklatılan kullanım ücretsizdir."
         }
       }
     },
@@ -2480,6 +2519,12 @@
           "text": "İş akışlarında ara",
           "description": {
             "text": "Sohbet amacına uyan kullanıcıya ait iş akışlarını bulun."
+          }
+        },
+        "run": {
+          "text": "İş akışını çalıştır",
+          "description": {
+            "text": "Mevcut iş akışlarından birini sohbetten çalıştır."
           }
         }
       }
@@ -4157,6 +4202,12 @@
       },
       "remember": {
         "text": "Remember"
+      },
+      "more_options": {
+        "text": "Daha fazla seçenek göster"
+      },
+      "previous_options": {
+        "text": "Önceki seçenekleri göster"
       }
     },
     "explain_in_new_chat": {
@@ -7327,9 +7378,6 @@
     "view_on_google_hotels": {
       "text": "Google Hotels'de görüntüle"
     },
-    "view_on_meetup": {
-      "text": "Gathering'ta görüntüle"
-    },
     "loading_map": {
       "text": "Harita yükleniyor..."
     },
@@ -7840,6 +7888,9 @@
         },
         "not_available": {
           "text": "N/A"
+        },
+        "cash_flow": {
+          "text": "Nakit akışı"
         }
       },
       "search_trademarks": {
@@ -8074,6 +8125,11 @@
         "text": "Watermarking"
       }
     },
+    "search_domain": {
+      "minutes": {
+        "text": "{count} dk"
+      }
+    },
     "projects": {
       "references": {
         "subtitle": {
@@ -8258,6 +8314,139 @@
       },
       "stopping": {
         "text": "Durduruluyor…"
+      },
+      "no_frame": {
+        "text": "Kayıtlı ekran görüntüsü yok."
+      }
+    },
+    "authoring": {
+      "draft": {
+        "text": "Taslak"
+      },
+      "user_provided": {
+        "text": "Kullanıcı tarafından sağlandı"
+      },
+      "sources": {
+        "text": "Kaynaklar"
+      },
+      "observed_at": {
+        "text": "Gözlem zamanı"
+      },
+      "image_credit": {
+        "text": "Görsel kaynağı"
+      },
+      "partial": {
+        "text": "Kısmi sonuç"
+      },
+      "uploaded_source": {
+        "text": "Yüklenen kaynak"
+      },
+      "approximate_location": {
+        "text": "Yaklaşık konum"
+      },
+      "schematic_route": {
+        "text": "Şematik rota"
+      },
+      "unmapped": {
+        "text": "Konum mevcut değil"
+      },
+      "open_source": {
+        "text": "Kaynak sayfasını aç"
+      },
+      "open_domain": {
+        "text": "{domain} üzerinde aç"
+      },
+      "additional_times": {
+        "text": "Diğer saatler"
+      }
+    },
+    "tv": {
+      "movie": {
+        "text": "Film"
+      },
+      "series": {
+        "text": "Dizi"
+      },
+      "poster_unavailable": {
+        "text": "Afiş mevcut değil"
+      },
+      "synopsis": {
+        "text": "Konu"
+      },
+      "release_date": {
+        "text": "Vizyon tarihi"
+      },
+      "runtime": {
+        "text": "Süre"
+      },
+      "genres": {
+        "text": "Türler"
+      },
+      "directors": {
+        "text": "Yönetmenler"
+      },
+      "creators": {
+        "text": "Yaratıcılar"
+      },
+      "cast": {
+        "text": "Oyuncular"
+      },
+      "language": {
+        "text": "Özgün dil"
+      },
+      "countries": {
+        "text": "Ülkeler"
+      },
+      "content_rating": {
+        "text": "Yaş sınıflandırması"
+      },
+      "score": {
+        "text": "Kaynak puanı"
+      },
+      "score_votes": {
+        "text": "{count} oy"
+      },
+      "first_air_date": {
+        "text": "İlk yayın"
+      },
+      "last_air_date": {
+        "text": "Son yayın"
+      },
+      "series_status": {
+        "text": "Dizi durumu"
+      },
+      "season_count": {
+        "text": "{count} sezon"
+      },
+      "episodes": {
+        "text": "Bölümler"
+      },
+      "episode_count": {
+        "text": "{count} bölüm"
+      },
+      "season": {
+        "text": "Sezon {number}"
+      },
+      "specials": {
+        "text": "Özel bölümler"
+      },
+      "supplied_seasons": {
+        "text": "Sağlanan sezonlar"
+      },
+      "partial_seasons": {
+        "text": "Yalnızca sağlanan sezon ayrıntıları gösterilir."
+      },
+      "year": {
+        "text": "Yıl"
+      },
+      "preparing": {
+        "text": "Başlık hazırlanıyor…"
+      },
+      "cancelled": {
+        "text": "Başlık oluşturma iptal edildi"
+      },
+      "unavailable": {
+        "text": "Başlık mevcut değil"
       }
     }
   },
@@ -8612,10 +8801,10 @@
     },
     "pii": {
       "banner_title": {
-        "text": "Hassas veriler tespit edildi"
+        "text": "{count}× hassas veri tespit edildi"
       },
       "banner_description": {
-        "text": "{summary} bulundu. Gönderilmeden önce yer tutucularla değiştirilecek. Orijinali korumak için vurgulanan metne tıklayın."
+        "text": "Göndermeden önce yer tutucularla değiştirilecek. Orijinali göndermek için vurgulanan metne tıklayın."
       },
       "undo_all": {
         "text": "Tüm değiştirmeleri geri al"
@@ -9089,6 +9278,70 @@
       },
       "follow_up_6": {
         "text": "Gethenliler ve Oankalilerin uzaylı biyolojilerini karşılaştır"
+      }
+    },
+    "browse_example_domain": {
+      "title": {
+        "text": "Web sitesi bilgilerini JSON olarak çıkar"
+      },
+      "summary": {
+        "text": "Example Domain'e göz atın ve kaynak URL'si ile birlikte tam ifadesini yapılandırılmış JSON olarak döndürün."
+      },
+      "message_1": {
+        "text": "[!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a) adresindeki görünür İngilizce ifadenin tamamını çıkarmak için Web uygulaması Göz Atma yeteneğini kullan. İki zorunlu alan içeren bir JSON döndür: uyarıları da dahil olmak üzere ifadenin tamamını kelimesi kelimesine içeren `purpose` ve mevcut sayfa URL'sini içeren `source_url`. Bu bir veri çıkarma görevidir ve ek bir web sitesi etkileşimi istenmemektedir. Tarayıcı oturumunu 40 krediyle sınırla."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bac3644b-0f9c-48cd-bad9-22d265d938a1\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nVeri çıkarma işlemi tamamlandı. İşte sonuç:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"88b9349a-9529-4835-a507-f54e5f24a30f\"}\n```\n\nSayfa, standart Example Domain yer tutucusudur ve yukarıdaki ifade, bir hizmet olmadığı ve test veya izleme için güvenilmemesi gerektiği uyarısı da dahil olmak üzere, görünür İngilizce metnin tamamıdır."
+      },
+      "follow_up_1": {
+        "text": "Ek yer tutucu alan adlarını ve standart şablonları ara"
+      },
+      "follow_up_2": {
+        "text": "Example Domain'in dokümantasyon için genellikle nasıl kullanıldığını açıkla"
+      },
+      "follow_up_3": {
+        "text": "Metin içeriği için başka bir web sitesi URL'sine göz at"
+      },
+      "follow_up_4": {
+        "text": "Web geliştirmedeki yaygın yer tutucu metin kurallarını listele"
+      },
+      "follow_up_5": {
+        "text": "Sağlanan bir URL'den herkese açık HTTPS sayfalarını doğrudan oku"
+      },
+      "follow_up_6": {
+        "text": "Example Domain'i diğer ayrılmış test alan adlarıyla karşılaştır"
+      }
+    },
+    "browse_heading_json": {
+      "title": {
+        "text": "Gözat ile bir web sayfasını oku"
+      },
+      "summary": {
+        "text": "Bir sayfa başlığını bulmak için tarayıcı kullan ve sonucu kaynak URL'si ile birlikte JSON olarak döndür."
+      },
+      "message_1": {
+        "text": "[!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) adresini açmak için Gözat yeteneğini kullan ve tam ana başlığı ve kaynak URL'yi JSON olarak döndür. Bu görev için tarayıcı oturumunu kullan."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"5f0e7070-da89-4cd1-9447-52f63f4fd826\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nGözat oturumu sayfayı açtı ve şunları döndürdü:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"c0e67189-7fb4-4e88-a3ab-f66d75ea01a2\"}\n```\n\n`https://httpbin.org/html` adresindeki sayfa, ana başlığı **\"Herman Melville - Moby-Dick\"** (romanının ilk bölümü olan \"Loomings\"den bir kesit) olan örnek bir HTML belgesi sunar."
+      },
+      "follow_up_1": {
+        "text": "Herman Melville Moby Dick'in tarihsel analizini ara"
+      },
+      "follow_up_2": {
+        "text": "Moby-Dick'in açılış bölümünün önemini açıkla"
+      },
+      "follow_up_3": {
+        "text": "Web tarayıcı otomasyon teknikleri hakkındaki genel belgeleri oku"
+      },
+      "follow_up_4": {
+        "text": "Klasik edebiyat okumak için farklı dijital formatları karşılaştır"
+      },
+      "follow_up_5": {
+        "text": "Klasik Amerikan romanlarını içeren çevrimiçi edebiyat arşivlerini ara"
+      },
+      "follow_up_6": {
+        "text": "Herman Melville'in eserlerinin ana temalarını özetle"
       }
     },
     "building_maintenance_email": {
@@ -10775,6 +11028,12 @@
         "text": "- İhtiyaçları anlayın\n- adları seçin\n- finalistleri kontrol edin\n- bulguları karşılaştırın"
       }
     },
+    "business_price_products": {
+      "text": "Ürünlerini fiyatlandır",
+      "description": {
+        "text": "El yapımı veya küçük seri ürünler için ne kadar isteyeceğini düzenlenebilir canlı bir tabloyla hesapla."
+      }
+    },
     "code_analyze_logs": {
       "text": "Logları analiz et",
       "description": {
@@ -10902,6 +11161,12 @@
       },
       "systemprompt": {
         "text": "Programlama konusunda uzmansınız."
+      }
+    },
+    "events_plan_conference_talk": {
+      "text": "Konferans konuşması planla",
+      "description": {
+        "text": "Bir konferansa hangi konuşmayı göndereceğine karar ver ve onu güçlü bir teklife dönüştür."
       }
     },
     "jobs_career_insights": {
@@ -11048,6 +11313,12 @@
         "text": "Uzman bir eğitim ve kariyer danışmanısınız. Rolünüz, kullanıcıların düşünceli ve stratejik sorularla doğru derece ve çalışma alanını keşfetmelerine yardımcı olmaktır. Sadece tavsiye vermek yerine, onları öz-keşfe yönlendirmek için Sokratik yöntemi kullanın. Gerçek ilgi alanlarını, güçlü yönlerini ve değerlerini anlamalarına yardımcı olun. Derine inmek ve kalıpları ortaya çıkarmak için takip soruları sorun. Yanıtlarına göre kişiselleştirilmiş öneriler sunun."
       }
     },
+    "tasks_daily_meeting_and_orchestration": {
+      "text": "Günlük toplantı ve koordinasyon",
+      "description": {
+        "text": "Bugünün önceliklerini seç ve proje görevlerini ve sohbetlerini tamamlanana kadar koordine et."
+      }
+    },
     "videos_analyze_video": {
       "text": "Video analizi",
       "description": {
@@ -11105,6 +11376,12 @@
       },
       "systemprompt": {
         "text": "Rakip açıklamaları birincil kanıtlarla sınayan titiz bir araştırmacısın. Soru daha derin bir hikâyeyi veya niyet iddiasını desteklemeyebilir. Gizli neden bulmak zorunda değilsin; kanıt destekliyorsa sıradan açıklamayı kabul et.\n\nAraştırma iş akışı:\n- Öncelikle kullanıcının sorusunun derinlemesine araştırma mı yoksa kısa bir yanıt mı gerektirdiğine karar ver. Soru kapsamlı, güncel, tartışmalı, siyasi, ekonomik, piyasa ile ilgiliyse veya bir şeyin neden olduğunu soruyorsa, bunu derinlemesine araştırma olarak ele al.\n- Yalnızca kullanıcının kapsamı sorumlu bir şekilde araştırma yapılamayacak kadar belirsiz olduğunda açıklama iste. Aksi takdirde araştırmaya baş.\n- Aramaya başlamadan önce test etmen gereken ana hipotezleri veya açıları listele. Yüzeysel açıklamayı, alternatif açıklamaları, teşvikleri, kimin yararlandığını, kimin kaybettiğini, piyasa veya siyasi yapıyı, düzenleme geçmişini ve karşı argümanları dahil et.\n- Karmaşık derin araştırma gerektiren ana sohbette ilk araç eylemi, web-search veya web-read öncesinde MUTLAKA start_sub_chats olmalıdır. Tam olarak üç farklı açıyı paralel devret ve sentezden önce tüm raporları bekle. Her alt sohbete web-search ve web-read kullanmasını, önemli iddiaları kaynak kapsamına uygun çekincelerle birincil kaynaklara dayandırmasını ve kaynaklı bulgular döndürmesini söyle.\n- Önemli boşlukları dürüstçe bildirin; devamda yeni araştırma grupları oluşturmayın ve eksik kanıtı tahmin etmeyin.\n- Üç araştırma alt sohbeti tamamlanınca ana sohbet raporları sentezler ve raporların çözmediği önemli anlaşmazlıkların birincil belgelerini web-read ile okur. Dördüncü alt sohbet veya ücretli onarım grubu başlatma. Araştırma ya da okuma başarısızsa sınırlamayı dürüstçe bildir ve yalnızca çekinceli sınırlı yanıt ver. Ne devam sohbeti ne araştırma alt sohbeti ek alt sohbet başlatabilir.\n- Farklı arama açılarıyla web-search aracını birden fazla kez kullan. Tek bir bariz sorguya güvenme. Örneğin, bir fiyat artışı sorusu; arz şoklarını, şirket karlarını, piyasa yoğunlaşmasını, düzenleyici incelemeleri, lobicilik faaliyetlerini, hissedar ödemelerini ve ilgili olduğunda tüketici etkisini araştırmalıdır.\n- Yalnızca arama snippet'lerine güvenmek yerine önemli kaynaklar için web-read kullan. Özetler yerine orijinal kaynakları, hükümet veya düzenleyici verilerini, şirket dosyalarını, mahkeme kayıtlarını, akademik çalışmaları, saygın gazeteciliği ve doğrudan raporları tercih et.\n- Kaynak kalitesini güncellik, alaka düzeyi, yetkinlik, doğruluk ve amaç doğrultusunda değerlendir. Yanal okuma yap: Önemli iddiaları bağımsız kaynaklar üzerinden kontrol et ve iddiaları mümkün olduğunda birincil kanıtlara kadar takip et.\n- Teşvikleri açıkça araştır. Ana tarafları, her tarafın ne istediğini, her tarafın insanların neye inanmasından fayda sağladığını ve anlatılarını hangi kanıtların desteklediğini veya zayıflattığını belirle.\n\nKanıt disiplini:\n- Doğrulanmış kanıtları, güçlü çıkarımları, makul yorumları ve desteklenmeyen spekülasyonları birbirinden ayır.\n- Yayımlanmış bir şikayeti veya iddiayı, iddia edilen eylemin gerçekleştiğinin değil, iddianın ortaya atıldığının teyidi olarak değerlendir. Önerilen uzlaşmaları mahkemece onaylanmış uzlaşmalardan, her ikisini de adli bulgulardan veya itiraflardan ayırt et; tek başına bir uzlaşma, görevi kötüye kullanmayı kanıtlamaz. Görevi kötüye kullanma veya yasal çözüm hakkında önemli bir sonuca varmadan önce, web-read kullanarak temel şikayeti, kararı, uzlaşmayı veya resmi açıklamayı doğrudan oku; mevcut değilse bu kısıtlamayı belirt. Alt araştırmacılara her önemli iddianın kanıt durumunu ve kaynağını bildirmeleri talimatını ver ve bir iddiayı veya öneriyi doğrulanmış bir hata olarak yükseltmek yerine nihai sentezde bu durumu koru.\n- Kaynaklar desteklemediği sürece yolsuzluk, manipülasyon, dolandırıcılık veya kötü niyet iddialarını asla gerçekmiş gibi sunma. Kanıtlar fiyatlandırma gücüne, koordinasyon endişelerine, düzenleyici incelemeye veya şüpheli teşviklere işaret ediyorsa, bunu dikkatli bir şekilde belirt ve kanıtları kaynak göster.\n- Tek kaynağa dayalı iddialara ihtiyatla yaklaş. Kanıtlar yetersiz, tartışmalı, güncelliğini yitirmiş veya mevcut değilse bunu doğrudan söyle.\n- Son sentezden önce üç araştırma raporunu ve birincil kanıtlarını uzlaştır. Desteklenmeyen kesinlikleri, nedensel iddiaları ve yasal sonuçları çıkar veya nitelendir. Bir doğrulama kaynağı mevcut değilse, iddiayı doğrulanmış gibi sunmak yerine çözülmemiş iddia olarak tanımla. \"Proposed Final Judgment\" başlıklı bir belge mahkeme onayını kanıtlamaz; resmi bir şikayet, iddiaların karara bağlandığını değil, dosyalandığını teyit eder. Bu nitelendirmeleri, kısa yanıt ve sonuç dahil olmak üzere her bölümde iddianın yanında tut; sonradan eklenen bir belirsizlik paragrafı, abartılmış bir \"doğrulanmış iddiayı\" düzeltmez.\n- Karşı argümanlara ve iyi niyetli açıklamalara yer ver. Daha derin bir açıklama, yüzeysel bir açıklamadan otomatik olarak daha doğru değildir.\n\nVarsayılan çıktı yapısı:\n\nKarmaşık derinlemesine araştırmalar için, nihai yanıt MUTLAKA bu altı başlığı kullanmalı ve başka başlık adı kullanmamalıdır:\n\n## Short Answer\n3-5 cümlelik özlü bir yanıt ver.\n\n## Surface Explanation\nİnsanların duyması muhtemel olan yaygın veya resmi açıklamayı açıkla.\n\n## What Else May Be Going On\nAlternatif açıklamaları, teşvikleri, yapıyı ve zamanlamayı yalnız hipotez olarak sına. Kanıt daha derin açıklamayı veya niyet çıkarımını desteklemiyorsa belirt.\n\n## Evidence\nKaynaklı temel bulguları iddiaya göre listele. Önemli iddiaları açıkça atıflandır.\n\n## Counterarguments\nDaha derin açıklamayı nelerin zayıflatabileceğini, karmaşıklaştırabileceğini veya nelerin bu açıklamayla çelişebileceğini açıkla.\n\n## Bottom Line\nNeyin doğrulandığını, neyin muhtemel olduğunu, neyin makul ancak kanıtlanmamış olduğunu ve neyin belirsizliğini koruduğunu belirt.\n\nTakip davranışı:\n- Şirket karları, düzenleme geçmişi, tüketici etkisi, politika seçenekleri, zaman çizelgesi veya kaynak bazlı inceleme gibi yararlı olabilecek hedefli takip raporları sun.\n- Aktif bir Derinlemesine araştırma sohbetindeki takip soruları için, kullanıcı başka bir tam rapor istemediği sürece sohbet havasında kal.\n\n- Önemli nicel, nedensel veya hukuki bir bulguyu bildirmeden önce birincil kaynağı web-read ile okuyun. Arama parçaları kaynak bulur, doğrulamayı tamamlamaz. Okuma başarısızsa veya kaynak yoksa iddiayı çözümlenmemiş olarak işaretleyip sınırlamayı belirtin.\n- Ana sohbet sentezi sırasında son sonuçtan önce tüm önemli nicel, nedensel, niyet ve hukuki durum iddiaları için URL’leriyle birlikte kısa, numaralı bir iddia/kanıt listesi hazırla. Her iddia için kısa sonuç isteyin: destekleniyor, sınırlama gerekli, çelişiyor veya çözümlenmemiş; tam kaynak URL’si; dönem, coğrafya, nüfus, ölçüt ve hukuki durum. Listeyi Evidence bölümüne koy ve tüm önemli iddiaları Bottom Line öncesinde tamamla; Short Answer ilk sırada ve altı başlık gerekli sırada kalsın. Atlanan veya kesilen sonuçlar doğrulanmamış kalır.\n- Her bölümde iddianın yanında kaynağın kapsamını koruyun: dönem, coğrafya, nüfus veya ürün, ölçüt veya payda, varsayımlar ve gözlem ya da modellenmiş karşı-olgusal sonuç. Alt grupları, tahminleri, senaryoları, tarihsel aralıkları veya tipik süreleri evrensel ya da kalıcı bulguya dönüştürmeyin. Fayda, kâr ve teşvikler tek başına niyeti veya nedensel payı kanıtlamaz. Denetlenmemiş iddiaları çıkarın veya açıkça sınırlandırın; eksiklik destek değildir.\n\n- Her araştırma alt sohbetinde gerekli altı bölüm boyunca 600–900 sözcük ve numaralı Kanıt listesinde 6–10 ayrı önemli bulgu hedefleyin. Her kayıt iddia, kanıt durumu, tam birincil kaynak URL’si ve ilgili kapsam veya sınırlamayı içerir. Başka yerlerde kanıtı tekrarlamak yerine numaralara atıf yapın. Önemli karşı kanıtlar dahil, verilen soruya gereken bulgulara öncelik verin; arama anlatısını, yinelenen arka planı ve kullanılmayan URL’leri çıkarın. Bunlar yazım hedefleridir, kesme kuralları veya kesin tavanlar değildir: gerekli nitelemeleri koruyun ve önemli çözülmemiş soruları açıklayın.\n\n- Her önemli nicel, nedensel, niyet veya hukuki iddia için kısa ve birebir birincil kaynak alıntısı ya da dönem ve ölçüt içeren kesin birincil tablo girdisini URL ve kanıt durumuna bağla. Yalnız bu dayanak tam iddiayı ve kapsamını doğrudan destekliyorsa destekleniyor de; aksi halde çıkarım veya çözümlenmemiş de. URL ya da kaynak geneli toplam tek başına iddiayı desteklemez. Dayanağı Bottom Line öncesi Evidence numaralı listesinde ver; kanıt kimliklerini yeniden kullan, alıntıları tekrarlama. Short Answer yalnız desteklenen veya sınırlanmış iddiaları kullanabilir; araştırma raporunun kanıt durumunu yükseltme.\n\n- Ölçütleri ve fiyat farklarını kâr ve nedenden ayır. Operasyon veya üretim süresi evrensel alt sınır ya da sınır değildir. Karşılaştırma dönemlerini kronolojik sırala ve değişim yönünü denetle. Mahkemeyi ve dava kimliğini doğrula; jüri tazminatını yasal üçe katlamadan, önerilen uzlaşmayı onaylanandan ayır. Bu ayrımları ve çözümlenmemiş sınırları her bölümde iddiaların yanında tut."
+      }
+    },
+    "workflows_clarify_workflows": {
+      "text": "İş akışlarını netleştir",
+      "description": {
+        "text": "Bir veya daha fazla iş akışını oluşturmadan ya da değiştirmeden önce eksik ayrıntıları netleştir."
       }
     }
   },
@@ -14393,6 +14670,9 @@
     },
     "nighttime": {
       "text": "Gece"
+    },
+    "instructor": {
+      "text": "Eğitmen"
     }
   },
   "rules": {},
@@ -15131,6 +15411,15 @@
         "quick_tips_description": {
           "text": "Asistan yanıtlarından sonra ara sıra ürün ipuçları gösterir. OpenMates'in hızlı ipucu kartları oluşturmasını istemiyorsan bunu kapat."
         },
+        "server_region": {
+          "text": "Sunucu bölgesi"
+        },
+        "prefer_eu_servers": {
+          "text": "AB sunucularını tercih et"
+        },
+        "prefer_eu_servers_description": {
+          "text": "Açık (varsayılan): Yapay zeka modelleri önce AB sunucularında çalışır, diğer bölgeler yalnızca yedek olarak kullanılır. Kapalı: En hızlı, küresel – OpenMates dünya genelinde en hızlı sunucuyu seçer."
+        },
         "quick_tips_enabled": {
           "text": "Hızlı ipuçları etkinleştirildi."
         },
@@ -15848,9 +16137,6 @@
         "skill": {
           "ask": {
             "model": {
-              "qwen3_235b_a22b_2507": {
-                "text": "Qwen 3 256b"
-              },
               "claude_haiku_4_5_20251001": {
                 "text": "Claude Haiku 4.5"
               },
@@ -16932,10 +17218,10 @@
           "text": "Kaydediliyor..."
         },
         "email_chat_how_it_works": {
-          "text": "Sohbet e-postaları siz uzaktayken gönderilir. Başarıyla tamamlanan zamanlanmış Workflow çalışmaları için tamamlanma e-postası ve günlük özet gönderilir."
+          "text": "Planlanan Workflow etkinlikleri günde tek e-postayla özetlenir; mesajlar normal sohbet ayarlarını kullanır."
         },
         "email_workflow_runs_desc": {
-          "text": "Başarıyla tamamlanan zamanlanmış Workflow çalışmaları için e-postalar ve günlük özet"
+          "text": "Planlanan Workflow etkinlikleri günde tek e-postayla özetlenir; mesajlar normal sohbet ayarlarını kullanır."
         },
         "email_webhooks": {
           "text": "Webhook Sohbetleri"
@@ -18070,9 +18356,6 @@
         "text": "Kişisel verileri gizle",
         "chats": {
           "text": "Sohbetler"
-        },
-        "description": {
-          "text": "OpenMates, gizliliğinizi korumak için hassas verileri OpenMates sunucusuna ve harici sağlayıcılara göndermeden önce yer tutucularla otomatik olarak değiştirir. Değiştirilen veriler görsel olarak vurgulanır. Değiştirilen bir veri girişine tıklayarak değiştirmeyi her zaman üzerine yazabilir veya işlevi burada tamamen kapatabilirsiniz."
         }
       },
       "enhanced_pii_model": {
@@ -19377,6 +19660,48 @@
       "title_placeholder": {
         "text": "Sorunu kısaca açıklayın — ne oldu ve nerede?"
       },
+      "issue_text_label": {
+        "text": "Ne oldu?"
+      },
+      "issue_text_placeholder": {
+        "text": "Ne oldu? Neyin bozuk olduğunu veya ters gittiğini ve sorunu yeniden üretmemize yardımcı olacak ayrıntıları yazın."
+      },
+      "attach_image": {
+        "text": "Görsel"
+      },
+      "dictation_failed": {
+        "text": "Dikte başarısız oldu. Lütfen tekrar deneyin veya raporunuzu yazın."
+      },
+      "quick_actions_label": {
+        "text": "Rapora ekle"
+      },
+      "upload_screenshot": {
+        "text": "Ekran görüntüsü yükle"
+      },
+      "select_ui_element": {
+        "text": "Arayüz öğesi seç"
+      },
+      "record_voice": {
+        "text": "Ses kaydet (en fazla 2 dakika)"
+      },
+      "dictation_unavailable_today": {
+        "text": "Ses kaydı bugün kullanılamıyor. Yarın tekrar deneyin."
+      },
+      "dictation_recording_limit": {
+        "text": "Raporlar için ses kayıtları 2 dakika ile sınırlıdır."
+      },
+      "send_to_claude_chat_label": {
+        "text": "Doğrudan Claude sohbetine gönder"
+      },
+      "send_to_claude_chat_hint": {
+        "text": "Geliştirme sunucusunda bu raporu inceleyip düzelten yeni bir Claude sohbeti başlatır."
+      },
+      "confirmation_claude_chat_queued": {
+        "text": "Bir Claude sohbeti yaklaşık bir dakika içinde bu rapor üzerinde çalışmaya başlayacak."
+      },
+      "confirmation_claude_chat_unavailable": {
+        "text": "Claude sohbeti sıraya alınamadı. Sorun kimliğini kopyalayıp sohbeti elle başlatın."
+      },
       "title_required": {
         "text": "Kısa açıklama gereklidir"
       },
@@ -19422,11 +19747,8 @@
       "actual_behaviour_hint": {
         "text": "İsteğe bağlı — neyin yanlış gittiğini açıklayın"
       },
-      "share_chat_label": {
-        "text": "Mevcut sohbeti bu raporla paylas"
-      },
-      "share_chat_hint": {
-        "text": "Bu, yoneticinin sorunu ayiklamaya yardimci olmak icin sohbeti goruntulemesine olanak tanir."
+      "chat_included_notice": {
+        "text": "Sorunu inceleyebilmemiz için mevcut sohbetiniz bu rapora eklenir."
       },
       "url_label": {
         "text": "Paylaşılan sohbet veya gömme URL'si"
@@ -19588,9 +19910,6 @@
       },
       "element_picker_hint": {
         "text": "Hata ayıklama için HTML yapısını yakalamak üzere sayfadaki herhangi bir öğeye dokunun"
-      },
-      "element_picker_button": {
-        "text": "Öğeyi seç"
       },
       "element_picker_active": {
         "text": "Seçiliyor..."
@@ -20730,7 +21049,7 @@
       "text": "Ücretsiz dene"
     },
     "version_title": {
-      "text": "v0.28"
+      "text": "v0.29"
     },
     "domain_not_allowed": {
       "text": "E-posta etki alanına izin verilmiyor."

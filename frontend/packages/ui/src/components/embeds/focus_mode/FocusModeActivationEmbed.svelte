@@ -26,6 +26,7 @@
   import { text } from '@repo/ui';
   import { pendingFocusActivationStore } from '../../../stores/pendingFocusActivationStore';
   import { activeChatFocusStore } from '../../../stores/activeChatFocusStore';
+  import { appSkillsStore } from '../../../stores/appSkillsStore';
 
   /**
    * Props for the focus mode activation embed
@@ -157,7 +158,17 @@
   );
 
   // App gradient style for the icon circle
-  let appGradientStyle = $derived(`background: var(--color-app-${appId});`);
+  // The glyph comes from the parent app's icon_image (e.g. business.svg) via the generated
+  // --icon-url-* variables, so every app's focus modes show an icon without a per-app
+  // `.icon_rounded.<app>` CSS rule (business, design, … have none).
+  let appIconName = $derived(
+    (appSkillsStore.getApp(appId)?.icon_image ?? '').replace(/\.svg$/i, '') || (appId === 'books' ? 'book' : appId)
+  );
+  let appGradientStyle = $derived(
+    /^[a-z0-9_-]+$/i.test(appId) && /^[a-z0-9_-]+$/i.test(appIconName)
+      ? `background: var(--color-app-${appId}); --focus-app-icon-url: var(--icon-url-${appIconName});`
+      : ''
+  );
 
   /**
    * Handle click during countdown to reject the focus mode
@@ -347,7 +358,7 @@
   >
     <!-- App icon in gradient circle (matches BasicInfosBar style) -->
     <div class="app-icon-circle {appId}" style={appGradientStyle}>
-      <div class="icon_rounded {appId === 'books' ? 'book' : appId}"></div>
+      <div class="icon_rounded {appId === 'books' ? 'book' : appId}" data-testid="focus-app-icon" data-icon={appIconName}></div>
     </div>
 
     <!-- Focus/insight skill icon (purple color for focus mode) -->
@@ -404,7 +415,7 @@
     height: 61px;
     min-height: 61px;
     background-color: var(--color-grey-30);
-    border-radius: 30px;
+    border-radius: var(--radius-full);
     padding: 0;
     user-select: none;
     -webkit-user-select: none;
@@ -451,6 +462,7 @@
   }
 
   .focus-mode-bar .app-icon-circle .icon_rounded::after {
+    background-image: var(--focus-app-icon-url);
     filter: brightness(0) invert(1);
   }
 
@@ -520,7 +532,7 @@
   .focus-mode-bar .progress-bar {
     height: 100%;
     background: var(--color-success-50, #4caf50);
-    border-radius: 0 2px 2px 0;
+    border-radius: 0 var(--radius-1) var(--radius-1) 0;
     transition: width 1s linear;
   }
 

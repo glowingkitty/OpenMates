@@ -15,6 +15,62 @@ import httpx
 from backend.shared.providers import web_browse_runtime as runtime
 
 
+# contract-test: supporting surface=rest_api assertions=web-browse.private-storage-and-api,web-browse.delivery-and-evidence
+@pytest.mark.asyncio
+@pytest.mark.parametrize("protocol", ["http11", "http2"])
+async def test_rpc_timing_ignores_sensitive_trace_payloads_and_remote_spoofing(
+    monkeypatch, protocol
+):
+    from backend.shared.providers.e2b_browser import E2BBrowser
+
+    async def respond(request):
+        trace = request.extensions["trace"]
+        private = {
+            "request": request,
+            "headers": {"Authorization": "private-trace-token"},
+        }
+        for event in [
+            "connection.connect_tcp",
+            "connection.start_tls",
+            protocol + ".receive_response_headers",
+            protocol + ".receive_response_body",
+        ]:
+            await trace(event + ".started", private)
+            await trace(event + ".complete", private)
+        await trace("unrecognized.private.complete", private)
+        return httpx.Response(
+            200, json={"executed": True, "_rpc_timings": {"secret": "remote-spoof"}}
+        )
+
+    native = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: native(transport=httpx.MockTransport(respond), **kwargs),
+    )
+    result = await E2BBrowser("placeholder").rpc(
+        {
+            "rpc_url": "https://private-sandbox.invalid/rpc",
+            "token": "private-token",
+            "traffic_access_token": "private-ingress",
+        },
+        {"operation": "observe"},
+    )
+    assert result["executed"] is True
+    timing = result["_rpc_timings"]
+    assert set(timing) == {
+        "connect_tcp_seconds",
+        "tls_seconds",
+        "response_headers_seconds",
+        "response_body_seconds",
+        "total_seconds",
+    }
+    assert all(
+        isinstance(value, (int, float)) and 0 <= value < 10 for value in timing.values()
+    )
+    assert "private" not in json.dumps(timing) and "remote" not in json.dumps(timing)
+
+
 # contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.private-storage-and-api
 @pytest.mark.asyncio
 @pytest.mark.parametrize(

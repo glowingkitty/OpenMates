@@ -45,6 +45,7 @@ models:
         name: "Mistral"
         model_id: "mistral-large-4"
         region: "EU"
+        country: "FR"
     # Regular direct-API supplier rates, verified 2026-10-08:
     # https://docs.mistral.ai/models/mistral-large
     # The page currently advertises a half-price sale without an expiry.
@@ -140,6 +141,7 @@ models:
         name: "Mistral"
         model_id: "mistral-small-latest" # Direct Mistral API model ID
         region: "EU" # Server region for UI display (Mistral is EU-based)
+        country: "FR"
       # Google Vertex AI removed — Mistral on Vertex AI requires rawPredict/streamRawPredict
       # endpoint, but our google client uses the Gemini SDK (genai.Client) which only supports
       # Google's own models. This caused 404 NOT_FOUND errors. A dedicated Vertex AI Mistral
@@ -152,7 +154,8 @@ models:
         name: "OpenRouter"
         # OpenRouter model identifier
         model_id: "mistralai/mistral-small-2603"
-        region: "US" # Server region for UI display
+        region: "EU" # Server region for UI display
+        country: "FR"
     # Full reference for API calls would be "mistral/mistral-small-latest"
     # (or similar based on client)
     pricing: # Current Small 4 API rates: $0.15 input / $0.60 output per million tokens.
@@ -208,6 +211,7 @@ models:
         name: "Mistral"
         model_id: "mistral-medium-latest" # Direct Mistral API alias
         region: "EU" # Server region for UI display (Mistral is EU-based)
+        country: "FR"
       - id: "openrouter"
         reasoning_control:
           parameter: reasoning_effort
@@ -215,7 +219,8 @@ models:
           source_url: https://openrouter.ai/docs/guides/best-practices/reasoning-tokens#discovering-per-model-reasoning-options
         name: "OpenRouter"
         model_id: "mistralai/mistral-medium-3-5" # OpenRouter model identifier
-        region: "US" # Server region for UI display
+        region: "EU" # Server region for UI display
+        country: "FR"
     pricing:
       tokens:
         input:
@@ -269,6 +274,7 @@ models:
         name: "Mistral"
         model_id: "voxtral-mini-2602"
         region: "EU"
+        country: "FR"
     pricing:
       per_minute: 3 # Existing batch audio.transcribe price
     costs:
@@ -295,6 +301,7 @@ models:
         name: "Mistral"
         model_id: "voxtral-mini-transcribe-realtime-2602"
         region: "EU"
+        country: "FR"
     pricing:
       per_minute: 8 # Whole-credit ceiling of $0.006/min provider cost + 20%
     costs:
@@ -313,7 +320,7 @@ models:
     output_types: [text]
     default_server: "mistral"
     servers:
-      - {id: "mistral", name: "Mistral", model_id: "voxtral-mini-transcribe-realtime-3-0", region: "EU"}
+      - {id: "mistral", name: "Mistral", model_id: "voxtral-mini-transcribe-realtime-3-0", region: "EU", country: "FR"}
     pricing: {per_minute: 10}
     costs:
       per_minute: {price: 0.008, currency: USD}
@@ -329,7 +336,7 @@ models:
     output_types: [audio]
     default_server: "mistral"
     servers:
-      - {id: "mistral", name: "Mistral", model_id: "voxtral-mini-tts-3-0", region: "EU"}
+      - {id: "mistral", name: "Mistral", model_id: "voxtral-mini-tts-3-0", region: "EU", country: "FR"}
     costs:
       per_million_characters: {price: 13, currency: USD}
 

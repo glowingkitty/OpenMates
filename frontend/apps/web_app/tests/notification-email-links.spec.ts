@@ -172,7 +172,7 @@ function seedPrivateLinkTarget(home: string): { chatId: string; embedId: string;
       } finally {ws.close();}
     })().catch(error=>{console.error('Private notification fixture:',error.message);process.exit(1)});
   `;
-  return JSON.parse(execFileSync('node', ['-e', source, path.join(path.dirname(CLI_DIST), 'index.js')], {
+  return JSON.parse(execFileSync('node', ['-e', source, path.join(path.dirname(CLI_DIST), 'cli-internal-client.js')], {
     cwd: path.resolve(__dirname, '../../../..'), env: workflowCliEnv(apiUrl(), home), encoding: 'utf8', timeout: 150_000,
   }).trim());
 }

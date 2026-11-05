@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "scope": "synthetic actual Rust Work writer output into maintained MetadataEncryptor; no API/browser/account/AI/performance proof",
+  "wire": {
+    "iv_bytes": 12,
+    "tag_bytes": 16,
+    "prefix_bytes": 0,
+    "base64": "standard",
+    "aad": "exact-caller-context"
+  },
+  "decoderKinds": [
+    "master-binary",
+    "master-text",
+    "object-binary",
+    "object-text"
+  ],
+  "requiredRustTests": [
+    "work::projects::field_interop_tests::actual_project_create_patch_and_team_wrapper_read_in_web_legacy_decoders",
+    "work::plans::field_interop_tests::actual_plan_create_patch_fields_read_in_web_legacy_decoders",
+    "work::task_crypto::field_interop_tests::actual_task_create_patch_and_activity_read_in_web_legacy_decoders_without_export",
+    "work::task_crypto::field_interop_tests::activity_reads_preserve_old_native_frames_exact_aad_and_strict_utf8",
+    "work::projects::sources::field_interop_tests::actual_source_fields_read_in_web_legacy_decoders",
+    "work::plans::children::field_interop_tests::actual_plan_child_create_patch_fields_read_in_web_legacy_decoders",
+    "work::plans::advanced::field_interop_tests::actual_revision_and_evidence_requests_read_in_web_legacy_decoders",
+    "work::tasks::ai_jobs::field_interop_tests::actual_job_create_and_move_wrappers_read_in_web_legacy_decoders",
+    "work::workflows::field_interop_tests::actual_workflow_create_patch_slugs_read_in_web_legacy_decoders",
+    "work::workflows::advanced::field_interop_tests::actual_workflow_project_item_fields_read_in_web_legacy_decoders"
+  ],
+  "negativeChecks": [
+    "tampered-tag",
+    "wrong-key",
+    "wrong-activity-AAD",
+    "nonextractable-resource",
+    "no-exportKey",
+    "old-native-OM-AAD-read",
+    "strict-UTF8-activity"
+  ],
+  "openScope": [
+    "Shared WORK first group plus second group require codec44c37eff and compiled real crossdecoder execution before compatibility is proven.",
+    "Remaining client/account/sync/draft/App/recovery/persistence consumers and npm/Python field parity are separate required work."
+  ]
+}

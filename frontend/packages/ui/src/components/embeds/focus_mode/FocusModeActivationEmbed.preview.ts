@@ -19,6 +19,14 @@ const defaultProps = {
 export default defaultProps;
 
 export const variants = {
+  // business has no per-app .icon_rounded CSS rule; the glyph comes from the app's icon_image.
+  businessPriceProducts: {
+    ...defaultProps,
+    id: "preview-focus-business-price-products",
+    focusId: "business-price_products",
+    appId: "business",
+    focusModeName: "app_focus_modes.business.price_products",
+  },
   projectConsent: {
     ...defaultProps,
     id: "preview-project-consent",

@@ -78,7 +78,9 @@ test('real long speech preserves beginning middle and end as editable composer t
 	await micButton.click();
 	const overlay = page.getByTestId('record-overlay');
 	await expect(overlay).toBeVisible({ timeout: 10_000 });
-	await expect(overlay.getByTestId('recording-live-transcript')).toContainText(/in the final message/i, { timeout: 90_000 });
+	// Recognized words stream into the editor after the typed prefix while speaking.
+	await expect(editor).toContainText(/in the final message/i, { timeout: 90_000 });
+	await expect(editor).toHaveText(/^Please /);
 	// Earlier speech must be corrected while the microphone is still active.
 	await expect.poll(() => serverEvents.includes('correction.progress'), { timeout: 30_000 }).toBe(true);
 	expect(serverEvents).not.toContain('transcription.done');

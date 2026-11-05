@@ -99,6 +99,16 @@ export interface PendingEmbedOperation {
   created_at: number;
 }
 
+/** Raised when deleteDatabase is blocked by another open connection (e.g. a peer tab). */
+export class IndexedDbDeleteBlockedError extends Error {
+  readonly databaseName: string;
+  constructor(databaseName: string) {
+    super(`Deletion of database ${databaseName} is blocked`);
+    this.name = "IndexedDbDeleteBlockedError";
+    this.databaseName = databaseName;
+  }
+}
+
 class ChatDatabase {
   private async writeWithQuotaRecovery<T>(write: () => Promise<T>, canRetry = true): Promise<T> {
     return writeWithQuotaRetry(write, () => messageOps.enforceOfflineCacheBudget(this, true), () => {
@@ -611,6 +621,21 @@ class ChatDatabase {
     });
   }
 
+  /**
+   * Another tab deleting or upgrading this database fires versionchange on
+   * every open connection. Close and drop the cached handle so the delete is
+   * not blocked (multi-tab logout); the next access reopens lazily via init().
+   */
+  private installVersionChangeHandler(db: IDBDatabase): void {
+    db.onversionchange = () => {
+      db.close();
+      if (this.db === db) {
+        this.db = null;
+        this.initializationPromise = null;
+      }
+    };
+  }
+
   private async recreateDatabaseFromSnapshot(
     snapshot: RawStoreSnapshot,
   ): Promise<IDBDatabase> {
@@ -636,6 +661,7 @@ class ChatDatabase {
       };
       request.onsuccess = async () => {
         const repairedDb = request.result;
+        this.installVersionChangeHandler(repairedDb);
         try {
           await this.restoreRawStoreSnapshot(repairedDb, snapshot);
           resolve(repairedDb);
@@ -1005,6 +1031,7 @@ class ChatDatabase {
       request.onsuccess = async () => {
         console.warn("[ChatDatabase] Database opened successfully");
         this.db = request.result;
+        this.installVersionChangeHandler(request.result);
 
         let invalidSchemaEntries = this.getInvalidSchemaEntries(this.db);
         if (invalidSchemaEntries.length > 0) {
@@ -1200,6 +1227,7 @@ class ChatDatabase {
 
           checkRequest.onsuccess = (event) => {
             const db = (event.target as IDBOpenDBRequest).result;
+            this.installVersionChangeHandler(db);
             try {
               const transaction = db.transaction(
                 [this.CHATS_STORE_NAME],
@@ -2676,7 +2704,7 @@ class ChatDatabase {
           // local data as safely deleted.
           this.isDeleting = false;
           this.deletionPromise = null;
-          reject(new Error(`Deletion of database ${this.DB_NAME} is blocked`));
+          reject(new IndexedDbDeleteBlockedError(this.DB_NAME));
         };
       }, 100);
     });

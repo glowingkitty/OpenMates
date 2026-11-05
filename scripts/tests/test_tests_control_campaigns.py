@@ -24,7 +24,8 @@ TESTS_CONTROL_PATH = PROJECT_ROOT / "scripts" / "tests.py"
 
 
 def load_tests_control(tmp_path, monkeypatch):
-    monkeypatch.delenv("CODEX_THREAD_ID", raising=False)
+    for name in ("CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID", "CODEX_SESSION_ID"):
+        monkeypatch.delenv(name, raising=False)
     spec = importlib.util.spec_from_file_location("openmates_campaign_tests_control", TESTS_CONTROL_PATH)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -140,14 +141,27 @@ def create_parallel_campaign(
     return campaign_key, groups
 
 
+def test_campaign_identity_still_accepts_legacy_codex_thread(tmp_path, monkeypatch):
+    control = load_tests_control(tmp_path, monkeypatch)
+    control.record_run_result(failed_run("first.spec.ts"))
+
+    # Fallback for scripted callers that still export the retired Codex variable.
+    monkeypatch.setenv("CODEX_THREAD_ID", "session-1")
+    first = control.start_debug_campaign(session_id="session-1")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "unrelated-chat")
+    with pytest.raises(RuntimeError, match="mismatch"):
+        control.start_debug_campaign(session_id="session-1")
+    assert first["campaign_key"]
+
+
 def test_campaign_start_freezes_scope_and_resumes_active_session(tmp_path, monkeypatch):
     control = load_tests_control(tmp_path, monkeypatch)
     control.record_run_result(failed_run("first.spec.ts", "second.spec.ts"))
 
-    monkeypatch.setenv("CODEX_THREAD_ID", "session-1")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "session-1")
     first = control.start_debug_campaign(session_id="session-1")
     resumed = control.start_debug_campaign(session_id="session-1")
-    monkeypatch.setenv("CODEX_THREAD_ID", "unrelated-chat")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "unrelated-chat")
     with pytest.raises(RuntimeError, match="mismatch"):
         control.start_debug_campaign(session_id="session-1")
 
@@ -184,7 +198,7 @@ def test_campaign_start_repairs_campaign_left_without_groups(tmp_path, monkeypat
         "completed_at": None,
     })
 
-    monkeypatch.setenv("CODEX_THREAD_ID", "session-1")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "session-1")
     resumed = control.start_debug_campaign(session_id="session-1")
 
     assert resumed["campaign_key"] == campaign["campaign_key"]
@@ -196,7 +210,7 @@ def test_campaign_start_repairs_campaign_left_without_groups(tmp_path, monkeypat
 
 def test_command_registry_exposes_campaign_attempt_choices(tmp_path, monkeypatch, capsys):
     tests_control = load_tests_control(tmp_path, monkeypatch)
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses_registry_should_not_leak")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses_registry_should_not_leak")
 
     assert tests_control.main(["commands", "--json"]) == 0
     raw_output = capsys.readouterr().out
@@ -214,10 +228,10 @@ def test_command_registry_exposes_campaign_attempt_choices(tmp_path, monkeypatch
 def test_campaign_start_rejects_matching_scope_takeover_from_new_session(tmp_path, monkeypatch):
     control = load_tests_control(tmp_path, monkeypatch)
     control.record_run_result(failed_run("first.spec.ts"))
-    monkeypatch.setenv("CODEX_THREAD_ID", "session-1")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "session-1")
     first = control.start_debug_campaign(session_id="session-1")
 
-    monkeypatch.setenv("CODEX_THREAD_ID", "session-2")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "session-2")
     with pytest.raises(RuntimeError, match="campaign coordinator") as excinfo:
         control.start_debug_campaign(session_id="session-2")
 
@@ -230,7 +244,7 @@ def test_campaign_start_rejects_matching_scope_takeover_from_new_session(tmp_pat
 def test_campaign_list_surfaces_resumable_active_campaigns(tmp_path, monkeypatch):
     control = load_tests_control(tmp_path, monkeypatch)
     control.record_run_result(failed_run("first.spec.ts"))
-    monkeypatch.setenv("CODEX_THREAD_ID", "session-1")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "session-1")
     campaign = control.start_debug_campaign(session_id="session-1")
 
     listing = control.list_debug_campaigns(overlap_current_failures=True)
@@ -309,7 +323,7 @@ def test_daily_recovery_links_legacy_campaigns_and_owns_only_unclaimed_failures(
         {"key": key, "group_id": f"daily-{index}"}
         for index, key in enumerate(selected_test_keys, start=1)
     ]})
-    monkeypatch.setenv("CODEX_THREAD_ID", "daily-coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "daily-coordinator")
     legacy_state = (
         control._debug_campaign(first_key).copy(),
         control._debug_campaign(second_key).copy(),
@@ -383,7 +397,7 @@ def test_daily_recovery_requires_direct_group_for_regression_from_green_linked_g
     pending_test_key = "vitest::frontend/test-2.test.ts"
     current_entries = [{"key": pending_test_key, "group_id": "daily-pending"}]
     monkeypatch.setattr(control, "build_triage", lambda: {"entries": current_entries})
-    monkeypatch.setenv("CODEX_THREAD_ID", "daily-coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "daily-coordinator")
 
     campaign = control.start_debug_campaign(session_id="daily-coordinator", daily_recovery=True)
 
@@ -443,10 +457,10 @@ def test_campaign_start_with_campaign_key_requires_existing_coordinator(tmp_path
     control = load_tests_control(tmp_path, monkeypatch)
     campaign_key, _groups = create_parallel_campaign(control, group_count=1)
 
-    monkeypatch.setenv("CODEX_THREAD_ID", "unrelated-chat")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "unrelated-chat")
     with pytest.raises(RuntimeError, match="session mismatch"):
         control.start_debug_campaign(session_id="coordinator", campaign_key=campaign_key)
-    monkeypatch.setenv("CODEX_THREAD_ID", "coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "coordinator")
     resumed = control.start_debug_campaign(session_id="coordinator", campaign_key=campaign_key)
 
     assert resumed["campaign_key"] == campaign_key
@@ -455,7 +469,7 @@ def test_campaign_start_with_campaign_key_requires_existing_coordinator(tmp_path
 def test_campaign_handoff_rebinds_coordinator_without_taking_worker_leases(tmp_path, monkeypatch):
     control = load_tests_control(tmp_path, monkeypatch)
     campaign_key, groups = create_parallel_campaign(control, group_count=2)
-    monkeypatch.setenv("CODEX_THREAD_ID", "coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "coordinator")
     coordinator_lease = control.claim_next_debug_group(campaign_key, session_id="coordinator")
     worker_lease = control.claim_debug_group(
         campaign_key,
@@ -465,7 +479,7 @@ def test_campaign_handoff_rebinds_coordinator_without_taking_worker_leases(tmp_p
         linked_files=["frontend/test-2.test.ts"],
     )
 
-    monkeypatch.setenv("CODEX_THREAD_ID", "new-coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "new-coordinator")
     handed_off = control.handoff_debug_campaign(
         campaign_key,
         from_session="coordinator",
@@ -494,7 +508,7 @@ def test_campaign_handoff_rejects_active_worker_as_new_coordinator(tmp_path, mon
         linked_files=["frontend/test-1.test.ts"],
     )
 
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker")
     with pytest.raises(RuntimeError, match="Active debug workers"):
         control.handoff_debug_campaign(
             campaign_key,
@@ -510,7 +524,7 @@ def test_campaign_start_rejects_spoofed_initial_owner(tmp_path, monkeypatch):
     control = load_tests_control(tmp_path, monkeypatch)
     control.record_run_result(failed_run("first.spec.ts"))
 
-    monkeypatch.setenv("CODEX_THREAD_ID", "unrelated-chat")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "unrelated-chat")
     with pytest.raises(RuntimeError, match="session mismatch"):
         control.start_debug_campaign(session_id="coordinator")
 
@@ -518,7 +532,7 @@ def test_campaign_start_rejects_spoofed_initial_owner(tmp_path, monkeypatch):
 def test_campaign_group_persists_acceptance_attempts_and_blocker(tmp_path, monkeypatch):
     control = load_tests_control(tmp_path, monkeypatch)
     control.record_run_result(failed_run("billing-settings.spec.ts"))
-    monkeypatch.setenv("CODEX_THREAD_ID", "session-1")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "session-1")
     campaign = control.start_debug_campaign(session_id="session-1")
     group = control.debug_groups_for_campaign(campaign["campaign_key"])[0]
 
@@ -534,7 +548,7 @@ def test_campaign_group_persists_acceptance_attempts_and_blocker(tmp_path, monke
         summary="Capability remained disabled.",
         run_keys=["run-check-1"],
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "unrelated-chat")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "unrelated-chat")
     with pytest.raises(RuntimeError, match="campaign coordinator"):
         control.block_debug_group(
             group["group_key"],
@@ -542,7 +556,7 @@ def test_campaign_group_persists_acceptance_attempts_and_blocker(tmp_path, monke
             question="Should payment capability be enabled on dev?",
             next_action="Confirm dev capability policy, then rerun billing-settings.spec.ts.",
         )
-    monkeypatch.setenv("CODEX_THREAD_ID", "session-1")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "session-1")
     blocked = control.block_debug_group(
         group["group_key"],
         reason="Dev payment capability requires a product decision.",
@@ -562,7 +576,7 @@ def test_campaign_group_persists_acceptance_attempts_and_blocker(tmp_path, monke
 def test_campaign_unblock_clears_structural_blocker_and_restores_next_lease(tmp_path, monkeypatch):
     control = load_tests_control(tmp_path, monkeypatch)
     control.record_run_result(failed_run("audio-recording.spec.ts"))
-    monkeypatch.setenv("CODEX_THREAD_ID", "session-1")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "session-1")
     campaign = control.start_debug_campaign(session_id="session-1")
     group = control.debug_groups_for_campaign(campaign["campaign_key"])[0]
     control.block_debug_group(
@@ -598,7 +612,7 @@ def test_campaign_next_can_lease_explicit_unblocked_group(tmp_path, monkeypatch)
     control = load_tests_control(tmp_path, monkeypatch)
     campaign_key, groups = create_parallel_campaign(control, group_count=2)
     target = groups[1]
-    monkeypatch.setenv("CODEX_THREAD_ID", "coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "coordinator")
     control.block_debug_group(
         target["group_key"],
         reason="The second group needs an approved shared helper boundary.",
@@ -625,7 +639,7 @@ def test_campaign_next_can_lease_explicit_unblocked_group(tmp_path, monkeypatch)
 def test_complete_group_requires_green_evidence_for_every_member(tmp_path, monkeypatch):
     control = load_tests_control(tmp_path, monkeypatch)
     control.record_run_result(failed_run("first.spec.ts", "second.spec.ts"))
-    monkeypatch.setenv("CODEX_THREAD_ID", "session-1")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "session-1")
     campaign = control.start_debug_campaign(session_id="session-1")
     group = control.debug_groups_for_campaign(campaign["campaign_key"])[0]
 
@@ -637,7 +651,7 @@ def test_complete_group_requires_green_evidence_for_every_member(tmp_path, monke
         group["group_key"],
         result_names=["first.spec.ts"],
     ))
-    monkeypatch.setenv("CODEX_THREAD_ID", "session-1")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "session-1")
     with pytest.raises(RuntimeError, match="second.spec.ts"):
         control.complete_debug_group(group["group_key"], commit="fix111abc")
 
@@ -658,7 +672,7 @@ def test_complete_group_requires_green_evidence_for_every_member(tmp_path, monke
 def test_campaign_completes_only_after_full_zero_failure_run(tmp_path, monkeypatch):
     control = load_tests_control(tmp_path, monkeypatch)
     control.record_run_result(failed_run("first.spec.ts"))
-    monkeypatch.setenv("CODEX_THREAD_ID", "session-1")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "session-1")
     campaign = control.start_debug_campaign(session_id="session-1")
     group = control.debug_groups_for_campaign(campaign["campaign_key"])[0]
     control.record_run_result(passed_run(
@@ -689,7 +703,7 @@ def test_campaign_completes_only_after_full_zero_failure_run(tmp_path, monkeypat
 def test_failed_full_run_adds_new_child_group_to_same_campaign(tmp_path, monkeypatch):
     control = load_tests_control(tmp_path, monkeypatch)
     control.record_run_result(failed_run("first.spec.ts"))
-    monkeypatch.setenv("CODEX_THREAD_ID", "session-1")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "session-1")
     campaign = control.start_debug_campaign(session_id="session-1")
     parent = control.debug_groups_for_campaign(campaign["campaign_key"])[0]
     control.record_run_result(passed_run(
@@ -724,7 +738,7 @@ def test_complete_vercel_gate_child_from_later_successful_parent_dispatch(tmp_pa
     control = load_tests_control(tmp_path, monkeypatch)
     parent_specs = ["ai-response-language.spec.ts", "message-sync.spec.ts"]
     control.record_run_result(failed_run("ai-response-language.spec.ts"))
-    monkeypatch.setenv("CODEX_THREAD_ID", "session-1")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "session-1")
     campaign = control.start_debug_campaign(session_id="session-1")
     parent = control.debug_groups_for_campaign(campaign["campaign_key"])[0]
     parent = control.get_store().update_debug_group(
@@ -902,7 +916,7 @@ def test_complete_vercel_gate_child_from_later_successful_parent_dispatch(tmp_pa
 def test_campaign_bound_failure_is_added_as_child_group(tmp_path, monkeypatch):
     control = load_tests_control(tmp_path, monkeypatch)
     control.record_run_result(failed_run("account-preflight.spec.ts"))
-    monkeypatch.setenv("CODEX_THREAD_ID", "session-1")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "session-1")
     campaign = control.start_debug_campaign(session_id="session-1")
     parent = control.debug_groups_for_campaign(campaign["campaign_key"])[0]
 
@@ -921,7 +935,7 @@ def test_campaign_bound_failure_is_added_as_child_group(tmp_path, monkeypatch):
 def test_campaign_group_selection_ignores_local_failure_artifacts(tmp_path, monkeypatch):
     control = load_tests_control(tmp_path, monkeypatch)
     control.record_run_result(failed_run("first.spec.ts", "second.spec.ts"))
-    monkeypatch.setenv("CODEX_THREAD_ID", "session-1")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "session-1")
     campaign = control.start_debug_campaign(session_id="session-1")
     group = control.debug_groups_for_campaign(campaign["campaign_key"])[0]
     control.RESULTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -939,13 +953,13 @@ def test_campaign_group_selection_ignores_local_failure_artifacts(tmp_path, monk
 def test_campaign_next_lease_links_complete_durable_group(tmp_path, monkeypatch):
     control = load_tests_control(tmp_path, monkeypatch)
     control.record_run_result(failed_run("first.spec.ts", "second.spec.ts"))
-    monkeypatch.setenv("CODEX_THREAD_ID", "session-1")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "session-1")
     campaign = control.start_debug_campaign(session_id="session-1")
 
-    monkeypatch.setenv("CODEX_THREAD_ID", "unrelated-chat")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "unrelated-chat")
     with pytest.raises(RuntimeError, match="mismatch"):
         control.claim_next_debug_group(campaign["campaign_key"], session_id="session-1")
-    monkeypatch.setenv("CODEX_THREAD_ID", "session-1")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "session-1")
     lease = control.claim_next_debug_group(campaign["campaign_key"], session_id="session-1")
 
     assert lease is not None
@@ -958,7 +972,7 @@ def test_campaign_bound_run_requires_coordinator_identity(tmp_path, monkeypatch)
     control = load_tests_control(tmp_path, monkeypatch)
     campaign_key, groups = create_parallel_campaign(control, group_count=1)
 
-    monkeypatch.setenv("CODEX_THREAD_ID", "unrelated-chat")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "unrelated-chat")
     result = control.command_run(["--campaign", campaign_key, "--group", groups[0]["group_key"]])
 
     assert result == 2
@@ -967,7 +981,7 @@ def test_campaign_bound_run_requires_coordinator_identity(tmp_path, monkeypatch)
 def test_specific_campaign_group_lease_is_atomic(tmp_path, monkeypatch):
     control = load_tests_control(tmp_path, monkeypatch)
     control.record_run_result(failed_run("first.spec.ts", run_id="run-one"))
-    monkeypatch.setenv("CODEX_THREAD_ID", "coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "coordinator")
     campaign = control.start_debug_campaign(session_id="coordinator")
     group = control.debug_groups_for_campaign(campaign["campaign_key"])[0]
 
@@ -992,7 +1006,7 @@ def test_specific_campaign_group_lease_is_atomic(tmp_path, monkeypatch):
 def test_specific_group_lease_atomically_rejects_active_file_overlap(tmp_path, monkeypatch):
     control = load_tests_control(tmp_path, monkeypatch)
     control.record_run_result(failed_run("first.spec.ts", run_id="run-one"))
-    monkeypatch.setenv("CODEX_THREAD_ID", "coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "coordinator")
     campaign = control.start_debug_campaign(session_id="coordinator")
     first_group = control.debug_groups_for_campaign(campaign["campaign_key"])[0]
     second_group = control.get_store().create_debug_group({
@@ -1024,7 +1038,7 @@ def test_specific_group_lease_atomically_rejects_active_file_overlap(tmp_path, m
 def test_campaign_next_worker_rejects_active_file_overlap(tmp_path, monkeypatch):
     control = load_tests_control(tmp_path, monkeypatch)
     control.record_run_result(failed_run("first.spec.ts", run_id="run-one"))
-    monkeypatch.setenv("CODEX_THREAD_ID", "coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "coordinator")
     campaign = control.start_debug_campaign(session_id="coordinator")
     first_group = control.debug_groups_for_campaign(campaign["campaign_key"])[0]
     control.get_store().create_debug_group({
@@ -1055,7 +1069,7 @@ def test_campaign_next_worker_rejects_active_file_overlap(tmp_path, monkeypatch)
 def test_campaign_next_worker_lease_uses_worker_placeholder_session(tmp_path, monkeypatch):
     control = load_tests_control(tmp_path, monkeypatch)
     campaign_key, _groups = create_parallel_campaign(control, group_count=1)
-    monkeypatch.setenv("CODEX_THREAD_ID", "coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "coordinator")
 
     lease = control.claim_next_debug_group(campaign_key, session_id="coordinator", worker_id="worker-chat")
 
@@ -1067,7 +1081,7 @@ def test_campaign_next_worker_lease_uses_worker_placeholder_session(tmp_path, mo
 def test_specific_group_lease_ignores_released_legacy_worker_claims(tmp_path, monkeypatch):
     control = load_tests_control(tmp_path, monkeypatch)
     control.record_run_result(failed_run("first.spec.ts", run_id="run-one"))
-    monkeypatch.setenv("CODEX_THREAD_ID", "coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "coordinator")
     campaign = control.start_debug_campaign(session_id="coordinator")
     group = control.debug_groups_for_campaign(campaign["campaign_key"])[0]
     for index in range(control.MAX_PARALLEL_DEBUG_WORKERS):
@@ -1214,14 +1228,14 @@ def test_debug_worker_lease_release_and_complete_require_owner_or_coordinator(tm
         linked_files=["frontend/test-2.test.ts"],
     )
 
-    monkeypatch.setenv("CODEX_THREAD_ID", "unrelated-chat")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "unrelated-chat")
     with pytest.raises(RuntimeError, match="campaign coordinator"):
         control.release_lease(first["lease_id"], reason="tamper")
     with pytest.raises(RuntimeError, match="campaign coordinator"):
         control.complete_lease(second["lease_id"], commit="base111")
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker-1")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker-1")
     assert control.release_lease(first["lease_id"], reason="done")["status"] == "released"
-    monkeypatch.setenv("CODEX_THREAD_ID", "coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "coordinator")
     assert control.complete_lease(second["lease_id"], commit="base111")["status"] == "completed"
 
 
@@ -1239,7 +1253,7 @@ def test_worker_intent_records_write_set_before_edit_and_rejects_unlisted_files(
         linked_files=["frontend/test-1.test.ts"],
     )
 
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker")
     intent = control.submit_worker_fix_intent(
         group["group_key"],
         lease["lease_id"],
@@ -1285,7 +1299,7 @@ def test_worker_intent_approval_rejects_stale_commit_and_overlapping_write_sets(
         worker_id="worker-two",
         linked_files=["frontend/test-2.test.ts"],
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker-1")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker-1")
     control.submit_worker_fix_intent(
         groups[0]["group_key"],
         first_lease["lease_id"],
@@ -1294,7 +1308,7 @@ def test_worker_intent_approval_rejects_stale_commit_and_overlapping_write_sets(
         hypothesis="Patch first test helper.",
         write_files=["frontend/test-1.test.ts"],
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker-2")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker-2")
     stale = control.submit_worker_fix_intent(
         groups[1]["group_key"],
         second_lease["lease_id"],
@@ -1304,7 +1318,7 @@ def test_worker_intent_approval_rejects_stale_commit_and_overlapping_write_sets(
         write_files=["frontend/test-2.test.ts"],
     )
 
-    monkeypatch.setenv("CODEX_THREAD_ID", "coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "coordinator")
     approved = control.approve_worker_fix_intent(
         groups[0]["group_key"],
         first_lease["lease_id"],
@@ -1321,7 +1335,7 @@ def test_worker_intent_approval_rejects_stale_commit_and_overlapping_write_sets(
             current_commit="base111",
         )
 
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker-2")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker-2")
     control.submit_worker_fix_intent(
         groups[1]["group_key"],
         second_lease["lease_id"],
@@ -1331,7 +1345,7 @@ def test_worker_intent_approval_rejects_stale_commit_and_overlapping_write_sets(
         write_files=["frontend/test-1.test.ts"],
         boundary_expansion=True,
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "coordinator")
     with pytest.raises(RuntimeError, match="overlap"):
         control.approve_worker_fix_intent(
             groups[1]["group_key"],
@@ -1351,7 +1365,7 @@ def test_worker_intent_approval_uses_checkout_commit_over_cli_override(tmp_path,
         worker_id="worker-chat",
         linked_files=["frontend/test-1.test.ts"],
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker")
     control.submit_worker_fix_intent(
         groups[0]["group_key"],
         lease["lease_id"],
@@ -1361,7 +1375,7 @@ def test_worker_intent_approval_uses_checkout_commit_over_cli_override(tmp_path,
         write_files=["frontend/test-1.test.ts"],
     )
     monkeypatch.setattr(control, "current_git_sha", lambda: "other999")
-    monkeypatch.setenv("CODEX_THREAD_ID", "coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "coordinator")
 
     with pytest.raises(RuntimeError, match="stale"):
         control.approve_worker_fix_intent(
@@ -1382,7 +1396,7 @@ def test_worker_intent_approval_fails_closed_when_checkout_commit_unavailable(tm
         worker_id="worker-chat",
         linked_files=["frontend/test-1.test.ts"],
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker")
     control.submit_worker_fix_intent(
         groups[0]["group_key"],
         lease["lease_id"],
@@ -1392,7 +1406,7 @@ def test_worker_intent_approval_fails_closed_when_checkout_commit_unavailable(tm
         write_files=["frontend/test-1.test.ts"],
     )
     monkeypatch.setattr(control, "current_git_sha", lambda: (_ for _ in ()).throw(RuntimeError("git unavailable")))
-    monkeypatch.setenv("CODEX_THREAD_ID", "coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "coordinator")
 
     with pytest.raises(RuntimeError, match="git unavailable"):
         control.approve_worker_fix_intent(
@@ -1414,7 +1428,7 @@ def test_worker_cannot_self_approve_intent_or_boundary(tmp_path, monkeypatch):
         worker_id="worker-chat",
         linked_files=["frontend/test-1.test.ts"],
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker")
     control.submit_worker_fix_intent(
         group["group_key"],
         lease["lease_id"],
@@ -1444,7 +1458,7 @@ def test_worker_cannot_self_approve_intent_or_boundary(tmp_path, monkeypatch):
             lease["lease_id"],
             coordinator_session="coordinator",
         )
-    monkeypatch.setenv("CODEX_THREAD_ID", "unrelated-chat")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "unrelated-chat")
     with pytest.raises(RuntimeError, match="mismatch"):
         control.approve_worker_fix_intent(
             group["group_key"],
@@ -1471,7 +1485,7 @@ def test_worker_lifecycle_commands_reject_another_workers_lease(tmp_path, monkey
         worker_id="worker-two",
         linked_files=["frontend/test-2.test.ts"],
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker-2")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker-2")
     control.submit_worker_fix_intent(
         groups[1]["group_key"],
         second_lease["lease_id"],
@@ -1480,7 +1494,7 @@ def test_worker_lifecycle_commands_reject_another_workers_lease(tmp_path, monkey
         hypothesis="Patch second test helper.",
         write_files=["frontend/test-2.test.ts"],
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "coordinator")
     control.approve_worker_fix_intent(
         groups[1]["group_key"],
         second_lease["lease_id"],
@@ -1488,17 +1502,17 @@ def test_worker_lifecycle_commands_reject_another_workers_lease(tmp_path, monkey
         current_commit="base111",
     )
 
-    monkeypatch.delenv("CODEX_THREAD_ID", raising=False)
-    with pytest.raises(RuntimeError, match="require CODEX_THREAD_ID"):
+    monkeypatch.delenv("CLAUDE_CODE_SESSION_ID", raising=False)
+    with pytest.raises(RuntimeError, match="require an agent session ID"):
         control.submit_worker_fix_intent(
             groups[1]["group_key"],
             second_lease["lease_id"],
             worker_id="worker-two",
             base_commit="base111",
-            hypothesis="Overwrite without an Codex session.",
+            hypothesis="Overwrite without an agent session.",
             write_files=["frontend/test-2.test.ts"],
         )
-    monkeypatch.setenv("CODEX_THREAD_ID", "worker-two")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "worker-two")
     with pytest.raises(RuntimeError, match="does not own"):
         control.submit_worker_fix_intent(
             groups[1]["group_key"],
@@ -1508,7 +1522,7 @@ def test_worker_lifecycle_commands_reject_another_workers_lease(tmp_path, monkey
             hypothesis="Use the worker label as identity.",
             write_files=["frontend/test-2.test.ts"],
         )
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker-1")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker-1")
 
     with pytest.raises(RuntimeError, match="does not own"):
         control.submit_worker_fix_intent(
@@ -1557,7 +1571,7 @@ def test_active_worker_in_same_campaign_cannot_approve_another_worker(tmp_path, 
         worker_id="worker-two",
         linked_files=["frontend/test-2.test.ts"],
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker-1")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker-1")
     control.submit_worker_fix_intent(
         groups[0]["group_key"],
         first_lease["lease_id"],
@@ -1567,7 +1581,7 @@ def test_active_worker_in_same_campaign_cannot_approve_another_worker(tmp_path, 
         write_files=["frontend/test-1.test.ts"],
     )
 
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker-2")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker-2")
     with pytest.raises(RuntimeError, match="worker"):
         control.approve_worker_fix_intent(
             groups[0]["group_key"],
@@ -1608,7 +1622,7 @@ def test_active_worker_in_different_campaign_cannot_act_as_coordinator(tmp_path,
         worker_id="cross-worker",
         linked_files=["frontend/cross.test.ts"],
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-target-worker")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-target-worker")
     control.submit_worker_fix_intent(
         target_groups[0]["group_key"],
         target_lease["lease_id"],
@@ -1618,7 +1632,7 @@ def test_active_worker_in_different_campaign_cannot_act_as_coordinator(tmp_path,
         write_files=["frontend/target.test.ts"],
     )
 
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-cross-worker")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-cross-worker")
     with pytest.raises(RuntimeError, match="Active debug workers"):
         control.approve_worker_fix_intent(
             target_groups[0]["group_key"],
@@ -1652,7 +1666,7 @@ def test_active_worker_prepare_and_attempt_cannot_mutate_other_group(tmp_path, m
             expected_behavior="The first helper works.",
             acceptance_criteria=["first helper passes"],
         )
-    monkeypatch.setenv("CODEX_THREAD_ID", "coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "coordinator")
     with pytest.raises(RuntimeError, match="does not own"):
         control.append_debug_group_attempt(
             groups[0]["group_key"],
@@ -1660,7 +1674,7 @@ def test_active_worker_prepare_and_attempt_cannot_mutate_other_group(tmp_path, m
             outcome="failed",
             summary="This should not be recorded.",
         )
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker-1")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker-1")
 
     control.prepare_debug_group(
         groups[0]["group_key"],
@@ -1699,7 +1713,7 @@ def test_active_worker_prepare_and_attempt_cannot_mutate_unleased_group(tmp_path
         linked_files=["frontend/test-1.test.ts"],
     )
 
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker-1")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker-1")
     with pytest.raises(RuntimeError, match="does not own"):
         control.prepare_debug_group(
             groups[1]["group_key"],
@@ -1727,7 +1741,7 @@ def test_boundary_expansion_request_is_durable_but_not_authorized(tmp_path, monk
         linked_files=["frontend/test-1.test.ts"],
     )
 
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker")
     updated = control.request_debug_group_boundary(
         group["group_key"],
         lease["lease_id"],
@@ -1754,7 +1768,7 @@ def test_boundary_expansion_approval_allows_out_of_boundary_intent(tmp_path, mon
         worker_id="worker-chat",
         linked_files=["frontend/test-1.test.ts"],
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker")
     control.request_debug_group_boundary(
         group["group_key"],
         lease["lease_id"],
@@ -1773,7 +1787,7 @@ def test_boundary_expansion_approval_allows_out_of_boundary_intent(tmp_path, mon
         boundary_expansion=True,
     )
 
-    monkeypatch.setenv("CODEX_THREAD_ID", "coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "coordinator")
     approved_boundary = control.approve_debug_group_boundary(
         group["group_key"],
         lease["lease_id"],
@@ -1801,7 +1815,7 @@ def test_boundary_expansion_approval_is_limited_to_requested_files(tmp_path, mon
         worker_id="worker-chat",
         linked_files=["frontend/test-1.test.ts"],
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker")
     control.request_debug_group_boundary(
         group["group_key"],
         lease["lease_id"],
@@ -1810,13 +1824,13 @@ def test_boundary_expansion_approval_is_limited_to_requested_files(tmp_path, mon
         reason="Helper A is the suspected root cause.",
         hypothesis="Helper A returns the wrong selector.",
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "coordinator")
     control.approve_debug_group_boundary(
         group["group_key"],
         lease["lease_id"],
         coordinator_session="coordinator",
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker")
     control.submit_worker_fix_intent(
         group["group_key"],
         lease["lease_id"],
@@ -1827,7 +1841,7 @@ def test_boundary_expansion_approval_is_limited_to_requested_files(tmp_path, mon
         boundary_expansion=True,
     )
 
-    monkeypatch.setenv("CODEX_THREAD_ID", "coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "coordinator")
     with pytest.raises(RuntimeError, match="outside the approved boundary"):
         control.approve_worker_fix_intent(
             group["group_key"],
@@ -1868,7 +1882,7 @@ def test_boundary_expansion_updates_lease_and_blocks_cross_campaign_overlap(tmp_
         linked_files=["frontend/test-2.test.ts"],
     )
 
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker-1")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker-1")
     control.request_debug_group_boundary(
         first_groups[0]["group_key"],
         first_lease["lease_id"],
@@ -1876,7 +1890,7 @@ def test_boundary_expansion_updates_lease_and_blocks_cross_campaign_overlap(tmp_
         requested_files=["frontend/shared-helper.ts"],
         reason="Shared helper is the root cause.",
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "coordinator")
     control.approve_debug_group_boundary(
         first_groups[0]["group_key"],
         first_lease["lease_id"],
@@ -1891,7 +1905,7 @@ def test_boundary_expansion_updates_lease_and_blocks_cross_campaign_overlap(tmp_
         linked_files=["frontend/shared-helper.ts"],
     ) is None
 
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker-1")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker-1")
     control.submit_worker_fix_intent(
         first_groups[0]["group_key"],
         first_lease["lease_id"],
@@ -1901,14 +1915,14 @@ def test_boundary_expansion_updates_lease_and_blocks_cross_campaign_overlap(tmp_
         write_files=["frontend/shared-helper.ts"],
         boundary_expansion=True,
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "coordinator")
     control.approve_worker_fix_intent(
         first_groups[0]["group_key"],
         first_lease["lease_id"],
         coordinator_session="coordinator",
         current_commit="base111",
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker-2")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker-2")
     control.request_debug_group_boundary(
         second_groups[0]["group_key"],
         second_lease["lease_id"],
@@ -1916,13 +1930,13 @@ def test_boundary_expansion_updates_lease_and_blocks_cross_campaign_overlap(tmp_
         requested_files=["frontend/shared-helper.ts"],
         reason="Try the same shared helper.",
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "coordinator")
     control.approve_debug_group_boundary(
         second_groups[0]["group_key"],
         second_lease["lease_id"],
         coordinator_session="coordinator",
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker-2")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker-2")
     control.submit_worker_fix_intent(
         second_groups[0]["group_key"],
         second_lease["lease_id"],
@@ -1932,7 +1946,7 @@ def test_boundary_expansion_updates_lease_and_blocks_cross_campaign_overlap(tmp_
         write_files=["frontend/shared-helper.ts"],
         boundary_expansion=True,
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "coordinator")
     with pytest.raises(RuntimeError, match="overlap"):
         control.approve_worker_fix_intent(
             second_groups[0]["group_key"],
@@ -1957,7 +1971,7 @@ def test_worker_intent_edit_gate_blocks_until_approved_write_set(tmp_path, monke
     with pytest.raises(RuntimeError, match="approved worker fix intent"):
         control.worker_edit_gate("ses-worker", ["frontend/test-1.test.ts"])
 
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker")
     control.submit_worker_fix_intent(
         group["group_key"],
         lease["lease_id"],
@@ -1966,7 +1980,7 @@ def test_worker_intent_edit_gate_blocks_until_approved_write_set(tmp_path, monke
         hypothesis="Patch first test helper.",
         write_files=["frontend/test-1.test.ts"],
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "coordinator")
     control.approve_worker_fix_intent(
         group["group_key"],
         lease["lease_id"],
@@ -1991,7 +2005,7 @@ def test_finish_worker_records_checkpoint_without_completing_group_or_lease(tmp_
         worker_id="worker-chat",
         linked_files=["frontend/test-1.test.ts"],
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker")
     control.submit_worker_fix_intent(
         group["group_key"],
         lease["lease_id"],
@@ -2000,7 +2014,7 @@ def test_finish_worker_records_checkpoint_without_completing_group_or_lease(tmp_
         hypothesis="Patch first test helper.",
         write_files=["frontend/test-1.test.ts"],
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "coordinator")
     control.approve_worker_fix_intent(
         group["group_key"],
         lease["lease_id"],
@@ -2008,7 +2022,7 @@ def test_finish_worker_records_checkpoint_without_completing_group_or_lease(tmp_
         current_commit="base111",
     )
 
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker")
     finished = control.finish_debug_worker(
         group["group_key"],
         lease["lease_id"],
@@ -2047,7 +2061,7 @@ def test_finish_worker_rejects_omitted_known_session_modified_files(tmp_path, mo
         worker_id="worker-chat",
         linked_files=["frontend/test-1.test.ts", "frontend/test-1-helper.ts"],
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker")
     control.submit_worker_fix_intent(
         group["group_key"],
         lease["lease_id"],
@@ -2056,7 +2070,7 @@ def test_finish_worker_rejects_omitted_known_session_modified_files(tmp_path, mo
         hypothesis="Patch first test helper.",
         write_files=["frontend/test-1.test.ts", "frontend/test-1-helper.ts"],
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "coordinator")
     control.approve_worker_fix_intent(
         group["group_key"],
         lease["lease_id"],
@@ -2065,7 +2079,7 @@ def test_finish_worker_rejects_omitted_known_session_modified_files(tmp_path, mo
     )
     monkeypatch.setattr(control, "_known_worker_modified_files", lambda _session_id: ["frontend/test-1.test.ts", "frontend/test-1-helper.ts"])
 
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker")
     with pytest.raises(RuntimeError, match="omit session modified files"):
         control.finish_debug_worker(
             group["group_key"],
@@ -2089,7 +2103,7 @@ def test_finish_worker_persists_canonical_worker_identity_and_intent_base(tmp_pa
         worker_id="worker-chat",
         linked_files=["frontend/test-1.test.ts"],
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker")
     control.submit_worker_fix_intent(
         group["group_key"],
         lease["lease_id"],
@@ -2098,7 +2112,7 @@ def test_finish_worker_persists_canonical_worker_identity_and_intent_base(tmp_pa
         hypothesis="Patch first test helper.",
         write_files=["frontend/test-1.test.ts"],
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "coordinator")
     control.approve_worker_fix_intent(
         group["group_key"],
         lease["lease_id"],
@@ -2106,7 +2120,7 @@ def test_finish_worker_persists_canonical_worker_identity_and_intent_base(tmp_pa
         current_commit="base111",
     )
 
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker")
     finished = control.finish_debug_worker(
         group["group_key"],
         lease["lease_id"],
@@ -2135,7 +2149,7 @@ def test_finish_worker_fails_closed_when_checkout_commit_unavailable(tmp_path, m
         worker_id="worker-chat",
         linked_files=["frontend/test-1.test.ts"],
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker")
     control.submit_worker_fix_intent(
         group["group_key"],
         lease["lease_id"],
@@ -2144,7 +2158,7 @@ def test_finish_worker_fails_closed_when_checkout_commit_unavailable(tmp_path, m
         hypothesis="Patch first test helper.",
         write_files=["frontend/test-1.test.ts"],
     )
-    monkeypatch.setenv("CODEX_THREAD_ID", "coordinator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "coordinator")
     control.approve_worker_fix_intent(
         group["group_key"],
         lease["lease_id"],
@@ -2153,7 +2167,7 @@ def test_finish_worker_fails_closed_when_checkout_commit_unavailable(tmp_path, m
     )
     monkeypatch.setattr(control, "current_git_sha", lambda: (_ for _ in ()).throw(RuntimeError("git unavailable")))
 
-    monkeypatch.setenv("CODEX_THREAD_ID", "ses-worker")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "ses-worker")
     with pytest.raises(RuntimeError, match="git unavailable"):
         control.finish_debug_worker(
             group["group_key"],
@@ -2223,7 +2237,7 @@ def test_scoped_verification_blocks_new_attributable_failure(tmp_path, monkeypat
 def test_group_completion_rejects_unrelated_passing_run(tmp_path, monkeypatch):
     control = load_tests_control(tmp_path, monkeypatch)
     control.record_run_result(failed_run("first.spec.ts"))
-    monkeypatch.setenv("CODEX_THREAD_ID", "session-1")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "session-1")
     campaign = control.start_debug_campaign(session_id="session-1")
     group = control.debug_groups_for_campaign(campaign["campaign_key"])[0]
     unrelated = passed_run(
@@ -2231,7 +2245,7 @@ def test_group_completion_rejects_unrelated_passing_run(tmp_path, monkeypatch):
     )
     control.record_run_result(unrelated)
 
-    monkeypatch.setenv("CODEX_THREAD_ID", "session-1")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "session-1")
     with pytest.raises(RuntimeError, match="first.spec.ts"):
         control.complete_debug_group(group["group_key"], commit="other111")
 

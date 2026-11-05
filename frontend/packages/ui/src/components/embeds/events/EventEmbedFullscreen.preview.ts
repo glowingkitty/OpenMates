@@ -115,8 +115,28 @@ const defaultProps = {
 
 export default defaultProps;
 
+const authoredDateOnlyEvent = {
+  embed_id: 'authored-date-only-event', title: 'Supplied two-day conference',
+  date_start: '2027-01-30', date_end: '2027-01-31',
+  organizer: { name: 'Supplied organizer' }, url: 'https://example.org/conference',
+  venue: { name: 'Supplied venue', city: 'Brussels' },
+  authoring: { schema_version: 1 as const, kind: 'events.event', origin: 'user_provided' as const,
+    sources: [{ url: 'https://example.org/conference', label: 'Supplied programme' }] },
+};
+const authoredTimedNoEndEvent = {
+  embed_id: 'authored-timed-no-end-event', title: 'Supplied late evening talk',
+  date_start: '2027-03-15T23:30:00+09:00', url: 'https://example.org/talk',
+  organizer: { name: 'Supplied organizer' },
+  authoring: { schema_version: 1 as const, kind: 'events.event', origin: 'user_provided' as const,
+    sources: [{ url: 'https://example.org/talk' }] },
+};
+
 /** Named variants */
 export const variants = {
+  dateOnly: { ...defaultProps, embedId: authoredDateOnlyEvent.embed_id, data: { decodedContent: authoredDateOnlyEvent } },
+  timedNoEnd: { ...defaultProps, embedId: authoredTimedNoEndEvent.embed_id, data: { decodedContent: authoredTimedNoEndEvent } },
+  draft: { ...defaultProps, embedId: 'draft-event', data: { decodedContent: { ...authoredDateOnlyEvent, authoring: { ...authoredDateOnlyEvent.authoring, origin: 'draft' as const } } } },
+
   projectedPrivacy: {
     data: { decodedContent: { ...sampleEvent,
       aes_key: 'event-private-crypto-sentinel', aes_nonce: 'event-private-crypto-sentinel',

@@ -22,19 +22,21 @@ import re
 import secrets
 import string
 import time
-from typing import Any, NotRequired, TypedDict
+from typing import Any, TypedDict
 import unicodedata
 from urllib.parse import quote, urlencode, urlparse, urlunparse
 import uuid
 import zipfile
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.exceptions import InvalidTag as _InvalidTag
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 import requests
 from toon_format import ToonDecodeError, decode as decode_toon
 
 from .generated.app_skills import GeneratedAppSkills
+from .project_sources import OpenMatesProjectSourceAuthoringUnavailableError, SessionProjectSourceCapabilitiesPatch, SessionProjectSourceCreate
 from .direct_chats import (
     DirectChatIdentity, DirectChatKeyPair, generate_identity, open_direct_chat_key,
     recover_identity, seal_direct_chat_key, validate_public_chat_key,
@@ -53,12 +55,12 @@ SKILL_TASK_POLL_INTERVAL_SECONDS = 2.0
 SKILL_TASK_POLL_TIMEOUT_SECONDS = 1200.0
 
 
-class AiModelDefaults(TypedDict):
+class AiModelDefaults(TypedDict, total=False):
     """Three-tier default model settings; omitted fields remain unchanged."""
 
-    default_ai_model_simple: NotRequired[str | None]
-    default_ai_model_complex: NotRequired[str | None]
-    default_ai_model_most_demanding: NotRequired[str | None]
+    default_ai_model_simple: str | None
+    default_ai_model_complex: str | None
+    default_ai_model_most_demanding: str | None
 
 
 SKILL_TASK_POLL_TRANSIENT_ERROR_STATUS = 500
@@ -78,7 +80,8 @@ API_KEY_CHARS = string.ascii_letters + string.digits
 TASK_PRIORITY_LEVELS = ("none", "low", "medium", "high", "urgent")
 TASK_LABEL_INDEX_INFO = b"openmates-task-label-index-v1"
 EXTERNAL_CHAT_INDEX_INFO = b"openmates-task-external-chat-index-v1"
-EXTERNAL_CHAT_PROVIDERS = {"codex"}
+EXTERNAL_CHAT_PROVIDERS = {"codex", "claude"}
+CLAUDE_SESSION_ID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE)
 BLOCKED_REASON_CODES = (
     "needs_user_input",
     "waiting_for_approval",
@@ -1623,25 +1626,59 @@ def _parse_import_timestamp(value: Any) -> int:
     return int(time.time())
 
 
-def _split_combined_ciphertext(encrypted_b64: str) -> tuple[bytes, bytes]:
+def _key_fingerprint(key: bytes) -> bytes:
+    """Browser OM header fingerprint: FNV-1a32, encoded big-endian."""
+    value = 0x811C9DC5
+    for byte in key:
+        value = ((value ^ byte) * 0x01000193) & 0xFFFFFFFF
+    return value.to_bytes(4, "big")
+
+
+def _combined_ciphertext_candidates(
+    encrypted_b64: str, key: bytes
+) -> list[tuple[bytes, bytes]]:
     combined = _b64decode(encrypted_b64)
-    offset = CIPHERTEXT_HEADER_LENGTH if combined.startswith(CIPHERTEXT_MAGIC) else 0
-    return combined[offset : offset + AES_GCM_IV_LENGTH], combined[offset + AES_GCM_IV_LENGTH :]
+    if len(key) != 32 or len(combined) < AES_GCM_IV_LENGTH + 16:
+        raise ValueError("Invalid encrypted data")
+    # Releases through 0.28 emitted this fixed marker instead of FNV. Preserve
+    # reads of that exact historical format; AES-GCM still authenticates every
+    # byte of plaintext. New writes always use the canonical browser fingerprint.
+    legacy_python_marker = b"\x01\x00\x00\x00"
+    candidates = []
+    if (
+        len(combined) >= CIPHERTEXT_HEADER_LENGTH + AES_GCM_IV_LENGTH + 16
+        and combined.startswith(CIPHERTEXT_MAGIC)
+        and (
+            combined[2:6] == legacy_python_marker
+            or hmac.compare_digest(combined[2:6], _key_fingerprint(key))
+        )
+    ):
+        candidates.append((combined[6:18], combined[18:]))
+    # OM and its apparent fingerprint may simply be the first six legacy IV
+    # bytes. Each candidate is independently authenticated before use.
+    candidates.append((combined[:AES_GCM_IV_LENGTH], combined[AES_GCM_IV_LENGTH:]))
+    return candidates
 
 
-def _decrypt_aes_gcm_bytes(encrypted_b64: str, key: bytes) -> bytes | None:
+def _decrypt_aes_gcm_bytes(encrypted_b64: str, key: bytes, associated_data: str | None = None) -> bytes | None:
     try:
-        iv, ciphertext = _split_combined_ciphertext(encrypted_b64)
-        return AESGCM(key).decrypt(iv, ciphertext, None)
+        candidates = _combined_ciphertext_candidates(encrypted_b64, key)
+        aes = AESGCM(key)
+        aad = associated_data.encode("utf-8") if associated_data else None
+        for iv, ciphertext in candidates:
+            try:
+                return aes.decrypt(iv, ciphertext, aad)
+            except _InvalidTag:
+                continue
+        return None
     except Exception:
         return None
 
 
 def _decrypt_aes_gcm_text(encrypted_b64: str, key: bytes, associated_data: str | None = None) -> str | None:
     try:
-        iv, ciphertext = _split_combined_ciphertext(encrypted_b64)
-        decrypted = AESGCM(key).decrypt(iv, ciphertext, associated_data.encode("utf-8") if associated_data else None)
-        return decrypted.decode("utf-8")
+        decrypted = _decrypt_aes_gcm_bytes(encrypted_b64, key, associated_data)
+        return decrypted.decode("utf-8") if decrypted is not None else None
     except Exception:
         return None
 
@@ -1649,7 +1686,7 @@ def _decrypt_aes_gcm_text(encrypted_b64: str, key: bytes, associated_data: str |
 def _encrypt_aes_gcm_text(plaintext: str, key: bytes, associated_data: str | None = None) -> str:
     iv = os.urandom(AES_GCM_IV_LENGTH)
     encrypted = AESGCM(key).encrypt(iv, plaintext.encode("utf-8"), associated_data.encode("utf-8") if associated_data else None)
-    return base64.b64encode(CIPHERTEXT_MAGIC + b"\x01\x00\x00\x00" + iv + encrypted).decode("utf-8")
+    return base64.b64encode(CIPHERTEXT_MAGIC + _key_fingerprint(key) + iv + encrypted).decode("utf-8")
 
 
 def _encrypt_aes_gcm_bytes(plaintext: bytes, key: bytes) -> str:
@@ -2484,6 +2521,14 @@ def _build_project_create_input(wrapping_key: bytes, payload: dict[str, Any], te
         raise OpenMatesConfigError("Project name is required")
     project_key = os.urandom(32)
     now = int(time.time())
+    # The backend requires a default focus and encrypted settings for every new
+    # Project (Project create contract); the SDK generates the canonical default.
+    default_focus = {
+        "focus_id": str(uuid.uuid4()),
+        "name": f"Work on {name}",
+        "instructions": f"Help with work in {name}. Follow the user's instructions and the Project's connected source guidance.",
+        "source": "generated",
+    }
     slug_metadata = _encrypted_object_slug_metadata(
         str(payload.get("slug") or name),
         encryption_key=project_key,
@@ -2503,6 +2548,12 @@ def _build_project_create_input(wrapping_key: bytes, payload: dict[str, Any], te
         "created_at": now,
         "updated_at": now,
         "last_opened_at": now,
+        # Preserve the existing SDK input shape without granting automatic writes.
+        "write_mode": "always_ask",
+        "default_focus_id": default_focus["focus_id"],
+        "encrypted_settings": _encrypt_aes_gcm_text(
+            json.dumps({"default_focus": default_focus}, separators=(",", ":")), project_key
+        ),
     }
     result["key_wrappers"] = [{
         "key_type": "team",
@@ -2686,7 +2737,9 @@ def _normalize_external_chat_context(value: Any, *, title: Any = None) -> dict[s
     else:
         raise OpenMatesConfigError("external_chat must be provider:id or a mapping")
     if provider not in EXTERNAL_CHAT_PROVIDERS:
-        raise OpenMatesConfigError("Unsupported external chat provider; use codex")
+        raise OpenMatesConfigError("Unsupported external chat provider; use codex or claude")
+    if provider == "claude" and not CLAUDE_SESSION_ID_RE.match(chat_id):
+        raise OpenMatesConfigError("Claude Code external chat ids must be session UUIDs (CLAUDE_CODE_SESSION_ID)")
     return {"provider": provider, "id": chat_id, "title": str(context_title or "")}
 
 
@@ -4889,11 +4942,30 @@ class OpenMatesHistory:
         return self._client._post(f"/v1/workspace/history/{_quote(change_set_id)}/undo", {})
 
 
+
+
+class OpenMatesProjectTaskWatchUnavailableError(RuntimeError):
+    """Cookie-only watch refusal before any API-key request."""
+    code = "project_task_watch_unavailable"
+    reason = "PROJECT_TASK_WATCH_REQUIRES_COOKIE_SESSION"
+    def __init__(self):
+        super().__init__(self.reason)
+
+
 class OpenMatesProjects:
     """Cleartext Project source SDK namespace."""
 
+    def create_source(self,project:str,input:SessionProjectSourceCreate,*,filters:dict[str,Any]):
+        raise OpenMatesProjectSourceAuthoringUnavailableError()
+
+    def update_source_capabilities(self,project:str,source_id:str,input:SessionProjectSourceCapabilitiesPatch,*,filters:dict[str,Any]):
+        raise OpenMatesProjectSourceAuthoringUnavailableError()
+
     def __init__(self, client: OpenMates):
         self._client = client
+
+    def watch_tasks(self,project:str,*,source_id:str,filters:dict[str,Any],checkpoint:dict[str,Any]|None=None):
+        raise OpenMatesProjectTaskWatchUnavailableError()
 
     def list(self, *, personal: bool = False, team_id: str | None = None, include_archived: bool | None = None) -> list[dict[str, Any]]:
         context_team_id = _project_context(personal=personal, team_id=team_id)
@@ -6344,6 +6416,36 @@ class OpenMatesEmbeds:
         return {"url": f"{self._client._web_origin()}/share/embed/{embed_id}#key={blob}"}
     def versions(self, embed_id: str) -> dict[str, Any]: return self._client._get(f"/v1/sdk/embeds/{_quote(embed_id)}/versions")
     def version(self, embed_id: str, version: int) -> dict[str, Any]: return self._client._get(f"/v1/sdk/embeds/{_quote(embed_id)}/versions/{version}")
+    def version_content(self, embed_id: str, version: int) -> dict[str, Any]:
+        """Additive owner/account-key read; opaque version() remains unchanged."""
+        from .embed_version import _reconstruct_embed_version_local
+        from .session_client import SessionClientError
+        if not self._client._api_key:
+            raise SessionClientError("authentication", "An explicit API key is required.")
+        if type(version) is not int or not 1 <= version <= 9_007_199_254_740_991:
+            raise SessionClientError("invalid_argument", "Supply a positive safe integer version.")
+        value = self.version(embed_id, version)
+        if not isinstance(value, dict) or value.get("embed_id") != embed_id or type(value.get("version_number")) is not int or value["version_number"] != version:
+            raise SessionClientError("protocol", "Version response does not match the selected version.")
+        if type(value.get("content")) is str:
+            if len(value["content"].encode("utf-8")) > 16 * 1024 * 1024:
+                raise SessionClientError("protocol", "Version content exceeds the supported size.")
+            return value
+        rows = value.get("rows")
+        if not isinstance(rows, list) or not 1 <= len(rows) <= 10000 or not isinstance(rows[-1], dict) or rows[-1].get("version_number") != version or any(not isinstance(row, dict) or type(row.get("version_number")) is not int or not 1 <= row["version_number"] <= version for row in rows):
+            raise SessionClientError("protocol", "Version response does not match the selected version.")
+        shown = self.show(embed_id)
+        if not isinstance(shown, dict) or not isinstance(shown.get("embed"), dict) or shown["embed"].get("embed_id") != embed_id:
+            raise SessionClientError("forbidden", "Embed key response does not match the selected embed.")
+        keys = shown.get("embed_keys") if isinstance(shown.get("embed_keys"), list) else []
+        try:
+            key = self._client._resolve_embed_key_for_share(keys, embed_id)
+        except OpenMatesConfigError:
+            raise SessionClientError("forbidden", "Unable to resolve the account key for version content.") from None
+        if key is None or len(key) != 32:
+            raise SessionClientError("forbidden", "Unable to resolve the owned embed key.")
+        return {**value, "content": _reconstruct_embed_version_local(rows, key)}
+
     def restore_version(self, embed_id: str, version: int, *, confirmed: bool = False) -> dict[str, Any]:
         _require_confirmed(confirmed, "Restoring an embed version")
         return self._client._post(f"/v1/sdk/embeds/{_quote(embed_id)}/versions/{version}/restore", {})

@@ -52,7 +52,7 @@ claims:
 
 # CLI Package
 
-> npm package openmates, 0.28.x artifact line for product line v0.28, providing both a CLI and a programmatic SDK for signup, pair-auth login, encrypted chat operations, app skill execution, settings management, model benchmarking, bank-transfer billing, and self-hosted server management.
+> npm package openmates, 0.29.x artifact line for product line v0.29, providing both a CLI and a programmatic SDK for signup, pair-auth login, encrypted chat operations, app skill execution, settings management, model benchmarking, bank-transfer billing, and self-hosted server management.
 
 ## Why This Exists
 
@@ -62,7 +62,7 @@ The REST API cannot decrypt/encrypt chats (zero-knowledge architecture). The CLI
 
 ### Authentication
 
-Pair-auth login via magic link + PIN remains the default login path. `openmates signup` can create a password account from the terminal using hidden prompts and the same client-side encrypted signup crypto as the web app. Session data is stored in `~/.openmates` with strict `0o600` permissions.
+The SDK entrypoints are API-key only and never use this CLI login (since 0.30.0 the root `OpenMatesClient` export requires an explicit `apiKey`; first-party harnesses that need the CLI session import `dist/cli-internal-client.js`, which is not an SDK entrypoint). Pair-auth login via magic link + PIN remains the default CLI login path. `openmates signup` can create a password account from the terminal using hidden prompts and the same client-side encrypted signup crypto as the web app. Session data is stored in `~/.openmates` with strict `0o600` permissions.
 
 Pairing v2 keeps the PIN and PAKE private state on the two clients. The approving
 client hosts the ephemeral OPAQUE server role; the CLI hosts its client role.

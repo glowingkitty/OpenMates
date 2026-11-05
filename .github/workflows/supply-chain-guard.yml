@@ -16,6 +16,11 @@ on:
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
+      - "**/requirements*.txt"
+      - "**/Cargo.lock"
+      - "**/Dockerfile*"
+      - "**/docker-compose*.y*ml"
+      - "scripts/security_monitoring/release_age*.py"
   pull_request:
     branches: [dev]
     paths:
@@ -23,6 +28,11 @@ on:
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
+      - "**/requirements*.txt"
+      - "**/Cargo.lock"
+      - "**/Dockerfile*"
+      - "**/docker-compose*.y*ml"
+      - "scripts/security_monitoring/release_age*.py"
   workflow_dispatch: {}
 
 permissions:
@@ -32,7 +42,9 @@ jobs:
   guard:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
 
       - name: Reject non-frozen pnpm installs
         run: |
@@ -40,3 +52,21 @@ jobs:
             echo "::error::Use pnpm install --frozen-lockfile in CI workflows."
             exit 1
           fi
+
+      # Routine 7-day release-age policy for PyPI, crates.io and container
+      # images (npm is enforced by pnpm minimumReleaseAge). A commit trailer
+      # "Security-Fix: <advisory-id>" applies the 72-hour security-fix rule.
+      - name: Enforce 7-day release age for PyPI, crates and images
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            base="origin/$BASE_REF"
+          elif [ -n "$PUSH_BEFORE" ] && ! echo "$PUSH_BEFORE" | grep -qE '^0+$' && git cat-file -e "$PUSH_BEFORE^{commit}" 2>/dev/null; then
+            base="$PUSH_BEFORE"
+          else
+            base="HEAD~1"
+          fi
+          python3 scripts/security_monitoring/release_age.py check-routine --base "$base" --head HEAD

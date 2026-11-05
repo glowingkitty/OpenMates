@@ -90,8 +90,8 @@ def test_generated_kind_identities_agree_with_catalog_and_explicit_app_admission
         if composite:
             assert identity["backendType"] == declaration["child_type"]
             assert identity["backendType"] != "app_skill_use"
-    assert actual["tv.movie"]["frontendType"] is None
-    assert actual["tv.series"]["frontendType"] is None
+    assert actual["tv.movie"]["frontendType"] == "tv-movie"
+    assert actual["tv.series"]["frontendType"] == "tv-series"
     assert all(identity["frontendType"] for kind, identity in actual.items() if not kind.startswith("tv."))
 
 

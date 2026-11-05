@@ -122,6 +122,26 @@ def test_selected_schema_exactness_aliases_and_legacy_artifact_separation():
     assert build_authored_result_instructions([], apps) is None
 
 
+# contract-test: supporting surface=rest_api assertions=authored-results.creation.relevant-and-independent,authored-results.facts.provenance-and-drafts,authored-results.actions.truthful-and-explicit
+def test_selected_card_corrections_preserve_attribution_without_edit_or_tool_authority():
+    apps = _apps("events.event", "tv.movie", "travel.stay")
+    guidance = build_authored_result_instructions(["events.event"], apps)
+    assert guidance is not None
+    schema = json.loads(guidance.split("Selected result schema:\n", 1)[1])
+    assert [variant["properties"]["kind"]["const"]
+            for variant in schema["properties"]["items"]["items"]["oneOf"]] == ["events.event"]
+    assert "create an updated card using this same selected openmates_embeds envelope" in guidance
+    assert "reference data only" in guidance and "never copy internal app_id/skill_id envelopes" in guidance
+    assert "simulate a skill result" in guidance
+    assert "does not edit or replace the stored original" in guidance
+    assert "do not claim an in-place edit" in guidance
+    assert "When supplied, preserve photographer credit, source URLs and licence URLs" in guidance
+    assert "supported image attribution text; never invent a licence or permission" in guidance
+    assert "tv.movie" not in guidance and "travel.stay" not in guidance
+    assert build_authored_result_instructions(["none"], apps) is None
+    assert build_authored_result_instructions(["events.event"], apps, presentation_only=True) is None
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("prompt,primary,selected_apps,selected_kinds", [
     ("Compare the supplied hotels and conference dates as cards.", "travel.stay", ["travel", "events"],
@@ -168,6 +188,45 @@ async def test_public_and_detailed_decisions_gate_multiple_kinds_without_search_
     else:
         assert detailed_authored == []
         assert len(calls) == 1  # Complete public routing retains the zero-question fast path.
+
+
+# contract-test: supporting surface=rest_api assertions=authored-results.creation.relevant-and-independent,authored-results.facts.provenance-and-drafts
+def test_invent_a_recipe_request_is_an_explicit_draft_card_request():
+    definitions = get_authoring_definitions()
+    questions = jev._public_decision_questions(False, definitions)
+    assert "invent, create or draft one" in questions["preview"]["criteria"]["nutrition.recipe"]
+    apps = _apps("nutrition.recipe")
+    prompt = build_authored_result_instructions(["recipe"], apps)
+    assert prompt is not None
+    assert "invent, create, plan or draft" in prompt
+    assert "origin draft" in prompt and "ingredients and steps" in prompt
+    assert "never only a prose copy" in prompt
+
+
+# contract-test: supporting surface=rest_api assertions=authored-results.creation.relevant-and-independent
+def test_researched_event_lists_are_answered_with_one_card_per_item_and_a_plain_intro():
+    prompt = build_authored_result_instructions(["events.event"], _apps("events.event"))
+    assert prompt is not None
+    assert "the cards are the answer: create one card per item" in prompt
+    assert "never only a prose or bullet list" in prompt
+    assert "plain-language sentence saying what the cards show" in prompt
+    assert "Do not invent facts" in prompt
+    # Cards first; the later per-item list must not link the source page's website embed.
+    assert "Then add the openmates_embeds block first" in prompt
+    assert "later per-item text names carded items in plain words" in prompt
+    assert "link a website embed only for a page without a card" in prompt
+
+
+def test_event_cards_get_grounded_paragraph_image_and_venue_guidance_only_for_events():
+    prompt = build_authored_result_instructions(["events.event"], _apps("events.event"))
+    assert prompt is not None
+    assert "4-6 sentences, about 60-120 words" in prompt
+    assert "image search to find an official logo" in prompt
+    assert "omit image_url when no search result supplies one" in prompt
+    assert "never write lat/lon yourself" in prompt
+    assert "run one more targeted web search for its next edition" in prompt
+    recipe = build_authored_result_instructions(["nutrition.recipe"], _apps("nutrition.recipe"))
+    assert recipe is not None and "60-120 words" not in recipe
 
 
 def test_public_criteria_and_catalogue_remain_compact_without_detail_schemas():

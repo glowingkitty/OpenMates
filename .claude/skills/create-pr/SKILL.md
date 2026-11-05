@@ -1,5 +1,5 @@
 ---
-name: openmates:pullrequest
+name: create-pr
 description: Create a pull request from dev to main with proper formatting and draft release
 user-invocable: true
 disable-model-invocation: false
@@ -10,10 +10,9 @@ argument-hint: "[title]"
 
 **IMPORTANT: Only create a PR when the user explicitly asks.**
 
-Codex users invoke this workflow through `/pullrequest`. That command creates
-a visible user turn and loads this skill through the `skill` tool. Keep this
-file static: execute commands explicitly during the workflow rather than using
-Claude command-template shell expansion in `SKILL.md`.
+Invoke this workflow with `/create-pr`. Keep this file static: execute
+commands explicitly during the workflow rather than using command-template
+shell expansion in `SKILL.md`.
 
 Before the Step 0 changelog summary, read the private deployment handoff at
 `~/.openmates/deployment-notes/pr-dev-to-main.md` (expand `~` at runtime).

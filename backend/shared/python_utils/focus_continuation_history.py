@@ -125,6 +125,30 @@ async def rebuild_focus_continuation_history(
     return history
 
 
+async def resolve_continuation_embed_references(
+    history: list[dict[str, Any]], *, embed_service: Any, user_vault_key_id: str, log_prefix: str = "",
+) -> dict[str, str]:
+    """Replace embed reference blocks with their cached content, as the first turn did.
+
+    The AI cache stores raw message text, so a continuation would otherwise see
+    only ``{"type": "event", "embed_id": ...}`` for a card the user attached
+    (e.g. from its fullscreen view) and lose which item the question is about.
+    Returns the embed_ref -> embed_id index for skill file resolution.
+    """
+    seen_embed_refs: dict[str, int] = {}
+    file_path_index: dict[str, str] = {}
+    for message in history:
+        content = message.get("content")
+        if not isinstance(content, str) or '"embed_id"' not in content:
+            continue
+        message["content"], index = await embed_service.resolve_embed_references_in_content(
+            content=content, user_vault_key_id=user_vault_key_id,
+            log_prefix=log_prefix, seen_embed_refs=seen_embed_refs,
+        )
+        file_path_index.update(index)
+    return file_path_index
+
+
 async def publish_current_focus_continuation_failure(
     cache_service: Any, pending_context: dict[str, Any],
 ) -> bool:

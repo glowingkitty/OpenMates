@@ -9,8 +9,10 @@ export interface AssistantSpeechAudioEvent {
   source_version: number;
   execution_version: number;
   attempt_id: string;
-  phase: "start" | "chunk" | "end" | "error" | "alignment";
+  phase: "start" | "chunk" | "end" | "error" | "alignment" | "words";
   clause_timings?: AssistantSpeechClauseTiming[];
+  /** Display-only `[word_index, start_ms]` estimates on the turn timeline. */
+  word_starts?: [number, number][];
   chunk_index: number;
   audio_data?: string;
   mime_type: "audio/mpeg";
@@ -67,6 +69,18 @@ function speechMediaSource(): { constructor: typeof MediaSource; managed: boolea
   return null;
 }
 
+export function validWordStarts(value: unknown): value is [number, number][] {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 512) return false;
+  let previousIndex = -1, previousStart = 0;
+  return value.every(row => {
+    if (!Array.isArray(row) || row.length !== 2) return false;
+    const [index, start] = row;
+    if (!Number.isSafeInteger(index) || index <= previousIndex || index > 65_535
+      || !Number.isSafeInteger(start) || start < previousStart || start > MAX_TURN_LIFETIME_MS) return false;
+    previousIndex = index; previousStart = start; return true;
+  });
+}
+
 export function supportsAssistantSpeechStream(): boolean { return speechMediaSource() !== null; }
 
 export function isAssistantSpeechAudioEvent(value: unknown): value is AssistantSpeechAudioEvent {
@@ -83,7 +97,8 @@ export function isAssistantSpeechAudioEvent(value: unknown): value is AssistantS
     && Number.isSafeInteger(event.execution_version) && event.execution_version! >= 1
     && Number.isSafeInteger(event.chunk_index) && event.chunk_index! >= 0
     && event.chunk_index! <= (event.phase === "chunk" ? 4095 : 4096)
-    && ["start", "chunk", "end", "error", "alignment"].includes(event.phase ?? "")
+    && ["start", "chunk", "end", "error", "alignment", "words"].includes(event.phase ?? "")
+    && (event.phase === "words" ? event.kind === "voice_prose_turn" && validWordStarts(event.word_starts) : event.word_starts === undefined)
     && (event.phase === "alignment" ? event.kind === "voice_prose_turn" && validClauseTimings(event.clause_timings) : event.clause_timings === undefined)
     && (event.phase === "chunk" ? typeof event.audio_data === "string"
       && event.audio_data.length > 0 && event.audio_data.length <= Math.ceil(MAX_SPEECH_STREAM_CHUNK_BYTES / 3) * 4
@@ -140,7 +155,7 @@ export class AssistantSpeechStream implements AssistantSpeechStreamSource {
     if (this.providerEnded || event.phase === "error") { this.fail(); return; }
     if (event.phase === "start") { if (event.chunk_index !== 0 || this.nextIndex !== 0) this.fail(); return; }
     if (event.chunk_index !== this.nextIndex) { this.fail(); return; }
-    if (event.phase === "alignment") return;
+    if (event.phase === "alignment" || event.phase === "words") return;
     if (event.phase === "end") {
       this.providerEnded = true;
       if (!this.nextIndex) { this.fail(); return; }

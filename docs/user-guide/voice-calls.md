@@ -14,7 +14,11 @@ other devices do not show it again. Canceling leaves the call unopened. If the
 profile cannot be checked or saved, retry before starting the call.
 
 Once the notice is accepted, you can start speaking after pressing Call; microphone audio is buffered while
-the connection is prepared. Your speech and the
+the connection is prepared. While you speak, the message field shows what was
+understood so far as faded text; it is never added to your draft. When you pause,
+OpenMates checks whether you finished. After a short silence the request is sent,
+but a thinking pause such as "let me think" keeps waiting for you. The faded
+text is then replaced by an ordinary chat message. Your speech and the
 assistant's replies appear as ordinary chat messages. Submitted text, including
 pasted text, reaches the same voice conversation. Both sides of the transcript
 are encrypted in your browser before synchronization and remain available when

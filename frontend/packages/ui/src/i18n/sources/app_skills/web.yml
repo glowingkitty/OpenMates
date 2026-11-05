@@ -279,24 +279,24 @@ browse:
   he: גלישה
 browse.description:
   context: Description of the interactive Browse skill
-  en: Browse websites and return observed information as JSON.
-  de: Websites bedienen und gefundene Informationen als JSON zurückgeben.
-  zh: 浏览网站并以 JSON 返回观察到的信息。
-  es: Navega por sitios web y devuelve la información observada en JSON.
-  fr: Parcourir des sites et renvoyer les informations observées en JSON.
-  pt: Navegue por sites e retorne as informações observadas em JSON.
-  ru: Просматривайте сайты и получайте найденную информацию в JSON.
-  ja: ウェブサイトを操作し、確認した情報を JSON で返します。
-  ko: 웹사이트를 탐색하고 확인한 정보를 JSON으로 반환합니다.
-  it: Naviga nei siti e restituisci le informazioni osservate in JSON.
-  tr: Web sitelerinde gezinin ve gözlemlenen bilgileri JSON olarak alın.
-  vi: Duyệt trang web và trả về thông tin quan sát được dưới dạng JSON.
-  id: Jelajahi situs web dan kembalikan informasi yang diamati sebagai JSON.
-  pl: Przeglądaj witryny i zwracaj zaobserwowane informacje w JSON.
-  nl: Doorzoek websites en geef waargenomen informatie terug als JSON.
-  ar: تصفّح المواقع وأعد المعلومات المرصودة بصيغة JSON.
-  hi: वेबसाइट ब्राउज़ करें और देखी गई जानकारी JSON में लौटाएं।
-  th: เรียกดูเว็บไซต์และส่งคืนข้อมูลที่พบเป็น JSON
-  cs: Procházejte weby a vracejte zjištěné informace jako JSON.
-  sv: Besök webbplatser och returnera observerad information som JSON.
-  he: גלישה באתרים והחזרת מידע שנצפה בפורמט JSON.
+  en: Browse websites and return JSON. Browser compute is billed per second, plus AI usage. Paused compute is free.
+  de: Websites durchsuchen und JSON zurückgeben. Die Browser-Rechenleistung wird pro Sekunde abgerechnet, zuzüglich der KI-Nutzung. Pausierte Rechenleistung ist kostenlos.
+  zh: 浏览网站并返回 JSON。浏览器计算按秒计费，外加 AI 使用费。暂停计算不收费。
+  es: Navega por sitios web y devuelve JSON. El cómputo del navegador se factura por segundo, además del uso de la IA. El cómputo en pausa es gratuito.
+  fr: "Parcourez des sites web et obtenez des résultats au format JSON. Le calcul du navigateur est facturé à la seconde, en plus de l'utilisation de l'IA. Le calcul en pause est gratuit."
+  pt: Navegue em sites e retorne JSON. O processamento do navegador é cobrado por segundo, além do uso de IA. O processamento pausado é gratuito.
+  ru: Просматривайте веб-сайты и получайте данные в формате JSON. Вычислительные ресурсы браузера оплачиваются посекундно, плюс использование ИИ. Время паузы не тарифицируется.
+  ja: ウェブサイトを閲覧し、JSONを返します。ブラウザの計算料金は秒単位で請求され、別途AI使用料がかかります。一時停止中の計算は無料です。
+  ko: 웹사이트를 탐색하고 JSON을 반환합니다. 브라우저 연산 비용은 초당 과금되며 AI 사용료가 추가됩니다. 일시 중지된 연산은 무료입니다.
+  it: "Naviga nei siti web e restituisci JSON. Il calcolo del browser viene fatturato al secondo, oltre all'utilizzo dell'IA. Il calcolo in pausa è gratuito."
+  tr: Web sitelerine göz atın ve JSON döndürün. Tarayıcı kullanımı saniye başına, artı yapay zeka kullanımı üzerinden ücretlendirilir. Duraklatılan kullanım ücretsizdir.
+  vi: Duyệt các trang web và trả về JSON. Chi phí tính toán của trình duyệt được tính theo giây, cộng với mức sử dụng AI. Thời gian tạm dừng tính toán là miễn phí.
+  id: Jelajahi situs web dan kembalikan JSON. Biaya komputasi browser dihitung per detik, ditambah penggunaan AI. Komputasi yang dijeda tidak dikenakan biaya.
+  pl: Przeglądaj strony internetowe i zwracaj dane w formacie JSON. Koszt obliczeń przeglądarki jest naliczany za sekundę, plus użycie AI. Wstrzymane obliczenia są bezpłatne.
+  nl: Browse websites en retourneer JSON. Browsergebruik wordt per seconde gefactureerd, plus AI-verbruik. Gepauzeerd gebruik is gratis.
+  ar: تصفح المواقع الإلكترونية واسترجع النتائج بتنسيق JSON. تُحتسب تكلفة حوسبة المتصفح بالثانية، بالإضافة إلى استخدام الذكاء الاصطناعي. الحوسبة المتوقفة مؤقتًا مجانية.
+  hi: वेबसाइट ब्राउज़ करें और JSON वापस करें। ब्राउज़र कंप्यूट का शुल्क प्रति सेकंड, साथ ही AI उपयोग के अनुसार लिया जाता है। रोका गया कंप्यूट मुफ़्त है।
+  th: เรียกดูเว็บไซต์และส่งคืนข้อมูลเป็น JSON การประมวลผลของเบราว์เซอร์จะคิดค่าบริการตามวินาที รวมกับการใช้งาน AI การหยุดประมวลผลชั่วคราวจะไม่เสียค่าบริการ
+  cs: Procházejte webové stránky a získejte výsledky v JSON. Výpočetní čas prohlížeče je účtován po sekundách, plus využití AI. Pozastavený výpočet je zdarma.
+  sv: Surfa på webbplatser och returnera JSON. Webbläsaranvändning debiteras per sekund, plus AI-användning. Pausad användning är gratis.
+  he: גלישה באתרים והחזרת JSON. החיוב על שימוש בדפדפן הוא לפי שניה, בנוסף לשימוש ב-AI. זמן השהיה אינו כרוך בתשלום.

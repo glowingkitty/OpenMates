@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import json
@@ -356,46 +357,67 @@ class ChatMethods:
             logger.error(f"Error fetching chat metadata for {chat_id}: {e}", exc_info=True)
             return None
 
-    async def get_chats_metadata_batch(self, chat_ids: List[str]) -> Dict[str, Dict[str, Any]]:
+    async def get_chats_metadata_batch(
+        self,
+        chat_ids: List[str],
+        admin_required: bool = False,
+        concurrency: int = 4,
+    ) -> Dict[str, Dict[str, Any]]:
         """
         Fetches metadata for multiple chats using a Directus JSON _in filter.
-        Returns a dict mapping chat_id -> metadata dict. Missing chats are omitted.
+
+        Returns a dict mapping chat_id -> metadata dict in input order. Missing
+        chats are omitted. Chunks are read concurrently (bounded by
+        ``concurrency``) so a 100-chat startup fence costs one round trip per
+        wave instead of four sequential reads. A field-level 403 on any chunk
+        retries the whole set with the next, narrower field set.
         """
         import re
         uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
-        valid_ids = [cid for cid in chat_ids if uuid_pattern.match(cid)]
+        valid_ids = list(dict.fromkeys(
+            cid for cid in chat_ids if isinstance(cid, str) and uuid_pattern.match(cid)
+        ))
         if not valid_ids:
             return {}
 
         logger.info(f"Batch fetching chat metadata for {len(valid_ids)} chats")
         chunk_size = 25
-        try:
-            for fields in CHAT_METADATA_FIELD_SETS:
-                result: Dict[str, Dict[str, Any]] = {}
-                permission_denied = False
+        chunks = [valid_ids[index:index + chunk_size] for index in range(0, len(valid_ids), chunk_size)]
+        semaphore = asyncio.Semaphore(max(1, concurrency))
 
-                for index in range(0, len(valid_ids), chunk_size):
-                    chunk = valid_ids[index:index + chunk_size]
-                    params = {
+        async def fetch_chunk(chunk: List[str], fields: str) -> Any:
+            async with semaphore:
+                return await self.directus_service.get_items(
+                    'chats',
+                    params={
                         'filter': {'id': {'_in': chunk}},
                         'fields': fields,
                         'limit': len(chunk)
-                    }
-                    response = await self.directus_service.get_items(
-                        'chats',
-                        params=params,
-                        no_cache=True,
-                        return_none_on_403=True,
-                    )
-                    if response is None:
-                        permission_denied = True
-                        break
-                    if isinstance(response, list):
-                        result.update({item['id']: item for item in response if 'id' in item})
+                    },
+                    no_cache=True,
+                    return_none_on_403=True,
+                    admin_required=admin_required,
+                )
 
-                if permission_denied:
+        try:
+            for fields in CHAT_METADATA_FIELD_SETS:
+                # Settle every chunk before inspecting results so no read is left
+                # running unobserved when one chunk fails.
+                responses = await asyncio.gather(
+                    *(fetch_chunk(chunk, fields) for chunk in chunks),
+                    return_exceptions=True,
+                )
+                for response in responses:
+                    if isinstance(response, BaseException):
+                        raise response
+                if any(response is None for response in responses):
                     continue
 
+                rows_by_id: Dict[str, Dict[str, Any]] = {}
+                for response in responses:
+                    if isinstance(response, list):
+                        rows_by_id.update({item['id']: item for item in response if 'id' in item})
+                result = {chat_id: rows_by_id[chat_id] for chat_id in valid_ids if chat_id in rows_by_id}
                 logger.info(f"Batch fetched metadata for {len(result)}/{len(valid_ids)} chats")
                 return result
 

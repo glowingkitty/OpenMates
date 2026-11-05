@@ -19,6 +19,8 @@ RUN mkdir -p /directus/extensions/personal-privacy-snapshot/dist \
     && cp /directus/extensions/personal-privacy-snapshot/src/*.js /directus/extensions/personal-privacy-snapshot/dist/ \
     && mkdir -p /directus/extensions/project-task-sync/dist \
     && cp /directus/extensions/project-task-sync/src/*.js /directus/extensions/project-task-sync/dist/ \
+    && mkdir -p /directus/extensions/chat-sync/dist \
+    && cp /directus/extensions/chat-sync/src/*.js /directus/extensions/chat-sync/dist/ \
     && mkdir -p /directus/extensions/chat-recovery-transaction/dist \
     && cp /directus/extensions/chat-recovery-transaction/src/*.js \
         /directus/extensions/chat-recovery-transaction/dist/ \
@@ -40,6 +42,9 @@ RUN mkdir -p /directus/extensions/personal-privacy-snapshot/dist \
     && mkdir -p /directus/extensions/workflow-authoring-transaction/dist \
     && cp /directus/extensions/workflow-authoring-transaction/src/*.js \
         /directus/extensions/workflow-authoring-transaction/dist/ \
+    && mkdir -p /directus/extensions/specification-transaction/dist \
+    && cp /directus/extensions/specification-transaction/src/*.js \
+        /directus/extensions/specification-transaction/dist/ \
     && mkdir -p /directus/extensions/storage-usage-metering/dist \
     && cp /directus/extensions/storage-usage-metering/src/*.js \
         /directus/extensions/storage-usage-metering/dist/ \
@@ -64,6 +69,7 @@ test -r /directus/extensions/embed-version-transaction/package.json
 test -r /directus/extensions/embed-version-transaction/dist/index.js
 test -r /directus/extensions/workflow-authoring-transaction/package.json
 test -r /directus/extensions/workflow-authoring-transaction/dist/index.js
+test -r /directus/extensions/specification-transaction/dist/index.js
 test -r /directus/extensions/storage-usage-metering/package.json
 test -r /directus/extensions/storage-usage-metering/dist/index.js
 test -r /directus/extensions/email-delivery-feedback/package.json
@@ -293,10 +299,13 @@ workflow_index_count="$(PGCONNECT_TIMEOUT=5 PGPASSWORD="$DB_PASSWORD" psql \
         'workflow_runs_acceptance_identity_uq',
         'workflow_completion_notifications_run_id_uq',
         'workflow_completion_notifications_pending_idx',
+        'workflow_chat_notifications_message_uq',
+        'workflow_chat_notifications_pending_idx',
+        'workflow_runs_digest_owner_order_idx',
         'workflow_event_receipts_trigger_event_uq',
         'workflow_template_projections_workflow_uq'
       );")"
-test "$workflow_index_count" = "7"
+test "$workflow_index_count" = "10"
 
 sub_chat_index_count="$(PGCONNECT_TIMEOUT=5 PGPASSWORD="$DB_PASSWORD" psql \
   --host "$DB_HOST" --port "$DB_PORT" --username "$DB_USER" --dbname "$DB_DATABASE" \

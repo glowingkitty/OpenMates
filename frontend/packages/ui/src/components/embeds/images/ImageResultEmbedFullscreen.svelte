@@ -45,6 +45,7 @@
   // Extract fields from data.decodedContent
   let dc = $derived(data.decodedContent);
   let title = $derived(typeof dc.title === 'string' ? dc.title : undefined);
+  let attribution = $derived(typeof dc.attribution === 'string' && dc.attribution.trim() ? dc.attribution : undefined);
   let sourceDomain = $derived(resolveImageSourceDomain(dc) || undefined);
   let sourcePageUrl = $derived(typeof dc.source_page_url === 'string' ? dc.source_page_url : undefined);
   let imageUrl = $derived(typeof dc.image_url === 'string' ? dc.image_url : undefined);
@@ -142,6 +143,9 @@
         <!-- Title -->
         {#if title}
           <h2 class="result-title">{title}</h2>
+        {/if}
+        {#if attribution}
+          <p data-testid="image-result-attribution">{$text('embeds.authoring.image_credit')}: {attribution}</p>
         {/if}
 
         <!-- Open full image link -->

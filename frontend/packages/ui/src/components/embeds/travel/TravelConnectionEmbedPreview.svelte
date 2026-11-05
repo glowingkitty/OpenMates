@@ -13,7 +13,10 @@
 -->
 
 <script lang="ts">
+  import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from "../../../types/authoredResult";
+  import { getContext } from "svelte";
   import transportIconUrl from '../../../../static/icons/travel.svg';
+  import { travelConnectionOverview, travelLegPresentation, travelPointLabel } from './travelConnectionPoints';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import Luggage from '@lucide/svelte/icons/luggage';
   import Slash from '@lucide/svelte/icons/slash';
@@ -92,13 +95,13 @@
   let {
     resultContext = 'auto',
     id,
-    connection,
+    connection: connectionProp,
     price,
-    currency = 'EUR',
+    currency,
     fare,
     fareIsPartial,
-    transportMethod = 'airplane',
-    tripType = 'one_way',
+    transportMethod,
+    tripType,
     origin,
     destination,
     departure,
@@ -119,8 +122,21 @@
     isMobile = false,
     onFullscreen
   }: Props = $props();
+  const authoredContext = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
+  let isAuthored = $derived(Boolean(authoredContext?.authoring));
+  let connection = $derived(authoredContext?.presentationContent ?? authoredContext?.content ?? connectionProp);
+  let authoredContent = $derived(authoredContext?.presentationContent ?? authoredContext?.content);
+  let authoredTitle = $derived(isAuthored && typeof authoredContent?.title === "string" ? authoredContent.title.trim() : "");
   
+  let effectiveCurrency = $derived(isAuthored ? String(authoredContent?.currency ?? '') : currency || 'EUR');
+  let effectiveTripType = $derived(isAuthored ? String(authoredContent?.trip_type ?? '') : tripType || 'one_way');
+  let effectiveTransportMethod = $derived(isAuthored ? String(authoredContent?.transport_method ?? '') : transportMethod || 'airplane');
   let previewLegs = $derived.by(() => {
+    if (isAuthored) {
+      const content = authoredContent || connection || {};
+      const overview = travelConnectionOverview(content);
+      return overview ? [overview] : travelLegPresentation(content.legs) || [];
+    }
     const legs = Array.isArray(connection?.legs) ? connection.legs as Record<string, unknown>[] : [];
     return legs.length ? legs : [{ origin, destination, departure, arrival: _arrival, duration }];
   });
@@ -148,7 +164,7 @@
   
   // Format price/fare state for display.
   let formattedPrice = $derived.by(() => {
-    return formatTravelFare({ fare, total_price: price, currency, fare_is_partial: fareIsPartial });
+    return formatTravelFare({ fare, total_price: price, currency: effectiveCurrency, fare_is_partial: fareIsPartial });
   });
   
   // Match the existing fullscreen locale-aware travel times.
@@ -163,8 +179,8 @@
 
 
   let carrierLogos = $derived.by(() => {
-    if (transportMethod === 'airplane') {
-      if (carrierCodes.length > 0) {
+    if (effectiveTransportMethod === 'airplane') {
+      if (!isAuthored && carrierCodes.length > 0) {
         return carrierCodes.slice(0, 3).map(code => ({
           label: code,
           url: proxyImage(`https://images.kiwi.com/airlines/64/${code}.png`, MAX_WIDTH_AIRLINE_LOGO),
@@ -201,7 +217,7 @@
       const destShort = extractCode(destination);
       return `${originShort} → ${destShort}`;
     }
-    return transportMethod === 'airplane' ? 'Flight' : 'Connection';
+    return effectiveTransportMethod === 'airplane' ? 'Flight' : 'Connection';
   });
   
   /**
@@ -221,16 +237,16 @@
   }
   function journeyTime(leg: Record<string, unknown>, end: 'departure' | 'arrival') {
     const segment = segmentFor(leg, end);
-    return formatTime(legText(leg[end] || segment[`${end}_time`]) || (end === 'departure' ? departure : _arrival));
+    return formatTime(legText(leg[end] || segment[`${end}_time`]) || (isAuthored ? undefined : end === 'departure' ? departure : _arrival));
   }
   function journeyCountry(leg: Record<string, unknown>, end: 'departure' | 'arrival', index: number) {
     const value = segmentFor(leg, end)[`${end}_country_code`] || leg[end === 'departure' ? 'origin_country_code' : 'destination_country_code']
-      || (index === 0 || (index === 1 && tripType === 'round_trip') ? connection?.[index % 2 === (end === 'departure' ? 0 : 1) ? 'origin_country_code' : 'destination_country_code'] : undefined);
+      || (index === 0 || (index === 1 && effectiveTripType === 'round_trip') ? connection?.[index % 2 === (end === 'departure' ? 0 : 1) ? 'origin_country_code' : 'destination_country_code'] : undefined);
     return typeof value === 'string' ? countryCodeToFlag(value) : '';
   }
   function journeyLocation(leg: Record<string, unknown>, end: 'departure' | 'arrival') {
-    const value = leg[end === 'departure' ? 'origin' : 'destination'] || segmentFor(leg, end)[`${end}_station`] || (end === 'departure' ? origin : destination);
-    return typeof value === 'string' ? extractCode(value) : '';
+    const value = leg[end === 'departure' ? 'origin' : 'destination'] || segmentFor(leg, end)[`${end}_station`] || (isAuthored ? undefined : end === 'departure' ? origin : destination);
+    return isAuthored ? travelPointLabel(value) || '' : typeof value === 'string' ? extractCode(value) : '';
   }
   let luggageExcluded = $derived.by(() => {
     const states = [connection?.luggage_included, connection?.baggage_included, connection?.checked_baggage_included];
@@ -252,7 +268,7 @@
   skillId="connection"
   skillIconName="search"
   {status}
-  skillName={routeDisplay}
+  skillName={authoredTitle || routeDisplay}
   {isMobile}
   onFullscreen={onFullscreen}
   onStop={handleStop}
@@ -277,7 +293,7 @@
               <small class="journey-date">{legDate(leg.departure || segmentFor(leg, 'departure').departure_time)}</small>
               <div class="journey-departure" data-testid="connection-time"><TravelTimeBadge time={journeyTime(leg, 'departure')} isDaytime={segmentFor(leg, 'departure').departure_is_daytime as boolean | undefined} /></div>
               <strong class="journey-airport" title={legText(leg.origin) || origin}>{journeyCountry(leg, 'departure', index)} {journeyLocation(leg, 'departure')}</strong>
-              <span class="journey-duration" data-testid="connection-meta">{legText(leg.duration) || duration || ''}</span>
+              <span class="journey-duration" data-testid="connection-meta">{legText(leg.duration) || (!isAuthored ? duration : '') || ''}</span>
               <strong class="journey-airport" title={legText(leg.destination) || destination}>{journeyCountry(leg, 'arrival', index)} {journeyLocation(leg, 'arrival')}</strong>
               <div class="journey-arrival"><TravelTimeBadge time={journeyTime(leg, 'arrival')} isDaytime={segmentFor(leg, 'arrival').arrival_is_daytime as boolean | undefined} /></div>
             </div>
@@ -317,7 +333,7 @@
   .optimization-badge { color: var(--color-primary); }
   .connection-map { display: none; }
   @container result-card (max-width: 200px) {
-    .connection-information { padding: 72px 10px 30px; }
+  .connection-information { padding: 72px 10px 30px; }
     .airline-logos { top: 46px; }
     .itinerary-columns { width: 130px; }
     .single-journey { width: 65px; }

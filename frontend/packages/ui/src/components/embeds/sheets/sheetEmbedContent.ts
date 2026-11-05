@@ -5,12 +5,17 @@
  * Tables are stored as markdown in the embed content and rendered as HTML tables.
  */
 
+import { evaluateSheet, isFormulaText } from "./sheetFormulaEngine";
+
 /**
  * Parsed table cell with alignment info
  */
 export interface TableCell {
+  /** Display text. For formula cells this is the calculated result. */
   content: string;
   align?: "left" | "center" | "right";
+  /** Original cell text when it is a formula (e.g. "=B1*C1"). */
+  formula?: string;
 }
 
 /**
@@ -88,7 +93,65 @@ function parseTableRow(line: string): string[] {
     ? withoutPipes.slice(0, -1)
     : withoutPipes;
 
-  return content.split("|").map((cell) => stripInlineMarkdown(cell.trim()));
+  // Formula cells (=B2*C2) must keep their asterisks/underscores verbatim.
+  return content
+    .split("|")
+    .map((cell) => {
+      const trimmedCell = cell.trim();
+      return isFormulaText(trimmedCell) ? trimmedCell : stripInlineMarkdown(trimmedCell);
+    });
+}
+
+/**
+ * Evaluate formula cells (cells starting with "=") of a parsed table and return
+ * a table whose `content` holds calculated display values. Formula cells keep
+ * their source in `formula`. Tables without formulas are returned unchanged.
+ */
+export function computeTableFormulas(table: ParsedTable): ParsedTable {
+  const hasFormula = table.rows.some((row) => row.some((cell) => isFormulaText(cell.content)));
+  if (!hasFormula) return table;
+  const evaluated = evaluateSheet(table.rows.map((row) => row.map((cell) => cell.content)));
+  return {
+    ...table,
+    rows: table.rows.map((row, r) =>
+      row.map((cell, c) =>
+        evaluated.isFormula[r]?.[c]
+          ? { ...cell, content: evaluated.display[r][c], formula: cell.content }
+          : cell,
+      ),
+    ),
+  };
+}
+
+/**
+ * Return `markdownTable` with one data cell replaced by `value`. All other
+ * lines and cells are kept verbatim (including bold markers and alignment).
+ * `dataRow` is 0-based over data rows (the row after the separator).
+ */
+export function setMarkdownTableCell(
+  markdownTable: string,
+  dataRow: number,
+  col: number,
+  value: string,
+): string {
+  if (value.includes("|") || value.includes("\n")) {
+    throw new Error("Cell values cannot contain pipes or line breaks");
+  }
+  const lines = markdownTable.split("\n");
+  const tableLineIdx = lines.map((l, i) => (l.trim() ? i : -1)).filter((i) => i >= 0 && lines[i].includes("|"));
+  const lineIdx = tableLineIdx[dataRow + 2];
+  if (lineIdx === undefined) throw new Error("Row is outside the table");
+  const trimmed = lines[lineIdx].trim();
+  const hasLead = trimmed.startsWith("|");
+  const hasTrail = trimmed.endsWith("|") && trimmed.length > 1;
+  const inner = trimmed.slice(hasLead ? 1 : 0, hasTrail ? -1 : undefined);
+  const cells = inner.split("|").map((c) => c.trim());
+  const width = parseTableRow(lines[tableLineIdx[0]]).length;
+  while (cells.length < width) cells.push("");
+  if (col < 0 || col >= width) throw new Error("Column is outside the table");
+  cells[col] = value.trim();
+  lines[lineIdx] = `| ${cells.join(" | ")} |`;
+  return lines.join("\n");
 }
 
 /**
@@ -175,43 +238,9 @@ export function parseSheetEmbedContent(
     }
   }
 
-  const parsedTable = parseMarkdownTable(markdown);
+  const parsedTable = computeTableFormulas(parseMarkdownTable(markdown));
 
   return { markdown, title, parsedTable };
-}
-
-/**
- * Count rows in a markdown table (excluding header and separator)
- */
-function countTableRows(markdownTable: string): number {
-  const lines = markdownTable
-    .trim()
-    .split("\n")
-    .filter((line) => line.trim() && line.includes("|"));
-  // Subtract 2 for header and separator rows
-  return Math.max(0, lines.length - 2);
-}
-
-/**
- * Count columns in a markdown table
- */
-function countTableColumns(markdownTable: string): number {
-  const lines = markdownTable
-    .trim()
-    .split("\n")
-    .filter((line) => line.trim());
-  if (lines.length === 0) return 0;
-
-  // Count pipes in header row
-  const headerLine = lines[0].trim();
-  const withoutLeadingPipe = headerLine.startsWith("|")
-    ? headerLine.slice(1)
-    : headerLine;
-  const withoutTrailingPipe = withoutLeadingPipe.endsWith("|")
-    ? withoutLeadingPipe.slice(0, -1)
-    : withoutLeadingPipe;
-
-  return withoutTrailingPipe.split("|").length;
 }
 
 /**
@@ -224,35 +253,6 @@ export function formatTableDimensions(rows: number, cols: number): string {
   const rowText = rows === 1 ? "row" : "rows";
   const colText = cols === 1 ? "column" : "columns";
   return `${rows} ${rowText} × ${cols} ${colText}`;
-}
-
-/**
- * Convert markdown table to CSV format
- */
-function markdownTableToCSV(markdownTable: string): string {
-  const parsed = parseMarkdownTable(markdownTable);
-  const lines: string[] = [];
-
-  // Add header row
-  lines.push(parsed.headers.map((h) => escapeCSVCell(h.content)).join(","));
-
-  // Add data rows
-  for (const row of parsed.rows) {
-    lines.push(row.map((cell) => escapeCSVCell(cell.content)).join(","));
-  }
-
-  return lines.join("\n");
-}
-
-/**
- * Escape a cell value for CSV
- */
-function escapeCSVCell(value: string): string {
-  // If contains comma, quote, or newline, wrap in quotes and escape internal quotes
-  if (value.includes(",") || value.includes('"') || value.includes("\n")) {
-    return `"${value.replace(/"/g, '""')}"`;
-  }
-  return value;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

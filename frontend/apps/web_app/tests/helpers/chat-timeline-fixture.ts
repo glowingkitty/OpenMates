@@ -15,7 +15,7 @@ export type TimelineFixture = {
 
 export function createTimelineFixture(apiUrl: string, home: string): TimelineFixture {
   if (process.env.OPENMATES_CI_ISOLATED !== '1') throw new Error('Timeline fixture requires isolated CI');
-  const sdk = path.join(repositoryRoot, 'frontend/packages/openmates-cli/dist/index.js');
+  const sdk = path.join(repositoryRoot, 'frontend/packages/openmates-cli/dist/cli-internal-client.js');
   const source = String.raw`
     const {pathToFileURL}=require('node:url');
     const {randomUUID,randomBytes,createHash,webcrypto}=require('node:crypto');

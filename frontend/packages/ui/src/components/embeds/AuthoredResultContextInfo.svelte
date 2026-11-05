@@ -1,0 +1,54 @@
+<script lang="ts">
+  import { text } from '../../i18n/translations';
+  import type { AuthoredResultMetadata } from '../../types/authoredResult';
+  import { authoredSourceUrl } from '../../utils/authoredResultPresentation';
+
+  // `section` renders the full provenance as a bottom "Sources" block without the origin chip.
+  let { authoring, compact = false, section = false }: { authoring?: AuthoredResultMetadata; compact?: boolean; section?: boolean } = $props();
+  const sources = $derived((authoring?.sources ?? []).filter(source => source && typeof source === 'object'));
+  const domain = $derived.by(() => {
+    const url = sources.map(source => authoredSourceUrl(source.url)).find(Boolean);
+    return url ? new URL(url).hostname.replace(/^www\./, '') : '';
+  });
+  const originLabel = $derived(authoring?.origin === 'draft' ? $text('embeds.authoring.draft')
+    : authoring?.origin === 'user_provided' ? $text('embeds.authoring.user_provided') : domain);
+  const observed = $derived.by(() => {
+    if (!authoring?.observed_at) return '';
+    const value = new Date(authoring.observed_at);
+    return Number.isNaN(value.getTime()) ? '' : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(value);
+  });
+  const credits = $derived((authoring?.images ?? []).filter(image => image && typeof image === 'object' && image.attribution));
+</script>
+
+{#if authoring && (!section || sources.length || observed || credits.length || authoring.origin !== 'researched')}
+  <aside class="authored-context" class:compact class:section data-testid="authored-result-context" data-origin={authoring.origin} aria-label={originLabel || $text('embeds.authoring.sources')}>
+    {#if section}<h2 class="sources-heading">{$text('embeds.authoring.sources')}</h2>{/if}
+    {#if originLabel && !(section && authoring.origin === 'researched')}<span class="origin" data-testid="authored-result-origin">{originLabel}</span>{/if}
+    {#if !compact}
+      {#if sources.length}
+        <div class="sources">{#if !section}<span>{$text('embeds.authoring.sources')}</span>{/if}
+          {#each sources as source}
+            {@const url = authoredSourceUrl(source.url)}
+            {#if url}<a href={url} target="_blank" rel="noopener noreferrer">{source.label || new URL(url).hostname}</a>
+            {:else}<span>{source.label || $text('embeds.authoring.uploaded_source')}</span>{/if}
+          {/each}
+        </div>
+      {/if}
+      {#if observed}<span>{$text('embeds.authoring.observed_at')}: {observed}</span>{/if}
+      {#each credits as image}
+        {#if typeof image === 'object'}<span>{$text('embeds.authoring.image_credit')}: {image.attribution}</span>{/if}
+      {/each}
+    {/if}
+  </aside>
+{/if}
+
+<style>
+  .authored-context { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--spacing-2); max-width: 100%; font-size: 0.75rem; color: var(--color-font-secondary); line-height: 1.5; }
+  .section { flex-direction: column; align-items: flex-start; justify-content: flex-start; width: 100%; }
+  .section .sources { flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: var(--spacing-1); }
+  .sources-heading { margin: 0; font-size: var(--font-size-xxs); font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+  .origin { font-weight: 600; }
+  .sources { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--spacing-2); }
+  a { color: var(--color-primary); overflow-wrap: anywhere; }
+  .compact { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0.125rem var(--spacing-2); border-radius: var(--radius-8); background: var(--color-grey-0); }
+</style>

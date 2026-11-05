@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "status": "required-unrun",
+  "comparison": "same account, owner/team context, command, cache state and accepted output; native must not exceed preserved TypeScript wall-time median and p95",
+  "cases": [
+    {
+      "id": "default-help",
+      "commands": [
+        "drafts"
+      ],
+      "http": 0,
+      "ws": 0
+    },
+    {
+      "id": "warm-get",
+      "commands": [
+        "drafts",
+        "get",
+        "<same-id>"
+      ],
+      "http": 0,
+      "ws": 0,
+      "requires": "authenticated complete fresh owner-bound cache"
+    },
+    {
+      "id": "targeted-refresh",
+      "commands": [
+        "drafts",
+        "get",
+        "<same-id>",
+        "--refresh"
+      ],
+      "http": 1,
+      "ws": 0,
+      "forbid": [
+        "phased_sync_request",
+        "chat messages"
+      ],
+      "note": "REST success:one GET. Network-only fallback adds one auth POST + one passive WS with version/phase2/version; HTTP rejection adds no fallback."
+    },
+    {
+      "id": "version-sync-empty",
+      "commands": [
+        "drafts",
+        "sync"
+      ],
+      "http": 0,
+      "ws": 0
+    },
+    {
+      "id": "version-sync-401",
+      "commands": [
+        "drafts",
+        "sync"
+      ],
+      "ws_connections": 1,
+      "version_requests": 3,
+      "version_batch_sizes": [
+        200,
+        200,
+        1
+      ],
+      "forbid": [
+        "phased_sync_request",
+        "get_messages",
+        "task leases",
+        "inference"
+      ]
+    },
+    {
+      "id": "api-key-get",
+      "commands": [
+        "drafts",
+        "get",
+        "<same-id>"
+      ],
+      "http": 2,
+      "ws": 0,
+      "note": "existing TypeScript drafts ignored API-key flag; compare SDK direct facade budget separately, do not mislabel as old CLI parity"
+    },
+    {
+      "id": "cold-list",
+      "commands": [
+        "drafts",
+        "list"
+      ],
+      "auth_http": 1,
+      "ws_connections": 1,
+      "phase2_requests": 1,
+      "forbid": [
+        "phase:all",
+        "message history",
+        "active-chat announcement",
+        "task lease"
+      ],
+      "note": "recent100 metadata plus existing backend draft discovery, no Chat census freshness mint"
+    },
+    {
+      "id": "refresh-list",
+      "commands": [
+        "drafts",
+        "list",
+        "--refresh"
+      ],
+      "auth_http": 1,
+      "ws_connections": 1,
+      "version_batches": "ceil(cached_draft_ids/200)",
+      "phase2_requests": 1,
+      "forbid": [
+        "phase:all",
+        "message history",
+        "active-chat announcement",
+        "task lease"
+      ]
+    }
+  ],
+  "required_metrics": [
+    "end-to-end wall time median/p95",
+    "HTTP/WS request counts",
+    "download bytes",
+    "peak RSS"
+  ],
+  "proof": "No measurement or no-slower claim is supplied by these authored cases."
+}

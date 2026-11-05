@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "provenance": "Synthetic public identity/PII/credential placeholders only. One ephemeral loopback SSE peer checks real Rust/NAPI/PyO3 public inference transport. No product account, saved profile, CLI process or real AI inference is used.",
+  "capabilities": {
+    "session.anonymous-stream.v1": {
+      "anonymous_id": "synthetic-anonymous-user",
+      "text": "Reply to alice@example.com",
+      "pii": "alice@example.com",
+      "account": {
+        "session_id": "synthetic-private-session",
+        "cookie": "synthetic-private-cookie",
+        "master_key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8="
+      },
+      "vectors": [
+        {
+          "id": "signed-session-public-stream",
+          "mode": "sse",
+          "signed": true,
+          "repetitions": 2,
+          "allow_private": true
+        },
+        {
+          "id": "unsigned-public-stream",
+          "mode": "sse",
+          "signed": false,
+          "repetitions": 1,
+          "allow_private": true
+        },
+        {
+          "id": "free-allowance-denied",
+          "mode": "budget",
+          "signed": true,
+          "repetitions": 1,
+          "allow_private": true
+        },
+        {
+          "id": "public-redirect-refused",
+          "mode": "redirect",
+          "signed": true,
+          "repetitions": 1,
+          "allow_private": true
+        },
+        {
+          "id": "duplicate-sse-sequence-refused",
+          "mode": "malformed",
+          "signed": true,
+          "repetitions": 1,
+          "allow_private": true
+        },
+        {
+          "id": "cancel-and-fresh-public-send",
+          "mode": "cancel",
+          "signed": true,
+          "repetitions": 1,
+          "allow_private": true
+        },
+        {
+          "id": "invalid-id-and-context-before-dispatch",
+          "mode": "preflight",
+          "signed": true,
+          "repetitions": 1,
+          "allow_private": true
+        },
+        {
+          "id": "private-operation-consent-refused",
+          "mode": "policy",
+          "signed": true,
+          "repetitions": 1,
+          "allow_private": false
+        },
+        {
+          "id": "unexpected-private-context-refused",
+          "mode": "private",
+          "signed": true,
+          "repetitions": 1,
+          "allow_private": true
+        }
+      ]
+    }
+  }
+}

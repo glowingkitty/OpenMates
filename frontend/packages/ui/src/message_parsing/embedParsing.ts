@@ -344,7 +344,8 @@ export function parseEmbedNodes(
               continue;
             }
 
-            if (embedRef.type && embedRef.embed_id) {
+            if (typeof embedRef.type === 'string' && embedRef.type.trim() === embedRef.type && embedRef.type.length > 0
+              && typeof embedRef.embed_id === 'string' && embedRef.embed_id.trim() === embedRef.embed_id && embedRef.embed_id.length > 0) {
               // STABLE ID: Use server's embed_id directly instead of generateUUID().
               // This is critical for incremental streaming updates — when the same
               // markdown is re-parsed on the next streaming chunk, this embed gets
@@ -361,9 +362,13 @@ export function parseEmbedNodes(
               const embedAttrs: EmbedNodeAttributes = {
                 id,
                 type: mapEmbedReferenceType(embedRef.type),
-                status: embedRef.status || embedStatus,
+                status: embedRef.status === undefined ? embedStatus
+                  : ['processing', 'finished', 'error', 'cancelled'].includes(embedRef.status) ? embedRef.status : 'processing',
                 contentRef: `embed:${embedRef.embed_id}`,
               };
+
+              // Carry a small reference label, never the authored result body.
+              if (typeof embedRef.title === 'string') embedAttrs.title = embedRef.title;
 
               // Copy app_id and skill_id if present (for app_skill_use embeds)
               if (embedRef.app_id) {

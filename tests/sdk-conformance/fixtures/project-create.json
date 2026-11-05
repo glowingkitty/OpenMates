@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "provenance": "Synthetic public key material and direct SDK fake HTTP only. PBKDF2-SHA256/100000 setup-secret master wrapper is independently computed with cryptography; all Project payload ciphertext is created by actual SDK libraries and decrypted/checked by the shared loopback peer.",
+  "capabilities": {
+    "protocol.project-create.v1": {
+      "account": {
+        "api_key": "sk-api-syntheticprojectcreate.syntheticlocalprojectsetup",
+        "bearer": "sk-api-syntheticprojectcreate",
+        "setup_secret": "syntheticlocalprojectsetup",
+        "master_key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+        "key_wrapper": {
+          "encrypted_key": "KC1rKOTy4rLyDYiMW+tmSF4m/obuSo5HTvS1UjCUic/ByLNyXBX9OVoe2Jjy5sdL",
+          "salt": "AAECAwQFBgcICQoLDA0ODw==",
+          "key_iv": "AAECAwQFBgcICQoL"
+        }
+      },
+      "team": {
+        "team_id": "88888888-8888-4888-8888-888888888888",
+        "team_key_b64": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8=",
+        "encrypted_team_key": "T00JE61leRgLKbxm229jbLWO8xpiE1KLRbYSMmNfED7TvaZXCyYnc08uB0FAXIQw7F60wFEdKKjsJr97P9unys3x"
+      },
+      "vectors": [
+        {
+          "id": "personal-encrypted-defaults",
+          "team": false,
+          "input": {
+            "name": "  Synthetic private launch  "
+          },
+          "expected": {
+            "name": "Synthetic private launch",
+            "description": "",
+            "icon": "folder",
+            "color": "default",
+            "slug": "synthetic-private-launch",
+            "pinned": false
+          },
+          "repetitions": 2,
+          "error": false
+        },
+        {
+          "id": "team-encrypted-defaults",
+          "team": true,
+          "input": {
+            "name": "Team private launch",
+            "description": "Client-only team context",
+            "slug": "Team Launch",
+            "icon": "rocket",
+            "color": "violet",
+            "pinned": true
+          },
+          "expected": {
+            "name": "Team private launch",
+            "description": "Client-only team context",
+            "slug": "team-launch",
+            "icon": "rocket",
+            "color": "violet",
+            "pinned": true
+          },
+          "repetitions": 2,
+          "error": false
+        },
+        {
+          "id": "missing-name-no-create-post",
+          "team": false,
+          "input": {
+            "name": "  "
+          },
+          "expected": {},
+          "repetitions": 1,
+          "error": true
+        }
+      ]
+    }
+  }
+}

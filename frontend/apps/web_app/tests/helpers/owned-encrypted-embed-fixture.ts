@@ -10,7 +10,7 @@ const QUERY = 'deterministic historical image';
 export type Seed = { chatId: string; embedId: string; childId: string; ownerId: string; cachedChildIds: string[] };
 
 export function seedViaPairedCli(apiUrl: string, home: string, kind: 'image' | 'event' | 'read' = 'image', cachedChildCount = 0, includeSearchReference = false, readResult: Record<string, unknown> | null = null): Seed {
-	const modulePath = path.join(path.dirname(CLI_DIST), 'index.js');
+	const modulePath = path.join(path.dirname(CLI_DIST), 'cli-internal-client.js');
 	const source = String.raw`
 		const {pathToFileURL}=require('node:url');
 		const {randomUUID,randomBytes,createHash,webcrypto}=require('node:crypto');

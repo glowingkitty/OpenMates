@@ -1,156 +1,128 @@
 # Verification in progress
 
-The feature is not complete or released. The approved core and TV Specifications
-remain authoritative; wiki is excluded.
+The feature is not complete or released. Backend authoring was published to dev
+as `c5831accf32584b3c149dc3260769140193f2382`. The web feature and durable
+selected-media changes await successful application checks. The approved core
+and TV Specifications remain authoritative; wiki is excluded.
 
-## Backend and instruction checks
+## Implemented scope
 
-The full 25-kind backend snapshot passed 316 focused authored-result tests.
-Coverage includes schema validation, selected-only instruction context, streaming,
-ordinary encrypted identities, ownership, authorized image references, API child
-hydration, and typed materialization. Subsequent committed fixture metadata checks
-pass 16 tests. The isolated recovery-profile and bounded API diagnostic checks
-pass 114 tests. The generated authoring registry passes 17 checks, and selected
-encrypted media ownership and image proxy behavior pass 11 focused checks.
+All 23 eligible existing kinds plus TV movie/series have selected-only schemas,
+sources, labelled drafts, ordinary encrypted identities, bounded groups, maps,
+and typed web previews/details. Applicable calendar export and sharing remain
+explicit. Selected image references have durable owner/chat/initiating-user-
+message/subject/revision bindings. No canonical authorization or global recovery
+epoch is relaxed. The landing event animation uses real event components.
 
-The current backend-first stage temporarily leaves TV frontend routes and component
-paths unregistered in `backend/apps/tv/app.yml`. Restore the complete TV web metadata
-with the components after the real CLI/SDK gate. The existing full-registration
-unit assertion intentionally remains in place and must pass before completion.
+## Latest isolated evidence
 
-## Isolated integration observations
+Request IDs identify normal coordinator receipts and their evidence inventories.
+This table selects current checks rather than listing superseded attempts.
 
-- Source `fef1e0aa8fc32e061376b10a0ea023314756d8bc`, run `40308278538`:
-  dependency preparation rejected TV web registrations without components.
-  No test capture started.
-- Backend-stage source `241efb6a5f7e1353c9c368bc34f88d0a5e24f908`, run
-  `40309657655`, request
-  `dfef5445382504d72b1682e7234f4840e46e851728118f465c68e514c8032bda`:
-  the real backend materialized all 25 finished typed children and the carrier.
-  CLI creation timed out, so neither SDK case ran. The isolated server remained at
-  recovery epoch zero while saved-chat CLI completion required an epoch-one job.
-  Registering this spec in the existing guarded marker-only recovery profile is
-  the scoped correction. The profile registration was published as `7a47fbcd10db8ca3969f77a6a5508d0ed834be50`.
+| Check | Request | Result |
+| --- | --- | --- |
+| All-kind CLI/npm/Python transport and cold reads | `9c55583fc62b618a54d825de38754b0a2d21227ab25eee866d1e47bdb655bbb8` | 3 passed; no skips/retries; cleanup verified |
+| All 25 web kinds, provenance bounds, calendar/unknown/failure states; 390/1100 light/dark | `ebd44fb1fcbf6609b129921aab95cdd08f26e3014039792e69fb209a8b75180d` | 16 passed; no skips/retries |
+| Streaming/media browser guards | `fd8f358830ccc11d507efcc6341c0a4a4bee5d252708bd7035a8c854721916ed` | 14 passed |
+| Map selection and precision | `469ad902e7d232b74ec129e616690069c4198f0623c51050b53342ec2a9a4b1d` | 4 passed |
+| TV movie/series browser presentation | `7e46fc08dbfffe3fc4c3b6ee0feac951c07e3e0f7daf019f6e20121a117824b7` | 11 passed; 1 startup retry then passed |
+| Bare event landing animation | `b421e886312516bb65ede0b3fdb6ffb0139fce243d8193c3b6ee618b56ec64e7` | 3 passed |
+| Existing landing hero | `065ce1993e1a6e5d23b2276e8dc09b968eea60d1916e26509649c522e05ddfad` | 11 passed; no skips/retries |
+| Existing landing mobile / replay | `40de5d7973e5602506aab468d84669df029f17d87a6cc04904d652081761d3bf` / `a34041c27b4eb6ff4ade1bc552f7356d87603af015cadff1973db7b2c0c26f5d` | 5 / 3 passed |
+| Saved application records, owner cold recovery and individual/group sharing | `78c865d42e582002c87d48658e19d67f3e03a96000b1c16360c2ca4e1dfb00f7` | Failed at guest movie decryption; prior owner assertions passed |
+| Uploaded image retention and explicit child sharing | `9c6616016014819550a792ab6396a6bf86de1f1d2fa9f03e6619198e232b05b0` | Failed at third-turn CLI canonical persistence; later browser assertions not reached |
 
-- Source `0f9ed75c34ba50dcf4d6829215e4db0ea012527e`, run `40316339031`,
-  request `7bc0fc69fbffa6d7674cf841fe70e330d6c4bbda6c8e406f93dfe3608f3a8818`:
-  the receipt confirms recovery epoch one. All typed records and the sealed
-  response completed, but the CLI still timed out. No static wire mismatch or
-  26-record pagination problem was established. The API log tail omits the
-  terminal-publication interval. A bounded, test-only incoming-frame metadata
-  trace is prepared; no further product fix is justified from these logs alone.
+Latest matrix/hero and application-sharing source:
+`b85ac5f7be20e6524dd1b468dc62f087554e185e`. Selected-media source:
+`36dfbc5e5b7c9c2e8211783f274da67974e82774`.
+The receipts were retrieved under the unchanged 30 GiB reserve. Their evidence
+commands uploaded captures and retained S3 identities in the inventories.
+Root inspected latest 390-light/1100-dark matrix screenshots: TV metadata and
+provenance occupy separate readable space; event detail provenance is readable.
 
-- Trace source `a28c5742684b4f3a9683533b357a46d38856b0d8`, run `40323910659`,
-  request `4b15dee0db578ecdecd7bd2ee86a870b41954b54e70d2c318a4028c83ce971b9`:
-  one CLI socket receives all 26 embed records and provisional updates. No
-  terminal stream frame arrives. On retry, a recovery job reaches terminal state,
-  then typed-output discovery reports failure. The next diagnostic uses the
-  existing safe API exception summary to retain the underlying error location.
-  The exact-case capture is published as
-  `1e1e71d99e1e0f8afe7258a0c01500dc0c66cee6`; run `40330130790`, request
-  `eeedf81b0767cf2dd2888533a2d130ce489fe2555db5ec79b4f9ccaf90284cef`,
-  uses the same immutable product source with the expanded bounded capture.
-  Both attempts fail with the explicit `embed_revision_conflict` CLI result.
-  This run does receive completed output discovery and a terminal stream frame.
-  The API exception summary contains only an unrelated DNS failure. Existing
-  CLI persistence reconciles `embed_write_denied` by verifying and reusing the
-  canonical head, but omits revision conflicts from that same path. The scoped
-  correction adds that conflict to the existing guarded reconciliation without
-  relaxing immutable ciphertext, identity, version, parent, or key checks.
-  All 57 focused canonical reconciliation tests pass, including divergent
-  content and identity rejection for both error codes. Integration is pending.
-  Candidate `5954bcc72ed7ead5005b691f4c6e224525f75f96`, run `40333108313`,
-  request `2a62cd299a5ab8fb7acbbeff692cfaeb89c33c9a2816b19a0f28161aeab6e6d9`,
-  includes this correction and the registry/media groundwork. Specification
-  preflight, Python compilation and changed-test metadata pass. A standalone
-  CLI package typecheck is not green: it reports 221 errors across UI/Svelte
-  imports and other files, with none in the changed CLI client. This is not a
-  passing package typecheck or an established baseline comparison.
-  The first CLI case passes the complete 25-kind lifecycle, cache clearing,
-  reload, exact fresh reads and anonymous denial. The npm case then fails device
-  approval: a newly paired receiver requires its own fresh TOTP verification.
-  On serial retry the CLI completes but returns a provisional prefix without the
-  fixture's final sentence. The matching recovery-job announcement resolves the
-  collector before the final frame, and the already-terminal branch trusts that
-  prefix. These failures remain failed integration evidence.
+## Corrections awaiting application reruns
 
-The subsequent correction distinguishes an authoritative final frame from a
-recovery handoff. A handoff carries no provisional body; the already-terminal
-path reads the exact authorized persisted assistant in a bounded fresh window.
-The leased path retains verified sealed content. Empty/unreadable text and
-identity mismatches fail closed, and late provisional updates cannot replace
-final text. All 67 canonical-read/reconciliation tests, 54 collector tests and
-four selected client recovery scenarios pass; scoped lint and metadata pass.
-The SDK test now performs fresh verification before exact device approval.
-Review found no remaining blocking issue in this scoped correction.
+- Individual authored children have independent keys. Cold sharing previously
+  inherited the carrier key before trying direct wrappers. Direct child wrappers
+  now take precedence; invalid wrappers fail closed. Legacy children without
+  direct wrappers retain parent fallback. Four focused regressions pass. Broader
+  local UI checks encountered unrelated generated-import/setup failures and cold
+  import timeouts; they are not claimed green.
+- Terminal CLI writes omitted authored catalog/chat context. An existing
+  catalogued head can reject that omission. Authored roots/children now send
+  their validated existing app/skill identities and explicit chat/Team scope.
+  Canonical fallback retains every check and reports only fixed mismatch labels,
+  HTTP status and the original protocol code. Seventy focused tests pass. The
+  original failure's exact canonical mismatch remains unproven until the rerun.
+- Selected-only instruction guidance now distinguishes correction cards from
+  decrypted legacy envelopes, preserves supplied photo credits/licence URLs and
+  makes no in-place replacement claim. Thirty instruction/main-loop recovery
+  tests pass; unsupported TOON/native result envelopes remain rejected.
 
-Candidate `beeaeba1a440a07721f7e151ccabf0dd379ab456`, run `40338782453`,
-request `401e7adfc4926e018c5cc4e0ce2b07027b5eccb15fecab662c44c7d4d87f5e24`,
-fails both CLI attempts by timeout before either SDK case runs. Both traces
-receive typed records and provisional text, but no current final frame or
-nonempty recovery-job offer. Retained logs do not prove the current cause;
-the DNS exceptions belong to OpenObserve, not Directus.
+Earlier durable-reference checks passed 362 Python, 197 recovery-transaction
+Node and 88 canonical-transaction Node tests. Metadata service checks passed 44.
+Missing local TypeScript runners prevent a package-wide typecheck claim;
+isolated CI supplies the application dependency/build environment.
 
-An independently established final-fanout defect is corrected next: one device's
-discovery exception cannot abort healthy peers. Final sends use bounded parallel
-delivery with original-socket authorization checks and fail closed on discovery
-or transport failure; nonfinal delivery remains serial. All 105 focused tests,
-Ruff, metadata, compilation and review pass. Literal CI-only stages distinguish
-listener receipt, discovery and final send. Fixture-only publication logs also
-report Redis publish acceptance without changing its behavior. Their 26 fixture
-checks pass; the bounded diagnostic exporter passes 119 checks and privacy review.
-API-stage capture is published as `5511bf0680f7e2b5e7f2b622f6f761b7c1c650e9`;
-the additional publication capture is published as
-`de336c0749fc9a2732d38c554f2353efa6f4589e`.
+## Remaining acceptance work
 
-Candidate `554345a4251e9e2efb7afdce098582d7672f3fc6`, run `40349451207`,
-request `94d04dcfe62aec1198e4c062cb19297a181a7de4bc00913dbeea60ca811f8c3a`,
-passes the full 25-kind CLI lifecycle and direct npm SDK reads. The Python SDK
-case fails because `toon-format==0.9.0b1` decodes a bare empty array as the string
-`"[]"`. The serial retry then fails typed-output discovery. Safe trace confirms
-Redis accepted publication, the API received the final response, and job
-discovery succeeded, but typed-output discovery failed for both devices before
-final delivery. The fixed diagnostic did not yet identify the exception class;
-this is not a passing complete suite.
+1. Rerun both application flows on consolidated corrected source, preserving
+   required storage/epoch profiles and individual/group privacy checks.
+2. Publish the reviewed scoped feature to dev, refresh required consumers through
+   the managed lease, and verify the exact healthy revision.
+3. Run current-client, default-routed live mixed-card and uploaded-poster cases.
+   An older timed-out mixed run did not establish a saved assistant and is not
+   successful recovery evidence.
+4. Run fresh real FOSDEM research, review the complete transcript/licensed image,
+   admit and sanitize it, publish required locales, then verify phone/laptop
+   routes and guest actions. The old candidate contains a later protocol failure
+   and must not be published.
 
-The next bounded correction upgrades the official Python codec to 1.0.0 and
-retains strict SDK comparisons. Six wire vectors distinguish empty arrays from
-literal quoted strings and preserve source JSON. Five new regressions reproduce
-under the old codec; 57 relevant SDK/key-wrapper/recovery checks pass with 1.0.0.
-One broader pre-existing workflow skill test fails identically under both codec
-versions and remains outside this change.
+The prospective FOSDEM browser test stays outside the first feature candidate
+until its real admitted fixture exists. No synthetic transcript, model/provider
+override, automatic booking/publication, speech playback, or native Rust/Apple
+parity is claimed. Broader native migration remains outside this web delivery's
+critical path under the user's explicit scope correction.
 
-Typed discovery currently re-reads the same chat twice for each same-chat output.
-The correction reuses the already-authorized root only within that output row;
-all rows and subsequent requests still authorize freshly, and distinct target
-chats retain independent checks. All 161 Directus operation tests pass. The
-three-second Directus POST deadline is unchanged; the observed discovery failure
-at approximately that interval does not yet prove its exception class. The
-allowlisted diagnostic now retains HTTPX timeout/transport class names without
-exception text. All 32 focused final-delivery tests and 119 diagnostic checks
-pass. Independent review found no blocking issue. The safe transport-class
-diagnostic is published as `bd81f9166aed34aad25b78356a83c942a270e6be`; product
-integration remains pending.
+## Existing-component reuse correction — 2026-10-28
 
-The SDK cleartext parity, boundary, documentation and test-coverage audits pass.
+The user rejected the synthetic landing event card. Its earlier animation
+recordings are superseded and do not prove the requested visual reuse.
 
-The fixture now supplies validated committed postprocessing metadata, preventing
-provider calls in this deterministic check. This change alone does not establish
-that the delivery timeout is fixed. Existing failure artifacts are retained in the
-coordinator result directory; select only the latest successful recording per flow
-when successful evidence becomes available.
+- Removed `EventResultDetails`; the app landing now instantiates the actual
+  `CalendarEventEmbedPreview` and `CalendarEventEmbedFullscreen`. Its timeline
+  invokes the preview's real expand button and requires its callback before
+  showing the existing fullscreen. The public website keeps its runtime boundary
+  and static actionable copy rather than receiving another replacement card.
+- All 23 pre-existing authored kinds use their original preview/fullscreen
+  constructors. A 24-case registry contract (inventory plus each kind) passes.
+  Removed authored-only Fitness and Travel preview layout changes and Health
+  fullscreen image sizing; standard image geometry lives in the shared shell.
+- TV movie/series compose the shared result card and fullscreen, header, media,
+  facts and composer. Eight focused parser/export checks pass. Browser coverage
+  now checks shared hierarchy and phone/laptop geometry.
 
-## Remaining proof
+Fresh isolated bare-component evidence for this correction:
 
-Prove real persisted CLI and SDK behavior, then default-routed live assistant
-creation on the scoped deployed revision. The installed native preview supports
-explicit isolated state and relevant partial commands, but actual behavior is
-unverified. An unchanged private Rust SDK dependency from tested source
-`33083b6d86100891bb09745b5f28b799672bee56` and a direct-library read harness
-compiled with its original lock under the resource guards. The SDK remains
-unpublished with its existing migration gaps. Live Rust reads remain unexecuted;
-passing npm/Python reads are not Rust parity.
+| Check | Source / request | Result |
+| --- | --- | --- |
+| Existing kinds, canonical previews/fullscreens and CTA styling | `ae54ab4c` / `fc91a8d88ae2f59c5ede8eb317151a5a9ce76d60d1f783310432931c8fe9a2aa` | 16 passed; no retries/skips |
+| TV movie/series, shared phone/wide design and supplied details | `ae54ab4c` / `a1f3f16b0d5e87986aa8238acf0d0977663a723987f5e15e494d604d201271ea` | 12 passed; one successful retry after cold startup timeout |
+| Actual calendar landing sequence, inert controls and visible calendar/action geometry | `0d846f2f` / `36d31ab4936ff56db2c7d34ec61de7bec552c711787e64f34dde0a52f84cc7ed` | 3 passed; no retries/skips |
 
-Web implementation, component checks, sharing/maps/calendar actions, landing
-animation and the admitted real FOSDEM example remain outstanding. No Apple
-completion is claimed.
+The final landing candidate differs from the successful matrix/TV source only
+in the thin landing adapter, its focused test, and regenerated assertion line
+metadata. The initial one-frame scroll alignment left the calendar CTA partly
+behind the composer; a bounded alignment step now follows native entrance/layout
+changes. Its stricter geometry test passes on both 390px and 1280px profiles.
+
+Inspected actual movie phone/wide previews and details, series seasons, and
+existing event CTA captures. The fixture fullscreen now sits outside message
+markdown styling, matching production. The existing 150px compact card truncates
+long copy; full details remain readable. Shared card padding was preserved.
+All matrix/TV/landing recordings uploaded without capture/upload failures. The
+final landing preview and native calendar-week captures were inspected on phone
+and laptop. Earlier
+synthetic-card landing evidence is superseded and must not be presented as proof.
+No deployment, full-application sharing/media acceptance, or public-example
+completion is claimed by these focused visual checks.

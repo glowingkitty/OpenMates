@@ -210,8 +210,12 @@ def test_pip_sdk_decrypted_task_helpers_use_api_key_master_key(monkeypatch):
 
 
 # contract-test: direct surface=sdks.pip assertions=tasks.external-chat.encrypted-context,tasks.blocking.encrypted-reason,tasks.surface.semantic-parity
-@pytest.mark.parametrize("provider", ["codex", "codex"])
-def test_pip_sdk_encrypts_external_chat_context_and_blocked_reason(monkeypatch, provider):
+@pytest.mark.parametrize("provider,first_id,second_id", [
+    ("codex", "ses_external_123", "ses_external_456"),
+    # Claude Code links use the exported CLAUDE_CODE_SESSION_ID UUID.
+    ("claude", "0f8e4c2a-1b3d-4e5f-8a9b-0c1d2e3f4a5b", "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d"),
+])
+def test_pip_sdk_encrypts_external_chat_context_and_blocked_reason(monkeypatch, provider, first_id, second_id):
     master_key = bytes([10]) * 32
     api_key, material = _create_api_key_material("sdk external task parity", master_key)
     stored_task = None
@@ -244,7 +248,7 @@ def test_pip_sdk_encrypts_external_chat_context_and_blocked_reason(monkeypatch, 
         if url.endswith("/v1/user-tasks"):
             assert json["external_chat_provider"] == provider
             assert len(json["external_chat_lookup_hash"]) == 64
-            assert "ses_external_123" not in str(json)
+            assert first_id not in str(json)
             assert "Codex task bridge" not in str(json)
             stored_task = {**json, "short_id": "TASK-EXT"}
             return FakeResponse({"task": stored_task})
@@ -266,7 +270,7 @@ def test_pip_sdk_encrypts_external_chat_context_and_blocked_reason(monkeypatch, 
             assert json["encrypted_external_chat_title"] is None
         else:
             assert json["external_chat_provider"] == provider
-            assert "ses_external_456" not in str(json)
+            assert second_id not in str(json)
             assert "Updated Codex task bridge" not in str(json)
         stored_task = {**stored_task, **json}
         return FakeResponse({"task": stored_task})
@@ -278,28 +282,28 @@ def test_pip_sdk_encrypts_external_chat_context_and_blocked_reason(monkeypatch, 
     client = OpenMates(api_key=api_key)
     created = client.tasks.create({
         "title": "Implement task bridge",
-        "external_chat": f"{provider}:ses_external_123",
+        "external_chat": f"{provider}:{first_id}",
         "external_chat_title": "Codex task bridge",
     })
 
     assert created["external_chat"] == {
         "provider": provider,
-        "id": "ses_external_123",
+        "id": first_id,
         "title": "Codex task bridge",
     }
     edited = client.tasks.edit("TASK-EXT", {
         "external_chat": {
             "provider": provider,
-            "id": "ses_external_456",
+            "id": second_id,
             "title": "Updated Codex task bridge",
         },
     })
     assert edited["external_chat"] == {
         "provider": provider,
-        "id": "ses_external_456",
+        "id": second_id,
         "title": "Updated Codex task bridge",
     }
-    assert client.tasks.list(external_chat={"provider": provider, "id": "ses_external_456"})[0]["external_chat"] == edited["external_chat"]
+    assert client.tasks.list(external_chat={"provider": provider, "id": second_id})[0]["external_chat"] == edited["external_chat"]
     blocked = client.tasks.block(
         "TASK-EXT",
         "missing_credentials",
@@ -318,13 +322,15 @@ def test_pip_sdk_encrypts_external_chat_context_and_blocked_reason(monkeypatch, 
         request["method"] == "GET"
         and f"external_chat_provider={provider}" in request["url"]
         and "external_chat_lookup_hash=" in request["url"]
-        and "ses_external_456" not in request["url"]
+        and second_id not in request["url"]
         for request in requests_seen
     )
     with pytest.raises(OpenMatesConfigError, match="both native chat and external chat"):
-        client.tasks.create({"title": "Invalid mixed context", "chat_id": "chat-1", "external_chat": f"{provider}:ses_external_123"})
+        client.tasks.create({"title": "Invalid mixed context", "chat_id": "chat-1", "external_chat": f"{provider}:{first_id}"})
     with pytest.raises(OpenMatesConfigError, match="Unsupported external chat provider"):
         client.tasks.create({"title": "Unsupported provider", "external_chat": "other:session"})
+    with pytest.raises(OpenMatesConfigError, match="session UUID"):
+        client.tasks.create({"title": "Invalid Claude id", "external_chat": "claude:ses_not_a_uuid"})
 
 
 # contract-test: direct surface=sdks.pip assertions=tasks.workflow-projections.read-only,tasks.surface.semantic-parity

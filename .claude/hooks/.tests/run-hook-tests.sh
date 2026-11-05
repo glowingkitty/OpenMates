@@ -144,19 +144,6 @@ run_case "cookie-gate: cookie in auth_routes silent" \
   0 ""
 
 echo ""
-echo "=== Hook #8: linear-context-auto-prefetch ==="
-# Positive: prompt with OPE-42 → reminder injected (fresh session id to avoid sentinel)
-run_case "linear-prefetch: OPE-ref reminds" \
-  "linear-context-auto-prefetch.sh" \
-  '{"prompt":"please fix OPE-42 bug","session_id":"test-'"$RANDOM"'"}' \
-  0 "Linear task context"
-# Negative: no OPE ref
-run_case "linear-prefetch: plain prompt silent" \
-  "linear-context-auto-prefetch.sh" \
-  '{"prompt":"help me","session_id":"test-xyz"}' \
-  0 ""
-
-echo ""
 echo "=== Hook #9: svelte5-legacy-syntax ==="
 # Positive: $: reactive
 run_case "svelte5: \$: warns" \

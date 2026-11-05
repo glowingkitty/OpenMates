@@ -24,7 +24,7 @@ const FIXTURE = JSON.parse(fs.readFileSync(path.join(ROOT,
 const DOCUMENT = (Object.values(FIXTURE.embeds)[0] as any).document;
 const DEFINITIONS = JSON.parse(fs.readFileSync(path.join(ROOT,
   'shared/config/authored_result_types.json'), 'utf8')).kinds;
-const SDK_ENTRY = path.join(path.dirname(CLI_DIST), 'index.js');
+const SDK_ENTRY = path.join(path.dirname(CLI_DIST), 'cli-internal-client.js');
 const OWNER_APPROVAL_STAGES = ['import', 'paired-session', 'fixture-key', 'device-registration', 'owner-verification', 'approve-device', 'verify-approval'];
 // Serial tests share one genuine saved chat; SDK checks never regenerate embeds.
 test.describe.configure({ mode: 'serial' });

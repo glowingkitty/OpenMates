@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { authoredResultMetadata } from '../utils/authoredResultPresentation';
 import { storageArchiveFetch } from "../config/api";
 import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
@@ -146,8 +147,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import ChatContextMenu from './chats/ChatContextMenu.svelte'; // Context menu for resume chat cards
     import ActiveChatsLink from './chats/ActiveChatsLink.svelte';
     import ChatProjectPicker from './chats/ChatProjectPicker.svelte';
-    import { copyChatToClipboard } from '../services/chatExportService'; // For context menu copy action
-    import { downloadChatAsZip } from '../services/zipExportService'; // For context menu download action
+    import { runChatMenuAction, type ChatMenuActionResult } from '../services/chatMenuActionService';
+    import { buildChatMenuItems, type ChatMenuAction } from './chats/chatMenuItems';
+    import { chatMenuUsageStore, hydrateChatMenuUsage, rankChatMenuItems, recordChatMenuUsage } from '../services/chatMenuUsage';
     import { notificationStore } from '../stores/notificationStore'; // For context menu action feedback
     import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
     import { findWikipediaStudyInterest, saveWikipediaStudyInterest } from '../services/wikipediaStudyInterest';
@@ -3243,273 +3245,36 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         }
     }
 
+    /** Apply local welcome-screen updates after a chat menu action. */
+    function applyChatMenuActionResult(result: ChatMenuActionResult) {
+        const removed = result.removedChatIds ?? [];
+        if (removed.length) {
+            if (resumeChatData && removed.includes(resumeChatData.chat_id)) resumeChatData = null;
+            recentChats = recentChats.filter(rc => !removed.includes(rc.chat.chat_id));
+        }
+        const updated = result.updatedChat;
+        if (updated) {
+            if (resumeChatData?.chat_id === updated.chat_id) resumeChatData = updated;
+            recentChats = recentChats.map(rc => rc.chat.chat_id === updated.chat_id ? { ...rc, chat: { ...rc.chat, ...updated } } : rc);
+        }
+    }
+
     /** Handle context menu actions for resume chat cards */
     async function handleResumeCardContextMenuAction(event: CustomEvent<string>) {
         const action = event.detail;
         const chat = resumeCardContextMenuChat;
-        if (!chat) { resumeCardContextMenuShow = false; return; }
-
-        switch (action) {
-            case 'close':
-                resumeCardContextMenuShow = false;
-                break;
-            case 'download': {
-                resumeCardContextMenuDownloading = true;
-                try {
-                    // Public chats (demo/example) use static bundle; regular chats use IndexedDB
-                    const messages = isPublicChat(chat.chat_id)
-                        ? getDemoMessages(chat.chat_id, DEMO_CHATS)
-                        : await chatDB.getMessagesForChat(chat.chat_id);
-                    await downloadChatAsZip(chat, messages);
-                    notificationStore.success('Chat downloaded successfully');
-                } catch (err) {
-                    console.error('[ActiveChat] Download failed:', err);
-                    notificationStore.error('Download failed');
-                } finally {
-                    resumeCardContextMenuDownloading = false;
-                    resumeCardContextMenuShow = false;
-                }
-                break;
-            }
-            case 'copy': {
-                try {
-                    const messages = isPublicChat(chat.chat_id)
-                        ? getDemoMessages(chat.chat_id, DEMO_CHATS)
-                        : await chatDB.getMessagesForChat(chat.chat_id);
-                    await copyChatToClipboard(chat, messages);
-                    notificationStore.success('Chat copied to clipboard');
-                } catch (err) {
-                    console.error('[ActiveChat] Copy failed:', err);
-                    notificationStore.error('Copy failed');
-                }
-                resumeCardContextMenuShow = false;
-                break;
-            }
-            case 'delete': {
-                // Demo/example chats: hide via userProfile; regular chats: delete from DB
-                if (isPublicChat(chat.chat_id)) {
-                    if (!$authStore.isAuthenticated) {
-                        notificationStore.error('Please sign up to customize your experience');
-                        resumeCardContextMenuShow = false;
-                        return;
-                    }
-                    const currentHidden = $userProfile.hidden_demo_chats || [];
-                    if (!currentHidden.includes(chat.chat_id)) {
-                        const updatedHidden = [...currentHidden, chat.chat_id];
-                        userProfile.update(profile => ({ ...profile, hidden_demo_chats: updatedHidden }));
-                        const { userDB: udb } = await import('../services/userDB');
-                        await udb.updateUserData({ hidden_demo_chats: updatedHidden });
-                        notificationStore.success('Chat hidden successfully');
-                    }
-                } else {
-                    // Delete regular chat — mirrors Chat.svelte handleDeleteChat
-                    try {
-                        const chatIdToDelete = chat.chat_id;
-                        const descendants = await chatDB.getChatDescendantIds(chatIdToDelete);
-                        const allIdsToDelete = [chatIdToDelete, ...descendants];
-                        
-                        for (const idToDelete of allIdsToDelete) {
-                            // Delete from IndexedDB first (optimistic)
-                            await chatDB.deleteChat(idToDelete);
-                            // Dispatch chatDeleted for UI update
-                            chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: idToDelete } }));
-                            // Send server-side delete via WebSocket
-                            try {
-                                await chatSyncService.sendDeleteChat(idToDelete);
-                            } catch (sendError) {
-                                console.warn('[ActiveChat] Failed to send delete to server, queueing for reconnect:', idToDelete, sendError);
-                                const { addPendingChatDeletion } = await import('../services/pendingChatDeletions');
-                                addPendingChatDeletion(idToDelete);
-                            }
-                        }
-                        
-                        notificationStore.success('Chat deleted');
-                        // Clear resume card if any of the deleted chats matches
-                        if (resumeChatData && allIdsToDelete.includes(resumeChatData.chat_id)) {
-                            resumeChatData = null;
-                        }
-                        // Remove from recentChats array
-                        recentChats = recentChats.filter(rc => !allIdsToDelete.includes(rc.chat.chat_id));
-                    } catch (err) {
-                        console.error('[ActiveChat] Delete failed:', err);
-                        notificationStore.error('Failed to delete chat');
-                    }
-                }
-                resumeCardContextMenuShow = false;
-                break;
-            }
-            case 'hide': {
-                try {
-                    const { hiddenChatService } = await import('../services/hiddenChatService');
-                    if (!hiddenChatService.isUnlocked()) {
-                        window.dispatchEvent(new CustomEvent('showOverscrollUnlockForHide', {
-                            detail: { chatId: chat.chat_id }
-                        }));
-                        resumeCardContextMenuShow = false;
-                        break;
-                    }
-                    let chatKey = await chatKeyManager.getKey(chat.chat_id);
-                    if (!chatKey && chat.encrypted_chat_key) {
-                        const result = await hiddenChatService.tryDecryptChatKey(chat.encrypted_chat_key);
-                        if (result.chatKey) {
-                            chatKey = result.chatKey;
-                            chatDB.setChatKey(chat.chat_id, chatKey);
-                            if (result.isHidden) {
-                                notificationStore.success('Chat is already hidden');
-                                resumeCardContextMenuShow = false;
-                                break;
-                            }
-                        }
-                    }
-                    if (!chatKey) {
-                        notificationStore.error('Failed to hide chat. Chat key not found.');
-                        resumeCardContextMenuShow = false;
-                        break;
-                    }
-                    const encryptedChatKey = await hiddenChatService.encryptChatKeyWithCombinedSecret(chatKey);
-                    if (!encryptedChatKey) {
-                        notificationStore.error('Failed to hide chat. Encryption failed.');
-                        resumeCardContextMenuShow = false;
-                        break;
-                    }
-                    await chatDB.updateChat({ ...chat, encrypted_chat_key: encryptedChatKey });
-                    chatListCache.markDirty();
-                    await chatSyncService.sendUpdateEncryptedChatKey(chat.chat_id, encryptedChatKey);
-                    try { await chatDB.hideNewChatSuggestionsForChat(chat.chat_id); } catch (_e) { /* non-fatal */ }
-                    window.dispatchEvent(new CustomEvent('chatHidden', { detail: { chat_id: chat.chat_id } }));
-                    if (resumeChatData?.chat_id === chat.chat_id) resumeChatData = null;
-                    recentChats = recentChats.filter(rc => rc.chat.chat_id !== chat.chat_id);
-                    notificationStore.success('Chat hidden successfully');
-                } catch (err) {
-                    console.error('[ActiveChat] Hide failed:', err);
-                    notificationStore.error('Failed to hide chat');
-                }
-                resumeCardContextMenuShow = false;
-                break;
-            }
-            case 'unhide': {
-                try {
-                    const { hiddenChatService } = await import('../services/hiddenChatService');
-                    if (!hiddenChatService.isUnlocked()) {
-                        notificationStore.error('Please unlock hidden chats first to unhide this chat.');
-                        resumeCardContextMenuShow = false;
-                        break;
-                    }
-                    const success = await hiddenChatService.unhideChat(chat.chat_id);
-                    if (success) {
-                        try { await chatDB.unhideNewChatSuggestionsForChat(chat.chat_id); } catch (_e) { /* non-fatal */ }
-                        chatListCache.markDirty();
-                        window.dispatchEvent(new CustomEvent('chatUnhidden', { detail: { chat_id: chat.chat_id } }));
-                        notificationStore.success('Chat unhidden successfully');
-                    } else {
-                        notificationStore.error('Failed to unhide chat.');
-                    }
-                } catch (err) {
-                    console.error('[ActiveChat] Unhide failed:', err);
-                    notificationStore.error('Failed to unhide chat');
-                }
-                resumeCardContextMenuShow = false;
-                break;
-            }
-            case 'pin': {
-                try {
-                    const chatId = chat.chat_id;
-                    const updatedChat = { ...chat, pinned: true };
-                    await chatDB.updateChat(updatedChat);
-                    chatListCache.markDirty();
-                    const { LOCAL_CHAT_LIST_CHANGED_EVENT } = await import('../services/drafts/draftConstants');
-                    window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, {
-                        detail: { chat_id: chatId, pinned: true }
-                    }));
-                    const { webSocketService } = await import('../services/websocketService');
-                    if (webSocketService.isConnected()) {
-                        webSocketService.sendMessage('update_chat', { chat_id: chatId, pinned: true });
-                    }
-                    // Update local UI state so pin badge appears immediately
-                    if (resumeChatData?.chat_id === chatId) {
-                        resumeChatData = updatedChat;
-                    }
-                    recentChats = recentChats.map(rc =>
-                        rc.chat.chat_id === chatId ? { ...rc, chat: { ...rc.chat, pinned: true } } : rc
-                    );
-                } catch (err) {
-                    console.error('[ActiveChat] Pin failed:', err);
-                    notificationStore.error('Failed to pin chat');
-                }
-                resumeCardContextMenuShow = false;
-                break;
-            }
-            case 'unpin': {
-                try {
-                    const chatId = chat.chat_id;
-                    const updatedChat = { ...chat, pinned: false };
-                    await chatDB.updateChat(updatedChat);
-                    chatListCache.markDirty();
-                    const { LOCAL_CHAT_LIST_CHANGED_EVENT } = await import('../services/drafts/draftConstants');
-                    window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, {
-                        detail: { chat_id: chatId, pinned: false }
-                    }));
-                    const { webSocketService } = await import('../services/websocketService');
-                    if (webSocketService.isConnected()) {
-                        webSocketService.sendMessage('update_chat', { chat_id: chatId, pinned: false });
-                    }
-                    // Update local UI state so pin badge disappears immediately
-                    if (resumeChatData?.chat_id === chatId) {
-                        resumeChatData = updatedChat;
-                    }
-                    recentChats = recentChats.map(rc =>
-                        rc.chat.chat_id === chatId ? { ...rc, chat: { ...rc.chat, pinned: false } } : rc
-                    );
-                } catch (err) {
-                    console.error('[ActiveChat] Unpin failed:', err);
-                    notificationStore.error('Failed to unpin chat');
-                }
-                resumeCardContextMenuShow = false;
-                break;
-            }
-            case 'markUnread': {
-                try {
-                    const chatId = chat.chat_id;
-                    const { unreadMessagesStore } = await import('../stores/unreadMessagesStore');
-                    unreadMessagesStore.clearUnread(chatId);
-                    unreadMessagesStore.incrementUnread(chatId);
-                    await chatDB.updateChat({ ...chat, unread_count: 1 });
-                    chatListCache.markDirty();
-                    const { LOCAL_CHAT_LIST_CHANGED_EVENT } = await import('../services/drafts/draftConstants');
-                    window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, {
-                        detail: { chat_id: chatId, unread_count: 1 }
-                    }));
-                    await chatSyncService.sendChatReadStatus(chatId, 1);
-                } catch (err) {
-                    console.error('[ActiveChat] Mark unread failed:', err);
-                    notificationStore.error('Failed to mark chat as unread');
-                }
-                resumeCardContextMenuShow = false;
-                break;
-            }
-            case 'markRead': {
-                try {
-                    const chatId = chat.chat_id;
-                    const { unreadMessagesStore } = await import('../stores/unreadMessagesStore');
-                    unreadMessagesStore.clearUnread(chatId);
-                    await chatDB.updateChat({ ...chat, unread_count: 0 });
-                    chatListCache.markDirty();
-                    const { LOCAL_CHAT_LIST_CHANGED_EVENT } = await import('../services/drafts/draftConstants');
-                    window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, {
-                        detail: { chat_id: chatId, unread_count: 0 }
-                    }));
-                    await chatSyncService.sendChatReadStatus(chatId, 0);
-                } catch (err) {
-                    console.error('[ActiveChat] Mark read failed:', err);
-                    notificationStore.error('Failed to mark chat as read');
-                }
-                resumeCardContextMenuShow = false;
-                break;
-            }
-            default:
-                // enterSelectMode, selectChat, unselect — not applicable on welcome screen
-                resumeCardContextMenuShow = false;
-                break;
+        if (!chat || action === 'close') { resumeCardContextMenuShow = false; return; }
+        // enterSelectMode, selectChat, unselect are sidebar-only.
+        if (action === 'enterSelectMode' || action === 'selectChat' || action === 'unselect') {
+            resumeCardContextMenuShow = false;
+            return;
+        }
+        if (action === 'download') resumeCardContextMenuDownloading = true;
+        try {
+            applyChatMenuActionResult(await runChatMenuAction(action as ChatMenuAction, chat));
+        } finally {
+            resumeCardContextMenuDownloading = false;
+            resumeCardContextMenuShow = false;
         }
     }
 
@@ -5529,6 +5294,10 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         get chatId() { return showEmbedFullscreen && !fullscreenHasChatContext ? null : currentChat?.chat_id ?? null; },
         get exampleChatId() { return embedFullscreenData?.exampleChatId ?? null; },
         get lookupChatId() { return embedFullscreenData?.lookupChatId ?? null; },
+        get isReadOnly() {
+            return !currentChat?.chat_id || currentChat.is_shared_by_others === true || isPublicChat(currentChat.chat_id)
+                || !!embedFullscreenData?.exampleChatId || (showEmbedFullscreen && !fullscreenHasChatContext);
+        },
     });
     setContext<EmbedChatContext>(EMBED_CHAT_CONTEXT, {
         get showChatButton() { return showChatButtonInFullscreen; },
@@ -5973,6 +5742,12 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
     let startNewChatPlaceholderMode = $derived(
         !!currentChat?.chat_id && (isDemoChat(currentChat.chat_id) || isNewsletterChat(currentChat.chat_id))
+    );
+    // While a call transcript fills the composer, it is the only visible content:
+    // no New chat button beside it and no Cancel pill below it.
+    let callTranscriptComposerActive = $derived(
+        !!$voiceCallController.liveTranscript &&
+        ($voiceCallController.status === 'live' || $voiceCallController.status === 'connecting')
     );
     let showNewChatButtonBesideInput = $derived(
         createButtonVisible &&
@@ -8210,6 +7985,56 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
     const showChatSettingsAction = $derived(!!(hasActiveChatDetailsSurface && currentChat?.chat_id && (isExampleChat(currentChat.chat_id) || $authStore.isAuthenticated || currentChat.is_shared_by_others)));
     const showChatRemindersAction = $derived(!!(hasActivePrivateChatSurface && $authStore.isAuthenticated && currentChat?.chat_id && !currentChat.is_shared_by_others));
+
+    // Fullscreen chat More menu: same chat actions as the right-click menu
+    // (Share and debug keep their dedicated toolbar entries), ranked by usage.
+    let headerChatMenuDownloading = $state(false);
+    let headerChatMenuDeleteConfirm = $state(false);
+    let headerChatMenuDeleteTimer: ReturnType<typeof setTimeout> | undefined;
+    const headerChatMenuItems = $derived(
+        hasActiveChatDetailsSurface && currentChat?.chat_id
+            ? rankChatMenuItems(buildChatMenuItems({
+                chat: currentChat,
+                isAuthenticated: $authStore.isAuthenticated,
+                isAdmin: false,
+                shareAllowed: false,
+                isUnread: (currentChat.unread_count ?? 0) > 0,
+                debugActive: false,
+                hide: { select: true, share: true },
+            }), $chatMenuUsageStore)
+            : [],
+    );
+    $effect(() => {
+        if (headerChatMenuItems.length) void hydrateChatMenuUsage();
+    });
+    $effect(() => {
+        void currentChat?.chat_id;
+        headerChatMenuDeleteConfirm = false;
+    });
+
+    async function handleHeaderChatMenuAction(action: ChatMenuAction, usageId: string) {
+        const chat = currentChat;
+        if (!chat) return;
+        if (action === 'delete' && !headerChatMenuDeleteConfirm) {
+            headerChatMenuDeleteConfirm = true;
+            clearTimeout(headerChatMenuDeleteTimer);
+            headerChatMenuDeleteTimer = setTimeout(() => { headerChatMenuDeleteConfirm = false; }, 3000);
+            return;
+        }
+        clearTimeout(headerChatMenuDeleteTimer);
+        headerChatMenuDeleteConfirm = false;
+        recordChatMenuUsage(usageId);
+        if (action === 'download') headerChatMenuDownloading = true;
+        try {
+            const result = await runChatMenuAction(action, chat);
+            applyChatMenuActionResult(result);
+            if (result.updatedChat && currentChat?.chat_id === result.updatedChat.chat_id) {
+                currentChat = { ...currentChat, ...result.updatedChat };
+            }
+        } finally {
+            headerChatMenuDownloading = false;
+        }
+    }
     const showChatPIIAction = $derived(!!(chatHasPII && !showWelcome));
     const voiceCallOwnsAudio = $derived($voiceCallController.status === 'connecting' || $voiceCallController.status === 'live');
     const voiceContextConsentKey = $derived.by(() => {
@@ -14373,6 +14198,32 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         >
                       </div>
                     {/if}
+                    {#each headerChatMenuItems as item (item.action)}
+                      {@const isDownloading = item.action === 'download' && headerChatMenuDownloading}
+                      {@const isConfirmingDelete = item.action === 'delete' && headerChatMenuDeleteConfirm}
+                      <div class="new-chat-button-wrapper">
+                        <button
+                          class="header-action chat-menu-action"
+                          class:danger={item.tone === 'danger'}
+                          data-testid="chat-header-{item.testId.replace('chat-context-', '')}"
+                          data-usage-id={item.usageId}
+                          data-keep-menu-open={item.action === 'delete' && !headerChatMenuDeleteConfirm ? '' : undefined}
+                          disabled={Boolean(item.disabled) || isDownloading}
+                          aria-label={isConfirmingDelete ? $text('chats.context_menu.confirm') : $text(item.labelKey)}
+                          onclick={() => handleHeaderChatMenuAction(item.action, item.usageId)}
+                          ><span
+                            class="clickable-icon {item.icon} top-button"
+                            aria-hidden="true"
+                          ></span><span class="action-label"
+                            >{isDownloading
+                              ? $text('chats.context_menu.downloading')
+                              : isConfirmingDelete
+                                ? $text('chats.context_menu.confirm')
+                                : $text(item.labelKey)}</span
+                          ></button
+                        >
+                      </div>
+                    {/each}
                     {#if isAdminUser}
                       <div class="new-chat-button-wrapper">
                         <button
@@ -14430,9 +14281,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                             resetKey={currentChat?.chat_id}
                             hasShare={hasActiveShareableChatSurface}
                             hasPriorityAction={showChatPIIAction}
-                            actionCount={[showChatSettingsAction, showChatRemindersAction, isAdminUser].filter(Boolean).length}
+                            actionCount={[showChatSettingsAction, showChatRemindersAction, isAdminUser].filter(Boolean).length + headerChatMenuItems.length}
                             {report} {share} {priorityAction} {actions} {close}
                             navigationAction={timelineNavigation}
+                            triggerTestId="chat-more-button"
+                            menuTestId="chat-more-actions"
                         />
 
                         {/if}
@@ -15433,11 +15286,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                     </button>
                                 </div>
                             {:else}
-                            <div class="message-input-action-row" class:has-new-chat-button={showNewChatButtonBesideInput} class:composer-focused={messageInputFocused}>
+                            <div class="message-input-action-row" class:has-new-chat-button={showNewChatButtonBesideInput} class:composer-focused={messageInputFocused || callTranscriptComposerActive}>
                                 {#if showNewChatButtonBesideInput}
                                     <div
                                         class="new-chat-button-wrapper new-chat-cta-wrapper input-new-chat-wrapper"
-                                        class:hidden-for-input={messageInputFocused}
+                                        class:hidden-for-input={messageInputFocused || callTranscriptComposerActive}
                                     >
                                         <button
                                             class="new-chat-cta-button"
@@ -15523,7 +15376,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
                         <!-- Cancel / Save draft pill: shown below the input when focused in a chat
                              that has the new-chat button. Blurs the editor to restore compact mode. -->
-                        {#if messageInputFocused && !$recordingState.showRecordAudioUI}
+                        {#if messageInputFocused && !callTranscriptComposerActive && !$recordingState.showRecordAudioUI}
                             <button
                                 class="input-dismiss-button"
                                 data-testid="input-dismiss-button"
@@ -15752,7 +15605,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         data={{ decodedContent: registryContent }}
                         onClose={handleCloseEmbedFullscreen}
                     />
-                {:else if isModel3DResultFullscreen}
+                {:else if isModel3DResultFullscreen && !authoredResultMetadata(registryContent)}
                     <Model3DResultEmbedFullscreen
                         data={{
                             decodedContent: registryContent,

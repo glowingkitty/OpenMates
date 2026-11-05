@@ -3,6 +3,8 @@
 
 import logging
 from typing import AsyncIterator
+
+from backend.apps.ai.utils.pseudo_tool_call import SuppressedToolCallMarkup
 logger = logging.getLogger(__name__)
 # set logger to to DEBUG level for detailed output
 # logger.setLevel(logging.DEBUG)
@@ -21,7 +23,9 @@ async def aggregate_paragraphs(
     early_prose is enabled, the first ordinary text is released as soon as its
     suffix cannot become a paragraph separator, code fence, or tool-call XML
     marker. Later text retains paragraph boundaries for downstream line parsers.
-    Complete and incomplete tool-call XML is suppressed in this mode.
+    Complete and incomplete tool-call XML is withheld in this mode; it is
+    yielded as a SuppressedToolCallMarkup object, never as text, so the caller
+    can recognize a turn that only wrote a pseudo tool call.
     The default retains the paragraph contract for other callers.
 
     Args:
@@ -39,6 +43,8 @@ async def aggregate_paragraphs(
     tool_call_open = "<tool_call>"
     tool_call_close = "</tool_call>"
     in_tool_call = False
+    tool_call_text = ""
+    max_tool_call_text = 4096
     early_release_done = False
     early_prose_min_chars = 8
 
@@ -80,13 +86,18 @@ async def aggregate_paragraphs(
                     end_tool_call_idx = buffer.lower().find(tool_call_close)
                     if end_tool_call_idx != -1:
                         end = end_tool_call_idx + len(tool_call_close)
+                        tool_call_text = (tool_call_text + buffer[:end])[:max_tool_call_text]
+                        yield SuppressedToolCallMarkup(tool_call_text)
+                        tool_call_text = ""
                         buffer = buffer[end:]
                         in_tool_call = False
                         processed_in_outer_loop = True
                     else:
                         if len(buffer) > MAX_BUFFER_SIZE:
                             # Keep only a possible prefix of the closing tag.
-                            buffer = buffer[-(len(tool_call_close) - 1):]
+                            keep = len(tool_call_close) - 1
+                            tool_call_text = (tool_call_text + buffer[:-keep])[:max_tool_call_text]
+                            buffer = buffer[-keep:]
                         break
                 elif in_code_block:
                     # Look for closing code block delimiter
@@ -173,10 +184,12 @@ async def aggregate_paragraphs(
                             # leaked-reasoning marker before it sees it.
                             break
                         if early_prose and not early_release_done and (
-                            not buffer.lstrip() or buffer.lstrip()[0] in "|-0123456789"
+                            not buffer.lstrip() or buffer.lstrip()[0] in "|-0123456789{<["
                         ):
                             # Table and numeric/garbled content needs the
-                            # consumer's complete-line and chunk checks.
+                            # consumer's complete-line and chunk checks. JSON
+                            # and markup openings stay whole so a pseudo tool
+                            # call can be recognized before publication.
                             break
                         if early_prose and not early_release_done:
                             safe_len = len(buffer) - held_marker_suffix(buffer)
@@ -202,7 +215,9 @@ async def aggregate_paragraphs(
                             break # Break inner while, wait for next chunk
         
         # Yield any remaining text in the buffer after the stream ends
-        if buffer and not in_tool_call:
+        if in_tool_call:
+            yield SuppressedToolCallMarkup((tool_call_text + buffer)[:max_tool_call_text])
+        elif buffer:
             if in_code_block:
                 logger.warning(f"Stream ended with an unterminated code block. Yielding remaining buffer. Size: {len(buffer)}")
             yield buffer

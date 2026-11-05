@@ -50,6 +50,7 @@ models:
         name: "Google AI Studio"
         model_id: "gemini-4-argon"
         region: "US"
+        country: "US"
     # Regular standard rates from December 1; AI Studio route only.
     pricing:
       tokens:
@@ -110,6 +111,7 @@ models:
         name: "Cerebras"
         model_id: "gemma-4-31b"
         region: "US" # Server region for UI display
+        country: "US"
     pricing:
       tokens:
         input:
@@ -159,6 +161,7 @@ models:
         name: "Google AI Studio"
         model_id: "gemini-3-flash-preview"
         region: "US" # Server region for UI display
+        country: "US"
       - id: "google"
         reasoning_control:
           parameter: thinking_level
@@ -167,6 +170,7 @@ models:
         name: "Google Vertex AI"
         model_id: "gemini-3-flash-preview" # Google Vertex AI uses the model ID as-is
         region: "global" # Preview models only available on global endpoint (not regional)
+        country: "US"
       # OpenRouter removed — Google models should only use Google's own infrastructure
       # (AI Studio + Vertex AI). If both fail, model fallback in main_processor handles it.
     pricing:
@@ -224,6 +228,7 @@ models:
         name: "Google AI Studio"
         model_id: "gemini-3.7-flash"
         region: "US" # Server region for UI display
+        country: "US"
       - id: "google"
         reasoning_control:
           parameter: thinking_level
@@ -232,6 +237,7 @@ models:
         name: "Google Vertex AI"
         model_id: "gemini-3.7-flash"
         region: "global"
+        country: "US"
     pricing:
       tokens:
         input:
@@ -341,6 +347,7 @@ models:
         name: "Google AI Studio"
         model_id: "gemini-3.8-flash"
         region: "US"
+        country: "US"
       - id: "google"
         reasoning_control:
           parameter: thinking_level
@@ -349,6 +356,7 @@ models:
         name: "Google Vertex AI"
         model_id: "gemini-3.8-flash"
         region: "global"
+        country: "US"
     pricing:
       tokens:
         input:
@@ -456,6 +464,7 @@ models:
         name: "Google AI Studio"
         model_id: "gemini-3.1-pro-preview"
         region: "US" # Server region for UI display
+        country: "US"
       - id: "google"
         reasoning_control:
           parameter: thinking_level
@@ -464,6 +473,7 @@ models:
         name: "Google Vertex AI"
         model_id: "gemini-3.1-pro-preview" # Google Vertex AI uses the model ID as-is
         region: "global" # Preview models only available on global endpoint (not regional)
+        country: "US"
       # OpenRouter removed — Google models should only use Google's own infrastructure
       # (AI Studio + Vertex AI). If both fail, model fallback in main_processor handles it.
     pricing:
@@ -542,6 +552,7 @@ models:
         name: "Google AI Studio"
         model_id: "gemini-3.5-flash"
         region: "US" # Server region for UI display
+        country: "US"
       - id: "google"
         reasoning_control:
           parameter: thinking_level
@@ -550,6 +561,7 @@ models:
         name: "Google Vertex AI"
         model_id: "gemini-3.5-flash" # Google Vertex AI uses the model ID as-is
         region: "global"
+        country: "US"
       # OpenRouter removed — Google models should only use Google's own infrastructure
       # (AI Studio + Vertex AI). If both fail, model fallback in main_processor handles it.
     pricing:
@@ -606,6 +618,7 @@ models:
         name: "Google AI Studio"
         model_id: "gemini-3.5-flash-lite"
         region: "US" # Server region for UI display
+        country: "US"
       - id: "google"
         reasoning_control:
           parameter: thinking_level
@@ -614,6 +627,7 @@ models:
         name: "Google Vertex AI"
         model_id: "gemini-3.5-flash-lite"
         region: "global"
+        country: "US"
     pricing:
       tokens:
         input:
@@ -670,10 +684,12 @@ models:
         name: "Google AI Studio"
         model_id: "gemini-3-pro-image-preview"
         region: "US" # Server region for UI display
+        country: "US"
       - id: "google"
         name: "Google Vertex AI"
         model_id: "gemini-3-pro-image-preview"
         region: "global" # Preview models only available on global endpoint (not regional)
+        country: "US"
     pricing:
       per_unit:
         credits: 200
@@ -706,6 +722,7 @@ models:
         name: "Google Vertex AI"
         model_id: "lyria-3-pro-preview"
         region: "global"
+        country: "US"
     pricing:
       per_unit:
         credits: 120
@@ -733,6 +750,7 @@ models:
         name: "Google Vertex AI"
         model_id: "lyria-3-clip-preview"
         region: "global"
+        country: "US"
     pricing:
       per_unit:
         credits: 60
@@ -760,6 +778,7 @@ models:
         name: "Google Vertex AI"
         model_id: "lyria-002"
         region: "us-central1"
+        country: "US"
     pricing:
       per_unit:
         credits: 60
@@ -787,6 +806,7 @@ models:
         name: "Google Gemini API"
         model_id: "veo-3.1-generate-preview"
         region: "US"
+        country: "US"
     pricing:
       per_second: 600
     costs:
@@ -814,6 +834,7 @@ models:
         name: "Google Gemini API"
         model_id: "veo-3.1-fast-generate-preview"
         region: "US"
+        country: "US"
     pricing:
       per_second: 150
     costs:

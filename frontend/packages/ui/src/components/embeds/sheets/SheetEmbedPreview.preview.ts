@@ -59,6 +59,16 @@ export default defaultProps;
 export const variants = {
   shortContent: { ...defaultProps, id: 'legacy-short-sheet-preview', title: 'Two rows', rowCount: 2, colCount: 2, tableContent: '| Name | Value |\n|---|---|\n| First | 1 |\n| Second | 2 |', onFullscreen: () => console.info('[Preview] specialized expanded') },
   tools: { ...defaultProps, onFullscreen: () => console.info('[Preview] specialized expanded') },
+	/** Calculated cells show an fx marker and expose their formula. */
+	formulas: {
+		...defaultProps,
+		id: 'preview-sheet-formulas',
+		title: 'Price calculation',
+		rowCount: 4,
+		colCount: 2,
+		tableContent: '| Item | Value |\n|---|---|\n| Material | 12 |\n| Labour | 120 |\n| Total | =SUM(B1:B2) |\n| Price | =ROUND(B3/(1-0.4),2) |',
+		onFullscreen: () => console.info('[Preview] specialized expanded')
+	},
 	/** Citation targets remain in saved data; headings show their readable labels. */
 	citationHeaders: {
 		...defaultProps,

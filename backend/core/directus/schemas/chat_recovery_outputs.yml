@@ -40,6 +40,15 @@ chat_recovery_outputs:
       length: 64
       nullable: true
       note: "Server-keyed HMAC of canonical private output; never a bare content hash"
+    s3_file_keys:
+      type: json
+      nullable: true
+      note: "Server-selected asset dependencies retained through pending and acknowledged history; null is legacy no-op, [] explicitly clears current-head references."
+    hashed_message_id:
+      type: string
+      length: 64
+      nullable: true
+      note: "Server-bound message provenance for selected dependencies and exact-message deletion fences; never client supplied."
     inference_task_id:
       type: uuid
       required: true

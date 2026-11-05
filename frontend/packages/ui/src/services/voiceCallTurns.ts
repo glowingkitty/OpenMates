@@ -14,6 +14,8 @@ export interface VoiceCallTurn {
   embedReferences?: VoiceArtifactReference[];
   heardBoundary?: VoiceHeardBoundary;
   isCurrent?: () => boolean;
+  /** Called once the optimistic user message is visible in chat history. */
+  onVisible?: () => void;
 }
 
 interface VoiceCallDeliveryFailure {
@@ -206,6 +208,7 @@ export async function sendVoiceCallTurn(turn: VoiceCallTurn): Promise<boolean> {
     chatSyncService.dispatchEvent(new CustomEvent('chatUpdated', {
       detail: { chat_id: turn.chatId, chat: optimisticChat, newMessage: durableMessage },
     }));
+    turn.onVisible?.();
     enter('canonical_sending');
     await chatSyncService.sendNewMessage(message);
     enter('receipt_reading');

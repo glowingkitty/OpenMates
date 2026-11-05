@@ -401,6 +401,18 @@ async function decryptMessages(rawMessages, chatKeyBytes) {
   return messages;
 }
 
+export function decryptedEmbedType(content) {
+  const source = String(content || '');
+  if (source.trimStart().startsWith('{')) {
+    const value = JSON.parse(source)?.type;
+    return typeof value === 'string' && value ? value : null;
+  }
+  const scalar = source.match(/^type:\s*(.*?)\s*$/m)?.[1];
+  if (!scalar) return null;
+  const value = scalar.startsWith('"') ? JSON.parse(scalar) : scalar;
+  return typeof value === 'string' && value ? value : null;
+}
+
 async function decryptEmbeds(rawEmbeds, rawEmbedKeys, chatKeyBytes) {
   // embed_keys use hashed_embed_id — build a hash→key map, then resolve to embed_id
   const { createHash } = await import('crypto');
@@ -463,7 +475,7 @@ async function decryptEmbeds(rawEmbeds, rawEmbedKeys, chatKeyBytes) {
       content = await decryptContent(embed.encrypted_content, embedKey);
       type = embed.encrypted_type
         ? await decryptContent(embed.encrypted_type, embedKey)
-        : embed.embed_type;
+        : decryptedEmbedType(content) || embed.embed_type || null;
     } else if (embed.encrypted_content || embed.encrypted_type) {
       throw new Error(`No shared key for encrypted embed ${embed.embed_id}`);
     }

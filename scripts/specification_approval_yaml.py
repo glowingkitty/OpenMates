@@ -122,7 +122,7 @@ def render_markdown(artifact: dict[str, Any], artifact_path: Path) -> str:
         f"Fingerprint: {artifact['fingerprint']}",
         f"Review artifact: {artifact_path.resolve()}",
         "",
-        "Present everything below to the user before asking for explicit approval:",
+        "Internal machine-readable review record only. Do not paste it into the chat; show the approval PDF instead (see .claude/skills/define-specification).",
     ]
     for document in documents:
         parts.extend(("", f"### {document['name']}", f"{fence}yaml", document["content"].rstrip("\n"), fence))

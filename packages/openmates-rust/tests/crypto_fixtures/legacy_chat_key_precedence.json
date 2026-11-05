@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "synthetic_only": true,
+  "wrapping_key_b64": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8=",
+  "legacy": {
+    "key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+    "ciphertext": "AAECAwQFBgcICQoLXFNfpE4w7eu08MPNKn5QMwNh+3d+BLAGPBTJoaec1YdLiW2dQ1ioc3cx0QtglUzb"
+  },
+  "preferred": {
+    "key_b64": "QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8=",
+    "ciphertext": "DA0ODxAREhMUFRYXonsMdnB4RviWHK6/vpitiP7HeeSf+c8T/4HlR3dT1hjj7iBUM3CIW+XRr5GxgyLU"
+  }
+}

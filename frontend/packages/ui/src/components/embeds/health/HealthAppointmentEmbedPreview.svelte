@@ -13,6 +13,10 @@
 -->
 
 <script lang="ts">
+  import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from "../../../types/authoredResult";
+  import { getContext } from "svelte";
+  import { healthAppointmentName, healthAppointmentSlot } from "./healthAppointmentData";
+  import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from "../../../utils/imageProxy";
   import UnifiedEmbedPreview from "../UnifiedEmbedPreview.svelte";
   import ResultEmbedCard from "../ResultEmbedCard.svelte";
   import EmbedCalendarDate from "../EmbedCalendarDate.svelte";
@@ -33,6 +37,8 @@
     id: string;
     /** ISO datetime of this specific appointment slot */
     slotDatetime?: string;
+    timezone?: string;
+    imageUrl?: string;
     /** Doctor's full name */
     name?: string;
     /** Medical speciality (e.g., "Ophthalmologist") */
@@ -67,6 +73,8 @@
   let {
     id,
     slotDatetime,
+    timezone,
+    imageUrl,
     name,
     speciality,
     address,
@@ -83,8 +91,16 @@
     gpsCoordinates,
     resultContext = "auto",
   }: Props = $props();
+  const authoredContext = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
+  let isAuthored = $derived(Boolean(authoredContext?.authoring));
 
-  let effectiveSlotDatetime = $derived(slotDatetime);
+  let content = $derived(authoredContext?.presentationContent ?? authoredContext?.content);
+  let priceCurrency = $derived(isAuthored ? (typeof content?.currency === 'string' ? content.currency : '') : 'EUR');
+  let photoUrl = $derived(proxyImage(imageUrl ?? (typeof content?.image_url === "string" ? content.image_url : undefined), MAX_WIDTH_PREVIEW_THUMBNAIL));
+  let effectiveSlotDatetime = $derived(slotDatetime ?? (typeof content?.slot_datetime === 'string' ? content.slot_datetime : undefined));
+  let effectiveTimezone = $derived(timezone ?? (typeof content?.timezone === 'string' ? content.timezone : undefined));
+  let effectiveName = $derived(name || (content ? healthAppointmentName(content) : undefined));
+  let slotPresentation = $derived(healthAppointmentSlot(effectiveSlotDatetime, effectiveTimezone));
 
   let mapCenter = $derived(
     gpsCoordinates?.latitude != null &&
@@ -96,14 +112,10 @@
       ? { lat: gpsCoordinates.latitude, lon: gpsCoordinates.longitude }
       : undefined,
   );
-  let slotDate = $derived(
-    effectiveSlotDatetime ? new Date(effectiveSlotDatetime) : undefined,
-  );
-  let validDate = $derived(
-    slotDate && !Number.isNaN(slotDate.getTime()) ? slotDate : undefined,
-  );
   // Short display name used in the BasicInfosBar title area
-  let displayTitle = $derived(name || speciality || "Doctor");
+  let authoredTitle = $derived(isAuthored && typeof content?.title === "string" ? content.title.trim() : "");
+  let displayTitle = $derived(authoredTitle || effectiveName || speciality || "Doctor");
+  let secondaryLabel = $derived(authoredTitle ? [effectiveName, speciality].filter(Boolean).join(" · ") : speciality);
   let providerName = $derived(providerPlatform?.trim() || "the provider");
 
   // No-op stop (individual slot cards are not cancellable tasks)
@@ -111,6 +123,8 @@
     // Not applicable
   }
 </script>
+
+{#snippet mapMedia()}{#if mapCenter}<ResultEmbedMapPreview center={mapCenter} markers={[{ ...mapCenter, label: displayTitle }]} />{/if}{/snippet}
 
 <UnifiedEmbedPreview
   {id}
@@ -127,16 +141,15 @@
 >
 
   {#snippet details()}
-    <ResultEmbedCard title={displayTitle} titleTestId="health-appointment-title" sourceLabel={speciality}>
-      {#snippet media()}{#if mapCenter}<ResultEmbedMapPreview center={mapCenter} markers={[{ ...mapCenter, label: displayTitle }]} />{/if}{/snippet}
-      {#snippet badge()}{#if validDate}<div class="appointment-calendar" data-testid="health-appointment-calendar"><EmbedCalendarDate date={validDate} timeLabel={validDate.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} /></div>{/if}{/snippet}
+    <ResultEmbedCard title={displayTitle} titleTestId="health-appointment-title" sourceLabel={secondaryLabel} imageUrl={photoUrl || undefined} imageAlt={displayTitle} imageTestId="health-appointment-image" media={!photoUrl && mapCenter ? mapMedia : undefined}>
+      {#snippet badge()}{#if slotPresentation.date}<div class="appointment-calendar" data-testid="health-appointment-calendar"><EmbedCalendarDate date={slotPresentation.date} timezone={slotPresentation.timezone} timeLabel={slotPresentation.timeLabel} /></div>{/if}{/snippet}
       {#snippet facts()}
         <div class="appointment-meta">
           {#if rating != null}<span
-              title={`${ratingCount ?? 0} ${$text("embeds.health.reviews")}`}
+              title={isAuthored && ratingCount == null ? undefined : `${ratingCount ?? 0} ${$text("embeds.health.reviews")}`}
               ><Star size={12} style="color: var(--color-highlight-yellow-solid)" fill="currentColor" aria-hidden="true" />{rating.toFixed(1)}</span
             >{/if}
-          {#if price != null}<span>{price} EUR</span>{/if}
+          {#if price != null}<span>{price} {priceCurrency}</span>{/if}
           {#if insurance === "unknown"}<span
               class="insurance-unknown-badge"
               title={$text("embeds.health.insurance_verify_tooltip").replace(

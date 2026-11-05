@@ -544,7 +544,7 @@ class PushNotificationService:
             payload.update({key: value for key, value in workflow_routing.items()
                             if key in {"workflow_id", "run_id", "notification_id", "chat_id", "message_id", "delivery_id"}
                             and isinstance(value, str) and value})
-            payload["type"] = "workflow.run_completed"
+            payload["type"] = "chat.assistant_message_received" if category == APNS_CHAT_CATEGORY else "workflow.run_completed"
         from backend.core.api.app.services.push_reply_context import build_reply_context
 
         reply_context = None

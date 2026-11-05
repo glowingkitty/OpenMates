@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 
 WORKSPACE_DIR = "/home/user/openmates-run"
 INSTALL_TIMEOUT_SECONDS = 120
+PYTHON_DIAGNOSTIC_TIMEOUT_SECONDS = 15
 RUN_TIMEOUT_SECONDS = 300
 ARTIFACT_DISCOVERY_TIMEOUT_SECONDS = 30
 MAX_OUTPUT_CHARS = 100_000
@@ -194,6 +195,67 @@ def _file_payload(file: CodeRunFile) -> bytes | str:
     if file.content_base64:
         return base64.b64decode(file.content_base64)
     return file.content
+
+
+def _python_runtime_command() -> str:
+    """Inspect the sandbox interpreter without importing uploaded Python files."""
+    script = "\n".join([
+        "import sys",
+        "from importlib import metadata",
+        "print('Python runtime: ' + sys.version.split()[0] + ' (' + sys.executable + ')', flush=True)",
+        "try:",
+        "    pip = metadata.distribution('pip')",
+        "    print('pip runtime: ' + pip.version + ' (' + str(pip.locate_file('pip')) + ')', flush=True)",
+        "except metadata.PackageNotFoundError:",
+        "    print('pip runtime: package metadata unavailable', flush=True)",
+    ])
+    return "cd / && python -c " + shlex.quote(script)
+
+
+def _python_versions_command(
+    files: list[CodeRunFile], dependency_installs: list[CodeRunDependencyInstall],
+) -> str:
+    """Report actual distributions in E2B, including packages pip already satisfied.
+
+    Use metadata rather than importing the requested packages. Requirements and
+    included requirement files remain authoritative; constraints are not requests.
+    A trusted working directory keeps uploaded modules off the import path while
+    retaining normal user-site packages visible to installation and execution.
+    """
+    manifests = {file.path: file for file in files}
+    requested: set[str] = set()
+    visited: set[str] = set()
+
+    def collect(requirements: Iterable[str]) -> None:
+        for requirement in requirements:
+            requirement = requirement.strip()
+            if requirement.startswith(("-r ", "--requirement ", "--requirement=")):
+                include = re.split(r"[ =]", requirement, maxsplit=1)[-1].strip()
+                if include in manifests and include not in visited:
+                    visited.add(include)
+                    collect(manifests[include].content.splitlines())
+                continue
+            match = re.match(r"^([A-Za-z0-9][A-Za-z0-9._-]*)(?=\s|\[|[<>=!~;@]|$)", requirement)
+            if match:
+                requested.add(match.group(1))
+
+    if "requirements.txt" in manifests:
+        visited.add("requirements.txt")
+        collect(manifests["requirements.txt"].content.splitlines())
+    else:
+        collect(package for install in dependency_installs if install.ecosystem == "python" for package in install.packages)
+
+    script = f"""
+from importlib import metadata
+requested = {sorted(requested)!r}
+for name in requested:
+    try:
+        installed = metadata.version(name)
+    except metadata.PackageNotFoundError:
+        installed = 'not installed (for example, an environment marker excluded it)'
+    print('Installed Python distribution: ' + name + '==' + installed, flush=True)
+"""
+    return "cd / && python -c " + shlex.quote(script)
 
 
 def _emit(callback: OutputCallback, kind: OutputKind, text: str) -> None:
@@ -493,19 +555,49 @@ def run_code_in_e2b(
         if should_cancel and should_cancel():
             raise CodeRunCancelled("Code run cancelled by user")
 
-        for message, command in _dependency_commands(files, dependency_installs or []):
+        installs = dependency_installs or []
+        dependency_commands = _dependency_commands(files, installs)
+        run_command = _run_command_for_file(target)
+        has_python_install = any(command.startswith("python -m pip install") for _, command in dependency_commands)
+        steps: list[tuple[str, str, int, str]] = []
+        if run_command.startswith("python ") or has_python_install:
+            steps.append((
+                "Checking Python and pip runtime...", _python_runtime_command(),
+                PYTHON_DIAGNOSTIC_TIMEOUT_SECONDS, "Python runtime diagnostics",
+            ))
+        for message, command in dependency_commands:
+            python_install = command.startswith("python -m pip install")
+            steps.append((message, command, INSTALL_TIMEOUT_SECONDS,
+                          "Python dependency installation" if python_install else "Dependency installation"))
+            if python_install:
+                steps.append((
+                    "Checking installed Python package versions...", _python_versions_command(files, installs),
+                    PYTHON_DIAGNOSTIC_TIMEOUT_SECONDS, "Installed Python package diagnostics",
+                ))
+
+        for message, command, timeout_seconds, phase in steps:
             if should_cancel and should_cancel():
                 raise CodeRunCancelled("Code run cancelled by user")
             _emit(on_output, "status", message + "\n")
             exit_code = _run_interruptible_command(
                 sandbox,
                 f"cd {shlex.quote(WORKSPACE_DIR)} && {command}",
-                INSTALL_TIMEOUT_SECONDS,
+                timeout_seconds,
                 stream,
                 should_cancel,
             )
             if exit_code not in (None, 0):
-                _emit(on_output, "stderr", f"Dependency installation failed with exit code {exit_code}.\n")
+                if phase.endswith("diagnostics"):
+                    _emit(on_output, "stderr", f"{phase} unavailable (exit code {exit_code}); continuing.\n")
+                    continue
+                explanation = f"{phase} failed with exit code {exit_code}; the target was not run."
+                if phase == "Python dependency installation":
+                    explanation += (
+                        " Check pip's error above against the reported Python runtime."
+                        " If an explicit version pin is incompatible, choose a compatible version"
+                        " or automatic version resolution. Explicit pins were not changed."
+                    )
+                _emit(on_output, "stderr", explanation + "\n")
                 return CodeRunResult(
                     exit_code=exit_code,
                     duration_seconds=time.monotonic() - billable_started_at,
@@ -513,7 +605,6 @@ def run_code_in_e2b(
                     sandbox_id=sandbox_id,
                 )
 
-        run_command = _run_command_for_file(target)
         if should_cancel and should_cancel():
             raise CodeRunCancelled("Code run cancelled by user")
         _emit(on_output, "status", f"Running ({target.path})...\n")

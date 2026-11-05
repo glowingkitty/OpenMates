@@ -15,6 +15,34 @@ const LABEL_TYPES: Record<string, PIIType> = {
 };
 export const WEB_PII_LABELS = [...Object.keys(LABEL_TYPES), 'IP_ADDRESS'];
 
+// A city or state on its own is general knowledge ("the history of Berlin"),
+// not personal data. It is only part of an address next to a street, building
+// number, unit or postal code, e.g. "Hauptstr. 5, 10115 Berlin".
+/** Everyday words the model mislabels as given names when capitalised at a sentence start. Never add real first names (Will, Grace). */
+export const NON_NAME_STANDALONE_WORDS = new Set([
+  'awesome', 'great', 'perfect', 'okay', 'ok', 'nice', 'cool', 'thanks', 'thank', 'hello', 'hi', 'hey', 'sure', 'wonderful',
+  'excellent', 'amazing', 'fine', 'good', 'yes', 'no', 'yeah', 'right', 'sorry', 'please', 'welcome', 'fantastic', 'brilliant',
+  'lovely', 'super', 'sweet', 'absolutely', 'definitely', 'exactly', 'indeed', 'well', 'alright', 'bye', 'goodbye', 'cheers',
+]);
+const NAME_LABELS = new Set(['GIVEN_NAME', 'SURNAME']);
+const NAME_PART_MAX_GAP = 1;
+
+function isStandaloneNonName(entity: WebPIIEntity, entities: WebPIIEntity[]): boolean {
+  if (entity.label !== 'GIVEN_NAME' || !NON_NAME_STANDALONE_WORDS.has(entity.original.trim().toLowerCase())) return false;
+  return !entities.some(other => other !== entity && NAME_LABELS.has(other.label) &&
+    other.start - entity.end <= NAME_PART_MAX_GAP && entity.start - other.end <= NAME_PART_MAX_GAP);
+}
+
+const REGION_LABELS = new Set(['CITY', 'STATE']);
+const ADDRESS_ANCHOR_LABELS = new Set(['STREET_NAME', 'BUILDING_NUMBER', 'SECONDARY_ADDRESS', 'ZIP_CODE']);
+// Address parts are separated by a few characters (", ", a line break).
+const ADDRESS_PART_MAX_GAP = 8;
+
+function isAddressRegion(entity: WebPIIEntity, entities: WebPIIEntity[]): boolean {
+  return entities.some(anchor => ADDRESS_ANCHOR_LABELS.has(anchor.label) &&
+    anchor.start - entity.end <= ADDRESS_PART_MAX_GAP && entity.start - anchor.end <= ADDRESS_PART_MAX_GAP);
+}
+
 /** Stable across composer markup/canonical text offset changes; never persisted. */
 export function modelPIIMatchId(type: PIIType, value: string): string {
   let hash = 2166136261;
@@ -94,6 +122,8 @@ export function mergeWebPIIMatches(text: string, entities: WebPIIEntity[], optio
     if (!Number.isInteger(entity.start) || !Number.isInteger(entity.end) || entity.start < 0 || entity.end <= entity.start || entity.end > text.length || text.slice(entity.start, entity.end) !== entity.original) {
       throw new Error('PII detector returned invalid character offsets');
     }
+    if (isStandaloneNonName(entity, entities)) continue;
+    if (REGION_LABELS.has(entity.label) && !isAddressRegion(entity, entities)) continue;
     if (options.disabledCategories?.has(PII_TYPE_TO_CATEGORY[type])) continue;
     if (hardReserved.some(r => overlaps(entity.start, entity.end, r))) continue;
     // Reject semantic versions misidentified as IP addresses (e.g. 3.14.159).
@@ -116,7 +146,7 @@ export function mergeWebPIIMatches(text: string, entities: WebPIIEntity[], optio
       hardReserved.push({ start: entity.start, end: entity.end });
       continue;
     }
-    placeholderNonce ??= crypto.randomUUID().replaceAll('-', '').slice(0, 16);
+    placeholderNonce ??= crypto.randomUUID().replace(/-/g, '').slice(0, 16);
     counts[type] = (counts[type] ?? 0) + 1;
     result.push({ type, match: entity.original, startIndex: entity.start, endIndex: entity.end, id, placeholder: `[${type}_${counts[type]}_${placeholderNonce}]` });
   }

@@ -14,7 +14,7 @@
 
 You are investigating open user-reported issues for the OpenMates project that have not yet been resolved via a git commit.
 
-The reported issue database is the source of truth. GitHub and Linear links are secondary context only.
+The reported issue database is the source of truth. GitHub links are secondary context only.
 
 ## Context
 

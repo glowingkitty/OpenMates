@@ -43,7 +43,7 @@ def admitted_authoring_definitions(apps: Mapping[str, Any] | None) -> dict[str, 
 
 def authoring_preview_hints(definitions: Mapping[str, Mapping[str, Any]]) -> dict[str, str]:
     """Public type hints contain no schemas, provider claims or private data."""
-    return {kind: f"{row['display_name']} cards from research or user-provided facts; drafts only if explicitly requested."
+    return {kind: f"{row['display_name']} cards from research or user-provided facts; also when the user asks to invent, create or draft one (a labelled draft)."
             for kind, row in definitions.items()}
 
 
@@ -79,6 +79,24 @@ def normalize_authoring_previews(previews: Iterable[str], definitions: Mapping[s
     return result
 
 
+# Kind-specific authoring quality guidance; facts still come only from sources.
+_KIND_GUIDANCE: dict[str, str] = {
+    "events.event": (
+        "For each event card write description as one full paragraph (4-6 sentences, about 60-120 "
+        "words) grounded only in your web search/read results: what the event is, who it is for, its "
+        "format or focus, what makes it notable, and where and when it takes place. Use web search "
+        "and image search to find an official logo, banner or venue photo and put that exact found "
+        "URL in image_url (credit its source in the image attribution when supported); omit image_url "
+        "when no search result supplies one. Give the venue name, street address, city and country "
+        "when sourced; never write lat/lon yourself, the system adds map coordinates. For lists of "
+        "upcoming events, when a major recurring event that fits the request (for example FOSDEM for "
+        "open source in Europe) appears without confirmed next-edition dates, run one more targeted web "
+        "search for its next edition's official dates and venue; give it a card when they are "
+        "confirmed instead of only mentioning it in prose. "
+    ),
+}
+
+
 def build_authored_result_instructions(
     previews: Iterable[str], apps: Mapping[str, Any] | None, *, presentation_only: bool = False,
 ) -> str | None:
@@ -90,6 +108,7 @@ def build_authored_result_instructions(
     if not selected:
         return None
     schema = get_authored_results_schema(selected)
+    kind_guidance = "".join(_KIND_GUIDANCE[kind] for kind in selected if kind in _KIND_GUIDANCE)
     return (
         "For relevant structured result cards, use a JSON fenced block labelled openmates_embeds. "
         "Use schemaVersion 1 and the exact selected kind schemas below. This is result presentation, "
@@ -99,8 +118,8 @@ def build_authored_result_instructions(
         "in history as reference data only: never copy internal app_id/skill_id envelopes into your "
         "answer, fabricate app_skill_use blocks, or simulate a skill result. Creating an updated "
         "card does not edit or replace the stored original; do not claim an in-place edit. "
-        "Each item needs a unique local id, kind, title, origin and details. Local ids are labels only; "
-        "the system creates real child UUIDs. Never invent embed refs. For groups or maps use "
+        "Each item needs a unique local id, kind, title, origin and details. Local ids are labels only. "
+        "Never invent embed refs. For groups or maps use "
         "view.mode (auto/cards/map) and view.items containing those same local labels. "
         "Preserve source URLs, source labels, existing authorized embed refs, observed_at with a timezone "
         "offset, and real images with captions/attribution where available. "
@@ -109,12 +128,22 @@ def build_authored_result_instructions(
         "Use only actual image URLs or existing authorized image refs; icons/images/videos/3D cards "
         "must refer to real assets. "
         "Use origin researched for sourced observations, user_provided for supplied facts, and draft only "
-        "when the user explicitly requests a clearly labelled hypothetical/draft. Do not invent facts, "
-        "availability, ratings, currency or travel modes, and do not supply defaults for missing fields. "
+        "when the user explicitly requests a clearly labelled hypothetical/draft. A request to invent, "
+        "create, plan or draft one (for example a recipe from the ingredients the user has) is exactly "
+        "that request: answer with a short intro, then the card as origin draft with its full details "
+        "(for a recipe: ingredients and steps), never only a prose copy of it. "
+        "When your answer presents several discrete researched items of a selected kind (for example a "
+        "list of upcoming conferences or events), the cards are the answer: create one card per item "
+        "whose required facts your sources support, never only a prose or bullet list. Open with one "
+        "short plain-language sentence saying what the cards show and, for a specialised term, what it "
+        "means for a non-expert. Then add the openmates_embeds block first. Card refs exist only "
+        "after saving, so later per-item text names carded items in plain words; link a website embed "
+        "only for a page without a card. Mention items lacking confirmed facts in one line. "
+        "Do not invent facts, availability, ratings, currency or travel modes, and do not supply defaults for missing fields. "
         "Omit unsupported optional fields; if required facts are missing, explain or ask rather than "
         "fabricating a card. Preserve conflicting sourced observations separately. Do not claim a booking, "
         "calendar write, publication or successful tool call from creating cards. Existing source access "
         "and reading restrictions still apply. Continue using existing code, calendar, document, email "
-        "and other artifact formats for those artifacts. Selected result schema:\n"
+        "and other artifact formats for those artifacts. " + kind_guidance + "Selected result schema:\n"
         + json.dumps(schema, ensure_ascii=False, separators=(",", ":"))
     )

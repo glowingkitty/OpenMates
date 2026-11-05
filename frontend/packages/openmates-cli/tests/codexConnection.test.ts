@@ -64,6 +64,22 @@ test("claim conflict identifies the quoted conversation and its actual runtime",
     new RegExp(`"Landing - Header".*Codex chat ID: ${THREAD}`));
   assert.match(taskOwnerConflict({ provider: "openmates", id: THREAD, title: "Website" }),
     new RegExp(`"Website".*openmates chats show ${THREAD}`));
+  const claude = taskOwnerConflict({ provider: "claude", id: THREAD, title: "Landing - Footer" });
+  assert.match(claude, new RegExp(`"Landing - Footer".*Claude Code session ID: ${THREAD}`));
+  assert.doesNotMatch(claude, /Codex/);
+});
+
+// contract-test: supporting surface=cli assertions=tasks.conversation.single-owner-claim,tasks.external-chat.encrypted-context
+test("only the owning Claude Code session can claim, and Claude links never resume", async () => {
+  const { assertClaudeClaimCaller, currentExternalChatCaller } = await import("../src/codexConnection.ts");
+  assert.doesNotThrow(() => assertClaudeClaimCaller(THREAD, THREAD));
+  assert.throws(() => assertClaudeClaimCaller(THREAD, "00000000-0000-4000-8000-000000000002"), /Only the owning Claude Code session/);
+  assert.throws(() => assertClaudeClaimCaller(THREAD, undefined), /CLAUDE_CODE_SESSION_ID/);
+  assert.throws(() => assertClaudeClaimCaller("ses_old", "ses_old"), /session UUIDs/);
+  assert.throws(() => codexResumeArguments({ provider: "claude", id: THREAD }), /Codex threads only/);
+  assert.deepEqual(currentExternalChatCaller({ CLAUDE_CODE_SESSION_ID: THREAD }), { provider: "claude", id: THREAD });
+  assert.deepEqual(currentExternalChatCaller({ CODEX_THREAD_ID: THREAD, CLAUDE_CODE_SESSION_ID: "x" }), { provider: "codex", id: THREAD });
+  assert.equal(currentExternalChatCaller({}), undefined);
 });
 
 

@@ -31,8 +31,8 @@ first_slice_review:
   fingerprint: 94e759734d3d78ae40ceb9752a418e6ce5b9d1b893e25075a03396e10a36c931
   artifact: /tmp/openmates/specification-approvals/feature.specifications-94e759734d3d78ae.approval.json
   changes: Two explicit requirements for shared chat/direct authoring and conflict-preserving revision saves, each with two readable examples.
-  approval: Pending explicit confirmation of the presented exact review artifact; general product scope is already authorized.
-  evidence: Specification validation and Plan validation pass; generated Specification indexes were refreshed. Product behavior and E2E have not been implemented or verified by this planning work.
+  approval: User explicitly approved the presented exact review on 2026-10-27; receipt recorded in session 9de5 on resumption.
+  evidence: Backend storage is published in 7fbec0f347c26a4003cbdfbfacbdd371e20ad6c5. All 21 focused Python checks, three transaction checks and isolated API lifecycle run 40670424848 pass; that run has zero skips or retries and verified cleanup. Shared Rust operations and SDK/editor coverage remain required.
 
 scope:
   in:
@@ -273,6 +273,12 @@ follow_on_architecture:
 
 handoff:
   first_implementation_task: TASK-1989
-  first_action: Validate the current Specification contract and design the minimal encrypted record/revision operations against the existing Project storage and shared Rust core boundary; implement the smallest reviewable slice with focused coverage.
+  first_action: Integrate the authoritative shared Rust Project source, then implement Specification operations and synchronized SDK/CLI conformance before connecting the editor. The backend slice already passes isolated API verification.
+  storage_client_boundary: docs/plans/cloud-project-development/specification-storage-handoff.md
+  storage_backend_commit: 7fbec0f347c26a4003cbdfbfacbdd371e20ad6c5
+  storage_api_run: https://github.com/glowingkitty/OpenMates/actions/runs/40670424848
+  storage_api_source: 8214d4aee6876e1df8287e724abd6f2afd1c97d9
+  storage_evidence_receipt: test-results/ci-runs/aa9aa298fe1b40251f33ed6c1b63c644ce0a9e1b006a7b85f322214df65dc101/receipt.json
+  client_prerequisite: The shared Rust Project modules currently belong to the active native migration and are absent from this session base; obtain its exact supported source integration before client changes. Full native UI parity is not required first.
   blocker_policy: Preserve the patch and pause only dependent work for a material unresolved decision or exact-contract review; do not repeat product clarification already answered here.
   completion_policy: The delivery Task remains open until required acceptance passes; this Plan and Task creation alone do not mean the product lifecycle is implemented.

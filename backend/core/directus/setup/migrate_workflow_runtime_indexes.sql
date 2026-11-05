@@ -106,4 +106,13 @@ CREATE INDEX IF NOT EXISTS workflow_website_state_origin_idx
 CREATE INDEX IF NOT EXISTS workflow_delivery_history_change_idx
   ON workflow_delivery_history (workflow_id, change_id, status);
 
+CREATE UNIQUE INDEX IF NOT EXISTS workflow_chat_notifications_message_uq
+  ON workflow_chat_notifications (owner_user_id, chat_id, message_id);
+CREATE INDEX IF NOT EXISTS workflow_chat_notifications_pending_idx
+  ON workflow_chat_notifications (updated_at, id)
+  WHERE event_state = 'pending' OR push_state = 'pending' OR email_state = 'pending';
+
+CREATE INDEX IF NOT EXISTS workflow_runs_digest_owner_order_idx
+  ON workflow_runs (hashed_user_id, trigger_type, workflow_id, run_id);
+
 COMMIT;

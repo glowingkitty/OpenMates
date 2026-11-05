@@ -24,7 +24,7 @@ async function expandFixtureActivity(page: any) {
 }
 
 function seedViaPairedCli(apiUrl: string, home: string): Seed {
-	const modulePath = path.join(path.dirname(CLI_DIST), 'index.js');
+	const modulePath = path.join(path.dirname(CLI_DIST), 'cli-internal-client.js');
 	const source = String.raw`
 		const {pathToFileURL}=require('node:url');
 		const {randomUUID,randomBytes,createHash,webcrypto}=require('node:crypto');
@@ -142,7 +142,7 @@ function seedViaPairedCli(apiUrl: string, home: string): Seed {
 
 // contract-test: supporting surface=cli.sdk assertions=chats.persistence.client-encrypted
 function verifyPersistedReminder(apiUrl: string, home: string, seed: Seed): void {
-	const modulePath = path.join(path.dirname(CLI_DIST), 'index.js');
+	const modulePath = path.join(path.dirname(CLI_DIST), 'cli-internal-client.js');
 	const source = String.raw`
 		const {pathToFileURL}=require('node:url');
 		(async()=>{

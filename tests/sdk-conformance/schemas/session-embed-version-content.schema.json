@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "capabilities"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session.embeds.version-content.v1"
+      ],
+      "properties": {
+        "session.embeds.version-content.v1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "account",
+            "protocol",
+            "vectors",
+            "source_reconstruction_fixture_sha256",
+            "state"
+          ],
+          "properties": {
+            "account": {
+              "type": "object"
+            },
+            "protocol": {
+              "type": "object"
+            },
+            "vectors": {
+              "type": "array",
+              "minItems": 21,
+              "maxItems": 21,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "mode",
+                  "embed_id",
+                  "version",
+                  "response",
+                  "expected",
+                  "error",
+                  "status",
+                  "fallback409",
+                  "heads"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "mode": {
+                    "enum": [
+                      "normal",
+                      "noauth",
+                      "policy-denied",
+                      "team"
+                    ]
+                  },
+                  "embed_id": {
+                    "type": "string"
+                  },
+                  "version": {},
+                  "response": {
+                    "type": "object"
+                  },
+                  "expected": {
+                    "type": [
+                      "object",
+                      "null"
+                    ]
+                  },
+                  "error": {
+                    "enum": [
+                      null,
+                      "authentication",
+                      "forbidden",
+                      "expired",
+                      "unavailable",
+                      "invalid_argument",
+                      "protocol",
+                      "crypto",
+                      "cancelled",
+                      "conflict"
+                    ]
+                  },
+                  "status": {
+                    "enum": [
+                      200,
+                      401,
+                      403,
+                      404
+                    ]
+                  },
+                  "fallback409": {
+                    "type": "boolean"
+                  },
+                  "heads": {
+                    "type": "object"
+                  }
+                }
+              }
+            },
+            "source_reconstruction_fixture_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "state": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

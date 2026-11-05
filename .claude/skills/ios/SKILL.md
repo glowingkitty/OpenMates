@@ -108,7 +108,7 @@ storage blocker and continue independent work that fits the available space.
 Use one of three modes depending on the environment and task:
 
 - **Mac implementation mode:** Xcode is installed locally. Use XcodeBuildMCP or local Xcode commands for build/test verification and the available computer-use tool for app interaction and screenshots.
-- **Remote Mac verification mode:** Codex runs on Linux/dev server, but a trusted Mac is reachable through operator-provided SSH configuration. Use SSH to run `git`, `xcodebuild`, and `xcrun simctl` on the Mac. Never commit hostnames, IPs, usernames, SSH aliases, tailnet names, auth keys, device names, or personal local paths to repo files.
+- **Remote Mac verification mode:** The agent runs on the Linux dev server, but a trusted Mac is reachable through operator-provided SSH configuration. Use SSH to run `git`, `xcodebuild`, and `xcrun simctl` on the Mac. Never commit hostnames, IPs, usernames, SSH aliases, tailnet names, auth keys, device names, or personal local paths to repo files.
 - **Linux parity audit mode:** XcodeBuildMCP is unavailable. Do static source audits, generate parity specs, update mappings, compare web test IDs with Apple accessibility identifiers, and prepare Mac verification checklists. Do not claim runtime parity until a Mac build/simulator pass verifies it.
 
 ### Step 3: Verify the selected Xcode tooling (Mac only)

@@ -35,7 +35,7 @@ python3 scripts/sessions.py start --mode feature --task "update production serve
 ```
 
 Keep the printed session ID for summaries. Do not create a second worktree for
-the same Codex chat.
+the same Claude conversation.
 
 ### 2. Resolve The Production Subject
 

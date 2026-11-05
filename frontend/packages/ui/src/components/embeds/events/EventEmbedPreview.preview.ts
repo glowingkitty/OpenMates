@@ -98,8 +98,28 @@ const defaultProps = {
 
 export default defaultProps;
 
+const authoredDateOnlyEvent = {
+  embed_id: 'authored-date-only-event', title: 'Supplied two-day conference',
+  date_start: '2027-01-30', date_end: '2027-01-31',
+  organizer: { name: 'Supplied organizer' }, url: 'https://example.org/conference',
+  venue: { name: 'Supplied venue', city: 'Brussels' },
+  authoring: { schema_version: 1 as const, kind: 'events.event', origin: 'user_provided' as const,
+    sources: [{ url: 'https://example.org/conference', label: 'Supplied programme' }] },
+};
+const authoredTimedNoEndEvent = {
+  embed_id: 'authored-timed-no-end-event', title: 'Supplied late evening talk',
+  date_start: '2027-03-15T23:30:00+09:00', url: 'https://example.org/talk',
+  organizer: { name: 'Supplied organizer' },
+  authoring: { schema_version: 1 as const, kind: 'events.event', origin: 'user_provided' as const,
+    sources: [{ url: 'https://example.org/talk' }] },
+};
+
 /** Named variants */
 export const variants = {
+  dateOnly: { ...defaultProps, id: authoredDateOnlyEvent.embed_id, event: authoredDateOnlyEvent },
+  timedNoEnd: { ...defaultProps, id: authoredTimedNoEndEvent.embed_id, event: authoredTimedNoEndEvent },
+  draft: { ...defaultProps, id: 'draft-event', event: { ...authoredDateOnlyEvent, authoring: { ...authoredDateOnlyEvent.authoring, origin: 'draft' as const } } },
+
   timezoneBoundary: {
     ...defaultProps, event: { ...sampleEvent, date_start: '2026-03-16T00:30:00+09:00', timezone: 'Asia/Tokyo', organizer: {name: 'Berlin Lingua Hub International Language Exchange Community'} },
   },

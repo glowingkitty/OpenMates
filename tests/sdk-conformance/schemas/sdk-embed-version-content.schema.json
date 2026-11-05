@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "capabilities",
+    "oracle"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "oracle": {
+      "type": "object"
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sdk.embeds.version-content"
+      ],
+      "properties": {
+        "sdk.embeds.version-content": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "api_key",
+            "device_id",
+            "session",
+            "shown",
+            "embed_key",
+            "reconstruction",
+            "vectors",
+            "cli_cases"
+          ],
+          "properties": {
+            "api_key": {
+              "type": "string"
+            },
+            "device_id": {
+              "type": "string"
+            },
+            "session": {
+              "type": "object"
+            },
+            "shown": {
+              "type": "object"
+            },
+            "embed_key": {
+              "type": "array"
+            },
+            "reconstruction": {
+              "type": "array"
+            },
+            "vectors": {
+              "type": "array",
+              "minItems": 102,
+              "maxItems": 102,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "embed_id",
+                  "version",
+                  "response",
+                  "expected",
+                  "expected_error",
+                  "wrong_key",
+                  "http_status",
+                  "shown",
+                  "session"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9-]+$"
+                  },
+                  "embed_id": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "response": {
+                    "type": "object"
+                  },
+                  "expected": {
+                    "type": [
+                      "object",
+                      "null"
+                    ]
+                  },
+                  "expected_error": {
+                    "enum": [
+                      null,
+                      "crypto",
+                      "protocol",
+                      "authentication",
+                      "forbidden",
+                      "invalid_argument",
+                      "conflict",
+                      "offline"
+                    ]
+                  },
+                  "wrong_key": {
+                    "type": "boolean"
+                  },
+                  "http_status": {
+                    "type": "integer",
+                    "minimum": 200,
+                    "maximum": 599
+                  },
+                  "shown": {
+                    "type": [
+                      "object",
+                      "null"
+                    ]
+                  },
+                  "session": {
+                    "type": [
+                      "object",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            },
+            "cli_cases": {
+              "type": "array"
+            }
+          }
+        }
+      }
+    }
+  }
+}

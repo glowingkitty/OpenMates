@@ -87,7 +87,7 @@ async def _trigger_continuation_without_focus(
     """
     from backend.shared.python_utils.focus_continuation_history import (
         FocusContinuationHistoryError, current_focus_source_turn, publish_current_focus_continuation_failure,
-        rebuild_focus_continuation_history, source_user_message_id,
+        rebuild_focus_continuation_history, resolve_continuation_embed_references, source_user_message_id,
     )
     from backend.shared.python_utils.recent_work_summary_client import restore_private_context_payload
     pending_context = await restore_private_context_payload(pending_context)
@@ -129,6 +129,13 @@ async def _trigger_continuation_without_focus(
         logger.warning(f"{log_prefix} Focus rejection history unavailable: {exc.code}")
         await publish_current_focus_continuation_failure(cache_service, pending_context)
         return
+    from backend.core.api.app.services.embed_service import EmbedService
+    embed_file_path_index = await resolve_continuation_embed_references(
+        message_history,
+        embed_service=EmbedService(cache_service=cache_service, directus_service=directus_service,
+                                   encryption_service=encryption_service),
+        user_vault_key_id=user_vault_key_id, log_prefix=log_prefix,
+    )
     
     logger.info(f"{log_prefix} Retrieved and decrypted {len(message_history)} messages")
     
@@ -147,6 +154,7 @@ async def _trigger_continuation_without_focus(
             "user_id": user_id,
             "user_id_hash": user_id_hash,
             "message_history": message_history,
+            "embed_file_path_index": embed_file_path_index or None,
             "preprocessing_resume_ref": pending_context.get("preprocessing_resume_ref"),
             "chat_has_title": chat_has_title,
             "is_incognito": is_incognito,

@@ -6,10 +6,12 @@ name: Project planner
 description: Turn coding ideas into scoped plans, tasks, acceptance criteria, and verification steps.
 
 preprocessor-hint: >
-  Select when the user wants to plan, scope, design, specify, break down,
-  or structure a coding project, feature, app, migration, or multi-step
-  implementation before coding. Do not select for a single small code
-  question unless the user asks for planning or task breakdown.
+  Select only when the latest message, in any language, explicitly asks the
+  assistant to create a plan, roadmap, specification or task breakdown for a
+  software project, feature, app, migration or multi-step implementation
+  before coding. Prefer this over the generic plan focus for software work.
+  Do not select when planning words appear incidentally, for a single code
+  question, or when the user asks to write or fix code directly.
 
 allowed-models: []
 recommended-model: null

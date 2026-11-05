@@ -99,7 +99,11 @@ test.describe('desktop mouse preview', () => {
 // contract-test: direct surface=gui.web assertions=chat-message-timeline.preview-and-activate,chat-message-timeline.compression-history,chat-message-timeline.accessible-layout
 test('desktop hover previews both messages without jumping, then click activates the selected exchange', async ({ page }, info) => {
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto('/dev/preview/ChatMessageTimeline?theme=light&background=%23dbeafe&width=1280&chrome=0');
+  const query = new URLSearchParams({
+    theme: 'light', background: '#dbeafe', width: '1280', chrome: '0',
+    props: JSON.stringify({ catalogueIncomplete: true }),
+  });
+  await page.goto(`/dev/preview/ChatMessageTimeline?${query}`);
   await waitForComponentPreview(page);
   const rail = page.getByTestId('timeline-rail');
   const box = (await rail.boundingBox())!;
@@ -107,6 +111,7 @@ test('desktop hover previews both messages without jumping, then click activates
   const preview = page.getByTestId('timeline-preview');
   await expect(preview.getByTestId('timeline-user-preview')).toContainText('Question 2');
   await expect(preview.getByTestId('timeline-response-preview')).toContainText('answer to question 2');
+  await expect(preview.getByRole('button', { name: /load earlier/i })).toHaveCount(0);
   await expect(page.getByTestId('timeline-before-compression')).toContainText('Before compression');
   expect(await activations(page)).toEqual([]);
   expect(await rail.locator('.timeline-mark.selected').evaluate(node => node.getBoundingClientRect().width))

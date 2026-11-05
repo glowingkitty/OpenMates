@@ -71,7 +71,15 @@ async def delete_account_personal_content(
             params={"fields": "id", "filter[chat_id][_eq]": chat["id"]},
         )
         message_ids.extend(row["id"] for row in messages)
+    specification_rows = {}
+    for collection in ("user_specification_revisions", "user_specifications"):
+        specification_rows[collection] = await read_complete_scoped_records(
+            directus_service, collection, admin_required=True,
+            params={"fields": "id", "filter[hashed_user_id][_eq]": user_id_hash,
+                    "filter[hashed_team_id][_null]": True},
+        )
     identities = {
+        **{collection: [row["id"] for row in rows] for collection, rows in specification_rows.items()},
         "messages": list(dict.fromkeys(message_ids)),
         "embeds": list(dict.fromkeys(embed_ids)),
         "chats": [row["id"] for row in chats],

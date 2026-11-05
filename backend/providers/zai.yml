@@ -43,6 +43,7 @@ models:
         name: "Mistral"
         model_id: "zai-glm-5-3"
         region: "EU"
+        country: "FR"
     # Mistral direct-API rates, verified 2026-10-10:
     # https://docs.mistral.ai/models/zai-glm-5-3
     pricing:
@@ -103,6 +104,7 @@ models:
         name: "OpenRouter"
         model_id: "z-ai/glm-5.2"
         region: "US" # Server region for UI display
+        country: "US"
     pricing:
       tokens:
         input:
@@ -150,10 +152,12 @@ models:
         model_id: "zai.glm-4.7-flash" # Bedrock model ID
         aws_region: "eu-central-1"
         region: "EU"
+        country: "DE"
       - id: "openrouter"
         name: "OpenRouter"
         model_id: "z-ai/glm-4.7" # OpenRouter fallback
         region: "US" # Server region for UI display
+        country: "US"
     pricing:
       tokens:
         input:

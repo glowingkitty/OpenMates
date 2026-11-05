@@ -29,7 +29,7 @@ export function waitForPreflightAcknowledgement(
 	recordDebugStep: RecordDebugStep,
 	signal?: AbortSignal,
 	requireExactTurnId = false,
-): Promise<{ preflight_id: string }> {
+): Promise<{ preflight_id: string; state?: string }> {
 	return new Promise((resolve, reject) => {
 		recordDebugStep("preflight_waiter_registered", { turnId });
 		const timeout = globalThis.setTimeout(() => {
@@ -38,7 +38,7 @@ export function waitForPreflightAcknowledgement(
 			reject(new Error(CHAT_PREFLIGHT_TIMEOUT_MESSAGE));
 		}, CHAT_PREFLIGHT_TIMEOUT_MS);
 		const handleAck = (payload: unknown) => {
-			const ack = payload as { turn_id?: string; preflight_id?: string };
+			const ack = payload as { turn_id?: string; preflight_id?: string; state?: unknown };
 			if (requireExactTurnId ? ack.turn_id !== turnId : !!ack.turn_id && ack.turn_id !== turnId) {
 				recordDebugStep("preflight_ack_ignored_turn_mismatch", {
 					turnId, receivedTurnId: ack.turn_id
@@ -53,7 +53,10 @@ export function waitForPreflightAcknowledgement(
 			}
 			recordDebugStep("preflight_ack_received", { turnId });
 			cleanup();
-			resolve({ preflight_id: ack.preflight_id });
+			// Epoch-zero servers answer state LEGACY: no sealed recovery job will exist.
+			resolve(typeof ack.state === "string"
+				? { preflight_id: ack.preflight_id, state: ack.state }
+				: { preflight_id: ack.preflight_id });
 		};
 		const handleError = (payload: unknown) => {
 			const error = payload as { code?: string; message?: string; turn_id?: string };

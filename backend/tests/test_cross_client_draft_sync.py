@@ -14,6 +14,7 @@ import types
 from pathlib import Path
 from types import SimpleNamespace
 
+import httpx
 import pytest
 
 from backend.tests.s3_service_test_support import ensure_s3_dependencies
@@ -88,6 +89,7 @@ from backend.core.api.app.routes.handlers.websocket_handlers.phased_sync_handler
     _authoritative_chat_reconciliation,
     _build_draft_only_phase2_wrapper,
     _handle_phase2_sync,
+    handle_phased_sync_request,
     _lookup_durable_deleted_chat_ids,
     _phase2_metadata_is_current,
 )
@@ -1936,3 +1938,39 @@ def _cleanup_authority_for_existing_flow_fixtures(monkeypatch):
         return await execute(self, operation, data)
 
     monkeypatch.setattr(ChatRecoveryService, "execute", with_cleanup_authority)
+
+
+# contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+@pytest.mark.anyio
+@pytest.mark.parametrize("failure", [
+    DurableChatDeletionFenceUnavailable("Durable chat deletion fence lookup unavailable"),
+    httpx.ReadTimeout("cms slow"),
+])
+async def test_transient_phase2_failure_sends_typed_retryable_error_without_chats(monkeypatch, failure) -> None:
+    handler = "backend.core.api.app.routes.handlers.websocket_handlers.phased_sync_handler"
+
+    class BoundManager(_Manager):
+        async def send_personal_message(self, message, user_id, device_fingerprint_hash, **_kwargs):
+            self.sent.append(message)
+
+    manager = BoundManager()
+
+    async def boom(*_args, **_kwargs):
+        raise failure
+
+    async def no_cold_start(*_args, **_kwargs):
+        return SimpleNamespace(completion_fields=lambda: {})
+
+    monkeypatch.setattr(f"{handler}._handle_phase2_sync", boom)
+    monkeypatch.setattr(f"{handler}.begin_cold_start", no_cold_start)
+    await handle_phased_sync_request(
+        websocket=_WebSocket(), manager=manager, cache_service=object(),
+        directus_service=SimpleNamespace(), encryption_service=object(),
+        user_id="user-1", device_fingerprint_hash="device-1",
+        payload={"phase": "phase2", "client_chat_ids": ["00000000-0000-4000-8000-000000000001"]},
+    )
+    assert [m["type"] for m in manager.sent] == ["phased_sync_retryable_error"]
+    body = manager.sent[0]["payload"]
+    assert body["retryable"] is True and body["code"] == "sync_dependency_unavailable"
+    assert body["sync_phase"] == "phase2" and body["retry_after_ms"] > 0
+    assert set(body) == {"code", "retryable", "retry_after_ms", "sync_phase", "team_id", "context_epoch"}

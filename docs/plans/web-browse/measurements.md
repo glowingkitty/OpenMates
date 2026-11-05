@@ -414,9 +414,444 @@ candidate has not yet established first-visible-frame latency or end-to-end UI
 performance. Do not substitute the earlier provider provisioning measurements for
 those user-visible measurements.
 
+## First real web run on 27 October
+
+Dev commit `970c0d6` is deployed and its backend workers are healthy. The
+preview/fullscreen/control components passed isolated laptop/mobile verification
+(run `40484678836`); the new dispatch case passed run `40479876763`.
+
+The first real CLI-created HTTPBin heading task, chat `8693ccf6`, failed Browse
+answer verification and the main assistant used Read instead. This is a failed
+Browse fulfillment, regardless of the successful outer chat response. Its first
+run measured 2.859 s provisioning, 15.868 s skill time and 78.587 s outer CLI time.
+The browser was closed through its owner API and settled at 13 credits with no
+pending accounting. Complete native usage was reported. The old failure receipt
+retained only `BrowserModelError` at verification, so its exact text-helper
+failure is unresolved. A prepared revision normalizes a single complete JSON
+code fence and records allowlisted error codes, response shape/length and helper
+purpose without page text, response text or credentials; acceptance thresholds
+are unchanged.
+
+The separate GUI check opened an authenticated shell with blank encrypted
+messages before reaching Browse. The harness had round-tripped IndexedDB through
+JSON; loss of the native master CryptoKey is the leading harness hypothesis,
+not a confirmed causal diagnosis. The correction uses a
+private persistent browser profile, checks the native key type and a known real
+chat before spending on inference, and keeps authentication unrecorded. The
+manual sign-in cases did not run. No real takeover/continuation success is
+claimed yet.
+
+Deployed visual review also found that a read-only terminal result with no
+screenshot incorrectly said it was waiting. The prepared UI correction gives an
+explicit missing-screenshot state; the existing successful extraction data is
+unaffected. This correction still needs its isolated check, deployment and visual
+review.
+
 ## Remaining acceptance
 
 Complete isolated component proof, authenticated web flows, dev deployment and
 reviewed laptop/mobile evidence, followed by the two real app-store examples.
 Workflow verification follows delivery of the regular skill and embeds. Rust SDK
 parity remains explicitly deferred by the user’s 2026-10-27 decision.
+
+## Resumed web verification on 28 October
+
+Hardening commit `d29e12d` is deployed to dev. Exact candidate `8fb0ff65`
+passed isolated component run `40662199554` (three laptop/phone cases) and
+backend run `40662282222`. The deployed fullscreen missing-screenshot state was
+reviewed on laptop and phone with no clipping, broken images or console/network
+errors. Managed backend operation `docker-a3eb0bd7` completed with all services
+healthy; live inference checks verify the owned backend source under a shared
+runtime lease.
+
+The native persistent-profile preflight preserved its real master CryptoKey and
+displayed an existing encrypted chat. A new automatically routed CLI chat
+`110441e8` returned a genuinely completed Browse result containing the exact
+HTTPBin heading and source URL. Its timings were 3.438 s provisioning, 3.600 s
+initial navigation, 7.816 s startup through first observation, 17.524 s total
+skill execution and 50.965 s outer chat. Provisioning met the below-four-second
+target; the first observed page and full task remain substantially slower.
+
+At skill completion, native supplier cost was $0.0029748241, including
+$0.0007129600 runtime and $0.0022618680 inference; accrued user cost was five
+credits. Five helper calls reported complete native usage. The session was
+closed after the failed UI harness waited through idle grace, with a final
+15-credit ($0.015) charge and no pending accounting. This final charge includes
+that additional running time; it is not the immediate task-completion price.
+Together ZDR remains unqualified, so the text helper used Gemini 3.8 Flash.
+
+The remaining UI assertion failure was a test interaction: the completed skill
+card was inside the standard collapsed assistant activity section. Authentication
+and chat hydration succeeded. Persistent-browser video finalization then masked
+that assertion by calling `video.saveAs` after its browser connection had closed.
+The prepared harness expands the existing accessible activity controls and copies
+the finalized local recording without a post-close protocol request. It also
+records the admitted session before waiting for a frame so failed checks can
+still close their own browser. Real takeover acceptance is still pending.
+
+A reviewed component screenshot also exposed an expired viewer's misleading
+watch/take-control hint. Its focused correction and assertion are preserved
+locally. Further CI source publication is waiting on the central disk coordinator
+(request `74484f99`); no independent cleanup or admission bypass is being used.
+
+The next run, chat `ea57b800`, also completed Browse with correct JSON: 3.230 s
+provisioning, 8.768 s through first observation, 28.882 s skill time and 58.948 s
+outer chat. Final owner-close settlement was 18 credits with no pending
+accounting, again including idle grace during the UI failure. It exposed the
+actual viewer integration bug: the normal owner fullscreen has both `chatId`
+and `lookupChatId` set to the originating chat. Rejecting every lookup hid all
+live controls, even though the saved screenshot and JSON rendered correctly.
+The prepared correction requires an explicitly private owner context, permits a
+lookup of that same chat, and continues to deny public, shared, cross-chat and
+unauthenticated views. Real test response waits are now bounded to surface a
+missing owner viewer promptly. Disk capacity was subsequently granted by the
+coordinator, allowing the corrected candidate to proceed to isolated verification.
+
+Owner-viewer correction `f1b7809` is deployed, passed eight focused owner/frame
+tests and component run `40667470064`, and its expiry state was reviewed on both
+viewports. A third real task, chat `2acca599`, completed with correct JSON in
+14.567 s (3.069 s provisioning, 7.550 s first observation, 41.325 s outer chat).
+It accrued three credits at completion and settled at 13 after idle grace and
+owner close, with no pending accounting. The viewer now mounted, exposing a
+separate transport defect: Caddy's broad public API handler substituted wildcard
+CORS, which browsers reject with credentials. A read-only replay of an existing
+closed owner session confirmed CORS failure without further inference; an
+approved CLI read of the same session succeeded.
+
+The prepared transport correction adds the narrow Browse session path to the
+first-party proxy handlers for preflight and actual requests. A saved-owner CORS
+preflight now runs before paid acceptance requests. The live host also returned
+wildcard headers for the repository's generic app-skill ingress, so moving the
+URL would not fix this host; the control API remains stable. Non-interactive
+sudo requires a password, and no privileged proxy reload or production service
+change was made. Real takeover and sign-in remain unverified until the proxy
+correction is applied and the live tests pass.
+
+An owner-scoped usage-ledger audit included the ordinary assistant charge as
+well as the settled browser charge:
+
+| Chat | Browse credits | Assistant credits | Total user price |
+| --- | ---: | ---: | ---: |
+| `110441e8` | 15 | 9 | $0.024 |
+| `ea57b800` | 18 | 9 | $0.027 |
+| `2acca599` | 13 | 10 | $0.023 |
+
+Each chat has exactly one Browse and one assistant ledger entry. Browser totals
+include the idle grace consumed while the web test failed; task-completion
+accrual alone was 5, 7 and 3 credits respectively. These are three successful
+static-page extractions, not a representative web-task success-rate estimate.
+The reviewed CORS patch is published at `c7df343`; 23 local configuration tests
+pass. The operator applied the scoped, coordinated helper at
+`/tmp/openmates-browse-d7bf-cli/apply-browse-caddy.py` after entering sudo's password
+locally. Live headers now preserve the exact dev origin and credentials. A
+read-only authenticated replay of a closed owner session returns 410 and shows
+the expected expired viewer instead of a CORS error. Fresh control-transfer
+acceptance is running. No production operation was performed.
+
+
+### Real control flow after the proxy correction
+
+The main real-inference browser acceptance passed for desktop controls and
+390-pixel saved history: exact HTTPBin JSON, authenticated watch, exclusive
+takeover, pause with free compute, resume, owner close and history reload. Chat
+`3ea7b625` took 43.853 seconds through the outer CLI; opening its completed
+owner viewer to its first live frame took 2.512 seconds. The closed session
+settled at ten Browse credits, with no pending accounting. The actual usage
+ledger adds seven assistant credits: 17 credits ($0.017) total.
+
+Two desktop manual demo-login runs (`3e554cff` and `ce3579d4`) entered only the
+fixture's published disposable credentials through owner controls, displayed
+the contextual consent notice, and continued the same browser to a genuinely
+completed Secure Area JSON result. The first continuation took 5.238 seconds.
+Their browser-test assertions failed because they first reopened the oldest
+card, then assumed exactly two cards despite the continuation message also
+referencing the initial embed. Those assertions are corrected to select the
+completed outcome, while retaining same-session, original-budget and exact-JSON
+checks. Final desktop/phone sign-in acceptance is pending coordinated runtime
+admission; no success is claimed for those full test cases yet.
+
+The two manual chats settled at 31 credits (8 Browse + 23 assistant) and
+36 credits (17 Browse + 19 assistant), including manual interaction and test
+waits. Session close cleanup completed. The first extraction example
+(`02a441f4`) settled at 87 credits (14 Browse + 73 assistant); this demonstrates
+why ordinary chat routing can dominate a simple browser task's full price.
+
+Native Browse ledger entries currently lack their triggering message identity.
+The account/chat totals above are complete, but response-level example pricing
+would omit Browse charges without a verified attribution. Correct that linkage
+before treating the response-price label as complete.
+
+Workflow investigation found that the current runner rejects async Browse and
+that scheduled report delivery allocates a chat ID before an owner client
+creates its encrypted chat. That pending ID cannot be used as a real source
+chat. Existing workflow input waits also do not resume dependent nodes. The
+workflow phase must provide an existing owned-chat binding or complete durable
+chat provisioning, plus explicit browser handoff/resumption; current delivery
+does not claim workflow support.
+
+
+### Confirmed web acceptance and billing audit, 28 October
+
+The final real manual-sign-in suite passed both desktop (1280 px) and phone
+(390 px) with no retries. It exercised contextual consent, owner-only private
+input, the same browser and original 250-credit cap on AI continuation, Secure
+Area JSON, and owner close. Both final sessions settled without pending
+accounting: 14 Browse credits on desktop and 13 on phone. The first viewer
+frames took 1.731 and 1.805 seconds respectively. These are viewer-open
+measurements after initial execution, not initial task startup. Recordings and
+representative consent/result screenshots were reviewed; selected recordings
+were uploaded privately with 48-hour links.
+
+The current-schema Example Domain CLI run (`588bd4b4`) genuinely completed
+in 17.514 seconds, with 2.336 seconds provisioning, 3.988 seconds initial
+navigation and 1.274 seconds of observation RPC time. Its `startup_seconds`
+was 7.152. Important correction: that timer stops **before** the first observe
+RPC. Earlier prose calling the startup timer “first observation” was inaccurate.
+The sum of those two latest measurements is at least 8.426 seconds; it excludes
+any iteration bookkeeping between them. New instrumentation explicitly measures
+startup through completion of the first observation, and separately records
+pool claim, resume, pristine readiness and initial control. A redundant initial
+control RPC on the verified fresh-pool path is removed under the same exclusive
+lease; its improvement is not yet measured. No destination/privacy checks were
+removed.
+
+This extraction accrued five credits at completion. Leaving its compute running
+through the existing idle grace and then closing it settled at 16 Browse
+credits; the ten-credit assistant response makes 26 credits ($0.026) in total.
+The final public example uses this current-schema result rather than the older
+extraction, whose saved envelope predates `data_json`. The two public-example
+price labels use complete account/chat ledger totals. For the two single-turn
+source chats only, otherwise unlinked Browse rows are attributed to the sole
+AI usage trigger without changing amounts or the real transcript. New Browse
+settlements now retain their reservation's triggering message ID so future
+response-level pricing can join normally.
+
+Billing is by elapsed resource seconds, not minute blocks. For the verified
+2-vCPU/4-GiB allocation, supplier compute is `2 × $0.000014 + 4 × $0.0000045 =
+$0.000046/second`; the 2× customer compute rate is 0.092 credits/second or
+5.52 credits/minute. Native internal model usage is added at 2× its effective
+supplier tariff. Existing wallet policy floors accumulated credits with a
+one-credit minimum for positive sub-credit usage; it does not impose a
+per-click or per-minute minimum. Confirmed paused time adds zero. Six added
+checks cover 1, 17, 59, 60, 61 and 90.5 elapsed seconds plus paused retention.
+The Browse listing previously advertised a zero fixed fee; the prepared
+correction preserves the fractional display rate and does not add a generic
+dispatch charge.
+
+Rates were rechecked against [E2B pricing](https://e2b.dev/pricing) and
+[billing documentation](https://docs.e2b.dev/billing). One lifecycle accounting
+assumption still needs investigation: local running-cost estimates cap at the
+planned provider deadline, while E2B documents a potential delayed auto-pause
+during snapshot backlog. A planned deadline is not always the actual stop
+event. Do not claim invoice-exact reconciliation for that edge case; retain
+separate measured supplier estimates and settled customer credits.
+
+The user explicitly clarified that standalone and workflow Browse must not
+require a chat. The recommended core authority is owner + execution scope +
+idempotent operation, with owner-encrypted results, lifecycle and billing
+independent of delivery. Chat embeds and workflow run views are adapters.
+Workflow handoff must use its own run/node occurrence and a resumable wait,
+not a fabricated chat or an unpersisted report-delivery ID. That refactor and
+durable workflow resume are not yet implemented.
+
+
+### Jev reference review
+
+Rechecked [browser-use/jev-ultrafast](https://github.com/browser-use/jev-ultrafast),
+its [MIT license](https://github.com/browser-use/jev-ultrafast/blob/main/LICENSE),
+[source loop](https://github.com/browser-use/jev-ultrafast/blob/main/jev_ultrafast/agent.py)
+and [measurement boundaries](https://github.com/browser-use/jev-ultrafast/blob/main/docs/performance.md).
+Its 7.073-second demo excludes browser setup, initial navigation and initial
+observation, plus final independent verification. It cannot be compared directly
+with our startup/first-page timer. The optimized upstream loop uses structured
+DOM state without screenshots by default, a persistent browser session, one
+atomic snapshot and a single speculative operation/target decision request.
+It also uses event-aware settling and preserves generated text only for an
+identical field context. These are useful implementation patterns, not evidence
+of OpenMates speed or reliability. No upstream code was copied in this review.
+
+OpenMates already uses direct Jev 1.14 typed operation/target selection, with
+bounded generation/extraction through the separate text helper and independent
+completion checks. Earlier measured Jev calls were 0.170–0.224 seconds. Runtime
+screenshots/DOM observations precede the model call; local browser/network
+overhead must be measured separately from Jev inference. Follow-up optimizations
+should compare atomic snapshots, screenshot demand/cadence, connection reuse and
+state-aware settling while retaining isolation, fresh targets and secret masking.
+
+
+Additional source comparison found that our runtime already has atomic DOM
+capture, viewport text bounds, retained node identities and occlusion checks.
+The next meaningful Jev-loop improvements are stronger target/form/document
+freshness guards, fuller HTML/ARIA label recognition, bounded event-aware
+autocomplete settling, and reuse of a text result only when the complete helper
+context is unchanged and no input outcome is uncertain. Upstream's focus
+emulation addresses background desktop tabs; no evidence yet makes it relevant
+to our dedicated headless VM. These are proposed changes, not deployed or
+benchmarked improvements.
+
+
+## Latest deployed status: 00c1f01, 28 October
+
+The release is deployed to dev, its frontend is ready, and coordinated operation
+`docker-ac003ce2` completed with all 17 affected services healthy. Backend source
+and translation mounts were refreshed without rebuilding images. The operation
+took 163.077 seconds, including 6.609 seconds Compose and 82.587 seconds health
+checks; this engineering deployment duration is not browser startup latency.
+
+The corrected public catalog API check and existing first-party authorization
+case both passed isolated run `40683662151` against candidate `212cbca1`. The
+first API attempt incorrectly requested the protected developer metadata URL;
+its 401 was correct. The corrected test uses the public `/details` catalog path,
+without changing authentication. Backend run `40681944353` passed the focused
+service, dispatch and metadata checks.
+
+All four new Browse catalog cases passed run `40681954302`: two actual CLI
+examples at 1280 and 390 pixels, each displaying saved JPEG/JSON without any
+owner-session request or live control. The full catalog suite had 11 passes,
+six failures in other catalog/settings/audio cases and one skip; it is not
+reported as fully green. The existing clone-on-send spec is held by the CI
+coverage registry because its original scenario requires live inference; no
+provider credential was added to CI or scenario replaced with a mock.
+
+After deployment, all four logged-out example-page checks passed: the SEO page,
+real transcript, screenshot preview, fullscreen, readable JSON, close and reload.
+Screenshots were reviewed on laptop and phone, and no owner browser endpoint was
+contacted. Verified pages:
+
+- https://app.dev.openmates.org/example/browse-example-domain
+- https://app.dev.openmates.org/example/browse-heading-json
+
+A fresh automatically routed CLI extraction, chat `9a56b812`, verified the exact
+deployed backend source under a shared runtime lease and completed Browse with
+JSON. Its new stage instrumentation measured:
+
+| Stage | Seconds |
+| --- | ---: |
+| Prepared-pool claim | 0.190 |
+| Native resume and readiness | 1.869 |
+| Owner/pristine control check | 1.063 |
+| Provisioning, including the above and persistence | 3.182 |
+| Initial navigation RPC | 4.180 |
+| Duplicate initial control RPC | 0.000 |
+| Startup before observation | 7.449 |
+| Observation RPC | 1.258 |
+| Startup through first observation | 8.744 |
+| Entire Browse execution | 18.175 |
+| Outer assistant/CLI response | 49.819 |
+
+Provisioning is below four seconds but not consistently below three; the first
+page observation remains substantially too slow. The navigation RPC still
+combines destination/robots work with page loading. Further measurements must
+split that work and connection setup before claiming a root cause. Removing
+one duplicate control round trip did not materially improve this total.
+
+At task completion, supplier estimates were $0.0036007768 total: $0.0007739159
+runtime and $0.0028268640 internal inference. Accrual was seven credits. The
+script closed its browser immediately after the outer response and embed read,
+settling at nine Browse credits with no pending accounting. The ledger contains
+exactly one Browse and one assistant entry, with ten assistant credits: 19
+credits ($0.019) total. The new Browse billing trigger matches the assistant's
+trigger, the ledger matches the close receipt, and the original 40-credit cap is
+preserved. No per-minute rounding is involved. The longer-lived final sign-in
+checks cost 45 credits (14 Browse + 31 assistant) on desktop and 40 credits
+(13 Browse + 27 assistant) on phone. These are measured examples, not a general
+price or reliability guarantee.
+
+Remaining work is deeper navigation/transport profiling, qualification beyond
+these permitted fixtures, supplier pause-deadline reconciliation, and the
+chat-independent execution/workflow refactor. Code Run already provides the
+standalone route/shared admission/optional chat-delivery precedent. Keep Browse's
+stronger deterministic admission and owner-encrypted stores; do not copy Code
+Run's non-idempotent random start IDs or broaden browser credentials to generic
+developer keys. Workflow takeover belongs in the workflow run view, with durable
+node continuation that preserves completed upstream effects. Together/DeepSeek
+remains unqualified while its organization ZDR flag is false; measured text
+helper runs used the Gemini fallback. Rust parity remains explicitly deferred.
+
+
+## Connection profiling release: 56005ce
+
+The timing-only transport patch passed 88 isolated backend checks in run
+`40688496181` (candidate `df280c8f`) and is published as `56005ce`. HTTPX trace
+callbacks retain only an allowlisted set of numeric TCP/DNS, TLS, response-header,
+response-body and total durations. Request/response objects, URLs, headers and
+exception details are discarded; locally generated measurements override any
+remote `_rpc_timings` field. Both HTTP/1.1 and HTTP/2 traces are covered by the
+privacy regression test. Navigation and first observation expose these numeric
+stage durations without changing connection/retry/authorization behavior.
+
+Further optimization should test owner/session-scoped persistent connections and
+fewer RPC round trips, retaining all ownership, pristine-browser, robots and
+fresh-target checks. The runtime currently closes its HTTP/1.1 connection after
+every RPC, and the backend creates a fresh client for every operation. These are
+observed implementation facts, not a measured causal explanation yet. Runtime
+protocol changes require rebuilding and qualifying the immutable prepared E2B
+template, rather than merely restarting backend services.
+
+[E2B's current region documentation](https://docs.e2b.dev/faq/egress-ip-ranges)
+lists US West as the default and an EU region enabled through support. Confirm
+this workspace's actual placement before attributing latency to distance. EU
+placement is a potential experiment within the preferred E2B infrastructure;
+no region migration or support message has been performed.
+
+
+### Live transport trace and direct-runtime comparison
+
+Coordinated development operation `docker-51c841d6` completed with all targeted
+services healthy. It took 584.242 seconds, dominated by 485.609 seconds waiting
+for other authorized development work. Compose took 4.390 seconds and health
+checks 33.657 seconds. This is engineering deployment time, not browser startup.
+A subsequent paid extraction held the shared runtime lease and verified all
+nine owned backend files against release `56005ce` before calling inference.
+
+Automatically routed chat `ebbe08ec` completed with verified JSON. Browser
+`543959b1` was closed in the script's finally path, with eight settled Browse
+credits and no pending accounting. An independent owner usage read confirmed
+exactly two ledger entries, eight Browse plus eleven assistant credits (19 total,
+$0.019), matching the close receipt and billing trigger. The original 40-credit
+session cap remained intact. This is another measured example, not a flat fee.
+
+| Stage | Seconds |
+| --- | ---: |
+| Pool claim | 0.203 |
+| Resume/readiness | 1.918 |
+| Pristine control check | 1.567 |
+| Provisioning | 3.747 |
+| Navigation TCP/DNS | 0.0170 |
+| Navigation TLS | 0.0090 |
+| Navigation response-header wait | 4.5030 |
+| Navigation RPC total | 4.5420 |
+| First observation response-header wait | 1.0970 |
+| First observation response-body transfer | 0.1740 |
+| First observation RPC total | 1.3390 |
+| Startup through first observation | 9.749 |
+| Entire Browse execution | 17.765 |
+| Outer assistant/CLI response | 48.210 |
+
+TCP/TLS connection establishment is not the main bottleneck in this sample.
+The response-header interval still includes E2B forwarding, browser/controller
+work, crawler-policy checking and destination loading; it does not isolate them.
+A fast edge handshake also does not exclude distance in E2B's internal forwarding.
+The page-ready target remains unmet. Connection reuse alone is not a supported
+solution to this result.
+
+A separate inference-free provider diagnostic created an empty isolated browser,
+read public Example Domain and compared fixed operations remotely and through
+localhost inside that same VM. It destroyed the VM in finally. Remote metadata
+requests took 0.2180 and 0.7064 seconds, versus 0.0081 and 0.0008 locally. Remote
+observations took 1.2646 and 1.0171 seconds; local observations took 0.4849 and
+0.0255 seconds. Remote navigation took 3.8279 seconds, of which 3.7601 was waiting
+for headers. Only durations and response-byte counts were printed, with no page
+contents, control secrets or provider handles.
+
+This small sequential comparison is not an alternating benchmark; cache and
+screenshot warmup can affect observations. It nevertheless establishes that a
+nearly immediate local metadata operation can have material remote overhead.
+The next bounded optimization should combine native-resume readiness with the
+required live pristine/control verification in one authenticated request. It
+must still persist the paid handle first, prove Chromium readiness and blank
+storage, and destroy a rejected handoff. Ordinary existing-session resume must
+retain its controller-safe read-only readiness behavior. Combining navigation
+with its first observation can remove another round trip, but requires a new
+runtime/template and direct isolation/privacy qualification. Measure crawler
+policy and browser navigation separately before changing navigation waits.

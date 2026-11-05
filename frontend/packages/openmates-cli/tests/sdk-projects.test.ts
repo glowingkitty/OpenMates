@@ -134,6 +134,10 @@ describe("OpenMates SDK Projects", () => {
         }
         if (request.method === "POST" && url.pathname === "/v1/projects") {
           const record = body as Record<string, unknown>;
+          assert.equal(record.write_mode, "always_ask");
+          assert.match(String(record.default_focus_id), /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+          assert.equal(typeof record.encrypted_settings, "string");
+          assert.equal("settings" in record, false);
           records.set(String(record.project_id), { ...record, version: 1 });
           return { project: records.get(String(record.project_id)) };
         }

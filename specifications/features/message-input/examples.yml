@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.message-input@11
+specification: feature.message-input@12
 parent_state:
 - id: focus-and-text-update-parent
   given:
@@ -348,17 +348,37 @@ voxtral3_dictation:
   when: The completed and interrupted dictation usage settles and the uploaded-file request is processed.
   then: The positive-duration dictation recordings settle once each for two and eleven credits respectively; the empty recording costs zero. The published dictation price remains ten credits per minute. The separate app skill retains its existing model and three-credit-per-started-minute price.
 
-single_line_recording:
-- id: long-desktop-dictation
-  assertion_ids: [message-input.audio.single-line-preview]
-  given: A desktop user has spoken enough text to wrap into many transcript lines.
-  when: More recognized words arrive and wrap onto another line.
-  then: Only the newest complete line is visible, without a sliding transition or clipped older line. The full transcript remains available when recording stops.
-- id: responsive-recording-reflow
-  assertion_ids: [message-input.audio.single-line-preview]
-  given: A long recording is active and its newest transcript line is visible.
-  when: The recording overlay changes between laptop, tablet and phone widths.
-  then: The preview immediately settles on exactly one fully readable newest line and recording controls remain visible.
+live_editor_recording:
+- id: dictation-follows-caret
+  assertion_ids: [message-input.audio.live-editor-transcript]
+  given: A user starts recording in an empty chat composer and says "please schedule the project review".
+  when: The words arrive, then the user taps the start of the text and says "urgently".
+  then: The editor expands and shows "urgently please schedule the project review" as editable text above the compact recording controls, and Finish keeps this arrangement instead of overwriting it.
+- id: private-data-and-correction-shimmer
+  assertion_ids: [message-input.audio.live-editor-transcript]
+  given: A user dictates in one place and says an email address.
+  when: The address is detected, then the user presses Finish.
+  then: The address is highlighted and can be excluded by tapping, the recording Send control fades out leaving Cancel and Finish, and after Finish the dictated text shows an animated gradient above the still-colored recording controls until the corrected text replaces it.
+
+workspace_dictation:
+- id: fullscreen-followup-dictation-matches-chat
+  given: A user has typed "Keep the mountain." into the follow-up composer of an open fullscreen image result.
+  when: The user taps the microphone, says "make the sky brighter", and then taps Finish.
+  then: The field expands and shows "Keep the mountain. make the sky brighter" as editable text above the same compact recording controls as the chat composer, with Cancel, Finish and Send. After Finish, the dictated words show the animated gradient until "Keep the mountain. Make the sky brighter." remains unsent for review.
+- id: workflow-dictation-submits-on-finish
+  given: A user opens the Workflow workspace with an empty composer.
+  when: The user taps the microphone, says "weather tomorrow at eight", and taps Finish.
+  then: The words appear live in the expanded composer in the same way, and once transcription completes the request is submitted once to create the Workflow. If transcription fails, the words already dictated stay editable and nothing is submitted.
+
+workspace_controls:
+- id: blurred-followup-draft-shows-round-send
+  given: A user has typed "Make the sky brighter" into the follow-up composer of an open fullscreen image result on a laptop.
+  when: The user clicks outside the composer.
+  then: The composer minimizes to one line with the file shortcut on the left (no AI icon), the draft preview, the microphone, and a round orange Send button with only an up arrow on the far right. Clicking into the field again shows the labeled Send button on the right with the microphone left of it.
+- id: phone-followup-shortcut-takes-photo
+  given: A user opens a fullscreen image result on a phone, so its follow-up composer is empty and minimized.
+  when: The user taps the left shortcut.
+  then: The camera picker opens directly without opening the keyboard, the same as in the chat composer.
 
 quick_attachments:
 - id: phone-or-ipad-camera-shortcut

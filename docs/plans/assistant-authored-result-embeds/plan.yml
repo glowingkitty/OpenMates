@@ -24,7 +24,7 @@ scope:
     - Every informational and real-asset result registration in the approved Specification's eligibility inventory plus the two separately approved TV movie/series kinds, in the first release.
     - Explicitly requested fictional/proposed records labelled as drafts in both previews and details.
     - Shared authoring, encrypted lifecycle, same-response groups, existing rich UI, sources, images, maps, sharing, and applicable explicit actions.
-    - API, native Rust CLI/TUI and Rust/npm/Python SDK semantics, followed by verified web behavior.
+    - Web-primary delivery with existing API/CLI/SDK protocol compatibility; the broader native-client migration remains separate.
     - Verified landing animation and admitted public example after the real event flow works.
   out:
     - Restoring removed providers, collecting through unauthorized endpoints, or widening provider discovery contracts.
@@ -44,9 +44,12 @@ design:
     - Scope temporary item labels to the authored block. Resolve them to backend-assigned embed identities before emitting stored references or shared results views.
     - Preserve message position and stable identities across streaming, finalization, reload and sync. Bound record count/size, isolate independent item failures, and expose honest cancellation/validation states.
     - Persist ordinary typed records and existing presentation references; never fabricate an app_skill_use parent or a discovery provider result.
+    - Preserve selected encrypted rendition lifetimes through existing durable sealed-output and legacy batch-claim metadata, bound to the actual owner/chat/message/subject/version. Promote references only alongside an authorized canonical write or exact sealed ACK; pending and historical references survive cache expiry. Do not create synthetic legacy producers, grant new recovery keys, overwrite newer-head references from history, or change the global recovery epoch.
     - Carry sources, draft state, observation context and missing values explicitly. Media-resource cards require actual accessible resources and existing safe/encrypted delivery paths.
   presentation_and_actions:
     - Register direct authored records with existing preview/fullscreen resolvers. Adapt their inputs where they currently assume a search parent or provider response.
+    - Per the user's explicit visual correction, use the same existing preview and fullscreen constructors for every pre-existing result kind. TV movie/series compose existing shared card, header, media, facts and fullscreen components; do not introduce an alternate authored-card design.
+    - The app landing demonstration instantiates the existing CalendarEventEmbedPreview and CalendarEventEmbedFullscreen through a data-only adapter. Remove the synthetic EventResultDetails card. The runtime-free public website retains static actionable copy until a separately scoped shared-renderer extraction is chosen.
     - Reuse normal card grouping and the shared results view for compatible mixed types; use real resolved item IDs for selection, opening and follow-up reuse.
     - Derive maps from known coordinates/geometry and preserve approximate listing areas. Keep unmappable items in the list and label endpoint-only route connectors as schematic.
     - Pass each record's actual embed ID and asset dependencies through existing sharing controls; use existing permissions and encrypted share transport, with no automatic publication.
@@ -94,7 +97,7 @@ delivery:
       assertion_ids: [tv-titles.authoring.relevant-and-flexible, tv-titles.presentation.posters-and-details, tv-titles.series.supplied-seasons, tv-titles.lifecycle.groups-and-actions]
   implementation_order:
     - Establish an event vertical slice internally, then complete every eligible type before the first release; the release scope is not limited to the four originally named types.
-    - Prove API/native CLI/SDK semantics, then integrate and verify web presentation and actions.
+    - Prioritize web presentation and actions after bounded backend/CLI compatibility proof. Per the user's web-primary clarification, continue native and SDK compatibility checks alongside web delivery; do not expand this feature into the wider client migration or let pairing-harness setup hold web implementation.
     - Start the landing-animation and public-example outcomes only after the real authored event flow is verified.
 
 required_checks:

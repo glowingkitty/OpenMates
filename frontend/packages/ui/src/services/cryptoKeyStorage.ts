@@ -52,7 +52,13 @@ async function openDB(): Promise<IDBDatabase> {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
     request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      const db = request.result;
+      // Release the connection when another tab deletes/upgrades the database
+      // so a multi-tab logout is never blocked by this handle.
+      db.onversionchange = () => db.close();
+      resolve(db);
+    };
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;

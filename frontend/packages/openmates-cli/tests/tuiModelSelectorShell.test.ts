@@ -7,7 +7,7 @@ import type { OpenMatesClient } from "../src/client.js";
 
 const catalog = Object.assign([
   { id: "openai/gpt-6-astra", name: "GPT 6 Astra", providerId: "openai", providerName: "OpenAI", description: "", available: true },
-  { id: "qwen/qwen3-235b-a22b-2507", name: "Qwen Fast", providerId: "qwen", providerName: "Qwen", description: "", available: true },
+  { id: "qwen/qwen-3.8-27b", name: "Qwen Fast", providerId: "qwen", providerName: "Qwen", description: "", available: true },
 ], { authoritative: true }) as ChatModelCatalog;
 function fixture(options?: { catalog?: () => Promise<ChatModelCatalog>; restore?: (chatId: string) => Promise<{ selection: string; pending: boolean; restored: boolean }> }) {
   const state = createInitialTuiState();

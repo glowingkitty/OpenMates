@@ -1383,6 +1383,7 @@ async def _async_persist_delete_chat(
 
         version_tombstones, orphan_version_ids = await prepare_orphan_embed_version_deletion(
             directus_service=directus_service,
+            target_chat_id=chat_id,
             deleted_embeds=embed_rows_before_delete,
             deleted_embed_row_ids=deleted_embed_ids,
             user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(),
@@ -1568,6 +1569,23 @@ async def _async_persist_delete_message(
             user_id=user_id, chat_id=chat_id, client_message_id=client_message_id,
         )
 
+        from backend.core.api.app.services.storage_reference_service import (
+            activate_storage_tombstones, delete_embed_version_rows, fence_message_for_asset_deletion,
+            load_chat_embed_rows, prepare_orphan_embed_version_deletion,
+        )
+        from backend.shared.python_utils.object_storage_regions import parse_storage_regions
+
+        owner_hash = hashlib.sha256(user_id.encode()).hexdigest()
+        hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+        hashed_message_id = hashlib.sha256(client_message_id.encode()).hexdigest()
+        message_asset_cleanup = await fence_message_for_asset_deletion(
+            directus_service=directus_service, user_id_hash=owner_hash, chat_id=chat_id,
+            message_id=client_message_id,
+        )
+        message_embed_rows = (await load_chat_embed_rows(
+            directus_service=directus_service, hashed_chat_id=hashed_chat_id, hashed_message_id=hashed_message_id,
+        ) if message_asset_cleanup else [])
+
         # 1. Delete the message from Directus
         message_deleted = await directus_service.chat.delete_message_by_client_id(
             chat_id, client_message_id
@@ -1586,12 +1604,21 @@ async def _async_persist_delete_message(
         # 2. Delete associated embeds from Directus (using hashed_message_id lookup)
         # The client provides embed IDs it already identified, but we also do a server-side
         # lookup by hashed_message_id for thoroughness (catches embeds the client may have missed)
-        hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
-        hashed_message_id = hashlib.sha256(client_message_id.encode()).hexdigest()
-
         deleted_embeds = await directus_service.embed.delete_embeds_for_message(
             hashed_chat_id, hashed_message_id, s3_service=s3_service, user_id=user_id
         )
+
+        if message_asset_cleanup:
+            tombstones, version_ids = await prepare_orphan_embed_version_deletion(
+                directus_service=directus_service, deleted_embeds=message_embed_rows,
+                deleted_embed_row_ids=deleted_embeds, user_id_hash=owner_hash,
+                target_chat_id=chat_id, hashed_message_id=hashed_message_id,
+                regions=parse_storage_regions(os.getenv("S3_REGIONS")), now=datetime.now(timezone.utc),
+            )
+            await delete_embed_version_rows(directus_service=directus_service, version_ids=version_ids)
+            await activate_storage_tombstones(
+                directus_service=directus_service, tombstones=tombstones, now=datetime.now(timezone.utc),
+            )
 
         if deleted_embeds:
             from backend.core.api.app.services.storage_reference_service import (
@@ -3328,6 +3355,11 @@ async def _async_persist_embed_fallback(
     if parent_embed_id is not None:
         payload["payload"]["parent_embed_id"] = parent_embed_id
 
+    # Re-sends must carry the live routing identity (issue BMKRJ).
+    for routing_key in ("app_id", "skill_id"):
+        if embed_data.get(routing_key) is not None:
+            payload["payload"][routing_key] = embed_data[routing_key]
+
     task_id_for_payload = embed_data.get("task_id") or embed_data.get("hashed_task_id")
     if task_id_for_payload is not None:
         payload["payload"]["task_id"] = task_id_for_payload
@@ -3583,6 +3615,9 @@ async def _async_process_pending_embeds(task_id: str):
                             payload["payload"]["embed_ids"] = embed_data["embed_ids"]
                         if embed_data.get("parent_embed_id") is not None:
                             payload["payload"]["parent_embed_id"] = embed_data["parent_embed_id"]
+                        for routing_key in ("app_id", "skill_id"):
+                            if embed_data.get(routing_key) is not None:
+                                payload["payload"][routing_key] = embed_data[routing_key]
 
                         channel_key = f"websocket:user:{user_id_hash}"
                         redis_client = await cache_service.client

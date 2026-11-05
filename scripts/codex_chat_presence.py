@@ -148,12 +148,12 @@ def _session_scopes(root):
     for session_id, record in records.items():
         if not isinstance(record, dict):
             continue
-        thread = _thread_id(record.get("codex_task_id"))
+        thread = _thread_id(record.get("agent_task_id") or record.get("codex_task_id"))
         worktree = record.get("worktree") or {}
         location = worktree.get("path") if isinstance(worktree, dict) else None
         if (
             not thread
-            or record.get("codex_host") != socket.gethostname()
+            or (record.get("agent_host") or record.get("codex_host")) != socket.gethostname()
             or not isinstance(location, str)
             or worktree.get("status") not in {None, "active", "merged", "changes_pending"}
             or not repository_checkout(root, location)

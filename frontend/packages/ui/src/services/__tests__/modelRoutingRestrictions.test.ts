@@ -14,6 +14,7 @@ describe('per-turn model routing restrictions', () => {
     expect(payload).toEqual({
       disabled_ai_models: ['mercury-3'],
       disabled_ai_servers: { 'gemini-3.8-flash': ['google_ai_studio'] },
+      server_region_preference: 'eu',
     });
     payload.disabled_ai_models.push('another');
     payload.disabled_ai_servers['gemini-3.8-flash'].push('google');
@@ -23,7 +24,13 @@ describe('per-turn model routing restrictions', () => {
 
   // contract-test: supporting surface=gui.web assertions=ai-model-routing.defaults.google-tier-profiles
   it('represents an unrestricted turn explicitly', () => {
-    expect(modelRoutingRestrictionsForTurn({})).toEqual({ disabled_ai_models: [], disabled_ai_servers: {} });
+    expect(modelRoutingRestrictionsForTurn({})).toEqual({ disabled_ai_models: [], disabled_ai_servers: {}, server_region_preference: 'eu' });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=ai-model-routing.defaults.google-tier-profiles
+  it('sends the Fastest, global region preference and defaults anything else to eu', () => {
+    expect(modelRoutingRestrictionsForTurn({ server_region_preference: 'global' }).server_region_preference).toBe('global');
+    expect(modelRoutingRestrictionsForTurn({ server_region_preference: 'eu' }).server_region_preference).toBe('eu');
   });
 
   // contract-test: supporting surface=gui.web assertions=ai-model-routing.defaults.google-tier-profiles

@@ -11,7 +11,7 @@ You are investigating a user-submitted issue. The issue ID was provided as an ar
 
 ### Step 1: Start from the reported issue database
 
-The reported issue database is the source of truth. Do not start from Linear or GitHub unless the issue note links there.
+The reported issue database is the source of truth. Do not start from GitHub unless the issue note links there.
 
 ```bash
 python3 scripts/issues.py show $ARGS --env prod

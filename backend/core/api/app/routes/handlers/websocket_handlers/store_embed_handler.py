@@ -184,6 +184,10 @@ async def handle_store_embed(
                 logger.error(f"Missing embed_id in store_embed payload from user {user_id}")
                 return
             request_id = payload.pop("request_id", None)
+            if "authored_asset_binding" in payload:
+                await _reject_store_embed_write(manager, user_id, device_fingerprint_hash,
+                                               embed_id, "server_owned_asset_binding", request_id)
+                return
             if "operation_id" in payload:
                 candidate_operation_id = payload.pop("operation_id")
                 if (not isinstance(candidate_operation_id, str)
@@ -375,6 +379,8 @@ async def handle_store_embed(
             # Merge server-side S3 file keys if cached (set by image generation tasks).
             # Since embed content is client-encrypted, S3 file keys are stored as server-accessible
             # metadata to enable S3 cleanup when the embed or its parent chat is deleted.
+            s3_keys_cache_key = None
+            s3_keys_json = None
             try:
                 client = await cache_service.client if enrichment is None else None
                 if client:
@@ -382,11 +388,29 @@ async def handle_store_embed(
                     s3_keys_json = await client.get(s3_keys_cache_key)
                     if s3_keys_json:
                         payload["s3_file_keys"] = json.loads(s3_keys_json)
-                        # Clean up the cache key after merging
-                        await client.delete(s3_keys_cache_key)
                         logger.info(f"Merged cached s3_file_keys into embed {embed_id} payload")
             except Exception as e:
                 logger.warning(f"Failed to check/merge cached s3_file_keys for embed {embed_id}: {e}")
+
+            authored_asset_binding = None
+            binding_payload = payload
+            if enrichment is not None:
+                binding_payload = await directus_service.embed.get_embed_by_id(embed_id) or {}
+            if (isinstance(binding_payload.get("parent_embed_id"), str)
+                    and binding_payload["parent_embed_id"]
+                    and isinstance(binding_payload.get("hashed_message_id"), str)):
+                # Only an internal lookup may select a producer commitment. No
+                # client-supplied field or expired Redis sidecar is authority.
+                target = chat_id or (direct_chat_metadata or {}).get("id")
+                if not isinstance(target, str) or not target:
+                    raise RuntimeError("Asset dependency chat scope is unavailable")
+                authored_asset_binding = await ChatRecoveryService(directus_service).get_legacy_output_asset_binding({
+                    "protocol_version": 1, "hashed_user_id": _user_hash(user_id),
+                    "target_chat_id": target, "embed_id": embed_id,
+                    "output_version": enrichment["expected_version"] if enrichment else payload.get("version_number", 1),
+                    "hashed_message_id": binding_payload["hashed_message_id"],
+                    "parent_embed_id": binding_payload.get("parent_embed_id"),
+                })
 
             from backend.core.api.app.services.directus.embed_methods import (
                 _validate_client_encrypted_embed_content,
@@ -399,6 +423,8 @@ async def handle_store_embed(
                     embed_id, payload, user_id=user_id,
                     canonical_metadata_enrichment=enrichment,
                     canonical_precondition=canonical_precondition,
+                    **({"authored_asset_binding": authored_asset_binding}
+                       if authored_asset_binding is not None else {}),
                     **({"bundle_context": bundle_context} if bundle_context is not None else {}),
                 )
             except EmbedVersionTransactionError as exc:
@@ -435,7 +461,7 @@ async def handle_store_embed(
 
             canonical_embed = None
             canonical_digest = None
-            if request_id or enrichment is not None:
+            if request_id or enrichment is not None or s3_keys_json is not None:
                 canonical_embed = await directus_service.embed.get_embed_by_id(embed_id)
                 if not isinstance(canonical_embed, dict):
                     raise RuntimeError("Canonical embed was unavailable after confirmed write")
@@ -452,6 +478,24 @@ async def handle_store_embed(
                     # Cache and broadcast status come from the preserved head,
                     # never from the metadata-only request's omitted fields.
                     payload = canonical_embed
+
+                if s3_keys_json is not None:
+                    stored_references = canonical_embed.get("s3_file_keys")
+                    if isinstance(stored_references, str):
+                        stored_references = json.loads(stored_references)
+                    if stored_references == json.loads(s3_keys_json):
+                        # A concurrent revision may have replaced the sidecar.
+                        # Never consume its references with this older receipt.
+                        try:
+                            client = await cache_service.client
+                            if client:
+                                await client.eval(
+                                    "if redis.call('GET', KEYS[1]) == ARGV[1] then "
+                                    "return redis.call('DEL', KEYS[1]) else return 0 end",
+                                    1, s3_keys_cache_key, s3_keys_json,
+                                )
+                        except Exception:
+                            logger.warning("Could not remove confirmed asset reference sidecar for embed %s", embed_id)
 
             # Update the operational cache (embed:{embed_id}) with the client-encrypted data.
             # This prevents stale "processing" entries from being served to other devices

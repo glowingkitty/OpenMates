@@ -1,0 +1,911 @@
+[
+ {
+  "key": "openmates/memories",
+  "app_id": "openmates",
+  "item_type": "memories",
+  "entry_type": "list",
+  "required": [
+   "title",
+   "document"
+  ],
+  "properties": [
+   {
+    "name": "title",
+    "type": "string"
+   },
+   {
+    "name": "document",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "key": "books/favorite_books",
+  "app_id": "books",
+  "item_type": "favorite_books",
+  "entry_type": "list",
+  "required": [
+   "title"
+  ],
+  "properties": [
+   {
+    "name": "title",
+    "type": "string"
+   },
+   {
+    "name": "author",
+    "type": "string"
+   },
+   {
+    "name": "genre",
+    "type": "string"
+   },
+   {
+    "name": "rating",
+    "type": "number"
+   },
+   {
+    "name": "notes",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "key": "books/currently_reading",
+  "app_id": "books",
+  "item_type": "currently_reading",
+  "entry_type": "list",
+  "required": [
+   "title"
+  ],
+  "properties": [
+   {
+    "name": "title",
+    "type": "string"
+   },
+   {
+    "name": "author",
+    "type": "string"
+   },
+   {
+    "name": "started_date",
+    "type": "string"
+   },
+   {
+    "name": "notes",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "key": "books/to_read_list",
+  "app_id": "books",
+  "item_type": "to_read_list",
+  "entry_type": "list",
+  "required": [
+   "title"
+  ],
+  "properties": [
+   {
+    "name": "title",
+    "type": "string"
+   },
+   {
+    "name": "author",
+    "type": "string"
+   },
+   {
+    "name": "genre",
+    "type": "string"
+   },
+   {
+    "name": "notes",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "key": "code/preferred_tech",
+  "app_id": "code",
+  "item_type": "preferred_tech",
+  "entry_type": "list",
+  "required": [
+   "name"
+  ],
+  "properties": [
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "proficiency",
+    "type": "string",
+    "enum": [
+     "beginner",
+     "intermediate",
+     "advanced",
+     "expert"
+    ]
+   }
+  ]
+ },
+ {
+  "key": "code/projects",
+  "app_id": "code",
+  "item_type": "projects",
+  "entry_type": "list",
+  "required": [
+   "name"
+  ],
+  "properties": [
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "status",
+    "type": "string",
+    "enum": [
+     "active",
+     "planned",
+     "completed"
+    ]
+   },
+   {
+    "name": "description",
+    "type": "string"
+   },
+   {
+    "name": "git_repo_url",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "key": "code/want_to_learn",
+  "app_id": "code",
+  "item_type": "want_to_learn",
+  "entry_type": "list",
+  "required": [
+   "name"
+  ],
+  "properties": [
+   {
+    "name": "name",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "key": "code/coding_setup",
+  "app_id": "code",
+  "item_type": "coding_setup",
+  "entry_type": "list",
+  "required": [
+   "workspace",
+   "ai_level",
+   "input_style"
+  ],
+  "properties": [
+   {
+    "name": "workspace",
+    "type": "string",
+    "enum": [
+     "ide",
+     "terminal",
+     "web_ui",
+     "mixed"
+    ]
+   },
+   {
+    "name": "ai_level",
+    "type": "string",
+    "enum": [
+     "off",
+     "low",
+     "medium",
+     "high"
+    ]
+   },
+   {
+    "name": "input_style",
+    "type": "string",
+    "enum": [
+     "guided_choices",
+     "free_text",
+     "mixed"
+    ]
+   },
+   {
+    "name": "notes",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "key": "docs/writing_style",
+  "app_id": "docs",
+  "item_type": "writing_style",
+  "entry_type": "list",
+  "required": [
+   "name"
+  ],
+  "properties": [
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "description",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "key": "ideabucket/processing_settings",
+  "app_id": "ideabucket",
+  "item_type": "processing_settings",
+  "entry_type": "single",
+  "required": [
+   "processing_prompt",
+   "processing_times"
+  ],
+  "properties": [
+   {
+    "name": "processing_prompt",
+    "type": "string"
+   },
+   {
+    "name": "processing_times",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "key": "events/saved_events",
+  "app_id": "events",
+  "item_type": "saved_events",
+  "entry_type": "list",
+  "required": [
+   "title"
+  ],
+  "properties": [
+   {
+    "name": "embed_id",
+    "type": "string"
+   },
+   {
+    "name": "title",
+    "type": "string"
+   },
+   {
+    "name": "provider",
+    "type": "string"
+   },
+   {
+    "name": "url",
+    "type": "string"
+   },
+   {
+    "name": "date_start",
+    "type": "string"
+   },
+   {
+    "name": "date_end",
+    "type": "string"
+   },
+   {
+    "name": "location",
+    "type": "string"
+   },
+   {
+    "name": "notes",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "key": "health/appointments",
+  "app_id": "health",
+  "item_type": "appointments",
+  "entry_type": "list",
+  "required": [
+   "appointment_type",
+   "date"
+  ],
+  "properties": [
+   {
+    "name": "embed_id",
+    "type": "string"
+   },
+   {
+    "name": "title",
+    "type": "string"
+   },
+   {
+    "name": "appointment_type",
+    "type": "string"
+   },
+   {
+    "name": "where",
+    "type": "string"
+   },
+   {
+    "name": "date",
+    "type": "string"
+   },
+   {
+    "name": "notes",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "key": "health/medical_history",
+  "app_id": "health",
+  "item_type": "medical_history",
+  "entry_type": "list",
+  "required": [
+   "condition_type",
+   "name",
+   "date"
+  ],
+  "properties": [
+   {
+    "name": "condition_type",
+    "type": "string",
+    "enum": [
+     "surgery",
+     "chronic_condition",
+     "allergy",
+     "medication",
+     "vaccination",
+     "injury",
+     "other"
+    ]
+   },
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "date",
+    "type": "string"
+   },
+   {
+    "name": "details",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "key": "home/saved_listings",
+  "app_id": "home",
+  "item_type": "saved_listings",
+  "entry_type": "list",
+  "required": [
+   "title"
+  ],
+  "properties": [
+   {
+    "name": "embed_id",
+    "type": "string"
+   },
+   {
+    "name": "title",
+    "type": "string"
+   },
+   {
+    "name": "url",
+    "type": "string"
+   },
+   {
+    "name": "provider",
+    "type": "string"
+   },
+   {
+    "name": "price_label",
+    "type": "string"
+   },
+   {
+    "name": "address",
+    "type": "string"
+   },
+   {
+    "name": "available_from",
+    "type": "string"
+   },
+   {
+    "name": "notes",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "key": "images/preferred_styles",
+  "app_id": "images",
+  "item_type": "preferred_styles",
+  "entry_type": "list",
+  "required": [
+   "name"
+  ],
+  "properties": [
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "description",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "key": "mail/writing_styles",
+  "app_id": "mail",
+  "item_type": "writing_styles",
+  "entry_type": "list",
+  "required": [
+   "title",
+   "description"
+  ],
+  "properties": [
+   {
+    "name": "title",
+    "type": "string"
+   },
+   {
+    "name": "description",
+    "type": "string"
+   },
+   {
+    "name": "when_to_use",
+    "type": "string"
+   },
+   {
+    "name": "footer",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "key": "reminder/saved_item_reminder_defaults",
+  "app_id": "reminder",
+  "item_type": "saved_item_reminder_defaults",
+  "entry_type": "list",
+  "required": [
+   "item_kind",
+   "offsets_minutes"
+  ],
+  "properties": [
+   {
+    "name": "item_kind",
+    "type": "string",
+    "enum": [
+     "event",
+     "travel_connection",
+     "travel_stay",
+     "home_listing",
+     "health_appointment"
+    ]
+   },
+   {
+    "name": "offsets_minutes",
+    "type": "string"
+   },
+   {
+    "name": "notes",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "key": "study/learning_goals",
+  "app_id": "study",
+  "item_type": "learning_goals",
+  "entry_type": "list",
+  "required": [
+   "topic"
+  ],
+  "properties": [
+   {
+    "name": "topic",
+    "type": "string"
+   },
+   {
+    "name": "difficulty_level",
+    "type": "string",
+    "enum": [
+     "beginner",
+     "intermediate",
+     "advanced"
+    ]
+   },
+   {
+    "name": "deadline",
+    "type": "string"
+   },
+   {
+    "name": "notes",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "key": "travel/trips",
+  "app_id": "travel",
+  "item_type": "trips",
+  "entry_type": "list",
+  "required": [
+   "destination"
+  ],
+  "properties": [
+   {
+    "name": "destination",
+    "type": "string"
+   },
+   {
+    "name": "start_date",
+    "type": "string"
+   },
+   {
+    "name": "end_date",
+    "type": "string"
+   },
+   {
+    "name": "notes",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "key": "travel/saved_connections",
+  "app_id": "travel",
+  "item_type": "saved_connections",
+  "entry_type": "list",
+  "required": [
+   "title"
+  ],
+  "properties": [
+   {
+    "name": "embed_id",
+    "type": "string"
+   },
+   {
+    "name": "title",
+    "type": "string"
+   },
+   {
+    "name": "transport_method",
+    "type": "string"
+   },
+   {
+    "name": "origin",
+    "type": "string"
+   },
+   {
+    "name": "destination",
+    "type": "string"
+   },
+   {
+    "name": "departure",
+    "type": "string"
+   },
+   {
+    "name": "arrival",
+    "type": "string"
+   },
+   {
+    "name": "booking_url",
+    "type": "string"
+   },
+   {
+    "name": "provider",
+    "type": "string"
+   },
+   {
+    "name": "notes",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "key": "travel/saved_stays",
+  "app_id": "travel",
+  "item_type": "saved_stays",
+  "entry_type": "list",
+  "required": [
+   "name"
+  ],
+  "properties": [
+   {
+    "name": "embed_id",
+    "type": "string"
+   },
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "property_type",
+    "type": "string"
+   },
+   {
+    "name": "url",
+    "type": "string"
+   },
+   {
+    "name": "price",
+    "type": "string"
+   },
+   {
+    "name": "rating",
+    "type": "number"
+   },
+   {
+    "name": "location",
+    "type": "string"
+   },
+   {
+    "name": "notes",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "key": "travel/preferred_airlines",
+  "app_id": "travel",
+  "item_type": "preferred_airlines",
+  "entry_type": "list",
+  "required": [
+   "name"
+  ],
+  "properties": [
+   {
+    "name": "name",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "key": "travel/preferred_transport_methods",
+  "app_id": "travel",
+  "item_type": "preferred_transport_methods",
+  "entry_type": "list",
+  "required": [
+   "method"
+  ],
+  "properties": [
+   {
+    "name": "method",
+    "type": "string",
+    "enum": [
+     "bike",
+     "public_transport",
+     "train",
+     "plane",
+     "car",
+     "walking"
+    ]
+   }
+  ]
+ },
+ {
+  "key": "travel/preferred_activities",
+  "app_id": "travel",
+  "item_type": "preferred_activities",
+  "entry_type": "list",
+  "required": [
+   "name"
+  ],
+  "properties": [
+   {
+    "name": "name",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "key": "tv/watched_movies",
+  "app_id": "tv",
+  "item_type": "watched_movies",
+  "entry_type": "list",
+  "required": [
+   "title"
+  ],
+  "properties": [
+   {
+    "name": "title",
+    "type": "string"
+   },
+   {
+    "name": "year",
+    "type": "integer"
+   },
+   {
+    "name": "director",
+    "type": "string"
+   },
+   {
+    "name": "rating",
+    "type": "number"
+   },
+   {
+    "name": "tmdb_id",
+    "type": "integer"
+   },
+   {
+    "name": "notes",
+    "type": "string"
+   },
+   {
+    "name": "genre",
+    "type": "array"
+   }
+  ]
+ },
+ {
+  "key": "tv/watched_tv_shows",
+  "app_id": "tv",
+  "item_type": "watched_tv_shows",
+  "entry_type": "list",
+  "required": [
+   "title"
+  ],
+  "properties": [
+   {
+    "name": "title",
+    "type": "string"
+   },
+   {
+    "name": "year",
+    "type": "integer"
+   },
+   {
+    "name": "tmdb_id",
+    "type": "integer"
+   },
+   {
+    "name": "status",
+    "type": "string",
+    "enum": [
+     "watching",
+     "completed",
+     "on_hold",
+     "dropped"
+    ]
+   },
+   {
+    "name": "seasons_watched",
+    "type": "integer"
+   },
+   {
+    "name": "latest_episode",
+    "type": "string"
+   },
+   {
+    "name": "rating",
+    "type": "number"
+   },
+   {
+    "name": "notes",
+    "type": "string"
+   },
+   {
+    "name": "genre",
+    "type": "array"
+   }
+  ]
+ },
+ {
+  "key": "tv/to_watch_list",
+  "app_id": "tv",
+  "item_type": "to_watch_list",
+  "entry_type": "list",
+  "required": [
+   "title",
+   "type"
+  ],
+  "properties": [
+   {
+    "name": "title",
+    "type": "string"
+   },
+   {
+    "name": "year",
+    "type": "integer"
+   },
+   {
+    "name": "type",
+    "type": "string",
+    "enum": [
+     "movie",
+     "tv_show"
+    ]
+   },
+   {
+    "name": "tmdb_id",
+    "type": "integer"
+   },
+   {
+    "name": "director",
+    "type": "string"
+   },
+   {
+    "name": "priority",
+    "type": "string",
+    "enum": [
+     "high",
+     "medium",
+     "low"
+    ]
+   },
+   {
+    "name": "genre",
+    "type": "array"
+   },
+   {
+    "name": "reason",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "key": "videos/to_watch_list",
+  "app_id": "videos",
+  "item_type": "to_watch_list",
+  "entry_type": "list",
+  "required": [
+   "name",
+   "url"
+  ],
+  "properties": [
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "url",
+    "type": "string"
+   },
+   {
+    "name": "channel",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "key": "web/bookmarks",
+  "app_id": "web",
+  "item_type": "bookmarks",
+  "entry_type": "list",
+  "required": [
+   "url"
+  ],
+  "properties": [
+   {
+    "name": "url",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "key": "web/read_later",
+  "app_id": "web",
+  "item_type": "read_later",
+  "entry_type": "list",
+  "required": [
+   "url"
+  ],
+  "properties": [
+   {
+    "name": "url",
+    "type": "string"
+   },
+   {
+    "name": "notes",
+    "type": "string"
+   }
+  ]
+ }
+]

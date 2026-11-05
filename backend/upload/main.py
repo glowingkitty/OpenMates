@@ -182,7 +182,7 @@ app.add_middleware(
     ],
     allow_credentials=True,
     allow_methods=["POST", "OPTIONS"],
-    allow_headers=["Content-Type", "X-Requested-With"],
+    allow_headers=["Content-Type", "X-Requested-With", "X-OpenMates-Expected-Principal"],
 )
 
 # Attach rate limiter error handler

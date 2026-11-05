@@ -1,45 +1,29 @@
 #!/bin/bash
 # Hook: Stop
-# Checks if the active session has tracked files with uncommitted changes.
-# Non-blocking — just adds a reminder as context.
+# Reminds about undeployed tracked files of THIS conversation's session.
+# Non-blocking — only adds a short reminder.
 
 INPUT=$(cat)
-
-# Avoid infinite loop: if stop_hook_active is true, we're in a re-run
 STOP_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false')
-if [ "$STOP_ACTIVE" = "true" ]; then
-  exit 0
-fi
+[ "$STOP_ACTIVE" = "true" ] && exit 0
 
 PROJECT_DIR="/home/superdev/projects/OpenMates"
 SESSIONS_FILE="$PROJECT_DIR/.claude/sessions.json"
+# shellcheck source=lib/current-session.sh
+source "$(dirname "$0")/lib/current-session.sh"
 
-if [ ! -f "$SESSIONS_FILE" ]; then
-  exit 0
-fi
-
-# Get the most recent session's tracked files
-SESSION_ID=$(jq -r '[.sessions | to_entries[] | .key] | last // empty' "$SESSIONS_FILE" 2>/dev/null)
+CLAUDE_ID=$(echo "$INPUT" | jq -r '.session_id // empty')
+CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
+SESSION_ID=$(current_session_id "${CLAUDE_ID:-$CLAUDE_CODE_SESSION_ID}" "$CWD" "$SESSIONS_FILE")
 [ -z "$SESSION_ID" ] && exit 0
 
-TRACKED_FILES=$(jq -r --arg id "$SESSION_ID" '.sessions[$id].modified_files // [] | .[]' "$SESSIONS_FILE" 2>/dev/null)
-[ -z "$TRACKED_FILES" ] && exit 0
-SESSION_REPO_ROOT=$(jq -r --arg id "$SESSION_ID" '.sessions[$id].repo_root // empty' "$SESSIONS_FILE" 2>/dev/null)
-[ -z "$SESSION_REPO_ROOT" ] && SESSION_REPO_ROOT="$PROJECT_DIR"
+ROOT=$(jq -r --arg id "$SESSION_ID" '.sessions[$id].worktree.path // .sessions[$id].repo_root // empty' "$SESSIONS_FILE" 2>/dev/null)
+[ -z "$ROOT" ] && ROOT="$PROJECT_DIR"
+cd "$ROOT" 2>/dev/null || exit 0
 
-# Check which tracked files are dirty in git
-cd "$SESSION_REPO_ROOT" || exit 0
-DIRTY_FILES=""
-while IFS= read -r f; do
-  if git diff --name-only HEAD 2>/dev/null | grep -qF "$f" || \
-     git diff --name-only 2>/dev/null | grep -qF "$f" || \
-     git status --porcelain 2>/dev/null | grep -qF "$f"; then
-    DIRTY_FILES="$DIRTY_FILES  - $f\n"
-  fi
-done <<< "$TRACKED_FILES"
-
-if [ -n "$DIRTY_FILES" ]; then
-  echo -e "REMINDER: Session $SESSION_ID has uncommitted tracked files:\n$DIRTY_FILES\nRun: python3 scripts/sessions.py deploy --session $SESSION_ID --title \"type: description\" --end"
-fi
-
+DIRTY=$(git status --porcelain 2>/dev/null | head -10)
+[ -z "$DIRTY" ] && exit 0
+echo "REMINDER: session $SESSION_ID has undeployed changes in $ROOT:"
+echo "$DIRTY"
+echo "Deploy when done: python3 scripts/sessions.py deploy --session $SESSION_ID --title \"type: description\" --message \"why + verification\""
 exit 0

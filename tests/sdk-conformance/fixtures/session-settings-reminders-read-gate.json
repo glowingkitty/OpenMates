@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "provenance": "Gate projection only; the pinned raw fixture remains canonical. Runtime acceptance pending actual isolated Rust/npm/Python execution.",
+  "capabilities": {
+    "session.settings-reminders-read": {
+      "source_fixture": "tests/sdk-conformance/fixtures/session-settings-reminders-read.json",
+      "source_sha256": "78885103ff46073bb19c0dc9f7b10373f84e06889f0440cf5888c79c0be7ea18",
+      "vectors": [
+        {
+          "id": "complete-encrypted-raw-response"
+        },
+        {
+          "id": "null"
+        },
+        {
+          "id": "array"
+        },
+        {
+          "id": "scalar"
+        },
+        {
+          "id": "empty-body"
+        },
+        {
+          "id": "malformed-json"
+        },
+        {
+          "id": "html-body"
+        },
+        {
+          "id": "cookie-rotation-malformed-body"
+        },
+        {
+          "id": "invalid-cookie-malformed-body"
+        },
+        {
+          "id": "oversize-malformed-body"
+        },
+        {
+          "id": "owner-denial"
+        },
+        {
+          "id": "forbidden-malformed-body"
+        },
+        {
+          "id": "expired-malformed-body"
+        },
+        {
+          "id": "server-error-malformed-body"
+        },
+        {
+          "id": "no-session"
+        },
+        {
+          "id": "one-429-retry-cookie-preserved"
+        },
+        {
+          "id": "second-429-no-third-retry"
+        },
+        {
+          "id": "429-cookie-failure-no-retry"
+        },
+        {
+          "id": "429-body-limit-no-retry"
+        },
+        {
+          "id": "redirect-malformed-body"
+        },
+        {
+          "id": "truncate-body"
+        },
+        {
+          "id": "cancel-body"
+        },
+        {
+          "id": "cancel-retry"
+        },
+        {
+          "id": "root-insertion-order"
+        },
+        {
+          "id": "root-js-index-order"
+        },
+        {
+          "id": "root-duplicate-escaped-order"
+        },
+        {
+          "id": "valid-depth129-refuses"
+        },
+        {
+          "id": "valid-numeric-range-refuses"
+        }
+      ]
+    }
+  }
+}

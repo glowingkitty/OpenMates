@@ -436,7 +436,8 @@
   .app-map-header { width: 100%; height: clamp(120px, 24dvh, 240px); border-radius: var(--radius-6); overflow: hidden; }
   .app-map-header :global(.leaflet-bottom.leaflet-left .leaflet-control-zoom) { display: flex; margin: var(--spacing-8) !important; border-radius: var(--radius-full); overflow: hidden; }
   .app-map-header :global(.leaflet-control-zoom a) { width: 2.5rem !important; height: 2.5rem !important; line-height: 2.5rem; border-radius: 0 !important; }
-  .app-home { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; padding: var(--spacing-8) 0 var(--spacing-6); box-sizing: border-box; }
+  /* Natural height: the host scrolls on short screens instead of clipping fixed-height previews. */
+  .app-home { display: flex; flex-direction: column; flex: 1 0 auto; min-width: 0; padding: var(--spacing-8) 0 var(--spacing-6); box-sizing: border-box; }
   .app-actions { flex-shrink: 0; display: flex; justify-content: space-between; padding: 0 var(--spacing-8); }
   .app-actions > div { display: flex; gap: var(--spacing-6); }
   .circle-action { border: 0; border-radius: var(--radius-full); width: 2.5rem; min-width: 0; height: 2.5rem; flex: 0 0 2.5rem; padding: 0; margin: 0; filter: none; box-sizing: border-box; background: var(--color-grey-0); box-shadow: var(--shadow-md); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
@@ -444,10 +445,15 @@
   .icon_heart { mask-image: url('@openmates/ui/static/icons/heart.svg'); -webkit-mask-image: url('@openmates/ui/static/icons/heart.svg'); }
   .icon_history { mask-image: url('@openmates/ui/static/icons/time.svg'); -webkit-mask-image: url('@openmates/ui/static/icons/time.svg'); }
   .app-greeting { flex-shrink: 0; text-align: center; margin: var(--spacing-6) var(--spacing-12); }
-  .app-greeting h2, .app-greeting p { margin: var(--spacing-2) 0; font-size: var(--font-size-p); }
-  .app-carousel { flex: 1; min-height: 0; display: flex; align-items: center; gap: var(--spacing-12); overflow-x: auto; overflow-y: hidden; padding: var(--spacing-8) max(var(--spacing-12), calc(50% - 9.375rem)) var(--spacing-12); scrollbar-width: none; }
+  /* Matches WorkspaceHomeShell heading/subtitle typography. */
+  .app-greeting h2 { margin: 0; color: var(--color-grey-80); font-size: var(--font-size-h2-mobile); font-weight: 600; line-height: 1.15; }
+  .app-greeting p { margin: var(--spacing-4) 0 0; color: var(--color-grey-60); font-size: var(--font-size-p); font-weight: 600; }
+  /* Never shorter than its cards; vertical padding leaves room for card shadows. Inline padding centers one 300px card down to 320px hosts. */
+  .app-carousel { flex: 1 0 auto; display: flex; align-items: center; gap: var(--spacing-12); overflow-x: auto; overflow-y: hidden; padding: var(--spacing-8) max(var(--spacing-4), calc(50% - 9.375rem)) var(--spacing-12); box-sizing: border-box; scrollbar-width: none; }
   .app-carousel::-webkit-scrollbar { display: none; }
-  .preview-card { flex: 0 0 18.75rem; width: 18.75rem; }
+  /* Cards stay 300px but never exceed the carousel on hosts narrower than one card (e.g. 320px phones inside the fullscreen inset). */
+  .preview-card, .app-carousel > :global(.resume-chat-large-card) { flex: 0 0 min(18.75rem, 100%); width: min(18.75rem, 100%); min-width: 0; }
+  .preview-card :global(.unified-embed-preview.desktop) { width: 100%; min-width: 0; }
   .more-results { flex: 0 0 auto; font: inherit; color: var(--color-primary); background: var(--color-grey-0); border: 0; padding: var(--spacing-8); border-radius: var(--radius-5); cursor: pointer; }
   .library-tabs { flex-shrink: 0; display: flex; justify-content: center; gap: var(--spacing-12); padding: var(--spacing-4) var(--spacing-8); }
   .library-tabs button { display: inline-flex; align-items: center; gap: var(--spacing-4); font: inherit; color: var(--color-font-secondary); background: transparent; border: 0; cursor: pointer; padding: var(--spacing-4); }
@@ -459,7 +465,6 @@
   @media (max-width: 730px) {
     .apps-workspace.with-sidebar { grid-template-columns: minmax(0, 1fr); }
     .with-sidebar > :global(.apps-sidebar) { position: absolute; inset: 0 12% 0 0; z-index: calc(var(--z-index-overlay, 100) + 3); box-shadow: var(--shadow-lg); }
-    .preview-card { flex-basis: 18.75rem; }
     .app-map-header { height: clamp(110px, 24dvh, 190px); }
   }
 </style>

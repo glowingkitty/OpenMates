@@ -17,11 +17,12 @@
 <script lang="ts">
 import { storageArchiveFetch } from "@repo/ui";
 
+    import { authoredSharedChildMatches, selectedSharedChildren, selectedSharedKeyWrappers, sharedEmbedType } from '../sharedEmbedGraph';
     import { onMount } from 'svelte';
     import { page } from '$app/stores';
     import { browser } from '$app/environment';
     import { goto } from '$app/navigation';
-    import { dispatchEmbedFullscreen, getApiEndpoint, setCanonicalFullscreenRoute } from '@repo/ui';
+    import { decodeToonContent, dispatchEmbedFullscreen, getApiEndpoint, setCanonicalFullscreenRoute } from '@repo/ui';
     import type { EmbedKeyEntry, EmbedType, SyncCodeRunOutput, SyncEmbed } from '@repo/ui';
 
     type SharedEmbedKeyEntry = Omit<EmbedKeyEntry, 'key_type'> & {
@@ -295,6 +296,12 @@ import { storageArchiveFetch } from "@repo/ui";
                 return;
             }
 
+            const decodedRoot = await decodeToonContent(decryptedContent);
+            const rootType = sharedEmbedType(decryptedType, decodedRoot, fetchedEmbed.embed_type);
+            if (!rootType) throw new Error('Shared embed type is unavailable');
+            const selectedChildren = selectedSharedChildren(fetchedEmbed, decodedRoot, fetchedChildEmbeds);
+            const childKeys = new Map<string, Uint8Array>();
+
             // Store embed in IndexedDB
             // Since we've already decrypted the content, we can store it as plaintext content
             // The embedStore will handle re-encryption if needed, or we store it with the decrypted content
@@ -329,8 +336,9 @@ import { storageArchiveFetch } from "@repo/ui";
                 embed_id: fetchedEmbed.embed_id || embedId,
                 status: fetchedEmbed.status || 'finished',
                 hashed_chat_id: fetchedEmbed.hashed_chat_id,
-                hashed_user_id: fetchedEmbed.hashed_user_id
-            }, (decryptedType || (fetchedEmbed.encrypted_type ? 'app-skill-use' : fetchedEmbed.embed_type || 'app-skill-use')) as EmbedType, decryptedContent || undefined);
+                hashed_user_id: fetchedEmbed.hashed_user_id,
+                embed_ids: selectedChildren.map(child => child.embed_id),
+            }, rootType as EmbedType, decryptedContent || undefined);
 
             // Process embed_keys if any - unwrap them with main embed key and store
             // This is for child embeds that have their keys wrapped with the parent embed key
@@ -339,9 +347,11 @@ import { storageArchiveFetch } from "@repo/ui";
             // Compute hashed_embed_id for matching embed_keys
             const hashedEmbedId = await computeSHA256(embedId);
 
-            if (fetchedEmbedKeys && fetchedEmbedKeys.length > 0) {
+            const childHashes = new Set(await Promise.all(selectedChildren.map(child => computeSHA256(child.embed_id))));
+            const recipientKeys = selectedSharedKeyWrappers(fetchedEmbedKeys, hashedEmbedId, childHashes);
+            if (recipientKeys.length > 0) {
                 // Store embed keys and unwrap them with parent embed key
-                for (const keyEntry of fetchedEmbedKeys) {
+                for (const keyEntry of recipientKeys) {
                     try {
                         // Only process key entries for this embed (key_type='embed' with matching hashed_embed_id as parent_embed_id)
                         if (keyEntry.key_type === 'embed' && keyEntry.parent_embed_id === hashedEmbedId) {
@@ -350,10 +360,11 @@ import { storageArchiveFetch } from "@repo/ui";
                             if (childEmbedKey) {
                                 // Find matching child embed by computing hashed_embed_id from embed_id
                                 // We need to match keyEntry.hashed_embed_id with computed hash of each child embed's embed_id
-                                for (const childEmbed of fetchedChildEmbeds) {
+                                for (const childEmbed of selectedChildren) {
                                     if (childEmbed.embed_id) {
                                         const childEmbedIdHash = await computeSHA256(childEmbed.embed_id);
                                         if (childEmbedIdHash === keyEntry.hashed_embed_id) {
+                                            childKeys.set(childEmbed.embed_id, childEmbedKey);
                                             // Found matching child embed
                                             // Store the unwrapped child embed key in cache for decryption
                                             // Cache with both hashed_chat_id and 'master' to ensure it can be found
@@ -380,14 +391,9 @@ import { storageArchiveFetch } from "@repo/ui";
                     }
                 }
 
-                // Also store the raw embed_keys entries in IndexedDB for future use
-                const storableEmbedKeys = fetchedEmbedKeys.filter(
-                    (entry): entry is EmbedKeyEntry => entry.key_type === 'master' || entry.key_type === 'chat'
-                );
-                if (storableEmbedKeys.length > 0) {
-                    await embedStore.storeEmbedKeys(storableEmbedKeys);
-                    console.debug(`[ShareEmbed] Stored ${storableEmbedKeys.length} embed keys`);
-                }
+                // Root fragment + admitted child wrappers are sufficient. Never
+                // import the owner's unrelated master/chat wrapping authority.
+
             }
 
             if (fetchedCodeRunOutputs && fetchedCodeRunOutputs.length > 0) {
@@ -397,9 +403,9 @@ import { storageArchiveFetch } from "@repo/ui";
             }
 
             // Store child embeds if any
-            if (fetchedChildEmbeds && fetchedChildEmbeds.length > 0) {
-                console.debug(`[ShareEmbed] Storing ${fetchedChildEmbeds.length} child embeds...`);
-                for (const childEmbed of fetchedChildEmbeds) {
+            if (selectedChildren.length > 0) {
+                console.debug(`[ShareEmbed] Storing ${selectedChildren.length} child embeds...`);
+                for (const childEmbed of selectedChildren) {
                     try {
                         // Validate child embed has required fields
                         if (!childEmbed.embed_id) {
@@ -436,24 +442,17 @@ import { storageArchiveFetch } from "@repo/ui";
                             }
                         }
                         
-                        // CRITICAL: For shared embeds, child embeds inherit the parent embed's key (Option A - key inheritance)
-                        // Cache the parent embed key for this child embed so it can be used for decryption
-                        // This implements the key inheritance architecture where child embeds use parent's key
-                        embedStore.setEmbedKeyInCache(
-                            childEmbed.embed_id,
-                            result.embedKey, // Use parent embed's key from URL
-                            childEmbed.hashed_chat_id
-                        );
-                        // Also cache with 'master' as fallback (in case getEmbedKey is called without hashedChatId)
-                        embedStore.setEmbedKeyInCache(
-                            childEmbed.embed_id,
-                            result.embedKey, // Use parent embed's key from URL
-                            undefined // 'master' cache key
-                        );
-                        console.debug('[ShareEmbed] Cached parent embed key for child embed:', childEmbed.embed_id, 'using parent key from URL');
-                        
-                        // Store the child embed with its already-encrypted content (no re-encryption)
-                        // Child embeds are encrypted with the parent embed's key (key inheritance - Option A)
+                        // Existing key inheritance remains the legacy fallback;
+                        // an explicitly wrapped child key must never be overwritten.
+                        const childKey = childKeys.get(childEmbed.embed_id) ?? result.embedKey;
+                        const childContent = await decryptWithEmbedKey(cleanedChildContent, childKey);
+                        if (!childContent) continue;
+                        const childType = cleanedChildType ? await decryptWithEmbedKey(cleanedChildType, childKey) : null;
+                        const decodedChild = await decodeToonContent(childContent);
+                        const nodeType = sharedEmbedType(childType, decodedChild, childEmbed.embed_type);
+                        if (!nodeType || !authoredSharedChildMatches(decodedRoot, childEmbed.embed_id, decodedChild, childType)) continue;
+                        embedStore.setEmbedKeyInCache(childEmbed.embed_id, childKey, childEmbed.hashed_chat_id);
+                        embedStore.setEmbedKeyInCache(childEmbed.embed_id, childKey, undefined);
                         await embedStore.putEncrypted(childContentRef, {
                             encrypted_content: cleanedChildContent,
                             encrypted_type: cleanedChildType,
@@ -461,9 +460,9 @@ import { storageArchiveFetch } from "@repo/ui";
                             status: childEmbed.status || 'finished',
                             hashed_chat_id: childEmbed.hashed_chat_id,
                             hashed_user_id: childEmbed.hashed_user_id,
-                            parent_embed_id: embedId // Set parent_embed_id so getEmbedKey can find parent key
-                        }, (childEmbed.encrypted_type ? 'app-skill-use' : childEmbed.embed_type || 'app-skill-use') as EmbedType);
-                        
+                            parent_embed_id: embedId,
+                        }, nodeType as EmbedType, childContent);
+
                         // Verify child embed can be retrieved and decrypted
                         const verifyChildEmbed = await embedStore.get(childContentRef);
                         if (!hasContent(verifyChildEmbed)) {
@@ -483,7 +482,7 @@ import { storageArchiveFetch } from "@repo/ui";
                         // Continue with other child embeds even if one fails
                     }
                 }
-                console.debug(`[ShareEmbed] Completed processing ${fetchedChildEmbeds.length} child embeds`);
+                console.debug(`[ShareEmbed] Completed processing ${selectedChildren.length} child embeds`);
             }
 
             console.debug('[ShareEmbed] Successfully stored embed and child embeds in IndexedDB');
@@ -498,10 +497,10 @@ import { storageArchiveFetch } from "@repo/ui";
                 console.debug('[ShareEmbed] Embed verified and decrypted successfully');
                 
                 // Also verify child embeds are accessible if this is a composite embed
-                if (fetchedChildEmbeds && fetchedChildEmbeds.length > 0) {
+                if (selectedChildren.length > 0) {
                     console.debug('[ShareEmbed] Verifying child embeds are accessible...');
                     let verifiedCount = 0;
-                    for (const childEmbed of fetchedChildEmbeds) {
+                    for (const childEmbed of selectedChildren) {
                         if (childEmbed.embed_id) {
                             const childVerify = await embedStore.get(`embed:${childEmbed.embed_id}`);
                             if (hasContent(childVerify)) {
@@ -511,7 +510,7 @@ import { storageArchiveFetch } from "@repo/ui";
                             }
                         }
                     }
-                    console.debug(`[ShareEmbed] Verified ${verifiedCount}/${fetchedChildEmbeds.length} child embeds are accessible`);
+                    console.debug(`[ShareEmbed] Verified ${verifiedCount}/${selectedChildren.length} child embeds are accessible`);
                 }
             }
             
@@ -525,18 +524,8 @@ import { storageArchiveFetch } from "@repo/ui";
             // This ensures the embedfullscreen event listener is registered
             await new Promise(resolve => setTimeout(resolve, 300));
 
-            // Determine embed type from the fetched embed data
-            // encrypted_type indicates app-skill-use embeds, otherwise use the direct embed_type
-            let embedType = 'app-skill-use'; // Default for most embeds
-            if (fetchedEmbed.encrypted_type) {
-                // This is an app-skill-use embed (most common)
-                embedType = 'app-skill-use';
-            } else {
-                // This could be a direct embed like 'web-website', 'videos-video', etc.
-                // The exact type will be determined by handleEmbedFullscreen based on decoded content
-                embedType = 'app-skill-use'; // Safe default since most embeds are app-skill-use
-            }
-
+            // Route the authenticated decrypted record through the same generated
+            // registry as chat; encrypted_type presence does not mean execution.
             setCanonicalFullscreenRoute(embedId, { origin: 'shared' });
 
             // Dispatch through the shared fullscreen controller so shared embeds
@@ -546,7 +535,7 @@ import { storageArchiveFetch } from "@repo/ui";
                 // Let handleEmbedFullscreen load and decode the embed content
                 embedData: null,
                 decodedContent: null,
-                embedType: embedType,
+                embedType: rootType,
                 attrs: null
             });
 

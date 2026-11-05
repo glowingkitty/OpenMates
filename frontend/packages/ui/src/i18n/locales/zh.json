@@ -99,6 +99,12 @@
         "description": {
           "text": "筛选易记的名称，再检查候选域名和商标冲突。"
         }
+      },
+      "price_products": {
+        "text": "为你的产品定价",
+        "description": {
+          "text": "借助可编辑的实时表格，算出手工或小批量产品该定什么价。"
+        }
       }
     },
     "code": {
@@ -184,6 +190,14 @@
         "text": "检查安全性",
         "description": {
           "text": "审核配置文件是否存在安全漏洞 and 暴露。"
+        }
+      }
+    },
+    "events": {
+      "plan_conference_talk": {
+        "text": "规划会议演讲",
+        "description": {
+          "text": "决定向会议提交哪个演讲，并把它打磨成有力的提案。"
         }
       }
     },
@@ -336,6 +350,14 @@
         }
       }
     },
+    "tasks": {
+      "daily_meeting_and_orchestration": {
+        "text": "每日会议与协调",
+        "description": {
+          "text": "选定今天的优先事项，并协调项目任务和聊天直到完成。"
+        }
+      }
+    },
     "videos": {
       "analyze_video": {
         "text": "分析视频",
@@ -383,6 +405,14 @@
           "3": {
             "text": "调查快时尚兴起的**原因**及其对环境的影响"
           }
+        }
+      }
+    },
+    "workflows": {
+      "clarify_workflows": {
+        "text": "澄清工作流",
+        "description": {
+          "text": "在创建或修改一个或多个工作流之前，补齐缺失的细节。"
         }
       }
     }
@@ -1512,6 +1542,15 @@
       "preview_hide": {
         "text": "隐藏预览"
       },
+      "view_code": {
+        "text": "查看代码"
+      },
+      "view_visual": {
+        "text": "查看可视化"
+      },
+      "interactive_html_blocked": {
+        "text": "此可视化内容试图打开其他页面，已被阻止。"
+      },
       "search_repos": {
         "text": "搜索仓库",
         "description": {
@@ -2464,7 +2503,7 @@
       "browse": {
         "text": "浏览",
         "description": {
-          "text": "浏览网站并以 JSON 返回观察到的信息。"
+          "text": "浏览网站并返回 JSON。浏览器计算按秒计费，外加 AI 使用费。暂停计算不收费。"
         }
       }
     },
@@ -2480,6 +2519,12 @@
           "text": "搜索工作流",
           "description": {
             "text": "查找符合聊天意图的用户自有工作流。"
+          }
+        },
+        "run": {
+          "text": "运行工作流",
+          "description": {
+            "text": "在聊天中运行你现有的某个工作流。"
           }
         }
       }
@@ -4157,6 +4202,12 @@
       },
       "remember": {
         "text": "Remember"
+      },
+      "more_options": {
+        "text": "显示更多选项"
+      },
+      "previous_options": {
+        "text": "显示上一组选项"
       }
     },
     "explain_in_new_chat": {
@@ -7327,9 +7378,6 @@
     "view_on_google_hotels": {
       "text": "在 Google Hotels 上查看"
     },
-    "view_on_meetup": {
-      "text": "在 Gathering 上查看"
-    },
     "loading_map": {
       "text": "正在加载地图..."
     },
@@ -7840,6 +7888,9 @@
         },
         "not_available": {
           "text": "不适用"
+        },
+        "cash_flow": {
+          "text": "现金流"
         }
       },
       "search_trademarks": {
@@ -8074,6 +8125,11 @@
         "text": "Watermarking"
       }
     },
+    "search_domain": {
+      "minutes": {
+        "text": "{count} 分钟"
+      }
+    },
     "projects": {
       "references": {
         "subtitle": {
@@ -8258,6 +8314,139 @@
       },
       "stopping": {
         "text": "正在停止…"
+      },
+      "no_frame": {
+        "text": "没有可用的已保存截图。"
+      }
+    },
+    "authoring": {
+      "draft": {
+        "text": "草稿"
+      },
+      "user_provided": {
+        "text": "用户提供"
+      },
+      "sources": {
+        "text": "来源"
+      },
+      "observed_at": {
+        "text": "观测时间"
+      },
+      "image_credit": {
+        "text": "图片署名"
+      },
+      "partial": {
+        "text": "部分结果"
+      },
+      "uploaded_source": {
+        "text": "已上传的来源"
+      },
+      "approximate_location": {
+        "text": "大致位置"
+      },
+      "schematic_route": {
+        "text": "示意路线"
+      },
+      "unmapped": {
+        "text": "暂无位置信息"
+      },
+      "open_source": {
+        "text": "打开来源页面"
+      },
+      "open_domain": {
+        "text": "在 {domain} 打开"
+      },
+      "additional_times": {
+        "text": "其他时间"
+      }
+    },
+    "tv": {
+      "movie": {
+        "text": "电影"
+      },
+      "series": {
+        "text": "电视剧"
+      },
+      "poster_unavailable": {
+        "text": "暂无海报"
+      },
+      "synopsis": {
+        "text": "剧情简介"
+      },
+      "release_date": {
+        "text": "上映日期"
+      },
+      "runtime": {
+        "text": "片长"
+      },
+      "genres": {
+        "text": "类型"
+      },
+      "directors": {
+        "text": "导演"
+      },
+      "creators": {
+        "text": "主创"
+      },
+      "cast": {
+        "text": "演员"
+      },
+      "language": {
+        "text": "原始语言"
+      },
+      "countries": {
+        "text": "国家和地区"
+      },
+      "content_rating": {
+        "text": "分级"
+      },
+      "score": {
+        "text": "来源评分"
+      },
+      "score_votes": {
+        "text": "{count} 次评分"
+      },
+      "first_air_date": {
+        "text": "首播日期"
+      },
+      "last_air_date": {
+        "text": "最近播出日期"
+      },
+      "series_status": {
+        "text": "剧集状态"
+      },
+      "season_count": {
+        "text": "{count} 季"
+      },
+      "episodes": {
+        "text": "集数"
+      },
+      "episode_count": {
+        "text": "{count} 集"
+      },
+      "season": {
+        "text": "第 {number} 季"
+      },
+      "specials": {
+        "text": "特别篇"
+      },
+      "supplied_seasons": {
+        "text": "已提供的季信息"
+      },
+      "partial_seasons": {
+        "text": "仅显示已提供的季信息。"
+      },
+      "year": {
+        "text": "年份"
+      },
+      "preparing": {
+        "text": "正在准备条目…"
+      },
+      "cancelled": {
+        "text": "已取消创建条目"
+      },
+      "unavailable": {
+        "text": "条目不可用"
       }
     }
   },
@@ -8612,10 +8801,10 @@
     },
     "pii": {
       "banner_title": {
-        "text": "检测到敏感数据"
+        "text": "检测到 {count}× 敏感数据"
       },
       "banner_description": {
-        "text": "发现 {summary}。发送前将用占位符替换。单击高亮文本以保留原始内容。"
+        "text": "发送前将替换为占位符。点击高亮文本即可改为发送原文。"
       },
       "undo_all": {
         "text": "撤销所有替换"
@@ -9089,6 +9278,70 @@
       },
       "follow_up_6": {
         "text": "比较格森星人与欧安卡利人的外星生物特征"
+      }
+    },
+    "browse_example_domain": {
+      "title": {
+        "text": "以 JSON 格式提取网站信息"
+      },
+      "summary": {
+        "text": "浏览 Example Domain 并以结构化 JSON 形式返回其完整声明及来源 URL。"
+      },
+      "message_1": {
+        "text": "使用 Web 应用的 Browse 技能从 [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a) 中提取完整的可见英文声明。返回包含两个必填字段的 JSON：purpose（逐字包含完整声明及其注意事项）和 source_url（包含当前页面 URL）。这是一项提取任务，不需要额外的网站交互。将浏览器会话限制在 40 个额度内。"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bac3644b-0f9c-48cd-bad9-22d265d938a1\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\n提取已完成。结果如下：\n\n```json\n{\"type\": \"code\", \"embed_id\": \"88b9349a-9529-4835-a507-f54e5f24a30f\"}\n```\n\n该页面是标准的 Example Domain 占位符，上述声明是其完整的可见英文文本，包括关于它不是一项服务且不应依赖其进行测试或监控的注意事项。"
+      },
+      "follow_up_1": {
+        "text": "搜索其他占位符域名和标准模板"
+      },
+      "follow_up_2": {
+        "text": "解释 Example Domain 通常如何用于文档编写"
+      },
+      "follow_up_3": {
+        "text": "浏览另一个网站 URL 以获取其文本内容"
+      },
+      "follow_up_4": {
+        "text": "列出 Web 开发中常见的占位文本惯例"
+      },
+      "follow_up_5": {
+        "text": "直接从提供的 URL 读取公开的 HTTPS 页面"
+      },
+      "follow_up_6": {
+        "text": "将 Example Domain 与其他保留的测试域名进行比较"
+      }
+    },
+    "browse_heading_json": {
+      "title": {
+        "text": "使用“浏览”功能阅读网页"
+      },
+      "summary": {
+        "text": "使用浏览器查找页面标题，并以 JSON 格式返回结果及其源 URL。"
+      },
+      "message_1": {
+        "text": "使用“浏览”技能打开 [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821)，并以 JSON 格式返回准确的主标题和源 URL。请在此任务中使用浏览器会话。"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"5f0e7070-da89-4cd1-9447-52f63f4fd826\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\n“浏览”会话已打开页面并返回以下内容：\n\n```json\n{\"type\": \"code\", \"embed_id\": \"c0e67189-7fb4-4e88-a3ab-f66d75ea01a2\"}\n```\n\n位于 `https://httpbin.org/html` 的页面提供了一个示例 HTML 文档，其主标题为 **“Herman Melville - Moby-Dick”**（该小说第一章“Loomings”的片段）。"
+      },
+      "follow_up_1": {
+        "text": "搜索赫尔曼·梅尔维尔《白鲸》的历史分析"
+      },
+      "follow_up_2": {
+        "text": "解释《白鲸》开篇章节的意义"
+      },
+      "follow_up_3": {
+        "text": "阅读关于网页浏览器自动化技术的公开文档"
+      },
+      "follow_up_4": {
+        "text": "比较阅读经典文学作品的不同数字格式"
+      },
+      "follow_up_5": {
+        "text": "搜索包含经典美国小说的在线文学档案"
+      },
+      "follow_up_6": {
+        "text": "总结赫尔曼·梅尔维尔作品的主要主题"
       }
     },
     "building_maintenance_email": {
@@ -10775,6 +11028,12 @@
         "text": "- 了解需求\n- 筛选名称\n- 检查最终候选\n- 比较证据。"
       }
     },
+    "business_price_products": {
+      "text": "为你的产品定价",
+      "description": {
+        "text": "借助可编辑的实时表格，算出手工或小批量产品该定什么价。"
+      }
+    },
     "code_analyze_logs": {
       "text": "分析日志",
       "description": {
@@ -10902,6 +11161,12 @@
       },
       "systemprompt": {
         "text": "你是一位编程专家。"
+      }
+    },
+    "events_plan_conference_talk": {
+      "text": "规划会议演讲",
+      "description": {
+        "text": "决定向会议提交哪个演讲，并把它打磨成有力的提案。"
       }
     },
     "jobs_career_insights": {
@@ -11048,6 +11313,12 @@
         "text": "你是一位专业的教育和职业顾问。你的角色是通过深思熟虑、战略性的提问帮助用户发现合适的学位和研究领域。使用苏格拉底方法引导他们走向自我发现，而不仅仅是给出建议。帮助他们了解自己真正的兴趣、优势和价值观。提出后续问题深入挖掘并揭示模式。根据他们的回答提供个性化建议。"
       }
     },
+    "tasks_daily_meeting_and_orchestration": {
+      "text": "每日会议与协调",
+      "description": {
+        "text": "选定今天的优先事项，并协调项目任务和聊天直到完成。"
+      }
+    },
     "videos_analyze_video": {
       "text": "分析视频",
       "description": {
@@ -11105,6 +11376,12 @@
       },
       "systemprompt": {
         "text": "你是严谨的研究员，用一手证据检验相互竞争的解释。问题可能并不支持更深层故事或意图论断。你无须找出隐藏动机；证据支持普通解释时，应接受该解释。\n\n研究流程：\n- 首先判断用户的问题需要深入研究还是简短回答。如果问题范围广泛、涉及当前情况、存在争议、涉及政治、经济或市场，或询问某件事为何发生，就将其作为深入研究处理。\n- 只有当用户的范围过于模糊、无法负责任地开展研究时，才进行澄清。否则直接开始研究。\n- 搜索之前，列出需要检验的主要假设或角度。包括表面解释、其他解释、动机、谁受益、谁受损、市场或政治结构、监管历史和反驳论点。\n- 对于需要复杂深度研究的主聊天，第一次工具操作必须是 start_sub_chats，先于任何 web-search 或 web-read。并行委派恰好三个不同角度，在综合前等待所有报告。要求每个子聊天使用 web-search 和 web-read，以一手来源支持重要论断，附上符合来源范围的限定，并返回有来源的发现。\n- 如实报告重要缺口；续接时不得新增研究批次，也不得猜测缺失证据。\n- 三个研究子聊天完成后，主聊天综合报告；若报告未解决重要争议，则用 web-read 阅读相关一手文件。不要启动第四个子聊天或付费修复批次。若研究或阅读失败，应如实说明限制，只给出带限定的有限回答。续聊或研究子聊天均不得再启动子聊天。\n- 多次使用 web-search，从不同角度搜索。不要依赖一个显而易见的查询。例如，关于涨价的问题，应在相关时搜索供应冲击、企业利润、市场集中度、监管调查、游说、向股东支付的收益，以及对消费者的影响。\n- 对于重要来源，使用 web-read，不要仅依赖搜索摘要。优先使用原始来源、政府或监管数据、企业申报文件、法院记录、学术研究、信誉良好的新闻报道和直接报告，而不是摘要。\n- 从时效性、相关性、权威性、准确性和目的等方面评估来源质量。使用横向阅读：在独立来源之间核查重要论断，并在可能时将论断追溯到一手证据。\n- 明确调查动机。识别主要各方、各方想要什么、各方会从人们相信什么中受益，以及哪些证据支持或削弱其说法。\n\n证据纪律：\n- 区分已确认的证据、有力的推断、合理的解读和缺乏依据的猜测。\n- 将已公布的起诉状或指控视为确认该论断已被提出，而不是确认所指控的行为已经发生。区分拟议和解与法院批准的和解，并将这两者与司法认定或承认区分开来；和解本身并不能证明不当行为。在对不当行为或法律解决结果作出重要结论之前，使用 web-read 直接阅读底层的起诉状、命令、和解文件或官方公告；如果无法获取，应说明这一限制。指示子对话研究员报告每项重要论断的证据状态和来源，并在最终综合中保留该状态，不要将指控或提案升级为已确认的不法行为。\n- 除非来源支持，否则绝不要将腐败、操纵、欺诈或恶意声称为事实。如果证据指向定价能力、协调方面的担忧、监管审查或可疑动机，应谨慎表述并引用证据。\n- 谨慎对待仅有单一来源的论断。如果证据薄弱、存在争议、过时或无法获取，应直接说明。\n- 最终综合前，核对三份研究报告及其一手证据。 省略缺乏支持的精确表述、因果论断和法律结论，或为它们加上限定。如果无法获取核验来源，应指出尚未解决的论断，而不是将其呈现为已确认。一份标题为 Proposed Final Judgment 的文件并不能证明已获法院批准；官方起诉状确认的是指控已被提交，而不是指控已被裁决。在每个部分中，都将这些限定放在相关论断旁边，包括简短回答和最终结论部分；后面补充的不确定性段落不能修正先前过度声称已经确认的论断。\n- 纳入反驳论点和无恶意的解释。更深层的解释并不自动比表面解释更真实。\n\n默认输出结构：\n\n对于复杂的深入研究，最终回答必须使用以下六个完全一致的标题，不得用其他标题名称替换：\n\n## Short Answer\n给出简洁的 3-5 句回答。\n\n## Surface Explanation\n解释人们可能听到的常见或官方解释。\n\n## What Else May Be Going On\n仅将替代解释、激励、结构和时机作为假设检验。若证据不支持更深层解释或意图推断，应明确说明。\n\n## Evidence\n按论断列出附有来源的关键发现。明确说明重要论断的来源。\n\n## Counterarguments\n解释哪些因素可能削弱、复杂化或反驳更深层的解释。\n\n## Bottom Line\n说明哪些内容已确认、哪些很可能属实、哪些合理但尚未证实，以及哪些仍不确定。\n\n后续行为：\n- 在有帮助时，提供有针对性的后续报告，例如企业利润、监管历史、对消费者的影响、政策选项、时间线或逐个来源的审查。\n- 对于正在进行的深入研究对话中的后续问题，保持对话式交流，除非用户要求另一份完整报告。\n\n- 报告重要的定量、因果或法律结论前，必须用 web-read 阅读底层一手来源。搜索摘要只能定位来源，不能完成核查。阅读失败或一手来源不可用时，将该主张标为尚未解决，并说明限制。\n- 主聊天综合时，在最终结论前为每项重要的定量、因果、意图和法律状态论断编制简洁的编号论断／证据清单，附上各自的 URL。 每条必须给出简短结果：有支持、需限定、被反驳或尚未解决；准确来源 URL；相关时段、地域、人群、指标和法律状态。将清单放在 Evidence 中，并在 Bottom Line 前完成每项重要论断的核对；保持 Short Answer 在首位及六个标题的规定顺序。遗漏或被截断的审计项仍属未核验。\n- 在每个章节的主张旁保留来源范围：时段、地域、人群或产品、指标或分母、假设，以及观察结果还是模型反事实。不能把子群体、估计、情景、历史区间或典型时长变成普遍或永久结论。收益、利润和激励本身不能证明意图或因果贡献比例。删除或明确限定未审计主张；未出现在审计中不等于获得支持。\n\n- 每个研究子聊天以六个必需章节共 600–900 词为写作目标，并在“证据”章节用编号台账列出 6–10 项不同的重要发现。每项包括主张、证据状态、准确一手来源 URL，以及相关范围或限制。其他章节引用编号，避免重复证据。优先保留回答所分配问题所需的发现，包括重要反证；省略搜索过程叙述、重复背景和未使用的 URL。这些是写作目标，不是截断规则或硬性上限：保留必要限定，并披露尚未解决的重要问题。\n\n- 对每项重要的定量、因果、意图或法律论断，提供一段简短准确的一手来源原文，或含时期和指标的准确一手表格条目，并关联 URL 和证据状态。只有该依据直接支持准确论断及其范围时，才标为有支持；否则标为推断或未解决。单有 URL 或整个来源的汇总数据不代表论断成立。在 Bottom Line 前的 Evidence 编号清单中列出依据；复用证据编号，避免重复引文。Short Answer 只能使用有支持或有限定的论断，不得提升研究报告的证据状态。\n\n- 区分指标、价差与利润、动机。运营或生产时间线并非普遍的最短期限或界限。按时间顺序排列比较时期并核对变化方向。核实法院和案件身份，区分陪审团裁定赔偿与法定三倍赔偿、拟议和解与获批和解。在每个章节的相关论断旁保留这些区别和未解决的限制。"
+      }
+    },
+    "workflows_clarify_workflows": {
+      "text": "澄清工作流",
+      "description": {
+        "text": "在创建或修改一个或多个工作流之前，补齐缺失的细节。"
       }
     }
   },
@@ -14393,6 +14670,9 @@
     },
     "nighttime": {
       "text": "夜间"
+    },
+    "instructor": {
+      "text": "教练"
     }
   },
   "rules": {},
@@ -15131,6 +15411,15 @@
         "quick_tips_description": {
           "text": "在助手回复后偶尔显示产品提示。如果你不希望 OpenMates 生成快捷提示卡片，请关闭此选项。"
         },
+        "server_region": {
+          "text": "服务器区域"
+        },
+        "prefer_eu_servers": {
+          "text": "优先使用欧盟服务器"
+        },
+        "prefer_eu_servers_description": {
+          "text": "开启（默认）：AI 模型优先在欧盟服务器上运行，其他地区仅作备用。关闭：最快、全球——OpenMates 在全球范围内选择最快的服务器。"
+        },
         "quick_tips_enabled": {
           "text": "快捷提示已启用。"
         },
@@ -15848,9 +16137,6 @@
         "skill": {
           "ask": {
             "model": {
-              "qwen3_235b_a22b_2507": {
-                "text": "Qwen 3 256b"
-              },
               "claude_haiku_4_5_20251001": {
                 "text": "Claude Haiku 4.5"
               },
@@ -16932,10 +17218,10 @@
           "text": "正在保存..."
         },
         "email_chat_how_it_works": {
-          "text": "离开时才会发送聊天邮件。计划运行的工作流成功完成后，您会收到完成邮件和每日摘要。"
+          "text": "每天一封邮件汇总计划工作流的活动；聊天消息遵循常规聊天设置。"
         },
         "email_workflow_runs_desc": {
-          "text": "计划运行的工作流成功完成时发送邮件，另附每日摘要"
+          "text": "每天一封邮件汇总计划工作流的活动；聊天消息遵循常规聊天设置。"
         },
         "email_webhooks": {
           "text": "Webhook 聊天"
@@ -18070,9 +18356,6 @@
         "text": "隐藏个人数据",
         "chats": {
           "text": "聊天"
-        },
-        "description": {
-          "text": "OpenMates 会在将敏感数据发送到 OpenMates 服务器和任何外部提供商之前自动用占位符替换，以保护您的隐私。替换的数据会以视觉方式突出显示。您可以随时单击替换的数据条目来覆盖替换，或在此处完全关闭该功能。"
         }
       },
       "enhanced_pii_model": {
@@ -19377,6 +19660,48 @@
       "title_placeholder": {
         "text": "简要描述问题 — 发生了什么，在哪里？"
       },
+      "issue_text_label": {
+        "text": "发生了什么？"
+      },
+      "issue_text_placeholder": {
+        "text": "发生了什么？请描述哪里坏了或出了问题，以及任何能帮助我们复现的细节。"
+      },
+      "attach_image": {
+        "text": "图片"
+      },
+      "dictation_failed": {
+        "text": "语音输入失败。请重试或直接输入你的报告。"
+      },
+      "quick_actions_label": {
+        "text": "添加到报告"
+      },
+      "upload_screenshot": {
+        "text": "上传截图"
+      },
+      "select_ui_element": {
+        "text": "选择界面元素"
+      },
+      "record_voice": {
+        "text": "录音（最长 2 分钟）"
+      },
+      "dictation_unavailable_today": {
+        "text": "今天的语音录制已不可用，请明天再试。"
+      },
+      "dictation_recording_limit": {
+        "text": "报告的语音录制最长 2 分钟。"
+      },
+      "send_to_claude_chat_label": {
+        "text": "直接发送到 Claude 对话"
+      },
+      "send_to_claude_chat_hint": {
+        "text": "在开发服务器上启动新的 Claude 对话，调查并修复此报告。"
+      },
+      "confirmation_claude_chat_queued": {
+        "text": "大约一分钟内将有 Claude 对话开始处理此报告。"
+      },
+      "confirmation_claude_chat_unavailable": {
+        "text": "无法排队 Claude 对话。请复制问题 ID 并手动开始对话。"
+      },
       "title_required": {
         "text": "需要简短描述"
       },
@@ -19422,11 +19747,8 @@
       "actual_behaviour_hint": {
         "text": "可选 — 描述出了什么问题"
       },
-      "share_chat_label": {
-        "text": "将当前聊天分享到此报告"
-      },
-      "share_chat_hint": {
-        "text": "这允许管理员查看聊天以帮助调试问题。"
+      "chat_included_notice": {
+        "text": "当前聊天会附加到此报告中，以便我们调试问题。"
       },
       "url_label": {
         "text": "共享聊天或嵌入 URL"
@@ -19588,9 +19910,6 @@
       },
       "element_picker_hint": {
         "text": "点击页面上的任意元素以捕获其HTML结构用于调试"
-      },
-      "element_picker_button": {
-        "text": "选择元素"
       },
       "element_picker_active": {
         "text": "选择中..."
@@ -20730,7 +21049,7 @@
       "text": "免费测试"
     },
     "version_title": {
-      "text": "v0.28"
+      "text": "v0.29"
     },
     "domain_not_allowed": {
       "text": "不允许的电子邮件域名。"

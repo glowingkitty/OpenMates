@@ -1,0 +1,40 @@
+{
+  "description": "Original TypeScript root Object.keys/ordinary/JSON expectations; no property sorting or wire normalization.",
+  "cases": [
+    {
+      "id": "non-index-insertion",
+      "wire_body": "{\"z\":1,\"a\":2}",
+      "root_keys": [
+        "z",
+        "a"
+      ],
+      "ordinary": "  \u001b[2mz                   \u001b[0m 1\n  \u001b[2ma                   \u001b[0m 2\n",
+      "json": "{\n  \"z\": 1,\n  \"a\": 2\n}\n"
+    },
+    {
+      "id": "numeric-index-and-duplicate",
+      "wire_body": "{\"z\":1,\"10\":10,\"2\":2,\"a\":3,\"z\":4,\"01\":5}",
+      "root_keys": [
+        "2",
+        "10",
+        "z",
+        "a",
+        "01"
+      ],
+      "ordinary": "  \u001b[2m2                   \u001b[0m 2\n  \u001b[2m10                  \u001b[0m 10\n  \u001b[2mz                   \u001b[0m 4\n  \u001b[2ma                   \u001b[0m 3\n  \u001b[2m01                  \u001b[0m 5\n",
+      "json": "{\n  \"2\": 2,\n  \"10\": 10,\n  \"z\": 4,\n  \"a\": 3,\n  \"01\": 5\n}\n"
+    },
+    {
+      "id": "billing-unknown-root-order",
+      "wire_body": "{\"z\":1,\"payment_tier\":\"free\",\"invoices\":[],\"a\":2}",
+      "root_keys": [
+        "z",
+        "payment_tier",
+        "invoices",
+        "a"
+      ],
+      "ordinary": "\u001b[1mBilling\n\u001b[0m\n  \u001b[2mPayment tier    \u001b[0m free\n  \u001b[2mz               \u001b[0m 1\n  \u001b[2ma               \u001b[0m 2\n",
+      "json": "{\n  \"z\": 1,\n  \"payment_tier\": \"free\",\n  \"invoices\": [],\n  \"a\": 2\n}\n"
+    }
+  ]
+}

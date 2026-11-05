@@ -7,6 +7,8 @@ import httpx
 from typing import Dict, Any, List, Optional, Union, AsyncIterator
 import time
 
+from backend.shared.python_utils.server_policy import apply_openrouter_provider_policy
+
 from .openai_shared import (
     openai_usage_details, merge_openai_usage,
     UnifiedOpenAIResponse,
@@ -138,8 +140,8 @@ async def invoke_openrouter_api(
                     payload["tool_choice"] = tool_choice
     
     # Add provider overrides if specified
-    if provider_overrides:
-        payload["provider"] = provider_overrides
+    # Hard-coded hosting policy: OpenRouter must never route to blocked (CN/HK/MO) hosts.
+    payload["provider"] = apply_openrouter_provider_policy(provider_overrides)
     
     # Prepare headers with API key
     headers = DEFAULT_HEADERS.copy()
@@ -157,7 +159,7 @@ async def invoke_openrouter_api(
             if isinstance(msg, dict)
         ] if isinstance(payload.get("messages"), list) else [],
         "tools_count": len(payload.get("tools", [])) if isinstance(payload.get("tools"), list) else 0,
-        "has_provider_overrides": bool(payload.get("provider")),
+        "has_provider_overrides": bool(provider_overrides),
     }
     logger.debug(f"{log_prefix} Request payload summary: {json.dumps(sanitized_payload)}")
     

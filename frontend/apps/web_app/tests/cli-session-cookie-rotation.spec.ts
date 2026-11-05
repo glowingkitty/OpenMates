@@ -13,7 +13,7 @@ const path = require('node:path');
 
 const ROOT = path.resolve(__dirname, '../../../..');
 const CLI = path.join(ROOT, 'frontend/packages/openmates-cli/dist/cli.js');
-const SDK = path.join(ROOT, 'frontend/packages/openmates-cli/dist/index.js');
+const SDK = path.join(ROOT, 'frontend/packages/openmates-cli/dist/cli-internal-client.js');
 const COMPOSE = path.join(ROOT, 'test-results/ci-private/compose.json');
 
 function storedCookie(home: string): string {

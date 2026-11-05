@@ -7,6 +7,9 @@
 -->
 
 <script lang="ts">
+  import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from "../../../types/authoredResult";
+  import { getContext } from "svelte";
+  import { text } from '@repo/ui';
   import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
   import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import { handleImageError } from '../../../utils/offlineImageHandler';
@@ -39,12 +42,14 @@
     showChatButton = false,
     onShowChat
   }: Props = $props();
+  const authoredContext = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
+  let isAuthored = $derived(Boolean(authoredContext?.authoring || data?.decodedContent?.authoring));
 
   let dc = $derived(data.decodedContent ?? {});
   let url = $derived(asString(dc.html_url) || asString(dc.url) || '');
   let fullName = $derived(asString(dc.full_name) || url);
   let name = $derived(asString(dc.name) || fullName.split('/').pop() || fullName);
-  let owner = $derived(asString(dc.owner_login) || fullName.split('/')[0] || 'GitHub');
+  let owner = $derived(asString(dc.owner_login) || (isAuthored ? '' : fullName.split('/')[0]) || (isAuthored ? '' : 'GitHub'));
   let description = $derived(asString(dc.description));
   let avatar = $derived(proxyImage(asString(dc.owner_avatar_url), MAX_WIDTH_CHANNEL_THUMBNAIL));
   let language = $derived(asString(dc.primary_language));
@@ -85,10 +90,10 @@
   appId="code"
   skillId="repo"
   embedHeaderTitle={fullName}
-  embedHeaderSubtitle={[language, license].filter(Boolean).join(' · ') || 'GitHub repository'}
+  embedHeaderSubtitle={[language, license].filter(Boolean).join(' · ') || (isAuthored ? '' : 'GitHub repository')}
   embedHeaderFaviconUrl={avatar}
   embedHeaderFaviconIsCircular={true}
-  skillIconName="github"
+  skillIconName={isAuthored ? "coding" : "github"}
   showSkillIcon={true}
   currentEmbedId={embedId}
   {onClose}
@@ -102,7 +107,7 @@
 >
   {#snippet embedHeaderCta()}
     {#if url}
-      <EmbedHeaderCtaButton href={url} label="Open on GitHub" />
+      <EmbedHeaderCtaButton href={url} label={isAuthored ? $text("embeds.authoring.open_source") : "Open on GitHub"} />
     {/if}
   {/snippet}
 

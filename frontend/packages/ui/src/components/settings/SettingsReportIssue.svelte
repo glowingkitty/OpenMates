@@ -3,18 +3,22 @@
     
     This component allows users (including non-authenticated users) to report issues.
     The form includes:
-    - Short description (required, multi-line)
-    - Structured description fields (optional)
-    - Toggle to share chat/embed with the report (optional)
-    - Reminder about Signal group for discussion/screenshots
+    - One free-text field (what happened / what went wrong / optional context)
+      with quick actions underneath: attach image, select UI element, dictate
+      (ReportIssueComposer.svelte)
+    - Optional contact email for signed-out reporters
+    - The active chat/embed is always attached (with a visible notice)
+    - Admin-only toggles: email notification and, on the development server,
+      "Send to Claude chat directly" (docs/architecture/infrastructure/claude-dispatch.md)
 -->
 <script lang="ts">
     import { text, notificationStore, activeChatStore, activeEmbedStore, websocketStatus, isOnline, phasedSyncState } from '@repo/ui';
-    import { getApiEndpoint, apiEndpoints } from '../../config/api';
+    import { getApiEndpoint, apiEndpoints, isDevEnvironment } from '../../config/api';
     import { externalLinks } from '../../config/links';
-    import InputWarning from '../common/InputWarning.svelte';
     import Toggle from '../Toggle.svelte';
-    import { SettingsGradientLink, SettingsInput, SettingsTextarea, SettingsInfoBox, SettingsSectionHeading } from './elements';
+    import ReportIssueComposer from './ReportIssueComposer.svelte';
+    import { SettingsGradientLink, SettingsInfoBox, SettingsInput } from './elements';
+    import InputWarning from '../common/InputWarning.svelte';
     import { onMount, createEventDispatcher } from 'svelte';
     import { isPublicChat } from '../../demo_chats/convertToChat';
     import { logCollector } from '../../services/logCollector';
@@ -32,16 +36,13 @@
     const dispatch = createEventDispatcher();
 
     // Form state
-    let issueTitle = $state('');  // "Short description" — multi-line, mandatory
-    // Structured description fields — all three are optional.
-    // On submit they are composed into a formatted description
-    // string sent to the backend's existing `description` field.
-    let userFlow = $state('');
-    let expectedBehaviour = $state('');
-    let actualBehaviour = $state('');
-    let shareChatEnabled = $state(true);
-    let chatOrEmbedUrl = $state('');
+    // The single free-text report (what happened, what went wrong, optional
+    // context). Sent as `title`, which the API accepts up to 5,000 characters.
+    let issueTitle = $state('');
+    // Signed-out reporters may leave an optional email for follow-up.
     let contactEmail = $state('');
+    let emailInput = $state<HTMLInputElement>();
+    let chatOrEmbedUrl = $state('');
     let issueType = $state<'bug_report' | 'feature_request'>('bug_report');
     let isSubmitting = $state(false);
     let errorMessage = $state('');
@@ -59,11 +60,19 @@
     let sendEmailNotification = $state(false);
 
     /**
-     * Whether the current context has an active chat or embed that can be shared.
-     * When false, the share toggle is hidden since there's nothing to share.
+     * Admin-only on the development server: hand the report to a new Claude
+     * chat that investigates and fixes it. On by default; the admin can opt out
+     * per report.
+     */
+    let sendToClaudeChat = $state(true);
+
+    /**
+     * Whether the current context has an active chat or embed. When true, its
+     * share link is always attached to the report and a notice says so.
      */
     let hasActiveChatOrEmbed = $state(false);
     let isAdminUser = $derived($userProfile.is_admin === true);
+    let showClaudeChatToggle = $derived(isAdminUser && isDevEnvironment());
 
     // Device information (collected for debugging purposes)
     let deviceInfo = $state({
@@ -73,14 +82,9 @@
         isTouchEnabled: false
     });
     
-    // Input references for warnings
-    let emailInput = $state<HTMLInputElement>();
-    
-    // Validation state (description fields are all optional, no per-field errors needed)
+    // Validation state for the single report text
     let titleError = $state('');
     let emailError = $state('');
-    let showTitleWarning = $state(false);
-    let showEmailWarning = $state(false);
     const RAW_CHAT_ERROR_KEYS = new Set(['chat.an_error_occured', 'chat.an_error_occurred']);
     const CHAT_INSPECTION_TIMEOUT_MS = 3500;
     const ISSUE_REPORT_EMAIL = 'support@openmates.org';
@@ -100,59 +104,27 @@
         return normalized;
     }
     
-    /**
-     * Validate email format - must be a valid email address
-     * Email is optional, so empty string is valid
-     */
+    /** The optional contact email is valid when empty or shaped like an address. */
     function validateEmail(email: string): boolean {
-        if (!email || !email.trim()) {
-            // Email is optional, so empty is valid
-            return true;
-        }
-        
         const trimmedEmail = email.trim();
-        // Basic email validation regex
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(trimmedEmail);
+        return !trimmedEmail || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail);
     }
-    
-    /**
-     * Validate form fields.
-     * Only the short description is required. All three structured description fields and email are optional.
-     */
+
+    /** Only the report text is required (min 3 characters); a guest email is optional. */
     function validateForm(): boolean {
-        let isValid = true;
-        
-        // Validate title (required, min 3 chars)
-        if (!issueTitle || !issueTitle.trim()) {
-            titleError = $text('settings.report_issue.title_required');
-            showTitleWarning = true;
-            isValid = false;
-        } else if (issueTitle.trim().length < 3) {
-            titleError = $text('settings.report_issue.title_too_short');
-            showTitleWarning = true;
-            isValid = false;
-        } else {
-            titleError = '';
-            showTitleWarning = false;
-        }
-        
-        // Validate email if provided (optional field — guest users only)
-        if (contactEmail && contactEmail.trim()) {
-            if (!validateEmail(contactEmail)) {
-                emailError = $text('settings.report_issue.email_invalid');
-                showEmailWarning = true;
-                isValid = false;
-            } else {
-                emailError = '';
-                showEmailWarning = false;
-            }
-        } else {
-            emailError = '';
-            showEmailWarning = false;
-        }
-        
-        return isValid;
+        const trimmed = issueTitle.trim();
+        titleError = !trimmed
+            ? $text('settings.report_issue.title_required')
+            : trimmed.length < 3 ? $text('settings.report_issue.title_too_short') : '';
+        emailError = (!$authStore.isAuthenticated && !validateEmail(contactEmail))
+            ? $text('settings.report_issue.email_invalid')
+            : '';
+        if (!titleError && emailError) emailInput?.focus();
+        return !titleError && !emailError;
+    }
+
+    function handleEmailInput() {
+        if (emailError && validateEmail(contactEmail)) emailError = '';
     }
     
     /**
@@ -216,8 +188,9 @@
     }
 
     function buildIssueEmailHref(): string {
-        const title = issueTitle.trim() || 'Issue report';
-        const sharedUrl = shareChatEnabled && chatOrEmbedUrl.trim()
+        // Subject: first line of the single report text.
+        const title = issueTitle.trim().split(/\r?\n/)[0].slice(0, 120) || 'Issue report';
+        const sharedUrl = chatOrEmbedUrl.trim()
             ? chatOrEmbedUrl.trim()
             : 'Not shared';
         const body = [
@@ -232,13 +205,7 @@
             '',
             `Report type:\n${issueType === 'feature_request' ? 'Feature request' : 'Bug report'}`,
             '',
-            `Short description:\n${issueTitle.trim() || 'Not provided'}`,
-            '',
-            `What I did:\n${userFlow.trim() || 'Not provided'}`,
-            '',
-            `Expected behavior:\n${expectedBehaviour.trim() || 'Not provided'}`,
-            '',
-            `Actual behavior:\n${actualBehaviour.trim() || 'Not provided'}`,
+            `What happened:\n${issueTitle.trim() || 'Not provided'}`,
             '',
             `Shared chat or embed:\n${sharedUrl}`,
             '',
@@ -488,12 +455,7 @@
         
         // Validate form
         if (!validateForm()) {
-            // Focus first invalid field
-            if (titleError) {
-                document.getElementById('issue-title')?.focus();
-            } else if (emailError && emailInput) {
-                emailInput.focus();
-            }
+            document.getElementById('issue-title')?.focus();
             return;
         }
         
@@ -503,37 +465,13 @@
             // SECURITY: Sanitize inputs before sending to backend
             const sanitizedTitle = sanitizeTextInput(normalizeIssueReportText(issueTitle));
 
-            // Compose the three structured fields into a single formatted description.
-            // Only include sections that have content; send null if everything is empty.
-            const sanitizedUserFlow = userFlow.trim()
-                ? sanitizeTextInput(normalizeIssueReportText(userFlow))
-                : '';
-            const sanitizedExpectedBehaviour = expectedBehaviour.trim()
-                ? sanitizeTextInput(normalizeIssueReportText(expectedBehaviour))
-                : '';
-            const sanitizedActualBehaviour = actualBehaviour.trim()
-                ? sanitizeTextInput(normalizeIssueReportText(actualBehaviour))
-                : '';
-            const descriptionParts: string[] = [];
-            if (sanitizedUserFlow) {
-                descriptionParts.push(`## What did you do?\n${sanitizedUserFlow}`);
-            }
-            if (sanitizedExpectedBehaviour) {
-                descriptionParts.push(`## Expected behaviour\n${sanitizedExpectedBehaviour}`);
-            }
-            if (sanitizedActualBehaviour) {
-                descriptionParts.push(`## Actual behaviour\n${sanitizedActualBehaviour}`);
-            }
-            const sanitizedDescription = descriptionParts.length > 0
-                ? descriptionParts.join('\n\n')
-                : null;
-            // Only include the share URL if the toggle is enabled and a URL was generated
-            const requestedContextUrl = (shareChatEnabled && chatOrEmbedUrl.trim()) ? chatOrEmbedUrl.trim() : null;
+            // The active chat/embed share URL is always included when one was generated
+            const requestedContextUrl = (chatOrEmbedUrl.trim()) ? chatOrEmbedUrl.trim() : null;
             const sanitizedUrl = await prepareIssueReportContextUrl(requestedContextUrl);
-            // For authenticated users: always include their account email so admins can follow up.
-            // For guest users: use the manually entered email (optional input field).
+            // Authenticated users: include the account email so admins can follow up.
+            // Guests: include the optional email they entered, if any.
             const sanitizedEmail = $authStore.isAuthenticated
-                ? (authenticatedUserEmail.trim() ? authenticatedUserEmail.trim() : null)
+                ? (authenticatedUserEmail.trim() || null)
                 : (contactEmail.trim() || null);
 
             // Collect current device information for debugging purposes
@@ -557,7 +495,7 @@
             
             // Collect rendered HTML of the last user message and assistant response
             // This helps debugging rendering issues and seeing exactly what the user saw
-            const lastMessagesHtml = (shareChatEnabled && sanitizedUrl)
+            const lastMessagesHtml = sanitizedUrl
                 ? collectLastMessagesHtml()
                 : null;
 
@@ -598,7 +536,7 @@
                 },
                     body: JSON.stringify({
                     title: sanitizedTitle,
-                    description: sanitizedDescription,
+                    description: null,
                     issue_type: issueType,
                     chat_or_embed_url: sanitizedUrl,
                     contact_email: sanitizedEmail,
@@ -625,6 +563,8 @@
                     // Admin-only: whether to send email notifications (default false for admin).
                     // Non-admin reports always send emails (server-side default).
                     send_email_notification: isAdminUser ? sendEmailNotification : true,
+                    // Admin-only, development server only (also enforced by the API).
+                    send_to_claude_chat: showClaudeChatToggle && sendToClaudeChat,
                     // Ephemeral log session pseudonym for correlating anonymized browser
                     // console logs with this issue report. Only present if ephemeral
                     // forwarding is active. The user explicitly submits this by filing the report.
@@ -640,6 +580,7 @@
                 message?: string;
                 issue_id?: string;
                 short_issue_id?: string;
+                claude_chat_status?: 'queued' | 'unavailable' | null;
                 detail?: Array<{
                     type: string;
                     loc: (string | number)[];
@@ -679,19 +620,14 @@
 
                 // Reset form fields
                 issueTitle = '';
-                userFlow = '';
-                expectedBehaviour = '';
-                actualBehaviour = '';
-                shareChatEnabled = true;
-                chatOrEmbedUrl = '';
                 contactEmail = '';
+                chatOrEmbedUrl = '';
                 issueType = 'bug_report';
-                // Reset admin toggles back to defaults (off)
+                // Reset admin toggles back to defaults
                 sendEmailNotification = false;
+                sendToClaudeChat = true;
                 titleError = '';
                 emailError = '';
-                showTitleWarning = false;
-                showEmailWarning = false;
 
                 // Clear the form draft store so it doesn't restore stale data on the next report
                 reportIssueFormDraftStore.set(null);
@@ -700,8 +636,6 @@
                 pickedElementHtml = null;
                 screenshotDataUrl = null;
                 screenshotError = '';
-                showUploadFallback = typeof navigator !== 'undefined' &&
-                    typeof (navigator.mediaDevices as { getDisplayMedia?: unknown } | undefined)?.getDisplayMedia !== 'function';
                 if (screenshotFileInput) screenshotFileInput.value = '';
 
                 // Write the issue ID to the shared store so the confirmation sub-page
@@ -710,9 +644,7 @@
                 submittedShortIssueIdStore.set(shortIssueId || issueId);
                 submittedReportSummaryStore.set({
                     title: sanitizedTitle,
-                    userFlow: sanitizedUserFlow,
-                    expectedBehaviour: sanitizedExpectedBehaviour,
-                    actualBehaviour: sanitizedActualBehaviour,
+                    claudeChatStatus: data.claude_chat_status ?? null,
                 });
 
                 // Push console logs to OpenObserve tagged with the issue ID so admins
@@ -759,16 +691,11 @@
                         // Map backend field names to frontend state
                         if (fieldName === 'title') {
                             titleError = fieldErrorMessage;
-                            showTitleWarning = true;
                             hasFieldErrors = true;
                             document.getElementById('issue-title')?.focus();
                         } else if (fieldName === 'contact_email') {
                             emailError = fieldErrorMessage;
-                            showEmailWarning = true;
                             hasFieldErrors = true;
-                            if (emailInput) {
-                                emailInput.focus();
-                            }
                         }
                     }
                     
@@ -809,34 +736,7 @@
         }
     }
     
-    /**
-     * Check if form is valid.
-     * Only the short description is required (min 3 chars). All other description fields are optional (no minimum).
-     * Email is optional but must be valid if provided (guest only).
-     */
-    let isFormValid = $derived(
-        issueTitle.trim().length >= 3 &&
-        ($authStore.isAuthenticated || !contactEmail.trim() || validateEmail(contactEmail)) &&
-        !isSubmitting
-    );
-    
-    /**
-     * Validate email on input change
-     */
-    function handleEmailInput() {
-        if (contactEmail && contactEmail.trim()) {
-            if (!validateEmail(contactEmail)) {
-                emailError = $text('settings.report_issue.email_invalid');
-                showEmailWarning = true;
-            } else {
-                emailError = '';
-                showEmailWarning = false;
-            }
-        } else {
-            emailError = '';
-            showEmailWarning = false;
-        }
-    }
+    let isFormValid = $derived(issueTitle.trim().length >= 3 && !isSubmitting);
     
     // ===================== DOM ELEMENT PICKER =====================
     // Lets the user tap/click any element on the page to capture its outerHTML for debugging.
@@ -1059,13 +959,10 @@
         reportIssueFormDraftStore.set({
             issueTitle,
             issueType,
-            userFlow,
-            expectedBehaviour,
-            actualBehaviour,
-            shareChatEnabled,
-            chatOrEmbedUrl,
             contactEmail,
+            chatOrEmbedUrl,
             sendEmailNotification,
+            sendToClaudeChat,
             pickedElementHtml,
             screenshotDataUrl
         });
@@ -1242,27 +1139,14 @@
         }
     }
 
-    // ===================== SCREENSHOT CAPTURE =====================
-    // Screenshot state — only available for authenticated users.
-    // getDisplayMedia() requires browser permission; the PNG is sent as base64 in the JSON payload.
-    // On iOS (where getDisplayMedia is not supported) or after a non-permission capture failure,
-    // a file-upload fallback (<input type="file">) is shown instead.
+    // ===================== IMAGE ATTACHMENT =====================
+    // Authenticated users only (stored in the issue_logs bucket). The image
+    // button under the report text opens this hidden file input.
 
-    /** Base64 PNG data URL (includes "data:image/png;base64," prefix) or null if not captured */
+    /** Image data URL (metadata stripped) or null if nothing is attached */
     let screenshotDataUrl = $state<string | null>(null);
-    /** True while the getDisplayMedia dialog is open / frame is being captured */
-    let isCapturingScreenshot = $state(false);
-    /** Human-readable capture error shown below the screenshot button */
+    /** Human-readable attachment error shown below the preview */
     let screenshotError = $state('');
-    /**
-     * True after a non-permission capture failure — reveals the upload fallback button.
-     * Also true on iOS where getDisplayMedia is not available at all.
-     */
-    let showUploadFallback = $state(
-        typeof navigator !== 'undefined' &&
-        typeof (navigator.mediaDevices as { getDisplayMedia?: unknown } | undefined)?.getDisplayMedia !== 'function'
-    );
-    /** Reference to the hidden file input used for the upload fallback */
     let screenshotFileInput = $state<HTMLInputElement | null>(null);
 
     async function prepareScreenshotDataUrl(file: File): Promise<string> {
@@ -1274,105 +1158,6 @@
             reader.onerror = () => reject(reader.error ?? new Error('Could not read screenshot'));
             reader.readAsDataURL(prepared);
         });
-    }
-
-    /**
-     * Capture the current screen using the native Screen Capture API (getDisplayMedia).
-     *
-     * Flow:
-     *  1. Call getDisplayMedia — browser shows a screen/tab picker dialog.
-     *  2. Grab one video frame from the returned MediaStream.
-     *  3. Draw the frame onto a hidden <canvas> and export as PNG data URL.
-     *  4. Stop all tracks immediately to close the browser's capture indicator.
-     *  5. Store the PNG in screenshotDataUrl for preview and later submission.
-     */
-    async function captureScreenshot() {
-        screenshotError = '';
-        isCapturingScreenshot = true;
-
-        let stream: MediaStream | null = null;
-        try {
-            // preferCurrentTab is a Chrome 107+ hint to pre-select the current tab.
-            // Other browsers ignore it and show the standard full picker.
-            // We cast to any to avoid TS errors on the non-standard extensions.
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            stream = await (navigator.mediaDevices as any).getDisplayMedia({
-                video: { displaySurface: 'browser', frameRate: 1 },
-                audio: false,
-                preferCurrentTab: true
-            });
-
-            const track = stream!.getVideoTracks()[0];
-            if (!track) throw new Error('No video track in screen capture stream');
-
-            let png: string;
-
-            // Use ImageCapture API (Chrome/Edge) if available — cleaner than a <video> element
-            if (typeof ImageCapture !== 'undefined') {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const ic = new (ImageCapture as any)(track);
-                const bitmap = await ic.grabFrame();
-                const canvas = document.createElement('canvas');
-                canvas.width = bitmap.width;
-                canvas.height = bitmap.height;
-                const ctx = canvas.getContext('2d')!;
-                ctx.drawImage(bitmap, 0, 0);
-                bitmap.close();
-                png = canvas.toDataURL('image/png');
-            } else {
-                // Fallback: attach stream to a hidden <video> element, then draw one frame
-                const video = document.createElement('video');
-                video.autoplay = true;
-                video.muted = true;
-                video.srcObject = stream;
-                await new Promise<void>((resolve, reject) => {
-                    video.onloadedmetadata = () => void video.play().then(resolve).catch(reject);
-                    video.onerror = () => reject(new Error('Video load error'));
-                    setTimeout(() => reject(new Error('Video load timeout')), 5000);
-                });
-                const canvas = document.createElement('canvas');
-                canvas.width = video.videoWidth || 1280;
-                canvas.height = video.videoHeight || 720;
-                canvas.getContext('2d')!.drawImage(video, 0, 0);
-                video.srcObject = null;
-                png = canvas.toDataURL('image/png');
-            }
-
-            // Reject if the estimated decoded size exceeds 2 MB
-            const estimatedBytes = Math.round(png.length * 0.75);
-            if (estimatedBytes > 2 * 1024 * 1024) {
-                screenshotError = $text('settings.report_issue.screenshot_size_too_large');
-                screenshotDataUrl = null;
-            } else {
-                try {
-                    const pngBlob = await (await fetch(png)).blob();
-                    screenshotDataUrl = await prepareScreenshotDataUrl(
-                        new File([pngBlob], 'screenshot.png', { type: 'image/png' })
-                    );
-                } catch {
-                    // Canvas generated this PNG without source-file metadata.
-                    console.warn('[UploadPrivacy] Metadata cleanup failed; continuing upload.');
-                    screenshotDataUrl = png;
-                }
-                console.debug(
-                    `[SettingsReportIssue] Screenshot captured: ~${Math.round(estimatedBytes / 1024)} KB PNG`
-                );
-            }
-        } catch (error: unknown) {
-            const err = error as { name?: string };
-            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-                screenshotError = $text('settings.report_issue.screenshot_permission_denied');
-            } else {
-                // On any other failure (NotSupportedError on iOS, etc.) reveal the upload fallback
-                screenshotError = $text('settings.report_issue.screenshot_capture_failed');
-                showUploadFallback = true;
-                console.warn('[SettingsReportIssue] Screenshot capture failed:', error);
-            }
-        } finally {
-            // Always stop the stream to close the browser's screen-share indicator
-            stream?.getTracks().forEach(t => t.stop());
-            isCapturingScreenshot = false;
-        }
     }
 
     /**
@@ -1440,8 +1225,8 @@
             action_history: actionHistory,
             active_chat_id: $activeChatStore || null,
             active_embed_id: $activeEmbedStore || null,
-            share_chat_enabled: shareChatEnabled,
-            chat_or_embed_url: (shareChatEnabled && chatOrEmbedUrl) ? chatOrEmbedUrl : null,
+            share_chat_enabled: hasActiveChatOrEmbed,
+            chat_or_embed_url: (chatOrEmbedUrl) ? chatOrEmbedUrl : null,
             active_chat_sidebar_html: activeChatSidebarHtml,
             runtime_debug_state: runtimeDebugState,
             picked_element_html: pickedElementHtml ?? null,
@@ -1535,15 +1320,13 @@
 
         // Check for pre-filled data from store (deep link / ChatMessage trigger)
         if ($reportIssueStore) {
-            if ($reportIssueStore.title) issueTitle = $reportIssueStore.title;
-            // Map legacy store description to the user flow field (most common pre-fill use-case)
-            if ($reportIssueStore.description) userFlow = $reportIssueStore.description;
+            // Title and optional description pre-fills become one report text.
+            issueTitle = [$reportIssueStore.title, $reportIssueStore.description]
+                .filter((part): part is string => Boolean(part?.trim()))
+                .join('\n\n');
             // If a URL was passed directly (e.g. from deep link), pre-fill it
             if ($reportIssueStore.url) chatOrEmbedUrl = $reportIssueStore.url;
             if ($reportIssueStore.issueType) issueType = $reportIssueStore.issueType;
-            // If the store requests sharing the chat, enable the toggle
-            if ($reportIssueStore.shareChat) shareChatEnabled = true;
-            
             // Clear store after consuming
             reportIssueStore.set(null);
         }
@@ -1555,13 +1338,10 @@
         if (draft) {
             issueTitle = draft.issueTitle;
             issueType = draft.issueType;
-            userFlow = draft.userFlow;
-            expectedBehaviour = draft.expectedBehaviour;
-            actualBehaviour = draft.actualBehaviour;
-            shareChatEnabled = draft.shareChatEnabled;
+            if (draft.contactEmail !== undefined) contactEmail = draft.contactEmail;
             chatOrEmbedUrl = draft.chatOrEmbedUrl;
-            contactEmail = draft.contactEmail;
             if (draft.sendEmailNotification !== undefined) sendEmailNotification = draft.sendEmailNotification;
+            if (draft.sendToClaudeChat !== undefined) sendToClaudeChat = draft.sendToClaudeChat;
             pickedElementHtml = draft.pickedElementHtml;
             screenshotDataUrl = draft.screenshotDataUrl;
             // Clear the draft now that it has been consumed
@@ -1622,134 +1402,61 @@
             {$text('settings.report_issue.email_fallback')}
         </SettingsGradientLink>
 
-        <!-- Short Description (required, multi-line) -->
-        <div class="input-group">
-            <SettingsSectionHeading title={$text('settings.report_issue.title_label')} icon="chat" />
-            <SettingsTextarea
-                bind:value={issueTitle}
-                id="issue-title"
-                dataTestid="report-issue-title"
-                placeholder={$text('settings.report_issue.title_placeholder')}
-                disabled={isSubmitting}
-                ariaLabel={$text('settings.report_issue.title_label')}
-                rows={3}
-            />
-            {#if showTitleWarning && titleError}
-                <InputWarning
-                    message={titleError}
-                />
-            {/if}
-        </div>
-        
-        <!-- User Flow — "What did you do?" (optional) -->
-        <div class="input-group">
-            <SettingsSectionHeading title={$text('settings.report_issue.user_flow_label')} icon="document" />
-            <SettingsTextarea
-                bind:value={userFlow}
-                dataTestid="report-issue-user-flow"
-                placeholder={$text('settings.report_issue.user_flow_placeholder')}
-                disabled={isSubmitting}
-                ariaLabel={$text('settings.report_issue.user_flow_label')}
-                rows={3}
-            />
-            <p class="input-hint">{$text('settings.report_issue.user_flow_hint')}</p>
-        </div>
+        <!-- Single report text + quick actions (image, element, dictation) -->
+        <ReportIssueComposer
+            bind:value={issueTitle}
+            disabled={isSubmitting}
+            error={titleError}
+            anonymous={!$authStore.isAuthenticated}
+            canAttachImage={$authStore.isAuthenticated}
+            elementPickerActive={isPickerActive}
+            onAttachImage={() => screenshotFileInput?.click()}
+            onPickElement={startElementPicker}
+        />
 
-        <!-- Expected Behaviour (optional) -->
-        <div class="input-group">
-            <SettingsSectionHeading title={$text('settings.report_issue.expected_behaviour_label')} icon="search" />
-            <SettingsTextarea
-                bind:value={expectedBehaviour}
-                dataTestid="report-issue-expected-behaviour"
-                placeholder={$text('settings.report_issue.expected_behaviour_placeholder')}
+        <!-- Hidden image input. Always present for signed-in users so E2E tests
+             can attach via setInputFiles(); the composer's image button clicks it. -->
+        {#if $authStore.isAuthenticated}
+            <input
+                bind:this={screenshotFileInput}
+                type="file"
+                accept="image/*"
+                class="screenshot-file-input"
+                data-testid="screenshot-file-input"
+                onchange={handleScreenshotUpload}
                 disabled={isSubmitting}
-                ariaLabel={$text('settings.report_issue.expected_behaviour_label')}
-                rows={2}
+                aria-label={$text('settings.report_issue.attach_image')}
             />
-            <p class="input-hint">{$text('settings.report_issue.expected_behaviour_hint')}</p>
-        </div>
-
-        <!-- Actual Behaviour (optional) -->
-        <div class="input-group">
-            <SettingsSectionHeading title={$text('settings.report_issue.actual_behaviour_label')} icon="announcement" />
-            <SettingsTextarea
-                bind:value={actualBehaviour}
-                dataTestid="report-issue-actual-behaviour"
-                placeholder={$text('settings.report_issue.actual_behaviour_placeholder')}
-                disabled={isSubmitting}
-                ariaLabel={$text('settings.report_issue.actual_behaviour_label')}
-                rows={2}
-            />
-            <p class="input-hint">{$text('settings.report_issue.actual_behaviour_hint')}</p>
-        </div>
-        
-        <!-- Share Chat Toggle (only shown when there's an active chat or embed) -->
-        {#if hasActiveChatOrEmbed}
-            <div class="toggle-group">
-                <div class="toggle-row">
-                    <label for="share-chat-toggle">{$text('settings.report_issue.share_chat_label')}</label>
-                    <Toggle
-                        id="share-chat-toggle"
-                        bind:checked={shareChatEnabled}
-                        disabled={isSubmitting}
-                        ariaLabel={$text('settings.report_issue.share_chat_label')}
-                    />
-                </div>
-                <p class="input-hint">{$text('settings.report_issue.share_chat_hint')}</p>
-            </div>
         {/if}
-        
-        <!-- Contact Email Section -->
-        <!-- Authenticated users: account email is always included automatically. -->
-        <!-- Guest users: free-text email input (optional) -->
-        {#if !$authStore.isAuthenticated}
-            <div class="input-group">
-                <label for="contact-email">{$text('settings.report_issue.email_label')}</label>
-                <SettingsInput
-                    bind:value={contactEmail}
-                    bind:inputRef={emailInput}
-                    id="contact-email"
-                    type="email"
-                    placeholder={$text('settings.report_issue.email_placeholder')}
-                    disabled={isSubmitting}
-                    hasError={!!emailError}
-                    ariaLabel={$text('settings.report_issue.email_label')}
-                    onInput={handleEmailInput}
-                />
-                {#if showEmailWarning && emailError}
-                    <InputWarning
-                        message={emailError}
-                    />
+
+        {#if screenshotDataUrl || screenshotError}
+            <div class="input-group screenshot-section" data-testid="screenshot-section">
+                {#if screenshotDataUrl}
+                    <div class="screenshot-preview-wrapper" data-testid="screenshot-preview">
+                        <img
+                            src={screenshotDataUrl}
+                            alt={$text('settings.report_issue.screenshot_preview_alt')}
+                            class="screenshot-preview"
+                        />
+                        <button
+                            type="button"
+                            class="screenshot-remove-btn"
+                            data-testid="screenshot-remove"
+                            onclick={removeScreenshot}
+                            disabled={isSubmitting}
+                        >
+                            {$text('settings.report_issue.screenshot_remove')}
+                        </button>
+                    </div>
                 {/if}
-                <p class="input-hint">{$text('settings.report_issue.email_hint')}</p>
+                {#if screenshotError}
+                    <p class="screenshot-error" data-testid="screenshot-error">{screenshotError}</p>
+                {/if}
             </div>
         {/if}
 
-        <!-- Admin-only email notification toggle. Diagnostic retention always runs. -->
-        {#if isAdminUser}
-            <div class="toggle-group" data-testid="admin-send-email-notification">
-                <div class="toggle-row">
-                    <label for="send-email-toggle">{$text('settings.report_issue.send_email_notification_label')}</label>
-                    <Toggle
-                        id="send-email-toggle"
-                        bind:checked={sendEmailNotification}
-                        disabled={isSubmitting}
-                        ariaLabel={$text('settings.report_issue.send_email_notification_label')}
-                    />
-                </div>
-                <p class="input-hint">{$text('settings.report_issue.send_email_notification_hint')}</p>
-            </div>
-        {/if}
-
-        <!-- DOM Element Picker — all users (guest and authenticated) -->
-        <!-- Lets the user tap/click any broken UI element to capture its HTML for debugging. -->
-        <!-- The settings panel temporarily closes while the picker overlay is active. -->
-        <div class="input-group element-picker-section">
-            <p class="input-label">{$text('settings.report_issue.element_picker_label')}</p>
-            <p class="input-hint">{$text('settings.report_issue.element_picker_hint')}</p>
-
-            {#if pickedElementHtml}
-                <!-- Preview of the captured element HTML + action buttons -->
+        {#if pickedElementHtml}
+            <div class="input-group element-picker-section" data-testid="picked-element-preview">
                 <div class="picked-element-preview">
                     <details class="picked-element-details">
                         <summary class="picked-element-summary">
@@ -1779,90 +1486,66 @@
                         </button>
                     </div>
                 </div>
-            {:else}
-                <!-- Start picker button -->
-                <button
-                    type="button"
-                    class="element-picker-btn"
-                    class:active={isPickerActive}
-                    onclick={startElementPicker}
-                    disabled={isSubmitting || isPickerActive}
-                >
-                    {isPickerActive
-                        ? $text('settings.report_issue.element_picker_active')
-                        : $text('settings.report_issue.element_picker_button')}
-                </button>
-            {/if}
-        </div>
+            </div>
+        {/if}
 
-        <!-- Screenshot Capture — authenticated users only -->
-        {#if $authStore.isAuthenticated}
-            <div class="input-group screenshot-section" data-testid="screenshot-section">
-                <p class="input-label">{$text('settings.report_issue.screenshot_label')}</p>
-                <p class="input-hint">{$text('settings.report_issue.screenshot_hint')}</p>
-
-                <!-- Always-present hidden file input so E2E tests can attach a
-                     screenshot via Playwright's setInputFiles() regardless of
-                     which capture variant is visible. The existing fallback
-                     button still triggers this same input via click(). -->
-                <input
-                    bind:this={screenshotFileInput}
-                    type="file"
-                    accept="image/*"
-                    class="screenshot-file-input"
-                    data-testid="screenshot-file-input"
-                    onchange={handleScreenshotUpload}
+        <!-- Optional contact email: signed-out reporters only (signed-in reports
+             include the account email automatically). -->
+        {#if !$authStore.isAuthenticated}
+            <div class="input-group" data-testid="report-issue-contact-email">
+                <label for="contact-email">{$text('settings.report_issue.email_label')}</label>
+                <SettingsInput
+                    bind:value={contactEmail}
+                    bind:inputRef={emailInput}
+                    id="contact-email"
+                    type="email"
+                    placeholder={$text('settings.report_issue.email_placeholder')}
                     disabled={isSubmitting}
-                    aria-label={$text('settings.report_issue.screenshot_upload_button')}
+                    hasError={!!emailError}
+                    ariaLabel={$text('settings.report_issue.email_label')}
+                    onInput={handleEmailInput}
                 />
+                {#if emailError}
+                    <InputWarning message={emailError} />
+                {/if}
+                <p class="input-hint">{$text('settings.report_issue.email_hint')}</p>
+            </div>
+        {/if}
 
-                {#if screenshotDataUrl}
-                    <!-- Preview + remove -->
-                    <div class="screenshot-preview-wrapper" data-testid="screenshot-preview">
-                        <img
-                            src={screenshotDataUrl}
-                            alt={$text('settings.report_issue.screenshot_preview_alt')}
-                            class="screenshot-preview"
-                        />
-                        <button
-                            type="button"
-                            class="screenshot-remove-btn"
-                            data-testid="screenshot-remove"
-                            onclick={removeScreenshot}
-                            disabled={isSubmitting}
-                        >
-                            {$text('settings.report_issue.screenshot_remove')}
-                        </button>
-                    </div>
-                {:else if showUploadFallback}
-                    <!-- Upload fallback — shown on iOS or after a non-permission capture failure -->
-                    <button
-                        type="button"
-                        class="screenshot-capture-btn"
-                        data-testid="screenshot-upload-button"
-                        onclick={() => screenshotFileInput?.click()}
+        <!-- The active chat/embed is always attached; tell the reporter. -->
+        {#if hasActiveChatOrEmbed}
+            <p class="input-hint" data-testid="report-issue-chat-included">{$text('settings.report_issue.chat_included_notice')}</p>
+        {/if}
+
+        <!-- Admin-only (development server): start a Claude chat for this report. -->
+        {#if showClaudeChatToggle}
+            <div class="toggle-group" data-testid="admin-send-to-claude-chat">
+                <div class="toggle-row">
+                    <label for="send-to-claude-chat-toggle">{$text('settings.report_issue.send_to_claude_chat_label')}</label>
+                    <Toggle
+                        id="send-to-claude-chat-toggle"
+                        bind:checked={sendToClaudeChat}
                         disabled={isSubmitting}
-                    >
-                        {$text('settings.report_issue.screenshot_upload_button')}
-                    </button>
-                {:else}
-                    <!-- Screen capture button — desktop browsers with getDisplayMedia support -->
-                    <button
-                        type="button"
-                        class="screenshot-capture-btn"
-                        data-testid="screenshot-capture-button"
-                        onclick={captureScreenshot}
-                        disabled={isCapturingScreenshot || isSubmitting}
-                    >
-                        {isCapturingScreenshot
-                            ? $text('settings.report_issue.screenshot_capturing')
-                            : $text('settings.report_issue.screenshot_capture_button')}
-                    </button>
-                {/if}
+                        ariaLabel={$text('settings.report_issue.send_to_claude_chat_label')}
+                    />
+                </div>
+                <p class="input-hint">{$text('settings.report_issue.send_to_claude_chat_hint')}</p>
+            </div>
+        {/if}
 
-                {#if screenshotError}
-                    <p class="screenshot-error" data-testid="screenshot-error">{screenshotError}</p>
-                {/if}
+        <!-- Admin-only email notification toggle. Diagnostic retention always runs. -->
+        {#if isAdminUser}
+            <div class="toggle-group" data-testid="admin-send-email-notification">
+                <div class="toggle-row">
+                    <label for="send-email-toggle">{$text('settings.report_issue.send_email_notification_label')}</label>
+                    <Toggle
+                        id="send-email-toggle"
+                        bind:checked={sendEmailNotification}
+                        disabled={isSubmitting}
+                        ariaLabel={$text('settings.report_issue.send_email_notification_label')}
+                    />
+                </div>
+                <p class="input-hint">{$text('settings.report_issue.send_email_notification_hint')}</p>
             </div>
         {/if}
 
@@ -1983,13 +1666,6 @@
         display: flex;
         flex-direction: column;
         gap: var(--spacing-4);
-    }
-    
-    .input-label {
-        font-size: var(--font-size-small);
-        font-weight: 500;
-        color: var(--color-font-primary);
-        margin: 0;
     }
     
     .input-hint {
@@ -2356,27 +2032,6 @@
         gap: var(--spacing-4);
     }
 
-    .screenshot-capture-btn {
-        align-self: flex-start;
-        padding: var(--spacing-4) var(--spacing-8);
-        border: 1px solid var(--color-border, #ccc);
-        border-radius: var(--border-radius-md, 6px);
-        background: var(--color-surface-2, #f5f5f5);
-        color: var(--color-text, #222);
-        font-size: var(--font-size-small);
-        cursor: pointer;
-        transition: background var(--duration-fast);
-    }
-
-    .screenshot-capture-btn:hover:not(:disabled) {
-        background: var(--color-surface-3, #e8e8e8);
-    }
-
-    .screenshot-capture-btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-
     .screenshot-preview-wrapper {
         display: flex;
         flex-direction: column;
@@ -2427,33 +2082,6 @@
 
     .element-picker-section {
         gap: var(--spacing-4);
-    }
-
-    /* "Pick Element" button — matches screenshot-capture-btn style */
-    .element-picker-btn {
-        align-self: flex-start;
-        padding: var(--spacing-4) var(--spacing-8);
-        border: 1px solid var(--color-border, #ccc);
-        border-radius: var(--border-radius-md, 6px);
-        background: var(--color-surface-2, #f5f5f5);
-        color: var(--color-text, #222);
-        font-size: var(--font-size-small);
-        cursor: pointer;
-        transition: background var(--duration-fast), border-color var(--duration-fast);
-    }
-
-    .element-picker-btn:hover:not(:disabled) {
-        background: var(--color-surface-3, #e8e8e8);
-    }
-
-    .element-picker-btn.active {
-        border-color: var(--color-primary, #1976d2);
-        color: var(--color-primary, #1976d2);
-    }
-
-    .element-picker-btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
     }
 
     /* Preview box shown after an element is captured */

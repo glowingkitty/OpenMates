@@ -178,7 +178,6 @@ class ConnectionManager:
         self.typed_recovery_output_capability: Dict[Tuple[str, str], bool] = {}
         self.empty_call_cleanup_capability: Dict[Tuple[str, str], bool] = {}
         self.empty_call_cleanup_gates: Dict[str, asyncio.Lock] = {}
-        self.empty_call_cleanup_unsafe_owners: set[str] = set()
         # Nonces are bound to one concrete WebSocket object. Reconnection never
         # inherits the old socket's volatile execution authority.
         self.volatile_session_nonce_by_ws: Dict[int, str] = {}
@@ -192,13 +191,6 @@ class ConnectionManager:
     def empty_call_cleanup_gate(self, user_id: str) -> asyncio.Lock:
         # Keep lock identity stable even when the final socket disconnects.
         return self.empty_call_cleanup_gates.setdefault(user_id, asyncio.Lock())
-
-    def all_user_connections_support_empty_call_cleanup(self, user_id: str) -> bool:
-        connections = self.active_connections.get(user_id, {})
-        return bool(connections) and user_id not in self.empty_call_cleanup_unsafe_owners and all(
-            self.empty_call_cleanup_capability.get((user_id, device_hash)) is True
-            for device_hash in connections
-        )
 
     async def connect(
         self,
@@ -512,10 +504,15 @@ class ConnectionManager:
             for device_hash, websocket in list(self.active_connections[user_id].items()):
                 if device_hash == exclude_device_hash:
                     continue
+                outbound = message
                 if (message.get("type") == "chat_deleted"
                     and isinstance(message.get("payload", {}).get("empty_call_cleanup"), dict)
                     and self.empty_call_cleanup_capability.get((user_id, device_hash)) is not True):
-                    continue
+                    # CLI/TUI/native clients lack the guarded local handler. The
+                    # server fence already proved the shell empty, so they get
+                    # an ordinary deletion and close the chat like any delete.
+                    outbound = {**message, "payload": {key: value for key, value
+                        in message["payload"].items() if key != "empty_call_cleanup"}}
                 # Skip sockets whose server-side transport is already closed
                 # (grace-period remnants). Sending would raise RuntimeError
                 # and the broadcast would reach live peers anyway — but the
@@ -523,7 +520,7 @@ class ConnectionManager:
                 if not _ws_is_live(websocket):
                     stale_websockets.append(websocket)
                     continue
-                tasks.append(websocket.send_json(message))
+                tasks.append(websocket.send_json(outbound))
                 websockets_to_send.append(websocket)
 
             cancelled_send = None

@@ -1,5 +1,5 @@
 ---
-name: openmates:realistic-long-chat-validation
+name: realistic-long-chat-validation
 description: Run a realistic many-turn OpenMates CLI chat to validate Gemini routing, generated artifact quality, repeated compression checkpoints, and publish a successful run as an example chat
 user-invocable: true
 argument-hint: "[optional topic]"
@@ -22,7 +22,7 @@ Source of truth: `docs/plans/realistic-long-chat-cli-validation/plan.yml`.
 
 Do not run this workflow as a hidden unattended deterministic script. It is fine
 to use short helper commands for inspection, checkpoint queries, or CLI command
-wrapping, but the chat itself must proceed as individual Codex-controlled CLI
+wrapping, but the chat itself must proceed as individual agent-controlled CLI
 turns with response review before the next turn.
 
 ## Topic Agreement Gate

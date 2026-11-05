@@ -3,6 +3,7 @@
 
 import { EmbedNodeAttributes, EmbedClipboardData, TipTapNode, TipTapDoc } from "./types";
 import { groupHandlerRegistry } from "./groupHandlers";
+import { AUTHORED_RESULT_KIND_MAP, normalizeEmbedType } from "../data/embedRegistry.generated";
 import { parseMarkdownToTiptap } from "../components/enter_message/utils/markdownParser";
 import { copyToClipboard } from "../utils/clipboardUtils";
 
@@ -778,7 +779,17 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       }
       return "";
 
-    default:
+    default: {
+      // Registered authored results are real stored records, including ordinary
+      // assistant cards. Persist their actual IDs, never inline content/crypto.
+      const authoredDefinition = Object.values(AUTHORED_RESULT_KIND_MAP)
+        .find(definition => definition.frontendType === attrs.type);
+      const backendType = attrs.type === normalizeEmbedType('authored_results')
+        ? 'authored_results' : authoredDefinition?.backendType;
+      if (backendType && attrs.contentRef?.startsWith('embed:')) {
+        const reference = createEmbedReference(backendType, attrs.contentRef.slice(6));
+        return `\`\`\`json\n${JSON.stringify(reference, null, 2)}\n\`\`\``;
+      }
       // Reusing an existing result must preserve its reference even for result
       // types that have no editable-content serializer. Never inline its data.
       if (attrs.referenceOnly && attrs.contentRef?.startsWith("embed:")) {
@@ -796,6 +807,7 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       }
 
       return "";
+    }
   }
 }
 

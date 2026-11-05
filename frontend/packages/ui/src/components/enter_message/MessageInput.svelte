@@ -99,9 +99,11 @@
     import { extractEmbedReferences } from '../../services/embedResolver';
     import { getLastAuthMethod, type LastAuthMethod } from '../../utils/lastAuthMethod';
     import { AnonymousTranscriptionUsageError, type AudioRealtimeTranscriptionHandle } from '../../services/audioRealtimeTranscription';
+    import { createLiveTranscriptController, LIVE_TRANSCRIPT_META, type LiveTranscriptController } from './services/liveTranscriptInsertion';
     import { transactionInsertedTriggerCharacter } from './services/composerParsingSchedule';
     import { assistantSpeechController } from '../../services/assistantSpeechController';
     import { voiceCallController } from '../../services/voiceCall';
+    import VoiceCallLiveTranscript from './VoiceCallLiveTranscript.svelte';
 
     // Handlers
     import { handleSend, prepareQueuedMessageRevision, detectUrlsInText } from './handlers/sendHandlers';
@@ -149,10 +151,11 @@
     
     // PII Detection
     import { detectPII, restorePIIInText, type PIIMatch, type PIIDetectionOptions, type PersonalDataForDetection } from './services/piiDetectionService';
-    import { detectPIIForWeb, preloadWebPIIDetector, resetWebPIIDetector, isWebPIIModelEnabled, webPIIDetectorState } from './services/webPIIDetectionService';
+    import { detectPIIForWeb, preloadWebPIIDetector, resetWebPIIDetector, isWebPIIModelEnabled, isWebPIIModelSupported, webPIIDetectorState } from './services/webPIIDetectionService';
     import { mergeWebPIIMatches } from './services/webPIIMatches';
     import { claimWebPIIFallbackNotice } from './services/webPIIFallbackNotice';
     import PIIWarningBanner from './PIIWarningBanner.svelte';
+    import { createComposerInteractionFocusHold } from './services/composerInteractionFocusHold';
     // Privacy settings store — controls master toggle, per-category toggles, and personal data entries
     import { personalDataStore, type PersonalDataEntry, type PIIDetectionSettings } from '../../stores/personalDataStore';
     import { get } from 'svelte/store';
@@ -292,6 +295,8 @@
         (($voiceCallController.chatId !== null && $voiceCallController.chatId === currentChatId) ||
             ($voiceCallController.status === 'connecting' && !currentChatId && !$voiceCallController.chatId)));
 
+    const callLiveTranscript = $derived(callOwnsComposer ? $voiceCallController.liveTranscript ?? null : null);
+
     function plainCallTextOnly(): boolean {
         if (!editor || editor.isDestroyed) return false;
         const allowed = new Set(['doc', 'paragraph', 'text', 'hardBreak']);
@@ -402,21 +407,27 @@
     let recordingLayoutPending = $state(false);
     let recordingLayoutActive = $derived(recordingLayoutPending || $recordingState.showRecordAudioUI || $recordingState.isRecordingActive);
     let recordingStartedWithDraft = $state(false);
-    let recordingShowsDraft = $derived(recordingLayoutActive && recordingStartedWithDraft);
+    // Live dictation streams into the editor, so the draft view opens as soon
+    // as the first words arrive, even for a recording started on an empty field.
+    let recordingHasLiveText = $state(false);
+    let recordingShowsDraft = $derived(recordingLayoutActive && (recordingStartedWithDraft || recordingHasLiveText));
+    let livePIIDetectionTimer: ReturnType<typeof setTimeout> | null = null;
+    // Continuous dictation would keep resetting the regular PII debounce, so
+    // live text is scanned on a fixed cadence instead.
+    const LIVE_PII_DETECTION_INTERVAL_MS = 600;
     let recordingContext = $state.raw<{
         owner: string;
         generation: number;
         editor: Editor;
         chatId: string | undefined;
         draftChatId: string | null;
-        from: number;
-        to: number;
+        textAtCapture: string;
+        live: LiveTranscriptController;
         realtime: AudioRealtimeTranscriptionHandle | null;
         sendRequested: boolean;
         overlayRemoved: Promise<void>;
         resolveOverlayRemoved: () => void;
         releaseEmptyDraftProtection: () => void;
-        unmap: () => void;
     } | null>(null);
 
     // --- Local UI State ---
@@ -659,7 +670,6 @@
         piiSettingsVersion += 1;
         if (editor && !editor.isDestroyed) {
             lastPIIText = '';
-            if (!s.masterEnabled) resetWebPIIDetector();
             void runPIIDetectionImmediate(editor);
         }
     });
@@ -670,6 +680,14 @@
             lastPIIText = '';
             void runPIIDetectionImmediate(editor);
         }
+    });
+    const unsubscribePIIReadiness = personalDataStore.enhancementReady.subscribe((ready) => {
+        if (!editor || editor.isDestroyed) return;
+        piiSettingsVersion += 1;
+        lastPIIText = '';
+        if (!ready) resetWebPIIDetector();
+        else if (isWebPIIModelEnabled()) void preloadWebPIIDetector().catch(() => {});
+        void runPIIDetectionImmediate(editor);
     });
     let defaultImprecise = $derived(locationSettingsState.impreciseByDefault);
     let isMessageFieldFocused = $state(false);
@@ -906,7 +924,7 @@
     }
     let visibleGhostSuggestion = $derived(
         isMessageFieldFocused && !!ghostSuggestion?.trim() && locallyDismissedGhostKey !== (ghostSuggestionKey ?? ghostSuggestion) &&
-        !hasSendableDraft && !queuedEdit && !$editMessageStore &&
+        !hasSendableDraft && !callLiveTranscript && !queuedEdit && !$editMessageStore &&
         !$recordingState.isRecordingActive && !$recordingState.showRecordAudioUI &&
         !recordingCorrectionPending && !showCamera && !showSketch && !showMaps &&
         !startNewChatOnClick && !anonymousFileAttachmentPending
@@ -923,7 +941,8 @@
     // Draft preview mode is only for text drafts. Embed-only drafts must keep the
     // editor visible so audio/file preview controls remain reachable after blur.
     let isDraftPreview = $derived(!!draftPreviewSummary && hasContent && !hasEmbedContent && !hasDraftPreviewEmbeds && !isMessageFieldFocused && !isFullscreen && !recordingLayoutActive && !forceDraftActionsVisible && !anonymousUsageExhausted);
-    let isInlineCompact = $derived(inlineCompact && !isFullscreen && !recordingShowsDraft && (recordingLayoutActive || (!shouldShowActionButtons && !isMessageFieldFocused && (!hasSendableDraft || isDraftPreview) && !$recordingState.showRecordAudioUI)));
+    // A live call transcript always opens the full composer so it stays readable (3RZXL).
+    let isInlineCompact = $derived(inlineCompact && !isFullscreen && !recordingShowsDraft && !callLiveTranscript && (recordingLayoutActive || (!shouldShowActionButtons && !isMessageFieldFocused && (!hasSendableDraft || isDraftPreview) && !$recordingState.showRecordAudioUI)));
 
     // Computed state for showing action buttons
     // In extended/fullscreen mode: always visible (no tap required).
@@ -932,8 +951,10 @@
     // is active — otherwise the onmouseup/touchend handlers on the record button are
     // removed from the DOM before they can fire (because the editor blur clears
     // isMessageFieldFocused after 150ms, hiding ActionButtons mid-interaction).
+    // A live call transcript shows only the expanded field with the spoken
+    // words; the call bar owns the controls, so no attach/Send row appears.
     let shouldShowActionButtons = $derived(
-        !startNewChatOnClick && !isDraftPreview && !recordingLayoutActive && (
+        !startNewChatOnClick && !isDraftPreview && !recordingLayoutActive && !callLiveTranscript && (
             isFullscreen ||
             showActionButtons ||
             anonymousUsageExhausted ||
@@ -945,7 +966,7 @@
         )
     );
     let showBaseEmptyInputAffordances = $derived(
-        !startNewChatOnClick && !recordingLayoutActive && !shouldShowActionButtons && !isFullscreen && !isMessageFieldFocused && !hasSendableDraft && !isDraftPreview && !showMaps && !showCamera && !showSketch
+        !startNewChatOnClick && !recordingLayoutActive && !shouldShowActionButtons && !isFullscreen && !isMessageFieldFocused && !hasSendableDraft && !isDraftPreview && !showMaps && !showCamera && !showSketch && !callLiveTranscript
     );
 
     // Single-tap feedback: briefly highlight the inline "Press & hold to record" label
@@ -1084,6 +1105,7 @@
     let originalMarkdown = '';
     let isUpdatingFromMarkdown = false;
     let isConvertingEmbeds = false;
+    let urlConversionPending = false;
 
     interface AutoConvertedPasteCandidate {
         embedId: string;
@@ -1761,10 +1783,14 @@
     async function processClosedUrls(editor: Editor, closedUrls: Array<{url: string, startPos: number, endPos: number}>) {
         console.debug('[MessageInput] Processing closed URLs:', closedUrls);
         
-        if (closedUrls.length === 0) return;
-        
-        // Set flag to prevent originalMarkdown updates during processing
-        isConvertingEmbeds = true;
+        if (closedUrls.length === 0 || urlConversionPending) return;
+
+        // URL offsets belong to this exact draft. Keep edits/serialization live
+        // while metadata loads, and never apply the offsets to a newer document.
+        const sourceMarkdown = originalMarkdown || editor.getText();
+        const sourceDocument = editor.state.doc;
+        const sourceChatId = currentChatId;
+        urlConversionPending = true;
         
         try {
             // Create embeds for all URLs in parallel to improve performance
@@ -1781,11 +1807,18 @@
             });
             
             const embedResults = await Promise.all(embedPromises);
+
+            if (editor.isDestroyed || currentChatId !== sourceChatId ||
+                editor.state.doc !== sourceDocument ||
+                (originalMarkdown || editor.getText()) !== sourceMarkdown) {
+                console.debug('[MessageInput] Discarding stale URL conversion');
+                return;
+            }
             
             // Replace URLs with embed reference blocks in the preserved markdown content
             // Process URLs from end to beginning to maintain position integrity when replacing
             const sortedResults = [...embedResults].sort((a, b) => b.urlInfo.startPos - a.urlInfo.startPos);
-            let currentText = originalMarkdown || editor.getText();
+            let currentText = sourceMarkdown;
             
             for (const { urlInfo, embedResult } of sortedResults) {
                 if (!embedResult) {
@@ -1847,6 +1880,7 @@
                 hasEmbedRef: currentText.includes('"embed_id"'),
                 preview: currentText.substring(0, 100) + (currentText.length > 100 ? '...' : '')
             });
+            isConvertingEmbeds = true;
             originalMarkdown = currentText;
             
             // Re-parse the updated markdown with unified parser to create embed nodes
@@ -1867,8 +1901,8 @@
             }
             
         } finally {
-            // Always reset the flag
             isConvertingEmbeds = false;
+            urlConversionPending = false;
         }
     }
     
@@ -2371,8 +2405,17 @@
     // onMount, onDestroy, editor handlers, setupEventListeners, cleanup remain the same
 
     onMount(() => {
+        let previousModelStatus: string | undefined;
         const stopModelState = webPIIDetectorState.subscribe((state) => {
-            if (state.status !== 'error' || !cachedPIISettings?.masterEnabled
+            const finishedBackgroundLoad = previousModelStatus === 'loading' && state.status === 'ready';
+            previousModelStatus = state.status;
+            if (finishedBackgroundLoad && cachedPIISettings?.masterEnabled && editor && !editor.isDestroyed) {
+                // A bounded preview can finish with basic checks while assets
+                // keep downloading. Recheck the current draft once they arrive.
+                lastPIIText = '';
+                void runPIIDetectionImmediate(editor);
+            }
+            if ((state.status !== 'error' && !state.fallbackReason) || !cachedPIISettings?.masterEnabled
                 || !isWebPIIModelEnabled() || !claimWebPIIFallbackNotice()) return;
             notificationStore.addNotificationWithOptions('info', {
                 message: get(text)('enter_message.pii.basic_detection_notice'),
@@ -2390,10 +2433,10 @@
             stopModelState();
             window.removeEventListener('online', retryAfterReconnect);
         };
-        if (cachedPIISettings?.masterEnabled) {
-            // The worker publishes its loading/error state; no private input is logged.
-            void preloadWebPIIDetector().catch(() => {});
-        }
+        // Stored account opt-outs must be decrypted before any model/license request.
+        void personalDataStore.ensureEnhancementReady().then(() => {
+            if (!composerDestroyed && isWebPIIModelEnabled()) return preloadWebPIIDetector();
+        }).catch(() => {});
         lastAuthMethod = getLastAuthMethod();
         if ($authStore.isAuthenticated || $demoMode) {
             anonymousStatusChecked = true;
@@ -2714,6 +2757,11 @@
                         // the open viewer can receive the original event.
                         if ((event.key === 'Enter' || event.key === 'Escape') &&
                             document.querySelector('.unified-embed-fullscreen-overlay')) return true;
+                        // While dictating into the editor, Enter finishes and Escape
+                        // cancels the recording (handled by RecordAudio's document
+                        // listener) instead of sending or inserting a paragraph.
+                        if ($recordingState.showRecordAudioUI &&
+                            ((event.key === 'Enter' && !event.shiftKey) || event.key === 'Escape')) return true;
                         if ((event.key === 'Enter' || event.key === ' ') && (event.target as HTMLElement).closest('[data-testid="project-access-chip"]')) {
                             handleMessageWrapperKeyDown(event);
                             return true;
@@ -2825,6 +2873,16 @@
 
         const unsubscribeAiTyping = aiTypingStore.subscribe(value => {
             currentTypingStatus = value;
+            // Once the AI is producing output for the pending new chat, Stop must only cancel
+            // the AI task. Deleting the chat and restoring the draft applies solely before output.
+            if (
+                value.isTyping &&
+                pendingNewChatDraftRestore &&
+                value.chatId &&
+                value.chatId === (pendingNewChatDraftRestore.chatId ?? currentChatId)
+            ) {
+                pendingNewChatDraftRestore = null;
+            }
         });
 
         // Subscribe to the text store so that when the locale JSON finishes loading
@@ -2867,10 +2925,17 @@
         appsHandoffEditorReady = true;
         const unsubscribeAppsHandoff = appsWorkspaceComposerHandoff.subscribe(() => { void applyAppsComposerHandoff(); });
         function dismissOnOutsidePointer(event: PointerEvent) {
-            if (!isFocused || $recordingState.showRecordAudioUI || isMenuInteraction) return;
+            if (!isFocused || $recordingState.showRecordAudioUI || isMenuInteraction || isComposerInteractionFocusHeld()) return;
             const target = event.target;
-            if (!(target instanceof HTMLElement) || messageInputWrapper?.contains(target) ||
-                target.closest('[data-preserve-composer-focus="true"], [data-composer-focus-control]')) return;
+            if (!(target instanceof HTMLElement) || messageInputWrapper?.contains(target)) return;
+            if (target.closest('[data-preserve-composer-focus="true"]')) {
+                // Suggestion rails outside the wrapper (e.g. "OpenMates can help
+                // you with") must not collapse the draft when a mobile blur
+                // lands between pointerdown and click.
+                holdComposerFocusForInteraction();
+                return;
+            }
+            if (target.closest('[data-composer-focus-control]')) return;
             dismissFocus();
         }
         document.addEventListener('pointerdown', dismissOnOutsidePointer, true);
@@ -2896,8 +2961,10 @@
  
     onDestroy(() => {
         composerDestroyed = true;
+        if (livePIIDetectionTimer) clearTimeout(livePIIDetectionTimer);
         piiPreviewGeneration += 1;
         unsubscribePIISettings();
+        unsubscribePIIReadiness();
         unsubscribePIIEntries();
         unsubscribePIIModelState();
         for (const cancel of pendingVoiceCallDraftWaits) cancel();
@@ -2973,7 +3040,7 @@
 
     function handleEditorBlur({ editor }: { editor: Editor }) {
         const chatIdAtBlur = currentChatId;
-        const preserveComposerFocusForThisBlur = preserveComposerFocusOnNextBlur;
+        const preserveComposerFocusForThisBlur = preserveComposerFocusOnNextBlur || isComposerInteractionFocusHeld();
         preserveComposerFocusOnNextBlur = false;
         if (preserveComposerFocusResetTimer) {
             clearTimeout(preserveComposerFocusResetTimer);
@@ -2993,7 +3060,7 @@
             // Recording owns the compact panel while the user browses the chat.
             // Keep its width expanded without stealing DOM focus back.
             if (recordingLayoutActive || nativeAttachmentPickerOpen) return;
-            if (preserveComposerFocusForThisBlur) {
+            if (preserveComposerFocusForThisBlur || isComposerInteractionFocusHeld()) {
                 isMessageFieldFocused = true;
                 isFocused = true;
                 return;
@@ -3027,8 +3094,7 @@
                 // become draft text. Flushing that transient empty document
                 // would create and then delete the originating draft shell,
                 // clearing its ID while the correction is still in flight.
-                const emptyRecordingEditor = recordingContext?.editor === editor && editor.isEmpty;
-                if (!queuedEdit && !emptyRecordingEditor) flushSaveDraft(editor, chatIdAtBlur);
+                if (!queuedEdit && !recordingDefersDraftSave(editor)) flushSaveDraft(editor, chatIdAtBlur);
                 // Only reset to initial content if the editor is TRULY empty (no content at all)
                 // Do NOT reset if it contains mentions - those are valid draft content
                 // that should be preserved even though they can't be sent alone
@@ -3460,11 +3526,31 @@
         }
     }
     
+    // PII highlight/banner and suggestion-rail taps must not collapse the draft.
+    const composerInteractionFocusHold = createComposerInteractionFocusHold();
+    const isComposerInteractionFocusHeld = () => composerInteractionFocusHold.isHeld();
+    function holdComposerFocusForInteraction() {
+        composerInteractionFocusHold.start();
+        if (blurTimeoutId) {
+            clearTimeout(blurTimeoutId);
+            blurTimeoutId = null;
+        }
+        isMessageFieldFocused = true;
+        isFocused = true;
+    }
+    function handleMessageWrapperPointerDown(event: PointerEvent) {
+        const target = event.target;
+        if (target instanceof Element && target.closest('.pii-highlight, [data-testid="pii-warning-banner"]')) {
+            holdComposerFocusForInteraction();
+        }
+    }
+
     /**
      * Handle click on a PII decoration to exclude it from replacement.
      * Called when user clicks on highlighted sensitive data.
      */
     function handlePIIClick(matchId: string) {
+        holdComposerFocusForInteraction();
         // Add to exclusions set
         piiExclusions = new Set([...piiExclusions, matchId]);
         // Invalidate last text cache so detection re-runs immediately
@@ -3485,6 +3571,7 @@
      * Excludes all detected PII so nothing gets replaced on send.
      */
     function handlePIIUndoAll() {
+        holdComposerFocusForInteraction();
         piiPreviewGeneration += 1;
         // Mark all current detections as excluded
         const newExclusions = new Set(piiExclusions);
@@ -3539,7 +3626,7 @@
             const repairedDomDrift = syncTextOnlyDomToEditorBeforeDraftSave(editor);
             if (repairedDomDrift) {
                 hasContent = editorHasSendableText(editor);
-                if (!queuedEdit && !(recordingContext?.editor === editor && editor.isEmpty)) {
+                if (!queuedEdit && !recordingDefersDraftSave(editor)) {
                     triggerSaveDraft(currentChatId, editor);
                 }
             }
@@ -3650,7 +3737,7 @@
             if (transaction.docChanged) {
                 refreshDraftPreviewState(editor);
                 updateOriginalMarkdown(editor);
-                if (!queuedEdit && !(recordingContext?.editor === editor && editor.isEmpty)) {
+                if (!queuedEdit && !recordingDefersDraftSave(editor)) {
                     triggerSaveDraft(currentChatId, editor);
                 }
             }
@@ -3676,8 +3763,10 @@
             }
         }
         
-        // Always trigger save/delete operation - the draft service handles both scenarios
-        if (!queuedEdit && !(recordingContext?.editor === editor && editor.isEmpty)) {
+        // Always trigger save/delete operation - the draft service handles both scenarios.
+        // Dictation's own writes (streaming, correction, cancel cleanup) persist
+        // explicitly once the recording settles instead.
+        if (!queuedEdit && !recordingDefersDraftSave(editor) && !transaction.getMeta(LIVE_TRANSCRIPT_META)) {
             triggerSaveDraft(currentChatId, editor);
         }
 
@@ -4904,7 +4993,9 @@
                 clearTimeout(blurTimeoutId);
                 blurTimeoutId = null;
             }
-            if (editor && !editor.isDestroyed && !editor.isFocused) {
+            // While dictation is visible, a tap places the caret where the next
+            // words go; forcing focus('end') would overwrite the native caret.
+            if (editor && !editor.isDestroyed && !editor.isFocused && !recordingShowsDraft) {
                 editor.commands.focus('end');
                 console.debug('[MessageInput] Ensuring editor focus on editor mousedown');
             }
@@ -5191,7 +5282,7 @@
         recordingContext = null;
         context?.releaseEmptyDraftProtection();
         context?.resolveOverlayRemoved();
-        context?.unmap();
+        context?.live.destroy();
         context?.realtime?.cancel();
     }
 
@@ -5199,7 +5290,7 @@
         invalidateRecordingContext('new-recording');
         if (!editor || editor.isDestroyed) return;
         const activeEditor = editor;
-        const selection = activeEditor.state.selection;
+        recordingHasLiveText = false;
         let resolveOverlayRemoved = () => {};
         const overlayRemoved = new Promise<void>((resolve) => { resolveOverlayRemoved = resolve; });
         const context = {
@@ -5208,22 +5299,16 @@
             editor: activeEditor,
             chatId: currentChatId,
             draftChatId: get(draftEditorUIState).currentChatId ?? null,
-            from: selection.from,
-            to: selection.to,
+            // Dictation lands at the editor selection captured here and then
+            // follows the caret wherever the user moves it while speaking.
+            live: createLiveTranscriptController(activeEditor),
+            textAtCapture: activeEditor.getText(),
             realtime: null as AudioRealtimeTranscriptionHandle | null,
             sendRequested: false,
             overlayRemoved,
             resolveOverlayRemoved,
             releaseEmptyDraftProtection: () => {},
-            unmap: () => {},
         };
-        const mapSelection = ({ transaction }: { transaction: Transaction }) => {
-            if (!transaction.docChanged) return;
-            context.from = transaction.mapping.map(context.from, context.from === context.to ? 1 : -1);
-            context.to = transaction.mapping.map(context.to, 1);
-        };
-        activeEditor.on('transaction', mapSelection);
-        context.unmap = () => activeEditor.off('transaction', mapSelection);
         recordingContext = context;
         context.releaseEmptyDraftProtection = protectEmptyRecordingDraft(activeEditor, context.chatId, () =>
             recordingContext === context && context.generation === recordingDraftGeneration &&
@@ -5262,6 +5347,46 @@
         return current;
     }
 
+    // contract-test: direct surface=gui.web assertions=message-input.audio.live-editor-transcript
+    function handleLiveTranscript(event: CustomEvent<{ transcript: string }>) {
+        const context = recordingContext;
+        if (!context || !isCurrentRecordingContext(context)) return;
+        if (!context.live.apply(event.detail.transcript)) return;
+        recordingHasLiveText = true;
+        scheduleLivePIIDetection(context.editor);
+    }
+
+    function scheduleLivePIIDetection(targetEditor: Editor) {
+        if (livePIIDetectionTimer) return;
+        livePIIDetectionTimer = setTimeout(() => {
+            livePIIDetectionTimer = null;
+            if (editor === targetEditor && !targetEditor.isDestroyed) void runPIIDetectionImmediate(targetEditor);
+        }, LIVE_PII_DETECTION_INTERVAL_MS);
+    }
+
+    /** Recording drafts persist once dictation is reconciled, not on every streamed word. */
+    function recordingDefersDraftSave(targetEditor: Editor): boolean {
+        const context = recordingContext;
+        return !!context && context.editor === targetEditor &&
+            (targetEditor.isEmpty || context.live.hasText());
+    }
+
+    function handleRecordingCancelled() {
+        const context = recordingContext;
+        if (context && isCurrentRecordingContext(context)) {
+            context.live.discard();
+            invalidateRecordingContext('recording-cancelled');
+            // Only text typed during the recording needs persisting; an unchanged
+            // draft is already saved and must not be re-saved as a new draft.
+            if (!queuedEdit && !context.editor.isEmpty && context.editor.getText() !== context.textAtCapture) {
+                triggerSaveDraft(currentChatId, context.editor);
+            }
+        } else {
+            invalidateRecordingContext('recording-cancelled');
+        }
+        handleStopRecordingCleanup();
+    }
+
     function handleRecordingSendRequested() {
         const context = recordingContext;
         if (!context || !isCurrentRecordingContext(context)) return;
@@ -5285,6 +5410,7 @@
         }
         context.realtime = realtime;
         recordingCorrectionPending = true;
+        context.live.setProcessing(true);
         recordRecordingDiagnostic('correction-pending', context);
 
         // Associate billing with the draft without creating an audio file or embed.
@@ -5305,18 +5431,12 @@
             recordRecordingDiagnostic('correction-arrived', context);
             if (!isCurrentRecordingContext(context)) return;
             const transcript = result.transcript.trim();
-            if (!transcript) throw new Error('Empty recording transcript');
-            const plainTextContent: JSONContent[] = [];
-            transcript.split(/\r\n?|\n/).forEach((line, index) => {
-                if (index > 0) plainTextContent.push({ type: 'hardBreak' });
-                if (line) plainTextContent.push({ type: 'text', text: line });
-            });
-            context.editor.commands.insertContentAt(
-                { from: context.from, to: context.to },
-                plainTextContent,
-                { updateSelection: true },
-            );
-            recordRecordingDiagnostic('transcript-inserted', context);
+            if (!transcript && !context.live.hasText()) throw new Error('Empty recording transcript');
+            context.live.setProcessing(false);
+            // One untouched dictation segment becomes the corrected text. Text
+            // the user redirected or edited while speaking stays as arranged.
+            const outcome = transcript ? context.live.applyCorrection(transcript) : 'kept';
+            recordRecordingDiagnostic('transcript-inserted', context, outcome);
             hasContent = editorHasSendableText(context.editor);
             refreshDraftPreviewState(context.editor);
             lastEditorUpdateText = context.editor.getText();
@@ -5351,6 +5471,14 @@
             if (isCurrentRecordingContext(context)) {
                 if (!(error instanceof AnonymousTranscriptionUsageError)) console.error('[MessageInput] Recording transcription failed:', error);
                 void showTranscriptionError(error);
+                context.live.setProcessing(false);
+                if (error instanceof AnonymousTranscriptionUsageError) {
+                    // Guest dictation without admitted allowance yields no transcript.
+                    context.live.discard();
+                } else if (context.live.hasText() && !queuedEdit) {
+                    // Already streamed words stay editable; persist them as the draft.
+                    triggerSaveDraft(currentChatId, context.editor);
+                }
             }
         } finally {
             if (!$authStore.isAuthenticated) void refreshAnonymousFreeUsageStatus();
@@ -5717,7 +5845,7 @@
             `[MessageInput] All uploads finished for deferred send ${readyCtx.pendingId} in chat ${chatId.slice(-6)} — executing deferred send`
         );
 
-        if (isWebPIIModelEnabled()) {
+        if (isWebPIIModelSupported()) {
             await executePendingSendWithPrivacyRetry(readyCtx);
             return;
         }
@@ -6472,8 +6600,8 @@
     // These now extract the original event from the detail payload
     function prepareEditorForRecording() {
         captureRecordingContext();
-        // Freeze the layout choice at capture start; corrected text must not
-        // expand a recording that began with an empty editor.
+        // A recording that begins with a draft shows it immediately; an empty
+        // editor expands once the first dictated words stream in.
         recordingStartedWithDraft = !!editor && !editor.isDestroyed &&
             inspectDraftContent(editor.getJSON()).hasMeaningfulContent;
         if (blurTimeoutId) {
@@ -7360,6 +7488,7 @@
     class:guest-cta-mode={guestCtaMode && !$authStore.isAuthenticated}
     role="none"
     onmousedown={handleMessageWrapperMouseDown}
+    onpointerdown={handleMessageWrapperPointerDown}
     onclick={handleMessageWrapperClick}
     onkeydown={handleMessageWrapperKeyDown}
     onfocusin={handleMessageWrapperFocusIn}
@@ -7429,7 +7558,7 @@
     {/if}
 
     <div
-        class="message-field canonical-composer {isMessageFieldFocused ? 'focused' : ''} {recordingLayoutActive ? 'recording-active' : ''} {!shouldShowActionButtons && !recordingShowsDraft ? 'compact' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''} {isDraftPreview ? 'draft-preview' : ''}"
+        class="message-field canonical-composer {isMessageFieldFocused ? 'focused' : ''} {recordingLayoutActive ? 'recording-active' : ''} {!shouldShowActionButtons && !recordingShowsDraft && !callLiveTranscript ? 'compact' : ''} {callLiveTranscript ? 'call-transcript-active' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''} {isDraftPreview ? 'draft-preview' : ''}"
         data-testid="message-field"
         data-focused={isMessageFieldFocused}
         data-editor-ready={!isInitialMount}
@@ -7608,6 +7737,13 @@
         <div class="scrollable-content" bind:this={scrollableContent} style={scrollableStyle}>
             <div class="content-wrapper">
                 <div bind:this={editorElement} class="editor-content prose" data-testid="message-editor"></div>
+                {#if callLiveTranscript}
+                    <VoiceCallLiveTranscript
+                        text={callLiveTranscript.text}
+                        submitted={callLiveTranscript.submitted}
+                        overlay={!hasSendableDraft}
+                    />
+                {/if}
                 {#if visibleGhostSuggestion}
                     <div class="composer-ghost-suggestion" data-testid="composer-ghost-suggestion" role="status" in:fade={{ duration: 250 }}>{ghostSuggestion}</div>
                 {/if}
@@ -7753,13 +7889,16 @@
                 retainUntilSend={true}
                 compact={true}
                 allowSend={true}
+                transcriptInEditor={true}
+                sendHidden={detectedPII.length > 0}
                 recordingGeneration={recordingContext?.generation ?? recordingDraftGeneration}
+                on:livetranscript={handleLiveTranscript}
                 on:sendrequested={handleRecordingSendRequested}
                 on:audiorecorded={handleAudioRecorded}
                 on:transcriptionerror={(event) => showTranscriptionError(event.detail)}
                 on:close={handleStopRecordingCleanup}
                 on:overlayremoved={handleRecordingOverlayRemoved}
-                on:cancel={() => { invalidateRecordingContext('recording-cancelled'); handleStopRecordingCleanup(); }}
+                on:cancel={handleRecordingCancelled}
                 on:recordingStateChange={handleRecordingLayoutChange}
                 on:prepareassistantplayback={() => assistantSpeechController.primeForAutoplay()}
             />

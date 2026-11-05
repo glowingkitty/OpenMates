@@ -41,13 +41,32 @@ TARGET = "rust-native-dev"
 RUNNER = "ubuntu-24.04-arm"
 TRIPLE = "aarch64-unknown-linux-gnu"
 VERSION = "1.98.1"
-BUDGET = 2700
+BUDGET = 5400  # 90min from workflow start of the 120min native-dev job.
 MAX_BINARY = 128 * 1024**2
 MAX_RECEIPT = 4 * 1024**2
-CLI = "frontend/packages/openmates-tui-native"
-SDK = "packages/openmates-rust"
+CLI = "frontend/packages/openmates-tui-native"  # package `openmates`
+SDK = "packages/openmates-rust"  # package `openmates-sdk`
 ROOTS = (CLI, SDK)
-OBJECTS = ("build.json", "openmates")
+# Root Cargo workspace: one Cargo.toml/Cargo.lock; every member manifest and
+# the patched third-party crates must be present for Cargo to load it.
+try:
+    from scripts.ci_sdk_lockfiles import (
+        ROOTS as MEMBERS,
+        SCOPES,
+        THIRD_PARTY,
+        WORKSPACE_FILES,
+        validate_manifests as validate_workspace_manifests,
+    )
+except ModuleNotFoundError:
+    from ci_sdk_lockfiles import (
+        ROOTS as MEMBERS,
+        SCOPES,
+        THIRD_PARTY,
+        WORKSPACE_FILES,
+        validate_manifests as validate_workspace_manifests,
+    )
+LOCK = "Cargo.lock"
+OBJECTS = ("build.json", "openmates", "tui-benchmark")
 TICKET_DIR = Path("logs/ci-coordinator/native-dev")
 PREFIX = "candidates/native-dev/v2"
 STAGES = (
@@ -96,6 +115,7 @@ EXTRA = frozenset(
     {
         *assets.FILES.values(),
         "config/cli-command-catalog.json",
+        "backend/tests/fixtures/encryption_compatibility/legacy_layouts.json",
         "frontend/packages/workflowFile.ts",
         *("frontend/packages/openmates-cli/src/" + name for name in CATALOG),
     }
@@ -135,16 +155,47 @@ def context_require(value, reason):
         raise ContextRefused(reason)
 
 
-SETUP_SUBSTAGES = frozenset({
-    "output-disk-usage", "tmp-disk-usage", "reserve-check", "runner-temp-input",
-    "private-parent-create", "private-parent-mode", "tmp-boundary-stat",
-    "tmp-boundary-check", "sandbox-create", "source-directory-create",
-    "source-read", "source-check", "source-parent-create", "source-write",
-    "private-home-create", "private-tmp-create", "rustup-locate", "rustup-check",
-    "environment-build", "manifest-check", "command-runner-create",
-})
-SETUP_ERRNOS = frozenset({"ENOENT", "EACCES", "ENOSPC", "EROFS", "EDQUOT", "EIO",
-                          "ENOTDIR", "EEXIST", "EMFILE", "ENFILE", "EINVAL", "EPERM"})
+SETUP_SUBSTAGES = frozenset(
+    {
+        "output-disk-usage",
+        "tmp-disk-usage",
+        "reserve-check",
+        "runner-temp-input",
+        "private-parent-create",
+        "private-parent-mode",
+        "tmp-boundary-stat",
+        "tmp-boundary-check",
+        "sandbox-create",
+        "source-directory-create",
+        "source-read",
+        "source-check",
+        "source-parent-create",
+        "source-write",
+        "private-home-create",
+        "private-tmp-create",
+        "rustup-locate",
+        "rustup-check",
+        "environment-build",
+        "manifest-check",
+        "command-runner-create",
+    }
+)
+SETUP_ERRNOS = frozenset(
+    {
+        "ENOENT",
+        "EACCES",
+        "ENOSPC",
+        "EROFS",
+        "EDQUOT",
+        "EIO",
+        "ENOTDIR",
+        "EEXIST",
+        "EMFILE",
+        "ENFILE",
+        "EINVAL",
+        "EPERM",
+    }
+)
 
 
 def setup_exception(error):
@@ -154,15 +205,24 @@ def setup_exception(error):
         return {"exceptionCategory": "policy-refused"}
     if isinstance(error, OSError):
         code = errno.errorcode.get(error.errno)
-        return {"exceptionCategory": "os-error", "osCode": code if code in SETUP_ERRNOS else "other"}
-    for kind, label in ((KeyError, "key-error"), (AttributeError, "attribute-error"),
-                        (TypeError, "type-error"), (ValueError, "value-error")):
+        return {
+            "exceptionCategory": "os-error",
+            "osCode": code if code in SETUP_ERRNOS else "other",
+        }
+    for kind, label in (
+        (KeyError, "key-error"),
+        (AttributeError, "attribute-error"),
+        (TypeError, "type-error"),
+        (ValueError, "value-error"),
+    ):
         if isinstance(error, kind):
             return {"exceptionCategory": label}
     return {"exceptionCategory": "other"}
 
 
-def diagnostic(phase, error, *, recipe_stage=None, source_inputs=None, setup_substage=None):
+def diagnostic(
+    phase, error, *, recipe_stage=None, source_inputs=None, setup_substage=None
+):
     if isinstance(error, ContextRefused) and str(error) in DIAGNOSTIC_REASONS:
         reason = str(error)
     elif phase == "identity":
@@ -198,7 +258,11 @@ def diagnostic(phase, error, *, recipe_stage=None, source_inputs=None, setup_sub
         }:
             result["packagePredicate"] = error.predicate
             crate = {"cli-package-list": CLI, "sdk-package-list": SDK}.get(recipe_stage)
-            path = crate + "/" + error.path if crate and error.path else ""
+            path = (
+                (LOCK if error.path == "Cargo.lock" else crate + "/" + error.path)
+                if crate and error.path
+                else ""
+            )
             if (
                 isinstance(source_inputs, dict)
                 and path in source_inputs
@@ -209,12 +273,84 @@ def diagnostic(phase, error, *, recipe_stage=None, source_inputs=None, setup_sub
     return result
 
 
+def fetch_failure_diagnostics(private, sandbox, recipe_stage, error):
+    """Closed observations from the original failed fetch, before normal cleanup.
+
+    Raw parent logs and root-owned stage proofs keep their existing lifetime;
+    no text, package name, path, URL or token is returned or uploaded here.
+    These observations never replace failure status or cleanup verification.
+    """
+    if recipe_stage not in {"native-fetch", "sdk-fetch"}:
+        return {}
+    observed = set()
+    result = {"logAvailable": False}
+    try:
+        data = sdk.regular(private / (recipe_stage + ".log"), sdk.MAX_LOG)
+        text = data[-65536:].decode("utf-8", errors="replace").lower()
+        result["logAvailable"] = True
+        patterns = {
+            "lock_mismatch": r"lock ?file[^\n]{0,2048}(?:needs to be updated|not up.to.date|cannot be updated)",
+            "missing_package_or_version": r"no matching package named|failed to select a version",
+            "checksum": r"checksum[^\n]{0,2048}(?:changed|mismatch|did not match|failed)|failed to verify checksum",
+            "network": r"could not resolve host|failed to connect|connection (?:reset|refused)|network is unreachable|network failure|failed to download",
+            "tls": r"\b(?:ssl|tls)\b[^\n]{0,100}(?:error|certificate|handshake|failed)|certificate (?:verify|verification|has expired|problem)|peer verification",
+            "http_status": r"(?:http[^\n]{0,200}(?:response|status)[^\n]{0,200}|got |status(?: code)?:? )\b[45][0-9]{2}\b",
+            "timeout": r"timed out|timeout was reached|operation too slow",
+        }
+        for category, pattern in patterns.items():
+            if re.search(pattern, text):
+                observed.add(category)
+    except (OSError, ValueError, sdk.Refused):
+        pass
+    if isinstance(error, sdk.Refused) and str(error) in {"deadline", "stage_deadline"}:
+        observed.add("timeout")
+    try:
+        proof = json.loads(root_file(sandbox / "proof" / (recipe_stage + ".json"), 1024**2))
+        if isinstance(proof, dict) and proof.get("stage") == recipe_stage:
+            reason = proof.get("failure")
+            if isinstance(reason, str) and reason in {"child-failed", "deadline", "disk", "process-bound", "escaped-descendant", "compiler-held", "compiler-replaced", "supervisor"}:
+                result["supervisorReason"] = reason
+            if reason == "deadline":
+                observed.add("timeout")
+            for field in ("uidEmpty", "unexpectedDescendants"):
+                if isinstance(proof.get(field), bool):
+                    result["observed" + field[0].upper() + field[1:]] = proof[field]
+            if proof.get("uidEmpty") is False or proof.get("unexpectedDescendants") is True:
+                observed.add("owned_cleanup")
+    except (OSError, ValueError, sdk.Refused, supervisor.Refused):
+        pass
+    order = ("lock_mismatch", "missing_package_or_version", "checksum", "network", "tls", "http_status", "timeout", "owned_cleanup")
+    result["categories"] = [name for name in order if name in observed] or ["unknown"]
+    return result
+
+
+def compile_failure_diagnostics(private, original_source, inputs, recipe_stage):
+    """Project the SAME failed parent log before private cleanup; never raw text.
+
+    This adds no compile/cleanup proof. Only existing closed rustc codes and held
+    source coordinates may enter the existing failed native JSON artifact.
+    """
+    if recipe_stage not in {"native-build", "renderer-build"} or not isinstance(
+        inputs, dict
+    ):
+        return []
+    try:
+        data = sdk.regular(private / (recipe_stage + ".log"), sdk.MAX_LOG)
+        return sdk.compiler_diagnostics(data, original_source, inputs)
+    except (OSError, ValueError, sdk.Refused):
+        # Missing/unsafe/oversized diagnostics cannot replace the original
+        # failure, alter cleanup, or be interpreted as successful compilation.
+        return []
+
+
 def validate_package_inputs(work, crate, names, inputs):
     if not names:
         raise package.PackageInputError("Empty package list", "package_list_empty", "")
     allowed = {
         name[len(crate) + 1 :] for name in inputs if name.startswith(crate + "/")
     } | {"Cargo.toml.orig", ".cargo_vcs_info.json"}
+    if LOCK in inputs:
+        allowed.add("Cargo.lock")  # `cargo package` embeds the root workspace lock
     if not names <= allowed:
         raise package.PackageInputError(
             "Unheld package input", "unheld_package_input", ""
@@ -243,14 +379,17 @@ def validate_request(
 
 
 def owned(name):
-    if name in EXTRA:
+    if name in EXTRA or name in WORKSPACE_FILES:
         return True
-    for root in ROOTS:
+    if name.startswith(THIRD_PARTY + "/"):
+        tail = Path(name[len(THIRD_PARTY) + 1 :])
+        return len(tail.parts) > 1 and not any(p.startswith(".") for p in tail.parts)
+    for root in MEMBERS:
         if name.startswith(root + "/"):
             tail = Path(name[len(root) + 1 :])
             return (
                 tail.as_posix()
-                in {"Cargo.toml", "Cargo.lock", "README.md", "LICENSE", "NOTICE"}
+                in {"Cargo.toml", "README.md", "LICENSE", "NOTICE"}
                 or (
                     tail.parts[0] in {"src", "tests", "examples"}
                     and tail.suffix in {".rs", ".json", ".txt", ".md", ".toml"}
@@ -265,7 +404,7 @@ def source_inputs_from_git(root, source):
         isinstance(source, str) and re.fullmatch(r"[0-9a-f]{40}", source), "identity"
     )
     listing = subprocess.check_output(
-        ["git", "ls-tree", "-r", "-z", source, "--", *ROOTS, *sorted(EXTRA)],
+        ["git", "ls-tree", "-r", "-z", source, "--", *SCOPES, *sorted(EXTRA)],
         cwd=root,
         timeout=15,
     )
@@ -325,11 +464,10 @@ def source_inputs_from_git(root, source):
     sdk.require(
         offset == len(blobs)
         and EXTRA.issubset(result)
-        and all(
-            root + "/Cargo.toml" in result and root + "/Cargo.lock" in result
-            for root in ROOTS
-        )
+        and all(name in result for name in WORKSPACE_FILES)
+        and all(root + "/Cargo.toml" in result for root in MEMBERS)
         and CLI + "/src/main.rs" in result
+        and CLI + "/src/bin/tui-benchmark.rs" in result
         and SDK + "/src/lib.rs" in result,
         "source",
     )
@@ -339,7 +477,7 @@ def source_inputs_from_git(root, source):
 def snapshot(root, expected):
     tracked = (
         subprocess.check_output(
-            ["git", "ls-files", "-z", "--", *ROOTS, *sorted(EXTRA)],
+            ["git", "ls-files", "-z", "--", *SCOPES, *sorted(EXTRA)],
             cwd=root,
             timeout=15,
         )
@@ -355,7 +493,7 @@ def snapshot(root, expected):
                 "--exclude-standard",
                 "-z",
                 "--",
-                *ROOTS,
+                *SCOPES,
                 *sorted(EXTRA),
             ],
             cwd=root,
@@ -373,64 +511,33 @@ def snapshot(root, expected):
 
 
 def validate_manifests(work):
-    for root in ROOTS:
-        manifest = work / root / "Cargo.toml"
-        value = tomllib.loads(sdk.regular(manifest).decode())
-        sdk.require(
-            not any(key in value for key in ("patch", "replace", "workspace"))
-            and not value.get("package", {}).get("build"),
-            "source",
-        )
-
-        def visit(item):
-            if isinstance(item, dict):
-                sdk.require(
-                    not any(
-                        key in item
-                        for key in ("git", "registry", "registries", "patch", "replace")
-                    ),
-                    "source",
-                )
-                if "path" in item:
-                    path = item["path"]
-                    sdk.require(
-                        isinstance(path, str)
-                        and not Path(path).is_absolute()
-                        and (manifest.parent / path).resolve()
-                        in {work / name for name in ROOTS},
-                        "source",
-                    )
-                for child in item.values():
-                    visit(child)
-            elif isinstance(item, list):
-                for child in item:
-                    visit(child)
-
-        for section in (
-            "dependencies",
-            "dev-dependencies",
-            "build-dependencies",
-            "target",
-        ):
-            visit(value.get(section, {}))
-        lock = tomllib.loads(sdk.regular(work / root / "Cargo.lock").decode())
-        sdk.require(
-            lock.get("version") in {3, 4}
-            and lock.get("package")
-            and all(
-                row.get(
-                    "source", "registry+https://github.com/rust-lang/crates.io-index"
-                )
-                == "registry+https://github.com/rust-lang/crates.io-index"
-                for row in lock["package"]
-            ),
-            "source",
-        )
+    validate_workspace_manifests(work)
+    lock = tomllib.loads(sdk.regular(work / LOCK).decode())
+    sdk.require(
+        lock.get("version") in {3, 4}
+        and lock.get("package")
+        and all(
+            row.get(
+                "source", "registry+https://github.com/rust-lang/crates.io-index"
+            )
+            == "registry+https://github.com/rust-lang/crates.io-index"
+            for row in lock["package"]
+        ),
+        "source",
+    )
     cli = tomllib.loads(sdk.regular(work / CLI / "Cargo.toml").decode())
     lib = tomllib.loads(sdk.regular(work / SDK / "Cargo.toml").decode())
     package.validate_metadata(cli, lib)
     sdk.require(
         all(value["package"].get("rust-version") == VERSION for value in (cli, lib)),
+        "source",
+    )
+    sdk.require(
+        any(
+            row.get("name") == "tui-benchmark"
+            and row.get("path") == "src/bin/tui-benchmark.rs"
+            for row in cli.get("example", [])
+        ),
         "source",
     )
     assets.synchronize(work, check=True)
@@ -605,6 +712,7 @@ def _commands(cargo, rustc):
     return [
         [rustc, "--version", "--verbose"],
         [cargo, "--version"],
+        # In the root workspace each member manifest fetches the single root lock.
         *[
             [cargo, "fetch", "--locked", "--manifest-path", root + "/Cargo.toml"]
             for root in ROOTS
@@ -634,6 +742,21 @@ def _commands(cargo, rustc):
             TRIPLE,
             "--bin",
             "openmates",
+            "--jobs",
+            "2",
+        ],
+        [
+            cargo,
+            "build",
+            "--locked",
+            "--release",
+            "--offline",
+            "--manifest-path",
+            CLI + "/Cargo.toml",
+            "--target",
+            TRIPLE,
+            "--example",
+            "tui-benchmark",
             "--jobs",
             "2",
         ],
@@ -784,9 +907,7 @@ def run(root, results, *, environ=None):
             dispatchToken=job["token"],
             inputs=before,
             inputSetSha256=sdk.sha(json.dumps(before, sort_keys=True).encode()),
-            locks={
-                name + "/Cargo.lock": before[name + "/Cargo.lock"] for name in ROOTS
-            },
+            locks={LOCK: before[LOCK]},
             runner=RUNNER,
             target=TRIPLE,
             toolchain=VERSION,
@@ -888,7 +1009,7 @@ def run(root, results, *, environ=None):
         for stage, seconds in zip(supervisor.STAGES, supervisor.LIMITS):
             phase = (
                 "compile"
-                if stage == "native-build"
+                if stage in {"native-build", "renderer-build"}
                 else "fetch"
                 if stage in {"native-fetch", "sdk-fetch"}
                 else "package"
@@ -945,6 +1066,9 @@ def run(root, results, *, environ=None):
         )
         receipt["isolation"] = isolation
         receipt["binary"] = elf_metadata(data)
+        renderer_data = root_file(sandbox / "export/tui-benchmark", MAX_BINARY)
+        receipt["rendererArtifact"] = renderer_metadata(renderer_data, receipt)
+        validate_renderer(receipt, renderer_data)
         loader = Path(receipt["binary"]["dynamicLoader"]).resolve(strict=True)
         with sdk.admitted_command("native-loader", [str(loader)], env) as entry:
             os.lseek(entry.descriptor, 0, os.SEEK_SET)
@@ -986,6 +1110,12 @@ def run(root, results, *, environ=None):
             stream.flush()
             os.fsync(stream.fileno())
             sdk.require(os.fstat(stream.fileno()).st_nlink == 1, "outputs")
+        with (export / "tui-benchmark").open("xb") as stream:
+            os.fchmod(stream.fileno(), 0o600)
+            stream.write(renderer_data)
+            stream.flush()
+            os.fsync(stream.fileno())
+            sdk.require(os.fstat(stream.fileno()).st_nlink == 1, "outputs")
         receipt.update(status="passed", code=None, compileProof=True)
     except Exception as error:
         receipt.update(
@@ -1001,6 +1131,20 @@ def run(root, results, *, environ=None):
                 setup_substage=setup_substage,
             ),
         )
+        if phase == "fetch" and private is not None and sandbox is not None:
+            receipt["diagnostic"]["fetch"] = fetch_failure_diagnostics(
+                private,
+                sandbox,
+                runner.steps[-1].get("stage") if runner and runner.steps else None,
+                error,
+            )
+        if phase == "compile" and private is not None and sandbox is not None:
+            receipt["diagnostic"]["compiler"] = compile_failure_diagnostics(
+                private,
+                sandbox / "source",
+                before,
+                runner.steps[-1].get("stage") if runner and runner.steps else None,
+            )
     finally:
         if sandbox is not None:
             try:
@@ -1188,11 +1332,7 @@ def validate_result(
         and receipt.get("inputs") == expected_inputs
         and receipt.get("inputSetSha256")
         == sdk.sha(json.dumps(expected_inputs, sort_keys=True).encode())
-        and receipt.get("locks")
-        == {
-            root + "/Cargo.lock": expected_inputs[root + "/Cargo.lock"]
-            for root in ROOTS
-        }
+        and receipt.get("locks") == {LOCK: expected_inputs[LOCK]}
         and receipt.get("binary") == elf_metadata(binary)
         and all(
             receipt.get(key) is True
@@ -1232,7 +1372,8 @@ def validate_result(
                 for name in expected_inputs
                 if name.startswith(crate + "/")
             }
-            | {"Cargo.toml.orig", ".cargo_vcs_info.json"},
+            | {"Cargo.toml.orig", ".cargo_vcs_info.json"}
+            | ({"Cargo.lock"} if LOCK in expected_inputs else set()),
             "outputs",
         )
     steps = receipt.get("steps")
@@ -1318,6 +1459,43 @@ def validate_result(
     return True
 
 
+def renderer_metadata(data, receipt):
+    metadata = elf_metadata(data)
+    metadata["name"] = "tui-benchmark"
+    metadata.update(
+        targetKind="example",
+        sourcePath=CLI + "/src/bin/tui-benchmark.rs",
+        sourceSha256=receipt["inputs"][CLI + "/src/bin/tui-benchmark.rs"],
+        # The retired benchmark.py harness no longer exists; the example source is the input.
+        harnessSha256=receipt["inputs"][CLI + "/src/bin/tui-benchmark.rs"],
+        inputSetSha256=sdk.sha(
+            json.dumps(
+                {
+                    "domain": "isolated-renderer-example-v1",
+                    "sourceInputs": receipt["inputs"],
+                    "supervisorSha256": receipt["supervisorSha256"],
+                    "argv": _commands("cargo", "rustc")[-1],
+                },
+                sort_keys=True,
+            ).encode()
+        ),
+    )
+    return metadata
+
+
+def validate_renderer(receipt, data):
+    # This is additional to canonical application receipt validation, never a substitute.
+    expected = renderer_metadata(data, receipt)
+    sdk.require(
+        receipt.get("rendererArtifact") == expected
+        and expected["sha256"] != receipt["binary"]["sha256"]
+        and receipt.get("isolation", {}).get("rendererArtifact")
+        == {"sha256": expected["sha256"], "bytes": expected["bytes"]},
+        "outputs",
+    )
+    return True
+
+
 def retrieve(root, job, harness, destination):
     ticket_path = root.resolve() / TICKET_DIR / job["id"] / (job["token"] + ".json")
     ticket = json.loads(sdk.regular(ticket_path, 32768))
@@ -1361,6 +1539,19 @@ def retrieve(root, job, harness, destination):
                 )
             ),
         )
+        renderer = receipt.get("rendererArtifact", {})
+        sdk.require(
+            type(renderer.get("bytes")) is int
+            and 64 <= renderer["bytes"] <= MAX_BINARY,
+            "outputs",
+        )
+        transport.get_file(
+            ticket["objects"]["tui-benchmark"]["get_url"],
+            path / "tui-benchmark",
+            MAX_BINARY,
+            expected_size=renderer["bytes"],
+        )
+        validate_renderer(receipt, sdk.regular(path / "tui-benchmark", MAX_BINARY))
         result = {
             "request_id": job["id"],
             "source_commit": job["source"],
@@ -1374,6 +1565,13 @@ def retrieve(root, job, harness, destination):
                 **metadata,
                 "bucket": transport.BUCKET_NAME,
                 "key": _object_keys(job)["openmates"],
+            },
+            "renderer_artifact": {
+                "path": "tui-benchmark",
+                **renderer,
+                "bucket": transport.BUCKET_NAME,
+                "key": _object_keys(job)["tui-benchmark"],
+                "scope": "isolated offline renderer example only; no application equivalence",
             },
             "runtimeProof": False,
             "performanceProof": False,

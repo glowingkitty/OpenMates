@@ -2551,9 +2551,13 @@ export class EmbedStore {
     hashed_chat_id?: string;
     hashed_message_id?: string;
     hashed_user_id?: string;
+    hashed_team_id?: string;
+    encryption_mode?: EmbedStoreEntry["encryption_mode"];
   } | null> {
     // Check memory cache first
-    let entry = embedCache.get(contentRef);
+    let entry = embedCache.get(contentRef) as
+      | (EmbedStoreEntry & { hashed_team_id?: string })
+      | undefined;
 
     // If not in cache, try IndexedDB
     if (!entry) {
@@ -2605,6 +2609,8 @@ export class EmbedStore {
         hashed_chat_id: entry.hashed_chat_id,
         hashed_message_id: entry.hashed_message_id,
         hashed_user_id: entry.hashed_user_id,
+        hashed_team_id: entry.hashed_team_id,
+        encryption_mode: entry.encryption_mode,
       };
     }
 
@@ -2636,6 +2642,8 @@ export class EmbedStore {
             hashed_chat_id: parsed.hashed_chat_id,
             hashed_message_id: parsed.hashed_message_id,
             hashed_user_id: parsed.hashed_user_id,
+            hashed_team_id: parsed.hashed_team_id,
+            encryption_mode: parsed.encryption_mode,
           };
         }
       } else if (typeof storedData === "object") {
@@ -2655,6 +2663,8 @@ export class EmbedStore {
           hashed_chat_id: parsed.hashed_chat_id as string | undefined,
           hashed_message_id: parsed.hashed_message_id as string | undefined,
           hashed_user_id: parsed.hashed_user_id as string | undefined,
+          hashed_team_id: parsed.hashed_team_id as string | undefined,
+          encryption_mode: parsed.encryption_mode as EmbedStoreEntry["encryption_mode"],
         };
       }
     } catch {
@@ -2795,31 +2805,6 @@ export class EmbedStore {
 
     // Cache miss - proceed to IndexedDB lookup
 
-    // Child embed support: child embeds inherit the parent's embed_key.
-    // In shared chats, only the parent's wrapped key exists in embed_keys, so for child embeds
-    // we must resolve the parent key and reuse it.
-    try {
-      const rawEntry = await this.getRawEntry(contentRef);
-      const parentEmbedId = rawEntry?.parent_embed_id;
-      if (parentEmbedId && parentEmbedId !== normalizedEmbedId) {
-        const normalizedParentEmbedId = parentEmbedId.startsWith("embed:")
-          ? parentEmbedId.slice("embed:".length)
-          : parentEmbedId;
-        const parentKey = await this.getEmbedKey(
-          normalizedParentEmbedId,
-          hashedChatId,
-          visited,
-        );
-        if (parentKey) {
-          embedKeyCache.set(cacheKey, parentKey);
-          embedKeyCache.set(`${normalizedEmbedId}:master`, parentKey);
-          return parentKey;
-        }
-      }
-    } catch {
-      // Child embed key fallback failed — will try direct keys below
-    }
-
     try {
       // Compute hashed_embed_id for lookup
       const hashedEmbedId = await computeSHA256(normalizedEmbedId);
@@ -2872,8 +2857,37 @@ export class EmbedStore {
         }
       }
 
-      // No direct key found - this should not happen for child embeds (they're handled at the start)
-      // This path is only for parent embeds that couldn't unwrap their keys
+      // Existing direct wrappers define this child's key authority. If they
+      // cannot be unwrapped, do not silently substitute a different parent key.
+      if (keys && keys.length > 0) {
+        embedKeyNegativeCache.add(cacheKey);
+        return null;
+      }
+
+      // Legacy children without their own wrappers inherit the parent key.
+      // Authored children have independent keys: their direct wrappers take
+      // precedence, including when sharing starts with an empty master cache.
+      try {
+        const rawEntry = await this.getRawEntry(contentRef);
+        const parentEmbedId = rawEntry?.parent_embed_id;
+        if (parentEmbedId && parentEmbedId !== normalizedEmbedId) {
+          const normalizedParentEmbedId = parentEmbedId.startsWith("embed:")
+            ? parentEmbedId.slice("embed:".length)
+            : parentEmbedId;
+          const parentKey = await this.getEmbedKey(
+            normalizedParentEmbedId,
+            hashedChatId,
+            visited,
+          );
+          if (parentKey) {
+            embedKeyCache.set(cacheKey, parentKey);
+            embedKeyCache.set(`${normalizedEmbedId}:master`, parentKey);
+            return parentKey;
+          }
+        }
+      } catch {
+        // Parent lookup failed; leave the child unavailable.
+      }
 
       // Missing keys are expected during as-is sync (Phase 3) when embed keys
       // haven't been synced yet - use debug level to avoid log spam
@@ -4045,7 +4059,7 @@ export class EmbedStore {
           !row.hashed_team_id &&
           row.status === "finished" &&
           row.encryption_mode !== "vault" &&
-          typeof row.encrypted_content === "string" &&
+          row.has_encrypted_content === true &&
           !isEmbedKnownError(childId)
         )
           ready.push(childId);

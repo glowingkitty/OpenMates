@@ -1,0 +1,584 @@
+#!/usr/bin/env python3
+"""OpenMates host reporter: push a signed, encrypted software report to the dev collector.
+
+Runs on core, upload and preview servers. Python 3 standard library plus tools
+that ship with Ubuntu (dpkg-query, apt-get, ss, sshd, ssh-keygen, openssl, curl).
+
+Two modes, each run by its own hardened systemd unit:
+
+  collect-privileged  root, no IP networking, read-only filesystem except its
+                      runtime directory. Writes ONLY sanitized SSH, account,
+                      listening-port and package-integrity facts to
+                      /run/openmates-host-facts/facts.json (mode 0600).
+  report              transient unprivileged user (DynamicUser). Receives the
+                      facts file, signing key and collector certificates as
+                      systemd credentials, collects the unprivileged fields,
+                      signs, encrypts and POSTs the report over pinned HTTPS.
+
+Only the HostReport allowlist is ever collected. Login source addresses stay
+inside the encrypted report; the dev side never renders them.
+Contract: specifications/architecture/security-monitoring (host-reports.private-push).
+"""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import calendar
+import grp
+import hashlib
+import ipaddress
+import json
+import os
+from pathlib import Path
+import pwd
+import re
+import secrets
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+from typing import Any
+from urllib.parse import urlsplit
+
+SCHEMA_VERSION = 1
+SIGNATURE_NAMESPACE = "openmates-host-report"
+HOST_ROLES = ("core", "upload", "preview")
+REPORT_FIELDS = (
+    "os_release",
+    "running_kernel",
+    "installed_kernels",
+    "reboot_required",
+    "package_versions",
+    "pending_security_updates",
+    "deployed_image_digests",
+    "listening_ports",
+    "sshd_effective_settings",
+    "authorized_key_fingerprints",
+    "ssh_config_checksums",
+    "successful_ssh_logins",
+    "local_accounts_and_sudoers",
+    "package_file_integrity",
+)
+PRIVILEGED_FIELDS = (
+    "listening_ports",
+    "sshd_effective_settings",
+    "authorized_key_fingerprints",
+    "ssh_config_checksums",
+    "successful_ssh_logins",
+    "local_accounts_and_sudoers",
+    "package_file_integrity",
+)
+SSHD_SETTINGS = (
+    "port",
+    "passwordauthentication",
+    "permitrootlogin",
+    "pubkeyauthentication",
+    "kbdinteractiveauthentication",
+    "maxstartups",
+    "logingracetime",
+    "allowusers",
+    "authorizedkeysfile",
+    "authorizedkeyscommand",
+)
+DEFAULT_CONF = "/etc/openmates/host-reporter.conf"
+DEFAULT_FACTS_DIR = "/run/openmates-host-facts"
+DEFAULT_IMAGES_FILE = "/var/lib/openmates/deployed-images.json"
+LOGIN_WINDOW = "-49h"  # overlaps the daily cadence so a failed push loses no login
+MAX_LOGINS = 500
+MAX_CHANGED_PATHS = 200
+MAX_FACTS_AGE_SECONDS = 2 * 3600
+COMMAND_TIMEOUT = 600
+NOLOGIN_SHELLS = ("nologin", "false", "sync")
+ACCEPTED_RE = re.compile(r"^Accepted (\S+) for (\S+) from (\S+) port \d+(?: \w+)?(?:: (\S+) (SHA256:\S+))?")
+PROCESS_RE = re.compile(r'\("([^"]+)",pid=')
+INST_RE = re.compile(r"^Inst (\S+) (?:\[([^\]]+)\] )?\((\S+) ([^\[]+)\[")
+
+
+class ReporterError(RuntimeError):
+    """A fatal configuration or delivery problem; the unit fails visibly."""
+
+
+def run(args: list[str], *, stdin: bytes | None = None, timeout: int = COMMAND_TIMEOUT, check: bool = True) -> str:
+    result = subprocess.run(args, input=stdin, capture_output=True, timeout=timeout, check=False)
+    if check and result.returncode != 0:
+        raise subprocess.CalledProcessError(result.returncode, args[0], result.stdout, result.stderr)
+    return result.stdout.decode("utf-8", errors="replace")
+
+
+def field_error(code: str) -> dict[str, str]:
+    return {"error": code}
+
+
+def guarded(code: str, collect: Any) -> Any:
+    """Collect one field; a failing tool becomes an explicit error marker, never a clean value."""
+    try:
+        return collect()
+    except FileNotFoundError:
+        return field_error(f"{code}_tool_missing")
+    except subprocess.TimeoutExpired:
+        return field_error(f"{code}_timeout")
+    except subprocess.CalledProcessError:
+        return field_error(f"{code}_failed")
+    except (OSError, ValueError):
+        return field_error(f"{code}_unreadable")
+
+
+def sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def now_iso(epoch: float | None = None) -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(epoch if epoch is not None else time.time()))
+
+
+# ---------------------------------------------------------------------------
+# Unprivileged fields
+# ---------------------------------------------------------------------------
+
+
+def os_release(path: Path = Path("/etc/os-release")) -> dict[str, str]:
+    values: dict[str, str] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        key, sep, value = line.partition("=")
+        if sep and key in {"ID", "VERSION_ID", "VERSION_CODENAME"}:
+            values[key.lower()] = value.strip().strip('"')
+    return {"id": values.get("id", ""), "version_id": values.get("version_id", ""), "codename": values.get("version_codename", "")}
+
+
+def dpkg_packages() -> dict[str, dict[str, str]]:
+    fmt = "${db:Status-Abbrev}\t${Package}\t${Version}\t${source:Package}\t${source:Version}\n"
+    packages: dict[str, dict[str, str]] = {}
+    for line in run(["dpkg-query", "-W", f"-f={fmt}"]).splitlines():
+        parts = line.split("\t")
+        if len(parts) == 5 and parts[0].startswith("ii"):
+            packages[parts[1]] = {"version": parts[2], "source": parts[3], "source_version": parts[4]}
+    return packages
+
+
+def installed_kernels(packages: dict[str, dict[str, str]]) -> list[dict[str, str]]:
+    return [
+        {"package": name, "version": info["version"]}
+        for name, info in sorted(packages.items())
+        if name.startswith("linux-image-") and name[len("linux-image-"):][:1].isdigit()
+    ]
+
+
+def reboot_required(flag: Path = Path("/run/reboot-required")) -> dict[str, Any]:
+    pkgs_file = flag.with_name("reboot-required.pkgs")
+    pkgs = sorted(set(pkgs_file.read_text(encoding="utf-8").split())) if pkgs_file.exists() else []
+    return {"required": flag.exists(), "packages": pkgs}
+
+
+def parse_apt_simulation(text: str) -> list[dict[str, str]]:
+    updates = []
+    for line in text.splitlines():
+        match = INST_RE.match(line)
+        if match and "-security" in match.group(4):
+            pockets = sorted({part.strip().split("/")[-1] for part in match.group(4).split(",")})
+            updates.append({"package": match.group(1), "installed": match.group(2) or "", "candidate": match.group(3), "pockets": ",".join(pockets)})
+    return updates
+
+
+def pending_security_updates() -> list[dict[str, str]]:
+    # Simulation only, against the package lists the host already has; we never run apt update.
+    # dist-upgrade is simulated so kernel meta-package upgrades that pull new packages are visible.
+    return parse_apt_simulation(run(["apt-get", "-s", "-q", "-o", "Debug::NoLocking=1", "dist-upgrade"]))
+
+
+def deployed_image_digests(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return field_error("deployed_images_file_missing")
+    if path.stat().st_size > 256 * 1024:
+        return field_error("deployed_images_file_too_large")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        return field_error("deployed_images_file_invalid")
+    images = data.get("images", data)
+    if not isinstance(images, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in images.items()):
+        return field_error("deployed_images_file_invalid")
+    return {"images": dict(sorted(images.items()))}
+
+
+# ---------------------------------------------------------------------------
+# Privileged facts (run as root by openmates-host-facts-privileged.service)
+# ---------------------------------------------------------------------------
+
+
+def address_class(address: str) -> str:
+    host = address.strip("[]").split("%", 1)[0]
+    if host in {"*", "0.0.0.0", "::"}:
+        return "any"
+    try:
+        return "loopback" if ipaddress.ip_address(host).is_loopback else "specific"
+    except ValueError:
+        return "specific"
+
+
+def parse_listening(text: str) -> list[dict[str, Any]]:
+    entries: dict[tuple[int, str], set[str]] = {}
+    for line in text.splitlines():
+        columns = line.split()
+        if len(columns) < 5:
+            continue
+        address, _, port = columns[3].rpartition(":")
+        if not port.isdigit():
+            continue
+        key = (int(port), address_class(address))
+        entries.setdefault(key, set()).update(PROCESS_RE.findall(" ".join(columns[5:])))
+    return [{"port": port, "address_class": cls, "processes": sorted(names)} for (port, cls), names in sorted(entries.items())]
+
+
+def listening_ports() -> list[dict[str, Any]]:
+    return parse_listening(run(["ss", "-ltnpH"]))
+
+
+def parse_sshd_settings(text: str) -> dict[str, Any]:
+    settings: dict[str, Any] = {}
+    for line in text.splitlines():
+        key, _, value = line.strip().partition(" ")
+        if key not in SSHD_SETTINGS:
+            continue
+        if key in {"allowusers", "port"}:
+            settings.setdefault(key, []).append(value)
+        else:
+            settings[key] = value
+    return settings
+
+
+def sshd_effective_settings() -> dict[str, Any]:
+    sshd = shutil.which("sshd") or "/usr/sbin/sshd"
+    return parse_sshd_settings(run([sshd, "-T"]))
+
+
+def authorized_key_paths(user: pwd.struct_passwd, patterns: str) -> list[Path]:
+    paths = []
+    for token in patterns.split():
+        if token.lower() == "none":
+            continue
+        expanded = token.replace("%%", "\0").replace("%h", user.pw_dir).replace("%u", user.pw_name).replace("\0", "%")
+        path = Path(expanded) if expanded.startswith("/") else Path(user.pw_dir) / expanded
+        paths.append(path)
+    return paths
+
+
+def parse_fingerprints(text: str) -> list[dict[str, str]]:
+    keys = []
+    for line in text.splitlines():
+        parts = line.split()
+        if len(parts) >= 3 and parts[1].startswith("SHA256:"):
+            keys.append({"fingerprint": parts[1], "type": parts[-1].strip("()")})
+    return keys
+
+
+def authorized_key_fingerprints(patterns: str) -> dict[str, Any]:
+    users: dict[str, Any] = {}
+    for user in pwd.getpwall():
+        files: dict[str, str] = {}
+        keys: list[dict[str, str]] = []
+        for path in authorized_key_paths(user, patterns):
+            if not path.is_file():
+                continue
+            files[str(path)] = sha256_file(path)
+            # Comments are dropped: only bits, fingerprint and key type are kept.
+            for key in parse_fingerprints(run(["ssh-keygen", "-lf", str(path)], check=False)):
+                keys.append({**key, "file": str(path)})
+        if files:
+            users[user.pw_name] = {"files": files, "keys": keys}
+    return users
+
+
+def config_checksums(paths: list[Path]) -> dict[str, str]:
+    return {str(path): sha256_file(path) for path in paths if path.is_file()}
+
+
+def ssh_config_paths() -> list[Path]:
+    return [Path("/etc/ssh/sshd_config"), *sorted(Path("/etc/ssh/sshd_config.d").glob("*"))]
+
+
+def parse_logins(lines: list[str]) -> list[dict[str, Any]]:
+    logins = []
+    for raw in lines:
+        record = json.loads(raw)
+        message = record.get("MESSAGE")
+        if not isinstance(message, str):
+            continue
+        match = ACCEPTED_RE.match(message)
+        if not match:
+            continue
+        stamp = int(record.get("__REALTIME_TIMESTAMP", "0")) / 1_000_000
+        logins.append({
+            "timestamp": now_iso(stamp),
+            "user": match.group(2),
+            "method": match.group(1),
+            "key_type": match.group(4) or "",
+            "fingerprint": match.group(5) or "",
+            "source_address": match.group(3),  # kept encrypted; never rendered in notifications
+        })
+    return logins[-MAX_LOGINS:]
+
+
+def successful_ssh_logins() -> list[dict[str, Any]]:
+    text = run(["journalctl", "--no-pager", "-q", "-o", "json", "--since", LOGIN_WINDOW, "_COMM=sshd", "_COMM=sshd-session"])
+    return parse_logins([line for line in text.splitlines() if line.strip()])
+
+
+def local_accounts_and_sudoers() -> dict[str, Any]:
+    accounts = [
+        {"name": user.pw_name, "uid": user.pw_uid, "shell": user.pw_shell}
+        for user in sorted(pwd.getpwall(), key=lambda u: u.pw_uid)
+        if user.pw_uid == 0
+        or (1000 <= user.pw_uid < 65534)
+        or not user.pw_shell.rsplit("/", 1)[-1].startswith(NOLOGIN_SHELLS)
+    ]
+    groups: dict[str, list[str]] = {}
+    for name in ("sudo", "admin", "wheel"):
+        try:
+            groups[name] = sorted(grp.getgrnam(name).gr_mem)
+        except KeyError:
+            continue
+    sudoers = config_checksums([Path("/etc/sudoers"), *sorted(Path("/etc/sudoers.d").glob("*"))])
+    return {"accounts": accounts, "privileged_groups": groups, "sudoers_checksums": sudoers}
+
+
+def parse_dpkg_verify(text: str) -> dict[str, Any]:
+    changed, missing, conffiles = [], [], []
+    for line in text.splitlines():
+        if line.startswith("missing"):
+            missing.append(line.split()[-1])
+            continue
+        if len(line) < 13 or line[2] != "5":
+            continue  # only checksum mismatches mean content changed
+        path = line[12:].strip()  # "<9 flags> <attr> <path>", attr is "c" for conffiles
+        (conffiles if line[10] == "c" else changed).append(path)
+    return {
+        "tool": "dpkg-verify",
+        "changed_count": len(changed),
+        "changed_paths": sorted(changed)[:MAX_CHANGED_PATHS],
+        "missing_count": len(missing),
+        "missing_paths": sorted(missing)[:MAX_CHANGED_PATHS],
+        "changed_conffile_count": len(conffiles),
+        "changed_conffiles": sorted(conffiles)[:MAX_CHANGED_PATHS],
+    }
+
+
+def parse_debsums(text: str) -> dict[str, Any]:
+    changed, missing = [], []
+    for line in text.splitlines():
+        match = re.match(r"^debsums: (changed|missing) file (\S+)", line)
+        if match:
+            (changed if match.group(1) == "changed" else missing).append(match.group(2))
+        elif line.startswith("/"):
+            changed.append(line.strip())
+    return {
+        "tool": "debsums",
+        "changed_count": len(changed),
+        "changed_paths": sorted(changed)[:MAX_CHANGED_PATHS],
+        "missing_count": len(missing),
+        "missing_paths": sorted(missing)[:MAX_CHANGED_PATHS],
+        "changed_conffile_count": 0,
+        "changed_conffiles": [],
+    }
+
+
+def package_file_integrity() -> dict[str, Any]:
+    # Both tools exit non-zero when they find differences, so the exit code is not an error signal.
+    if shutil.which("debsums"):
+        result = subprocess.run(["debsums", "-s"], capture_output=True, timeout=3 * COMMAND_TIMEOUT, check=False)
+        return parse_debsums((result.stdout + result.stderr).decode("utf-8", errors="replace"))
+    return parse_dpkg_verify(run(["dpkg", "--verify"], timeout=3 * COMMAND_TIMEOUT, check=False))
+
+
+def collect_privileged(output_dir: Path) -> Path:
+    settings = guarded("sshd_settings", sshd_effective_settings)
+    patterns = settings.get("authorizedkeysfile", "") if isinstance(settings, dict) else ""
+    patterns = patterns or ".ssh/authorized_keys .ssh/authorized_keys2"
+    facts = {
+        "listening_ports": guarded("listening_ports", listening_ports),
+        "sshd_effective_settings": settings,
+        "authorized_key_fingerprints": guarded("authorized_keys", lambda: authorized_key_fingerprints(patterns)),
+        "ssh_config_checksums": guarded("ssh_config", lambda: config_checksums(ssh_config_paths())),
+        "successful_ssh_logins": guarded("ssh_logins", successful_ssh_logins),
+        "local_accounts_and_sudoers": guarded("accounts", local_accounts_and_sudoers),
+        "package_file_integrity": guarded("package_integrity", package_file_integrity),
+    }
+    output_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    target = output_dir / "facts.json"
+    payload = json.dumps({"generated_at": now_iso(), "facts": facts}, sort_keys=True).encode()
+    fd, tmp = tempfile.mkstemp(dir=output_dir, prefix=".facts-")
+    with os.fdopen(fd, "wb") as handle:
+        handle.write(payload)
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, target)
+    return target
+
+
+# ---------------------------------------------------------------------------
+# Report assembly, signing, encryption and delivery
+# ---------------------------------------------------------------------------
+
+
+def read_conf(path: Path) -> dict[str, str]:
+    conf: dict[str, str] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            key, sep, value = line.partition("=")
+            if sep:
+                conf[key.strip()] = value.strip().strip("\"'")
+    role = conf.get("ROLE", "")
+    if role not in HOST_ROLES:
+        raise ReporterError(f"ROLE must be one of {', '.join(HOST_ROLES)}")
+    validate_collector_url(conf.get("COLLECTOR_URL", ""))
+    return conf
+
+
+def validate_collector_url(url: str) -> str:
+    parts = urlsplit(url)
+    if parts.scheme != "https" or not parts.hostname or parts.path != "/v1/host-report":
+        raise ReporterError("COLLECTOR_URL must be https://<collector-private-ip>:<port>/v1/host-report")
+    try:
+        address = ipaddress.ip_address(parts.hostname)
+    except ValueError as error:
+        raise ReporterError("COLLECTOR_URL host must be an IP address, not a name") from error
+    if not is_private_network_address(address):
+        raise ReporterError("COLLECTOR_URL must use a private-network address")
+    return parts.hostname
+
+
+PRIVATE_NETWORKS = tuple(ipaddress.ip_network(n) for n in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7"))
+
+
+def is_private_network_address(address: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    """RFC 1918 or IPv6 ULA only: never loopback, unspecified, link-local or public."""
+    return any(address in network for network in PRIVATE_NETWORKS if network.version == address.version)
+
+
+def load_facts(path: Path, now: float) -> dict[str, Any]:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    generated = calendar.timegm(time.strptime(data["generated_at"], "%Y-%m-%dT%H:%M:%SZ"))
+    if now - generated > MAX_FACTS_AGE_SECONDS:
+        return {name: field_error("privileged_facts_stale") for name in PRIVILEGED_FIELDS}
+    facts = data["facts"]
+    return {name: facts.get(name, field_error("privileged_fact_missing")) for name in PRIVILEGED_FIELDS}
+
+
+def collect_contents(facts: dict[str, Any], images_file: Path) -> dict[str, Any]:
+    packages = guarded("package_versions", dpkg_packages)
+    contents = {
+        "os_release": guarded("os_release", os_release),
+        "running_kernel": os.uname().release,
+        "installed_kernels": installed_kernels(packages) if "error" not in packages else packages,
+        "reboot_required": guarded("reboot_required", reboot_required),
+        "package_versions": packages,
+        "pending_security_updates": guarded("pending_security_updates", pending_security_updates),
+        "deployed_image_digests": guarded("deployed_images", lambda: deployed_image_digests(images_file)),
+        **facts,
+    }
+    return {name: contents[name] for name in REPORT_FIELDS}
+
+
+def key_fingerprint(signing_key: Path) -> str:
+    public = run(["ssh-keygen", "-y", "-f", str(signing_key)])
+    keys = parse_fingerprints(run(["ssh-keygen", "-lf", "-"], stdin=public.encode()))
+    if not keys:
+        raise ReporterError("could not fingerprint the host signing key")
+    return keys[0]["fingerprint"]
+
+
+def build_report(role: str, host_id: str, contents: dict[str, Any], generated_at: str | None = None) -> bytes:
+    report = {
+        "schema_version": SCHEMA_VERSION,
+        "host_role": role,
+        "host_id": host_id,
+        "generated_at": generated_at or now_iso(),
+        "nonce": secrets.token_hex(16),
+        "contents": contents,
+    }
+    return json.dumps(report, sort_keys=True, separators=(",", ":")).encode()
+
+
+def seal(report: bytes, signing_key: Path, collector_cert: Path) -> bytes:
+    """Sign with the host key, then encrypt report+signature to the collector (sign-then-encrypt)."""
+    signature = run(["ssh-keygen", "-Y", "sign", "-q", "-f", str(signing_key), "-n", SIGNATURE_NAMESPACE], stdin=report)
+    wrapper = json.dumps({"report": base64.b64encode(report).decode(), "signature": signature}).encode()
+    result = subprocess.run(
+        ["openssl", "cms", "-encrypt", "-binary", "-aes-256-gcm", "-outform", "DER", "-recip", str(collector_cert)],
+        input=wrapper,
+        capture_output=True,
+        timeout=COMMAND_TIMEOUT,
+        check=True,
+    )
+    return result.stdout
+
+
+def deliver(body: bytes, url: str, tls_cert: Path) -> None:
+    validate_collector_url(url)
+    result = subprocess.run(
+        [
+            "curl", "--fail", "--silent", "--show-error", "--proto", "=https", "--max-time", "60",
+            "--retry", "3", "--retry-delay", "30", "--cacert", str(tls_cert),
+            "-H", "Content-Type: application/pkcs7-mime", "--data-binary", "@-", url,
+        ],
+        input=body,
+        capture_output=True,
+        timeout=600,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise ReporterError(f"collector delivery failed (curl exit {result.returncode})")
+
+
+def credential(name: str) -> Path:
+    directory = os.environ.get("CREDENTIALS_DIRECTORY")
+    if not directory:
+        raise ReporterError("report mode must run under systemd with LoadCredential= (CREDENTIALS_DIRECTORY unset)")
+    path = Path(directory) / name
+    if not path.is_file():
+        raise ReporterError(f"missing systemd credential {name}")
+    return path
+
+
+def report_main(conf_path: Path, dry_run: bool) -> int:
+    conf = read_conf(conf_path)
+    facts = load_facts(credential("host-facts"), time.time())
+    contents = collect_contents(facts, Path(conf.get("DEPLOYED_IMAGES_FILE", DEFAULT_IMAGES_FILE)))
+    signing_key = credential("signing-key")
+    report = build_report(conf["ROLE"], key_fingerprint(signing_key), contents)
+    if dry_run:
+        sys.stdout.write(json.dumps(json.loads(report), indent=2) + "\n")
+        return 0
+    deliver(seal(report, signing_key, credential("collector-cert")), conf["COLLECTOR_URL"], credential("collector-tls-cert"))
+    print("host report delivered", file=sys.stderr)
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    sub = parser.add_subparsers(dest="command", required=True)
+    privileged = sub.add_parser("collect-privileged", help="root pre-step: write sanitized facts")
+    privileged.add_argument("--output", default=DEFAULT_FACTS_DIR)
+    report = sub.add_parser("report", help="collect, sign, encrypt and push the report")
+    report.add_argument("--conf", default=os.environ.get("OPENMATES_HOST_REPORTER_CONF", DEFAULT_CONF))
+    report.add_argument("--dry-run", action="store_true", help="print the report instead of sending it")
+    check = sub.add_parser("check-url", help="validate a collector URL and print its address")
+    check.add_argument("url")
+    args = parser.parse_args(argv)
+    try:
+        if args.command == "check-url":
+            print(validate_collector_url(args.url))
+            return 0
+        if args.command == "collect-privileged":
+            if os.geteuid() != 0:
+                raise ReporterError("collect-privileged must run as root (systemd pre-step)")
+            collect_privileged(Path(args.output))
+            return 0
+        return report_main(Path(args.conf), args.dry_run)
+    except ReporterError as error:
+        print(f"openmates-host-reporter: {error}", file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())

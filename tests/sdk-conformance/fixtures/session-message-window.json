@@ -1,0 +1,1354 @@
+{
+  "schema_version": 1,
+  "provenance": "PRIVATE UNRUN draft: public synthetic cookie/master/chat keys and genuine independent Python AES-GCM vectors; synthetic peer evidence only, no product/backend/network/AI parity claim.",
+  "capabilities": {
+    "session.message-window.v1": {
+      "account": {
+        "owner_id": "11111111-1111-4111-8111-111111111111",
+        "master_key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+        "session_id": "synthetic-session",
+        "cookie": "synthetic-refresh-token"
+      },
+      "protocol": {
+        "app_origin": "https://app.example.invalid",
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+        "chat_key": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8=",
+        "message_ids": [
+          "10000000-0000-4000-8000-000000000001",
+          "10000000-0000-4000-8000-000000000002",
+          "10000000-0000-4000-8000-000000000003",
+          "10000000-0000-4000-8000-000000000004"
+        ],
+        "messages_v": 4,
+        "metadata": {
+          "id": "22222222-2222-4222-8222-222222222222",
+          "encrypted_chat_key": "T00JE61lJK3zAQKPLRb/InSZ2UraSfLWhMwvGpRRB3uR+/mBRGPtc6crCfU+yp6lY8pf59bI7vrsYt478IEDZicz",
+          "encrypted_title": "T02HJLFlqvIyBkYQgFmoerUB69PTKDjOv2zjcZvH7JDXmFHw6tgi/vtzMUeSXLIzUISXB/dx9fs=",
+          "encrypted_category": "T02HJLFl7bLNO3TJma9w8LcF8tYMLwRr6Fi+kPi2+smHrBY6EBFdNHE=",
+          "messages_v": 4
+        },
+        "messages": [
+          {
+            "id": "10000000-0000-4000-8000-000000000001",
+            "client_message_id": "10000000-0000-4000-8000-000000000001",
+            "chat_id": "22222222-2222-4222-8222-222222222222",
+            "created_at": 1700000001,
+            "role": "user",
+            "encrypted_content": "T02HJLFludFe9TY+1U9YyllIV04cvdGxEqnTo8seohMBfh6bKpA0bRPsLGtZcQqoYNR1x0pz8bfP6VAe3TA=",
+            "encrypted_sender_name": "T02HJLFlM1vrCUQ9haVJcuQNjIFX7qixlRijgt9b8xLVOSX8ZWMVu4l4BcNkFkYX",
+            "encrypted_thinking_content": "T02HJLFlFUEeuDRJLwJcEcFDOMbw5HisYisKBiqKSOzaKczcJ9D7vvloLNc3ETMQCYcxibAL",
+            "encrypted_pii_mappings": "T02HJLFlBRHCBDaYZ1jKpSHKH2TrviM40ByTefmwWxJVjsP3BZAOolLpSfkZlJcqrSysE1I4uu6XO/NuJXhvBWqw+maqQCldKb0qwb+oDfXeh1bOWngK3EQNHrbfF0Mnxg3y9YQVqFvTbdtdT0ehK4DUnrR+oCc+YzCqvMNsw+dQaVa+jfgvwOwxh6Z6i2JieezLJno="
+          },
+          {
+            "id": "10000000-0000-4000-8000-000000000002",
+            "client_message_id": "10000000-0000-4000-8000-000000000002",
+            "chat_id": "22222222-2222-4222-8222-222222222222",
+            "created_at": 1700000002,
+            "role": "assistant",
+            "encrypted_content": "T02HJLFlAZVg3CzFWK6kr17+OrTOVG42h5V2ITy0tjbFd+3RGA5A5Bk0ZO91+L2ZAhxQkFM6bOFsFs7VLck=",
+            "encrypted_sender_name": "T02HJLFla39lPHuMbHJYVhU7PMX8tSfK46SREk4kjs7SzQT7fklh5VuR3Pf9p9NZ",
+            "encrypted_thinking_content": "T02HJLFleEqWgkvdxTP9C5bYcmWNmA7Nq/V3CmBvkYKpTkHopwocfWgmIlbitwAHJeYEflGG"
+          },
+          {
+            "id": "10000000-0000-4000-8000-000000000003",
+            "client_message_id": "10000000-0000-4000-8000-000000000003",
+            "chat_id": "22222222-2222-4222-8222-222222222222",
+            "created_at": 1700000003,
+            "role": "user",
+            "encrypted_content": "T02HJLFlShSlpwNROBWCXoSnuLRhfFlp2nak+lRBfBMqrn/qyo6nt0chqlp/P6QQuwEiulJhG95XlyVHNKk=",
+            "encrypted_sender_name": "T02HJLFlI2ekzfJfi2eY8NmeNuTaNxLrxtkEohh3BtNDJSLciRFa5PAxm1ZU69gc",
+            "encrypted_thinking_content": "T02HJLFlNZQgjbwU6w+6mPAFY8akbDtxz5PYFS+keHuP6KEd/AVlcglEKPjVc9X/A/x4WsZe"
+          },
+          {
+            "id": "10000000-0000-4000-8000-000000000004",
+            "client_message_id": "10000000-0000-4000-8000-000000000004",
+            "chat_id": "22222222-2222-4222-8222-222222222222",
+            "created_at": 1700000004,
+            "role": "assistant",
+            "encrypted_content": "T02HJLFlwOEs3W++l2Pgj6ftgoN/UzSzRqIOvNSXmip4U5NX9xtD7X+QmnFHY9ktTgXLdjfgmONnQqWsR70=",
+            "encrypted_sender_name": "T02HJLFlu8Pn3a5XTBXUINlPNQx5AfnKGKtT1SuP3JUGn0c8FxpwvyL0miY2MYiW",
+            "encrypted_thinking_content": "T02HJLFlSr3+Gv2V2okf3yH5F1KrfqKRNvlkbJdV86BN2Vb4YBdTF6aRhaqwVxSMwLZzc9mA"
+          }
+        ],
+        "page_max_bytes": 262144,
+        "known_placeholder": "[OM_PII_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+        "unknown_placeholder": "[OM_PII_BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB]",
+        "known_original": "Synthetic Alice",
+        "cursor_note": "Message IDs are opaque stable selectors; this bounded client supports visible ASCII1–256 without inventing Chat/owner authority or normalizing aliases."
+      },
+      "vectors": [
+        {
+          "id": "window-latest",
+          "mode": "latest",
+          "options": {
+            "direction": "latest",
+            "limit": 2,
+            "respectCompressionBoundary": true
+          },
+          "expected_error": null,
+          "expected_message_ids": [
+            "10000000-0000-4000-8000-000000000003",
+            "10000000-0000-4000-8000-000000000004"
+          ],
+          "expected_metadata_requests": 1,
+          "expected_window_requests": 1,
+          "expected_checks": [
+            "explicit-native-session",
+            "bounded-metadata-requests",
+            "bounded-window-requests",
+            "exact-window-query"
+          ],
+          "expected_messages": [
+            {
+              "id": "10000000-0000-4000-8000-000000000003",
+              "role": "user",
+              "content": "Synthetic page message 3 雪",
+              "sender": "Fixture sender",
+              "thinking": "Synthetic thinking 3",
+              "embeds": []
+            },
+            {
+              "id": "10000000-0000-4000-8000-000000000004",
+              "role": "assistant",
+              "content": "Synthetic page message 4 雪",
+              "sender": "Fixture sender",
+              "thinking": "Synthetic thinking 4",
+              "embeds": []
+            }
+          ],
+          "expected_result_flags": {
+            "piiRestoration": "page_local",
+            "historyComplete": false
+          },
+          "expected_public_paging": {
+            "chat": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "title": "Synthetic bounded chat",
+              "category": "general"
+            },
+            "hasMoreBefore": true,
+            "hasMoreAfter": false,
+            "anchorFound": true,
+            "startCursor": {
+              "createdAt": 1700000003,
+              "messageId": "10000000-0000-4000-8000-000000000003"
+            },
+            "endCursor": {
+              "createdAt": 1700000004,
+              "messageId": "10000000-0000-4000-8000-000000000004"
+            },
+            "serverMessageCount": 4,
+            "messagesVersion": 4,
+            "oversizedMessage": false,
+            "oversizedMessageCursor": null,
+            "payloadBytes": 991,
+            "historyComplete": false,
+            "piiRestoration": "page_local"
+          }
+        },
+        {
+          "id": "window-before",
+          "mode": "before",
+          "options": {
+            "direction": "before",
+            "limit": 2,
+            "respectCompressionBoundary": true,
+            "cursor": {
+              "createdAt": 1700000003,
+              "messageId": "10000000-0000-4000-8000-000000000003"
+            }
+          },
+          "expected_error": null,
+          "expected_message_ids": [
+            "10000000-0000-4000-8000-000000000001",
+            "10000000-0000-4000-8000-000000000002"
+          ],
+          "expected_metadata_requests": 2,
+          "expected_window_requests": 2,
+          "expected_checks": [
+            "explicit-native-session",
+            "bounded-metadata-requests",
+            "bounded-window-requests",
+            "exact-window-query"
+          ],
+          "preflight": {
+            "direction": "latest",
+            "limit": 2,
+            "respectCompressionBoundary": true
+          },
+          "cursor_from": "startCursor",
+          "expected_messages": [
+            {
+              "id": "10000000-0000-4000-8000-000000000001",
+              "role": "user",
+              "content": "Synthetic page message 1 雪",
+              "sender": "Fixture sender",
+              "thinking": "Synthetic thinking 1",
+              "embeds": []
+            },
+            {
+              "id": "10000000-0000-4000-8000-000000000002",
+              "role": "assistant",
+              "content": "Synthetic page message 2 雪",
+              "sender": "Fixture sender",
+              "thinking": "Synthetic thinking 2",
+              "embeds": []
+            }
+          ],
+          "expected_result_flags": {
+            "piiRestoration": "page_local",
+            "historyComplete": false
+          },
+          "expected_public_paging": {
+            "chat": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "title": "Synthetic bounded chat",
+              "category": "general"
+            },
+            "hasMoreBefore": false,
+            "hasMoreAfter": true,
+            "anchorFound": true,
+            "startCursor": {
+              "createdAt": 1700000001,
+              "messageId": "10000000-0000-4000-8000-000000000001"
+            },
+            "endCursor": {
+              "createdAt": 1700000002,
+              "messageId": "10000000-0000-4000-8000-000000000002"
+            },
+            "serverMessageCount": 4,
+            "messagesVersion": 4,
+            "oversizedMessage": false,
+            "oversizedMessageCursor": null,
+            "payloadBytes": 1219,
+            "historyComplete": false,
+            "piiRestoration": "page_local"
+          }
+        },
+        {
+          "id": "window-after",
+          "mode": "after",
+          "options": {
+            "direction": "after",
+            "limit": 2,
+            "respectCompressionBoundary": true,
+            "cursor": {
+              "createdAt": 1700000003,
+              "messageId": "10000000-0000-4000-8000-000000000003"
+            }
+          },
+          "expected_error": null,
+          "expected_message_ids": [
+            "10000000-0000-4000-8000-000000000004"
+          ],
+          "expected_metadata_requests": 2,
+          "expected_window_requests": 2,
+          "expected_checks": [
+            "explicit-native-session",
+            "bounded-metadata-requests",
+            "bounded-window-requests",
+            "exact-window-query"
+          ],
+          "preflight": {
+            "direction": "latest",
+            "limit": 2,
+            "respectCompressionBoundary": true
+          },
+          "cursor_from": "startCursor",
+          "expected_messages": [
+            {
+              "id": "10000000-0000-4000-8000-000000000004",
+              "role": "assistant",
+              "content": "Synthetic page message 4 雪",
+              "sender": "Fixture sender",
+              "thinking": "Synthetic thinking 4",
+              "embeds": []
+            }
+          ],
+          "expected_result_flags": {
+            "piiRestoration": "page_local",
+            "historyComplete": false
+          },
+          "expected_public_paging": {
+            "chat": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "title": "Synthetic bounded chat",
+              "category": "general"
+            },
+            "hasMoreBefore": true,
+            "hasMoreAfter": false,
+            "anchorFound": true,
+            "startCursor": {
+              "createdAt": 1700000004,
+              "messageId": "10000000-0000-4000-8000-000000000004"
+            },
+            "endCursor": {
+              "createdAt": 1700000004,
+              "messageId": "10000000-0000-4000-8000-000000000004"
+            },
+            "serverMessageCount": 4,
+            "messagesVersion": 4,
+            "oversizedMessage": false,
+            "oversizedMessageCursor": null,
+            "payloadBytes": 498,
+            "historyComplete": false,
+            "piiRestoration": "page_local"
+          }
+        },
+        {
+          "id": "window-around",
+          "mode": "around",
+          "options": {
+            "direction": "around",
+            "limit": 2,
+            "respectCompressionBoundary": true,
+            "anchorMessageId": "10000000-0000-4000-8000-000000000003"
+          },
+          "expected_error": null,
+          "expected_message_ids": [
+            "10000000-0000-4000-8000-000000000002",
+            "10000000-0000-4000-8000-000000000003"
+          ],
+          "expected_metadata_requests": 1,
+          "expected_window_requests": 1,
+          "expected_checks": [
+            "explicit-native-session",
+            "bounded-metadata-requests",
+            "bounded-window-requests",
+            "exact-window-query"
+          ],
+          "expected_messages": [
+            {
+              "id": "10000000-0000-4000-8000-000000000002",
+              "role": "assistant",
+              "content": "Synthetic page message 2 雪",
+              "sender": "Fixture sender",
+              "thinking": "Synthetic thinking 2",
+              "embeds": []
+            },
+            {
+              "id": "10000000-0000-4000-8000-000000000003",
+              "role": "user",
+              "content": "Synthetic page message 3 雪",
+              "sender": "Fixture sender",
+              "thinking": "Synthetic thinking 3",
+              "embeds": []
+            }
+          ],
+          "expected_result_flags": {
+            "piiRestoration": "page_local",
+            "historyComplete": false
+          },
+          "expected_public_paging": {
+            "chat": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "title": "Synthetic bounded chat",
+              "category": "general"
+            },
+            "hasMoreBefore": true,
+            "hasMoreAfter": true,
+            "anchorFound": true,
+            "startCursor": {
+              "createdAt": 1700000002,
+              "messageId": "10000000-0000-4000-8000-000000000002"
+            },
+            "endCursor": {
+              "createdAt": 1700000003,
+              "messageId": "10000000-0000-4000-8000-000000000003"
+            },
+            "serverMessageCount": 4,
+            "messagesVersion": 4,
+            "oversizedMessage": false,
+            "oversizedMessageCursor": null,
+            "payloadBytes": 991,
+            "historyComplete": false,
+            "piiRestoration": "page_local"
+          }
+        },
+        {
+          "id": "window-bad-input-cursor",
+          "mode": "bad_input_cursor",
+          "options": {
+            "direction": "before",
+            "limit": 2,
+            "cursor": {
+              "createdAt": -1,
+              "messageId": "invalid"
+            }
+          },
+          "expected_error": "invalid_argument",
+          "expected_message_ids": [],
+          "expected_metadata_requests": 0,
+          "expected_window_requests": 0,
+          "expected_checks": [],
+          "expected_messages": [],
+          "expected_result_flags": {
+            "piiRestoration": "page_local",
+            "historyComplete": false
+          }
+        },
+        {
+          "id": "window-noauth",
+          "mode": "noauth",
+          "options": {
+            "direction": "latest",
+            "limit": 2,
+            "respectCompressionBoundary": true
+          },
+          "expected_error": "authentication",
+          "expected_message_ids": [],
+          "expected_metadata_requests": 0,
+          "expected_window_requests": 0,
+          "expected_checks": [],
+          "expected_messages": [],
+          "expected_result_flags": {
+            "piiRestoration": "page_local",
+            "historyComplete": false
+          }
+        },
+        {
+          "id": "window-forbidden-context",
+          "mode": "forbidden_context",
+          "options": {
+            "direction": "latest",
+            "limit": 2,
+            "respectCompressionBoundary": true
+          },
+          "expected_error": "conflict",
+          "expected_message_ids": [],
+          "expected_metadata_requests": 1,
+          "expected_window_requests": 1,
+          "expected_checks": [
+            "explicit-native-session",
+            "bounded-metadata-requests",
+            "bounded-window-requests",
+            "exact-window-query"
+          ],
+          "preflight": {
+            "direction": "latest",
+            "limit": 2,
+            "respectCompressionBoundary": true
+          },
+          "cursor_mutation": {
+            "chatId": "99999999-9999-4999-8999-999999999999"
+          },
+          "expected_messages": [],
+          "expected_result_flags": {
+            "piiRestoration": "page_local",
+            "historyComplete": false
+          }
+        },
+        {
+          "id": "window-wrong-chat",
+          "mode": "wrong_chat",
+          "options": {
+            "direction": "latest",
+            "limit": 2,
+            "respectCompressionBoundary": true
+          },
+          "expected_error": "forbidden",
+          "expected_message_ids": [],
+          "expected_metadata_requests": 1,
+          "expected_window_requests": 1,
+          "expected_checks": [
+            "explicit-native-session",
+            "bounded-metadata-requests",
+            "bounded-window-requests",
+            "exact-window-query"
+          ],
+          "expected_messages": [],
+          "expected_result_flags": {
+            "piiRestoration": "page_local",
+            "historyComplete": false
+          }
+        },
+        {
+          "id": "window-wrong-key",
+          "mode": "wrong_key",
+          "options": {
+            "direction": "latest",
+            "limit": 2,
+            "respectCompressionBoundary": true
+          },
+          "expected_error": "crypto",
+          "expected_message_ids": [],
+          "expected_metadata_requests": 1,
+          "expected_window_requests": 0,
+          "expected_checks": [
+            "explicit-native-session",
+            "bounded-metadata-requests"
+          ],
+          "expected_messages": [],
+          "expected_result_flags": {
+            "piiRestoration": "page_local",
+            "historyComplete": false
+          }
+        },
+        {
+          "id": "window-tamper",
+          "mode": "tamper",
+          "options": {
+            "direction": "latest",
+            "limit": 2,
+            "respectCompressionBoundary": true
+          },
+          "expected_error": "crypto",
+          "expected_message_ids": [],
+          "expected_metadata_requests": 1,
+          "expected_window_requests": 1,
+          "expected_checks": [
+            "explicit-native-session",
+            "bounded-metadata-requests",
+            "bounded-window-requests",
+            "exact-window-query"
+          ],
+          "expected_messages": [],
+          "expected_result_flags": {
+            "piiRestoration": "page_local",
+            "historyComplete": false
+          }
+        },
+        {
+          "id": "window-over-rows",
+          "mode": "over_rows",
+          "options": {
+            "direction": "latest",
+            "limit": 2,
+            "respectCompressionBoundary": true
+          },
+          "expected_error": "protocol",
+          "expected_message_ids": [],
+          "expected_metadata_requests": 1,
+          "expected_window_requests": 1,
+          "expected_checks": [
+            "explicit-native-session",
+            "bounded-metadata-requests",
+            "bounded-window-requests",
+            "exact-window-query"
+          ],
+          "expected_messages": [],
+          "expected_result_flags": {
+            "piiRestoration": "page_local",
+            "historyComplete": false
+          }
+        },
+        {
+          "id": "window-over-bytes",
+          "mode": "over_bytes",
+          "options": {
+            "direction": "latest",
+            "limit": 2,
+            "respectCompressionBoundary": true
+          },
+          "expected_error": "protocol",
+          "expected_message_ids": [],
+          "expected_metadata_requests": 1,
+          "expected_window_requests": 1,
+          "expected_checks": [
+            "explicit-native-session",
+            "bounded-metadata-requests",
+            "bounded-window-requests",
+            "exact-window-query"
+          ],
+          "expected_messages": [],
+          "expected_result_flags": {
+            "piiRestoration": "page_local",
+            "historyComplete": false
+          }
+        },
+        {
+          "id": "window-bad-response-cursor",
+          "mode": "bad_response_cursor",
+          "options": {
+            "direction": "latest",
+            "limit": 2,
+            "respectCompressionBoundary": true
+          },
+          "expected_error": "protocol",
+          "expected_message_ids": [],
+          "expected_metadata_requests": 1,
+          "expected_window_requests": 1,
+          "expected_checks": [
+            "explicit-native-session",
+            "bounded-metadata-requests",
+            "bounded-window-requests",
+            "exact-window-query"
+          ],
+          "expected_messages": [],
+          "expected_result_flags": {
+            "piiRestoration": "page_local",
+            "historyComplete": false
+          }
+        },
+        {
+          "id": "window-cancel",
+          "mode": "cancel",
+          "options": {
+            "direction": "latest",
+            "limit": 2,
+            "respectCompressionBoundary": true
+          },
+          "expected_error": "cancelled",
+          "expected_message_ids": [],
+          "expected_metadata_requests": 1,
+          "expected_window_requests": 0,
+          "expected_checks": [
+            "explicit-native-session",
+            "bounded-metadata-requests",
+            "cancellation-barrier-released"
+          ],
+          "expected_messages": [],
+          "expected_result_flags": {
+            "piiRestoration": "page_local",
+            "historyComplete": false
+          },
+          "cancel_flow": [
+            "start-read-pending",
+            "poll-metadata-count-one",
+            "client.cancel",
+            "release-control",
+            "await-cancelled-no-window"
+          ]
+        },
+        {
+          "id": "window-page-local-unknown",
+          "mode": "page_local_unknown",
+          "options": {
+            "direction": "latest",
+            "limit": 2,
+            "respectCompressionBoundary": true
+          },
+          "expected_error": null,
+          "expected_message_ids": [
+            "10000000-0000-4000-8000-000000000003",
+            "10000000-0000-4000-8000-000000000004"
+          ],
+          "expected_metadata_requests": 1,
+          "expected_window_requests": 1,
+          "expected_checks": [
+            "explicit-native-session",
+            "bounded-metadata-requests",
+            "bounded-window-requests",
+            "exact-window-query"
+          ],
+          "expected_messages": [
+            {
+              "id": "10000000-0000-4000-8000-000000000003",
+              "role": "user",
+              "content": "Hello [OM_PII_BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB]",
+              "sender": "Fixture sender",
+              "thinking": "Think [OM_PII_BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB]",
+              "embeds": []
+            },
+            {
+              "id": "10000000-0000-4000-8000-000000000004",
+              "role": "assistant",
+              "content": "Synthetic page message 4 雪",
+              "sender": "Fixture sender",
+              "thinking": "Synthetic thinking 4",
+              "embeds": []
+            }
+          ],
+          "expected_result_flags": {
+            "piiRestoration": "page_local",
+            "historyComplete": false
+          },
+          "expected_public_paging": {
+            "chat": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "title": "Synthetic bounded chat",
+              "category": "general"
+            },
+            "hasMoreBefore": true,
+            "hasMoreAfter": false,
+            "anchorFound": true,
+            "startCursor": {
+              "createdAt": 1700000003,
+              "messageId": "10000000-0000-4000-8000-000000000003"
+            },
+            "endCursor": {
+              "createdAt": 1700000004,
+              "messageId": "10000000-0000-4000-8000-000000000004"
+            },
+            "serverMessageCount": 4,
+            "messagesVersion": 4,
+            "oversizedMessage": false,
+            "oversizedMessageCursor": null,
+            "payloadBytes": 1251,
+            "historyComplete": false,
+            "piiRestoration": "page_local"
+          }
+        },
+        {
+          "id": "window-partial-cache",
+          "mode": "partial_cache",
+          "options": {
+            "direction": "latest",
+            "limit": 2,
+            "respectCompressionBoundary": true
+          },
+          "expected_error": null,
+          "expected_message_ids": [
+            "10000000-0000-4000-8000-000000000003",
+            "10000000-0000-4000-8000-000000000004"
+          ],
+          "expected_metadata_requests": 3,
+          "expected_window_requests": 2,
+          "expected_checks": [
+            "explicit-native-session",
+            "bounded-metadata-requests",
+            "bounded-window-requests",
+            "exact-window-query",
+            "full-cache-preserved"
+          ],
+          "expected_messages": [
+            {
+              "id": "10000000-0000-4000-8000-000000000003",
+              "role": "user",
+              "content": "Synthetic page message 3 雪",
+              "sender": "Fixture sender",
+              "thinking": "Synthetic thinking 3",
+              "embeds": []
+            },
+            {
+              "id": "10000000-0000-4000-8000-000000000004",
+              "role": "assistant",
+              "content": "Synthetic page message 4 雪",
+              "sender": "Fixture sender",
+              "thinking": "Synthetic thinking 4",
+              "embeds": []
+            }
+          ],
+          "expected_result_flags": {
+            "piiRestoration": "page_local",
+            "historyComplete": false
+          },
+          "expected_cache_flow": [
+            "openChat-full",
+            "chatMessageWindow-latest",
+            "openChat-offline-cache"
+          ],
+          "expected_cached_messages": [
+            {
+              "id": "10000000-0000-4000-8000-000000000001",
+              "role": "user",
+              "content": "Synthetic page message 1 雪",
+              "sender": "Fixture sender",
+              "thinking": "Synthetic thinking 1",
+              "embeds": []
+            },
+            {
+              "id": "10000000-0000-4000-8000-000000000002",
+              "role": "assistant",
+              "content": "Synthetic page message 2 雪",
+              "sender": "Fixture sender",
+              "thinking": "Synthetic thinking 2",
+              "embeds": []
+            },
+            {
+              "id": "10000000-0000-4000-8000-000000000003",
+              "role": "user",
+              "content": "Synthetic page message 3 雪",
+              "sender": "Fixture sender",
+              "thinking": "Synthetic thinking 3",
+              "embeds": []
+            },
+            {
+              "id": "10000000-0000-4000-8000-000000000004",
+              "role": "assistant",
+              "content": "Synthetic page message 4 雪",
+              "sender": "Fixture sender",
+              "thinking": "Synthetic thinking 4",
+              "embeds": []
+            }
+          ],
+          "expected_public_paging": {
+            "chat": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "title": "Synthetic bounded chat",
+              "category": "general"
+            },
+            "hasMoreBefore": true,
+            "hasMoreAfter": false,
+            "anchorFound": true,
+            "startCursor": {
+              "createdAt": 1700000003,
+              "messageId": "10000000-0000-4000-8000-000000000003"
+            },
+            "endCursor": {
+              "createdAt": 1700000004,
+              "messageId": "10000000-0000-4000-8000-000000000004"
+            },
+            "serverMessageCount": 4,
+            "messagesVersion": 4,
+            "oversizedMessage": false,
+            "oversizedMessageCursor": null,
+            "payloadBytes": 991,
+            "historyComplete": false,
+            "piiRestoration": "page_local"
+          }
+        },
+        {
+          "id": "window-page-local-maps",
+          "mode": "page_local_maps",
+          "options": {
+            "direction": "latest",
+            "limit": 2,
+            "respectCompressionBoundary": true
+          },
+          "expected_error": null,
+          "expected_message_ids": [
+            "10000000-0000-4000-8000-000000000003",
+            "10000000-0000-4000-8000-000000000004"
+          ],
+          "expected_metadata_requests": 1,
+          "expected_window_requests": 1,
+          "expected_checks": [
+            "explicit-native-session",
+            "bounded-metadata-requests",
+            "bounded-window-requests",
+            "exact-window-query"
+          ],
+          "expected_messages": [
+            {
+              "id": "10000000-0000-4000-8000-000000000003",
+              "role": "user",
+              "content": "Hello Synthetic Alice",
+              "sender": "Fixture sender",
+              "thinking": "Think Synthetic Alice",
+              "embeds": []
+            },
+            {
+              "id": "10000000-0000-4000-8000-000000000004",
+              "role": "assistant",
+              "content": "Synthetic page message 4 雪",
+              "sender": "Fixture sender",
+              "thinking": "Synthetic thinking 4",
+              "embeds": []
+            }
+          ],
+          "expected_result_flags": {
+            "piiRestoration": "page_local",
+            "historyComplete": false
+          },
+          "expected_public_paging": {
+            "chat": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "title": "Synthetic bounded chat",
+              "category": "general"
+            },
+            "hasMoreBefore": true,
+            "hasMoreAfter": false,
+            "anchorFound": true,
+            "startCursor": {
+              "createdAt": 1700000003,
+              "messageId": "10000000-0000-4000-8000-000000000003"
+            },
+            "endCursor": {
+              "createdAt": 1700000004,
+              "messageId": "10000000-0000-4000-8000-000000000004"
+            },
+            "serverMessageCount": 4,
+            "messagesVersion": 4,
+            "oversizedMessage": false,
+            "oversizedMessageCursor": null,
+            "payloadBytes": 1251,
+            "historyComplete": false,
+            "piiRestoration": "page_local"
+          }
+        },
+        {
+          "id": "window-wrong-scope",
+          "mode": "wrong_scope",
+          "options": {
+            "direction": "latest",
+            "limit": 2,
+            "respectCompressionBoundary": true
+          },
+          "expected_error": "conflict",
+          "expected_message_ids": [],
+          "expected_metadata_requests": 1,
+          "expected_window_requests": 1,
+          "expected_checks": [
+            "explicit-native-session",
+            "bounded-metadata-requests",
+            "bounded-window-requests",
+            "exact-window-query"
+          ],
+          "preflight": {
+            "direction": "latest",
+            "limit": 2,
+            "respectCompressionBoundary": true
+          },
+          "cursor_mutation": {
+            "scope": "0000000000000000000000000000000000000000000000000000000000000000"
+          },
+          "expected_messages": [],
+          "expected_result_flags": {
+            "piiRestoration": "page_local",
+            "historyComplete": false
+          }
+        },
+        {
+          "id": "window-around-wrong-anchor",
+          "mode": "around_wrong_anchor",
+          "options": {
+            "direction": "around",
+            "limit": 2,
+            "respectCompressionBoundary": true,
+            "anchorMessageId": "10000000-0000-4000-8000-000000000001"
+          },
+          "expected_error": "protocol",
+          "expected_message_ids": [],
+          "expected_metadata_requests": 1,
+          "expected_window_requests": 1,
+          "expected_checks": [
+            "explicit-native-session",
+            "bounded-metadata-requests",
+            "bounded-window-requests",
+            "exact-window-query"
+          ],
+          "expected_messages": [],
+          "expected_result_flags": {
+            "piiRestoration": "page_local",
+            "historyComplete": false
+          }
+        },
+        {
+          "id": "window-around-false-nonempty",
+          "mode": "around_false_nonempty",
+          "options": {
+            "direction": "around",
+            "limit": 2,
+            "respectCompressionBoundary": true,
+            "anchorMessageId": "10000000-0000-4000-8000-000000000003"
+          },
+          "expected_error": "protocol",
+          "expected_message_ids": [],
+          "expected_metadata_requests": 1,
+          "expected_window_requests": 1,
+          "expected_checks": [
+            "explicit-native-session",
+            "bounded-metadata-requests",
+            "bounded-window-requests",
+            "exact-window-query"
+          ],
+          "expected_messages": [],
+          "expected_result_flags": {
+            "piiRestoration": "page_local",
+            "historyComplete": false
+          }
+        },
+        {
+          "id": "window-around-missing",
+          "mode": "around_missing",
+          "options": {
+            "direction": "around",
+            "limit": 2,
+            "respectCompressionBoundary": true,
+            "anchorMessageId": "10000000-0000-4000-8000-000000000003"
+          },
+          "expected_error": null,
+          "expected_message_ids": [],
+          "expected_metadata_requests": 1,
+          "expected_window_requests": 1,
+          "expected_checks": [
+            "explicit-native-session",
+            "bounded-metadata-requests",
+            "bounded-window-requests",
+            "exact-window-query"
+          ],
+          "expected_messages": [],
+          "expected_result_flags": {
+            "piiRestoration": "page_local",
+            "historyComplete": false
+          },
+          "expected_public_paging": {
+            "chat": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "title": "Synthetic bounded chat",
+              "category": "general"
+            },
+            "hasMoreBefore": false,
+            "hasMoreAfter": false,
+            "anchorFound": false,
+            "startCursor": null,
+            "endCursor": null,
+            "serverMessageCount": 4,
+            "messagesVersion": 4,
+            "oversizedMessage": false,
+            "oversizedMessageCursor": null,
+            "payloadBytes": 0,
+            "historyComplete": false,
+            "piiRestoration": "page_local"
+          }
+        },
+        {
+          "id": "window-around-alias",
+          "mode": "around_alias",
+          "options": {
+            "direction": "around",
+            "limit": 2,
+            "respectCompressionBoundary": true,
+            "anchorMessageId": "30000000-0000-4000-8000-000000000003"
+          },
+          "expected_error": null,
+          "expected_message_ids": [
+            "10000000-0000-4000-8000-000000000002",
+            "10000000-0000-4000-8000-000000000003"
+          ],
+          "expected_metadata_requests": 1,
+          "expected_window_requests": 1,
+          "expected_checks": [
+            "explicit-native-session",
+            "bounded-metadata-requests",
+            "bounded-window-requests",
+            "exact-window-query"
+          ],
+          "expected_messages": [
+            {
+              "id": "10000000-0000-4000-8000-000000000002",
+              "role": "assistant",
+              "content": "Synthetic page message 2 雪",
+              "sender": "Fixture sender",
+              "thinking": "Synthetic thinking 2",
+              "embeds": []
+            },
+            {
+              "id": "10000000-0000-4000-8000-000000000003",
+              "role": "user",
+              "content": "Synthetic page message 3 雪",
+              "sender": "Fixture sender",
+              "thinking": "Synthetic thinking 3",
+              "embeds": []
+            }
+          ],
+          "expected_result_flags": {
+            "piiRestoration": "page_local",
+            "historyComplete": false
+          },
+          "expected_public_paging": {
+            "chat": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "title": "Synthetic bounded chat",
+              "category": "general"
+            },
+            "hasMoreBefore": true,
+            "hasMoreAfter": true,
+            "anchorFound": true,
+            "startCursor": {
+              "createdAt": 1700000002,
+              "messageId": "10000000-0000-4000-8000-000000000002"
+            },
+            "endCursor": {
+              "createdAt": 1700000003,
+              "messageId": "10000000-0000-4000-8000-000000000003"
+            },
+            "serverMessageCount": 4,
+            "messagesVersion": 4,
+            "oversizedMessage": false,
+            "oversizedMessageCursor": null,
+            "payloadBytes": 991,
+            "historyComplete": false,
+            "piiRestoration": "page_local"
+          }
+        },
+        {
+          "id": "window-around-oversized",
+          "mode": "around_oversized",
+          "options": {
+            "direction": "around",
+            "limit": 2,
+            "respectCompressionBoundary": true,
+            "anchorMessageId": "10000000-0000-4000-8000-000000000003"
+          },
+          "expected_error": null,
+          "expected_message_ids": [],
+          "expected_metadata_requests": 1,
+          "expected_window_requests": 1,
+          "expected_checks": [
+            "explicit-native-session",
+            "bounded-metadata-requests",
+            "bounded-window-requests",
+            "exact-window-query"
+          ],
+          "expected_messages": [],
+          "expected_result_flags": {
+            "piiRestoration": "page_local",
+            "historyComplete": false
+          },
+          "expected_public_paging": {
+            "chat": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "title": "Synthetic bounded chat",
+              "category": "general"
+            },
+            "hasMoreBefore": true,
+            "hasMoreAfter": true,
+            "anchorFound": true,
+            "startCursor": null,
+            "endCursor": null,
+            "serverMessageCount": 4,
+            "messagesVersion": 4,
+            "oversizedMessage": true,
+            "oversizedMessageCursor": {
+              "createdAt": 1700000003,
+              "messageId": "10000000-0000-4000-8000-000000000003"
+            },
+            "payloadBytes": 0,
+            "historyComplete": false,
+            "piiRestoration": "page_local"
+          }
+        },
+        {
+          "id": "window-around-wrong-oversized-anchor",
+          "mode": "around_wrong_oversized_anchor",
+          "options": {
+            "direction": "around",
+            "limit": 2,
+            "respectCompressionBoundary": true,
+            "anchorMessageId": "10000000-0000-4000-8000-000000000003"
+          },
+          "expected_error": "protocol",
+          "expected_message_ids": [],
+          "expected_metadata_requests": 1,
+          "expected_window_requests": 1,
+          "expected_checks": [
+            "explicit-native-session",
+            "bounded-metadata-requests",
+            "bounded-window-requests",
+            "exact-window-query"
+          ],
+          "expected_messages": [],
+          "expected_result_flags": {
+            "piiRestoration": "page_local",
+            "historyComplete": false
+          }
+        },
+        {
+          "id": "window-private-policy-denied",
+          "mode": "private_denied",
+          "options": {
+            "direction": "latest",
+            "limit": 2,
+            "respectCompressionBoundary": true
+          },
+          "expected_error": "forbidden",
+          "expected_message_ids": [
+            "10000000-0000-4000-8000-000000000003",
+            "10000000-0000-4000-8000-000000000004"
+          ],
+          "expected_metadata_requests": 1,
+          "expected_window_requests": 1,
+          "expected_checks": [
+            "explicit-native-session",
+            "bounded-metadata-requests",
+            "bounded-window-requests",
+            "exact-window-query"
+          ],
+          "expected_messages": [
+            {
+              "id": "10000000-0000-4000-8000-000000000003",
+              "role": "user",
+              "content": "Synthetic page message 3 雪",
+              "sender": "Fixture sender",
+              "thinking": "Synthetic thinking 3",
+              "embeds": []
+            },
+            {
+              "id": "10000000-0000-4000-8000-000000000004",
+              "role": "assistant",
+              "content": "Synthetic page message 4 雪",
+              "sender": "Fixture sender",
+              "thinking": "Synthetic thinking 4",
+              "embeds": []
+            }
+          ],
+          "expected_result_flags": {
+            "piiRestoration": "page_local",
+            "historyComplete": false
+          },
+          "expected_public_paging": {
+            "chat": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "title": "Synthetic bounded chat",
+              "category": "general"
+            },
+            "hasMoreBefore": true,
+            "hasMoreAfter": false,
+            "anchorFound": true,
+            "startCursor": {
+              "createdAt": 1700000003,
+              "messageId": "10000000-0000-4000-8000-000000000003"
+            },
+            "endCursor": {
+              "createdAt": 1700000004,
+              "messageId": "10000000-0000-4000-8000-000000000004"
+            },
+            "serverMessageCount": 4,
+            "messagesVersion": 4,
+            "oversizedMessage": false,
+            "oversizedMessageCursor": null,
+            "payloadBytes": 991,
+            "historyComplete": false,
+            "piiRestoration": "page_local"
+          },
+          "allow_private_operations": false
+        },
+        {
+          "id": "opaque-ids-window-latest",
+          "mode": "latest",
+          "options": {
+            "direction": "latest",
+            "limit": 2,
+            "respectCompressionBoundary": true
+          },
+          "expected_error": null,
+          "expected_message_ids": [
+            "legacy_msg_0003",
+            "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm"
+          ],
+          "expected_metadata_requests": 1,
+          "expected_window_requests": 1,
+          "expected_checks": [
+            "explicit-native-session",
+            "bounded-metadata-requests",
+            "bounded-window-requests",
+            "exact-window-query"
+          ],
+          "expected_messages": [
+            {
+              "id": "legacy_msg_0003",
+              "role": "user",
+              "content": "Synthetic page message 3 雪",
+              "sender": "Fixture sender",
+              "thinking": "Synthetic thinking 3",
+              "embeds": []
+            },
+            {
+              "id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
+              "role": "assistant",
+              "content": "Synthetic page message 4 雪",
+              "sender": "Fixture sender",
+              "thinking": "Synthetic thinking 4",
+              "embeds": []
+            }
+          ],
+          "expected_result_flags": {
+            "piiRestoration": "page_local",
+            "historyComplete": false
+          },
+          "expected_public_paging": {
+            "chat": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "title": "Synthetic bounded chat",
+              "category": "general"
+            },
+            "hasMoreBefore": true,
+            "hasMoreAfter": false,
+            "anchorFound": true,
+            "startCursor": {
+              "createdAt": 1700000003,
+              "messageId": "legacy_msg_0003"
+            },
+            "endCursor": {
+              "createdAt": 1700000004,
+              "messageId": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm"
+            },
+            "serverMessageCount": 4,
+            "messagesVersion": 4,
+            "oversizedMessage": false,
+            "oversizedMessageCursor": null,
+            "payloadBytes": 1493,
+            "historyComplete": false,
+            "piiRestoration": "page_local"
+          },
+          "message_id_overrides": {
+            "10000000-0000-4000-8000-000000000001": "2222222222-10000000-0000-4000-8000-000000000001",
+            "10000000-0000-4000-8000-000000000002": "2222222222-10000000-0000-4000-8000-000000000002",
+            "10000000-0000-4000-8000-000000000003": "legacy_msg_0003",
+            "10000000-0000-4000-8000-000000000004": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm"
+          }
+        },
+        {
+          "id": "opaque-ids-window-around",
+          "mode": "around",
+          "options": {
+            "direction": "around",
+            "limit": 2,
+            "respectCompressionBoundary": true,
+            "anchorMessageId": "legacy_msg_0003"
+          },
+          "expected_error": null,
+          "expected_message_ids": [
+            "2222222222-10000000-0000-4000-8000-000000000002",
+            "legacy_msg_0003"
+          ],
+          "expected_metadata_requests": 1,
+          "expected_window_requests": 1,
+          "expected_checks": [
+            "explicit-native-session",
+            "bounded-metadata-requests",
+            "bounded-window-requests",
+            "exact-window-query"
+          ],
+          "expected_messages": [
+            {
+              "id": "2222222222-10000000-0000-4000-8000-000000000002",
+              "role": "assistant",
+              "content": "Synthetic page message 2 雪",
+              "sender": "Fixture sender",
+              "thinking": "Synthetic thinking 2",
+              "embeds": []
+            },
+            {
+              "id": "legacy_msg_0003",
+              "role": "user",
+              "content": "Synthetic page message 3 雪",
+              "sender": "Fixture sender",
+              "thinking": "Synthetic thinking 3",
+              "embeds": []
+            }
+          ],
+          "expected_result_flags": {
+            "piiRestoration": "page_local",
+            "historyComplete": false
+          },
+          "expected_public_paging": {
+            "chat": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "title": "Synthetic bounded chat",
+              "category": "general"
+            },
+            "hasMoreBefore": true,
+            "hasMoreAfter": true,
+            "anchorFound": true,
+            "startCursor": {
+              "createdAt": 1700000002,
+              "messageId": "2222222222-10000000-0000-4000-8000-000000000002"
+            },
+            "endCursor": {
+              "createdAt": 1700000003,
+              "messageId": "legacy_msg_0003"
+            },
+            "serverMessageCount": 4,
+            "messagesVersion": 4,
+            "oversizedMessage": false,
+            "oversizedMessageCursor": null,
+            "payloadBytes": 1075,
+            "historyComplete": false,
+            "piiRestoration": "page_local"
+          },
+          "message_id_overrides": {
+            "10000000-0000-4000-8000-000000000001": "2222222222-10000000-0000-4000-8000-000000000001",
+            "10000000-0000-4000-8000-000000000002": "2222222222-10000000-0000-4000-8000-000000000002",
+            "10000000-0000-4000-8000-000000000003": "legacy_msg_0003",
+            "10000000-0000-4000-8000-000000000004": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm"
+          }
+        }
+      ],
+      "public_paging_oracle_provenance": "Literal expected_public_paging computed from synthetic intended response plans and exact compact UTF-8 encrypted row serialization; never from SDK output. Cursor oracle excludes opaque live scope but drivers must independently validate chatId/scope and context continuity.",
+      "allow_private_operations": true
+    }
+  }
+}

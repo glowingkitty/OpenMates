@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "capabilities"
+  ],
+  "properties": {
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sdk.configuration"
+      ],
+      "properties": {
+        "sdk.configuration": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "capability",
+            "status",
+            "account",
+            "request",
+            "sync_expected",
+            "account_expected",
+            "vectors",
+            "required_oracles",
+            "inherited_app18_api_key_vectors",
+            "fixture_family"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": 1
+            },
+            "capability": {
+              "const": "sdk.configuration"
+            },
+            "status": {
+              "const": "partial-authored-runtime-unrun"
+            },
+            "account": {
+              "type": "object"
+            },
+            "request": {
+              "type": "object"
+            },
+            "sync_expected": {
+              "type": "object"
+            },
+            "account_expected": {
+              "type": "object"
+            },
+            "vectors": {
+              "type": "array",
+              "minItems": 23,
+              "maxItems": 23,
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "mode",
+                  "credential",
+                  "expected_skill_posts",
+                  "expected_downloads",
+                  "expected_retention_posts"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "credential": {
+                    "const": "api_key"
+                  },
+                  "expected_skill_posts": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "expected_account_reads": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "expected_downloads": {
+                    "const": 0
+                  },
+                  "expected_retention_posts": {
+                    "const": 0
+                  },
+                  "expected_error": {
+                    "enum": [
+                      "forbidden",
+                      "cancelled",
+                      "invalid_argument"
+                    ]
+                  }
+                }
+              }
+            },
+            "required_oracles": {
+              "type": "array",
+              "minItems": 9
+            },
+            "inherited_app18_api_key_vectors": {
+              "type": "string"
+            },
+            "fixture_family": {
+              "const": "api-key-foundation.v1"
+            }
+          }
+        }
+      }
+    }
+  }
+}

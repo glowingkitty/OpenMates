@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable, Optional
 
 from backend.core.api.app.services.directus.directus import DirectusService
-from backend.core.api.app.services.email_template import EmailSendIneligible, EmailTemplateService
+from backend.core.api.app.services.email_template import EmailSendDeferred, EmailSendIneligible, EmailTemplateService
 
 logger = logging.getLogger(__name__)
 
@@ -177,13 +177,13 @@ async def mark_delivery_failed(directus: DirectusService, delivery_id: str, erro
 
 async def _prepare_bounded_retry(
     directus: DirectusService, delivery_id: str, delivery_key: str, recipient_hash: str | None,
-    provider: str,
+    provider: str, *, pre_provider_only: bool = False,
 ) -> str:
     """Reopen only a matching, recent failed/stale reservation without changing its first timestamp."""
     rows = await directus.get_items(
         COLLECTION,
         params={"filter": {"id": {"_eq": delivery_id}}, "fields": "id,delivery_key,recipient_hash,provider,status,processing_started_at", "limit": 1},
-        admin_required=True,
+        admin_required=True, no_cache=True, raise_on_error=True,
     )
     if not rows:
         return "already_reserved"  # An uncertain create response must fail closed.
@@ -191,7 +191,9 @@ async def _prepare_bounded_retry(
     if row.get("delivery_key") != delivery_key or row.get("recipient_hash") != recipient_hash or row.get("provider") != provider:
         return "already_reserved"
     status = row.get("status")
-    if status not in ("failed", "processing"):
+    if pre_provider_only and status != "deferred":
+        return "retry_unsafe_transport"
+    if status not in ("failed", "processing", "deferred"):
         return "already_reserved"
     started_at = row.get("processing_started_at")
     try:
@@ -207,12 +209,14 @@ async def _prepare_bounded_retry(
         # The first worker may still be active, or its reservation response
         # was lost. Let the bounded task schedule another check after it ages.
         return "retry_locked"
-    await directus.update_item(
+    updated = await directus.update_item(
         COLLECTION, delivery_id,
         {"status": "processing", "error": None},
         admin_required=True,
     )
-    return "retry_ready"
+    if not updated:
+        raise RuntimeError("Email retry reservation was not persisted")
+    return "retry_deferred" if status == "deferred" else "retry_ready"
 
 
 async def send_email_once(
@@ -259,6 +263,7 @@ async def send_email_once(
             logger.warning("Email delivery retry lock unavailable for %s", delivery_id)
             return False, "retry_unavailable"
     can_mark_failed = False
+    can_defer_before_provider = False
     try:
         reserved, _, _ = await reserve_delivery(
             directus,
@@ -266,16 +271,17 @@ async def send_email_once(
             recipient_id=recipient_id, recipient_hash=recipient_hash, stage=stage,
             lang=lang, scheduled_for=scheduled_for, metadata=metadata, provider=provider,
         )
+        can_defer_before_provider = reserved
         if not reserved:
             if retry_cache is None:
                 return False, "already_reserved"
-            if not _provider_enforces_idempotency(email_template_service):
-                # SMTP may have accepted the previous call before failing.
-                # Without a provider-enforced key it must never be replayed.
-                return False, "retry_unsafe_transport"
-            retry_status = await _prepare_bounded_retry(directus, delivery_id, delivery_key, recipient_hash, provider)
-            if retry_status != "retry_ready":
+            # SMTP retries are safe only after an explicit pre-provider defer.
+            # Failed/processing rows still represent uncertain external sends.
+            retry_status = await _prepare_bounded_retry(directus, delivery_id, delivery_key, recipient_hash, provider,
+                pre_provider_only=not _provider_enforces_idempotency(email_template_service))
+            if retry_status not in {"retry_ready", "retry_deferred"}:
                 return False, retry_status
+            can_defer_before_provider = retry_status == "retry_deferred"
         can_mark_failed = True
         if before_send is not None and not await before_send():
             await directus.update_item(
@@ -326,6 +332,17 @@ async def send_email_once(
 
         await mark_delivery_failed(directus, delivery_id, "EmailTemplateService.send_email returned False")
         return False, "failed"
+    except EmailSendDeferred:
+        if can_defer_before_provider:
+            updated = await directus.update_item(COLLECTION, delivery_id,
+                {"status": "deferred", "error": "eligibility_read_unavailable_before_provider"}, admin_required=True)
+            if not updated:
+                raise RuntimeError("Pre-provider email defer state was not persisted")
+        elif can_mark_failed:
+            # A preceding uncertain provider attempt must never be relabelled as
+            # definitely unsent by a later eligibility read failure.
+            await mark_delivery_failed(directus, delivery_id, "eligibility_read_unavailable")
+        raise
     except EmailSendIneligible:
         await directus.update_item(
             COLLECTION, delivery_id, {"status": "skipped", "error": None}, admin_required=True,

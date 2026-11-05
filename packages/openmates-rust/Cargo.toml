@@ -1,0 +1,79 @@
+[package]
+name = "openmates-sdk"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98.1"
+description = "Headless, end-to-end encrypted OpenMates Rust SDK"
+license = "MIT"
+repository = "https://github.com/glowingkitty/OpenMates"
+readme = "README.md"
+include = ["Cargo.toml", "Cargo.lock", "README.md", "LICENSE", "NOTICE", "src/**", "tests/**/*.rs", "tests/**/*.json", "examples/**/*.rs"]
+publish = false
+
+[features]
+# Private first-party metadata prototype; existing builds stay feature-off.
+browser-metadata-prototype = []
+# Native/headless Workflow formatting only; essential browser builds remain off.
+workflow-yaml = ["dep:serde_yaml"]
+
+[dependencies]
+tokio-util = "0.7"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream", "http2"] }
+futures-util = "0.3"
+tungstenite = { version = "0.28", default-features = false, features = ["handshake"] }
+serde = { version = "1", features = ["derive"] }
+# Same exact maintained native portable Workflow serializer.
+serde_yaml = { package = "yaml_serde", version = "=0.10.7", optional = true }
+# SDK numeric JSON must round-trip binary64, including large integral f64s.
+serde_json = { version = "1", features = ["raw_value", "float_roundtrip"] }
+aes-gcm = { version = "0.10", features = ["zeroize"] }
+aes = { version = "0.8", features = ["zeroize"] }
+argon2 = { version = "0.5", features = ["zeroize"] }
+hkdf = "0.12"
+pbkdf2 = "0.12"
+hmac = "0.12"
+sha2 = "0.10"
+base64 = "0.22"
+rand = "0.8"
+zeroize = { version = "1", features = ["derive"] }
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+crypto_box = { version = "0.9", features = ["std"] }
+crypto_secretbox = { version = "0.1", default-features = false, features = ["alloc", "salsa20"] }
+opaque-ke = { version = "=4.0.0", features = ["argon2"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+url = "2"
+generic-array = "0.14"
+unicode-normalization = "0.1"
+regex = "1"
+icu_collator = { version = "=2.3.1", default-features = false, features = ["compiled_data"] }
+icu_locale_core = { version = "=2.3.0", features = ["alloc"] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { version = "=1.54.1", features = ["rt-multi-thread", "macros", "sync", "time", "io-util", "net"] }
+rustix = { version = "1", features = ["fs", "process"] }
+tokio-tungstenite = { version = "0.28", features = ["rustls-tls-webpki-roots"] }
+# Same TLS stack and roots tokio-tungstenite uses; only for pre-establishing
+# the recovery socket's TCP/TLS connection (platform/socket.rs).
+tokio-rustls = { version = "0.26", default-features = false }
+rustls = { version = "0.23", default-features = false }
+webpki-roots = "0.26"
+
+# Browser execution seam. Client transport/session portability is intentionally
+# not claimed by enabling these dependencies alone. Native defaults stay intact.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+uuid = { version = "1", features = ["js"] }
+tokio = { version = "=1.54.1", features = ["rt", "macros", "sync"] }
+wasm-bindgen-futures = "0.4"
+web-time = "1"
+gloo-timers = { version = "0.3", features = ["futures"] }
+getrandom_02 = { package = "getrandom", version = "0.2", features = ["js"] }
+getrandom_03 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
+getrandom_04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }
+wasm-bindgen = "0.2"
+js-sys = "0.3"
+wasm-streams = "0.4"
+web-sys = { version = "0.3", features = ["AbortController", "AbortSignal", "Headers", "Request", "RequestInit", "RequestCredentials", "RequestCache", "RequestRedirect", "Response", "ReadableStream", "DedicatedWorkerGlobalScope", "WorkerGlobalScope", "WorkerLocation", "WebSocket", "MessageEvent", "Event", "CloseEvent"] }
+futures-channel = "0.3"

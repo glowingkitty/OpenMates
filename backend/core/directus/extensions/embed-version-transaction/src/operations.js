@@ -12,6 +12,8 @@ const TEAMS = 'teams';
 const CHATS = 'chats';
 const PREFLIGHTS = 'chat_turn_preflights';
 const RECOVERY_OUTPUTS = 'chat_recovery_outputs';
+const LEGACY_BATCH_CLAIMS = 'chat_recovery_legacy_batch_claims';
+const CHAT_DELETION_FENCES = 'chat_recovery_chat_deletion_fences';
 const OUTPUT_PRODUCERS = 'chat_recovery_output_producers';
 const OUTPUT_CHILDREN = 'chat_recovery_output_producer_children';
 const ACCOUNT_FENCES = 'chat_recovery_account_fences';
@@ -342,6 +344,59 @@ async function requireLegacyChatWrite(trx, chat, actor) {
   }
 }
 
+/* Internal-only encrypted history write. Use the edit transaction's same lock,
+ * including the initial lookup, so concurrent initialization cannot add rows
+ * during an editor's complete-history check. Ciphertext is always immutable. */
+export async function writeLegacyEmbedDiff(database, raw) {
+  const input = exactFields(raw, new Set(['embed_id', 'actor_user_hash', 'row']),
+    ['embed_id', 'actor_user_hash', 'row']);
+  const embedId = boundedString(input.embed_id, 'invalid_embed_id', 512);
+  if (UUID_V5_RE.test(embedId)) fail(403, 'project_context_required');
+  const actor = hexDigest(input.actor_user_hash, 'invalid_actor');
+  const row = exactFields(input.row, HISTORY_FIELDS,
+    ['version_number', 'encrypted_snapshot', 'encrypted_patch']);
+  const version = safeInteger(row.version_number, 'invalid_version');
+  if (version < 1 || version > 2147483647) fail(400, 'invalid_version');
+  const snapshot = row.encrypted_snapshot === null ? null
+    : boundedString(row.encrypted_snapshot, 'invalid_ciphertext', MAX_CIPHERTEXT_BYTES);
+  const patch = row.encrypted_patch === null ? null
+    : boundedString(row.encrypted_patch, 'invalid_ciphertext', MAX_CIPHERTEXT_BYTES);
+  if ((version === 1 && (!snapshot || patch)) || (version > 1 && !patch)) fail(400, 'invalid_history');
+  const createdAt = row.created_at == null ? Math.floor(Date.now() / 1000)
+    : safeInteger(row.created_at, 'invalid_timestamp');
+  if (createdAt <= 0) fail(400, 'invalid_timestamp');
+  return database.transaction(async (trx) => {
+    await lockIdentity(trx, `embed:${embedId}`);
+    const heads = await trx(EMBEDS).where({ embed_id: embedId }).forUpdate().limit(2);
+    if (heads.length !== 1 || heads[0].hashed_user_id !== actor) fail(403, 'embed_access_denied');
+    const embed = heads[0];
+    if (await trx(PROJECT_ITEMS).where({ target_id_hash: sha256(embedId) })
+      .whereIn('item_type', ['embed', 'upload']).first()) fail(403, 'project_context_required');
+    if (embed.app_id === 'diagrams' && embed.skill_id === 'html' && version > 1) {
+      fail(403, 'diagram_atomic_commit_required');
+    }
+    const chats = await trx(CHATS)
+      .whereRaw("encode(digest(id::text, 'sha256'), 'hex') = ?", [embed.hashed_chat_id]).forShare().limit(2);
+    if (chats.length !== 1 || (chats[0].hashed_team_id ?? null) !== (embed.hashed_team_id ?? null)) {
+      fail(403, 'chat_write_denied');
+    }
+    await requireLegacyChatWrite(trx, chats[0], actor);
+    const existing = await trx(DIFFS).where({ embed_id: embedId, version_number: version }).forUpdate().limit(2);
+    if (existing.length > 1) fail(409, 'ambiguous_history');
+    if (existing.length && (existing[0].hashed_user_id !== actor
+      || (existing[0].encrypted_snapshot ?? null) !== snapshot
+      || (existing[0].encrypted_patch ?? null) !== patch
+      || (row.created_at != null && Number(existing[0].created_at) !== createdAt))) {
+      fail(409, 'immutable_version_mismatch');
+    }
+    if (!existing.length) await trx(DIFFS).insert({ id: randomUUID(), embed_id: embedId,
+      version_number: version, hashed_user_id: actor, encrypted_snapshot: snapshot,
+      encrypted_patch: patch, created_at: createdAt, has_snapshot: snapshot !== null, has_patch: patch !== null });
+    return { embed_id: embedId, version_number: version, canonical_source: 'version_row',
+      canonical_digest: sha256(JSON.stringify([snapshot, patch])), idempotent: existing.length === 1 };
+  });
+}
+
 /* Internal-only first-party wrapper write. Share the head writer's database lock:
  * two missing-row lookups must never race into duplicate cryptographic identities. */
 export async function writeLegacyEmbedKey(database, raw) {
@@ -400,10 +455,99 @@ export async function writeLegacyEmbedKey(database, raw) {
   });
 }
 
+/** UUIDv5(NIL, exact owner/chat/message hashes), shared with recovery fencing. */
+function messageDeletionFenceId(actor, chatHash, messageHash) {
+  const name = `message-delete:${actor}:${chatHash}:${messageHash}`;
+  const bytes = createHash('sha1').update(Buffer.alloc(16)).update(name).digest().subarray(0, 16);
+  bytes[6] = (bytes[6] & 0x0f) | 0x50;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = bytes.toString('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+async function assertMessageNotDeleted(trx, actor, scope) {
+  const chatHash = scope?.hashed_chat_id;
+  const messageHash = scope?.hashed_message_id;
+  // Preserve unscoped legacy metadata; an existing canonical head is checked
+  // independently, so omitting or replacing incoming scope cannot evade a fence.
+  if (!HEX_64_RE.test(chatHash ?? '') || !HEX_64_RE.test(messageHash ?? '')) return;
+  const fence = await trx(CHAT_DELETION_FENCES).where({
+    id: messageDeletionFenceId(actor, chatHash, messageHash), scope: 'message',
+    hashed_user_id: actor, hashed_message_id: messageHash,
+  }).forShare().first();
+  if (fence && typeof fence.chat_id === 'string' && sha256(fence.chat_id) === chatHash) {
+    fail(409, 'message_output_deleted');
+  }
+}
+
+/** Promote only server-registered dependencies after the canonical write gates pass.
+ * The binding is internal-only, supplied from trusted producer metadata; it is
+ * never a client key grant. Historical ledger entries remain retained separately.
+ */
+async function promoteAuthoredAssetReferences(trx, binding, embedId, actor) {
+  if (binding === null) return;
+  const claim = await trx(LEGACY_BATCH_CLAIMS).where({ task_identity: binding.task_identity })
+    .forShare().first();
+  if (!claim || !['CLAIMED', 'COMPLETED'].includes(claim.state)
+    || claim.hashed_user_id !== actor || typeof claim.actor_user_id !== 'string'
+    || sha256(claim.actor_user_id) !== actor) fail(409, 'authored_asset_claim_mismatch');
+  let entries = claim.output_asset_references;
+  if (typeof entries === 'string') {
+    try { entries = JSON.parse(entries); } catch { fail(409, 'authored_asset_ledger_invalid'); }
+  }
+  if (!Array.isArray(entries) || entries.length > 128
+    || Buffer.byteLength(JSON.stringify(entries), 'utf8') > 512 * 1024) {
+    fail(409, 'authored_asset_ledger_invalid');
+  }
+  const candidates = entries.filter((entry) => entry && entry.embed_id === embedId
+    && entry.output_version === binding.output_version);
+  if (candidates.length !== 1) fail(409, 'authored_asset_binding_mismatch');
+  const entry = exactFields(candidates[0], new Set(['embed_id', 'output_version',
+    'target_chat_id', 'hashed_chat_id', 'hashed_message_id', 'parent_embed_id',
+    'content_commitment', 's3_file_keys']), ['embed_id', 'output_version',
+    'target_chat_id', 'hashed_chat_id', 'hashed_message_id', 'parent_embed_id',
+    'content_commitment', 's3_file_keys']);
+  const embed = await trx(EMBEDS).where({ embed_id: embedId }).forUpdate().first();
+  if (!embed || embed.hashed_user_id !== actor
+    || logicalEmbedVersion(embed.version_number) !== binding.output_version
+    || entry.content_commitment !== binding.content_commitment
+    || typeof entry.target_chat_id !== 'string' || !entry.target_chat_id
+    || sha256(entry.target_chat_id) !== entry.hashed_chat_id
+    || embed.hashed_chat_id !== entry.hashed_chat_id
+    || embed.hashed_message_id !== entry.hashed_message_id
+    || (embed.parent_embed_id ?? null) !== entry.parent_embed_id
+    || !HEX_64_RE.test(entry.hashed_message_id ?? '')
+    || typeof embed.encrypted_content !== 'string' || !embed.encrypted_content
+    || typeof embed.encrypted_type !== 'string' || !embed.encrypted_type
+    || (embed.hashed_team_id ?? null) !== (claim.hashed_team_id ?? null)) {
+    fail(409, 'authored_asset_binding_mismatch');
+  }
+  const chat = await trx(CHATS).where({ id: entry.target_chat_id }).forShare().first();
+  if ((chat?.hashed_team_id ?? null) !== (claim.hashed_team_id ?? null)) {
+    fail(409, 'authored_asset_binding_mismatch');
+  }
+  await requireLegacyChatWrite(trx, chat, actor);
+  // null is legacy/no metadata; [] explicitly clears the current version's refs.
+  if (entry.s3_file_keys === null) return;
+  if (!Array.isArray(entry.s3_file_keys) || entry.s3_file_keys.length > 64) {
+    fail(409, 'authored_asset_ledger_invalid');
+  }
+  const seen = new Set();
+  for (const ref of entry.s3_file_keys) {
+    exactFields(ref, new Set(['bucket', 'key']), ['bucket', 'key']);
+    if (ref.bucket !== 'chatfiles' || typeof ref.key !== 'string' || !ref.key.trim()
+      || Array.from(ref.key).length > 4096 || seen.has(ref.key)) {
+      fail(409, 'authored_asset_ledger_invalid');
+    }
+    seen.add(ref.key);
+  }
+  await trx(EMBEDS).where({ id: embed.id }).update({ s3_file_keys: JSON.stringify(entry.s3_file_keys) });
+}
+
 /** Serialize a legacy client ciphertext write with Project revision publication. */
 export async function writeLegacyEmbed(database, raw) {
   const input = exactFields(raw, new Set(['embed_id', 'actor_user_hash', 'payload', 'bundle_context',
-    'canonical_metadata_enrichment', 'canonical_precondition']), [
+    'canonical_metadata_enrichment', 'canonical_precondition', 'authored_asset_binding']), [
     'embed_id', 'actor_user_hash', 'payload',
   ]);
   const embedId = boundedString(input.embed_id, 'invalid_embed_id', 512);
@@ -413,6 +557,19 @@ export async function writeLegacyEmbed(database, raw) {
   ]);
   if (payload.embed_id !== embedId) fail(400, 'invalid_embed_id');
   if ('version_number' in payload) logicalEmbedVersion(payload.version_number, 400);
+  let assetBinding = null;
+  if (input.authored_asset_binding !== undefined) {
+    assetBinding = exactFields(input.authored_asset_binding,
+      new Set(['task_identity', 'embed_id', 'output_version', 'content_commitment']),
+      ['task_identity', 'embed_id', 'output_version', 'content_commitment']);
+    hexDigest(assetBinding.task_identity, 'invalid_authored_asset_binding');
+    hexDigest(assetBinding.content_commitment, 'invalid_authored_asset_binding');
+    logicalEmbedVersion(assetBinding.output_version, 400);
+    if (assetBinding.embed_id !== embedId || assetBinding.output_version == null) {
+      fail(400, 'invalid_authored_asset_binding');
+    }
+  }
+
   let precondition = null;
   if ('canonical_precondition' in input) {
     precondition = exactFields(input.canonical_precondition,
@@ -510,11 +667,17 @@ export async function writeLegacyEmbed(database, raw) {
     if (storedPayload[field] != null) storedPayload[field] = JSON.stringify(storedPayload[field]);
   }
   return database.transaction(async (trx) => {
-    if (UUID_V5_RE.test(embedId)) {
-      await lockIdentity(trx, `account-recovery:${actor}`);
-      if (await trx(ACCOUNT_FENCES).where({ id: actor }).forShare().first()) {
-        fail(403, 'project_context_required');
-      }
+    // All canonical writes share the account fence with message deletion,
+    // including late ordinary v4 client stores after producer metadata release.
+    // Keep account -> claim -> embed/chat ordering for bound writes as well.
+    await lockIdentity(trx, `account-recovery:${actor}`);
+    if (await trx(ACCOUNT_FENCES).where({ id: actor }).forShare().first()) {
+      fail(403, 'project_context_required');
+    }
+    await assertMessageNotDeleted(trx, actor, payload);
+    if (assetBinding !== null) {
+      await trx(LEGACY_BATCH_CLAIMS).where({ task_identity: assetBinding.task_identity })
+        .forShare().first();
     }
     await lockIdentity(trx, `embed:${embedId}`);
     let bundlePreflightState = null;
@@ -579,6 +742,7 @@ export async function writeLegacyEmbed(database, raw) {
     let preconditionMismatch = false;
     if (embed) {
       if (embed.hashed_user_id !== actor) fail(403, 'embed_access_denied');
+      await assertMessageNotDeleted(trx, actor, embed);
       const currentVersion = logicalEmbedVersion(embed.version_number);
       if (precondition) {
         const currentCiphertext = embed.encrypted_content == null
@@ -589,7 +753,8 @@ export async function writeLegacyEmbed(database, raw) {
         if (preconditionMismatch) {
           // Only a byte-for-byte replay may survive a stale observation. It
           // still traverses the existing authorization/ACK gates below and
-          // must never update metadata or replace wrappers.
+          // must never update caller-supplied metadata or replace wrappers.
+          // Independently registered asset retention is promoted only after these gates.
           const exactReplay = !enrichment && Object.entries(storedPayload).every(([field, value]) => {
             if (field === 'version_number') return logicalEmbedVersion(value, 400) === currentVersion;
             if (['embed_ids', 'shared_with_users', 's3_file_keys'].includes(field)) {
@@ -650,6 +815,7 @@ export async function writeLegacyEmbed(database, raw) {
           if ((embed[field] ?? null) !== (value ?? null)) fail(409, 'canonical_metadata_mismatch');
         }
         if (Object.keys(additions).length) await trx(EMBEDS).where({ id: embed.id }).update(additions);
+        await promoteAuthoredAssetReferences(trx, assetBinding, embedId, actor);
         return { status: Object.keys(additions).length ? 'enriched' : 'idempotent', embed_id: embedId };
       }
       // Omitting the field does not write a revision: ordinary metadata updates
@@ -762,6 +928,7 @@ export async function writeLegacyEmbed(database, raw) {
           if ((embed[field] ?? null) !== (value ?? null)) fail(409, 'bundle_head_mismatch');
         }
         await persistBundleWrappers(trx, embedId, actor, bundle.key_wrappers, preconditionMismatch);
+        await promoteAuthoredAssetReferences(trx, assetBinding, embedId, actor);
         return { status: 'idempotent', embed_id: embedId };
       }
       if (embed.app_id === 'diagrams' && embed.skill_id === 'html'
@@ -783,8 +950,12 @@ export async function writeLegacyEmbed(database, raw) {
       }
       const updated = { ...storedPayload, hashed_user_id: actor, hashed_embed_id: sha256(embedId) };
       delete updated.embed_id;
-      if (preconditionMismatch) return { status: 'idempotent', embed_id: embedId };
+      if (preconditionMismatch) {
+        await promoteAuthoredAssetReferences(trx, assetBinding, embedId, actor);
+        return { status: 'idempotent', embed_id: embedId };
+      }
       await trx(EMBEDS).where({ id: embed.id }).update(updated);
+      await promoteAuthoredAssetReferences(trx, assetBinding, embedId, actor);
       return { status: 'updated', embed_id: embedId };
     }
     if (enrichment) fail(409, 'canonical_metadata_head_missing');
@@ -796,6 +967,7 @@ export async function writeLegacyEmbed(database, raw) {
       hashed_embed_id: sha256(embedId),
     });
     if (bundle) await persistBundleWrappers(trx, embedId, actor, bundle.key_wrappers);
+    await promoteAuthoredAssetReferences(trx, assetBinding, embedId, actor);
     return { status: 'created', embed_id: embedId };
   });
 }
@@ -1436,4 +1608,4 @@ export async function pruneEmbedArchivePayload(database, raw) {
   });
 }
 
-export const testing = { payloadDigest, validateRequest };
+export const testing = { payloadDigest, validateRequest, messageDeletionFenceId };

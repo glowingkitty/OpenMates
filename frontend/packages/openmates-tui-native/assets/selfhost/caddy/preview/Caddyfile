@@ -1,0 +1,28 @@
+{
+	email {$DEPLOY_ACME_EMAIL:admin@example.com}
+}
+
+{$DEPLOY_PREVIEW_DOMAIN:localhost} {
+	encode gzip zstd
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	@health path /health
+	handle @health {
+		reverse_proxy localhost:8080
+	}
+
+	@admin path /admin/*
+	handle @admin {
+		reverse_proxy localhost:8001
+	}
+
+	handle {
+		reverse_proxy localhost:8080
+	}
+}

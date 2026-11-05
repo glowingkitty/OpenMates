@@ -20,7 +20,7 @@ type SourceFixture = { chatId: string; ownerId: string; embedId: string; staleId
   chat: Record<string, unknown>; embed: Record<string, unknown>; keys: Array<Record<string, unknown>> };
 
 function makeSourceFixture(apiUrl: string, home: string): SourceFixture {
-  const sdk = path.resolve(__dirname, '../../../packages/openmates-cli/dist/index.js');
+  const sdk = path.resolve(__dirname, '../../../packages/openmates-cli/dist/cli-internal-client.js');
   const program = `
     const {pathToFileURL}=require('node:url');
     const {randomUUID,randomBytes,createHash,webcrypto}=require('node:crypto');

@@ -1,7 +1,11 @@
+---
+paths:
+  - "apple/**"
+---
 # Apple UI — Web Source of Truth
 
-@apple/CLAUDE.md
-@apple/AGENTS.md
+Build/verify workflow and remote-Mac commands: `apple/AGENTS.md` (read when
+building or testing). `apple/CLAUDE.md` loads automatically under `apple/`.
 
 Every Swift UI file must visually match its web counterpart exactly.
 The rendered web app is the design source of truth. Svelte files, CSS files,

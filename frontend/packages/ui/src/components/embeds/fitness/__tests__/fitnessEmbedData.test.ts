@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getFitnessResultImageUrl, normalizeFitnessSearchContent } from '../fitnessEmbedData';
+import { getFitnessResultImageUrl, getFitnessResultFacts, normalizeFitnessSearchContent } from '../fitnessEmbedData';
 import searchFixture, { variants as searchVariants } from '../FitnessSearchEmbedFullscreen.preview';
 
 describe('fitness provider image preservation', () => {
@@ -33,5 +33,28 @@ describe('fitness provider image preservation', () => {
       expect(normalized.results[0]).toMatchObject(result);
       expect(getFitnessResultImageUrl(normalized.results[0])).toBe(result.image_url);
     }
+  });
+});
+
+// contract-test: supporting surface=gui.web assertions=authored-results.content.typed-and-useful,authored-results.facts.provenance-and-drafts
+describe('supplied fitness facts', () => {
+  // contract-test: supporting surface=gui.web assertions=authored-results.content.typed-and-useful
+  it('retains singular discipline, instructor, numeric spots, duration and explicit currency', () => {
+    expect(getFitnessResultFacts({discipline:'Yoga',instructor:'Alex',spots_left:3,duration_minutes:45,price:12,currency:'GBP'}))
+      .toEqual({disciplines:['Yoga'],instructor:'Alex',spots:'3',durationMinutes:45,price:12,currency:'GBP'});
+  });
+  // contract-test: supporting surface=gui.web assertions=authored-results.facts.provenance-and-drafts
+  it('preserves zero without manufacturing a currency or translating it into free availability', () => {
+    expect(getFitnessResultFacts({spots_left:0,duration_minutes:0,price:0})).toMatchObject({spots:'0',durationMinutes:0,price:0,currency:''});
+  });
+  // contract-test: supporting surface=gui.web assertions=authored-results.facts.provenance-and-drafts
+  it('keeps blanks, malformed and missing numbers unknown', () => {
+    expect(getFitnessResultFacts({spots_left:' ',duration_minutes:'',price:false,instructor:{}}))
+      .toEqual({disciplines:[],instructor:'',spots:'',durationMinutes:undefined,price:undefined,currency:''});
+  });
+  // contract-test: supporting surface=gui.web assertions=authored-results.content.typed-and-useful
+  it('retains legacy spots presentation and plural disciplines alongside supplied aliases', () => {
+    expect(getFitnessResultFacts({spots_display:'2 remaining',spots_left:2,disciplines:'Yoga|Pilates',discipline:'Yoga'}))
+      .toMatchObject({spots:'2 remaining',disciplines:['Yoga','Pilates']});
   });
 });

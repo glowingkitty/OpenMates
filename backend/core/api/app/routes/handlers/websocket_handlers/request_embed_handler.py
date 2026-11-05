@@ -14,6 +14,12 @@ from backend.core.api.app.services.direct_chat_access import is_direct_chat, req
 logger = logging.getLogger(__name__)
 
 
+def _embed_catalog_context(record: Dict[str, Any]) -> Dict[str, Any]:
+    """Preserve explicit catalog identity from an authorized stored record only."""
+    return {field: record[field] for field in ("app_id", "skill_id")
+            if record.get(field) is not None}
+
+
 async def _decrypt_embed_content(
     encryption_service: EncryptionService,
     encrypted_content: str,
@@ -239,6 +245,7 @@ async def handle_request_embed(
                 "payload": {
                     "embed_id": embed_id,
                     "type": directus_embed["encrypted_type"],
+                    **_embed_catalog_context(directus_embed),
                     "content": directus_embed["encrypted_content"],
                     "status": directus_embed["status"],
                     "chat_id": chat_id or directus_embed.get("hashed_chat_id"),
@@ -316,6 +323,7 @@ async def handle_request_embed(
                         "payload": {
                             "embed_id": embed_id,
                             "type": directus_embed.get("encrypted_type") or "app_skill_use",
+                            **_embed_catalog_context(directus_embed),
                             "content": directus_embed.get("encrypted_content", ""),
                             "status": "finished",
                             "chat_id": cached.get("chat_id") or cached.get("hashed_chat_id"),
@@ -440,6 +448,7 @@ async def handle_request_embed(
                         "payload": {
                             "embed_id": embed_id,
                             "type": directus_embed.get("encrypted_type") or "app_skill_use",
+                            **_embed_catalog_context(directus_embed),
                             "content": directus_embed.get("encrypted_content", ""),
                             "status": "finished",
                             "chat_id": directus_embed.get("hashed_chat_id"),
@@ -521,6 +530,7 @@ async def handle_request_embed(
                 "payload": {
                     "embed_id": embed_id,
                     "type": embed_type,
+                    **_embed_catalog_context(cached),
                     "content": plaintext_content,
                     "status": cached.get("status", "finished"),
                     # Plaintext IDs may be missing in cache; fall back to hashed if needed

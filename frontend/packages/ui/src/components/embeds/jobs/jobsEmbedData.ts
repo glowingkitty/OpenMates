@@ -1,6 +1,7 @@
 export type EmbedStatus = 'processing' | 'finished' | 'error' | 'cancelled';
 
 export interface JobResult {
+  authoring?: unknown;
   embed_id: string;
   id?: string;
   title?: string;
@@ -80,8 +81,13 @@ export function jobSearchScope(content: Record<string, unknown>): string {
 }
 
 export function normalizeJob(embedId: string, content: Record<string, unknown>): JobResult {
+  const salary = content.salary && typeof content.salary === 'object' && !Array.isArray(content.salary)
+    ? content.salary as Record<string, unknown> : {};
+  const minimum = numberValue(salary.min);
+  const maximum = numberValue(salary.max);
   return {
     embed_id: stringValue(content.embed_id) ?? embedId,
+    authoring: content.authoring,
     id: stringValue(content.id),
     title: stringValue(content.title),
     company: stringValue(content.company),
@@ -93,17 +99,18 @@ export function normalizeJob(embedId: string, content: Record<string, unknown>):
     employment_type: stringValue(content.employment_type),
     published_at: stringValue(content.published_at),
     description: stringValue(content.description),
-    salary_min: numberValue(content.salary_min),
-    salary_max: numberValue(content.salary_max),
-    salary_currency: stringValue(content.salary_currency),
-    salary_period: stringValue(content.salary_period),
+    salary_min: numberValue(content.salary_min) ?? minimum
+      ?? (maximum === undefined ? numberValue(salary.amount) : undefined),
+    salary_max: numberValue(content.salary_max) ?? maximum,
+    salary_currency: stringValue(content.salary_currency) ?? stringValue(salary.currency),
+    salary_period: stringValue(content.salary_period) ?? stringValue(salary.basis),
     provider: stringValue(content.provider),
     sector: stringValue(content.sector),
     role: stringValue(content.role),
     seniority: stringValue(content.seniority),
     organization_type: stringValue(content.organization_type),
     work_arrangement: stringValue(content.work_arrangement),
-    salary_text: stringValue(content.salary_text),
+    salary_text: stringValue(content.salary_text) ?? stringValue(content.salary) ?? stringValue(salary.label),
     valid_through: stringValue(content.valid_through),
     impact: stringValue(content.impact),
     detail_status: stringValue(content.detail_status),
@@ -123,8 +130,10 @@ export function jobSalary(job: JobResult): string | undefined {
   const min = job.salary_min;
   const max = job.salary_max;
   const currency = stringValue(job.salary_currency);
-  if ((min == null && max == null) || !currency) return undefined;
+  if (min == null && max == null) return stringValue(job.salary_text);
+  if (!currency && !job.authoring) return undefined;
   const format = (value: number) => {
+    if (!currency) return new Intl.NumberFormat().format(value);
     try { return new Intl.NumberFormat(undefined, { style: 'currency', currency, maximumFractionDigits: 0 }).format(value); }
     catch { return `${currency} ${new Intl.NumberFormat().format(value)}`; }
   };

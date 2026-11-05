@@ -615,7 +615,7 @@ const MODEL_ALIASES: {
   icon: string;
 }[] = [
   { id: "best", modelId: "gpt-6-astra", icon: "crown" },
-  { id: "fast", modelId: "qwen3-235b-a22b-2507", icon: "lightning" },
+  { id: "fast", modelId: "mercury-3", icon: "lightning" },
 ];
 
 export function resolveModelAliasSelection(aliasId: string): string | null {

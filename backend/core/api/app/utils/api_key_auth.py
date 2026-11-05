@@ -9,6 +9,10 @@
 # Notification pattern mirrors the reminder_fired / user_notification flow in
 # websockets.py + chatSyncServiceHandlersAppSettings.ts.
 
+from backend.core.api.app.utils.session_principal_consistency import (
+    require_expected_principal, is_expected_principal_mismatch,
+)
+
 import hashlib
 import logging
 from datetime import datetime, timezone
@@ -25,7 +29,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 API_KEY_REST_ACCESS_TYPE = "rest_api"
-API_KEY_SDK_ACCESS_TYPES = {"cli", "npm", "pip"}
+API_KEY_SDK_ACCESS_TYPES = {"cli", "rust", "npm", "pip"}
 API_KEY_ACCESS_TYPES = API_KEY_SDK_ACCESS_TYPES | {API_KEY_REST_ACCESS_TYPE}
 
 class ApiKeyNotFoundError(Exception):
@@ -125,6 +129,10 @@ class ApiKeyAuthService:
             if not user_id:
                 raise ApiKeyNotFoundError("API key record missing user_id")
 
+            # Authentication is established; refuse a conflicting owner before
+            # device registration, usage metadata or downstream business effects.
+            require_expected_principal(request, user_id)
+
             # Check device approval - BLOCKS if device is new or not approved
             # First request from new device is blocked until user approves in web UI
             device_hash = None
@@ -169,6 +177,12 @@ class ApiKeyAuthService:
             raise
         except DeviceNotApprovedError:
             raise
+        except HTTPException as exc:
+            if is_expected_principal_mismatch(exc):
+                raise
+            # Preserve prior normalization for unrelated auth internals.
+            logger.error("Error authenticating API key", exc_info=True)
+            raise ApiKeyNotFoundError("Authentication failed") from exc
         except Exception as e:
             logger.error(f"Error authenticating API key: {e}", exc_info=True)
             raise ApiKeyNotFoundError("Authentication failed")
@@ -208,7 +222,7 @@ class ApiKeyAuthService:
             # REST clients are IP-scoped. SDK clients can provide a stable local
             # identity so approval survives network/IP changes without trusting it
             # for anything beyond a per-key device hash.
-            device_identity = machine_identifier if machine_identifier and access_type in {"cli", "npm", "pip"} else client_ip
+            device_identity = machine_identifier if machine_identifier and access_type in API_KEY_SDK_ACCESS_TYPES else client_ip
             device_hash_string = f"{access_type}:{device_identity}:{user_id}"
             device_hash = hashlib.sha256(device_hash_string.encode()).hexdigest()
             

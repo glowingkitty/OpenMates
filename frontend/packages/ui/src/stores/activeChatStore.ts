@@ -52,7 +52,6 @@ function updateUrlHash(chatId: string | null) {
   // Startup chat resets can overlap a Workflow completion deep link. Keep its
   // exact delivery target until the Workflow route verifies and opens the chat.
   if (!chatId && getHashParam(window.location.hash, "workflow-id") &&
-    getHashParam(window.location.hash, "workflow-tab") === "runs" &&
     getHashParam(window.location.hash, "run-id") &&
     getHashParam(window.location.hash, "chat-id") &&
     getHashParam(window.location.hash, "message-id") &&

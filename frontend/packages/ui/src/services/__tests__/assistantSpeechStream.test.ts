@@ -169,3 +169,22 @@ it('permits a continuous turn above the finite-clause bound but rejects above si
   stream.accept(audioEvent({...turn,phase:'chunk',chunk_index:128,audio_data:bytes}));
   expect(failure).toHaveBeenCalledOnce();expect(stream.active).toBe(false);
 });
+
+// contract-test: supporting surface=gui.web assertions=video-call.audio.spoken-rich-response
+it("accepts only bounded, ordered, text-free word starts on continuous turn tracks", () => {
+  const turn = { kind: "voice_prose_turn" as const, sequence: 0, phase: "words" as const };
+  expect(isAssistantSpeechAudioEvent(audioEvent({ ...turn, word_starts: [[0, 0], [1, 380], [4, 380]] }))).toBe(true);
+  for (const word_starts of [[], [[1, 0], [1, 10]], [[0, 50], [1, 10]], [[0, 0.5]], [["word", 0]], [[0, 0, 0]],
+    [[65_536, 0]], [[0, 600_001]], Array.from({ length: 513 }, (_, index) => [index, index])]) {
+    expect(isAssistantSpeechAudioEvent(audioEvent({ ...turn, word_starts: word_starts as [number, number][] }))).toBe(false);
+  }
+  expect(isAssistantSpeechAudioEvent(audioEvent({ phase: "words", word_starts: [[0, 0]] }))).toBe(false);
+  expect(isAssistantSpeechAudioEvent(audioEvent({ phase: "chunk", audio_data: btoa("x"), word_starts: [[0, 0]] }))).toBe(false);
+  const stream = new AssistantSpeechStream(vi.fn(), true);
+  const media = TestMediaSource.instances[TestMediaSource.instances.length - 1];
+  stream.accept(audioEvent({ kind: "voice_prose_turn", sequence: 0 }));
+  stream.accept(audioEvent({ ...turn, chunk_index: 0, word_starts: [[0, 0]] }));
+  stream.accept(audioEvent({ kind: "voice_prose_turn", sequence: 0, phase: "chunk", audio_data: btoa("a") }));
+  media.open();
+  expect(media.buffer.appended.map((bytes) => new TextDecoder().decode(bytes))).toEqual(["a"]);
+});

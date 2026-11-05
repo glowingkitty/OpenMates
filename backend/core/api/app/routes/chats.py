@@ -12,7 +12,7 @@ import os
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictBool
 
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.models.user import User
@@ -89,6 +89,8 @@ class ChatMoveRequest(BaseModel):
 
 class SidebarChatMetadataRequest(BaseModel):
     chat_ids: list[str] = Field(min_length=1, max_length=100)
+    # Opt-in read projection only; existing sidebar/default wire fields stay exact.
+    include_read_details: StrictBool = False
 
 
 @router.post("/chats/metadata/batch")
@@ -106,6 +108,17 @@ async def sidebar_chat_metadata(body: SidebarChatMetadataRequest, request: Reque
         if not team_id and chat.get("hashed_team_id"):
             continue
         record = _watch_chat_payload(chat)
+        if body.include_read_details:
+            # The same authorized selected Directus row, with no extra cache,
+            # account discovery or global sync. This matches the canonical WS
+            # Directus projection's raw source values; old timestamp strings
+            # outside this optional envelope remain unchanged.
+            record["read_details"] = {
+                "created_at": chat.get("created_at"),
+                "updated_at": chat.get("updated_at"),
+                "last_edited_overall_timestamp": chat.get("last_edited_overall_timestamp"),
+                "encrypted_follow_up_request_suggestions": chat.get("encrypted_follow_up_request_suggestions"),
+            }
         for field in ("encrypted_category", "encrypted_icon", "title_v", "metadata_v", "is_hidden", "is_hidden_candidate",
                       "last_edited_overall_timestamp"):
             if field in chat:

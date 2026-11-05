@@ -28,6 +28,7 @@ RUN apt-get clean && \
             libpangocairo-1.0-0 \
             libgdk-pixbuf-xlib-2.0-0 \
             libffi-dev \
+            libbrotli1 \
             shared-mime-info \
             && break || \
         echo "Retrying in 5 seconds..." && \
@@ -48,6 +49,10 @@ COPY backend/core/api/requirements.txt /app/requirements.txt
 # Install Python dependencies and explicitly install celery
 RUN pip install --no-cache-dir -r requirements.txt \
     && pip install --no-cache-dir pytest pytest-asyncio pytest-json-report
+
+# Pillow wheels bundle an unpatched Brotli decoder; swap in the patched system one.
+COPY backend/core/api/docker/replace_pillow_brotli.py /tmp/replace_pillow_brotli.py
+RUN python /tmp/replace_pillow_brotli.py && rm /tmp/replace_pillow_brotli.py
 
 # Jev batch packing needs both proxy tokenizers before signed offline fixtures
 # can reach their provider boundary. Bake the pinned tiktoken tables into the

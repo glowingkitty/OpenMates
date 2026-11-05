@@ -14,6 +14,9 @@
 -->
 
 <script lang="ts">
+  import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from "../../../types/authoredResult";
+  import { getContext } from "svelte";
+  import { travelStayFacts } from './travelStayFacts';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import ResultEmbedCard from '../ResultEmbedCard.svelte';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
@@ -44,6 +47,10 @@
     ratePerNight?: number;
     /** Extracted total rate (numeric) */
     totalRate?: number;
+    ratePerNightCurrency?: string;
+    totalRateCurrency?: string;
+    checkIn?: string;
+    checkOut?: string;
     /** Top amenities to display */
     amenities?: string[];
     /** Whether this is among the cheapest stays */
@@ -68,9 +75,13 @@
     hotelClass,
     overallRating,
     reviews,
-    currency = 'EUR',
+    currency,
     ratePerNight,
     totalRate,
+    ratePerNightCurrency,
+    totalRateCurrency,
+    checkIn,
+    checkOut,
     amenities: amenitiesProp = [],
     isCheapest: _isCheapest = false,
     // ecoCertified and freeCancellation accepted but not shown in preview to keep it compact
@@ -82,7 +93,20 @@
     isMobile = false,
     onFullscreen
   }: Props = $props();
+  const authoredContext = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
+  let isAuthored = $derived(Boolean(authoredContext?.authoring));
+  let authoredContent = $derived(authoredContext?.presentationContent ?? authoredContext?.content);
+  let effectiveThumbnail = $derived(isAuthored && typeof authoredContent?.thumbnail === 'string' ? authoredContent.thumbnail : thumbnail);
+  let authoredTitle = $derived(isAuthored && typeof authoredContent?.title === "string" ? authoredContent.title.trim() : "");
   
+  let suppliedFacts = $derived(isAuthored ? travelStayFacts(authoredContent || {}) : undefined);
+  let effectiveNightlyRate = $derived(suppliedFacts?.nightlyRate.amount ?? ratePerNight);
+  let effectiveTotalRate = $derived(suppliedFacts?.totalRate.amount ?? totalRate);
+  let nightlyCurrency = $derived(isAuthored ? suppliedFacts?.nightlyRate.currency || ratePerNightCurrency || '' : ratePerNightCurrency || currency || 'EUR');
+  let totalCurrency = $derived(isAuthored ? suppliedFacts?.totalRate.currency || totalRateCurrency || '' : totalRateCurrency || currency || 'EUR');
+  let suppliedCheckIn = $derived(suppliedFacts?.checkIn || checkIn);
+  let suppliedCheckOut = $derived(suppliedFacts?.checkOut || checkOut);
+
   // Star rating display (e.g., "★★★★")
   let stars = $derived(
     hotelClass && hotelClass >= 1 && hotelClass <= 5
@@ -107,7 +131,7 @@
   let topAmenities = $derived(amenities.slice(0, 3));
   
   // Display name for BasicInfosBar
-  let displayName = $derived(name || 'Stay');
+  let displayName = $derived(authoredTitle || name || 'Stay');
   
   // No-op stop handler (stays don't have cancellable tasks)
   async function handleStop() {
@@ -132,12 +156,14 @@
   hasFullWidthImage={true}
 >
   {#snippet details()}
-    <ResultEmbedCard title={name || 'Unknown Property'} imageUrl={thumbnail ? proxyImage(thumbnail, MAX_WIDTH_PREVIEW_THUMBNAIL) : undefined} imageAlt={name || 'Property'} description={topAmenities.join(' · ')}>
+    <ResultEmbedCard title={authoredTitle || name || 'Unknown Property'} sourceLabel={authoredTitle ? name : undefined} imageUrl={effectiveThumbnail ? proxyImage(effectiveThumbnail, MAX_WIDTH_PREVIEW_THUMBNAIL) : undefined} imageAlt={name || 'Property'} description={topAmenities.join(' · ')}>
       {#snippet facts()}
-        {#if ratePerNight != null}<strong>{currency} {Math.round(ratePerNight)} /{$text('embeds.night')}</strong>{/if}
+        {#if effectiveNightlyRate != null}<strong>{nightlyCurrency} {isAuthored ? effectiveNightlyRate : Math.round(effectiveNightlyRate)} /{$text('embeds.night')}</strong>{/if}
+        {#if suppliedCheckIn}<span>{$text('embeds.check_in')}: {suppliedCheckIn}</span>{/if}
+        {#if suppliedCheckOut}<span>{$text('embeds.check_out')}: {suppliedCheckOut}</span>{/if}
         {#if formattedRating}<span>★ {formattedRating}{formattedReviews ? ` (${formattedReviews})` : ''}</span>{/if}
         {#if stars}<span>{stars}</span>{/if}
-        {#if totalRate != null}<span>{currency} {Math.round(totalRate)} {$text('embeds.total')}</span>{/if}
+        {#if effectiveTotalRate != null}<span>{totalCurrency} {isAuthored ? effectiveTotalRate : Math.round(effectiveTotalRate)} {$text('embeds.total')}</span>{/if}
       {/snippet}
     </ResultEmbedCard>
   {/snippet}

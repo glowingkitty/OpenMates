@@ -1,0 +1,38 @@
+{
+  "description": "npm CLI createSignupCryptoMaterial + createRecoveryKeyMaterial with getRandomValues byte k = (37k+11) mod 256 across calls and nacl PRNG byte n = (53n+7) mod 256",
+  "email": "  Person@Example.org ",
+  "password": "correct horse battery staple",
+  "signup": {
+    "hashedEmail": "RlhZSN0Pupbb6yUHKvBJeTbUMiOvM3hPRQ7QZzu/Mio=",
+    "encryptedEmail": "BzxxptsQRXqv5BlOg7jtIleMwfYrYJXKgP1ryjlF8VWahWLknNIgh+MRR2wJMWBXXK0NxDtXrwPQNw==",
+    "encryptedEmailWithMasterKey": "t9wBJktwlbrfBClOPwLowkCHvvHYcfiazO0YmRyAt8jf1I4SdMLL1dQxaeC5Zw==",
+    "userEmailSaltB64": "CzBVep/E6Q4zWH2ix+wRNg==",
+    "emailEncryptionKeyB64": "noOwgvxSuFIZRRcFI7HkT3HuItJdobp7aqjavoZpTLM=",
+    "masterKeyB64": "W4Clyu8UOV6DqM3yFzxhhqvQ9Ro/ZImu0/gdQmeMsdY=",
+    "encryptedMasterKey": "pLldVUMaTjyYfhX46icXlzaY9Gj91YnFo874PNPaG07GLTIlTN5TJkILb7XOSYbw",
+    "keyIv": "+yBFao+02f4jSG2S",
+    "saltB64": "CzBVep/E6Q4zWH2ix+wRNg==",
+    "credentialVersion": 2,
+    "passwordAuthKey": "vSW8cZw3-HTDWdHOfr4m-4p8EQTSvlHI-9sNmx96WKc"
+  },
+  "recovery": {
+    "recoveryKey": "L=v9S7P6&y&V6bcVeHb3h=YS",
+    "lookupHash": "mOCsPlWIb3nBrOfhjR0kW5102FwEGw1+gL9jsdS2XN8=",
+    "wrappedMasterKey": "mPB0kKx68C7nyHsbWxzNbCXkxNkg36u1ri0zxTPoPB7BsboL5S30TkhAtTfayzG5",
+    "keyIv": "R2yRttsAJUpvlLne",
+    "saltB64": "9xxBZouw1fofRGmOs9j9Ig=="
+  },
+  "generator": [
+    "// Temporary generator: npm CLI crypto with a fixed, replayable byte stream.",
+    "import nacl from \"tweetnacl\";",
+    "let k = 0, n = 0;",
+    "const fill = (array: Uint8Array) => { for (let i = 0; i < array.length; i++) array[i] = (k++ * 37 + 11) & 0xff; return array; };",
+    "Object.defineProperty(globalThis.crypto, \"getRandomValues\", { value: fill, configurable: true, writable: true });",
+    "nacl.setPRNG((x: Uint8Array, len: number) => { for (let i = 0; i < len; i++) x[i] = (n++ * 53 + 7) & 0xff; });",
+    "const c = await import(\"./src/crypto.ts\");",
+    "const signup = await c.createSignupCryptoMaterial(\"  Person@Example.org \", \"correct horse battery staple\");",
+    "const recovery = await c.createRecoveryKeyMaterial(signup.masterKeyB64, signup.userEmailSaltB64);",
+    "process.stdout.write(JSON.stringify({ description: \"npm CLI createSignupCryptoMaterial + createRecoveryKeyMaterial with getRandomValues byte k = (37k+11) mod 256 across calls and nacl PRNG byte n = (53n+7) mod 256\", email: \"  Person@Example.org \", password: \"correct horse battery staple\", signup, recovery }, null, 2) + \"\\n\");"
+  ],
+  "generator_command": "node --experimental-strip-types (script under frontend/packages/openmates-cli/, importing ./src/crypto.ts)"
+}

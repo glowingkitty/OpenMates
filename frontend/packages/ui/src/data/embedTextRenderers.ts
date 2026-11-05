@@ -84,6 +84,7 @@ import { renderMindMapText } from '../components/embeds/mindmaps/mindMapContent'
 import { renderDiagramText } from '../components/embeds/diagrams/diagramHtmlContent';
 import { renderFile } from '../components/embeds/file/fileEmbedText';
 import { renderProjectReferences } from '../components/embeds/projects/projectReferenceEmbedText';
+import { renderTVTitle } from '../components/embeds/tv/tvEmbedText';
 
 // ── Renderer type ────────────────────────────────────────────────────────
 
@@ -275,6 +276,14 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 
 	// ── Direct embeds ────────────────────────────────────────────────
 	'web-website': renderWebsite,
+	'tv-movie': renderTVTitle,
+	'tv-series': renderTVTitle,
+	'ai-authored-results': (content) => [str(content.title) ?? 'Results',
+		...(Array.isArray(content.items) ? content.items.map(item => {
+			if (!item || typeof item !== 'object') return '';
+			const title = str((item as Record<string, unknown>).title);
+			return title ? `- ${title}` : '';
+		}).filter(Boolean) : [])].join('\n'),
 	'code-code': renderCode,
 	'code-notebook': renderNotebook,
 	'code-application': renderApplication,

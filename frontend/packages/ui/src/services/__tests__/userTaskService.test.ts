@@ -40,6 +40,7 @@ import {
   deleteUserTask,
   deleteUserTaskActivity,
   externalChatLookupHash,
+  externalChatProviderDisplayName,
   getTaskAssignmentEligibility,
   getUserTask,
   listUserTaskActivity,
@@ -311,6 +312,36 @@ describe('userTaskService external chat privacy', () => {
     expect(listUrl).not.toContain(externalChat.id);
     expect(listUrl).not.toContain(externalChat.title);
     expect(created.externalChat).toEqual(externalChat);
+  });
+
+  // contract-test: direct surface=gui.web assertions=tasks.content.client-encrypted,tasks.external-chat.encrypted-context,tasks.surface.semantic-parity
+  it('accepts a Claude Code session link with an encrypted id and provider-aware label', async () => {
+    const claudeChat = { provider: 'claude' as const, id: '0f8e4c2a-1b3d-4e5f-8a9b-0c1d2e3f4a5b', title: 'Claude Code session' };
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ task: taskResponse({
+        external_chat_provider: 'claude',
+        encrypted_external_chat_id: `sealed:${btoa(claudeChat.id)}`,
+        encrypted_external_chat_title: `sealed:${btoa(claudeChat.title)}`,
+      }) }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ tasks: [] }), { status: 200 }));
+
+    const created = await createUserTask({ title: 'Private task title', externalChat: claudeChat });
+    await listUserTasks({ externalChat: claudeChat });
+
+    const createBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as Record<string, unknown>;
+    expect(createBody.external_chat_provider).toBe('claude');
+    expect(createBody.external_chat_lookup_hash).toBe(await externalChatLookupHash(claudeChat));
+    expect(createBody.external_chat_lookup_hash).not.toBe(await externalChatLookupHash({ ...claudeChat, provider: 'codex' }));
+    expect(createBody.assignee_identity ?? null).toBeNull();
+    expect(JSON.stringify(createBody)).not.toContain(claudeChat.id);
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain('external_chat_provider=claude');
+    expect(created.externalChat).toEqual(claudeChat);
+    expect(externalChatProviderDisplayName('claude')).toBe('Claude Code');
+    expect(externalChatProviderDisplayName('codex')).toBe('Codex');
+
+    await expect(createUserTask({ title: 'Bad', externalChat: { ...claudeChat, id: 'ses-not-a-uuid' } })).rejects.toThrow('session UUIDs');
+    await expect(createUserTask({ title: 'Bad', externalChat: { ...claudeChat, provider: 'other' as 'claude' } })).rejects.toThrow('Unsupported external chat provider');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   // contract-test: direct surface=gui.web assertions=tasks.external-chat.encrypted-context,tasks.key-wrappers.context-scoped

@@ -51,6 +51,7 @@
         recordingStateChange: { active: boolean };
         prepareassistantplayback: void;
         sendrequested: void;
+        livetranscript: { transcript: string };
     }>();
 
     // --- Props ---
@@ -70,6 +71,17 @@
         recordingGeneration?: number;
         /** Only composers that handle sendrequested offer direct submission. */
         allowSend?: boolean;
+        /**
+         * Host editors that stream the transcript into their own text field
+         * receive `livetranscript` events; the overlay then shows no text preview.
+         */
+        transcriptInEditor?: boolean;
+        /** Temporarily fade out direct Send (e.g. while detected private data awaits review). */
+        sendHidden?: boolean;
+        /** Report Issue dictation: free, server-capped transcription. */
+        purpose?: 'report_issue';
+        /** Finish the recording automatically after this many seconds. */
+        maxDurationSeconds?: number;
     }
     let {
         initialPosition,
@@ -84,6 +96,10 @@
         correctionContext,
         recordingGeneration = 0,
         allowSend = false,
+        transcriptInEditor = false,
+        sendHidden = false,
+        purpose,
+        maxDurationSeconds,
     }: Props = $props();
     let overlayGeneration = 0;
 
@@ -96,6 +112,8 @@
     let recordingInterval: ReturnType<typeof setInterval> | null = null;
     let isCancelled = false;
     let sendRequested = $state(false);
+    // A Send already requested stays visible as busy even if detections appear later.
+    let showSend = $derived(allowSend && (!sendHidden || sendRequested));
     let isCompact = $derived(compact || sendRequested);
     let sendAdmissionStarted = $state(false);
     // A stop request and final cleanup are deliberately separate. Some browsers
@@ -302,9 +320,14 @@
                     onTranscript: setLiveTranscript,
                     onStatus: (value) => { realtimeStatus = value; },
                     correctionContext,
+                    purpose,
                 });
                 void realtimeHandle.correction.catch((error: Error) => {
                     if (isCancelled || realtimeHandedOff || overlayCloseNotified) return;
+                    // After Finish the host owns correction failures through the
+                    // audiorecorded handoff; escalating to cancel here would discard
+                    // live text that is already in the editor.
+                    if (stopIntent === 'finish') return;
                     dispatch('transcriptionerror', error);
                     stopInternal(true);
                 });
@@ -359,6 +382,11 @@
     // --- Live transcript line ticker ---
 
     function setLiveTranscript(value: string) {
+        if (transcriptInEditor) {
+            // The host editor shows the full transcript; keep the overlay compact.
+            if (!isCancelled) dispatch('livetranscript', { transcript: value });
+            return;
+        }
         liveTranscript = value;
         scheduleTranscriptMeasurement();
     }
@@ -553,7 +581,10 @@
     function startRecordingTimer() {
         stopRecordingTimer();
         recordingTime = 0;
-        recordingInterval = setInterval(() => { recordingTime++; }, 1000);
+        recordingInterval = setInterval(() => {
+            recordingTime++;
+            if (maxDurationSeconds && recordingTime >= maxDurationSeconds) stop();
+        }, 1000);
     }
 
     function stopRecordingTimer() {
@@ -684,7 +715,7 @@
     // --- Exported Methods (called by parent as fallback via bind:this) ---
 
     function requestSend() {
-        if (!allowSend || sendRequested || stopIntent === 'cancel' || overlayCloseRequested) return;
+        if (!showSend || sendRequested || stopIntent === 'cancel' || overlayCloseRequested) return;
         sendRequested = true;
         dispatch('sendrequested');
         recordOverlayElement?.focus({ preventScroll: true });
@@ -742,7 +773,7 @@
     class="record-overlay"
     class:compact={isCompact}
     class:compact-processing={sendRequested}
-    class:with-send={allowSend}
+    class:with-send={showSend}
     class:has-transcript={!!liveTranscript.trim()}
     data-testid="record-overlay"
     data-recording-finalized={finalized}
@@ -825,13 +856,15 @@
                 <span class="finish-label">{$text('enter_message.record_audio.finish')}</span>
                 <span class="finish-icon" data-testid="record-finish-icon" aria-hidden="true"></span>
             </button>
-            {#if allowSend}
-                <CompactSendButton
-                    testId="record-send-button"
-                    disabled={sendRequested || overlayCloseRequested}
-                    busy={sendRequested && isProcessing}
-                    onclick={requestSend}
-                />
+            {#if showSend}
+                <span class="record-send-slot" transition:fade={{ duration: 150 }}>
+                    <CompactSendButton
+                        testId="record-send-button"
+                        disabled={sendRequested || overlayCloseRequested}
+                        busy={sendRequested && isProcessing}
+                        onclick={requestSend}
+                    />
+                </span>
             {/if}
         </div>
     </div>
@@ -947,6 +980,7 @@
         background: color-mix(in srgb, var(--color-font-button) 36%, transparent);
     }
     .compact .record-action-buttons { gap: var(--spacing-2); }
+    .record-send-slot { display: flex; align-items: center; }
     .compact .recording-waveform {
         width: 100%;
         height: 20px;

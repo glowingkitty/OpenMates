@@ -13,7 +13,7 @@ WORKDIR /app
 # Install system dependencies required by the application
 # git is needed for installing packages from GitHub (e.g., toon-format)
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl git ffmpeg gosu && \
+    apt-get install -y --no-install-recommends curl git ffmpeg gosu libbrotli1 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -28,6 +28,9 @@ COPY backend/core/api/requirements.txt requirements.txt
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
+# Pillow wheels bundle an unpatched Brotli decoder; swap in the patched system one.
+COPY backend/core/api/docker/replace_pillow_brotli.py /tmp/replace_pillow_brotli.py
+RUN python /tmp/replace_pillow_brotli.py && rm /tmp/replace_pillow_brotli.py
 
 # Copy the entire 'backend' directory from the host into '/app/backend' in the image.
 # This makes the 'backend' module available for import.

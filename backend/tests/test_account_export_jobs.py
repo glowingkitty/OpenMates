@@ -125,6 +125,27 @@ def _hash(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
 
 
+# contract-test: supporting surface=rest_api assertions=contracts.project.encrypted-embed,storage.export.persisted-bounded-complete,storage.privacy.ciphertext-boundary
+@pytest.mark.asyncio
+async def test_project_export_includes_scoped_specification_history_without_wrapped_keys():
+    directus = FakeDirectusService()
+    base = {"hashed_user_id": _hash("user-1"), "hashed_team_id": None, "home_project_hash": _hash("project-1")}
+    directus.collections["user_specifications"] = [
+        {**base, "id": "spec-1", "key_wrappers": [{"encrypted_specification_key": "wrapped-secret"}], "encrypted_title": "cipher-title"},
+        {**base, "id": "team-spec", "hashed_team_id": "team-hash"},
+        {**base, "id": "foreign-project-spec", "home_project_hash": _hash("another-project")},
+    ]
+    directus.collections["user_specification_revisions"] = [{**base, "id": "revision-1", "encrypted_specification_document": "cipher-document"}]
+    service = AccountExportService(directus_service=directus)
+    job = await service.start_export(user_id="user-1", domains=["projects"])
+    parts = [part["payload"] for part in job["chunks"]]
+    heads = next(part["items"] for part in parts if part["source"] == "user_specifications")
+    revisions = next(part["items"] for part in parts if part["source"] == "user_specification_revisions")
+    assert [row["id"] for row in heads] == ["spec-1"]
+    assert "key_wrappers" not in heads[0]
+    assert revisions[0]["encrypted_specification_document"] == "cipher-document"
+
+
 # contract-test: direct surface=rest_api assertions=storage.export.persisted-bounded-complete,storage.privacy.ciphertext-boundary
 @pytest.mark.asyncio
 async def test_start_export_creates_resumable_job_without_updating_last_export_at() -> None:

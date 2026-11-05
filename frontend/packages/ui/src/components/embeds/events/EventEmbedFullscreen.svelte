@@ -11,17 +11,21 @@
 -->
 
 <script lang="ts">
-  import { normalizeEventResult, projectVisibleEventResult } from './eventResult';
+  import { getContext } from 'svelte';
+  import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from '../../../types/authoredResult';
+  import { formatEventResultDate, formatEventResultTime, isEventDateOnly, eventResultSourceDomain, eventResultSourceUrl, normalizeEventResult, validEventCoordinates, projectVisibleEventResult } from './eventResult';
+  import { eventCalendarInput, downloadEventResultCalendarFile } from './eventCalendar';
   import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import MarkdownContent from '../MarkdownContent.svelte';
   import { text } from '@repo/ui';
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
-  import { downloadCalendarFile, sanitizeCalendarFilename } from '../../../utils/calendarDownload';
   import { authStore } from '../../../stores/authStore';
   import { appSettingsMemoriesStore } from '../../../stores/appSettingsMemoriesStore';
   import { findSavedEmbedMemoryEntry, forgetEmbedMemory, getEmbedIdFromContentRef, promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+
+  const presentation = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
 
   interface Props {
     /** Raw embed data containing decodedContent */
@@ -49,9 +53,10 @@
   // Must be $derived so it updates when navigating between results (prev/next).
   // Handles both nested venue object (from search transformer) and flat TOON fields
   // (venue_lat, venue_lon, etc. — from _flatten_for_toon_tabular in embed_service.py).
-  let dc = $derived(data.decodedContent);
+  let dc = $derived(presentation?.presentationContent ?? presentation?.content ?? data.decodedContent);
 
-  let event = $derived(normalizeEventResult(dc ?? {}, embedId || data.focusChildEmbedId));
+  let event = $derived(normalizeEventResult(dc ?? {}, embedId || data.focusChildEmbedId || String(data.attrs?.id || data.embedData?.embed_id || '')));
+  const calendarInput = $derived(eventCalendarInput(event));
   let followupResult = $derived(projectVisibleEventResult(event));
 
   function eventDate(value: string | undefined): Date | undefined {
@@ -59,38 +64,41 @@
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? undefined : date;
   }
-  function formatEventDate(value: string | undefined, options: Intl.DateTimeFormatOptions) {
-    const date = eventDate(value);
-    if (!date) return '';
-    try { return new Intl.DateTimeFormat(undefined, { ...options, timeZone: event.timezone }).format(date); }
-    catch { return new Intl.DateTimeFormat(undefined, options).format(date); }
-  }
   function dayKey(date: Date) {
     try { return date.toLocaleDateString('en-CA', { timeZone: event.timezone }); }
     catch { return date.toLocaleDateString('en-CA'); }
   }
-  let timeRange = $derived.by(() => {
-    const start = eventDate(event.date_start);
-    const end = eventDate(event.date_end);
-    if (!start) return '';
-    const options: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' };
-    const startTime = formatEventDate(event.date_start, options);
-    if (!end) return startTime;
-    const endTime = formatEventDate(event.date_end, options);
-    return dayKey(start) === dayKey(end) ? `${startTime} – ${endTime}` : `${formatEventDate(event.date_start, {month: 'short', day: 'numeric'})} ${startTime} – ${formatEventDate(event.date_end, {month: 'short', day: 'numeric'})} ${endTime}`;
+  const timeRange = $derived.by(() => {
+    const startTime = formatEventResultTime(event.date_start, event.timezone);
+    if (!startTime) return '';
+    const endTime = formatEventResultTime(event.date_end, event.timezone);
+    if (!endTime) return startTime;
+    const startDate = formatEventResultDate(event.date_start, event.timezone);
+    const endDate = formatEventResultDate(event.date_end, event.timezone);
+    return startDate === endDate ? `${startTime} – ${endTime}` : `${startDate} ${startTime} – ${endDate} ${endTime}`;
   });
-  let dateLabel = $derived.by(() => {
-    const start = eventDate(event.date_start);
-    if (!start) return '';
-    const now = new Date();
-    if (dayKey(start) === dayKey(now)) return 'Today';
-    const tomorrow = new Date(now.getTime() + 86400000);
-    if (dayKey(start) === dayKey(tomorrow)) return 'Tomorrow';
-    return formatEventDate(event.date_start, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  const dateLabel = $derived.by(() => {
+    const startLabel = formatEventResultDate(event.date_start, event.timezone);
+    if (!startLabel) return '';
+    if (isEventDateOnly(event.date_start)) {
+      const endLabel = formatEventResultDate(event.date_end, event.timezone);
+      return endLabel && endLabel !== startLabel ? `${startLabel} – ${endLabel}` : startLabel;
+    }
+    // Keep established provider relative-date presentation. Authored records
+    // retain their researched/supplied date instead of an aging 'upcoming' claim.
+    if (!event.authoring) {
+      const start = eventDate(event.date_start);
+      if (start) {
+        const now = new Date();
+        if (dayKey(start) === dayKey(now)) return 'Today';
+        if (dayKey(start) === dayKey(new Date(now.getTime() + 86400000))) return 'Tomorrow';
+      }
+    }
+    return startLabel;
   });
   let headerTitle = $derived(event.title || '');
-  let headerSubtitle = $derived(event.organizer?.name ? `by ${event.organizer.name}` : undefined);
-  let isOnline = $derived(event.event_type === 'ONLINE');
+  let headerSubtitle = $derived(event.organizer?.name ? `${$text('embeds.video_by')} ${event.organizer.name}` : undefined);
+  let isOnline = $derived(event.event_type === 'ONLINE' || event.online === true);
   let venueAddress = $derived([event.venue?.name, event.venue?.address, [event.venue?.city, event.venue?.state, event.venue?.country].filter(Boolean).join(', ')].filter(Boolean).join('\n'));
 
   // Provider descriptions can be Markdown or HTML. Convert only sanitized HTML;
@@ -131,9 +139,7 @@
 
   // Map data — only when venue has coordinates
   let mapCenter = $derived(
-    !isOnline && event.venue?.lat != null && event.venue?.lon != null
-      ? { lat: event.venue.lat, lon: event.venue.lon }
-      : undefined
+    !isOnline ? validEventCoordinates(event.venue?.lat, event.venue?.lon) : undefined
   );
 
   let mapMarkers = $derived(
@@ -143,32 +149,36 @@
   );
 
   let feeDisplay = $derived.by(() => {
-    if (!event.is_paid || !event.fee) return '';
+    if (!event.fee) return '';
     const amount = event.fee.amount;
     const currency = event.fee.currency || '';
     if (amount == null) return '';
     try {
       return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount);
-    } catch { return `${currency} ${amount}`; }
+    } catch { return [currency, String(amount)].filter(Boolean).join(' '); }
   });
 
 
 
   let providerLabel  = $derived(event.provider || '');
+  const sourceUrl = $derived(eventResultSourceUrl(event.url));
+  let failedEventImage = $state<string>();
   let eventImageUrl = $derived.by(() => {
     const rawImageUrl = event.image_url || event.cover_url;
-    return rawImageUrl ? proxyImage(rawImageUrl, MAX_WIDTH_HEADER_IMAGE) : '';
+    const image = rawImageUrl ? proxyImage(rawImageUrl, MAX_WIDTH_HEADER_IMAGE) : '';
+    return image && image !== failedEventImage ? image : '';
   });
   let openButtonText = $derived.by(() => {
-    if (!providerLabel) return '';
-
-
-    return $text('embeds.open_on_provider').replace('{provider}', providerLabel);
+    if (!sourceUrl) return '';
+    if (providerLabel) return $text('embeds.open_on_provider').replace('{provider}', providerLabel);
+    const domain = eventResultSourceDomain(sourceUrl);
+    return domain ? $text('embeds.authoring.open_domain').replace('{domain}', domain)
+      : $text('embeds.authoring.open_source');
   });
 
   function handleOpenEvent() {
-    if (event.url) window.open(event.url, '_blank', 'noopener,noreferrer');
-    promptToSaveEmbedMemory(buildSaveConfig());
+    if (sourceUrl) window.open(sourceUrl, '_blank', 'noopener,noreferrer');
+    if (!event.authoring) promptToSaveEmbedMemory(buildSaveConfig());
   }
 
   function buildSaveConfig() {
@@ -206,33 +216,21 @@
   }
 
   function handleAddToCalendar() {
-    const descriptionLines = [
-      event.description || '',
-      event.organizer?.name ? `Organizer: ${event.organizer.name}` : '',
-      providerLabel ? `Source: ${providerLabel}` : '',
-      event.url || '',
-    ].filter(Boolean);
-
-    downloadCalendarFile({
-      title: event.title || 'Event',
-      start: event.date_start || '',
-      end: event.date_end,
-      location: isOnline ? 'Online event' : venueAddress,
-      description: descriptionLines.join('\n\n'),
-      url: event.url,
-      filename: sanitizeCalendarFilename([event.title || 'event', event.date_start?.slice(0, 10) || ''].filter(Boolean).join('-')),
-    });
+    if (calendarInput) downloadEventResultCalendarFile(event);
   }
+
 </script>
 
   {#snippet resultMedia()}
     {#if eventImageUrl}
-      <img class="event-image" src={eventImageUrl} alt={event.title || 'Event'} loading="lazy" />
+      <img class="event-image" src={eventImageUrl} alt={event.title || 'Event'} loading="lazy" onerror={() => failedEventImage = eventImageUrl} />
     {/if}
   {/snippet}
 <ResultEmbedFullscreen
   media={eventImageUrl ? resultMedia : undefined}
   result={followupResult}
+  authoring={event.authoring}
+  authoringPlacement="bottom"
   appId="events"
   skillId="event"
   {onClose}
@@ -247,16 +245,16 @@
   {mapCenter}
   mapZoom={13}
   {mapMarkers}
-  onCalendar={event.date_start ? handleAddToCalendar : undefined}
-  currentEmbedId={embedId}
+  onCalendar={calendarInput ? handleAddToCalendar : undefined}
+  currentEmbedId={embedId || event.embed_id}
 >
   {#snippet embedHeaderCta()}
     <div class="embed-header-cta-group">
       {#if $authStore.isAuthenticated}
         <EmbedHeaderCtaButton label={$text(savedMemoryEntry ? 'embeds.forget_memory' : 'embeds.add_memory')} variant="secondary" iconName="heart" iconOnly pressed={!!savedMemoryEntry} onclick={handleToggleSavedEvent} testId="save-embed-cta" />
       {/if}
-      {#if event.url && openButtonText}
-        <EmbedHeaderCtaButton label={openButtonText} onclick={handleOpenEvent} testId="external-provider-cta" />
+      {#if sourceUrl && openButtonText}
+        <EmbedHeaderCtaButton label={openButtonText} href={event.authoring ? sourceUrl : undefined} onclick={event.authoring ? undefined : handleOpenEvent} testId="external-provider-cta" />
       {/if}
     </div>
   {/snippet}
@@ -264,7 +262,7 @@
   {#snippet summary()}
     <div class="event-facts" data-testid="event-facts" aria-label="Event facts">
       {#if event.is_paid === false || feeDisplay}<div class="event-fact"><span class="clickable-icon event-icon" style:width="20px" style:height="20px" style:mask-image="var(--icon-url-money)" aria-hidden="true"></span><strong>{event.is_paid === false ? $text('embeds.models3d.search.free') : feeDisplay}</strong></div>{/if}
-      {#if timeRange}<div class="event-fact"><span class="clickable-icon event-icon" style:width="20px" style:height="20px" style:mask-image="var(--icon-url-calendar)" aria-hidden="true"></span><span><strong data-testid="event-time-range">{timeRange}</strong><small data-testid="event-date-label">{dateLabel}</small></span></div>{/if}
+      {#if timeRange || dateLabel}<div class="event-fact"><span class="clickable-icon event-icon" style:width="20px" style:height="20px" style:mask-image="var(--icon-url-calendar)" aria-hidden="true"></span><span>{#if timeRange}<strong data-testid="event-time-range">{timeRange}</strong><small data-testid="event-date-label">{dateLabel}</small>{:else}<strong data-testid="event-date-label">{dateLabel}</strong>{/if}</span></div>{/if}
       {#if event.rsvp_count != null}<div class="event-fact"><span class="clickable-icon event-icon" style:width="20px" style:height="20px" style:mask-image="var(--icon-url-team)" aria-hidden="true"></span><span><strong>{event.rsvp_count.toLocaleString()}</strong><small>{$text('guest_onboarding.landing_actionable_event_rsvps')}</small></span></div>{/if}
     </div>
   {/snippet}

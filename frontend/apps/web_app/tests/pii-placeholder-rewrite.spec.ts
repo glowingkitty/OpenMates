@@ -162,6 +162,12 @@ test('shows compact address labels while preserving unique wire tokens and owner
 	const logCheckpoint = createRedactingLogger('PII_PLACEHOLDER_REWRITE');
 	const outboundFrames: CapturedOutboundFrame[] = [];
 	captureOutboundInferenceFrames(page, outboundFrames);
+	await page.addInitScript(() => {
+		// Exercise the exact short-original/nonce collision deterministically.
+		// Keep the remaining UUID bits random so unrelated test IDs stay unique.
+		const randomUUID = crypto.randomUUID.bind(crypto);
+		crypto.randomUUID = () => `ee424413${randomUUID().slice(8)}` as ReturnType<typeof crypto.randomUUID>;
+	});
 
 	await loginToTestAccount(page, logCheckpoint);
 	await startNewChat(page, logCheckpoint);
@@ -171,7 +177,12 @@ test('shows compact address labels while preserving unique wire tokens and owner
 		page,
 		withMockMarker(SEED_TEXT, 'pii_detection_check'),
 		logCheckpoint,
-		undefined,
+		async () => {
+			// A cold download may now correctly fall back within 2.5 seconds.
+			// This case explicitly exercises the warmed semantic send path.
+			await expect(page.getByTestId('pii-highlight').filter({ hasText: /Maple Avenue/ }).first())
+				.toHaveAttribute('data-pii-type', 'ADDRESS', { timeout: 90000 });
+		},
 		'pii-rewrite-seed'
 	);
 
@@ -187,6 +198,8 @@ test('shows compact address labels while preserving unique wire tokens and owner
 	expect(seedContent).not.toContain(PRIVATE_EMAIL);
 	expect(seedContent).not.toContain('Maple Avenue');
 	const seedAddresses = addressPlaceholders(seedContent);
+	expect(seedAddresses.some(token => token.includes('_ee424413')),
+		'Use real model placeholders whose nonce contains the known address component 42').toBe(true);
 
 	await expectLastUserMessageContains(page, placeholder as string);
 	await expectCompactAddressDisplay(page, seedAddresses);
@@ -214,7 +227,10 @@ test('shows compact address labels while preserving unique wire tokens and owner
 		page,
 		withMockMarker(FOLLOW_UP_TEXT, 'manual_follow_up_hides_suggestions'),
 		logCheckpoint,
-		undefined,
+		async () => {
+			await expect(page.getByTestId('pii-highlight').filter({ hasText: /Cedar Lane/ }).first())
+				.toHaveAttribute('data-pii-type', 'ADDRESS', { timeout: 90000 });
+		},
 		'pii-rewrite-followup'
 	);
 

@@ -42,6 +42,7 @@ WEBVTT_TIMESTAMP_RE = re.compile(
 
 CONTENT_TYPES = {
     ".pdf": "application/pdf",
+    ".md": "text/markdown; charset=utf-8",
     ".gif": "image/gif",
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
@@ -262,7 +263,7 @@ def media_kind(content_type: str) -> str:
         return "image"
     if content_type.startswith("video/"):
         return "video"
-    if content_type == "application/pdf":
+    if content_type in ("application/pdf", "text/markdown; charset=utf-8"):
         return "document"
     raise ValueError(f"Unsupported content type: {content_type}")
 
@@ -397,7 +398,7 @@ def build_snippets(
             "markdown": f"[{alt}]({url})",
             "html": (
                 f'<a href="{escaped_url}" target="_blank" rel="noopener noreferrer" '
-                f'type="application/pdf">{escaped_alt}</a>'
+                f'type="{html.escape(content_type, quote=True)}">{escaped_alt}</a>'
             ),
         }
     if kind == "audio":

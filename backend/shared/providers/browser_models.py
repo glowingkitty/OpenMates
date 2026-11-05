@@ -41,7 +41,74 @@ DANGEROUS = re.compile(
 
 
 class BrowserModelError(RuntimeError):
-    pass
+    def __init__(
+        self,
+        message: str,
+        *,
+        response_kind: str | None = None,
+        response_chars: int | None = None,
+        purpose: str | None = None,
+    ):
+        super().__init__(message)
+        # Diagnostics are an allowlist, never provider text, page data or input.
+        codes = {
+            "The browser model tariff is unavailable.": "tariff_unavailable",
+            "The browser model quote is unavailable.": "quote_unavailable",
+            "Browser usage requires accounting reconciliation.": "usage_unreconciled",
+            "The extraction context exceeds its bounded input limit.": "input_too_large",
+            "The browser text helper returned invalid JSON.": "invalid_json",
+            "The browser text helper is unavailable.": "no_text_route",
+            "Invalid browser operation.": "invalid_operation",
+            "Invalid browser target.": "invalid_target",
+            "No valid text was produced for the field.": "no_field_text",
+        }
+        self.safe_details: dict[str, Any] = {
+            "model_error_code": codes.get(message, "model_error")
+        }
+        if response_kind in {"empty", "fenced", "json_like", "prose", "non_text"}:
+            self.safe_details["text_response_kind"] = response_kind
+        if isinstance(response_chars, int):
+            self.safe_details["text_response_chars"] = min(
+                max(response_chars, 0), 50000
+            )
+        if purpose in {"type", "extract", "verify_quotes"}:
+            self.safe_details["text_helper_purpose"] = purpose
+
+
+def parse_browser_json(content: Any, *, purpose: str | None = None) -> Any:
+    """Normalize a complete JSON response or one complete JSON code fence.
+
+    No substring/object fishing: commentary, trailing content and multiple
+    fences remain invalid. Semantic verification and strict booleans are unchanged.
+    """
+    text = content.strip() if isinstance(content, str) else ""
+    kind = (
+        "non_text"
+        if not isinstance(content, str)
+        else "empty"
+        if not text
+        else "fenced"
+        if text.startswith("```")
+        else "json_like"
+        if text[:1] in "{["
+        else "prose"
+    )
+    fenced = re.fullmatch(
+        r"```(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n```", text, re.IGNORECASE
+    )
+    if fenced:
+        text = fenced.group(1)
+    try:
+        parsed = json.loads(text)
+        json.dumps(parsed, allow_nan=False)
+        return parsed
+    except (ValueError, TypeError):
+        raise BrowserModelError(
+            "The browser text helper returned invalid JSON.",
+            response_kind=kind,
+            response_chars=len(content) if isinstance(content, str) else 0,
+            purpose=purpose,
+        ) from None
 
 
 def matched_quotations(data: Any, observation: dict[str, Any]) -> list[dict] | None:
@@ -767,12 +834,8 @@ class BrowserModels:
                 elapsed=time.monotonic() - started,
             )
             try:
-                parsed = json.loads(content or "")
-                json.dumps(parsed, allow_nan=False)
-                return parsed
-            except (ValueError, TypeError):
+                return parse_browser_json(content, purpose=context.get("purpose"))
+            except BrowserModelError:
                 if host != "together":
-                    raise BrowserModelError(
-                        "The browser text helper returned invalid JSON."
-                    ) from None
+                    raise
         raise BrowserModelError("The browser text helper is unavailable.")

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { advanceCompletionStartupContext, completionLinkAfterNavigation, decideCompletionPersonalContext, isWorkflowCompletionLink, preservesCompletionLinkOnTeamChange, readWorkflowCompletionLink, runConfirmsWorkflowChatTarget } from './workflowCompletionRoute';
+import { readWorkflowChatHandoff, advanceCompletionStartupContext, completionLinkAfterNavigation, decideCompletionPersonalContext, isWorkflowCompletionLink, preservesCompletionLinkOnTeamChange, readWorkflowCompletionLink, runConfirmsWorkflowChatTarget } from './workflowCompletionRoute';
 import type { WorkflowRunDetail } from '@repo/ui';
 
 const hash = '#workflow-id=workflow-1&workflow-tab=runs&run-id=run-1&chat-id=chat-1&message-id=message-1&delivery-id=delivery-1';
@@ -21,6 +21,37 @@ const run = {
 } satisfies WorkflowRunDetail;
 
 describe('Workflow completion notification routing', () => {
+	// contract-test: supporting surface=gui.web assertions=notifications.workflow-run.chat-target
+	it('hands off both restored and client-side Workflow targets only after their exact chat route resolves', () => {
+		const canonical = new URL('https://app.example/#chat-id=chat-1&message-id=message-1');
+		for (const source of [hash, '#chat-id=chat-1&message-id=message-1&delivery-id=delivery-1&workflow-id=workflow-1&run-id=run-1&workflow-tab=runs']) {
+			expect(readWorkflowChatHandoff(new URL(`https://app.example/${source}`), canonical))
+				.toEqual({ hash: canonical.hash, chatId: 'chat-1', messageId: 'message-1' });
+		}
+		const secondMessage = '#chat-id=chat-1&message-id=message-2';
+		expect(readWorkflowChatHandoff(
+			new URL('https://app.example/' + secondMessage + '&delivery-id=delivery-2&workflow-id=workflow-1&run-id=run-1'),
+			new URL('https://app.example/' + secondMessage)))
+			.toEqual({ hash: secondMessage, chatId: 'chat-1', messageId: 'message-2' });
+		expect(readWorkflowChatHandoff(null, canonical)).toBeNull();
+		expect(readWorkflowChatHandoff(canonical, canonical)).toBeNull();
+		expect(readWorkflowChatHandoff(new URL(`https://app.example/${hash}`), new URL('https://app.example/#chat-id=chat-1&message-id=other'))).toBeNull();
+		expect(readWorkflowChatHandoff(new URL(`https://app.example/${hash}`), new URL('https://other.example/' + canonical.hash))).toBeNull();
+	});
+
+	// contract-test: direct surface=gui.web assertions=notifications.workflow-run.chat-target
+	it('accepts ordinary message URLs and every committed Send even after a later failure', () => {
+		const link = readWorkflowCompletionLink('#chat-id=chat-1&message-id=message-2&delivery-id=delivery-2&workflow-id=workflow-1&run-id=run-1&workflow-tab=runs');
+		expect(link.kind).toBe('chat');
+		if (link.kind !== 'chat') return;
+		const failed = { ...run, status: 'failed' as const, completion_notification: {
+			notification_id: 'first', chat_id: 'chat-1', message_id: 'message-1', delivery_id: 'delivery-1'
+		}, node_runs: [...run.node_runs, { ...run.node_runs[0], id: 'second', node_id: 'second',
+			output_summary: { delivery_id: 'delivery-2', chat_id: 'chat-1', message_id: 'message-2', status: 'acknowledged' } }] };
+		expect(runConfirmsWorkflowChatTarget(failed, link.target)).toBe(true);
+		expect(runConfirmsWorkflowChatTarget(failed, { ...link.target, messageId: 'foreign' })).toBe(false);
+	});
+
 	// contract-test: direct surface=gui.web assertions=notifications.workflow-run.chat-target
 	it('accepts only an exact Send message delivery in the owner run', () => {
 		const link = readWorkflowCompletionLink(hash);
@@ -36,7 +67,7 @@ describe('Workflow completion notification routing', () => {
 		expect(runConfirmsWorkflowChatTarget({ ...run, completion_notification: {
 			notification_id: 'notification-1', chat_id: 'another-chat', message_id: 'message-1', delivery_id: 'delivery-1'
 		} }, link.target)).toBe(false);
-		expect(runConfirmsWorkflowChatTarget({ ...run, completion_notification: { notification_id: 'notification-2', chat_id: null } }, link.target)).toBe(false);
+		expect(runConfirmsWorkflowChatTarget({ ...run, completion_notification: { notification_id: 'notification-2', chat_id: null } }, link.target)).toBe(true);
 	});
 
 	// contract-test: direct surface=gui.web assertions=notifications.workflow-run.run-target

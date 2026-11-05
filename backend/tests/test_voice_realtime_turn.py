@@ -463,3 +463,103 @@ async def test_cancel_during_audio_publication_is_not_misdiagnosed_as_transport_
     assert 'publication_failed' not in caplog.text and 'PRIVATE' not in caplog.text
     assert not provider.finished
     finalize.assert_awaited_once_with(False, 0)
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.audio.spoken-rich-response,assistant-speech.safety.provider-after-approval
+async def test_prewarm_opens_transport_once_before_first_span_without_text_or_track_state():
+    owner, provider, events, first, finalize, credits = make_turn()
+    owner.prewarm()
+    owner.prewarm()
+    await asyncio.sleep(0)
+    assert provider.open_count == 1 and provider.inputs == []
+    owner._prepare.assert_not_awaited()
+    credits.assert_not_awaited()
+    await owner.enqueue(span(0, "First released prose."))
+    await asyncio.wait_for(first.wait(), 1)
+    owner.finish_input()
+    await owner.wait()
+    assert provider.open_count == 1
+    assert provider.inputs == ["First released prose. "]
+    finalize.assert_awaited_once_with(True, len("First released prose. "))
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.audio.spoken-rich-response
+async def test_unused_prewarmed_transport_closes_without_finalizing_a_track():
+    owner, provider, events, _first, finalize, _credits = make_turn()
+    owner.prewarm()
+    await asyncio.sleep(0)
+    await owner.wait()
+    assert provider.cancel_count == 1 and provider.inputs == [] and events == []
+    finalize.assert_not_awaited()
+    cancelled, cancelled_provider, cancelled_events, _f, cancelled_finalize, _c = make_turn()
+    cancelled.prewarm()
+    await asyncio.sleep(0)
+    await cancelled.cancel()
+    assert cancelled_provider.cancel_count == 1 and cancelled_events == []
+    cancelled_finalize.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=assistant-speech.safety.provider-after-approval
+async def test_later_span_safety_starts_at_handoff_but_text_waits_for_its_approval():
+    gate = asyncio.Event()
+    started = []
+
+    async def safety(text):
+        started.append(text)
+        if text.startswith("Second"):
+            await gate.wait()
+        return True
+
+    owner, provider, _events, first, finalize, _credits = make_turn()
+    owner._safety_check = safety
+    await owner.enqueue(span(0, "First released prose."))
+    await owner.enqueue(span(1, "Second released prose."))
+    await asyncio.wait_for(first.wait(), 1)
+    # Both checks are already running; the unapproved span is never submitted.
+    assert started == ["First released prose. ", "Second released prose. "]
+    assert provider.inputs == ["First released prose. "]
+    gate.set()
+    owner.finish_input()
+    await owner.wait()
+    assert provider.inputs == ["First released prose. ", "Second released prose. "]
+    finalize.assert_awaited_once_with(True, sum(map(len, provider.inputs)))
+
+
+class AlignedProvider(Provider):
+    """Real v4 shape: leading words unaligned, each event's times restart at 0."""
+
+    def __init__(self, script):
+        super().__init__()
+        self.script = script
+
+    async def append_text(self, text):
+        self.inputs.append(text)
+        self.submitted_characters += len(text)
+        for audio, chars in self.script.pop(0):
+            alignment = None
+            if chars:
+                starts = [index * 100 for index in range(len(chars))]
+                alignment = SimpleNamespace(chars=tuple(chars), char_start_times_ms=tuple(starts),
+                                            char_durations_ms=tuple(100 for _ in chars))
+            self.events.put_nowait(SimpleNamespace(audio_bytes=audio, alignment=alignment, final=False))
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.audio.spoken-rich-response,video-call.privacy
+async def test_alignment_becomes_display_only_word_starts_on_the_track_timeline():
+    provider = AlignedProvider([
+        # 160 bytes of unaligned audio = 10 ms before the first aligned character.
+        [(b"x" * 160, None), (b"y" * 320, " big cat"), (b"z" * 80, " sat.")],
+        [(b"w" * 80, "Ok.")],
+    ])
+    owner, provider, events, first, finalize, _credits = make_turn(provider)
+    await owner.enqueue(span(0, "The big cat sat."))
+    await owner.enqueue(span(1, "Ok."))
+    owner.finish_input()
+    await owner.wait()
+    words = [row["payload"]["word_starts"] for row in events if row["payload"]["phase"] == "words"]
+    # "The" was never aligned: indices still count it. Event 1 starts at 10 ms
+    # and lasts 800 ms; event 2 starts after it; span 2 continues the timeline.
+    assert words == [[[1, 110], [2, 510]], [[3, 910]], [[4, 1310]]]
+    assert "cat" not in str(words)
+    assert all(row["payload"]["chunk_index"] >= 0 for row in events)
+    finalize.assert_awaited_once_with(True, sum(map(len, provider.inputs)))

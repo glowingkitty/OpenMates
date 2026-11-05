@@ -21,6 +21,8 @@ class PreprocessingResult(BaseModel):
     routing_only: bool = Field(default=False, exclude=True)
     relevant_rules: list[dict] | None = Field(default=None, exclude=True)
     relevant_workflows: list[dict] | None = Field(default=None, exclude=True)
+    relevant_diagram_types: list[str] | None = Field(default=None, exclude=True)
+    relevant_diagram_variant: str | None = Field(default=None, exclude=True)
     raw_llm_response: dict | None = None
     title: str | None = None
     chat_summary: str | None = None
@@ -80,6 +82,8 @@ def _decision():
         selected_app_ids=["web"],
         relevant_rules=[{"id": "private", "revision": "r1", "document": "secret rule body"}],
         relevant_workflows=[{"workflow_id": "workflow-1", "current_version_id": "v1", "body": "secret rule body"}],
+        relevant_diagram_types=["type-architecture"],
+        relevant_diagram_variant="minimal_dark",
         raw_llm_response={"private": "secret rule body"},
         title="Private Project name",
         chat_summary="Private Project work summary",
@@ -103,6 +107,8 @@ async def test_internal_continuation_reuses_decisions_without_private_rule_body(
     assert result.selected_app_ids == ["web"]
     assert result.relevant_rules == [{"id": "private", "revision": "r1"}]
     assert result.relevant_workflows == [{"workflow_id": "workflow-1", "current_version_id": "v1"}]
+    assert result.relevant_diagram_types == ["type-architecture"]
+    assert result.relevant_diagram_variant == "minimal_dark"
     assert apps == ["web"]
     assert refresh_project is False
     assert "secret rule body" not in str(cache.values)

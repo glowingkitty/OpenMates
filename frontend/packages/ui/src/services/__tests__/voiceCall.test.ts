@@ -14,7 +14,8 @@ const persistence = vi.hoisted(() => ({
 const cleanup = vi.hoisted(() => ({
   identity: 'owner' as string | null, epoch: 1,
   remove: vi.fn(async (_input:unknown, _read:unknown) => ({accepted:true,localEligible:true})),
-  snapshot: vi.fn(async (input:{chatId:string;callId:string|null}, _signals:unknown) => ({chat:{chat_id:input.chatId,messages_v:input.callId?2:0}})),
+  snapshot: vi.fn(async (input:{chatId:string;callId:string|null}, _signals:unknown) => ({chat:{chat_id:input.chatId,messages_v:input.callId?2:0},
+    messages:[], artifactCount:0, pendingOperationCount:0, hasDraft:false, hasOrdinaryText:false, hasPendingTurn:false})),
 }));
 vi.mock('../voiceCallEmptyChatCleanup', () => ({cleanupEmptyVoiceCallChat:cleanup.remove,readEmptyVoiceCallCleanupSnapshot:cleanup.snapshot}));
 vi.mock('../workspaceQueryCache', () => ({getWorkspaceCacheIdentity:()=>cleanup.identity}));
@@ -119,7 +120,7 @@ vi.mock('../assistantSpeechController', async () => { const { writable } = await
 } }; });
 import { assistantSpeechController } from '../assistantSpeechController';
 
-import { VoiceCallController } from '../voiceCall';
+import { VOICE_CALL_SERVER_SILENCE_MS, VoiceCallController } from '../voiceCall';
 import { VoiceCallAudioGate } from '../voiceCallAudioGate';
 import { VoiceCallContextError } from '../voiceCallMessages';
 
@@ -301,6 +302,36 @@ describe('integrated voice call typed turns', () => {
     expect(canonical.send).not.toHaveBeenCalled();
     expect(persistence.lifecycle).not.toHaveBeenCalled();
     expect(cues.play).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.lifecycle.recovery-and-billing
+  it('ends a live call as lost when uploaded speech goes unanswered by the server', async () => {
+    vi.useFakeTimers();
+    try {
+      const { controller, sockets } = startingController();
+      await controller.start('chat-1');
+      const socket = sockets[0];
+      const gate = gates.instances[0];
+      socket.onopen!();
+      socket.onmessage!({ data: JSON.stringify({ type: 'ready', call_id: 'call-1', speech_output_transport: 'mp3_turn_stream_v2' }) });
+      expect(get(controller).status).toBe('live');
+      // Silence without uploaded audio is a healthy idle call.
+      vi.advanceTimersByTime(30_000);
+      expect(get(controller).status).toBe('live');
+      // Answered audio keeps the call alive.
+      gate.callbacks.onAudio('chunk-1');
+      vi.advanceTimersByTime(10_000);
+      socket.onmessage!({ data: JSON.stringify({ type: 'usage' }) });
+      vi.advanceTimersByTime(10_000);
+      expect(get(controller).status).toBe('live');
+      // Audio the server never answers (e.g. a stalled host) ends the call.
+      gate.callbacks.onAudio('chunk-2');
+      vi.advanceTimersByTime(VOICE_CALL_SERVER_SILENCE_MS + 500);
+      expect(get(controller)).toMatchObject({ status: 'error', error: 'connection_lost' });
+      expect(socket.close).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   // contract-test: direct surface=gui.web assertions=video-call.privacy.first-call-warning,video-call.audio.single-owner
@@ -855,6 +886,36 @@ describe('integrated voice call typed turns', () => {
     expect(await accepted).toBe(true);
     expect(persistence.upsert).not.toHaveBeenCalled(); expect(persistence.persist).not.toHaveBeenCalled();
     harness.handleMessage(final); expect(canonical.send).toHaveBeenCalledOnce(); controller.hangup();
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.chat.transcripts,video-call.audio.complete-turn-admission
+  it('shows interim speech as a live composer transcript until the final turn becomes a chat message', async () => {
+    const { controller, harness } = liveController();
+    let visible!: () => void; let admit!: (accepted:boolean) => void;
+    canonical.send.mockImplementationOnce((turn: unknown) => new Promise(resolve => {
+      visible = (turn as { onVisible: () => void }).onVisible; admit = resolve;
+    }));
+    const partial = {type:'transcript',call_id:'call-1',role:'user',message_id:'user-live',text:'What is the',final:false};
+    harness.handleMessage(partial);
+    expect(get(controller).liveTranscript).toEqual({messageId:'user-live',text:'What is the',submitted:false});
+    harness.handleMessage({...partial,text:'What is the weather'});
+    expect(get(controller).liveTranscript?.text).toBe('What is the weather');
+    expect(canonical.send).not.toHaveBeenCalled();
+    harness.handleMessage({...partial,text:'What is the weather?',final:true});
+    expect(get(controller).liveTranscript).toEqual({messageId:'user-live',text:'What is the weather?',submitted:true});
+    await vi.waitFor(() => expect(canonical.send).toHaveBeenCalledOnce());
+    // A late partial for the admitted turn never re-opens the draft preview.
+    harness.handleMessage({...partial,text:'What is the weather? late'});
+    expect(get(controller).liveTranscript?.submitted).toBe(true);
+    visible();
+    expect(get(controller).liveTranscript).toBeNull();
+    admit(true);
+    harness.handleMessage({...partial,message_id:'user-echo',text:'echoed words'});
+    harness.handleMessage({type:'transcript.discarded',call_id:'call-1',message_id:'user-echo',reason:'echo'});
+    expect(get(controller).liveTranscript).toBeNull();
+    harness.handleMessage({...partial,message_id:'user-next',text:'And tomorrow'});
+    controller.hangup();
+    expect(get(controller).liveTranscript).toBeNull();
   });
 
   // contract-test: direct surface=gui.web assertions=video-call.chat.typed-input,video-call.audio.complete-turn-admission

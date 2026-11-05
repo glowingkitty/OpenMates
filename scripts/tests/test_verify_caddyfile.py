@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import importlib.util
 import ast
+from fnmatch import fnmatchcase
 import json
 import os
 import shutil
@@ -124,6 +125,44 @@ def test_adapted_dev_account_key_preflight_and_requests_preserve_fastapi_cors() 
     options = {item.arg: item.value for item in policies[0].keywords}
     assert isinstance(options["allow_origins"], ast.Name) and options["allow_origins"].id == "allowed_origins"
     assert isinstance(options["allow_credentials"], ast.Constant) and options["allow_credentials"].value is True
+
+
+def test_browser_session_controls_use_narrow_credentialed_proxy_routes() -> None:
+    content = ALL_CADDYFILES[2].read_text()
+    for name in ("@webapp_general_options {", "@webapp_actual {"):
+        matcher = content.split(name, 1)[1].split("}", 1)[0]
+        assert "/v1/apps/web/browse/*" in matcher.split(), name
+        assert "/v1/apps/*" not in matcher.split(), name
+
+
+@pytest.mark.parametrize("caddyfile", CADDYFILES)
+def test_browse_session_controls_preserve_credentialed_cors(caddyfile: Path) -> None:
+    """The canonical control path must precede public wildcard CORS handlers."""
+    caddy = shutil.which("caddy")
+    if caddy is None:
+        pytest.skip("caddy is not installed")
+    result = subprocess.run(
+        [caddy, "adapt", "--config", str(caddyfile), "--adapter", "caddyfile"],
+        cwd=REPO_ROOT, env={**os.environ, "GANDI_BEARER_TOKEN": "syntax-check-only"},
+        text=True, capture_output=True, check=False,
+    )
+    if "module not registered: dns.providers.gandi" in result.stderr:
+        pytest.skip("installed caddy lacks the Gandi DNS module")
+    assert result.returncode == 0, result.stderr
+    path = "/v1/apps/web/browse/11111111-1111-4111-8111-111111111111"
+    for routes in _route_lists(json.loads(result.stdout)):
+        public = {"OPTIONS" if r.get("match", [{}])[0].get("method") == ["OPTIONS"] else "actual": i
+                  for i, r in enumerate(routes) if "/v1/apps/*" in _matched_paths(r) and "headers" in _nested_handlers(r)}
+        if set(public) != {"OPTIONS", "actual"}:
+            continue
+        for method, index in public.items():
+            matches = [r for r in routes[:index]
+                       if any(fnmatchcase(path, pattern) for pattern in _matched_paths(r))
+                       and (r.get("match", [{}])[0].get("method") == ["OPTIONS"]) == (method == "OPTIONS")
+                       and "reverse_proxy" in _nested_handlers(r) and "headers" not in _nested_handlers(r)]
+            assert matches, (caddyfile, method)
+        return
+    pytest.fail(f"No first-party Browse ingress found in {caddyfile}")
 
 
 def test_code_run_routes_are_verified_and_allowlisted() -> None:

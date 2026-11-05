@@ -6,7 +6,7 @@
   import { authStore } from '../../../stores/authState';
   import { userProfile } from '../../../stores/userProfile';
   import { activeTeamContext } from '../../../stores/teamStore';
-  import { browseContent, browseStatusKey } from './browseContent';
+  import { browseContent, browseStatusKey, canViewBrowseSession } from './browseContent';
   import { renderBrowse } from './browseEmbedText';
   import { webBrowseClient, type BrowseSession } from '../../../services/webBrowseService';
   import { queueAppsWorkspaceChatHandoff, captureAppsWorkspaceHandoffGuard } from '../../../services/appsWorkspaceChatHandoffService';
@@ -20,7 +20,7 @@
   let result = $derived(browseContent(updated || data.decodedContent));
   // Public examples and shared read-only results never open an authenticated
   // viewer. Account/team changes destroy the live frame and abort all requests.
-  let canView = $derived($authStore.isAuthenticated && !!$userProfile.user_id && !source?.exampleChatId && !source?.lookupChatId);
+  let canView = $derived(canViewBrowseSession($authStore.isAuthenticated, $userProfile.user_id, source));
   async function continueInChat(session: BrowseSession) {
     if (!ownerCurrent() || session.session_id !== result.sessionId || !session.chat_id
       || (source?.chatId && source.chatId !== session.chat_id)) throw new Error('browser_chat_changed');
@@ -49,7 +49,7 @@
           <BrowseSessionViewer sessionId={result.sessionId} client={webBrowseClient} savedFrame={result.screenshot} onContinue={continueInChat} />
         {/key}
       {:else if result.screenshot}<img class="saved" src={result.screenshot} alt={$text('embeds.browse.saved_frame')} />
-      {:else}<p>{$text('embeds.browse.waiting_frame')}</p>{/if}
+      {:else}<p>{$text(result.status === 'processing' ? 'embeds.browse.waiting_frame' : 'embeds.browse.no_frame')}</p>{/if}
       {#if result.reason}<p class="reason">{result.reason}</p>{/if}
       {#if result.data !== null}
         <details><summary>{$text('embeds.browse.structured_data')}</summary><pre data-testid="browse-json">{JSON.stringify(result.data, null, 2)}</pre></details>

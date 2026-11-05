@@ -1,5 +1,5 @@
 ---
-name: openmates:add-app-skill
+name: add-app-skill
 description: Scaffold a new skill in an existing app (BaseSkill, schemas, app.yml, i18n)
 user-invocable: true
 argument-hint: "<appId> <skillId> <SkillClassName>"

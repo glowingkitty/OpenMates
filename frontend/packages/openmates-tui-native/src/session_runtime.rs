@@ -1,0 +1,542 @@
+//! Application-owned durable credential boundary shared by command and terminal
+//! consumers. The SDK only emits explicit credential snapshots; it performs no
+//! profile discovery, prompts, keyring access or credential persistence.
+use crate::{
+    client::Client,
+    error::{Error, Result},
+    runtime_store::RuntimeStore,
+    storage::Session,
+};
+use sha2::{Digest, Sha256};
+use tokio_util::sync::CancellationToken;
+use zeroize::Zeroizing;
+
+pub fn cache_key(session: &Session) -> String {
+    format!(
+        "sync-{}",
+        session.active_team_id.as_deref().unwrap_or("personal")
+    )
+}
+
+// Digests bind protected restoration to the exact loaded credential snapshot.
+// The temporary serialized credential bytes are wiped and never exposed.
+fn credential_digest(client: &Client) -> Result<[u8; 32]> {
+    let session = client.session().ok_or(Error::Authentication)?;
+    session_digest(session)
+}
+fn session_digest(session: &Session) -> Result<[u8; 32]> {
+    let encoded = Zeroizing::new(serde_json::to_vec(session)?);
+    Ok(Sha256::digest(encoded.as_slice()).into())
+}
+fn current(
+    client: &Client,
+    store: &RuntimeStore,
+    generation: u64,
+    cancel: &CancellationToken,
+) -> Result<()> {
+    if cancel.is_cancelled() || store.generation() != generation {
+        return Err(Error::Cancelled);
+    }
+    let session = client.session().ok_or(Error::Authentication)?;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|_| Error::Protocol)?
+        .as_millis();
+    if session
+        .paired_session_expires_at
+        .is_some_and(|expires| u128::from(expires) <= now)
+    {
+        return Err(Error::Expired);
+    }
+    Ok(())
+}
+
+/// Which part of the protected sync cache a command restores before dispatch.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CacheLoad {
+    /// Never read or rewrite the cache (commands that read no cached Chats).
+    /// Unless preserved (whoami), list freshness is still durably revoked
+    /// before dispatch, exactly like prepare_command_cache_admission.
+    Deferred { revoke_list_freshness: bool },
+    /// Only the Chat-list index; per-Chat content loads on demand.
+    Index,
+    /// The index plus one Chat's cached content (cache-first open).
+    Chat(String),
+    /// Everything (legacy behavior; any command not listed below).
+    Full,
+}
+
+/// Account/settings reads and writes that never use cached Chats or embeds.
+const DEFERRED_ACCOUNT_COMMANDS: &[&str] = &[
+    "credits",
+    "account info",
+    "account username set",
+    "account timezone set",
+    "account interests list",
+    "account interests set",
+    "account interests clear",
+    "account chats stats",
+    "account storage overview",
+    "account storage files",
+    "interface language set",
+    "interface dark-mode set",
+    "interface font set",
+    "billing overview",
+    "billing usage",
+    "billing usage summaries",
+    "billing usage daily",
+    "billing usage export",
+    "billing usage overview",
+    "billing usage details",
+    "billing usage chat-total",
+    "billing gift-card list",
+    "billing invoices list",
+    "billing bank-transfer list",
+    "gift-card list",
+    "developers api-keys list",
+    "developers devices",
+    "security sessions",
+    "memories list",
+    "memories types",
+    "memories create",
+    "memories update",
+    "memories delete",
+    "reminders list",
+];
+
+/// Cache restoration policy per command. Only commands proven not to read
+/// cached Chats/embeds defer; `chats list` needs only the index.
+pub fn command_cache_load(invocation: &crate::cli::Invocation) -> CacheLoad {
+    let path = invocation.command_path();
+    let account = path.strip_prefix("settings ").unwrap_or(&path);
+    if path == "whoami" {
+        CacheLoad::Deferred { revoke_list_freshness: false }
+    } else if crate::cli::is_direct_apps_command(invocation)
+        || DEFERRED_ACCOUNT_COMMANDS.contains(&account)
+    {
+        CacheLoad::Deferred { revoke_list_freshness: true }
+    } else if path == "chats list" {
+        CacheLoad::Index
+    } else if matches!(path.as_str(), "chats show" | "chats messages") {
+        // Cache-first open: index + this chat's record only (see chat_details).
+        match invocation.positionals.first() {
+            Some(id) if uuid::Uuid::parse_str(id).is_ok_and(|u| u.hyphenated().to_string() == *id) => {
+                CacheLoad::Chat(id.clone())
+            }
+            _ => CacheLoad::Full,
+        }
+    } else if let Some(id) = (matches!(path.as_str(), "chats show" | "chats messages"))
+        .then(|| invocation.positionals.first())
+        .flatten()
+        .filter(|id| uuid::Uuid::parse_str(id).is_ok())
+    {
+        // Cache-first saved read: the index plus only this Chat's section;
+        // other content still loads on demand through the index loader.
+        CacheLoad::Chat(id.clone())
+    } else {
+        CacheLoad::Full
+    }
+}
+
+/// Restore only the selected durable profile's protected ciphertext before its
+/// first save. This publishes no output and grants no server authentication.
+/// Read/shape/context failures preserve the existing on-disk profile and cache.
+pub async fn restore_protected_cache(
+    client: &mut Client,
+    store: &RuntimeStore,
+    passphrase: Option<Zeroizing<String>>,
+    cancel: &CancellationToken,
+) -> Result<()> {
+    restore_command_cache(client, store, passphrase, cancel, CacheLoad::Full).await
+}
+
+/// `restore_protected_cache` restricted to what the command needs. Deferred
+/// performs the same durable-profile checks without reading the cache and
+/// marks the store so persistence never rewrites it; non-`whoami` deferred
+/// commands still durably revoke list freshness at their pre-dispatch save.
+pub async fn restore_command_cache(
+    client: &mut Client,
+    store: &RuntimeStore,
+    passphrase: Option<Zeroizing<String>>,
+    cancel: &CancellationToken,
+    load: CacheLoad,
+) -> Result<()> {
+    let generation = store.generation();
+    current(client, store, generation, cancel)?;
+    // RuntimeStore authenticates its envelope/AAD. Also require that envelope's
+    // current session to be the one loaded into this Client, including API,
+    // Team, owner, key, creation time and paired-session deadline.
+    let durable = store.load(passphrase).await?.ok_or(Error::Authentication)?;
+    if session_digest(&durable)? != credential_digest(client)? {
+        return Err(Error::Cancelled);
+    }
+    let owner = durable.hashed_email.clone();
+    let key = cache_key(&durable);
+    let master = durable.master_key.clone();
+    let mode = match &load {
+        CacheLoad::Deferred { revoke_list_freshness } => {
+            store.defer_sync_cache(*revoke_list_freshness);
+            return current(client, store, generation, cancel);
+        }
+        CacheLoad::Full => crate::storage::SyncReadMode::Complete,
+        CacheLoad::Index | CacheLoad::Chat(_) => crate::storage::SyncReadMode::Index,
+    };
+    let read = store
+        .read_sync_cache(owner.clone(), key.clone(), master.clone(), mode)
+        .await?;
+    current(client, store, generation, cancel)?;
+    let restored = match read {
+        None => Ok(()),
+        Some(crate::storage::SyncCacheRead::Complete(snapshot)) => {
+            client.restore_authenticated_ciphertext_snapshot(&snapshot)
+        }
+        Some(crate::storage::SyncCacheRead::Index(index)) => client
+            .restore_authenticated_ciphertext_index(
+                &index,
+                store.sync_content_loader(owner, key, master),
+            ),
+    };
+    if let Err(error) = restored {
+        // SDK restoration can parse several fields before a later failure.
+        client.forget_session();
+        return Err(error);
+    }
+    if let CacheLoad::Chat(chat) = load {
+        if let Err(error) = load_cached_chat(client, store, &chat).await {
+            client.forget_session();
+            return Err(error);
+        }
+    }
+    if let Err(error) = current(client, store, generation, cancel) {
+        client.forget_session();
+        return Err(error);
+    }
+    Ok(())
+}
+
+/// Cache-first Chat open: decrypt only this Chat's cached content section
+/// (messages, sync window/cursor, selected first page, its embeds and keys)
+/// into a partially restored client. Returns whether a cached section existed.
+/// A completely restored client already holds it (Ok(true) iff it has rows).
+pub async fn load_cached_chat(client: &mut Client, store: &RuntimeStore, chat: &str) -> Result<bool> {
+    if client.partially_restored_chats().is_none_or(|loaded| loaded.iter().any(|id| id == chat)) {
+        return Ok(true);
+    }
+    let session = client.session().ok_or(Error::Authentication)?;
+    let section = store
+        .read_sync_chat(
+            session.hashed_email.clone(),
+            cache_key(session),
+            session.master_key.clone(),
+            chat.to_owned(),
+        )
+        .await?;
+    let found = section.is_some();
+    client.restore_cached_chat_content(chat, section.as_ref())?;
+    Ok(found)
+}
+
+/// Conservative native command admission. The immediately following initial
+/// FreshSessionAdmission save durably publishes this removal before dispatch.
+/// Whoami and eligible same-scope Personal lists are the preservation paths.
+/// A list cache miss separately revokes durably before foreground recovery.
+pub fn prepare_command_cache_admission(client: &mut Client, invocation: &crate::cli::Invocation) {
+    let preserve =
+        invocation.command_path() == "whoami" || same_personal_chat_list_scope(client, invocation);
+    if !preserve {
+        client.invalidate_chat_list_freshness();
+    }
+    // Overlap the warm list's (and `chats open`'s) feed page with the session
+    // admission that follows.
+    if same_personal_chat_list_scope(client, invocation)
+        || (invocation.command_path() == "chats open" && !invocation.has("api-key"))
+    {
+        client.prefetch_chat_sync_feed();
+    }
+    // A selected read always opens its recovery socket after admission:
+    // pre-establish only that connection's TCP/TLS (no request, no token), and
+    // send a JSON show's first read round now (cached tail delta included).
+    if let Some(id) = overlapped_saved_read_chat(invocation) {
+        client.preconnect_socket();
+        if crate::cli::is_full_json_show(invocation) {
+            client.prefetch_chat_details(id, &crate::cli::full_chat_read_options(invocation));
+        }
+    }
+}
+
+/// Only an unscoped `chats show|messages <canonical id>` overlaps admission;
+/// --personal/--team transitions keep the ordinary post-admission order.
+fn overlapped_saved_read_chat(invocation: &crate::cli::Invocation) -> Option<&str> {
+    (matches!(invocation.command_path().as_str(), "chats show" | "chats messages")
+        && !invocation.has("personal")
+        && !invocation.has("team")
+        && !invocation.has("api-key"))
+    .then(|| invocation.positionals.first())
+    .flatten()
+    .map(String::as_str)
+    .filter(|id| uuid::Uuid::parse_str(id).is_ok_and(|u| u.hyphenated().to_string() == *id))
+}
+
+/// Explicit --personal is scope-equivalent only while the admitted profile is
+/// already Personal and contains no Direct rows. Eligibility grants no auth,
+/// freshness, recovery clearance or output publication; those guards stay in
+/// the existing warm read. Real Team transitions keep the foreground path and
+/// SDK set_team retains its unconditional invalidation semantics.
+pub(crate) fn same_personal_chat_list_scope(
+    client: &Client,
+    invocation: &crate::cli::Invocation,
+) -> bool {
+    invocation.command_path() == "chats list"
+        && !invocation.has("team")
+        && (!invocation.has("personal") || invocation.boolean("personal"))
+        && client.supports_cached_default_chat_list()
+}
+
+/// A durable pre-dispatch fence for recovery, TUI and other uncertain effects.
+/// Failure refuses dispatch; a crash afterwards restores no stale receipt even
+/// if neither a completion checkpoint nor the final operation save exists yet.
+pub async fn revoke_chat_cache_before_dispatch(
+    client: &mut Client,
+    store: &RuntimeStore,
+    passphrase: Option<Zeroizing<String>>,
+    cancel: &CancellationToken,
+) -> Result<()> {
+    let generation = store.generation();
+    current(client, store, generation, cancel)?;
+    client.invalidate_chat_list_freshness();
+    persist(client, store, passphrase).await?;
+    current(client, store, generation, cancel)
+}
+
+/// Single-use evidence of fresh server admission and durable initial save.
+/// The exclusive borrow owns the validated Client lane until consumption; no
+/// caller can substitute or mutate that Client through this guard.
+///
+/// A separately authenticated Client cannot be supplied to the formatter:
+/// ```compile_fail
+/// use openmates::{client::Client, cli::Invocation,
+///     runtime_store::RuntimeStore, session_runtime::FreshSessionAdmission};
+/// use tokio_util::sync::CancellationToken;
+/// async fn replace(client: &mut Client, other: &Client, store: &RuntimeStore,
+///     invocation: &Invocation, cancel: &CancellationToken) {
+///     let admission = FreshSessionAdmission::admit(client, store, None, cancel).await.unwrap();
+///     let _ = admission.whoami_output(invocation, other);
+/// }
+/// ```
+/// The admitted Client cannot change account or Team while its guard exists:
+/// ```compile_fail
+/// use openmates::{client::Client, cli::Invocation,
+///     runtime_store::RuntimeStore, session_runtime::FreshSessionAdmission};
+/// use tokio_util::sync::CancellationToken;
+/// async fn mutate(client: &mut Client, store: &RuntimeStore,
+///     invocation: &Invocation, cancel: &CancellationToken) {
+///     let admission = FreshSessionAdmission::admit(client, store, None, cancel).await.unwrap();
+///     client.set_team(None).unwrap();
+///     let _ = admission.whoami_output(invocation);
+/// }
+/// ```
+pub struct FreshSessionAdmission<'a> {
+    client: &'a mut Client,
+    auth_handoff: Option<crate::client::FreshSessionHandoff>,
+    generation: u64,
+    store: RuntimeStore,
+    cancel: CancellationToken,
+}
+impl<'a> FreshSessionAdmission<'a> {
+    pub async fn admit(
+        client: &'a mut Client,
+        store: &RuntimeStore,
+        passphrase: Option<Zeroizing<String>>,
+        cancel: &CancellationToken,
+    ) -> Result<Self> {
+        let generation = store.generation();
+        let admitted = {
+            let validation = async {
+                current(client, store, generation, cancel)?;
+                let handoff = client.validate_session_for_recovery(cancel).await?;
+                current(client, store, generation, cancel)?;
+                Ok(handoff)
+            };
+            tokio::pin!(validation);
+            tokio::select! {
+                biased;
+                result = &mut validation => result,
+                _ = cancel.cancelled() => tokio::time::timeout(
+                    std::time::Duration::from_secs(2), &mut validation
+                ).await.unwrap_or(Err(Error::Cancelled)),
+            }
+        };
+        // Header-first rotation is durable even if validation/body/cancellation
+        // fails. This save stays OUTSIDE the bounded validation future, with
+        // the original priority: persistence failure wins validation failure.
+        let saved = persist(client, store, passphrase).await;
+        let auth_handoff = match (admitted, saved) {
+            (_, Err(error)) | (Err(error), Ok(())) => return Err(error),
+            (Ok(handoff), Ok(())) => handoff,
+        };
+        current(client, store, generation, cancel)?;
+        Ok(Self {
+            client,
+            auth_handoff,
+            generation,
+            store: store.clone(),
+            cancel: cancel.clone(),
+        })
+    }
+    /// Consume fresh server admission only after its durable initial save and
+    /// protected-account check. The SDK retains all one-use/current-op checks.
+    pub fn prepare_recovery(mut self) -> Result<()> {
+        current(self.client, &self.store, self.generation, &self.cancel)?;
+        if let Some(handoff) = self.auth_handoff.take() {
+            self.client
+                .use_fresh_session_for_recovery(handoff, &self.cancel)?;
+        }
+        Ok(())
+    }
+    pub fn user(&self) -> Result<&serde_json::Value> {
+        current(self.client, &self.store, self.generation, &self.cancel)?;
+        Ok(self.client.user())
+    }
+    /// Consume the original admitted Client lane after the trusted-account
+    /// check. The application retains its final PendingOutput persistence fence.
+    pub fn whoami_output(
+        self,
+        invocation: &crate::cli::Invocation,
+    ) -> std::result::Result<crate::cli::CliOutput, crate::cli::CliError> {
+        current(self.client, &self.store, self.generation, &self.cancel)?;
+        crate::cli::admitted_whoami_output(invocation, self.client.user())
+    }
+}
+
+/// Acknowledge precisely the revision that was saved, only after durable cache
+/// publication succeeds. Pairing admission cannot acknowledge an unsaved grant.
+/// Change-only: unchanged credentials and unchanged cache sections are not
+/// rewritten; content a partially restored client never loaded is retained.
+pub async fn persist(
+    client: &mut Client,
+    store: &RuntimeStore,
+    passphrase: Option<Zeroizing<String>>,
+) -> Result<()> {
+    if let Some(snapshot) = client.credential_snapshot() {
+        let session = snapshot.session;
+        let generation = store.generation_guard();
+        // Capacity refusal must precede credential replacement as well as cache
+        // publication. Reuse this exact snapshot; no additional history clone.
+        let deferred = store.sync_cache_deferred();
+        let cache = match deferred {
+            Some(_) => None,
+            None => Some(
+                store
+                    .prepare_sync_sections(client.ciphertext_snapshot(), client.partially_restored_chats())
+                    .await?,
+            ),
+        };
+        if !generation.is_current() { return Err(Error::Cancelled); }
+        store.save_if_changed(session.clone(), passphrase).await?;
+        if !generation.is_current() { return Err(Error::Cancelled); }
+        if let Some(cache) = cache {
+            store
+                .write_sync_sections(
+                    session.hashed_email.clone(),
+                    cache_key(&session),
+                    session.master_key.clone(),
+                    cache,
+                )
+                .await?;
+        } else if deferred == Some(true) {
+            store
+                .revoke_deferred_freshness(session.hashed_email.clone(), cache_key(&session))
+                .await?;
+        }
+        if !generation.is_current() { return Err(Error::Cancelled); }
+        client.acknowledge_credentials(snapshot.revision)?;
+    } else {
+        // A revocation response can clear the SDK credentials before an error
+        // returns. Never leave the previously persisted session restorable.
+        store.clear().await?;
+    }
+    Ok(())
+}
+
+/// Local revocation runs even if remote logout is unavailable. Store ordering
+/// fences earlier started writes, while SDK logout drops live key material.
+pub async fn logout(client: &mut Client, store: &RuntimeStore) -> Result<()> {
+    let (local, remote) = tokio::join!(store.clear(), client.logout());
+    local?;
+    remote
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn saved_chat_reads_load_only_their_chat_section() {
+        let id = "22222222-2222-4222-8222-222222222222";
+        let parse = |args: &[&str]| crate::cli::parse_from(args.iter().copied()).unwrap().invocation.unwrap();
+        assert_eq!(command_cache_load(&parse(&["openmates", "chats", "show", id, "--json"])), CacheLoad::Chat(id.into()));
+        assert_eq!(command_cache_load(&parse(&["openmates", "chats", "messages", id])), CacheLoad::Chat(id.into()));
+        // Short IDs resolve through the full cache, as before.
+        assert_eq!(command_cache_load(&parse(&["openmates", "chats", "show", "22222222"])), CacheLoad::Full);
+        assert_eq!(command_cache_load(&parse(&["openmates", "chats", "list"])), CacheLoad::Index);
+    }
+    #[test]
+    fn only_canonical_selected_reads_overlap_admission() {
+        let id = "22222222-2222-4222-8222-222222222222";
+        let parse = |args: &[&str]| crate::cli::parse_from(args.iter().copied()).unwrap().invocation.unwrap();
+        let overlapped = |args: &[&str]| overlapped_saved_read_chat(&parse(args)).map(str::to_owned);
+        assert_eq!(overlapped(&["openmates", "chats", "show", id, "--json"]), Some(id.into()));
+        assert_eq!(overlapped(&["openmates", "chats", "messages", id]), Some(id.into()));
+        // Short IDs, API-key commands and other commands keep the ordinary path.
+        assert_eq!(overlapped(&["openmates", "chats", "show", "22222222"]), None);
+        assert_eq!(overlapped(&["openmates", "chats", "show", id, "--api-key", "synthetic-key"]), None);
+        assert_eq!(overlapped(&["openmates", "chats", "list"]), None);
+    }
+    #[tokio::test]
+    async fn cleared_sdk_credentials_remove_durable_session_and_owner_cache() {
+        let mut builder = tempfile::Builder::new();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            builder.permissions(std::fs::Permissions::from_mode(0o700));
+        }
+        let directory = builder.tempdir().unwrap();
+        let store = RuntimeStore::new(Some(directory.path().to_path_buf()), true)
+            .await
+            .unwrap();
+        let session = Session {
+            api_url: "https://api.example.test".into(),
+            session_id: "synthetic-session".into(),
+            cookies: std::collections::BTreeMap::new(),
+            ws_token: None,
+            master_key: Zeroizing::new([7; 32]),
+            hashed_email: "synthetic-owner".into(),
+            user_email_salt: String::new(),
+            email_encryption_key: None,
+            created_at: 1,
+            paired_session_expires_at: None,
+            active_team_id: None,
+        };
+        let mut client = Client::new(&session.api_url.clone(), Some(session)).unwrap();
+        let secret = Some(Zeroizing::new("synthetic vault password".to_owned()));
+        persist(&mut client, &store, secret.clone()).await.unwrap();
+        assert!(directory.path().join("session.json").exists());
+        assert!(std::fs::read_dir(directory.path()).unwrap().any(|entry| {
+            entry
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .starts_with("cache-")
+        }));
+        client.take_session();
+        persist(&mut client, &store, secret).await.unwrap();
+        assert!(store.load(None).await.unwrap().is_none());
+        assert!(!directory.path().join("session.json").exists());
+        assert!(!std::fs::read_dir(directory.path()).unwrap().any(|entry| {
+            entry
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .starts_with("cache-")
+        }));
+    }
+}

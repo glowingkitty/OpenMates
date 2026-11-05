@@ -6,7 +6,7 @@ Implementation status: core profiles are admitted; unsupported profiles remain h
 
 ```mermaid
 flowchart LR
-  W[Preserved Codex worktree] --> U[Local focused unit tests]
+  W[Preserved session worktree] --> U[Local focused unit tests]
   W --> P[Publish private expiring patch + immutable identity]
   D[Daily scheduler: exact dev SHA] --> Q[Shared durable CI queue]
   P --> Q

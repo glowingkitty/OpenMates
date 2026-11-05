@@ -1,3 +1,4 @@
+from backend.core.api.app.utils.session_principal_consistency import OWNER_CONSISTENCY_CAPABILITIES
 import asyncio
 from fastapi import HTTPException, APIRouter, Depends, Request, Response, Cookie
 import logging
@@ -674,6 +675,7 @@ async def get_session(
             require_invite_code=require_invite_code,
             # SECURITY: Short-lived HMAC ws_token instead of the raw refresh_token.
             # Prevents XSS from stealing the full session token via the response body.
+            client_security_capabilities=list(OWNER_CONSISTENCY_CAPABILITIES),
             ws_token=create_ws_token(refresh_token) if refresh_token else None,
             session_device_info=session_device_info_data,
             session_meta_registered=session_meta_already_registered,

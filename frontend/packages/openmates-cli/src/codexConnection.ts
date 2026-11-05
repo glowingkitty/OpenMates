@@ -3,6 +3,8 @@
  * Uses the installed CLI to discover its already-running daemon, then reads
  * thread metadata over the supported Unix WebSocket control transport.
  * Never reads internal databases, starts a daemon, sends prompts or polls.
+ * Also owns caller/owner checks for Claude Code session links (`claude:<uuid>`),
+ * which are link-only: there is no Claude connection or resume path.
  * Architecture: docs/architecture/platforms/tasks-v1.md.
  */
 import { execFile, spawn } from "node:child_process";
@@ -24,6 +26,9 @@ export interface CodexThreadConnection {
 }
 
 export function codexResumeArguments(context: { provider: string; id: string }): string[] {
+  if (context.provider === "claude") {
+    throw new Error("This Task is linked to a Claude Code session. Tasks connect, connection and resume support Codex threads only; resume it in Claude Code with: claude --resume " + context.id);
+  }
   if (context.provider !== "codex") throw new Error("Codex connection requires the codex provider.");
   if (!THREAD_ID.test(context.id)) throw new Error("Codex connection requires a valid thread UUID.");
   return ["resume", context.id];
@@ -110,7 +115,7 @@ export function taskOwnerConflict(owner: { provider: string; id: string; title?:
   const title = JSON.stringify(owner.title || "Untitled chat");
   const location = owner.provider === "openmates"
     ? `OpenMates chat ID: ${owner.id}. View: openmates chats show ${owner.id}`
-    : `Codex chat ID: ${owner.id}`;
+    : owner.provider === "claude" ? `Claude Code session ID: ${owner.id}` : `Codex chat ID: ${owner.id}`;
   return `Task is already linked to ${title}. ${location}. Release that link before claiming the task in another chat.`;
 }
 
@@ -120,4 +125,24 @@ export function assertCodexClaimCaller(threadId: string, currentThread = process
   if (!currentThread || currentThread !== threadId) {
     throw new Error("Only the owning Codex chat can claim a Task. Run this command inside Codex chat ID: " + threadId + ". Ordinary CLI creation can omit --external-chat to leave the Task unlinked.");
   }
+}
+
+/** Claude Code exports its session UUID; only that session may link a Task to itself. */
+export function assertClaudeClaimCaller(sessionId: string, currentSession = process.env.CLAUDE_CODE_SESSION_ID): void {
+  if (!THREAD_ID.test(sessionId)) throw new Error("Claude Code external chat ids must be session UUIDs (CLAUDE_CODE_SESSION_ID).");
+  if (!currentSession || currentSession !== sessionId) {
+    throw new Error("Only the owning Claude Code session can claim a Task. Run this command inside Claude Code session ID: " + sessionId + " (CLAUDE_CODE_SESSION_ID). Ordinary CLI creation can omit --external-chat to leave the Task unlinked.");
+  }
+}
+
+/**
+ * The external chat that is actually running this CLI process, if any.
+ * Codex keeps precedence so existing Codex behavior is unchanged.
+ */
+export function currentExternalChatCaller(
+  environment: NodeJS.ProcessEnv = process.env,
+): { provider: "codex" | "claude"; id: string } | undefined {
+  if (environment.CODEX_THREAD_ID) return { provider: "codex", id: environment.CODEX_THREAD_ID };
+  if (environment.CLAUDE_CODE_SESSION_ID) return { provider: "claude", id: environment.CLAUDE_CODE_SESSION_ID };
+  return undefined;
 }

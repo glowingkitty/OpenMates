@@ -15,6 +15,12 @@ const uuid = (value) => { if (typeof value !== 'string' || !UUID.test(value)) in
 function fields(body, allowed, required = allowed) {
   if (Object.keys(body).some((key) => !allowed.includes(key)) || required.some((key) => !(key in body))) invalid();
 }
+// Clients may request a larger page than the default; the cap stays fixed server-side.
+function optionalLimit(value, fallback, max) {
+  if (value === undefined) return fallback;
+  if (!Number.isSafeInteger(value) || value < 2 || value > max) invalid();
+  return value;
+}
 function hashes(value, max) {
   if (!Array.isArray(value) || !value.length || value.length > max) invalid();
   const result = value.map(hash);
@@ -27,7 +33,8 @@ export async function readScopedEmbedPage(database, body) {
   let query;
   let limit;
   if (body.operation === 'embed_window') {
-    fields(body, ['operation', 'hashed_chat_id', 'before_created_at', 'before_id']);
+    fields(body, ['operation', 'hashed_chat_id', 'before_created_at', 'before_id', 'limit'],
+      ['operation', 'hashed_chat_id', 'before_created_at', 'before_id']);
     const chatHash = hash(body.hashed_chat_id);
     const id = uuid(body.before_id);
     const timestamp = body.before_created_at;
@@ -38,11 +45,30 @@ export async function readScopedEmbedPage(database, body) {
           this.where('created_at', timestamp).andWhere('id', '<', id);
         });
       }).orderBy('created_at', 'desc').orderBy('id', 'desc');
-    limit = 31;
-  } else if (body.operation === 'embed_key_window') {
-    fields(body, ['operation', 'hashed_chat_id', 'hashed_user_id', 'hashed_embed_ids', 'include_master_keys', 'after_id']);
+    limit = optionalLimit(body.limit, 31, 101);
+  } else if (body.operation === 'embed_changes') {
+    // Ascending (updated_at, embed_id) delta page for cache-first clients. SQL
+    // NULL comparisons exclude legacy rows without updated_at.
+    fields(body, ['operation', 'hashed_chat_id', 'after_updated_at', 'after_embed_id', 'limit']);
     const chatHash = hash(body.hashed_chat_id);
-    const selected = hashes(body.hashed_embed_ids, 30);
+    const timestamp = body.after_updated_at;
+    if (!Number.isSafeInteger(timestamp) || timestamp < 0 || timestamp > 2_147_483_647) invalid();
+    const after = body.after_embed_id;
+    if (after !== null && (typeof after !== 'string' || !after || after.length > 128)) invalid();
+    if (!Number.isSafeInteger(body.limit) || body.limit < 1 || body.limit > 101) invalid();
+    query = database('embeds').select(EMBED_FIELDS).where('hashed_chat_id', chatHash)
+      .andWhere(function () {
+        this.where('updated_at', '>', timestamp);
+        if (after !== null) {
+          this.orWhere(function () { this.where('updated_at', timestamp).andWhere('embed_id', '>', after); });
+        }
+      }).orderBy('updated_at', 'asc').orderBy('embed_id', 'asc');
+    limit = body.limit;
+  } else if (body.operation === 'embed_key_window') {
+    fields(body, ['operation', 'hashed_chat_id', 'hashed_user_id', 'hashed_embed_ids', 'include_master_keys', 'after_id', 'limit'],
+      ['operation', 'hashed_chat_id', 'hashed_user_id', 'hashed_embed_ids', 'include_master_keys', 'after_id']);
+    const chatHash = hash(body.hashed_chat_id);
+    const selected = hashes(body.hashed_embed_ids, 100);
     const after = uuid(body.after_id);
     if (typeof body.include_master_keys !== 'boolean') invalid();
     const owner = body.include_master_keys ? hash(body.hashed_user_id) : null;
@@ -52,7 +78,7 @@ export async function readScopedEmbedPage(database, body) {
         this.where(function () { this.where('key_type', 'chat').andWhere('hashed_chat_id', chatHash); });
         if (owner) this.orWhere(function () { this.where('key_type', 'master').andWhere('hashed_user_id', owner); });
       }).andWhere('id', '>', after).orderBy('id', 'asc');
-    limit = 61;
+    limit = optionalLimit(body.limit, 61, 201);
   } else if (body.operation === 'complete_embeds' || body.operation === 'complete_embed_keys') {
     const keys = body.operation === 'complete_embed_keys';
     const chatScope = 'hashed_chat_id' in body;

@@ -1,0 +1,11 @@
+OpenMates CLI/TUI and Rust SDK (crate `openmates`)
+Copyright OpenMates contributors.
+
+This crate is MIT licensed, matching the npm `openmates` and PyPI `openmates`
+packages; see LICENSE (copied from frontend/packages/openmates-cli/LICENSE).
+The OpenMates server and web app remain AGPL-3.0-only (repository root LICENSE).
+
+The self-host Compose, monitoring and Caddy template data copied from
+frontend/packages/openmates-cli/templates retains its original MIT attribution
+and license, reproduced verbatim in assets/licenses/legacy-cli-MIT.txt.
+assets/manifest.json records the exact canonical sources and content hashes.

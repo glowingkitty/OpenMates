@@ -1,0 +1,88 @@
+{
+  "description": "Actual Node JSON.parse of unchanged original wire strings, JSON.stringify and extracted original TypeScript ordinary formatter; CLI presentation only, canonical Core values remain exact.",
+  "cases": [
+    {
+      "id": "root-safe-integer",
+      "wire_body": "9007199254740991",
+      "root_keys": [],
+      "ordinary": "9007199254740991\n",
+      "json": "9007199254740991\n"
+    },
+    {
+      "id": "root-unsafe-positive",
+      "wire_body": "9007199254740993",
+      "root_keys": [],
+      "ordinary": "9007199254740992\n",
+      "json": "9007199254740992\n"
+    },
+    {
+      "id": "root-unsafe-negative",
+      "wire_body": "-9007199254740993",
+      "root_keys": [],
+      "ordinary": "-9007199254740992\n",
+      "json": "-9007199254740992\n"
+    },
+    {
+      "id": "root-unsafe-upward",
+      "wire_body": "9007199254740995",
+      "root_keys": [],
+      "ordinary": "9007199254740996\n",
+      "json": "9007199254740996\n"
+    },
+    {
+      "id": "root-u64-max",
+      "wire_body": "18446744073709551615",
+      "root_keys": [],
+      "ordinary": "18446744073709552000\n",
+      "json": "18446744073709552000\n"
+    },
+    {
+      "id": "root-i64-min",
+      "wire_body": "-9223372036854775808",
+      "root_keys": [],
+      "ordinary": "-9223372036854776000\n",
+      "json": "-9223372036854776000\n"
+    },
+    {
+      "id": "nested-root-order",
+      "wire_body": "{\"z\":9007199254740993,\"a\":{\"n\":-9007199254740993,\"p\":[9007199254740995,18446744073709551615]},\"future_field\":\"opaque-kept\"}",
+      "root_keys": [
+        "z",
+        "a",
+        "future_field"
+      ],
+      "ordinary": "  \u001b[2mz                   \u001b[0m 9007199254740992\n  \u001b[1ma\u001b[0m\n    \u001b[2mn                   \u001b[0m -9007199254740992\n    \u001b[2mp                   \u001b[0m 9007199254740996, 18446744073709552000\n  \u001b[2mfuture_field        \u001b[0m opaque-kept\n",
+      "json": "{\n  \"z\": 9007199254740992,\n  \"a\": {\n    \"n\": -9007199254740992,\n    \"p\": [\n      9007199254740996,\n      18446744073709552000\n    ]\n  },\n  \"future_field\": \"opaque-kept\"\n}\n"
+    },
+    {
+      "id": "root-array",
+      "wire_body": "[9007199254740993,-9007199254740993,{\"n\":18446744073709551615}]",
+      "root_keys": [],
+      "ordinary": "9007199254740992\n-9007199254740992\n  \u001b[2mn                   \u001b[0m 18446744073709552000\n",
+      "json": "[\n  9007199254740992,\n  -9007199254740992,\n  {\n    \"n\": 18446744073709552000\n  }\n]\n"
+    },
+    {
+      "id": "billing-unknown-structured",
+      "wire_body": "{\"payment_tier\":\"free\",\"invoices\":[],\"unknown\":{\"n\":9007199254740993,\"x\":[18446744073709551615,-9223372036854775808]}}",
+      "root_keys": [
+        "payment_tier",
+        "invoices",
+        "unknown"
+      ],
+      "ordinary": "\u001b[1mBilling\n\u001b[0m\n  \u001b[2mPayment tier    \u001b[0m free\n  \u001b[2munknown         \u001b[0m {\"n\":9007199254740992,\"x\":[18446744073709552000,-9223372036854776000]}\n",
+      "json": "{\n  \"payment_tier\": \"free\",\n  \"invoices\": [],\n  \"unknown\": {\n    \"n\": 9007199254740992,\n    \"x\": [\n      18446744073709552000,\n      -9223372036854776000\n    ]\n  }\n}\n"
+    },
+    {
+      "id": "number-display-thresholds",
+      "wire_body": "{\"tiny\":0.0000001,\"fixed\":0.000001,\"large\":1e21,\"small\":-0}",
+      "root_keys": [
+        "tiny",
+        "fixed",
+        "large",
+        "small"
+      ],
+      "ordinary": "  \u001b[2mtiny                \u001b[0m 1e-7\n  \u001b[2mfixed               \u001b[0m 0.000001\n  \u001b[2mlarge               \u001b[0m 1e+21\n  \u001b[2msmall               \u001b[0m 0\n",
+      "json": "{\n  \"tiny\": 1e-7,\n  \"fixed\": 0.000001,\n  \"large\": 1e+21,\n  \"small\": 0\n}\n"
+    }
+  ]
+}

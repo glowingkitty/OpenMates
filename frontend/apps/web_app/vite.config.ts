@@ -3,9 +3,20 @@ import { defineConfig } from 'vite';
 import path from 'path';
 import { docsPlugin } from './scripts/vite-plugin-docs.js';
 import { piiRuntimePlugin } from './scripts/prepare-pii-runtime.mjs';
+import { rustCoreAssetsPlugin } from './scripts/vite-plugin-rust-core.mjs';
+
+// Opt-in shared Rust core (WASM) for the web app. Build-time only: when unset the
+// constant below folds to '' and every `=== '1'` guard plus its dynamic import is
+// removed from the bundle, so default builds are unchanged.
+const rustCoreEnabled = process.env.VITE_OPENMATES_RUST_CORE === '1';
 
 export default defineConfig({
-	plugins: [sveltekit(), docsPlugin(), piiRuntimePlugin()],
+	plugins: [rustCoreAssetsPlugin(), sveltekit(), docsPlugin(), piiRuntimePlugin()],
+	worker: {
+		// The Rust core Worker lazy-loads its WASM binding, which needs ES module workers.
+		...(rustCoreEnabled ? { format: 'es' as const } : {}),
+		plugins: () => [rustCoreAssetsPlugin()]
+	},
 	ssr: {
 		// This workspace package ships TS sources with .js specifiers; Vite must resolve them before Node runs SSR.
 		noExternal: ['@repo/upload-privacy']
@@ -140,6 +151,7 @@ export default defineConfig({
 	},
 	define: {
 		// Define global variables to help with Svelte 5 build issues
-		'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production')
+		'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
+		'import.meta.env.VITE_OPENMATES_RUST_CORE': JSON.stringify(rustCoreEnabled ? '1' : '')
 	}
 });

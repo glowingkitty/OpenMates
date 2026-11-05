@@ -1,5 +1,5 @@
 /** Real inference/provider acceptance. Deliberately held out of isolated CI. */
-import { test, expect, type Browser, type BrowserContext, type Page, type TestInfo } from '@playwright/test';
+import { test, expect, chromium, type Browser, type BrowserContext, type Page, type TestInfo } from '@playwright/test';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import fs from 'node:fs';
@@ -15,10 +15,18 @@ const LOGIN = 'https://the-internet.herokuapp.com/login';
 const ORIGIN = new URL(LOGIN).origin;
 const execute = promisify(execFile);
 const stateDir = process.env.OPENMATES_STATE_DIR || '';
-const authFile = path.join(stateDir, 'browse-web-auth.json');
+const browserProfile = path.join(stateDir, 'browse-web-profile');
 const project = process.env.WEB_BROWSE_TEST_PROJECT || '';
 test.describe.configure({ mode: 'serial', retries: 0, timeout: 420_000 });
 test.skip(!enabled, 'Requires explicit dev-only real-inference execution and a shared runtime lease.');
+
+async function guardDevApi(ctx: BrowserContext) {
+  await ctx.route('**/v1/**', route => {
+    const host = new URL(route.request().url()).hostname;
+    return host.startsWith('api.') && host.endsWith('.openmates.org') && host !== 'api.dev.openmates.org'
+      ? route.abort('blockedbyclient') : route.continue();
+  });
+}
 
 async function cli(args: string[]) {
   const result = await execute('openmates', args, { timeout: 240_000, maxBuffer: 12 * 1024 * 1024,
@@ -39,21 +47,40 @@ function preview(page: Page) {
 async function screenshot(page: Page, info: TestInfo, name: string) {
   await page.screenshot({ path: info.outputPath(`${name}.png`) });
 }
-async function context(browser: Browser, info: TestInfo, width: number) {
-  return browser.newContext({ baseURL: APP, storageState: authFile,
+async function context(_browser: Browser, info: TestInfo, width: number) {
+  // A real Chrome profile preserves native IndexedDB CryptoKey objects. JSON
+  // storage snapshots cannot round-trip the authenticated encryption boundary.
+  const ctx = await chromium.launchPersistentContext(browserProfile, { headless: true, baseURL: APP,
     viewport: { width, height: width < 600 ? 844 : 1000 },
     recordVideo: { dir: info.outputPath('recordings'), size: { width, height: width < 600 ? 844 : 1000 } } });
+  ctx.setDefaultTimeout(20_000);
+  ctx.setDefaultNavigationTimeout(45_000);
+  await guardDevApi(ctx);
+  return ctx;
 }
-async function openSession(page: Page, chatId: string) {
+async function expandActivities(page: Page) {
+  await expect(page.getByTestId('assistant-activity-toggle').first()).toBeVisible({ timeout: 90_000 });
+  for (const toggle of await page.getByTestId('assistant-activity-toggle').all()) {
+    if (await toggle.getAttribute('aria-expanded') === 'false') await toggle.click();
+  }
+}
+async function openSession(page: Page, chatId: string, admitted: (sessionId: string) => void, completed = false) {
   await page.goto(`/#chat-id=${chatId}`);
-  await expect(preview(page).last()).toHaveAttribute('data-status', 'finished', { timeout: 90_000 });
-  const embedId = await preview(page).last().getAttribute('data-embed-id');
+  await expandActivities(page);
+  // Grouped cards display newest first, so DOM-last is the original run.
+  const card = completed ? preview(page).filter({ has: page.getByText('Completed', { exact: true }) }) : preview(page).last();
+  await expect(card).toHaveAttribute('data-status', 'finished', { timeout: 90_000 });
+  const embedId = await card.getAttribute('data-embed-id');
   expect(embedId).toBeTruthy();
-  const response = page.waitForResponse(r => new URL(r.url()).pathname.match(/^\/v1\/apps\/web\/browse\/[a-f0-9-]{36}$/) !== null && r.status() === 200);
+  const response = page.waitForResponse(r => new URL(r.url()).pathname.match(/^\/v1\/apps\/web\/browse\/[a-f0-9-]{36}$/) !== null && r.status() === 200,
+    { timeout: 20_000 }).catch(() => null);
   const started = Date.now();
-  await preview(page).last().click();
-  const session = await (await response).json();
+  await card.click();
+  const reply = await response;
+  expect(reply, 'The owner fullscreen must request its authenticated browser session').not.toBeNull();
+  const session = await reply!.json();
   expect(session.chat_id).toBe(chatId);
+  admitted(session.session_id);
   await expect(page.getByAltText('Live browser', { exact: true })).toBeVisible({ timeout: 60_000 });
   return { session, embedId: embedId!, viewerOpenToFrameMs: Date.now() - started };
 }
@@ -77,22 +104,38 @@ async function cleanup(ctx: BrowserContext, chatId: string, sessionId: string | 
   expect([200, 410]).toContain(closed.status());
 }
 async function saveVideo(page: Page, ctx: BrowserContext, info: TestInfo) {
-  const video = page.video();
-  await ctx.close();
-  if (video) await video.saveAs(info.outputPath('video.webm'));
+  // Persistent-context close also closes its browser connection, so obtain the
+  // local path first and copy the completed file without a later protocol call.
+  let recording: string | undefined;
+  try { recording = await page.video()?.path(); }
+  catch { info.annotations.push({ type: 'video_capture_failure', description: 'Recording path unavailable' }); }
+  try { await ctx.close(); }
+  catch { info.annotations.push({ type: 'video_capture_failure', description: 'Browser close failed' }); }
+  if (recording) {
+    try {
+      const target = info.outputPath('video.webm');
+      fs.copyFileSync(recording, target);
+      await info.attach('Browse real browser recording', { path: target, contentType: 'video/webm' });
+    } catch { info.annotations.push({ type: 'video_capture_failure', description: 'Recording copy unavailable' }); }
+  }
 }
 function receipt(info: TestInfo, data: Record<string, unknown>) {
   fs.writeFileSync(info.outputPath('browse-runtime.json'), JSON.stringify({ target: APP, automaticRouting: true, ...data }, null, 2), { mode: 0o600 });
 }
 
-test.beforeAll(async ({ browser }) => {
+test.beforeAll(async () => {
+  // Authentication, a fresh native-key profile and saved-owner preflight are
+  // separate bounded operations; together they can exceed the default 30s hook.
+  test.setTimeout(180_000);
   expect(process.env.OPENMATES_CI_ISOLATED).not.toBe('1');
   expect(process.env.PLAYWRIGHT_TEST_BASE_URL).toBe(APP);
   expect(stateDir.startsWith('/tmp/openmates-browse-')).toBe(true);
   expect(project).toMatch(/^[a-f0-9-]{36}$/);
   for (const key of ['OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL', 'OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD', 'OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY']) expect(process.env[key]).toBeTruthy();
   // No recordings or traces of personal-account authentication or its storage.
-  const ctx = await browser.newContext({ baseURL: APP, viewport: { width: 1280, height: 1000 } });
+  fs.mkdirSync(browserProfile, { recursive: true, mode: 0o700 });
+  const ctx = await chromium.launchPersistentContext(browserProfile, { headless: true, baseURL: APP, viewport: { width: 1280, height: 1000 } });
+  await guardDevApi(ctx);
   try {
     const page = await ctx.newPage();
     await loginToTestAccount(page, () => {}, async () => {}, { credentials: {
@@ -100,20 +143,57 @@ test.beforeAll(async ({ browser }) => {
       password: process.env.OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD,
       otpKey: process.env.OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY,
     } });
-    await ctx.storageState({ path: authFile, indexedDB: true });
-    fs.chmodSync(authFile, 0o600);
   } finally { await ctx.close(); }
+  const restored = await chromium.launchPersistentContext(browserProfile, { headless: true, baseURL: APP });
+  await guardDevApi(restored);
+  try {
+    const page = restored.pages()[0] || await restored.newPage(); await page.goto('/');
+    // Verify only the native key type, never key bytes or stored values. Do
+    // this before spending on another real inference request.
+    await expect.poll(() => page.evaluate(async () => {
+      const databases = await indexedDB.databases();
+      if (!databases.some(db => db.name === 'openmates_crypto')) return false;
+      return new Promise<boolean>(resolve => {
+        const opened = indexedDB.open('openmates_crypto');
+        opened.onerror = () => resolve(false);
+        opened.onsuccess = () => {
+          const db = opened.result;
+          if (!db.objectStoreNames.contains('keys')) { db.close(); resolve(false); return; }
+          const read = db.transaction('keys', 'readonly').objectStore('keys').get('master_key');
+          read.onerror = () => { db.close(); resolve(false); };
+          read.onsuccess = () => { const native = read.result instanceof CryptoKey; db.close(); resolve(native); };
+        };
+      });
+    }), { timeout: 20_000, message: 'The private browser profile must preserve its native master CryptoKey' }).toBe(true);
+    const probeChat = process.env.WEB_BROWSE_PROFILE_PROBE_CHAT;
+    if (probeChat) {
+      expect(probeChat).toMatch(/^[a-f0-9-]{36}$/);
+      await page.goto(`/#chat-id=${probeChat}`);
+      await expect(page.getByText('Use the Browse skill to open', { exact: false }).first()).toBeVisible({ timeout: 60_000 });
+      await expandActivities(page);
+      await expect(preview(page).last()).toBeVisible({ timeout: 30_000 });
+      // Qualify cookie-authenticated CORS with existing saved history before
+      // spending on another real browser task. A closed owner session is 410.
+      const state = page.waitForResponse(r => new URL(r.url()).pathname.match(/^\/v1\/apps\/web\/browse\/[a-f0-9-]{36}$/) !== null,
+        { timeout: 20_000 }).catch(() => null);
+      await preview(page).last().click();
+      await expect(page.getByTestId('browse-session-viewer')).toBeVisible();
+      const reply = await state;
+      expect(reply, 'Owner session CORS must work before paid inference').not.toBeNull();
+      expect([200, 410]).toContain(reply!.status());
+    }
+  } finally { await restored.close(); }
 });
-test.afterAll(() => { if (enabled && stateDir.startsWith('/tmp/openmates-browse-')) fs.rmSync(authFile, { force: true }); });
+test.afterAll(() => { if (enabled && stateDir.startsWith('/tmp/openmates-browse-')) fs.rmSync(browserProfile, { recursive: true, force: true }); });
 
 // contract-test: direct surface=gui.web assertions=web-browse.structured-data,web-browse.embed-and-observation,web-browse.lifecycle,web-browse.private-storage-and-api
 test('real Browse JSON, watch, pause/resume and closed saved history on laptop and phone', async ({ browser }, info) => {
   const created = await createChat('Use the Browse skill to open https://httpbin.org/html and return the exact main heading and source URL as JSON. Use the browser session for this task.');
   receipt(info, { ...created, phase: 'chat-created' });
   let sid: string | undefined;
-  const ctx = await context(browser, info, 1280), page = await ctx.newPage();
+  const ctx = await context(browser, info, 1280), page = ctx.pages()[0] || await ctx.newPage();
   try {
-    const opened = await openSession(page, created.chatId); sid = opened.session.session_id;
+    const opened = await openSession(page, created.chatId, id => { sid = id; });
     receipt(info, { ...created, sessionId: sid, phase: 'viewer-opened' });
     await expect(page.getByTestId('browse-session-viewer')).toContainText('You are watching');
     await page.getByText('Structured data', { exact: true }).click();
@@ -129,6 +209,7 @@ test('real Browse JSON, watch, pause/resume and closed saved history on laptop a
     await screenshot(page, info, 'closed-laptop');
     await page.setViewportSize({ width: 390, height: 844 });
     await page.reload();
+    await expandActivities(page);
     await preview(page).last().click();
     await expect(page.getByTestId('browse-session-viewer')).toContainText('Session expired');
     await expect(page.getByRole('button', { name: 'Take control', exact: true })).toHaveCount(0);
@@ -161,10 +242,10 @@ for (const width of [1280, 390]) {
   test(`real Browse manual demo sign-in and same-session AI continuation at ${width}px`, async ({ browser }, info) => {
     const created = await createChat(`Use Browse to open ${LOGIN}. Stop and let me take control to sign in manually. After I let AI continue, read the heading of the signed-in page and return it with its source URL as JSON. Never enter credentials yourself.`);
     receipt(info, { ...created, phase: 'chat-created' });
-    const ctx = await context(browser, info, width), page = await ctx.newPage();
+    const ctx = await context(browser, info, width), page = ctx.pages()[0] || await ctx.newPage();
     let sid: string | undefined;
     try {
-      const opened = await openSession(page, created.chatId); sid = opened.session.session_id;
+      const opened = await openSession(page, created.chatId, id => { sid = id; });
       receipt(info, { ...created, sessionId: sid, phase: 'viewer-opened' });
       const points = await loginGeometry(browser);
       await page.getByRole('button', { name: 'Take control', exact: true }).click();
@@ -191,7 +272,9 @@ for (const width of [1280, 390]) {
         }
       };
       const click = (point: { x: number; y: number }) => async () => {
-        const frame = page.getByTestId('browse-frame'), rect = await frame.boundingBox(); expect(rect).toBeTruthy();
+        const frame = page.getByRole('button', { name: 'Live browser', exact: true });
+        await expect(frame).toBeEnabled();
+        const rect = await frame.boundingBox(); expect(rect).toBeTruthy();
         await frame.click({ position: { x: point.x * rect!.width / 1280, y: point.y * rect!.height / 800 } });
       };
       const type = (value: string) => async () => {
@@ -205,9 +288,13 @@ for (const width of [1280, 390]) {
       await screenshot(page, info, `manual-login-${width}`);
       await page.getByRole('button', { name: 'Let AI continue', exact: true }).click();
       await expect(page.getByTestId('browse-fullscreen')).toHaveCount(0);
-      await expect(preview(page)).toHaveCount(2, { timeout: 120_000 });
-      await expect(preview(page).last()).toHaveAttribute('data-status', 'finished', { timeout: 120_000 });
-      const completed = await openSession(page, created.chatId);
+      await expect.poll(async () => {
+        await expandActivities(page);
+        // The continuation message can also reference the original embed.
+        // Select the new terminal outcome independently of those references.
+        return await preview(page).filter({ has: page.getByText('Completed', { exact: true }) }).count();
+      }, { timeout: 120_000 }).toBe(1);
+      const completed = await openSession(page, created.chatId, id => { sid = id; }, true);
       expect(completed.session.session_id).toBe(sid);
       expect(completed.session.max_credits).toBe(opened.session.max_credits);
       await page.getByText('Structured data', { exact: true }).click();

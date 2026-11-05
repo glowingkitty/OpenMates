@@ -1,10 +1,10 @@
 ---
-description: Backend coding standards for Python, FastAPI, and Docker
-globs:
+paths:
   - "backend/**/*.py"
+  - "backend/**/Dockerfile*"
+  - "backend/**/*.yml"
 ---
-
-@docs/contributing/standards/backend.md
+Before non-trivial backend changes read `docs/contributing/standards/backend.md`.
 
 ## Additional Backend Rules
 

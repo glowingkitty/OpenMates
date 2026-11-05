@@ -7,7 +7,9 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from backend.core.api.app.services.email_delivery_guard import RETRY_WINDOW_SECONDS, send_email_once
+from backend.core.api.app.services.email_delivery_guard import (
+    RETRY_WINDOW_SECONDS, build_delivery_id, build_delivery_key, send_email_once,
+)
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.tasks.email_tasks.ai_response_notification_email_task import initialize_notification_email_services
@@ -15,6 +17,7 @@ from backend.core.api.app.services.notification_email_preferences import (
     load_notification_user,
     notification_category_enabled,
     preview_enabled,
+    workflow_identity_enabled,
     resolve_notification_email,
 )
 from backend.core.api.app.services.workflow_digest_service import (
@@ -44,6 +47,20 @@ async def send_user_workflow_digest(
     cutoff_epoch = int(cutoff_utc.timestamp())
     if require_current_cutoff and not _is_current_digest_cutoff(cutoff_epoch):
         return "expired_digest"
+    # Recovery sweeps should not re-aggregate a user/window already delivered.
+    # Every other ledger state still flows through the authoritative guard:
+    # failed retries may be permitted, and uncertain SMTP must never replay.
+    delivery_id = build_delivery_id(build_delivery_key(
+        email_type="daily_notification", campaign_key="workflowRuns",
+        recipient_kind="directus_user", recipient_id=user_id,
+        stage=cutoff_utc.astimezone(timezone.utc).date().isoformat(),
+    ))
+    existing = await task.directus_service.get_items(
+        "email_deliveries", params={"fields": "id,status", "filter": {"id": {"_eq": delivery_id}}, "limit": 1},
+        admin_required=True, no_cache=True, raise_on_error=True,
+    )
+    if any(isinstance(row, dict) and row.get("id") == delivery_id and row.get("status") == "sent" for row in existing or []):
+        return "already_reserved"
     digest = await collect_workflow_digest(task.directus_service, user_id, cutoff_utc)
     if digest is None:
         return "empty"
@@ -52,7 +69,7 @@ async def send_user_workflow_digest(
     if not user or user.get("status") != "active" or not notification_category_enabled(user, "workflowRuns"):
         return "disabled"
     rows = [dict(row) for row in digest["rows"]]
-    if preview_enabled(user):
+    if workflow_identity_enabled(user):
         try:
             titles = await load_workflow_title_previews(
                 task.directus_service, task.encryption_service, user_id=user_id,
@@ -63,10 +80,11 @@ async def send_user_workflow_digest(
                     row["title"] = titles[row["workflow_id"]]
         except Exception:
             logger.warning("Workflow digest title preview unavailable for user %s", user_id[:8])
+    if preview_enabled(user):
         try:
             messages = await load_workflow_message_previews(
                 task.directus_service, task.encryption_service, user_id=user_id,
-                vault_key_id=user.get("vault_key_id"), rows=rows,
+                vault_key_id=user.get("vault_key_id"), rows=rows, window_end=digest["window_end"],
             )
             for row in rows:
                 if row["run_id"] in messages:
@@ -81,15 +99,17 @@ async def send_user_workflow_digest(
     latest_user = await load_notification_user(task.directus_service, user_id)
     if not latest_user or latest_user.get("status") != "active" or not notification_category_enabled(latest_user, "workflowRuns"):
         return "disabled"
-    if not preview_enabled(latest_user):
-        for row in rows:
+    for row in rows:
+        if not workflow_identity_enabled(latest_user):
             row.pop("title", None)
+        if not preview_enabled(latest_user):
             row.pop("output_preview", None)
     email = await resolve_notification_email(task.directus_service, task.encryption_service, latest_user)
     if not email:
         return "unavailable"
 
     for row in rows:
+        row["activity_time"] = _utc_time(row["activity_at"])
         row["accepted_time"] = _utc_time(row["accepted_at"])
         row["started_time"] = _utc_time(row["started_at"])
         row["finished_time"] = _utc_time(row["finished_at"])
@@ -98,6 +118,9 @@ async def send_user_workflow_digest(
         "window_start": _utc_time(digest["window_start"]),
         "window_end": _utc_time(digest["window_end"]),
         "run_count": digest["run_count"],
+        "workflow_count": digest["workflow_count"],
+        "notification_icon_url": f"{get_frontend_base_url()}/images/email/reminder-notification.png",
+        "workflows_url": f"{get_frontend_base_url()}/#workflows",
         "status_counts": digest["status_counts"],
         "delivery_pending_count": digest["delivery_pending_count"],
         "delivery_acknowledged_count": digest["delivery_acknowledged_count"],
@@ -120,9 +143,10 @@ async def send_user_workflow_digest(
         current_email = await resolve_notification_email(task.directus_service, task.encryption_service, current)
         if not current_email or current_email.casefold() != email.casefold():
             return False
-        if not preview_enabled(current):
-            for row in context["rows"]:
+        for row in context["rows"]:
+            if not workflow_identity_enabled(current):
                 row.pop("title", None)
+            if not preview_enabled(current):
                 row.pop("output_preview", None)
         # The consent and verified-address reads can themselves cross 09:00 UTC.
         return not require_current_cutoff or _is_current_digest_cutoff(cutoff_epoch)

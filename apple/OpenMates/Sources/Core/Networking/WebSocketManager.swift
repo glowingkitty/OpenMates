@@ -1,3 +1,5 @@
+// Specification: specifications/features/notifications/specification.yml
+// Assertions: notifications.workflow-run.chat-target
 // Specification: specifications/features/chat-queued-followups/specification.yml
 // Assertions: chat-queued-followups.access.scoped, chat-queued-followups.editing.stable-revision
 // Specification: specifications/features/message-input/specification.yml
@@ -1059,7 +1061,11 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             )
 
         // Chat updates
-        case "new_chat_message", "chat_message_added", "chat_message_confirmed",
+        case "workflow_chat_delivery_claimed", "workflow_chat_delivery_persisted", "workflow_chat_delivery_acknowledged":
+            // The fenced delivery owner's matching sendAndWait waiter above
+            // consumes these receipts; do not forward claim plaintext to UI.
+            break
+        case "workflow_chat_deliveries_available", "new_chat_message", "chat_message_added", "chat_message_confirmed",
               "encrypted_chat_metadata", "chat_update", "new_message", "message_update",
               "chat_draft_updated", "draft_update_receipt", "draft_deleted", "draft_delete_receipt",
               "draft_versions_response", "draft_conflict", "chat_details",

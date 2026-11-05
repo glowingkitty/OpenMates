@@ -36,6 +36,16 @@ interface StartOptions {
   onTranscript?: (transcript: string) => void;
   onStatus?: (status: 'connecting' | 'listening' | 'correcting' | 'failed') => void;
   correctionContext?: 'workflow';
+  /** Free, server-capped Report Issue dictation (signed-in users only). */
+  purpose?: 'report_issue';
+}
+
+/** A Report Issue dictation limit (`recording_limit`, `daily_limit`) was reached. */
+export class ReportDictationLimitError extends Error {
+  constructor(readonly code: string, message: string) {
+    super(message);
+    this.name = 'ReportDictationLimitError';
+  }
 }
 
 export class AnonymousTranscriptionUsageError extends Error {
@@ -45,7 +55,8 @@ export class AnonymousTranscriptionUsageError extends Error {
   }
 }
 
-function websocketUrl(token: string | null, correctionContext?: 'workflow', anonymousId?: string): string {
+function websocketUrl(token: string | null, correctionContext?: 'workflow', anonymousId?: string,
+  purpose?: 'report_issue'): string {
   const url = new URL(
     getApiUrl().replace(/^http/, 'ws') + '/v1/apps/audio/realtime-transcription',
   );
@@ -53,6 +64,7 @@ function websocketUrl(token: string | null, correctionContext?: 'workflow', anon
   if (token) url.searchParams.set('token', token);
   if (anonymousId) url.searchParams.set('anonymous_id', anonymousId);
   else if (correctionContext) url.searchParams.set('correction_context', correctionContext);
+  if (purpose && !anonymousId) url.searchParams.set('purpose', purpose);
   return url.toString();
 }
 
@@ -184,7 +196,8 @@ export function startAudioRealtimeTranscription(
       settledCorrection = true;
       rejectCorrection(error);
     }
-    if (socket?.readyState === WebSocket.OPEN) socket.close(1011, 'realtime failed');
+    // Browsers reject server-only close codes such as 1011 with InvalidAccessError.
+    if (socket?.readyState === WebSocket.OPEN) socket.close(1000, 'realtime failed');
   };
 
   const attachSocketHandlers = (activeSocket: WebSocket) => {
@@ -268,7 +281,9 @@ export function startAudioRealtimeTranscription(
           fail(options.anonymous && typeof message.code === 'string'
             ? new AnonymousTranscriptionUsageError(message.code, message.signup_required === true,
               String(message.message || 'Realtime transcription failed'))
-            : String(message.message || 'Realtime transcription failed'));
+            : options.purpose === 'report_issue' && typeof message.code === 'string'
+              ? new ReportDictationLimitError(message.code, String(message.message || 'Report dictation unavailable'))
+              : String(message.message || 'Realtime transcription failed'));
           break;
       }
     };
@@ -302,7 +317,7 @@ export function startAudioRealtimeTranscription(
   const openSocket = (token: string | null) => {
     if (cancelled) return;
     const activeSocket = new WebSocket(websocketUrl(token, options.correctionContext,
-      options.anonymous ? getAnonymousClientId() : undefined));
+      options.anonymous ? getAnonymousClientId() : undefined, options.purpose));
     socket = activeSocket;
     attachSocketHandlers(activeSocket);
   };
@@ -341,7 +356,7 @@ export function startAudioRealtimeTranscription(
       } else {
         cancelled = true;
         fail('Realtime transcription did not become ready in time');
-        socket?.close(1011, 'audio queue full');
+        socket?.close(1000, 'audio queue full');
       }
     };
     if (context.state === 'suspended') void context.resume();

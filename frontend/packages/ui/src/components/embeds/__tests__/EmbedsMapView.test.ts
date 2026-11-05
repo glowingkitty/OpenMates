@@ -105,6 +105,7 @@ describe("EmbedsMapView", () => {
         "event-one-111111": "event-one-id",
         "event-two-222222": "event-two-id",
         "event-online-333333": "event-online-id",
+        "event-null-island-444444": "event-null-island-id",
         "place-two-222222": "place-two-id",
         "train-one-111111": "train-one-id",
         "train-two-222222": "train-two-id",
@@ -153,6 +154,16 @@ describe("EmbedsMapView", () => {
           type: "events-event",
           status: "finished",
           content: "event-two-content",
+          createdAt: 1,
+          updatedAt: 1,
+        };
+      }
+      if (embedId === "event-null-island-id") {
+        return {
+          embed_id: embedId,
+          type: "events-event",
+          status: "finished",
+          content: "event-null-island-content",
           createdAt: 1,
           updatedAt: 1,
         };
@@ -236,6 +247,16 @@ describe("EmbedsMapView", () => {
           venue_lat: 52.5004,
           venue_lon: 13.4252,
           venue: { address: "Berlin" },
+        };
+      }
+      if (content === "event-null-island-content") {
+        return {
+          app_id: "events",
+          skill_id: "event",
+          title: "Conference without geocoded venue",
+          venue_name: "Unknown hall",
+          venue_lat: 0,
+          venue_lon: 0,
         };
       }
       if (content === "event-online-content") {
@@ -731,6 +752,23 @@ describe("EmbedsMapView", () => {
     await tick();
     expect(target.querySelector('[data-testid="embeds-results-view-calendar"]')?.textContent).toContain('Global AI Livestream');
     expect(target.querySelectorAll('[data-testid="embeds-results-view-calendar-item"]')).toHaveLength(2);
+    unmount(component);
+    target.remove();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
+  it("shows authored event cards without any map when no entry has valid coordinates (0/0 is not a venue)", async () => {
+    const target = document.createElement("div");
+    document.body.appendChild(target);
+    const component = mount(EmbedsMapView, {
+      target,
+      props: { id: "map-view-null-island", title: "Conferences", embedRefs: ["event-null-island-444444"], includeAllResults: true },
+    });
+    await flush(target);
+
+    expect(target.querySelectorAll('[data-testid="embeds-map-view-card"]')).toHaveLength(1);
+    expect(target.querySelector('[data-testid="embeds-map-view-map"]')).toBeNull();
+    expect(target.querySelector('[data-testid="embeds-results-view-tabs"]')).toBeNull();
     unmount(component);
     target.remove();
   });

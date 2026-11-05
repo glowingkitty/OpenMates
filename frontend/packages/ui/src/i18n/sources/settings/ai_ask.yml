@@ -451,6 +451,78 @@ ai_ask_settings.quick_tips_description:
   sv: Visar tillfälliga produkttips efter assistentens svar. Stäng av detta om du inte vill att OpenMates ska generera snabbtipskort.
   he: מציג מדי פעם טיפים על המוצר לאחר תשובות העוזר. כבה אפשרות זו אם אינך רוצה ש-OpenMates יפיק כרטיסי טיפים מהירים.
   verified_by_human: []
+ai_ask_settings.server_region:
+  context: Section heading for the AI server region preference
+  en: Server region
+  de: Serverregion
+  zh: 服务器区域
+  es: Región del servidor
+  fr: Région des serveurs
+  pt: Região do servidor
+  ru: Регион серверов
+  ja: サーバーリージョン
+  ko: 서버 지역
+  it: Regione del server
+  tr: Sunucu bölgesi
+  vi: Khu vực máy chủ
+  id: Wilayah server
+  pl: Region serwerów
+  nl: Serverregio
+  ar: منطقة الخادم
+  hi: सर्वर क्षेत्र
+  th: ภูมิภาคเซิร์ฟเวอร์
+  cs: Oblast serverů
+  sv: Serverregion
+  he: אזור שרתים
+  verified_by_human: []
+ai_ask_settings.prefer_eu_servers:
+  context: Label for the toggle that prefers EU servers (off = fastest, global)
+  en: Prefer EU servers
+  de: EU-Server bevorzugen
+  zh: 优先使用欧盟服务器
+  es: Preferir servidores de la UE
+  fr: Privilégier les serveurs de l'UE
+  pt: Preferir servidores da UE
+  ru: Предпочитать серверы ЕС
+  ja: EUサーバーを優先
+  ko: EU 서버 우선 사용
+  it: Preferisci i server UE
+  tr: AB sunucularını tercih et
+  vi: Ưu tiên máy chủ EU
+  id: Utamakan server UE
+  pl: Preferuj serwery UE
+  nl: EU-servers voorkeur geven
+  ar: تفضيل خوادم الاتحاد الأوروبي
+  hi: यूरोपीय संघ के सर्वर को प्राथमिकता दें
+  th: ใช้เซิร์ฟเวอร์ในสหภาพยุโรปก่อน
+  cs: Upřednostnit servery v EU
+  sv: Föredra EU-servrar
+  he: העדף שרתים באיחוד האירופי
+  verified_by_human: []
+ai_ask_settings.prefer_eu_servers_description:
+  context: Description for the EU server preference toggle
+  en: "On (default): AI models run on EU servers first, with other regions only as fallback. Off: Fastest, global – OpenMates picks the fastest server worldwide."
+  de: "An (Standard): KI-Modelle laufen zuerst auf EU-Servern, andere Regionen nur als Ausweichlösung. Aus: Schnellste, global – OpenMates wählt weltweit den schnellsten Server."
+  zh: 开启（默认）：AI 模型优先在欧盟服务器上运行，其他地区仅作备用。关闭：最快、全球——OpenMates 在全球范围内选择最快的服务器。
+  es: "Activado (predeterminado): los modelos de IA se ejecutan primero en servidores de la UE y otras regiones solo como respaldo. Desactivado: el más rápido, global; OpenMates elige el servidor más rápido del mundo."
+  fr: "Activé (par défaut) : les modèles d'IA s'exécutent d'abord sur des serveurs de l'UE, les autres régions ne servent qu'en secours. Désactivé : le plus rapide, global – OpenMates choisit le serveur le plus rapide au monde."
+  pt: "Ativado (padrão): os modelos de IA correm primeiro em servidores da UE, com outras regiões apenas como alternativa. Desativado: o mais rápido, global – o OpenMates escolhe o servidor mais rápido do mundo."
+  ru: "Включено (по умолчанию): модели ИИ сначала работают на серверах ЕС, другие регионы — только как запасной вариант. Выключено: самый быстрый, глобально — OpenMates выбирает самый быстрый сервер в мире."
+  ja: オン（デフォルト）：AIモデルはまずEUのサーバーで実行され、他の地域は代替としてのみ使われます。オフ：最速・グローバル – OpenMatesが世界中で最も速いサーバーを選びます。
+  ko: "켜짐(기본값): AI 모델이 EU 서버에서 먼저 실행되며 다른 지역은 대체용으로만 사용됩니다. 꺼짐: 가장 빠른 글로벌 – OpenMates가 전 세계에서 가장 빠른 서버를 선택합니다."
+  it: "Attivo (predefinito): i modelli di IA vengono eseguiti prima su server UE, le altre regioni solo come alternativa. Disattivo: il più veloce, globale – OpenMates sceglie il server più veloce al mondo."
+  tr: "Açık (varsayılan): Yapay zeka modelleri önce AB sunucularında çalışır, diğer bölgeler yalnızca yedek olarak kullanılır. Kapalı: En hızlı, küresel – OpenMates dünya genelinde en hızlı sunucuyu seçer."
+  vi: "Bật (mặc định): mô hình AI chạy trên máy chủ EU trước, các khu vực khác chỉ dùng dự phòng. Tắt: Nhanh nhất, toàn cầu – OpenMates chọn máy chủ nhanh nhất trên thế giới."
+  id: "Aktif (default): model AI berjalan di server UE terlebih dahulu, wilayah lain hanya sebagai cadangan. Nonaktif: Tercepat, global – OpenMates memilih server tercepat di seluruh dunia."
+  pl: "Włączone (domyślnie): modele AI działają najpierw na serwerach UE, inne regiony tylko jako zapas. Wyłączone: najszybszy, globalnie – OpenMates wybiera najszybszy serwer na świecie."
+  nl: "Aan (standaard): AI-modellen draaien eerst op EU-servers, andere regio's alleen als terugval. Uit: snelste, wereldwijd – OpenMates kiest de snelste server ter wereld."
+  ar: "مفعّل (افتراضي): تعمل نماذج الذكاء الاصطناعي أولاً على خوادم الاتحاد الأوروبي، ولا تُستخدم المناطق الأخرى إلا كبديل. معطّل: الأسرع عالميًا – يختار OpenMates أسرع خادم في العالم."
+  hi: "चालू (डिफ़ॉल्ट): AI मॉडल पहले यूरोपीय संघ के सर्वर पर चलते हैं, अन्य क्षेत्र केवल विकल्प के रूप में। बंद: सबसे तेज़, वैश्विक – OpenMates दुनिया भर में सबसे तेज़ सर्वर चुनता है।"
+  th: "เปิด (ค่าเริ่มต้น): โมเดล AI ทำงานบนเซิร์ฟเวอร์ในสหภาพยุโรปก่อน ส่วนภูมิภาคอื่นใช้เป็นตัวสำรองเท่านั้น ปิด: เร็วที่สุด ทั่วโลก – OpenMates เลือกเซิร์ฟเวอร์ที่เร็วที่สุดในโลก"
+  cs: "Zapnuto (výchozí): modely AI běží nejdříve na serverech v EU, jiné oblasti jen jako záloha. Vypnuto: nejrychlejší, globálně – OpenMates vybere nejrychlejší server na světě."
+  sv: "På (standard): AI-modeller körs först på EU-servrar, andra regioner endast som reserv. Av: Snabbast, globalt – OpenMates väljer den snabbaste servern i världen."
+  he: "פעיל (ברירת מחדל): מודלי AI רצים קודם בשרתים באיחוד האירופי, ואזורים אחרים משמשים רק כגיבוי. כבוי: המהיר ביותר, גלובלי – OpenMates בוחר את השרת המהיר ביותר בעולם."
+  verified_by_human: []
 ai_ask_settings.quick_tips_enabled:
   context: Success toast when quick tips are enabled
   en: Quick tips enabled.

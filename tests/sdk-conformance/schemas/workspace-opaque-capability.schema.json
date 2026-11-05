@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "scope",
+    "cases",
+    "wire",
+    "required_gaps"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "id": {
+      "const": "native.workspace.opaque-capability.v1"
+    },
+    "scope": {
+      "const": "Existing public Client operations; genuine synthetic AES primitive ports model opaque lifetime without claiming real CryptoKey or browser execution."
+    },
+    "cases": {
+      "const": [
+        "native-and-rawbrowser-default-index-preserved",
+        "opaque-personal-default-id-create-omits-both-index-fields",
+        "opaque-team-default-index-preserved",
+        "opaque-explicit-slug-refuses-before-http",
+        "pending-wrapper-cancellation-no-mutation",
+        "pending-unwrap-cancel-owner-denial-key-revoke-refusal",
+        "local-profile-rejects-untagged-canonical-outputs",
+        "wrong-team-and-key-wrapper-fail-closed",
+        "guarded-workflow-item-cancel-and-future-drop",
+        "project-detail-late-files-parse-failure-no-partial-output"
+      ]
+    },
+    "wire": {
+      "const": "Existing legacy MetadataEncryptor server fields; native generic child-message codec held."
+    },
+    "required_gaps": {
+      "const": [
+        "Opaque explicit slug/HKDF indexing remains required unfinished platform capability, not accepted permanent feature loss.",
+        "Primitive-port native tests are not real nonextractable CryptoKey, browser, SDK3 facade execution or performance proof."
+      ]
+    }
+  }
+}

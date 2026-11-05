@@ -152,6 +152,7 @@ function parseProviderYaml(providerId, filePath) {
         id: server.id,
         name: server.name,
         region: server.region || "US", // Default to US if not specified
+        ...(server.country ? { country: server.country } : {}),
       }));
 
       // Extract pricing information for display.
@@ -234,6 +235,8 @@ function parseProviderYaml(providerId, filePath) {
         // Default server for this model
         default_server:
           model.default_server || (servers.length > 0 ? servers[0].id : null),
+        // Server used by the "Fastest, global" region preference (optional)
+        fastest_server: model.fastest_server || null,
         // Pricing for display
         pricing: Object.keys(pricing).length > 0 ? pricing : null,
         temporary_prices: (model.temporary_prices || []).map(({ id, effective_from, expires_on, guaranteed_through, source_url, reviewed_on, eligible_hosts, processing_tier, regions, pricing: tariff }) => ({
@@ -356,6 +359,13 @@ function generateTypeScript(models) {
         );
       }
 
+      // Add fastest_server if present
+      if (model.fastest_server) {
+        lines.push(
+          `        fastest_server: ${JSON.stringify(model.fastest_server)},`,
+        );
+      }
+
       // Add pricing if present
       if (model.pricing) {
         lines.push(`        pricing: ${JSON.stringify(model.pricing)},`);
@@ -414,6 +424,8 @@ export interface ModelServerInfo {
     name: string;
     /** Server region: EU, US, APAC, or global */
     region: 'EU' | 'US' | 'APAC' | 'global';
+    /** Optional ISO 3166-1 alpha-2 country when the host is in one known country */
+    country?: string;
 }
 
 /**
@@ -497,6 +509,8 @@ export interface AIModelMetadata {
     servers?: ModelServerInfo[];
     /** Default server ID for this model */
     default_server?: string;
+    /** Server used by the "Fastest, global" region preference */
+    fastest_server?: string;
     /** Pricing information (token-based, per-unit, or per-minute depending on model type) */
     pricing?: ModelPricing;
     temporary_prices?: PublicTemporaryPrice<ModelPricing>[];

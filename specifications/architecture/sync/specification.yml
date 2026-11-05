@@ -1,26 +1,34 @@
 schema_version: 1
 id: architecture.sync
-version: 1
-status: approved
-title: Chat Sync Startup
+version: 2
+status: draft
+title: Chat Sync Startup And Incremental Feed
 summary: >
-  Authenticated first-party clients synchronize encrypted chat metadata and
-  bounded recent content during startup without treating partial cache state or
-  paginated metadata windows as full deletion authority.
+  Authenticated first-party clients show the chat workspace overview as early as
+  possible: due-soon items first, then the last opened chat, then recent chats.
+  A cold start uses bounded startup phases; a warm start renders the cached
+  overview immediately and catches up through a gap-free, metadata-only change
+  feed per account or Team scope. Partial windows never act as deletion
+  authority, and synchronizing the account never blocks opening a chat.
 
 scope:
   includes:
     - Authenticated first-party chat startup sync over WebSocket.
     - Cache readiness reported by request_cache_status and sync_status_response.
-    - Phase 1a shell metadata, Phase 1b recent parent-chat content, and Phase 2 recent metadata boundaries.
-    - Phase 2 encrypted draft metadata and explicit deletion evidence semantics.
-    - Personal and team-scoped persisted chat metadata; user draft discovery remains personal and author-private.
+    - Phase 1a shell metadata, Phase 1b recent parent-chat content, and Phase 2 recent metadata boundaries for cold start.
+    - The capability-gated chat_sync_feed_v1 incremental metadata feed over WebSocket and the first-party GET /v1/chats/changes route, with its cursor, reset, live change hints and change-log retention.
+    - The chat workspace overview order (due-soon items, last opened chat, recent chats) and its cross-device synchronization.
+    - Phase 2 and feed encrypted draft metadata and explicit deletion, revocation and move evidence semantics.
+    - Personal and team-scoped persisted chat metadata; user draft discovery and the last opened chat remain author-private.
     - Shared Rust first-party startup, sync, reconnect and recovery policy through explicit browser, native and terminal adapters.
   excludes:
-    - New unauthenticated, public, or developer API sync surfaces.
-    - Full-history pagination, long-term reconciliation redesign, or implicit developer-SDK startup and offline queue ownership.
+    - New unauthenticated, public, or developer API-key sync surfaces.
+    - Full-history pagination of transcripts, or implicit developer-SDK startup and offline queue ownership.
     - Plaintext message, draft, or embed sync through the server.
+    - Transcript content, embeds, sidecars or checkpoints in warm sync; they load when a chat is opened.
+    - Account sync in one-shot CLI commands, which open only what the command needs.
     - Embed lifecycle changes unrelated to startup chat metadata and deletion evidence.
+    - New due-time thresholds or reminder scheduling behaviour; the overview reuses the existing welcome-screen windows.
 
 models:
   SyncStatusRequest:
@@ -49,11 +57,11 @@ models:
     phase1b_parent_chat_limit:
       type: integer
       default: 20
-      constraints: {maximum: 20, parent_chats_only: true}
+      constraints: {maximum: 20, parent_chats_only: true, applies_to: cold_start}
     phase2_metadata_chat_limit:
       type: integer
       default: 100
-      constraints: {maximum: 100, metadata_only: true}
+      constraints: {maximum: 100, metadata_only: true, applies_to: cold_start}
 
   Phase2MetadataPayload:
     chats:
@@ -113,56 +121,273 @@ models:
       type: array
       required: true
       items: chat_id
-      constraints: {partial_window_deletions: forbidden_except_explicit_tombstone}
+      constraints: {partial_window_deletions: forbidden_except_explicit_tombstone_or_gap_free_feed_entry}
+
+  SyncFeedCursor:
+    value:
+      type: opaque_string
+      required: true
+      constraints: {format: "<scope_epoch>:<scope_revision>|<user_epoch>:<user_revision>", client_parsing: forbidden, maximum_length: 160, bound_to: [account_or_team_scope, user_lane]}
+    issued_by:
+      type: enum
+      values: [phased_sync_complete, sync_feed_page]
+      constraints: {cold_start_clock_read_before_snapshot_reads: true}
+
+  SyncFeedChangeLog:
+    scopes:
+      type: enum
+      values: [personal_account, team, user_lane]
+      constraints: {scope_key: sha256_of_owner_id, user_lane_contents: [drafts, last_opened_chat, due_soon_items]}
+    revision:
+      type: integer
+      required: true
+      constraints: {monotonic_per_scope: true, committed_gap_free: true}
+    epoch:
+      type: uuid
+      required: true
+      constraints: {changes_invalidate_all_cursors: true}
+    retention:
+      type: duration
+      default: 30d
+      constraints: {older_cursor: reset}
+    sources:
+      type: array
+      items: string
+      constraints: {values: [chats, messages, drafts, chat_key_wrappers, embeds, embed_keys, chat_deletion_fences, last_opened_chat, reminders, saved_item_memories], change_records_hold_ids_and_kinds_only: true}
+
+  SyncFeedRequest:
+    channel:
+      type: enum
+      values: [websocket_chat_sync_delta_request, rest_get_v1_chats_changes]
+      constraints: {authentication: session_or_approved_device, first_party_only: true, developer_api_key: forbidden, client_capability: chat_sync_feed_v1, rate_limited: true}
+    team_id:
+      type: string
+      nullable: true
+      constraints: {current_team_membership_required: true}
+    cursor:
+      type: SyncFeedCursor
+      nullable: true
+      constraints: {null_means: cold_start_required}
+    context_epoch:
+      type: integer
+      nullable: true
+      constraints: {echoed_unchanged: true}
+    limit:
+      type: integer
+      default: 100
+      constraints: {minimum: 1, maximum: 200}
+
+  SyncFeedChange:
+    chat_id:
+      type: chat_id
+      nullable: true
+      constraints: {present_only_when_chat_visible_to_caller: true}
+    hashed_chat_id:
+      type: sha256_hex
+      required: true
+    kinds:
+      type: array
+      required: true
+      items: string
+      constraints: {values: [metadata, messages, content, keys, draft, deleted, revoked, moved, last_opened, due_soon]}
+    versions:
+      type: object
+      nullable: true
+      constraints: {fields: [messages_v, title_v, metadata_v, draft_v, last_edited_overall_timestamp], idempotent_apply: true}
+    chat_details:
+      type: EncryptedChatMetadata
+      nullable: true
+    draft:
+      type: DraftMetadata
+      nullable: true
+    chat_key_wrappers:
+      type: array
+      nullable: true
+      constraints: {only_for_kinds: [keys, metadata], caller_scoped: true}
+    forbidden_fields:
+      type: array
+      items: string
+      constraints: {values: [messages, embeds, embed_keys, code_run_outputs, compression_checkpoints, plaintext]}
+
+  SyncFeedPage:
+    next_cursor:
+      type: SyncFeedCursor
+      nullable: true
+    has_more:
+      type: boolean
+      required: true
+    reset:
+      type: boolean
+      required: true
+      constraints: {true_means: discard_cursor_and_cold_start, inferred_deletions: forbidden}
+    changes:
+      type: array
+      required: true
+      items: SyncFeedChange
+    overview:
+      type: WorkspaceOverviewState
+      nullable: true
+      constraints: {present_when_user_lane_changed: true}
+
+  SyncHint:
+    event:
+      type: websocket_event
+      required: true
+      constraints: {event: chat_sync_hint, fields: [team_id, revision], content: forbidden, delivered_to: authorized_capable_sockets_of_scope}
+
+  WorkspaceOverviewState:
+    last_opened_chat_id:
+      type: chat_id
+      nullable: true
+      constraints: {source: authoritative_user_last_opened, null_when_not_in_requested_context: true}
+    due_soon:
+      type: DueSoonSet
+      nullable: true
+
+  DueSoonSet:
+    reminders:
+      type: array
+      constraints: {source: existing_active_reminders, pending_lookahead_hours: 168, fired_lookback_hours: 12, maximum: 100, same_fields_as: GET /v1/settings/reminders}
+    saved_items:
+      type: array
+      constraints: {source: encrypted_saved_item_memories, categories: [events/saved_events, travel/saved_connections, travel/saved_stays, home/saved_listings, health/appointments], maximum: 100, order: most_recently_updated, plaintext: forbidden}
+    generated_at:
+      type: unix_seconds
+      required: true
+    context:
+      type: enum
+      values: [personal]
+      constraints: {team_context: omitted}
+
+  DueSoonClassification:
+    reminder_due:
+      type: rank
+      default: 0
+      constraints: {trigger_at_lte_now: true, fired_older_than_12h_and_not_pending: excluded}
+    reminder_soon:
+      type: rank
+      default: 1
+      constraints: {trigger_within_next_hours: 24}
+    ongoing_saved_item:
+      type: rank
+      default: 2
+      constraints: {start_lte_now_and_end_gte_now: true}
+    upcoming_saved_item:
+      type: rank
+      default: 3
+      constraints: {start_within_next_hours: 24, or_started_within_last_hours: 12, date_only_value_means: "23:59:59 local time"}
+    tie_break:
+      type: string
+      default: nearest_to_now
+
+  OverviewOrder:
+    groups:
+      type: array
+      required: true
+      items: string
+      constraints: {order: [due_soon_items, last_opened_chat, remaining_parent_chats], due_soon_order: models.DueSoonClassification, duplicates: shown_once_in_earliest_group}
+    remaining_chat_comparator:
+      type: array
+      required: true
+      items: string
+      constraints: {order: [pinned_first, non_empty_draft_first, last_edited_overall_timestamp_desc, updated_at_desc, chat_id_asc], deterministic: true}
+
+  LatencyTargets:
+    overview_visible:
+      type: duration
+      constraints: {warm_start: render_from_cache_before_network, cold_start: from_phase1a_before_any_transcript_content}
+    cached_chat_open_p95:
+      type: duration
+      default: 300ms
+    uncached_chat_open_p95:
+      type: duration
+      default: 1s
 
 assertions:
   - id: sync.client.shared-rust-policy
     type: parity
-    must: Shared Rust owns reusable first-party startup synchronization, reconnect, reconciliation and recovery across CLI/TUI, web and Apple, preserving this contract's bounded phases, deletion authority, encrypted drafts and account/Team scope. Thin platform adapters supply explicit transport lifecycle, persistence and UI notifications without separate TypeScript or Swift sync state machines. Platform IO and interactive/foreground facts remain truthful; shared code does not bypass session/device admission or grant developer API keys first-party startup access. Existing platform data remains available through its adapters.
+    must: Shared Rust owns reusable first-party startup synchronization, the incremental feed, reconnect, reconciliation and recovery across CLI/TUI, web and Apple, preserving this contract's cold-start phases, cursor feed, deletion authority, encrypted drafts, overview order and account/Team scope. Thin platform adapters supply explicit transport lifecycle, persistence and UI notifications without separate TypeScript or Swift sync state machines. Platform IO and interactive/foreground facts remain truthful; shared code does not bypass session/device admission or grant developer API keys first-party startup access. Existing platform data remains available through its adapters.
     depends_on: [examples.shared_client_sync]
   - id: sync.access.first-party-authenticated
     type: security
-    must: Chat startup sync runs only on authenticated first-party session or approved-device WebSocket paths and never exposes decrypted chat, draft, message, or embed plaintext.
-    depends_on: [models.SyncStatusRequest, models.Phase2MetadataPayload, examples.surface_scope]
+    must: Chat startup sync and the incremental feed run only on authenticated first-party session or approved-device WebSocket paths and the session-only GET /v1/chats/changes route; developer API keys, anonymous callers and non-members of a Team are rejected, and no response exposes decrypted chat, draft, message, or embed plaintext.
+    depends_on: [models.SyncStatusRequest, models.Phase2MetadataPayload, models.SyncFeedRequest, examples.surface_scope]
   - id: sync.status.startup-window-ready
     type: behavior
-    must: A missing primed flag may be restored when Redis contains at least min(Directus chat count, 100) startup chat IDs; the response still reports the full Directus chat count.
-    depends_on: [models.SyncStatusResponse, models.StartupLimits.phase2_metadata_chat_limit, examples.startup_readiness]
+    must: For a cold start, a missing primed flag may be restored when Redis contains at least min(Directus chat count, 100) startup chat IDs; the response still reports the full Directus chat count.
+    depends_on: [models.SyncStatusResponse, models.StartupLimits.phase2_metadata_chat_limit]
   - id: sync.status.incomplete-window-rewarms
     type: failure
     must: If Redis contains fewer IDs than the required startup window while Directus has more chats, sync_status_response stays unprimed and rewarming is dispatched instead of completing startup sync.
     depends_on: [models.SyncStatusResponse, examples.startup_readiness]
   - id: sync.startup.bounded-phases
     type: invariant
-    must: Default phase=all startup sync is limited to Phase 1a shell metadata, Phase 1b content for at most 20 parent chats, Phase 2 metadata for at most 100 recent chats, and app settings/memories. Sub-chat navigation metadata may accompany the parents; sub-chat messages load on demand.
-    depends_on: [models.StartupLimits, examples.startup_payloads]
+    must: A cold start (no valid feed cursor) uses phase=all startup sync limited to Phase 1a shell metadata, Phase 1b content for at most 20 parent chats, Phase 2 metadata for at most 100 recent chats, and app settings/memories, and ends with a feed cursor whose clock was read before its snapshot reads. A warm start with a valid cursor uses the feed instead and transfers no transcript content. Sub-chat navigation metadata may accompany the parents; sub-chat messages load on demand.
+    depends_on: [models.StartupLimits, models.SyncFeedCursor]
   - id: sync.phase2.metadata-only
     type: privacy
     must: Phase 2 sends encrypted metadata and encrypted draft metadata only; messages, embeds, embed keys, chat key wrappers, Code Run outputs, and compression checkpoints are absent.
     depends_on: [models.Phase2MetadataPayload, models.DraftMetadata, examples.startup_payloads, examples.draft_metadata]
   - id: sync.phase2.drafts.authoritative-encrypted
     type: behavior
-    must: Phase 2 draft reconciliation uses authoritative per-user encrypted draft versions, preserves opaque ciphertext, emits explicit draft deletion fields when no authoritative draft remains, and does not discover draft-only user chats in team scope.
-    depends_on: [models.DraftMetadata, examples.draft_metadata]
+    must: Phase 2 and feed draft reconciliation use authoritative per-user encrypted draft versions, preserve opaque ciphertext, emit explicit draft deletion fields when no authoritative draft remains, and do not discover draft-only user chats in team scope.
+    depends_on: [models.DraftMetadata]
   - id: sync.deletion.partial-window-not-authoritative
     type: invariant
-    must: A partial startup or metadata page is not deletion authority; local chats are pruned only from a complete server ID set or from explicit tombstone evidence.
-    depends_on: [models.DeletionAuthority, models.Phase2MetadataPayload, examples.deletion_authority]
+    must: A partial startup or metadata page is not deletion authority; local chats are pruned only from a complete server ID set, from explicit tombstone evidence, or from deleted, revoked or moved entries replayed gap-free from the client's cursor.
+    depends_on: [models.DeletionAuthority, models.Phase2MetadataPayload]
+  - id: sync.delta.cursor-gap-free
+    type: invariant
+    must: Each account, Team and user-lane scope records committed changes with a monotonic revision in commit order. A feed page returns every change after the client's cursor up to its next_cursor exactly once or more (at-least-once), and applying an entry again is idempotent through its versions, so no committed change between two cursors is skipped.
+    depends_on: [models.SyncFeedChangeLog, models.SyncFeedPage]
+  - id: sync.delta.metadata-only
+    type: privacy
+    must: Feed pages carry only change kinds, versions, encrypted chat metadata, encrypted draft metadata, caller-scoped chat key wrappers and the overview state; messages, embeds, embed keys, Code Run outputs, compression checkpoints and any plaintext are absent, and change records store only identifiers and kinds.
+    depends_on: [models.SyncFeedChange, models.SyncFeedChangeLog]
+  - id: sync.delta.reset
+    type: failure
+    must: A cursor with an unknown epoch, a revision ahead of the scope, or a revision older than the 30-day retention returns reset with no changes; the client discards that cursor and performs a cold start, and never infers deletions from the reset.
+    depends_on: [models.SyncFeedCursor, models.SyncFeedPage, examples.delta_reset]
+  - id: sync.delta.scope-revocation
+    type: security
+    must: Losing Team membership rejects that Team's feed and prunes only that Team's cached chats; losing access to a single direct chat yields a revoked entry identified by hashed chat ID only; a chat moved between scopes appears as moved in its former scope and as metadata in its new scope; no other scope's cache is pruned.
+    depends_on: [models.SyncFeedChange, models.SyncFeedRequest, examples.delta_revocation]
+  - id: sync.delta.live-hint
+    type: behavior
+    must: After a committed change, each authorized capable socket of that scope receives a content-free chat_sync_hint with the Team context and newest revision, and the client debounces and pulls the feed; a missed hint delays but never loses changes, because the next pull replays from the cursor. Sockets without the capability receive no hint and behave unchanged.
+    depends_on: [models.SyncHint]
+  - id: sync.open.not-gated
+    type: invariant
+    must: Opening a chat never waits for account startup sync or feed catch-up to finish; a cached chat opens from local data and an uncached chat fetches its own bounded message window directly. One-shot CLI commands perform no account sync.
+    depends_on: [models.LatencyTargets, examples.chat_open]
+  - id: sync.overview.priority-order
+    type: behavior
+    must: Every first-party client orders the chat workspace overview as due-soon items first (reminder due, reminder within 24 hours, ongoing saved item, saved item starting within 24 hours or started within the last 12 hours; ties nearest to now), then the last opened chat, then the remaining parent chats by pinned, non-empty draft, last_edited_overall_timestamp descending, updated_at descending and chat ID ascending. The same synchronized state yields the same order on every device.
+    depends_on: [models.OverviewOrder, models.DueSoonClassification, models.WorkspaceOverviewState]
+  - id: sync.overview.cross-device
+    type: behavior
+    must: The last opened chat, the due-soon set and every chat change are synchronized across the user's devices through the feed's user lane and scope lanes, so opening a chat or creating, changing, completing or deleting a due item on one device updates the overview of the user's other capable devices without a cold start.
+    depends_on: [models.WorkspaceOverviewState, models.DueSoonSet]
+  - id: sync.overview.ready-fast
+    type: behavior
+    must: On a warm start the overview renders from cache before any network response; on a cold start it renders from Phase 1a metadata and the startup due-soon set before any transcript content arrives. The last opened chat is included even when it is outside the recent window, if it is visible in the requested context. Cached chat opening targets under 300 ms p95 and uncached opening under 1 s p95.
+    depends_on: [models.LatencyTargets, models.DueSoonSet, examples.overview_ready]
   - id: sync.surface.semantic-parity
     type: parity
-    must: First-party web, Apple and CLI clients use shared Rust to preserve the same startup readiness, metadata-only, encrypted-draft, reconnect/recovery and deletion-authority semantics. npm and Python remain direct library SDKs with their public conformance obligations; using the shared core does not automatically start first-party sync or adopt application offline queues in a developer library.
+    must: First-party web, Apple and CLI clients use shared Rust to preserve the same startup readiness, cursor feed, metadata-only, encrypted-draft, overview order, reconnect/recovery and deletion-authority semantics. npm and Python remain direct library SDKs with their public conformance obligations; using the shared core does not automatically start first-party sync or adopt application offline queues in a developer library.
     depends_on: [models, examples.surface_scope, applies_to]
 
 applies_to:
   rest_api:
-    required: false
-    role: Existing REST helpers such as offline prefetch and load-more are outside this startup WebSocket contract.
+    required: true
+    role: Only the session-authenticated first-party GET /v1/chats/changes route and the internal Directus change-hint endpoint are added; developer API keys are rejected and existing REST helpers such as offline prefetch and load-more stay outside this contract.
   cli:
     required: true
     parity: semantic
+    role: The interactive terminal workspace uses the cold start and cursor feed; one-shot commands perform no account sync.
   sdks:
     required: true
-    role: Rust supplies explicit shared first-party sync/reconnect/recovery policy; developer SDK construction does not implicitly start application sync or adopt an offline queue. Public SDK operations retain their own authorization and parity contracts.
+    role: Rust supplies explicit shared first-party sync, feed, reconnect and recovery policy; developer SDK construction does not implicitly start application sync or adopt an offline queue. Public SDK operations retain their own authorization and parity contracts.
     implementations:
       rust: {required: true}
       npm: {required: false}
@@ -177,4 +402,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [startup_readiness, startup_payloads, deletion_authority, draft_metadata, surface_scope, shared_client_sync]
+  required_groups: [startup_readiness, startup_payloads, deletion_authority, draft_metadata, surface_scope, shared_client_sync, delta_feed, delta_reset, delta_revocation, chat_open, overview_order, overview_ready]

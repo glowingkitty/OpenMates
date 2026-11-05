@@ -1912,3 +1912,163 @@ async def test_reference_render_probes_do_not_fetch_unrequested_ciphertext_or_ac
             assert call.kwargs["params"]["filter"][key]["_in"] == ["owned-1"]
         assert rows[0]["canonical_revision"]["write_state"] == "mutable"
         assert "canonical_revision" not in rows[1]
+
+
+# contract-test: supporting surface=rest_api assertions=storage.cold.shared-team-authorized,storage.privacy.ciphertext-boundary
+@pytest.mark.asyncio
+async def test_chat_embed_window_after_cursor_returns_changed_embeds_with_scoped_keys():
+    calls = []
+
+    class Chat:
+        async def get_chat_metadata(self, chat_id, admin_required=False):
+            return {"id": chat_id, "hashed_user_id": OWNER_HASH, "hashed_team_id": None} if chat_id == "chat-1" else None
+
+    class Embed:
+        async def get_embed_changes_after_cursor(self, chat_hash, **cursor):
+            calls.append((chat_hash, cursor))
+            return {"embeds": [{"embed_id": "embed-2", "hashed_embed_id": "hash-2",
+                                "encrypted_content": "cipher-2", "updated_at": 20}],
+                    "has_more_after": True, "end_cursor": {"updated_at": 20, "embed_id": "embed-2"},
+                    "oversized_embed_id": None}
+
+        async def get_embed_window_by_hashed_chat_id(self, *_args, **_kwargs):
+            raise AssertionError("direction=after must not read the backward window")
+
+        async def get_sync_embed_key_window_for_page(self, chat_hash, owner_hash, embed_hashes, **kwargs):
+            assert embed_hashes == ["hash-2"] and owner_hash == OWNER_HASH
+            assert kwargs["include_master_keys"] is True
+            return {"embed_keys": [{"hashed_embed_id": "hash-2", "encrypted_embed_key": "wrapped-2"}],
+                    "has_more_after": False, "end_cursor": "key-2", "oversized_key_id": None}
+
+    async def get_items(collection, params, **kwargs):
+        assert collection == "chats"
+        chat_id = params["filter"]["id"]["_eq"]
+        return ([{"id": chat_id, "hashed_user_id": OWNER_HASH, "hashed_team_id": None}]
+                if chat_id == "chat-1" else [])
+
+    directus = SimpleNamespace(chat=Chat(), embed=Embed(), get_items=get_items)
+    result = await get_chat_embed_window(
+        chat_id="chat-1", request=SimpleNamespace(), team_id=None, direction="after",
+        after_updated_at=10, after_embed_id="embed-1", limit=5,
+        current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus,
+    )
+    assert result["direction"] == "after"
+    assert [row["embed_id"] for row in result["embeds"]] == ["embed-2"]
+    assert result["embed_keys"][0]["encrypted_embed_key"] == "wrapped-2"
+    assert result["has_more_after"] is True
+    assert result["end_cursor"] == {"updated_at": 20, "embed_id": "embed-2"}
+    assert calls == [(hashlib.sha256(b"chat-1").hexdigest(),
+                      {"after_updated_at": 10, "after_embed_id": "embed-1", "limit": 5})]
+
+    # Same owner check as the backward window: another owner's chat is 404 before any read.
+    with pytest.raises(HTTPException) as denied:
+        await get_chat_embed_window(
+            chat_id="other-chat", request=SimpleNamespace(), team_id=None, direction="after",
+            after_updated_at=10, current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus,
+        )
+    assert denied.value.status_code == 404
+    assert len(calls) == 1
+
+    for bad in (
+        {"after_updated_at": None},
+        {"after_updated_at": -1},
+        {"after_updated_at": 10, "limit": 0},
+        {"after_updated_at": 10, "limit": 101},
+        {"after_updated_at": 10, "after_embed_id": ""},
+        {"after_updated_at": 10, "before_created_at": 5, "before_id": "row-1"},
+    ):
+        with pytest.raises(HTTPException) as invalid:
+            await get_chat_embed_window(
+                chat_id="chat-1", request=SimpleNamespace(), team_id=None, direction="after",
+                current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus, **bad,
+            )
+        assert invalid.value.status_code == 400
+    with pytest.raises(HTTPException) as mixed:
+        await get_chat_embed_window(
+            chat_id="chat-1", request=SimpleNamespace(), team_id=None,
+            after_updated_at=10, current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus,
+        )
+    assert mixed.value.status_code == 400
+
+
+# contract-test: supporting surface=rest_api assertions=storage.cold.shared-team-authorized
+@pytest.mark.asyncio
+async def test_team_embed_window_after_cursor_rechecks_membership():
+    class Team:
+        async def require_team_role(self, team_id, user_id, roles):
+            raise embeds_api.TeamPermissionError("denied")
+
+    class Embed:
+        async def get_embed_changes_after_cursor(self, *_args, **_kwargs):
+            raise AssertionError("revoked Team members must not read embed changes")
+
+    directus = SimpleNamespace(team=Team(), chat=SimpleNamespace(), embed=Embed(),
+                               get_items=None)
+    with pytest.raises(HTTPException) as exc_info:
+        await get_chat_embed_window(
+            chat_id="chat-1", request=SimpleNamespace(), team_id="revoked-team", direction="after",
+            after_updated_at=0, current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus,
+        )
+    assert exc_info.value.status_code == 404
+
+
+# contract-test: supporting surface=rest_api assertions=storage.cold.discoverable-bounded
+@pytest.mark.asyncio
+async def test_chat_embed_window_accepts_larger_client_limit_and_defaults_stay_unchanged():
+    window_calls, key_calls = [], []
+
+    class Chat:
+        async def get_chat_metadata(self, chat_id, admin_required=False):
+            return {"id": chat_id, "hashed_user_id": OWNER_HASH, "hashed_team_id": None}
+
+    class Embed:
+        async def get_embed_window_by_hashed_chat_id(self, chat_hash, **kwargs):
+            window_calls.append(kwargs)
+            return {"embeds": [{"embed_id": "embed-1", "hashed_embed_id": "hash-1"}],
+                    "has_more_before": False, "start_cursor": None, "oversized_embed_id": None}
+
+        async def get_sync_embed_key_window_for_page(self, chat_hash, owner_hash, hashes, **kwargs):
+            key_calls.append(kwargs)
+            return {"embed_keys": [], "has_more_after": False, "end_cursor": None, "oversized_key_id": None}
+
+    async def get_items(collection, params, **kwargs):
+        chat_id = params["filter"]["id"]["_eq"]
+        return [{"id": chat_id, "hashed_user_id": OWNER_HASH, "hashed_team_id": None}]
+
+    directus = SimpleNamespace(chat=Chat(), embed=Embed(), get_items=get_items)
+    user = SimpleNamespace(id=OWNER_ID)
+    common = dict(chat_id="chat-1", request=SimpleNamespace(), team_id=None,
+                  current_user=user, directus_service=directus)
+
+    await get_chat_embed_window(**common)  # existing clients: nothing extra is passed
+    assert window_calls == [{"before_created_at": None, "before_id": None}]
+    assert key_calls == [{"include_master_keys": True}]
+
+    await get_chat_embed_window(limit=100, **common)
+    assert window_calls[-1] == {"before_created_at": None, "before_id": None, "limit": 100}
+    assert key_calls[-1] == {"include_master_keys": True, "key_limit": 200, "max_hashes": 100}
+
+    for bad in (0, 101, -5):
+        with pytest.raises(HTTPException) as exc_info:
+            await get_chat_embed_window(limit=bad, **common)
+        assert exc_info.value.status_code == 400
+    assert len(window_calls) == 2
+
+
+# contract-test: supporting surface=rest_api assertions=storage.cold.discoverable-bounded
+@pytest.mark.asyncio
+async def test_chat_embed_key_window_limit_admits_larger_embed_id_pages_only_when_requested():
+    ids = ",".join(f"embed-{n}" for n in range(60))
+    directus = SimpleNamespace()
+    base = dict(chat_id="chat-1", request=SimpleNamespace(), embed_ids=ids,
+                current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus)
+    with pytest.raises(HTTPException) as default_limit:
+        await get_chat_embed_key_window(**base)
+    assert default_limit.value.status_code == 400
+    with pytest.raises(HTTPException) as too_large:
+        await get_chat_embed_key_window(limit=101, **base)
+    assert too_large.value.status_code == 400
+    # 60 ids are admitted at limit=100 (fails later on the unauthorized fake chat, not on shape).
+    with pytest.raises(Exception) as admitted:
+        await get_chat_embed_key_window(limit=100, **base)
+    assert not (isinstance(admitted.value, HTTPException) and admitted.value.detail == "Invalid embed key cursor")

@@ -67,7 +67,12 @@ claims:
 - **Pre-processing stage one** → Jev selects complexity, Mate topic, relevant apps and Projects, and evaluates the independent required safety, language and presentation decisions. Application code resolves the permitted model/Mate and publishes early typing metadata.
 - **Pre-processing stage two** → choose specific skills, app Focus modes, Project Focus modes, Workflows and requested private context. Model resolution does not wait for this stage. Complete public decisions are reused; a confirmed empty catalogue requires no additional Jev request. Missing decisions or uncertain discovery retain the detailed call and existing safety gate.
 - **Main processing** → send to LLM with tools and context
-- LLM calls skills → each creates/updates embeds
+- LLM calls skills → each creates/updates embeds. For selected eligible kinds,
+  the assistant can also emit a validated `openmates_embeds` fence using supplied
+  or permitted researched facts. This creates ordinary typed children under an
+  internal result carrier without a fabricated skill execution. Jev receives
+  compact discovery hints; only selected schemas enter the main prompt. See
+  [assistant-authored results](./embeds.md#assistant-authored-results).
 - Response streamed via [stream_consumer.py](../../backend/apps/ai/tasks/stream_consumer.py)
 - Server caches assistant response via `_save_to_cache_and_publish()` in [stream_consumer.py](../../backend/apps/ai/tasks/stream_consumer.py)
 - Client encrypts response → stores in Directus (ciphertext at rest; plaintext never written server-side)
@@ -180,6 +185,15 @@ The web, authenticated CLI and Apple share backend routing improvements. Web own
 
 - Follow-up suggestions generated after response completes
 - The final answer marker follows awaited billing, encrypted recovery preparation and AI cache persistence. The worker then handles queue ownership and awaits postprocessing in the same task; postprocessing is not a detached worker job.
+- Final WebSocket delivery discovers recovery jobs and typed outputs before sending
+  the final frame to each device. A bounded parallel fanout isolates device
+  failures; original-socket checks prevent delivery after replacement. A failed
+  discovery does not publish a final frame. Nonfinal updates remain serial.
+- A recovery-job handoff is not authoritative final text. When the current reply
+  is already terminal, the CLI reloads its exact authorized saved assistant rather
+  than accepting a provisional prefix. Existing canonical-head reconciliation
+  verifies identity, immutable content and keys for revision conflicts as well as
+  denied writes.
 - Authenticated CLI completion is later than first answer text: it can wait up to 12 seconds for the postprocessing event after the final frame, followed by encrypted recovery and metadata persistence acknowledgements. Measure these boundaries separately when comparing chat speed.
 - See [followup-suggestions.md](../ai/followup-suggestions.md)
 

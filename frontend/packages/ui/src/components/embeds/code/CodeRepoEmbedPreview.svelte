@@ -7,6 +7,8 @@
 -->
 
 <script lang="ts">
+  import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from "../../../types/authoredResult";
+  import { getContext } from "svelte";
 
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import ResultEmbedCard from '../ResultEmbedCard.svelte';
@@ -58,13 +60,15 @@
     resultContext = 'auto',
     onFullscreen
   }: Props = $props();
+  const authoredContext = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
+  let isAuthored = $derived(Boolean(authoredContext?.authoring));
 
-  const skillIconName = 'github';
+  let skillIconName = $derived(isAuthored ? 'coding' : 'github');
   let displayName = $derived(fullName || [ownerLogin, name].filter(Boolean).join('/') || url);
   let shortName = $derived(name || displayName.split('/').pop() || displayName);
-  let owner = $derived(ownerLogin || displayName.split('/')[0] || 'GitHub');
+  let owner = $derived(ownerLogin || (isAuthored ? '' : displayName.split('/')[0]) || (isAuthored ? '' : 'GitHub'));
   let license = $derived(licenseSpdxId && licenseSpdxId !== 'NOASSERTION' ? licenseSpdxId : licenseName);
-  let statusText = $derived([primaryLanguage, license].filter(Boolean).join(' · ') || 'GitHub repository');
+  let statusText = $derived([primaryLanguage, license].filter(Boolean).join(' · ') || (isAuthored ? '' : 'GitHub repository'));
   let avatar = $derived(proxyImage(ownerAvatarUrl, MAX_WIDTH_CHANNEL_THUMBNAIL));
 
   function formatCount(value: number | undefined): string {
@@ -103,7 +107,7 @@
   {#snippet details()}
     <div data-testid="code-repo-preview-details" class="catalog-result-preview">
       <ResultEmbedCard titleTestId="code-repo-title" title={displayName} sourceLabel={owner} description={description} faviconUrl={avatar} textFirst={true}>
-        {#snippet facts()}{#if stars != null}<ResultEmbedInfo icon="Star" label="Stars" value={formatCount(stars)}>{#snippet children()}GitHub stars: {stars}{#if primaryLanguage || license}<p>{statusText}</p>{/if}{#if formatUpdated(updatedAt)}<p>Updated {formatUpdated(updatedAt)}</p>{/if}{/snippet}</ResultEmbedInfo>{/if}
+        {#snippet facts()}{#if stars != null}<ResultEmbedInfo icon="Star" label="Stars" value={formatCount(stars)}>{#snippet children()}{isAuthored ? 'Stars' : 'GitHub stars'}: {stars}{#if primaryLanguage || license}<p>{statusText}</p>{/if}{#if formatUpdated(updatedAt)}<p>Updated {formatUpdated(updatedAt)}</p>{/if}{/snippet}</ResultEmbedInfo>{/if}
 {#if forks != null}<ResultEmbedInfo icon="GitFork" label="Forks" value={formatCount(forks)}>{#snippet children()}Repository forks: {forks}{/snippet}</ResultEmbedInfo>{/if}
 {#if openIssues != null}<ResultEmbedInfo icon="CircleDot" label="Open issues" value={formatCount(openIssues)}>{#snippet children()}Open repository issues: {openIssues}{/snippet}</ResultEmbedInfo>{/if}
 {#if stars == null && (primaryLanguage || license || formatUpdated(updatedAt))}<ResultEmbedInfo icon="Code" label="Repository details">{#snippet children()}{#if primaryLanguage || license}<p>{statusText}</p>{/if}{#if formatUpdated(updatedAt)}<p>Updated {formatUpdated(updatedAt)}</p>{/if}{/snippet}</ResultEmbedInfo>{/if}{/snippet}

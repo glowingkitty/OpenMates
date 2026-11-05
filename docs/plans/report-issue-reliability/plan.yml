@@ -14,7 +14,7 @@ scope:
     - A localized confirmation summary for the sanitized title, user flow, expected behaviour, and actual behaviour.
     - Reliable issue-report worker initialization that does not depend on unrelated billing services.
     - Durable encrypted YAML retention for report-time diagnostics and privacy-filtered console logs, regardless of whether email notification is enabled.
-    - Current-chat sharing enabled by default with a clear opt-out that removes both the shared URL and rendered last-message HTML.
+    - Current-chat sharing always attached with a visible notice (D-7 replaced the earlier opt-out toggle).
     - Preservation of the complete encrypted shared-chat URL, including its fragment key, through report submission and encrypted storage.
     - A fresh-browser check that the shared link captured by a report decrypts and opens the intended chat.
     - Isolated CI followed by a deployed dev-web report submission and worker/data verification.
@@ -51,10 +51,15 @@ decisions:
     reason: Administrator reports previously discarded every diagnostic field when their default email toggle was off.
     decided_at: '2026-09-21'
   - id: D-6
-    status: active
+    status: superseded
     decision: Include the active chat by default as explicit report-form consent, while making the toggle easy to disable and redacting visible chat text plus share keys from console logs.
     reason: Reports need enough context to debug effectively without duplicating plaintext chat content or credentials into general-purpose logs.
     decided_at: '2026-09-21'
+  - id: D-7
+    status: active
+    decision: Always attach the active chat to a report and show a notice instead of an opt-out toggle; the form keeps only the report text, compact screenshot/element/voice icon buttons and an optional guest email.
+    reason: The owner asked for a minimal report form (2026-11-03); chat text and share keys stay redacted from console logs as before. Supersedes D-6's opt-out toggle.
+    decided_at: '2026-11-03'
 
 scenarios:
   - id: S-1
@@ -72,10 +77,10 @@ scenarios:
     given:
       - An administrator submits a report with email notifications disabled.
     when:
-      - The active-chat sharing toggle remains enabled or is explicitly turned off.
+      - An active chat is open, so its share link is attached automatically.
     then:
       - The encrypted diagnostic YAML is retained even though no email is sent.
-      - Turning chat sharing off removes both the share URL and last-message HTML from the submitted payload.
+      - The form shows a notice that the active chat is included, and no opt-out toggle exists.
       - Privacy-filtered console logs contain neither visible message text nor share-link encryption keys.
 
 acceptance_criteria:
@@ -200,7 +205,7 @@ verification:
   privacy_security:
     - Evidence must redact account email, full shared URL fragment, encryption keys, cookies, and decrypted report content.
     - No new route may return a stored shared-chat URL or diagnostics to an ordinary client.
-    - Chat content is attached only through the default-on report consent toggle; disabling it omits both the encrypted shared link and rendered last-message HTML.
+    - Chat content is attached automatically with a visible notice in the form (D-7); visible chat text and share keys stay redacted from console logs.
     - General console-log retention must remove visible chat text and share-link key material even when chat context is consented for the report artifact.
 
 specification_impact:

@@ -21,6 +21,8 @@ from types import SimpleNamespace
 import httpx
 
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.tasks.email_tasks.daily_notification_dispatcher import _async_recover_workflow_digests
 from backend.core.api.app.services.email_template import EmailTemplateService
 from backend.core.api.app.services.email_delivery_guard import build_delivery_id, build_delivery_key
 from backend.core.api.app.services.workflow_digest_service import digest_window
@@ -118,12 +120,19 @@ async def _send_fixture(
     secrets = SecretsManager()
     encryption = EncryptionService()
     directus = DirectusService(encryption_service=encryption)
+    cache = CacheService()
     try:
         await secrets.initialize()
         assert await encryption.initialize()
         email_service = EmailTemplateService(secrets_manager=secrets)
+        async def keep_fixture_services():
+            # Fixture owns these initialized services across the repeated probes.
+            return None
+
         task = SimpleNamespace(directus_service=directus, encryption_service=encryption,
-                               email_template_service=email_service)
+                               email_template_service=email_service, cache_service=cache,
+                               _email_template_service=email_service, _secrets_manager=secrets,
+                               initialize_core_services=keep_fixture_services, cleanup_services=keep_fixture_services)
 
         # Preserve an actual, verified signup contact. Consent is a disposable
         # user preference; this test never fabricates the address or verification.
@@ -160,13 +169,13 @@ async def _send_fixture(
             "created_at": start, "updated_at": start,
         }, cleanup)
 
-        def seed_run(at: int, trigger_type: str, status: str, *, owner: str = owner_hash) -> str:
+        def seed_run(at: int, trigger_type: str, status: str, *, owner: str = owner_hash, workflow: str = workflow_id) -> str:
             run_id = str(uuid.uuid4())
             _create(admin, "workflow_runs", {
-                "run_id": run_id, "workflow_id": workflow_id, "version_id": version_id,
+                "run_id": run_id, "workflow_id": workflow, "version_id": version_id,
                 "hashed_user_id": owner, "trigger_type": trigger_type,
                 "acceptance_idempotency_key": "sha256:" + uuid.uuid4().hex,
-                "accepted_at": at, "started_at": at + 1, "finished_at": at + 4,
+                "accepted_at": at, "started_at": at + 1, "finished_at": min(at + 4, end - 1),
                 "status": status, "content_available": False,
                 "error_summary": output_marker if status == "failed" else None,
             }, cleanup)
@@ -175,11 +184,28 @@ async def _send_fixture(
         first = seed_run(start, "schedule", "completed")
         second = seed_run(end - 1, "schedule", "failed")
         preview = seed_run(end, "schedule", "completed")
+        _data(admin.patch(f"/items/workflow_runs/{cleanup[-1][1]}", json={"finished_at": end + 4}))
         manual = seed_run(start + 2, "manual", "completed")
         test = seed_run(start + 3, "test", "completed")
         outside = seed_run(start - 1, "schedule", "completed")
         foreign = seed_run(start + 4, "schedule", "completed", owner="user_sha256:" + uuid.uuid4().hex)
+        _data(admin.patch(f"/items/workflow_runs/{cleanup[-2][1]}", json={"finished_at": start - 1}))
         del outside, foreign
+
+        # Exhaustive pagination: a frequent Workflow occupies one card, and
+        # another Workflow has its own card. None schedules real execution.
+        for index in range(240):
+            seed_run(start + 100 + index, "schedule", "completed")
+        other_workflow = str(uuid.uuid4())
+        _create(admin, "workflows", {
+            "id": other_workflow, "workflow_id": other_workflow, "hashed_user_id": owner_hash,
+            "encrypted_title": ciphertext, "status": "disabled", "enabled": False,
+            "lifecycle": "persisted", "source": "system", "version": 1,
+            "current_version_id": version_id, "trigger_type": "schedule",
+            "record_json": {"id": other_workflow, "owner_hash": owner_hash},
+            "created_at": start, "updated_at": start,
+        }, cleanup)
+        other_run = seed_run(start + 500, "schedule", "completed", workflow=other_workflow)
 
         async def seal_delivery(message: str) -> str:
             plaintext = json.dumps({"title": "Selected message", "message": message, "embeds": []})
@@ -246,17 +272,21 @@ async def _send_fixture(
             ) == "expired_retry"
             assert not _mailpit_messages(mailpit, email, since=since)
 
-            sent = await send_user_workflow_digest(task, user_id, cutoff, require_current_cutoff=True)
-            assert sent == "sent", sent
+            # Simulate a missed 09:00 dispatch: the independent recovery sweep
+            # must deliver the current window, then a duplicate sweep stays quiet.
+            recovered = await _async_recover_workflow_digests(task)
+            assert recovered["status"] == "complete" and recovered["sent_workflowRuns"] == 1, recovered
+            repeated = await _async_recover_workflow_digests(task)
+            assert repeated["status"] == "complete" and repeated["sent_workflowRuns"] == 0, repeated
             duplicate = await send_user_workflow_digest(task, user_id, cutoff, require_current_cutoff=True)
             assert duplicate == "already_reserved", duplicate
             messages = _mailpit_messages(mailpit, email, since=since)
             assert len(messages) == 1, "Expected exactly one captured daily digest"
             body = html.unescape(messages[0].get("HTML") or "")
             text = messages[0].get("Text") or ""
-            assert first in body and second in body
+            assert second in body and other_run in body and first not in body
             assert manual not in body and test not in body and preview not in body
-            assert title not in body and output_marker not in body and output_marker not in text
+            assert title in body and output_marker not in body and output_marker not in text
             assert private_message_marker not in body and preview_message_marker not in body
             assert "Awaiting device delivery" in body and "Delivered to a device" in body
             assert "Chat message delivery" in body and "Expired" in body
@@ -264,8 +294,14 @@ async def _send_fixture(
             assert re.search(r"Awaiting device delivery:\s*3", digest_text)
             assert re.search(r"Delivered to a device:\s*1", digest_text)
             assert re.search(r"Expired:\s*2", digest_text)
-            assert f"http://localhost:5173/#workflow-id={workflow_id}&workflow-tab=runs&run-id={first}" in body
+            assert f"http://localhost:5173/#workflow-id={workflow_id}&workflow-tab=runs&run-id={second}" in body
             assert "http://localhost:5173/#settings/notifications/chat" in body
+            assert "http://localhost:5173/#workflows" in body
+            assert "reminder-notification.png" in body
+            assert "#ff553b" in body and "border-radius:24px" in body.replace(" ", "")
+            assert "View Workflow" in body and "View latest run" in body
+            assert re.search(r"Runs:\s*243", " ".join(re.sub(r"<[^>]+>", " ", body).split()))
+            assert re.search(r"Runs:\s*242", " ".join(re.sub(r"<[^>]+>", " ", body).split()))
             anonymous = httpx.get(f"http://api:8000/v1/workflows/{workflow_id}/runs/{first}", timeout=10)
             assert anonymous.status_code in (401, 403), anonymous.status_code
 
@@ -290,6 +326,7 @@ async def _send_fixture(
         finally:
             mailpit.close()
     finally:
+        await cache.close()
         await directus.close()
         await encryption.close()
         await secrets.close()

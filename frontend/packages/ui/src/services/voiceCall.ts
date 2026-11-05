@@ -18,7 +18,10 @@ import { callArtifactReferencesInText, type VoiceArtifactReference } from './voi
 import { CallAudio } from '../components/videocall/callAudio';
 import { VoiceCallAudioGate } from './voiceCallAudioGate';
 import { recordCallLifecycle } from './voiceCallLifecycle';
-import { cleanupEmptyVoiceCallChat, readEmptyVoiceCallCleanupSnapshot } from './voiceCallEmptyChatCleanup';
+import {
+  forgetEmptyCallCleanup, markEmptyCallCleanupTerminated, noteEmptyCallCleanupCallId, rememberEmptyCallCleanup,
+  runEmptyVoiceCallCleanup, scheduleEmptyVoiceCallCleanupRetry, setEmptyCallCleanupLive,
+} from './voiceCallEmptyChatCleanupQueue';
 import { getWorkspaceCacheIdentity } from './workspaceQueryCache';
 import { getWorkspaceCacheEpoch } from './workspaceCacheLifecycle';
 import { VoiceCallCuePlayer } from './voiceCallCues';
@@ -64,6 +67,19 @@ export interface VoiceCallState {
   mateCategory?: string;
   mateName?: string;
   modelName?: string;
+  /** The user's in-progress utterance, shown translucently in the composer
+   * until its final turn becomes a regular chat message. */
+  liveTranscript?: VoiceCallLiveTranscript | null;
+  /** Canonical assistant reply currently answering a call turn, and whether
+   * its task is still generating. Drives spoken-progress text emphasis. */
+  assistantMessageId?: string | null;
+  assistantGenerating?: boolean;
+}
+export interface VoiceCallLiveTranscript {
+  messageId: string;
+  text: string;
+  /** Final transcript admitted for processing; awaiting its chat row. */
+  submitted: boolean;
 }
 export interface VoiceCallControllerLike extends Readable<VoiceCallState> {
   start(chatId?: string, onBound?: (chatId: string) => void, draftReady?: Promise<boolean>): Promise<void>;
@@ -83,6 +99,7 @@ export const initialVoiceCallState: VoiceCallState = {
   elapsedSeconds: 0, activeElapsedSeconds: 0, audioLevels: Array(16).fill(0), inputIdle: false, userSpeaking: false, assistantSpeaking: false, usage: null, billingActivity: null, error: null,
   cameraAvailable: false, cameraEnabled: false, cameraPending: false, cameraStream: null,
   cameraFacing: 'environment', cameraError: null, mediaExpanded: false, mediaItems: [], mediaIndex: 0, displayedMedia: null,
+  liveTranscript: null,
 };
 
 const NUMBER_FIELDS: (keyof VoiceCallUsage)[] = [
@@ -168,6 +185,9 @@ interface NewCallCleanupAttempt {
   turnWrites: Promise<unknown>[];
 }
 
+/** Mic audio left unanswered this long ends the call as lost. */
+export const VOICE_CALL_SERVER_SILENCE_MS = 15_000;
+
 export class VoiceCallController implements VoiceCallControllerLike {
   private cleanupAttempt: NewCallCleanupAttempt | null = null;
   private store = writable<VoiceCallState>({ ...initialVoiceCallState });
@@ -179,6 +199,8 @@ export class VoiceCallController implements VoiceCallControllerLike {
   private privacyRequest: AbortController | null = null;
   private generation = 0;
   private ticker: ReturnType<typeof setInterval> | null = null;
+  /** First microphone chunk sent since the server last answered, or null. */
+  private unansweredAudioSince: number | null = null;
   private startedAt = 0;
   private clockUpdatedAt = 0;
   private activeMillis = 0;
@@ -250,6 +272,14 @@ export class VoiceCallController implements VoiceCallControllerLike {
   private refreshClock(): void {
     if (this.state.status !== 'live') return;
     const now = performance.now();
+    // The server answers every forwarded audio chunk with a usage update. A
+    // socket that stays open but goes silent (e.g. a stalled host) must not
+    // look like a working call while the caller keeps talking.
+    if (this.unansweredAudioSince !== null && now - this.unansweredAudioSince > VOICE_CALL_SERVER_SILENCE_MS) {
+      this.unansweredAudioSince = null;
+      this.fail('connection_lost');
+      return;
+    }
     const activity = this.state.billingActivity;
     if (activity === null || activity.inputListening || activity.processing) this.activeMillis += Math.max(0, now - this.clockUpdatedAt);
     this.clockUpdatedAt = now;
@@ -289,44 +319,40 @@ export class VoiceCallController implements VoiceCallControllerLike {
       reportEmptyCallCleanup('prerequisites', { current:current(), terminated:attempt.terminated,
         contentAttempted:attempt.contentAttempted, hasChat:!!attempt.chatId, hasAuthority:!!attempt.cleanupAttemptId,
         hasCall:!!attempt.callId, rejectedWrites:writes.filter(result=>result.status==='rejected').length });
-      if (!current() || !attempt.terminated || attempt.contentAttempted || !attempt.chatId ||
-          !attempt.cleanupAttemptId || writes.some(result => result.status === 'rejected')) return;
-      const input = { chatId: attempt.chatId, cleanupAttemptId: attempt.cleanupAttemptId,
-        callId: attempt.callId, expectedMessagesVersion: 0 };
-      const readSnapshot = async () => {
-        const snapshot = await readEmptyVoiceCallCleanupSnapshot(input, {
-        hasLocalOrdinaryText: attempt.contentAttempted,
-        hasPendingTurn: hasPendingPersonalChatTurn(input.chatId) || this.pendingTyped.size > 0 ||
-          (this.state.chatId === attempt.chatId && (this.state.status === 'connecting' || this.state.status === 'live')),
-        isCurrent: current,
-        });
-        const chat = snapshot.chat;
-        reportEmptyCallCleanup('snapshot', { chatPresent:!!chat,
-          messagesVersion:Number.isSafeInteger(chat?.messages_v)?chat!.messages_v:-1,
-          draftVersion:Number.isSafeInteger(chat?.draft_v)?chat!.draft_v!:-1,
-          messageCount:snapshot.messages?.length??-1, artifactCount:snapshot.artifactCount,
-          pendingOperationCount:snapshot.pendingOperationCount, hasDraft:snapshot.hasDraft,
-          hasOrdinaryText:snapshot.hasOrdinaryText, hasPendingTurn:snapshot.hasPendingTurn,
-          hasTitle:!!(chat?.title||chat?.encrypted_title), hasSummary:!!chat?.encrypted_chat_summary,
-          hasOlderMessages:!!chat?.message_window_has_more_before,hasOlderEmbeds:!!chat?.embed_window_has_more_before,
-          allMessagesSynced:snapshot.messages?.every(row=>row.status==='synced')??false,
-        });
-        return snapshot;
-      };
-      let snapshot = await readSnapshot();
-      // System-message receipts and their normal metadata handler complete in
-      // separate microtasks. Wait briefly for the exact lifecycle version;
-      // never ask the server to delete a partial or stale local projection.
-      const lifecycleVersion = attempt.callId === null ? 0 : 2;
-      for (let retry = 0; retry < 3 && current() && snapshot.chat &&
-          snapshot.chat.messages_v < lifecycleVersion; retry++) {
-        await new Promise(resolve => setTimeout(resolve, 250));
-        snapshot = await readSnapshot();
+      if (!attempt.chatId || !attempt.cleanupAttemptId) return;
+      // Typed or spoken content makes this an ordinary chat that is never retired.
+      if (attempt.contentAttempted) { forgetEmptyCallCleanup(attempt.chatId); return; }
+      // A failed lifecycle write or account switch keeps the durable record:
+      // the reconnect/backoff retry finishes the cleanup once writes land.
+      if (!current() || !attempt.terminated || writes.some(result => result.status === 'rejected')) {
+        scheduleEmptyVoiceCallCleanupRetry();
+        return;
       }
-      if (!current() || !snapshot.chat || !Number.isSafeInteger(snapshot.chat.messages_v) || snapshot.chat.messages_v < lifecycleVersion) return;
-      input.expectedMessagesVersion = snapshot.chat.messages_v;
-      const result = await cleanupEmptyVoiceCallChat(input, readSnapshot);
-      reportEmptyCallCleanup('completed',result);
+      const chatId = attempt.chatId;
+      const outcome = await runEmptyVoiceCallCleanup({ chatId, cleanupAttemptId: attempt.cleanupAttemptId,
+        callId: attempt.callId }, {
+        isCurrent: current,
+        hasLocalOrdinaryText: attempt.contentAttempted,
+        hasPendingTurn: () => hasPendingPersonalChatTurn(chatId) || this.pendingTyped.size > 0 ||
+          (this.state.chatId === chatId && (this.state.status === 'connecting' || this.state.status === 'live')),
+        onSnapshot: snapshot => {
+          const chat = snapshot.chat;
+          reportEmptyCallCleanup('snapshot', { chatPresent:!!chat,
+            messagesVersion:Number.isSafeInteger(chat?.messages_v)?chat!.messages_v:-1,
+            draftVersion:Number.isSafeInteger(chat?.draft_v)?chat!.draft_v!:-1,
+            messageCount:snapshot.messages?.length??-1, artifactCount:snapshot.artifactCount,
+            pendingOperationCount:snapshot.pendingOperationCount, hasDraft:snapshot.hasDraft,
+            hasOrdinaryText:snapshot.hasOrdinaryText, hasPendingTurn:snapshot.hasPendingTurn,
+            hasTitle:!!(chat?.title||chat?.encrypted_title), hasSummary:!!chat?.encrypted_chat_summary,
+            hasOlderMessages:!!chat?.message_window_has_more_before,hasOlderEmbeds:!!chat?.embed_window_has_more_before,
+            allMessagesSynced:snapshot.messages?.every(row=>row.status==='synced')??false,
+          });
+        },
+      });
+      reportEmptyCallCleanup('completed', { accepted: outcome === 'deleted', retained: outcome === 'retained',
+        retry: outcome === 'retry' });
+      if (outcome === 'retry') scheduleEmptyVoiceCallCleanupRetry();
+      else forgetEmptyCallCleanup(chatId);
     })().catch(() => { reportEmptyCallCleanup('unavailable',{}); /* Preserve uncertain local work. */ });
   }
 
@@ -368,6 +394,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
     this.cleanupAttempt = attempt;
     // Preparation can refuse incomplete/oversized context before opening a
     // socket. Keep its initiating chat bound for diagnostics and handset retry.
+    this.unansweredAudioSince = null;
     this.update({ ...initialVoiceCallState, status: 'connecting', chatId: existingChatId ?? null });
     // The browser's audio activation must occur in the click handler. The mic is
     // captured but never transmitted until the server acknowledges readiness.
@@ -376,6 +403,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
       onAudio: (data) => {
         if (current() && this.state.status === 'live' && !this.state.muted &&
             !this.send({ type: 'mic_audio', data })) this.fail('connection_lost');
+        else if (current() && this.state.status === 'live' && !this.state.muted) this.unansweredAudioSince ??= performance.now();
       },
       onAudioEnd: () => {
         if (current() && this.state.status === 'live' &&
@@ -426,7 +454,14 @@ export class VoiceCallController implements VoiceCallControllerLike {
       // Keep preparation independently observed: microphone denial/hangup may
       // finish first, but its late receipt must still retire the exact new shell.
       const preparation = prepareVoiceCallChat(existingChatId, true).then(prepared => {
-        if (attempt) { attempt.chatId = prepared.chatId; attempt.cleanupAttemptId = prepared.cleanupAttemptId; }
+        if (attempt) {
+          attempt.chatId = prepared.chatId; attempt.cleanupAttemptId = prepared.cleanupAttemptId;
+          if (prepared.cleanupAttemptId) {
+            rememberEmptyCallCleanup(prepared.chatId, prepared.cleanupAttemptId);
+            if (attempt.terminated) markEmptyCallCleanupTerminated(prepared.chatId);
+            else setEmptyCallCleanupLive(prepared.chatId, true);
+          }
+        }
         return prepared;
       }).catch((error) => {
         throw new VoiceCallStartError(error instanceof VoiceCallContextError ? error.code : 'call_unavailable');
@@ -460,6 +495,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
       };
       socket.onmessage = (event: MessageEvent<string>) => {
         if (generation !== this.generation) return;
+        this.unansweredAudioSince = null;
         try { this.handleMessage(JSON.parse(event.data) as Record<string, unknown>); }
         catch { this.fail('invalid_response'); }
       };
@@ -487,7 +523,10 @@ export class VoiceCallController implements VoiceCallControllerLike {
         this.clockUpdatedAt = this.startedAt;
         this.activeMillis = 0;
         setActiveVoiceCallId(message.call_id);
-        if (this.cleanupAttempt) this.cleanupAttempt.callId = message.call_id;
+        if (this.cleanupAttempt) {
+          this.cleanupAttempt.callId = message.call_id;
+          if (this.cleanupAttempt.chatId) noteEmptyCallCleanupCallId(this.cleanupAttempt.chatId, message.call_id);
+        }
         this.update({ status: 'live', callId: message.call_id, error: null,
           cameraAvailable: message.camera_available === true,
 
@@ -569,11 +608,20 @@ export class VoiceCallController implements VoiceCallControllerLike {
       case 'transcript': {
         const { callId, chatId } = this.state;
         if (this.state.status !== 'live' || !callId || !chatId || message.call_id !== callId ||
-            message.role !== 'user' || message.final !== true || typeof message.message_id !== 'string' ||
+            message.role !== 'user' || typeof message.message_id !== 'string' ||
             typeof message.text !== 'string' || !message.text.trim()) return;
         const id = message.message_id;
+        if (message.final !== true) {
+          // Partial drafts are display-only; they grant no chat authority.
+          if (!this.turnWrites.has(id)) this.update({ liveTranscript: { messageId: id, text: message.text, submitted: false } });
+          return;
+        }
         if (this.turnWrites.has(id)) return;
+        this.update({ liveTranscript: { messageId: id, text: message.text, submitted: true } });
         const generation = this.generation;
+        const clearLive = () => {
+          if (generation === this.generation && this.state.liveTranscript?.messageId === id) this.update({ liveTranscript: null });
+        };
         reportVoiceCallTurnDelivery({ callId, chatId, turnId: id }, 'queued');
         this.callTurnIds.add(id);
         const frames = [...this.sourceFrames.entries()].filter(([key]) => key.startsWith(`${id}:`)).map(([, pending]) => pending);
@@ -585,6 +633,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
             createdAt: typeof message.created_at === 'number' ? message.created_at : undefined,
             embedReferences: this.sourceReferences.get(id),
             ...(heardBoundary ? { heardBoundary } : {}),
+            onVisible: clearLive,
             isCurrent: () => generation === this.generation && this.state.status === 'live' });
           if (accepted && generation === this.generation && this.pendingHeardBoundary === heardBoundary) this.pendingHeardBoundary = null;
           return accepted;
@@ -596,7 +645,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
           void this.settleTyped(id, false);
           if (generation === this.generation) this.fail('transcript_save_failed');
           return false;
-        }).finally(() => { this.sourceReferences.delete(id); });
+        }).finally(() => { this.sourceReferences.delete(id); clearLive(); });
         this.turnWrites.set(id, pending);
         this.cleanupAttempt?.turnWrites.push(pending);
         this.turnAdmission = pending.then(() => {});
@@ -604,6 +653,11 @@ export class VoiceCallController implements VoiceCallControllerLike {
         // invoke the canonical inference pipeline twice.
         return;
       }
+      case 'transcript.discarded':
+        // Echo, backchannel, stop words and empty turns never become messages.
+        if (message.call_id === this.state.callId && typeof message.message_id === 'string' &&
+            this.state.liveTranscript?.messageId === message.message_id) this.update({ liveTranscript: null });
+        return;
       case 'text_input_rejected':
         if (typeof message.message_id === 'string') void this.settleTyped(message.message_id, false);
         return;
@@ -640,7 +694,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
       : activeTask?.taskId ?? null;
     this.assistantMessageId = messageId;
     this.assistantTaskId = taskId;
-    this.update({ assistantSpeaking: speaking });
+    this.update({ assistantSpeaking: speaking, assistantMessageId: messageId, assistantGenerating: !!activeTask });
     this.send({ type: 'assistant_state', speaking, generating: !!activeTask,
       assistant_message_id: messageId, assistant_task_id: taskId,
       text: speech.chatId === chatId && speech.messageId === messageId ? speech.text.slice(-8_000) : '',
@@ -863,10 +917,17 @@ export class VoiceCallController implements VoiceCallControllerLike {
       this.cues.play('ended');
     } else if (this.state.status === 'connecting') this.cues.stop();
     const attempt = this.cleanupAttempt;
-    if (attempt) attempt.terminated = true;
+    if (attempt) {
+      attempt.terminated = true;
+      // Synchronous: survives a beforeunload hangup so the next load retries.
+      if (attempt.chatId) {
+        markEmptyCallCleanupTerminated(attempt.chatId);
+        setEmptyCallCleanupLive(attempt.chatId, false);
+      }
+    }
     this.closeResources();
     this.update({ status, error, audioLevels: zeroLevels(), inputIdle: false, userSpeaking: false, assistantSpeaking: false,
-      billingActivity: { inputListening: false, processing: false } });
+      billingActivity: { inputListening: false, processing: false }, liveTranscript: null });
     if (attempt) this.cleanupFinishedAttempt(attempt);
     else reportEmptyCallCleanup('not_call_created',{});
   }

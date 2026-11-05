@@ -1,0 +1,41 @@
+{
+  "schema_version":1,
+  "provenance":"Authored UNRUN. Direct Rust/NAPI/PyO3 calls against independent synthetic HTTP/socket peer. No Master input or product account; not physical persistence, browser provenance, release or performance acceptance.",
+  "capabilities":{
+    "session.ephemeral-metadata-startup.v1":{
+      "account":{"owner_id":"11111111-1111-4111-8111-111111111111","session_id":"synthetic-metadata-session","cookie":"synthetic-refresh"},
+      "protocol":{"app_origin":"https://app.example.invalid","initial_chat_id":"22222222-2222-4222-8222-222222222222"},
+      "vectors":[
+        {"id":"cookie-auth-no-master-expanded","mode":"expanded","total_chat_count":1234,"expected_count":2},
+        {"id":"cookie-auth-repeat-without-key-material","mode":"cookie_only","total_chat_count":1234,"expected_count":2},
+        {"id":"small-startup-no-expansion","mode":"small","total_chat_count":100,"expected_count":1},
+        {"id":"phase1-all-metadata-not-content-budget","mode":"phase1","total_chat_count":1234,"expected_count":27},
+        {"id":"auth-denial-cannot-issue-resource","mode":"denied","error":"expired","auth_requests":1,"connections":0},
+        {"id":"server-cookie-expiry-cannot-issue-resource","mode":"expired","error":"expired","auth_requests":1,"connections":0},
+        {"id":"auth-user-dto-without-principal-refused","mode":"malformed","error":"protocol","auth_requests":1,"connections":0},
+        {"id":"caller-owner-dto-refused","mode":"owner_dto","error":"invalid_argument","auth_requests":0,"connections":0},
+        {"id":"developer-api-key-mode-refused","mode":"api_key","error":"invalid_argument","auth_requests":0,"connections":0},
+        {"id":"changed-real-principal-retires-original","mode":"changed_principal","error":"expired","auth_requests":2,"connections":0},
+        {"id":"failed-auth-body-keeps-real-cookie-rotation","mode":"rotation_failure","error":"expired","auth_requests":2,"connections":0},
+        {"id":"cancel-before-original-dispatch","mode":"cancel_before","error":"cancelled","auth_requests":1,"connections":0},
+        {"id":"auth-origin-cancel-retires-issued-context","mode":"auth_cancel","error":"cancelled","auth_requests":1,"connections":0},
+        {"id":"cancel-original-metadata-read","mode":"cancel_inflight","error":"cancelled","auth_requests":2,"connections":1},
+        {"id":"foreign-response-epoch-cannot-release","mode":"foreign_epoch","total_chat_count":1234,"expected_count":2},
+        {"id":"foreign-response-team-retires-original","mode":"foreign_team","total_chat_count":1234,"error":"forbidden","auth_requests":2,"connections":1},
+        {"id":"old-generation-snapshot-refused","mode":"stale_snapshot","total_chat_count":1234,"expected_count":2},
+        {"id":"foreign-memory-store-snapshot-refused","mode":"foreign_snapshot","total_chat_count":1234,"expected_count":2},
+        {"id":"close-retires-memory-observation","mode":"closed_snapshot","total_chat_count":1234,"expected_count":2},
+        {"id":"actual-rotation-before-invalid-preference","mode":"late_invalid_cookie","error":"protocol","auth_requests":1,"connections":0},
+        {"id":"actual-rotation-before-undecodable-header","mode":"late_undecodable_cookie","error":"protocol","auth_requests":1,"connections":0},
+        {"id":"actual-rotation-before-malformed-auth-body","mode":"malformed_body","error":"protocol","auth_requests":1,"connections":0},
+        {"id":"actual-rotation-before-truncated-auth-body","mode":"truncated_body","error":"offline","auth_requests":1,"connections":0},
+        {"id":"held-auth-body-cannot-issue-scope","mode":"held_malformed_body","error":"protocol","auth_requests":1,"connections":0},
+        {"id":"auth-cancel-before-observed-headers-retains-rotation","mode":"cancel_before_headers","error":"cancelled","auth_requests":1,"connections":0},
+        {"id":"auth-postheader-cancel-retains-rotation-and-drains","mode":"cancel_after_headers","error":"cancelled","auth_requests":1,"connections":0},
+        {"id":"supported-foreign-auth-cancellation-drains-original","mode":"foreign_auth_cancel","error":"cancelled","auth_requests":1,"connections":0,"lifecycle":{"rust":"outer-future-aborted-after-original-cancel","npm":"explicit-original-cancel-not-promise-drop","python":"task-cancel-propagates-original-cancel"}},
+        {"id":"invalid-preference-before-actual-auth-rotation","mode":"early_invalid_cookie","error":"protocol","auth_requests":1,"connections":0},
+        {"id":"undecodable-header-before-actual-auth-rotation","mode":"early_undecodable_cookie","error":"protocol","auth_requests":1,"connections":0}
+      ]
+    }
+  }
+}

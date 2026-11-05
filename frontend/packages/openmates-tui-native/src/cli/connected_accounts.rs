@@ -1,0 +1,152 @@
+//! `openmates connected-accounts import` (npm handleConnectedAccounts) and the
+//! credential-free Revolut Business developer fallbacks
+//! `connect-account revolut[-business] consent-url|exchange-code --dry-run`
+//! (npm handleRevolutBusinessConnect). Declared from account.rs. Certificate
+//! generation, the RS256-signed code exchange and the Proton bridge connector
+//! stay unsupported and fail explicitly.
+use super::{CliError, CliOutput, Invocation, handlers};
+use crate::{cli::signup::Terminal, client::Client};
+use openmates_sdk::account::{revolut_business_consent_url, revolut_business_token_url};
+use serde_json::json;
+
+fn fail(message: impl Into<String>) -> CliError {
+    CliError::Invalid(message.into())
+}
+fn revolut_action(i: &Invocation) -> Option<&str> {
+    match i.path.as_slice() {
+        [connect, provider, action]
+            if connect == "connect-account"
+                && (provider == "revolut" || provider == "revolut-business") =>
+        {
+            Some(action.as_str())
+        }
+        _ => None,
+    }
+}
+/// Revolut consent/exchange fallbacks need no account (docs public channel).
+pub(in crate::cli) fn is_public(i: &Invocation) -> bool {
+    matches!(revolut_action(i), Some("consent-url" | "exchange-code"))
+}
+pub(super) fn supported(i: &Invocation) -> bool {
+    i.command_path() == "connected-accounts import"
+}
+fn client_id(i: &Invocation) -> Result<&str, CliError> {
+    i.text("client-id")
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .ok_or_else(|| fail("Missing --client-id <ClientID>."))
+}
+
+pub(in crate::cli) fn execute_public(i: &Invocation) -> Result<CliOutput, CliError> {
+    let action = revolut_action(i).unwrap_or_default();
+    let production = i.boolean("production");
+    let environment = if production { "production" } else { "sandbox" };
+    if action == "consent-url" {
+        handlers::flags(i, &["client-id", "production", "redirect-uri", "scope"])?;
+        let client_id = client_id(i)?;
+        let url = revolut_business_consent_url(
+            production,
+            client_id,
+            i.text("redirect-uri"),
+            i.text("scope"),
+        )?;
+        if i.boolean("json") {
+            return CliOutput::json(
+                &json!({"provider_id":"revolut_business","environment":environment,
+                "client_id":client_id,"consent_url":url}),
+            );
+        }
+        return Ok(CliOutput::text(format!(
+            "Open this Revolut Business consent URL:\n{url}"
+        )));
+    }
+    handlers::flags(
+        i,
+        &[
+            "client-id",
+            "code",
+            "production",
+            "redirect-uri",
+            "private-key",
+            "dry-run",
+        ],
+    )?;
+    let client_id = client_id(i)?;
+    if i.text("code").is_none_or(|c| c.trim().is_empty())
+        && i.positionals.join(" ").trim().is_empty()
+    {
+        return Err(fail("Missing --code <authorization-code-or-redirect-url>."));
+    }
+    let private_key = i
+        .text("private-key")
+        .map(str::to_owned)
+        .unwrap_or_else(|| format!("~/.openmates/revolut-business/{environment}/privatecert.pem"));
+    if !i.boolean("dry-run") {
+        return Err(CliError::Unsupported {
+            command: i.command_path(),
+            reason: "The Revolut Business authorization-code exchange (RS256 client assertion) is not ported to the native CLI yet; only --dry-run is available.".into(),
+        });
+    }
+    if i.boolean("json") {
+        return CliOutput::json(
+            &json!({"provider_id":"revolut_business","environment":environment,
+            "client_id":client_id,"code_present":true,"token_url":revolut_business_token_url(production),
+            "private_key_path":private_key}),
+        );
+    }
+    Ok(CliOutput::text(format!(
+        "Revolut Business authorization-code exchange dry run is valid.\nClientID: {client_id}\nPrivate key: {private_key}"
+    )))
+}
+
+pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOutput, CliError> {
+    let mut terminal =
+        crate::cli::signup::process_terminal(tokio_util::sync::CancellationToken::new());
+    execute_with(i, client, &mut terminal).await
+}
+pub(super) async fn execute_with(
+    i: &Invocation,
+    client: &mut Client,
+    terminal: &mut impl Terminal,
+) -> Result<CliOutput, CliError> {
+    if i.has("team") {
+        return Err(fail(
+            "Team connected accounts are not supported yet. Use personal connected accounts or retry after Teams connected-account support ships.",
+        ));
+    }
+    if i.has("passcode") {
+        return Err(fail(
+            "Connected account import passcodes must be entered through the hidden prompt, not a command-line flag.",
+        ));
+    }
+    handlers::flags(i, &["payload"])?;
+    let payload = i.text("payload").map(str::trim).unwrap_or_default();
+    if payload.is_empty() {
+        return Err(fail(
+            "Missing --payload. Paste the command generated by connected account settings.",
+        ));
+    }
+    let passcode = terminal
+        .secret("Connected account import passcode: ")
+        .await?;
+    let result = client
+        .account()
+        .import_connected_account(payload, &passcode)
+        .await?;
+    if i.boolean("json") {
+        return CliOutput::json(
+            &json!({"id":result["id"],"provider_id":result["provider_id"],
+            "app_id":result["app_id"],"validation":result["validation"]}),
+        );
+    }
+    let text = |key: &str| result[key].as_str().unwrap_or_default().to_owned();
+    Ok(CliOutput::text(format!(
+        "Connected account imported.\nProvider: {}\nApp: {}\nValidation: harmless read succeeded",
+        text("provider_id"),
+        text("app_id")
+    )))
+}
+
+#[cfg(test)]
+#[path = "connected_accounts_tests.rs"]
+mod tests;

@@ -12,7 +12,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import PlainTextResponse
 
 from backend.core.api.app.services.limiter import limiter
@@ -25,7 +25,9 @@ router = APIRouter(
 )
 
 # Resolve docs root relative to project root
-_PROJECT_ROOT = Path(__file__).resolve().parents[6]
+# routes -> app -> api -> core -> backend -> project root (/app in the API image,
+# where docs/ is mounted on dev and copied into self-host images).
+_PROJECT_ROOT = Path(__file__).resolve().parents[5]
 _DOCS_ROOT = _PROJECT_ROOT / "docs"
 _DOCSIGNORE = _DOCS_ROOT / ".docsignore"
 
@@ -109,7 +111,8 @@ def _build_tree(directory: Path, rel_prefix: str, ignore_patterns: list[str]) ->
 
 
 @router.get("")
-async def list_docs() -> dict[str, Any]:
+@limiter.limit("60/minute")
+async def list_docs(request: Request) -> dict[str, Any]:
     """Return the full documentation tree structure (titles, slugs, word counts)."""
     if not _DOCS_ROOT.exists():
         return {"folders": [], "files": []}
@@ -119,7 +122,8 @@ async def list_docs() -> dict[str, Any]:
 
 
 @router.get("/search")
-async def search_docs(q: str = Query(..., min_length=1, max_length=200)) -> list[dict[str, Any]]:
+@limiter.limit("30/minute")
+async def search_docs(request: Request, q: str = Query(..., min_length=1, max_length=200)) -> list[dict[str, Any]]:
     """Full-text search across all docs. Returns matching docs with title and snippet."""
     if not _DOCS_ROOT.exists():
         return []
@@ -169,7 +173,8 @@ async def search_docs(q: str = Query(..., min_length=1, max_length=200)) -> list
 
 
 @router.get("/{slug:path}")
-async def get_doc(slug: str) -> PlainTextResponse:
+@limiter.limit("120/minute")
+async def get_doc(request: Request, slug: str) -> PlainTextResponse:
     """Return a single doc's raw markdown content by slug."""
     # Prevent path traversal
     if ".." in slug or slug.startswith("/"):

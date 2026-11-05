@@ -42,6 +42,15 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+  authoredUnknowns: {
+    data: { decodedContent: {
+      type: "appointment", status: "finished", name: "Dr Example", price: 20,
+      slot_datetime: "2030-04-13T09:30:00+02:00", address: "Example Clinic, Berlin",
+      additional_slot_datetimes: ["2030-04-13T10:30:00+02:00"],
+      authoring: { schema_version: 1, kind: "health.appointment", origin: "draft", sources: [] },
+    }, embedData: { status: "finished" }, attrs: { app_id: "health" } },
+  },
+
   unknownInsurance: { data: { ...defaultProps.data, decodedContent: {...defaultProps.data.decodedContent, insurance: "unknown"} } },
   /** Telehealth cardiologist with private insurance (ExampleClinicA) */
   telehealth: {

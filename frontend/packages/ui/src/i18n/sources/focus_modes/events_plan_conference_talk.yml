@@ -1,0 +1,102 @@
+events_plan_conference_talk:
+  context: "Focus mode name"
+  en: "Plan a conference talk"
+  de: "Konferenzvortrag planen"
+  zh: "规划会议演讲"
+  es: "Planificar una charla para una conferencia"
+  fr: "Préparer une conférence"
+  pt: "Planejar uma palestra em conferência"
+  ru: "Подготовить доклад для конференции"
+  ja: "カンファレンス講演を計画する"
+  ko: "콘퍼런스 발표 계획하기"
+  it: "Pianifica un talk per una conferenza"
+  tr: "Konferans konuşması planla"
+  vi: "Lên kế hoạch bài nói tại hội nghị"
+  id: "Rencanakan presentasi konferensi"
+  pl: "Zaplanuj wystąpienie na konferencji"
+  nl: "Een conferentietalk plannen"
+  ar: "التخطيط لمحاضرة في مؤتمر"
+  hi: "सम्मेलन वार्ता की योजना बनाएं"
+  th: "วางแผนการบรรยายในงานประชุม"
+  cs: "Naplánovat přednášku na konferenci"
+  sv: "Planera ett konferensföredrag"
+  he: "תכנון הרצאה לכנס"
+  verified_by_human: []
+description:
+  context: "Focus mode description"
+  en: "Decide which talk to submit to a conference and shape it into a strong proposal."
+  de: "Entscheide, welchen Vortrag du bei einer Konferenz einreichst, und mach daraus einen starken Vorschlag."
+  zh: "决定向会议提交哪个演讲，并把它打磨成有力的提案。"
+  es: "Decide qué charla presentar a una conferencia y conviértela en una propuesta sólida."
+  fr: "Choisissez quelle intervention soumettre à une conférence et transformez-la en proposition solide."
+  pt: "Decida qual palestra submeter a uma conferência e transforme-a em uma proposta forte."
+  ru: "Выберите, какой доклад подать на конференцию, и превратите его в сильную заявку."
+  ja: "カンファレンスに応募する講演を決め、説得力のある提案に仕上げます。"
+  ko: "콘퍼런스에 제출할 발표를 정하고 탄탄한 제안서로 다듬으세요."
+  it: "Decidi quale talk proporre a una conferenza e trasformalo in una proposta convincente."
+  tr: "Bir konferansa hangi konuşmayı göndereceğine karar ver ve onu güçlü bir teklife dönüştür."
+  vi: "Chọn bài nói để gửi tới hội nghị và biến nó thành một đề xuất thuyết phục."
+  id: "Tentukan presentasi yang akan diajukan ke konferensi dan jadikan proposal yang kuat."
+  pl: "Zdecyduj, które wystąpienie zgłosić na konferencję, i przekształć je w mocną propozycję."
+  nl: "Bepaal welke talk je indient bij een conferentie en maak er een sterk voorstel van."
+  ar: "اختر المحاضرة التي ستقدمها إلى مؤتمر وحوّلها إلى مقترح قوي."
+  hi: "तय करें कि सम्मेलन में कौन-सी वार्ता भेजनी है और उसे एक मजबूत प्रस्ताव में ढालें।"
+  th: "เลือกหัวข้อบรรยายที่จะส่งเข้างานประชุม แล้วเรียบเรียงเป็นข้อเสนอที่แข็งแรง"
+  cs: "Rozhodněte, jakou přednášku přihlásit na konferenci, a připravte z ní silný návrh."
+  sv: "Bestäm vilket föredrag du ska skicka in till en konferens och forma det till ett starkt förslag."
+  he: "החליטו איזו הרצאה להגיש לכנס ועצבו אותה להצעה חזקה."
+  verified_by_human: []
+process:
+  context: Focus mode steps
+  en: '- Learns about you, your project and your audience.
+
+    - Checks the conference''s call for papers: deadline, tracks, format, talk length and what they favour,
+    plus any stated title and abstract length limits (or tells you none were found).
+
+    - Proposes 3-5 talk ideas, each with a title, a one-line pitch and the audience takeaway.
+
+    - Helps you pick one and drafts a proposal (title, abstract, outline, speaker bio) within the length
+    limits.'
+  verified_by_human: []
+how_to_use:
+  context: Focus mode examples
+  en: '- I work on a large **open source project** and want to submit a talk, so what should I consider
+    first?
+
+    - Help me pick a **talk idea for FOSDEM** from what I''ve built this year.
+
+    - Polish my **talk proposal abstract** for the CFP.'
+  verified_by_human: []
+systemprompt:
+  context: Focus mode instructions
+  en: 'Help the user decide which talk to submit to a conference or meetup and shape it into a strong proposal.
+    Keep the first answer short, at roughly the pace of an intro video: a few bullets and one question,
+    not an essay. Use plain Markdown bullets.
+  
+  
+    1. Target the conference the user points at: an event card attached to or referenced in their latest
+    message (for example after opening the FOSDEM card) takes priority over every other conference mentioned
+    earlier. Otherwise reuse the one conference from the chat context without asking again. Only if none
+    is clear, ask which conference or meetup in the same question as step 3; never guess one.
+  
+    2. Use web.read on the official call for papers or submission page (find it with web.search if no link
+    is known). Give a short bullet list of what matters: deadline, tracks, format and talk length, what
+    the programme favours, and any stated limits on title length and abstract/description length (characters
+    or words). Always include one bullet starting "Title and abstract limits:" with the stated limits, or
+    "none stated on the official CFP page".
+  
+    3. Ask ONE compact optional question about the user''s project, audience and speaking experience. If
+    they skip it or ask you to go ahead, proceed with clearly stated assumptions.
+  
+    4. Offer 3-5 talk ideas as one-liners, each with a title, a one-line pitch and the audience takeaway.
+    Ask which one to develop; do not develop all of them.
+  
+    5. When asked, draft the proposal for the chosen idea: title, abstract, outline and speaker bio. Respect
+    the title and abstract length limits found in step 2, and state the counts used.
+  
+  
+    Never promise or imply acceptance. State deadlines, tracks and limits only when found on an official
+    page; otherwise say "check the official page". Never invent tracks, rules, deadlines or limits. Use
+    events.search only for schedules of conferences it supports, to see what was accepted before; do not
+    use it to list or discover conferences. Do not give travel planning or general public-speaking coaching.'
+  verified_by_human: []

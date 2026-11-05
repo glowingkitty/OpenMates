@@ -22,6 +22,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { attachReviewedPublicMedia } from './example_media_manifest.mjs';
+import { decryptedEmbedType } from './extract-shared-chat.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const REPO_ROOT = path.resolve(path.dirname(__filename), '..');
@@ -57,6 +58,21 @@ const PRIVATE_TOON_TABLE_COLUMNS = new Set([
   'latest_screenshot',
   'latest_screenshot_url',
   'latest_screenshot_mime_type',
+  'authored_media',
+  'source_json',
+  'source_embed_id',
+  'owner_id',
+  'owner_hash',
+  'hashed_user_id',
+  'hashed_team_id',
+  'hashed_chat_id',
+  'hashed_message_id',
+  'hashed_task_id',
+  'user_vault_key_id',
+  'encrypted_embed_key',
+  'encrypted_chat_key',
+  'chat_encryption_key',
+  'master_key',
 ]);
 const PRIVATE_EMBED_KEYS = new Set([
   ...[...PRIVATE_TOON_TABLE_COLUMNS].filter((key) => key !== 'latest_screenshot_url'),
@@ -619,6 +635,9 @@ function splitToonTableRow(line) {
     const char = body[index];
     current += char;
     if (char === '"') {
+      let backslashes = 0;
+      for (let before = index - 1; before >= 0 && body[before] === '\\'; before -= 1) backslashes += 1;
+      if (inQuotes && backslashes % 2 === 1) continue;
       const next = body[index + 1];
       if (inQuotes && next === '"') {
         current += next;
@@ -787,6 +806,104 @@ export function inlineEmbedsMapViewCodeEmbeds(chat) {
   };
 }
 
+function toonValue(raw) {
+  const value = raw.trim();
+  return value.startsWith('"') ? JSON.parse(value) : value;
+}
+
+function toonInlineArray(source, key) {
+  const match = source.match(new RegExp(`^${key}\\[(\\d+)\\]:\\s*(.*)$`, 'm'));
+  if (!match) return source.match(new RegExp(`^${key}:\\s*\\[\\]\\s*$`, 'm')) ? [] : null;
+  const values = match[2].trim() ? splitToonTableRow(match[2]).values.map(toonValue) : [];
+  if (values.length !== Number(match[1])) throw new Error(`Authored result ${key} length is inconsistent.`);
+  return values;
+}
+
+function authoredCarrierGraph(embed) {
+  const source = String(embed.content || '');
+  const bodyType = decryptedEmbedType(source);
+  if (embed.type !== 'authored_results' && bodyType !== 'authored_results') return null;
+  if (embed.type !== bodyType) throw new Error('Authored result carrier type does not match its decrypted content.');
+  if (source.trimStart().startsWith('{')) return JSON.parse(source);
+  const lines = source.split('\n');
+  const headerIndex = lines.findIndex((line) => /^items\[\d+\]\{[^}]+\}:\s*$/.test(line));
+  let items = [];
+  if (headerIndex >= 0) {
+    const header = lines[headerIndex].match(/^items\[(\d+)\]\{([^}]+)\}:\s*$/);
+    const columns = header[2].split(',');
+    if (new Set(columns).size !== columns.length) throw new Error('Authored result item columns are duplicated.');
+    for (let index = headerIndex + 1; index < lines.length && /^  \S/.test(lines[index]); index += 1) {
+      const values = splitToonTableRow(lines[index]).values.map(toonValue);
+      if (values.length !== columns.length) throw new Error('Authored result item columns are inconsistent.');
+      items.push(Object.fromEntries(columns.map((column, at) => [column, values[at]])));
+    }
+    if (items.length !== Number(header[1])) throw new Error('Authored result items length is inconsistent.');
+  } else if (!/^items:\s*\[\]\s*$/m.test(source)) {
+    throw new Error('Authored result items are missing.');
+  }
+  const viewBlock = source.match(/^view:\s*\n((?:[ \t]+[^\n]*(?:\n|$))*)/m)?.[1] || '';
+  return { embed_ids: toonInlineArray(source, 'embed_ids'), items,
+    view: { embeds: toonInlineArray(viewBlock.replace(/^  /gm, ''), 'embeds') } };
+}
+
+function assertNoPrivateAuthoredMedia(embed) {
+  const source = String(embed.content || '');
+  let hasPrivateMedia = false;
+  if (source.trimStart().startsWith('{')) {
+    const media = JSON.parse(source).authored_media;
+    hasPrivateMedia = media != null && (!Array.isArray(media) || media.length !== 0);
+  } else {
+    const field = source.match(/^authored_media(?:\[(\d+):?\](?:\{[^}]*\})?)?:\s*([^\n]*)/m);
+    hasPrivateMedia = !!field && (field[1] !== undefined ? Number(field[1]) > 0 : !['[]', 'null'].includes(field[2].trim()));
+  }
+  if (hasPrivateMedia) {
+    throw new Error(`Embed ${embed.embed_id} has selected encrypted authored media. Public example conversion requires an approved public asset replacement; this converter does not silently omit selected photos.`);
+  }
+}
+
+function validateAuthoredGraph(embeds) {
+  const byId = new Map(embeds.map((embed) => [embed.embed_id, embed]));
+  for (const carrier of embeds) {
+    assertNoPrivateAuthoredMedia(carrier);
+    const graph = authoredCarrierGraph(carrier);
+    if (!graph) continue;
+    if (byId.size !== embeds.length) throw new Error('Authored result graph has duplicate embed identities.');
+    const ids = graph.embed_ids;
+    if (!Array.isArray(ids) || new Set(ids).size !== ids.length || ids.some((id) => typeof id !== 'string' || !id)
+      || !Array.isArray(graph.items) || graph.items.length !== ids.length
+      || graph.items.some((item, index) => item?.embed_id !== ids[index])) {
+      throw new Error('Authored result carrier membership or item ordering is inconsistent.');
+    }
+    if (carrier.embed_ids != null && JSON.stringify(carrier.embed_ids) !== JSON.stringify(ids)) {
+      throw new Error('Authored result carrier sidecar ordering differs from its decrypted content.');
+    }
+    const kinds = JSON.parse(readFileSync(path.join(REPO_ROOT, 'shared/config/authored_result_types.json'), 'utf8')).kinds;
+    for (const [index, id] of ids.entries()) {
+      const child = byId.get(id);
+      if (!child || child.parent_embed_id !== carrier.embed_id) {
+        throw new Error(`Authored result child ${id} is missing or has a different parent.`);
+      }
+      const expectedType = kinds[graph.items[index].kind]?.backend_type;
+      if (!expectedType || child.type !== expectedType || decryptedEmbedType(child.content) !== expectedType) {
+        throw new Error(`Authored result child ${id} has an inconsistent decrypted type.`);
+      }
+      const childSource = String(child.content || '');
+      const authoringKind = childSource.trimStart().startsWith('{') ? JSON.parse(childSource).authoring?.kind
+        : parseToonScalar((childSource.match(/^authoring:\s*\n((?:[ \t]+[^\n]*(?:\n|$))*)/m)?.[1] || '').replace(/^  /gm, ''), 'kind');
+      if (authoringKind !== graph.items[index].kind) {
+        throw new Error(`Authored result child ${id} provenance kind differs from its carrier.`);
+      }
+    }
+    if (embeds.some((child) => child.parent_embed_id === carrier.embed_id && !ids.includes(child.embed_id))) {
+      throw new Error('Authored result graph contains an unselected child.');
+    }
+    if (graph.view?.embeds != null && (!Array.isArray(graph.view.embeds)
+      || graph.view.embeds.some((id) => !ids.includes(id)))) {
+      throw new Error('Authored result view references an unselected child.');
+    }
+  }
+}
+
 export function validateExtractedChat(chat, groupRefs = null) {
   const required = ['chat_id', 'messages', 'embeds'];
   for (const key of required) {
@@ -798,6 +915,7 @@ export function validateExtractedChat(chat, groupRefs = null) {
   if (!Array.isArray(chat.embeds)) {
     throw new Error('Extracted chat embeds must be an array.');
   }
+  validateAuthoredGraph(chat.embeds);
 
   const embedRefsInMessages = extractEmbedRefsFromMessages(chat.messages);
   // A shared research conversation exposes its parent and actual child chats
@@ -1170,14 +1288,18 @@ function formatMessages(messages, metadata, keyPrefix, category = metadata.categ
 }
 
 function formatEmbeds(embeds) {
-  return embeds.map((embed) => ({
-    embed_id: embed.embed_id,
-    type: embed.type === 'focus_mode_activation' ? 'focus-mode-activation' : embed.type,
-    content: sanitizeEmbedContent(embed.content),
-    parent_embed_id: embed.parent_embed_id ?? null,
-    embed_ids: embed.embed_ids ?? null,
-    pii_mappings: embed.pii_mappings || undefined,
-  }));
+  return embeds.map((embed) => {
+    assertNoPrivateAuthoredMedia(embed);
+    const authored = authoredCarrierGraph(embed);
+    return {
+      embed_id: embed.embed_id,
+      type: embed.type === 'focus_mode_activation' ? 'focus-mode-activation' : embed.type,
+      content: sanitizeEmbedContent(embed.content),
+      parent_embed_id: embed.parent_embed_id ?? null,
+      embed_ids: authored?.embed_ids ?? embed.embed_ids ?? null,
+      pii_mappings: embed.pii_mappings || undefined,
+    };
+  });
 }
 
 function formatCompressionCheckpoints(checkpoints, chatId) {
@@ -1510,6 +1632,9 @@ async function main() {
     : loadedChat;
   const usagePayload = await loadUsagePayload(args, sourceChat);
   let chat = annotateChatWithUsage(sourceChat, usagePayload);
+  // Validate the original graph before public-media sanitization can erase
+  // evidence of selected private photos or incomplete authored children.
+  validateExtractedChat(chat);
   if (args.publicMediaManifest) {
     const sanitized = {
       ...chat,

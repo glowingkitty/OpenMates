@@ -7,6 +7,7 @@
  * Product Specification: specifications/features/tasks/specification.yml
  */
 export {};
+// playwright-account: not_required reason=isolated_component_preview
 
 import type { Page, TestInfo } from '@playwright/test';
 
@@ -102,8 +103,9 @@ async function recordReadableInterval(page: Page, checkpoint: string, fraction =
 	await page.waitForTimeout(duration * fraction);
 }
 
-async function openTaskDetailPreview(page: any): Promise<void> {
-	const response = await page.goto('/dev/preview/tasks/TaskDetailFullscreen?chrome=0', {
+async function openTaskDetailPreview(page: any, variant?: string): Promise<void> {
+	const query = variant ? `?chrome=0&variant=${encodeURIComponent(variant)}` : '?chrome=0';
+	const response = await page.goto(`/dev/preview/tasks/TaskDetailFullscreen${query}`, {
 		waitUntil: 'networkidle'
 	});
 	expect(response?.status()).toBe(200);
@@ -166,6 +168,7 @@ test.describe('Task detail fullscreen component', () => {
 			'Codex task bridge'
 		);
 		await expect(detail.getByTestId('task-detail-chat')).toContainText('Codex');
+		await expect(detail.getByTestId('task-detail-external-chat-provider')).toHaveText('Codex');
 		await expect(detail.getByTestId('task-detail-project-card')).toHaveAttribute(
 			'href',
 			'/#project-id=preview-project'
@@ -257,5 +260,24 @@ test.describe('Task detail fullscreen component', () => {
 		).toBeLessThan(8);
 		await page.keyboard.press('Escape');
 		await expect(page.getByTestId('task-detail-fullscreen')).not.toBeVisible({ timeout: 2_000 });
+	});
+
+	// contract-test: direct surface=gui.web assertions=tasks.external-chat.encrypted-context,tasks.surface.semantic-parity
+	test('labels a Claude Code session link by its provider without a Claude assignee', async ({
+		page
+	}: {
+		page: Page;
+	}) => {
+		await openTaskDetailPreview(page, 'claudeExternalChat');
+
+		const detail = page.getByTestId('task-detail-content');
+		const external = detail.getByTestId('task-detail-external-chat');
+		await external.scrollIntoViewIfNeeded();
+		await expect(external).toBeVisible();
+		await expect(external).toContainText('Claude Code session');
+		await expect(detail.getByTestId('task-detail-external-chat-provider')).toHaveText('Claude Code');
+		await expect(external).not.toContainText('Codex');
+		// A Claude link is context only; assignment stays with the user.
+		await expect(detail.getByTestId('task-detail-assignee-select')).toHaveValue('user');
 	});
 });

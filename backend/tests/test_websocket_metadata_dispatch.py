@@ -290,6 +290,54 @@ async def test_pending_embed_replay_is_capped_per_connection(monkeypatch, embed_
     assert all(event[0]["type"] == "send_embed_data" for event in sent)
 
 
+# contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases
+@pytest.mark.parametrize("routing", [{"app_id": "news", "skill_id": "website"}, {}])
+@pytest.mark.asyncio
+async def test_pending_embed_replay_preserves_child_routing_identity(monkeypatch, routing):
+    """Issue BMKRJ: a replayed child must keep its live skill_id, not the parent's."""
+    websockets = _load_websockets_module(monkeypatch)
+    sent = []
+
+    async def no_sleep(_seconds):
+        return None
+
+    class RedisClient:
+        async def get(self, _key):
+            return json.dumps({
+                "status": "finished", "type": "website", "vault_key_id": "vault-1",
+                "encrypted_content": "ciphertext", "chat_id": "chat-1", "message_id": "message-1",
+                "parent_embed_id": "parent-1", **routing,
+            })
+
+    class Cache:
+        async def get_pending_embed_ids(self, _user_id):
+            return ["child-1"]
+
+        @property
+        def client(self):
+            async def connected_client():
+                return RedisClient()
+
+            return connected_client()
+
+    class Encryption:
+        async def decrypt_with_user_key(self, _encrypted_content, _vault_key_id):
+            return "plaintext toon"
+
+    class Manager:
+        async def send_personal_message(self, message, user_id, device_fingerprint_hash):
+            sent.append(message)
+
+    monkeypatch.setattr(websockets.asyncio, "sleep", no_sleep)
+    await websockets._deliver_pending_embeds(
+        Cache(), Encryption(), Manager(), "owner-1", hashlib.sha256(b"owner-1").hexdigest(), "device-1",
+    )
+
+    payload = sent[0]["payload"]
+    assert payload["parent_embed_id"] == "parent-1"
+    assert {key: payload[key] for key in ("app_id", "skill_id") if key in payload} == routing
+
+
 # contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases,sync.phase2.metadata-only
 def test_phased_sync_is_scheduled_without_awaiting(monkeypatch):
     websockets = _load_websockets_module(monkeypatch)

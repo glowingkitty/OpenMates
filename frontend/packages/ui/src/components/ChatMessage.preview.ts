@@ -307,7 +307,21 @@ export const variants = {
 		content:
 			'Menschen bevorzugen nicht universell Rechtecke im Verhältnis $1:1{,}618$. ' +
 			'Je nach Kontext werden oft Seitenverhältnisse wie $1:1{,}414$ ' +
-			'(das DIN-Format $\\sqrt{2}$) oder $1:1{,}5$ angenehm empfunden.',
+			'(das DIN-Format $\\sqrt{2}$) oder $1:1{,}5$ angenehm empfunden. ' +
+			'Wenn 1 Token $\\approx$ 4 Bytes sind, kostet Attention ($\\mathcal{O}(N^2)$) mehr.',
+		status: 'synced' as const,
+		messageParts: [],
+		containerWidth: 800,
+		isFirstMessage: false
+	},
+
+	/** Suffixed currency amounts next to bold prose, then a paragraph that opens with math. */
+	currencyAndLeadingMath: {
+		role: 'assistant' as const,
+		content:
+			'The deal covers ~$4.4B of subordinated debt in a $35B Apollo-led financing. ' +
+			'**More than $800B on computing infrastructure through 2045** — some analyses put obligations near $900B.\n\n' +
+			'$E=mc^2$ relates energy and mass, while $a^2+b^2=c^2$ is geometry.',
 		status: 'synced' as const,
 		messageParts: [],
 		containerWidth: 800,

@@ -99,6 +99,12 @@
         "description": {
           "text": "Pilih nama yang mudah diingat, lalu periksa domain dan konflik merek kandidat akhir."
         }
+      },
+      "price_products": {
+        "text": "Tentukan harga produkmu",
+        "description": {
+          "text": "Hitung harga jual produk buatan tangan atau produksi kecil dengan lembar langsung yang bisa kamu edit."
+        }
       }
     },
     "code": {
@@ -184,6 +190,14 @@
         "text": "Periksa keamanan",
         "description": {
           "text": "Audit file konfigurasi untuk kerentanan keamanan dan paparan."
+        }
+      }
+    },
+    "events": {
+      "plan_conference_talk": {
+        "text": "Rencanakan presentasi konferensi",
+        "description": {
+          "text": "Tentukan presentasi yang akan diajukan ke konferensi dan jadikan proposal yang kuat."
         }
       }
     },
@@ -336,6 +350,14 @@
         }
       }
     },
+    "tasks": {
+      "daily_meeting_and_orchestration": {
+        "text": "Rapat harian & orkestrasi",
+        "description": {
+          "text": "Pilih prioritas hari ini dan koordinasikan tugas serta obrolan proyek hingga selesai."
+        }
+      }
+    },
     "videos": {
       "analyze_video": {
         "text": "Analisis video",
@@ -383,6 +405,14 @@
           "3": {
             "text": "Selidiki **penyebab** kebangkitan fast fashion dan dampak lingkungannya"
           }
+        }
+      }
+    },
+    "workflows": {
+      "clarify_workflows": {
+        "text": "Perjelas alur kerja",
+        "description": {
+          "text": "Lengkapi detail yang kurang untuk satu atau beberapa alur kerja sebelum membuat atau mengubahnya."
         }
       }
     }
@@ -1512,6 +1542,15 @@
       "preview_hide": {
         "text": "Sembunyikan pratinjau"
       },
+      "view_code": {
+        "text": "Lihat kode"
+      },
+      "view_visual": {
+        "text": "Lihat visual"
+      },
+      "interactive_html_blocked": {
+        "text": "Visual ini mencoba membuka halaman lain dan dihentikan."
+      },
       "search_repos": {
         "text": "Cari repo",
         "description": {
@@ -2464,7 +2503,7 @@
       "browse": {
         "text": "Jelajahi",
         "description": {
-          "text": "Jelajahi situs web dan kembalikan informasi yang diamati sebagai JSON."
+          "text": "Jelajahi situs web dan kembalikan JSON. Biaya komputasi browser dihitung per detik, ditambah penggunaan AI. Komputasi yang dijeda tidak dikenakan biaya."
         }
       }
     },
@@ -2480,6 +2519,12 @@
           "text": "Cari alur kerja",
           "description": {
             "text": "Temukan alur kerja milik pengguna yang cocok dengan maksud chat."
+          }
+        },
+        "run": {
+          "text": "Jalankan alur kerja",
+          "description": {
+            "text": "Jalankan salah satu alur kerja yang sudah ada dari obrolan."
           }
         }
       }
@@ -4157,6 +4202,12 @@
       },
       "remember": {
         "text": "Remember"
+      },
+      "more_options": {
+        "text": "Tampilkan opsi lainnya"
+      },
+      "previous_options": {
+        "text": "Tampilkan opsi sebelumnya"
       }
     },
     "explain_in_new_chat": {
@@ -7327,9 +7378,6 @@
     "view_on_google_hotels": {
       "text": "Lihat di Google Hotels"
     },
-    "view_on_meetup": {
-      "text": "Lihat di Gathering"
-    },
     "loading_map": {
       "text": "Memuat peta..."
     },
@@ -7840,6 +7888,9 @@
         },
         "not_available": {
           "text": "T/A"
+        },
+        "cash_flow": {
+          "text": "Arus kas"
         }
       },
       "search_trademarks": {
@@ -8074,6 +8125,11 @@
         "text": "Watermarking"
       }
     },
+    "search_domain": {
+      "minutes": {
+        "text": "{count} menit"
+      }
+    },
     "projects": {
       "references": {
         "subtitle": {
@@ -8258,6 +8314,139 @@
       },
       "stopping": {
         "text": "Menghentikan…"
+      },
+      "no_frame": {
+        "text": "Tidak ada tangkapan layar tersimpan."
+      }
+    },
+    "authoring": {
+      "draft": {
+        "text": "Draf"
+      },
+      "user_provided": {
+        "text": "Disediakan pengguna"
+      },
+      "sources": {
+        "text": "Sumber"
+      },
+      "observed_at": {
+        "text": "Waktu pengamatan"
+      },
+      "image_credit": {
+        "text": "Kredit gambar"
+      },
+      "partial": {
+        "text": "Hasil sebagian"
+      },
+      "uploaded_source": {
+        "text": "Sumber yang diunggah"
+      },
+      "approximate_location": {
+        "text": "Perkiraan lokasi"
+      },
+      "schematic_route": {
+        "text": "Rute skematis"
+      },
+      "unmapped": {
+        "text": "Lokasi tidak tersedia"
+      },
+      "open_source": {
+        "text": "Buka halaman sumber"
+      },
+      "open_domain": {
+        "text": "Buka di {domain}"
+      },
+      "additional_times": {
+        "text": "Waktu lainnya"
+      }
+    },
+    "tv": {
+      "movie": {
+        "text": "Film"
+      },
+      "series": {
+        "text": "Serial TV"
+      },
+      "poster_unavailable": {
+        "text": "Poster tidak tersedia"
+      },
+      "synopsis": {
+        "text": "Sinopsis"
+      },
+      "release_date": {
+        "text": "Tanggal rilis"
+      },
+      "runtime": {
+        "text": "Durasi"
+      },
+      "genres": {
+        "text": "Genre"
+      },
+      "directors": {
+        "text": "Sutradara"
+      },
+      "creators": {
+        "text": "Kreator"
+      },
+      "cast": {
+        "text": "Pemeran"
+      },
+      "language": {
+        "text": "Bahasa asli"
+      },
+      "countries": {
+        "text": "Negara"
+      },
+      "content_rating": {
+        "text": "Klasifikasi usia"
+      },
+      "score": {
+        "text": "Skor sumber"
+      },
+      "score_votes": {
+        "text": "{count} suara"
+      },
+      "first_air_date": {
+        "text": "Tayang perdana"
+      },
+      "last_air_date": {
+        "text": "Terakhir tayang"
+      },
+      "series_status": {
+        "text": "Status serial"
+      },
+      "season_count": {
+        "text": "{count} musim"
+      },
+      "episodes": {
+        "text": "Episode"
+      },
+      "episode_count": {
+        "text": "{count} episode"
+      },
+      "season": {
+        "text": "Musim {number}"
+      },
+      "specials": {
+        "text": "Episode spesial"
+      },
+      "supplied_seasons": {
+        "text": "Musim yang disediakan"
+      },
+      "partial_seasons": {
+        "text": "Hanya detail musim yang disediakan yang ditampilkan."
+      },
+      "year": {
+        "text": "Tahun"
+      },
+      "preparing": {
+        "text": "Menyiapkan judul…"
+      },
+      "cancelled": {
+        "text": "Pembuatan judul dibatalkan"
+      },
+      "unavailable": {
+        "text": "Judul tidak tersedia"
       }
     }
   },
@@ -8612,10 +8801,10 @@
     },
     "pii": {
       "banner_title": {
-        "text": "Data sensitif terdeteksi"
+        "text": "{count}× data sensitif terdeteksi"
       },
       "banner_description": {
-        "text": "Ditemukan {summary}. Ini akan diganti dengan placeholder sebelum dikirim. Klik teks yang disorot untuk mempertahankan aslinya."
+        "text": "Ini akan diganti dengan placeholder sebelum dikirim. Klik teks yang disorot untuk mengirim aslinya."
       },
       "undo_all": {
         "text": "Batalkan semua penggantian"
@@ -9089,6 +9278,70 @@
       },
       "follow_up_6": {
         "text": "Bandingkan biologi alien Gethenian dan Oankali"
+      }
+    },
+    "browse_example_domain": {
+      "title": {
+        "text": "Ekstrak informasi situs web sebagai JSON"
+      },
+      "summary": {
+        "text": "Jelajahi Example Domain dan kembalikan pernyataan lengkapnya dengan URL sumber sebagai JSON terstruktur."
+      },
+      "message_1": {
+        "text": "Gunakan skill Browse aplikasi Web untuk mengekstrak pernyataan bahasa Inggris lengkap yang terlihat dari [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a). Kembalikan JSON dengan dua kolom wajib: purpose, yang berisi pernyataan lengkap kata demi kata termasuk peringatannya, dan source_url, yang berisi URL halaman saat ini. Ini adalah tugas ekstraksi tanpa permintaan interaksi situs web tambahan. Batasi sesi browser hingga 40 kredit."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bac3644b-0f9c-48cd-bad9-22d265d938a1\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nEkstraksi selesai. Berikut hasilnya:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"88b9349a-9529-4835-a507-f54e5f24a30f\"}\n```\n\nHalaman tersebut adalah placeholder standar Example Domain, dan pernyataan di atas adalah teks bahasa Inggris lengkap yang terlihat, termasuk peringatan bahwa ini bukan layanan dan tidak boleh diandalkan untuk pengujian atau pemantauan."
+      },
+      "follow_up_1": {
+        "text": "Cari domain placeholder tambahan dan templat standar"
+      },
+      "follow_up_2": {
+        "text": "Jelaskan bagaimana Example Domain biasanya digunakan untuk dokumentasi"
+      },
+      "follow_up_3": {
+        "text": "Jelajahi URL situs web lain untuk konten teksnya"
+      },
+      "follow_up_4": {
+        "text": "Daftar konvensi teks placeholder umum dalam pengembangan web"
+      },
+      "follow_up_5": {
+        "text": "Baca halaman HTTPS publik secara langsung dari URL yang diberikan"
+      },
+      "follow_up_6": {
+        "text": "Bandingkan Example Domain dengan domain pengujian cadangan lainnya"
+      }
+    },
+    "browse_heading_json": {
+      "title": {
+        "text": "Baca halaman web dengan Browse"
+      },
+      "summary": {
+        "text": "Gunakan browser untuk menemukan judul halaman dan mengembalikan hasilnya beserta URL sumbernya sebagai JSON."
+      },
+      "message_1": {
+        "text": "Gunakan fitur Browse untuk membuka [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) dan mengembalikan judul utama yang tepat serta URL sumber sebagai JSON. Gunakan sesi browser untuk tugas ini."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"5f0e7070-da89-4cd1-9447-52f63f4fd826\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nSesi Browse membuka halaman tersebut dan mengembalikan hal berikut:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"c0e67189-7fb4-4e88-a3ab-f66d75ea01a2\"}\n```\n\nHalaman di `https://httpbin.org/html` menyediakan contoh dokumen HTML yang judul utamanya adalah **\"Herman Melville - Moby-Dick\"** (cuplikan dari bab pertama novel tersebut, \"Loomings\")."
+      },
+      "follow_up_1": {
+        "text": "Cari analisis sejarah Herman Melville Moby Dick"
+      },
+      "follow_up_2": {
+        "text": "Jelaskan signifikansi bab pembuka Moby-Dick"
+      },
+      "follow_up_3": {
+        "text": "Baca dokumentasi publik tentang teknik otomatisasi browser web"
+      },
+      "follow_up_4": {
+        "text": "Bandingkan berbagai format digital untuk membaca sastra klasik"
+      },
+      "follow_up_5": {
+        "text": "Cari arsip sastra online yang menampilkan novel klasik Amerika"
+      },
+      "follow_up_6": {
+        "text": "Ringkas tema-tema utama karya Herman Melville"
       }
     },
     "building_maintenance_email": {
@@ -10775,6 +11028,12 @@
         "text": "- Pahami kebutuhan\n- pilih nama\n- periksa kandidat akhir\n- bandingkan bukti"
       }
     },
+    "business_price_products": {
+      "text": "Tentukan harga produkmu",
+      "description": {
+        "text": "Hitung harga jual produk buatan tangan atau produksi kecil dengan lembar langsung yang bisa kamu edit."
+      }
+    },
     "code_analyze_logs": {
       "text": "Analisis log",
       "description": {
@@ -10902,6 +11161,12 @@
       },
       "systemprompt": {
         "text": "Anda adalah ahli pemrograman."
+      }
+    },
+    "events_plan_conference_talk": {
+      "text": "Rencanakan presentasi konferensi",
+      "description": {
+        "text": "Tentukan presentasi yang akan diajukan ke konferensi dan jadikan proposal yang kuat."
       }
     },
     "jobs_career_insights": {
@@ -11048,6 +11313,12 @@
         "text": "Anda adalah konselor pendidikan dan karier ahli. Peran Anda adalah membantu pengguna menemukan gelar dan bidang studi yang tepat melalui pertanyaan yang bijaksana dan strategis. Gunakan metode Sokrates untuk membimbing mereka menuju penemuan diri, bukan sekadar memberikan saran. Bantu mereka memahami minat, kekuatan, dan nilai mereka yang sebenarnya. Ajukan pertanyaan lanjutan untuk menggali lebih dalam dan mengungkap pola. Berikan rekomendasi yang dipersonalisasi berdasarkan respons mereka."
       }
     },
+    "tasks_daily_meeting_and_orchestration": {
+      "text": "Rapat harian & orkestrasi",
+      "description": {
+        "text": "Pilih prioritas hari ini dan koordinasikan tugas serta obrolan proyek hingga selesai."
+      }
+    },
     "videos_analyze_video": {
       "text": "Analisis video",
       "description": {
@@ -11105,6 +11376,12 @@
       },
       "systemprompt": {
         "text": "Anda peneliti teliti yang menguji penjelasan bersaing dengan bukti primer. Pertanyaan mungkin tidak mendukung cerita lebih dalam atau klaim niat. Anda tidak wajib menemukan motif tersembunyi; terima penjelasan biasa bila didukung bukti.\n\nAlur kerja penelitian:\n- Pertama, tentukan apakah pertanyaan pengguna memerlukan penelitian mendalam atau jawaban singkat. Jika pertanyaannya luas, terkini, diperdebatkan, politis, ekonomis, terkait pasar, atau menanyakan mengapa sesuatu terjadi, perlakukan sebagai penelitian mendalam.\n- Berikan klarifikasi hanya jika cakupan pengguna terlalu ambigu untuk diteliti secara bertanggung jawab. Jika tidak, mulailah meneliti.\n- Sebelum mencari, buat daftar hipotesis utama atau sudut pandang yang perlu kamu uji. Sertakan penjelasan di permukaan, penjelasan alternatif, insentif, siapa yang diuntungkan, siapa yang dirugikan, struktur pasar atau politik, sejarah regulasi, dan argumen tandingan.\n- Dalam chat induk yang memerlukan riset kompleks, tindakan alat pertama HARUS start_sub_chats sebelum web-search atau web-read. Delegasikan tepat tiga sudut berbeda secara paralel dan tunggu semua laporan sebelum sintesis. Minta setiap subchat memakai web-search dan web-read, mendasarkan klaim penting pada sumber primer dengan batasan sesuai cakupan sumber, dan mengembalikan temuan bersumber.\n- Laporkan kekurangan penting dengan jujur; jangan buat kelompok riset tambahan dalam kelanjutan atau menebak bukti yang hilang.\n- Setelah tiga subchat riset selesai, chat induk menyintesis laporan dan memakai web-read untuk membaca dokumen primer tentang sengketa penting yang belum diselesaikan laporan. Jangan mulai subchat keempat atau kelompok perbaikan berbayar. Jika riset atau pembacaan gagal, nyatakan keterbatasan dengan jujur dan berikan hanya jawaban terbatas dengan kualifikasi. Baik kelanjutan maupun subchat riset tidak boleh memulai subchat tambahan.\n- Gunakan web-search beberapa kali dengan sudut pandang pencarian yang berbeda. Jangan mengandalkan satu kueri yang sudah jelas. Misalnya, pertanyaan tentang kenaikan harga harus mencari guncangan pasokan, laba korporasi, konsentrasi pasar, investigasi regulasi, lobi, pembayaran pemegang saham, dan dampak konsumen jika relevan.\n- Gunakan web-read untuk sumber-sumber penting alih-alih hanya mengandalkan cuplikan pencarian. Utamakan sumber asli, data pemerintah atau regulasi, pengajuan perusahaan, catatan pengadilan, karya akademik, jurnalisme bereputasi, dan laporan langsung daripada ringkasan.\n- Evaluasi kualitas sumber menggunakan kebaruan, relevansi, otoritas, akurasi, dan tujuan. Gunakan pembacaan lateral: periksa klaim penting di berbagai sumber independen dan telusuri klaim kembali ke bukti primer jika memungkinkan.\n- Selidiki insentif secara eksplisit. Identifikasi pihak-pihak utama, apa yang diinginkan masing-masing pihak, apa keuntungan yang didapat masing-masing pihak jika orang-orang memercayai mereka, dan bukti apa yang mendukung atau melemahkan narasi mereka.\n\nDisiplin bukti:\n- Pisahkan bukti yang terkonfirmasi, inferensi yang kuat, interpretasi yang masuk akal, dan spekulasi yang tidak didukung.\n- Perlakukan keluhan atau tuduhan yang dipublikasikan sebagai konfirmasi bahwa klaim tersebut telah dibuat, bukan bahwa tindakan yang dituduhkan benar-benar terjadi. Bedakan usulan penyelesaian (proposed settlement) dari penyelesaian yang disetujui pengadilan, dan keduanya dari temuan atau pengakuan yudisial; penyelesaian saja tidak membuktikan adanya pelanggaran. Sebelum menarik kesimpulan penting tentang pelanggaran atau penyelesaian hukum, baca langsung keluhan, perintah, penyelesaian, atau rilis resmi yang mendasarinya menggunakan web-read; jika tidak tersedia, nyatakan keterbatasan tersebut. Instruksikan peneliti anak untuk melaporkan status bukti dan sumber setiap klaim penting, dan pertahankan status tersebut dalam sintesis akhir alih-alih meningkatkan status tuduhan atau usulan menjadi pelanggaran yang terkonfirmasi.\n- Jangan pernah mengeklaim korupsi, manipulasi, penipuan, atau itikad buruk sebagai fakta kecuali jika sumber mendukungnya. Jika bukti menunjukkan adanya kekuatan penetapan harga, kekhawatiran koordinasi, pengawasan regulasi, atau insentif yang mencurigakan, nyatakan hal tersebut dengan hati-hati dan kutip buktinya.\n- Sikapi klaim dari sumber tunggal dengan hati-hati. Jika bukti tipis, diperdebatkan, kedaluwarsa, atau tidak tersedia, katakan secara langsung.\n- Selaraskan tiga laporan riset dan bukti primernya sebelum sintesis akhir. Abaikan atau beri kualifikasi pada presisi, klaim kausal, dan kesimpulan hukum yang tidak didukung. Jika sumber verifikasi tidak tersedia, identifikasi klaim yang belum terselesaikan alih-alih menyajikannya sebagai terkonfirmasi. Dokumen berjudul Proposed Final Judgment tidak menetapkan persetujuan pengadilan; keluhan resmi mengonfirmasi bahwa tuduhan telah diajukan, bukan bahwa tuduhan tersebut telah diputuskan. Sertakan kualifikasi ini di samping klaim di setiap bagian, termasuk jawaban singkat dan intinya; paragraf ketidakpastian di bagian akhir tidak memperbaiki klaim terkonfirmasi yang dilebih-lebihkan.\n- Sertakan argumen tandingan dan penjelasan yang wajar. Penjelasan yang lebih mendalam tidak secara otomatis lebih benar daripada penjelasan di permukaan.\n\nStruktur output default:\n\nUntuk penelitian mendalam yang kompleks, jawaban akhir HARUS menggunakan enam tajuk persis seperti ini dan tidak ada nama tajuk pengganti:\n\n## Short Answer\nBerikan jawaban ringkas dalam 3-5 kalimat.\n\n## Surface Explanation\nJelaskan penjelasan umum atau resmi yang kemungkinan besar didengar orang.\n\n## What Else May Be Going On\nUji penjelasan alternatif, insentif, struktur, dan waktu hanya sebagai hipotesis. Nyatakan jika bukti tidak mendukung penjelasan lebih dalam atau inferensi niat.\n\n## Evidence\nCantumkan temuan utama yang bersumber berdasarkan klaim. Atribusikan klaim yang signifikan dengan jelas.\n\n## Counterarguments\nJelaskan apa yang mungkin melemahkan, mempersulit, atau menyanggah penjelasan yang lebih mendalam.\n\n## Bottom Line\nNyatakan apa yang terkonfirmasi, apa yang mungkin, apa yang masuk akal tetapi belum terbukti, dan apa yang masih belum pasti.\n\nPerilaku tindak lanjut:\n- Tawarkan laporan tindak lanjut yang terarah jika berguna, seperti laba korporasi, sejarah regulasi, dampak konsumen, opsi kebijakan, lini masa, atau tinjauan sumber demi sumber.\n- Untuk pertanyaan tindak lanjut di dalam chat penelitian mendalam yang aktif, tetaplah bersikap percakapan kecuali pengguna meminta laporan lengkap lainnya.\n\n- Sebelum melaporkan temuan kuantitatif, kausal, atau hukum yang penting, baca sumber primer dengan web-read. Cuplikan pencarian hanya menemukan sumber, bukan menyelesaikan verifikasi. Jika pembacaan gagal atau sumber tidak tersedia, tandai klaim belum terselesaikan dan jelaskan batasannya.\n- Saat sintesis induk, siapkan sebelum kesimpulan akhir daftar klaim/bukti bernomor yang ringkas untuk setiap klaim penting kuantitatif, kausal, niat, dan status hukum beserta URL-nya. Minta hasil ringkas per klaim: didukung, perlu pembatasan, dibantah, atau belum terselesaikan; URL sumber tepat; periode, wilayah, populasi, ukuran, dan status hukum. Letakkan daftar dalam Evidence dan selesaikan setiap klaim penting sebelum Bottom Line, dengan Short Answer tetap pertama dan keenam judul dalam urutan wajib. Hasil yang hilang atau terpotong tetap belum terverifikasi.\n- Pertahankan cakupan sumber di samping klaim dalam setiap bagian: periode, wilayah, populasi atau produk, ukuran atau penyebut, asumsi, serta pengamatan atau hasil kontrafaktual model. Jangan mengubah subkelompok, estimasi, skenario, rentang historis, atau durasi lazim menjadi temuan universal atau permanen. Manfaat, laba, dan insentif saja tidak membuktikan niat atau porsi sebab. Hapus atau batasi secara tegas klaim yang belum diaudit; ketidakhadiran bukan dukungan.\n\n- Untuk setiap subchat riset, targetkan 600–900 kata dalam enam bagian wajib dan 6–10 temuan penting berbeda dalam daftar bukti bernomor. Tiap entri memuat klaim, status bukti, URL primer tepat, serta cakupan atau batasan terkait. Di tempat lain rujuk nomornya alih-alih mengulang bukti. Utamakan temuan untuk pertanyaan yang ditugaskan, termasuk bukti tandingan penting; hilangkan narasi pencarian, latar berulang, dan URL tak terpakai. Ini target penulisan, bukan aturan pemotongan atau batas keras: pertahankan kualifikasi yang diperlukan dan ungkap pertanyaan penting yang belum selesai.\n\n- Untuk setiap klaim penting kuantitatif, kausal, niat, atau hukum, sertakan satu kutipan primer singkat yang persis, atau entri tabel primer tepat dengan periode dan metrik, terhubung ke URL dan status bukti. Tandai didukung hanya jika dasar itu langsung mendukung klaim persis dan cakupannya; jika tidak, inferensi atau belum terselesaikan. URL atau agregat seluruh sumber saja bukan dukungan klaim. Cantumkan dasar ini dalam daftar bernomor Evidence sebelum Bottom Line; gunakan ulang ID bukti dan hindari kutipan berulang. Short Answer hanya boleh memakai klaim didukung atau berkualifikasi; jangan tingkatkan status bukti laporan riset.\n\n- Bedakan metrik dan selisih harga dari laba dan motif. Waktu operasional atau produksi bukan batas minimum atau batas universal. Urutkan periode perbandingan secara kronologis dan periksa arah perubahan. Periksa pengadilan dan identitas perkara; bedakan ganti rugi juri dari pelipatan tiga menurut hukum serta penyelesaian usulan dari yang disetujui. Pertahankan pembedaan dan batas belum terselesaikan di samping klaim pada setiap bagian."
+      }
+    },
+    "workflows_clarify_workflows": {
+      "text": "Perjelas alur kerja",
+      "description": {
+        "text": "Lengkapi detail yang kurang untuk satu atau beberapa alur kerja sebelum membuat atau mengubahnya."
       }
     }
   },
@@ -14393,6 +14670,9 @@
     },
     "nighttime": {
       "text": "Malam hari"
+    },
+    "instructor": {
+      "text": "Instruktur"
     }
   },
   "rules": {},
@@ -15131,6 +15411,15 @@
         "quick_tips_description": {
           "text": "Menampilkan tips produk sesekali setelah asisten membalas. Matikan ini jika kamu tidak ingin OpenMates membuat kartu tips cepat."
         },
+        "server_region": {
+          "text": "Wilayah server"
+        },
+        "prefer_eu_servers": {
+          "text": "Utamakan server UE"
+        },
+        "prefer_eu_servers_description": {
+          "text": "Aktif (default): model AI berjalan di server UE terlebih dahulu, wilayah lain hanya sebagai cadangan. Nonaktif: Tercepat, global – OpenMates memilih server tercepat di seluruh dunia."
+        },
         "quick_tips_enabled": {
           "text": "Tips cepat diaktifkan."
         },
@@ -15848,9 +16137,6 @@
         "skill": {
           "ask": {
             "model": {
-              "qwen3_235b_a22b_2507": {
-                "text": "Qwen 3 256b"
-              },
               "claude_haiku_4_5_20251001": {
                 "text": "Claude Haiku 4.5"
               },
@@ -16932,10 +17218,10 @@
           "text": "Menyimpan..."
         },
         "email_chat_how_it_works": {
-          "text": "Email obrolan dikirim saat Anda tidak aktif. Workflow terjadwal yang berhasil selesai mendapat email penyelesaian dan ringkasan harian."
+          "text": "Satu email harian merangkum aktivitas Workflow terjadwal; pesan mengikuti pengaturan chat biasa."
         },
         "email_workflow_runs_desc": {
-          "text": "Email saat Workflow terjadwal berhasil selesai, ditambah ringkasan harian"
+          "text": "Satu email harian merangkum aktivitas Workflow terjadwal; pesan mengikuti pengaturan chat biasa."
         },
         "email_webhooks": {
           "text": "Obrolan Webhook"
@@ -18070,9 +18356,6 @@
         "text": "Sembunyikan data pribadi",
         "chats": {
           "text": "Obrolan"
-        },
-        "description": {
-          "text": "OpenMates akan secara otomatis mengganti data sensitif dengan placeholder sebelum mengirimkannya ke server OpenMates dan penyedia eksternal mana pun untuk melindungi privasi Anda. Data yang diganti disorot secara visual. Anda selalu dapat mengklik entri data yang diganti untuk menimpa penggantian, atau mematikan fungsionalitas sepenuhnya di sini."
         }
       },
       "enhanced_pii_model": {
@@ -19377,6 +19660,48 @@
       "title_placeholder": {
         "text": "Jelaskan masalah secara singkat — apa yang terjadi dan di mana?"
       },
+      "issue_text_label": {
+        "text": "Apa yang terjadi?"
+      },
+      "issue_text_placeholder": {
+        "text": "Apa yang terjadi? Jelaskan apa yang rusak atau salah, serta detail yang membantu kami mereproduksinya."
+      },
+      "attach_image": {
+        "text": "Gambar"
+      },
+      "dictation_failed": {
+        "text": "Dikte gagal. Coba lagi atau ketik laporan Anda."
+      },
+      "quick_actions_label": {
+        "text": "Tambahkan ke laporan"
+      },
+      "upload_screenshot": {
+        "text": "Unggah tangkapan layar"
+      },
+      "select_ui_element": {
+        "text": "Pilih elemen UI"
+      },
+      "record_voice": {
+        "text": "Rekam suara (hingga 2 menit)"
+      },
+      "dictation_unavailable_today": {
+        "text": "Rekaman suara tidak tersedia hari ini. Coba lagi besok."
+      },
+      "dictation_recording_limit": {
+        "text": "Rekaman suara untuk laporan dibatasi 2 menit."
+      },
+      "send_to_claude_chat_label": {
+        "text": "Kirim langsung ke chat Claude"
+      },
+      "send_to_claude_chat_hint": {
+        "text": "Memulai chat Claude baru di server pengembangan yang menyelidiki dan memperbaiki laporan ini."
+      },
+      "confirmation_claude_chat_queued": {
+        "text": "Chat Claude akan mulai menangani laporan ini dalam sekitar satu menit."
+      },
+      "confirmation_claude_chat_unavailable": {
+        "text": "Chat Claude tidak dapat dimasukkan ke antrean. Salin ID masalah dan mulai chat secara manual."
+      },
       "title_required": {
         "text": "Deskripsi singkat wajib diisi"
       },
@@ -19422,11 +19747,8 @@
       "actual_behaviour_hint": {
         "text": "Opsional — jelaskan apa yang salah"
       },
-      "share_chat_label": {
-        "text": "Bagikan chat saat ini dengan laporan ini"
-      },
-      "share_chat_hint": {
-        "text": "Ini memungkinkan admin untuk melihat chat untuk membantu debug masalah."
+      "chat_included_notice": {
+        "text": "Chat Anda saat ini disertakan dalam laporan ini agar kami dapat men-debug masalahnya."
       },
       "url_label": {
         "text": "URL chat atau embed yang dibagikan"
@@ -19588,9 +19910,6 @@
       },
       "element_picker_hint": {
         "text": "Ketuk elemen mana saja di halaman untuk menangkap struktur HTML-nya untuk debugging"
-      },
-      "element_picker_button": {
-        "text": "Pilih elemen"
       },
       "element_picker_active": {
         "text": "Memilih..."
@@ -20730,7 +21049,7 @@
       "text": "Coba gratis"
     },
     "version_title": {
-      "text": "v0.28"
+      "text": "v0.29"
     },
     "domain_not_allowed": {
       "text": "Domain e-mail tidak diizinkan."

@@ -21,6 +21,33 @@
   letter-spacing: inherit;
 }
 
+/* Live-dictated text sweeps a gradient while the recording's correction pass
+   runs; the recording pill below keeps its colored background meanwhile. */
+:global(.ProseMirror .recording-transcript-processing) {
+  /* Same sweep as the shared processing text, tinted with the recording gradient. */
+  background: linear-gradient(90deg,
+    var(--color-font-primary) 0%,
+    var(--color-font-primary) 35%,
+    #667eea 45%,
+    #a78bfa 50%,
+    #764ba2 55%,
+    var(--color-font-primary) 65%,
+    var(--color-font-primary) 100%);
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: processing-text-shimmer 1.5s infinite linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :global(.ProseMirror .recording-transcript-processing) {
+    animation: none;
+    background: none;
+    color: var(--color-font-secondary, var(--color-font-primary));
+  }
+}
+
 /* =============================================================================
    TipTap decoration-based highlighting styles for unclosed blocks
    ============================================================================= */
@@ -167,6 +194,32 @@
 /* Focus reveals a multiline canvas without replacing the mounted editor. */
 .message-field.focused:not(.fullscreen-expanded):not(.recording-active):not(.maps-open) {
   min-height: var(--composer-focused-height, 180px);
+}
+
+/* A caller's live transcript uses the expanded (focused) surface but is sized
+   to the spoken text only: no toolbar reserve, no empty gap, scroll when long. */
+.message-field.call-transcript-active:not(.fullscreen-expanded):not(.recording-active):not(.maps-open) {
+  min-height: 0;
+  padding: 0 0 var(--spacing-6) 0;
+}
+
+.message-field.call-transcript-active .scrollable-content {
+  flex-grow: 0;
+  padding-top: var(--spacing-4, 8px);
+  max-height: min(40vh, 240px);
+}
+
+.message-field.call-transcript-active .content-wrapper {
+  min-height: 0;
+}
+
+.message-field.call-transcript-active :global(.call-live-transcript) {
+  padding-top: 0;
+}
+
+/* The spoken words replace the empty-field placeholder. */
+.message-field.call-transcript-active :global(.ProseMirror p.is-editor-empty:first-child::before) {
+  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -485,6 +538,9 @@
 }
 
 .content-wrapper:has(.composer-ghost-suggestion) { display: grid; }
+.content-wrapper:has(.call-live-transcript.overlay) { display: grid; }
+.content-wrapper:has(.call-live-transcript.overlay) .editor-content { grid-area: 1 / 1; }
+.content-wrapper:has(.call-live-transcript.overlay) :global(.ProseMirror p.is-editor-empty:first-child::before) { opacity: 0; }
 .content-wrapper:has(.composer-ghost-suggestion) .editor-content { grid-area: 1 / 1; }
 
 .composer-ghost-suggestion {

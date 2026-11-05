@@ -278,3 +278,15 @@ sdk_parity:
       created_resources_removed_or_archived: true
       temporary_api_key_revoked: true
       api_key_or_ciphertext_printed: false
+
+sdk_api_key_only:
+  - id: different-account-than-cli
+    assertion_ids: [sdk.auth.api-key-only]
+    given: The CLI on a laptop is logged in to Alex's account, and a script on the same laptop uses an API key created in Settings → Developers of a separate project account.
+    when: The script constructs the npm, Python or Rust SDK with that API key and reads an encrypted chat created in the web app of the project account.
+    then: The SDK authenticates only with that key, unwraps the key's own wrapped account key in memory and shows the decrypted chat of the project account; it never reads the CLI's session file or keychain and never sees Alex's chats.
+  - id: missing-api-key-is-a-typed-error
+    assertion_ids: [sdk.auth.api-key-only]
+    given: A developer upgrades a script that called new OpenMatesClient() and relied on the logged-in CLI.
+    when: The script runs without an API key.
+    then: Construction fails with OpenMatesApiKeyRequiredError telling them to create an API key in Settings → Developers and pass it explicitly; no CLI login is loaded and no anonymous request is sent.

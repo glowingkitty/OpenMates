@@ -12,6 +12,9 @@ from __future__ import annotations
 import importlib.util
 import asyncio
 import sys
+import os
+import json
+import subprocess
 from pathlib import Path
 
 
@@ -139,6 +142,33 @@ def test_docker_cleanup_is_bounded_and_never_prunes_data_containers_or_volumes()
     assert "docker volume prune" not in script
     assert "docker container prune" not in script
     assert "docker system prune" not in script
+
+
+def test_pressure_cleanup_reclaims_aged_dangling_images_without_tagged_pruning(tmp_path):
+    scripts = tmp_path / "scripts"
+    scripts.mkdir()
+    script = scripts / "docker-cleanup.sh"
+    script.write_text((ROOT / "scripts/docker-cleanup.sh").read_text())
+    binaries = tmp_path / "bin"
+    binaries.mkdir()
+    calls = tmp_path / "docker-calls.jsonl"
+    stubs = {
+        "python3": "import sys\nraise SystemExit(3 if 'configured-check' in sys.argv else 0)\n",
+        "docker": f"import sys,json\nwith open({str(calls)!r},'a') as f: f.write(json.dumps(sys.argv[1:])+'\\n')\n",
+        "df": "print('Filesystem 1024-blocks Used Available Capacity Mounted on\\nfixture 100 90 10 90% /')\n",
+    }
+    for name, content in stubs.items():
+        path = binaries / name
+        path.write_text("#!/usr/bin/python3\n" + content)
+        path.chmod(0o755)
+    result = subprocess.run(["bash", str(script)], capture_output=True, text=True,
+        env={**os.environ, "PATH": str(binaries) + os.pathsep + os.environ["PATH"],
+             "OPENMATES_DOCKER_CLEANUP_LOCK": str(tmp_path / "cleanup.lock")})
+    assert result.returncode == 0, result.stderr
+    commands = [json.loads(line) for line in calls.read_text().splitlines()]
+    image_prunes = [command for command in commands if command[:2] == ["image", "prune"]]
+    assert image_prunes == [["image", "prune", "-f", "--filter", "until=1h"]]
+    assert not any(command[0] in {"volume", "container", "network"} for command in commands)
 
 
 def test_daily_test_artifacts_are_bounded_to_one_week() -> None:

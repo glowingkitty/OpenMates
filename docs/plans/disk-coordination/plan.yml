@@ -1,6 +1,6 @@
 schema_version: 2
 profile: concise
-status: implementing
+status: verified
 id: disk-coordination
 title: Coordinated disk admission and automatic chat recovery
 goal: >-
@@ -34,7 +34,38 @@ closure_request:
   user: "We are running out of codex usage ... deploy what is fixed and give an overview of anything else remains open."
   scope: Publish the locally verified implementation now; defer isolated E2E execution and runtime activation.
   verification: Focused admission/process/adapter/cleanup/source and worktree regression checks passed; encrypted Task integration coverage was added but not executed.
-  remaining:
+  superseded_by: '2026-10-28: user requested completion of the work and deployment.'
+  deferred_at_closure:
     - Run project-task-sync.spec.ts with tasks-flow.spec.ts in isolated GitHub CI and deliver selected recordings.
     - Install and enable the supervised disk service after that check passes.
     - Deliberately reload the foreground Task adapter and verify the registered dev pilot.
+
+completion:
+  date: '2026-10-28'
+  implementation_commit: a9620edbf1396772549234e7edf0087d35818496
+  capacity_policy_commit: 3d231e00119d588c0c551f6ef604f66ad3316e03
+  isolated_verification:
+    source: 6284ad067123148d96ed9fe5b6bcd5937f3f73b3
+    run_id: 40665758657
+    request_id: 4402c1f11e47df806bb1f84c172788dd1c3700ab5e04325f229b5ca44defdab1
+    result: passed
+    coverage: Encrypted Task block/activity/restore acknowledgements, web/cache replay and preservation of a human blocker.
+  local_verification:
+    - 81 focused adapter, context and Task wait checks passed.
+    - 139 artifact retrieval checks passed.
+    - 8 cleanup safety checks passed, including pressure-mode dangling-image protection.
+    - Existing isolated process checks cover durable waits, restart recovery, child-owner crashes and grant expiry.
+  runtime:
+    service: openmates-disk-coordinator.service
+    adapter_connection: connected
+    pilot_receipt: logs/disk-coordinator-pilot-a0bb-20261028.json
+    pilot_result: Live grant acknowledged through active chat context, then claimed and released successfully.
+    forced_disk_pressure: false
+    extra_model_turns_in_pilot: false
+    preservation: Existing queued delivery identities, registrations and human pauses retained.
+    historical_notifications: Remain available as context; pre-rollout pending events cannot automatically start old work.
+  rollout_notes:
+    - Reused the service activated by another dev task; no second coordinator was started.
+    - The running coordinator recovered capacity and automatically admitted a genuinely waiting CI source publication.
+    - Reloaded the existing foreground connection from its dedicated held pane with a PATH that resolves codex.
+    - The Task sync fixture now runs independently; tasks-flow is no longer its fixture prerequisite.

@@ -24,7 +24,12 @@ from backend.apps.ai.utils.authored_result_fences import (
     get_authoring_definitions,
     normalize_authored_results_source,
 )
-from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
+from backend.core.api.app.services.event_embed_enrichment import enrich_event_coordinates
+from backend.shared.python_utils.chat_recovery_context import (
+    RequiredRecoveryOutputError,
+    active_legacy_output_context,
+    active_recovery_output_context,
+)
 
 logger = logging.getLogger(__name__)
 AUTHORED_RESULTS_TYPE = "authored_results"
@@ -194,6 +199,23 @@ async def _resolve_record_references(
     return result, warnings
 
 
+def _selected_asset_storage_references(content: dict[str, Any]) -> list[dict[str, str]]:
+    """Index only renditions already copied into this child's encrypted media.
+
+    Source embed IDs are provenance, never storage dependencies or sharing grants.
+    The existing storage collector consumes this flat metadata without decrypting
+    content, so a surviving card can retain its own selected objects independently.
+    """
+    keys: set[str] = set()
+    for media in content.get("authored_media", []):
+        for name in ("preview", "original", "full"):
+            variant = media.get("files", {}).get(name)
+            key = variant.get("s3_key") if isinstance(variant, dict) else None
+            if isinstance(key, str) and key.strip():
+                keys.add(key)
+    return [{"bucket": "chatfiles", "key": key} for key in sorted(keys)]
+
+
 async def update_authored_results_embed(
     service: Any, *, embed_id: str, source_json: str, chat_id: str,
     user_id: str, user_id_hash: str, user_vault_key_id: str,
@@ -238,6 +260,7 @@ async def update_authored_results_embed(
                 and not _has_resolved_resource(item.kind, content)):
             warnings.append({"code": "unavailable_resource", "path": "items"})
             continue
+        content = await enrich_event_coordinates(item.backend_type, content, log_prefix, trust_supplied=False)
         child_id = authored_child_id(embed_id, item.local_id)
         content.update({
             "type": item.backend_type, "app_id": item.app_id, "skill_id": item.skill_id,
@@ -269,6 +292,11 @@ async def update_authored_results_embed(
                        "parse_error": normalized.parse_error if normalized else "Content was interrupted"},
     }
     try:
+        if (any(child["content"].get("authored_media") for child in children)
+                and not service._volatile_incognito_publication_required()
+                and active_recovery_output_context.get() is None
+                and active_legacy_output_context.get() is None):
+            raise RequiredRecoveryOutputError("Selected media lacks durable output admission")
         async with service._defer_completed_embed_publications() as batch:
             for child_index, child in enumerate(children):
                 item = child["item"]
@@ -276,6 +304,7 @@ async def update_authored_results_embed(
                 encrypted, _ = await service.encryption_service.encrypt_with_user_key(toon, user_vault_key_id)
                 child_data = {
                     "embed_id": child["id"], "type": item.backend_type,
+                    "app_id": item.app_id, "skill_id": item.skill_id,
                     "chat_id": chat_id, "message_id": cached["message_id"],
                     "hashed_chat_id": cached["hashed_chat_id"], "hashed_message_id": cached["hashed_message_id"],
                     "hashed_task_id": cached.get("hashed_task_id"), "hashed_user_id": user_id_hash,
@@ -283,7 +312,25 @@ async def update_authored_results_embed(
                     "is_private": cached.get("is_private", False), "is_shared": False,
                     "encrypted_content": encrypted, "text_length_chars": len(toon),
                     "created_at": now, "updated_at": now,
+                    "s3_file_keys": _selected_asset_storage_references(child["content"]),
                 }
+                if (not service._volatile_incognito_publication_required()
+                        and (child_data["s3_file_keys"] or child["id"] in existing.get("embed_ids", []))):
+                    # Match generated-asset persistence: the first store_embed
+                    # round trip merges this server-owned dependency sidecar.
+                    # Stage it before publication; raw child cache writes and
+                    # encrypted recovery sealing retain their existing ordering.
+                    try:
+                        client = await service.cache_service.client
+                        if not client or not await client.set(
+                            f"embed:{child['id']}:s3_file_keys",
+                            json.dumps(child_data["s3_file_keys"]), ex=3600,
+                        ):
+                            raise RequiredRecoveryOutputError("Authored media storage references are unavailable")
+                    except RequiredRecoveryOutputError:
+                        raise
+                    except Exception as error:
+                        raise RequiredRecoveryOutputError("Authored media storage references are unavailable") from error
                 sent = await service.send_embed_data_to_client(
                     embed_id=child["id"], embed_type=item.backend_type, content_toon=toon,
                     chat_id=chat_id, message_id=cached["message_id"], user_id=user_id,
@@ -299,7 +346,8 @@ async def update_authored_results_embed(
             toon = encode(parent_content)
             encrypted, _ = await service.encryption_service.encrypt_with_user_key(toon, user_vault_key_id)
             parent_data = {
-                **cached, "type": AUTHORED_RESULTS_TYPE, "encrypted_content": encrypted,
+                **cached, "type": AUTHORED_RESULTS_TYPE, "app_id": "ai",
+                "skill_id": AUTHORED_RESULTS_TYPE, "encrypted_content": encrypted,
                 "status": next_status, "embed_ids": child_ids, "version_number": version,
                 "content_hash": source_hash, "updated_at": now,
             }
@@ -307,6 +355,7 @@ async def update_authored_results_embed(
                 embed_id=embed_id, embed_type=AUTHORED_RESULTS_TYPE, content_toon=toon,
                 chat_id=chat_id, message_id=cached["message_id"], user_id=user_id,
                 user_id_hash=user_id_hash, status=next_status, embed_ids=child_ids,
+                app_id="ai", skill_id=AUTHORED_RESULTS_TYPE,
                 version_number=version, content_hash=source_hash,
                 is_private=cached.get("is_private", False), is_shared=cached.get("is_shared", False),
                 created_at=cached.get("created_at"), updated_at=now, log_prefix=log_prefix,

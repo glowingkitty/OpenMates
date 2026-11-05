@@ -1,0 +1,665 @@
+{
+  "version": 1,
+  "family": "browser.assistant-candidate-policy.v1",
+  "failure_sequences": [
+    {
+      "id": "same_original_key_only",
+      "steps": [
+        [
+          "record",
+          "chat",
+          "message",
+          "content",
+          "key-a"
+        ],
+        [
+          "known",
+          "chat",
+          "message",
+          "content",
+          "key-a"
+        ],
+        [
+          "known",
+          "chat",
+          "message",
+          "content",
+          "key-b"
+        ],
+        [
+          "known",
+          "chat",
+          "message",
+          "content"
+        ]
+      ],
+      "expected": [
+        null,
+        true,
+        false,
+        true
+      ]
+    },
+    {
+      "id": "legacy_namespace_wildcard",
+      "steps": [
+        [
+          "record",
+          "chat",
+          "message",
+          "content"
+        ],
+        [
+          "known",
+          "chat",
+          "message",
+          "content"
+        ],
+        [
+          "known",
+          "chat",
+          "message",
+          "content",
+          "key-a"
+        ],
+        [
+          "record",
+          "chat",
+          "message",
+          "content",
+          "key-b"
+        ],
+        [
+          "known",
+          "chat",
+          "message",
+          "content"
+        ]
+      ],
+      "expected": [
+        null,
+        true,
+        false,
+        null,
+        true
+      ]
+    },
+    {
+      "id": "clear_one_chat",
+      "steps": [
+        [
+          "record",
+          "a",
+          "same",
+          "content",
+          "fp"
+        ],
+        [
+          "record",
+          "b",
+          "same",
+          "content",
+          "fp"
+        ],
+        [
+          "clear",
+          "a"
+        ],
+        [
+          "known",
+          "a",
+          "same",
+          "content",
+          "fp"
+        ],
+        [
+          "known",
+          "b",
+          "same",
+          "content",
+          "fp"
+        ]
+      ],
+      "expected": [
+        null,
+        null,
+        null,
+        false,
+        true
+      ]
+    },
+    {
+      "id": "logout_clear_all",
+      "steps": [
+        [
+          "record",
+          "a",
+          "same",
+          "content",
+          "fp"
+        ],
+        [
+          "record",
+          "b",
+          "same",
+          "content",
+          "fp"
+        ],
+        [
+          "clear"
+        ],
+        [
+          "known",
+          "a",
+          "same",
+          "content",
+          "fp"
+        ],
+        [
+          "known",
+          "b",
+          "same",
+          "content",
+          "fp"
+        ]
+      ],
+      "expected": [
+        null,
+        null,
+        null,
+        false,
+        false
+      ]
+    },
+    {
+      "id": "opaque_message_id_with_colons",
+      "steps": [
+        [
+          "record",
+          "chat",
+          "opaque / message:field:fp",
+          "content",
+          "fp"
+        ],
+        [
+          "known",
+          "chat",
+          "opaque / message:field:fp",
+          "content",
+          "fp"
+        ],
+        [
+          "known",
+          "chat",
+          "opaque / message:field:fp",
+          "content"
+        ],
+        [
+          "known",
+          "chat",
+          "other",
+          "content",
+          "fp"
+        ]
+      ],
+      "expected": [
+        null,
+        true,
+        true,
+        false
+      ]
+    },
+    {
+      "id": "empty_fingerprint_legacy_and_clear",
+      "steps": [
+        [
+          "record",
+          "chat",
+          "message",
+          "content",
+          ""
+        ],
+        [
+          "known",
+          "chat",
+          "message",
+          "content",
+          ""
+        ],
+        [
+          "known",
+          "chat",
+          "message",
+          "content",
+          "fp"
+        ],
+        [
+          "clear",
+          ""
+        ],
+        [
+          "known",
+          "chat",
+          "message",
+          "content"
+        ]
+      ],
+      "expected": [
+        null,
+        true,
+        false,
+        null,
+        false
+      ]
+    }
+  ],
+  "selection_cases": [
+    {
+      "id": "healthy_decrypted_old_removes_cipher",
+      "candidates": [
+        {
+          "message_id": "old",
+          "chat_id": "chat",
+          "role": "assistant",
+          "created_at": 1,
+          "status": "delivered",
+          "content": "text"
+        }
+      ],
+      "incoming": {
+        "message_id": "new",
+        "chat_id": "chat",
+        "role": "assistant",
+        "created_at": 1,
+        "status": "synced",
+        "encrypted_content": "same"
+      },
+      "expected": {
+        "kind": "no_duplicate"
+      }
+    },
+    {
+      "id": "raw_error_skip_higher_priority_replacement",
+      "candidates": [
+        {
+          "message_id": "old",
+          "chat_id": "chat",
+          "role": "assistant",
+          "created_at": 1,
+          "status": "delivered",
+          "encrypted_content": "same"
+        }
+      ],
+      "incoming": {
+        "message_id": "new",
+        "chat_id": "chat",
+        "role": "assistant",
+        "created_at": 1,
+        "status": "synced",
+        "encrypted_content": "same"
+      },
+      "expected": {
+        "kind": "replace",
+        "index": 0
+      }
+    },
+    {
+      "id": "failed_placeholder_equal_status_retains",
+      "candidates": [
+        {
+          "message_id": "old",
+          "chat_id": "chat",
+          "role": "assistant",
+          "created_at": 1,
+          "status": "delivered",
+          "encrypted_content": "same",
+          "content": "[Content decryption failed]"
+        }
+      ],
+      "incoming": {
+        "message_id": "new",
+        "chat_id": "chat",
+        "role": "assistant",
+        "created_at": 1,
+        "status": "delivered",
+        "encrypted_content": "same"
+      },
+      "expected": {
+        "kind": "retain",
+        "index": 0
+      }
+    },
+    {
+      "id": "known_failure_higher_stored_status_retains",
+      "candidates": [
+        {
+          "message_id": "old",
+          "chat_id": "chat",
+          "role": "assistant",
+          "created_at": 1,
+          "status": "synced",
+          "encrypted_content": "same",
+          "content": "[Content decryption failed]"
+        }
+      ],
+      "incoming": {
+        "message_id": "new",
+        "chat_id": "chat",
+        "role": "assistant",
+        "created_at": 1,
+        "status": "delivered",
+        "encrypted_content": "same"
+      },
+      "expected": {
+        "kind": "retain",
+        "index": 0
+      }
+    },
+    {
+      "id": "user_different_physical_id_never_duplicate",
+      "candidates": [
+        {
+          "message_id": "old",
+          "chat_id": "chat",
+          "role": "user",
+          "created_at": 1,
+          "status": "delivered",
+          "encrypted_content": "same"
+        }
+      ],
+      "incoming": {
+        "message_id": "new",
+        "chat_id": "chat",
+        "role": "user",
+        "created_at": 1,
+        "status": "synced",
+        "encrypted_content": "same"
+      },
+      "expected": {
+        "kind": "no_duplicate"
+      }
+    },
+    {
+      "id": "assistant_exclusive_sixty_seconds",
+      "candidates": [
+        {
+          "message_id": "old",
+          "chat_id": "chat",
+          "role": "assistant",
+          "created_at": 61,
+          "status": "delivered",
+          "encrypted_content": "same"
+        }
+      ],
+      "incoming": {
+        "message_id": "new",
+        "chat_id": "chat",
+        "role": "assistant",
+        "created_at": 1,
+        "status": "synced",
+        "encrypted_content": "same"
+      },
+      "expected": {
+        "kind": "no_duplicate"
+      }
+    },
+    {
+      "id": "first_index_match_retains_not_later_replace",
+      "candidates": [
+        {
+          "message_id": "old",
+          "chat_id": "chat",
+          "role": "assistant",
+          "created_at": 1,
+          "status": "synced",
+          "encrypted_content": "same"
+        },
+        {
+          "message_id": "later",
+          "chat_id": "chat",
+          "role": "assistant",
+          "created_at": 2,
+          "status": "delivered",
+          "encrypted_content": "same"
+        }
+      ],
+      "incoming": {
+        "message_id": "new",
+        "chat_id": "chat",
+        "role": "assistant",
+        "created_at": 1,
+        "status": "synced",
+        "encrypted_content": "same"
+      },
+      "expected": {
+        "kind": "retain",
+        "index": 0
+      }
+    },
+    {
+      "id": "raw_equal_content_missing_metadata_change",
+      "candidates": [
+        {
+          "message_id": "old",
+          "chat_id": "chat",
+          "role": "assistant",
+          "created_at": 1,
+          "status": "delivered",
+          "encrypted_content": "same",
+          "model_name": "local-model"
+        }
+      ],
+      "incoming": {
+        "message_id": "new",
+        "chat_id": "chat",
+        "role": "assistant",
+        "created_at": 1,
+        "status": "delivered",
+        "encrypted_content": "same"
+      },
+      "expected": {
+        "kind": "replace",
+        "index": 0
+      }
+    }
+  ],
+  "key_fingerprints": [
+    {
+      "bytes": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": "0b2ae445a9c54a8b"
+    },
+    {
+      "bytes": [
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8
+      ],
+      "expected": "d675bc45de7a728b"
+    },
+    {
+      "bytes": [
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9
+      ],
+      "expected": "c9b4aa65c44c80ab"
+    }
+  ],
+  "browser_base64": [
+    {
+      "input": "YQ",
+      "bytes": [
+        97
+      ]
+    },
+    {
+      "input": "YR",
+      "bytes": [
+        97
+      ]
+    },
+    {
+      "input": "YQ==",
+      "bytes": [
+        97
+      ]
+    },
+    {
+      "input": " YQ",
+      "bytes": null
+    },
+    {
+      "input": "YQ \n",
+      "bytes": [
+        97
+      ]
+    },
+    {
+      "input": "YQ==\n",
+      "bytes": null
+    },
+    {
+      "input": "_______________________________________",
+      "bytes": [
+        255,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255,
+        255
+      ]
+    },
+    {
+      "input": "AA=",
+      "bytes": [
+        0
+      ]
+    },
+    {
+      "input": "A===",
+      "bytes": null
+    },
+    {
+      "input": "",
+      "bytes": null
+    },
+    {
+      "input": "malformed!",
+      "bytes": null
+    }
+  ]
+}

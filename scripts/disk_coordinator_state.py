@@ -32,7 +32,13 @@ GRANT_SECONDS = 300
 CLEANUP_BACKOFF = 300
 RECOVERY_MARGIN = 2 * GIB
 MIN_INODES = 10000
-KINDS = ("managed", "worktrees", "docker", "proof")
+KINDS = ("managed", "worktrees", "docker", "proof", "host")
+# Proactive maintenance by the elected service: every enabled kind runs at least
+# every PROACTIVE_INTERVAL, and every PROACTIVE_PRESSURE_INTERVAL once usage
+# reaches PROACTIVE_PERCENT, so capacity recovers before work has to wait.
+PROACTIVE_INTERVAL = 6 * 3600
+PROACTIVE_PRESSURE_INTERVAL = 1800
+PROACTIVE_PERCENT = 80
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS repositories (
  path TEXT PRIMARY KEY, enabled INTEGER NOT NULL, maintenance TEXT NOT NULL);
@@ -364,7 +370,7 @@ class CoordinatorState:
                 )
             elif prior["state"] != "claimed":
                 db.execute(
-                    "UPDATE requests SET pid=?,start=?,updated_at=? WHERE id=?",
+                    "UPDATE requests SET pid=?,start=?,updated_at=?,expires_at=CASE WHEN state='waiting' THEN 0 ELSE expires_at END WHERE id=?",
                     (pid, start, now, identity),
                 )
             return dict(
@@ -417,10 +423,10 @@ class CoordinatorState:
     def defer(self, identity):
         with self.db(write=True) as db:
             db.execute(
-                """UPDATE requests SET state='waiting',grant_id='',expires_at=0,
+                """UPDATE requests SET state='waiting',grant_id='',expires_at=?,
                        updated_at=?,reason='Continuation is paused or ineligible',acknowledged=0
-                       WHERE id=? AND state='granted'""",
-                (self.clock(), identity),
+                       WHERE id=? AND state IN ('waiting','granted')""",
+                (self.clock() + GRANT_SECONDS, self.clock(), identity),
             )
 
     def cancel(self, identity, reason="Cancelled by owner"):

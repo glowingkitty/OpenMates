@@ -624,6 +624,15 @@ describe('completed predecessor recovery before a reloaded-chat send', () => {
     expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalled();
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced
+  it('permits a follow-up send when the recovery protocol epoch is disabled', async () => {
+    // Epoch-0 servers answer 'disabled'; rejecting it rolled every follow-up back into the editor.
+    mocks.webSocketService.requestForegroundRecoveryDiscovery.mockImplementation(() => discover([job], [], 'disabled'));
+    await expect(recoverCompletedRepliesBeforeSend(service, job.chat_id)).resolves.toBeNull();
+    expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalled();
+    expect(service.requestChatContentBatch_FOR_HANDLERS_ONLY).not.toHaveBeenCalled();
+  });
+
   // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced,chats.sync.key-gated-recovery
   it('rejects discovery failure and a socket change instead of admitting incomplete history', async () => {
     mocks.webSocketService.requestForegroundRecoveryDiscovery.mockImplementation(() => discover([], [], 'failed'));

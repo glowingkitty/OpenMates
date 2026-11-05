@@ -1,8 +1,11 @@
+import { travelStayFacts } from '../components/embeds/travel/travelStayFacts';
+import { travelConnectionEndpoints } from '../components/embeds/travel/travelConnectionPoints';
 import { normalizeEventResult } from '../components/embeds/events/eventResult';
-import { EMBED_CHILD_TYPE_MAP, normalizeEmbedType } from '../data/embedRegistry.generated';
+import { AUTHORED_RESULT_KIND_MAP, EMBED_CHILD_TYPE_MAP, normalizeEmbedType } from '../data/embedRegistry.generated';
 import { searchResultImageUrl } from '../utils/searchPreviewImages';
 import { appsResultPresentationContent } from '../utils/appsResultRequestFields';
 import { generatedMediaChildIds, isGeneratedMediaParent } from '../components/embeds/generatedMediaGroup';
+import { authoredResultMetadata, authoredResultMediaPresentation } from '../utils/authoredResultPresentation';
 import ResolvedEmbedPreview from '../components/embeds/ResolvedEmbedPreview.svelte';
 import { getEmbedPreviewPresentation } from '../types/embedPreviewPresentation';
 
@@ -829,6 +832,8 @@ const travelConnectionResolver: PreviewResolver = async ({
 }) => {
   const { default: component } =
     await import("../components/embeds/travel/TravelConnectionEmbedPreview.svelte");
+  const isAuthored = Boolean(authoredResultMetadata(decodedContent));
+  const endpoints = travelConnectionEndpoints(decodedContent, !isAuthored);
   const legs = Array.isArray(decodedContent.legs) ? decodedContent.legs as Record<string, unknown>[] : [];
   const firstLeg = legs[0];
   const lastLeg = legs.at(-1);
@@ -840,16 +845,16 @@ const travelConnectionResolver: PreviewResolver = async ({
       connection: decodedContent,
       id: embedId,
       price: decodedContent.price ?? decodedContent.total_price,
-      currency: decodedContent.currency || "EUR",
+      currency: decodedContent.currency || (authoredResultMetadata(decodedContent) ? undefined : "EUR"),
       fare: decodedContent.fare,
       fareIsPartial: firstBoolean(decodedContent.fare_is_partial, decodedContent.fareIsPartial),
-      transportMethod: firstText(decodedContent.transport_method, decodedContent.transportMethod, decodedContent.mode) || "airplane",
-      tripType: firstText(decodedContent.trip_type, decodedContent.tripType) || "one_way",
-      origin: firstText(decodedContent.origin, decodedContent.origin_name, decodedContent.from, firstLeg?.origin),
-      destination: firstText(decodedContent.destination, decodedContent.destination_name, decodedContent.to, lastLeg?.destination),
-      departure: firstText(decodedContent.departure, decodedContent.scheduled_departure, firstLeg?.departure, firstSegment?.departure_time),
-      arrival: firstText(decodedContent.arrival, decodedContent.scheduled_arrival, lastLeg?.arrival, lastSegment?.arrival_time),
-      duration: firstText(decodedContent.duration, decodedContent.duration_minutes, firstLeg?.duration),
+      transportMethod: firstText(decodedContent.transport_method, decodedContent.transportMethod, decodedContent.mode) || (authoredResultMetadata(decodedContent) ? undefined : "airplane"),
+      tripType: firstText(decodedContent.trip_type, decodedContent.tripType) || (authoredResultMetadata(decodedContent) ? undefined : "one_way"),
+      origin: endpoints.origin,
+      destination: endpoints.destination,
+      departure: firstText(decodedContent.departure, decodedContent.scheduled_departure, ...(!isAuthored ? [firstLeg?.departure, firstSegment?.departure_time] : [])),
+      arrival: firstText(decodedContent.arrival, decodedContent.scheduled_arrival, ...(!isAuthored ? [lastLeg?.arrival, lastSegment?.arrival_time] : [])),
+      duration: firstText(decodedContent.duration, decodedContent.duration_minutes, !isAuthored ? firstLeg?.duration : undefined),
       stops: firstNumber(decodedContent.stops, decodedContent.transfers, decodedContent.transfer_count),
       arrivalDelayMinutes: firstNumber(decodedContent.arrival_delay_minutes, decodedContent.arrivalDelayMinutes, lastLeg?.arrival_delay_minutes, lastSegment?.arrival_delay_minutes),
       hasCancellation: firstBoolean(decodedContent.has_cancellation, decodedContent.hasCancellation) ?? legs.some(leg => Array.isArray(leg.segments) && leg.segments.some((segment: Record<string, unknown>) => segment.cancelled === true)),
@@ -916,6 +921,7 @@ const travelStayResolver: PreviewResolver = async ({
 }) => {
   const { default: component } =
     await import("../components/embeds/travel/TravelStayEmbedPreview.svelte");
+  const stayFacts = travelStayFacts(decodedContent);
   return {
     component,
     props: {
@@ -925,9 +931,13 @@ const travelStayResolver: PreviewResolver = async ({
       hotelClass: firstNumber(decodedContent.hotelClass, decodedContent.hotel_class, decodedContent.stars),
       overallRating: firstNumber(decodedContent.overallRating, decodedContent.overall_rating, decodedContent.rating),
       reviews: firstNumber(decodedContent.reviews, decodedContent.review_count),
-      currency: decodedContent.currency || "EUR",
-      ratePerNight: firstNumber(decodedContent.ratePerNight, decodedContent.rate_per_night, decodedContent.price, decodedContent.min_price),
-      totalRate: firstNumber(decodedContent.totalRate, decodedContent.total_rate, decodedContent.total_price),
+      currency: decodedContent.currency || (authoredResultMetadata(decodedContent) ? undefined : "EUR"),
+      ratePerNight: stayFacts.nightlyRate.amount,
+      ratePerNightCurrency: stayFacts.nightlyRate.currency,
+      totalRate: stayFacts.totalRate.amount,
+      totalRateCurrency: stayFacts.totalRate.currency,
+      checkIn: stayFacts.checkIn,
+      checkOut: stayFacts.checkOut,
       amenities: stringList(decodedContent.amenities),
       isCheapest: firstBoolean(decodedContent.isCheapest, decodedContent.is_cheapest) ?? false,
       ecoCertified: firstBoolean(decodedContent.ecoCertified, decodedContent.eco_certified) ?? false,
@@ -951,7 +961,7 @@ const fitnessResultResolver: PreviewResolver = async ({
 }) => {
   const { default: component } =
     await import("../components/embeds/fitness/FitnessResultEmbedPreview.svelte");
-  const skillId = firstText(decodedContent.skill_id, decodedContent.skillId) || "search_locations";
+  const skillId = firstText(decodedContent.skill_id, decodedContent.skillId) || (authoredResultMetadata(decodedContent)?.kind === "fitness.class" ? "search_classes" : "search_locations");
   return {
     component,
     props: {
@@ -1138,6 +1148,71 @@ resolvers.set("app:docs:doc", docsResolver);
  *
  * Returns null if no key matches — the caller should fall back to a text summary.
  */
+type DirectPreviewModule = () => Promise<{ default: unknown }>;
+type DirectPreviewFields = (content: Record<string, unknown>) => Record<string, unknown>;
+const directResults: Array<[string, DirectPreviewModule, DirectPreviewFields]> = [
+  ['home-listing', () => import('../components/embeds/home/HomeListingEmbedPreview.svelte'), d => ({
+    ...d, price_label: firstText(d.price_label) ?? (d.price != null ? [d.price, d.currency].filter(value => value != null && value !== '').join(' ') : undefined),
+  })],
+  ['shopping-product', () => import('../components/embeds/shopping/ShoppingResultEmbedPreview.svelte'), d => ({
+    ...d, price: typeof d.price === 'string' ? d.price : undefined,
+    price_amount: firstNumber(d.price_amount, d.price), currency_symbol: firstText(d.currency_symbol, d.currency),
+  })],
+  ['nutrition-recipe', () => import('../components/embeds/nutrition/NutritionRecipeEmbedPreview.svelte'), d => ({ ...d })],
+  ['code-repo', () => import('../components/embeds/code/CodeRepoEmbedPreview.svelte'), d => ({
+    url: d.url, fullName: d.full_name, name: d.name ?? d.title, ownerLogin: d.owner_login,
+    ownerAvatarUrl: d.owner_avatar_url, description: d.description, primaryLanguage: d.primary_language,
+    licenseName: d.license_name, licenseSpdxId: d.license_spdx_id, stars: d.stars, forks: d.forks,
+    openIssues: d.open_issues, updatedAt: d.updated_at,
+  })],
+  ['electronics-component', () => import('../components/embeds/electronics/ElectronicsComponentEmbedPreview.svelte'), d => ({ ...d })],
+  ['business-company-financial-result', () => import('../components/embeds/business/BusinessCompanyFinancialResultEmbedPreview.svelte'), d => ({
+    company: d.company ?? d.title, ticker: d.ticker, fiscalYear: d.fiscal_year, fiscalQuarter: d.fiscal_quarter,
+    periodType: d.period_type, currency: d.currency, revenue: d.revenue, netIncome: d.net_income, filed: d.filed, form: d.form,
+  })],
+  ['weather-day', () => import('../components/embeds/weather/WeatherDayEmbedPreview.svelte'), d => ({
+    date: d.date, locationName: d.location_name ?? d.title, provider: d.provider, condition: d.condition, icon: d.icon,
+    temperatureMinC: d.temperature_min_c, temperatureMaxC: d.temperature_max_c,
+    precipitationTotalMm: nestedRecord(d, 'precipitation')?.total_mm,
+    precipitationProbabilityMaxPct: nestedRecord(d, 'precipitation')?.probability_max_pct,
+    rainHours: nestedRecord(d, 'precipitation')?.rain_hours,
+  })],
+  ['social-media-post', () => import('../components/embeds/social_media/SocialMediaPostEmbedPreview.svelte'), d => ({ ...d })],
+  ['images-image-result', () => import('../components/embeds/images/ImageResultEmbedPreview.svelte'), d => ({
+    title: d.title, sourceDomain: d.source_domain, thumbnailUrl: d.thumbnail_url ?? d.image_url,
+    imageUrl: d.image_url, faviconUrl: d.favicon_url,
+  })],
+  ['videos-video', () => import('../components/embeds/videos/VideoEmbedPreview.svelte'), d => ({
+    url: d.url, title: d.title, channelName: firstText(d.channel_name, d.channel), channelId: d.channel_id, channelThumbnail: d.channel_thumbnail,
+    thumbnail: d.thumbnail_url ?? d.thumbnail, durationSeconds: d.duration_seconds,
+    durationFormatted: d.duration_formatted, viewCount: d.view_count, likeCount: d.like_count,
+    publishedAt: d.published_at, videoId: d.video_id,
+  })],
+  ['models3d-model-result', () => import('../components/embeds/models3d/Model3DResultEmbedPreview.svelte'), d => ({
+    title: d.title, provider: d.provider, creatorName: d.creator_name, sourcePageUrl: d.source_page_url,
+    previewImageUrl: d.preview_image_url ?? d.image_url, thumbnailUrl: d.thumbnail_url,
+    license: d.license, filesCount: d.files_count, isFree: d.is_free,
+  })],
+  ['news-article', () => import('../components/embeds/news/NewsEmbedPreview.svelte'), d => ({
+    title: d.title, url: d.url, description: d.description, image: d.image_url ?? d.thumbnail,
+    favicon: d.favicon_url, publicationDate: d.publication_date ?? d.published_at,
+  })],
+  ['tv-movie', () => import('../components/embeds/tv/TVTitleEmbedPreview.svelte'), d => ({ content: d })],
+  ['tv-series', () => import('../components/embeds/tv/TVTitleEmbedPreview.svelte'), d => ({ content: d })],
+];
+for (const [key, load, fields] of directResults) {
+  resolvers.set(key, async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+    const { default: component } = await load();
+    return { component, props: { ...fields(decodedContent), id: embedId,
+      ...(key === 'home-listing' ? { embed_id: embedId, onSelect: onFullscreen } : {}),
+      status: normalizeStatus(embedData.status ?? decodedContent.status), isMobile: false, onFullscreen } };
+  });
+}
+resolvers.set('ai-authored-results', async ({ embedId, decodedContent, onFullscreen }) => {
+  const { default: component } = await import('../components/embeds/AuthoredResultsEmbedPreview.svelte');
+  return { component, props: { id: embedId, content: decodedContent, onFullscreen } };
+});
+
 function deriveKey(ctx: EmbedPreviewContext): string | null {
   const d = ctx.decodedContent;
   const e = ctx.embedData;
@@ -1145,6 +1220,11 @@ function deriveKey(ctx: EmbedPreviewContext): string | null {
   const appId = (d.app_id as string) || (e.app_id as string) || "";
   const skillId = (d.skill_id as string) || (e.skill_id as string) || "";
   const type = normalizeEmbedType((e.type as string) || (d.type as string) || "");
+  const authoring = authoredResultMetadata(d);
+  if (authoring) {
+    const authoredKey = authoring.kind === 'news.website' ? 'news-article' : AUTHORED_RESULT_KIND_MAP[authoring.kind]?.frontendType;
+    if (authoredKey && resolvers.has(authoredKey)) return authoredKey;
+  }
 
   if ((type === "icon_result" || type === "design-icon-result") && resolvers.has(type)) {
     return type;
@@ -1217,7 +1297,7 @@ async function resolve(
 
   try {
     const resolver = resolvers.get(key)!;
-    const resolved = await resolver(ctx);
+    const resolved = await resolver({ ...ctx, decodedContent: authoredResultMediaPresentation(ctx.decodedContent, []) });
     if (!resolved) return null;
     const actualType = key.startsWith('app:')
       ? String(ctx.decodedContent.type ?? ctx.embedData.type ?? '') : key;
@@ -1225,6 +1305,11 @@ async function resolve(
       ...resolved.props,
       __previewComponent: resolved.component,
       __previewPresentation: getEmbedPreviewPresentation(actualType, key),
+      __authoredContent: ctx.decodedContent,
+      __authoredProps: async (content: Record<string, unknown>) => {
+        const next = await resolver({ ...ctx, decodedContent: content });
+        return next?.props ?? resolved.props;
+      },
     } };
   } catch (error) {
     console.error(

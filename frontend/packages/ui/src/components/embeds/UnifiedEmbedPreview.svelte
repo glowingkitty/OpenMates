@@ -36,6 +36,9 @@
 <script lang="ts">
   import EmbedPreviewCorner from '@repo/public-site/components/results/EmbedPreviewCorner.svelte';
   import { text } from '../../i18n/translations';
+  import AuthoredResultContextInfo from './AuthoredResultContextInfo.svelte';
+  import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultMetadata, type AuthoredResultPresentationContext } from '../../types/authoredResult';
+  const authoredPresentation = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
   import { resolveIconName } from '../../utils/iconNameResolver';
   import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
   const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
@@ -55,6 +58,9 @@
    * Props interface for unified embed preview
    */
   interface Props {
+    authoring?: AuthoredResultMetadata;
+    /** Hide the source-domain badge of researched results (draft/user-provided badges stay). */
+    hideSourceDomain?: boolean;
     /** Unique embed ID */
     id: string;
     inputEmbedIds?: string[];
@@ -108,6 +114,8 @@
     hasFullWidthImage?: boolean;
     /** Callback when embed data is updated - allows child components to update their specific data */
     onEmbedDataUpdated?: (data: { status: string; decodedContent: Record<string, unknown> }) => void;
+    /** Status-only terminal transitions do not require fabricated decoded data. */
+    onStatusChanged?: (status: 'processing' | 'finished' | 'error' | 'cancelled') => void;
     /** Optional snippet rendered before the title text in BasicInfosBar (e.g., category circle) */
     titleIcon?: import('svelte').Snippet;
     /** Optional snippet rendered between the app icon and the status text in BasicInfosBar (e.g., play button for audio) */
@@ -115,6 +123,8 @@
   }
   
   let {
+    authoring: authoringProp,
+    hideSourceDomain = false,
     id,
     inputEmbedIds: inputEmbedIdsProp,
     presentationOnly = false,
@@ -143,9 +153,13 @@
     showSkillIcon,
     hasFullWidthImage = false,
     onEmbedDataUpdated,
+    onStatusChanged,
     titleIcon,
     actionButton
   }: Props = $props();
+  const authoring = $derived(authoringProp ?? authoredPresentation?.authoring);
+// Researched results would show only the source domain; some cards (events) omit it.
+  const showProvenance = $derived(!!authoring && !(hideSourceDomain && authoring.origin === 'researched'));
   
   type EmbedStatus = 'processing' | 'finished' | 'error' | 'cancelled';
 
@@ -217,6 +231,7 @@
     // Update status immediately from event if provided
     if (newStatus && (newStatus === 'processing' || newStatus === 'finished' || newStatus === 'error' || newStatus === 'cancelled')) {
       localStatus = newStatus;
+      onStatusChanged?.(newStatus);
       // Mark store-resolved for terminal statuses so $effect won't revert on re-mount
       if (newStatus !== 'processing') {
         storeResolved = true;
@@ -937,6 +952,7 @@
 <div
   bind:this={previewElement}
   class="unified-embed-preview"
+  class:authored-preview={showProvenance}
   class:result-preview={usesResultShell}
   class:intrinsic-preview={isAssistantResult && !resultPreview}
   class:plain-content-preview={isPlainTextResult}
@@ -1072,9 +1088,33 @@
       </div>
     </div>
   {/if}
+  {#if authoring && showProvenance}<div class="authored-origin" data-testid="authored-result-provenance"><AuthoredResultContextInfo {authoring} compact /></div>{/if}
 </div>
 
 <style>
+  /* Reserve provenance space inside the existing card height. The result body
+     keeps its own title/media layout, with provenance below the body and clear
+     of the app corner and chat action buttons at the top. */
+  .unified-embed-preview.authored-preview {
+    display: flex;
+    flex-direction: column;
+  }
+  .authored-origin {
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    width: 100%;
+    padding: var(--spacing-2) var(--spacing-8);
+    pointer-events: none;
+    text-align: center;
+  }
+  .authored-preview > .result-preview-content,
+  .authored-preview > .content-result-layout,
+  .authored-preview > .desktop-layout,
+  .authored-preview > .mobile-layout {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
+  }
   /* ===========================================
      Unified Embed Preview - Base Container
      =========================================== */
@@ -1116,7 +1156,8 @@
   
   /* Clickable embeds act like a single button: children shouldn't capture pointer events. */
   .unified-embed-preview.clickable:not(.tools-preview) .desktop-layout,
-  .unified-embed-preview.clickable:not(.tools-preview) .mobile-layout {
+  .unified-embed-preview.clickable:not(.tools-preview) .mobile-layout,
+  .unified-embed-preview.clickable:not(.tools-preview) .result-preview-content {
     pointer-events: none;
   }
   

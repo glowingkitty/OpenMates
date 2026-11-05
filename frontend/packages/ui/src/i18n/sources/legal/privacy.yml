@@ -13264,11 +13264,15 @@ quick_answers.third_party_providers_v2.answer:
     provider. Eligible typed chat messages use client-side placeholder substitution for recognized personal details and secrets.
     Anything not detected may be sent as typed, and the protection does not cover voice recordings, raw transcripts, uploaded
     files, reference images, calendar content, or structured skill inputs unless a feature explicitly says otherwise.
+    Enhanced text detection uses Redact by Desert Ant Labs locally, with limited licensing metadata sent directly to the vendor
+    as described below.
   de: Ja, wenn du ein Modell auswählst oder eine Funktion nutzt, die auf einem Anbieter basiert, können die für diese Anfrage
     benötigten Inhalte an den Anbieter gesendet werden. Bei geeigneten eingetippten Chatnachrichten werden erkannte persönliche
     Angaben und Geheimnisse clientseitig durch Platzhalter ersetzt. Nicht erkannte Angaben können so gesendet werden, wie
     du sie eingegeben hast. Der Schutz umfasst keine Sprachaufnahmen, Rohtranskripte, hochgeladenen Dateien, Referenzbilder,
     Kalenderinhalte oder strukturierten Skill-Eingaben, sofern eine Funktion nicht ausdrücklich etwas anderes angibt.
+    Die erweiterte Texterkennung nutzt Redact von Desert Ant Labs lokal; begrenzte Lizenzmetadaten werden wie unten beschrieben
+    direkt an den Anbieter gesendet.
   verified_by_human: []
 quick_answers.voice_recordings.question:
   context: Privacy policy quick-answer question about audio recording processing
@@ -15488,4 +15492,30 @@ providers.ai_models.baseten.description:
     Model APIs wird keine Aufbewahrung von Ein- und Ausgaben angegeben; temporäres
     Präfix-Caching wird verwendet. Die Regionen gemeinsam genutzter Endpunkte können
     sich ändern; eine Verarbeitung in einer festen Region wird damit nicht zugesichert.
+  verified_by_human: []
+
+providers.local_privacy.desert_ant_labs.heading:
+  context: Privacy policy provider heading for browser-local Redact detection and required licensing traffic
+  en: Local text protection — Redact by Desert Ant Labs (Netherlands)
+  de: Lokaler Textschutz — Redact von Desert Ant Labs (Niederlande)
+  verified_by_human: []
+providers.local_privacy.desert_ant_labs.description:
+  context: Disclosure of local text inference, mandatory browser-direct licensing metadata, controller role and opt-out
+  en: |-
+    Enhanced text detection uses Redact by Desert Ant Labs and is enabled by default. Text inference runs locally in your browser. OpenMates hosts the approved model and runtime assets; web users do not need to download them from Hugging Face. Turning off enhanced detection in privacy settings stops Redact use and its licensing requests while keeping the complete basic text detector available.
+
+    Redact requires SDK licensing and activation requests directly from your browser to Desert Ant Labs. These requests include a browser installation UUID used for license/device counting, model and SDK versions, platform, the application hostname and a signed license token. OpenMates controls local persistence of the installation identifier and uses it only as license metadata. The vendor also sees your IP address, browser request headers (including Origin) and request timing. Text being scanned, detection results, placeholder mappings and your OpenMates account ID are not included in these requests.
+
+    Desert Ant Labs acts as an independent controller for this licensing telemetry under its license. This feature is not anonymous or wholly offline, and OpenMates does not promise a particular vendor retention period. Local detection can miss personal data. Typed-message protection does not cover voice audio, raw transcripts, uploaded files, reference images, calendar content or provider-specific inputs unless a feature explicitly says otherwise.
+  de: |-
+    Die erweiterte Texterkennung nutzt Redact von Desert Ant Labs und ist standardmäßig aktiviert. Die Textanalyse läuft lokal in deinem Browser. OpenMates stellt die freigegebenen Modell- und Laufzeitdateien bereit; im Web musst du sie nicht von Hugging Face herunterladen. Wenn du die erweiterte Erkennung in den Datenschutzeinstellungen ausschaltest, werden Redact und seine Lizenzanfragen nicht mehr genutzt. Der vollständige grundlegende Textdetektor bleibt verfügbar.
+
+    Redact benötigt SDK-Lizenzierungs- und Aktivierungsanfragen direkt von deinem Browser an Desert Ant Labs. Diese Anfragen enthalten eine Browserinstallations-UUID für die Lizenz- und Gerätezählung, Modell- und SDK-Versionen, die Plattform, den Hostnamen der Anwendung und ein signiertes Lizenz-Token. OpenMates kontrolliert die lokale Speicherung der Installationskennung und nutzt sie ausschließlich als Lizenzmetadaten. Der Anbieter sieht außerdem deine IP-Adresse, Browser-Anfrageheader (einschließlich Origin) und den Zeitpunkt der Anfragen. Der untersuchte Text, Erkennungsergebnisse, Platzhalterzuordnungen und deine OpenMates-Konto-ID sind in diesen Anfragen nicht enthalten.
+
+    Desert Ant Labs handelt gemäß seiner Lizenz als eigenständiger Verantwortlicher für diese Lizenztelemetrie. Diese Funktion ist weder anonym noch vollständig offline; OpenMates verspricht keine bestimmte Aufbewahrungsfrist beim Anbieter. Die lokale Erkennung kann personenbezogene Daten übersehen. Der Schutz eingetippter Nachrichten gilt nicht für Sprachaufnahmen, Rohtranskripte, hochgeladene Dateien, Referenzbilder, Kalenderinhalte oder anbieterspezifische Eingaben, sofern eine Funktion nicht ausdrücklich etwas anderes angibt.
+  verified_by_human: []
+providers.local_privacy.license_link:
+  context: Link label for the mandatory Desert Ant Labs SDK license and telemetry terms
+  en: Desert Ant Labs license (including licensing telemetry)
+  de: Lizenz von Desert Ant Labs (einschließlich Lizenztelemetrie)
   verified_by_human: []

@@ -36,12 +36,15 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Fail the build if a cached base image retains the vulnerable native decoder.
+# Verify the actual decoder so cached base images cannot reintroduce the vulnerability.
 RUN python -c "import ctypes; decoder = ctypes.CDLL('libbrotlidec.so.1'); decoder.BrotliDecoderErrorString.argtypes = [ctypes.c_int]; decoder.BrotliDecoderErrorString.restype = ctypes.c_char_p; assert decoder.BrotliDecoderErrorString(-17).decode().endswith('BLOCK_SWITCH')"
 
 # Copy and install Python requirements (uploads-specific superset of core requirements)
 COPY backend/upload/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+# Pillow wheels bundle an unpatched Brotli decoder; swap in the patched system one.
+COPY backend/core/api/docker/replace_pillow_brotli.py /tmp/replace_pillow_brotli.py
+RUN python /tmp/replace_pillow_brotli.py && rm /tmp/replace_pillow_brotli.py
 
 # Copy shared backend framework code. base_main.py and Dockerfile.base were
 # deleted in OPE-342 (per-app FastAPI containers were collapsed into in-process

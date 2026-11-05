@@ -99,6 +99,12 @@
         "description": {
           "text": "Présélectionnez des noms mémorables, puis vérifiez les domaines et conflits de marques des finalistes."
         }
+      },
+      "price_products": {
+        "text": "Fixer le prix de vos produits",
+        "description": {
+          "text": "Déterminez le prix de vos produits faits main ou en petites séries, avec un tableau en direct modifiable."
+        }
       }
     },
     "code": {
@@ -184,6 +190,14 @@
         "text": "Vérifier la sécurité",
         "description": {
           "text": "Auditez les fichiers de configuration pour détecter les vulnérabilités de sécurité et l'exposition."
+        }
+      }
+    },
+    "events": {
+      "plan_conference_talk": {
+        "text": "Préparer une conférence",
+        "description": {
+          "text": "Choisissez quelle intervention soumettre à une conférence et transformez-la en proposition solide."
         }
       }
     },
@@ -336,6 +350,14 @@
         }
       }
     },
+    "tasks": {
+      "daily_meeting_and_orchestration": {
+        "text": "Réunion quotidienne et orchestration",
+        "description": {
+          "text": "Choisissez les priorités du jour et coordonnez les tâches et discussions du projet jusqu'à leur achèvement."
+        }
+      }
+    },
     "videos": {
       "analyze_video": {
         "text": "Analyser la vidéo",
@@ -383,6 +405,14 @@
           "3": {
             "text": "Enquête sur les **causes** de l'essor de la fast fashion et ses conséquences environnementales"
           }
+        }
+      }
+    },
+    "workflows": {
+      "clarify_workflows": {
+        "text": "Clarifier les workflows",
+        "description": {
+          "text": "Complétez les détails manquants d'un ou plusieurs workflows avant de les créer ou de les modifier."
         }
       }
     }
@@ -1512,6 +1542,15 @@
       "preview_hide": {
         "text": "Masquer l'aperçu"
       },
+      "view_code": {
+        "text": "Voir le code"
+      },
+      "view_visual": {
+        "text": "Voir le visuel"
+      },
+      "interactive_html_blocked": {
+        "text": "Ce visuel a tenté d'ouvrir une autre page et a été arrêté."
+      },
       "search_repos": {
         "text": "Rechercher des dépôts",
         "description": {
@@ -2464,7 +2503,7 @@
       "browse": {
         "text": "Naviguer",
         "description": {
-          "text": "Parcourir des sites et renvoyer les informations observées en JSON."
+          "text": "Parcourez des sites web et obtenez des résultats au format JSON. Le calcul du navigateur est facturé à la seconde, en plus de l'utilisation de l'IA. Le calcul en pause est gratuit."
         }
       }
     },
@@ -2480,6 +2519,12 @@
           "text": "Rechercher des workflows",
           "description": {
             "text": "Trouver les workflows appartenant à l'utilisateur qui correspondent à une intention de chat."
+          }
+        },
+        "run": {
+          "text": "Exécuter un workflow",
+          "description": {
+            "text": "Exécutez l'un de vos workflows existants depuis le chat."
           }
         }
       }
@@ -4157,6 +4202,12 @@
       },
       "remember": {
         "text": "Remember"
+      },
+      "more_options": {
+        "text": "Afficher plus d'options"
+      },
+      "previous_options": {
+        "text": "Afficher les options précédentes"
       }
     },
     "explain_in_new_chat": {
@@ -7354,9 +7405,6 @@
     "view_on_google_hotels": {
       "text": "Voir sur Google Hotels"
     },
-    "view_on_meetup": {
-      "text": "Voir sur Gathering"
-    },
     "loading_map": {
       "text": "Chargement de la carte..."
     },
@@ -7867,6 +7915,9 @@
         },
         "not_available": {
           "text": "N/A"
+        },
+        "cash_flow": {
+          "text": "Flux de trésorerie"
         }
       },
       "search_trademarks": {
@@ -8101,6 +8152,11 @@
         "text": "Watermarking"
       }
     },
+    "search_domain": {
+      "minutes": {
+        "text": "{count} min"
+      }
+    },
     "projects": {
       "references": {
         "subtitle": {
@@ -8285,6 +8341,139 @@
       },
       "stopping": {
         "text": "Arrêt en cours…"
+      },
+      "no_frame": {
+        "text": "Aucune capture enregistrée n’est disponible."
+      }
+    },
+    "authoring": {
+      "draft": {
+        "text": "Brouillon"
+      },
+      "user_provided": {
+        "text": "Fourni par l’utilisateur"
+      },
+      "sources": {
+        "text": "Sources"
+      },
+      "observed_at": {
+        "text": "Observé le"
+      },
+      "image_credit": {
+        "text": "Crédit image"
+      },
+      "partial": {
+        "text": "Résultat partiel"
+      },
+      "uploaded_source": {
+        "text": "Source importée"
+      },
+      "approximate_location": {
+        "text": "Emplacement approximatif"
+      },
+      "schematic_route": {
+        "text": "Itinéraire schématique"
+      },
+      "unmapped": {
+        "text": "Emplacement indisponible"
+      },
+      "open_source": {
+        "text": "Ouvrir la page source"
+      },
+      "open_domain": {
+        "text": "Ouvrir sur {domain}"
+      },
+      "additional_times": {
+        "text": "Autres horaires"
+      }
+    },
+    "tv": {
+      "movie": {
+        "text": "Film"
+      },
+      "series": {
+        "text": "Série télévisée"
+      },
+      "poster_unavailable": {
+        "text": "Affiche indisponible"
+      },
+      "synopsis": {
+        "text": "Synopsis"
+      },
+      "release_date": {
+        "text": "Date de sortie"
+      },
+      "runtime": {
+        "text": "Durée"
+      },
+      "genres": {
+        "text": "Genres"
+      },
+      "directors": {
+        "text": "Réalisation"
+      },
+      "creators": {
+        "text": "Créateurs"
+      },
+      "cast": {
+        "text": "Distribution"
+      },
+      "language": {
+        "text": "Langue originale"
+      },
+      "countries": {
+        "text": "Pays"
+      },
+      "content_rating": {
+        "text": "Classification d’âge"
+      },
+      "score": {
+        "text": "Note de la source"
+      },
+      "score_votes": {
+        "text": "{count} votes"
+      },
+      "first_air_date": {
+        "text": "Première diffusion"
+      },
+      "last_air_date": {
+        "text": "Dernière diffusion"
+      },
+      "series_status": {
+        "text": "Statut de la série"
+      },
+      "season_count": {
+        "text": "{count} saisons"
+      },
+      "episodes": {
+        "text": "Épisodes"
+      },
+      "episode_count": {
+        "text": "{count} épisodes"
+      },
+      "season": {
+        "text": "Saison {number}"
+      },
+      "specials": {
+        "text": "Épisodes spéciaux"
+      },
+      "supplied_seasons": {
+        "text": "Saisons fournies"
+      },
+      "partial_seasons": {
+        "text": "Seuls les détails des saisons fournies sont affichés."
+      },
+      "year": {
+        "text": "Année"
+      },
+      "preparing": {
+        "text": "Préparation du titre…"
+      },
+      "cancelled": {
+        "text": "Création du titre annulée"
+      },
+      "unavailable": {
+        "text": "Titre indisponible"
       }
     }
   },
@@ -8639,10 +8828,10 @@
     },
     "pii": {
       "banner_title": {
-        "text": "Données sensibles détectées"
+        "text": "{count}× données sensibles détectées"
       },
       "banner_description": {
-        "text": "{summary} trouvé(s). Ceux-ci seront remplacés par des espaces réservés avant l'envoi. Cliquez sur le texte surligné pour conserver l'original."
+        "text": "Ils seront remplacés par des espaces réservés avant l'envoi. Cliquez sur le texte surligné pour envoyer l'original."
       },
       "undo_all": {
         "text": "Annuler tous les remplacements"
@@ -9116,6 +9305,70 @@
       },
       "follow_up_6": {
         "text": "Compare la biologie extraterrestre des Gethéniens et des Oankali"
+      }
+    },
+    "browse_example_domain": {
+      "title": {
+        "text": "Extraire les informations d'un site web en JSON"
+      },
+      "summary": {
+        "text": "Parcourez Example Domain et renvoyez sa déclaration complète avec une URL source sous forme de JSON structuré."
+      },
+      "message_1": {
+        "text": "Utilisez la compétence de navigation de l'application Web pour extraire l'intégralité de la déclaration visible en anglais de [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a). Renvoyez un objet JSON avec deux champs obligatoires : « purpose », contenant la déclaration complète mot pour mot, y compris ses réserves, et « source_url », contenant l'URL de la page actuelle. Il s'agit d'une tâche d'extraction sans interaction supplémentaire demandée avec le site web. Limitez la session du navigateur à 40 crédits."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bac3644b-0f9c-48cd-bad9-22d265d938a1\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nL'extraction est terminée. Voici le résultat :\n\n```json\n{\"type\": \"code\", \"embed_id\": \"88b9349a-9529-4835-a507-f54e5f24a30f\"}\n```\n\nLa page est l'espace réservé standard d'Example Domain, et la déclaration ci-dessus est son texte intégral visible en anglais, y compris la réserve précisant qu'il ne s'agit pas d'un service et qu'il ne doit pas être utilisé pour des tests ou de la surveillance."
+      },
+      "follow_up_1": {
+        "text": "Rechercher d'autres domaines d'exemple et modèles standard"
+      },
+      "follow_up_2": {
+        "text": "Expliquer comment Example Domain est généralement utilisé pour la documentation"
+      },
+      "follow_up_3": {
+        "text": "Parcourir une autre URL de site web pour son contenu textuel"
+      },
+      "follow_up_4": {
+        "text": "Lister les conventions de texte de remplissage courantes en développement web"
+      },
+      "follow_up_5": {
+        "text": "Lire des pages HTTPS publiques directement à partir d'une URL fournie"
+      },
+      "follow_up_6": {
+        "text": "Comparer Example Domain avec d'autres domaines de test réservés"
+      }
+    },
+    "browse_heading_json": {
+      "title": {
+        "text": "Lire une page web avec Browse"
+      },
+      "summary": {
+        "text": "Utilise un navigateur pour trouver le titre d'une page et renvoie le résultat avec son URL source au format JSON."
+      },
+      "message_1": {
+        "text": "Utilise la compétence Browse pour ouvrir [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) et renvoie le titre principal exact et l'URL source au format JSON. Utilise la session du navigateur pour cette tâche."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"5f0e7070-da89-4cd1-9447-52f63f4fd826\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nLa session Browse a ouvert la page et a renvoyé ce qui suit :\n\n```json\n{\"type\": \"code\", \"embed_id\": \"c0e67189-7fb4-4e88-a3ab-f66d75ea01a2\"}\n```\n\nLa page à l'adresse `https://httpbin.org/html` propose un exemple de document HTML dont le titre principal est **\"Herman Melville - Moby-Dick\"** (un extrait du premier chapitre du roman, \"Loomings\")."
+      },
+      "follow_up_1": {
+        "text": "Rechercher une analyse historique de Moby Dick d'Herman Melville"
+      },
+      "follow_up_2": {
+        "text": "Expliquer l'importance du chapitre d'ouverture de Moby-Dick"
+      },
+      "follow_up_3": {
+        "text": "Lire la documentation publique sur les techniques d'automatisation des navigateurs web"
+      },
+      "follow_up_4": {
+        "text": "Comparer différents formats numériques pour lire de la littérature classique"
+      },
+      "follow_up_5": {
+        "text": "Rechercher des archives littéraires en ligne proposant des romans classiques américains"
+      },
+      "follow_up_6": {
+        "text": "Résumer les thèmes principaux de l'œuvre d'Herman Melville"
       }
     },
     "building_maintenance_email": {
@@ -10802,6 +11055,12 @@
         "text": "- Comprendre le projet\n- présélectionner des noms\n- vérifier les finalistes\n- comparer les preuves"
       }
     },
+    "business_price_products": {
+      "text": "Fixer le prix de vos produits",
+      "description": {
+        "text": "Déterminez le prix de vos produits faits main ou en petites séries, avec un tableau en direct modifiable."
+      }
+    },
     "code_analyze_logs": {
       "text": "Analyser les journaux",
       "description": {
@@ -10929,6 +11188,12 @@
       },
       "systemprompt": {
         "text": "Vous êtes un expert en programmation."
+      }
+    },
+    "events_plan_conference_talk": {
+      "text": "Préparer une conférence",
+      "description": {
+        "text": "Choisissez quelle intervention soumettre à une conférence et transformez-la en proposition solide."
       }
     },
     "jobs_career_insights": {
@@ -11075,6 +11340,12 @@
         "text": "Vous êtes un expert conseiller en éducation et en carrière. Votre rôle est d'aider les utilisateurs à découvrir le bon diplôme et le bon domaine d'études grâce à des questions réfléchies et stratégiques. Utilisez la méthode socratique pour les guider vers la découverte de soi plutôt que de simplement donner des conseils. Aidez-les à comprendre leurs vrais intérêts, forces et valeurs. Posez des questions de suivi pour creuser plus profondément et découvrir des schémas. Fournissez des recommandations personnalisées basées sur leurs réponses."
       }
     },
+    "tasks_daily_meeting_and_orchestration": {
+      "text": "Réunion quotidienne et orchestration",
+      "description": {
+        "text": "Choisissez les priorités du jour et coordonnez les tâches et discussions du projet jusqu'à leur achèvement."
+      }
+    },
     "videos_analyze_video": {
       "text": "Analyser la vidéo",
       "description": {
@@ -11132,6 +11403,12 @@
       },
       "systemprompt": {
         "text": "Tu es un chercheur rigoureux qui confronte les explications concurrentes aux preuves primaires. La question peut ne soutenir ni récit plus profond ni intention. Tu n’es pas tenu de trouver un motif caché ; accepte une explication ordinaire si les preuves la soutiennent.\n\nDéroulement de la recherche :\n- Détermine d'abord si la question de l'utilisateur nécessite une recherche approfondie ou une réponse courte. Si la question est large, actuelle, controversée, politique, économique, liée aux marchés ou demande pourquoi quelque chose s'est produit, traite-la comme une recherche approfondie.\n- Demande des précisions uniquement lorsque le périmètre défini par l'utilisateur est trop ambigu pour permettre une recherche responsable. Sinon, commence la recherche.\n- Avant de rechercher, énumère les principales hypothèses ou les angles que tu dois tester. Inclus l'explication superficielle, les explications alternatives, les incitations, les bénéficiaires, les perdants, la structure du marché ou la structure politique, l'historique de la réglementation et les contre-arguments.\n- Dans un chat principal nécessitant une recherche complexe, la première action outil DOIT être start_sub_chats avant tout web-search ou web-read. Délègue exactement trois angles distincts en parallèle et attends tous les rapports avant la synthèse. Demande à chaque sous-chat de recourir à web-search et web-read, de fonder les affirmations importantes sur des sources primaires avec des réserves respectant leur portée et de rendre des constats sourcés.\n- Signalez honnêtement les lacunes importantes ; ne créez pas de nouveaux lots de recherche dans une continuation et ne devinez pas les preuves manquantes.\n- Après les trois sous-chats, le chat principal synthétise leurs rapports et utilise web-read pour lire les documents primaires matériellement contestés si les rapports ne résolvent pas le désaccord. Ne lance ni quatrième sous-chat ni lot de réparation payant. Si la recherche ou la lecture échoue, indique honnêtement la limite et donne seulement une réponse limitée et nuancée. Ni une continuation ni un sous-chat ne peut lancer de sous-chats supplémentaires.\n- Utilise web-search plusieurs fois avec différents angles de recherche. Ne te fie pas à une seule requête évidente. Par exemple, une question sur une hausse des prix devrait conduire à rechercher les chocs d'offre, les bénéfices des entreprises, la concentration du marché, les enquêtes réglementaires, le lobbying, les versements aux actionnaires et les effets sur les consommateurs, lorsque cela est pertinent.\n- Utilise web-read pour les sources importantes au lieu de te fier uniquement aux extraits des résultats de recherche. Privilégie les sources originales, les données gouvernementales ou réglementaires, les documents déposés par les entreprises, les dossiers judiciaires, les travaux universitaires, le journalisme de référence et les rapports directs plutôt que les résumés.\n- Évalue la qualité des sources selon leur actualité, leur pertinence, leur autorité, leur exactitude et leur objectif. Pratique la lecture latérale : vérifie les affirmations importantes auprès de sources indépendantes et remonte jusqu'aux preuves primaires lorsque cela est possible.\n- Examine explicitement les incitations. Identifie les principales parties, ce que chacune souhaite, les croyances du public dont chacune tire profit et les éléments qui renforcent ou affaiblissent leur récit.\n\nRigueur dans le traitement des preuves :\n- Distingue les preuves confirmées, les déductions solides, les interprétations plausibles et les spéculations non étayées.\n- Considère une plainte ou une allégation publiée comme la confirmation que l'affirmation a été formulée, pas que les faits allégués se sont produits. Distingue les accords transactionnels proposés des accords approuvés par un tribunal, et les deux des constatations judiciaires ou des aveux ; un accord transactionnel seul ne prouve pas un comportement fautif. Avant de tirer une conclusion importante sur un comportement fautif ou le règlement juridique d'une affaire, lis directement la plainte, la décision, l'accord transactionnel ou le communiqué officiel sous-jacent à l'aide de web-read ; si ce document est indisponible, indique cette limite. Demande aux chercheurs des sous-chats d'indiquer le statut probatoire et la source de chaque affirmation importante et conserve ce statut dans la synthèse finale au lieu de transformer une allégation ou une proposition en faute confirmée.\n- Ne présente jamais la corruption, la manipulation, la fraude ou la mauvaise foi comme des faits à moins que les sources ne les étayent. Si les éléments indiquent un pouvoir de fixation des prix, des préoccupations concernant une coordination, un examen réglementaire ou des incitations suspectes, formule-le avec prudence et cite les éléments de preuve.\n- Traite avec prudence les affirmations reposant sur une seule source. Si les preuves sont minces, contestées, anciennes ou indisponibles, dis-le directement.\n- Confronte les trois rapports et leurs preuves primaires avant la synthèse finale. Omet les précisions, les affirmations causales et les conclusions juridiques non étayées, ou assortis-les de réserves. Si une source de vérification est indisponible, identifie l'affirmation non résolue au lieu de la présenter comme confirmée. Un document intitulé Proposed Final Judgment n'établit pas une approbation judiciaire ; une plainte officielle confirme que des allégations ont été déposées, pas qu'elles ont été jugées. Maintiens ces réserves à côté de l'affirmation dans chaque section, y compris la réponse courte et la conclusion ; un paragraphe ultérieur sur l'incertitude ne corrige pas une affirmation présentée abusivement comme confirmée.\n- Inclus les contre-arguments et les explications innocentes. Une explication plus profonde n'est pas automatiquement plus vraie qu'une explication superficielle.\n\nStructure de sortie par défaut :\n\nPour une recherche approfondie complexe, la réponse finale DOIT utiliser exactement ces six titres, sans remplacer leurs noms :\n\n## Short Answer\nDonne une réponse concise de 3 à 5 phrases.\n\n## Surface Explanation\nExplique l'explication courante ou officielle que les gens sont susceptibles d'entendre.\n\n## What Else May Be Going On\nTeste les autres explications, incitations, structures et calendriers comme des hypothèses seulement. Dis quand les preuves ne soutiennent ni explication plus profonde ni inférence d’intention.\n\n## Evidence\nÉnumère les principaux résultats accompagnés de sources, par affirmation. Attribue clairement les affirmations importantes à leurs sources.\n\n## Counterarguments\nExplique ce qui pourrait affaiblir, compliquer ou contredire l'explication plus profonde.\n\n## Bottom Line\nIndique ce qui est confirmé, ce qui est probable, ce qui est plausible mais non prouvé et ce qui reste incertain.\n\nComportement lors des échanges suivants :\n- Propose des rapports de suivi ciblés lorsqu'ils sont utiles, par exemple sur les bénéfices des entreprises, l'historique de la réglementation, les effets sur les consommateurs, les options de politiques publiques, la chronologie ou l'examen source par source.\n- Pour les questions de suivi dans un chat de recherche approfondie actif, garde un ton conversationnel, sauf si l'utilisateur demande un autre rapport complet.\n\n- Avant toute conclusion quantitative, causale ou juridique importante, examinez la source primaire avec web-read. Les extraits de recherche servent à trouver les sources, pas à les vérifier. Si la lecture échoue ou si la source manque, indiquez que la conclusion reste non résolue et précisez la limite.\n- Pendant la synthèse principale, prépare avant la conclusion finale un registre compact et numéroté des affirmations et preuves pour chaque affirmation importante quantitative, causale, relative aux intentions ou au statut juridique, avec ses URL. Exigez pour chacune un résultat bref : étayée, à nuancer, contredite ou non résolue ; URL exacte ; période, territoire, population, mesure et statut juridique. Place le registre dans Evidence et traite intégralement chaque affirmation importante avant Bottom Line, en gardant Short Answer en premier et les six titres dans l’ordre requis. Les éléments omis ou tronqués restent non vérifiés.\n- Préservez près de chaque affirmation, dans chaque section, la portée de la source : période, territoire, population ou produit, mesure ou dénominateur, hypothèses et observation ou contrefactuel modélisé. Ne transformez pas sous-groupe, estimation, scénario, plage historique ou durée typique en conclusion universelle ou permanente. Avantages, profits et incitations ne prouvent seuls ni intention ni part causale. Omettez ou nuancez explicitement les affirmations non auditées ; une omission ne vaut pas preuve.\n\n- Pour chaque sous-chat de recherche, visez 600–900 mots dans les six sections requises et 6–10 constats importants distincts dans un registre numéroté de la section Preuves. Chaque entrée indique affirmation, statut des preuves, URL primaire exacte et portée ou limite pertinente. Ailleurs, renvoyez aux numéros au lieu de répéter les preuves. Privilégiez les constats nécessaires à la question, y compris les contre-preuves importantes ; omettez récit des recherches, contexte répété et URL inutilisées. Ces objectifs de rédaction ne sont ni règles de troncature ni plafonds stricts : gardez les nuances nécessaires et signalez les questions importantes non résolues.\n\n- Pour chaque affirmation importante quantitative, causale, d’intention ou juridique, donne un bref extrait exact de source primaire ou une entrée précise de tableau primaire avec période et mesure, relié à l’URL et au statut de preuve. Ne marque étayée que si cette base soutient directement l’affirmation exacte et sa portée ; sinon, inférence ou non résolue. Une URL ou un agrégat global de la source ne suffit pas. Inscris cette base dans le registre numéroté d’Evidence avant Bottom Line ; réutilise les identifiants et évite les citations répétées. Short Answer ne peut utiliser que des affirmations étayées ou nuancées ; ne relève jamais le statut du rapport de recherche.\n\n- Distingue mesures et écarts de prix des profits et des motifs. Un délai opérationnel ou de production n’est pas un minimum ni une borne universelle. Ordonne les périodes comparées chronologiquement et vérifie le sens du changement. Vérifie le tribunal et l’identité de l’affaire ; distingue indemnité du jury et triplement légal, accords proposés et approuvés. Garde ces distinctions et limites non résolues près des affirmations dans chaque section."
+      }
+    },
+    "workflows_clarify_workflows": {
+      "text": "Clarifier les workflows",
+      "description": {
+        "text": "Complétez les détails manquants d'un ou plusieurs workflows avant de les créer ou de les modifier."
       }
     }
   },
@@ -14420,6 +14697,9 @@
     },
     "nighttime": {
       "text": "La nuit"
+    },
+    "instructor": {
+      "text": "Professeur"
     }
   },
   "rules": {},
@@ -15158,6 +15438,15 @@
         "quick_tips_description": {
           "text": "Affiche occasionnellement des astuces produit après les réponses de l'assistant. Désactive cette option si tu ne souhaites pas qu'OpenMates génère des fiches d'astuces rapides."
         },
+        "server_region": {
+          "text": "Région des serveurs"
+        },
+        "prefer_eu_servers": {
+          "text": "Privilégier les serveurs de l'UE"
+        },
+        "prefer_eu_servers_description": {
+          "text": "Activé (par défaut) : les modèles d'IA s'exécutent d'abord sur des serveurs de l'UE, les autres régions ne servent qu'en secours. Désactivé : le plus rapide, global – OpenMates choisit le serveur le plus rapide au monde."
+        },
         "quick_tips_enabled": {
           "text": "Astuces rapides activées."
         },
@@ -15875,9 +16164,6 @@
         "skill": {
           "ask": {
             "model": {
-              "qwen3_235b_a22b_2507": {
-                "text": "Qwen 3 256b"
-              },
               "claude_haiku_4_5_20251001": {
                 "text": "Claude Haiku 4.5"
               },
@@ -16959,10 +17245,10 @@
           "text": "Enregistrement..."
         },
         "email_chat_how_it_works": {
-          "text": "Les e-mails de chat sont envoyés lorsque vous êtes absent. Les Workflows planifiés terminés avec succès donnent lieu à un e-mail de fin et à un récapitulatif quotidien."
+          "text": "Un e-mail quotidien résume les Workflows planifiés ; les messages suivent les réglages habituels du chat."
         },
         "email_workflow_runs_desc": {
-          "text": "E-mails de fin pour les Workflows planifiés terminés avec succès, avec un récapitulatif quotidien"
+          "text": "Un e-mail quotidien résume les Workflows planifiés ; les messages suivent les réglages habituels du chat."
         },
         "email_webhooks": {
           "text": "Chats Webhook"
@@ -18097,9 +18383,6 @@
         "text": "Masquer les données personnelles",
         "chats": {
           "text": "Chats"
-        },
-        "description": {
-          "text": "OpenMates remplacera automatiquement les données sensibles par des espaces réservés avant de les envoyer au serveur OpenMates et à tout fournisseur externe pour protéger votre confidentialité. Les données remplacées sont mises en évidence visuellement. Vous pouvez toujours cliquer sur une entrée de données remplacée pour écraser le remplacement, ou désactiver complètement la fonctionnalité ici."
         }
       },
       "enhanced_pii_model": {
@@ -19404,6 +19687,48 @@
       "title_placeholder": {
         "text": "Décrivez brièvement le problème — que s'est-il passé et où ?"
       },
+      "issue_text_label": {
+        "text": "Que s'est-il passé ?"
+      },
+      "issue_text_placeholder": {
+        "text": "Que s'est-il passé ? Décrivez ce qui ne fonctionne pas et tout détail qui nous aide à reproduire le problème."
+      },
+      "attach_image": {
+        "text": "Image"
+      },
+      "dictation_failed": {
+        "text": "La dictée a échoué. Réessayez ou saisissez votre signalement."
+      },
+      "quick_actions_label": {
+        "text": "Ajouter au rapport"
+      },
+      "upload_screenshot": {
+        "text": "Téléverser une capture d'écran"
+      },
+      "select_ui_element": {
+        "text": "Sélectionner un élément de l'interface"
+      },
+      "record_voice": {
+        "text": "Enregistrer la voix (jusqu'à 2 minutes)"
+      },
+      "dictation_unavailable_today": {
+        "text": "L'enregistrement vocal n'est plus disponible aujourd'hui. Réessayez demain."
+      },
+      "dictation_recording_limit": {
+        "text": "Les enregistrements vocaux des rapports sont limités à 2 minutes."
+      },
+      "send_to_claude_chat_label": {
+        "text": "Envoyer directement au chat Claude"
+      },
+      "send_to_claude_chat_hint": {
+        "text": "Lance un nouveau chat Claude sur le serveur de développement qui analyse et corrige ce signalement."
+      },
+      "confirmation_claude_chat_queued": {
+        "text": "Un chat Claude commencera à traiter ce signalement dans environ une minute."
+      },
+      "confirmation_claude_chat_unavailable": {
+        "text": "Impossible de mettre le chat Claude en file d'attente. Copiez l'ID du signalement et lancez un chat manuellement."
+      },
       "title_required": {
         "text": "Une description courte est requise"
       },
@@ -19449,11 +19774,8 @@
       "actual_behaviour_hint": {
         "text": "Facultatif — décrivez ce qui s'est mal passé"
       },
-      "share_chat_label": {
-        "text": "Partager le chat actuel avec ce rapport"
-      },
-      "share_chat_hint": {
-        "text": "Cela permet a l'administrateur de voir le chat pour aider a deboguer le probleme."
+      "chat_included_notice": {
+        "text": "Votre chat actuel est joint à ce rapport afin que nous puissions analyser le problème."
       },
       "url_label": {
         "text": "URL de chat partagé ou d'intégration"
@@ -19615,9 +19937,6 @@
       },
       "element_picker_hint": {
         "text": "Appuyez sur n'importe quel élément de la page pour capturer sa structure HTML à des fins de débogage"
-      },
-      "element_picker_button": {
-        "text": "Sélectionner un élément"
       },
       "element_picker_active": {
         "text": "Sélection en cours..."
@@ -20757,7 +21076,7 @@
       "text": "Tester gratuitement"
     },
     "version_title": {
-      "text": "v0.28"
+      "text": "v0.29"
     },
     "domain_not_allowed": {
       "text": "Domaine e-mail non autorisé."

@@ -1,0 +1,21 @@
+{
+  "recovery_private_key": "gpeKnanRKoU2GGJGmwWqkaJGbdENwoYEB-juL6eHGQw",
+  "identity": {
+    "owner_id": "11111111-1111-4111-8111-111111111111",
+    "root_chat_id": "22222222-2222-4222-8222-222222222222",
+    "target_chat_id": "99999999-9999-4999-8999-999999999999",
+    "turn_id": "33333333-3333-4333-8333-333333333333",
+    "record_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "subject_id": "child-output-1",
+    "output_kind": "message",
+    "output_version": 1,
+    "key_version": 7
+  },
+  "plaintext": "{\"content\":\"sealed child output\"}",
+  "envelope": {
+    "v": 2,
+    "epk": "AQmRm95-KoLyT5E5vucEKjQCkRAtn2K9o2x-tGsMeWo",
+    "nonce": "l16dsWf_cGsC30N-",
+    "ciphertext": "yOcslQqtQypJO-2Lr4AVoZlf3SyOuGJfXBu79q3XcsoMLTkvfIv0NXmmNDPMalCK7Q"
+  }
+}

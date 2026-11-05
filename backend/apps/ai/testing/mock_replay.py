@@ -433,7 +433,7 @@ async def replay_fixture(
     from backend.apps.ai.tasks.stream_consumer import _assistant_response_created_at
     assistant_created_at = _assistant_response_created_at(request_data, int(time.time()))
     recovery_job = None
-    if not _contains_focus_mode_activation_embed(full_response):
+    if not _contains_focus_mode_activation_embed(full_response) and not fixture_data.get("defer_recovery_until_final"):
         recovery_job = await _persist_mock_replay_recovery_job(
             directus_service=directus_service,
             request_data=request_data,
@@ -483,6 +483,17 @@ async def replay_fixture(
             payload["recovery_provisional"] = not is_final
             payload["recovery_turn_id"] = request_data.recovery_turn_id
             payload["chat_key_version"] = request_data.chat_key_version
+
+        # Cancellation fixtures must exercise the production ordering: no
+        # authoritative full answer exists until the final chunk is ready.
+        if is_final and fixture_data.get("defer_recovery_until_final"):
+            recovery_job = await _persist_mock_replay_recovery_job(
+                directus_service=directus_service, request_data=request_data,
+                task_id=task_id, content=full_response, category=category or "general_knowledge",
+                model_name=model_name,
+            )
+        from backend.apps.ai.tasks.stream_consumer import remember_recovery_stream_payload
+        remember_recovery_stream_payload(request_data, payload)
 
         # Add usage data on final chunk
         if is_final:
@@ -728,6 +739,7 @@ async def _recreate_fixture_embeds(
     try:
         from backend.core.api.app.services.embed_service import EmbedService
         embed_service = EmbedService(cache_service, directus_service, encryption_service)
+        embed_service.authoring_reference_index = getattr(request_data, "embed_file_path_index", None) or {}
     except Exception as e:
         logger.error(f"[MOCK] Failed to init EmbedService for embed recreation: {e}")
         return response

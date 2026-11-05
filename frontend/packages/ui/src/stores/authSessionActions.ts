@@ -79,6 +79,11 @@ import {
 } from "./authState";
 // Import auth types
 import type { SessionCheckResult } from "./authTypes";
+import { installRustCrossTabLogout, prewarmRustAuth, rustAuthEnabled, rustSessionCheck } from "../services/rustCore/authOperation";
+
+// Flag builds: start the Rust auth Worker while the app hydrates so session
+// restore does not wait for WASM start-up (no-op otherwise).
+prewarmRustAuth();
 
 const RETIRED_INTRO_CHAT_HASHES = new Set([
   "#chat-id=demo-for-everyone",
@@ -118,6 +123,11 @@ export function checkAuth(
   deviceSignals?: Record<string, string | null>,
   force: boolean = false,
 ): Promise<boolean> {
+  // Flag builds: a logout in another tab ends this tab's local session too
+  // (no second server request; the sender already revoked the session).
+  installRustCrossTabLogout(() => {
+    if (get(authStore).isAuthenticated) void logout({ skipServerLogout: true });
+  });
   const generation = getLoginSessionGeneration();
   if (activeAuthCheck?.generation === generation) return activeAuthCheck.promise;
   if (!force && get(authStore).isInitialized && !get(needsDeviceVerification)) {
@@ -173,6 +183,16 @@ async function performAuthCheck(
         const checkSession = async (): Promise<SessionCheckResult | null> => {
           // A queued tab or an older login attempt may have been superseded.
           if (!isCurrentSession()) return null;
+          if (rustAuthEnabled()) {
+            // Rust builds and classifies the same request; the page executes it.
+            const decision = await rustSessionCheck({
+              deviceSignals: deviceSignals || {},
+              sessionId: getSessionId(),
+              signal: authAbortController.signal,
+            });
+            if (decision.kind === "unreachable") throw new Error(`HTTP ${decision.status}`);
+            return decision.data as SessionCheckResult;
+          }
           const response = await fetch(getApiEndpoint(apiEndpoints.auth.session), {
             method: "POST",
             headers: {

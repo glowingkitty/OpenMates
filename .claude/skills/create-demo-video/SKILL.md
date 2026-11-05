@@ -9,7 +9,7 @@ argument-hint: "<spec.ts | CLI command> [visible claim]"
 
 Existing web/CLI E2E recording delivery is always required by
 `.claude/rules/testing.md`: download the run artifact, run its
-`codex_evidence_command` and select final links from its inventory: only the latest
+`ci_evidence_command` and select final links from its inventory: only the latest
 successful recording per requested check/flow, or its latest available failed
 recording if that request never succeeded. Include distinct required views; omit
 duplicates and superseded attempts, with no appendix of all recordings.
@@ -145,6 +145,6 @@ any visual-intent question.
 After a passed frame review, upload the approved proof video with its hash-bound WebVTT sidecar or representative
 proof screenshots with `python3 scripts/response_media.py <path> --alt
 "..."` and paste the returned image Markdown or `<video>` HTML in the final
-Codex response. Do not send proof media to Discord unless the user explicitly
+response. Do not send proof media to Discord unless the user explicitly
 asks for a separate Discord mirror. Retain transcripts, captions,
 manifests, hashes, review evidence, and response-media publication state.

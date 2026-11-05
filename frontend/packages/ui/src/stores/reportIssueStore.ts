@@ -21,17 +21,17 @@ export const submittedIssueIdStore = writable<string>("");
 export const submittedShortIssueIdStore = writable<string>("");
 
 /**
- * User-authored fields from the most recently submitted report.
+ * User-authored text from the most recently submitted report.
  *
  * The confirmation page reads this snapshot after the form resets. Internal
  * diagnostics, contact details, and shared URLs are intentionally excluded so
  * the summary stays focused on the report content the user entered.
+ * `claudeChatStatus` is set only for admin reports on the development server
+ * that requested a Claude chat handoff.
  */
 export interface SubmittedReportSummary {
   title: string;
-  userFlow: string;
-  expectedBehaviour: string;
-  actualBehaviour: string;
+  claudeChatStatus?: "queued" | "unavailable" | null;
 }
 
 export const submittedReportSummaryStore =
@@ -57,14 +57,13 @@ export const submittedReportSummaryStore =
 export interface ReportIssueFormDraft {
   issueTitle: string;
   issueType: "bug_report" | "feature_request";
-  userFlow: string;
-  expectedBehaviour: string;
-  actualBehaviour: string;
-  shareChatEnabled: boolean;
+  /** Optional follow-up email typed by a signed-out reporter. */
+  contactEmail?: string;
   chatOrEmbedUrl: string;
-  contactEmail: string;
   /** Admin-only: whether to send email notifications for this report. */
   sendEmailNotification?: boolean;
+  /** Admin-only (development server): hand the report to a Claude chat. */
+  sendToClaudeChat?: boolean;
   pickedElementHtml: string | null;
   screenshotDataUrl: string | null;
 }

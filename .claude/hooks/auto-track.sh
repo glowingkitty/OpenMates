@@ -10,7 +10,7 @@ FILE=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 [ -z "$FILE" ] && exit 0
 
 PROJECT_DIR="/home/superdev/projects/OpenMates"
-# The shared session resolver uses host-scoped Codex identity or a unique Claude terminal.
+# The shared session resolver uses the host-scoped agent (Claude Code session) identity or a unique terminal.
 SESSION_ID=""
 
 SESSION_REPO_ROOT=""

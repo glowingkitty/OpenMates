@@ -1,0 +1,298 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Existing Project source authoring plus raw and decoded-name read facets",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "provenance",
+    "capabilities"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "provenance": {
+      "type": "string",
+      "minLength": 1
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session.project-source-authoring.v1"
+      ],
+      "properties": {
+        "session.project-source-authoring.v1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "account",
+            "team",
+            "owner_id",
+            "project_id",
+            "project_key_b64",
+            "seed",
+            "vectors"
+          ],
+          "properties": {
+            "account": {
+              "type": "object"
+            },
+            "team": {
+              "type": "object"
+            },
+            "owner_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "project_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "project_key_b64": {
+              "type": "string",
+              "minLength": 1
+            },
+            "seed": {
+              "type": "object"
+            },
+            "vectors": {
+              "type": "array",
+              "minItems": 36,
+              "items": {
+                "$ref": "#/$defs/vector"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation",
+        "fault",
+        "expected_error",
+        "zero_transport",
+        "expected_mutation_attempts"
+      ],
+      "properties": {
+        "operation": {
+          "enum": [
+            "create",
+            "patch",
+            "list-raw",
+            "list-names"
+          ]
+        },
+        "source_id": {
+          "type": "string"
+        },
+        "input": {
+          "type": "object"
+        },
+        "fault": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "expected_error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "zero_transport": {
+          "type": "boolean"
+        },
+        "expected_mutation_attempts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "response": {
+          "type": "object"
+        },
+        "expected": {},
+        "expected_read_attempts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "expected_project_attempts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "expected_team_attempts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "create",
+                  "patch"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "source_id",
+              "input"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "list-raw",
+                  "list-names"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "response",
+              "expected",
+              "expected_read_attempts",
+              "expected_project_attempts",
+              "expected_team_attempts"
+            ],
+            "properties": {
+              "expected_mutation_attempts": {
+                "const": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "list-raw"
+              },
+              "expected_error": {
+                "type": "null"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "expected": {
+                "type": "array"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "list-names"
+              },
+              "expected_error": {
+                "type": "null"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "expected": {
+                "$ref": "#/$defs/decodedNamesResult"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "vector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "team",
+        "mode",
+        "required_assertions",
+        "cases"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]{1,80}$"
+        },
+        "team": {
+          "type": "boolean"
+        },
+        "mode": {
+          "enum": [
+            "cases",
+            "api-key",
+            "cancel",
+            "expired",
+            "read",
+            "read-api-key",
+            "read-unrelated-master",
+            "read-cancel",
+            "read-expired"
+          ]
+        },
+        "required_assertions": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cases": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/case"
+          }
+        }
+      }
+    },
+    "decodedNamesResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project_id",
+        "sources"
+      ],
+      "properties": {
+        "project_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "display_name"
+            ],
+            "properties": {
+              "display_name": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}

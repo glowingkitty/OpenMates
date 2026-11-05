@@ -1,8 +1,9 @@
-# contract-test-file: infrastructure
-"""Tests for explicit @plan and planner focus routing.
+"""Tests for planner focus selection.
 
-Plans V1 uses the existing focus-mode system but gives users a shorter @plan
-trigger and a generic fallback planner when no app-specific planner matches.
+Planner focus modes are ordinary preprocessing candidates offered through the
+normal activate_focus_mode countdown. There is no keyword auto-activation
+(issue BMKRJ). Only explicit @plan activates a planner immediately, like an
+@focus mention.
 """
 
 import ast
@@ -10,66 +11,57 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+import yaml
 
-from backend.apps.ai.processing.plan_focus_routing import route_plan_focus
-from backend.core.api.app.utils.override_parser import parse_overrides
+from backend.apps.ai.processing.plan_focus_routing import (
+    CODE_PLAN_FOCUS_ID,
+    GENERIC_PLAN_FOCUS_ID,
+    PLANNER_FOCUS_IDS,
+    select_explicit_plan_focus,
+)
+from backend.core.api.app.utils.override_parser import UserOverrides, parse_overrides
+
+BACKEND = Path(__file__).resolve().parents[1]
+ALL_PLANNERS = {GENERIC_PLAN_FOCUS_ID, CODE_PLAN_FOCUS_ID, "jobs-career_insights"}
 
 
-def _run_production_plan_focus_guard(
+def _function_from(path: Path, name: str, namespace: dict):
+    module = ast.parse(path.read_text())
+    node = next(n for n in module.body if isinstance(n, ast.FunctionDef) and n.name == name)
+    exec(compile(ast.Module(body=[node], type_ignores=[]), str(path), "exec"), namespace)
+    return namespace[name]
+
+
+def _run_preprocessor_plan_override(
+    message: str,
     *,
-    explicit_focus: bool,
+    llm_focus_modes: list[str],
+    user_requested_focus_only: bool = False,
     active_focus_id: str | None = None,
-    active_project_focus: bool = False,
-    relevant_focus_modes: list[str] | None = None,
-) -> str | None:
-    """Execute the real task guard without importing the Celery task module."""
-    task_path = Path(__file__).resolve().parents[1] / "apps/ai/tasks/ask_skill_task.py"
-    module = ast.parse(task_path.read_text())
-    guard = next(
-        node
-        for node in ast.walk(module)
-        if isinstance(node, ast.If)
-        and isinstance(node.test, ast.Name)
-        and node.test.id == "user_overrides"
-        and any(
-            isinstance(child, ast.Assign)
-            and any(isinstance(target, ast.Name) and target.id == "plan_route" for target in child.targets)
-            for child in node.body
-        )
+) -> tuple[list[str], bool]:
+    """Execute the real preprocessor @plan block without importing the preprocessor."""
+    path = BACKEND / "apps/ai/processing/preprocessor.py"
+    module = ast.parse(path.read_text())
+    block = next(
+        node for node in ast.walk(module)
+        if isinstance(node, ast.If) and "plan_requested" in ast.unparse(node.test)
+        and "user_requested_focus_only" in ast.unparse(node.test)
     )
-    request_data = SimpleNamespace(
-        active_focus_id=active_focus_id,
-        active_project_focus=active_project_focus,
-    )
-    intro = (
-        "I am a fiction writer looking to become a software developer. "
-        "Do not create Tasks or save memories."
-    )
-    user_overrides = parse_overrides(
-        f"@focus:jobs:career_insights {intro}" if explicit_focus else intro
-    )
-    if explicit_focus:
-        assert user_overrides.focus_modes == [("jobs", "career_insights")]
     namespace = {
-        "user_overrides": user_overrides,
-        "discovered_apps_metadata": {
-            "code": SimpleNamespace(focuses=[SimpleNamespace(id="project_planner")]),
-        },
-        "preprocessing_result": SimpleNamespace(
-            user_requested_focus_only=explicit_focus,
-            relevant_focus_modes=(
-                relevant_focus_modes if relevant_focus_modes is not None else ["jobs-career_insights"]
-            ),
-        ),
-        "request_data": request_data,
-        "route_plan_focus": route_plan_focus,
-        "logger": SimpleNamespace(info=lambda *_: None),
-        "task_id": "test",
+        "user_overrides": parse_overrides(message),
+        "user_requested_focus_only": user_requested_focus_only,
+        "request_data": SimpleNamespace(active_focus_id=active_focus_id),
+        "validated_relevant_focus_modes": list(llm_focus_modes),
+        "available_focus_mode_ids": sorted(ALL_PLANNERS),
+        "select_explicit_plan_focus": select_explicit_plan_focus,
+        "logger": SimpleNamespace(info=lambda *_: None, warning=lambda *_: None),
+        "log_prefix": "test",
     }
-    exec(compile(ast.Module(body=[guard], type_ignores=[]), str(task_path), "exec"), namespace)
-    return request_data.active_focus_id
+    exec(compile(ast.Module(body=[block], type_ignores=[]), str(path), "exec"), namespace)
+    return namespace["validated_relevant_focus_modes"], namespace["user_requested_focus_only"]
 
 
+# contract-test: supporting surface=rest_api assertions=focus-modes.activation
 def test_parse_plan_override_cleans_message() -> None:
     overrides = parse_overrides("@plan Help me plan a workshop")
 
@@ -77,61 +69,99 @@ def test_parse_plan_override_cleans_message() -> None:
     assert overrides.cleaned_message == "Help me plan a workshop"
 
 
-def test_explicit_plan_routes_coding_request_to_code_project_planner() -> None:
-    route = route_plan_focus(
-        "Help me plan and implement password-protected shared chats",
-        plan_requested=True,
-        available_focus_modes={"code-project_planner", "openmates-plan"},
-    )
-
-    assert route.active_focus_id == "code-project_planner"
-    assert route.reason == "matched_code_planner"
-
-
-def test_explicit_plan_routes_generic_request_to_openmates_plan() -> None:
-    route = route_plan_focus(
-        "Help me plan a 60-person community workshop in Berlin",
-        plan_requested=True,
-        available_focus_modes={"code-project_planner", "openmates-plan"},
-    )
-
-    assert route.active_focus_id == "openmates-plan"
-    assert route.reason == "generic_plan_fallback"
-
-
-def test_natural_language_can_auto_detect_complex_planning() -> None:
-    route = route_plan_focus(
-        "Plan a research project with tasks, sources, acceptance criteria, and verification steps",
-        plan_requested=False,
-        available_focus_modes={"openmates-plan"},
-    )
-
-    assert route.should_plan is True
-    assert route.active_focus_id == "openmates-plan"
+# contract-test: supporting surface=rest_api assertions=focus-modes.activation
+def test_explicit_plan_prefers_planner_ranked_by_preprocessing() -> None:
+    assert select_explicit_plan_focus(
+        ["jobs-career_insights", CODE_PLAN_FOCUS_ID], ALL_PLANNERS,
+    ) == CODE_PLAN_FOCUS_ID
 
 
 # contract-test: supporting surface=rest_api assertions=focus-modes.activation
+def test_explicit_plan_falls_back_to_generic_planner() -> None:
+    assert select_explicit_plan_focus(["jobs-career_insights"], ALL_PLANNERS) == GENERIC_PLAN_FOCUS_ID
+    assert select_explicit_plan_focus([], {"jobs-career_insights"}) is None
+
+
 @pytest.mark.parametrize(
-    ("explicit_focus", "active_focus_id", "active_project_focus", "relevant_focus_modes", "expected_focus_id"),
+    ("message", "llm_focus_modes", "expected"),
     [
-        (True, None, False, ["jobs-career_insights"], None),
-        (False, None, False, [], "code-project_planner"),
-        (False, None, True, [], None),
-        (False, None, False, ["project-existing"], None),
-        (False, "jobs-career_insights", False, [], "jobs-career_insights"),
+        ("@plan Erstelle mir einen Plan für den Umzug nach München", [], GENERIC_PLAN_FOCUS_ID),
+        ("@plan Plan the API migration with tests", [CODE_PLAN_FOCUS_ID], CODE_PLAN_FOCUS_ID),
     ],
-    ids=["explicit-career", "automatic-plan", "active-project", "project-catalog", "existing-focus"],
 )
-def test_task_plan_route_preserves_focus_precedence(
-    explicit_focus: bool,
-    active_focus_id: str | None,
-    active_project_focus: bool,
-    relevant_focus_modes: list[str],
-    expected_focus_id: str | None,
+# contract-test: supporting surface=rest_api assertions=focus-modes.activation
+def test_explicit_plan_becomes_an_explicit_focus_request(
+    message: str, llm_focus_modes: list[str], expected: str,
 ) -> None:
-    assert _run_production_plan_focus_guard(
-        explicit_focus=explicit_focus,
-        active_focus_id=active_focus_id,
-        active_project_focus=active_project_focus,
-        relevant_focus_modes=relevant_focus_modes,
-    ) == expected_focus_id
+    assert _run_preprocessor_plan_override(message, llm_focus_modes=llm_focus_modes) == ([expected], True)
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        # Issue BMKRJ: "doesn't plan to" silently activated openmates-plan.
+        "Has not looked for any investment and doesn't plan to do so, but focuses on bootstrapping.",
+        "Please plan my move to Lisbon next spring.",
+        "Erstelle mir einen Plan für den Umzug nach München im März",
+    ],
+)
+# contract-test: supporting surface=rest_api assertions=focus-modes.activation
+def test_natural_language_never_activates_planner_without_at_plan(message: str) -> None:
+    # Without @plan, a preprocessing candidate stays a candidate: it is offered via
+    # the normal activate_focus_mode countdown, never activated here.
+    assert _run_preprocessor_plan_override(message, llm_focus_modes=[GENERIC_PLAN_FOCUS_ID]) == (
+        [GENERIC_PLAN_FOCUS_ID], False,
+    )
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.activation
+def test_explicit_plan_does_not_override_explicit_or_active_focus() -> None:
+    assert _run_preprocessor_plan_override(
+        "@plan @focus:jobs:career_insights Next steps",
+        llm_focus_modes=["jobs-career_insights"], user_requested_focus_only=True,
+    ) == (["jobs-career_insights"], True)
+    assert _run_preprocessor_plan_override(
+        "@plan a launch", llm_focus_modes=[], active_focus_id="jobs-career_insights",
+    ) == ([], False)
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.activation
+def test_main_processor_trusts_planner_only_for_at_plan() -> None:
+    trusted = _function_from(
+        BACKEND / "apps/ai/processing/main_processor.py", "_trusted_focus_override",
+        {"UserOverrides": UserOverrides, "PLANNER_FOCUS_IDS": PLANNER_FOCUS_IDS},
+    )
+    assert trusted(parse_overrides("@plan a launch"), GENERIC_PLAN_FOCUS_ID) is True
+    assert trusted(parse_overrides("@plan a launch"), "jobs-career_insights") is False
+    assert trusted(parse_overrides("Please plan a launch"), GENERIC_PLAN_FOCUS_ID) is False
+    assert trusted(parse_overrides("@focus:jobs:career_insights hi"), "jobs-career_insights") is True
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.activation
+def test_task_no_longer_sets_planner_focus_silently() -> None:
+    source = (BACKEND / "apps/ai/tasks/ask_skill_task.py").read_text()
+    assert "plan_focus_routing" not in source
+    assert "PLAN_ROUTING" not in source
+
+
+@pytest.mark.parametrize(("app_id", "focus_id"), [("openmates", "plan"), ("code", "project_planner")])
+# contract-test: supporting surface=rest_api assertions=focus-modes.activation
+def test_planners_are_ordinary_preprocessing_candidates(app_id: str, focus_id: str) -> None:
+    app = yaml.safe_load((BACKEND / f"apps/{app_id}/app.yml").read_text())
+    focus = next(row for row in app["focuses"] if row["id"] == focus_id)
+    assert not focus.get("auto_activate_when_relevant")
+    hint = " ".join(focus["preprocessor_hint"].split())
+    assert "explicitly asks" in hint and "any language" in hint and "incidentally" in hint
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.activation
+def test_stage_one_catalogue_shows_planner_relevance_hint() -> None:
+    from backend.apps.ai.processing import jev_preprocessing
+
+    app = yaml.safe_load((BACKEND / "apps/openmates/app.yml").read_text())
+    hint = " ".join(next(row for row in app["focuses"] if row["id"] == "plan")["preprocessor_hint"].split())
+    catalogue = jev_preprocessing._app_catalogue(
+        ["openmates"], ["openmates-get-docs: Read OpenMates documentation."], [f"openmates-plan: {hint}"],
+    )
+    assert "plan focus: Select only when the latest message, in any language, explicitly asks the assistant to create" in catalogue[0]
+    assert "task breakdown" in catalogue[0]

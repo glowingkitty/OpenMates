@@ -139,7 +139,8 @@ from .handlers.websocket_handlers.delete_new_chat_suggestion_handler import hand
 from .handlers.websocket_handlers.system_message_handler import handle_chat_system_message_added # Handler for system messages (app settings/memories response, etc.)
 from backend.core.api.app.services.chat_email_notification_service import enqueue_chat_email
 from backend.core.api.app.services.notification_presence import (
-    classify_lifecycle_client, clear_presence, refresh_legacy_apple_presence_on_message, report_presence,
+    classify_lifecycle_client, clear_presence, mark_message_viewed, refresh_legacy_apple_presence_on_message,
+    report_presence,
 )
 from backend.core.api.app.routes.handlers.websocket_handlers.notification_preview_handler import (
     handle_team_notification_preview_capabilities, handle_team_notification_preview_stage,
@@ -990,10 +991,18 @@ def email_eligible_completion(payload: dict) -> bool:
 async def _send_offline_email_notification(
     app: FastAPI, user_id: str, chat_id: str, response_preview: str,
     message_id: str | None = None, sender_name: str = "Mate", chat_title: str | None = None,
-    mate_category: str | None = None,
+    mate_category: str | None = None, *, viewing_connection: bool,
 ) -> None:
     if not message_id:
         return
+    if viewing_connection:
+        # The final reply was delivered to a foreground socket with this chat
+        # selected (web tab, Apple app, or a CLI/TUI/SDK send awaiting it, even
+        # if it disconnects right afterwards): the initiator received this exact
+        # response. Record the per-message view so the delayed worker skips the
+        # initiator's email, matching the push gate. Other Team members keep
+        # their own notifications.
+        await mark_message_viewed(app.state.cache_service, user_id, chat_id, message_id)
     from backend.core.api.app.services.team_chat_notification_service import queue_completed_team_mate_response
     if await queue_completed_team_mate_response(
         directus=app.state.directus_service, cache=app.state.cache_service,
@@ -1570,6 +1579,11 @@ async def listen_for_ai_chat_streams(app: FastAPI):
 
                     delivery_limit = asyncio.Semaphore(4)
 
+                    # Devices that received this final reply while the chat was
+                    # selected on a foreground socket (web/Apple viewer or a CLI/SDK
+                    # send awaiting it). Keyed on actual delivery, not later state.
+                    final_viewer_devices: set[str] = set()
+
                     async def deliver_to_device(device_ordinal: int, device_hash: str, websocket_conn: WebSocket) -> None:
                         def connection_ready() -> bool:
                             return (
@@ -1635,6 +1649,8 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                     if redis_payload.get("is_final_chunk", False):
                                         final_sent = sent is True
                                         _trace_final_stream_delivery("final_send", device_ordinal, final_sent)
+                                        if final_sent:
+                                            final_viewer_devices.add(device_hash)
                                     logger.debug(f"AI Stream Listener: Sent 'ai_message_update' to active chat on {user_id_uuid}/{device_hash} (seq: {redis_payload.get('sequence', 'unknown')}).")
                                 else:
                                     # Chat is not active on this device.
@@ -1758,12 +1774,15 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                             sender_name="Mate",
                             chat_title=redis_payload.get("chat_title"),
                             mate_category=redis_payload.get("category"),
+                            viewing_connection=bool(final_viewer_devices),
                         )
                     if is_final_marker and not redis_payload.get("external_request") and not was_interrupted:
                         # Notify unless a foreground client is visibly viewing this chat.
                         # A hidden/background tab may keep its WebSocket open, but it
                         # should not suppress iOS/browser push for completed work.
-                        if not manager.has_foreground_connection_for_chat(user_id_uuid, chat_id_from_payload):
+                        if not final_viewer_devices and not manager.has_foreground_connection_for_chat(
+                            user_id_uuid, chat_id_from_payload,
+                        ):
                             asyncio.create_task(
                                 _check_user_offline_and_send_email(
                                     app=app,
@@ -2908,6 +2927,10 @@ async def _deliver_pending_embeds(
     pending embed_id, reads the vault-encrypted data from cache, decrypts it,
     and sends the plaintext TOON to the client via send_embed_data.
     """
+    # First-party authenticated owner replay; retain only catalog fields already
+    # bound to the pending stored record, without deriving them from its content.
+    from .handlers.websocket_handlers.request_embed_handler import _embed_catalog_context
+
     try:
         # Brief delay to let client finish init (after pending reminders)
         await asyncio.sleep(4)
@@ -2971,6 +2994,7 @@ async def _deliver_pending_embeds(
                 embed_payload = {
                     "embed_id": embed_id,
                     "type": embed_data.get("type", "app_skill_use"),
+                    **_embed_catalog_context(embed_data),
                     "content": plaintext_toon,
                     "status": embed_data["status"],
                     "chat_id": embed_data.get("chat_id", ""),
@@ -2993,6 +3017,10 @@ async def _deliver_pending_embeds(
                     embed_payload["task_id"] = embed_data["task_id"]
                 if embed_data.get("text_preview") is not None:
                     embed_payload["text_preview"] = embed_data["text_preview"]
+                # Replays must carry the live routing identity (issue BMKRJ).
+                for routing_key in ("app_id", "skill_id"):
+                    if embed_data.get(routing_key) is not None:
+                        embed_payload[routing_key] = embed_data[routing_key]
 
                 # Send directly via WebSocket (not pub/sub)
                 await manager.send_personal_message(
@@ -3231,21 +3259,6 @@ async def websocket_endpoint(
     is_allowlisted_test_account = is_configured_test_account_profile(_user_data)
 
     logger.info(f"WebSocket connection established for user_id={user_id}, device={device_fingerprint_hash}")
-    if not supports_empty_call_cleanup:
-        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
-        # Retain eligibility loss durably before a legacy tab can discover any
-        # current candidate through initial sync, even if it later disconnects.
-        manager.empty_call_cleanup_unsafe_owners.add(user_id)
-        try:
-            await ChatRecoveryService(directus_service).execute("disqualify_call_cleanup_owner", {
-                "protocol_version": 1, "hashed_user_id": user_id_hash,
-            })
-        except Exception:
-            # Keep normal old-client sync available; automatic cleanup stays
-            # disabled for this owner when durable exclusion is unavailable.
-            logger.warning("Empty-call rollout exclusion unavailable")
-        else:
-            manager.empty_call_cleanup_unsafe_owners.discard(user_id)
     volatile_session_nonce = await manager.connect(
         websocket,
         user_id,
@@ -5100,6 +5113,10 @@ async def websocket_endpoint(
                         f"{user_id}/{device_fingerprint_hash}: {list(payload.keys())}"
                     )
 
+            elif message_type == "chat_sync_delta_request":
+                # architecture.sync@2 feed; rejected unless the socket opted in.
+                websocket.app.state.chat_sync_feed.schedule_ws_request(websocket, user_id, payload)
+
             elif message_type == "project_task_sync_subscribe":
                 try:
                     await websocket.app.state.project_task_sync.subscribe(websocket, user_id, payload)
@@ -5331,6 +5348,8 @@ async def websocket_endpoint(
             initial_task.cancel()
         if hasattr(websocket.app.state, "project_task_sync"):
             websocket.app.state.project_task_sync.disconnect(websocket)
+        if hasattr(websocket.app.state, "chat_sync_feed"):
+            websocket.app.state.chat_sync_feed.disconnect(websocket)
         for task in list(phased_sync_tasks):
             if not task.done():
                 task.cancel()

@@ -32,7 +32,7 @@ const QUESTIONS=[
 ] as const;
 
 function sdk(apiUrl:string,home:string,cli:string,program:string,input:unknown={}):any {
-	const modulePath=path.join(path.dirname(cli),'index.js');
+	const modulePath=path.join(path.dirname(cli),'cli-internal-client.js');
 	const source=`
 		const {pathToFileURL}=require('node:url');
 		const {randomUUID,randomBytes,createHash,webcrypto}=require('node:crypto');
@@ -162,7 +162,7 @@ const contract={
 function installSendCapture(home:string,cli:string,chatId:string):{captureFile:string;restore:()=>void} {
 	const adapterPath=path.join(home,'interactive-send-adapter.mjs');
 	const captureFile=path.join(home,'interactive-sent-messages.jsonl');
-	const modulePath=path.join(path.dirname(cli),'index.js');
+	const modulePath=path.join(path.dirname(cli),'cli-internal-client.js');
 	fs.writeFileSync(adapterPath,`
 		import fs from 'node:fs';
 		import {pathToFileURL} from 'node:url';

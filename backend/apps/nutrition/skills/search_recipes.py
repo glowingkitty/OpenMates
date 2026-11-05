@@ -260,6 +260,7 @@ class SearchRecipesSkill(BaseSkill):
                 time=req.get("time"),
                 calories=req.get("calories"),
                 ingredients=req.get("ingredients"),
+                cache_service=cache_service,
             )
 
             if isinstance(search_result, dict):

@@ -187,6 +187,8 @@ class SessionResponse(BaseModel):
     password_fallback_available: bool = False  # A risk-challenged passkey session also has a password wrapper.
     password_credential_version: Optional[int] = None
     require_invite_code: bool = True  # Default to True for backward compatibility
+    # Positive server guard support; browser clients must not assume an old server honors assertions.
+    client_security_capabilities: Optional[List[str]] = None
     ws_token: Optional[str] = None  # Short-lived HMAC WebSocket token (NOT the refresh token). Safari iOS compatibility.
     # Active Sessions: device info for the current request so client can encrypt and register it
     session_device_info: Optional[Dict[str, Any]] = None  # {device_name, ip_truncated, country_code, city}
@@ -198,6 +200,8 @@ class SessionResponse(BaseModel):
     @model_serializer(mode="wrap")
     def serialize_session(self, handler):
         payload = handler(self)
+        if self.client_security_capabilities is None:
+            payload.pop("client_security_capabilities", None)
         if self.personal_memories is None:
             payload.pop("personal_memories", None)
         return payload

@@ -7,6 +7,7 @@
 -->
 
 <script lang="ts">
+  import { text } from '../../../i18n/translations';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import ResultEmbedCard from '../ResultEmbedCard.svelte';
   import EmbedCalendarDate from '../EmbedCalendarDate.svelte';
@@ -17,7 +18,7 @@
     getFitnessResultAddress,
     getFitnessResultTitle,
     getFitnessResultImageUrl,
-    normalizePipedList,
+    getFitnessResultFacts,
     type FitnessResult,
     type FitnessSkillId,
   } from './fitnessEmbedData';
@@ -33,10 +34,11 @@
 
   let { id, result, skillId, isMobile = false, resultContext = 'auto', onFullscreen }: Props = $props();
 
+  let suppliedFacts = $derived(getFitnessResultFacts(result));
   let title = $derived(getFitnessResultTitle(result));
   let address = $derived(getFitnessResultAddress(result));
   let distance = $derived(asNumber(result.distance_km));
-  let disciplines = $derived(normalizePipedList(result.disciplines));
+  let disciplines = $derived(suppliedFacts.disciplines);
   let imageUrl = $derived(proxyImage(getFitnessResultImageUrl(result), MAX_WIDTH_PREVIEW_THUMBNAIL));
   let classDate = $derived.by(() => {
     if (skillId !== 'search_classes' || typeof result.date !== 'string') return '';
@@ -85,8 +87,11 @@
         {/if}
         <div class="fitness-extra-facts">
           {#if distance !== undefined}<span>{distance.toFixed(2)} km</span>{/if}
-          {#if result.spots_display}<span>{result.spots_display}</span>{/if}
+          {#if suppliedFacts.spots}<span data-testid="fitness-spots">{$text("result_embed.spots")}: {suppliedFacts.spots}</span>{/if}
           {#if disciplines.length}<span>{disciplines.slice(0, 2).join(', ')}</span>{/if}
+          {#if suppliedFacts.instructor}<span data-testid="fitness-instructor">{suppliedFacts.instructor}</span>{/if}
+          {#if suppliedFacts.durationMinutes != null}<span data-testid="fitness-duration">{$text('embeds.search_domain.minutes').replace('{count}', String(suppliedFacts.durationMinutes))}</span>{/if}
+          {#if suppliedFacts.price != null}<span data-testid="fitness-price">{suppliedFacts.price} {suppliedFacts.currency}</span>{/if}
           {#if classTime && classTime !== compactClassTime}<span>{classTime}</span>{/if}
         </div>
       {/snippet}

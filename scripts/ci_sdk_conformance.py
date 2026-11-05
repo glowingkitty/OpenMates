@@ -23,11 +23,20 @@ import time
 import tomllib
 
 TARGET = "sdk-conformance"
-BUDGET = 2700  # 45min from workflow start; leaves 15min of the 60min job for setup/upload.
+BUDGET = 5400  # 90min from workflow start; leaves 30min of the 120min job for setup/upload.
 RESERVE = 2 * 1024**3  # runner artifact/cleanup reserve, not the dev-host capacity floor
 MAX_LOG = 32 * 1024**2
 LIBRARY_UNIT_MANIFESTS = {"sdk-library-units": "packages/openmates-rust/Cargo.toml",
                           "binding-library-units": "packages/openmates-session-bindings/Cargo.toml"}
+BUILD_STAGES = frozenset({*LIBRARY_UNIT_MANIFESTS, "napi-build", "python-native-build",
+                          "python-binding-build", "wasm-build"})
+# The exact ordered stages of one passing lane run; receipts must match it.
+RECIPE_STAGES = ("rust-toolchain", "wasm-target", "wasm-bindgen-install", "python-environment",
+                 "node-dependencies", "python-dependencies", *LIBRARY_UNIT_MANIFESTS, "napi-build",
+                 "python-native-build", "python-binding-build", "wasm-build", "sdk-facade-build",
+                 "sdk-gate-tooling", "napi-load", "python-load", "real-conformance")
+# Locked wasm-bindgen crate version; the CLI must match it byte-for-byte in schema.
+BINDGEN_VERSION = "0.2.129"
 VECTOR_DIAGNOSTIC_CAPABILITY = "session.chat-change-monitor.v1"
 VECTOR_DIAGNOSTIC_PHASES = frozenset({"open", "next", "stage", "durable_save", "commit", "close",
                                      "peer_control", "peer_status", "assertion", "list", "discard",
@@ -48,14 +57,16 @@ FIRST_PAGE_NPM_DIAGNOSTIC_CAPABILITY = "session.chat-first-page-continuation.v1"
 FIRST_PAGE_NPM_DIAGNOSTIC_PHASES = frozenset({"suite", "peer_start", "client_setup", "session_import", "session_validate", "store_io", "callback", "stale_a_b", "strict", "continuation", "negative", "vector_complete"})
 FIRST_PAGE_NPM_DIAGNOSTIC_CODES = frozenset({"assertion", "cancelled", "conflict", "forbidden", "expired", "authentication", "invalid_argument", "protocol", "offline", "unavailable", "crypto", "native_failure", "native_binding_unavailable", "storage_io", "timeout", "callback", "unclassified"})
 MAX_VECTOR_DIAGNOSTIC_BYTES = 512
-LOCKS = ("packages/openmates-rust/Cargo.lock", "packages/openmates-session-bindings/Cargo.lock",
-         "frontend/packages/openmates-tui-native/Cargo.lock")
+# Root Cargo workspace: one lockfile and manifest for every Rust member.
+LOCKS = ("Cargo.lock", "Cargo.toml")
+TOOLING_INPUTS = ('frontend/apps/web_app/tests/helpers', 'frontend/packages/openmates-tui-native', 'frontend/apps/web_app/package.json', 'frontend/apps/web_app/tests/cli-rust-request-performance.spec.ts', 'frontend/apps/web_app/tests/cli-rust-tui-proof.spec.ts', 'scripts/ci_coverage_manifest.json', 'scripts/ci_environment.py', 'scripts/ci_run_tests.py', 'scripts/cli_video_capture.py', 'scripts/pty_terminal_queries.py', 'scripts/tests/test_ci_native_private_profile.py', 'scripts/tests/test_sdk_conformance_gate.py')
 INPUTS = ("packages/openmates-rust", "packages/openmates-session-bindings", "packages/openmates-python",
-          "frontend/packages/openmates-cli", "backend/apps", "tests/sdk-conformance", "config/sdk-capabilities.json",
-          "config/sdk-capabilities.schema.json", "scripts/check_sdk_conformance.py", "scripts/build_sdk_native.py",
+          "packages/openmates-browser-bindings", "packages/third_party",
+          "frontend/packages/openmates-cli", "backend/apps", "backend/tests/fixtures/encryption_compatibility/legacy_layouts.json", "tests/sdk-conformance", "config/sdk-capabilities.json",
+          "config/sdk-capabilities.schema.json", "scripts/check_sdk_conformance.py", "scripts/build_sdk_native.py", "scripts/check_packaged_sdk_v1.py",
           "scripts/sdk_rust_inventory.py", "scripts/generate_sdk_app_skills.py", "scripts/generate_rust_sdk_apps.py",
           "pnpm-lock.yaml", "pnpm-workspace.yaml", "package.json", ".npmrc", ".pnpmfile.cjs", ".pnpmfile.mjs", ".cargo", "rust-toolchain.toml",
-          "frontend/packages/pairing-crypto", "frontend/packages/upload-privacy", "shared/config", *LOCKS)
+          "frontend/packages/pairing-crypto", "frontend/packages/upload-privacy", "shared/config", *LOCKS, *TOOLING_INPUTS)
 
 
 class Refused(RuntimeError):
@@ -91,8 +102,63 @@ def regular(path, limit=64 * 1024**2):
 
 
 
-def load_trust():
-    return json.loads(regular(Path(__file__).with_name("ci_sdk_conformance_trust.json"), 2 * 1024**2))
+MATRIX = "config/sdk-capabilities.json"
+PACKAGED_FIXTURE = "tests/sdk-conformance/fixtures/api-key-foundation.json"
+# Fenced for the duration of one run (start-of-run bytes), not reviewed pins.
+RUN_PROGRAMS = ("scripts/check_sdk_conformance.py", "scripts/tests/test_sdk_conformance_gate.py")
+
+
+def _git_blob(root, source, name, limit=64 * 1024**2):
+    require(re.fullmatch(r"[0-9a-f]{40}", source) and ".." not in Path(name).parts, "source_identity")
+    data = subprocess.run(["git", "cat-file", "blob", source + ":" + name], cwd=root, capture_output=True,
+                          timeout=30).stdout
+    require(0 < len(data) <= limit, "source_blob_bound")
+    return data
+
+
+def _exists(root, source, name):
+    if source is None:
+        return (root / name).is_file()
+    return subprocess.run(["git", "cat-file", "-e", source + ":" + name], cwd=root,
+                          capture_output=True, timeout=15).returncode == 0
+
+
+def derive_trust(root, source=None):
+    """Derive what the lane runs from the source's own capability matrix.
+
+    No per-file pins and no registration: any committed SHA or ci-source
+    snapshot is admissible. The plan, gaps and fixture/matrix hashes come from
+    `config/sdk-capabilities.json` at that source (Git objects when `source` is
+    given, else the checkout). Publication stays blocked on capability gaps by
+    `check_sdk_conformance.py --release` and `releaseEligible`.
+    """
+    root = Path(root)
+
+    def read(name):
+        return regular(root / name) if source is None else _git_blob(root, source, name)
+
+    matrix_bytes = read(MATRIX)
+    matrix = json.loads(matrix_bytes)
+    plan = execution_plan(root, matrix, read=read)
+    contracts = {MATRIX: sha(matrix_bytes), PACKAGED_FIXTURE: sha(read(PACKAGED_FIXTURE))}
+    contracts.update({row["fixture"]: row["fixtureSha256"] for row in plan})
+    programs = {name: sha(read(name)) for name in RUN_PROGRAMS if _exists(root, source, name)}
+    return {"schemaVersion": 2, "derivedFrom": "source", "plan": plan, "gaps": matrix_gaps(matrix),
+            "contracts": contracts, "programs": programs}
+
+
+def load_trust(root=None):
+    return derive_trust(Path(__file__).resolve().parents[1] if root is None else root)
+
+
+def load_trust_for_source(root, source, *, checkout=False, harness=None):
+    """Lane (checkout=True) reads the verified checkout; result retrieval reads
+    the job's source commit. `harness` is accepted for existing callers only."""
+    require(isinstance(source, str) and re.fullmatch(r"[0-9a-f]{40}", source), "source_identity")
+    if checkout:
+        require(git(root, "rev-parse", "HEAD") == source, "source_identity")
+        return derive_trust(root)
+    return derive_trust(root, source)
 
 
 def verify_programs(root, trust):
@@ -109,13 +175,14 @@ def matrix_gaps(matrix):
             if row["languages"][language]["status"] != "implemented"]
 
 
-def execution_plan(root, matrix):
+def execution_plan(root, matrix, read=None):
+    read = (lambda name: regular(root / name)) if read is None else read
     rows = []
     for capability in matrix["capabilities"]:
         fixture = capability.get("fixture", matrix["fixture"])
         require(isinstance(fixture, str) and fixture.startswith("tests/sdk-conformance/")
                 and ".." not in Path(fixture).parts, "gate_fixture")
-        raw = regular(root / fixture)
+        raw = read(fixture)
         vectors = json.loads(raw)["capabilities"].get(capability["id"], {}).get("vectors", [])
         ids = [value.get("id", value.get("name")) for value in vectors]
         for language in ("rust", "npm", "python"):
@@ -199,6 +266,16 @@ def artifact(path):
 
 
 
+def wasm_artifact_identity(path):
+    """Portable npm artifact: a WebAssembly v1 module, not a platform binary."""
+    data = regular(path, 256 * 1024**2)
+    info = path.stat()
+    require(info.st_nlink == 1 and len(data) > 8 and data[:8] == b"\0asm\x01\0\0\0", "invalid_wasm_artifact")
+    return {"sha256": sha(data), "bytes": len(data), "device": info.st_dev, "inode": info.st_ino,
+            "uid": info.st_uid, "mode": stat.S_IMODE(info.st_mode), "nlink": info.st_nlink,
+            "mtimeNs": info.st_mtime_ns, "ctimeNs": info.st_ctime_ns, "format": "wasm32"}
+
+
 # Finite source-owned identifiers only. Never export arbitrary matched ERR_* text.
 PACKAGE_ERROR_IDS = frozenset({
     "ERR_PNPM_OUTDATED_LOCKFILE", "ERR_PNPM_LOCKFILE_CONFIG_MISMATCH", "ERR_PNPM_NO_LOCKFILE",
@@ -241,13 +318,18 @@ def tool_search_path(node, rustup, pnpm, npm, python):
     return os.pathsep.join(dict.fromkeys([*directories, *os.defpath.split(os.pathsep)]))
 
 
-def command_tool(stage):
+def command_tool(stage, command=None):
     if stage in LIBRARY_UNIT_MANIFESTS:
         return "cargo"
-    tools = {"rust-toolchain": "rustup", "node-dependencies": "pnpm", "sdk-facade-build": "pnpm",
-             "napi-load": "node"}
+    # The Rust WASM lane compiles with cargo under the SDK lane's python-built
+    # "wasm-build" stage name; the executable, not the stage, decides the tool.
+    if stage == "wasm-build" and command and Path(command[0]).name == "cargo":
+        return "cargo"
+    tools = {"rust-toolchain": "rustup", "wasm-target": "rustup", "wasm-bindgen-install": "cargo",
+             "node-dependencies": "pnpm", "sdk-facade-build": "pnpm", "napi-load": "node", "wasm-load": "node"}
     return tools.get(stage, "python" if stage in {"python-environment", "python-dependencies", "napi-build",
-                     "python-binding-build", "python-load", "real-conformance"} else "other")
+                     "python-native-build", "python-binding-build", "wasm-build", "python-load",
+                     "sdk-gate-tooling", "real-conformance"} else "other")
 
 
 def library_unit_command(stage):
@@ -316,7 +398,7 @@ def admitted_command(stage, command, env):
         raise Refused("command_executable_open") from None
     try:
         before = os.fstat(descriptor)
-        python = command_tool(stage) == "python"
+        python = command_tool(stage, command) == "python"
         kernel_match = running_python_image(before) if python and stat.S_ISREG(before.st_mode) else False
         command_policy(before, python=python, kernel_match=kernel_match)
         digest, size, prefix = hashlib.sha256(), 0, b""
@@ -327,7 +409,7 @@ def admitted_command(stage, command, env):
             require(size <= 256 * 1024**2, "command_executable_bound")
             digest.update(chunk)
         require(not python or prefix == b"\x7fELF", "command_python_not_elf")
-        result = {"tool": command_tool(stage), "argvSha256": sha(json.dumps(command, separators=(",", ":")).encode()),
+        result = {"tool": command_tool(stage, command), "argvSha256": sha(json.dumps(command, separators=(",", ":")).encode()),
                   "executableSha256": digest.hexdigest(), "executableBytes": size,
                   "executableKind": "elf" if prefix == b"\x7fELF" else "script" if prefix.startswith(b"#!") else "regular",
                   "admission": "current-python-kernel-fd" if python else "strict-owner-mode",
@@ -388,7 +470,7 @@ class Commands:
         self.check()
         began = time.monotonic()
         record = {"stage": stage, "status": "failed", "started": False,
-                  "command": {"tool": command_tool(stage), "argvSha256": sha(json.dumps(command, separators=(",", ":")).encode())}}
+                  "command": {"tool": command_tool(stage, command), "argvSha256": sha(json.dumps(command, separators=(",", ":")).encode())}}
         self.steps.append(record)
         child = None
         try:
@@ -429,6 +511,28 @@ class Commands:
                 record["terminatedReturncode"] = child.returncode
             record["elapsedSeconds"] = round(time.monotonic() - began, 3)
         return self.private / (stage + ".log")
+
+
+def packaged_sdk_v1_receipt(root, value, *, trust):
+    """Closed packaging-only proof, separate from unchanged capability plans."""
+    fixture = "tests/sdk-conformance/fixtures/api-key-foundation.json"
+    raw = regular(root / fixture)
+    require(sha(raw) == trust["contracts"].get(fixture), "gate_reviewed_expectations")
+    ids = [row["id"] for row in json.loads(raw)["capabilities"]["sdk.configuration"]["vectors"]]
+    require(len(ids) == 23 and len(set(ids)) == 23 and isinstance(value, dict)
+            and value.get("status") == "passed" and value.get("entrypoint") == "openmates/sdk/v1"
+            and value.get("fixtureSha256") == sha(raw) and value.get("vectorIds") == ids
+            and value.get("nativeAdapter") == "actual-rust-api-key-library"
+            and value.get("ambientSyntheticCliStateAccess") is False
+            and value.get("explicitFixtureCredentials") is True
+            and value.get("cliLauncherObserved") is False and value.get("rawTracePublished") is False
+            and all(isinstance(value.get(key), str) and re.fullmatch(r"[0-9a-f]{64}", value[key])
+                    for key in ("artifactSha256", "nativeSha256")), "gate_result_vectors")
+    return {"status": "passed", "entrypoint": "openmates/sdk/v1", "fixtureSha256": sha(raw),
+            "artifactSha256": value["artifactSha256"], "nativeSha256": value["nativeSha256"],
+            "vectorCount": len(ids), "vectorIdsSha256": sha(json.dumps(ids, separators=(",", ":")).encode()),
+            "ambientSyntheticCliStateAccess": False, "explicitFixtureCredentials": True,
+            "cliLauncherObserved": False}
 
 
 def gate_receipt(root, report, *, trust):
@@ -478,7 +582,8 @@ def gate_receipt(root, report, *, trust):
                     and value.get("language") == expected_row["language"] and value.get("status") == "passed"
                     and re.fullmatch(r"[0-9a-f]{64}", value.get("commandSha256", ""))
                     for value, expected_row in zip(launches, plan)), "gate_launches")
-    return {"matrixSha256": sha(matrix_bytes), "status": "migration-gaps" if gaps else "synchronized",
+    packaged = packaged_sdk_v1_receipt(root, report.get("packagedSdkV1"), trust=trust)
+    return {"packagedSdkV1": packaged, "matrixSha256": sha(matrix_bytes), "status": "migration-gaps" if gaps else "synchronized",
             "openGapCount": len(gaps), "releaseEligible": not gaps,
             "conformance": rows, "plan": plan, "actualLaunches": launches,
             "trustedProgramsSha256": report.get("trustedProgramsSha256"), "realRunCount": len(rows),
@@ -616,6 +721,87 @@ def rust_unit_diagnostics(data, root, inputs, stage):
     return report if locations or "reportedCounts" in report else None
 
 
+
+def rust_unit_progress_diagnostics(data, stage):
+    """Closed numeric progress and hashed identifiers; never acceptance proof.
+
+    No Rust source inventory or raw name/message/path leaves this boundary.
+    Missing start evidence does not establish that compilation failed or no test ran.
+    """
+    if stage not in LIBRARY_UNIT_MANIFESTS:
+        return None
+    total = None
+    finished, warned = {}, {}
+    compiled = binary = False
+    identifier = r"[A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z_][A-Za-z0-9_]*)*"
+
+    def identifier_hashes(name):
+        return {
+            "fullSha256": sha(name.encode("ascii")),
+            "leafSha256": sha(name.rsplit("::", 1)[-1].encode("ascii")),
+        }
+
+    for row in data[:MAX_LOG].decode("utf-8", errors="replace").splitlines():
+        if re.fullmatch(
+            r"\s*Finished `test` profile \[[^\n]{1,80}\] target\(s\) in [0-9hms. ]{1,32}",
+            row,
+        ):
+            compiled = True
+        if re.fullmatch(r"\s*Running unittests [^\n]{1,1024}", row):
+            binary = True
+        start = re.fullmatch(r"running ([0-9]{1,7}) tests?", row)
+        if start is not None and int(start[1]) <= MAX_UNIT_DIAGNOSTIC_COUNT:
+            total = int(start[1])
+            finished.clear()
+            warned.clear()
+        if total is None:
+            continue
+        complete = re.fullmatch(
+            r"test (" + identifier + r") \.\.\. (ok|FAILED|ignored)", row
+        )
+        slow = re.fullmatch(
+            r"test (" + identifier + r") has been running for over [0-9]{1,7} seconds",
+            row,
+        )
+        if (
+            complete is not None
+            and len(complete[1]) <= 240
+            and len(finished) < MAX_UNIT_DIAGNOSTIC_COUNT
+        ):
+            finished.setdefault(complete[1], None)
+        if (
+            slow is not None
+            and len(slow[1]) <= 240
+            and len(warned) < MAX_UNIT_DIAGNOSTIC_COUNT
+        ):
+            warned.setdefault(slow[1], None)
+    report = {
+        "cargoCompilationFinishedObserved": compiled,
+        "testBinaryObserved": binary,
+        "libtestStartObserved": total is not None,
+    }
+    if total is not None:
+        active = [name for name in warned if name not in finished]
+        # Inconsistent producer text supplies no fabricated completion evidence.
+        if len(finished) > total or len(active) > total - len(finished):
+            return {**report, "countsConsistent": False}
+        slow_names = active[-16:]
+        complete_names = (
+            list(finished)[-(16 - len(slow_names)) :] if len(slow_names) < 16 else []
+        )
+        report.update(
+            reportedTotal=total,
+            observedCompleted=len(finished),
+            observedLongRunning=len(active),
+            countsConsistent=True,
+            longRunningIdentifiers=[identifier_hashes(name) for name in slow_names],
+            lastCompletedIdentifiers=[
+                identifier_hashes(name) for name in complete_names
+            ],
+        )
+    return report
+
+
 def project_vector_diagnostic(value, expected, failed_ids):
     """Accept capability-specific closed diagnostics for an actually failed vector."""
     capability = expected.get("capability")
@@ -678,6 +864,7 @@ def failure_diagnostics(private, root, stage, inputs, plan):
                                      "truncated": info.st_size > len(data), "lifetime": "isolated-runner-only"}
         report["compiler"] = compiler_diagnostics(data, root, inputs)
         if stage in LIBRARY_UNIT_MANIFESTS:
+            report["rustUnitProgress"] = rust_unit_progress_diagnostics(data, stage)
             units = rust_unit_diagnostics(data, root, inputs, stage)
             if units is not None:
                 report["rustUnits"] = units
@@ -766,7 +953,7 @@ def run(root, results, node, *, verify_node, environ=None):
         start, deadline = float(ambient["CI_SDK_STARTED_MONOTONIC"]), float(ambient["CI_SDK_DEADLINE_MONOTONIC"])
         require(math.isfinite(start) and math.isfinite(deadline) and abs(deadline - start - BUDGET) < 0.000001
                 and start <= time.monotonic() < deadline, "deadline_identity")
-        trust = load_trust()
+        trust = load_trust_for_source(root, source, checkout=True, harness=ambient.get("CI_HARNESS_COMMIT"))
         verify_programs(root, trust)
         before = snapshot(root)
         require(before == source_inputs_from_git(root, source), "source_checkout_changed")
@@ -800,17 +987,41 @@ def run(root, results, node, *, verify_node, environ=None):
                    "CARGO_TARGET_DIR": str(private / "target"), "CARGO_BUILD_JOBS": "2",
                    "CARGO_INCREMENTAL": "0", "CARGO_PROFILE_DEV_DEBUG": "0", "CARGO_PROFILE_TEST_DEBUG": "0"}
             commands = Commands(root, private, env, deadline)
-            def step(name, command, seconds=900):
+            def step(name, command, seconds=2400):
                 nonlocal stage
                 stage = name
-                if name in {*LIBRARY_UNIT_MANIFESTS, "napi-build", "python-binding-build"}:
+                if name in BUILD_STAGES:
                     require(snapshot(root) == before, "source_changed")
-                result = commands.run(name, command, seconds=seconds)
-                if name in {*LIBRARY_UNIT_MANIFESTS, "napi-build", "python-binding-build"}:
+                if name == "sdk-gate-tooling":
+                    require("scripts/tests/test_sdk_conformance_gate.py" in trust["programs"], "tooling_test_unpinned")
+                    verify_programs(root, trust)
+                    require(snapshot(root) == before, "source_changed")
+                if name == "sdk-gate-tooling":
+                    previous_plugin_policy = commands.env.get("PYTEST_DISABLE_PLUGIN_AUTOLOAD")
+                    commands.env["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
+                    try:
+                        result = commands.run(name, command, seconds=seconds)
+                    finally:
+                        if previous_plugin_policy is None:
+                            commands.env.pop("PYTEST_DISABLE_PLUGIN_AUTOLOAD", None)
+                        else:
+                            commands.env["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = previous_plugin_policy
+                else:
+                    result = commands.run(name, command, seconds=seconds)
+                if name == "sdk-gate-tooling":
+                    verify_programs(root, trust)
+                    require(snapshot(root) == before, "source_changed")
+                if name in BUILD_STAGES:
                     require(snapshot(root) == before, "source_changed")
                 return result
             try:
                 step("rust-toolchain", [rustup, "toolchain", "install", "1.98.1", "--profile", "minimal", "--component", "rustfmt"], 300)
+                step("wasm-target", [rustup, "target", "add", "--toolchain", "1.98.1", "wasm32-unknown-unknown"], 300)
+                # wasm-bindgen-cli must equal the locked wasm-bindgen crate; private root, never the checkout.
+                bindgen = private / "bindgen"
+                step("wasm-bindgen-install", ["cargo", "+1.98.1", "install", "wasm-bindgen-cli", "--version", "=" + BINDGEN_VERSION,
+                                              "--locked", "--root", str(bindgen), "--target-dir", str(private / "bindgen-target")], 1200)
+                env["PATH"] = str(bindgen / "bin") + os.pathsep + env["PATH"]
                 step("python-environment", [sys.executable, "-m", "venv", str(private / "venv")], 60)
                 python = str(private / "venv/bin/python")
                 env["PYO3_PYTHON"] = python
@@ -824,13 +1035,18 @@ def run(root, results, node, *, verify_node, environ=None):
                     step(unit_stage, library_unit_command(unit_stage))
                 node_artifact = root / "frontend/packages/openmates-cli/native/linux-x64.node"
                 python_artifact = root / "packages/openmates-python/openmates/_native.abi3.so"
-                require(not node_artifact.exists() and not python_artifact.exists(), "preexisting_native_artifact")
+                wasm_artifact = root / "frontend/packages/openmates-cli/wasm/openmates_sdk_bg.wasm"
+                require(not node_artifact.exists() and not python_artifact.exists() and not wasm_artifact.exists(),
+                        "preexisting_native_artifact")
                 verify_node()
                 step("napi-build", [python, "scripts/build_sdk_native.py", "--language", "npm", "--debug"])
                 node_before = artifact(node_artifact)
                 shutil.copyfile(node_artifact, private / "napi-preserved.node")
                 (private / "napi-preserved.node").chmod(0o600)
                 require(artifact(private / "napi-preserved.node")["sha256"] == node_before["sha256"], "napi_preservation")
+                # The PyPI build backend stays pure setuptools; the PyO3 extension is
+                # built explicitly into the package directory before the editable install.
+                step("python-native-build", [python, "scripts/build_sdk_native.py", "--language", "python", "--debug"])
                 step("python-binding-build", [python, "-m", "pip", "install", "-e", "packages/openmates-python"])
                 # The editable source module must exist independently of the Cargo lib
                 # that was overwritten by the Python feature build.
@@ -838,10 +1054,14 @@ def run(root, results, node, *, verify_node, environ=None):
                 shutil.copyfile(python_artifact, private / "python-preserved.so")
                 (private / "python-preserved.so").chmod(0o600)
                 require(artifact(private / "python-preserved.so")["sha256"] == python_before["sha256"], "python_preservation")
+                # Portable npm artifact: privacy, task order and embed-version reconstruction.
+                step("wasm-build", [python, "scripts/build_sdk_native.py", "--language", "wasm", "--debug"])
+                wasm_before = wasm_artifact_identity(wasm_artifact)
                 step("sdk-facade-build", [pnpm, "--filter", "openmates", "build:sdk"], 300)
                 dist = {str(path.relative_to(root)): sha(regular(path))
                         for path in sorted((root / "frontend/packages/openmates-cli/dist").rglob("*")) if path.is_file()}
                 require("frontend/packages/openmates-cli/dist/sdk-entry.js" in dist, "sdk_dist_missing")
+                step("sdk-gate-tooling", [python, "-m", "pytest", "--noconftest", "-q", "-p", "no:cacheprovider", "scripts/tests/test_sdk_conformance_gate.py"], 60)
                 verify_node()
                 step("napi-load", [node, "-e", "const m=require(process.argv[1]);if(typeof m.privacy!=='function'||typeof m.taskOrder!=='function'||typeof m.NativeSessionClient?.prototype.chatMonitorOpen!=='function'||typeof m.NativeSessionClient?.prototype.completionRecoveryEnable!=='function')process.exit(1)", str(node_artifact)], 30)
                 step("python-load", [python, "-c", "import pathlib,sys;import openmates._native as m;assert pathlib.Path(m.__file__).resolve()==pathlib.Path(sys.argv[1]);assert callable(m.privacy) and callable(m.task_order);assert callable(m.NativeSessionClient.chat_monitor_open) and callable(m.NativeSessionClient.completion_recovery_enable)", str(python_artifact)], 30)
@@ -852,11 +1072,14 @@ def run(root, results, node, *, verify_node, environ=None):
                 verify_node()
                 verify_programs(root, trust)
                 require(before == snapshot(root) and source == git(root, "rev-parse", "HEAD"), "source_changed")
-                require(node_before == artifact(node_artifact) and python_before == artifact(python_artifact), "artifact_changed")
+                require(node_before == artifact(node_artifact) and python_before == artifact(python_artifact)
+                        and wasm_before == wasm_artifact_identity(wasm_artifact), "artifact_changed")
                 require(dist == {str(path.relative_to(root)): sha(regular(path))
                                  for path in sorted((root / "frontend/packages/openmates-cli/dist").rglob("*")) if path.is_file()}, "dist_changed")
-                evidence.update(gate=gate_receipt(root, json.loads(regular(report, 16 * 1024**2)), trust=trust),
-                                artifacts={"npm": node_before, "python": python_before}, dist=dist,
+                gate = gate_receipt(root, json.loads(regular(report, 16 * 1024**2)), trust=trust)
+                require(gate["packagedSdkV1"]["nativeSha256"] == node_before["sha256"], "gate_result_identity")
+                evidence.update(gate=gate,
+                                artifacts={"npm": node_before, "python": python_before, "wasm": wasm_before}, dist=dist,
                                 loadIdentityVerified=True, sourceHeld=True, status="passed", stage="complete", code=None)
             except Exception:
                 try:

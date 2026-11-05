@@ -1,0 +1,250 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "capabilities"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sdk.apps"
+      ],
+      "properties": {
+        "sdk.apps": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "capability",
+            "status",
+            "account",
+            "request",
+            "sync_expected",
+            "vectors",
+            "required_oracles",
+            "limits"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": 1
+            },
+            "capability": {
+              "const": "sdk.apps"
+            },
+            "status": {
+              "const": "authored_unrun"
+            },
+            "account": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "owner_id",
+                "session_id",
+                "cookie",
+                "master_key",
+                "api_key",
+                "device_id"
+              ],
+              "properties": {
+                "owner_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "session_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "cookie": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "master_key": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "api_key": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "device_id": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "request": {
+              "const": {
+                "app": "web",
+                "skill": "search",
+                "input": {
+                  "query": "synthetic direct fixture"
+                }
+              }
+            },
+            "sync_expected": {
+              "const": {
+                "success": true,
+                "credits_charged": 1,
+                "data": {
+                  "ordered": [
+                    3,
+                    1,
+                    2
+                  ],
+                  "results": [
+                    {
+                      "title": "Synthetic direct result"
+                    }
+                  ]
+                }
+              }
+            },
+            "required_oracles": {
+              "const": [
+                "explicit-credentials",
+                "actual-core-cookie-primitive",
+                "genuine-owner-observation-before-skill",
+                "one-billable-post-per-explicit-operation",
+                "no-model-provider-override",
+                "no-account-apps-retention",
+                "no-auto-file-download",
+                "original-final-allocation-guard",
+                "stale-A-never-cancels-B"
+              ]
+            },
+            "limits": {
+              "const": {
+                "api_key_foreign": "maintained existing interfaces; no Rust replacement claim",
+                "api_key_failed_task_private_error": "source-proven raw diagnostic gap; remains required outside this additive Cookie adapter",
+                "api_key_single_array_and_pending_failed_peer": "existing array merge/polling differences remain open",
+                "owned_concurrency": "mutable Client polling remains serialized; owned-driver upgrade required",
+                "durability": "no automatic canonical retention or replay; no durable task recovery claim"
+              }
+            },
+            "vectors": {
+              "type": "array",
+              "minItems": 18,
+              "maxItems": 18,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "mode",
+                  "credential",
+                  "expected_skill_posts",
+                  "expected_downloads",
+                  "expected_retention_posts"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "mode": {
+                    "enum": [
+                      "auth_denial",
+                      "cancel_after_dispatch",
+                      "failed_task",
+                      "file_no_download",
+                      "owner_rotation",
+                      "pending_a_failed_b",
+                      "queued_cancel",
+                      "queued_close",
+                      "queued_import",
+                      "queued_malformed",
+                      "queued_successor",
+                      "single_task",
+                      "sync",
+                      "task_array_order"
+                    ]
+                  },
+                  "credential": {
+                    "enum": [
+                      "cookie",
+                      "api_key"
+                    ]
+                  },
+                  "expected": {},
+                  "expected_error": {
+                    "enum": [
+                      "cancelled",
+                      "expired",
+                      "invalid_argument"
+                    ]
+                  },
+                  "expected_skill_posts": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2
+                  },
+                  "expected_downloads": {
+                    "const": 0
+                  },
+                  "expected_retention_posts": {
+                    "const": 0
+                  }
+                },
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "credential": {
+                          "const": "api_key"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "mode": {
+                          "enum": [
+                            "sync",
+                            "single_task",
+                            "task_array_order",
+                            "file_no_download"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "mode": {
+                          "enum": [
+                            "sync",
+                            "single_task",
+                            "task_array_order",
+                            "file_no_download"
+                          ]
+                        }
+                      }
+                    },
+                    "then": {
+                      "required": [
+                        "expected"
+                      ]
+                    },
+                    "else": {
+                      "required": [
+                        "expected_error"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

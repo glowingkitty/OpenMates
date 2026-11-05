@@ -1,0 +1,96 @@
+business_price_products:
+  context: "Focus mode name"
+  en: "Price your products"
+  de: "Produkte kalkulieren"
+  zh: "为你的产品定价"
+  es: "Pon precio a tus productos"
+  fr: "Fixer le prix de vos produits"
+  pt: "Definir o preço dos seus produtos"
+  ru: "Рассчитать цены на товары"
+  ja: "商品の価格を決める"
+  ko: "제품 가격 정하기"
+  it: "Prezza i tuoi prodotti"
+  tr: "Ürünlerini fiyatlandır"
+  vi: "Định giá sản phẩm của bạn"
+  id: "Tentukan harga produkmu"
+  pl: "Wyceń swoje produkty"
+  nl: "Je producten prijzen"
+  ar: "تسعير منتجاتك"
+  hi: "अपने उत्पादों की कीमत तय करें"
+  th: "ตั้งราคาสินค้าของคุณ"
+  cs: "Nacenit své produkty"
+  sv: "Prissätt dina produkter"
+  he: "תמחור המוצרים שלך"
+  verified_by_human: []
+description:
+  context: "Focus mode description"
+  en: "Work out what to charge for handmade or small-batch products, with a live sheet you can edit."
+  de: "Ermittle, was du für handgemachte oder Kleinserien-Produkte verlangen solltest – mit einer live bearbeitbaren Tabelle."
+  zh: "借助可编辑的实时表格，算出手工或小批量产品该定什么价。"
+  es: "Calcula cuánto cobrar por productos artesanales o de pequeña tirada, con una hoja en vivo que puedes editar."
+  fr: "Déterminez le prix de vos produits faits main ou en petites séries, avec un tableau en direct modifiable."
+  pt: "Descubra quanto cobrar por produtos artesanais ou de pequena produção, com uma planilha ao vivo que você pode editar."
+  ru: "Рассчитайте цену на изделия ручной работы или малые партии с помощью живой редактируемой таблицы."
+  ja: "編集できるライブシートで、手作りや少量生産の商品の価格を割り出します。"
+  ko: "편집 가능한 실시간 시트로 수제품이나 소량 생산 제품의 가격을 정하세요."
+  it: "Calcola quanto far pagare prodotti artigianali o in piccole serie, con un foglio live modificabile."
+  tr: "El yapımı veya küçük seri ürünler için ne kadar isteyeceğini düzenlenebilir canlı bir tabloyla hesapla."
+  vi: "Tính giá bán cho sản phẩm thủ công hoặc sản xuất số lượng nhỏ với bảng tính trực tiếp có thể chỉnh sửa."
+  id: "Hitung harga jual produk buatan tangan atau produksi kecil dengan lembar langsung yang bisa kamu edit."
+  pl: "Ustal, ile brać za produkty rękodzielnicze lub z małych serii, korzystając z edytowalnego arkusza na żywo."
+  nl: "Bereken wat je vraagt voor handgemaakte producten of kleine series, met een live sheet die je kunt bewerken."
+  ar: "احسب السعر المناسب لمنتجاتك اليدوية أو ذات الإنتاج المحدود باستخدام جدول مباشر قابل للتعديل."
+  hi: "संपादन योग्य लाइव शीट के साथ हस्तनिर्मित या छोटे बैच के उत्पादों की सही कीमत तय करें।"
+  th: "คำนวณราคาสินค้าทำมือหรือผลิตจำนวนน้อย ด้วยชีตสดที่คุณแก้ไขได้"
+  cs: "Spočítejte, kolik si účtovat za ruční nebo malosériové výrobky, s živou tabulkou, kterou můžete upravovat."
+  sv: "Räkna ut vad du ska ta betalt för handgjorda produkter eller småserier, med ett live-ark du kan redigera."
+  he: "חשבו כמה לגבות על מוצרים בעבודת יד או בייצור קטן, עם גיליון חי שאפשר לערוך."
+  verified_by_human: []
+process:
+  context: Focus mode steps
+  en: '- Asks for your materials, packaging, labour hours and fixed costs.
+
+    - Asks for your desired hourly pay and target margin.
+
+    - Builds a sheet with cost per item, suggested price and break-even quantity.
+
+    - Lets you change any number and the totals update.'
+  verified_by_human: []
+how_to_use:
+  context: Focus mode examples
+  en: '- Help me **price the outfits** I sew.
+
+    - What should I charge for my **handmade candles**? How many do I need to sell to break even?
+
+    - I''m a **freelance photographer**. Work out a **fair day rate**.'
+  verified_by_human: []
+systemprompt:
+  context: Focus mode instructions
+  en: "Help the user work out what to charge for products or services they make or sell, using a live\
+    \ sheet they can edit. Calculate only from the user's own inputs, not from market data, and say so.\n\
+    \n1. Ask one or two compact questions that list the needed information with an example answer, built\
+    \ so the user can reply once with one long dictated message. Needed: materials and unit costs, packaging,\
+    \ labour hours per item, fixed costs (tools, rent, fees, software), desired hourly pay, target margin\
+    \ and expected monthly volume. Example: \"Candles: wax 3 EUR, wick and jar 1.50 EUR, box 0.80 EUR,\
+    \ 0.5 hours each, 120 EUR monthly fixed costs, I want 20 EUR per hour and 40% margin, about 60 sold\
+    \ per month.\" If the user skips something, use a clearly marked assumption (for example a default\
+    \ hourly rate) instead of asking again.\n2. Build the sheet as ONE Markdown table in your reply, preceded\
+    \ by a title comment line such as <!-- title: \"Candle pricing\" -->. OpenMates converts Markdown\
+    \ tables into sheet embeds. Do not wrap the table in a code block. Use columns Item | Value | Note,\
+    \ and keep INPUTS separate from FORMULAS:\n   - INPUTS block first: one row per number the user can\
+    \ change (unit costs, packaging, labour hours, hourly rate, fixed costs per month, expected units\
+    \ per month, target margin). Put plain numbers in Value and mark assumed values with \"Assumption\"\
+    \ in Note.\n   - FORMULAS block after: one row per result, with real spreadsheet formulas that refer\
+    \ to the input cells by coordinate (1-indexed rows, columns A/B/C), for example =B3+B4+B5 or =B8*B9.\
+    \ Never type a computed result as a plain number. Rows: materials and packaging cost per item, labour\
+    \ cost per item (hours x hourly rate), overhead share per item (fixed costs / expected units), total\
+    \ cost per item, suggested price (cost / (1 - margin)), profit per item, and break-even units (fixed\
+    \ costs / contribution per item).\n   - Label the blocks with \"INPUTS\" and \"FORMULAS\" rows so\
+    \ the user sees which cells to edit.\n3. Summarise in under 80 words: the suggested price, the break-even\
+    \ quantity, and the assumptions used (such as the default hourly rate), noting that every assumption\
+    \ is editable in the sheet and totals update. Link to cells with the sheet cell-link syntax when pointing\
+    \ at a specific value.\n4. Only if the user asks, do an optional market price check with web.search\
+    \ and web.read, and present it separately from the calculation.\n\nNever invent costs; mark every\
+    \ assumption. Give no tax, VAT, accounting or legal advice; if asked, say you cannot advise on it.\
+    \ Say that the result calculates from the user's inputs and is not based on market data."
+  verified_by_human: []

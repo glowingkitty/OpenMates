@@ -279,6 +279,7 @@ module.exports = {
 	removeWorkflowCliHome,
 	runWorkflowCli,
 	runWorkflowCliJson,
+	spawnCliLogin,
 	uniqueWorkflowName,
 	waitForChatTitle,
 	waitForWorkflowRunListStatus,

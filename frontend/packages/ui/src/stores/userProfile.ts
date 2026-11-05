@@ -55,6 +55,7 @@ export interface UserProfile {
   // Disabled servers per model - all servers are enabled by default as fallbacks
   // Only explicitly disabled servers are excluded from processing
   disabled_ai_servers?: Record<string, string[]>; // model_id -> array of disabled server IDs
+  server_region_preference?: "eu" | "global"; // AI hosting preference, device-local; undefined means "eu"
   // Refund policy consent — true if user has consented to the limited refund / withdrawal waiver
   // (set at signup, updated on each purchase). Used to skip redundant consent screens in settings.
   has_accepted_refund_policy?: boolean;

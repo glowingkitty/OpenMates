@@ -321,3 +321,34 @@ def test_grandchild_and_invalid_depth_never_expose_delegation():
 def test_child_continuation_and_research_angle_remain_nonrecursive():
     assert not resolve_subchat_enablement(True, active_focus_id=None, chat_depth=1, is_sub_chat_continuation=True)
     assert not resolve_subchat_enablement(True, active_focus_id="web-research", chat_depth=1)
+
+
+# contract-test: supporting surface=cli assertions=focus-modes.natural-request
+def test_conference_talk_focus_is_proposed_for_a_natural_talk_submission_request() -> None:
+    import yaml
+
+    app = yaml.safe_load((Path(__file__).resolve().parents[1] / "apps/events/app.yml").read_text())
+    focus = next(row for row in app["focuses"] if row["id"] == "plan_conference_talk")
+    # Default routing models may skip the activation tool, so a unique match
+    # uses the standard cancellable proposal before answering.
+    assert focus["auto_activate_when_relevant"] is True
+    hint = " ".join(focus["preprocessor_hint"].split())
+    for phrase in ("submit", "tips or advice before submitting a talk", "CFP", "abstract",
+                   "Do not select for only finding or listing conferences"):
+        assert phrase in hint
+    assert resolve_automatic_focus_proposal(
+        relevant_focus_modes=["events-plan_conference_talk"],
+        eligible_focus_ids={"events-plan_conference_talk"},
+        has_active_focus=False, chat_depth=0, is_continuation=False,
+        exact_skill_request=False, explicit_focus_request=False, apps_enabled=True,
+    ) == "events-plan_conference_talk"
+
+
+# contract-test: supporting surface=cli assertions=focus-modes.natural-request
+def test_conference_talk_focus_targets_the_attached_event_card_and_always_states_limits() -> None:
+    skill = (Path(__file__).resolve().parents[1] / "apps/events/focus_modes/plan-conference-talk/SKILL.md").read_text()
+    prompt = skill.split("## System prompt", 1)[1]
+    assert "an event card attached to or referenced in their latest message" in prompt
+    assert "takes priority over every other conference mentioned earlier" in prompt
+    assert "never guess one" in prompt
+    assert '"Title and abstract limits:"' in prompt

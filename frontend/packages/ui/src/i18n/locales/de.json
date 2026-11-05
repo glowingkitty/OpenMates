@@ -99,6 +99,12 @@
         "description": {
           "text": "Einprägsame Namen auswählen, dann Domains und Markenkonflikte der Favoriten prüfen."
         }
+      },
+      "price_products": {
+        "text": "Produkte kalkulieren",
+        "description": {
+          "text": "Ermittle, was du für handgemachte oder Kleinserien-Produkte verlangen solltest – mit einer live bearbeitbaren Tabelle."
+        }
       }
     },
     "code": {
@@ -184,6 +190,14 @@
         "text": "Sicherheit überprüfen",
         "description": {
           "text": "Konfigurationsdateien auf Sicherheitslücken und Exposition überprüfen."
+        }
+      }
+    },
+    "events": {
+      "plan_conference_talk": {
+        "text": "Konferenzvortrag planen",
+        "description": {
+          "text": "Entscheide, welchen Vortrag du bei einer Konferenz einreichst, und mach daraus einen starken Vorschlag."
         }
       }
     },
@@ -336,6 +350,14 @@
         }
       }
     },
+    "tasks": {
+      "daily_meeting_and_orchestration": {
+        "text": "Tägliches Meeting & Orchestrierung",
+        "description": {
+          "text": "Lege die heutigen Prioritäten fest und koordiniere Projektaufgaben und Chats bis zum Abschluss."
+        }
+      }
+    },
     "videos": {
       "analyze_video": {
         "text": "Video analysieren",
@@ -383,6 +405,14 @@
           "3": {
             "text": "Untersuche die **Ursachen** des Aufstiegs der Fast Fashion und deren Umweltfolgen"
           }
+        }
+      }
+    },
+    "workflows": {
+      "clarify_workflows": {
+        "text": "Workflows klären",
+        "description": {
+          "text": "Kläre fehlende Details für einen oder mehrere Workflows, bevor du sie erstellst oder änderst."
         }
       }
     }
@@ -1492,6 +1522,9 @@
         },
         "cancelling": {
           "text": "Code-Ausführung wird gestoppt..."
+        },
+        "automatic_compatible": {
+          "text": "Automatisch (kompatibel)"
         }
       },
       "run_code": {
@@ -1519,6 +1552,15 @@
       },
       "preview_hide": {
         "text": "Vorschau ausblenden"
+      },
+      "view_code": {
+        "text": "Code anzeigen"
+      },
+      "view_visual": {
+        "text": "Visualisierung anzeigen"
+      },
+      "interactive_html_blocked": {
+        "text": "Diese Visualisierung wollte eine andere Seite öffnen und wurde gestoppt."
       },
       "search_repos": {
         "text": "Repos suchen",
@@ -2254,7 +2296,7 @@
             "text": "Bio-Vollmilch bei ExampleGrocer finden"
           },
           "2": {
-            "text": "Spaghetti-Preise bei ExampleGrocer und Amazon vergleichen"
+            "text": "Spaghetti-Preise in verschiedenen Supermärkten vergleichen"
           },
           "3": {
             "text": "Welche veganen Käse-Alternativen gibt es bei ExampleGrocer?"
@@ -2484,7 +2526,7 @@
       "browse": {
         "text": "Browsen",
         "description": {
-          "text": "Websites bedienen und gefundene Informationen als JSON zurückgeben."
+          "text": "Websites durchsuchen und JSON zurückgeben. Die Browser-Rechenleistung wird pro Sekunde abgerechnet, zuzüglich der KI-Nutzung. Pausierte Rechenleistung ist kostenlos."
         }
       }
     },
@@ -2500,6 +2542,12 @@
           "text": "Workflows suchen",
           "description": {
             "text": "Nutzer-Workflows finden, die zu einer Chat-Absicht passen."
+          }
+        },
+        "run": {
+          "text": "Workflow ausführen",
+          "description": {
+            "text": "Führe einen deiner bestehenden Workflows direkt im Chat aus."
           }
         }
       }
@@ -5205,6 +5253,12 @@
       },
       "remember": {
         "text": "Erinnern"
+      },
+      "more_options": {
+        "text": "Weitere Optionen anzeigen"
+      },
+      "previous_options": {
+        "text": "Vorherige Optionen anzeigen"
       }
     },
     "explain_in_new_chat": {
@@ -7803,6 +7857,33 @@
       },
       "message_preview": {
         "text": "Nachrichtenvorschau"
+      },
+      "workflows": {
+        "text": "Workflows"
+      },
+      "workflow": {
+        "text": "Workflow"
+      },
+      "view_workflow": {
+        "text": "Workflow ansehen"
+      },
+      "view_latest_run": {
+        "text": "Letzte Ausführung ansehen"
+      },
+      "view_all": {
+        "text": "Alle Workflows ansehen"
+      },
+      "last_activity": {
+        "text": "Letzte Aktivität"
+      },
+      "in_progress": {
+        "text": "Zum Berichtsende noch aktiv"
+      },
+      "more_workflows": {
+        "text": "weitere Workflows in diesem Berichtszeitraum"
+      },
+      "attention": {
+        "text": "Benötigt Aufmerksamkeit"
       }
     },
     "storage_billing_notice_date_policy": {
@@ -8717,9 +8798,6 @@
     "view_on_google_hotels": {
       "text": "Auf Google Hotels ansehen"
     },
-    "view_on_meetup": {
-      "text": "Auf Gathering ansehen"
-    },
     "loading_map": {
       "text": "Karte wird geladen..."
     },
@@ -9230,6 +9308,9 @@
         },
         "not_available": {
           "text": "N/V"
+        },
+        "cash_flow": {
+          "text": "Cashflow"
         }
       },
       "search_trademarks": {
@@ -9813,6 +9894,139 @@
       },
       "stopping": {
         "text": "Wird angehalten…"
+      },
+      "no_frame": {
+        "text": "Kein gespeicherter Screenshot verfügbar."
+      }
+    },
+    "authoring": {
+      "draft": {
+        "text": "Entwurf"
+      },
+      "user_provided": {
+        "text": "Vom Nutzer bereitgestellt"
+      },
+      "sources": {
+        "text": "Quellen"
+      },
+      "observed_at": {
+        "text": "Beobachtet am"
+      },
+      "image_credit": {
+        "text": "Bildnachweis"
+      },
+      "partial": {
+        "text": "Teilergebnis"
+      },
+      "uploaded_source": {
+        "text": "Hochgeladene Quelle"
+      },
+      "approximate_location": {
+        "text": "Ungefährer Standort"
+      },
+      "schematic_route": {
+        "text": "Schematische Route"
+      },
+      "unmapped": {
+        "text": "Standort nicht verfügbar"
+      },
+      "open_source": {
+        "text": "Quellseite öffnen"
+      },
+      "open_domain": {
+        "text": "Auf {domain} öffnen"
+      },
+      "additional_times": {
+        "text": "Weitere Zeiten"
+      }
+    },
+    "tv": {
+      "movie": {
+        "text": "Film"
+      },
+      "series": {
+        "text": "Fernsehserie"
+      },
+      "poster_unavailable": {
+        "text": "Poster nicht verfügbar"
+      },
+      "synopsis": {
+        "text": "Inhalt"
+      },
+      "release_date": {
+        "text": "Veröffentlichungsdatum"
+      },
+      "runtime": {
+        "text": "Laufzeit"
+      },
+      "genres": {
+        "text": "Genres"
+      },
+      "directors": {
+        "text": "Regie"
+      },
+      "creators": {
+        "text": "Serienschöpfer"
+      },
+      "cast": {
+        "text": "Besetzung"
+      },
+      "language": {
+        "text": "Originalsprache"
+      },
+      "countries": {
+        "text": "Länder"
+      },
+      "content_rating": {
+        "text": "Altersfreigabe"
+      },
+      "score": {
+        "text": "Quellenbewertung"
+      },
+      "score_votes": {
+        "text": "{count} Stimmen"
+      },
+      "first_air_date": {
+        "text": "Erstausstrahlung"
+      },
+      "last_air_date": {
+        "text": "Letzte Ausstrahlung"
+      },
+      "series_status": {
+        "text": "Serienstatus"
+      },
+      "season_count": {
+        "text": "{count} Staffeln"
+      },
+      "episodes": {
+        "text": "Folgen"
+      },
+      "episode_count": {
+        "text": "{count} Folgen"
+      },
+      "season": {
+        "text": "Staffel {number}"
+      },
+      "specials": {
+        "text": "Sonderfolgen"
+      },
+      "supplied_seasons": {
+        "text": "Bereitgestellte Staffeln"
+      },
+      "partial_seasons": {
+        "text": "Es werden nur bereitgestellte Staffelinfos angezeigt."
+      },
+      "year": {
+        "text": "Jahr"
+      },
+      "preparing": {
+        "text": "Titel wird vorbereitet…"
+      },
+      "cancelled": {
+        "text": "Titelerstellung abgebrochen"
+      },
+      "unavailable": {
+        "text": "Titel nicht verfügbar"
       }
     }
   },
@@ -10198,16 +10412,16 @@
         "text": "Die Erkennung persönlicher Daten konnte nicht abgeschlossen werden. Deine Nachricht wurde nicht gesendet. Starte die Prüfung neu und sende erneut."
       },
       "banner_title": {
-        "text": "Sensible Daten erkannt"
+        "text": "{count}× sensible Daten erkannt"
       },
       "banner_description": {
-        "text": "{summary} gefunden. Diese werden vor dem Senden durch Platzhalter ersetzt. Klicke auf markierten Text, um das Original zu behalten."
+        "text": "Diese werden vor dem Senden durch Platzhalter ersetzt. Klicke auf markierten Text, um stattdessen das Original zu senden."
       },
       "undo_all": {
         "text": "Alle Ersetzungen rückgängig machen"
       },
       "undo_all_short": {
-        "text": "Alle zurück"
+        "text": "Alle rückgängig"
       },
       "click_to_restore": {
         "text": "Klicken um Original zu behalten"
@@ -10675,6 +10889,70 @@
       },
       "follow_up_6": {
         "text": "Vergleiche die außerirdische Biologie der Gethenianer und Oankali"
+      }
+    },
+    "browse_example_domain": {
+      "title": {
+        "text": "Website-Informationen als JSON extrahieren"
+      },
+      "summary": {
+        "text": "Example Domain durchsuchen und die vollständige Erklärung mit einer Quell-URL als strukturiertes JSON zurückgeben."
+      },
+      "message_1": {
+        "text": "Verwende die Browse-Funktion der Web-App, um die vollständige sichtbare englische Erklärung von [!](embed:example-com-4b6009db-731e-4a6b-98a2-08f4-a8c11a) zu extrahieren. Gib ein JSON mit zwei erforderlichen Feldern zurück: „purpose“ mit der vollständigen Erklärung im Wortlaut einschließlich aller Vorbehalte und „source_url“ mit der aktuellen Seiten-URL. Dies ist eine Extraktionsaufgabe ohne weitere angeforderte Website-Interaktion. Begrenze die Browser-Sitzung auf 40 Credits."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bac3644b-0f9c-48cd-bad9-22d265d938a1\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nDie Extraktion ist abgeschlossen. Hier ist das Ergebnis:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"88b9349a-9529-4835-a507-f54e5f24a30f\"}\n```\n\nDie Seite ist der Standard-Platzhalter für Example Domain, und die obige Erklärung ist der vollständige sichtbare englische Text, einschließlich des Hinweises, dass es sich nicht um einen Dienst handelt und man sich für Tests oder Monitoring nicht darauf verlassen sollte."
+      },
+      "follow_up_1": {
+        "text": "Nach weiteren Platzhalter-Domains und Standardvorlagen suchen"
+      },
+      "follow_up_2": {
+        "text": "Erklären, wie Example Domain typischerweise für Dokumentationen verwendet wird"
+      },
+      "follow_up_3": {
+        "text": "Eine andere Website-URL nach Textinhalten durchsuchen"
+      },
+      "follow_up_4": {
+        "text": "Gängige Platzhaltertext-Konventionen in der Webentwicklung auflisten"
+      },
+      "follow_up_5": {
+        "text": "Öffentliche HTTPS-Seiten direkt von einer bereitgestellten URL lesen"
+      },
+      "follow_up_6": {
+        "text": "Example Domain mit anderen reservierten Test-Domains vergleichen"
+      }
+    },
+    "browse_heading_json": {
+      "title": {
+        "text": "Webseite mit Browse lesen"
+      },
+      "summary": {
+        "text": "Verwende einen Browser, um eine Seitenüberschrift zu finden und das Ergebnis mit der Quell-URL als JSON zurückzugeben."
+      },
+      "message_1": {
+        "text": "Verwende den Browse-Skill, um [!](embed:httpbin-org-html-d944b253-6f9c-4505-931c-93e821) zu öffnen und die genaue Hauptüberschrift sowie die Quell-URL als JSON zurückzugeben. Nutze die Browser-Sitzung für diese Aufgabe."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"5f0e7070-da89-4cd1-9447-52f63f4fd826\",\"app_id\":\"web\",\"skill_id\":\"browse\"}\n```\n\nDie Browse-Sitzung hat die Seite geöffnet und Folgendes zurückgegeben:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"c0e67189-7fb4-4e88-a3ab-f66d75ea01a2\"}\n```\n\nDie Seite unter `https://httpbin.org/html` stellt ein Beispiel-HTML-Dokument bereit, dessen Hauptüberschrift **„Herman Melville - Moby-Dick“** lautet (ein Ausschnitt aus dem ersten Kapitel des Romans, „Loomings“)."
+      },
+      "follow_up_1": {
+        "text": "Suche nach einer historischen Analyse von Herman Melvilles Moby Dick"
+      },
+      "follow_up_2": {
+        "text": "Erkläre die Bedeutung des ersten Kapitels von Moby-Dick"
+      },
+      "follow_up_3": {
+        "text": "Lies die öffentliche Dokumentation über Techniken zur Webbrowser-Automatisierung"
+      },
+      "follow_up_4": {
+        "text": "Vergleiche verschiedene digitale Formate zum Lesen klassischer Literatur"
+      },
+      "follow_up_5": {
+        "text": "Suche nach Online-Literaturarchiven mit klassischen amerikanischen Romanen"
+      },
+      "follow_up_6": {
+        "text": "Fasse die Hauptthemen von Herman Melvilles Werk zusammen"
       }
     },
     "building_maintenance_email": {
@@ -12361,6 +12639,12 @@
         "text": "- Anforderungen verstehen\n- Namen auswählen\n- Favoriten prüfen\n- Ergebnisse vergleichen"
       }
     },
+    "business_price_products": {
+      "text": "Produkte kalkulieren",
+      "description": {
+        "text": "Ermittle, was du für handgemachte oder Kleinserien-Produkte verlangen solltest – mit einer live bearbeitbaren Tabelle."
+      }
+    },
     "code_analyze_logs": {
       "text": "Logs analysieren",
       "description": {
@@ -12488,6 +12772,12 @@
       },
       "systemprompt": {
         "text": "Du bist ein Programmierexperte."
+      }
+    },
+    "events_plan_conference_talk": {
+      "text": "Konferenzvortrag planen",
+      "description": {
+        "text": "Entscheide, welchen Vortrag du bei einer Konferenz einreichst, und mach daraus einen starken Vorschlag."
       }
     },
     "jobs_career_insights": {
@@ -12634,6 +12924,12 @@
         "text": "Du bist ein Experte für Bildungs- und Karriereberatung. Deine Aufgabe ist es, Nutzern durch durchdachte, strategische Fragen zu helfen, den richtigen Abschluss und Studienbereich zu finden. Verwende die sokratische Methode, um sie zur Selbsterkenntnis zu führen, anstatt nur Ratschläge zu geben. Hilf ihnen, ihre wahren Interessen, Stärken und Werte zu verstehen. Stelle Folgefragen, um tiefer zu graben und Muster aufzudecken. Gib personalisierte Empfehlungen basierend auf ihren Antworten."
       }
     },
+    "tasks_daily_meeting_and_orchestration": {
+      "text": "Tägliches Meeting & Orchestrierung",
+      "description": {
+        "text": "Lege die heutigen Prioritäten fest und koordiniere Projektaufgaben und Chats bis zum Abschluss."
+      }
+    },
     "videos_analyze_video": {
       "text": "Video analysieren",
       "description": {
@@ -12691,6 +12987,12 @@
       },
       "systemprompt": {
         "text": "Du prüfst als gründlicher Rechercheur konkurrierende Erklärungen anhand von Primärbelegen. Eine Frage muss keine tiefere Geschichte oder Absichtsthese stützen. Du musst kein verborgenes Motiv finden; akzeptiere eine gewöhnliche Erklärung, wenn die Belege sie tragen.\n\nRechercheablauf:\n- Entscheide zuerst, ob die Frage des Nutzers eine tiefgehende Recherche oder eine kurze Antwort erfordert. Wenn die Frage breit gefasst, aktuell, umstritten, politisch, wirtschaftlich oder marktbezogen ist oder danach fragt, warum etwas geschehen ist, behandle sie als tiefgehende Recherche.\n- Frage nur dann nach, wenn der vom Nutzer vorgegebene Umfang zu unklar ist, um verantwortungsvoll zu recherchieren. Beginne andernfalls mit der Recherche.\n- Liste vor der Suche die wichtigsten Hypothesen oder Blickwinkel auf, die du prüfen musst. Berücksichtige die vordergründige Erklärung, alternative Erklärungen, Anreize, wer profitiert, wer verliert, die Marktstruktur oder politische Struktur, die Regulierungsgeschichte und Gegenargumente.\n- In einem Hauptchat für komplexe Recherche MUSS die erste Werkzeugaktion start_sub_chats vor jedem web-search oder web-read sein. Delegiere genau drei unterschiedliche Blickwinkel parallel und warte vor der Synthese auf alle Berichte. Weise jeden Unterchat an, web-search und web-read zu nutzen, wesentliche Aussagen mit Primärquellen und quellenbezogenen Einschränkungen zu belegen und belegte Ergebnisse zurückzugeben.\n- Melden Sie wichtige Lücken ehrlich; erstellen Sie in einer Fortsetzung keine weiteren Recherchegruppen und raten Sie keine fehlenden Belege.\n- Nach Abschluss der drei Recherche-Unterchats führt der Hauptchat ihre Berichte zusammen und liest mit web-read wesentlich strittige Primärdokumente, wenn die Berichte den Streit nicht klären. Starte keinen vierten Unterchat und keine bezahlte Reparaturgruppe. Scheitern Recherche oder Quellenlektüre, nenne die Einschränkung ehrlich und gib nur eine entsprechend eingeschränkte Antwort. Weder Fortsetzungen noch Recherche-Unterchats dürfen weitere Unterchats starten.\n- Verwende web-search mehrfach mit unterschiedlichen Suchblickwinkeln. Verlasse dich nicht auf eine einzige naheliegende Suchanfrage. Beispielsweise sollte bei einer Frage zu Preiserhöhungen nach Angebotsschocks, Unternehmensgewinnen, Marktkonzentration, regulatorischen Untersuchungen, Lobbyarbeit, Ausschüttungen an Aktionäre und Auswirkungen auf Verbraucher gesucht werden, soweit relevant.\n- Verwende web-read für wichtige Quellen, statt dich nur auf Suchauszüge zu verlassen. Bevorzuge Originalquellen, Daten von Behörden oder Regulierungsstellen, Unternehmensunterlagen, Gerichtsakten, wissenschaftliche Arbeiten, seriösen Journalismus und direkte Berichte gegenüber Zusammenfassungen.\n- Bewerte die Quellenqualität anhand von Aktualität, Relevanz, Autorität, Genauigkeit und Zweck. Nutze laterales Lesen: Prüfe wichtige Aussagen anhand unabhängiger Quellen und verfolge Aussagen möglichst bis zu den Primärbelegen zurück.\n- Untersuche Anreize ausdrücklich. Identifiziere die wichtigsten Parteien, was jede Partei will, von welchen Überzeugungen der Menschen jede Partei profitiert und welche Belege ihre Darstellung stützen oder schwächen.\n\nSorgfalt im Umgang mit Belegen:\n- Unterscheide zwischen bestätigten Belegen, starken Schlussfolgerungen, plausiblen Interpretationen und unbelegten Spekulationen.\n- Behandle eine veröffentlichte Klageschrift oder Anschuldigung als Bestätigung dafür, dass die Behauptung erhoben wurde, nicht dafür, dass das behauptete Verhalten stattgefunden hat. Unterscheide vorgeschlagene Vergleiche von gerichtlich genehmigten Vergleichen und beide von gerichtlichen Feststellungen oder Eingeständnissen; ein Vergleich allein beweist kein Fehlverhalten. Bevor du eine wichtige Schlussfolgerung zu Fehlverhalten oder einer rechtlichen Klärung ziehst, lies die zugrunde liegende Klageschrift, gerichtliche Anordnung, den Vergleich oder die offizielle Mitteilung direkt mit web-read; ist sie nicht verfügbar, benenne diese Einschränkung. Weise die recherchierenden Unterchats an, für jede wichtige Aussage den Belegstatus und die Quelle anzugeben, und bewahre diesen Status in der abschließenden Synthese, statt eine Anschuldigung oder einen Vorschlag zu bestätigtem Fehlverhalten aufzuwerten.\n- Behaupte niemals Korruption, Manipulation, Betrug oder böse Absicht als Tatsache, wenn die Quellen dies nicht stützen. Wenn die Belege auf Preissetzungsmacht, Bedenken hinsichtlich einer Koordinierung, regulatorische Überprüfung oder verdächtige Anreize hinweisen, formuliere dies vorsichtig und zitiere die Belege.\n- Behandle Aussagen aus nur einer Quelle mit Vorsicht. Wenn die Belege dürftig, umstritten, veraltet oder nicht verfügbar sind, sage dies ausdrücklich.\n- Gleiche vor der abschließenden Synthese die drei Rechercheberichte und ihre Primärbelege ab. Lasse unbelegte Präzision, kausale Behauptungen und rechtliche Schlussfolgerungen weg oder schränke sie ein. Wenn eine Überprüfungsquelle nicht verfügbar ist, benenne die ungeklärte Aussage, statt sie als bestätigt darzustellen. Ein Dokument mit dem Titel Proposed Final Judgment belegt keine gerichtliche Genehmigung; eine offizielle Klageschrift bestätigt, dass Anschuldigungen eingereicht wurden, nicht, dass über sie gerichtlich entschieden wurde. Halte diese Einschränkungen in jedem Abschnitt direkt bei der Aussage fest, einschließlich der Kurzantwort und des Fazits; ein späterer Absatz über Unsicherheit korrigiert keine überzogen als bestätigt dargestellte Aussage.\n- Berücksichtige Gegenargumente und harmlose Erklärungen. Eine tiefere Erklärung ist nicht automatisch wahrer als eine vordergründige Erklärung.\n\nStandardstruktur der Ausgabe:\n\nBei komplexer tiefgehender Recherche MUSS die endgültige Antwort diese exakt sechs Überschriften verwenden, ohne ihre Namen zu ersetzen:\n\n## Short Answer\nGib eine knappe Antwort in 3-5 Sätzen.\n\n## Surface Explanation\nErkläre die gängige oder offizielle Erklärung, die die Menschen wahrscheinlich hören werden.\n\n## What Else May Be Going On\nPrüfe alternative Erklärungen, Anreize, Struktur und Zeitpunkt nur als Hypothesen. Sage, wenn die Belege keine tiefere Erklärung oder Absichtsschlussfolgerung tragen.\n\n## Evidence\nListe wichtige, mit Quellen belegte Ergebnisse nach Aussage auf. Ordne bedeutende Aussagen eindeutig ihren Quellen zu.\n\n## Counterarguments\nErkläre, was die tiefere Erklärung schwächen, verkomplizieren oder widerlegen könnte.\n\n## Bottom Line\nBenenne, was bestätigt ist, was wahrscheinlich ist, was plausibel, aber unbewiesen ist und was unsicher bleibt.\n\nVerhalten bei Folgefragen:\n- Biete gezielte Folgeberichte an, wenn dies hilfreich ist, etwa zu Unternehmensgewinnen, Regulierungsgeschichte, Auswirkungen auf Verbraucher, politischen Handlungsoptionen, zeitlichem Ablauf oder einer Prüfung Quelle für Quelle.\n- Bleibe bei Folgefragen innerhalb eines aktiven Chats für tiefgehende Recherche im Gesprächsstil, sofern der Nutzer keinen weiteren vollständigen Bericht verlangt.\n\n- Prüfen Sie vor wichtigen quantitativen, kausalen oder rechtlichen Aussagen mit web-read die zugrunde liegende Primärquelle. Suchausschnitte dienen nur zum Auffinden. Scheitert das Lesen oder fehlt die Primärquelle, kennzeichnen Sie die Aussage als ungeklärt und nennen Sie die Einschränkung.\n- Erstelle bei der Synthese im Hauptchat vor dem abschließenden Fazit eine kompakte nummerierte Aussagen-/Belegliste aller wesentlichen quantitativen, kausalen, Absichts- und Rechtsstatusaussagen samt URLs. Verlangen Sie für jede Aussage ein kompaktes Ergebnis: belegt, eingeschränkt belegt, widersprochen oder ungeklärt; genaue Quellen-URL; Zeitraum, Gebiet, Population, Messgröße und Rechtsstatus. Platziere die Belegliste in Evidence und bearbeite jede wesentliche Aussage vor Bottom Line vollständig; behalte Short Answer zuerst und alle sechs Überschriften in der vorgeschriebenen Reihenfolge. Fehlende oder abgeschnittene Prüfergebnisse bleiben ungeprüft.\n- Bewahren Sie in jedem Abschnitt direkt bei der Aussage den Quellenumfang: Zeitraum, Gebiet, Population oder Produkt, Messgröße oder Nenner, Annahmen sowie Beobachtung versus modelliertes Gegenfaktum. Verallgemeinern Sie Untergruppen, Schätzungen, Szenarien, historische Spannen oder typische Dauern nicht zu universellen oder dauerhaften Befunden. Vorteile, Gewinne und Anreize allein belegen weder Absicht noch kausalen Anteil. Lassen Sie ungeprüfte Aussagen weg oder schränken Sie sie ausdrücklich ein; fehlende Prüfung ist kein Beleg.\n\n- Streben Sie je Recherche-Unterchat 600–900 Wörter in den sechs Pflichtabschnitten und 6–10 unterschiedliche wesentliche Befunde in einer nummerierten Belegliste im Abschnitt Evidence an. Jeder Eintrag enthält Aussage, Belegstatus, genaue Primärquellen-URL und relevanten Geltungsbereich oder Einschränkung. Verweisen Sie andernorts auf die Nummern, statt Belege zu wiederholen. Priorisieren Sie für die zugewiesene Frage nötige Befunde einschließlich wesentlicher Gegenbelege; lassen Sie Suchberichte, doppelte Hintergründe und ungenutzte URLs weg. Dies sind Schreibziele, keine Kürzungsregeln oder harten Obergrenzen: Bewahren Sie nötige Einschränkungen und nennen Sie ungeklärte wesentliche Fragen.\n\n- Gib für jede wesentliche quantitative, kausale, Absichts- oder Rechtsaussage einen kurzen exakten Primärquellenauszug oder einen präzisen Primärtabelleneintrag mit Zeitraum und Messgröße an, verknüpft mit URL und Belegstatus. Markiere eine Aussage nur als belegt, wenn diese Grundlage genau die Aussage und ihren Umfang trägt; sonst als Schlussfolgerung oder ungeklärt. Eine URL oder ein quellenweites Aggregat allein belegt keine Aussage. Nenne diese Grundlage in der nummerierten Liste in Evidence vor Bottom Line; verwende Beleg-IDs erneut und wiederhole Zitate nicht. Short Answer darf nur belegte oder eingeschränkt belegte Aussagen nutzen; werte den Status eines Rechercheberichts nie auf.\n\n- Unterscheide Messgrößen und Preisspannen von Gewinn und Motiv. Ein Betriebs- oder Produktionszeitraum ist keine allgemeine Mindestdauer oder Grenze. Ordne Vergleichszeiträume chronologisch und prüfe die Änderungsrichtung. Prüfe Gericht und Fallidentität; unterscheide Geschworenenentschädigung von gesetzlicher Verdreifachung und vorgeschlagene von genehmigten Vergleichen. Bewahre diese Unterschiede und offene Grenzen in jedem Abschnitt direkt bei den Aussagen."
+      }
+    },
+    "workflows_clarify_workflows": {
+      "text": "Workflows klären",
+      "description": {
+        "text": "Kläre fehlende Details für einen oder mehrere Workflows, bevor du sie erstellst oder änderst."
       }
     }
   },
@@ -14348,6 +14650,19 @@
               "text": "JobTech erhält ausgewählte Job-Suchbegriffe, einen benannten Standort, die Homeoffice-Präferenz, den Veröffentlichungszeitraum und die Ergebnisanzahl für die schwedische Stellensuche."
             }
           }
+        },
+        "local_privacy": {
+          "desert_ant_labs": {
+            "heading": {
+              "text": "Lokaler Textschutz — Redact von Desert Ant Labs (Niederlande)"
+            },
+            "description": {
+              "text": "Die erweiterte Texterkennung nutzt Redact von Desert Ant Labs und ist standardmäßig aktiviert. Die Textanalyse läuft lokal in deinem Browser. OpenMates stellt die freigegebenen Modell- und Laufzeitdateien bereit; im Web musst du sie nicht von Hugging Face herunterladen. Wenn du die erweiterte Erkennung in den Datenschutzeinstellungen ausschaltest, werden Redact und seine Lizenzanfragen nicht mehr genutzt. Der vollständige grundlegende Textdetektor bleibt verfügbar.\n\nRedact benötigt SDK-Lizenzierungs- und Aktivierungsanfragen direkt von deinem Browser an Desert Ant Labs. Diese Anfragen enthalten eine Browserinstallations-UUID für die Lizenz- und Gerätezählung, Modell- und SDK-Versionen, die Plattform, den Hostnamen der Anwendung und ein signiertes Lizenz-Token. OpenMates kontrolliert die lokale Speicherung der Installationskennung und nutzt sie ausschließlich als Lizenzmetadaten. Der Anbieter sieht außerdem deine IP-Adresse, Browser-Anfrageheader (einschließlich Origin) und den Zeitpunkt der Anfragen. Der untersuchte Text, Erkennungsergebnisse, Platzhalterzuordnungen und deine OpenMates-Konto-ID sind in diesen Anfragen nicht enthalten.\n\nDesert Ant Labs handelt gemäß seiner Lizenz als eigenständiger Verantwortlicher für diese Lizenztelemetrie. Diese Funktion ist weder anonym noch vollständig offline; OpenMates verspricht keine bestimmte Aufbewahrungsfrist beim Anbieter. Die lokale Erkennung kann personenbezogene Daten übersehen. Der Schutz eingetippter Nachrichten gilt nicht für Sprachaufnahmen, Rohtranskripte, hochgeladene Dateien, Referenzbilder, Kalenderinhalte oder anbieterspezifische Eingaben, sofern eine Funktion nicht ausdrücklich etwas anderes angibt."
+            }
+          },
+          "license_link": {
+            "text": "Lizenz von Desert Ant Labs (einschließlich Lizenztelemetrie)"
+          }
         }
       },
       "title": {
@@ -14907,7 +15222,7 @@
             "text": "Erhalten Drittanbieter meine Inhalte?"
           },
           "answer": {
-            "text": "Ja, wenn du ein Modell auswählst oder eine Funktion nutzt, die auf einem Anbieter basiert, können die für diese Anfrage benötigten Inhalte an den Anbieter gesendet werden. Bei geeigneten eingetippten Chatnachrichten werden erkannte persönliche Angaben und Geheimnisse clientseitig durch Platzhalter ersetzt. Nicht erkannte Angaben können so gesendet werden, wie du sie eingegeben hast. Der Schutz umfasst keine Sprachaufnahmen, Rohtranskripte, hochgeladenen Dateien, Referenzbilder, Kalenderinhalte oder strukturierten Skill-Eingaben, sofern eine Funktion nicht ausdrücklich etwas anderes angibt."
+            "text": "Ja, wenn du ein Modell auswählst oder eine Funktion nutzt, die auf einem Anbieter basiert, können die für diese Anfrage benötigten Inhalte an den Anbieter gesendet werden. Bei geeigneten eingetippten Chatnachrichten werden erkannte persönliche Angaben und Geheimnisse clientseitig durch Platzhalter ersetzt. Nicht erkannte Angaben können so gesendet werden, wie du sie eingegeben hast. Der Schutz umfasst keine Sprachaufnahmen, Rohtranskripte, hochgeladenen Dateien, Referenzbilder, Kalenderinhalte oder strukturierten Skill-Eingaben, sofern eine Funktion nicht ausdrücklich etwas anderes angibt. Die erweiterte Texterkennung nutzt Redact von Desert Ant Labs lokal; begrenzte Lizenzmetadaten werden wie unten beschrieben direkt an den Anbieter gesendet."
           }
         },
         "voice_recordings": {
@@ -16704,6 +17019,9 @@
     },
     "nighttime": {
       "text": "Nachts"
+    },
+    "instructor": {
+      "text": "Kursleitung"
     }
   },
   "rules": {
@@ -17575,6 +17893,15 @@
         "quick_tips_description": {
           "text": "Zeigt gelegentliche Produkttipps nach Antworten des Assistenten. Deaktiviere dies, wenn OpenMates keine Kurztipp-Karten generieren soll."
         },
+        "server_region": {
+          "text": "Serverregion"
+        },
+        "prefer_eu_servers": {
+          "text": "EU-Server bevorzugen"
+        },
+        "prefer_eu_servers_description": {
+          "text": "An (Standard): KI-Modelle laufen zuerst auf EU-Servern, andere Regionen nur als Ausweichlösung. Aus: Schnellste, global – OpenMates wählt weltweit den schnellsten Server."
+        },
         "quick_tips_enabled": {
           "text": "Kurztipps aktiviert."
         },
@@ -18406,9 +18733,6 @@
         "skill": {
           "ask": {
             "model": {
-              "qwen3_235b_a22b_2507": {
-                "text": "Qwen 3 256b"
-              },
               "claude_haiku_4_5_20251001": {
                 "text": "Claude Haiku 4.5"
               },
@@ -19520,19 +19844,19 @@
           "text": "Wird gespeichert..."
         },
         "email_chat_how_it_works": {
-          "text": "Chat-E-Mails werden gesendet, wenn Sie abwesend sind. Für erfolgreiche geplante Workflow-Ausführungen erhalten Sie eine Abschluss-E-Mail und eine tägliche Zusammenfassung."
+          "text": "Chat-E-Mails werden gesendet, wenn du abwesend bist. Workflow-Aktivitäten erhalten nur eine tägliche E-Mail, ohne Push- oder In-App-Statusmeldungen. Von Workflows erstellte Chats und Nachrichten folgen deinen normalen Chat-Benachrichtigungen."
         },
         "email_workflow_runs": {
           "text": "Workflow-Ausführungen"
         },
         "email_workflow_runs_desc": {
-          "text": "Abschluss-E-Mails für erfolgreiche geplante Workflow-Ausführungen sowie eine tägliche Zusammenfassung"
+          "text": "Eine tägliche E-Mail zu geplanten Workflow-Aktivitäten; Chat-Nachrichten folgen den normalen Chat-Einstellungen."
         },
         "email_include_content": {
-          "text": "Titel und Vorschauen in E-Mails aufnehmen"
+          "text": "Private Titel und Vorschauen einschließen"
         },
         "email_include_content_desc": {
-          "text": "Chat- und Workflow-Titel sowie Vorschauen in E-Mails zulassen. Ihr E-Mail-Anbieter kann diese Inhalte lesen."
+          "text": "Erlaube Chat-Titel und Nachrichtenvorschauen in E-Mails. Tägliche Workflow-Übersichten enthalten normalerweise Namen und Ergebnisse; wenn du Inhalte ausdrücklich ausblendest, werden auch diese Namen verborgen. Dein E-Mail-Anbieter kann enthaltene Inhalte lesen."
         },
         "email_webhooks": {
           "text": "Webhook-Chats"
@@ -20984,9 +21308,6 @@
         "text": "Persönliche Daten verbergen",
         "chats": {
           "text": "Chats"
-        },
-        "description": {
-          "text": "OpenMates ersetzt automatisch sensible Daten durch Platzhalter, bevor sie an den OpenMates-Server und externe Anbieter gesendet werden, um deine Privatsphäre zu schützen. Ersetzte Daten werden visuell hervorgehoben. Du kannst jederzeit auf einen ersetzten Dateneintrag klicken, um die Ersetzung zu überschreiben, oder die Funktionalität hier komplett deaktivieren."
         }
       },
       "enhanced_pii_model": {
@@ -22390,6 +22711,48 @@
       "title_placeholder": {
         "text": "Beschreibe kurz das Problem — was ist passiert und wo?"
       },
+      "issue_text_label": {
+        "text": "Was ist passiert?"
+      },
+      "issue_text_placeholder": {
+        "text": "Was ist passiert? Beschreibe, was kaputt ist oder schiefgelaufen ist, und alle Details, die uns beim Nachstellen helfen."
+      },
+      "attach_image": {
+        "text": "Bild"
+      },
+      "dictation_failed": {
+        "text": "Diktieren fehlgeschlagen. Bitte versuche es erneut oder tippe deinen Bericht."
+      },
+      "quick_actions_label": {
+        "text": "Zum Bericht hinzufügen"
+      },
+      "upload_screenshot": {
+        "text": "Screenshot hochladen"
+      },
+      "select_ui_element": {
+        "text": "UI-Element auswählen"
+      },
+      "record_voice": {
+        "text": "Sprache aufnehmen (bis zu 2 Minuten)"
+      },
+      "dictation_unavailable_today": {
+        "text": "Sprachaufnahme ist heute nicht mehr verfügbar. Versuche es morgen erneut."
+      },
+      "dictation_recording_limit": {
+        "text": "Sprachaufnahmen für Berichte sind auf 2 Minuten begrenzt."
+      },
+      "send_to_claude_chat_label": {
+        "text": "Direkt an Claude-Chat senden"
+      },
+      "send_to_claude_chat_hint": {
+        "text": "Startet einen neuen Claude-Chat auf dem Entwicklungsserver, der diesen Bericht untersucht und behebt."
+      },
+      "confirmation_claude_chat_queued": {
+        "text": "Ein Claude-Chat beginnt in etwa einer Minute mit der Arbeit an diesem Bericht."
+      },
+      "confirmation_claude_chat_unavailable": {
+        "text": "Der Claude-Chat konnte nicht eingeplant werden. Kopiere die Issue-ID und starte einen Chat manuell."
+      },
       "title_required": {
         "text": "Eine Kurzbeschreibung ist erforderlich"
       },
@@ -22435,11 +22798,8 @@
       "actual_behaviour_hint": {
         "text": "Optional — beschreibe, was schief gelaufen ist"
       },
-      "share_chat_label": {
-        "text": "Aktuellen Chat mit diesem Bericht teilen"
-      },
-      "share_chat_hint": {
-        "text": "Dadurch kann der Administrator den Chat einsehen, um das Problem zu beheben."
+      "chat_included_notice": {
+        "text": "Dein aktueller Chat wird diesem Bericht beigefügt, damit wir das Problem analysieren können."
       },
       "url_label": {
         "text": "Geteilte Chat- oder Embed-URL"
@@ -22601,9 +22961,6 @@
       },
       "element_picker_hint": {
         "text": "Tippe auf ein beliebiges Element auf der Seite, um dessen HTML-Struktur für die Fehlersuche zu erfassen"
-      },
-      "element_picker_button": {
-        "text": "Element auswählen"
       },
       "element_picker_active": {
         "text": "Auswählen..."
@@ -24430,7 +24787,7 @@
       "text": "Kostenlos testen"
     },
     "version_title": {
-      "text": "v0.28"
+      "text": "v0.29"
     },
     "domain_not_allowed": {
       "text": "E-Mail-Domain nicht erlaubt."

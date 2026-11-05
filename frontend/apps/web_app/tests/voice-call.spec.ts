@@ -2247,9 +2247,52 @@ test.describe('Voice mode through ordinary chat', () => {
     }
   });
 
+  // contract-test: direct surface=gui.web assertions=video-call.chat.call-events,video-call.lifecycle.recovery-and-billing
+  test('removes and closes an empty call chat after the call is interrupted by a reload',async({page},testInfo)=>{
+    test.setTimeout(150_000);
+    const deleted:string[]=[];const results:Array<{chat_id:string;accepted:boolean}>=[];
+    page.on('websocket',socket=>socket.on('framereceived',frame=>{
+      try {
+        const event=JSON.parse(String(frame.payload));const payload=event.payload??event;
+        if(event.type==='chat_deleted') deleted.push(payload.chat_id);
+        if(event.type==='empty_call_chat_cleanup_result') results.push(payload);
+      } catch { /* Binary/non-JSON frames do not carry deletion receipts. */ }
+    }));
+    const pendingCleanups=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('openmates.voiceCallEmptyCleanup.v1')??'[]') as Array<{chatId:string;callId:string|null;terminatedAt:number|null}>);
+    const chatStored=(chatId:string)=>page.evaluate(async id=>{
+      const db=await new Promise<IDBDatabase>((resolve,reject)=>{
+        const request=indexedDB.open('chats_db');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
+      });
+      try { return await new Promise<boolean>((resolve,reject)=>{
+        const request=db.transaction('chats','readonly').objectStore('chats').get(id);
+        request.onsuccess=()=>resolve(!!request.result);request.onerror=()=>reject(request.error);
+      }); } finally { db.close(); }
+    },chatId);
+    await installNativeVoiceInput(page);await observeRealTransport(page);
+    await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
+    await page.locator('[data-testid="voice-call-start"]:visible').click();
+    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    const ready=(await evidence(page)).received.find(frame=>frame.type==='ready'&&frame.path==='/v1/voice-call')!;
+    // The server-issued cleanup authority is durable before anything can interrupt the call.
+    await expect.poll(async()=>(await pendingCleanups()).find(row=>row.callId===ready.callId)?.chatId).toBeTruthy();
+    const chatId=(await pendingCleanups()).find(row=>row.callId===ready.callId)!.chatId;
+    expect(await chatStored(chatId)).toBe(true);
+    // Interrupt the live call without the in-page hangup flow completing: the
+    // page unloads, so the in-call cleanup can never run in this document.
+    await page.reload();
+    await expect.poll(()=>results.some(result=>result.chat_id===chatId&&result.accepted),{timeout:90_000}).toBe(true);
+    await expect.poll(()=>deleted.includes(chatId),{timeout:30_000}).toBe(true);
+    await expect.poll(()=>chatStored(chatId),{timeout:30_000}).toBe(false);
+    await expect.poll(async()=>(await pendingCleanups()).some(row=>row.chatId===chatId)).toBe(false);
+    // The deleted shell is closed: it is neither the open chat nor listed.
+    await expect.poll(()=>page.url().includes(chatId),{timeout:30_000}).toBe(false);
+    await expect(page.locator(`[data-chat-id="${chatId}"]`)).toHaveCount(0);
+    await testInfo.attach('interrupted-call-cleanup',{body:JSON.stringify({accepted:results.filter(result=>result.chat_id===chatId)}),contentType:'application/json'});
+  });
+
   // contract-test: direct surface=gui.web assertions=video-call.chat.transcripts,video-call.chat.typed-input,video-call.chat.call-events,video-call.audio.complete-turn-admission,video-call.audio.spoken-rich-response,video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing,chats.message.identity-idempotent
   test('uses one canonical turn for voice and typed input, preserves rich replies and retains its chat across navigation and reload',async({page},testInfo)=>{
-    test.setTimeout(240_000);
+    test.setTimeout(330_000);
     const imageProxyFixture = await installVoiceFixtureImageProxy(page);
     await installNativeVoiceInput(page);await observeRealTransport(page);
     await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
@@ -2276,10 +2319,52 @@ test.describe('Voice mode through ordinary chat', () => {
     await expect(page.getByTestId('chat-header-wrapper')).toHaveCount(0);
     await expect(page.getByTestId('message-user')).toHaveCount(0);
     await expect(page.getByTestId('message-assistant')).toHaveCount(0);
+    // The held utterance is visible as translucent live text in the composer,
+    // never as a chat message and never as editable draft content.
+    const liveTranscript=page.getByTestId('message-field').getByTestId('voice-call-live-transcript');
+    await expect(liveTranscript).toBeVisible();
+    await expect(liveTranscript).toHaveText('How do I make');
+    await expect(liveTranscript).toHaveAttribute('data-submitted','false');
+    expect(Number(await liveTranscript.evaluate(node=>getComputedStyle(node).opacity))).toBeLessThan(0.7);
+    await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]')).toBeEmpty();
+    // The transcript opens the full composer rather than a collapsed pill (3RZXL).
+    const composer=page.getByTestId('message-field');
+    await expect(composer).toHaveClass(/call-transcript-active/);
+    await expect(composer).not.toHaveClass(/(^|\s)(compact|inline-compact)(\s|$)/);
+    // The expanded surface is sized to the spoken text: no empty gap above it,
+    // and neither New chat nor Cancel appear beside/below it during a call.
+    const composerBox=(await composer.boundingBox())!;
+    const transcriptBox=(await liveTranscript.boundingBox())!;
+    expect(transcriptBox.y-composerBox.y).toBeLessThan(24);
+    expect(composerBox.height).toBeLessThan(transcriptBox.height+64);
+    await expect(page.getByTestId('new-chat-button')).toBeHidden();
+    await expect(page.getByTestId('input-dismiss-button')).toHaveCount(0);
+    // Only the spoken words show: no empty-field placeholder, attach or Send row.
+    await expect(composer.getByTestId('action-buttons')).toHaveCount(0);
+    expect(await composer.evaluate(node=>{
+      const empty=node.querySelector('.ProseMirror p.is-editor-empty:first-child');
+      return empty?getComputedStyle(empty,'::before').display:'none';
+    })).toBe('none');
+    // Record whether the spoken reply is dimmed word by word while it plays.
+    await page.evaluate(()=>{
+      const target=window as unknown as {__unspokenSamples?:number[]};
+      target.__unspokenSamples=[];
+      const registry=(CSS as unknown as {highlights?:Map<string,{size:number}>}).highlights;
+      setInterval(()=>target.__unspokenSamples!.push(registry?.get('assistant-speech-unspoken')?.size ?? 0),50);
+    });
     const resumedAt=await page.evaluate(()=>performance.now());
     await playNativeVoiceFixture(page);
     await waitForSpokenAssistant(page);
+    // Unspoken words render translucent during playback, then the whole reply
+    // becomes fully visible once speech finishes.
+    const unspokenSamples=()=>page.evaluate(()=>(window as unknown as {__unspokenSamples:number[]}).__unspokenSamples);
+    await expect.poll(async()=>(await unspokenSamples()).some(size=>size>0),
+      {timeout:60_000,message:'Assistant text must be dimmed until spoken'}).toBe(true);
+    await expect.poll(async()=>(await unspokenSamples()).slice(-3).every(size=>size===0),
+      {timeout:90_000,message:'Spoken reply must become fully visible after playback'}).toBe(true);
     await expect(page.getByTestId('message-user').filter({hasText:USER_SPEECH})).toHaveCount(1);
+    // Once admitted, the turn is a regular chat message and the preview clears.
+    await expect(liveTranscript).toHaveCount(0);
     const resumedSpeech=await evidence(page);
     const completed=resumedSpeech.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='transcript'&&frame.role==='user'&&frame.final);
     expect(completed).toHaveLength(1);expect(completed[0].messageId).toBe(pending.messageId);

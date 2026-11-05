@@ -8,8 +8,11 @@
  * Tests: exercised via CLI and targeted crypto/storage tests.
  */
 
+// SDK root export: implicit stored-CLI-login loading emits a one-time
+// DeprecationWarning (OPENMATES_SDK_CLI_SESSION). The CLI imports ./client.js.
+export { OpenMatesClient, OpenMatesApiKeyRequiredError, SDK_API_KEY_REQUIRED_CODE } from "./sdkRootClient.js";
+export type { OpenMatesClientOptions } from "./sdkRootClient.js";
 export {
-  OpenMatesClient,
   deriveAppUrl,
   INTEREST_TAG_IDS,
   MEMORY_TYPE_REGISTRY,
@@ -41,6 +44,10 @@ export { defaultCloneBranchForVersion } from "./server.js";
 export { SUPPORT_URL, renderSupportInfo } from "./support.js";
 export { OpenMates, OpenMatesSignupRequiredError, OpenMatesApiError, OpenMatesConfigError, OpenMatesUnavailableError } from "./sdk.js";
 export { APP_SKILL_METADATA } from "./generated/appSkills.js";
+export { SessionClient, SessionClientError, SessionTasks, SessionProjects } from "./sdkSession.js";
+export type { SessionSavedChatReadMetadata, SessionSavedChatMessageMetadata, SessionSavedChatReadOptions, SessionSavedChatRead, SessionSavedChatExactOptions, SessionSavedChatExactMessage, SessionMessageWindowCursor, SessionMessageWindowOptions, SessionMessageWindow, SessionClientOptions, SessionChatWithMetadata, SessionChat, SessionStreamEvent, SessionWorkScope, SessionTaskFilters, SessionProjectFilters, SessionExternalChat, SessionTaskCreate, SessionTaskPatch, SessionProjectCreate, SessionProjectPatch, SessionProjectUnlinkInput, SessionAnonymousOptions, SessionAnonymousOutcome, SessionAnonymousStreamEvent } from "./sdkSession.js";
+export { sortTasks } from "./sdkTaskOrder.js";
+export type { TaskOrderRow, TaskOrderOptions } from "./sdkTaskOrder.js";
 export {
   buildCreatePlanCriterionInput,
   buildCreatePlanLearningInput,
@@ -78,7 +85,6 @@ export type {
   ChatListPage,
   MemoryTypeDef,
   MemoryFieldDef,
-  OpenMatesClientOptions,
   BankTransferOrderDetails,
   BankTransferStatus,
   GiftCardBankTransferStatus,
@@ -153,3 +159,8 @@ export type {
 export type { BuyerAddress } from "./billingAddress.js";
 
 export type { CliTurnMetadata } from "./ownedTurnMetadata.js";
+
+export type { SessionFirstPageOptions, SessionFirstPagePublication, SessionFirstPageStore } from "./sdkFirstPage.js";
+export type { SessionChatDetailsHistory, SessionChatDetailsOptions, SessionChatDetailsMetadata, SessionChatDetailsMessage, SessionChatDetailsRead } from "./sdkSession.js";
+export { RustApiKeyClient, RustApiKeyClientError } from "./sdkApiKeyRust.js";
+export type { RustApiKeyOptions, RustApiKeyCallOptions } from "./sdkApiKeyRust.js";

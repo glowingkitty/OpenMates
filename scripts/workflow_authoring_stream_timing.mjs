@@ -4,7 +4,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
-import { OpenMatesClient, deriveAppUrl } from '../frontend/packages/openmates-cli/dist/index.js';
+import { OpenMatesClient, deriveAppUrl } from '../frontend/packages/openmates-cli/dist/cli-internal-client.js';
 
 async function readInput() {
   let source = '';

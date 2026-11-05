@@ -167,6 +167,13 @@ Ordinary client writes carry an absence or version/digest precondition, compared
 inside the existing embed transaction lock. A racing acknowledgement or writer
 therefore cannot invalidate a preflight decision by overwriting protected bytes.
 
+Ordinary `store_embed_diff` initialization also uses that database embed lock,
+shared with atomic diagram revision commits. The caller waits for the correlated
+version-row digest receipt. Browser observers reuse canonical ciphertext only
+after decrypting and verifying the expected source or patch; different proposed
+content remains a conflict. This prevents competing randomized encryptions from
+becoming duplicate initial history rows or spurious global error notifications.
+
 Fullscreen preview enrichment is a bounded, memory-only display projection tied
 to its source content and revision. It never replaces canonical ciphertext,
 rewraps a key, queues a write, or persists decrypted data. Projections expire on
@@ -320,6 +327,35 @@ Selected encrypted-image descriptors are copied into the child's encrypted
 content as `authored_media`; the source upload keeps its original ownership and
 parent. HTTP image URLs use the existing image delivery path. Neither validation
 nor rendering grants source access or performs provider enrichment.
+
+Selected rendition storage references also travel through existing sealed-output
+or ordinary legacy batch-claim metadata. Their owner/chat/message/subject/version
+and content commitment must match before an ACK or canonical write promotes
+them to the child's retained references. Pending and historical references survive
+Redis expiry; deletion checks other heads/history and active copy leases before
+releasing objects. Use the producer's actual message binding: legacy inline
+outputs can be bound to the opening user client message, rather than the visible
+assistant message. Source-message deletion tests therefore create the dependent
+card in a later turn. The new cleanup applies to personal chats; existing Team
+retention policy is unchanged.
+
+Web preview/fullscreen adapters retain original encrypted content separately from
+mounted `presentationContent`. Only the mounted view receives public-image
+aliases or owner-scoped decrypted blob URLs; these URLs never replace saved
+content. Typed adapters preserve structured points, money, dates, lists, zeroes
+and unknowns. Groups use real child IDs, keep unmappable records in their list,
+and label endpoint-only route joins as schematic. Movie/series cards are
+informational TV records with supplied posters, metadata and partial season
+guides; displaying them does not update viewing history or a watchlist.
+
+Sharing remains explicit. Public reads reject an explicitly unshared record,
+including carriers without optional app catalog sidecars. A shared carrier can
+expand only its declared, same-owner/chat/workspace children and matching child
+key wrappers. Sharing one child does not publish its unshared carrier, siblings,
+source uploads or provenance references. Existing legacy records without a share
+flag retain their compatibility path. Calendar downloads are explicit actions;
+authored dates and unsupplied ends retain their precision without a booking or
+automatic calendar write.
 
 API history hydration validates owner, chat, parent, membership and registered
 type before expanding carrier children. Durable client ciphertext stays opaque

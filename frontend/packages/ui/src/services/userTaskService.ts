@@ -33,7 +33,13 @@ export function taskAssigneeDisplayName(identity: UserTaskAssigneeIdentity | nul
 }
 export type UserTaskKeyWrapperType = "master" | "chat" | "project" | "plan" | "team";
 export type WorkflowRunProjectionKind = "last_run" | "current_run" | "next_run";
-export type ExternalChatProvider = "codex";
+export type ExternalChatProvider = "codex" | "claude";
+
+/** Product names for external-chat providers; Claude Code links never imply an assignee identity. */
+export function externalChatProviderDisplayName(provider: ExternalChatProvider | string): string {
+  if (provider === "claude") return "Claude Code";
+  return "Codex";
+}
 export type BlockedReasonCode = "needs_user_input" | "waiting_for_approval" | "missing_credentials" | "ambiguous_requirement" | "external_dependency" | "environment_unavailable" | "verification_failed" | "other";
 
 export interface ExternalChatContext {
@@ -444,13 +450,17 @@ async function requestJson<T>(path: string, init: RequestInit = {}): Promise<T> 
 }
 
 const EXTERNAL_CHAT_INDEX_INFO = "openmates-task-external-chat-index-v1";
-const EXTERNAL_CHAT_PROVIDERS: ReadonlySet<ExternalChatProvider> = new Set(["codex"]);
+const EXTERNAL_CHAT_PROVIDERS: ReadonlySet<ExternalChatProvider> = new Set(["codex", "claude"]);
+const CLAUDE_SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function assertExternalChatContext(context: ExternalChatContext): void {
   if (!EXTERNAL_CHAT_PROVIDERS.has(context.provider)) {
-    throw new Error(`Unsupported external chat provider '${context.provider}'. Expected codex.`);
+    throw new Error(`Unsupported external chat provider '${context.provider}'. Expected codex or claude.`);
   }
   if (!context.id) throw new Error("External chat id is required.");
+  if (context.provider === "claude" && !CLAUDE_SESSION_ID.test(context.id)) {
+    throw new Error("Claude Code external chat ids must be session UUIDs.");
+  }
 }
 
 function hex(bytes: Uint8Array): string {

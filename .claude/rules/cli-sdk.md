@@ -1,8 +1,14 @@
 ---
-description: Shared Rust client core, native CLI/TUI and synchronized library SDKs
-globs: frontend/packages/openmates-*/**,packages/openmates-*/**,frontend/apps/web_app/**,frontend/packages/ui/**,apple/**
+paths:
+  - "frontend/packages/openmates-cli/**"
+  - "frontend/packages/openmates-tui-prototype/**"
+  - "packages/openmates-*/**"
+  - "**/*.rs"
+  - "**/Cargo.toml"
+  - "specifications/surfaces/cli/**"
+  - "specifications/surfaces/sdk/**"
+  - "docs/architecture/platforms/cli-package.md"
 ---
-
 The approved architecture is recorded in `docs/architecture/platforms/cli-package.md`,
 `specifications/surfaces/cli/` and `specifications/surfaces/sdk/`. Keep these existing
 contracts authoritative rather than creating another architecture source. Shared
@@ -14,14 +20,23 @@ sync and persistence policy also follows `specifications/architecture/sync/` and
   Existing backend services and separate test/benchmark harnesses are exempt.
 - Shared Rust owns ALL reusable headless application operations, crypto, auth,
   storage policy, sync, reconnect and recovery across CLI/TUI, web and Apple.
-  SDK credentials and platform IO adapters are explicit; never discover the CLI
-  user's login. Parsing, UI and interactive profile selection stay in adapters.
+  Platform IO adapters are explicit. Parsing, UI and interactive profile
+  selection stay in adapters.
+- Public SDKs (npm, Python, Rust `openmates::sdk`) are API-key only and separate
+  from the CLI login (user decision): never read CLI state, session files,
+  profiles or keychains; a missing key is a typed error, never a login or
+  anonymous fallback. Password/imported-session login is CLI/TUI, web and Apple
+  session authority in shared Rust, not a public SDK mode. Each API key carries
+  its own wrapped master key, so API-key SDKs decrypt chats, messages and embeds
+  locally (memory only, zeroized); provide session-mode capabilities through the
+  API-key path rather than dropping them, and track remaining gaps as open work.
 - Web Svelte/TypeScript retains UI/DOM and thin browser APIs such as media and
   WebRTC. Apple retains native SwiftUI and platform hooks. Neither duplicates the
   reusable Rust behavior. Keep thin IndexedDB/SwiftData persistence adapters
   initially and preserve existing data; do not force a SQLite/OPFS migration.
 - Rust, npm and PyPI remain supported SDKs with matching public capabilities,
-  including relevant auth modes, operations, crypto, streaming, recovery and errors.
+  including API-key auth (plus explicit anonymous mode), operations, crypto,
+  streaming, recovery and errors.
   npm/Python are libraries, call library code directly and never launch the CLI.
   Preserve compatible interfaces where practical; document and version breaking changes.
 - Update the maintained capability matrix, shared schemas/protocol fixtures/crypto
@@ -44,12 +59,17 @@ sync and persistence policy also follows `specifications/architecture/sync/` and
   under matching full-application conditions. Do not assume minimal WASM overhead.
   Keep warm/renderer-only measurements separate.
 - Follow `architecture.sync` for bounded startup and on-demand sub-chat messages.
-  The approved startup parent-content budget is 20. Keep existing metadata,
+  The approved cold-start parent-content budget is 20; warm sync uses the cursor
+  feed without transcript content, and one-shot CLI commands perform no account
+  sync. Keep existing metadata,
   pagination, pinned-chat and draft behavior; a client cache count is not an
   authoritative account total. Real personal-dev benchmarks use ordinary bounded
   windows and representative existing chats, without forcing a full-account sync.
-- Primary CLI distribution is `cargo install` of its crates.io application crate;
-  publish the Rust SDK as a separate library crate. Use explicit versioned dev
+- Primary distribution is one crates.io crate `openmates`: `cargo install openmates`
+  installs the CLI/TUI; the SDK is re-exported as `openmates::sdk` (`cargo add
+  openmates --no-default-features` for SDK-only). The SDK core remains an internal
+  member crate. Python uses native PyO3 wheels; the npm SDK loads the portable
+  WASM build of the shared core. Use explicit versioned dev
   prereleases. GitHub prebuilt executable assets are outside this migration scope.
 - Keep the installed npm CLI and command operational during transition. Expose
   verified Rust alongside it early through a separate command or installation path

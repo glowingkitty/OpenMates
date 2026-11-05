@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_sha256",
+    "provenance",
+    "vectors",
+    "open_parity_limits"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "source_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "provenance": {
+      "type": "string"
+    },
+    "open_parity_limits": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "vectors": {
+      "type": "array",
+      "minItems": 11,
+      "maxItems": 11,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "key_b64",
+          "iv_b64",
+          "wire",
+          "ciphertext_sha256",
+          "native",
+          "opaque_browser"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "key_b64": {
+            "type": "string"
+          },
+          "iv_b64": {
+            "type": "string"
+          },
+          "wire": {
+            "enum": [
+              "legacy",
+              "om-fnv",
+              "om-python"
+            ]
+          },
+          "ciphertext_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "native": {
+            "const": "plaintext"
+          },
+          "opaque_browser": {
+            "enum": [
+              "plaintext",
+              "crypto-error"
+            ]
+          },
+          "plaintext": {
+            "type": "string"
+          },
+          "plaintext_repeat": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "character",
+              "count"
+            ],
+            "properties": {
+              "character": {
+                "const": "X"
+              },
+              "count": {
+                "const": 1000000
+              }
+            }
+          }
+        },
+        "oneOf": [
+          {
+            "required": [
+              "plaintext"
+            ],
+            "not": {
+              "required": [
+                "plaintext_repeat"
+              ]
+            }
+          },
+          {
+            "required": [
+              "plaintext_repeat"
+            ],
+            "not": {
+              "required": [
+                "plaintext"
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

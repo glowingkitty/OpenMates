@@ -165,7 +165,10 @@ def prepare_artifact(checkout: Path, store: Path) -> Path:
         locales = ui / "src/i18n/locales"
         shutil.rmtree(locales, ignore_errors=True)
         for script in ("build-translations.js", "validate-locales.js"):
-            result = subprocess.run([node, str(scripts / script)], cwd=ui, capture_output=True, text=True)
+            # The staged copy has no backend/apps, so the app-metadata key step (Step 8) is skipped
+            # here; the deploy translation gate runs it against the full checkout.
+            extra = ["--skip-app-keys"] if script == "validate-locales.js" else []
+            result = subprocess.run([node, str(scripts / script), *extra], cwd=ui, capture_output=True, text=True)
             if result.returncode:
                 raise RuntimeError(f"{script} failed: {(result.stderr or result.stdout)[-3000:]}")
         if source_commit(checkout) != commit:

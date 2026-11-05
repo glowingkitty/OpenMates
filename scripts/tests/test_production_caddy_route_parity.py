@@ -1,4 +1,5 @@
 # contract-test-file: infrastructure
+# Guard production route coverage and first-party credentialed CORS together.
 from pathlib import Path
 import re
 

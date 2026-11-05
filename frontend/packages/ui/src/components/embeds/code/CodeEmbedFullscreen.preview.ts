@@ -1,3 +1,7 @@
+import { authStore } from '../../../stores/authStore';
+import { webSocketService } from '../../../services/websocketService';
+import { interactiveHtmlFixture } from './interactiveHtmlPreviewFixture';
+
 /**
  * Preview mock data for CodeEmbedFullscreen.
  *
@@ -56,6 +60,23 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+  /** Live sandboxed HTML visual with escape probes; opens on the visual. */
+  interactiveHtml: {
+    ...defaultProps,
+    data: codeData(interactiveHtmlFixture(false), 'html', 'orbit.html', 55),
+    embedId: 'preview-interactive-html-fullscreen',
+    hasPreviousEmbed: false,
+    hasNextEmbed: false,
+  },
+  /** Real Code Run selection with API responses supplied by the focused component test. */
+  pythonDependencies: {
+    ...defaultProps,
+    data: codeData('import sympy\nimport numpy\nimport matplotlib.pyplot as plt\nfrom IPython.display import display\nprint(numpy.arange(3))', 'python', 'math_demo.py', 5),
+    embedId: 'preview-python-dependencies',
+    chatId: 'preview-code-run-chat',
+    hasPreviousEmbed: false,
+    hasNextEmbed: false,
+  },
 	/** Single embed — no navigation arrows */
 	singleEmbed: {
 		...defaultProps,
@@ -94,3 +115,13 @@ export const variants = {
 		hasNextEmbed: false
 	}
 };
+
+// Only the URL-selected dependency scenario needs an authenticated local UI state.
+// HTTP prepare/start are intercepted by its focused test; no real account is used.
+export const ready = (() => {
+  if (typeof window === 'undefined' || new URLSearchParams(window.location.search).get('variant') !== 'pythonDependencies') return;
+  const connect = webSocketService.connect;
+  webSocketService.connect = () => Promise.resolve();
+  window.addEventListener('pagehide', () => { webSocketService.connect = connect; }, { once: true });
+  authStore.set({ isAuthenticated: true, isInitialized: true });
+})();

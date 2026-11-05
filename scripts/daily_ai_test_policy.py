@@ -10,6 +10,7 @@ AI-specific filenames. Architecture: contracts/architecture/daily-ai-test-infere
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -25,6 +26,11 @@ BACKFILL_PENDING = "backfill_pending"
 REPLAY = "replay"
 _AI_ACTION_MARKERS = ("sendMessage(", "'chats', 'new'", "custom-send-message")
 _REPLAY_MARKERS = ("withMockMarker", "withLiveMockMarker", "testMockMarker")
+_COMMENTS = re.compile(r"/\*.*?\*/|(?<![:'\"])//[^\n]*", re.DOTALL)
+UNCLASSIFIED_HOLD_REASON = (
+    "Unclassified AI spec: add it to scripts/daily_ai_test_manifest.json "
+    "(manual_expensive or replay) or add a replay marker"
+)
 
 
 @dataclass(frozen=True)
@@ -87,8 +93,15 @@ def discover_specs(
     spec_names: Iterable[str],
     manifest: dict | None = None,
     spec_dir: Path = DEFAULT_SPEC_DIR,
+    *,
+    held: dict[str, str] | None = None,
 ) -> list[str]:
-    """Keep non-AI and explicit replay specs; reject unmarked AI from schedules."""
+    """Keep non-AI and explicit replay specs; reject unmarked AI from schedules.
+
+    Strict callers (audits) get a RuntimeError for an unclassified AI spec. The
+    nightly scheduler passes `held` instead: the spec is recorded there with a
+    reason and skipped, so one new spec cannot block every other test.
+    """
     excluded = excluded_specs(manifest)
     discovered: list[str] = []
     for spec_name in spec_names:
@@ -99,9 +112,13 @@ def discover_specs(
             source = source_path.read_text(encoding="utf-8")
         except OSError:
             source = ""
+        source = _COMMENTS.sub("", source)
         drives_ai = any(marker in source for marker in _AI_ACTION_MARKERS)
         has_replay = any(marker in source for marker in _REPLAY_MARKERS)
         if drives_ai and not has_replay:
+            if held is not None:
+                held[spec_name] = UNCLASSIFIED_HOLD_REASON
+                continue
             raise RuntimeError(
                 f"Unclassified AI spec cannot enter scheduled discovery: {spec_name}"
             )

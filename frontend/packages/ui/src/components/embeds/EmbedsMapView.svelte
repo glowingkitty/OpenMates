@@ -25,7 +25,7 @@
   import { EMBED_METADATA, normalizeEmbedType } from '../../data/embedRegistry.generated';
   import { userProfile } from '../../stores/userProfile';
   import type { Component } from 'svelte';
-  import { extractResultRoute, buildResultRoutePaths, buildResultMapMarkers } from './resultMapRoutes';
+  import { extractResultRoute, isResultRouteSchematic, compatibleResultPriceCurrency, buildResultRoutePaths, buildResultMapMarkers } from './resultMapRoutes';
   import { deduplicateResultViewEntries } from './resultViewEntries';
   import EmbedLeafletMap, { type MapMarker, type MapPathPoint, type MapRoutePath } from './EmbedLeafletMap.svelte';
   import { decodeToonContent, resolveEmbed, type EmbedData } from '../../services/embedResolver';
@@ -56,7 +56,7 @@
   const DateFilterIcon = getLucideIcon('calendar-days');
   const TypeFilterIcon = getLucideIcon('layers');
   function rangeFilterIcon(key: string) {
-    return getLucideIcon(key === 'price' ? 'euro' : key === 'rating' ? 'star' : 'clock-3');
+    return getLucideIcon(key === 'price' ? (includeAllResults ? 'banknote' : 'euro') : key === 'rating' ? 'star' : 'clock-3');
   }
 
   const MAX_VISIBLE_ENTRIES = 40;
@@ -73,6 +73,8 @@
     interactionMode?: 'open' | 'select';
     /** Parent fullscreen owns the scroll; render previews as a vertical grid. */
     fullscreen?: boolean;
+    includeAllResults?: boolean;
+    cardsOnly?: boolean;
     initialVisualTab?: 'map' | 'calendar';
   }
 
@@ -88,6 +90,7 @@
     lat?: number;
     lon?: number;
     route?: MapPathPoint[];
+    routeSchematic?: boolean;
     homeGeometry?: HomeMapGeometry;
     embedData?: EmbedData;
     decodedContent?: Record<string, unknown> | null;
@@ -121,6 +124,7 @@
     transferMinutes?: number;
     stops?: number;
     price?: number;
+    currency?: string;
     rsvpCount?: number;
     rating?: number;
     providers: string[];
@@ -164,6 +168,8 @@
     interactionMode = 'open',
     fullscreen = false,
     initialVisualTab = 'map',
+    includeAllResults = false,
+    cardsOnly = false,
   }: Props = $props();
 
   let entries = $state<MapViewEntry[]>([]);
@@ -205,12 +211,13 @@
     void loadEntries();
   }
 
+  const resultLimit = $derived(includeAllResults ? 50 : MAX_VISIBLE_ENTRIES);
   const highlightSet = $derived(new Set(highlightRefs));
   // Unresolved references remain internal so sync can recover them. Hosting
   // domains have a registered preview but no map/calendar coordinates.
   const eligibleEntries = $derived(entries.filter((entry) => entry.status === 'ready' && (
     (entry.lat != null && entry.lon != null) || (entry.route?.length ?? 0) > 0 ||
-    calendarEntryFromMapEntry(entry) != null || (normalizeEmbedType(entry.embedType ?? '') === 'hosting-domain' && entry.preview != null)
+    calendarEntryFromMapEntry(entry) != null || (includeAllResults && entry.preview != null) || (normalizeEmbedType(entry.embedType ?? '') === 'hosting-domain' && entry.preview != null)
   )));
   const categories = $derived.by(() => {
     const values = Array.from(new Set(eligibleEntries.map((entry) => entry.category)));
@@ -228,10 +235,11 @@
     return categoryFilteredEntries
       .filter(matchesActiveFilters)
       .slice()
-      .sort((a, b) => Number(b.highlighted) - Number(a.highlighted))
-      .slice(0, MAX_VISIBLE_ENTRIES);
+      .sort((a, b) => includeAllResults ? 0 : Number(b.highlighted) - Number(a.highlighted))
+      .slice(0, resultLimit);
   });
   const carouselEntries = $derived.by(() => {
+    if (includeAllResults) return visibleEntries;
     const mappable = visualTabs.length === 0
       ? visibleEntries.filter((entry) => normalizeEmbedType(entry.embedType ?? '') === 'hosting-domain' && entry.preview != null)
       : visibleEntries.filter((entry) => (entry.lat != null && entry.lon != null) || (entry.route?.length ?? 0) > 0);
@@ -246,13 +254,13 @@
     }
     return mappable;
   });
-  const isCarouselScoped = $derived(carouselEntries.length < visibleEntries.length || mapSelectionRefs.length > 0);
+  const isCarouselScoped = $derived(!includeAllResults && (carouselEntries.length < visibleEntries.length || mapSelectionRefs.length > 0));
   const activeGeometryRefs = $derived(mapSelectionRefs.length > 0
     ? new Set(mapSelectionRefs)
     : new Set([hoveredRef ?? selectedRef].filter((ref): ref is string => ref != null)));
   const mapMarkers = $derived<MapMarker[]>(buildResultMapMarkers(visibleEntries.map(entry => ({
     ref: entry.ref, title: entry.title, color: mapEntryColor(entry), lat: entry.lat, lon: entry.lon,
-    route: entry.route, homeGeometry: entry.homeGeometry,
+    route: entry.route, routeSchematic: entry.routeSchematic, homeGeometry: entry.homeGeometry,
     homeLabel: entry.homeGeometry ? `${entry.title} · ${homeMapLabel(entry.homeGeometry, $text)}` : undefined,
   })), activeGeometryRefs, mapSelectionKey));
   const endpointMarkerCount = $derived(mapMarkers.filter((marker) => marker.iconClass?.includes('marker-endpoint')).length);
@@ -275,7 +283,7 @@
       lon: (Math.min(...lons) + Math.max(...lons)) / 2,
     };
   });
-  const visualTabs = $derived<VisualTab[]>(deriveVisualTabs(Boolean(mapCenter), calendarEntries.length > 0));
+  const visualTabs = $derived<VisualTab[]>(cardsOnly ? [] : includeAllResults ? (mapCenter ? [{id: 'map', label: 'Map'}] : []) : deriveVisualTabs(Boolean(mapCenter), calendarEntries.length > 0));
   const selectedVisualTab = $derived.by(() => {
     if (visualTabs.some((tab) => tab.id === activeVisualTab)) return activeVisualTab;
     return visualTabs[0]?.id ?? 'map';
@@ -345,6 +353,8 @@
     const lon = firstNumber(lonValue);
     if (lat == null || lon == null) return null;
     if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
+    // 0/0 is a placeholder ("null island"), never a real venue: no map for it.
+    if (lat === 0 && lon === 0) return null;
     return { lat, lon };
   }
 
@@ -566,6 +576,7 @@
       transferMinutes: shortestTransferMinutes(layovers),
       stops: firstNumber(content?.stops, content?.transfers, content?.transfer_count),
       price: firstNumber(content?.price, content?.total_price, content?.min_price, content?.max_price),
+      currency: firstString(content?.currency, content?.price_currency),
       rsvpCount: firstNumber(content?.rsvp_count, content?.attendee_count, content?.going_count, content?.capacity_used),
       rating: firstNumber(content?.rating, content?.stars, content?.review_score),
       providers: extractProviders(content, segments),
@@ -630,7 +641,8 @@
       makeRangeControl(entriesToInspect, 'durationMinutes', 'Duration', 'number', 'min'),
       makeRangeControl(entriesToInspect, 'transferMinutes', 'Transfer time', 'number', 'min'),
       makeRangeControl(entriesToInspect, 'stops', 'Stops', 'number'),
-      makeRangeControl(entriesToInspect, 'price', 'Price', 'number'),
+      (!includeAllResults || compatibleResultPriceCurrency(entriesToInspect.map(entry => entry.facets)))
+        ? makeRangeControl(entriesToInspect, 'price', 'Price', 'number', includeAllResults ? compatibleResultPriceCurrency(entriesToInspect.map(entry => entry.facets)) : undefined) : null,
       makeRangeControl(entriesToInspect, 'rsvpCount', 'RSVP count', 'number'),
       makeRangeControl(entriesToInspect, 'rating', 'Rating', 'number'),
     ].filter((control): control is RangeFilterControl => control != null);
@@ -974,13 +986,14 @@
       lat: point.lat,
       lon: point.lon,
       route,
+      routeSchematic: includeAllResults ? isResultRouteSchematic(decodedContent) : undefined,
       homeGeometry,
       embedData,
       decodedContent,
       preview: null,
       facets: extractFacets(category, decodedContent),
     } satisfies MapViewEntry;
-    if ((entry.lat != null && entry.lon != null) || (entry.route?.length ?? 0) > 0 || calendarEntryFromMapEntry(entry) != null || normalizeEmbedType(embedData.type) === 'hosting-domain') {
+    if (includeAllResults || (entry.lat != null && entry.lon != null) || (entry.route?.length ?? 0) > 0 || calendarEntryFromMapEntry(entry) != null || normalizeEmbedType(embedData.type) === 'hosting-domain') {
       entry.preview = await resolveEntryPreview(entry);
     }
     entryCache.set(ref, { signature, entry });
@@ -1027,13 +1040,13 @@
     let resolvedEntries: MapViewEntry[] = [];
     // Cap unique results, not raw refs: aliases and overlapping searches must
     // neither repeat cards nor consume slots belonging to later unique events.
-    for (let offset = 0; offset < refs.length; offset += MAX_VISIBLE_ENTRIES) {
-      const batch = await Promise.all(refs.slice(offset, offset + MAX_VISIBLE_ENTRIES).map(resolveEntry));
+    for (let offset = 0; offset < refs.length; offset += resultLimit) {
+      const batch = await Promise.all(refs.slice(offset, offset + resultLimit).map(resolveEntry));
       if (generation !== loadGeneration) return;
-      resolvedEntries = deduplicateResultViewEntries([...resolvedEntries, ...batch]);
-      if (resolvedEntries.length >= MAX_VISIBLE_ENTRIES) break;
+      resolvedEntries = includeAllResults ? [...resolvedEntries, ...batch] : deduplicateResultViewEntries([...resolvedEntries, ...batch]);
+      if (resolvedEntries.length >= resultLimit) break;
     }
-    entries = resolvedEntries.slice(0, MAX_VISIBLE_ENTRIES);
+    entries = resolvedEntries.slice(0, resultLimit);
     hoveredRef = null;
     isLoading = false;
   }
@@ -1364,8 +1377,11 @@
     <div class="map-view-list" data-testid="embeds-map-view-list">
       <div class="map-view-carousel" data-testid="embeds-map-view-carousel" data-embed-result-context="results" aria-label="Result previews">
         {#each carouselEntries as entry}
-          <div class="map-view-card" data-testid="embeds-map-view-card" data-entry-status={entry.status} data-entry-category={entry.category} role="group" aria-label={entry.title}>
-            {#if entry.preview}
+          <div class="map-view-card" data-testid="embeds-map-view-card" data-entry-ref={entry.ref} data-entry-mapped={entry.lat != null && entry.lon != null || (entry.route?.length ?? 0) > 1 ? 'true' : 'false'} data-entry-status={entry.status} data-entry-category={entry.category} role="group" aria-label={entry.title}>
+            {#if includeAllResults && !cardsOnly && !(entry.lat != null && entry.lon != null) && (entry.route?.length ?? 0) < 2}
+                <p data-testid="results-view-unmapped">{$text('embeds.authoring.unmapped')}</p>
+              {/if}
+              {#if entry.preview}
               {@const Component = getRenderableComponent(entry.preview.component)}
               <Component {...entry.preview.props} />
             {/if}
@@ -1391,7 +1407,7 @@
               class:hovered={entry.ref === hoveredRef}
               class:dimmed={activeGeometryRefs.size > 0 && !activeGeometryRefs.has(entry.ref)}
               data-testid="embeds-map-view-card"
-              data-entry-status={entry.status}
+              data-entry-ref={entry.ref} data-entry-mapped={entry.lat != null && entry.lon != null || (entry.route?.length ?? 0) > 1 ? 'true' : 'false'} data-entry-status={entry.status}
               data-entry-category={entry.category}
               data-highlighted={entry.highlighted ? 'true' : 'false'}
               data-selected={selectedRef === entry.ref ? 'true' : 'false'}
@@ -1404,6 +1420,9 @@
               onfocusin={() => (hoveredRef = entry.ref)}
               onfocusout={() => handleEntryPointerLeave(entry.ref)}
             >
+              {#if includeAllResults && !cardsOnly && !(entry.lat != null && entry.lon != null) && (entry.route?.length ?? 0) < 2}
+                <p data-testid="results-view-unmapped">{$text('embeds.authoring.unmapped')}</p>
+              {/if}
               {#if entry.preview}
                 {@const Component = getRenderableComponent(entry.preview.component)}
                 <Component {...entry.preview.props} />
@@ -1437,7 +1456,10 @@
       </div>
     {/if}
 
-    <div class="results-view-pane" data-testid="embeds-results-view-pane" data-active-tab={selectedVisualTab}>
+    <div class="results-view-pane" class:has-route-note={includeAllResults && visibleEntries.some(entry => entry.routeSchematic)} data-testid="embeds-results-view-pane" data-active-tab={selectedVisualTab}>
+      {#if includeAllResults && visibleEntries.some(entry => entry.routeSchematic)}
+        <p class="results-route-note" data-testid="results-view-route-note">{$text('embeds.authoring.schematic_route')}</p>
+      {/if}
       {#if selectedVisualTab === 'calendar'}
         <div id="embeds-results-view-panel-calendar" role="tabpanel" aria-label="Calendar results">
           <ResultCalendarWeek entries={calendarEntries} {selectedRef} {hoveredRef}
@@ -1466,7 +1488,7 @@
                 markers={mapMarkers}
                 paths={routePaths}
                 height="100%"
-                minHeight="278px"
+                minHeight={includeAllResults ? "220px" : "278px"}
                 fitBounds={true}
                 scrollWheelZoom={false}
                 zoomControlPosition="topleft"
@@ -1846,6 +1868,25 @@
     background: var(--color-grey-20, #f3f3f3);
   }
 
+  .results-view-pane.has-route-note {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .results-route-note {
+    flex: 0 0 auto;
+    margin: 0;
+    padding: 6px 10px;
+    font-size: var(--font-size-xxs);
+    color: var(--color-font-secondary);
+  }
+
+  .has-route-note .map-view-map {
+    flex: 1;
+    min-height: 0;
+    height: auto;
+  }
+
   .map-view-list {
     position: relative;
     min-width: 0;
@@ -1866,6 +1907,26 @@
     scroll-padding: 14px;
     scroll-snap-type: x mandatory;
     scrollbar-width: thin;
+  }
+
+  /* Touch devices hide overlay scrollbars, so more cards to the right go unnoticed.
+     Resetting the standard properties lets the classic always-visible webkit bar apply. */
+  @media (hover: none) {
+    .map-view-carousel {
+      scrollbar-width: auto;
+      scrollbar-color: auto;
+    }
+    .map-view-carousel::-webkit-scrollbar {
+      height: 4px;
+    }
+    .map-view-carousel::-webkit-scrollbar-track {
+      background: transparent;
+      margin-inline: 14px;
+    }
+    .map-view-carousel::-webkit-scrollbar-thumb {
+      background-color: var(--color-grey-60);
+      border-radius: 2px;
+    }
   }
 
   .map-view-card {
@@ -1978,6 +2039,8 @@
       box-sizing: border-box;
       flex: 0 0 auto;
       min-width: 0;
+      /* Always leave a peek of the next card as a swipe affordance. */
+      width: min(300px, calc(100cqw - 64px));
       scroll-snap-align: start;
       scroll-snap-stop: always;
     }

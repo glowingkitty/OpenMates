@@ -143,7 +143,7 @@
         aria-label={$text(frame ? 'embeds.browse.live_frame' : 'embeds.browse.saved_frame')}>
         <img src={frame || savedFrame} alt={$text(frame ? 'embeds.browse.live_frame' : 'embeds.browse.saved_frame')} draggable="false" data-testid="browse-frame" />
       </button>
-    {:else}<p>{$text('embeds.browse.waiting_frame')}</p>{/if}
+    {:else}<p>{$text(terminal || ending ? 'embeds.browse.no_frame' : 'embeds.browse.waiting_frame')}</p>{/if}
   </div>
   {#if session?.status === 'user' && !ending}
     <p class="hint">{$text('embeds.browse.manual_hint')}</p>
@@ -161,7 +161,7 @@
       <button disabled={!manual} onclick={() => send({ kind: 'scroll', delta: -600 })}>{$text('embeds.browse.scroll_up')}</button>
       <button disabled={!manual} onclick={() => send({ kind: 'scroll', delta: 600 })}>{$text('embeds.browse.scroll_down')}</button>
     </div>
-  {:else if session && !ending}<p class="hint">{$text(session.status === 'paused' ? 'embeds.browse.paused_hint' : 'embeds.browse.watch_hint')}</p>{/if}
+  {:else if session && !ending && !terminal}<p class="hint">{$text(session.status === 'paused' ? 'embeds.browse.paused_hint' : 'embeds.browse.watch_hint')}</p>{/if}
 </section>
 
 <style>

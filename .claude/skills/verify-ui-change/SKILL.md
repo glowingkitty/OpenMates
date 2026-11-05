@@ -68,7 +68,7 @@ integration point only.
    and republish the candidate before continuing.
    Retrieve existing recordings. Successful `wait` retrieves the artifact; use
    `ci_coordinator.py result <request-id>` for failed/cancelled runs with a run ID.
-   Run the receipt's `codex_evidence_command` and select final links from its
+   Run the receipt's `ci_evidence_command` and select final links from its
    inventory: only the latest successful recording per requested check/flow, or
    its latest available failed recording if that request never succeeded. Include
    distinct required views; omit duplicates and superseded attempts, with no

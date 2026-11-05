@@ -591,8 +591,12 @@ skills:
       running unmodified user-supplied code or after the initial run plus two
       unprompted reruns. The sandbox installs supported dependency manifests,
       executes the selected file, streams terminal status, and returns safe
-      artifact metadata. Pricing is 5 credits per started minute of sandbox
-      runtime.
+      artifact metadata. The inline files are saved as code embeds and executed
+      automatically; no separate auto-execute flag is needed. A processing result
+      only acknowledges dispatch. Use the completed execution's checked terminal
+      output, exit code, and artifacts to explain the actual result; never claim
+      success or invent output while the execution is pending. Pricing is 5
+      credits per started minute of sandbox runtime.
     class_path: backend.apps.code.skills.run_code_skill.RunCodeSkill
     providers:
       - name: E2B
@@ -943,10 +947,12 @@ focuses:
     process_translation_key: focus_modes.code_project_planner.process
     systemprompt_translation_key: focus_modes.code_project_planner.systemprompt
     preprocessor_hint: >
-      Select when the user wants to plan, scope, design, specify, break down,
-      or structure a coding project, feature, app, migration, or multi-step
-      implementation before coding. Do not select for a single small code
-      question unless the user asks for planning or task breakdown.
+      Select only when the latest message, in any language, explicitly asks the
+      assistant to create a plan, roadmap, specification or task breakdown for a
+      software project, feature, app, migration or multi-step implementation
+      before coding. Prefer this over the generic plan focus for software work.
+      Do not select when planning words appear incidentally, for a single code
+      question, or when the user asks to write or fix code directly.
     systemprompt: |
       You are Project Planner, a senior software product engineer helping the user turn coding intent into an actionable, testable plan.
 

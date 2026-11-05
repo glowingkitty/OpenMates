@@ -11,9 +11,10 @@ CRATE = Path("frontend/packages/openmates-tui-native")
 TEMPLATES = Path("frontend/packages/openmates-cli/templates")
 FILES = {
     "assets/cli-command-catalog.json": "config/cli-command-catalog.json",
+    "assets/example-chat-index.json": "config/cli-example-chat-index.json",
     "assets/selfhost/core/docker-compose.no-webapp.yml": "backend/core/docker-compose.no-webapp.yml",
     "assets/licenses/legacy-cli-MIT.txt": "frontend/packages/openmates-cli/LICENSE",
-    "LICENSE": "LICENSE",
+    "LICENSE": "frontend/packages/openmates-cli/LICENSE",
     "tests/crypto_fixtures/chat_completion_recovery_vectors.json": "backend/tests/fixtures/chat_completion_recovery_vectors.json",
     "tests/crypto_fixtures/session-saved-chat-read.json": "tests/sdk-conformance/fixtures/session-saved-chat-read.json",
     "tests/fixtures/sdk-embed-version-content.json": "tests/sdk-conformance/fixtures/sdk-embed-version-content.json",
@@ -30,6 +31,17 @@ for name in (
     "caddy/preview/Caddyfile",
 ):
     FILES["assets/selfhost/" + name] = str(TEMPLATES / name)
+# Host reporter payload installed by `openmates server host-reporter install`
+# (source of truth: deployment/host_reporter/).
+for name in (
+    "openmates-host-reporter",
+    "README.md",
+    "systemd/openmates-host-facts-privileged.service",
+    "systemd/openmates-host-reporter.service",
+    "systemd/openmates-host-reporter.timer",
+    "systemd/99openmates-host-report",
+):
+    FILES["assets/host_reporter/" + name] = "deployment/host_reporter/" + name
 
 
 def synchronize(root: Path = ROOT, *, check: bool = False) -> dict:

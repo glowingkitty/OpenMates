@@ -1,5 +1,5 @@
 ---
-name: openmates:add-memory-type
+name: add-memory-type
 description: Create or update OpenMates user-facing memory/settings categories with minimal schemas, privacy review, app.yml metadata, i18n, docs, and tests
 user-invocable: true
 argument-hint: "<appId?> <memoryId?>"
@@ -12,7 +12,7 @@ or settings/memories category. OpenMates memories are user-facing, app-scoped
 encrypted data categories that users can manage in Settings > Apps and share
 with a mate only after per-conversation permission.
 
-This is not for Codex memory, agent memory, browser storage, or generic notes.
+This is not for agent memory, browser storage, or generic notes.
 
 ## Core Product Rule: Keep Memory Schemas Minimal
 

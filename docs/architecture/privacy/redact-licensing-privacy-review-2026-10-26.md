@@ -1,11 +1,16 @@
 # Redact licensing and privacy review
 
-Reviewed 2026-10-26 for TASK-6119, session 678f. Production activation is disabled.
+Initial review dated 2026-10-26 for TASK-6119, session 678f. The production
+hold described below records that initial decision. On 2026-10-28 the user
+accepted the limited telemetry tradeoff and approved feature.pii-protection@3
+for a default-on production rollout with a persistent basic-only setting,
+network-isolated inference, validated licensing and published disclosure. Actual
+release promotion still requires verified deployment evidence.
 The user requested reassessment of direct client licensing traffic, then preferred
 retaining the enabled development trial with a settings switch back to regex.
 Production still awaits sufficient SDK privacy terms and a lawful-basis assessment.
 
-## Decision
+## Initial decision (2026-10-26)
 
 Do not approve the current integration for production. Local text inference and
 third-party telemetry are separate properties. The observed browser calls did
@@ -19,7 +24,13 @@ a shared value, or assume that a proxy/custom Rust runtime removes the model's
 licensing obligations. A telemetry-free arrangement or altered reporting scheme
 needs written permission. No provider has been contacted.
 
-## Observed browser data flow
+The later implementation and storage changes are recorded in
+[the browser integration boundary](redact-browser-dev-trial.md#approved-production-implementation).
+The vendor-policy gaps below remain gaps; user acceptance and app disclosure
+do not establish an independently verified retention policy or a general legal
+compliance conclusion. No telemetry bypass or vendor outreach is authorized here.
+
+## Observed initial browser data flow
 
 Pinned SDK: `@desert-ant-labs/redact` and core 4.1.0, source
 `86b9b55fe8c61ec1c27c5b6383f545c6df1d6ceb`; model `redact@v0.4.0`.

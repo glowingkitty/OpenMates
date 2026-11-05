@@ -63,6 +63,10 @@ def get_skill_timeout(app_id: str, skill_id: str, arguments: Dict[str, Any]) -> 
     # location enrichment. The ordinary 20s envelope can cancel valid results.
     if (app_id, skill_id) == ("home", "search"):
         return 75.0
+    # Recipe searches queue for shared, spaced Edamam request slots, so a
+    # parallel batch can wait up to SEARCH_SLOT_BUDGET_SECONDS before its call.
+    if (app_id, skill_id) == ("nutrition", "search_recipes"):
+        return 60.0
     if (app_id, skill_id) != ("shopping", "search_products") or not isinstance(arguments, dict):
         return DEFAULT_SKILL_TIMEOUT
     requests = arguments.get("requests", [arguments])
@@ -600,10 +604,20 @@ async def execute_skill_with_multiple_requests(
             # Empty requests array
             return [{"error": "Empty requests array"}]
 
-    # Names, regions and classes are data within one trademark search. Legacy
-    # list expansion would turn them into scalar kwargs and lose regional scope.
+    # A Code Run file/dependency/argv list belongs to one execution bundle.
+    # Legacy expansion would wrap the bundle in requests and move private Vault
+    # context off the top level, so RunCodeSkill cannot validate or execute it.
+    # Names, regions and classes likewise belong to one trademark search.
+    # PDF read/view take one file plus a page list. Splitting the list into one
+    # request per page would also move the server-injected file index and Vault
+    # key off the top level, so the skill could no longer resolve its PDF.
     if should_keep_tasks_create_payload_as_single_request(app_id, skill_id, arguments) or (
-        app_id == "business" and skill_id == "search_trademarks"
+        (app_id, skill_id) in {
+            ("business", "search_trademarks"),
+            ("code", "run"),
+            ("pdf", "read"),
+            ("pdf", "view"),
+        }
     ):
         result = await execute_skill(
             app_id, skill_id, arguments, timeout,
@@ -633,7 +647,12 @@ async def execute_skill_with_multiple_requests(
             multiple_requests = multiple_requests[:MAX_PARALLEL_REQUESTS]
         
         # Convert to standard format: {"requests": [...]}
-        standard_arguments = {"requests": multiple_requests}
+        # Server-injected context (file index, Vault key, chat ids) is addressed
+        # to the dispatcher, not to one request, so it stays at the top level.
+        standard_arguments = {
+            "requests": multiple_requests,
+            **{key: value for key, value in arguments.items() if key.startswith("_")},
+        }
         logger.info(f"Executing skill '{app_id}.{skill_id}' with {len(multiple_requests)} requests in a single call (converted from legacy format)")
         # Make ONE call to the skill with all requests
         result = await execute_skill(

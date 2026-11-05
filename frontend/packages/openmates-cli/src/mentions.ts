@@ -151,7 +151,7 @@ export class WikipediaMentionResolutionError extends Error {
  */
 export const MODEL_ALIASES: Record<string, string> = {
   best: "gpt-6-astra",
-  fast: "qwen3-235b-a22b-2507",
+  fast: "mercury-3",
 };
 
 // ── Chat-eligible model IDs (for_app_skill === "ai.ask") ───────────────
@@ -205,8 +205,8 @@ export const CHAT_MODELS: ModelInfo[] = [
   { id: "gemini-3.5-flash-lite", name: "Gemini 3.5 Flash-Lite" },
   { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro" },
   { id: "deepseek-v4-flash", name: "DeepSeek V4 Flash" },
-  { id: "qwen3-235b-a22b-2507", name: "Qwen 3 256b" },
   { id: "qwen-3.8-27b", name: "Qwen 3.8 27B" },
+  { id: "mercury-3", name: "Mercury 3" },
   { id: "kimi-k2.5", name: "Kimi K2.5" },
   { id: "kimi-k2.6", name: "Kimi K2.6" },
   { id: "kimi-k3", name: "Kimi K3" },

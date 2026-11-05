@@ -1,0 +1,38 @@
+schema_version: 1
+specification: feature.assistant-answer-composition@1
+
+composition:
+  - id: useful-comparison-and-short-answer
+    given: Alice asks for a comparison of two supplied laptop specifications, while Bob asks for a one-sentence definition of a compiler.
+    when: Their assistants answer.
+    then: Alice gets a compact comparison with useful supplied links; Bob gets the requested sentence without media or unnecessary search.
+  - id: depth-on-request
+    given: Alice explicitly requests a detailed mathematical derivation.
+    when: The assistant composes the answer.
+    then: It gives the requested complete derivation with readable LaTeX and clear structure without imposing a short-answer word cap or decorative media.
+
+media:
+  - id: demonstration-and-visual-identification
+    given: Alice asks how to repair a bicycle puncture; Bob asks how two named architectural styles differ visually.
+    when: Available search skills can supply useful demonstrations or images.
+    then: Alice gets concise steps and a relevant tutorial video card; Bob gets a short explanation with selected image cards and source links.
+  - id: supplied-resource-and-no-search
+    given: Alice provides a relevant video and asks for text-only advice without searching.
+    when: The assistant answers from available context.
+    then: It respects the format and search restriction and does not claim to have watched the video from its title alone.
+
+budget:
+  - id: one-retrieval-and-one-enrichment
+    given: Alice asks about a landmark, and one factual retrieval plus one image query supplies sufficient information and visuals.
+    when: The assistant searches and answers.
+    then: It uses those two queries, shows the useful selected results, and makes no additional video or duplicate follow-up query for that request.
+  - id: batched-queries-and-expanded-research
+    given: An ordinary answer attempts to hide five image queries inside one batch, then issues a second separate web search; Bob asks for six vegetarian recipe ideas answered by one batched web search; another user explicitly requests a researched comparison of five destinations.
+    when: Search work is admitted.
+    then: The image batch runs one query and the second web call is skipped as over budget; Bob's single batched call runs up to the existing skill limit and reports omitted queries; the explicit comparison can use a bounded expanded plan and labels any material topic it did not research.
+
+delivery:
+  - id: image-only-turn-and-reload
+    given: Alice asks to see two architectural styles, and only image search is selected.
+    when: The assistant returns the real image references and Alice reloads the finished chat.
+    then: The model receives the required embed guidance, the selected cards render and open correctly in both states, and validation records actual queries and charges.

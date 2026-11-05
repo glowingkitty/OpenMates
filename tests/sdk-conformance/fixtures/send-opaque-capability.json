@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "id": "native.send.opaque-capability.v1",
+  "scope": "Synthetic native AES ports and isolated existing core WS protocol, no real CryptoKey/account/AI or runtime claim.",
+  "cases": [
+    "actual-native-raw-opaque-child-wrapper",
+    "native-raw-team-index-and-message-codec-held",
+    "opaque-default-id-only-chat-metadata",
+    "opaque-explicit-slug-public-send-no-http",
+    "bounded-plaintext-delivery-owner-op-key-denial-cancel",
+    "real-core-queued-protocol-with-encrypted-master-memories",
+    "final-outcome-generation-owner-credential-denial-master-refusal",
+    "nested-private-model-wipe",
+    "metadata-reservation-cancellation-without-drain",
+    "unpolled-update-owned-future-no-publication"
+  ],
+  "gaps": [
+    "Opaque explicit HKDF index remains required unfinished platform capability.",
+    "Browser/threeSDK facade/runtime/streaming-host admission/performance proof remains required."
+  ]
+}

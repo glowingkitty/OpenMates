@@ -8,9 +8,10 @@ See contracts/architecture/storage-lifecycle/contract.yml.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field as dataclass_field
 from datetime import datetime, timedelta, timezone
 import hashlib
+import json
 import os
 from typing import Any, AsyncIterator, Iterable
 from urllib.parse import urlparse
@@ -25,7 +26,8 @@ REFERENCE_COLLECTION_FIELDS = (
     ("embed_diffs", "id,archive_object_key,archive_superseded_object_key,archive_pending_object_key,archive_state"),
     ("upload_files", "id,files_metadata"),
     ("chat_message_archive_pages", "id,object_key,large_objects"),
-    ("chat_recovery_outputs", "id,payload_storage,payload_s3_key"),
+    ("chat_recovery_outputs", "id,subject_id,output_version,target_chat_id,content_commitment,payload_storage,payload_s3_key,s3_file_keys"),
+    ("chat_recovery_legacy_batch_claims", "id,output_asset_references"),
     ("directus_users", "id,profile_image_s3_key,encrypted_profileimage_url,vault_key_id"),
     ("usage_monthly_chat_summaries", "id,archive_s3_key"),
     ("usage_monthly_app_summaries", "id,archive_s3_key"),
@@ -48,6 +50,11 @@ class AccountDeletableEmbedRows:
 
     embeds: tuple[dict[str, Any], ...]
     versions: tuple[dict[str, Any], ...]
+    personal_chat_ids: tuple[str, ...] = ()
+    # Private preparation receipt, shared by the existing prepare/delete calls.
+    # Mutating this list does not change the immutable eligible-head snapshot.
+    output_asset_slots: list[dict[str, Any]] = dataclass_field(default_factory=list, compare=False)
+    orphan_output_versions: list[dict[str, Any]] = dataclass_field(default_factory=list, compare=False)
 
 
 async def _surviving_project_target_hashes(
@@ -118,6 +125,23 @@ async def load_account_deletable_embed_rows(
         hashlib.sha256(str(row["id"]).encode()).hexdigest()
         for row in owner_chats if row.get("id") and row.get("hashed_team_id")
     }
+    personal_target_ids = {str(row["id"]) for row in owner_chats if row.get("id") and not row.get("hashed_team_id")}
+    # These owner-bound personal fences were recorded while exact chat ownership
+    # was available. They retain the deletion target after a process crash and
+    # personal chat removal, without reconstructing authority from producer rows.
+    prior_fences = await _get_items_bounded(
+        directus_service=directus_service, collection="chat_recovery_chat_deletion_fences",
+        fields="id,chat_id,hashed_user_id,hashed_team_id",
+        item_filter={"hashed_user_id": {"_eq": user_id_hash}, "hashed_team_id": {"_null": True},
+                     "_or": [{"scope": {"_null": True}}, {"scope": {"_eq": "chat"}}]},
+    )
+    known_team_ids = {str(row["id"]) for row in owner_chats if row.get("id") and row.get("hashed_team_id")}
+    for fence in prior_fences:
+        if (not _non_empty(fence.get("chat_id")) or fence.get("id") != fence["chat_id"]
+                or fence.get("hashed_user_id") != user_id_hash or fence.get("hashed_team_id")):
+            raise RuntimeError("Personal deletion target fence is malformed")
+        if fence["chat_id"] not in known_team_ids:
+            personal_target_ids.add(fence["chat_id"])
     candidates = await _get_items_bounded(
         directus_service=directus_service, collection="embeds",
         fields="id,embed_id,hashed_embed_id,hashed_chat_id,hashed_task_id,s3_file_keys",
@@ -218,7 +242,10 @@ async def load_account_deletable_embed_rows(
     # the ownership authority, including for live copy leases. Check both the
     # preflight and refreshed snapshot before preparing deletion tombstones.
     _assert_no_live_embed_version_copy_leases(versions, now=datetime.now(timezone.utc))
-    return AccountDeletableEmbedRows(embeds=embeds, versions=tuple(versions))
+    return AccountDeletableEmbedRows(
+        embeds=embeds, versions=tuple(versions),
+        personal_chat_ids=tuple(sorted(personal_target_ids)),
+    )
 
 
 def collect_storage_references(
@@ -485,6 +512,7 @@ async def find_surviving_storage_references(
     candidates: set[tuple[str, str]],
     excluded_ids: dict[str, set[str]],
     encryption_service: Any | None = None,
+    excluded_output_asset_slots: Iterable[dict[str, Any]] = (),
 ) -> StorageReferenceInventory:
     """Scan reference metadata in bounded pages and retain candidate matches only."""
     if not candidates:
@@ -492,6 +520,7 @@ async def find_surviving_storage_references(
 
     surviving: set[tuple[str, str]] = set()
     ambiguous: list[dict[str, str]] = []
+    excluded_slots = {_output_asset_slot_identity(slot) for slot in excluded_output_asset_slots}
     for collection, fields in REFERENCE_COLLECTION_FIELDS:
         async for page in _iter_item_pages(
             directus_service=directus_service,
@@ -502,6 +531,7 @@ async def find_surviving_storage_references(
                 record_id = str(row.get("id") or "")
                 if record_id in excluded_ids.get(collection, set()):
                     continue
+                row = _without_output_asset_slots(collection, row, excluded_slots)
                 row_inventory = _inventory_for_reference_row(collection, row)
                 surviving.update(row_inventory.references & candidates)
                 ambiguous.extend(row_inventory.ambiguous)
@@ -533,6 +563,192 @@ async def find_surviving_storage_references(
     return StorageReferenceInventory(references=surviving, ambiguous=ambiguous)
 
 
+def _output_asset_slot_identity(slot: dict[str, Any]) -> tuple[Any, ...]:
+    return tuple(slot.get(key) for key in (
+        "source", "record_id", "embed_id", "output_version", "target_chat_id", "content_commitment",
+    )) + (json.dumps(slot.get("s3_file_keys"), sort_keys=True, separators=(",", ":")),)
+
+
+def _without_output_asset_slots(
+    collection: str, row: dict[str, Any], excluded: set[tuple[Any, ...]],
+) -> dict[str, Any]:
+    """Virtually omit only inspected metadata; other row references still count."""
+    if not excluded:
+        return row
+    source = {"chat_recovery_outputs": "sealed", "chat_recovery_legacy_batch_claims": "legacy"}.get(collection)
+    if source is None:
+        return row
+    entries = row.get("output_asset_references") if source == "legacy" else [row]
+    if not isinstance(entries, list):
+        return row
+    kept = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            kept.append(entry)
+            continue
+        slot = {
+            "source": source, "record_id": row.get("id"),
+            "embed_id": entry.get("embed_id") if source == "legacy" else entry.get("subject_id"),
+            "output_version": entry.get("output_version"), "target_chat_id": entry.get("target_chat_id"),
+            "content_commitment": entry.get("content_commitment"), "s3_file_keys": entry.get("s3_file_keys"),
+        }
+        if _output_asset_slot_identity(slot) not in excluded:
+            kept.append(entry)
+    if source == "legacy":
+        return {**row, "output_asset_references": kept}
+    return row if kept else {**row, "s3_file_keys": None}
+
+
+def _validated_output_asset_slots(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list) or len(value) > 128:
+        raise RuntimeError("Malformed output asset deletion receipt")
+    identities = set()
+    for slot in value:
+        if (not isinstance(slot, dict) or set(slot) != {
+                "source", "record_id", "embed_id", "output_version", "target_chat_id",
+                "content_commitment", "s3_file_keys"}
+                or slot["source"] not in {"sealed", "legacy"}
+                or any(not _non_empty(slot[key]) for key in ("record_id", "embed_id", "target_chat_id"))
+                or type(slot["output_version"]) is not int or slot["output_version"] < 1
+                or (slot["content_commitment"] is not None and (
+                    not isinstance(slot["content_commitment"], str)
+                    or len(slot["content_commitment"]) != 64
+                    or any(char not in "0123456789abcdef" for char in slot["content_commitment"])))
+                or slot["s3_file_keys"] is None):
+            raise RuntimeError("Malformed output asset deletion slot")
+        inventory = StorageReferenceInventory(references=set(), ambiguous=[])
+        _merge_selected_output_assets(inventory, slot["s3_file_keys"], "output_asset_slot", slot["record_id"])
+        identity = _output_asset_slot_identity(slot)
+        if inventory.ambiguous or identity in identities:
+            raise RuntimeError("Malformed output asset deletion references")
+        identities.add(identity)
+    return value
+
+
+async def _inspect_output_asset_slots(
+    *, directus_service: Any, user_id_hash: str,
+    embed_ids: Iterable[str] = (), target_chat_ids: Iterable[str] = (),
+    hashed_message_id: str | None = None,
+) -> list[dict[str, Any]]:
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+    selector = "embed_ids" if embed_ids else "target_chat_ids"
+    identities = sorted(set(embed_ids or target_chat_ids))
+    slots: dict[tuple[Any, ...], dict[str, Any]] = {}
+    for start in range(0, len(identities), 128):
+        selected = identities[start:start + 128]
+        after = None
+        while True:
+            result = await ChatRecoveryService(directus_service).execute("inspect_output_asset_references", {
+                "protocol_version": 1, "hashed_user_id": user_id_hash, selector: selected,
+                **({"after": after} if after is not None else {}),
+                **({"hashed_message_id": hashed_message_id} if hashed_message_id is not None else {}),
+            })
+            for slot in _validated_output_asset_slots(result.get("slots")):
+                if (slot["embed_id" if selector == "embed_ids" else "target_chat_id"] not in selected
+                        or (after is not None and _output_asset_cursor_key(slot) <= _output_asset_cursor_key(after))):
+                    raise RuntimeError("Output asset deletion selector or cursor mismatch")
+                slots[_output_asset_slot_identity(slot)] = slot
+            if "next_cursor" not in result:
+                raise RuntimeError("Output asset inventory pagination receipt is missing")
+            cursor = result["next_cursor"]
+            if cursor is None:
+                break
+            if (not isinstance(cursor, dict) or set(cursor) != {"source", "record_id", "embed_id", "output_version"}
+                    or cursor.get("source") not in {"legacy", "sealed"}
+                    or any(not _non_empty(cursor.get(key)) for key in ("record_id", "embed_id"))
+                    or type(cursor.get("output_version")) is not int or cursor["output_version"] < 1
+                    or (after is not None and _output_asset_cursor_key(cursor) <= _output_asset_cursor_key(after))
+                    or any(_output_asset_cursor_key(slot) > _output_asset_cursor_key(cursor)
+                           for slot in result["slots"])):
+                raise RuntimeError("Output asset inventory cursor did not advance")
+            after = cursor
+    return list(slots.values())
+
+
+def _output_asset_cursor_key(value: dict[str, Any]) -> tuple[Any, ...]:
+    return tuple(value[key] for key in ("source", "record_id", "embed_id", "output_version"))
+
+
+async def _release_output_asset_slots(
+    *, directus_service: Any, user_id_hash: str, slots: list[dict[str, Any]],
+) -> None:
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+    remaining = iter(slots)
+    pending = next(remaining, None)
+    while pending is not None:
+        selected = []
+        while pending is not None and len(selected) < 128:
+            size = len(json.dumps([*selected, pending], ensure_ascii=False, separators=(",", ":")).encode())
+            if size > 480 * 1024:
+                if not selected:
+                    raise RuntimeError("An atomic output asset deletion slot exceeds the byte budget")
+                break
+            selected.append(pending)
+            pending = next(remaining, None)
+        result = await ChatRecoveryService(directus_service).execute("release_output_asset_references", {
+            "protocol_version": 1, "hashed_user_id": user_id_hash, "slots": selected,
+        })
+        released = _validated_output_asset_slots(result.get("released"))
+        retained = _validated_output_asset_slots(result.get("retained"))
+        actual = [_output_asset_slot_identity(slot) for slot in [*released, *retained]]
+        if len(actual) != len(set(actual)) or set(actual) != {_output_asset_slot_identity(slot) for slot in selected}:
+            raise RuntimeError("Output asset release receipt identity mismatch")
+        if retained:
+            # Never activate virtually prepared tombstones after a fresh
+            # survivor check kept a dependency. The prepared sweeper rechecks.
+            raise RuntimeError("Output asset references still have surviving content")
+
+
+def _merge_output_asset_slots(inventory: StorageReferenceInventory, slots: Iterable[dict[str, Any]]) -> None:
+    for slot in slots:
+        _merge_selected_output_assets(inventory, slot["s3_file_keys"], "output_asset_slot", slot["record_id"])
+
+
+async def _account_output_asset_slots(
+    *, directus_service: Any, user_id_hash: str, eligible: AccountDeletableEmbedRows,
+) -> list[dict[str, Any]]:
+    slots = await _inspect_output_asset_slots(
+        directus_service=directus_service, user_id_hash=user_id_hash,
+        target_chat_ids=eligible.personal_chat_ids,
+    )
+    eligible_ids = {str(row["embed_id"]) for row in (*eligible.embeds, *eligible.versions) if row.get("embed_id")}
+    pending_ids = sorted({slot["embed_id"] for slot in slots} - eligible_ids)
+    protected_ids: set[str] = set()
+    orphan_history: list[dict[str, Any]] = []
+    for start in range(0, len(pending_ids), 128):
+        selected = pending_ids[start:start + 128]
+        heads = await _get_items_bounded(
+            directus_service=directus_service, collection="embeds", fields="id,embed_id",
+            item_filter={"embed_id": {"_in": selected}},
+        )
+        protected_ids.update(str(row["embed_id"]) for row in heads if row.get("embed_id"))
+        history = await _get_items_bounded(
+            directus_service=directus_service, collection="embed_diffs",
+            fields="id,embed_id,hashed_user_id,archive_object_key,archive_superseded_object_key,archive_pending_object_key,archive_state,archive_copy_lease_until",
+            item_filter={"embed_id": {"_in": selected}},
+        )
+        for row in history:
+            if row.get("embed_id") not in selected or not _non_empty(row.get("id")):
+                raise RuntimeError("Output asset version inventory identity mismatch")
+            if row.get("hashed_user_id") != user_id_hash:
+                protected_ids.add(row["embed_id"])
+        orphan_history.extend(history)
+        hashes = {hashlib.sha256(embed_id.encode()).hexdigest(): embed_id for embed_id in selected}
+        wrappers = await _get_items_bounded(
+            directus_service=directus_service, collection="embed_keys", fields="id,hashed_embed_id",
+            item_filter={"hashed_embed_id": {"_in": sorted(hashes)}},
+        )
+        for wrapper in wrappers:
+            if wrapper.get("hashed_embed_id") not in hashes:
+                raise RuntimeError("Output asset wrapper inventory identity mismatch")
+            protected_ids.add(hashes[wrapper["hashed_embed_id"]])
+    eligible.orphan_output_versions[:] = [row for row in orphan_history if row["embed_id"] not in protected_ids]
+    _assert_no_live_embed_version_copy_leases(eligible.orphan_output_versions, now=datetime.now(timezone.utc))
+    return [slot for slot in slots if slot["embed_id"] not in protected_ids]
+
+
 async def persist_account_storage_tombstones(
     *,
     directus_service: Any,
@@ -558,6 +774,10 @@ async def persist_account_storage_tombstones(
             directus_service=directus_service, user_id_hash=user_id_hash,
         )
     embeds = eligible_embed_rows.embeds
+    asset_slots = await _account_output_asset_slots(
+        directus_service=directus_service, user_id_hash=user_id_hash, eligible=eligible_embed_rows,
+    )
+    eligible_embed_rows.output_asset_slots[:] = asset_slots
     uploads = await _get_items_bounded(
         directus_service=directus_service,
         collection="upload_files",
@@ -578,10 +798,10 @@ async def persist_account_storage_tombstones(
     )
 
     additional_rows: dict[str, list[dict[str, Any]]] = {}
-    additional_rows["embed_diffs"] = list(eligible_embed_rows.versions)
+    additional_rows["embed_diffs"] = [*eligible_embed_rows.versions, *eligible_embed_rows.orphan_output_versions]
     for collection, fields in (
         ("chat_message_archive_pages", "id,object_key,large_objects"),
-        ("chat_recovery_outputs", "id,payload_storage,payload_s3_key"),
+        ("chat_recovery_outputs", "id,payload_storage,payload_s3_key,s3_file_keys"),
     ):
         additional_rows[collection] = await _get_items_bounded(
             directus_service=directus_service,
@@ -599,6 +819,7 @@ async def persist_account_storage_tombstones(
         uploads=uploads,
         cold_manifests=cold_manifests,
     )
+    _merge_output_asset_slots(inventory, asset_slots)
     for collection, rows in additional_rows.items():
         for row in rows:
             row_inventory = _inventory_for_reference_row(collection, row)
@@ -612,7 +833,10 @@ async def persist_account_storage_tombstones(
             str(row["id"]) for row in cold_manifests if row.get("id")
         },
         **{
-            collection: {str(row["id"]) for row in rows if row.get("id")}
+            collection: {str(row["id"]) for row in rows if row.get("id") and (
+                collection != "chat_recovery_outputs" or row.get("s3_file_keys") is None
+                or any(slot["source"] == "sealed" and slot["record_id"] == str(row["id"])
+                       for slot in asset_slots))}
             for collection, rows in additional_rows.items()
         },
     }
@@ -699,6 +923,7 @@ async def persist_account_storage_tombstones(
         candidates=inventory.references,
         excluded_ids=excluded_ids,
         encryption_service=encryption_service,
+        excluded_output_asset_slots=asset_slots,
     )
     return await persist_reference_safe_tombstones(
         directus_service=directus_service,
@@ -733,21 +958,27 @@ async def fence_account_chats_for_deletion(
     fenced = 0
     for chat in chats:
         state = str(chat.get("storage_state") or "hot")
-        if state == "deleting":
-            continue
-        version = int(chat.get("archive_version") or 1)
-        updated = await directus_service.update_item_if_version(
-            "chats",
-            str(chat["id"]),
-            {"storage_state": "deleting", "archive_version": version + 1},
-            version,
-            version_field="archive_version",
-            extra_filters={"storage_state": state},
-            admin_required=True,
-        )
-        if not updated:
-            raise RuntimeError("Account chat changed while deletion was being fenced")
-        fenced += 1
+        if state != "deleting":
+            version = int(chat.get("archive_version") or 1)
+            updated = await directus_service.update_item_if_version(
+                "chats",
+                str(chat["id"]),
+                {"storage_state": "deleting", "archive_version": version + 1},
+                version,
+                version_field="archive_version",
+                extra_filters={"storage_state": state},
+                admin_required=True,
+            )
+            if not updated:
+                raise RuntimeError("Account chat changed while deletion was being fenced")
+            fenced += 1
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+        receipt = await ChatRecoveryService(directus_service).execute("invalidate_deletion", {
+            "protocol_version": 1, "hashed_user_id": user_id_hash, "scope": "chat", "chat_id": str(chat["id"]),
+        })
+        if receipt.get("chat_deletion_fenced") is not True or receipt.get("chat_id") != str(chat["id"]):
+            raise RuntimeError("Personal deletion target fence was not confirmed")
     segments = await _get_items_bounded(
         directus_service=directus_service,
         collection="chat_message_archive_segments",
@@ -789,6 +1020,41 @@ async def fence_chat_for_deletion(*, directus_service: Any, chat_id: str) -> boo
     )
     if not updated:
         raise RuntimeError("Chat changed while deletion was being fenced")
+    return True
+
+
+async def fence_message_for_asset_deletion(
+    *, directus_service: Any, user_id_hash: str, chat_id: str, message_id: str,
+) -> bool:
+    """Fence one personal message, retaining existing Team/local-only behavior.
+
+    The internal transaction rechecks the current owner and persists only the
+    exact message hash. A missing hot message can reuse its durable fence.
+    """
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError, ChatRecoveryService
+
+    chats = await _get_items_bounded(
+        directus_service=directus_service, collection="chats", fields="id,hashed_user_id,hashed_team_id",
+        item_filter={"id": {"_eq": chat_id}},
+    )
+    if len(chats) > 1 or any(row.get("id") != chat_id for row in chats):
+        raise RuntimeError("Message deletion chat inventory identity mismatch")
+    if chats and chats[0].get("hashed_team_id"):
+        return False
+    try:
+        receipt = await ChatRecoveryService(directus_service).execute("invalidate_deletion", {
+            "protocol_version": 1, "hashed_user_id": user_id_hash, "scope": "message",
+            "chat_id": chat_id, "message_id": message_id,
+        })
+    except ChatRecoveryProtocolError as exc:
+        if not chats and exc.status_code == 404 and exc.code == "chat_not_found":
+            return False
+        raise
+    expected_hash = hashlib.sha256(message_id.encode()).hexdigest()
+    if (set(receipt) != {"message_deletion_fenced", "chat_id", "hashed_message_id"}
+            or receipt["message_deletion_fenced"] is not True or receipt["chat_id"] != chat_id
+            or receipt["hashed_message_id"] != expected_hash):
+        raise RuntimeError("Exact message deletion fence was not confirmed")
     return True
 
 
@@ -859,15 +1125,17 @@ def _assert_no_live_recovery_output_copy_leases(rows: Iterable[dict[str, Any]], 
 
 
 async def assert_no_active_chat_recovery_output_writer_leases(
-    *, directus_service: Any, chat_id: str, now: datetime,
+    *, directus_service: Any, chat_id: str, now: datetime, hashed_message_id: str | None = None,
 ) -> None:
     """Wait for root and target output upload intents after the chat fence."""
     rows: dict[str, dict[str, Any]] = {}
-    for field in ("root_chat_id", "target_chat_id"):
+    for field in (("target_chat_id",) if hashed_message_id is not None else ("root_chat_id", "target_chat_id")):
         for row in await _get_items_bounded(
             directus_service=directus_service, collection="chat_recovery_outputs",
             fields="id,state,writer_lease_until,payload_storage,payload_s3_key",
-            item_filter={field: {"_eq": chat_id}, "state": {"_eq": "PREPARING"}},
+            item_filter={field: {"_eq": chat_id}, "state": {"_eq": "PREPARING"},
+                         **({"hashed_message_id": {"_eq": hashed_message_id}}
+                            if hashed_message_id is not None else {})},
         ):
             rows[str(row.get("id"))] = row
     _assert_no_live_recovery_output_copy_leases(rows.values(), now=now)
@@ -949,30 +1217,54 @@ async def prepare_orphan_embed_version_deletion(
     *, directus_service: Any, deleted_embeds: Iterable[dict[str, Any]],
     deleted_embed_row_ids: Iterable[str], user_id_hash: str,
     regions: tuple[str, ...], now: datetime,
+    target_chat_id: str | None = None,
+    hashed_message_id: str | None = None,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     """Prepare purge and row deletion for versions with no remaining embed row."""
     deleted_ids = {str(value) for value in deleted_embed_row_ids}
     embed_ids = {
         str(row["embed_id"]) for row in deleted_embeds
-        if str(row.get("id")) in deleted_ids and row.get("embed_id")
+        if (str(row.get("id")) in deleted_ids or str(row.get("embed_id")) in deleted_ids) and row.get("embed_id")
     }
+    if target_chat_id is not None and hashed_message_id is not None:
+        await assert_no_active_chat_recovery_output_writer_leases(
+            directus_service=directus_service, chat_id=target_chat_id,
+            hashed_message_id=hashed_message_id, now=now,
+        )
+    slots = await _inspect_output_asset_slots(
+        directus_service=directus_service, user_id_hash=user_id_hash,
+        **({"target_chat_ids": [target_chat_id]} if target_chat_id else {"embed_ids": embed_ids}),
+        hashed_message_id=hashed_message_id,
+    )
+    embed_ids.update(slot["embed_id"] for slot in slots)
+    orphan_ids: set[str] = set()
     version_rows: list[dict[str, Any]] = []
     for embed_id in sorted(embed_ids):
-        owner_filter = {
-            "embed_id": {"_eq": embed_id},
-            "hashed_user_id": {"_eq": user_id_hash},
-        }
+        subject_filter = {"embed_id": {"_eq": embed_id}}
         if await _get_items_bounded(
             directus_service=directus_service, collection="embeds",
-            fields="id", item_filter=owner_filter,
+            fields="id", item_filter=subject_filter,
         ):
             continue
-        version_rows.extend(await _get_items_bounded(
+        if await _get_items_bounded(
+            directus_service=directus_service, collection="embed_keys", fields="id",
+            item_filter={"hashed_embed_id": {"_eq": hashlib.sha256(embed_id.encode()).hexdigest()}},
+        ):
+            continue
+        history = await _get_items_bounded(
             directus_service=directus_service, collection="embed_diffs",
-            fields="id,archive_object_key,archive_superseded_object_key,archive_pending_object_key,archive_state", item_filter=owner_filter,
-        ))
+            fields="id,embed_id,hashed_user_id,archive_object_key,archive_superseded_object_key,archive_pending_object_key,archive_state,archive_copy_lease_until",
+            item_filter=subject_filter,
+        )
+        if any(row.get("hashed_user_id") != user_id_hash for row in history):
+            continue
+        orphan_ids.add(embed_id)
+        version_rows.extend(history)
+    slots = [slot for slot in slots if slot["embed_id"] in orphan_ids]
+    _assert_no_live_embed_version_copy_leases(version_rows, now=now)
 
     deleting = StorageReferenceInventory(references=set(), ambiguous=[])
+    _merge_output_asset_slots(deleting, slots)
     for row in version_rows:
         inventory = _inventory_for_reference_row("embed_diffs", row)
         deleting.references.update(inventory.references)
@@ -981,29 +1273,58 @@ async def prepare_orphan_embed_version_deletion(
     surviving = await find_surviving_storage_references(
         directus_service=directus_service, candidates=deleting.references,
         excluded_ids={"embed_diffs": set(version_ids)},
+        excluded_output_asset_slots=slots,
     )
     tombstones = await persist_reference_safe_tombstones(
         directus_service=directus_service, deleting=deleting, surviving=surviving,
         regions=regions, now=now,
     )
+    versioned = {row["embed_id"] for row in version_rows}
+    await _release_output_asset_slots(
+        directus_service=directus_service, user_id_hash=user_id_hash,
+        slots=[slot for slot in slots if slot["embed_id"] not in versioned],
+    )
     return tombstones, version_ids
 
 
-async def load_chat_embed_rows(*, directus_service: Any, hashed_chat_id: str) -> list[dict[str, Any]]:
+async def load_chat_embed_rows(
+    *, directus_service: Any, hashed_chat_id: str, hashed_message_id: str | None = None,
+) -> list[dict[str, Any]]:
     """Capture embed identity before legacy chat deletion removes its rows."""
     return await _get_items_bounded(
         directus_service=directus_service, collection="embeds",
-        fields="id,embed_id", item_filter={"hashed_chat_id": {"_eq": hashed_chat_id}},
+        fields="id,embed_id", item_filter={"hashed_chat_id": {"_eq": hashed_chat_id},
+                                          **({"hashed_message_id": {"_eq": hashed_message_id}}
+                                             if hashed_message_id is not None else {})},
     )
 
 
-async def delete_embed_version_rows(*, directus_service: Any, version_ids: Iterable[str]) -> int:
+async def delete_embed_version_rows(
+    *, directus_service: Any, version_ids: Iterable[str], release_output_assets: bool = True,
+) -> int:
     """Delete only the version rows whose purge authority was prepared."""
     ids = list(dict.fromkeys(str(value) for value in version_ids))
+    subjects: dict[str, set[str]] = {}
+    for start in range(0, len(ids), REFERENCE_SCAN_PAGE_SIZE) if release_output_assets else ():
+        rows = await _get_items_bounded(
+            directus_service=directus_service, collection="embed_diffs", fields="id,embed_id,hashed_user_id",
+            item_filter={"id": {"_in": ids[start:start + REFERENCE_SCAN_PAGE_SIZE]}},
+        )
+        for row in rows:
+            if row.get("id") not in ids or not _non_empty(row.get("embed_id")) or not _non_empty(row.get("hashed_user_id")):
+                raise RuntimeError("Embed version deletion identity is unavailable")
+            subjects.setdefault(row["hashed_user_id"], set()).add(row["embed_id"])
+    slots_by_owner = {
+        owner: await _inspect_output_asset_slots(
+            directus_service=directus_service, user_id_hash=owner, embed_ids=embed_ids,
+        ) for owner, embed_ids in subjects.items()
+    }
     for start in range(0, len(ids), REFERENCE_SCAN_PAGE_SIZE):
         batch = ids[start:start + REFERENCE_SCAN_PAGE_SIZE]
         if not await directus_service.bulk_delete_items("embed_diffs", batch):
             raise RuntimeError("Failed to delete orphan embed version rows")
+    for owner, slots in slots_by_owner.items():
+        await _release_output_asset_slots(directus_service=directus_service, user_id_hash=owner, slots=slots)
     return len(ids)
 
 
@@ -1034,11 +1355,21 @@ async def delete_account_storage_reference_rows(
             directus_service=directus_service, user_id_hash=user_id_hash,
         )
     archive_ids = await _account_archive_ids(directus_service, user_id_hash)
+    deleted_versions = await delete_embed_version_rows(
+        directus_service=directus_service,
+        version_ids=[row["id"] for row in (*eligible_embed_rows.versions, *eligible_embed_rows.orphan_output_versions)],
+        release_output_assets=False,
+    )
+    await _release_output_asset_slots(
+        directus_service=directus_service, user_id_hash=user_id_hash,
+        slots=eligible_embed_rows.output_asset_slots,
+    )
     specifications = (
         ("account_export_parts", {"hashed_user_id": {"_eq": user_id_hash}}),
         ("account_export_jobs", {"hashed_user_id": {"_eq": user_id_hash}}),
         ("upload_files", {"user_id": {"_eq": user_id}}),
-        ("chat_recovery_outputs", {"hashed_user_id": {"_eq": user_id_hash}, "root_hashed_team_id": {"_null": True}}),
+        ("chat_recovery_outputs", {"hashed_user_id": {"_eq": user_id_hash}, "root_hashed_team_id": {"_null": True},
+                                   "s3_file_keys": {"_null": True}}),
         ("chat_message_archive_pages", {"hashed_user_id": {"_eq": user_id_hash}, "hashed_team_id": {"_null": True}}),
         ("chat_message_archive_segments", {"hashed_user_id": {"_eq": user_id_hash}, "hashed_team_id": {"_null": True}}),
         ("user_task_archives", {"hashed_user_id": {"_eq": user_id_hash}}),
@@ -1057,10 +1388,7 @@ async def delete_account_storage_reference_rows(
             collection=collection,
             item_filter=item_filter,
         )
-    deleted["embed_diffs"] = await delete_embed_version_rows(
-        directus_service=directus_service,
-        version_ids=[row["id"] for row in eligible_embed_rows.versions],
-    )
+    deleted["embed_diffs"] = deleted_versions
     deleted["chat_diagram_revision_commits"] = await delete_chat_diagram_revision_receipts(
         directus_service=directus_service,
         embed_ids=[row.get("embed_id") for row in eligible_embed_rows.embeds],
@@ -1126,6 +1454,27 @@ def _add_direct_reference(
     inventory.references.add((logical_bucket, object_key))
 
 
+def _merge_selected_output_assets(
+    inventory: StorageReferenceInventory, entries: Any, source: str, record_id: str,
+) -> None:
+    """Read bounded server-owned metadata without unsealing or granting assets."""
+    if entries is None:
+        return
+    if not isinstance(entries, list) or len(entries) > 64:
+        inventory.ambiguous.append(_ambiguity(source, record_id, "invalid_selected_asset_references"))
+        return
+    seen: set[str] = set()
+    for entry in entries:
+        key = entry.get("key") if isinstance(entry, dict) else None
+        if (not isinstance(entry, dict) or set(entry) != {"bucket", "key"}
+                or entry.get("bucket") != "chatfiles" or not isinstance(key, str)
+                or not key.strip() or len(key) > 4096 or key in seen):
+            inventory.ambiguous.append(_ambiguity(source, record_id, "invalid_selected_asset_reference"))
+            continue
+        seen.add(key)
+        inventory.references.add(("chatfiles", key))
+
+
 def _inventory_for_reference_row(
     collection: str,
     row: dict[str, Any],
@@ -1136,6 +1485,26 @@ def _inventory_for_reference_row(
         return collect_storage_references(embeds=[], uploads=[row])
     if collection == "cold_archive_manifests":
         return collect_storage_references(embeds=[], uploads=[], cold_manifests=[row])
+
+    if collection == "chat_recovery_legacy_batch_claims":
+        inventory = StorageReferenceInventory(references=set(), ambiguous=[])
+        entries = row.get("output_asset_references")
+        if entries is None:
+            return inventory
+        record_id = str(row.get("id") or "unknown")
+        if (not isinstance(entries, list) or len(entries) > 128
+                or len(json.dumps(entries, ensure_ascii=False, separators=(",", ":")).encode()) > 512 * 1024):
+            inventory.ambiguous.append(_ambiguity(collection, record_id, "invalid_output_asset_references"))
+            return inventory
+        for entry in entries:
+            if not isinstance(entry, dict) or set(entry) != {
+                "embed_id", "output_version", "target_chat_id", "hashed_chat_id", "hashed_message_id",
+                "parent_embed_id", "content_commitment", "s3_file_keys",
+            }:
+                inventory.ambiguous.append(_ambiguity(collection, record_id, "invalid_output_asset_reference"))
+                continue
+            _merge_selected_output_assets(inventory, entry.get("s3_file_keys"), collection, record_id)
+        return inventory
 
     if collection == "chat_message_archive_pages":
         inventory = StorageReferenceInventory(references=set(), ambiguous=[])
@@ -1167,6 +1536,9 @@ def _inventory_for_reference_row(
             required = state in {"copied", "ready", "reader_active", "pruned"}
             bucket = "chatfiles"
         else:
+            # Selected asset references remain authoritative after ACK and
+            # sealed-payload pruning, including historical canonical versions.
+            _merge_selected_output_assets(inventory, row.get("s3_file_keys"), collection, record_id)
             key = row.get("payload_s3_key")
             storage = row.get("payload_storage")
             if storage not in {None, "inline", "s3"}:

@@ -149,7 +149,7 @@ format; do not record the entire suite by default. Preserve failure/retry clips
 when present. Export the recordings from the original result bundle and bind
 each clip to its test, result, source identity and app version/build.
 
-Show the playable recordings in the final Codex response for user inspection.
+Show the playable recordings in the final response for user inspection.
 Keep personal-account evidence private. A passing test without a usable video
 leaves the requested visual proof pending; report capture/export limitations
 accurately. Retry an export or upload from retained artifacts without rerunning

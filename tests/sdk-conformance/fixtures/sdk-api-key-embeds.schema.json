@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Opaque encrypted embed read direct-library protocol vectors",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "capabilities"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "capabilities": {
+      "type": "object",
+      "required": [
+        "sdk.embeds"
+      ],
+      "properties": {
+        "sdk.embeds": {
+          "type": "object",
+          "required": [
+            "api_keys",
+            "device_id",
+            "vectors"
+          ],
+          "properties": {
+            "device_id": {
+              "const": "synthetic-embed-device"
+            },
+            "api_keys": {
+              "type": "object",
+              "required": [
+                "A",
+                "B"
+              ],
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "vectors": {
+              "type": "array",
+              "minItems": 12,
+              "maxItems": 32,
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "operation",
+                  "owner",
+                  "embed_id",
+                  "version",
+                  "http_status",
+                  "response",
+                  "expected",
+                  "expected_error",
+                  "expected_request_count"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "operation": {
+                    "enum": [
+                      "show",
+                      "versions",
+                      "version"
+                    ]
+                  },
+                  "owner": {
+                    "enum": [
+                      "A",
+                      "B"
+                    ]
+                  },
+                  "embed_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "version": {
+                    "type": "integer"
+                  },
+                  "http_status": {
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 599
+                  },
+                  "expected_error": {
+                    "enum": [
+                      null,
+                      "authentication",
+                      "forbidden",
+                      "invalid",
+                      "conflict",
+                      "offline"
+                    ]
+                  },
+                  "expected_request_count": {
+                    "const": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

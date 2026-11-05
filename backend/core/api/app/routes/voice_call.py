@@ -57,6 +57,12 @@ MAX_STARTUP_AUDIO_ALLOWANCE_MS = 10_000
 AUDIO_JITTER_SECONDS = 2
 MAX_PENDING_TRANSCRIPTS = 32
 MAX_TEXT_IDENTITIES = 2048
+# After an "uncertain" (or twice "unavailable") completion decision, continued
+# silence is the user's answer: submit once instead of holding the turn until
+# new speech that may never come. "incomplete" thinking pauses stay held.
+# Real TTS calls showed STT-punctuated pauses ("I would like to know.") judged
+# uncertain; 2.5s keeps ordinary ~2-3s thinking pauses in one turn.
+UNCERTAIN_SILENCE_FALLBACK_SECONDS = 2.5
 MESSAGE_ID = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
 PROCESSING_ACK_FIELD = "voice_processing_ack_v3_at"
 PROCESSING_ACK_VERSION = 3
@@ -395,6 +401,8 @@ class _SpeechTurn:
     completion_text: str = ""
     separate_next_delta: bool = False
     assistant_speaking: bool = False
+    completion_retried: bool = False
+    submit_on_silence: bool = False
 
 
 async def _classify(text: str, assistant_text: str, websocket: WebSocket, language: str,
@@ -416,12 +424,25 @@ async def _complete(text: str, websocket: WebSocket) -> str:
         if isolated_voice_fixture_enabled():
             from backend.shared.testing.voice_call_fixture import isolated_voice_completion_fixture
             return isolated_voice_completion_fixture(text) or "uncertain"
-        from backend.shared.python_utils.voice_turn_completion import classify_voice_turn_completion
+        from backend.shared.python_utils.voice_turn_completion import (
+            COMPLETION_TIMEOUT_SECONDS, classify_voice_turn_completion,
+        )
         return await asyncio.wait_for(classify_voice_turn_completion(
-            text, websocket.app.state.secrets_manager), timeout=1.25)
+            text, websocket.app.state.secrets_manager), timeout=COMPLETION_TIMEOUT_SECONDS + 0.2)
     except Exception as exc:
         logger.warning("Voice completion unavailable category=%s", type(exc).__name__)
-        return "uncertain"
+        return "unavailable"
+
+
+async def _prewarm_completion() -> None:
+    """Warm the completion gate while the provider opens; never fails a call."""
+    if isolated_voice_fixture_enabled():
+        return
+    from backend.shared.python_utils.voice_turn_completion import prewarm_voice_turn_completion
+    try:
+        await prewarm_voice_turn_completion()
+    except ImportError:
+        logger.warning("Voice completion tokenizer warmup unavailable")
 
 
 def _text_input(event: dict[str, Any]) -> tuple[str, str, int]:
@@ -476,6 +497,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
     provider_receive: asyncio.Task[dict[str, Any]] | None = None
     lease_task: asyncio.Task[None] | None = None
     registry_task: asyncio.Task[None] | None = None
+    prewarm_task: asyncio.Task[None] | None = None
     lock_client: Any = None
     lock_key = lock_token = ""
     registered = False
@@ -603,6 +625,15 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
             # A cancelled decision never settled this text revision. A later
             # stable endpoint may retry it even when STT added no new words.
             turn.completion_text = ""
+        # Resumed speech revokes a silence fallback and earns a fresh retry.
+        turn.submit_on_silence = False
+        turn.completion_retried = False
+
+    def start_completion(turn: _SpeechTurn, text: str) -> None:
+        turn.completion_text = text
+        turn.completion = asyncio.create_task(_complete(text, websocket))
+        completion_tasks.add(turn.completion)
+        turn.completion.add_done_callback(completion_finished)
 
     def completion_finished(task: asyncio.Task[str]) -> None:
         completion_tasks.discard(task)
@@ -642,19 +673,30 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                 # Native endpointing only schedules this small text decision.
                 # No chat admission, skill selection or ordinary inference runs
                 # until this exact text revision is confirmed complete.
-                if turn.completion is None:
-                    if turn.completion_text != text:
-                        turn.completion_text = text
-                        turn.completion = asyncio.create_task(_complete(text, websocket))
-                        completion_tasks.add(turn.completion)
-                        turn.completion.add_done_callback(completion_finished)
+                if turn.submit_on_silence and turn.completion is None and turn.completion_text == text:
+                    # The silence window after an uncertain decision elapsed
+                    # without new speech for this exact text revision.
+                    verdict = "complete"
+                else:
+                    if turn.completion is None:
+                        if turn.completion_text != text:
+                            start_completion(turn, text)
+                        continue
+                    if not turn.completion.done():
+                        continue
+                    verdict = turn.completion.result()
+                    turn.completion = None
+                if verdict == "unavailable" and not turn.completion_retried:
+                    # A stalled decision is not a judgement: retry this text once.
+                    turn.completion_retried = True
+                    start_completion(turn, text)
                     continue
-                if not turn.completion.done():
-                    continue
-                verdict = turn.completion.result()
-                turn.completion = None
                 if verdict != "complete":
-                    turn.deadline = None
+                    if verdict == "incomplete":
+                        turn.deadline = None
+                    else:
+                        turn.submit_on_silence = True
+                        turn.deadline = now + UNCERTAIN_SILENCE_FALLBACK_SECONDS
                     await send({"type": "transcript.pending", "call_id": call_id,
                                 "message_id": turn.message_id,
                                 "reason": "incomplete" if verdict == "incomplete" else "uncertain"})
@@ -703,6 +745,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         registered = True
         registry_task = asyncio.create_task(registry_renewal())
         stage = "provider_open"
+        prewarm_task = asyncio.create_task(_prewarm_completion())
         provider = await _provider(websocket)
         await provider.open()
         stage = "active"
@@ -841,7 +884,16 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                         await classify_latest(current)
                 elif kind == "turn.end":
                     if current is not None:
-                        current.deadline = time.monotonic() + STREAMING_DELAY_MS / 1000
+                        deadline = time.monotonic() + STREAMING_DELAY_MS / 1000
+                        # A repeated endpoint never shortens a silence fallback.
+                        current.deadline = (max(deadline, current.deadline)
+                                            if current.submit_on_silence and current.deadline else deadline)
+                        text = current.text.strip()
+                        if (text and not current.assistant_active and current.completion is None
+                                and current.completion_text != text):
+                            # Decide completion while trailing deltas are still
+                            # collected; a later delta cancels this revision.
+                            start_completion(current, text)
                 elif kind in {"turn.resume", "turn.eager_end"}:
                     # Eager endpointing never authorizes chat or tools.
                     if kind == "turn.resume" and current is not None:
@@ -876,7 +928,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
             pass
     finally:
         visuals.close()
-        tasks = [task for task in (client_receive, provider_receive, lease_task, registry_task,
+        tasks = [task for task in (client_receive, provider_receive, lease_task, registry_task, prewarm_task,
                  *(turn.classifier for turn in turns.values()), *completion_tasks) if task is not None]
         for task in tasks:
             task.cancel()

@@ -24,6 +24,10 @@ from backend.apps.ai.llm_providers.google_client import (
 )
 from backend.apps.ai.processing import main_processor
 from backend.apps.ai.utils import llm_utils
+from backend.apps.ai.utils.authored_result_fences import (
+    get_authoring_definitions,
+    normalize_authored_results_source,
+)
 from backend.apps.ai.utils.tool_protocol_guard import ToolProtocolGuard
 from backend.apps.ai.utils.instruction_loader import load_base_instructions
 
@@ -313,6 +317,9 @@ def answer_recovery_runner(monkeypatch):
         signature_provider: str = "google",
         live_tool_call: bool = False,
         current_user_content: str | None = CURRENT_REQUEST,
+        authoring_apps: dict | None = None,
+        selected_previews: tuple[str, ...] = (),
+        history_override: list[dict] | None = None,
     ) -> tuple[list[object], list[dict], list[dict]]:
         calls_before = len(provider_calls)
         skill_dispatch.reset_mock()
@@ -347,6 +354,7 @@ def answer_recovery_runner(monkeypatch):
             )}
             if live_tool_call else {}
         )
+        discovered_apps.update(authoring_apps or {})
 
         monkeypatch.setattr(
             llm_utils,
@@ -398,9 +406,11 @@ def answer_recovery_runner(monkeypatch):
             fake_anthropic_provider,
         )
 
-        history = _seeded_history(signature_provider=signature_provider)
+        history = (copy.deepcopy(history_override) if history_override is not None
+                   else _seeded_history(signature_provider=signature_provider))
         original_history = copy.deepcopy(history)
         preprocessing = _preprocessing(alternate_model, secondary_model, primary_model=primary_model)
+        preprocessing.relevant_embedded_previews = list(selected_previews)
         if live_tool_call:
             preprocessing.relevant_app_skills = ["web-search"]
         output = [
@@ -533,6 +543,85 @@ async def test_fabricated_protocol_uses_clean_context_and_one_configured_alterna
     ])
     _assert_usage(output, calls=3, successful_model=ALTERNATE_MODEL if alternate_succeeds
                   else PRIMARY_MODEL if safe_prefix else None)
+
+
+# contract-test: supporting surface=rest_api assertions=authored-results.creation.relevant-and-independent,authored-results.facts.provenance-and-drafts,authored-results.actions.truthful-and-explicit,app-skills.execution.registered-validated
+@pytest.mark.parametrize("recover_with_card", [True, False])
+async def test_selected_card_correction_survives_recovery_without_executing_fabricated_skills(
+    answer_recovery_runner, recover_with_card: bool,
+) -> None:
+    """Use sanitized reference data; keep real routing/recovery and protocol checks."""
+    licence = "https://creativecommons.org/licenses/by/3.0/"
+    attribution = f"Photo by Example Photographer; source https://example.org/photo; {licence}"
+    request = f"Add {licence} to the supplied event image credit; keep the confirmed details unchanged."
+    document = {
+        "schemaVersion": 1,
+        "items": [{
+            "id": "conference", "kind": "events.event", "title": "Example conference",
+            "origin": "researched",
+            "sources": [{"url": "https://example.org/announcement", "label": "Official announcement"}],
+            "images": [{"url": "https://example.org/campus.jpg", "caption": "Illustrative campus photo",
+                        "attribution": attribution}],
+            "details": {"date_start": "2030-01-30", "date_end": "2030-01-31",
+                        "venue": {"name": "Example Campus", "city": "Brussels"}},
+        }],
+    }
+    card = "```openmates_embeds\n" + json.dumps(document) + "\n```"
+    fabricated = "```toon\napp_id: events\nskill_id: search\nstatus: finished\n```"
+    history = [
+        {"role": "user", "content": "Show the supplied conference facts as a card."},
+        {"role": "assistant", "content": "Previously shown reference data:\n"
+         "```toon\napp_id: events\nskill_id: search\ntype: event\ntitle: Example conference\n```"},
+        {"role": "user", "content": request},
+    ]
+    apps = {}
+    for kind in ("events.event", "tv.movie"):
+        definition = get_authoring_definitions()[kind]
+        apps[definition["app_id"]] = SimpleNamespace(skills=[], instructions=[], embed_types=[{
+            "backend_type": definition["backend_type"], "category": "direct",
+            "authoring": {"kind": kind, "schema_id": definition["schema_id"]},
+        }])
+    output, calls, unchanged_history = await answer_recovery_runner(
+        [[fabricated], [_forbidden_tool_call(2)], [card if recover_with_card else fabricated]],
+        alternate_model=ALTERNATE_MODEL, authoring_apps=apps,
+        selected_previews=("events.event",), history_override=history, current_user_content=request,
+    )
+    assert unchanged_history == history
+    assert len(calls) == 3
+    for index, call in enumerate(calls):
+        system = [message["content"] for message in call["messages"] if message["role"] == "system"]
+        assert len(system) == 1 and system[0].count("Selected result schema:\n") == 1
+        schema = json.JSONDecoder().raw_decode(system[0].split("Selected result schema:\n", 1)[1])[0]
+        assert [variant["properties"]["kind"]["const"]
+                for variant in schema["properties"]["items"]["items"]["oneOf"]] == ["events.event"]
+        assert "tv.movie" not in system[0]
+        assert "create an updated card using this same selected openmates_embeds envelope" in system[0]
+        assert "never copy internal app_id/skill_id envelopes" in system[0]
+        assert "does not edit or replace the stored original" in system[0]
+        assert "preserve photographer credit, source URLs and licence URLs" in system[0]
+        if index:
+            assert main_processor.ANSWER_RECOVERY_INSTRUCTION in system[0]
+            assert call["tool_choice"] == "none" and call["tools"] is None
+    visible = "".join(chunk for chunk in output if isinstance(chunk, str))
+    assert "app_id: events" not in visible and "skill_id: search" not in visible
+    assert not any(isinstance(chunk, ParsedGoogleToolCall) for chunk in output)
+    failures = [chunk for chunk in output if isinstance(chunk, dict) and chunk.get("__main_processing_failure__")]
+    if recover_with_card:
+        assert visible == card
+        normalized = normalize_authored_results_source(
+            visible.split("```openmates_embeds\n", 1)[1].split("\n```", 1)[0],
+        )
+        assert normalized is not None and len(normalized.items) == 1
+        item = normalized.items[0]
+        assert item.kind == "events.event"
+        assert item.content["authoring"]["images"][0]["attribution"] == attribution
+        assert item.content["date_start"] == "2030-01-30"
+        assert "app_id" not in document["items"][0] and failures == []
+    else:
+        assert visible == ""
+        assert failures == [{"__main_processing_failure__": True, "reason": "protocol_guard"}]
+    # The runner asserts the native skill dispatcher was never awaited, including
+    # the actual provider-native tool call returned during answer-only recovery.
 
 
 # contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated

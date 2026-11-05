@@ -230,7 +230,6 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.app_analytics_tasks'},  # App analytics daily aggregation tasks
     {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.software_update_tasks'},  # Software update auto-check tasks
     {'name': 'push',        'module': 'backend.core.api.app.tasks.push_notification_task'},  # Browser Web Push notifications
-    {'name': 'email',       'module': 'backend.core.api.app.tasks.linear_issue_task'},  # Auto-create Linear issues from user reports (routed to email queue)
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.ephemeral_log_promotion_tasks'},  # Promote ephemeral client logs on error to long-retention stream
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.workflow_tasks'},  # Workflows V1 scheduled/cleanup tasks
     {'name': 'workflow',    'module': 'backend.core.api.app.tasks.workflow_tasks'},  # Workflows V1 manual run tasks
@@ -1303,7 +1302,6 @@ _EXPLICIT_TASK_ROUTES = {
     "app.tasks.email_tasks.bank_transfer_reminder_email_task.send_bank_transfer_reminder": "email",
     "app.tasks.email_tasks.bank_transfer_amount_notice_email_task.send_bank_transfer_amount_notice": "email",
     "app.tasks.email_tasks.bank_transfer_duplicate_reference_email_task.send_bank_transfer_duplicate_reference": "email",
-    "app.tasks.linear_issue_task.create_linear_issue_for_report": "email",
     
     # Persistence tasks (custom names starting with app.tasks.persistence_tasks.*)
     "app.tasks.persistence_tasks.persist_chat_title": "persistence",
@@ -1612,6 +1610,12 @@ app.conf.beat_schedule = {
         'task': 'app.tasks.email_tasks.daily_notification_dispatcher.run_daily_notifications',
         'schedule': crontab(hour=9, minute=0),  # Daily at 09:00 UTC
         'options': {'queue': 'email'},
+    },
+    # Latest-window recovery only; other daily notification handlers stay daily.
+    'workflow-digest-recovery': {
+        'task': 'app.tasks.email_tasks.daily_notification_dispatcher.recover_workflow_digests',
+        'schedule': crontab(minute='*/15'),
+        'options': {'queue': 'email', 'expires': 900},
     },
     # Newsletter campaign scheduler — sends only campaigns that were test-sent
     # to an admin and explicitly approved via the hidden admin API.

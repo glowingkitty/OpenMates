@@ -1,0 +1,295 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Existing session.work-crud.v1 plus bounded saved-stream lifecycle vectors",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "provenance",
+    "capabilities"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "provenance": {
+      "type": "string",
+      "minLength": 1
+    },
+    "capabilities": {
+      "type": "object",
+      "required": [
+        "session.work-crud.v1"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "session.work-crud.v1": {
+          "type": "object",
+          "required": [
+            "account",
+            "team",
+            "input",
+            "vectors",
+            "saved_stream"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "account": {
+              "$ref": "#/$defs/account"
+            },
+            "team": {
+              "type": "object"
+            },
+            "input": {
+              "type": "object",
+              "required": [
+                "tasks",
+                "projects"
+              ]
+            },
+            "saved_stream": {
+              "type": "object",
+              "required": [
+                "account",
+                "protocol"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "account": {
+                  "allOf": [
+                    {
+                      "$ref": "#/$defs/account"
+                    },
+                    {
+                      "required": [
+                        "owner_id"
+                      ]
+                    }
+                  ]
+                },
+                "protocol": {
+                  "type": "object",
+                  "required": [
+                    "app_origin",
+                    "initial_chat_id",
+                    "initial_chat_key",
+                    "input",
+                    "fresh_messages_v",
+                    "embed_id"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "app_origin": {
+                      "const": "https://app.example.invalid"
+                    },
+                    "initial_chat_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "initial_chat_key": {
+                      "$ref": "#/$defs/key"
+                    },
+                    "input": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "fresh_messages_v": {
+                      "const": 0
+                    },
+                    "embed_id": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            },
+            "vectors": {
+              "type": "array",
+              "minItems": 26,
+              "items": {
+                "$ref": "#/$defs/vector"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "key": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9+/]{43}=$"
+    },
+    "account": {
+      "type": "object",
+      "required": [
+        "session_id",
+        "cookie",
+        "master_key"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "session_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cookie": {
+          "type": "string",
+          "minLength": 1
+        },
+        "master_key": {
+          "$ref": "#/$defs/key"
+        },
+        "owner_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "vector": {
+      "type": "object",
+      "required": [
+        "id",
+        "mode"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mode": {
+          "enum": [
+            "crud",
+            "unknown",
+            "confirmation",
+            "scope",
+            "policy",
+            "close",
+            "cancel",
+            "saved_consumer_close",
+            "saved_host_abort",
+            "saved_stale_terminal",
+            "saved_global_cancel",
+            "saved_close_no_rearm",
+            "saved_auth_denial",
+            "saved_pre_effect_abort",
+            "saved_same_chat_after_uncertain",
+            "saved_queued_import_revoke",
+            "saved_queued_close_revoke",
+            "saved_queued_successor_terminal",
+            "saved_active_task_cancel",
+            "saved_queued_malformed_revoke",
+            "saved_owned_apps_success",
+            "saved_owned_apps_cancel_headers",
+            "saved_owned_apps_pre_cancel"
+          ]
+        },
+        "family": {
+          "enum": [
+            "tasks",
+            "projects"
+          ]
+        },
+        "team": {
+          "type": "boolean"
+        },
+        "expected_first_error": {
+          "const": "cancelled"
+        },
+        "required_assertions": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "array",
+              "minItems": 4,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            }
+          ]
+        },
+        "chat_selector": {
+          "enum": [
+            "new",
+            "existing"
+          ]
+        },
+        "expected_admissions": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "successor_chat_selector": {
+          "enum": [
+            "new",
+            "same"
+          ]
+        },
+        "rust_release_evidence": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "crud"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "family",
+              "team"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "cancel"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "expected_first_error",
+              "required_assertions"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "pattern": "^saved_"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "chat_selector",
+              "expected_admissions",
+              "required_assertions"
+            ],
+            "properties": {
+              "required_assertions": {
+                "type": "array"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

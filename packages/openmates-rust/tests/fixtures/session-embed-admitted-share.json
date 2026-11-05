@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "capability": "session.embeds.admitted-share-url.v1",
+  "status": "migration-gap-foreign-bindings-and-native-cli",
+  "embed_id": "33333333-3333-4333-8333-333333333333",
+  "key_hex": "0707070707070707070707070707070707070707070707070707070707070707",
+  "api_origin": "https://api.example.org",
+  "url_prefix": "https://app.example.org/share/embed/33333333-3333-4333-8333-333333333333#key=",
+  "vectors": [
+    {
+      "id": "no-expiry",
+      "expires": 0,
+      "password": ""
+    },
+    {
+      "id": "signed-sdk-duration",
+      "expires": -7,
+      "password": ""
+    },
+    {
+      "id": "password-sdk-not-cli-policy",
+      "expires": 3600,
+      "password": "synthetic-long-password"
+    }
+  ]
+}

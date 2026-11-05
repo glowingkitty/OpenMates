@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "provenance",
+    "capabilities"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "provenance": {
+      "type": "string"
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session.drafts.v1"
+      ],
+      "properties": {
+        "session.drafts.v1": {
+          "type": "object",
+          "required": [
+            "account",
+            "protocol",
+            "records",
+            "vectors"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "account": {
+              "type": "object"
+            },
+            "protocol": {
+              "type": "object",
+              "required": [
+                "chat_id",
+                "app_origin",
+                "max_version_batch",
+                "phase"
+              ],
+              "properties": {
+                "phase": {
+                  "const": "phase2"
+                },
+                "max_version_batch": {
+                  "const": 200
+                }
+              }
+            },
+            "records": {
+              "type": "object"
+            },
+            "vectors": {
+              "type": "array",
+              "minItems": 20,
+              "maxItems": 20,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "operation",
+                  "mode",
+                  "options",
+                  "preflight_get",
+                  "expected",
+                  "expected_error",
+                  "expected_counts"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "operation": {
+                    "enum": [
+                      "get",
+                      "list",
+                      "sync",
+                      "cached-list"
+                    ]
+                  },
+                  "mode": {
+                    "enum": [
+                      "corrupt-preview",
+                      "deleted",
+                      "foreign-owner",
+                      "http-401",
+                      "http-403",
+                      "http-429",
+                      "missing",
+                      "network-fallback",
+                      "noauth",
+                      "ordinary",
+                      "policy-denied",
+                      "regressed",
+                      "team",
+                      "updated",
+                      "wrong-key"
+                    ]
+                  },
+                  "options": {
+                    "type": "object"
+                  },
+                  "preflight_get": {
+                    "type": "boolean"
+                  },
+                  "expected": {},
+                  "expected_error": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "expected_counts": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "http",
+                      "ws",
+                      "versions",
+                      "phase2",
+                      "lifecycle"
+                    ],
+                    "properties": {
+                      "http": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "ws": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "versions": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "phase2": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "lifecycle": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

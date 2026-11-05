@@ -3933,3 +3933,52 @@ embed_sync.review_chat:
   sv: "Granska chatten"
   he: "בדיקת הצ׳אט"
   verified_by_human: []
+
+context_menu.more_options:
+  context: Accessible label for the arrow at the bottom of the chat context menu that scrolls to more actions
+  en: Show more options
+  de: Weitere Optionen anzeigen
+  zh: 显示更多选项
+  es: Mostrar más opciones
+  fr: Afficher plus d'options
+  pt: Mostrar mais opções
+  ru: Показать больше вариантов
+  ja: その他のオプションを表示
+  ko: 옵션 더 보기
+  it: Mostra altre opzioni
+  tr: Daha fazla seçenek göster
+  vi: Hiển thị thêm tùy chọn
+  id: Tampilkan opsi lainnya
+  pl: Pokaż więcej opcji
+  nl: Meer opties tonen
+  ar: عرض المزيد من الخيارات
+  hi: अधिक विकल्प दिखाएं
+  th: แสดงตัวเลือกเพิ่มเติม
+  cs: Zobrazit další možnosti
+  sv: Visa fler alternativ
+  he: הצג אפשרויות נוספות
+  verified_by_human: []
+context_menu.previous_options:
+  context: Accessible label for the arrow at the top of a paged chat action menu that shows the previous set of actions
+  en: Show previous options
+  de: Vorherige Optionen anzeigen
+  zh: 显示上一组选项
+  es: Mostrar opciones anteriores
+  fr: Afficher les options précédentes
+  pt: Mostrar opções anteriores
+  ru: Показать предыдущие варианты
+  ja: 前のオプションを表示
+  ko: 이전 옵션 보기
+  it: Mostra opzioni precedenti
+  tr: Önceki seçenekleri göster
+  vi: Hiển thị tùy chọn trước
+  id: Tampilkan opsi sebelumnya
+  pl: Pokaż poprzednie opcje
+  nl: Vorige opties tonen
+  ar: عرض الخيارات السابقة
+  hi: पिछले विकल्प दिखाएं
+  th: แสดงตัวเลือกก่อนหน้า
+  cs: Zobrazit předchozí možnosti
+  sv: Visa föregående alternativ
+  he: הצג אפשרויות קודמות
+  verified_by_human: []

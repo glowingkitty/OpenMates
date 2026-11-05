@@ -23,6 +23,7 @@ import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { dispatchEmbedFullscreen } from "./embedFullscreenController";
 import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
 import { isChatVisiblyActive } from "./chatNotificationVisibility";
+import { claimChatMessageNotification } from "./chatMessageNotificationReceipt";
 import { encryptWithChatKey } from "./encryption/MessageEncryptor";
 import { decryptWithMasterKey } from "./encryption/MetadataEncryptor";
 import { aiTypingStore } from "../stores/aiTypingStore";
@@ -333,7 +334,7 @@ async function populateCategoryEntries(
       if (category.appId === 'openmates' && category.itemType === 'memories') {
         const { personalDocumentMemoryEntries } = await import('./ruleDocumentService');
         for (const memory of await personalDocumentMemoryEntries()) {
-          if (!entries.some(entry => entry.id === memory.id)) entries.push({ id: memory.id, title: memory.item_value.title, selected: true });
+          if (!entries.some(entry => entry.id === memory.id)) entries.push({ id: memory.id, title: memory.item_key, selected: true });
         }
         category.entryCount = entries.length;
       }
@@ -2106,23 +2107,13 @@ interface WorkflowChatDeliveryPersistedPayload {
 }
 
 const WORKFLOW_DELIVERY_PERSIST_TIMEOUT_MS = 15_000;
-const notifiedWorkflowDeliveryIds = new Set<string>();
-let notifiedWorkflowOwnerId = "";
-const MAX_NOTIFIED_WORKFLOW_DELIVERIES = 200;
-
 export function notifyCommittedWorkflowDelivery(
-  payload: Pick<WorkflowChatDeliveryClaimedPayload, "delivery_id" | "chat_id" | "title" | "message">,
+  payload: Pick<WorkflowChatDeliveryClaimedPayload, "delivery_id" | "chat_id" | "message_id" | "title" | "message">,
+  expectedIdentity = getWorkspaceCacheIdentity(),
 ): void {
-  const ownerId = get(userProfile).user_id || "";
-  if (ownerId !== notifiedWorkflowOwnerId) {
-    notifiedWorkflowDeliveryIds.clear();
-    notifiedWorkflowOwnerId = ownerId;
-  }
-  if (notifiedWorkflowDeliveryIds.has(payload.delivery_id) || isChatVisiblyActive(payload.chat_id)) return;
-  notifiedWorkflowDeliveryIds.add(payload.delivery_id);
-  if (notifiedWorkflowDeliveryIds.size > MAX_NOTIFIED_WORKFLOW_DELIVERIES) {
-    notifiedWorkflowDeliveryIds.delete(notifiedWorkflowDeliveryIds.values().next().value!);
-  }
+  if (!expectedIdentity || expectedIdentity !== getWorkspaceCacheIdentity()) return;
+  if (!claimChatMessageNotification(get(userProfile).user_id || "", payload.chat_id, payload.message_id) ||
+      isChatVisiblyActive(payload.chat_id)) return;
   const preview = payload.message
     .replace(/\[View workflow run\]\([^)]*\)/g, "")
     .replace(/\s+/g, " ")
@@ -2131,16 +2122,9 @@ export function notifyCommittedWorkflowDelivery(
   notificationStore.chatMessage(payload.chat_id, payload.title, preview || "New workflow message", undefined, "openmates_official");
 }
 
-export function handleWorkflowChatDeliveryAcknowledgedImpl(payload: WorkflowChatDeliverySummary): void {
-  if (payload.status !== "acknowledged" || !payload.delivery_id || !payload.chat_id) return;
-  // A reconnect may acknowledge ciphertext committed by an earlier claim.
-  // The original plaintext has already left the pending envelope, so use a safe label.
-  notifyCommittedWorkflowDelivery({
-    delivery_id: payload.delivery_id,
-    chat_id: payload.chat_id,
-    title: "Workflow message",
-    message: "New workflow message ready",
-  });
+export function handleWorkflowChatDeliveryAcknowledgedImpl(_payload: WorkflowChatDeliverySummary): void {
+  // ACK is a persistence receipt, including on reconnect. It is never another
+  // new-message event; the claimant or ordinary canonical broadcast owns notices.
 }
 const pendingWorkflowDeliveryPersists = new Map<
   string,
@@ -2299,10 +2283,22 @@ async function handleRunLinkedWorkflowDelivery(
   payload: WorkflowChatDeliveryClaimedPayload,
 ): Promise<void> {
   const { chat_id, message_id, title, message } = payload;
+  const notificationIdentity = getWorkspaceCacheIdentity();
   if (payload.client_persisted) {
     // The server already committed the winning client ciphertext atomically.
-    // Reconnect recovery only acknowledges; normal encrypted sync hydrates it.
+    // Reconnect recovery acknowledges the winning ciphertext and explicitly
+    // requests bounded normal sync: the claimant is excluded from broadcasts,
+    // and a crash may have happened before this device saved its local row.
+    const identity = getWorkspaceCacheIdentity();
     await sendWorkflowChatDeliveryAck(payload);
+    if (!identity || identity !== getWorkspaceCacheIdentity()) return;
+    try {
+      await serviceInstance.hydrateSidebarChats([chat_id]);
+      if (identity !== getWorkspaceCacheIdentity()) return;
+      await serviceInstance.requestChatContentBatch_FOR_HANDLERS_ONLY([chat_id]);
+    } catch (error) {
+      console.warn("[WorkflowDelivery] Committed delivery awaits normal sync", error);
+    }
     return;
   }
   try {
@@ -2394,7 +2390,7 @@ async function handleRunLinkedWorkflowDelivery(
       created_at:createdAt,status:"synced" as const,encrypted_content:encryptedContent,
       category:"openmates_official",encrypted_category:encryptedCategory};
     await chatDB.saveMessage(workflowMessage);
-    notifyCommittedWorkflowDelivery(payload);
+    notifyCommittedWorkflowDelivery(payload, notificationIdentity);
     await sendWorkflowChatDeliveryAck(payload);
     serviceInstance.dispatchEvent(new CustomEvent("chatUpdated", {detail:{chat_id,chat,
       newMessage:workflowMessage,type:"workflow_chat_delivery",messagesUpdated:true}}));

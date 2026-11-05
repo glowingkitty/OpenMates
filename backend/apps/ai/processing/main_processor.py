@@ -32,6 +32,7 @@ from backend.apps.ai.processing.preprocessor import (
     PreprocessingResult, _history_has_loaded_image_blocks,
     _image_reference_consumer_skills, _request_has_image_upload_embed,
 )
+from backend.apps.ai.processing.plan_focus_routing import PLANNER_FOCUS_IDS
 from backend.apps.ai.processing.ai_model_catalogue_context import build_ai_model_catalogue_context
 from backend.apps.ai.processing.search_skill_reliability import (
     expand_companion_skills,
@@ -90,6 +91,11 @@ from backend.apps.ai.processing.native_history_cache import (
 from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
 from backend.apps.ai.processing import agentic_context
 from backend.apps.ai.processing.rule_context import applied_rule_receipt
+from backend.apps.ai.processing.memory_tools import (
+    MEMORY_TOOL_INSTRUCTION, MEMORY_TOOL_NAMES, MemoryToolRuntime, NativeDiagramContextGuard,
+    NATIVE_MEMORY_FINGERPRINT_KEY, authorized_memory_catalog, has_memory_catalog,
+    memory_tools, native_memory_context_matches,
+)
 from backend.shared.python_utils.rule_loader import applied_rule_set_key
 from backend.apps.ai.processing.related_work import (
     RelatedWorkCandidate, fetch_related_chat_summaries, fetch_related_task_candidates, select_related_work,
@@ -107,6 +113,10 @@ from backend.apps.ai.utils.embeds_map_view import (
     should_include_embeds_map_view_hint,
 )
 from backend.apps.ai.utils.tool_protocol_guard import ToolProtocolGuard
+from backend.apps.ai.utils.pseudo_tool_call import (
+    PSEUDO_TOOL_CALL_RETRY_PROMPT,
+    PseudoToolCallRecovery,
+)
 from backend.core.api.app.utils.override_parser import UserOverrides
 from backend.apps.ai.llm_providers.mistral_client import ParsedMistralToolCall, MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata, GoogleStreamFinishMetadata, ParsedGoogleToolCall
@@ -495,6 +505,8 @@ def _without_optional_fact_format_sections(
 
 
 def _trusted_focus_override(overrides: UserOverrides | None, focus_id: str) -> bool:
+    if overrides and overrides.plan_requested and focus_id in PLANNER_FOCUS_IDS:
+        return True  # @plan is explicit consent for whichever planner preprocessing resolved.
     return bool(overrides and any(f"{app_id}-{identifier}" == focus_id
                                  for app_id, identifier in overrides.focus_modes))
 
@@ -1214,14 +1226,83 @@ SOFT_LIMIT_SKILL_CALLS = 3
 HARD_LIMIT_SKILL_CALLS = 5
 
 
-def _limit_news_search_batch_to_budget(
+def _limit_request_batch_to_budget(
     parsed_args: Dict[str, Any], remaining_requests: int
 ) -> Tuple[Dict[str, Any], List[Any]]:
-    """Run the news searches that fit instead of discarding an oversized batch."""
+    """Run the batched requests that fit instead of discarding an oversized batch.
+
+    A single multi-request call (e.g. ten recipe searches) used to be skipped
+    wholesale once it exceeded the remaining research budget, so the user got
+    no results and the model reported an unavailable tool (issue 4VXWM).
+    """
     requests = parsed_args.get("requests") if isinstance(parsed_args, dict) else None
     if remaining_requests <= 0 or not isinstance(requests, list) or len(requests) <= remaining_requests:
         return parsed_args, []
     return {**parsed_args, "requests": requests[:remaining_requests]}, requests[remaining_requests:]
+
+
+# Discovery queries share a per-user-request budget; reads and execution retain
+# their existing independent admission and hard limits.
+_ANSWER_SEARCH_TOOLS = frozenset({
+    "web-search", "news-search", "images-search", "videos-search", "maps-search",
+    "events-search", "travel-search_connections", "travel-search_stays",
+    "shopping-search_products", "code-search_repos", "nutrition-search_recipes",
+    "social_media-search", "home-search", "electronics-search_components",
+    "design-search_icons", "fitness-search_locations", "fitness-search_classes",
+    "health-search_appointments", "models3d-search", "business-search_trademarks",
+    "hosting-search_domains", "jobs-search",
+})
+_MEDIA_SEARCH_TOOLS = frozenset({"images-search", "videos-search"})
+
+
+def _expanded_answer_search_scope(content: str, focus_id: str | None) -> bool:
+    return focus_id == "web-research" or bool(re.search(
+        r"\b(?:compar(?:e|ison|isons)|research|in[- ]depth|comprehensive|multiple|"
+        r"several|versus|vs\.?|recherch(?:e|er)|vergleiche?|vergleich)\b",
+        content or "", re.IGNORECASE,
+    ))
+
+
+def _bound_answer_search_queries(
+    tool_name: str, arguments: dict, used: dict, *, expanded: bool,
+) -> tuple[dict, list, dict]:
+    """Pure admission shared by placeholder and execution phases.
+
+    Primary retrieval is budgeted per search CALL: an ordinary request gets one
+    primary call whose batch may hold several queries (members beyond the hard
+    skill limit are trimmed later by `_limit_request_batch_to_budget`, issue
+    4VXWM). Media enrichment is budgeted per QUERY: one image or video query.
+    Counters survive retries and continuations via the resume checkpoint; the
+    caller commits them only once a non-reused call is admitted. A supported
+    essential-fact justification permits bounded extra primary calls, never
+    extra decorative media.
+    """
+    updated = dict(used)
+    if tool_name not in _ANSWER_SEARCH_TOOLS:
+        return arguments, [], updated
+    requests = arguments.get("requests")
+    rows = requests if isinstance(requests, list) else [arguments]
+    media = tool_name in _MEDIA_SEARCH_TOOLS
+    essential = arguments.get("essential_fact_reason")
+    essential = isinstance(essential, str) and bool(essential.strip()) and not media
+    if media:
+        limit = HARD_LIMIT_SKILL_CALLS if expanded else 1
+        remaining = max(0, limit - int(updated.get("media", 0)))
+        admitted, omitted = rows[:remaining], rows[remaining:]
+        updated["media"] = int(updated.get("media", 0)) + len(admitted)
+    else:
+        call_limit = HARD_LIMIT_SKILL_CALLS if expanded else (3 if essential else 1)
+        if int(updated.get("primary", 0)) < call_limit:
+            admitted, omitted = rows, []
+            updated["primary"] = int(updated.get("primary", 0)) + 1
+        else:
+            admitted, omitted = [], rows
+    cleaned = {key: value for key, value in arguments.items() if key != "essential_fact_reason"}
+    if isinstance(requests, list):
+        cleaned["requests"] = admitted
+    elif not admitted:
+        cleaned = {"requests": []}
+    return cleaned, omitted, updated
 
 
 INVALID_TOOL_FALLBACK_MESSAGE = (
@@ -1518,6 +1599,25 @@ def _is_empty_post_tool_turn(tool_inference_iterations: int, llm_turn_had_conten
 
 def _has_visible_text(content: str) -> bool:
     return bool(content.strip())
+
+
+def _pseudo_tool_call_names(
+    available_tools: Optional[List[Dict[str, Any]]],
+    discovered_apps_metadata: Optional[Dict[str, Any]],
+) -> List[str]:
+    """Tool names a text pseudo call may name: offered tools plus every app skill."""
+    names = [
+        str((tool.get("function") or {}).get("name") or "")
+        for tool in available_tools or []
+        if isinstance(tool, dict)
+    ]
+    for app_id, metadata in (discovered_apps_metadata or {}).items():
+        names.extend(
+            f"{app_id}-{skill.id}"
+            for skill in getattr(metadata, "skills", None) or []
+            if getattr(skill, "id", None)
+        )
+    return [name for name in names if name]
 
 
 def _build_async_skill_pending_tool_result(
@@ -3727,7 +3827,7 @@ async def handle_main_processing(
     if pending_project_catalog_id:
         from backend.apps.ai.processing.project_focus_orchestration import request_project_focus_catalog
         await request_project_focus_catalog(
-            request_data=request_data, preprocessing_results=preprocessing_results,
+            task_id=task_id, directus_service=directus_service, request_data=request_data, preprocessing_results=preprocessing_results,
             cache_service=cache_service, skill_config_dict=skill_config_dict,
             project_id=pending_project_catalog_id,
         )
@@ -4248,11 +4348,13 @@ async def handle_main_processing(
         base_instructions["base_ethics_instruction"],
         base_instructions["base_privacy_instruction"],
         base_instructions.get("follow_up_instruction", "") if composer_suggestion_enabled else "",
+        base_instructions.get("base_answer_composition_instruction", ""),
         base_instructions.get("base_link_encouragement_instruction", ""),
         base_instructions.get("base_wikipedia_linking_instruction", ""),
         base_instructions.get("base_url_sourcing_instruction", ""),
         base_instructions.get("base_code_block_instruction", ""),
         base_instructions.get("base_document_generation_instruction", ""),
+        base_instructions.get("base_sheet_formulas_instruction", ""),
     ]
     cacheable_system_prefix = "\n\n".join(filter(None, stable_prefix_parts))
     prompt_parts = [*filter(None, stable_prefix_parts)]
@@ -4913,7 +5015,7 @@ async def handle_main_processing(
     # Composite skills that produce embed_refs the LLM can reference inline or as cards.
     # Format must match preselected_skills entries: "app_id-skill_id".
     _EMBED_PRODUCING_PRESELECTED_IDS = {
-        "web-search", "news-search", "videos-search",
+        "web-search", "news-search", "videos-search", "images-search",
         "maps-search", "events-search",
         "travel-search_connections", "travel-search_stays",
         "shopping-search_products",
@@ -5016,6 +5118,21 @@ async def handle_main_processing(
     # truncate a chosen guide through the generic Memory prompt budget.
     diagram_prompt = ""
     diagram_receipt_memories = []
+    memory_runtime = None
+    on_demand_memory_prompt = ""
+    diagram_context_repair_used = False
+    if (agentic_context.first_party(request_data) and discovered_apps_metadata
+            and (request_data.user_preferences or {}).get("apps_enabled") is not False
+            and has_memory_catalog(discovered_apps_metadata, request_data)):
+        memory_runtime = MemoryToolRuntime(
+            catalog=lambda: authorized_memory_catalog(request_data, directus_service, cache_service,
+                                                     list(discovered_apps_metadata)),
+            cache=None if request_data.is_incognito else cache_service,
+            owner_id=request_data.user_id, chat_id=request_data.chat_id,
+            turn_id=authoritative_context_turn_id(request_data),
+        )
+        prompt_parts.append(MEMORY_TOOL_INSTRUCTION)
+        logger.info("%s [MEMORY_CONTEXT] on-demand tools available", log_prefix)
     if (discovered_apps_metadata and "diagrams" in discovered_apps_metadata
             and selected_app_ids is not None and "diagrams" in selected_app_ids):
         from backend.apps.diagrams.diagram_guidance import (
@@ -5027,6 +5144,8 @@ async def handle_main_processing(
         if diagram_prompt:
             prompt_parts.append(diagram_prompt)
             diagram_receipt_memories = selected_diagram_memories(selected_diagram_types)
+            if memory_runtime is not None:
+                memory_runtime.variant = diagram_variant
     # Inject diff editing instruction when diffable embeds (code/document/sheet) exist in history.
     # This teaches the LLM to output unified diffs instead of regenerating full content.
     _has_diffable_embeds = await _diffable_embeds_for_main_prompt(
@@ -5257,10 +5376,20 @@ async def handle_main_processing(
     ) if assigned_app_ids != [] else []
     # Record provenance before Task, Project, Focus, and orchestration tools
     # are merged. Their presence alone does not make app-skill guidance useful.
+    for search_tool in available_tools_for_llm:
+        function = search_tool.get("function", {})
+        if function.get("name") in _ANSWER_SEARCH_TOOLS:
+            parameters = function.setdefault("parameters", {"type": "object"})
+            parameters.setdefault("properties", {})["essential_fact_reason"] = {
+                "type": "string",
+                "description": "Only when an additional factual query is essential to a correct answer: state the missing fact and why existing results cannot support it. Never use for decorative media.",
+            }
     generated_app_skill_names = {
         tool.get("function", {}).get("name") for tool in available_tools_for_llm
         if tool.get("function", {}).get("name")
     }
+    if memory_runtime is not None:
+        available_tools_for_llm.extend(memory_tools())
     available_tools_for_llm = without_unscoped_project_search(available_tools_for_llm)
 
     if task_queue_blocks_plan_tools:
@@ -5762,6 +5891,7 @@ async def handle_main_processing(
     # we register BOTH the canonicalized form (post-canonicalize) and the raw
     # snake_case form (pre-canonicalize, defensive) for both tools.
     for system_skill in (
+        *MEMORY_TOOL_NAMES,
         "activate_focus_mode",
         "deactivate_focus_mode",
         "start_sub_chats",
@@ -6243,6 +6373,10 @@ async def handle_main_processing(
     # Track total skill calls across all iterations to prevent runaway research loops.
     # Each request within a tool call counts as one skill call.
     total_skill_calls = 0
+    answer_search_queries: dict[str, int] = {}
+    expanded_answer_search = _expanded_answer_search_scope(
+        request_data.current_user_content or "", request_data.active_focus_id,
+    )
     streaming_skill_count = 0  # Mirrors total_skill_calls during streaming to suppress over-budget placeholders
     budget_warning_injected = False
     images_search_executed = False  # Track whether images-search ran, to inject embed preview instruction
@@ -6266,9 +6400,10 @@ async def handle_main_processing(
     task_queue_guard_retries = 0
     answer_recovery = AnswerRecoveryState()
     protocol_guard_recovery_started = False
+    pseudo_tool_call_recovery = PseudoToolCallRecovery()
     continue_published_answer = False
     published_answer_text: List[str] = []
-    omitted_news_search_requests = 0
+    omitted_budget_requests = 0
     
     # === SKILL CALL DEDUPLICATION ===
     # Track successfully completed skill calls to prevent duplicate executions.
@@ -6501,11 +6636,12 @@ async def handle_main_processing(
                 "Same-turn selected model or mate changed before resume"
             ) from route_error
         total_skill_calls = int(resume_checkpoint["total_skill_calls"])
+        answer_search_queries = dict(resume_checkpoint.get("answer_search_queries") or {})
         streaming_skill_count = total_skill_calls
         tool_inference_iterations = int(resume_checkpoint["tool_inference_iterations"])
         budget_warning_injected = bool(resume_checkpoint["budget_warning_injected"])
         images_search_executed = bool(resume_checkpoint["images_search_executed"])
-        omitted_news_search_requests = int(resume_checkpoint.get("omitted_news_search_requests", 0))
+        omitted_budget_requests = int(resume_checkpoint.get("omitted_news_search_requests", 0))
         force_no_tools = bool(resume_checkpoint["force_no_tools"])
         primary_read_checkpoint = resume_checkpoint.get("delegated_primary_read") or {}
         delegated_primary_read.has_source_urls |= bool(primary_read_checkpoint.get("has_source_urls"))
@@ -6642,11 +6778,12 @@ async def handle_main_processing(
         if continue_published_answer:
             iteration_system_prompt += "\n\nContinue only after the already-published answer. Do not repeat it. Add only missing information, or a brief closing sentence if the answer is already complete."
 
-        if omitted_news_search_requests:
+        if omitted_budget_requests:
             iteration_system_prompt += (
-                "\n\nThe news search budget omitted some requested searches. "
-                "Identify those topics as unsearched, and cite only results actually returned by the news tool. "
-                "Never invent a headline, date, source, or embed reference for an omitted search."
+                "\n\nThe research budget omitted some requested tool requests. "
+                "Identify those requests as not executed, and cite only results actually returned by the tools. "
+                "Never invent a headline, date, source, result, or embed reference for an omitted request. "
+                "Do not describe the tool as unavailable; the executed requests succeeded."
             )
 
         # Inject embed preview instruction when images-search was executed
@@ -6831,10 +6968,33 @@ async def handle_main_processing(
                     if event:
                         yield {"__chat_context_applied__": True,
                                "receipt": agentic_context.receipt_event(request_data, event)}
+                if memory_runtime is not None:
+                    await memory_runtime.refresh()
+                    next_memory_prompt = ("--- On-demand Memory context ---\n" + memory_runtime.prompt
+                                          + "\n--- End on-demand Memory context ---") if memory_runtime.prompt else ""
+                    if next_memory_prompt != on_demand_memory_prompt:
+                        if on_demand_memory_prompt:
+                            full_system_prompt = full_system_prompt.replace("\n\n" + on_demand_memory_prompt, "", 1)
+                            iteration_system_prompt = iteration_system_prompt.replace("\n\n" + on_demand_memory_prompt, "", 1)
+                            answer_recovery_system_prompt = answer_recovery_system_prompt.replace("\n\n" + on_demand_memory_prompt, "", 1)
+                        if next_memory_prompt:
+                            # A newly loaded diagram bundle replaces the preloaded one;
+                            # keep one complete selected variant instead of duplicating it.
+                            if diagram_prompt and any(m.app_id == "diagrams" for m in memory_runtime.applied):
+                                full_system_prompt = full_system_prompt.replace("\n\n" + diagram_prompt, "", 1)
+                                iteration_system_prompt = iteration_system_prompt.replace("\n\n" + diagram_prompt, "", 1)
+                                answer_recovery_system_prompt = answer_recovery_system_prompt.replace("\n\n" + diagram_prompt, "", 1)
+                            full_system_prompt += "\n\n" + next_memory_prompt
+                            iteration_system_prompt += "\n\n" + next_memory_prompt
+                            answer_recovery_system_prompt += "\n\n" + next_memory_prompt
+                        on_demand_memory_prompt = next_memory_prompt
                 if not agentic_section or agentic_section in iteration_system_prompt:
                     receipt_guides = [*applied_guides]
                     if diagram_prompt and diagram_prompt in iteration_system_prompt:
                         receipt_guides.extend(diagram_receipt_memories)
+                    if memory_runtime and memory_runtime.prompt and memory_runtime.prompt in iteration_system_prompt:
+                        receipt_guides.extend(memory_runtime.applied)
+                    receipt_guides = list({memory.id: memory for memory in receipt_guides}.values())
                     receipt = applied_rule_receipt(receipt_guides, previous_set_key=last_applied_rule_key)
                     new_rule_key = applied_rule_set_key(receipt_guides)
                     if new_rule_key != last_applied_rule_key:
@@ -6859,6 +7019,18 @@ async def handle_main_processing(
                 reservation_tools = iteration_tools
                 native_route = native_cache_route(current_model_id) if native_scope else None
                 native_admission_reason = "route_unavailable"
+                effective_memory_context = on_demand_memory_prompt
+                if applied_guides and agentic_section and agentic_section in iteration_system_prompt:
+                    effective_memory_context += applied_rule_set_key(applied_guides)
+                if diagram_prompt and diagram_prompt in iteration_system_prompt:
+                    effective_memory_context += diagram_prompt
+                if (not native_memory_context_matches(native_state, effective_memory_context)
+                        or not native_memory_context_matches(native_prior_state, effective_memory_context)):
+                    # Old dispatch events contain actual plaintext. Replacing the
+                    # latest system suffix cannot revoke those earlier bodies.
+                    native_state = native_prior_state = None
+                    native_main_cursor = native_main_snapshot = None
+                    logger.info("%s [MEMORY_CONTEXT] discarded incompatible native replay", log_prefix)
                 if (
                     native_route and current_model_index == 0 and not answer_recovery.active
                     # Answer-only recovery replaces the provider transcript
@@ -6935,6 +7107,8 @@ async def handle_main_processing(
                                 # Persist the provider-sanitized schemas that
                                 # were actually sent, preserving old prefixes.
                                 native_state = candidate
+                                native_state[NATIVE_MEMORY_FINGERPRINT_KEY] = hashlib.sha256(
+                                    effective_memory_context.encode()).hexdigest()
                                 native_prepared_context = candidate
                                 reservation_system_prompt = quote_system
                                 reservation_history = quote_history
@@ -7054,6 +7228,7 @@ async def handle_main_processing(
                         ),
                         requested_reasoning_level=requested_reasoning_level,
                         allowed_server_ids=permitted_automatic_servers,
+                        server_region_preference=(request_data.user_preferences or {}).get("server_region_preference", "eu"),
                         first_substantive_timeout_seconds=mercury_deadline,
                         secrets_manager=secrets_manager,
                         tools=iteration_tools,
@@ -7137,7 +7312,18 @@ async def handle_main_processing(
             )
             break
 
-        protocol_guard = ToolProtocolGuard()
+        protocol_guard = ToolProtocolGuard(
+            known_tools=_pseudo_tool_call_names(available_tools_for_llm, discovered_apps_metadata),
+        )
+        prepared_diagram_types = set(getattr(preprocessing_results, "relevant_diagram_types", None) or []) if (
+            diagram_prompt and diagram_prompt in iteration_system_prompt) else set()
+        if memory_runtime and memory_runtime.prompt and memory_runtime.prompt in iteration_system_prompt:
+            prepared_diagram_types.update(m.id.removeprefix("app:diagrams:") for m in memory_runtime.applied
+                                          if m.app_id == "diagrams")
+        diagram_context_guard = NativeDiagramContextGuard(
+            prepared_diagram_types, user_request=request_data.current_user_content or "",
+            native_available=memory_runtime is not None and "diagrams" in discovered_apps_metadata,
+        )
         current_turn_text_buffer = []
         suggested_followup_stream = SuggestedFollowupStream()
         tool_calls_for_this_turn: List[Union[ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedBedrockToolCall, ParsedOpenAIToolCall]] = []
@@ -7160,6 +7346,7 @@ async def handle_main_processing(
         # showing the "processing" state to users before skill execution starts
         inline_placeholder_embeds: Dict[str, Dict[str, Any]] = {}
         search_request_reuse: Dict[str, tuple[dict, list[dict]]] = {}
+        streaming_search_queries = dict(answer_search_queries)
         focus_activation_seen_this_turn = False
 
         # Sync streaming budget counter with execution-phase counter at each iteration start
@@ -7187,7 +7374,7 @@ async def handle_main_processing(
                "provider",
                provider_purpose="main",
            )
-           async for chunk in protocol_guard.filter(observed_llm_stream):
+           async for chunk in diagram_context_guard.filter(protocol_guard.filter(observed_llm_stream)):
             if isinstance(chunk, NativeCacheProviderOutput):
                 # Provider reasoning/output is private replay state. It is
                 # neither a product stream event nor a debug/usage payload.
@@ -7434,19 +7621,28 @@ async def handle_main_processing(
                         if reused and not parsed_args["requests"]:
                             continue  # No new card, budget use, reservation or provider request.
 
-                    if app_id == "news" and skill_id == "search" and not getattr(request_data, "is_anonymous", False):
-                        parsed_args, omitted_inline_news_requests = _limit_news_search_batch_to_budget(
+                    parsed_args, _, next_streaming_search_queries = _bound_answer_search_queries(
+                        tool_name, parsed_args, streaming_search_queries, expanded=expanded_answer_search,
+                    )
+                    if tool_name in _ANSWER_SEARCH_TOOLS and parsed_args.get("requests") == []:
+                        continue
+
+                    if app_id != "system" and not getattr(request_data, "is_anonymous", False):
+                        parsed_args, omitted_inline_budget_requests = _limit_request_batch_to_budget(
                             parsed_args, HARD_LIMIT_SKILL_CALLS - streaming_skill_count
                         )
-                        if omitted_inline_news_requests:
+                        if omitted_inline_budget_requests:
                             logger.info(
-                                "%s INLINE: [SKILL_BUDGET] Limiting news-search placeholder batch to %s requests; "
+                                "%s INLINE: [SKILL_BUDGET] Limiting '%s' placeholder batch to %s requests; "
                                 "%s omitted.",
                                 log_prefix,
+                                tool_name,
                                 len(parsed_args["requests"]),
-                                len(omitted_inline_news_requests),
+                                len(omitted_inline_budget_requests),
                             )
 
+                    if app_id == "system" and skill_id in MEMORY_TOOL_NAMES:
+                        continue  # Context loads use Memory receipts, never skill placeholders.
                     if app_id == "system" and skill_id == "activate_focus_mode":
                         focus_activation_seen_this_turn = True
                     elif is_legacy_task_runtime_tool_name(tool_name):
@@ -7480,6 +7676,7 @@ async def handle_main_processing(
                         # The execution phase will also detect this duplicate and skip execution
                         continue
                     
+                    streaming_search_queries = next_streaming_search_queries
                     # === STREAMING-PHASE BUDGET CHECK ===
                     # Count requests in this tool call to check against budget.
                     # Skip placeholder creation entirely when the budget would be exceeded,
@@ -7959,6 +8156,35 @@ async def handle_main_processing(
             break
 
         final_buffered_text_for_turn = "".join(current_turn_text_buffer)
+        if diagram_context_guard.required_type and not tool_calls_for_this_turn:
+            prose_repair = diagram_context_guard.reason == "unrequested_diagram"
+            if not diagram_context_repair_used and (memory_runtime is not None or prose_repair):
+                diagram_context_repair_used = True
+                try:
+                    if not prose_repair:
+                        await memory_runtime.execute("load_memories", {
+                            "memory_ids": ["app:diagrams:" + diagram_context_guard.required_type],
+                        })
+                    if final_buffered_text_for_turn:
+                        current_message_history.append({"role": "assistant", "content": final_buffered_text_for_turn})
+                    correction = (
+                        "The unrequested diagram was withheld. Respect the user's prose-only request. "
+                        "Continue only with any necessary remaining prose; do not repeat already published text. "
+                        "Do not create a diagram, text sketch or diagram source."
+                    ) if prose_repair else (
+                        "The pending diagram was withheld because its native format, required context or schema was incomplete. "
+                        "The complete matching drawing guide is now loaded. Emit the corrected native diagram only; "
+                        "do not repeat already published prose. Do not replace it with ASCII or Mermaid source."
+                    )
+                    current_message_history.append({"role": "user", "content": correction})
+                    logger.info("%s [DIAGRAM_CONTEXT] bounded repair reason=%s", log_prefix, diagram_context_guard.reason)
+                    continue
+                except (ValueError, OSError, RuntimeError):
+                    logger.warning("%s [DIAGRAM_CONTEXT] required drawing guide unavailable", log_prefix)
+            for billing_event in await terminal_billing_usage_events():
+                yield billing_event
+            yield main_processing_failure("protocol_guard")
+            break
         if native_prepared_context is not None:
             if (
                 iteration_native_output is not None and native_state is not None
@@ -8012,6 +8238,40 @@ async def handle_main_processing(
                     yield billing_event
                 yield main_processing_failure("protocol_guard")
                 break
+
+        pseudo_tool_call_action = pseudo_tool_call_recovery.action(
+            detected=protocol_guard.pseudo_tool_call,
+            native_call_count=len(tool_calls_for_this_turn) + len(hallucinated_tool_calls_this_turn),
+            visible_text=final_buffered_text_for_turn,
+            has_retry_iteration=iteration < max_iterations_with_recovery - 1,
+        )
+        if protocol_guard.pseudo_tool_call:
+            logger.warning(
+                "%s [PSEUDO_TOOL_CALL] Model wrote a tool call as text; action=%s "
+                "native_calls=%s visible_chars=%s classification=%s",
+                log_prefix,
+                pseudo_tool_call_action,
+                len(tool_calls_for_this_turn),
+                len(final_buffered_text_for_turn.strip()),
+                protocol_guard.pseudo_tool_call_diagnostics,
+            )
+        if pseudo_tool_call_action == "retry":
+            # One bounded retry of the same step: tools stay as they were, so
+            # the model can make the real call or answer directly (S7ZNB).
+            if final_buffered_text_for_turn.strip():
+                current_message_history.append({"role": "assistant", "content": final_buffered_text_for_turn})
+            current_message_history.append({"role": "user", "content": PSEUDO_TOOL_CALL_RETRY_PROMPT})
+            continue
+        if pseudo_tool_call_action == "error":
+            logger.error(
+                "%s [PSEUDO_TOOL_CALL] Retry also produced only a text tool call; "
+                "marking the response failed instead of ending with an empty answer.",
+                log_prefix,
+            )
+            for billing_event in await terminal_billing_usage_events():
+                yield billing_event
+            yield main_processing_failure("protocol_guard")
+            break
 
         if not tool_calls_for_this_turn:
             task_queue_result = await evaluate_task_queue_post_turn(
@@ -8379,7 +8639,8 @@ async def handle_main_processing(
                     parallel_parsed_args,
                 )
                 if (
-                    (parallel_app_id, parallel_skill_id) in ASYNC_SKILLS
+                    parallel_tool_name in _ANSWER_SEARCH_TOOLS
+                    or (parallel_app_id, parallel_skill_id) in ASYNC_SKILLS
                     or is_legacy_task_runtime_tool_name(parallel_tool_name)
                     or bool(search_request_reuse.get(parallel_tool_call.tool_call_id, ({}, []))[1])
                     or parallel_call_hash in completed_skill_calls
@@ -8560,7 +8821,9 @@ async def handle_main_processing(
                 delegated_primary_read.observe_attempt(tool_name)
             omitted_primary_read_requests: List[Any] = []
             tool_result_content_str: str
-            omitted_news_requests_for_call: List[Any] = []
+            omitted_budget_requests_for_call: List[Any] = []
+            omitted_answer_search_requests: List[Any] = []
+            next_answer_search_queries = dict(answer_search_queries)
 
             if block_split_workflow_authoring and tool_resolver_map.get(tool_name) == ("workflows", "create-or-modify"):
                 placeholder = inline_placeholder_embeds.get(tool_call_id)
@@ -8668,6 +8931,18 @@ async def handle_main_processing(
                             "reason": "Unscoped Project search is unavailable. Request Project Focus first.",
                         }),
                     })
+                    continue
+
+                if app_id == "system" and skill_id in MEMORY_TOOL_NAMES and memory_runtime is not None:
+                    try:
+                        memory_result = await memory_runtime.execute(skill_id, parsed_args)
+                        logger.info("%s [MEMORY_CONTEXT] operation=%s status=%s count=%s",
+                            log_prefix, skill_id, memory_result["status"], len(memory_result.get("memories", [])))
+                    except (ValueError, OSError, RuntimeError):
+                        logger.warning("%s [MEMORY_CONTEXT] operation=%s failed; no speculative success", log_prefix, skill_id)
+                        memory_result = {"status": "unavailable", "message": "Memory unavailable or selection exceeds the context limit. Use only available IDs and fewer documents; do not claim it loaded."}
+                    current_message_history.append({"tool_call_id": tool_call_id, "role": "tool",
+                        "name": tool_name, "content": json.dumps(memory_result)})
                     continue
                 
                 # Validate that app_id and skill_id are non-empty after split
@@ -8813,6 +9088,19 @@ async def handle_main_processing(
                     })
                     continue
 
+                parsed_args, omitted_answer_search_requests, next_answer_search_queries = _bound_answer_search_queries(
+                    tool_name, parsed_args, answer_search_queries, expanded=expanded_answer_search,
+                )
+                if omitted_answer_search_requests and parsed_args.get("requests") == []:
+                    current_message_history.append({
+                        "tool_call_id": tool_call_id, "role": "tool", "name": tool_name,
+                        "content": json.dumps({
+                            "status": "skipped", "reason": "This request's retrieval/enrichment query budget is used. Answer from existing evidence and state material unsearched gaps.",
+                            "omitted_requests": omitted_answer_search_requests,
+                        }),
+                    })
+                    continue
+
                 # === SKILL CALL BUDGET CHECK ===
                 # Count requests in this tool call and check against hard limit.
                 # If we've already reached the limit, skip this tool call entirely.
@@ -8829,17 +9117,18 @@ async def handle_main_processing(
                         }),
                     })
                     continue
-                if app_id == "news" and skill_id == "search" and not getattr(request_data, "is_anonymous", False):
-                    parsed_args, omitted_news_requests_for_call = _limit_news_search_batch_to_budget(
+                if app_id != "system" and not getattr(request_data, "is_anonymous", False):
+                    parsed_args, omitted_budget_requests_for_call = _limit_request_batch_to_budget(
                         parsed_args, HARD_LIMIT_SKILL_CALLS - total_skill_calls
                     )
-                    if omitted_news_requests_for_call:
-                        omitted_news_search_requests += len(omitted_news_requests_for_call)
+                    if omitted_budget_requests_for_call:
+                        omitted_budget_requests += len(omitted_budget_requests_for_call)
                         logger.info(
-                            "%s [SKILL_BUDGET] Limiting news-search execution to %s requests; %s omitted.",
+                            "%s [SKILL_BUDGET] Limiting '%s' execution to %s requests; %s omitted.",
                             log_prefix,
+                            tool_name,
                             len(parsed_args["requests"]),
-                            len(omitted_news_requests_for_call),
+                            len(omitted_budget_requests_for_call),
                         )
 
                 requests_in_this_call = 1  # Default: single request
@@ -8965,6 +9254,7 @@ async def handle_main_processing(
                 
                 # Update budget counters (only for non-system tools)
                 if app_id != "system":
+                    answer_search_queries = next_answer_search_queries
                     total_skill_calls += requests_in_this_call
                     logger.info(
                         f"{log_prefix} [SKILL_BUDGET] Executing '{tool_name}' with {requests_in_this_call} request(s), "
@@ -9076,6 +9366,8 @@ async def handle_main_processing(
                                     request_data=request_data,
                                     skill_config_dict=skill_config_dict,
                                     app_id="system",
+                                    source_delivery_task_id=task_id,
+                                    directus_service=directus_service,
                                     skill_id=skill_id,
                                     tool_name=skill_id,
                                     tool_arguments=operation_arguments,
@@ -12026,16 +12318,25 @@ async def handle_main_processing(
                         "instruction": "These requests were not executed. Do not cite or invent results for them.",
                     },
                 })
-            if omitted_news_requests_for_call:
+            if omitted_answer_search_requests:
+                tool_result_content_str += "\n\n" + json.dumps({
+                    "research_budget": {"status": "partial", "omitted_requests": omitted_answer_search_requests,
+                        "instruction": "These queries were not searched. Use existing results and state material unsearched gaps; never invent results."},
+                })
+            if omitted_budget_requests_for_call:
                 omitted_queries = [
-                    request.get("query") for request in omitted_news_requests_for_call
+                    request.get("query") for request in omitted_budget_requests_for_call
                     if isinstance(request, dict) and isinstance(request.get("query"), str)
                 ]
                 tool_result_content_str += "\n\n" + json.dumps({
                     "research_budget": {
                         "status": "partial",
                         "omitted_queries": omitted_queries,
-                        "instruction": "These queries were not searched. Do not cite or invent results for them.",
+                        "omitted_requests": omitted_budget_requests_for_call,
+                        "instruction": (
+                            "These requests exceeded the research limit and were not executed. "
+                            "Do not cite or invent results for them; offer to run them in a follow-up."
+                        ),
                     }
                 })
 
@@ -12075,10 +12376,11 @@ async def handle_main_processing(
                 "models_to_try": models_to_try,
                 "selected_mate_id": preprocessing_results.selected_mate_id,
                 "total_skill_calls": total_skill_calls,
+                "answer_search_queries": answer_search_queries,
                 "tool_inference_iterations": tool_inference_iterations,
                 "budget_warning_injected": budget_warning_injected,
                 "images_search_executed": images_search_executed,
-                "omitted_news_search_requests": omitted_news_search_requests,
+                "omitted_news_search_requests": omitted_budget_requests,
                 "force_no_tools": force_no_tools,
                 "delegated_primary_read": {
                     "has_source_urls": delegated_primary_read.has_source_urls,

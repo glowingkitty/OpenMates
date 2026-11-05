@@ -8,6 +8,8 @@
 // Assertions: apps.navigation.hash-and-forwarding
 // Specification: specifications/features/apple-tasks-widget/specification.yml
 // Assertions: apple-tasks-widget.links
+// Specification: specifications/features/notifications/specification.yml
+// Assertions: notifications.workflow-run.chat-target, notifications.workflow-run.run-target
 // Mirrors the web app's hash-based routing (#chat-id=X, #share-chat-id=X).
 
 import Foundation
@@ -25,6 +27,8 @@ struct TaskDetailDeepLinkRequest: Equatable, Identifiable {
     let id = UUID()
 }
 
+// Shared authenticated target for actual message deliveries and legacy run links.
+// No execution-completion status is implied by a chat/message target.
 struct WorkflowCompletionRoute: Equatable {
     let workflowID: String
     let runID: String

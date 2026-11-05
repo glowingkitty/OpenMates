@@ -1,0 +1,189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "provenance",
+    "capabilities"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "provenance": {
+      "type": "string"
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session.cache-preferred-settlement.v1"
+      ],
+      "properties": {
+        "session.cache-preferred-settlement.v1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "account",
+            "protocol",
+            "vectors",
+            "required_unverified"
+          ],
+          "properties": {
+            "account": {
+              "type": "object"
+            },
+            "protocol": {
+              "type": "object"
+            },
+            "required_unverified": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string"
+              }
+            },
+            "vectors": {
+              "type": "array",
+              "minItems": 8,
+              "maxItems": 8,
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "mode"
+                    ],
+                    "properties": {
+                      "id": {
+                        "const": "selected-exact-ack"
+                      },
+                      "mode": {
+                        "const": "selected-exact-ack"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "mode"
+                    ],
+                    "properties": {
+                      "id": {
+                        "const": "selected-wrong-hash"
+                      },
+                      "mode": {
+                        "const": "selected-wrong-hash"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "mode"
+                    ],
+                    "properties": {
+                      "id": {
+                        "const": "selected-wrong-revision"
+                      },
+                      "mode": {
+                        "const": "selected-wrong-revision"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "mode"
+                    ],
+                    "properties": {
+                      "id": {
+                        "const": "stale-a-active-b"
+                      },
+                      "mode": {
+                        "const": "stale-a-active-b"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "mode"
+                    ],
+                    "properties": {
+                      "id": {
+                        "const": "discarded-stage"
+                      },
+                      "mode": {
+                        "const": "discarded-stage"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "mode"
+                    ],
+                    "properties": {
+                      "id": {
+                        "const": "explicit-consent"
+                      },
+                      "mode": {
+                        "const": "explicit-consent"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "mode"
+                    ],
+                    "properties": {
+                      "id": {
+                        "const": "monitor-exact-ack"
+                      },
+                      "mode": {
+                        "const": "monitor-exact-ack"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "mode"
+                    ],
+                    "properties": {
+                      "id": {
+                        "const": "selected-denied"
+                      },
+                      "mode": {
+                        "const": "selected-denied"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

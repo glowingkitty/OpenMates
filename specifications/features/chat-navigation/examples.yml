@@ -174,3 +174,21 @@ chat_organization:
   then: The destination link is saved before the old Project link is removed. Add
     to project would instead retain both links; a destination failure preserves the
     old link and shows an error.
+chat_menus:
+- id: ranked-short-menu
+  assertion_ids:
+  - chat-navigation.menu.parity-ranked
+  given: A signed-in user usually downloads chats and has never used Copy or Hide.
+  when: They right-click a chat in the sidebar.
+  then: The menu shows the chat summary, a close button and five actions with Download
+    first. A down arrow under the list scrolls to the remaining actions, Delete stays
+    last, and scrolling the list keeps the menu open. The usage history syncs to their
+    other devices as encrypted account settings.
+- id: more-menu-parity
+  assertion_ids:
+  - chat-navigation.menu.parity-ranked
+  given: A chat is open full screen.
+  when: The user opens the header More menu.
+  then: It lists Add to project, Create new project, Move to project, Open in new tab,
+    Download, Copy, Hide, Pin, Mark unread and Delete next to Share and Settings; Delete
+    asks for a second tap before deleting.

@@ -3,6 +3,12 @@ export type DomainAvailability = 'available' | 'unavailable' | 'unknown';
 export type DomainView = 'selected' | 'available' | 'all' | 'in-use' | 'unknown';
 
 export interface DomainTier {
+  /** Authored quotes describe a total price for the supplied exact term. */
+  years?: number;
+  price?: number;
+  amount?: number;
+  currency?: string;
+  label?: string;
   unit?: string;
   duration_range?: { minimum?: number | null; maximum?: number | null };
   minimum_term?: string | null;
@@ -85,8 +91,14 @@ export function idList(value: unknown): string[] {
   return [...new Set(items.filter((item): item is string => typeof item === 'string' && !!item.trim()).map((item) => item.trim()))];
 }
 
-export function tierList(value: unknown): DomainTier[] {
-  return Array.isArray(value) ? value.filter((item): item is DomainTier => !!item && typeof item === 'object' && !Array.isArray(item)) : [];
+export function tierList(value: unknown, suppliedCurrency = ''): DomainTier[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is DomainTier => !!item && typeof item === 'object' && !Array.isArray(item))
+    .map((tier) => {
+      if (tier.price === undefined && tier.amount === undefined && tier.years === undefined) return tier;
+      const currency = textValue(tier.currency).trim() || suppliedCurrency.trim();
+      return currency ? { ...tier, currency } : tier;
+    });
 }
 
 export function normalizeDomain(embedId: string, raw: Record<string, unknown>): DomainResult {
@@ -96,15 +108,16 @@ export function normalizeDomain(embedId: string, raw: Record<string, unknown>): 
     embed_id: embedId,
     domain_ascii: ascii,
     domain_unicode: textValue(raw.domain_unicode) || ascii,
-    availability: availability === 'available' || availability === 'unavailable' ? availability : 'unknown',
+    availability: availability === 'registered' ? 'unavailable'
+      : availability === 'available' || availability === 'unavailable' ? availability : 'unknown',
     provider: textValue(raw.provider_name) || textValue(raw.provider),
     provider_url: textValue(raw.provider_url),
     premium: raw.premium === true,
     reserved: raw.reserved === true,
     corporate: raw.corporate === true,
     restrictions: Array.isArray(raw.restrictions) ? raw.restrictions.filter((item): item is string => typeof item === 'string' && !!item.trim()) : [],
-    registration_tiers: tierList(raw.registration_tiers),
-    renewal_tiers: tierList(raw.renewal_tiers),
+    registration_tiers: tierList(raw.registration_tiers, textValue(raw.currency)),
+    renewal_tiers: tierList(raw.renewal_tiers, textValue(raw.currency)),
     checked_at: textValue(raw.checked_at) || null,
     country: textValue(raw.country),
     currency: textValue(raw.currency),
@@ -112,16 +125,22 @@ export function normalizeDomain(embedId: string, raw: Record<string, unknown>): 
 }
 
 export function years(tier: DomainTier): number | undefined {
+  if (tier.years !== undefined) {
+    const duration = numberValue(tier.years);
+    return duration !== undefined && Number.isInteger(duration) && duration >= 1 ? duration : undefined;
+  }
   if (tier.unit !== 'y' && tier.unit !== 'year' && tier.unit !== 'years') return undefined;
   return numberValue(tier.duration_range?.minimum);
 }
 
-export function quote(tier: DomainTier | undefined): { amount: number; basis: 'including' | 'excluding' } | null {
+export function quote(tier: DomainTier | undefined): { amount: number; basis: 'including' | 'excluding' | 'unknown' } | null {
   if (!tier) return null;
   const including = numberValue(tier.price_including_tax);
   if (including !== undefined && including >= 0) return { amount: including, basis: 'including' };
   const excluding = numberValue(tier.price_excluding_tax);
-  return excluding !== undefined && excluding >= 0 ? { amount: excluding, basis: 'excluding' } : null;
+  if (excluding !== undefined && excluding >= 0) return { amount: excluding, basis: 'excluding' };
+  const supplied = numberValue(tier.price) ?? numberValue(tier.amount);
+  return supplied !== undefined && supplied >= 0 ? { amount: supplied, basis: 'unknown' } : null;
 }
 
 export function headlineTier(tiers: DomainTier[]): DomainTier | undefined {
@@ -131,6 +150,7 @@ export function headlineTier(tiers: DomainTier[]): DomainTier | undefined {
 export function isFirstYearOffer(tier: DomainTier | undefined): boolean {
   if (!tier || years(tier) !== 1 || tier.discount !== true) return false;
   const currentQuote = quote(tier);
+  if (currentQuote?.basis === 'unknown') return false;
   const current = currentQuote?.amount;
   const normal = numberValue(currentQuote?.basis === 'including' ? tier.normal_price : tier.normal_price_before_taxes);
   return current !== undefined && normal !== undefined && normal > current;
@@ -145,7 +165,7 @@ export function formatMoney(amount: number, currency: string): string {
   try {
     return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount);
   } catch {
-    return `${currency} ${amount.toFixed(2)}`;
+    return `${currency} ${amount.toFixed(2)}`.trim();
   }
 }
 
@@ -153,7 +173,10 @@ export function formatMoney(amount: number, currency: string): string {
 export function formatTierMoney(tier: DomainTier | undefined, currency: string, localizedYear: string): string | null {
   const value = quote(tier);
   if (!value) return null;
-  const amount = formatMoney(value.amount, currency);
+  // A plain authored price has no tax or per-year basis. Its explicit tier
+  // currency is copied from supplied metadata, never a consumer's EUR fallback.
+  if (value.basis === 'unknown') return formatMoney(value.amount, textValue(tier?.currency));
+  const amount = formatMoney(value.amount, textValue(tier?.currency) || currency);
   return tier?.unit === 'y' || tier?.unit === 'year' || tier?.unit === 'years'
     ? `${amount} / ${localizedYear}`
     : amount;

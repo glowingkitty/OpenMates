@@ -158,4 +158,40 @@ describe('browser model PII span adaptation', () => {
     const text = 'https://example.org/Amina [PERSON_NAME_1] 123e4567-e89b-42d3-a456-426614174000 version 3.14.159 OpenMates';
     expect(mergeWebPIIMatches(text, [entity(text, 'Amina'), entity(text, 'PERSON_NAME'), entity(text, '123e4567'), entity(text, '3.14.159', 'IP_ADDRESS'), entity(text, 'OpenMates', 'ORG')])).toEqual([]);
   });
+  // contract-test: supporting surface=gui.web assertions=pii.composer.city-not-personal
+  it('does not treat a standalone city or state as personal data', () => {
+    const text = 'Tell me about the history of Berlin and the economy of Bavaria.';
+    expect(mergeWebPIIMatches(text, [entity(text, 'Berlin', 'CITY'), entity(text, 'Bavaria', 'STATE')])).toEqual([]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.city-not-personal
+  it('still protects a city that is part of a street address', () => {
+    const text = 'Send it to Hauptstrasse 5, 10115 Berlin please, not to Hamburg.';
+    const matches = mergeWebPIIMatches(text, [
+      entity(text, 'Hauptstrasse', 'STREET_NAME'), entity(text, '5', 'BUILDING_NUMBER'),
+      entity(text, '10115', 'ZIP_CODE'), entity(text, 'Berlin', 'CITY'), entity(text, 'Hamburg', 'CITY'),
+    ]);
+    expect(matches.map(match => [match.type, match.match])).toEqual([
+      ['ADDRESS', 'Hauptstrasse'], ['ADDRESS', '5'], ['ADDRESS', '10115'], ['ADDRESS', 'Berlin'],
+    ]);
+  });
+
+  // contract-test: infrastructure
+  it('does not treat a standalone sentence-initial interjection as a given name', () => {
+    const text = 'Awesome. I work on a large open source project.';
+    expect(mergeWebPIIMatches(text, [entity(text, 'Awesome')])).toEqual([]);
+    const great = 'Great, thanks!';
+    expect(mergeWebPIIMatches(great, [entity(great, 'Great'), entity(great, 'thanks')])).toEqual([]);
+  });
+
+  // contract-test: infrastructure
+  it('still flags real names, including full names and titles', () => {
+    const text = 'Awesome. Maria Schmidt wrote to Dr. Weber.';
+    const matches = mergeWebPIIMatches(text, [
+      entity(text, 'Awesome'), entity(text, 'Maria'), entity(text, 'Schmidt', 'SURNAME'), entity(text, 'Weber', 'SURNAME'),
+    ]);
+    expect(matches.map(match => match.match)).toEqual(['Maria', 'Schmidt', 'Weber']);
+    const will = 'Will called me.';
+    expect(mergeWebPIIMatches(will, [entity(will, 'Will')]).map(match => match.match)).toEqual(['Will']);
+  });
 });

@@ -556,6 +556,8 @@ def _compile_authoring(
         steps = []
     if not isinstance(steps, list) or (not steps and not preview and not preserve_prior_steps):
         raise ValueError("Authoring plan requires steps")
+    if operation == "create" and not preview:
+        steps = _with_default_delivery(steps, raw.get("title"), assumptions)
     removed_ids = raw.get("remove_step_ids") or []
     if removed_ids and operation != "update":
         raise ValueError("Only an update can remove existing steps")
@@ -797,6 +799,40 @@ def _compile_authoring(
     return {"action": "create_workflow", "title": title.strip()[:200], "description": description.strip()[:2000],
             "category": identity.category, "icon": identity.icon, "graph": graph_data,
             "enabled": False, "assumptions": assumptions}
+
+
+def _contains_send(items: Any) -> bool:
+    if not isinstance(items, list):
+        return False
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        if item.get("kind") == "send":
+            return True
+        for key in ("yes", "no", "unsure", "body"):
+            if _contains_send(item.get(key)):
+                return True
+        for branch in item.get("option_branches") or []:
+            if isinstance(branch, dict) and _contains_send(branch.get("steps")):
+                return True
+    return False
+
+
+def _with_default_delivery(steps: Any, title: Any, assumptions: list[str]) -> Any:
+    """Deliver a new workflow's final AI answer to a chat when no Send was authored."""
+    if not isinstance(steps, list) or not steps or _contains_send(steps):
+        return steps
+    last = steps[-1]
+    if not isinstance(last, dict) or last.get("kind") != "ask_ai" or not isinstance(last.get("id"), str):
+        return steps
+    used = {item.get("id") for item in steps if isinstance(item, dict)}
+    send_id = "deliver"
+    while send_id in used:
+        send_id += "_chat"
+    assumptions.append("No delivery channel was specified, so the result is sent to a new chat.")
+    return [*steps, {"kind": "send", "id": send_id,
+                     "title": title if isinstance(title, str) and title.strip() else "Workflow update",
+                     "message": [{"ref": {"step": last["id"], "field": "answer"}}]}]
 
 
 def compile_authoring_plan(

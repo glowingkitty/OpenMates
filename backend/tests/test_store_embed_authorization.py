@@ -7,6 +7,8 @@ server can enforce it regardless of what the frontend sends.
 """
 
 import hashlib
+import copy
+import json
 import sys
 import types
 import uuid
@@ -94,6 +96,8 @@ class FakeDirectusService:
     async def _make_api_request(self, method, url, *, headers, json):
         assert method == "POST"
         if url.endswith("/chat-recovery-transaction"):
+            if json["operation"] == "get_legacy_output_asset_binding":
+                return FakeResponse(200, {"data": {"binding": None}})
             assert json["operation"] == "complete_authorized_direct_by_embed"
             if self.manager is not None:
                 assert self.manager.personal_messages[0][0]["type"] == "store_embed_confirmed"
@@ -751,3 +755,147 @@ def _cleanup_authority_for_existing_flow_fixtures(monkeypatch):
         return await execute(self, operation, data)
 
     monkeypatch.setattr(ChatRecoveryService, "execute", with_cleanup_authority)
+
+
+class AssetSidecarCache(FakeCacheService):
+    def __init__(self, value):
+        self.values = {} if value is None else {"embed:embed-1:s3_file_keys": value}
+        self.compare_deletes = []
+
+    @property
+    async def client(self):
+        return self
+
+    async def get(self, key):
+        return self.values.get(key)
+
+    async def expire(self, *_args):
+        return True
+
+    async def eval(self, script, numkeys, key, expected):
+        assert "redis.call('GET', KEYS[1]) == ARGV[1]" in script
+        self.compare_deletes.append((key, expected))
+        if self.values.get(key) == expected:
+            return int(self.values.pop(key, None) is not None)
+        return 0
+
+
+@pytest.mark.parametrize("failure", [409, 503])
+# contract-test: direct surface=rest_api assertions=authored-results.media.safe-and-attributed,authored-results.lifecycle.encrypted-and-stable,storage.files.reference-safe-single-copy
+@pytest.mark.asyncio
+async def test_asset_sidecar_survives_failed_write_then_durable_retry(failure):
+    from backend.core.api.app.services.storage_reference_service import collect_storage_references
+    refs = [{"bucket": "chatfiles", "key": "selected-preview"}]
+    cache = AssetSidecarCache(json.dumps(refs))
+    directus = FakeDirectusService()
+    original_write = directus._make_api_request
+    attempts = 0
+
+    async def write(method, url, **kwargs):
+        nonlocal attempts
+        if url.endswith("/legacy-embed-write"):
+            attempts += 1
+            if attempts == 1:
+                return FakeResponse(failure, {"error": {"code": "canonical_conflict" if failure == 409 else "unavailable"}})
+        return await original_write(method, url, **kwargs)
+
+    directus._make_api_request = write
+    manager = FakeConnectionManager()
+    handle = get_handle_store_embed()
+    args = dict(websocket=None, manager=manager, cache_service=cache, directus_service=directus,
+                user_id=OWNER_ID, device_fingerprint_hash="device-1")
+    await handle(**args, payload=store_payload(request_id="first"))
+    assert cache.values["embed:embed-1:s3_file_keys"] == json.dumps(refs)
+    assert cache.compare_deletes == [] and directus.embed.created == []
+    await handle(**args, payload=store_payload(request_id="retry"))
+    assert "embed:embed-1:s3_file_keys" not in cache.values
+    assert len(cache.compare_deletes) == 1
+    assert collect_storage_references(embeds=[directus.embed.existing_embed], uploads=[]).references == {
+        ("chatfiles", "selected-preview"),
+    }
+
+
+# contract-test: direct surface=rest_api assertions=authored-results.media.safe-and-attributed,authored-results.lifecycle.encrypted-and-stable
+@pytest.mark.asyncio
+async def test_asset_sidecar_compare_delete_preserves_a_concurrent_new_revision():
+    original_refs = [{"bucket": "chatfiles", "key": "original-selected"}]
+    new_refs = [{"bucket": "chatfiles", "key": "new-selected"}]
+    cache = AssetSidecarCache(json.dumps(original_refs))
+    directus = FakeDirectusService()
+    original_write = directus._make_api_request
+
+    async def write(method, url, **kwargs):
+        result = await original_write(method, url, **kwargs)
+        if url.endswith("/legacy-embed-write"):
+            cache.values["embed:embed-1:s3_file_keys"] = json.dumps(new_refs)
+        return result
+
+    directus._make_api_request = write
+    await get_handle_store_embed()(
+        websocket=None, manager=FakeConnectionManager(), cache_service=cache, directus_service=directus,
+        user_id=OWNER_ID, device_fingerprint_hash="device-1", payload=store_payload(request_id="old"),
+    )
+    assert directus.embed.existing_embed["s3_file_keys"] == original_refs
+    assert cache.values["embed:embed-1:s3_file_keys"] == json.dumps(new_refs)
+
+
+@pytest.mark.parametrize("enrich", [False, True])
+# contract-test: direct surface=rest_api assertions=authored-results.media.safe-and-attributed,authored-results.lifecycle.encrypted-and-stable,storage.files.reference-safe-single-copy
+@pytest.mark.asyncio
+async def test_cold_legacy_asset_binding_reaches_canonical_write_without_cache_or_plaintext(enrich):
+    refs = [{"bucket": "chatfiles", "key": "selected-private-file"}]
+    binding = {"task_identity": "a" * 64, "embed_id": "embed-1", "output_version": 1,
+               "content_commitment": "c" * 64}
+    existing = store_payload(parent_embed_id="carrier-1") if enrich else None
+    directus = FakeDirectusService(existing_embed=existing)
+    original_write = directus._make_api_request
+    lookup_requests = []
+
+    async def write(method, url, **kwargs):
+        body = kwargs["json"]
+        if url.endswith("/chat-recovery-transaction") and body["operation"] == "get_legacy_output_asset_binding":
+            lookup_requests.append(body["data"])
+            return FakeResponse(200, {"data": {"binding": binding}})
+        result = await original_write(method, url, **kwargs)
+        if url.endswith("/legacy-embed-write"):
+            assert body["authored_asset_binding"] == binding
+            # Models the separate actual Node transaction tested in its suite:
+            # only the trusted registered entry promotes server-owned metadata.
+            directus.embed.existing_embed["s3_file_keys"] = copy.deepcopy(refs)
+        return result
+
+    directus._make_api_request = write
+    payload = store_payload(parent_embed_id="carrier-1", request_id="cold")
+    if enrich:
+        payload = {key: value for key, value in payload.items() if key not in {"encrypted_type", "encrypted_content", "status", "created_at", "updated_at", "parent_embed_id"}}
+        payload.update(hashed_task_id="d" * 64, canonical_metadata_enrichment={
+            "expected_version": 1,
+            "expected_ciphertext_sha256": hashlib.sha256(b"encrypted-content").hexdigest(),
+        })
+    await get_handle_store_embed()(
+        websocket=None, manager=FakeConnectionManager(), cache_service=FakeCacheService(), directus_service=directus,
+        user_id=OWNER_ID, device_fingerprint_hash="device-1", payload=payload,
+    )
+    assert lookup_requests[0]["hashed_user_id"] == OWNER_HASH
+    assert lookup_requests[0]["parent_embed_id"] == "carrier-1"
+    assert "s3_file_keys" not in directus.write_calls[0]["payload"]
+    assert "authored_asset_binding" not in directus.write_calls[0]["payload"]
+    assert directus.embed.existing_embed["encrypted_content"] == "encrypted-content"
+    from backend.core.api.app.services.storage_reference_service import collect_storage_references
+    assert collect_storage_references(embeds=[directus.embed.existing_embed], uploads=[]).references == {
+        ("chatfiles", "selected-private-file"),
+    }
+
+
+# contract-test: direct surface=rest_api assertions=authored-results.media.safe-and-attributed
+@pytest.mark.asyncio
+async def test_client_cannot_supply_server_asset_binding():
+    directus = FakeDirectusService()
+    manager = FakeConnectionManager()
+    await get_handle_store_embed()(
+        websocket=None, manager=manager, cache_service=FakeCacheService(), directus_service=directus,
+        user_id=OWNER_ID, device_fingerprint_hash="device-1",
+        payload=store_payload(authored_asset_binding={"content_commitment": "guessed"}),
+    )
+    assert directus.write_calls == [] and directus.embed.created == []
+    assert manager.personal_messages[0][0]["payload"]["code"] == "embed_write_denied"

@@ -1,0 +1,434 @@
+{
+  "schema_version": 1,
+  "provenance": "Synthetic pure Core policy DATA only; no caller JSON/source/parent label can construct authenticated native resources or durability. Actual browser producer uses isolated CMS rows via existing fixture commands; runtime UNRUN.",
+  "owner": "22222222-2222-4222-8222-222222222222",
+  "child": "11111111-1111-4111-8111-111111111111",
+  "parent": "33333333-3333-4333-8333-333333333333",
+  "now": 3,
+  "cases": [
+    {
+      "id": "uncached-parent-navigation",
+      "source": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "parent_id": "33333333-3333-4333-8333-333333333333",
+        "is_sub_chat": true,
+        "encrypted_chat_key": "opaque-wrapped-child",
+        "encrypted_title": "opaque-title",
+        "title_v": 2,
+        "metadata_v": 2,
+        "created_at": 1,
+        "updated_at": 2,
+        "last_edited_overall_timestamp": 2,
+        "messages_v": 7
+      },
+      "before": null,
+      "expected_parent": "33333333-3333-4333-8333-333333333333",
+      "expected_is_sub_chat": true
+    },
+    {
+      "id": "clear-floor-unknown-extension",
+      "source": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "parent_id": "33333333-3333-4333-8333-333333333333",
+        "is_sub_chat": true,
+        "encrypted_chat_key": "opaque-wrapped-child",
+        "encrypted_title": "opaque-title",
+        "title_v": 2,
+        "metadata_v": 2,
+        "created_at": 1,
+        "updated_at": 2,
+        "last_edited_overall_timestamp": 2,
+        "messages_v": 7
+      },
+      "before": {
+        "chat_id": "11111111-1111-4111-8111-111111111111",
+        "id": null,
+        "draft_v": 9,
+        "cleared_draft_v": 9,
+        "encrypted_draft_md": null,
+        "unknown_local": {
+          "nested": [
+            1,
+            null,
+            "opaque"
+          ]
+        },
+        "parent_chat_id": "untrusted-local-label"
+      },
+      "expected_parent": "33333333-3333-4333-8333-333333333333",
+      "preserve": [
+        "id",
+        "draft_v",
+        "cleared_draft_v",
+        "encrypted_draft_md",
+        "unknown_local",
+        "parent_chat_id"
+      ],
+      "absent": [
+        "encrypted_draft_preview"
+      ]
+    },
+    {
+      "id": "active-draft-source-overwrites-only-known-navigation",
+      "source": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "parent_id": "33333333-3333-4333-8333-333333333333",
+        "is_sub_chat": true,
+        "encrypted_chat_key": "opaque-wrapped-child",
+        "encrypted_title": "opaque-title",
+        "title_v": 2,
+        "metadata_v": 2,
+        "created_at": 1,
+        "updated_at": 2,
+        "last_edited_overall_timestamp": 2,
+        "messages_v": 7
+      },
+      "before": {
+        "chat_id": "11111111-1111-4111-8111-111111111111",
+        "draft_v": 8,
+        "encrypted_draft_md": "opaque-draft",
+        "encrypted_draft_preview": "opaque-preview",
+        "parent_id": "44444444-4444-4444-8444-444444444444",
+        "is_sub_chat": false,
+        "title_v": 1,
+        "metadata_v": 1
+      },
+      "expected_parent": "33333333-3333-4333-8333-333333333333",
+      "preserve": [
+        "draft_v",
+        "encrypted_draft_md",
+        "encrypted_draft_preview"
+      ]
+    },
+    {
+      "id": "hidden-child-metadata-stays-discoverable",
+      "source": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "parent_id": "33333333-3333-4333-8333-333333333333",
+        "is_sub_chat": true,
+        "encrypted_chat_key": "opaque-wrapped-child",
+        "encrypted_title": "opaque-title",
+        "title_v": 2,
+        "metadata_v": 2,
+        "created_at": 1,
+        "updated_at": 2,
+        "last_edited_overall_timestamp": 2,
+        "messages_v": 7,
+        "is_hidden": true,
+        "is_hidden_candidate": false
+      },
+      "before": null,
+      "expected_parent": "33333333-3333-4333-8333-333333333333",
+      "fields": {
+        "is_hidden": true,
+        "is_hidden_candidate": false
+      }
+    },
+    {
+      "id": "orphan-parent-link-is-data-not-admission",
+      "source": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "parent_id": "44444444-4444-4444-8444-444444444444",
+        "is_sub_chat": true,
+        "encrypted_chat_key": "opaque-wrapped-child",
+        "encrypted_title": "opaque-title",
+        "title_v": 2,
+        "metadata_v": 2,
+        "created_at": 1,
+        "updated_at": 2,
+        "last_edited_overall_timestamp": 2,
+        "messages_v": 7
+      },
+      "before": null,
+      "expected_parent": "44444444-4444-4444-8444-444444444444"
+    },
+    {
+      "id": "not-child",
+      "source": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "parent_id": "33333333-3333-4333-8333-333333333333",
+        "is_sub_chat": false,
+        "encrypted_chat_key": "opaque-wrapped-child",
+        "encrypted_title": "opaque-title",
+        "title_v": 2,
+        "metadata_v": 2,
+        "created_at": 1,
+        "updated_at": 2,
+        "last_edited_overall_timestamp": 2,
+        "messages_v": 7
+      },
+      "before": null,
+      "refused": true
+    },
+    {
+      "id": "missing-parent",
+      "source": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "parent_id": null,
+        "is_sub_chat": true,
+        "encrypted_chat_key": "opaque-wrapped-child",
+        "encrypted_title": "opaque-title",
+        "title_v": 2,
+        "metadata_v": 2,
+        "created_at": 1,
+        "updated_at": 2,
+        "last_edited_overall_timestamp": 2,
+        "messages_v": 7
+      },
+      "before": null,
+      "refused": true
+    },
+    {
+      "id": "self-parent",
+      "source": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "parent_id": "11111111-1111-4111-8111-111111111111",
+        "is_sub_chat": true,
+        "encrypted_chat_key": "opaque-wrapped-child",
+        "encrypted_title": "opaque-title",
+        "title_v": 2,
+        "metadata_v": 2,
+        "created_at": 1,
+        "updated_at": 2,
+        "last_edited_overall_timestamp": 2,
+        "messages_v": 7
+      },
+      "before": null,
+      "refused": true
+    },
+    {
+      "id": "malformed-parent",
+      "source": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "parent_id": "caller-label",
+        "is_sub_chat": true,
+        "encrypted_chat_key": "opaque-wrapped-child",
+        "encrypted_title": "opaque-title",
+        "title_v": 2,
+        "metadata_v": 2,
+        "created_at": 1,
+        "updated_at": 2,
+        "last_edited_overall_timestamp": 2,
+        "messages_v": 7
+      },
+      "before": null,
+      "refused": true
+    },
+    {
+      "id": "foreign-owner",
+      "source": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "parent_id": "33333333-3333-4333-8333-333333333333",
+        "is_sub_chat": true,
+        "encrypted_chat_key": "opaque-wrapped-child",
+        "encrypted_title": "opaque-title",
+        "title_v": 2,
+        "metadata_v": 2,
+        "created_at": 1,
+        "updated_at": 2,
+        "last_edited_overall_timestamp": 2,
+        "messages_v": 7,
+        "user_id": "44444444-4444-4444-8444-444444444444"
+      },
+      "before": null,
+      "refused": true
+    },
+    {
+      "id": "team",
+      "source": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "parent_id": "33333333-3333-4333-8333-333333333333",
+        "is_sub_chat": true,
+        "encrypted_chat_key": "opaque-wrapped-child",
+        "encrypted_title": "opaque-title",
+        "title_v": 2,
+        "metadata_v": 2,
+        "created_at": 1,
+        "updated_at": 2,
+        "last_edited_overall_timestamp": 2,
+        "messages_v": 7,
+        "team_id": "44444444-4444-4444-8444-444444444444"
+      },
+      "before": null,
+      "refused": true
+    },
+    {
+      "id": "direct",
+      "source": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "parent_id": "33333333-3333-4333-8333-333333333333",
+        "is_sub_chat": true,
+        "encrypted_chat_key": "opaque-wrapped-child",
+        "encrypted_title": "opaque-title",
+        "title_v": 2,
+        "metadata_v": 2,
+        "created_at": 1,
+        "updated_at": 2,
+        "last_edited_overall_timestamp": 2,
+        "messages_v": 7,
+        "chat_visibility": "direct"
+      },
+      "before": null,
+      "refused": true
+    },
+    {
+      "id": "shared",
+      "source": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "parent_id": "33333333-3333-4333-8333-333333333333",
+        "is_sub_chat": true,
+        "encrypted_chat_key": "opaque-wrapped-child",
+        "encrypted_title": "opaque-title",
+        "title_v": 2,
+        "metadata_v": 2,
+        "created_at": 1,
+        "updated_at": 2,
+        "last_edited_overall_timestamp": 2,
+        "messages_v": 7,
+        "is_shared": true
+      },
+      "before": null,
+      "refused": true
+    },
+    {
+      "id": "key-not-yet-available",
+      "source": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "parent_id": "33333333-3333-4333-8333-333333333333",
+        "is_sub_chat": true,
+        "encrypted_chat_key": null,
+        "encrypted_title": "opaque-title",
+        "title_v": 2,
+        "metadata_v": 2,
+        "created_at": 1,
+        "updated_at": 2,
+        "last_edited_overall_timestamp": 2,
+        "messages_v": 7
+      },
+      "before": null,
+      "refused": true
+    },
+    {
+      "id": "false-cipher",
+      "source": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "parent_id": "33333333-3333-4333-8333-333333333333",
+        "is_sub_chat": true,
+        "encrypted_chat_key": "opaque-wrapped-child",
+        "encrypted_title": false,
+        "title_v": 2,
+        "metadata_v": 2,
+        "created_at": 1,
+        "updated_at": 2,
+        "last_edited_overall_timestamp": 2,
+        "messages_v": 7
+      },
+      "before": null,
+      "refused": true
+    },
+    {
+      "id": "foreign-physical-owner",
+      "source": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "parent_id": "33333333-3333-4333-8333-333333333333",
+        "is_sub_chat": true,
+        "encrypted_chat_key": "opaque-wrapped-child",
+        "encrypted_title": "opaque-title",
+        "title_v": 2,
+        "metadata_v": 2,
+        "created_at": 1,
+        "updated_at": 2,
+        "last_edited_overall_timestamp": 2,
+        "messages_v": 7
+      },
+      "before": {
+        "chat_id": "11111111-1111-4111-8111-111111111111",
+        "user_id": "44444444-4444-4444-8444-444444444444"
+      },
+      "refused": true
+    },
+    {
+      "id": "foreign-physical-chat",
+      "source": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "parent_id": "33333333-3333-4333-8333-333333333333",
+        "is_sub_chat": true,
+        "encrypted_chat_key": "opaque-wrapped-child",
+        "encrypted_title": "opaque-title",
+        "title_v": 2,
+        "metadata_v": 2,
+        "created_at": 1,
+        "updated_at": 2,
+        "last_edited_overall_timestamp": 2,
+        "messages_v": 7
+      },
+      "before": {
+        "chat_id": "44444444-4444-4444-8444-444444444444"
+      },
+      "refused": true
+    },
+    {
+      "id": "team-physical",
+      "source": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "parent_id": "33333333-3333-4333-8333-333333333333",
+        "is_sub_chat": true,
+        "encrypted_chat_key": "opaque-wrapped-child",
+        "encrypted_title": "opaque-title",
+        "title_v": 2,
+        "metadata_v": 2,
+        "created_at": 1,
+        "updated_at": 2,
+        "last_edited_overall_timestamp": 2,
+        "messages_v": 7
+      },
+      "before": {
+        "chat_id": "11111111-1111-4111-8111-111111111111",
+        "team_id": "44444444-4444-4444-8444-444444444444"
+      },
+      "refused": true
+    },
+    {
+      "id": "newer-floor",
+      "source": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "parent_id": "33333333-3333-4333-8333-333333333333",
+        "is_sub_chat": true,
+        "encrypted_chat_key": "opaque-wrapped-child",
+        "encrypted_title": "opaque-title",
+        "title_v": 2,
+        "metadata_v": 2,
+        "created_at": 1,
+        "updated_at": 2,
+        "last_edited_overall_timestamp": 2,
+        "messages_v": 7
+      },
+      "before": {
+        "chat_id": "11111111-1111-4111-8111-111111111111",
+        "metadata_v": 3
+      },
+      "refused": true
+    },
+    {
+      "id": "existing-keyed-header",
+      "source": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "parent_id": "33333333-3333-4333-8333-333333333333",
+        "is_sub_chat": true,
+        "encrypted_chat_key": "opaque-wrapped-child",
+        "encrypted_title": "opaque-title",
+        "title_v": 2,
+        "metadata_v": 2,
+        "created_at": 1,
+        "updated_at": 2,
+        "last_edited_overall_timestamp": 2,
+        "messages_v": 7
+      },
+      "before": {
+        "chat_id": "11111111-1111-4111-8111-111111111111",
+        "encrypted_chat_key": "already-keyed"
+      },
+      "refused": true
+    }
+  ]
+}

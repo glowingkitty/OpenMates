@@ -95,6 +95,8 @@ cd frontend/packages/ui && npm run prepare
 
 The `prepare` script runs 8 steps in sequence: `build:translations`, `validate:locales`, `generate-apps-metadata`, `generate-embed-registry`, `generate-models-metadata`, `generate-providers-metadata`, `generate-icon-urls`, `validate:icon-refs`.
 
+`validate:locales` is also the deploy translation gate (`sessions.py deploy` runs it for frontend changes). Its Step 8 (`scripts/validate-app-translation-keys.js`) fails when an app.yml / SKILL.md translation key (after `app_focus_modes.`/`app_skills.` prefixing) or a static `labelKey`/`*_translation_key` literal is missing from en.json, or when a focus mode name/description is not translated in all 21 languages. Keys composed at runtime outside app metadata are not covered.
+
 `build:translations` specifically: recursively loads all YAML from `sources/`, merges by namespace, strips `context` fields, preserves newlines as `\n`, generates JSON for all 21 languages.
 
 ### Generated Files

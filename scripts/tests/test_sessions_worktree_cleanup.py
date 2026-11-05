@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import importlib.util
 import fcntl
+import hashlib
 import json
 import os
 import subprocess
@@ -35,6 +36,14 @@ def load_sessions_module():
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
+    import tempfile
+    module._test_expiry_directory = tempfile.TemporaryDirectory(prefix="openmates-expiry-test-")
+    module.WORKTREE_EXPIRY_LOCK_FILE = Path(module._test_expiry_directory.name) / "expiry.lock"
+    # Expiry unit tests own a synthetic runtime; dedicated tests below exercise
+    # the real probes without consulting host services during filesystem tests.
+    module._expiry_worktree_has_runtime_references = lambda _path: False
+    module._expiry_agent_task_is_live = lambda _session: False
+    module._queue_coordinated_worktree_cleanup = lambda: False
     return module
 
 
@@ -327,7 +336,7 @@ def test_hard_expiry_deletes_inactive_classifications_but_protects_live_work(mon
                     "recent": {"worktree": {"path": str(recent_active), "status": "active"}},
                 },
                 "deploy_queue": [{"session_id": "old"}, {"session_id": "inactive"}, {"session_id": "recent"}],
-                "edit_leases": {"source.py": {"session_id": "old"}, "recent.py": {"session_id": "recent"}},
+                "edit_leases": {"source.py": {"session_id": "old", "since": sessions._now_iso()}, "recent.py": {"session_id": "recent"}},
             }
         ),
         encoding="utf-8",
@@ -357,7 +366,8 @@ def test_hard_expiry_deletes_inactive_classifications_but_protects_live_work(mon
     data = json.loads(sessions_file.read_text(encoding="utf-8"))
     assert set(data["sessions"]) == {"old", "recent"}
     assert data["deploy_queue"] == [{"session_id": "old"}, {"session_id": "recent"}]
-    assert data["edit_leases"] == {"source.py": {"session_id": "old"}, "recent.py": {"session_id": "recent"}}
+    assert data["edit_leases"]["source.py"]["session_id"] == "old"
+    assert data["edit_leases"]["recent.py"] == {"session_id": "recent"}
     manifest = data["worktree_deletion_manifests"][-1]
     assert manifest["session_id"] == "inactive"
     assert manifest["reason"] == "hard_max_age_168h"
@@ -366,17 +376,18 @@ def test_hard_expiry_deletes_inactive_classifications_but_protects_live_work(mon
     assert manifest["recovery_archive"] == ""
 
 
-def test_hard_expiry_defaults_to_four_inactive_days_and_protects_recent_merged_work(monkeypatch, tmp_path):
+def test_hard_expiry_defaults_to_seven_inactive_days_and_protects_recent_merged_work(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     now = time.time()
     managed = tmp_path / "worktrees"
     records = []
     session_data = {}
     for session_id, age_hours, status, session_idle, worktree_idle in (
-        ("old", 120, "active", 120, 120),
-        ("recent", 72, "active", 72, 72),
-        ("merged-recent", 120, "merged", 120, 1),
-        ("ended-recent", 120, "ended", 1, 120),
+        ("old", 200, "active", 200, 200),
+        # Five days inactive: retained under the one-week hard lifetime.
+        ("recent", 120, "active", 120, 120),
+        ("merged-recent", 200, "merged", 200, 1),
+        ("ended-recent", 200, "ended", 1, 200),
     ):
         path = managed / f"agent-{session_id}"
         path.mkdir(parents=True)
@@ -409,18 +420,18 @@ def test_hard_expiry_defaults_to_four_inactive_days_and_protects_recent_merged_w
 
     assert removed == ["old"]
     assert report["deleted"] == ["old"]
-    assert report["max_age_hours"] == 96
+    assert report["max_age_hours"] == 168
     assert set(report["retained"]) == {"recent", "merged-recent", "ended-recent"}
     assert set(report["protected_live"]) == {"merged-recent", "ended-recent"}
     assert set(json.loads(sessions_file.read_text())["sessions"]) == {"recent", "merged-recent", "ended-recent"}
 
 
-def test_hard_expiry_rejects_age_below_four_days(monkeypatch):
+def test_hard_expiry_rejects_age_below_seven_days(monkeypatch):
     sessions = load_sessions_module()
     monkeypatch.setattr(sessions, "_managed_worktree_records", lambda: pytest.fail("must reject before discovery"))
 
     with pytest.raises(ValueError, match="below the configured hard lifetime"):
-        sessions.expire_managed_worktrees(max_age_hours=95)
+        sessions.expire_managed_worktrees(max_age_hours=167)
 
 
 def test_seven_day_expiry_ignores_stale_lifecycle_and_task_bindings(monkeypatch, tmp_path):
@@ -441,7 +452,7 @@ def test_seven_day_expiry_ignores_stale_lifecycle_and_task_bindings(monkeypatch,
         path = managed / f"agent-{session_id}"
         path.mkdir(parents=True)
         session = {
-            "codex_task_id": "task-id",
+            "agent_task_id": "task-id",
             "last_active": last_active,
             "lifecycle": {"version": sessions.WORKSPACE_LIFECYCLE_VERSION},
             "worktree": {"path": str(path), "status": status},
@@ -593,6 +604,44 @@ def test_hard_expiry_archives_tracked_untracked_and_head_before_removal(monkeypa
     assert archive.exists()
 
 
+def test_hard_expiry_archive_lists_large_ignored_files_without_copying_them(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    managed = tmp_path / "worktrees"
+    path = managed / "agent-old"
+    path.mkdir(parents=True)
+    subprocess.run(["git", "init", "-q"], cwd=path, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=path, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=path, check=True)
+    (path / ".gitignore").write_text("logs/\ntarget/\n", encoding="utf-8")
+    subprocess.run(["git", "add", ".gitignore"], cwd=path, check=True)
+    subprocess.run(["git", "commit", "-qm", "base"], cwd=path, check=True)
+    (path / "logs").mkdir()
+    (path / "logs" / "note.md").write_text("small private note\n", encoding="utf-8")
+    (path / "logs" / "source.tar").write_bytes(b"x" * 64)
+    (path / "target").mkdir()
+    (path / "target" / "app.bin").write_bytes(b"build output")
+    (path / "new_large_source.bin").write_bytes(b"y" * 64)
+    monkeypatch.setattr(sessions, "WORKTREE_EXPIRY_OMIT_IGNORED_BYTES", 32)
+    monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", managed)
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", path)
+    monkeypatch.setattr(sessions, "WORKTREE_EXPIRY_ARCHIVE_DIR", tmp_path / "recovery")
+    monkeypatch.setattr(sessions, "_git_is_ancestor", lambda *_args: True)
+
+    archive = Path(sessions._archive_expired_worktree({"session_id": "old", "path": str(path)}))
+
+    with tarfile.open(archive, "r:gz") as saved:
+        names = set(saved.getnames())
+        manifest = json.load(saved.extractfile("manifest.json"))
+    assert "untracked/logs/note.md" in names
+    assert "untracked/new_large_source.bin" in names  # non-ignored files are always kept
+    assert "untracked/logs/source.tar" not in names
+    assert not any(name.startswith("untracked/target") for name in names)
+    omitted = [entry for entry in manifest["untracked"] if entry["kind"] == "omitted"]
+    assert omitted == [{"path": "logs/source.tar", "kind": "omitted",
+                        "sha256": hashlib.sha256(b"").hexdigest(), "size": 0, "omitted_bytes": 64}]
+    sessions._verify_expired_worktree_archive_snapshot({"path": str(path)}, str(archive))
+
+
 def test_hard_expiry_archive_failure_preserves_worktree(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     managed = tmp_path / "worktrees"
@@ -611,6 +660,27 @@ def test_hard_expiry_archive_failure_preserves_worktree(monkeypatch, tmp_path):
     assert path.exists()
     assert report["deleted"] == []
     assert report["failures"][0]["session_id"] == "old"
+
+
+@pytest.mark.parametrize("failure", ["archive_size", "free_space"])
+def test_recovery_archive_allocation_is_bounded_before_writing(monkeypatch, tmp_path, failure):
+    sessions = load_sessions_module()
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "unique-proof").write_text("preserve")
+    monkeypatch.setattr(sessions, "is_valid_managed_worktree_path", lambda _p: True)
+    monkeypatch.setattr(sessions, "_expiry_archive_snapshot", lambda _p: ("head", b"", b"", []))
+    monkeypatch.setattr(sessions, "WORKTREE_EXPIRY_ARCHIVE_DIR", tmp_path / "recovery")
+    if failure == "archive_size":
+        monkeypatch.setattr(sessions, "WORKTREE_EXPIRY_MAX_ARCHIVE_BYTES", 100)
+    else:
+        from collections import namedtuple
+        usage = namedtuple("Usage", "total used free")
+        monkeypatch.setattr(sessions.shutil, "disk_usage", lambda _p: usage(1000, 900, 100))
+    with pytest.raises(RuntimeError, match="worktree retained"):
+        sessions._archive_expired_worktree({"path": str(source), "session_id": "source"})
+    assert (source / "unique-proof").read_text() == "preserve"
+    assert not (tmp_path / "recovery").exists()
 
 
 def test_hard_expiry_serializes_other_process_and_releases_lock(tmp_path):
@@ -1008,3 +1078,125 @@ def test_deploy_sync_never_captures_or_rewrites_unselected_staged_work(monkeypat
     assert _git(source, "write-tree") == index_before
     assert (source / "remaining.txt").read_text(encoding="utf-8") == "operator work\n"
     assert _git(source, "status", "--porcelain").splitlines() == ["M deployed.txt", "M  remaining.txt"]
+
+
+@pytest.mark.parametrize("guard", ["none", "recent_activity", "valid_lease", "process", "agent"])
+def test_hard_expiry_stale_write_marker_requires_current_liveness(monkeypatch, tmp_path, guard):
+    sessions = load_sessions_module()
+    now = time.time()
+    stale = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - 200 * 3600))
+    session = {"writing": "source.py", "last_active": stale, "worktree": {"path": str(tmp_path)}}
+    data = {"sessions": {"old": session}, "edit_leases": {"source.py": {"session_id": "old", "since": stale}}}
+    if guard == "recent_activity":
+        session["last_active"] = sessions._now_iso()
+    if guard == "valid_lease":
+        data["edit_leases"]["source.py"]["since"] = sessions._now_iso()
+    monkeypatch.setattr(sessions, "_expiry_worktree_has_runtime_references", lambda _p: guard == "process")
+    monkeypatch.setattr(sessions, "_expiry_agent_task_is_live", lambda _s: guard == "agent")
+    assert sessions._hard_expiry_record_is_live(
+        {"session_id": "old", "path": str(tmp_path)}, data, now_timestamp=now, idle_hours=96,
+    ) is (guard != "none")
+
+
+def _real_runtime_probe():
+    spec = importlib.util.spec_from_file_location("sessions_runtime_probe", SESSIONS_PATH)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_expiry_runtime_probe_preserves_process_cwd(monkeypatch, tmp_path):
+    sessions = _real_runtime_probe()
+    monkeypatch.setattr(sessions, "_run_cmd", lambda *a, **kw: (0, "", ""))
+    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"], cwd=tmp_path)
+    try:
+        assert sessions._expiry_worktree_has_runtime_references(tmp_path)
+    finally:
+        child.terminate()
+        child.wait(timeout=10)
+
+
+@pytest.mark.parametrize("docker_result", ["mounted", "parent_mounted", "unmounted", "unavailable", "invalid"])
+def test_expiry_runtime_probe_checks_container_mounts_and_fails_closed(monkeypatch, tmp_path, docker_result):
+    sessions = _real_runtime_probe()
+    proc = tmp_path / "empty-proc"
+    proc.mkdir()
+    real_iterdir = Path.iterdir
+    monkeypatch.setattr(Path, "iterdir", lambda p: real_iterdir(proc if p == Path("/proc") else p))
+    source = tmp_path / "worktree"
+    source.mkdir()
+    mount_source = str(source.parent if docker_result == "parent_mounted" else source)
+    def run(cmd, **kwargs):
+        if cmd[:2] == ["docker", "ps"]:
+            if docker_result == "unavailable":
+                return 1, "", "unavailable"
+            return 0, "container", ""
+        if docker_result == "invalid":
+            return 0, "invalid json", ""
+        mounts = [] if docker_result == "unmounted" else [{"Source": mount_source}]
+        return 0, json.dumps([{"Mounts": mounts}]), ""
+    monkeypatch.setattr(sessions, "_run_cmd", run)
+    assert sessions._expiry_worktree_has_runtime_references(source) is (docker_result != "unmounted")
+
+
+def test_expiry_runtime_probe_preserves_uninspectable_process(monkeypatch, tmp_path):
+    sessions = _real_runtime_probe()
+    real_iterdir = Path.iterdir
+    def iterdir(path):
+        if path == Path('/proc'):
+            raise PermissionError('process inventory unavailable')
+        return real_iterdir(path)
+    monkeypatch.setattr(Path, 'iterdir', iterdir)
+    assert sessions._expiry_worktree_has_runtime_references(tmp_path)
+
+
+@pytest.mark.parametrize('current,bound,expected', [
+    ('bound-thread', 'bound-thread', True),
+    ('other-thread', 'bound-thread', False),
+    ('', 'bound-thread', False),
+    ('bound-thread', '', False),
+])
+def test_expiry_agent_task_is_live_only_for_the_running_conversation(monkeypatch, current, bound, expected):
+    sessions = _real_runtime_probe()
+    monkeypatch.setattr(sessions, '_agent_task_identity', lambda: current)
+    assert sessions._expiry_agent_task_is_live({'agent_task_id': bound}) is expected
+
+
+@pytest.mark.parametrize('outcome', ['reference', 'none', 'denied', 'error', 'reused'])
+def test_expiry_privileged_probe_requires_elected_owner_and_stable_process(monkeypatch, tmp_path, outcome):
+    sessions = _real_runtime_probe()
+    from scripts import disk_coordinator
+    monkeypatch.setattr(disk_coordinator, 'configured', lambda _root: object())
+    monkeypatch.setattr(disk_coordinator, 'owner_check', lambda _owner: outcome != 'denied')
+    real_read_text = Path.read_text
+    monkeypatch.setattr(Path, 'read_text', lambda p, *a, **kw: (
+        '123 (test) ' + ' '.join(['S'] * 19 + ['42'])
+        if p == Path('/proc/123/stat') else real_read_text(p, *a, **kw)
+    ))
+    calls = []
+    expected = [str(tmp_path / 'worktree' / 'source.py')] if outcome == 'reference' else []
+    def run(cmd, **kwargs):
+        calls.append(cmd)
+        if cmd[:2] == ['docker', 'inspect']:
+            return 0, 'sha256:' + 'a' * 64, ''
+        assert kwargs['timeout'] == 30
+        assert '--read-only' in cmd and '--pull=never' in cmd
+        assert cmd[cmd.index('--network') + 1] == 'none'
+        assert cmd[cmd.index('--cap-drop') + 1] == 'ALL'
+        assert cmd[cmd.index('--cap-add') + 1] == 'SYS_PTRACE'
+        assert cmd[cmd.index('--security-opt') + 1] == 'no-new-privileges'
+        assert 'apparmor=unconfined' in cmd
+        assert cmd[cmd.index('--mount') + 1] == 'type=bind,source=/proc,target=/host-proc,readonly'
+        assert cmd[-1] == '123'
+        if outcome == 'error':
+            return 1, '', 'denied'
+        return 0, json.dumps({'start': '99' if outcome == 'reused' else '42', 'references': expected}), ''
+    monkeypatch.setattr(sessions, '_run_cmd', run)
+    result = sessions._expiry_privileged_process_references(123)
+    if outcome in {'reference', 'none'}:
+        assert result == expected
+    else:
+        assert result is None
+    if outcome == 'denied':
+        assert calls == []

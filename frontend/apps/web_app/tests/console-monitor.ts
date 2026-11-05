@@ -94,7 +94,11 @@ const BENIGN_ERROR_PATTERNS: RegExp[] = [
 	/Cannot read properties of null \(reading 'querySelector'\)/,
 	// Metadata chat sync error — server-side data quirk for test accounts.
 	// Background sync for expanded search; unrelated to any feature being tested.
-	/\[ChatSyncService\] Server error syncing metadata chats/
+	/\[ChatSyncService\] Server error syncing metadata chats/,
+	// LiteRT / TensorFlow Lite native runtime (on-device personal-data detection)
+	// prints INFO/WARNING lines to stderr, which Chromium reports as console errors.
+	/^(?:INFO|WARNING): \[\w+\.cc:\d+\]/,
+	/^INFO: Created TensorFlow Lite XNNPACK delegate/
 ];
 
 /**

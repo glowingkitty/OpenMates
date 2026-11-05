@@ -256,3 +256,41 @@ test('rejects unauthenticated ciphertext instead of emitting empty message conte
   assert.equal(withThinking.messages[0].thinking_token_count, 42);
   await assert.rejects(decryptSharedChatPayload('shared', payload, wrongKey), /could not be authenticated/);
 });
+
+// contract-test: supporting surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable
+// Structural crypto fixture only; never a source transcript for publication.
+test('decrypts authored carriers and ordinary TV children with real types and ordered memberships', async () => {
+  const { createHash } = await import('node:crypto');
+  const chatKey = crypto.getRandomValues(new Uint8Array(32));
+  const embedKey = crypto.getRandomValues(new Uint8Array(32));
+  const encrypt = async (text, keyBytes) => {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const key = await crypto.subtle.importKey('raw', keyBytes, 'AES-GCM', false, ['encrypt']);
+    const clear = typeof text === 'string' ? new TextEncoder().encode(text) : text;
+    const encrypted = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, clear));
+    return Buffer.concat([iv, encrypted]).toString('base64');
+  };
+  const carrierContent = 'type: authored_results\nembed_ids[2]: film,series\nitems[2]{embed_id,kind,title,embed_ref}:\n  film,tv.movie,Film,film-ref\n  series,tv.series,Series,series-ref';
+  const filmContent = JSON.stringify({ type: 'tv_movie', title: 'Film', authoring: { kind: 'tv.movie', origin: 'user_provided' } });
+  const seriesContent = 'type: tv_series\ntitle: Series\nauthoring:\n  kind: tv.series\n  origin: researched';
+  const payload = {
+    messages: [],
+    embeds: [
+      { embed_id: 'series', parent_embed_id: 'carrier', encrypted_content: await encrypt(seriesContent, embedKey),
+        encrypted_type: await encrypt('tv_series', embedKey), vault_key_id: 'private-vault', hashed_user_id: 'private-owner' },
+      { embed_id: 'carrier', embed_ids: ['film', 'series'], encrypted_content: await encrypt(carrierContent, embedKey) },
+      { embed_id: 'film', parent_embed_id: 'carrier', embed_type: 'wrong-legacy-type',
+        encrypted_content: await encrypt(filmContent, embedKey) },
+    ],
+    embed_keys: [{ id: 'key-row', hashed_embed_id: createHash('sha256').update('carrier').digest('hex'),
+      encrypted_embed_key: await encrypt(embedKey, chatKey) }],
+  };
+  const extracted = await decryptSharedChatPayload('chat', payload, chatKey);
+  assert.deepEqual(extracted.embeds.map((embed) => [embed.embed_id, embed.type]), [
+    ['series', 'tv_series'], ['carrier', 'authored_results'], ['film', 'tv_movie'],
+  ]);
+  assert.deepEqual(extracted.embeds[1].embed_ids, ['film', 'series']);
+  assert.equal(extracted.embeds[0].parent_embed_id, 'carrier');
+  assert.equal(extracted.embeds[2].content, filmContent);
+  assert.doesNotMatch(JSON.stringify(extracted), /private-vault|private-owner|encrypted_embed_key/);
+});

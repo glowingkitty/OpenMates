@@ -1,0 +1,345 @@
+{
+  "schema_version": 1,
+  "capabilities": {
+    "sdk.apps": {
+      "schema_version": 1,
+      "capability": "sdk.apps",
+      "status": "authored_unrun",
+      "account": {
+        "owner_id": "11111111-1111-4111-8111-111111111111",
+        "session_id": "synthetic-direct-session",
+        "cookie": "synthetic-direct-cookie",
+        "master_key": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=",
+        "api_key": "sk-api-directFixture.localSetupSuffix",
+        "device_id": "synthetic-direct-device"
+      },
+      "request": {
+        "app": "web",
+        "skill": "search",
+        "input": {
+          "query": "synthetic direct fixture"
+        }
+      },
+      "sync_expected": {
+        "success": true,
+        "credits_charged": 1,
+        "data": {
+          "ordered": [
+            3,
+            1,
+            2
+          ],
+          "results": [
+            {
+              "title": "Synthetic direct result"
+            }
+          ]
+        }
+      },
+      "vectors": [
+        {
+          "id": "cookie-sync",
+          "mode": "sync",
+          "credential": "cookie",
+          "expected": {
+            "success": true,
+            "credits_charged": 1,
+            "data": {
+              "ordered": [
+                3,
+                1,
+                2
+              ],
+              "results": [
+                {
+                  "title": "Synthetic direct result"
+                }
+              ]
+            }
+          },
+          "expected_skill_posts": 1,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0
+        },
+        {
+          "id": "api_key-sync",
+          "mode": "sync",
+          "credential": "api_key",
+          "expected": {
+            "success": true,
+            "credits_charged": 1,
+            "data": {
+              "ordered": [
+                3,
+                1,
+                2
+              ],
+              "results": [
+                {
+                  "title": "Synthetic direct result"
+                }
+              ]
+            }
+          },
+          "expected_skill_posts": 1,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0
+        },
+        {
+          "id": "cookie-single_task",
+          "mode": "single_task",
+          "credential": "cookie",
+          "expected": {
+            "success": true,
+            "credits_charged": 1,
+            "data": {
+              "ordered": [
+                3,
+                1,
+                2
+              ],
+              "label": "single"
+            }
+          },
+          "expected_skill_posts": 1,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0
+        },
+        {
+          "id": "api_key-single_task",
+          "mode": "single_task",
+          "credential": "api_key",
+          "expected": {
+            "success": true,
+            "credits_charged": 1,
+            "data": {
+              "ordered": [
+                3,
+                1,
+                2
+              ],
+              "label": "single"
+            }
+          },
+          "expected_skill_posts": 1,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0
+        },
+        {
+          "id": "cookie-task_array_order",
+          "mode": "task_array_order",
+          "credential": "cookie",
+          "expected": {
+            "success": true,
+            "credits_charged": 2,
+            "data": {
+              "results": [
+                {
+                  "label": "A",
+                  "ordered": [
+                    3,
+                    1,
+                    2
+                  ]
+                },
+                {
+                  "label": "B",
+                  "ordered": [
+                    2,
+                    3,
+                    1
+                  ]
+                }
+              ]
+            }
+          },
+          "expected_skill_posts": 1,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0
+        },
+        {
+          "id": "api_key-task_array_order",
+          "mode": "task_array_order",
+          "credential": "api_key",
+          "expected": {
+            "success": true,
+            "credits_charged": 2,
+            "data": {
+              "results": [
+                {
+                  "label": "A",
+                  "ordered": [
+                    3,
+                    1,
+                    2
+                  ]
+                },
+                {
+                  "label": "B",
+                  "ordered": [
+                    2,
+                    3,
+                    1
+                  ]
+                }
+              ]
+            }
+          },
+          "expected_skill_posts": 1,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0
+        },
+        {
+          "id": "cookie-file_no_download",
+          "mode": "file_no_download",
+          "credential": "cookie",
+          "expected": {
+            "success": true,
+            "credits_charged": 1,
+            "data": {
+              "file_url": "/v1/embeds/44444444-4444-4444-8444-444444444444/file",
+              "files": [
+                {
+                  "name": "synthetic.bin",
+                  "url": "https://files.example.invalid/private.bin"
+                }
+              ]
+            }
+          },
+          "expected_skill_posts": 1,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0
+        },
+        {
+          "id": "api_key-file_no_download",
+          "mode": "file_no_download",
+          "credential": "api_key",
+          "expected": {
+            "success": true,
+            "credits_charged": 1,
+            "data": {
+              "file_url": "/v1/embeds/44444444-4444-4444-8444-444444444444/file",
+              "files": [
+                {
+                  "name": "synthetic.bin",
+                  "url": "https://files.example.invalid/private.bin"
+                }
+              ]
+            }
+          },
+          "expected_skill_posts": 1,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0
+        },
+        {
+          "id": "cookie-failed_task",
+          "mode": "failed_task",
+          "credential": "cookie",
+          "expected_skill_posts": 1,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0,
+          "expected_error": "invalid_argument"
+        },
+        {
+          "id": "cookie-pending_a_failed_b",
+          "mode": "pending_a_failed_b",
+          "credential": "cookie",
+          "expected_skill_posts": 1,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0,
+          "expected_error": "invalid_argument"
+        },
+        {
+          "id": "cookie-auth_denial",
+          "mode": "auth_denial",
+          "credential": "cookie",
+          "expected_skill_posts": 0,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0,
+          "expected_error": "expired"
+        },
+        {
+          "id": "cookie-owner_rotation",
+          "mode": "owner_rotation",
+          "credential": "cookie",
+          "expected_skill_posts": 0,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0,
+          "expected_error": "cancelled"
+        },
+        {
+          "id": "cookie-cancel_after_dispatch",
+          "mode": "cancel_after_dispatch",
+          "credential": "cookie",
+          "expected_skill_posts": 1,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0,
+          "expected_error": "cancelled"
+        },
+        {
+          "id": "cookie-queued_cancel",
+          "mode": "queued_cancel",
+          "credential": "cookie",
+          "expected_skill_posts": 1,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0,
+          "expected_error": "cancelled"
+        },
+        {
+          "id": "cookie-queued_import",
+          "mode": "queued_import",
+          "credential": "cookie",
+          "expected_skill_posts": 1,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0,
+          "expected_error": "cancelled"
+        },
+        {
+          "id": "cookie-queued_malformed",
+          "mode": "queued_malformed",
+          "credential": "cookie",
+          "expected_skill_posts": 1,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0,
+          "expected_error": "cancelled"
+        },
+        {
+          "id": "cookie-queued_close",
+          "mode": "queued_close",
+          "credential": "cookie",
+          "expected_skill_posts": 1,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0,
+          "expected_error": "cancelled"
+        },
+        {
+          "id": "cookie-queued_successor",
+          "mode": "queued_successor",
+          "credential": "cookie",
+          "expected_skill_posts": 2,
+          "expected_downloads": 0,
+          "expected_retention_posts": 0,
+          "expected_error": "cancelled"
+        }
+      ],
+      "required_oracles": [
+        "explicit-credentials",
+        "actual-core-cookie-primitive",
+        "genuine-owner-observation-before-skill",
+        "one-billable-post-per-explicit-operation",
+        "no-model-provider-override",
+        "no-account-apps-retention",
+        "no-auto-file-download",
+        "original-final-allocation-guard",
+        "stale-A-never-cancels-B"
+      ],
+      "limits": {
+        "api_key_foreign": "maintained existing interfaces; no Rust replacement claim",
+        "api_key_failed_task_private_error": "source-proven raw diagnostic gap; remains required outside this additive Cookie adapter",
+        "api_key_single_array_and_pending_failed_peer": "existing array merge/polling differences remain open",
+        "owned_concurrency": "mutable Client polling remains serialized; owned-driver upgrade required",
+        "durability": "no automatic canonical retention or replay; no durable task recovery claim"
+      }
+    }
+  }
+}

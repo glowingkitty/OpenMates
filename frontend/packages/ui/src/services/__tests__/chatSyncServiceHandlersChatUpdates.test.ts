@@ -26,7 +26,8 @@ import {
 } from "../chatSyncServiceHandlersChatUpdates";
 
 const emptyCleanup = vi.hoisted(()=>({safe:true,eligible:true,pending:false}));
-vi.mock('../workspaceQueryCache',()=>({getWorkspaceCacheIdentity:()=> 'owner'}));
+const notificationScope = vi.hoisted(() => ({ identity: 'owner' as string | null }));
+vi.mock('../workspaceQueryCache',()=>({getWorkspaceCacheIdentity:()=> notificationScope.identity}));
 vi.mock('../workspaceCacheLifecycle',()=>({getWorkspaceCacheEpoch:()=> 1}));
 vi.mock('../voiceCallEmptyChatCleanup',()=>({
   prepareEmptyVoiceCallLocalDraftGuard:async()=>()=>emptyCleanup.safe,
@@ -1494,6 +1495,79 @@ describe("handleChatMessageReceivedImpl", () => {
       undefined,
       "science",
     );
+  });
+
+  // contract-test: supporting surface=gui.web assertions=notifications.workflow-run.chat-target,notifications.content.privacy-boundary
+  it.each(["processing", "streaming"] as const)("notifies a final assistant message that replaces a %s placeholder", async status => {
+    const chatId = `placeholder-${status}`;
+    mocks.chatDB.getChat.mockResolvedValue({ chat_id: chatId, title: "Results", messages_v: 1 });
+    mocks.chatDB.getMessage.mockResolvedValue({ message_id: chatId, chat_id: chatId, role: "assistant", status,
+      content: "Partial thinking", created_at: 100 });
+    setWindowHash("#chat-id=other-chat");
+    const service = { activeAITasks: new Map(), dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    await handleChatMessageReceivedImpl(service, { event: "chat_message_added", chat_id: chatId,
+      message: { message_id: chatId, chat_id: chatId, role: "assistant", content: "Final result", status: "synced", created_at: 100 },
+      versions: { messages_v: 1 }, last_edited_overall_timestamp: 100 });
+    expect(mocks.notificationStore.chatMessage).toHaveBeenCalledTimes(1);
+    mocks.chatDB.getMessage.mockResolvedValue({ message_id: chatId, chat_id: chatId, role: "assistant", status: "synced",
+      content: "Final result", created_at: 100 });
+    await handleChatMessageReceivedImpl(service, { event: "chat_message_added", chat_id: chatId,
+      message: { message_id: chatId, chat_id: chatId, role: "assistant", content: "Final result", status: "synced", created_at: 100 },
+      versions: { messages_v: 1 }, last_edited_overall_timestamp: 100 });
+    expect(mocks.notificationStore.chatMessage).toHaveBeenCalledTimes(1);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=notifications.workflow-run.chat-target,notifications.content.privacy-boundary
+  it.each([null, "replacement-owner"])("does not show a private new-chat notice after scope changes to %s during title decryption", async nextIdentity => {
+    let release!: () => void;
+    let entered!: () => void;
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    mocks.chatDB.getChat.mockResolvedValue({ chat_id: "private-notice-chat", encrypted_title: "private-title", messages_v: 1 });
+    mocks.chatDB.getMessage.mockResolvedValue(null);
+    mocks.chatKeyManager.withKey.mockImplementation(async (_id: string, reason: string, callback: (key: Uint8Array) => Promise<void>) => {
+      if (reason === "decrypt-assistant-broadcast-notification-title") { entered(); await gate; }
+      await callback(new Uint8Array([1, 2, 3]));
+    });
+    setWindowHash("#chat-id=other-chat");
+    const service = { activeAITasks: new Map(), dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    const pending = handleNewChatMessageImpl(service, { chat_id: "private-notice-chat", message_id: `private-${nextIdentity ?? 'logout'}`,
+      role: "assistant", content: "Private result", created_at: 100, messages_v: 1 });
+    try {
+      await started;
+      notificationScope.identity = nextIdentity;
+      release();
+      await pending;
+      expect(mocks.notificationStore.chatMessage).not.toHaveBeenCalled();
+      expect(mocks.unreadMessagesStore.incrementUnread).not.toHaveBeenCalled();
+    } finally { release(); notificationScope.identity = "owner"; }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=notifications.workflow-run.chat-target
+  it("does not repeat an ordinary new-chat message notice for a saved final message", async () => {
+    mocks.chatDB.getChat.mockResolvedValue({ chat_id: "saved-new-chat", title: "Results", messages_v: 1 });
+    mocks.chatDB.getMessage.mockResolvedValue({ message_id: "saved-new-message", chat_id: "saved-new-chat", role: "assistant",
+      status: "synced", content: "Already delivered", created_at: 100 });
+    setWindowHash("#chat-id=other-chat");
+    const service = { activeAITasks: new Map(), dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    await handleNewChatMessageImpl(service, { chat_id: "saved-new-chat", message_id: "saved-new-message", role: "assistant",
+      content: "Already delivered", created_at: 100, messages_v: 1 });
+    expect(mocks.notificationStore.chatMessage).not.toHaveBeenCalled();
+    expect(mocks.unreadMessagesStore.incrementUnread).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=notifications.workflow-run.chat-target
+  it("does not notify when a canonical assistant message is replayed after persistence", async () => {
+    const message = { message_id: "persisted-workflow-message", chat_id: "persisted-workflow-chat", role: "assistant" as const,
+      content: "A delivered result", status: "synced" as const, created_at: 100, encrypted_content: "ciphertext" };
+    mocks.chatDB.getChat.mockResolvedValue({ chat_id: message.chat_id, title: "Results", messages_v: 1 });
+    mocks.chatDB.getMessage.mockResolvedValue(message);
+    setWindowHash("#chat-id=other-chat");
+    const service = { activeAITasks: new Map(), dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    await handleChatMessageReceivedImpl(service, { event: "chat_message_added", chat_id: message.chat_id, message,
+      versions: { messages_v: 1 }, last_edited_overall_timestamp: 100 });
+    expect(mocks.notificationStore.chatMessage).not.toHaveBeenCalled();
+    expect(mocks.unreadMessagesStore.incrementUnread).not.toHaveBeenCalled();
   });
 
   // contract-test: direct surface=gui.web assertions=drafts.sync.version-authoritative,chats.local-state.precedence

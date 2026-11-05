@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Synthetic API-key chat read conformance fixture",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "capabilities"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sdk.chats"],
+      "properties": {
+        "sdk.chats": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["api_key", "device_id", "session", "vectors"],
+          "properties": {
+            "api_key": {"const": "sk-api-chatOwnerA.localSetupSuffix"},
+            "device_id": {"const": "synthetic-chat-device"},
+            "session": {
+              "type": "object",
+              "required": ["key_wrapper"],
+              "properties": {
+                "key_wrapper": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["salt", "key_iv", "encrypted_key"],
+                  "properties": {
+                    "salt": {"type": "string"},
+                    "key_iv": {"type": "string"},
+                    "encrypted_key": {"type": "string"}
+                  }
+                }
+              }
+            },
+            "vectors": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "operation", "arguments", "routes", "session", "expected", "expected_error"],
+                "properties": {
+                  "id": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+                  "operation": {"enum": ["list", "search", "load"]},
+                  "arguments": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "limit": {"type": "integer", "minimum": 0},
+                      "offset": {"type": "integer", "minimum": 0},
+                      "query": {"type": "string"},
+                      "chat_id": {"type": "string", "minLength": 1}
+                    }
+                  },
+                  "routes": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["method", "path", "status", "response"],
+                      "properties": {
+                        "method": {"const": "GET"},
+                        "path": {"type": "string", "pattern": "^/v1/sdk/chats(/[0-9a-f-]{36})?$"},
+                        "query": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": ["limit", "offset"],
+                          "properties": {
+                            "limit": {"type": "string", "pattern": "^[0-9]+$"},
+                            "offset": {"type": "string", "pattern": "^[0-9]+$"}
+                          }
+                        },
+                        "status": {"type": "integer"},
+                        "response": {"type": "object"}
+                      }
+                    }
+                  },
+                  "session": {"type": "boolean"},
+                  "expected": {},
+                  "expected_error": {"enum": [null, "invalid", "authentication", "forbidden", "offline", "conflict", "protocol"]}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

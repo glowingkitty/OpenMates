@@ -74,8 +74,8 @@ function scheduleCapacityDrain(): void {
 }
 
 async function sendWithReceipt(
-  type: "store_embed" | "store_embed_keys",
-  confirmedType: "store_embed_confirmed" | "store_embed_keys_confirmed",
+  type: "store_embed" | "store_embed_keys" | "store_embed_diff",
+  confirmedType: "store_embed_confirmed" | "store_embed_keys_confirmed" | "store_embed_diff_confirmed",
   payload: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
   const requestId = crypto.randomUUID();
@@ -165,7 +165,11 @@ async function readEquivalentCanonicalHead(head: StoreEmbedPayload, historical =
       : !same(canonicalVersion, head.version_number ?? 1))
     || (!historical && !same(embed.status, head.status))
     || (head.app_id !== undefined && !same(embed.app_id, head.app_id))
-    || (head.skill_id !== undefined && !same(embed.skill_id, head.skill_id))
+    // Child TOON carries its parent's skill_id, so a replayed child can be
+    // queued with the parent's catalog projection while the canonical row holds
+    // the child's own skill (issue BMKRJ). Content/type/keys/parent are still
+    // proven equal below; the canonical catalog identity is adopted.
+    || (head.skill_id !== undefined && !head.parent_embed_id && !same(embed.skill_id, head.skill_id))
     // Older recovered heads omitted optional task indexing. Missing metadata is
     // compatible only after all scope/key/content checks below; a different
     // non-null task identity still conflicts.
@@ -506,7 +510,8 @@ async function persistCanonicalEmbedOperation(
       createdAt: canonical.embed.created_at,
       updatedAt: canonical.embed.updated_at,
     }, canonical.type as EmbedType, canonical.content, {
-      app_id: head.app_id, skill_id: head.skill_id,
+      app_id: (canonical.embed.app_id as string | undefined) ?? head.app_id,
+      skill_id: (canonical.embed.skill_id as string | undefined) ?? head.skill_id,
     });
   }
   return canonical ? "adopted" : "persisted";
@@ -665,22 +670,16 @@ export async function sendStoreEmbedDiffImpl(
   payload: StoreEmbedDiffPayload,
 ): Promise<void> {
   if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
-    console.warn(
-      `[EmbedSenders] WebSocket not connected - encrypted diff row for ${payload.embed_id} v${payload.version_number} was not sent`,
-    );
-    return;
+    throw new Error("Cannot confirm encrypted embed history while disconnected.");
   }
-
-  try {
-    console.debug(
-      `[EmbedSenders] Sending encrypted embed diff ${payload.embed_id} v${payload.version_number} to server`,
-    );
-    await webSocketService.sendMessage("store_embed_diff", payload);
-  } catch (error) {
-    console.error(
-      `[EmbedSenders] Error sending store_embed_diff for ${payload.embed_id} v${payload.version_number}:`,
-      error,
-    );
+  const receipt = await sendWithReceipt("store_embed_diff", "store_embed_diff_confirmed",
+    payload as unknown as Record<string, unknown>);
+  const expected = await computeSHA256(JSON.stringify([
+    payload.encrypted_snapshot ?? null, payload.encrypted_patch ?? null,
+  ]));
+  if (receipt.embed_id !== payload.embed_id || receipt.version_number !== payload.version_number
+    || receipt.canonical_digest !== expected || receipt.canonical_source !== "version_row") {
+    throw new Error("Canonical embed history receipt did not match the submitted version.");
   }
 }
 

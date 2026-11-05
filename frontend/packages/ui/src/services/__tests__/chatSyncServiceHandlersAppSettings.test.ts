@@ -265,11 +265,20 @@ describe("run-linked workflow destination key persistence", () => {
     );
   });
 
+  // contract-test: supporting surface=gui.web assertions=notifications.workflow-run.chat-target
+  it("deduplicates by message across delivery attempts and allows another Send message", () => {
+    const first = { ...payload, message_id: "per-message-first", delivery_id: "first-attempt" };
+    notifyCommittedWorkflowDelivery(first);
+    notifyCommittedWorkflowDelivery({ ...first, delivery_id: "replayed-attempt" });
+    notifyCommittedWorkflowDelivery({ ...first, message_id: "per-message-second", delivery_id: "second-send" });
+    expect(mocks.notificationStore.chatMessage).toHaveBeenCalledTimes(2);
+  });
+
   // contract-test: supporting surface=gui.web assertions=workflows.chat-delivery.sync-projection
   it("does not notify when the delivered chat is already visible", () => {
     window.location.hash = "chat-id=new-workflow-chat";
     try {
-      notifyCommittedWorkflowDelivery({ ...payload, delivery_id: "notification-delivery-2" });
+      notifyCommittedWorkflowDelivery({ ...payload, message_id: "notification-message-2", delivery_id: "notification-delivery-2" });
       expect(mocks.notificationStore.chatMessage).not.toHaveBeenCalled();
     } finally {
       window.location.hash = "";
@@ -277,14 +286,23 @@ describe("run-linked workflow destination key persistence", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=workflows.chat-delivery.sync-projection
-  it("notifies after an acknowledged reconnect recovery without repeating a prior toast", () => {
+  it("does not create a new-message notification from ACK reconnect recovery", () => {
     const acknowledged = { ...payload, delivery_id: "notification-delivery-3", status: "acknowledged" };
     handleWorkflowChatDeliveryAcknowledgedImpl(acknowledged);
     handleWorkflowChatDeliveryAcknowledgedImpl(acknowledged);
-    expect(mocks.notificationStore.chatMessage).toHaveBeenCalledTimes(1);
-    expect(mocks.notificationStore.chatMessage).toHaveBeenCalledWith(
-      "new-workflow-chat", "Workflow message", "New workflow message ready", undefined, "openmates_official",
-    );
+    expect(mocks.notificationStore.chatMessage).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=notifications.workflow-run.chat-target,workflows.chat-delivery.sync-projection
+  it("recovers committed ciphertext after a claimant crash without another notification", async () => {
+    const service = { dispatchEvent: vi.fn(), hydrateSidebarChats: vi.fn(async () => undefined),
+      requestChatContentBatch_FOR_HANDLERS_ONLY: vi.fn(async () => undefined) };
+    await handleWorkflowChatDeliveryClaimedImpl(service as unknown as ChatSynchronizationService,
+      { ...payload, client_persisted: true });
+    expect(service.hydrateSidebarChats).toHaveBeenCalledWith([payload.chat_id]);
+    expect(service.requestChatContentBatch_FOR_HANDLERS_ONLY).toHaveBeenCalledWith([payload.chat_id]);
+    expect(mocks.chatKeyManager.createAndPersistKeyLocked).not.toHaveBeenCalled();
+    expect(mocks.notificationStore.chatMessage).not.toHaveBeenCalled();
   });
 
   // contract-test: supporting surface=gui.web assertions=workflows.chat-delivery.client-encrypted,workflows.chat-delivery.key-recovery

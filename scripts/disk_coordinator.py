@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 import fcntl
 import json
@@ -18,6 +19,7 @@ import signal
 import shutil
 import subprocess
 import sys
+import threading
 import time
 import uuid
 
@@ -38,6 +40,9 @@ try:
         RECOVERY_MARGIN,
         MIN_INODES,
         KINDS,
+        PROACTIVE_INTERVAL,
+        PROACTIVE_PRESSURE_INTERVAL,
+        PROACTIVE_PERCENT,
     )
 except ModuleNotFoundError:
     import resource_budget as budget
@@ -56,6 +61,9 @@ except ModuleNotFoundError:
         RECOVERY_MARGIN,
         MIN_INODES,
         KINDS,
+        PROACTIVE_INTERVAL,
+        PROACTIVE_PRESSURE_INTERVAL,
+        PROACTIVE_PERCENT,
     )
 
 
@@ -151,13 +159,16 @@ class Coordinator(CoordinatorState):
         command = (
             ["bash", str(Path(repository) / "scripts" / script)]
             if script
+            else [sys.executable, str(Path(repository) / "scripts/host_disk_cleanup.py"), "--apply"]
+            if kind == "host"
             else [
                 sys.executable,
                 str(Path(repository) / "scripts/sessions.py"),
                 "worktree",
                 "expire",
-                "--max-age-hours",
-                "96",
+                # Default is sessions.WORKTREE_HARD_MAX_AGE_HOURS (7 days).
+                "--format",
+                "json",
             ]
         )
         environment = {
@@ -172,13 +183,107 @@ class Coordinator(CoordinatorState):
             cwd=repository,
             env=environment,
             pass_fds=(self._leader.fileno(),),
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stdout=subprocess.PIPE if not script else subprocess.DEVNULL,
+            stderr=subprocess.PIPE if not script else subprocess.DEVNULL,
+            text=True,
             timeout=1200,
         )
-        return {"kind": kind, "returncode": result.returncode}
+        report = {"kind": kind, "returncode": result.returncode}
+        if kind == "host":
+            try:
+                detail = json.loads(result.stdout)
+                report.update(deleted=len(detail["deleted"]), reclaimed_bytes=detail["reclaimed_bytes"],
+                              skipped=detail["skipped"], failures=detail["failures"])
+            except (ValueError, TypeError, KeyError):
+                report["error"] = "Host cleanup did not return a valid structured report"
+        elif not script:
+            try:
+                if len(result.stdout) > 2 * 1024 * 1024:
+                    raise ValueError("Worktree cleanup report exceeds diagnostic limit")
+                detail = json.loads(result.stdout)
+                report.update(
+                    inspected=detail["inspected"],
+                    deleted=detail["deleted"],
+                    protected_live=len(detail.get("protected_live", [])),
+                    protected_unresolved=len(detail.get("protected_unresolved", [])),
+                    failures=detail.get("failures", []),
+                )
+            except (ValueError, TypeError, KeyError):
+                report["error"] = "Worktree cleanup did not return a valid structured report"
+        return report
 
-    def tick(self, *, cleaner=None, recovery_margin=RECOVERY_MARGIN):
+    def _execute_cleanup(self, repository, kind, cleaner):
+        """Record maintenance only after the elected worker actually finishes."""
+        self._assert_leader()
+        try:
+            result = cleaner(repository, kind)
+        except Exception as error:
+            result = {"error": str(error)[:300]}
+        failed = bool(isinstance(result, dict) and (
+            result.get("error") or result.get("returncode", 0) or result.get("failures")
+        ))
+        with self.db(write=True) as db:
+            self._assert_leader()
+            self._event(db, "cleanup", {"repository": repository, "kind": kind, **(result or {})})
+            db.execute(
+                "UPDATE maintenance SET state=?,reason=? WHERE repository=? AND kind=?",
+                ("waiting" if failed else "complete", json.dumps(result), repository, kind),
+            )
+            if failed:
+                db.execute(
+                    "INSERT INTO pressure(filesystem,next_cleanup) VALUES (?,?) ON CONFLICT(filesystem) DO UPDATE SET next_cleanup=MAX(next_cleanup,excluded.next_cleanup)",
+                    (filesystem(repository), self.clock() + CLEANUP_BACKOFF),
+                )
+        return {"repository": repository, "kind": kind, "result": result}
+
+    @contextmanager
+    def background_cleanup(self):
+        """One supervised worker coalesces cleanup while admission keeps ticking."""
+        self._assert_leader()
+        inflight = set()
+        lock = threading.Lock()
+        with ThreadPoolExecutor(max_workers=1, thread_name_prefix="disk-cleanup") as executor:
+            def dispatch(repository, kind, cleaner):
+                self._assert_leader()
+                key = (repository, kind)
+                with lock:
+                    if key in inflight:
+                        return
+                    inflight.add(key)
+                def execute():
+                    try:
+                        return self._execute_cleanup(repository, kind, cleaner)
+                    finally:
+                        with lock:
+                            inflight.discard(key)
+                def observe(future):
+                    error = future.exception()
+                    if error is not None:
+                        print(f"Disk cleanup worker failed: {type(error).__name__}", file=sys.stderr)
+                try:
+                    executor.submit(execute).add_done_callback(observe)
+                except BaseException:
+                    with lock:
+                        inflight.discard(key)
+                    raise
+            yield dispatch
+
+    def _proactive_jobs(self, enabled, now):
+        """Schedule all enabled kinds on a fixed cadence, sooner under pressure."""
+        last = self.__dict__.setdefault("_proactive_at", {})
+        jobs = []
+        for repository, kinds in enabled.items():
+            usage = self.usage(repository)
+            percent = 100 * usage.used / usage.total if usage.total else 100
+            interval = (PROACTIVE_PRESSURE_INTERVAL if percent >= PROACTIVE_PERCENT
+                        else PROACTIVE_INTERVAL)
+            if now - last.get(repository, float("-inf")) >= interval:
+                last[repository] = now
+                jobs.extend((repository, kind) for kind in kinds)
+        return jobs
+
+    def tick(self, *, cleaner=None, recovery_margin=RECOVERY_MARGIN, cleanup_dispatch=None,
+             proactive=False):
         self._assert_leader()
         cleaner = cleaner or self._cleanup
         now = self.clock()
@@ -193,6 +298,13 @@ class Coordinator(CoordinatorState):
                 r["path"]: json.loads(r["maintenance"])
                 for r in db.execute("SELECT * FROM repositories WHERE enabled=1")
             }
+            if proactive:
+                for repository, kind in self._proactive_jobs(enabled, now):
+                    cleanup_jobs.append((repository, kind))
+                    db.execute(
+                        "INSERT INTO maintenance VALUES (?,?,'running',?,'') ON CONFLICT(repository,kind) DO UPDATE SET state='running'",
+                        (repository, kind, now),
+                    )
             for row in db.execute(
                 "SELECT * FROM maintenance WHERE state='waiting'"
             ).fetchall():
@@ -220,7 +332,8 @@ class Coordinator(CoordinatorState):
                         (fs, now + CLEANUP_BACKOFF),
                     )
             waiting = db.execute(
-                "SELECT * FROM requests WHERE state='waiting' ORDER BY created_at,id"
+                "SELECT * FROM requests WHERE state='waiting' AND expires_at<=? ORDER BY created_at,id",
+                (now,),
             ).fetchall()
             by_fs = {}
             for row in waiting:
@@ -239,7 +352,7 @@ class Coordinator(CoordinatorState):
                 ).fetchone()[0]
                 usage = self.usage(rows[0]["repository"])
                 pressure = bool(status["active"])
-                bypasses = 0
+                protected = 0
                 for row in rows:
                     decision = budget.admission(
                         Path(row["repository"]),
@@ -247,7 +360,7 @@ class Coordinator(CoordinatorState):
                         min_free=row["min_free"] + (recovery_margin if pressure else 0),
                         max_used_percent=row["max_percent"],
                         usage=usage,
-                        reserved=committed,
+                        reserved=committed + protected,
                     )
                     if (
                         decision["allowed"]
@@ -266,10 +379,14 @@ class Coordinator(CoordinatorState):
                             row["min_free"]
                             + recovery_margin
                             + row["amount"]
-                            + committed
+                            + committed + protected
                             - usage.free,
                         )
-                        reason = f"Waiting for disk capacity: {shortfall} additional bytes needed; free={usage.free}, committed={committed}, inodes={self.inodes(row['repository'])}"
+                        # Percentage admission can be stricter than the byte
+                        # floor (notably workspace creation). Report both.
+                        percent_shortfall = max(0, int(usage.used + committed + protected + row['amount'] - usage.total * row['max_percent'] / 100) + 1)
+                        shortfall = max(shortfall, percent_shortfall)
+                        reason = f"Waiting for disk capacity: {shortfall} additional bytes needed; free={usage.free}, committed={committed}, protected={protected}, ceiling={row['max_percent']}%, inodes={self.inodes(row['repository'])}"
                         db.execute(
                             "UPDATE requests SET reason=?,attempts=attempts+1 WHERE id=?",
                             (reason, row["id"]),
@@ -278,19 +395,12 @@ class Coordinator(CoordinatorState):
                             for repo, kinds in enabled.items():
                                 if filesystem(repo) == fs:
                                     cleanup_jobs.extend((repo, k) for k in kinds)
-                        bypasses += 1
-                        # Bounded small-job bypass; the oldest impossible request
-                        # becomes a barrier after a minute instead of starving.
-                        if bypasses >= 3 or now - row["created_at"] >= 60:
-                            db.execute(
-                                "UPDATE requests SET reason=? WHERE filesystem=? AND state='waiting' AND reason=''",
-                                (
-                                    "Waiting for disk capacity behind older requests; "
-                                    + reason,
-                                    fs,
-                                ),
-                            )
-                            break
+                        # Protect the oldest waiting peak, not its policy floor.
+                        # A stricter workspace ceiling must not freeze every CI
+                        # operation on this filesystem. Later grants still pass
+                        # their own guards and leave this peak uncommitted.
+                        if not protected and now - row["created_at"] >= 60:
+                            protected = row["outstanding"]
                 db.execute(
                     "UPDATE pressure SET active=?,last_free=?,next_cleanup=? WHERE filesystem=?",
                     (
@@ -315,22 +425,12 @@ class Coordinator(CoordinatorState):
                     )
         results = []
         for repository, kind in dict.fromkeys(cleanup_jobs):
-            try:
-                result = cleaner(repository, kind)
-            except (OSError, RuntimeError, subprocess.SubprocessError) as error:
-                result = {"error": str(error)[:300]}
-            with self.db(write=True) as db:
-                self._event(
-                    db,
-                    "cleanup",
-                    {"repository": repository, "kind": kind, **(result or {})},
-                )
-                db.execute(
-                    "UPDATE maintenance SET state='complete',reason=? WHERE repository=? AND kind=?",
-                    (json.dumps(result), repository, kind),
-                )
-            results.append({"repository": repository, "kind": kind, "result": result})
+            if cleanup_dispatch is not None:
+                cleanup_dispatch(repository, kind, cleaner)
+            else:
+                results.append(self._execute_cleanup(repository, kind, cleaner))
         return results
+
 
 
 def run_command(repository, amount, operation, command, *, write_paths=()):
@@ -496,9 +596,9 @@ def main():
 
         signal.signal(signal.SIGTERM, shutdown)
         signal.signal(signal.SIGINT, shutdown)
-        with coordinator.leadership():
+        with coordinator.leadership(), coordinator.background_cleanup() as dispatch:
             while not stop:
-                coordinator.tick()
+                coordinator.tick(cleanup_dispatch=dispatch, proactive=True)
                 time.sleep(1)
     elif args.action == "owner-check":
         return 0 if owner_check(coordinator) else 1

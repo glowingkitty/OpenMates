@@ -278,13 +278,30 @@ The local serializer exports only the primary event. It validates dates and
 timezones and preserves an unknown end time without inventing a duration.
 Context events are for display only. No calendar account or network call is required.
 
+## Native session SDK (preview)
+
+`openmates.SessionClient`, `RustApiKeyClient`, `prepare_privacy` and
+`sort_tasks` run in the shared OpenMates Rust core through the `openmates._native`
+extension (PyO3). They never launch the CLI or read CLI login state. The
+SDK is API-key only and separate from the CLI login: `SessionClient`'s
+`login_password(...)` / `import_session(...)` modes are deprecated and leave the
+public package once every capability they offer is available through API-key
+authentication (tracked in `config/sdk-capabilities.json`); use an API key from
+Settings > Developers, which decrypts your chats locally with its own wrapped
+account key. If
+the extension is missing, these APIs raise `SessionClientError` with code
+`native_binding_unavailable` (there is no pure-Python fallback). The `OpenMates`
+API-key client above does not need the extension. Published wheels do not include
+it yet; from a source checkout run
+`python3 scripts/build_sdk_native.py --language python`.
+
 ## Versioning
 
-OpenMates shows the short product line, for example `v0.28`, in the web app.
+OpenMates shows the short product line, for example `v0.29`, in the web app.
 Python package artifacts use exact release-line versions:
 
-- `0.28.0aN` is an alpha prerelease from the `dev` branch.
-- `0.28.0` is a stable release from `main`.
+- `0.29.0aN` is an alpha prerelease from the `dev` branch.
+- `0.29.0` is a stable release from `main`.
 
 Install stable releases with `pip install openmates`. Install prereleases with
 `pip install --pre openmates`.

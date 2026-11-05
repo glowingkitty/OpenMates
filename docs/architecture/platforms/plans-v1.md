@@ -37,7 +37,11 @@ executable implementation Plan, Task ledger, and Check/Run evidence live in
   verifications, evidence, drift decisions, and key-wrapper operations.
 - Plans can create linked verification tasks.
 - The CLI, npm SDK, and Python SDK contain initial plan API contracts.
-- Basic `@plan` parsing and generic/code planner routing exist.
+- Basic `@plan` parsing exists. `@plan` activates a planner immediately like an
+  `@focus` mention (the code planner when preprocessing ranks it, otherwise the
+  generic planner). Without `@plan`, both planner focus modes are ordinary
+  preprocessing candidates offered through the normal activation countdown;
+  there is no keyword auto-activation.
 - The web app has a disabled Plans route, basic plan cards, an active-chat plan
   preview, and a title/summary detail page.
 - Completion currently checks required criteria and verification record status.

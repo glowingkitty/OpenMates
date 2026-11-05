@@ -4,13 +4,14 @@ import type { UserProfile } from '../stores/userProfile';
 export interface ModelRoutingRestrictions {
   disabled_ai_models: string[];
   disabled_ai_servers: Record<string, string[]>;
+  server_region_preference: 'eu' | 'global';
 }
 
 const modelId = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,159}$/;
 const serverId = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 
 export function modelRoutingRestrictionsForTurn(
-  profile: Pick<UserProfile, 'disabled_ai_models' | 'disabled_ai_servers'>,
+  profile: Pick<UserProfile, 'disabled_ai_models' | 'disabled_ai_servers' | 'server_region_preference'>,
 ): ModelRoutingRestrictions {
   const models = profile.disabled_ai_models ?? [];
   const servers = profile.disabled_ai_servers ?? {};
@@ -26,5 +27,9 @@ export function modelRoutingRestrictionsForTurn(
     }
     copiedServers[id] = [...entries];
   }
-  return { disabled_ai_models: [...models], disabled_ai_servers: copiedServers };
+  return {
+    disabled_ai_models: [...models],
+    disabled_ai_servers: copiedServers,
+    server_region_preference: profile.server_region_preference === 'global' ? 'global' : 'eu',
+  };
 }

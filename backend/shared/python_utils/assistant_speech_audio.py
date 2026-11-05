@@ -107,9 +107,10 @@ def validate_assistant_speech_audio_event(
     if not isinstance(payload, dict):
         raise ValueError("invalid_payload")
     phase = payload.get("phase")
-    if phase not in ("start", "chunk", "end", "error", "alignment"):
+    if phase not in ("start", "chunk", "end", "error", "alignment", "words"):
         raise ValueError("invalid_phase")
-    required = _COMMON_FIELDS | ({"audio_data"} if phase == "chunk" else {"clause_timings"} if phase == "alignment" else set())
+    required = _COMMON_FIELDS | ({"audio_data"} if phase == "chunk" else {"clause_timings"} if phase == "alignment"
+                                 else {"word_starts"} if phase == "words" else set())
     if set(payload) != required:
         raise ValueError("invalid_payload_fields")
     if payload["chat_id"] != chat_id or payload["message_id"] != message_id:
@@ -152,6 +153,18 @@ def validate_assistant_speech_audio_event(
                 raise ValueError("invalid_clause_alignment")
             previous_sequence, previous_end = row["sequence"], row["end_ms"]
             seen.add(identity)
+    if phase == "words":
+        # Display-only [word_index, start_ms] estimates; never heard authority.
+        rows = payload["word_starts"]
+        if kind != "voice_prose_turn" or not isinstance(rows, list) or not 1 <= len(rows) <= 512:
+            raise ValueError("invalid_word_starts")
+        previous_index, previous_start = -1, 0
+        for row in rows:
+            if (not isinstance(row, list) or len(row) != 2
+                    or not _integer(row[0], previous_index + 1, 65535)
+                    or not _integer(row[1], previous_start, 600000)):
+                raise ValueError("invalid_word_starts")
+            previous_index, previous_start = row
     if phase == "chunk":
         encoded = payload["audio_data"]
         if not isinstance(encoded, str) or not 1 <= len(encoded) <= MAX_AUDIO_BASE64_LENGTH:

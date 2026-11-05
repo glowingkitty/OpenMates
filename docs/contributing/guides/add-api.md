@@ -1,34 +1,27 @@
 ---
 status: active
-last_verified: 2026-10-24
+last_verified: 2026-11-03
 ---
 
 # API Integration — Reference
 
 Provider access policy, test script templates, and documentation format.
 
-## Permitted Access
+## Official APIs Only
 
-Implement provider-specific data integrations only through a provider-supported documented
-API, an explicitly licensed open-data feed, or written authorization covering the
-intended automated access and downstream use. Published official API terms or a
-feed licence are sufficient when they permit that use. Separate company contact
-or a partnership is not required unless the terms require it or the proposed use
-remains unclear; do not contact providers without user instruction.
+Implement provider-specific data integrations only through the provider's
+official, documented API or an official open-data feed. Before implementation,
+record the API documentation URL and review date, the exact interface used and
+its usage, attribution, privacy and rate-limit conditions. Do not contact
+providers without user instruction.
 
-Before implementation, record the documentation/terms/licence URL and review
-date, the exact permitted interface and the relevant conditions for commercial
-use, display/redistribution, retention, attribution, privacy and rate limits.
-An API sold by an intermediary is not evidence of the required source-use rights
-by itself. Undocumented browser/mobile endpoints, public availability, browser
-automation, low request volume and silence in terms do not establish permission.
-Do not bypass source access controls. Platform-specific scraping requires the
-written authorization described above.
+Do not use undocumented browser/mobile endpoints, browser automation,
+platform-specific scraping, proxies or third-party resellers of another
+platform's data, and do not bypass access controls.
 
-If no permitted interface exists, report the capability gap and propose a
-documented API or licensed-data alternative. Do not replace the missing interface
-with a scraper, proxy, browser workflow or platform-specific agent instructions.
-Respectful request rates, `robots.txt` and fragility warnings are not permission.
+If no official interface exists, report the capability gap and propose an
+official API alternative. Do not replace the missing interface with a scraper,
+proxy, browser workflow or platform-specific agent instructions.
 
 ## General public-page reading
 
@@ -36,8 +29,7 @@ The generic `web.read` capability may read selected public pages for a user task
 including links found through search. It does not require a provider API for
 every ordinary page. Identify the reader, honor applicable `robots.txt` rules
 before fetching a page and again for redirected targets, and stop when crawler
-policy cannot be established or access is denied. Missing robots files do not
-establish a copyright licence. Respect applicable rights and known restrictions.
+policy cannot be established or access is denied.
 
 Use verified TLS and bounded public-address requests without proxies, cookies,
 authentication, CAPTCHA solving, browser impersonation or retries that evade a
@@ -130,10 +122,9 @@ if __name__ == "__main__":
 ## Overview
 Brief description of what the API does and why we're using it.
 
-## Access and Reuse Permission
-- Basis: provider-supported API terms, explicit feed licence, or written authorization
-- Documentation/terms/licence URL and review date
-- Scope and relevant commercial-use, display, retention and attribution conditions
+## Official API
+- Official API documentation URL and review date
+- Interface used and its usage, attribution and rate-limit conditions
 
 ## Authentication
 - Type: (API key / OAuth2 / etc.)
@@ -172,8 +163,8 @@ Brief description of what the API does and why we're using it.
 ## Checklist
 
 - [ ] Research completed (or user provided details)
-- [ ] Permitted access and downstream use documented with source URL and review date
-- [ ] Applicable commercial-use, display, retention, attribution, privacy and rate-limit conditions recorded
+- [ ] Official API documented with source URL and review date
+- [ ] Usage, attribution, privacy and rate-limit conditions recorded
 - [ ] User confirmed approach
 - [ ] Test script at `scripts/api_tests/test_<provider>_api.py`
 - [ ] Script supports `--api-key`, `--test`, `--list`

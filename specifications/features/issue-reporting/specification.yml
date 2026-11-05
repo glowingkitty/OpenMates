@@ -11,11 +11,13 @@ summary: >
 scope:
   includes:
     - The first-party Report Issue form and its confirmation state.
+    - The single free-text report field with image, UI-element, and dictation quick actions.
+    - The development-server administrator handoff of a report to a new Claude Code chat.
     - Authenticated collection of compact client diagnostics for a submitted issue.
     - Role-aware visibility of administrator-only issue automation controls.
     - Durable issue identifiers, screenshots, and asynchronous debug-report status.
   excludes:
-    - Internal agent investigation behavior after an issue has been retained.
+    - What the Claude Code chat does after the handoff has been queued.
     - Linear, email-provider, and object-storage interfaces beyond the reported persistence outcome.
     - Unconsented collection of private chat content or credentials.
 
@@ -49,6 +51,19 @@ models:
       type: role_gated_controls
       required: true
       constraints: {administrator_only: true}
+    report_text:
+      type: single_free_text_field
+      required: true
+      constraints: {quick_actions: [screenshot, ui_element, voice_recording], voice_recording: {charged: false, max_recording_seconds: 120, daily_seconds_per_user: 1800}}
+  ClaudeChatHandoff:
+    eligibility:
+      type: role_and_environment_gate
+      required: true
+      constraints: {administrator_only: true, development_server_only: true, default_enabled: true}
+    queued_request:
+      type: identifier_only_request
+      required: true
+      constraints: {contains_report_text: false}
 
 assertions:
   - id: issue-reporting.entry.device-shake
@@ -59,6 +74,18 @@ assertions:
     type: behavior
     must: The Report Issue form remains usable for guests and authenticated users, while controls that directly trigger internal fix, tracker, or notification automation are shown only to an authorized administrator.
     depends_on: [models.ReportControls, examples.role_aware_form]
+  - id: issue-reporting.form.single-text-quick-actions
+    type: behavior
+    must: The Report Issue form asks for one free-text description whose placeholder asks what happened and what is broken, and offers compact icon buttons with tooltips under it to upload a screenshot (authenticated users), select a UI element, and record voice that is transcribed and appended to the description as editable text; it shows no separate structured description fields, keeps an optional contact email only for signed-out reporters, and attaches the active chat automatically with a visible notice instead of an opt-out toggle.
+    depends_on: [models.ReportControls.report_text, examples.single_text_form]
+  - id: issue-reporting.form.free-limited-dictation
+    type: behavior
+    must: Report Issue voice transcription is not charged to the user; the server limits each recording to two minutes and each signed-in user to thirty minutes per UTC day, and once the daily budget is spent the record button is greyed out with a try-again-tomorrow tooltip and further report dictation is refused.
+    depends_on: [models.ReportControls.report_text, examples.dictation_limits]
+  - id: issue-reporting.automation.admin-dev-claude-chat
+    type: behavior
+    must: On the development server, an administrator sees a "Send to Claude chat directly" toggle that is on by default; submitting with it on queues an identifier-only request that starts a new Claude Code chat for the report and the confirmation states whether the chat was queued, while non-administrators, production, and reports with the toggle off never queue a chat.
+    depends_on: [models.ClaudeChatHandoff, examples.admin_claude_chat]
   - id: issue-reporting.input.long-title-preserved
     type: behavior
     must: A user may submit a detailed issue title longer than 500 characters without the issue API rejecting or silently truncating the report.
@@ -94,4 +121,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [shake_entry, role_aware_form, long_title, successful_submission, compact_logs]
+  required_groups: [shake_entry, role_aware_form, single_text_form, dictation_limits, admin_claude_chat, long_title, successful_submission, compact_logs]

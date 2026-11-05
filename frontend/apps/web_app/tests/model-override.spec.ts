@@ -298,7 +298,7 @@ async function waitForResponseAndVerifyModel(
  *
  * Flow:
  * 1. Type "@qwen" in message input
- * 2. Verify "Qwen 3 256b" appears in MentionDropdown
+ * 2. Verify "Qwen 3.8 27B" appears in MentionDropdown
  * 3. Press Tab to autocomplete
  * 4. Type "Capital city of Germany? short answer please."
  * 5. Send message
@@ -340,7 +340,7 @@ test('select qwen model via @ mention dropdown', async ({ page }: { page: any })
 	await startNewChat(page, logCheckpoint);
 
 	// Select Qwen model via @ mention dropdown
-	// Search term "qwen" should find "Qwen 3 256b" in the dropdown
+	// Search term "qwen" should find "Qwen 3.8 27B" in the dropdown
 	await selectModelViaMentionDropdown(
 		page,
 		'qwen',

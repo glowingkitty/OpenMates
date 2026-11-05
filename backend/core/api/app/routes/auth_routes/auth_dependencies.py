@@ -5,6 +5,10 @@ including retrieving the currently authenticated user.
 """
 from __future__ import annotations
 
+from backend.core.api.app.utils.session_principal_consistency import (
+    require_expected_owner_before_refresh, require_expected_principal,
+)
+
 import hashlib
 import logging
 import time
@@ -45,6 +49,7 @@ WORKFLOW_EXECUTION_PATH_PARTS = ("/run", "/steps/", "/runs/", "/input")
 def _set_auth_state(request: Request | None, auth_info: dict[str, Any]) -> None:
     if request is None:
         return
+    require_expected_principal(request, auth_info.get("user_id"))
     request.state.auth_info = auth_info
     request.state.auth_source = auth_info.get("auth_source")
     request.state.api_key_metadata = auth_info.get("api_key_metadata")
@@ -273,6 +278,8 @@ async def get_current_user(
             logger.warning(f"Corrupt cached session data (missing: {missing}) — falling through to DB lookup")
             cached_data = None
         else:
+            # Owner assertion precedes every cache, ledger and cookie effect.
+            require_expected_principal(request, cached_user_id)
             await directus_service.admin.repair_cached_admin_status(cached_user_id, cached_data)
             await ensure_legacy_session_state(
                 directus_service, cache_service, refresh_token, cached_user_id,
@@ -328,6 +335,8 @@ async def get_current_user(
     # /auth/refresh first to get a valid access token for /users/me.
     logger.info("No session data in cache for token — attempting refresh with Directus")
 
+    # A mismatched owner assertion must not rotate the refresh token.
+    await require_expected_owner_before_refresh(request, directus_service, refresh_token)
     refresh_success, auth_data, refresh_message = await refresh_session_token(cache_service, directus_service, refresh_token)
     if not refresh_success or not auth_data:
         logger.info(f"Token refresh failed: {refresh_message}")
@@ -357,6 +366,7 @@ async def get_current_user(
     user_id = token_data.get("id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token data: Missing user ID")
+    require_expected_principal(request, user_id)
 
     # Fetch complete user profile
     success, user_data, profile_message = await directus_service.get_user_profile(user_id)

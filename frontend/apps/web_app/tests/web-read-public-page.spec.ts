@@ -100,7 +100,7 @@ test('actual extraction survives encrypted saved history, reload and the full fu
     await loginWorkflowCliViaPair(page, base, home, 'public-page-read');
     seed = seedViaPairedCli(base, home, 'read', 0, false, result);
     const checksum = runJson('node', ['--input-type=module', '-e', `
-      const {OpenMatesClient}=await import(${JSON.stringify(path.join(path.dirname(CLI_DIST), 'index.js'))});
+      const {OpenMatesClient}=await import(${JSON.stringify(path.join(path.dirname(CLI_DIST), 'cli-internal-client.js'))});
       const {createHash}=await import('node:crypto');
       const client=OpenMatesClient.load({apiUrl:process.env.OPENMATES_API_URL});
       await client.ensureSynced(true,[${JSON.stringify(seed.chatId)}],{personal:true});

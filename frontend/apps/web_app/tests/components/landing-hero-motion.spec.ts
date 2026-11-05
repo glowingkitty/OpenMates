@@ -320,8 +320,9 @@ for (const width of [390, 1440]) {
     const geometry = await scroller.evaluate(element => [...element.querySelectorAll<HTMLElement>('.feature')].map(section => ({ snap: getComputedStyle(section).scrollSnapAlign, bottomPadding: parseFloat(getComputedStyle(section).paddingBottom) })));
     expect(geometry.every(section => section.snap === 'none' && section.bottomPadding >= 112)).toBe(true);
     const modelChoice = page.getByTestId('landing-feature-model-choice');
-    await expect(modelChoice.getByTestId('landing-model-selection-link')).toHaveAttribute('href', `${APP}/blog`);
-    await expect(modelChoice.getByTestId('landing-data-ownership-link')).toHaveAttribute('href', `${APP}/blog`);
+    await expect(page.getByTestId('landing-page')).toHaveAttribute('lang', 'en');
+    await expect(modelChoice.getByTestId('landing-model-selection-link')).toHaveAttribute('href', `${APP}/blog?lang=en`);
+    await expect(modelChoice.getByTestId('landing-data-ownership-link')).toHaveAttribute('href', `${APP}/blog?lang=en`);
     const feature = page.getByTestId('landing-feature-actionable');
     await scrollToFeature(page, 'actionable', -137);
     const before = await scroller.evaluate(element => element.scrollTop);
@@ -399,16 +400,20 @@ for (const width of [390, 1440]) {
     const url = page.url();
     await page.getByTestId('landing-scroll-cue').click();
     await expect(actionable).toHaveAttribute('data-story-state', 'playing');
-    await expect(actionable.getByTestId('landing-feature-animation')).toHaveCount(0);
+    await expect(actionable.getByTestId('landing-feature-animation')).toHaveCount(1);
     await expect(actionable.getByTestId('landing-skip-actionable')).toBeVisible();
     await expect(actionable.locator('.story-copy')).toHaveCount(0);
     await expect(actionable.getByTestId('device-screenshots')).toHaveCount(0);
-    await expect(actionable).toHaveAttribute('data-story-state', 'complete', { timeout: 5000 });
+    await expect(actionable.getByTestId('landing-actionable-event-details')).toContainText('FOSDEM 2027', { timeout: 10_000 });
+    await expect(actionable).toHaveAttribute('data-story-state', 'complete', { timeout: 6000 });
     await expect(actionable.locator('.story-copy p')).toBeVisible();
     await expect(actionable.getByTestId('device-screenshots')).toHaveCount(0);
     await expect(actionable.getByTestId('landing-explore-apps')).toHaveAttribute('href', `${APP}/#apps`);
+    await expectSectionAtTop(actionable);
     await page.getByTestId('landing-next-section').click();
     await expect(privacy).toHaveAttribute('data-story-state', 'playing');
+    // Playing starts at the reading line, before smooth scrolling reaches top.
+    await expectSectionAtTop(privacy);
     await expect(privacy.getByTestId('landing-feature-animation')).toContainText('Only your devices can decrypt all your data.');
     await expect(privacy.locator('.story-copy')).toHaveCount(0);
     await privacy.getByTestId('landing-skip-privacy').click();
@@ -416,6 +421,7 @@ for (const width of [390, 1440]) {
     await expect(privacy.locator('.story-copy p')).toBeVisible();
     await expect(privacy.getByTestId('device-screenshots')).toBeVisible();
     await expect(privacy.getByTestId('landing-feature-animation')).toHaveCount(0);
+    await expectSectionAtTop(privacy);
     await page.getByTestId('landing-previous-section').click();
     await expectSectionAtTop(actionable);
     await expect(actionable).toHaveAttribute('data-story-state', 'complete');
@@ -483,7 +489,11 @@ test.describe('touch landing composer', () => {
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await expect(page.getByTestId('landing-compose')).toHaveText('Tap to ask anything', { timeout: 15_000 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.evaluate(() => localStorage.setItem('preferredLanguage', 'de'));
+    // The pure public-site adapter accepts explicit initial language props; it
+    // does not read the private app's historical preferredLanguage store.
+    await page.goto(preview(390, 'light', { initialLanguage: 'de', initialLanguageMode: 'manual' }), { waitUntil: 'domcontentloaded' });
+    await waitForComponentPreview(page, 30_000);
+    await expect(page.getByTestId('landing-page')).toHaveAttribute('lang', 'de');
     await page.reload({ waitUntil: 'domcontentloaded' });
     await waitForComponentPreview(page, 30_000);
     await expect(page.locator('#hero-title')).toContainText('Privatsphäre');

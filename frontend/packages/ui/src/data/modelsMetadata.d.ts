@@ -9,6 +9,7 @@ export interface ModelServerInfo {
   id: string;
   name: string;
   region: "EU" | "US" | "APAC" | "global";
+  country?: string;
 }
 
 export interface ModelPricingPerUnit {
@@ -56,6 +57,7 @@ export interface AIModelMetadata {
   api_retirement_date?: string;
   servers?: ModelServerInfo[];
   default_server?: string;
+  fastest_server?: string;
   pricing?: ModelPricing;
   temporary_prices?: PublicTemporaryPrice<ModelPricing>[];
   active_temporary_price?: TemporaryPriceMetadata;

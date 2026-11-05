@@ -1,6 +1,6 @@
 {
   "name": "web_app",
-  "version": "0.28.0",
+  "version": "0.29.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -24,7 +24,7 @@
   "dependencies": {
     "@fontsource-variable/lexend-deca": "^5.2.9",
     "@repo/ui": "workspace:*",
-    "dompurify": "^3.4.16",
+    "dompurify": "^3.4.17",
     "markdown-it": "^14.3.3",
     "svelte-i18n": "^4.0.1",
     "yaml": "^2.9.0",

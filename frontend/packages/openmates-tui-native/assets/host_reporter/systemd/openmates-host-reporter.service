@@ -1,0 +1,46 @@
+# Unprivileged OpenMates host reporter (transient DynamicUser identity: no login
+# account, password, shell, sudo, or container-socket access).
+# install.sh adds a drop-in with IPAddressAllow=<collector address>/32 taken
+# from the operator-provided collector URL; everything else is denied.
+[Unit]
+Description=OpenMates host software report (signed, encrypted push)
+Documentation=file:///usr/local/lib/openmates/host-reporter/README.md
+Requires=openmates-host-facts-privileged.service
+After=openmates-host-facts-privileged.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+DynamicUser=yes
+ExecStart=/usr/bin/python3 -I /usr/local/lib/openmates/host-reporter/openmates-host-reporter report --conf /etc/openmates/host-reporter.conf
+LoadCredential=host-facts:/run/openmates-host-facts/facts.json
+LoadCredential=signing-key:/etc/openmates/host-reporter/host_ed25519
+LoadCredential=collector-cert:/etc/openmates/host-reporter/collector.crt
+LoadCredential=collector-tls-cert:/etc/openmates/host-reporter/collector-tls.crt
+CapabilityBoundingSet=
+AmbientCapabilities=
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @mount
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+IPAddressDeny=any
+UMask=0077
+Nice=10
+TimeoutStartSec=20min

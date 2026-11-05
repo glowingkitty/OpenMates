@@ -242,7 +242,7 @@ INVALID_TOOL_FALLBACK_MESSAGE = main_processor.INVALID_TOOL_FALLBACK_MESSAGE
 INVALID_TOOL_RESULT_REASON = main_processor.INVALID_TOOL_RESULT_REASON
 _append_tool_call_turn_to_history = main_processor._append_tool_call_turn_to_history
 _get_skill_execution_args = main_processor._get_skill_execution_args
-_limit_news_search_batch_to_budget = main_processor._limit_news_search_batch_to_budget
+_limit_request_batch_to_budget = main_processor._limit_request_batch_to_budget
 _has_diffable_embeds_for_prompt = main_processor._has_diffable_embeds_for_prompt
 _build_pending_app_settings_memories_context = main_processor._build_pending_app_settings_memories_context
 _apply_benchmark_usage_details = main_processor._apply_benchmark_usage_details
@@ -2043,16 +2043,16 @@ def test_skill_execution_falls_back_to_fresh_args_without_placeholder_args() -> 
     assert _get_skill_execution_args(parsed_args, {"multiple": True}) is parsed_args
 
 
-def test_news_search_batch_uses_remaining_budget_without_mutating_original_args() -> None:
+def test_request_batch_uses_remaining_budget_without_mutating_original_args() -> None:
     args = {"requests": [{"query": f"topic {index}"} for index in range(6)], "other": "kept"}
 
-    limited, omitted = _limit_news_search_batch_to_budget(args, 5)
+    limited, omitted = _limit_request_batch_to_budget(args, 5)
 
     assert [request["query"] for request in limited["requests"]] == [f"topic {index}" for index in range(5)]
     assert [request["query"] for request in omitted] == ["topic 5"]
     assert limited["other"] == "kept"
     assert len(args["requests"]) == 6
-    assert _limit_news_search_batch_to_budget(args, 0) == (args, [])
+    assert _limit_request_batch_to_budget(args, 0) == (args, [])
 
 
 def test_diff_prompt_uses_resolved_embed_file_path_index() -> None:
@@ -2673,6 +2673,47 @@ async def test_answer_recovery_excludes_dispatch_guidance_but_keeps_result_and_s
     assert not any(isinstance(chunk, dict) and chunk.get("__tool_calls_info__") for chunk in output)
 
 
+# contract-test: supporting surface=rest_api assertions=app-memories.selection.source-scoped,app-memories.privacy.client-encrypted
+async def test_revoked_on_demand_memory_is_removed_from_actual_native_provider_payload(monkeypatch):
+    from backend.apps.ai.processing.memory_tools import MemoryToolRuntime
+    from backend.shared.python_utils.memory_loader import MemoryDefinition
+    private_body = "Synthetic private Project conventions that must disappear after revocation."
+    document = MemoryDefinition(id="project:p:guide", title="Conventions", description="Project conventions",
+        when_to_use="Project work", body=private_body, revision="a" * 64, source="project", project_id="p")
+    documents = [document]
+    async def catalog():
+        return list(documents)
+    runtime = MemoryToolRuntime(catalog=catalog)
+    runtime.selected = {document.id: document.revision}
+    runtime._restored = True  # An authorized selection restored at an internal turn boundary.
+    monkeypatch.setattr(main_processor, "MemoryToolRuntime", lambda **_kwargs: runtime)
+    monkeypatch.setattr(main_processor, "native_cache_route", lambda _model: ("openai", "fixture"))
+    monkeypatch.setattr(main_processor, "prepare_native_cache_context", lambda state, **_kwargs: state)
+    monkeypatch.setattr(main_processor, "native_replay_fits_budget", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(main_processor, "sanitize_text_simple", lambda text: text)
+    seen = []
+    def provider_call(kwargs):
+        seen.append(copy.deepcopy(kwargs))
+        if len(seen) == 1:
+            documents.clear()
+    native_output = main_processor.NativeCacheProviderOutput(provider_prefix="openai", model_id="fixture",
+        output=[{"type": "function_call", "call_id": "fake-tool-call", "name": "find_memories",
+                 "arguments": '{"query":"conventions"}'}])
+    await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        streams=[[{"fake_google_tool_call": "find_memories", "arguments": {"query": "conventions"}}, native_output],
+                 ["A public answer after access changed."]],
+        discovered_apps_metadata={"code": SimpleNamespace(skills=[], instructions=[], focuses=[])},
+        request_overrides={"current_user_content": "Find guidance.", "message_history": [
+            {"role": "user", "message_id": "message-1", "content": "Find guidance."}]},
+        base_instructions={"base_ethics_instruction": "Stable safe instruction."}, on_provider_call=provider_call,
+    )
+    assert len(seen) == 2
+    assert private_body in json.dumps(seen[0]["native_cache_context"])
+    assert private_body not in seen[1]["system_prompt"]
+    assert private_body not in json.dumps(seen[1]["native_cache_context"])
+
+
 # contract-test: supporting surface=rest_api assertions=app-skills.images.reference-handoff,shopping-search.relevance.truthful-fallback
 @pytest.mark.parametrize("flow", ["initial-answer", "tool-synthesis", "answer-recovery"])
 async def test_real_shopping_answer_policy_survives_every_model_dispatch(monkeypatch, flow):
@@ -3242,3 +3283,143 @@ async def test_guard_log_diagnostics_do_not_include_suppressed_content(monkeypat
     assert diagnostics
     assert any('tool_code_fence' in message and 'body_chars' in message for message in diagnostics)
     assert all(private_fixture not in message and 'private-file-name' not in message for message in diagnostics)
+
+
+# contract-test: supporting surface=rest_api assertions=answer-composition.delivery.consistent-and-cost-aware
+@pytest.mark.parametrize("selected,history,expect_embed", [
+    (["images-search"], [], True),
+    ([], [{"role": "tool", "content": "embed_ref: image-result-1\napp_id: images\nskill_id: search"}], True),
+    ([], [], False),
+])
+async def test_composition_and_image_only_guidance_reaches_real_dispatch(
+    monkeypatch, selected, history, expect_embed,
+):
+    from backend.apps.ai.utils.instruction_loader import load_base_instructions
+
+    actual = load_base_instructions()
+    _, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [["A concise answer."]],
+        preprocessing_overrides={"relevant_app_skills": selected},
+        request_overrides={"current_user_content": "Explain these architectural styles.",
+                           "message_history": history},
+    )
+    prompt = calls[0]["system_prompt"]
+    assert actual["base_answer_composition_instruction"] in prompt
+    assert (actual["base_embed_referencing_instruction"] in prompt) is expect_embed
+
+
+# contract-test: supporting surface=rest_api assertions=answer-composition.search.bounded-enrichment
+def test_search_budget_counts_primary_calls_and_both_media_share_one_query():
+    args = {"requests": [{"query": f"image {i}"} for i in range(5)]}
+    admitted, omitted, used = main_processor._bound_answer_search_queries(
+        "images-search", args, {}, expanded=False,
+    )
+    assert len(admitted["requests"]) == 1 and len(omitted) == 4
+    assert args["requests"] and len(args["requests"]) == 5
+    videos, omitted_video, later = main_processor._bound_answer_search_queries(
+        "videos-search", {"requests": [{"query": "demonstration"}]}, used, expanded=False,
+    )
+    assert videos["requests"] == [] and len(omitted_video) == 1
+    assert later == used
+    # One primary call keeps its whole batch (the hard skill limit trims later, 4VXWM).
+    batch = {"requests": [{"query": f"facts {i}"} for i in range(4)]}
+    primary, omitted_primary, used = main_processor._bound_answer_search_queries(
+        "web-search", batch, used, expanded=False,
+    )
+    assert len(primary["requests"]) == 4 and omitted_primary == []
+    assert used == {"media": 1, "primary": 1}
+    # A checkpoint round-trip retains the same budget for a continuation/retry.
+    resumed = json.loads(json.dumps(used))
+    retry, omitted_retry, _ = main_processor._bound_answer_search_queries(
+        "news-search", {"requests": [{"query": "facts"}]}, resumed, expanded=False,
+    )
+    assert retry["requests"] == [] and len(omitted_retry) == 1
+
+
+# contract-test: supporting surface=rest_api assertions=answer-composition.search.bounded-enrichment
+def test_search_budget_expanded_and_essential_fact_exceptions_stay_bounded():
+    args = {"requests": [{"query": str(i)} for i in range(8)]}
+    used = {}
+    for _ in range(main_processor.HARD_LIMIT_SKILL_CALLS):
+        admitted, omitted, used = main_processor._bound_answer_search_queries(
+            "web-search", args, used, expanded=True,
+        )
+        assert len(admitted["requests"]) == 8 and omitted == []
+    blocked, omitted, _ = main_processor._bound_answer_search_queries(
+        "web-search", args, used, expanded=True,
+    )
+    assert blocked["requests"] == [] and len(omitted) == 8
+    essential_args = {**args, "essential_fact_reason": "Need the actual contraindication."}
+    used = {"primary": 1}
+    for _ in range(2):
+        essential, omitted, used = main_processor._bound_answer_search_queries(
+            "web-search", essential_args, used, expanded=False,
+        )
+        assert len(essential["requests"]) == 8 and omitted == []
+        assert "essential_fact_reason" not in essential
+    capped, omitted, _ = main_processor._bound_answer_search_queries(
+        "web-search", essential_args, used, expanded=False,
+    )
+    assert capped["requests"] == [] and len(omitted) == 8
+    # Essential-fact reasons never unlock extra media.
+    media, omitted_media, _ = main_processor._bound_answer_search_queries(
+        "images-search", {"requests": [{"query": "a"}, {"query": "b"}], "essential_fact_reason": "x"},
+        {}, expanded=False,
+    )
+    assert len(media["requests"]) == 1 and len(omitted_media) == 1
+
+
+# contract-test: supporting surface=rest_api assertions=answer-composition.search.bounded-enrichment
+async def test_actual_image_batch_is_clamped_and_video_retry_is_reported_without_dispatch(monkeypatch):
+    dispatched = AsyncMock(return_value=[{"results": [{"id": 1, "results": []}]}])
+    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", dispatched)
+    monkeypatch.setattr(main_processor, "_reserve_skill_credits", AsyncMock(return_value=[]))
+    metadata = {app: SimpleNamespace(skills=[SimpleNamespace(
+        id="search", parallel_safe=True, exclude_fields_for_llm=None, pricing=None, providers=[],
+        tool_schema={"type": "object", "properties": {"requests": {"type": "array", "items": {"type": "object"}}}, "required": ["requests"]},
+    )], instructions=[], focuses=[]) for app in ("images", "videos")}
+    _, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [[{"fake_google_tool_call": "images-search", "arguments": {"requests": [{"query": f"style {i}"} for i in range(5)]}, "tool_call_id": "pictures"}],
+         [{"fake_google_tool_call": "videos-search", "arguments": {"requests": [{"query": "tutorial"}]}, "tool_call_id": "video"}],
+         ["Here is the available visual evidence."]],
+        generated_tools=[{"type": "function", "function": {"name": f"{app}-search", "description": "Search."}} for app in metadata],
+        discovered_apps_metadata=metadata,
+        preprocessing_overrides={"selected_app_ids": list(metadata), "relevant_app_skills": ["images-search", "videos-search"]},
+        request_overrides={"current_user_content": "Show me Gothic architecture."},
+    )
+    assert dispatched.await_count == 1
+    assert dispatched.await_args.kwargs["app_id"] == "images"
+    assert len(dispatched.await_args.kwargs["arguments"]["requests"]) == 1
+    final_history = str(calls[-1]["message_history"])
+    assert "omitted_requests" in final_history and "style 4" in final_history
+    assert "retrieval/enrichment query budget is used" in final_history
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.selection.source-scoped,app-memories.transparency.loaded-set
+async def test_on_demand_memory_reaches_next_provider_call_and_answer_recovery(monkeypatch):
+    from backend.apps.diagrams.diagram_guidance import diagram_guidance_prompt
+    monkeypatch.setattr(main_processor, "MAX_TOOL_CALL_ITERATIONS", 4)
+    guide = diagram_guidance_prompt(["type-architecture"], variant="minimal_dark")
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        streams=[
+            [{"fake_google_tool_call": "find_memories", "arguments": {"query": "architecture"}}],
+            [{"fake_google_tool_call": "load_memories", "arguments": {
+                "memory_ids": ["app:diagrams:type-architecture"], "diagram_variant": "minimal_dark"}}],
+            [{"fake_google_tool_call": "nonexistent_tool"}],
+            ["A prepared diagram answer."],
+        ],
+        discovered_apps_metadata={"diagrams": SimpleNamespace(skills=[], instructions=[], focuses=[])},
+        preprocessing_overrides={"selected_app_ids": [], "relevant_diagram_types": []},
+    )
+    assert len(calls) == 4
+    assert guide not in calls[0]["system_prompt"]
+    assert guide not in calls[1]["system_prompt"]
+    assert all(guide in call["system_prompt"] for call in calls[2:])
+    assert calls[-1]["tools"] is None
+    assert any(message.get("role") == "tool" and '"status": "loaded"' in str(message.get("content"))
+               for message in calls[2]["message_history"])
+    receipts = [chunk["receipt"] for chunk in output if isinstance(chunk, dict) and chunk.get("__chat_context_applied__")]
+    assert any(m["id"] == "app:diagrams:type-architecture" for r in receipts for m in r.get("memories", []))
+    assert not any(isinstance(chunk, dict) and chunk.get("__tool_calls_info__") for chunk in output)

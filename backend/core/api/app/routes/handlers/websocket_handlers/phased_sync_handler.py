@@ -12,6 +12,7 @@ import uuid
 from typing import TYPE_CHECKING, Dict, Any, List, Optional
 from datetime import datetime, timezone
 
+import httpx
 from fastapi import WebSocket
 
 from backend.core.api.app.services.cache import CacheService
@@ -27,6 +28,20 @@ from backend.core.api.app.routes.handlers.websocket_handlers.sync_message_hydrat
 from backend.core.api.app.routes.handlers.websocket_handlers.sync_sidecar_hydration import (
     load_sync_sidecars_for_chats,
 )
+from backend.core.api.app.routes.handlers.websocket_handlers.bounded_chat_reads import (
+    merge_phase1b_reads,
+    read_chats_bounded,
+)
+from backend.core.api.app.routes.handlers.websocket_handlers.sync_delta_hints import (
+    format_skip_reasons as _format_skip_reasons,
+    phase2_delta_reason as _phase2_delta_reason,
+    select_sync_embeds as _select_sync_embeds,
+)
+from backend.core.api.app.routes.handlers.websocket_handlers.sync_visibility_fence import (
+    _live_visible_sync_chat_ids,
+    _live_visible_sync_chat_metadata,
+)
+from backend.core.api.app.routes.handlers.websocket_handlers.chat_sync_cold_start import begin_cold_start
 from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
 
 logger = logging.getLogger(__name__)
@@ -39,10 +54,38 @@ STARTUP_METADATA_PARENT_CHAT_LIMIT = 100
 STARTUP_SUB_CHAT_METADATA_LIMIT = 50
 # Keep Phase 2 below the Directus connection budget while avoiding serial N+1 latency.
 PHASE2_DRAFT_LOOKUP_CONCURRENCY = 10
+# Phase 1b reads up to 20 chats; bound per-chat reads so Phase 2 keeps headroom.
+PHASE1B_CHAT_READ_CONCURRENCY = 5
 
 
 class DurableChatDeletionFenceUnavailable(RuntimeError):
     """Do not complete startup sync when explicit deletion cannot be verified."""
+
+
+PHASED_SYNC_RETRY_AFTER_MS = 3000
+# Dependency failures that clear on their own once the host recovers.
+TRANSIENT_SYNC_ERRORS = (
+    DurableChatDeletionFenceUnavailable,
+    httpx.TransportError,
+    asyncio.TimeoutError,
+)
+
+
+def build_retryable_sync_error(
+    sync_phase: str, team_id: Optional[str], context_epoch: Any,
+) -> Dict[str, Any]:
+    """Typed, retryable frame; carries no chat data (fence stays fail-closed)."""
+    return {
+        "type": "phased_sync_retryable_error",
+        "payload": {
+            "code": "sync_dependency_unavailable",
+            "retryable": True,
+            "retry_after_ms": PHASED_SYNC_RETRY_AFTER_MS,
+            "sync_phase": sync_phase,
+            "team_id": team_id,
+            "context_epoch": context_epoch,
+        },
+    }
 
 PHASE1_REQUIRED_ENCRYPTED_FIELDS = (
     "encrypted_chat_key",
@@ -448,8 +491,13 @@ async def _fetch_chat_key_wrappers_for_chats(
     chat_ids: List[str],
     user_id: str,
     team_id: Optional[str] = None,
+    metadata_by_chat_id: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> tuple[List[Dict[str, Any]], Dict[str, Dict[str, Any]]]:
-    """Fetch chat key wrappers for chat IDs already authorized by sync selection."""
+    """Fetch chat key wrappers for chat IDs already authorized by sync selection.
+
+    ``metadata_by_chat_id`` carries rows the caller already read through the
+    live visibility fence; chats absent from it are read individually.
+    """
     if not chat_ids:
         return [], {}
     wrappers: List[Dict[str, Any]] = []
@@ -457,8 +505,11 @@ async def _fetch_chat_key_wrappers_for_chats(
     principal = {"hashed_team_id": hashlib.sha256(team_id.encode()).hexdigest()} if team_id else {
         "hashed_user_id": hashlib.sha256(user_id.encode()).hexdigest()
     }
+    known_metadata = metadata_by_chat_id or {}
     for chat_id in dict.fromkeys(chat_ids):
-        metadata = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
+        metadata = known_metadata.get(chat_id)
+        if metadata is None:
+            metadata = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
         if is_direct_chat(metadata):
             try:
                 await require_direct_chat_access(directus_service, metadata, user_id, team_id)
@@ -477,30 +528,6 @@ async def _fetch_chat_key_wrappers_for_chats(
             "oversized_wrapper_id": page["oversized_wrapper_id"],
         }
     return wrappers, windows
-
-
-async def _live_visible_sync_chat_ids(
-    directus_service: DirectusService, chat_ids: List[str], user_id: str,
-    team_id: Optional[str],
-) -> List[str]:
-    """Recheck direct-chat access immediately before encrypted content reads."""
-    visible: List[str] = []
-    for chat_id in chat_ids:
-        metadata = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
-        if not metadata:
-            continue
-        if team_id:
-            if metadata.get("hashed_team_id") != hashlib.sha256(team_id.encode()).hexdigest():
-                continue
-        elif metadata.get("hashed_team_id") or metadata.get("hashed_user_id") != hashlib.sha256(user_id.encode()).hexdigest():
-            continue
-        if is_direct_chat(metadata):
-            try:
-                await require_direct_chat_access(directus_service, metadata, user_id, team_id)
-            except (PermissionError, ValueError):
-                continue
-        visible.append(chat_id)
-    return visible
 
 
 async def _fetch_direct_sub_chat_ids_for_phase1_parents(
@@ -729,9 +756,11 @@ async def handle_phased_sync_request(
         _otel_span, _otel_token = start_ws_handler_span("phased_sync_request", user_id, payload, user_otel_attrs)
     except Exception:
         pass
+    sync_phase = payload.get("phase", "all")
+    team_id = None
+    context_epoch = None
     try:
         try:
-            sync_phase = payload.get("phase", "all")
             # Extract client version data for delta checking
             client_chat_versions = payload.get("client_chat_versions", {})
             client_chat_ids = payload.get("client_chat_ids", [])
@@ -767,6 +796,12 @@ async def handle_phased_sync_request(
                 f"{len(client_embed_ids)} embed(s) already on device"
             )
         
+            # chat_sync_feed_v1 sockets only: clock read before snapshot reads.
+            cold_start_feed = await begin_cold_start(
+                websocket, manager, cache_service, directus_service, user_id,
+                device_fingerprint_hash, team_id, context_epoch, sync_phase,
+            )
+
             # Track sent embed IDs across all phases to prevent duplicates
             # Embeds can be shared across chats in different phases
             sent_embed_ids: set = set()
@@ -850,6 +885,7 @@ async def handle_phased_sync_request(
                     )
         
             # Send sync completion event
+            await cold_start_feed.finish()
             await manager.send_personal_message(
                 {
                     "type": "phased_sync_complete",
@@ -858,6 +894,7 @@ async def handle_phased_sync_request(
                         "timestamp": int(datetime.now(timezone.utc).timestamp()),
                         "team_id": team_id,
                         "context_epoch": context_epoch,
+                        **cold_start_feed.completion_fields(),
                     }
                 },
                 user_id,
@@ -869,8 +906,14 @@ async def handle_phased_sync_request(
         except Exception as e:
             logger.error(f"Error handling phased sync for user {user_id}: {e}", exc_info=True)
             try:
+                if isinstance(e, TRANSIENT_SYNC_ERRORS):
+                    error_frame = build_retryable_sync_error(
+                        sync_phase, team_id, context_epoch,
+                    )
+                else:
+                    error_frame = {"type": "error", "payload": {"message": "Failed to process phased sync request"}}
                 await manager.send_personal_message(
-                    {"type": "error", "payload": {"message": "Failed to process phased sync request"}},
+                    error_frame,
                     user_id,
                     device_fingerprint_hash
                 )
@@ -1077,6 +1120,7 @@ async def _handle_phase1_sync(
     Returns list of chat IDs sent in this phase (used by Phase 1b to fetch content).
     """
     logger.info(f"Processing Phase 1a sync for user {user_id}")
+    phase1a_start = time.perf_counter()
 
     try:
         import asyncio as _asyncio
@@ -1177,9 +1221,22 @@ async def _handle_phase1_sync(
             )
             return []
 
-        phase1_chat_ids = await _live_visible_sync_chat_ids(
+        # The owner/Team-filtered list query above already returned current
+        # metadata for these ids; only ids from the fallback path are re-read.
+        recent_metadata_by_id: Dict[str, Dict[str, Any]] = {
+            str(row.get("id")): row
+            for row in (recent_chat_metadata_rows or [])
+            if isinstance(row, dict) and row.get("id")
+        }
+        visible_phase1_metadata = await _live_visible_sync_chat_metadata(
             directus_service, phase1_chat_ids, user_id, team_id,
+            known_metadata={
+                cid: recent_metadata_by_id[cid]
+                for cid in phase1_chat_ids
+                if cid in recent_metadata_by_id
+            },
         )
+        phase1_chat_ids = list(visible_phase1_metadata)
         if not phase1_chat_ids:
             return []
 
@@ -1204,11 +1261,9 @@ async def _handle_phase1_sync(
             ):
                 directus_needed.append(cid)
 
-        directus_metadata_map: Dict[str, Dict[str, Any]] = {
-            str(row.get("id")): row
-            for row in (recent_chat_metadata_rows or [])
-            if isinstance(row, dict) and row.get("id")
-        }
+        # Fence rows are caller-safe (direct chats are already projected).
+        directus_metadata_map: Dict[str, Dict[str, Any]] = dict(visible_phase1_metadata)
+        directus_needed = [cid for cid in directus_needed if cid not in directus_metadata_map]
         if directus_needed:
             try:
                 fetched = await directus_service.chat.get_chats_metadata_batch(directus_needed)
@@ -1390,7 +1445,8 @@ async def _handle_phase1_sync(
         )
 
         logger.info(
-            f"[PHASE1a_COMPLETE] ✅ Phase 1a sync for user {user_id[:8]}...: "
+            f"[PHASE1a_COMPLETE] ✅ Phase 1a sync for user {user_id[:8]}... "
+            f"in {time.perf_counter() - phase1a_start:.3f}s: "
             f"last_chat={'yes' if last_chat_details else 'no'}, "
             f"recent_metadata={len(recent_chat_metadata)}, "
             f"{len(new_chat_suggestions)} suggestions, {len(daily_inspirations)} inspirations, "
@@ -1435,9 +1491,12 @@ async def _handle_phase1b_sync(
     if not phase1_chat_ids:
         return
 
-    phase1_chat_ids = await _live_visible_sync_chat_ids(
+    # One live visibility fence at entry; its caller-safe rows feed every
+    # per-chat read below. The pre-send fence re-checks membership once more.
+    visible_metadata = await _live_visible_sync_chat_metadata(
         directus_service, phase1_chat_ids, user_id, team_id,
     )
+    phase1_chat_ids = list(visible_metadata)
     if not phase1_chat_ids:
         return
 
@@ -1445,26 +1504,20 @@ async def _handle_phase1b_sync(
     phase1b_start = time.perf_counter()
 
     try:
-        import hashlib
-
-        chats_data: List[Dict[str, Any]] = []
         user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
 
-        for chat_id in phase1_chat_ids:
-            if not await _live_visible_sync_chat_ids(directus_service, [chat_id], user_id, team_id):
-                continue
+        async def read_chat(chat_id: str) -> Dict[str, Any]:
+            """Read-only fetch of one chat's content; merging happens below in chat order."""
+            metadata = visible_metadata[chat_id]
             messages_data: List[str] = []
             message_window: Dict[str, Any] = {}
 
             # Delta sync: skip message fetch if client already has up-to-date messages
-            client_versions = client_chat_versions.get(chat_id, {})
-            client_messages_v = client_versions.get("messages_v", 0)
+            client_messages_v = client_chat_versions.get(chat_id, {}).get("messages_v", 0)
             server_versions = await cache_service.get_chat_versions(user_id, chat_id)
             server_messages_v = server_versions.messages_v if server_versions else 0
-
             should_fetch_messages = True
             server_message_count = None
-
             if client_messages_v >= server_messages_v and server_messages_v > 0:
                 # Validate with actual count to catch version lag
                 try:
@@ -1476,7 +1529,6 @@ async def _handle_phase1b_sync(
                         )
                     else:
                         should_fetch_messages = False
-                        logger.debug(f"[PHASE1b] Skipping messages for {chat_id} (up-to-date: v={client_messages_v})")
                 except Exception:
                     should_fetch_messages = False
 
@@ -1489,56 +1541,32 @@ async def _handle_phase1b_sync(
                     log_prefix="[PHASE1b]",
                     user_otel_attrs=user_otel_attrs,
                     archive_service=archive_service,
+                    metadata=metadata,
                 )
                 messages_data = message_window["messages"]
                 server_message_count = message_window["server_message_count"]
 
-            checkpoint = await get_latest_chat_compression_checkpoint(
-                directus_service,
-                chat_id,
-                user_id_hash,
-            )
+            checkpoint = await get_latest_chat_compression_checkpoint(directus_service, chat_id, user_id_hash)
+            read: Dict[str, Any] = {
+                "chat": {
+                    "chat_id": chat_id,
+                    "messages": messages_data if should_fetch_messages else None,
+                    "compression_checkpoints": [checkpoint] if checkpoint else [],
+                    "server_message_count": server_message_count or 0,
+                    "message_window": {
+                        "has_more_before": message_window.get("has_more_before", False),
+                        "start_cursor": message_window.get("start_cursor"),
+                        "oversized_message": message_window.get("oversized_message", False),
+                        "oversized_message_cursor": message_window.get("oversized_message_cursor"),
+                    } if should_fetch_messages else None,
+                },
+                "embeds": None,
+            }
 
-            chats_data.append({
-                "chat_id": chat_id,
-                "messages": messages_data if should_fetch_messages else None,
-                "compression_checkpoints": [checkpoint] if checkpoint else [],
-                "server_message_count": server_message_count or 0,
-                "message_window": {
-                    "has_more_before": message_window.get("has_more_before", False),
-                    "start_cursor": message_window.get("start_cursor"),
-                    "oversized_message": message_window.get("oversized_message", False),
-                    "oversized_message_cursor": message_window.get("oversized_message_cursor"),
-                } if should_fetch_messages else None,
-            })
-
-        phase1_chat_ids = [row["chat_id"] for row in chats_data]
-
-        # Fetch embeds + embed_keys for all Phase 1 chats
-        all_embeds: List[Dict[str, Any]] = []
-        all_embed_keys: List[Dict[str, Any]] = []
-        all_code_run_outputs: List[Dict[str, Any]] = []
-        all_notebook_run_outputs: List[Dict[str, Any]] = []
-        seen_embed_ids: set = set()
-        seen_key_ids: set = set()
-        embed_windows_by_chat_id: Dict[str, Dict[str, Any]] = {}
-        embed_key_windows_by_chat_id: Dict[str, Dict[str, Any]] = {}
-
-        for chat_id in phase1_chat_ids:
-            if not await _live_visible_sync_chat_ids(directus_service, [chat_id], user_id, team_id):
-                continue
             hashed_id = hashlib.sha256(chat_id.encode()).hexdigest()
-
             try:
                 embed_window = await directus_service.embed.get_embed_window_by_hashed_chat_id(hashed_id)
                 raw_embeds = embed_window["embeds"]
-                embed_windows_by_chat_id[chat_id] = {
-                    "has_more_before": embed_window["has_more_before"],
-                    "start_cursor": embed_window["start_cursor"],
-                    "oversized_embed_id": embed_window["oversized_embed_id"],
-                    "oversized_embed_cursor": embed_window.get("oversized_embed_cursor"),
-                }
-
                 page_hashes = [
                     embed.get("hashed_embed_id") or hashlib.sha256(embed["embed_id"].encode()).hexdigest()
                     for embed in raw_embeds if embed.get("embed_id")
@@ -1546,40 +1574,50 @@ async def _handle_phase1b_sync(
                 key_window = await directus_service.embed.get_sync_embed_key_window_for_page(
                     hashed_id, user_id_hash, page_hashes,
                 )
-                keys = key_window["embed_keys"]
-                embed_key_windows_by_chat_id[chat_id] = {**key_window, "embed_ids": [embed["embed_id"] for embed in raw_embeds if embed.get("embed_id")]}
-                embed_key_windows_by_chat_id[chat_id].pop("embed_keys")
-                if raw_embeds:
-                    for embed in raw_embeds:
-                        embed_id = embed.get("embed_id")
-                        embed_status = embed.get("status")
-                        if (embed_id and embed_id not in seen_embed_ids
-                                and embed_id not in sent_embed_ids
-                                and embed_id not in (client_embed_ids or set())
-                                and embed_status not in ("error", "cancelled")):
-                            all_embeds.append(embed)
-                            seen_embed_ids.add(embed_id)
-                            sent_embed_ids.add(embed_id)
-                for key_entry in keys:
-                    key_id = key_entry.get("id")
-                    if key_id and key_id not in seen_key_ids:
-                        all_embed_keys.append(key_entry)
-                        seen_key_ids.add(key_id)
+                read["embeds"] = {
+                    "raw": raw_embeds,
+                    "window": {
+                        "has_more_before": embed_window["has_more_before"],
+                        "start_cursor": embed_window["start_cursor"],
+                        "oversized_embed_id": embed_window["oversized_embed_id"],
+                        "oversized_embed_cursor": embed_window.get("oversized_embed_cursor"),
+                    },
+                    "keys": key_window["embed_keys"],
+                    "key_window": {
+                        **{key: value for key, value in key_window.items() if key != "embed_keys"},
+                        "embed_ids": [embed["embed_id"] for embed in raw_embeds if embed.get("embed_id")],
+                    },
+                }
             except Exception as e:
                 logger.warning(f"[PHASE1b] Error fetching embeds for {chat_id}: {e}")
 
-        all_code_run_outputs, code_run_output_windows = await load_sync_sidecars_for_chats(
-            directus_service, collection="code_run_outputs", chat_ids=phase1_chat_ids, user_id=user_id,
+            read["code_run"] = await load_sync_sidecars_for_chats(
+                directus_service, collection="code_run_outputs", chat_ids=[chat_id], user_id=user_id,
+            )
+            read["notebook_run"] = await load_sync_sidecars_for_chats(
+                directus_service, collection="notebook_run_outputs", chat_ids=[chat_id], user_id=user_id,
+            )
+            read["key_wrappers"] = await _fetch_chat_key_wrappers_for_chats(
+                directus_service, [chat_id], user_id, team_id=team_id,
+                metadata_by_chat_id={chat_id: metadata},
+            )
+            return read
+
+        reads, failed_reads = await read_chats_bounded(
+            phase1_chat_ids, read_chat, concurrency=PHASE1B_CHAT_READ_CONCURRENCY,
         )
-        all_notebook_run_outputs, notebook_run_output_windows = await load_sync_sidecars_for_chats(
-            directus_service, collection="notebook_run_outputs", chat_ids=phase1_chat_ids, user_id=user_id,
+        for failed_chat_id, error in failed_reads:
+            # A chat that cannot be read is omitted; the client hydrates it on demand.
+            logger.warning(f"[PHASE1b] Omitting chat {failed_chat_id} after read failure: {error!r}")
+
+        # Single ordered merge: chat order, first-chat-wins embed/key dedupe.
+        merged, embed_skip_reasons = merge_phase1b_reads(
+            reads, sent_embed_ids=sent_embed_ids, client_embed_ids=client_embed_ids,
         )
-        all_chat_key_wrappers, chat_key_wrapper_windows = await _fetch_chat_key_wrappers_for_chats(
-            directus_service,
-            phase1_chat_ids,
-            user_id,
-            team_id=team_id,
-        )
+        chats_data = merged["chats"]
+        phase1_chat_ids = [chat_id for chat_id, _ in reads]
+        if not phase1_chat_ids:
+            return
 
         # Send Phase 1b as separate WS message
         # A membership can be removed while bounded content and sidecars load.
@@ -1593,17 +1631,7 @@ async def _handle_phase1b_sync(
             {
                 "type": "phase_1b_chat_content_ready",
                 "payload": {
-                    "chats": chats_data,
-                    "embeds": all_embeds,
-                    "embed_windows_by_chat_id": embed_windows_by_chat_id,
-                    "embed_keys": all_embed_keys,
-                    "embed_key_windows_by_chat_id": embed_key_windows_by_chat_id,
-                    "chat_key_wrappers": all_chat_key_wrappers,
-                    "chat_key_wrapper_windows_by_chat_id": chat_key_wrapper_windows,
-                    "code_run_outputs": all_code_run_outputs,
-                    "code_run_output_windows_by_chat_id": code_run_output_windows,
-                    "notebook_run_outputs": all_notebook_run_outputs,
-                    "notebook_run_output_windows_by_chat_id": notebook_run_output_windows,
+                    **merged,
                     "team_id": team_id,
                     "context_epoch": context_epoch,
                 }
@@ -1617,10 +1645,12 @@ async def _handle_phase1b_sync(
         logger.info(
             f"[PHASE1b_COMPLETE] ✅ Phase 1b sync for user {user_id[:8]}... in {phase1b_elapsed:.3f}s: "
             f"{len(chats_data)} chats, {messages_total} messages, "
-            f"{len(all_embeds)} embeds, {len(all_embed_keys)} embed_keys, "
-            f"{len(all_chat_key_wrappers)} chat_key_wrappers, "
-            f"{len(all_code_run_outputs)} code_run_outputs, "
-            f"{len(all_notebook_run_outputs)} notebook_run_outputs"
+            f"{len(merged['embeds'])} embeds, {len(merged['embed_keys'])} embed_keys, "
+            f"{len(merged['chat_key_wrappers'])} chat_key_wrappers, "
+            f"{len(merged['code_run_outputs'])} code_run_outputs, "
+            f"{len(merged['notebook_run_outputs'])} notebook_run_outputs, "
+            f"embed_skips={_format_skip_reasons(embed_skip_reasons)}, "
+            f"failed_chats={len(failed_reads)}"
         )
 
     except Exception as e:
@@ -1859,30 +1889,22 @@ async def _handle_phase2_sync(
         refresh_chat_ids_set = set(refresh_chat_ids or [])
         chats_to_send = []
         chats_skipped = 0
+        phase2_reasons: Dict[str, int] = {}
 
         existing_chat_ids = [cw["chat_details"]["id"] for cw in all_recent_chats if cw["chat_details"]["id"] in client_chat_ids_set]
         batch_server_versions = await cache_service.get_batch_chat_versions(user_id, existing_chat_ids) if existing_chat_ids else {}
 
         for chat_wrapper in all_recent_chats:
             chat_id = chat_wrapper["chat_details"]["id"]
-
-            if chat_id in refresh_chat_ids_set:
-                chats_to_send.append(chat_wrapper)
+            reason = _phase2_delta_reason(
+                chat_wrapper["chat_details"], client_chat_versions.get(chat_id, {}),
+                batch_server_versions.get(chat_id), refresh=chat_id in refresh_chat_ids_set,
+                on_client=chat_id in client_chat_ids_set, is_current=_phase2_metadata_is_current,
+            )
+            phase2_reasons[reason] = phase2_reasons.get(reason, 0) + 1
+            if reason.startswith("skipped_"):
+                chats_skipped += 1
                 continue
-
-            if chat_id in client_chat_ids_set:
-                cached_server_versions = batch_server_versions.get(chat_id)
-                client_versions = client_chat_versions.get(chat_id, {})
-
-                if cached_server_versions:
-                    if _phase2_metadata_is_current(
-                        client_versions,
-                        cached_server_versions,
-                        chat_wrapper["chat_details"],
-                    ):
-                        chats_skipped += 1
-                        continue
-
             chats_to_send.append(chat_wrapper)
 
         newer_drafts_sent = sum(
@@ -1895,11 +1917,12 @@ async def _handle_phase2_sync(
             ).get("draft_v", 0)
         )
         logger.info(
-            "Phase 2: Sending %d/%d metadata-only chats (skipped %d, newer drafts %d)",
+            "Phase 2: Sending %d/%d metadata-only chats (skipped %d, newer drafts %d, reasons=%s)",
             len(chats_to_send),
             len(all_recent_chats),
             chats_skipped,
             newer_drafts_sent,
+            _format_skip_reasons(phase2_reasons),
         )
         # Send metadata-only payload (no messages, no embeds, no embed_keys, no key wrappers).
         # Content-bearing paths fetch chat key wrappers when keys are needed.
@@ -1925,7 +1948,7 @@ async def _handle_phase2_sync(
 
     except Exception as e:
         logger.error(f"Error in Phase 2 sync for user {user_id}: {e}", exc_info=True)
-        if isinstance(e, DurableChatDeletionFenceUnavailable):
+        if isinstance(e, TRANSIENT_SYNC_ERRORS):
             raise
 
 
@@ -2096,17 +2119,13 @@ async def _handle_phase3_sync(
                     keys = key_window["embed_keys"]
                     batch_embed_key_windows_by_chat_id[chat_id] = {**key_window, "embed_ids": [embed["embed_id"] for embed in raw_embeds if embed.get("embed_id")]}
                     batch_embed_key_windows_by_chat_id[chat_id].pop("embed_keys")
-                    if raw_embeds:
-                        for embed in raw_embeds:
-                            embed_id = embed.get("embed_id")
-                            embed_status = embed.get("status")
-                            if (embed_id and embed_id not in batch_seen_embed_ids
-                                    and embed_id not in sent_embed_ids
-                                    and embed_id not in (client_embed_ids or set())
-                                    and embed_status not in ("error", "cancelled")):
-                                batch_embeds.append(embed)
-                                batch_seen_embed_ids.add(embed_id)
-                                sent_embed_ids.add(embed_id)
+                    batch_embeds.extend(_select_sync_embeds(
+                        raw_embeds,
+                        seen_embed_ids=batch_seen_embed_ids,
+                        sent_embed_ids=sent_embed_ids,
+                        client_embed_ids=client_embed_ids,
+                        skip_reasons={},
+                    ))
                     for key_entry in keys:
                         key_id = key_entry.get("id")
                         if key_id and key_id not in batch_seen_key_ids:

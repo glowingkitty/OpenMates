@@ -23,6 +23,8 @@ export interface CalendarDownloadInput {
   uid?: string;
   /** Calendar content artifacts preserve unknown ends and reject invalid dates. */
   strict?: boolean;
+  /** Scheduled result cards do not infer a duration when the supplied end is unknown. */
+  preserveUnknownEnd?: boolean;
 }
 
 const DEFAULT_EVENT_DURATION_MS = 60 * 60 * 1000;
@@ -86,7 +88,7 @@ export function buildCalendarFile(input: CalendarDownloadInput): string | null {
   const allDay = DATE_ONLY_PATTERN.test(input.start);
   const end = parsedEnd && parsedEnd.getTime() > start.getTime()
     ? parsedEnd
-    : !allDay && input.strict ? null
+    : !allDay && (input.strict || input.preserveUnknownEnd) ? null
     : new Date(start.getTime() + (allDay ? ALL_DAY_DURATION_MS : DEFAULT_EVENT_DURATION_MS));
   const now = new Date();
   const uid = input.uid || `${start.getTime()}-${sanitizeCalendarFilename(input.title)}@openmates`;
@@ -107,7 +109,13 @@ export function buildCalendarFile(input: CalendarDownloadInput): string | null {
 
   if (input.location) lines.push(`LOCATION:${escapeIcsText(input.location)}`);
   if (input.description) lines.push(`DESCRIPTION:${escapeIcsText(input.description)}`);
-  if (input.url) lines.push(`URL:${input.strict ? input.url : escapeIcsText(input.url)}`);
+  if (input.url) {
+    try {
+      const url = new URL(input.url);
+      if (['http:', 'https:'].includes(url.protocol) && !url.username && !url.password
+        && ![...input.url].some(character => character.charCodeAt(0) <= 32)) lines.push(`URL:${input.url}`);
+    } catch { /* Optional malformed links are never emitted as executable actions. */ }
+  }
 
   lines.push('END:VEVENT', 'END:VCALENDAR');
   return `${lines.map(foldIcsLine).join('\r\n')}\r\n`;

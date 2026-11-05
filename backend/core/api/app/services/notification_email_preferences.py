@@ -66,6 +66,26 @@ def preview_enabled(user: dict[str, Any] | None) -> bool:
     )
 
 
+def workflow_identity_enabled(user: dict[str, Any] | None) -> bool:
+    """Match reminder identity defaults while preserving explicit hide-content.
+
+    Stored legacy/default includeContent=False is not a deliberate user choice.
+    Output excerpts still require the independent preview_enabled opt-in.
+    """
+    if not isinstance(user, dict):
+        return False
+    choices = user.get("email_notification_preference_choices") or {}
+    if isinstance(choices, str):
+        try:
+            choices = json.loads(choices)
+        except ValueError:
+            return False
+    if not isinstance(choices, dict):
+        return False
+    choice = choices.get("includeContent")
+    return not (isinstance(choice, dict) and choice.get("source") == "user" and choice.get("value") is False)
+
+
 async def load_notification_user(directus: Any, user_id: str) -> dict[str, Any] | None:
     """Read from Directus, bypassing potentially stale or missing user cache."""
     if not user_id:

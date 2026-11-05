@@ -99,6 +99,44 @@ it('preserves legacy ingredients and falls back to provider ingredient lines', (
     .toEqual([{ name: '1 carrot' }, { name: '½ red bell pepper' }]);
 });
 
+// contract-test: supporting surface=gui.web assertions=authored-results.content.typed-and-useful,authored-results.lifecycle.encrypted-and-stable
+it('preserves supplied numeric ingredient amounts including zero without changing legacy quantities', () => {
+  expect(parseRecipeResult('authored-recipe', { ingredients: [
+    { amount: 150, unit: 'g', name: 'Red lentils' },
+    { amount: 0, unit: 'g', name: 'Added salt' },
+    { amount: 0.5, unit: 'tsp', name: 'Cumin' },
+    { amount: '½', unit: 'cup', name: 'Stock' },
+    { amount: ' 1 to taste ', name: 'Pepper' },
+  ] }).ingredients).toEqual([
+    { amount: '150', unit: 'g', name: 'Red lentils' },
+    { amount: '0', unit: 'g', name: 'Added salt' },
+    { amount: '0.5', unit: 'tsp', name: 'Cumin' },
+    { amount: '½', unit: 'cup', name: 'Stock' },
+    { amount: '1 to taste', unit: undefined, name: 'Pepper' },
+  ]);
+});
+
+// contract-test: supporting surface=gui.web assertions=authored-results.content.typed-and-useful,authored-results.lifecycle.encrypted-and-stable
+it('keeps admitted string instructions ordered alongside existing numbered objects', () => {
+  const recipe = parseRecipeResult('authored-recipe', { instructions: [
+    'Rinse lentils.', { step: 7, text: 'Simmer until tender.' }, 'Serve warm.',
+  ] });
+  expect(recipe.instructions).toEqual([
+    { step: 1, text: 'Rinse lentils.' }, { step: 7, text: 'Simmer until tender.' }, { step: 3, text: 'Serve warm.' },
+  ]);
+  expect(parseRecipeResult('legacy-recipe', { instructions: 'Rinse.|Simmer.' }).instructions)
+    .toEqual([{ step: 1, text: 'Rinse.' }, { step: 2, text: 'Simmer.' }]);
+});
+
+// contract-test: supporting surface=gui.web assertions=authored-results.content.typed-and-useful,authored-results.facts.provenance-and-drafts
+it('does not invent ingredient amounts or steps from unsupported values', () => {
+  for (const amount of [NaN, Infinity, -Infinity, null, false, { quantity: 2 }]) {
+    expect(parseRecipeResult('unknown', { ingredients: [{ amount, name: 'Lentils' }] }).ingredients)
+      .toEqual([{ amount: undefined, unit: undefined, name: 'Lentils' }]);
+  }
+  expect(parseRecipeResult('unknown', { instructions: [null, false, 0, [], ' ', 'null'] }).instructions).toEqual([]);
+});
+
 
 // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
 it('rejects overflowing numeric strings rather than reading their first digit', () => {

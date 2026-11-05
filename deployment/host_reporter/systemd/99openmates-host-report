@@ -1,0 +1,4 @@
+// Push a fresh OpenMates host report after every package change.
+// --no-block keeps dpkg fast; `|| true` keeps a reporter problem from failing
+// apt itself (a missing report still raises the collector's 36h stale alert).
+DPkg::Post-Invoke { "if [ -d /run/systemd/system ]; then systemctl start --no-block openmates-host-reporter.service || true; fi"; };

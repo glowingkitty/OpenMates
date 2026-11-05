@@ -7,7 +7,8 @@
 
 from __future__ import annotations
 
-from types import SimpleNamespace
+import sys
+from types import ModuleType, SimpleNamespace
 
 import pytest
 
@@ -167,42 +168,85 @@ async def test_assistant_code_run_dispatches_marked_current_turn_code(monkeypatc
     assert dispatch_calls
 
 
-# contract-test: direct surface=rest_api assertions=code-run.assistant.auto-debug-bounded,code-run.execution.e2b-only,code-run.surface-parity
+@pytest.mark.parametrize(
+    ("entry_path", "language", "source", "supporting_files"),
+    [
+        (
+            "main.py",
+            "python",
+            "import sympy as sp\nimport numpy as np\nimport matplotlib.pyplot as plt\n"
+            "from IPython.display import display\n"
+            "x = sp.symbols('x')\ndisplay(sp.integrate(x**2, (x, 0, 1)))\n"
+            "print(np.mean([1, 2, 3]))\nplt.plot([0, 1], [0, 1])\nplt.savefig('chart.png')\n",
+            [{"path": "requirements.txt", "code": "sympy\nnumpy\nmatplotlib\nIPython\n"}],
+        ),
+        ("main.rs", "rust", 'fn main() { println!("sum={}", (1..=10).sum::<u32>()); }', []),
+    ],
+)
 @pytest.mark.anyio
-async def test_assistant_code_run_creates_inline_code_embed_before_dispatch(monkeypatch: pytest.MonkeyPatch) -> None:
+# contract-test: direct surface=rest_api assertions=code-run.assistant.auto-debug-bounded,code-run.execution.e2b-only,code-run.surface-parity
+async def test_assistant_code_run_creates_inline_code_embed_before_dispatch(
+    monkeypatch: pytest.MonkeyPatch,
+    entry_path: str,
+    language: str,
+    source: str,
+    supporting_files: list[dict[str, str]],
+) -> None:
     cache = FakeCache()
     dispatch_calls: list[dict[str, object]] = []
     created_calls: list[dict[str, object]] = []
+    finalized_calls: list[dict[str, object]] = []
 
     class FakeDirectusService:
         async def get_user_fields_direct(self, *_args, **_kwargs):
             raise AssertionError("Assistant Code Run must use cached user credits, not Directus cleartext credits.")
 
-    async def fake_create_code_embeds_for_assistant(**kwargs):
-        created_calls.append(kwargs)
-        assert kwargs["target_path"] == "main.py"
-        assert kwargs["files"][0]["content"] == "print('ok')"
-        return TARGET_EMBED_ID, [TARGET_EMBED_ID]
+    class FakeEmbedService:
+        def __init__(self, **kwargs):
+            assert kwargs["cache_service"] is cache
+
+        async def create_code_embed_placeholder(self, **kwargs):
+            created_calls.append(kwargs)
+            assert kwargs["chat_id"] == CHAT_ID
+            assert kwargs["message_id"] == MESSAGE_ID
+            assert kwargs["user_id"] == USER_ID
+            assert kwargs["user_vault_key_id"] == VAULT_KEY_ID
+            return {"embed_id": TARGET_EMBED_ID if kwargs["filename"] == entry_path else "manifest-embed"}
+
+        async def update_code_embed_content(self, **kwargs):
+            finalized_calls.append(kwargs)
+            assert kwargs["status"] == "finished"
+            return True
+
+    embed_module = ModuleType("backend.core.api.app.services.embed_service")
+    embed_module.EmbedService = FakeEmbedService
+    monkeypatch.setitem(sys.modules, embed_module.__name__, embed_module)
 
     async def fake_start_code_run_execution(**kwargs):
         dispatch_calls.append(kwargs)
-        assert kwargs["files"][0]["path"] == "main.py"
-        assert kwargs["target_path"] == "main.py"
+        assert len(finalized_calls) == 1 + len(supporting_files)
+        assert kwargs["assistant_async_task"] is True
+        assert kwargs["files"][0]["content"] == source
+        assert kwargs["files"][0]["language"] == language
+        assert await cache.get(run_code_skill.assistant_code_run_authorization_key(
+            CHAT_ID, MESSAGE_ID, TARGET_EMBED_ID,
+        ))
+        assert kwargs["files"][0]["path"] == entry_path
+        assert kwargs["target_path"] == entry_path
         assert kwargs["target_embed_id"] == TARGET_EMBED_ID
         return SimpleNamespace(
             execution_id="execution-inline",
             status="queued",
-            target_filename="main.py",
-            files=["main.py"],
+            target_filename=entry_path,
+            files=[entry_path, *[file["path"] for file in supporting_files]],
             credits_per_minute=5,
         )
 
     monkeypatch.setattr(run_code_skill, "create_directus_service", lambda **_kwargs: FakeDirectusService())
-    monkeypatch.setattr(run_code_skill, "create_code_embeds_for_assistant", fake_create_code_embeds_for_assistant)
     monkeypatch.setattr(run_code_skill, "start_code_run_for_assistant", fake_start_code_run_execution)
 
     result = await _skill().execute(
-        RunCodeRequest(entry_path="main.py", files=[{"path": "main.py", "code": "print('ok')"}]),
+        RunCodeRequest(entry_path=entry_path, files=[{"path": entry_path, "code": source}, *supporting_files]),
         user_id=USER_ID,
         user_vault_key_id=VAULT_KEY_ID,
         chat_id=CHAT_ID,
@@ -215,7 +259,9 @@ async def test_assistant_code_run_creates_inline_code_embed_before_dispatch(monk
     assert result.execution_id == "execution-inline"
     assert result.embed_id == TARGET_EMBED_ID
     assert result.target_embed_id == TARGET_EMBED_ID
-    assert result.created_embed_ids == [TARGET_EMBED_ID]
+    assert result.created_embed_ids == [TARGET_EMBED_ID, *(["manifest-embed"] if supporting_files else [])]
+    assert created_calls[0]["language"] == language
+    assert created_calls[0]["code_content"] == source
     assert created_calls
     assert dispatch_calls
 

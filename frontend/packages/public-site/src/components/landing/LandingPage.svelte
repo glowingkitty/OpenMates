@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, tick, untrack } from 'svelte';
+  import { onMount, tick, untrack, type Snippet } from 'svelte';
   import { fade } from 'svelte/transition';
   import LandingFeatureAnimation from './LandingFeatureAnimation.svelte';
   import LandingNativeIcon from './LandingNativeIcon.svelte';
@@ -24,9 +24,11 @@
     events?: LandingPublication[];
     news?: LandingPublication[];
     posts?: LandingPublication[];
+    eventPreview?: Snippet<[activate: boolean, onFullscreen: () => void, language: string]>;
+    eventFullscreen?: Snippet<[language: string, showCalendar: boolean]>;
   }
 
-  let { appBaseUrl, websiteBaseUrl, apiBaseUrl, initialLanguage = 'en', initialLanguageMode = 'auto', navigateOnLanguageChange = false, serverStatusUrl, events = [], news = [], posts = [] }: Props = $props();
+  let { appBaseUrl, websiteBaseUrl, apiBaseUrl, initialLanguage = 'en', initialLanguageMode = 'auto', navigateOnLanguageChange = false, serverStatusUrl, events = [], news = [], posts = [], eventPreview, eventFullscreen }: Props = $props();
   const appUrl = (path: string) => {
     const url = new URL(path, appBaseUrl);
     // Examples must open in the displayed language even if the app has a
@@ -58,8 +60,8 @@
   const storySections = ['actionable', 'privacy', 'model-choice', 'workflows', 'devices', 'open-source'] as const;
   type StorySection = typeof storySections[number];
   type StoryState = 'pending' | 'playing' | 'finishing' | 'complete';
-  const isCustomStory = (section: StorySection): section is 'privacy' => section === 'privacy';
-  let storyStates = $state<Record<StorySection, StoryState>>(Object.fromEntries(storySections.map(section => [section, 'pending'])) as Record<StorySection, StoryState>);
+  const isCustomStory = (section: StorySection): section is 'actionable' | 'privacy' => section === 'privacy' || (section === 'actionable' && !!eventPreview && !!eventFullscreen);
+  let storyStates = $state<Record<StorySection, StoryState>>(Object.fromEntries(storySections.map(section => [section, section === 'actionable' && (!eventPreview || !eventFullscreen) ? 'complete' : 'pending'])) as Record<StorySection, StoryState>);
   let activeStory = $state<StorySection | null>(null);
   let pageVisible = $state(true);
   const introElapsed: Partial<Record<StorySection, number>> = {};
@@ -551,13 +553,13 @@
                 {:else}
                   <div class="feature-links"><a class="text-link" href={siteUrl('/blog')}>{copy.ethics}</a><a class="text-link" href={siteUrl('/blog')}>{copy.selfHosting}</a></div>
                 {/if}
-                {#if !feature.baseKey && feature.id !== 'open-source' && !reducedMotion}<button class="replay-animation" type="button" onclick={() => replayStory(feature.id)} data-testid={`landing-replay-${feature.id}`}>{copy.replayAnimation}</button>{/if}
+                {#if !feature.baseKey && feature.id !== 'open-source' && !reducedMotion && (feature.id !== 'actionable' || isCustomStory(feature.id))}<button class="replay-animation" type="button" onclick={() => replayStory(feature.id)} data-testid={`landing-replay-${feature.id}`}>{copy.replayAnimation}</button>{/if}
               </div>
             {:else}
               <button class="skip-animation" type="button" onclick={() => finishStory(feature.id)} data-testid={`landing-skip-${feature.id}`}>{copy.skipAnimation}</button>
             {/if}
           </div>
-          {#if (storyStates[feature.id] === 'complete' && (feature.baseKey || feature.id === 'open-source')) || isCustomStory(feature.id)}
+          {#if (storyStates[feature.id] === 'complete' && (feature.baseKey || feature.id === 'open-source')) || (isCustomStory(feature.id) && storyStates[feature.id] !== 'complete')}
             <div class="story-surface">
               {#if storyStates[feature.id] === 'complete'}
                 <div class="feature-example" in:fade={{ duration: reducedMotion ? 0 : 400, delay: reducedMotion ? 0 : 180 }} data-testid={`landing-feature-media-${feature.id}`}>
@@ -572,7 +574,7 @@
                   </div>
                 </div>
               {:else if isCustomStory(feature.id)}
-                <div class="story-stage" out:fade={{ duration: reducedMotion ? 0 : 240 }}><LandingFeatureAnimation section={feature.id} active={activeStory === feature.id && storyStates[feature.id] === 'playing'} language={chosenLanguage} onComplete={() => finishStory(feature.id)} /></div>
+                <div class="story-stage" out:fade={{ duration: reducedMotion ? 0 : 240 }}><LandingFeatureAnimation section={feature.id} active={activeStory === feature.id && storyStates[feature.id] === 'playing'} language={chosenLanguage} {eventPreview} {eventFullscreen} onComplete={() => finishStory(feature.id)} /></div>
               {/if}
             </div>
           {/if}

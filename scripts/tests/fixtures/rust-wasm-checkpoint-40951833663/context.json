@@ -1,0 +1,28 @@
+{
+  "cryptoSnippet": "snippets/openmates-browser-bindings-63fbca14d615347d/inline0.js",
+  "diagnosticEnvelopeSha256": "932c876ecd16f51499e475e68cfa45ee101ae13a5b7c451ca657a91e8a883bf9",
+  "diagnosticIdentitySha256": "f70c10133d838279fb2bec5446adade0afc1754329f0d44c67c2b5f1211b7bed",
+  "failureOrdinal": 4,
+  "generatedWasmBytes": 12453578,
+  "generatedWasmSha256": "3e63aff8c4ef36bf193df81c0f7b9454cf8d5d9a0dcec781e536394d825546ce",
+  "guardBytes": 164483,
+  "guardSha256": "3efc906a5ec6bc70fb5b3ad6e09ee6f301f4f886b3f3b7dda427f9be31ad2c75",
+  "harness_commit": "ebb29de0936ba94e256a6bdc79c059d92f539850",
+  "inputSetSha256": "93043e502f24d898f06de6032387bb58ae077bf59c9d4e941947de47c18b7b3f",
+  "packageInputPins": {
+    "packages/openmates-browser-bindings/src/browser_crypto.rs": "735598f81f8e4272f432cb1cedcd64f5f63bb651599282d172d0a7dbebc6d928",
+    "packages/openmates-rust/Cargo.toml": "6cdd02d6aeaf811428b8545d58e109d78f472585eba58067ae79b9e46f4511c6",
+    "packages/openmates-rust/src/platform/browser_metadata_native.js": "2610b7f46fb61224dbaf405e3579a2b1ac95e90f7d28e9bfa095db6092289cf4",
+    "packages/openmates-rust/src/platform/browser_metadata_native.rs": "ca2814f2f7c8f12b0bcdf4ad92b8afd3b1aa923f08f503086a2075a8beb06e3c",
+    "packages/openmates-rust/src/platform/browser_recovery_port.rs": "1cdcd6adfc192a0841dc8985e57bf7d1b2a23506d90061f34bd2b4ce5dc77478"
+  },
+  "rootBytes": 164656,
+  "rootFile": "openmates_browser.js",
+  "rootSha256": "3311789355075c37c9ed118455c45f86a7c7a1f010772962909d76395dd495a6",
+  "run_id": "40951833663",
+  "schemaVersion": 1,
+  "sdkSnippet": "snippets/openmates-sdk-c8cc119936fa2be8/inline0.js",
+  "source_commit": "28a1386dff030f13b82685de201fbed72793c65f",
+  "source_tree": "cd43ee29359e25c3ffeb7dcac35b970447c5c104",
+  "validatedReceiptSha256": "18cb22fd06659d55f18dfb683b0c042dcd6566c51e370a1a0176c061f61a2de3"
+}

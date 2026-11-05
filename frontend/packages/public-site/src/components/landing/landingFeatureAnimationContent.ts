@@ -4,13 +4,11 @@
  * These are recorded examples; no visitor data or inference is used. */
 export const featureAnimationCopy = {
   "en": {
-    "actionable_event_user_message": "Find music meetups in Amsterdam",
-    "actionable_event_assistant_message": "Of course, here you go:",
-    "actionable_event_title": "Amsterdam Music Gathering",
-    "actionable_event_open_provider": "Open on event website",
-    "actionable_event_venue": "A gathering by the canal",
-    "actionable_event_in_person": "In person",
-    "actionable_event_rsvps": "RSVPs",
+    "actionable_event_user_message": "Create an event card: FOSDEM 2027, 30–31 January, ULB Solbosch campus in Brussels.",
+    "actionable_event_assistant_message": "Here is an event card from your supplied details.",
+    "actionable_event_venue": "ULB Solbosch campus, Brussels",
+    "actionable_event_illustration": "Illustrative interaction · supplied details",
+    "actionable_event_description": "A two-day free and open-source software conference.",
     "privacy_saved_data": "Only your devices can decrypt all your data.",
     "privacy_pii": "Personal details are replaced, before the AI sees them.",
     "privacy_email_request": "Prepare an email to",
@@ -28,13 +26,11 @@ export const featureAnimationCopy = {
     "trips": "Trips"
   },
   "de": {
-    "actionable_event_user_message": "Finde Musik-Meetups in Amsterdam",
-    "actionable_event_assistant_message": "Natürlich, hier bitte:",
-    "actionable_event_title": "Amsterdam Musik-Gathering",
-    "actionable_event_open_provider": "Auf event website öffnen",
-    "actionable_event_venue": "Ein Treffen am Kanal",
-    "actionable_event_in_person": "Vor Ort",
-    "actionable_event_rsvps": "Zusagen",
+    "actionable_event_user_message": "Erstelle eine Event-Karte: FOSDEM 2027, 30.–31. Januar, ULB-Campus Solbosch in Brüssel.",
+    "actionable_event_assistant_message": "Hier ist eine Event-Karte aus deinen Angaben.",
+    "actionable_event_venue": "ULB-Campus Solbosch, Brüssel",
+    "actionable_event_illustration": "Beispielinteraktion · bereitgestellte Angaben",
+    "actionable_event_description": "Eine zweitägige Konferenz für freie und quelloffene Software.",
     "privacy_saved_data": "Nur deine Geräte können alle deine Daten entschlüsseln.",
     "privacy_pii": "Persönliche Angaben werden ersetzt, bevor die KI sie sieht.",
     "privacy_email_request": "Bereite eine E-Mail vor an",
@@ -56,8 +52,8 @@ export const featureAnimationCopy = {
 export const actionableStages = [
   { id: "user-request", durationMs: 1800 },
   { id: "assistant-response", durationMs: 1800 },
-  { id: "event-preview", durationMs: 2700 },
-  { id: "provider-cta", durationMs: 2200 },
+  { id: "event-preview", durationMs: 3600 },
+  { id: "event-details", durationMs: 6000 },
 ] as const;
 
 export const privacyStages = [
@@ -71,3 +67,13 @@ export const privacyStages = [
   { id: "trip-request", durationMs: 1800 },
   { id: "memory-permission", durationMs: 4000 },
 ] as const;
+
+/** Fixed supplied facts, not a real chat transcript or a live discovery claim.
+ * Approved source: docs/plans/assistant-authored-result-embeds/fosdem-sources.md.
+ * Date-only values deliberately carry no invented opening or closing hours. */
+export const landingAuthoredEvent = {
+  title: 'FOSDEM 2027',
+  dateStart: '2027-01-30',
+  calendarEndExclusive: '2027-02-01',
+  sourceUrl: 'https://fosdem.org/2027/news/fosdem-2027-dates/',
+} as const;

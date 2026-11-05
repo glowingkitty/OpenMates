@@ -11,6 +11,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import ValidationError
 
 from backend.core.api.app.routes.auth_routes import auth_pair, auth_pair_v2
+from backend.core.api.app.routes.auth_routes.auth_common import preserve_rotated_session_metadata
 from backend.core.api.app.middleware.logging_middleware import LoggingMiddleware
 from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_cache_service, get_compliance_service, get_current_user, get_directus_service, get_encryption_service,
@@ -19,6 +20,8 @@ from backend.core.api.app.routes.auth_routes.auth_utils import verify_auth_clien
 
 
 class Cache:
+    SESSION_TTL = 86400
+
     def __init__(self, values):
         self.values = values
 
@@ -281,3 +284,157 @@ async def test_v2_validation_never_echoes_secret_inputs_to_response_or_error_log
                 assert response.json() == {"detail": "Invalid pairing request"}
                 assert marker not in response.text
     assert marker not in caplog.text
+
+
+async def rotated_pair_session():
+    """Use the production metadata move; the request retains its old cookie."""
+    predecessor = "synthetic-predecessor"
+    successor = "synthetic-successor"
+    binding = "a" * 64
+    user = SimpleNamespace(id="user-1")
+    predecessor_hash = hashlib.sha256(predecessor.encode()).hexdigest()
+    successor_hash = hashlib.sha256(successor.encode()).hexdigest()
+    cache = Cache({"user_tokens:user-1": {predecessor_hash: {"pair_auth_binding": binding}}})
+    await preserve_rotated_session_metadata(
+        cache, user_id=user.id, old_refresh_token=predecessor,
+        new_refresh_token=successor, user_data={},
+    )
+    assert predecessor_hash not in cache.values["user_tokens:user-1"]
+    assert cache.values["user_tokens:user-1"][successor_hash]["pair_auth_binding"] == binding
+    request = SimpleNamespace(
+        cookies={"auth_refresh_token": predecessor},
+        state=SimpleNamespace(auth_refresh_token=successor),
+        headers={},
+    )
+    cache.values["pair:v2:ABCDEF"] = {
+        "status": "completed", "expires_at": 2_000_000_000,
+        "authorizer_user_id": user.id, "authorizer_binding": binding,
+    }
+    return request, cache, user, binding, predecessor, successor
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=auth.pair-login.lifecycle,auth.pair-login.approval-assurance
+async def test_pair_authorizer_poll_keeps_same_approval_after_actual_metadata_rotation():
+    request, cache, user, binding, predecessor, successor = await rotated_pair_session()
+    assert request.cookies["auth_refresh_token"] == predecessor
+    assert request.state.auth_refresh_token == successor
+    assert await auth_pair_v2._binding(request, cache, user) == binding
+    result = await auth_pair_v2.authorizer_poll(request, "ABCDEF", user, cache, object())
+    assert result == {"status": "completed", "expires_at": 2_000_000_000}
+    assert cache.values["pair:v2:ABCDEF"]["status"] == "completed"
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=auth.pair-login.lifecycle,auth.pair-login.approval-assurance
+@pytest.mark.parametrize("case", [
+    "absent", "non_mapping", "unbound", "malformed_binding", "foreign_owner", "different_session",
+])
+async def test_pair_successor_metadata_never_falls_back_to_predecessor_or_other_session(case):
+    request, cache, user, binding, predecessor, successor = await rotated_pair_session()
+    tokens = cache.values["user_tokens:user-1"]
+    # Even a retained predecessor must not authorize an invalid successor.
+    tokens[hashlib.sha256(predecessor.encode()).hexdigest()] = {"pair_auth_binding": binding}
+    successor_hash = hashlib.sha256(successor.encode()).hexdigest()
+    expected = 401
+    if case == "absent":
+        tokens.pop(successor_hash)
+    elif case == "non_mapping":
+        tokens[successor_hash] = "invalid metadata"
+    elif case == "unbound":
+        tokens[successor_hash] = {}
+    elif case == "malformed_binding":
+        tokens[successor_hash] = {"pair_auth_binding": 64}
+    elif case == "foreign_owner":
+        cache.values["user_tokens:user-2"] = {successor_hash: tokens.pop(successor_hash)}
+    else:
+        tokens[successor_hash] = {"pair_auth_binding": "b" * 64}
+        expected = 403
+    with pytest.raises(HTTPException) as error:
+        await auth_pair_v2.authorizer_poll(request, "ABCDEF", user, cache, object())
+    assert error.value.status_code == expected
+    assert cache.values["pair:v2:ABCDEF"]["status"] == "completed"
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=auth.pair-login.approval-assurance
+@pytest.mark.parametrize("successor", [None, "", 7, False, {}, ["synthetic-successor"]])
+async def test_pair_present_malformed_effective_credential_never_uses_valid_old_cookie(successor):
+    request, cache, user, binding, predecessor, _ = await rotated_pair_session()
+    cache.values["user_tokens:user-1"][hashlib.sha256(predecessor.encode()).hexdigest()] = {
+        "pair_auth_binding": binding,
+    }
+    request.state.auth_refresh_token = successor
+    with pytest.raises(HTTPException) as error:
+        await auth_pair_v2._binding(request, cache, user)
+    assert error.value.status_code == 401
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=auth.pair-login.approval-assurance
+async def test_pair_without_effective_state_preserves_existing_cookie_binding_and_missing_denial():
+    binding = "a" * 64
+    token = "synthetic-cookie"
+    cache = Cache({"user_tokens:user-1": {
+        hashlib.sha256(token.encode()).hexdigest(): {"pair_auth_binding": binding},
+    }})
+    user = SimpleNamespace(id="user-1")
+    for request in (
+        SimpleNamespace(cookies={"auth_refresh_token": token}),
+        SimpleNamespace(cookies={"auth_refresh_token": token}, state=SimpleNamespace()),
+    ):
+        assert await auth_pair_v2._binding(request, cache, user) == binding
+    with pytest.raises(HTTPException) as error:
+        await auth_pair_v2._binding(SimpleNamespace(cookies={}), cache, user)
+    assert error.value.status_code == 401
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=auth.pair-login.approval-assurance
+async def test_pair_stepup_marks_only_effective_successor_after_totp_proof(monkeypatch):
+    request, cache, user, binding, _, successor = await rotated_pair_session()
+    directus = SimpleNamespace(get_user_fields_direct=AsyncMock(return_value={
+        "encrypted_tfa_secret": "synthetic-ciphertext", "vault_key_id": "synthetic-vault",
+    }))
+    encryption = SimpleNamespace(decrypt_with_user_key=AsyncMock(return_value="synthetic-totp-secret"))
+    claim = AsyncMock(side_effect=[True, False])
+    mark = AsyncMock()
+    monkeypatch.setattr(auth_pair_v2, "claim_totp_step", claim)
+    monkeypatch.setattr(auth_pair_v2, "mark_recent_strong_proof", mark)
+    body = auth_pair_v2.StepUp(auth_method="2fa_otp", auth_code="123456")
+    result = await auth_pair_v2.step_up(request, body, user, cache, directus, encryption)
+    assert result == {"success": True, "expires_in": 300}
+    mark.assert_awaited_once_with(directus, cache, successor, user.id, method="totp")
+    assert cache.values[f"pair:stepup:{binding}"] == "verified"
+    with pytest.raises(HTTPException) as error:
+        await auth_pair_v2.step_up(request, body, user, cache, directus, encryption)
+    assert error.value.status_code == 401
+    assert mark.await_count == 1
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=auth.pair-login.approval-assurance
+async def test_pair_approval_requires_strong_proof_for_effective_successor_before_transition(monkeypatch):
+    request, cache, user, binding, _, successor = await rotated_pair_session()
+    directus = object()
+    proof = AsyncMock()
+    transition = AsyncMock(return_value={
+        "session_id": "synthetic-receiver-session", "receiver_token_hash": "c" * 64,
+        "expires_at": 2_000_000_000, "auto_logout_minutes": None,
+    })
+    monkeypatch.setattr(auth_pair_v2, "require_recent_strong_proof", proof)
+    monkeypatch.setattr(auth_pair_v2, "_change", transition)
+    body = auth_pair_v2.Approve(authorizer_device_name="Synthetic browser")
+    result = await auth_pair_v2.approve(request, "ABCDEF", body, user, cache, directus)
+    assert result["success"] is True
+    proof.assert_awaited_once_with(directus, cache, successor, user.id)
+    transition.assert_awaited_once_with(cache, "ABCDEF", "approve", {
+        "user_id": user.id, "binding": binding, "device_name": "Synthetic browser",
+        "auto_logout_minutes": None,
+    })
+    proof.side_effect = HTTPException(401, "Recent authentication required")
+    transition.reset_mock()
+    with pytest.raises(HTTPException) as error:
+        await auth_pair_v2.approve(request, "ABCDEF", body, user, cache, directus)
+    assert error.value.status_code == 401
+    transition.assert_not_awaited()

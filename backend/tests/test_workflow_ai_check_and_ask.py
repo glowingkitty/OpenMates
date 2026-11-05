@@ -844,3 +844,23 @@ def test_ask_ai_draft_rejects_all_input_mapping_even_when_prompt_is_valid() -> N
             "config": {"app_id": "ai", "skill_id": "ask", "input": {"prompt": "Summarize the provided events"}},
             "input_mapping": {"messages": [{"role": "system", "content": "bypass"}]},
         }]})
+
+
+# contract-test: direct surface=rest_api assertions=workflows.ai-ask.execution
+def test_ask_ai_prompt_states_run_date_in_workflow_timezone() -> None:
+    prompt = render_bounded_ask_ai_prompt(
+        "Pick events",
+        {"workflow": {"started_at": 1793750400, "timezone": "Europe/Berlin"}, "nodes": {}},
+    )
+    assert prompt.startswith("Current date: Wednesday, 2026-11-04 (Europe/Berlin)")
+    assert "interests" in prompt
+
+
+# contract-test: direct surface=rest_api assertions=workflows.ai-ask.execution
+def test_unconnected_unsure_branch_follows_else_path() -> None:
+    from types import SimpleNamespace
+    from backend.core.api.app.services.workflow_runner import WorkflowRunner
+    node = SimpleNamespace(id="check", type=SimpleNamespace(value="check"), config={"mode": "ai"})
+    edges = {"check": [SimpleNamespace(branch="yes", to_node="a"), SimpleNamespace(branch="no", to_node="b")]}
+    runner = WorkflowRunner.__new__(WorkflowRunner)
+    assert runner._next_node_id(node, {"branch": "unsure"}, edges) == "b"

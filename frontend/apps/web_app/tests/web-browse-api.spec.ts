@@ -11,6 +11,13 @@ const { randomUUID } = require('node:crypto');
 test.describe('Browse first-party HTTP contract', () => {
   test.setTimeout(240_000);
 
+  // contract-test: direct surface=rest_api assertions=web-browse.cost-accounting,web-browse.dispatch-and-routing
+  test('advertises the fractional compute rate per minute without a flat fee', async ({ request }: { request: any }) => {
+    const response = await request.get(`${workflowApiUrl()}/v1/apps/web/skills/browse/details`);
+    expect(response.status()).toBe(200);
+    expect((await response.json()).pricing).toEqual({ per_minute: 5.52 });
+  });
+
   // contract-test: direct surface=rest_api assertions=web-browse.private-storage-and-api,web-browse.session-and-run,web-browse.budgets-and-stop
   test('rejects public and foreign sessions, pool reassignment, malformed input and excess owner reads without paid work', async ({ page }: { page: Page }) => {
     const api = workflowApiUrl();

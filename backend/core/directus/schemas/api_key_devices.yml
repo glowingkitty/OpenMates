@@ -20,7 +20,7 @@ api_key_devices:
     device_hash:
       type: string
       length: 64
-      note: "[Hashed] SHA256 hash of IP_address:user_id (for REST API) or machine_identifier:user_id (for CLI/pip/npm). Used for security verification."
+      note: "[Hashed] SHA256 hash of IP_address:user_id (for REST API) or machine_identifier:user_id (for CLI/Rust/pip/npm). Used for security verification."
       required: true
       unique: false  # Multiple API keys can have same device hash
     
@@ -66,13 +66,13 @@ api_key_devices:
     encrypted_access_type:
       type: string
       length: 512
-      note: "[Encrypted] Type of access: 'rest_api', 'cli', 'pip', 'npm' encrypted with user's vault key"
+      note: "[Encrypted] Type of access: 'rest_api', 'cli', 'rust', 'pip', 'npm' encrypted with user's vault key"
       required: true
     
     encrypted_machine_identifier:
       type: string
       length: 512
-      note: "[Encrypted] Machine identifier for CLI/pip/npm access encrypted with user's vault key. Only stored if access_type is 'cli', 'pip', or 'npm'"
+      note: "[Encrypted] Machine identifier for CLI/Rust/pip/npm access encrypted with user's vault key. Only stored if access_type is 'cli', 'rust', 'pip', or 'npm'"
     
     created_at:
       type: timestamp

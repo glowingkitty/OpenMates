@@ -6,6 +6,8 @@
 -->
 
 <script lang="ts">
+  import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from "../../../types/authoredResult";
+  import { getContext } from "svelte";
   import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
   import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
@@ -60,6 +62,8 @@
     onNavigatePrevious,
     onNavigateNext,
   }: Props = $props();
+  const authoredContext = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
+  let isAuthored = $derived(Boolean(authoredContext?.authoring || data?.decodedContent?.authoring));
 
   function asString(value: unknown): string | undefined {
     return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
@@ -182,7 +186,7 @@
   {#snippet embedHeaderCta()}
     {#if componentData.product_url}
       <EmbedHeaderCtaButton
-        label={$text('embeds.open_on_provider').replace('{provider}', componentData.provider || 'TI')}
+        label={isAuthored ? $text('embeds.authoring.open_source') : $text('embeds.open_on_provider').replace('{provider}', componentData.provider || 'TI')}
         href={componentData.product_url}
       />
     {/if}

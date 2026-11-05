@@ -1,0 +1,430 @@
+{
+  "schema_version": 1,
+  "capabilities": {
+    "sdk.embeds": {
+      "device_id": "synthetic-embed-device",
+      "api_keys": {
+        "A": "sk-api-embedOwnerA.localSetupSuffix",
+        "B": "sk-api-embedOwnerB.localSetupSuffix"
+      },
+      "vectors": [
+        {
+          "id": "show-opaque-owner-A",
+          "operation": "show",
+          "owner": "A",
+          "embed_id": "embed-a",
+          "version": 1,
+          "http_status": 200,
+          "response": {
+            "embed": {
+              "embed_id": "embed-a",
+              "encrypted_content": "OM-test-opaque-authenticated-ciphertext",
+              "encrypted_type": "AQID",
+              "parent_embed_id": "parent-a",
+              "hashed_chat_id": "chat-hash",
+              "hashed_user_id": "owner-hash",
+              "key_epoch": 7,
+              "unknown": {
+                "CamelCase": [
+                  null,
+                  false,
+                  1
+                ]
+              }
+            },
+            "embed_keys": [
+              {
+                "hashed_embed_id": "embed-hash",
+                "hashed_chat_id": "chat-hash",
+                "encrypted_embed_key": "opaque-wrapper",
+                "key_type": "chat",
+                "key_epoch": 7,
+                "hashed_user_id": "owner-hash"
+              }
+            ]
+          },
+          "expected": {
+            "embed": {
+              "embed_id": "embed-a",
+              "encrypted_content": "OM-test-opaque-authenticated-ciphertext",
+              "encrypted_type": "AQID",
+              "parent_embed_id": "parent-a",
+              "hashed_chat_id": "chat-hash",
+              "hashed_user_id": "owner-hash",
+              "key_epoch": 7,
+              "unknown": {
+                "CamelCase": [
+                  null,
+                  false,
+                  1
+                ]
+              }
+            },
+            "embed_keys": [
+              {
+                "hashed_embed_id": "embed-hash",
+                "hashed_chat_id": "chat-hash",
+                "encrypted_embed_key": "opaque-wrapper",
+                "key_type": "chat",
+                "key_epoch": 7,
+                "hashed_user_id": "owner-hash"
+              }
+            ]
+          },
+          "expected_error": null,
+          "expected_request_count": 1
+        },
+        {
+          "id": "show-opaque-owner-B",
+          "operation": "show",
+          "owner": "B",
+          "embed_id": "embed-a",
+          "version": 1,
+          "http_status": 200,
+          "response": {
+            "embed": {
+              "embed_id": "embed-a",
+              "encrypted_content": "OM-test-opaque-authenticated-ciphertext",
+              "encrypted_type": "AQID",
+              "parent_embed_id": "parent-a",
+              "hashed_chat_id": "chat-hash",
+              "hashed_user_id": "owner-hash",
+              "key_epoch": 7,
+              "unknown": {
+                "CamelCase": [
+                  null,
+                  false,
+                  1
+                ]
+              }
+            },
+            "embed_keys": [
+              {
+                "hashed_embed_id": "embed-hash",
+                "hashed_chat_id": "chat-hash",
+                "encrypted_embed_key": "opaque-wrapper",
+                "key_type": "chat",
+                "key_epoch": 7,
+                "hashed_user_id": "owner-hash"
+              }
+            ]
+          },
+          "expected": {
+            "embed": {
+              "embed_id": "embed-a",
+              "encrypted_content": "OM-test-opaque-authenticated-ciphertext",
+              "encrypted_type": "AQID",
+              "parent_embed_id": "parent-a",
+              "hashed_chat_id": "chat-hash",
+              "hashed_user_id": "owner-hash",
+              "key_epoch": 7,
+              "unknown": {
+                "CamelCase": [
+                  null,
+                  false,
+                  1
+                ]
+              }
+            },
+            "embed_keys": [
+              {
+                "hashed_embed_id": "embed-hash",
+                "hashed_chat_id": "chat-hash",
+                "encrypted_embed_key": "opaque-wrapper",
+                "key_type": "chat",
+                "key_epoch": 7,
+                "hashed_user_id": "owner-hash"
+              }
+            ]
+          },
+          "expected_error": null,
+          "expected_request_count": 1
+        },
+        {
+          "id": "versions-preserve-order",
+          "operation": "versions",
+          "owner": "A",
+          "embed_id": "embed-a",
+          "version": 1,
+          "http_status": 200,
+          "response": {
+            "versions": [
+              {
+                "version_number": 7,
+                "encrypted_content": "opaque7"
+              },
+              {
+                "version_number": 1,
+                "encrypted_content": "opaque1"
+              }
+            ],
+            "unknown": {
+              "x": true
+            }
+          },
+          "expected": {
+            "versions": [
+              {
+                "version_number": 7,
+                "encrypted_content": "opaque7"
+              },
+              {
+                "version_number": 1,
+                "encrypted_content": "opaque1"
+              }
+            ],
+            "unknown": {
+              "x": true
+            }
+          },
+          "expected_error": null,
+          "expected_request_count": 1
+        },
+        {
+          "id": "version-preserve-epoch",
+          "operation": "version",
+          "owner": "A",
+          "embed_id": "embed-a",
+          "version": 7,
+          "http_status": 200,
+          "response": {
+            "embed": {
+              "embed_id": "embed-a",
+              "encrypted_content": "OM-test-opaque-authenticated-ciphertext",
+              "encrypted_type": "AQID",
+              "parent_embed_id": "parent-a",
+              "hashed_chat_id": "chat-hash",
+              "hashed_user_id": "owner-hash",
+              "key_epoch": 7,
+              "unknown": {
+                "CamelCase": [
+                  null,
+                  false,
+                  1
+                ]
+              }
+            },
+            "embed_keys": [
+              {
+                "hashed_embed_id": "embed-hash",
+                "hashed_chat_id": "chat-hash",
+                "encrypted_embed_key": "opaque-wrapper",
+                "key_type": "chat",
+                "key_epoch": 7,
+                "hashed_user_id": "owner-hash"
+              }
+            ]
+          },
+          "expected": {
+            "embed": {
+              "embed_id": "embed-a",
+              "encrypted_content": "OM-test-opaque-authenticated-ciphertext",
+              "encrypted_type": "AQID",
+              "parent_embed_id": "parent-a",
+              "hashed_chat_id": "chat-hash",
+              "hashed_user_id": "owner-hash",
+              "key_epoch": 7,
+              "unknown": {
+                "CamelCase": [
+                  null,
+                  false,
+                  1
+                ]
+              }
+            },
+            "embed_keys": [
+              {
+                "hashed_embed_id": "embed-hash",
+                "hashed_chat_id": "chat-hash",
+                "encrypted_embed_key": "opaque-wrapper",
+                "key_type": "chat",
+                "key_epoch": 7,
+                "hashed_user_id": "owner-hash"
+              }
+            ]
+          },
+          "expected_error": null,
+          "expected_request_count": 1
+        },
+        {
+          "id": "encoded-id",
+          "operation": "show",
+          "owner": "A",
+          "embed_id": "a ?#+%\u754c",
+          "version": 1,
+          "http_status": 200,
+          "response": {
+            "embed": {
+              "embed_id": "embed-a",
+              "encrypted_content": "OM-test-opaque-authenticated-ciphertext",
+              "encrypted_type": "AQID",
+              "parent_embed_id": "parent-a",
+              "hashed_chat_id": "chat-hash",
+              "hashed_user_id": "owner-hash",
+              "key_epoch": 7,
+              "unknown": {
+                "CamelCase": [
+                  null,
+                  false,
+                  1
+                ]
+              }
+            },
+            "embed_keys": [
+              {
+                "hashed_embed_id": "embed-hash",
+                "hashed_chat_id": "chat-hash",
+                "encrypted_embed_key": "opaque-wrapper",
+                "key_type": "chat",
+                "key_epoch": 7,
+                "hashed_user_id": "owner-hash"
+              }
+            ]
+          },
+          "expected": {
+            "embed": {
+              "embed_id": "embed-a",
+              "encrypted_content": "OM-test-opaque-authenticated-ciphertext",
+              "encrypted_type": "AQID",
+              "parent_embed_id": "parent-a",
+              "hashed_chat_id": "chat-hash",
+              "hashed_user_id": "owner-hash",
+              "key_epoch": 7,
+              "unknown": {
+                "CamelCase": [
+                  null,
+                  false,
+                  1
+                ]
+              }
+            },
+            "embed_keys": [
+              {
+                "hashed_embed_id": "embed-hash",
+                "hashed_chat_id": "chat-hash",
+                "encrypted_embed_key": "opaque-wrapper",
+                "key_type": "chat",
+                "key_epoch": 7,
+                "hashed_user_id": "owner-hash"
+              }
+            ]
+          },
+          "expected_error": null,
+          "expected_request_count": 1
+        },
+        {
+          "id": "negative-version-server-validation",
+          "operation": "version",
+          "owner": "A",
+          "embed_id": "embed-a",
+          "version": -1,
+          "http_status": 422,
+          "response": {
+            "detail": "synthetic"
+          },
+          "expected": {
+            "detail": "synthetic"
+          },
+          "expected_error": "invalid",
+          "expected_request_count": 1
+        },
+        {
+          "id": "refused-401",
+          "operation": "show",
+          "owner": "A",
+          "embed_id": "embed-a",
+          "version": 1,
+          "http_status": 401,
+          "response": {
+            "detail": "synthetic"
+          },
+          "expected": {
+            "detail": "synthetic"
+          },
+          "expected_error": "authentication",
+          "expected_request_count": 1
+        },
+        {
+          "id": "refused-403",
+          "operation": "show",
+          "owner": "A",
+          "embed_id": "embed-a",
+          "version": 1,
+          "http_status": 403,
+          "response": {
+            "detail": "synthetic"
+          },
+          "expected": {
+            "detail": "synthetic"
+          },
+          "expected_error": "forbidden",
+          "expected_request_count": 1
+        },
+        {
+          "id": "refused-404",
+          "operation": "show",
+          "owner": "A",
+          "embed_id": "embed-a",
+          "version": 1,
+          "http_status": 404,
+          "response": {
+            "detail": "synthetic"
+          },
+          "expected": {
+            "detail": "synthetic"
+          },
+          "expected_error": "invalid",
+          "expected_request_count": 1
+        },
+        {
+          "id": "refused-409",
+          "operation": "show",
+          "owner": "A",
+          "embed_id": "embed-a",
+          "version": 1,
+          "http_status": 409,
+          "response": {
+            "detail": "synthetic"
+          },
+          "expected": {
+            "detail": "synthetic"
+          },
+          "expected_error": "conflict",
+          "expected_request_count": 1
+        },
+        {
+          "id": "refused-429",
+          "operation": "show",
+          "owner": "A",
+          "embed_id": "embed-a",
+          "version": 1,
+          "http_status": 429,
+          "response": {
+            "detail": "synthetic"
+          },
+          "expected": {
+            "detail": "synthetic"
+          },
+          "expected_error": "offline",
+          "expected_request_count": 1
+        },
+        {
+          "id": "refused-503",
+          "operation": "show",
+          "owner": "A",
+          "embed_id": "embed-a",
+          "version": 1,
+          "http_status": 503,
+          "response": {
+            "detail": "synthetic"
+          },
+          "expected": {
+            "detail": "synthetic"
+          },
+          "expected_error": "offline",
+          "expected_request_count": 1
+        }
+      ]
+    }
+  }
+}

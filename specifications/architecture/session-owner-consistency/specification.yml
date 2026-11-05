@@ -1,0 +1,85 @@
+schema_version: 1
+id: architecture.session-owner-consistency
+version: 1
+status: draft
+title: Session Owner Consistency
+summary: >
+  First-party clients may assert which account they expect a request or
+  WebSocket connection to belong to. The server refuses requests whose normal
+  authentication resolves to a different account, and advertises positive
+  support so browser clients never treat an old server that ignores the
+  assertion as guarded.
+
+scope:
+  includes:
+    - The optional X-OpenMates-Expected-Principal request header on authenticated first-party HTTP routes.
+    - Cookie-session, API-key, SDK bootstrap and apps-route authentication paths and the logout routes.
+    - WebSocket admission when both a session cookie and a signed ws_token query are supplied.
+    - Upload-service authentication through the internal validate-token route.
+    - The client_security_capabilities field of the successful session response.
+  excludes:
+    - Cookie domain, CORS origin, cipher, storage or key format changes.
+    - Provider or model routing changes.
+    - Any new credential type; the assertion and ws_token never authenticate REST calls.
+
+models:
+  ExpectedPrincipalHeader:
+    name: {type: string, required: true, constraints: {value: X-OpenMates-Expected-Principal}}
+    value: {type: lowercase_canonical_uuid, required: false, constraints: {exactly_one_value: true, length: 36}}
+    grants_authority: {type: boolean, required: true, constraints: {value: false}}
+  OwnerConsistencyRefusal:
+    status: {type: integer, required: true, constraints: {value: 403}}
+    detail: {type: object, required: true, constraints: {value: '{"error": "session_principal_mismatch"}', owner_ids_included: false}}
+  ClientSecurityCapabilities:
+    values: {type: array, required: false, constraints: {value: [expected-principal-v1, ws-dual-principal-v1], omitted_when_unset: true}}
+
+assertions:
+  - id: owner-consistency.header.restriction-only
+    type: security
+    must: Clients may send X-OpenMates-Expected-Principal with a lowercase canonical UUID. The header only narrows a request that has already authenticated through the normal session or API-key path; it never grants access, is never treated as a credential, and all existing authentication, ACL, CSRF and origin checks still apply.
+    depends_on: [models.ExpectedPrincipalHeader, examples.header_restriction]
+  - id: owner-consistency.http.refuse-before-effect
+    type: security
+    must: Immediately after cookie-session, API-key, SDK or apps-route authentication succeeds and before any business effect such as device registration or usage metadata, the server compares the header to the authenticated account. More than one header value, a value that is not exactly a canonical 36-character UUID, or a value that differs from the authenticated account is refused with 403 and detail {"error":"session_principal_mismatch"}, which never contains either owner id. This refusal does not fall through from session authentication to API-key fallback and is not rewritten by the API-key path into a generic authentication failure. Requests without the header behave exactly as before.
+    depends_on: [models.OwnerConsistencyRefusal, examples.http_enforcement]
+  - id: owner-consistency.logout.no-cross-owner-clear
+    type: security
+    must: When the header is present on /logout, /logout-all or /policy-violation-logout, the server first runs normal cookie authentication and the owner check, so a mismatch cannot clear another account's session. Without the header, the existing cookie-clearing logout behavior is unchanged.
+    depends_on: [examples.logout]
+  - id: owner-consistency.ws.dual-principal
+    type: security
+    must: When a WebSocket connection supplies both a session cookie and a token query, the server also verifies the signed query token. The token parameter must appear exactly once, be non-empty and be at most 512 characters, and its HMAC must verify. If its session hash differs from the cookie's, that session is validated independently through its cache link, pair deadline and session state and must resolve to the same account. A different account or an invalid, expired or revoked second token closes the connection with 1008 before accept and before any effect. Cookie-only and query-only (Safari fallback) connections keep working, and a ws_token never authenticates REST calls. Legacy clients that send a stale query token next to a valid cookie are refused and must refresh the token on reconnect.
+    depends_on: [examples.websocket]
+  - id: owner-consistency.uploads.forwarded
+    type: security
+    must: The upload service forwards every X-OpenMates-Expected-Principal value it receives, unchanged, to /internal/validate-token, which applies the same check and closed 403 session_principal_mismatch refusal as the HTTP routes before returning the authenticated account. The upload service relays only that exact refusal as 403 and performs no upload work for it. Uploads without the header behave exactly as before.
+    depends_on: [examples.uploads]
+  - id: owner-consistency.capabilities.advertised-when-live
+    type: invariant
+    must: The successful first-party session response sets client_security_capabilities to ["expected-principal-v1","ws-dual-principal-v1"]; the field is optional in the schema and omitted when unset. It is advertised only when the HTTP, logout and WebSocket enforcement are live, and the Rust browser client requires both values before it allows any write.
+    depends_on: [models.ClientSecurityCapabilities, examples.capabilities]
+
+applies_to:
+  rest_api:
+    required: true
+    role: Authenticated first-party routes, logout routes, session response and WebSocket admission enforce and advertise owner consistency.
+  cli:
+    required: false
+    role: The shared Rust core sends the header; no new CLI command.
+  sdks:
+    required: false
+    role: npm and pip SessionClient adapters reuse the shared Rust policy; no new SDK method.
+    implementations:
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true, role: The Rust browser client requires both capabilities before any write; the TypeScript web client keeps working without the header.}
+      apple: {required: false}
+    exceptions: []
+
+examples:
+  file: examples.yml
+  required_groups: [header_restriction, http_enforcement, logout, websocket, uploads, capabilities]

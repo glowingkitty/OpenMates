@@ -7,7 +7,7 @@ import uuid
 from typing import Any
 
 
-async def request_project_focus_catalog(*, request_data: Any, preprocessing_results: Any,
+async def request_project_focus_catalog(*, task_id: str, directus_service: Any, request_data: Any, preprocessing_results: Any,
                                        cache_service: Any, skill_config_dict: dict[str, Any] | None,
                                        project_id: str) -> None:
     """Ask the owner client for one selected Project's metadata, without consent."""
@@ -22,6 +22,7 @@ async def request_project_focus_catalog(*, request_data: Any, preprocessing_resu
         cache_service=cache_service, async_task_id=request_id, request_data=request_data,
         skill_config_dict=skill_config_dict, app_id="system", skill_id="project_focus_catalog",
         tool_name="project_focus_catalog", tool_arguments={"project_id": project_id},
+        source_delivery_task_id=task_id, directus_service=directus_service,
         preprocessing_result=preprocessing_results, requires_current_turn=True,
         defer_until_initial_response_complete=True, ttl_seconds=300,
     )
@@ -82,6 +83,7 @@ async def request_project_focus(*, task_id: str, request_data: Any,
         cache_service=cache_service, async_task_id=request_id, request_data=request_data,
         skill_config_dict=skill_config_dict, app_id="system", skill_id="activate_focus_mode",
         tool_name="activate_focus_mode", tool_arguments={"focus_id": focus_id},
+        source_delivery_task_id=task_id, directus_service=directus_service,
         preprocessing_result=preprocessing_results, requires_current_turn=True,
         defer_until_initial_response_complete=True, ttl_seconds=PROJECT_FOCUS_REQUEST_TTL,
     )

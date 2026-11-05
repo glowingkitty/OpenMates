@@ -64,6 +64,38 @@ const PUBLIC_EXAMPLE_BROKEN_MARKERS = [
 	'"type": "focus_mode_activation"'
 ];
 
+for (const [slug, expected] of [
+	['browse-example-domain', 'example.com'],
+	['browse-heading-json', 'Herman Melville - Moby-Dick']
+]) {
+	for (const width of [1280, 390]) {
+		// contract-test: direct surface=gui.web assertions=web-browse.delivery-and-evidence,web-browse.private-storage-and-api,web-browse.structured-data,public-example-chats.transcript.safe-rendering
+		test(`public Browse example ${slug} is read-only with saved JSON at ${width}px`, async ({ page }: { page: any }) => {
+			const ownerRequests: string[] = [];
+			page.on('request', (request: any) => {
+				if (/\/v1\/apps\/web\/browse\//.test(request.url())) ownerRequests.push(request.method());
+			});
+			await page.setViewportSize({ width, height: width < 600 ? 844 : 1000 });
+			await page.goto(getE2EDebugUrl(`/#chat-id=example-${slug}`), { waitUntil: 'domcontentloaded' });
+			await expect(page.getByTestId('example-chat-badge')).toBeVisible({ timeout: 15000 });
+			const activity = page.getByTestId('assistant-activity-toggle').first();
+			if (await activity.getAttribute('aria-expanded') === 'false') await activity.click();
+			const card = page.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="browse"]');
+			await expect(card).toContainText('Completed');
+			await expect(card.locator('img')).toBeVisible();
+			await card.click();
+			await expect(page.getByTestId('browse-fullscreen')).toBeVisible();
+			await expect(page.getByTestId('browse-session-viewer')).toHaveCount(0);
+			await expect(page.getByRole('button', { name: 'Take control', exact: true })).toHaveCount(0);
+			await page.getByText('Structured data', { exact: true }).click();
+			await expect(page.getByTestId('browse-json')).toContainText(expected);
+			await page.reload();
+			await expect(page.getByTestId('example-chat-badge')).toBeVisible();
+			expect(ownerRequests, 'Public examples must never contact owner-only browser APIs').toEqual([]);
+		});
+	}
+}
+
 function countMatches(text: string, pattern: RegExp): number {
 	return [...text.matchAll(pattern)].length;
 }

@@ -20,6 +20,7 @@ from backend.shared.python_utils.chat_failure_notifications import (
     terminal_class as classify_terminal_result,
 )
 from backend.shared.python_utils.team_log_correlation import team_correlation_fields
+from backend.shared.python_utils.ai_task_cancellation import cancellation_intent_key
 
 import logging
 import asyncio
@@ -76,7 +77,6 @@ from backend.apps.ai.processing.summary_billing import (
     SummaryBillingUnsupportedFallbackError,
     selected_main_cache_tariff_active,
 )
-from backend.apps.ai.processing.plan_focus_routing import route_plan_focus
 from backend.apps.ai.processing.focus_phase_history import filter_focus_phase_history
 from backend.apps.ai.processing.artifact_ledger import (
     build_historical_artifact_context,
@@ -1227,7 +1227,8 @@ async def _handoff_queued_after_task_failure(
 ) -> bool | _FailureHandoffOutcome:
     """Dispatch an accepted follower after its predecessor failed without an answer."""
     if (not (request_data.legacy_cutover_task_id or request_data.recovery_task_id
-                 or request_data.is_focus_mode_continuation)
+                 or request_data.is_focus_mode_continuation
+                 or getattr(request_data, "_pending_async_recovery_handoff", None))
             or request_data.is_incognito or request_data.is_external):
         return False
     if await cache_service.get_active_ai_task(request_data.chat_id) != task_id:
@@ -1257,6 +1258,14 @@ async def _handoff_queued_after_task_failure(
         return await _handoff_queued_after_task_failure(
             request_data, skill_config_dict, task_id, cache_service, directus_service,
         )
+    pending_handoff = getattr(request_data, "_pending_async_recovery_handoff", None)
+    if pending_handoff:
+        from backend.apps.ai.tasks.async_skill_continuation import settle_async_recovery_handoff
+        if not await settle_async_recovery_handoff(
+            cache=cache_service, directus=directus_service,
+            producer_id=pending_handoff, category="async_skill_superseded",
+        ):
+            raise RequiredRecoveryOutputError("Queued follower could not settle predecessor pause")
     if lease["messages"][0].get("recovery_task_id"):
         await _start_recovery_queued_follower(
             prior_request=request_data, prior_task_id=task_id,
@@ -1915,6 +1924,21 @@ async def _update_user_task_execution_state_with_new_directus(
         await directus_service.close()
 
 
+async def _was_task_cancelled(request_data: AskSkillRequest, task_id: str) -> bool:
+    """Recognize Stop even while Celery's REVOKED result is still in flight."""
+    cache_service = CacheService()
+    try:
+        if await cache_service.get(cancellation_intent_key(
+            request_data.user_id, request_data.chat_id, task_id,
+        )):
+            return True
+    except Exception:
+        logger.warning("[Task ID: %s] Cancellation intent unavailable", task_id, exc_info=True)
+    finally:
+        await cache_service.close()
+    return celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED
+
+
 async def _mark_recovery_inference_failed(
     request_data: AskSkillRequest,
     task_id: str,
@@ -1925,6 +1949,15 @@ async def _mark_recovery_inference_failed(
         return
     directus_service = DirectusService()
     try:
+        if failure_category == "user_cancelled":
+            from .stream_consumer import persist_cancelled_recovery_reply
+            cache_service = CacheService()
+            try:
+                await persist_cancelled_recovery_reply(
+                    request_data, task_id, directus_service, cache_service,
+                )
+            finally:
+                await cache_service.close()
         await ChatRecoveryService(directus_service).execute(
             "mark_inference_failed",
             {
@@ -2856,6 +2889,17 @@ async def _async_process_ai_skill_ask_task(
             # inference ID. Recent-work IPC must use the live delivery owner.
             object.__setattr__(request_data, "_verified_same_turn_delivery_task_id", task_id)
 
+        from backend.apps.ai.tasks.async_skill_continuation import (
+            claim_async_recovery_handoff, is_async_recovery_handoff_delivery,
+        )
+        if (request_data.is_async_skill_continuation and not request_data.same_turn_batch_id
+                and is_async_recovery_handoff_delivery(request_data, task_id)):
+            if not await claim_async_recovery_handoff(
+                cache=cache_service_instance, directus=directus_service_instance,
+                request=request_data, delivery_id=task_id,
+            ):
+                return _recovery_unclaimed_result({"state": "ASYNC_HANDOFF_UNAVAILABLE"})
+
         durable_claim_started = time.monotonic()
         if request_data.is_sub_chat_continuation and request_data.recovery_consumed_child_ids:
             await _consume_sub_chat_recovery_children(
@@ -3735,38 +3779,6 @@ async def _async_process_ai_skill_ask_task(
             raise RuntimeError(f"Preprocessing failed: {e}") from e
 
         try:
-            if user_overrides:
-                available_focus_modes = set()
-                for app_id, app_metadata in (discovered_apps_metadata or {}).items():
-                    focuses = getattr(app_metadata, "focuses", None) or []
-                    for focus in focuses:
-                        focus_id = getattr(focus, "id", None)
-                        if focus_id:
-                            available_focus_modes.add(f"{app_id}-{focus_id}")
-                latest_message = user_overrides.cleaned_message
-                plan_route = route_plan_focus(
-                    latest_message,
-                    plan_requested=user_overrides.plan_requested,
-                    available_focus_modes=available_focus_modes,
-                )
-                # Project focus takes precedence over automatic catalog planning.
-                project_focus_selected = bool(request_data.active_project_focus) or any(
-                    focus.startswith("project-")
-                    for focus in (preprocessing_result.relevant_focus_modes or [])
-                )
-                if (
-                    plan_route.should_plan
-                    and plan_route.active_focus_id
-                    and not request_data.active_focus_id
-                    and not project_focus_selected
-                    and not getattr(preprocessing_result, "user_requested_focus_only", False)
-                ):
-                    request_data.active_focus_id = plan_route.active_focus_id
-                    logger.info(
-                        f"[Task ID: {task_id}] PLAN_ROUTING: Set active_focus_id='{plan_route.active_focus_id}' "
-                        f"reason={plan_route.reason}"
-                    )
-
             # --- Billing preflight validation ---
             # Ensure that we have pricing info configured for the selected provider/model BEFORE we start streaming.
             # Skip preflight entirely if preprocessing says we cannot proceed (e.g., insufficient credits, harmful content).
@@ -4277,6 +4289,25 @@ async def _async_process_ai_skill_ask_task(
                         }
                 _log_team_ai_pipeline_stage(request_data, task_id, "main", "completed")
             logger.info(f"[Task ID: {task_id}] Main processing stream consumed.")
+            if getattr(request_data, "_pending_async_recovery_handoff", None):
+                # Reuse the canonical atomic queue drain/transfer, including
+                # accepted followers that arrived before this source paused.
+                handoff = await _handoff_queued_after_task_failure(
+                    request_data, skill_config_dict, task_id,
+                    cache_service_instance, directus_service_instance,
+                )
+                if handoff is _FailureHandoffOutcome.OWNED_MARKER_CLEARED:
+                    from backend.apps.ai.tasks.async_skill_continuation import dispatch_deferred_async_skill_continuations
+                    await dispatch_deferred_async_skill_continuations(
+                        cache_service=cache_service_instance, user_id=request_data.user_id,
+                        chat_id=request_data.chat_id,
+                    )
+                return {
+                    "task_id": task_id, "status": "waiting_for_async_completion",
+                    "preprocessing_summary": {}, "main_processing_output": None, "postprocessing_summary": {},
+                    "interrupted_by_soft_time_limit": False, "interrupted_by_revocation": False,
+                    "_celery_task_state": "SUCCESS",
+                }
             if (main_processor_debug_metadata or {}).get("same_turn_skill_paused"):
                 if debug_cache_task:
                     await _settle_optional_debug_cache(
@@ -5313,6 +5344,21 @@ def same_turn_skill_deadline_task(batch_id: str) -> Optional[str]:
     return asyncio.run(settle())
 
 
+@celery_config.app.task(name="apps.ai.tasks.async_recovery_handoff_deadline", soft_time_limit=45, time_limit=60)
+def async_recovery_handoff_deadline_task(producer_id: str) -> None:
+    """Expire only a registered unclaimed Project callback pause."""
+    async def settle() -> None:
+        cache = CacheService()
+        directus = DirectusService(cache_service=cache)
+        try:
+            from backend.apps.ai.tasks.async_skill_continuation import expire_async_recovery_handoff
+            await expire_async_recovery_handoff(cache=cache, directus=directus, producer_id=producer_id)
+        finally:
+            await directus.close()
+            await cache.close()
+    asyncio.run(settle())
+
+
 @celery_config.app.task(
     bind=True, 
     name="apps.ai.tasks.skill_ask", 
@@ -5554,6 +5600,16 @@ def process_ai_skill_ask_task(
                 stage_one_routing_ref=(getattr(self.request, "headers", None) or {}).get("x-openmates-stage-one-ref"),
             )
         )
+        if (task_result_dict.get("interrupted_by_soft_time_limit")
+                and loop.run_until_complete(_was_task_cancelled(request_data, task_id))):
+            task_result_dict["interrupted_by_revocation"] = True
+            task_result_dict["interrupted_by_soft_time_limit"] = False
+        if task_result_dict.get("interrupted_by_revocation"):
+            # An orderly early Stop can return without ever entering the main
+            # stream. It still needs a sealed terminal receipt for its successor.
+            loop.run_until_complete(_mark_recovery_inference_failed(
+                request_data, task_id, "user_cancelled",
+            ))
         from backend.apps.ai.utils.preprocessing_history import STANDARDIZED_USER_ERROR_MESSAGE
         alert_stage = failure_stage(task_result_dict, STANDARDIZED_USER_ERROR_MESSAGE)
         terminal_class = classify_terminal_result(
@@ -5630,7 +5686,7 @@ def process_ai_skill_ask_task(
     except SoftTimeLimitExceeded:
         logger.warning(f"[Task ID: {task_id}] Soft time limit exceeded in synchronous task wrapper.")
         # Check if the task was revoked (user-initiated cancellation) to use appropriate embed status
-        was_revoked = self.request.id and celery_config.app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED
+        was_revoked = loop.run_until_complete(_was_task_cancelled(request_data, task_id))
         terminal_class = "revoked" if was_revoked else "soft_limited"
         # CRITICAL: Clean up active_ai_task marker and processing embeds before failing
         # This ensures the typing indicator stops and embeds don't get stuck in "processing" state
@@ -5687,7 +5743,7 @@ def process_ai_skill_ask_task(
     except RuntimeError as e: 
         logger.error(f"[Task ID: {task_id}] Runtime error from async task execution: {e}", exc_info=True)
         # Check if the task was revoked (user-initiated cancellation) to use appropriate embed status
-        was_revoked = self.request.id and celery_config.app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED
+        was_revoked = loop.run_until_complete(_was_task_cancelled(request_data, task_id))
         terminal_class = "revoked" if was_revoked else (
             "billing_failed" if completion_timing.billing_failed
             else "failed_during_main" if completion_timing.first_token_ms is not None
@@ -5763,7 +5819,7 @@ def process_ai_skill_ask_task(
     except Exception as e:
         logger.error(f"[Task ID: {task_id}] Unhandled exception in synchronous task wrapper: {e}", exc_info=True)
         # Check if the task was revoked (user-initiated cancellation) to use appropriate embed status
-        was_revoked = self.request.id and celery_config.app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED
+        was_revoked = loop.run_until_complete(_was_task_cancelled(request_data, task_id))
         terminal_class = "revoked" if was_revoked else (
             "billing_failed" if completion_timing.billing_failed
             else "failed_during_main" if completion_timing.first_token_ms is not None

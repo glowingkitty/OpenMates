@@ -12,6 +12,9 @@ feature_overrides:
     - "platform:workflows"
     - "platform:teams"
   disabled:
+    # Browse preview and session viewer are not working yet; mirrors production.
+    - "skill:web:browse"
+    - "embed:web:browse"
     - "app:life_coaching"
     - "app:plants"
 

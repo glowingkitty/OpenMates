@@ -33,6 +33,7 @@
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
     import { getProviderIconUrl } from '../../data/providerIcons';
     import SettingsItem from '../SettingsItem.svelte';
+    import { getModelServerFlag } from '../../utils/aiModelDisplay';
     import Toggle from '../Toggle.svelte';
     import Icon from '../Icon.svelte';
     import SearchSortBar from './SearchSortBar.svelte';
@@ -537,7 +538,7 @@
                         />
                     </div>
                     <div class="model-info">
-                        <span class="model-name" data-testid="model-name">{model.name}</span>
+                        <span class="model-name" data-testid="model-name">{model.name}{#if getModelServerFlag(model, $userProfile.server_region_preference === 'global' ? 'global' : 'eu')} <span data-testid="model-server-flag">{getModelServerFlag(model, $userProfile.server_region_preference === 'global' ? 'global' : 'eu')}</span>{/if}</span>
                         <span class="model-provider">{$text('enter_message.mention_dropdown.from_provider').replace('{provider}', model.provider_name)}</span>
                     </div>
                     {#if isAuthenticated}
@@ -738,7 +739,7 @@
     }
 
     :global(.dark) .model-select {
-        background-color: var(--color-grey-15);
+        background-color: var(--color-grey-10);
         border-color: var(--color-grey-25);
         color: var(--color-grey-90);
     }
@@ -845,7 +846,7 @@
     
     /* Dark mode overrides for model list items */
     :global(.dark) .model-item:hover {
-        background: var(--color-grey-15);
+        background: var(--color-grey-10);
     }
     
     :global(.dark) .provider-logo {

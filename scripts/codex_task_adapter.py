@@ -109,7 +109,17 @@ def repository_checkout(root, location):
     return presence.repository_checkout(root, location)
 
 
-def execution_threads(root, config):
+def record_task_id(record):
+    """Bound agent task of a sessions.json record (legacy ``codex_task_id`` too)."""
+    return record.get("agent_task_id") or record.get("codex_task_id")
+
+
+def record_host(record):
+    """Execution host of a sessions.json record (legacy ``codex_host`` too)."""
+    return record.get("agent_host") or record.get("codex_host")
+
+
+def execution_threads(root, config, disk_requests=()):
     """Explicit pilots or actual local repository bindings, never cache visibility."""
     host = socket.gethostname()
     allowed = {
@@ -120,16 +130,33 @@ def execution_threads(root, config):
     path = root / ".claude/sessions.json"
     if config.get("all_threads") and path.exists():
         sessions = json.loads(path.read_text()).get("sessions", {})
-        for record in sessions.values():
-            thread = record.get("codex_task_id")
+        for session_id, record in sessions.items():
+            thread = record_task_id(record)
             worktree = record.get("worktree") or {}
             location = worktree.get("path")
+            provisioning_wait = (
+                record.get("repo_root") == str(root.resolve())
+                and worktree.get("status") in {None, "pending", "provisioning", "waiting"}
+                and any(
+                    row.get("thread") == thread
+                    and row.get("repository") == str(root.resolve())
+                    and row.get("operation") == f"workspace:{session_id}"
+                    and row.get("state") in {"waiting", "granted"}
+                    for row in disk_requests
+                )
+            )
+            merged_wait = (
+                worktree.get("status") == "merged" and location and Path(location).is_dir()
+                and repository_checkout(root, location)
+                and any(row.get("thread") == thread and row.get("repository") == str(root.resolve())
+                        and row.get("state") in {"waiting", "granted"} for row in disk_requests)
+            )
             if (
                 thread
-                and record.get("codex_host") == host
-                and worktree.get("status") not in {"merged", "removed"}
-                and location
-                and repository_checkout(root, location)
+                and record_host(record) == host
+                and worktree.get("status") != "removed"
+                and ((worktree.get("status") != "merged" and
+                      ((location and repository_checkout(root, location)) or provisioning_wait)) or merged_wait)
             ):
                 uuid.UUID(thread)
                 allowed.add(thread)
@@ -175,10 +202,10 @@ def observe_ci(root, config, state, allowed):
         return
     sessions = json.loads(sessions_path.read_text()).get("sessions", {})
     owners = {
-        sid: record.get("codex_task_id")
+        sid: record_task_id(record)
         for sid, record in sessions.items()
-        if record.get("codex_host") == socket.gethostname()
-        and record.get("codex_task_id") in allowed
+        if record_host(record) == socket.gethostname()
+        and record_task_id(record) in allowed
     }
     if not owners:
         return
@@ -256,10 +283,68 @@ def disk_owner_task(row, tasks, allowed):
     return candidates[0] if len(candidates) == 1 else None
 
 
+def disk_thread_task_set(row, tasks, allowed):
+    """Permit a thread notice without selecting among multiple owned Tasks."""
+    owner = row.get("thread")
+    if not owner or owner not in allowed or row.get("task_id"):
+        return None
+    owned = [task for task in tasks.values()
+             if (task.get("external_chat") or {}).get("provider") == "codex"
+             and (task.get("external_chat") or {}).get("id") == owner
+             and task.get("status") != "done"]
+    if len(owned) < 2 or not any(
+        task.get("status") in {"todo", "in_progress"}
+        and not task.get("blocked_reason") and not task.get("blocked_reason_code")
+        and not any(task.get(flag) for flag in ("paused", "deleted", "archived"))
+        for task in owned
+    ):
+        return None
+    return sorted(identity([task.get("scope"), task["task_id"]]) for task in owned)
+
+
 def disk_task_eligible(task):
     return task and task.get("status") in {"todo", "in_progress", "active"} and not any(
         task.get(flag) for flag in ("paused", "deleted", "archived")
     )
+
+
+def disk_blocked_task(task):
+    """A disk-specific environment blocker permits a notice, never its removal."""
+    import re
+    return bool(task and task.get("status") == "blocked"
+                and task.get("blocked_reason_code") == "environment_unavailable"
+                and re.search(r"\b(disk|filesystem|file system|storage|free space|no space)\b",
+                              task.get("blocked_reason") or "", re.IGNORECASE))
+
+
+def refresh_disk_wait_receipts(state):
+    """Read delivery truth independently of resource state and Task versions."""
+    for request_id, record in state.get("disk_task_waits", {}).items():
+        for phase in ("block", "activity", "restore"):
+            delivery_id = record.get(phase + "_delivery")
+            if not delivery_id:
+                continue
+            paths = list((state_root() / "task-command-delivery").glob(f"*/{delivery_id}.json"))
+            if len(paths) != 1:
+                continue
+            receipt = json.loads(paths[0].read_text())
+            if (receipt.get("id") == delivery_id and receipt.get("thread") == record["owner"]
+                    and receipt.get("task_id") == record["task_id"]):
+                record[phase + "_state"] = receipt.get("state", "pending")
+
+
+def prior_disk_status_owner(state, task, owner):
+    """A replacement request may reuse only an exact, acknowledged status fence."""
+    candidates = []
+    for request_id, wait in state.get("disk_task_waits", {}).items():
+        if (wait.get("owner") != owner or wait.get("task_id") != task["task_id"]
+                or wait.get("state") == "needs_review" or task.get("blocked_reason")
+                or task.get("blocked_reason_code")):
+            continue
+        if (task.get("status") == "blocked" and wait.get("block_state") == "acknowledged"
+                and task.get("version") == wait["original_version"] + 1):
+            candidates.append(request_id)
+    return candidates[0] if len(candidates) == 1 else None
 
 
 def sync_disk_task(state, row, task, save):
@@ -282,6 +367,7 @@ def sync_disk_task(state, row, task, save):
             "original_version": task["version"], "state": "blocking",
         }
         save()  # Preserve original ownership/version before publishing any mutation.
+    refresh_disk_wait_receipts({"disk_task_waits": {row["id"]: record}})
     version = record["original_version"]
     if task["task_id"] != record["task_id"] or owner != record["owner"] or not clean:
         record["state"] = "needs_review"
@@ -340,9 +426,10 @@ def sync_disk_task(state, row, task, save):
     return False
 
 
-def observe_disk(root, state, tasks, allowed, coordinator, save=lambda: None):
+def observe_disk(root, state, tasks, allowed, coordinator, save=lambda: None, requests=None):
     """One ledger snapshot per loop; one Task-status fence per resource group."""
-    rows = coordinator.requests(str(root))
+    rows = coordinator.requests(str(root)) if requests is None else requests
+    refresh_disk_wait_receipts(state)
     state["disk_requests"] = rows
     current = {(row["id"], row.get("grant_id")) for row in rows if row["state"] == "granted"}
     for item in state["deliveries"].values():
@@ -371,11 +458,25 @@ def observe_disk(root, state, tasks, allowed, coordinator, save=lambda: None):
         if owner:
             state["threads"].setdefault(owner, {})["resource_waiting"] = True
         if not task:
+            task_set = disk_thread_task_set(row, tasks, allowed)
+            runtime = state["threads"].get(owner, {})
+            if (task_set and row["state"] == "granted"
+                    and not any(runtime.get(flag) for flag in ("paused", "deleted", "archived"))
+                    and coordinator.valid_grant(row["id"], row.get("grant_id"))):
+                queue(state, owner, "disk_ready", [row["id"], row["grant_id"], task_set], {
+                    **row, "task_status_policy": "notify_thread", "owned_task_set": task_set,
+                    "notice": "Disk capacity is reserved for this chat's existing requested operation. No Task was selected or changed. Continue only authorized work already underway, honor current personal focus policy and human pauses, and claim this grant on the next gated operation.",
+                })
             continue
         if not row.get("task_id") and hasattr(coordinator, "bind_task"):
             if not coordinator.bind_task(row["id"], owner, task["task_id"]):
                 continue  # A concurrent owner/state change cannot authorize routing.
             row["task_id"] = task["task_id"]
+        if (task.get("status") == "backlog" or
+                (task.get("status") == "blocked" and not disk_blocked_task(task)
+                 and (task.get("blocked_reason") or task.get("blocked_reason_code")))):
+            coordinator.defer(row["id"])
+            continue  # Approval and other blockers must not reserve queue priority.
         row["resolved_task_id"] = task["task_id"]
         key = identity([owner, task["task_id"], task.get("scope")])
         groups.setdefault(key, {"owner": owner, "task": task, "rows": []})["rows"].append(row)
@@ -384,8 +485,7 @@ def observe_disk(root, state, tasks, allowed, coordinator, save=lambda: None):
         runtime = state["threads"][owner]
         if any(runtime.get(flag) for flag in ("paused", "deleted", "archived")):
             for row in members:
-                if row["state"] == "granted":
-                    coordinator.defer(row["id"])
+                coordinator.defer(row["id"])
                 for item in state["deliveries"].values():
                     if item["kind"] == "disk_ready" and item["data"]["id"] == row["id"] and item["state"] == "pending":
                         item["state"] = "superseded"
@@ -393,13 +493,21 @@ def observe_disk(root, state, tasks, allowed, coordinator, save=lambda: None):
         active_ids = {row["id"] for row in members}
         saved = state.setdefault("disk_task_groups", {}).get(key)
         if not saved or not active_ids.intersection(saved["members"]):
-            saved = state["disk_task_groups"][key] = {"id": members[0]["id"], "members": []}
+            status_owner = prior_disk_status_owner(state, task, owner)
+            saved = state["disk_task_groups"][key] = {"id": status_owner or members[0]["id"], "members": []}
         saved["members"] = sorted(active_ids)
         group_id = saved["id"]
         for row in members:
             row["task_wait_id"] = group_id
         grants = [row for row in members if row["state"] == "granted" and coordinator.valid_grant(row["id"], row.get("grant_id"))]
         representative = {**members[0], "id": group_id, "state": "granted" if grants else "waiting"}
+        if disk_blocked_task(task):
+            for row in grants[:1]:
+                queue(state, owner, "disk_ready", [row["id"], row["grant_id"], "notify_only"], {
+                    **row, "task_id": task["task_id"], "task_status_policy": "notify_only",
+                    "notice": "Disk capacity is reserved. Your Task status and blocker were preserved. Continue only existing authorized disk-dependent work; reconcile your own disk blocker when appropriate. The next gated operation must claim this grant.",
+                })
+            continue
         if not grants and group_id not in state.get("disk_task_waits", {}):
             active_owned = [t for t in tasks.values() if (t.get("external_chat") or {}).get("id") == owner and t.get("status") in {"todo", "in_progress", "blocked"}]
             if len(active_owned) != 1:
@@ -418,13 +526,23 @@ def observe_disk(root, state, tasks, allowed, coordinator, save=lambda: None):
 
 
 def disk_delivery_valid(item, state, tasks, allowed, coordinator):
+    if item["data"].get("task_status_policy") == "notify_thread":
+        current_set = disk_thread_task_set(item["data"], tasks, allowed)
+        runtime = state["threads"].get(item["owner"], {})
+        return bool(current_set and current_set == item["data"].get("owned_task_set")
+                    and not any(runtime.get(flag) for flag in ("paused", "deleted", "archived"))
+                    and coordinator and coordinator.available()
+                    and coordinator.valid_grant(item["data"]["id"], item["data"].get("grant_id")))
     task = disk_owner_task(item["data"], tasks, allowed)
     runtime = state["threads"].get(item["owner"], {})
     wait = state.get("disk_task_waits", {}).get(item["data"].get("task_wait_id", item["data"]["id"]))
     restored = not wait or (wait.get("state") == "restored" and task and task.get("version") == wait["original_version"] + 2 and task.get("status") == wait["original_status"])
+    notify_only = item["data"].get("task_status_policy") == "notify_only" and disk_blocked_task(task)
+    status_eligible = notify_only or (restored and disk_task_eligible(task)
+                                     and not task.get("blocked_reason") and not task.get("blocked_reason_code"))
     return bool(
-        restored and coordinator and coordinator.available() and disk_task_eligible(task)
-        and not task.get("blocked_reason") and not task.get("blocked_reason_code")
+        status_eligible and coordinator and coordinator.available()
+        and not any(task.get(flag) for flag in ("paused", "deleted", "archived"))
         and not any(runtime.get(flag) for flag in ("paused", "deleted", "archived"))
         and coordinator.valid_grant(item["data"]["id"], item["data"].get("grant_id"))
     )
@@ -588,7 +706,8 @@ def reconcile_uncertain(rpc, item):
         )
 
 
-def deliver(state, rpc, allowed, auto_wake, save, tasks, coordinator=None, revalidate=None):
+def deliver(state, rpc, allowed, auto_wake, save, tasks, coordinator=None, revalidate=None,
+            execution_not_before=0):
     attempted = set()
     for item in state["deliveries"].values():
         owner = item["owner"]
@@ -599,6 +718,11 @@ def deliver(state, rpc, allowed, auto_wake, save, tasks, coordinator=None, reval
         if item["state"] not in {"pending", "uncertain"} or time.time() < item.get(
             "retry_at", 0
         ):
+            continue
+        # An explicit rollout boundary retains historical notifications for
+        # context without launching old work when a long-disconnected adapter
+        # reconnects. Uncertain starts still require their original reconciliation.
+        if item["state"] == "pending" and item["created_at"] < execution_not_before:
             continue
         attempted.add(owner)
         if item["state"] == "uncertain":
@@ -753,7 +877,7 @@ def refresh_disk_authorization(root, state):
     ).get(str(root))
     if not config or not config.get("enabled") or config.get("auto_wake") is not True:
         return set(), {}
-    allowed = execution_threads(root, config)
+    allowed = execution_threads(root, config, state.get("disk_requests", []))
     controls = state_root() / "codex-adapter-controls" / identity(str(root))
     for owner in allowed:
         control_path = controls / f"{owner}.json"
@@ -799,7 +923,8 @@ def run(root, config):
                     stop_adapter(state, save, rpc)
                     return
                 config = current_config
-                allowed = execution_threads(root, config)
+                disk_rows = coordinator.requests(str(root)) if coordinator.available() else []
+                allowed = execution_threads(root, config, disk_rows)
                 parents = {}
                 for session in config.get("sessions", []):
                     registered = registry(root, session)
@@ -821,7 +946,7 @@ def run(root, config):
                 tasks = load_tasks(config)
                 observe_tasks(state, tasks, allowed)
                 if coordinator.available():
-                    observe_disk(root, state, tasks, allowed, coordinator, save)
+                    observe_disk(root, state, tasks, allowed, coordinator, save, requests=disk_rows)
                 else:
                     state["disk_service"] = "unavailable"
                 for owner in allowed:
@@ -895,7 +1020,8 @@ def run(root, config):
                 save()
                 deliver(
                     state, rpc, allowed, config.get("auto_wake") is True, save, tasks,
-                    coordinator, lambda: refresh_disk_authorization(root, state)
+                    coordinator, lambda: refresh_disk_authorization(root, state),
+                    execution_not_before=float(config.get("execution_not_before", 0)),
                 )
                 state["connection"] = {"state": "connected"}
                 failures = 0
@@ -958,7 +1084,8 @@ def main():
             )
         )
     else:
-        if args.thread not in execution_threads(root, config):
+        state = json.loads(path.read_text()) if path.exists() else empty_state()
+        if args.thread not in execution_threads(root, config, state.get("disk_requests", [])):
             parser.error("Select a locally registered chat")
         # Control intent is separate so the foreground owner's state write cannot
         # race a user pause. The loop applies these controls before delivery.

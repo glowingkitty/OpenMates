@@ -145,7 +145,7 @@ def test_maps_closing_time_live() -> None:
     state = args.output / "state"
     shutil.copytree(args.source_state, state)
     state.chmod(0o700)
-    for name in ("OPENMATES_API_KEY", "CODEX_THREAD_ID"):
+    for name in ("OPENMATES_API_KEY", "CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID", "CODEX_SESSION_ID"):
         os.environ.pop(name, None)
     os.environ.update(OPENMATES_STATE_DIR=str(state), OPENMATES_PROFILE="", OPENMATES_API_URL=API)
     owner = f"repository-session-{args.session}"

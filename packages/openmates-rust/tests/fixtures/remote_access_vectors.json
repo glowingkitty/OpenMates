@@ -1,0 +1,94 @@
+[
+  {
+    "identity": {
+      "ownerId": "owner-\"\\☃😀",
+      "projectId": "project-1",
+      "sourceId": "source-1",
+      "sourceSessionId": "session-1",
+      "requestingClientId": "browser-1",
+      "keyEpoch": 7
+    },
+    "projectKey": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+    "requester": {
+      "privateKey": "CxglMj9MWWZzgI2ap7TBztvo9QIPHCk2Q1BdaneEkZ4",
+      "handshake": {
+        "version": 1,
+        "role": "requester",
+        "publicKey": "Rl4tvNT1WN1OyeZKvO7k995XCFc_02-UTlVasDV-ZQc",
+        "authenticationTag": "dAjmECOER2PjrbuT6dLJGl1gRvEURWHkhhSCTfCs910"
+      }
+    },
+    "source": {
+      "privateKey": "MD1KV2RxfouYpbK_zNnm8wANGic0QU5baHWCj5yptsM",
+      "handshake": {
+        "version": 1,
+        "role": "source",
+        "publicKey": "B6X9eBjH6jdMsUbmWs7ovctF0k-icQV5dUeVZc4V3SY",
+        "authenticationTag": "RebkLMX8Nd6bnpVA0ZOB58A73lZdh6iK3sNweasIrtk"
+      }
+    },
+    "sessionKey": "ZN0AlGyZ66ntOH3IDHa5R-BeJvp-a8KAQMbsmIGyJ2g",
+    "requestId": "request-1",
+    "requestText": "{\"path\":\"fixture/☃😀\",\"line\":\"one\\ntwo\"}",
+    "resultText": "{\"ok\":true,\"value\":\"synthetic fixture\"}",
+    "request": {
+      "version": 1,
+      "nonce": "VWJvfImWo7C9ytfk",
+      "ciphertext": "99trUxlBJ5lRcVpBjZHz046I4-1OALoiJlyXFTN20KjZWnz-UlPmSgKvjVW9NLi0Af1Eh0ROJbtBXwvG"
+    },
+    "result": {
+      "version": 1,
+      "nonce": "eoeUoa67yNXi7_wJ",
+      "ciphertext": "hbq5h0309qExdJ5iuQSnNm8lTNc5eZWd0lFz7Ql8ttTSTAlxNzVRM0Ed7I74RwLwTwDxXQcGbQ"
+    }
+  },
+  {
+    "identity": {
+      "ownerId": "owner-\"\\☃😀",
+      "projectId": "project-1",
+      "sourceId": "source-1",
+      "sourceSessionId": "session-1",
+      "requestingClientId": "browser-1",
+      "keyEpoch": 7,
+      "contextType": "team",
+      "contextId": "team-1",
+      "hostMemberId": "host-member",
+      "hostDeviceId": "host-device",
+      "requesterMemberId": "requester-member",
+      "requesterDeviceId": "requester-device"
+    },
+    "projectKey": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+    "requester": {
+      "privateKey": "n6y5xtPg7foHFCEuO0hVYm98iZajsL3K1-Tx_gsYJTI",
+      "handshake": {
+        "version": 2,
+        "role": "requester",
+        "publicKey": "N4tEe0HoNrkxK-SzYfmSj7VWXo12d5VSbCfkGteuH1o",
+        "authenticationTag": "80saos1ijJB9_MEMDSSy0gZdQ9dn8d1kf3uYMRBkVi4"
+      }
+    },
+    "source": {
+      "privateKey": "xNHe6_gFEh8sOUZTYG16h5ShrrvI1eLv_AkWIzA9Slc",
+      "handshake": {
+        "version": 2,
+        "role": "source",
+        "publicKey": "RYZlQUxWFBzb9CUteoEt3737OPYtX_Vm67K3PuOb_kA",
+        "authenticationTag": "uz9zNgwsmiPLhuNPe3zJ08kUGkzgzWYoXZ-a-9BvlCQ"
+      }
+    },
+    "sessionKey": "KGYKT-rt3beKjNdtYFnljWK-fwTfzmOeQs6CKeP7H34",
+    "requestId": "request-1",
+    "requestText": "{\"path\":\"fixture/☃😀\",\"line\":\"one\\ntwo\"}",
+    "resultText": "{\"ok\":true,\"value\":\"synthetic fixture\"}",
+    "request": {
+      "version": 2,
+      "nonce": "6fYDEB0qN0RRXmt4",
+      "ciphertext": "_xGKa3rD9sSGXP3m1rqbO7pXWoVw8lyZis_JQBgentsssEDATgBwOy2rvhaGDkyfQCjhbkWUJfclZaKe"
+    },
+    "result": {
+      "version": 2,
+      "nonce": "DhsoNUJPXGl2g5Cd",
+      "ciphertext": "43KF35cLpBV8DmgFyQ9e77XSYhnRktFUHfYTk6-QZnHg2q-q8wT7Yc_xwfL5Qzqh75PpGVAfdQ"
+    }
+  }
+]

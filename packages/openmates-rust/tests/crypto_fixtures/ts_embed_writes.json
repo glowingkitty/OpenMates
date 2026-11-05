@@ -1,0 +1,1341 @@
+{
+ "schema_version": 1,
+ "synthetic_only": true,
+ "provenance": "Produced by tests/crypto_fixtures/ts_embed_writes/generate.cjs running the web TypeScript modules in ts_sources (sha256 at generation) with a deterministic SHA-256 RNG. Every ciphertext was re-read by the TS reader before writing.",
+ "ts_sources": {
+  "frontend/packages/ui/src/services/encryption/MetadataEncryptor.ts": "e6e9e4bda2af41648c767fd3e6be1cf331fd37c414b04bce7073d6df06a63301",
+  "frontend/packages/ui/src/services/cryptoService.ts": "23e2f488e14a824104aa848d8df3b76fd89962232f24131ec78e1d251808668b",
+  "frontend/packages/ui/src/services/encryption/MessageEncryptor.ts": "c793448ab58f4738158e359330823c0fc02b5c187e1a90f72f447c188a8ec79b",
+  "frontend/packages/ui/src/utils/embedUnifiedDiff.ts": "4feffc1b3916b1f9a5645ee721ac53860ac91f87c7dbdc2611168cea3e5f24d4",
+  "frontend/packages/ui/src/utils/embedVersionReconstruction.ts": "7b313c27567078210bd4565d201861802a9f71d4283ed3cba66772be72c7376c",
+  "frontend/packages/ui/src/utils/projectFilePatch.ts": "bf85c4146aef20f2a00d0f66ca5c462a5ae74160b5af5852788c74881b4579dd",
+  "frontend/packages/ui/src/services/timestampUtils.ts": "b3a3f42d708304034a6acf0b3f5fc6f422519c0aed74a2b92d4093bca56e7a3b",
+  "frontend/packages/ui/src/services/embedStateMachine.ts": "92029d7584185eac0bc9a77ebdb40e1256725216264dd7cc07b9a7701e39a8d8",
+  "frontend/packages/ui/src/services/embedRefIndex.ts": "8b45befd294b78f46a234f21fa2b6ce9bf478d1f5a21f16f30f11b8ffc06ca62"
+ },
+ "now_seconds": 1790000000,
+ "keys": {
+  "master_b64": "ERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+o=",
+  "chat_key_b64": "QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBs=",
+  "other_chat_key_b64": "Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRw="
+ },
+ "ids": {
+  "chat_id": "0d9f1a2b-3c4d-4e5f-8a9b-0c1d2e3f4a5b",
+  "message_id": "a1b2c3d4-0000-4000-8000-00000000c0de",
+  "user_id": "5e6f7a8b-1111-4222-8333-444455556666",
+  "task_id": "task-7f3e",
+  "parent_embed_id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+  "child_embed_id": "7a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+  "second_child_embed_id": "8b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e"
+ },
+ "derivation": [
+  {
+   "chat_key_b64": "QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBs=",
+   "embed_id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+   "embed_key_b64": "p1QLWlSvLkLGZLVRMd8lxPQrgheeB1ddBSskwTxczFk="
+  },
+  {
+   "chat_key_b64": "QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBs=",
+   "embed_id": "7a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+   "embed_key_b64": "qQK6Ir6Phan+vlYKNAntHLlHUmCnI2dZE8X5AdkavoI="
+  },
+  {
+   "chat_key_b64": "QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBs=",
+   "embed_id": "embed-ü-ä-日本",
+   "embed_key_b64": "PByeFqB4LcHZaXtNxQWXkAeNEkivCrie7iOJPd1AoWs="
+  },
+  {
+   "chat_key_b64": "QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBs=",
+   "embed_id": "",
+   "embed_key_b64": "POq7ZHM6tDcG4TZNIfKsjBSbu2kAJ9i8CyVj3INnZ1U="
+  }
+ ],
+ "fields": [
+  {
+   "label": "toon",
+   "plaintext": "type: code\nlanguage: rust\ncode: \"fn main() {}\"",
+   "aad": null,
+   "key_b64": "p1QLWlSvLkLGZLVRMd8lxPQrgheeB1ddBSskwTxczFk=",
+   "ciphertext": "kBAdAmKMsrMZxSVGQ7L1eMjsG+Xbyqyv7luUSCnxMt16Lfm4xfA3o6k1eBxks11bCNxOn4h/LjoG+ju5V04ruvTeyEZvNkc3m8o="
+  },
+  {
+   "label": "unicode",
+   "plaintext": "Grüße 👋 — 日本語 \u0000 tail",
+   "aad": null,
+   "key_b64": "p1QLWlSvLkLGZLVRMd8lxPQrgheeB1ddBSskwTxczFk=",
+   "ciphertext": "XbRhw5AkQSHoKqxunThNWmhMK5xkgnClxSD3V1G9fdZnOYykt0D2FKXkAg1FOP2gppwqlcfWAHRGlFWbMA=="
+  },
+  {
+   "label": "empty",
+   "plaintext": "",
+   "aad": null,
+   "key_b64": "p1QLWlSvLkLGZLVRMd8lxPQrgheeB1ddBSskwTxczFk=",
+   "ciphertext": "Dde23QqPmDLxAJ6ziWO5uixfg+Oz7wXFF2UD3g=="
+  },
+  {
+   "label": "long",
+   "plaintext": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+   "aad": null,
+   "key_b64": "p1QLWlSvLkLGZLVRMd8lxPQrgheeB1ddBSskwTxczFk=",
+   "ciphertext": "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"
+  },
+  {
+   "label": "aad",
+   "plaintext": "comment ✓",
+   "aad": "task_activity_comment:task-1:entry-1:v1",
+   "key_b64": "p1QLWlSvLkLGZLVRMd8lxPQrgheeB1ddBSskwTxczFk=",
+   "ciphertext": "rYJQnTnpkU2zlDq249VWufo+d1ghDqxIVv3agPeChm0BL1piz+tE"
+  }
+ ],
+ "wrappers": {
+  "embed_key_b64": "p1QLWlSvLkLGZLVRMd8lxPQrgheeB1ddBSskwTxczFk=",
+  "master": "S6J5CWzkgIHPHyubLQwTsDMfrLg5/odmH0d0YQLnkNOdJC4H3t7/Uqw+ZrQZlP/Ck+G02tqd0T10zDaV",
+  "chat": "KRTSfNYNgIs3/hlp4UrXvu6vNINF2APdX0a53dXU2BMVSd4ejqNKUmaUd4foWnPr0yUcHjlC30ImEx/m",
+  "child_key_b64": "kZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2o=",
+  "child_by_parent": "8zjOqKkxgtnfWU1RFs4Xe7wUJfdLcwWpuOfhFmj8Wnm6lx3QFbNvOAcOwWwF1ILV4n1OA/UOU0pnfhef",
+  "encrypted_chat_key": "pwvnohj8idS60XeQhEYubon4wl7OLWtl27b/aYEHAA2N2zEugrxhCDn6V/Q6WItjUB167Jux3D9q3gk5"
+ },
+ "finalized": [
+  {
+   "label": "parent-ms-timestamps",
+   "origin": "stream-completion",
+   "input": {
+    "embed_id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+    "chat_id": "0d9f1a2b-3c4d-4e5f-8a9b-0c1d2e3f4a5b",
+    "message_id": "a1b2c3d4-0000-4000-8000-00000000c0de",
+    "user_id": "5e6f7a8b-1111-4222-8333-444455556666",
+    "task_id": "task-7f3e",
+    "type": "code",
+    "content": "type: code\napp_id: code\nskill_id: code\nlanguage: rust\ncode: \"fn main() {\\n    println!(\\\"hi\\\");\\n}\"\nembed_ref: main-rs-k8D\nembed_ids[3]: \"embed:7a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d\",\" 8b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e \",\"\"",
+    "text_preview": "fn main",
+    "status": "finished",
+    "embed_ids": [
+     "7a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+     "8b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e"
+    ],
+    "version_number": 3,
+    "file_path": "src/main.rs",
+    "content_hash": "47d969f3dcee855ffaff0f878c734856da86b37cc94846ed4d47bb8f13a9cce7",
+    "text_length_chars": 42,
+    "createdAt": 1789999000123,
+    "updatedAt": 1789999500999,
+    "team_id": null,
+    "local_only": false
+   },
+   "embed_key_b64": "p1QLWlSvLkLGZLVRMd8lxPQrgheeB1ddBSskwTxczFk=",
+   "key_source": "derive_from_chat",
+   "ivs": {
+    "content": "8NTA8TEORKwR7L36",
+    "type": "ISa8s0ZKs0RDwQRp",
+    "text_preview": "x8ZiXyHCc56tHLGa",
+    "chat_wrapper": "4dwblKBrdmJbxoxx"
+   },
+   "expected": {
+    "local_entry": {
+     "contentRef": "embed:6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+     "type": "code",
+     "createdAt": 1789999000123,
+     "updatedAt": 1789999500999,
+     "app_id": "code",
+     "skill_id": "code",
+     "embed_id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+     "encrypted_content": "8NTA8TEORKwR7L36DNHIIeuG2uvG7G0P9hs0VEQOqp0OVNFX/T05xPqw9nM4AMIUBXrMQ3Cd/PGmhHXMW0qMxQmW9E8QX+U8osCOwE/dpMRuTEp6t5SeDL0QklSzdCXemAI5C9alUZNjqplkJlv6QwcyvuvgHcz24CAsY+Vidctv7+CNpO0fCTcu24JG/CoLclThoxUU6lRUpBzJ9A7dQe5miVd96B32mVm/SENZ2gUhEiAm+q/iIAHkqRYp2ccMdjn0vlKdLXtlynVlalTJ/57+0cXVWrMDBjt01xsP3w388xt1/wSEOX23+ATGe88A4h3vmfxBJy4Vz0IH+A==",
+     "encrypted_type": "ISa8s0ZKs0RDwQRph71Y9/DQ3M8PbVYnFAXl1l+NaRA=",
+     "encrypted_text_preview": "x8ZiXyHCc56tHLGaHGMkenA/QO6P59SZjovdLb48BapkpoA=",
+     "status": "finished",
+     "hashed_chat_id": "d379e83256fc06aa396895ec92056cc167f224f134d5d04d3dfec93b64feb498",
+     "hashed_message_id": "5cacc927463dcb01dcd85011daddeb2aad3933fbcb043c6a42d0b8a86d59b332",
+     "hashed_task_id": "c5179ef2fe7be36717179bd36f10811c74d4d2c8b1a832f36bd4bcef65c3e064",
+     "hashed_user_id": "0da0f8605d69eefba25aad4758708c493b57a2997d4b76e460b33a0e3204f6d4",
+     "embed_ids": [
+      "7a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+      "8b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e"
+     ],
+     "version_number": 3,
+     "file_path": "src/main.rs",
+     "content_hash": "47d969f3dcee855ffaff0f878c734856da86b37cc94846ed4d47bb8f13a9cce7",
+     "text_length_chars": 42,
+     "is_private": false,
+     "is_shared": false,
+     "encryption_mode": "client"
+    },
+    "local_key_wrappers": [
+     {
+      "hashed_embed_id": "4f3d477345e38532368ff2320e67a6a00b1052461bdce4b5a529ba5f6536de55",
+      "key_type": "master",
+      "hashed_chat_id": null,
+      "encrypted_embed_key": "7F5U3PUZv4KuM/N8zfKs9Y65vyQ3Rk6fFGjKKPdmQi/Z1UY1xcVcqGvrWBr7bzy9bGIMngKhj+q9uZvd",
+      "hashed_user_id": "0da0f8605d69eefba25aad4758708c493b57a2997d4b76e460b33a0e3204f6d4",
+      "created_at": 1790000000
+     },
+     {
+      "hashed_embed_id": "4f3d477345e38532368ff2320e67a6a00b1052461bdce4b5a529ba5f6536de55",
+      "key_type": "chat",
+      "hashed_chat_id": "d379e83256fc06aa396895ec92056cc167f224f134d5d04d3dfec93b64feb498",
+      "encrypted_embed_key": "4dwblKBrdmJbxoxxv+JyLPDKAYruUt3qqKz20qPkoGg1mMnTJFJLEyy9s/SU5SY1Nnfw17wCTb9+e412",
+      "hashed_user_id": "0da0f8605d69eefba25aad4758708c493b57a2997d4b76e460b33a0e3204f6d4",
+      "created_at": 1790000000
+     }
+    ],
+    "store_payload": {
+     "embed_id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+     "app_id": "code",
+     "skill_id": "code",
+     "chat_id": "0d9f1a2b-3c4d-4e5f-8a9b-0c1d2e3f4a5b",
+     "team_id": null,
+     "encrypted_type": "ISa8s0ZKs0RDwQRph71Y9/DQ3M8PbVYnFAXl1l+NaRA=",
+     "encrypted_content": "8NTA8TEORKwR7L36DNHIIeuG2uvG7G0P9hs0VEQOqp0OVNFX/T05xPqw9nM4AMIUBXrMQ3Cd/PGmhHXMW0qMxQmW9E8QX+U8osCOwE/dpMRuTEp6t5SeDL0QklSzdCXemAI5C9alUZNjqplkJlv6QwcyvuvgHcz24CAsY+Vidctv7+CNpO0fCTcu24JG/CoLclThoxUU6lRUpBzJ9A7dQe5miVd96B32mVm/SENZ2gUhEiAm+q/iIAHkqRYp2ccMdjn0vlKdLXtlynVlalTJ/57+0cXVWrMDBjt01xsP3w388xt1/wSEOX23+ATGe88A4h3vmfxBJy4Vz0IH+A==",
+     "encrypted_text_preview": "x8ZiXyHCc56tHLGaHGMkenA/QO6P59SZjovdLb48BapkpoA=",
+     "status": "finished",
+     "hashed_chat_id": "d379e83256fc06aa396895ec92056cc167f224f134d5d04d3dfec93b64feb498",
+     "hashed_message_id": "5cacc927463dcb01dcd85011daddeb2aad3933fbcb043c6a42d0b8a86d59b332",
+     "hashed_task_id": "c5179ef2fe7be36717179bd36f10811c74d4d2c8b1a832f36bd4bcef65c3e064",
+     "hashed_user_id": "0da0f8605d69eefba25aad4758708c493b57a2997d4b76e460b33a0e3204f6d4",
+     "embed_ids": [
+      "7a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+      "8b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e"
+     ],
+     "version_number": 3,
+     "file_path": "src/main.rs",
+     "content_hash": "47d969f3dcee855ffaff0f878c734856da86b37cc94846ed4d47bb8f13a9cce7",
+     "text_length_chars": 42,
+     "is_private": false,
+     "is_shared": false,
+     "created_at": 1789999000,
+     "updated_at": 1789999500
+    },
+    "server_keys": {
+     "keys": [
+      {
+       "hashed_embed_id": "4f3d477345e38532368ff2320e67a6a00b1052461bdce4b5a529ba5f6536de55",
+       "key_type": "master",
+       "hashed_chat_id": null,
+       "encrypted_embed_key": "7F5U3PUZv4KuM/N8zfKs9Y65vyQ3Rk6fFGjKKPdmQi/Z1UY1xcVcqGvrWBr7bzy9bGIMngKhj+q9uZvd",
+       "hashed_user_id": "0da0f8605d69eefba25aad4758708c493b57a2997d4b76e460b33a0e3204f6d4",
+       "created_at": 1790000000
+      },
+      {
+       "hashed_embed_id": "4f3d477345e38532368ff2320e67a6a00b1052461bdce4b5a529ba5f6536de55",
+       "key_type": "chat",
+       "hashed_chat_id": "d379e83256fc06aa396895ec92056cc167f224f134d5d04d3dfec93b64feb498",
+       "encrypted_embed_key": "4dwblKBrdmJbxoxxv+JyLPDKAYruUt3qqKz20qPkoGg1mMnTJFJLEyy9s/SU5SY1Nnfw17wCTb9+e412",
+       "hashed_user_id": "0da0f8605d69eefba25aad4758708c493b57a2997d4b76e460b33a0e3204f6d4",
+       "created_at": 1790000000
+      }
+     ]
+    },
+    "key_cache_embed_ids": [
+     "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+     "7a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+     "8b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e"
+    ],
+    "embed_ref_registration": {
+     "embed_ref": "main-rs-k8D",
+     "embed_id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+     "app_id": "code",
+     "type": "code",
+     "skill_id": "code"
+    },
+    "child_ref_embed_ids": [
+     "7a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+     "8b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e"
+    ],
+    "sealed_history": true
+   }
+  },
+  {
+   "label": "parent-seconds-no-preview-team",
+   "origin": "stream-completion",
+   "input": {
+    "embed_id": "8b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e",
+    "chat_id": "0d9f1a2b-3c4d-4e5f-8a9b-0c1d2e3f4a5b",
+    "message_id": "a1b2c3d4-0000-4000-8000-00000000c0de",
+    "user_id": "5e6f7a8b-1111-4222-8333-444455556666",
+    "type": "application",
+    "content": "{\"app_id\":\"web\",\"title\":\"json fallback\"}",
+    "status": "finished",
+    "embed_ids": [
+     "7a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d"
+    ],
+    "is_private": true,
+    "createdAt": 1789000000,
+    "updatedAt": 0,
+    "team_id": "team-1",
+    "local_only": false
+   },
+   "embed_key_b64": "OvdkLPefmKKLQLi6IEeeK7fijuEtVqh24JnHYuNkeSc=",
+   "key_source": "derive_from_chat",
+   "ivs": {
+    "content": "5RQxBP2JZGSROSrW",
+    "type": "5qpbeOPxVCeWSkZ3",
+    "text_preview": null,
+    "chat_wrapper": "yfSuX2xm1BRSYiCb"
+   },
+   "expected": {
+    "local_entry": {
+     "contentRef": "embed:8b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e",
+     "type": "application",
+     "createdAt": 1789000000,
+     "updatedAt": 0,
+     "app_id": "web",
+     "embed_id": "8b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e",
+     "encrypted_content": "5RQxBP2JZGSROSrWuJhRtzRQ2vytF+8J/AgVZ2SkfZlYOSl3qk6CD6O3G/ZvHxKQVx4l0b+gGiHUV+uPax64kCimSOI=",
+     "encrypted_type": "5qpbeOPxVCeWSkZ3cJRMT+KjH+PRUiBLnoGyfnouEVI+AixUYXdo",
+     "status": "finished",
+     "hashed_chat_id": "d379e83256fc06aa396895ec92056cc167f224f134d5d04d3dfec93b64feb498",
+     "hashed_message_id": "5cacc927463dcb01dcd85011daddeb2aad3933fbcb043c6a42d0b8a86d59b332",
+     "hashed_user_id": "0da0f8605d69eefba25aad4758708c493b57a2997d4b76e460b33a0e3204f6d4",
+     "embed_ids": [
+      "7a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d"
+     ],
+     "version_number": 1,
+     "is_private": true,
+     "is_shared": false,
+     "encryption_mode": "client"
+    },
+    "local_key_wrappers": [
+     {
+      "hashed_embed_id": "42b7a01d138abbeac92bd9aad41e1fbdefbe95c10dae6ce80e363b8be62f3449",
+      "key_type": "master",
+      "hashed_chat_id": null,
+      "encrypted_embed_key": "GRIyIjKiKwzsJeUlspciiHkgkwagE1hQ3Leyfqd0vwplVETtd9hFU9xrzmEG7wSJ7yz3md0Z6UTbZCZO",
+      "hashed_user_id": "0da0f8605d69eefba25aad4758708c493b57a2997d4b76e460b33a0e3204f6d4",
+      "created_at": 1790000000
+     },
+     {
+      "hashed_embed_id": "42b7a01d138abbeac92bd9aad41e1fbdefbe95c10dae6ce80e363b8be62f3449",
+      "key_type": "chat",
+      "hashed_chat_id": "d379e83256fc06aa396895ec92056cc167f224f134d5d04d3dfec93b64feb498",
+      "encrypted_embed_key": "yfSuX2xm1BRSYiCblbx25V6DTLS+5fxl9b+d4XoPIlexO8A9KUD1xza5oCiWRPRHqf5QYRIG2TaHdc//",
+      "hashed_user_id": "0da0f8605d69eefba25aad4758708c493b57a2997d4b76e460b33a0e3204f6d4",
+      "created_at": 1790000000
+     }
+    ],
+    "store_payload": {
+     "embed_id": "8b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e",
+     "app_id": "web",
+     "chat_id": "0d9f1a2b-3c4d-4e5f-8a9b-0c1d2e3f4a5b",
+     "team_id": "team-1",
+     "encrypted_type": "5qpbeOPxVCeWSkZ3cJRMT+KjH+PRUiBLnoGyfnouEVI+AixUYXdo",
+     "encrypted_content": "5RQxBP2JZGSROSrWuJhRtzRQ2vytF+8J/AgVZ2SkfZlYOSl3qk6CD6O3G/ZvHxKQVx4l0b+gGiHUV+uPax64kCimSOI=",
+     "status": "finished",
+     "hashed_chat_id": "d379e83256fc06aa396895ec92056cc167f224f134d5d04d3dfec93b64feb498",
+     "hashed_message_id": "5cacc927463dcb01dcd85011daddeb2aad3933fbcb043c6a42d0b8a86d59b332",
+     "hashed_user_id": "0da0f8605d69eefba25aad4758708c493b57a2997d4b76e460b33a0e3204f6d4",
+     "embed_ids": [
+      "7a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d"
+     ],
+     "version_number": 1,
+     "is_private": true,
+     "is_shared": false,
+     "created_at": 1789000000,
+     "updated_at": 1790000000
+    },
+    "server_keys": {
+     "keys": [
+      {
+       "hashed_embed_id": "42b7a01d138abbeac92bd9aad41e1fbdefbe95c10dae6ce80e363b8be62f3449",
+       "key_type": "master",
+       "hashed_chat_id": null,
+       "encrypted_embed_key": "GRIyIjKiKwzsJeUlspciiHkgkwagE1hQ3Leyfqd0vwplVETtd9hFU9xrzmEG7wSJ7yz3md0Z6UTbZCZO",
+       "hashed_user_id": "0da0f8605d69eefba25aad4758708c493b57a2997d4b76e460b33a0e3204f6d4",
+       "created_at": 1790000000
+      },
+      {
+       "hashed_embed_id": "42b7a01d138abbeac92bd9aad41e1fbdefbe95c10dae6ce80e363b8be62f3449",
+       "key_type": "chat",
+       "hashed_chat_id": "d379e83256fc06aa396895ec92056cc167f224f134d5d04d3dfec93b64feb498",
+       "encrypted_embed_key": "yfSuX2xm1BRSYiCblbx25V6DTLS+5fxl9b+d4XoPIlexO8A9KUD1xza5oCiWRPRHqf5QYRIG2TaHdc//",
+       "hashed_user_id": "0da0f8605d69eefba25aad4758708c493b57a2997d4b76e460b33a0e3204f6d4",
+       "created_at": 1790000000
+      }
+     ]
+    },
+    "key_cache_embed_ids": [
+     "8b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e"
+    ],
+    "embed_ref_registration": null,
+    "child_ref_embed_ids": [],
+    "sealed_history": false
+   }
+  },
+  {
+   "label": "child-inherits-parent",
+   "origin": "stream-completion",
+   "input": {
+    "embed_id": "7a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+    "chat_id": "0d9f1a2b-3c4d-4e5f-8a9b-0c1d2e3f4a5b",
+    "message_id": "a1b2c3d4-0000-4000-8000-00000000c0de",
+    "user_id": "5e6f7a8b-1111-4222-8333-444455556666",
+    "type": "image_result",
+    "content": "type: image_result\napp_id: images\nskill_id: search\nurl: \"https://example.org/ü.png\"",
+    "text_preview": "",
+    "status": "finished",
+    "parent_embed_id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+    "skill_id": "image_result",
+    "is_shared": true,
+    "team_id": null,
+    "local_only": false
+   },
+   "embed_key_b64": "p1QLWlSvLkLGZLVRMd8lxPQrgheeB1ddBSskwTxczFk=",
+   "key_source": "inherit_parent",
+   "ivs": {
+    "content": "7hnTe4HXwMinpyEd",
+    "type": "eYdB4+xlTMkFuVdI",
+    "text_preview": null,
+    "chat_wrapper": null
+   },
+   "expected": {
+    "local_entry": {
+     "contentRef": "embed:7a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+     "type": "image_result",
+     "createdAt": 1790000000000,
+     "updatedAt": 1790000000000,
+     "app_id": "images",
+     "skill_id": "image_result",
+     "embed_id": "7a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+     "encrypted_content": "7hnTe4HXwMinpyEdVkLsQQ8HuWfrXR64MF13JOIeOMwoFTqprBMrmqG0I2XBly1/1bgM2oDHnf8I0qP7uuMm1NET9A7BM0rxHOfatBuhr4pv8RnlbcqrAWvI3l+eJ3MQz3XutZatQqI1onoc9FwJAA==",
+     "encrypted_type": "eYdB4+xlTMkFuVdIBWSTR7hz+yz4bMi7PcowMgok/H34ISbA+hraHw==",
+     "status": "finished",
+     "hashed_chat_id": "d379e83256fc06aa396895ec92056cc167f224f134d5d04d3dfec93b64feb498",
+     "hashed_message_id": "5cacc927463dcb01dcd85011daddeb2aad3933fbcb043c6a42d0b8a86d59b332",
+     "hashed_user_id": "0da0f8605d69eefba25aad4758708c493b57a2997d4b76e460b33a0e3204f6d4",
+     "parent_embed_id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+     "version_number": 1,
+     "is_private": false,
+     "is_shared": true,
+     "encryption_mode": "client"
+    },
+    "local_key_wrappers": [],
+    "store_payload": {
+     "embed_id": "7a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+     "app_id": "images",
+     "skill_id": "image_result",
+     "chat_id": "0d9f1a2b-3c4d-4e5f-8a9b-0c1d2e3f4a5b",
+     "team_id": null,
+     "encrypted_type": "eYdB4+xlTMkFuVdIBWSTR7hz+yz4bMi7PcowMgok/H34ISbA+hraHw==",
+     "encrypted_content": "7hnTe4HXwMinpyEdVkLsQQ8HuWfrXR64MF13JOIeOMwoFTqprBMrmqG0I2XBly1/1bgM2oDHnf8I0qP7uuMm1NET9A7BM0rxHOfatBuhr4pv8RnlbcqrAWvI3l+eJ3MQz3XutZatQqI1onoc9FwJAA==",
+     "status": "finished",
+     "hashed_chat_id": "d379e83256fc06aa396895ec92056cc167f224f134d5d04d3dfec93b64feb498",
+     "hashed_message_id": "5cacc927463dcb01dcd85011daddeb2aad3933fbcb043c6a42d0b8a86d59b332",
+     "hashed_user_id": "0da0f8605d69eefba25aad4758708c493b57a2997d4b76e460b33a0e3204f6d4",
+     "parent_embed_id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+     "version_number": 1,
+     "is_private": false,
+     "is_shared": true,
+     "created_at": 1790000000,
+     "updated_at": 1790000000
+    },
+    "server_keys": null,
+    "key_cache_embed_ids": [
+     "7a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d"
+    ],
+    "embed_ref_registration": null,
+    "child_ref_embed_ids": [],
+    "sealed_history": false
+   }
+  },
+  {
+   "label": "parent-local-only-missing-timestamps",
+   "origin": "stream-completion",
+   "input": {
+    "embed_id": "9c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5e6f",
+    "chat_id": "0d9f1a2b-3c4d-4e5f-8a9b-0c1d2e3f4a5b",
+    "message_id": "a1b2c3d4-0000-4000-8000-00000000c0de",
+    "user_id": "5e6f7a8b-1111-4222-8333-444455556666",
+    "type": "math-plot",
+    "content": "not: [valid toon",
+    "status": "error",
+    "parent_embed_id": "",
+    "team_id": null,
+    "local_only": true
+   },
+   "embed_key_b64": "Y6hMGFz100VAP2px9l63fcREdNwqs+bICSvF8AWY800=",
+   "key_source": "derive_from_chat",
+   "ivs": {
+    "content": "BkBTQJbtMiAQvGQR",
+    "type": "13AOMfeivSorXwv8",
+    "text_preview": null,
+    "chat_wrapper": "Sm2VUItm139RjHgW"
+   },
+   "expected": {
+    "local_entry": {
+     "contentRef": "embed:9c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5e6f",
+     "type": "math-plot",
+     "createdAt": 1790000000000,
+     "updatedAt": 1790000000000,
+     "embed_id": "9c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5e6f",
+     "encrypted_content": "BkBTQJbtMiAQvGQRb3866N9CHZWGhp2dxvbBZADoJwDeDtaYtD3lWtb1RV4=",
+     "encrypted_type": "13AOMfeivSorXwv8dMMZxVcafMcYzp8aFBGgGsaGTE6nxzPx1g==",
+     "status": "error",
+     "hashed_chat_id": "d379e83256fc06aa396895ec92056cc167f224f134d5d04d3dfec93b64feb498",
+     "hashed_message_id": "5cacc927463dcb01dcd85011daddeb2aad3933fbcb043c6a42d0b8a86d59b332",
+     "hashed_user_id": "0da0f8605d69eefba25aad4758708c493b57a2997d4b76e460b33a0e3204f6d4",
+     "parent_embed_id": "",
+     "version_number": 1,
+     "is_private": false,
+     "is_shared": false,
+     "encryption_mode": "client"
+    },
+    "local_key_wrappers": [
+     {
+      "hashed_embed_id": "b8fcb0e06122e656714aa068fea58f930b29cc0d014cee5d1d446c3b1999e9ef",
+      "key_type": "chat",
+      "hashed_chat_id": "d379e83256fc06aa396895ec92056cc167f224f134d5d04d3dfec93b64feb498",
+      "encrypted_embed_key": "Sm2VUItm139RjHgWsL/YlOjwHshDOb1JTKtJmKNoJGpsXteYpmzg1O/ZLawoZ8APx4MTlSMSVS6lq/Ip",
+      "hashed_user_id": "0da0f8605d69eefba25aad4758708c493b57a2997d4b76e460b33a0e3204f6d4",
+      "created_at": 1790000000
+     }
+    ],
+    "store_payload": null,
+    "server_keys": null,
+    "key_cache_embed_ids": [
+     "9c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5e6f"
+    ],
+    "embed_ref_registration": null,
+    "child_ref_embed_ids": [],
+    "sealed_history": false
+   }
+  }
+ ],
+ "processing_update": {
+  "label": "processing-to-finished",
+  "origin": "stream-update",
+  "input": {
+   "existing": {
+    "embed_id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+    "type": "sheet",
+    "content": "type: sheet\nrows: 2",
+    "status": "finished",
+    "embed_ids": [
+     "7a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d"
+    ],
+    "version_number": 2,
+    "hashed_task_id": "e3b98a4da31a127d4bde6e43033f66ba274cab0eb7eb1c70ec41402bf6273dd8",
+    "hashed_message_id": "b690784257810f62f109f8d0cf9c4d57d074effd8a4a7bf44e86dcfef0778110",
+    "app_id": "sheets",
+    "skill_id": "sheet",
+    "createdAt": 1789999000000
+   },
+   "chat_id": "0d9f1a2b-3c4d-4e5f-8a9b-0c1d2e3f4a5b",
+   "user_id": "5e6f7a8b-1111-4222-8333-444455556666",
+   "message_id": null
+  },
+  "embed_key_b64": "p1QLWlSvLkLGZLVRMd8lxPQrgheeB1ddBSskwTxczFk=",
+  "ivs": {
+   "content": "N6PXoL6rMtTNR1V5",
+   "type": "rMZb7AN0vf+Ziz9F",
+   "chat_wrapper": "MWplb45n7apZ8sQG"
+  },
+  "expected": {
+   "local_entry": {
+    "contentRef": "embed:6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+    "type": "sheet",
+    "createdAt": 1789999000000,
+    "updatedAt": 1790000000000,
+    "app_id": "sheets",
+    "skill_id": "sheet",
+    "embed_id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+    "encrypted_type": "rMZb7AN0vf+Ziz9FOYYfZYxSktX+HBgCdmjp0XgcI4XN",
+    "encrypted_content": "N6PXoL6rMtTNR1V500KGKvY5by9UQMtV1GJnH5lNywTfpwqPdReHB6j7Ep0q0tg=",
+    "status": "finished",
+    "hashed_chat_id": "d379e83256fc06aa396895ec92056cc167f224f134d5d04d3dfec93b64feb498",
+    "hashed_message_id": "b690784257810f62f109f8d0cf9c4d57d074effd8a4a7bf44e86dcfef0778110",
+    "hashed_task_id": "e3b98a4da31a127d4bde6e43033f66ba274cab0eb7eb1c70ec41402bf6273dd8",
+    "hashed_user_id": "0da0f8605d69eefba25aad4758708c493b57a2997d4b76e460b33a0e3204f6d4",
+    "embed_ids": [
+     "7a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d"
+    ],
+    "version_number": 2,
+    "is_private": false,
+    "is_shared": false,
+    "encryption_mode": "client"
+   },
+   "local_key_wrappers": [
+    {
+     "hashed_embed_id": "4f3d477345e38532368ff2320e67a6a00b1052461bdce4b5a529ba5f6536de55",
+     "key_type": "master",
+     "hashed_chat_id": null,
+     "encrypted_embed_key": "bIxATHQoMKncFRond1FLT7e4EHKu5gX2WAAQ/nQV84PVeAXzP1UylcBRurA0oWT1d25wREzc8d0fEyFF",
+     "hashed_user_id": "0da0f8605d69eefba25aad4758708c493b57a2997d4b76e460b33a0e3204f6d4",
+     "created_at": 1790000000
+    },
+    {
+     "hashed_embed_id": "4f3d477345e38532368ff2320e67a6a00b1052461bdce4b5a529ba5f6536de55",
+     "key_type": "chat",
+     "hashed_chat_id": "d379e83256fc06aa396895ec92056cc167f224f134d5d04d3dfec93b64feb498",
+     "encrypted_embed_key": "MWplb45n7apZ8sQGcuj9wlXPQ0dDMKKLC4ZqUMnOZHjEdXAXIIv1jeIQtm2mf5AA8hSO3wcubj1z57vA",
+     "hashed_user_id": "0da0f8605d69eefba25aad4758708c493b57a2997d4b76e460b33a0e3204f6d4",
+     "created_at": 1790000000
+    }
+   ],
+   "store_payload": {
+    "embed_id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+    "encrypted_type": "rMZb7AN0vf+Ziz9FOYYfZYxSktX+HBgCdmjp0XgcI4XN",
+    "encrypted_content": "N6PXoL6rMtTNR1V500KGKvY5by9UQMtV1GJnH5lNywTfpwqPdReHB6j7Ep0q0tg=",
+    "status": "finished",
+    "hashed_chat_id": "d379e83256fc06aa396895ec92056cc167f224f134d5d04d3dfec93b64feb498",
+    "hashed_message_id": "b690784257810f62f109f8d0cf9c4d57d074effd8a4a7bf44e86dcfef0778110",
+    "hashed_task_id": "e3b98a4da31a127d4bde6e43033f66ba274cab0eb7eb1c70ec41402bf6273dd8",
+    "hashed_user_id": "0da0f8605d69eefba25aad4758708c493b57a2997d4b76e460b33a0e3204f6d4",
+    "embed_ids": [
+     "7a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d"
+    ],
+    "version_number": 2,
+    "is_private": false,
+    "is_shared": false,
+    "created_at": 1789999000,
+    "updated_at": 1790000000
+   },
+   "server_keys": {
+    "keys": [
+     {
+      "hashed_embed_id": "4f3d477345e38532368ff2320e67a6a00b1052461bdce4b5a529ba5f6536de55",
+      "key_type": "master",
+      "hashed_chat_id": null,
+      "encrypted_embed_key": "bIxATHQoMKncFRond1FLT7e4EHKu5gX2WAAQ/nQV84PVeAXzP1UylcBRurA0oWT1d25wREzc8d0fEyFF",
+      "hashed_user_id": "0da0f8605d69eefba25aad4758708c493b57a2997d4b76e460b33a0e3204f6d4",
+      "created_at": 1790000000
+     },
+     {
+      "hashed_embed_id": "4f3d477345e38532368ff2320e67a6a00b1052461bdce4b5a529ba5f6536de55",
+      "key_type": "chat",
+      "hashed_chat_id": "d379e83256fc06aa396895ec92056cc167f224f134d5d04d3dfec93b64feb498",
+      "encrypted_embed_key": "MWplb45n7apZ8sQGcuj9wlXPQ0dDMKKLC4ZqUMnOZHjEdXAXIIv1jeIQtm2mf5AA8hSO3wcubj1z57vA",
+      "hashed_user_id": "0da0f8605d69eefba25aad4758708c493b57a2997d4b76e460b33a0e3204f6d4",
+      "created_at": 1790000000
+     }
+    ]
+   },
+   "key_cache_embed_ids": [
+    "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+    "7a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d"
+   ]
+  }
+ },
+ "history": {
+  "embed_key_b64": "p1QLWlSvLkLGZLVRMd8lxPQrgheeB1ddBSskwTxczFk=",
+  "hashed_user_id": "0da0f8605d69eefba25aad4758708c493b57a2997d4b76e460b33a0e3204f6d4",
+  "input": [
+   {
+    "embed_id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+    "version_number": 1,
+    "snapshot": "line one\nline two\n",
+    "created_at": 1789999000456
+   },
+   {
+    "embed_id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+    "version_number": 2,
+    "patch": "--- v1\n+++ v2\n@@ -1,3 +1,3 @@\n-line one\n-line two\n-\n+line one\n+line 2\n+line three",
+    "created_at": 1789999100
+   },
+   {
+    "embed_id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+    "version_number": 3,
+    "patch": "--- v2\n+++ v3\n@@ -1,3 +0,0 @@\n-line one\n-line 2\n-line three"
+   },
+   {
+    "embed_id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+    "version_number": 4
+   }
+  ],
+  "rows": [
+   {
+    "iv": "cET5R1YABYwahH/d",
+    "local_row": {
+     "id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f_v1",
+     "embed_id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+     "version_number": 1,
+     "encrypted_snapshot": "cET5R1YABYwahH/dZ9ZMyZU4ur45oYp6ZswgU2/8kLLd2ckDLWELsx18Ayg0jA==",
+     "created_at": 1789999000
+    },
+    "server_payload": {
+     "embed_id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+     "version_number": 1,
+     "encrypted_snapshot": "cET5R1YABYwahH/dZ9ZMyZU4ur45oYp6ZswgU2/8kLLd2ckDLWELsx18Ayg0jA==",
+     "encrypted_patch": null,
+     "hashed_user_id": "0da0f8605d69eefba25aad4758708c493b57a2997d4b76e460b33a0e3204f6d4",
+     "created_at": 1789999000
+    }
+   },
+   {
+    "iv": "m+SmGBnKmjXpdCj9",
+    "local_row": {
+     "id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f_v2",
+     "embed_id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+     "version_number": 2,
+     "encrypted_patch": "m+SmGBnKmjXpdCj94ZhL6tCjP7SbaN5J8jGIAwvhUWeMndngWwS5U5fWLs6V3rygHgjEjR+8PdkdtJQeAu2B05NWoBHmQ1r2FGGi2lsN8V+XrIY0RM11pljn0bU/7tzGo6vfRXqBKzfk4UL7Qw==",
+     "created_at": 1789999100
+    },
+    "server_payload": {
+     "embed_id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+     "version_number": 2,
+     "encrypted_snapshot": null,
+     "encrypted_patch": "m+SmGBnKmjXpdCj94ZhL6tCjP7SbaN5J8jGIAwvhUWeMndngWwS5U5fWLs6V3rygHgjEjR+8PdkdtJQeAu2B05NWoBHmQ1r2FGGi2lsN8V+XrIY0RM11pljn0bU/7tzGo6vfRXqBKzfk4UL7Qw==",
+     "hashed_user_id": "0da0f8605d69eefba25aad4758708c493b57a2997d4b76e460b33a0e3204f6d4",
+     "created_at": 1789999100
+    }
+   },
+   {
+    "iv": "F7t1K9uW3Yyzdn57",
+    "local_row": {
+     "id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f_v3",
+     "embed_id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+     "version_number": 3,
+     "encrypted_patch": "F7t1K9uW3Yyzdn576NNTRogky6iMJbrhyMjQAowIrKi+lF5zrgLWg+O+qHToqOP1nXCgB68/jSlFnxEGVVkJXH+S1I6NjOQ8aP6tDAu20+mPrRNX9/OM",
+     "created_at": 1790000000
+    },
+    "server_payload": {
+     "embed_id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+     "version_number": 3,
+     "encrypted_snapshot": null,
+     "encrypted_patch": "F7t1K9uW3Yyzdn576NNTRogky6iMJbrhyMjQAowIrKi+lF5zrgLWg+O+qHToqOP1nXCgB68/jSlFnxEGVVkJXH+S1I6NjOQ8aP6tDAu20+mPrRNX9/OM",
+     "hashed_user_id": "0da0f8605d69eefba25aad4758708c493b57a2997d4b76e460b33a0e3204f6d4",
+     "created_at": 1790000000
+    }
+   },
+   null
+  ],
+  "reconstructed_v2": "line one\nline 2\nline three",
+  "reconstructed_v3": ""
+ },
+ "unified_diffs": [
+  {
+   "label": "replace",
+   "current": "line one\nline two\n",
+   "restored": "line one\nline 2\nline three",
+   "current_version": 1,
+   "new_version": 2,
+   "patch": "--- v1\n+++ v2\n@@ -1,3 +1,3 @@\n-line one\n-line two\n-\n+line one\n+line 2\n+line three"
+  },
+  {
+   "label": "to-empty",
+   "current": "line one\nline 2\nline three",
+   "restored": "",
+   "current_version": 2,
+   "new_version": 3,
+   "patch": "--- v2\n+++ v3\n@@ -1,3 +0,0 @@\n-line one\n-line 2\n-line three"
+  },
+  {
+   "label": "from-empty",
+   "current": "",
+   "restored": "a\nb",
+   "current_version": 3,
+   "new_version": 4,
+   "patch": "--- v3\n+++ v4\n@@ -0,0 +1,2 @@\n+a\n+b"
+  },
+  {
+   "label": "both-empty",
+   "current": "",
+   "restored": "",
+   "current_version": 4,
+   "new_version": 5,
+   "patch": "--- v4\n+++ v5\n@@ -0,0 +0,0 @@"
+  },
+  {
+   "label": "unicode-crlf",
+   "current": "ä\r\nb",
+   "restored": "ä\r\nc\n",
+   "current_version": 31,
+   "new_version": 32,
+   "patch": "--- v31\n+++ v32\n@@ -1,2 +1,3 @@\n-ä\r\n-b\n+ä\r\n+c\n+"
+  }
+ ],
+ "restore": [
+  {
+   "label": "ordinary",
+   "embed_id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+   "current_version": 2,
+   "current_content": "line one\nline 2\nline three",
+   "restored_content": "line one\nline two\n",
+   "ivs": {
+    "patch": "C5nxK7MpVQwoRzTa",
+    "snapshot": null
+   },
+   "expected": {
+    "new_version": 3,
+    "content_hash": "e9024f1a07d29d52ad3aa5e1a18e94db1f3a9fd32b89e39d47c472cd99071e13",
+    "diff_row": {
+     "id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f_v3",
+     "embed_id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+     "version_number": 3,
+     "encrypted_patch": "C5nxK7MpVQwoRzTaZsfvf8Xs3jZgmxUWtfFFqnp1OoZCcjCOtV9TR3auWYrYRqfh+NUdxrbMWI0feRRnQxdLFyAHI07IKjbde8Nn1TUqbUoiIqsLuXxwEkY0gza8RSyZL/ONWN0Lzd5uvn/lIg==",
+     "created_at": 1790000000
+    }
+   }
+  },
+  {
+   "label": "checkpoint",
+   "embed_id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+   "current_version": 31,
+   "current_content": "line one\nline two\n",
+   "restored_content": "line one\nline 2\nline three",
+   "ivs": {
+    "patch": "NpYzJZlpgmi8XwKb",
+    "snapshot": "yko01UUUnbRQEUzy"
+   },
+   "expected": {
+    "new_version": 32,
+    "content_hash": "3fb18c175158c2196172b766e291b4721a390f51d3cf1900a8e665162d8fd3dd",
+    "diff_row": {
+     "id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f_v32",
+     "embed_id": "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+     "version_number": 32,
+     "encrypted_patch": "NpYzJZlpgmi8XwKbTNVQ9LJLUMzlC9t9bbmFfUbj6yHOfLeHrPyNcbiVUcYamNDrrd8rLEVMZwnKuCRwd/QmMXfizRwL0flcMWRMFXBMjN4/zifA+AcHUf5xzcC1CbM7i7smKdbmpOIejXjC1AAs",
+     "encrypted_snapshot": "yko01UUUnbRQEUzyKNIxgvNqjpMvnHVWjXUEF9OPdwx2UGh6kWFJrwBHhB9rWIHlt5GVLMG0",
+     "created_at": 1790000000
+    }
+   }
+  }
+ ],
+ "status": {
+  "transitions": [
+   [
+    "processing",
+    "processing",
+    true
+   ],
+   [
+    "processing",
+    "rendering",
+    true
+   ],
+   [
+    "processing",
+    "finished",
+    true
+   ],
+   [
+    "processing",
+    "error",
+    true
+   ],
+   [
+    "processing",
+    "cancelled",
+    true
+   ],
+   [
+    "processing",
+    "needs_rerender",
+    false
+   ],
+   [
+    "processing",
+    "completed",
+    false
+   ],
+   [
+    "processing",
+    "bogus",
+    false
+   ],
+   [
+    "rendering",
+    "processing",
+    false
+   ],
+   [
+    "rendering",
+    "rendering",
+    true
+   ],
+   [
+    "rendering",
+    "finished",
+    true
+   ],
+   [
+    "rendering",
+    "error",
+    true
+   ],
+   [
+    "rendering",
+    "cancelled",
+    true
+   ],
+   [
+    "rendering",
+    "needs_rerender",
+    false
+   ],
+   [
+    "rendering",
+    "completed",
+    false
+   ],
+   [
+    "rendering",
+    "bogus",
+    false
+   ],
+   [
+    "finished",
+    "processing",
+    false
+   ],
+   [
+    "finished",
+    "rendering",
+    false
+   ],
+   [
+    "finished",
+    "finished",
+    false
+   ],
+   [
+    "finished",
+    "error",
+    true
+   ],
+   [
+    "finished",
+    "cancelled",
+    false
+   ],
+   [
+    "finished",
+    "needs_rerender",
+    true
+   ],
+   [
+    "finished",
+    "completed",
+    false
+   ],
+   [
+    "finished",
+    "bogus",
+    false
+   ],
+   [
+    "error",
+    "processing",
+    false
+   ],
+   [
+    "error",
+    "rendering",
+    false
+   ],
+   [
+    "error",
+    "finished",
+    false
+   ],
+   [
+    "error",
+    "error",
+    false
+   ],
+   [
+    "error",
+    "cancelled",
+    false
+   ],
+   [
+    "error",
+    "needs_rerender",
+    false
+   ],
+   [
+    "error",
+    "completed",
+    false
+   ],
+   [
+    "error",
+    "bogus",
+    false
+   ],
+   [
+    "cancelled",
+    "processing",
+    false
+   ],
+   [
+    "cancelled",
+    "rendering",
+    false
+   ],
+   [
+    "cancelled",
+    "finished",
+    false
+   ],
+   [
+    "cancelled",
+    "error",
+    false
+   ],
+   [
+    "cancelled",
+    "cancelled",
+    false
+   ],
+   [
+    "cancelled",
+    "needs_rerender",
+    false
+   ],
+   [
+    "cancelled",
+    "completed",
+    false
+   ],
+   [
+    "cancelled",
+    "bogus",
+    false
+   ],
+   [
+    "needs_rerender",
+    "processing",
+    false
+   ],
+   [
+    "needs_rerender",
+    "rendering",
+    true
+   ],
+   [
+    "needs_rerender",
+    "finished",
+    false
+   ],
+   [
+    "needs_rerender",
+    "error",
+    true
+   ],
+   [
+    "needs_rerender",
+    "cancelled",
+    true
+   ],
+   [
+    "needs_rerender",
+    "needs_rerender",
+    true
+   ],
+   [
+    "needs_rerender",
+    "completed",
+    false
+   ],
+   [
+    "needs_rerender",
+    "bogus",
+    false
+   ],
+   [
+    "completed",
+    "processing",
+    false
+   ],
+   [
+    "completed",
+    "rendering",
+    false
+   ],
+   [
+    "completed",
+    "finished",
+    false
+   ],
+   [
+    "completed",
+    "error",
+    false
+   ],
+   [
+    "completed",
+    "cancelled",
+    false
+   ],
+   [
+    "completed",
+    "needs_rerender",
+    false
+   ],
+   [
+    "completed",
+    "completed",
+    false
+   ],
+   [
+    "completed",
+    "bogus",
+    false
+   ],
+   [
+    "bogus",
+    "processing",
+    false
+   ],
+   [
+    "bogus",
+    "rendering",
+    false
+   ],
+   [
+    "bogus",
+    "finished",
+    false
+   ],
+   [
+    "bogus",
+    "error",
+    false
+   ],
+   [
+    "bogus",
+    "cancelled",
+    false
+   ],
+   [
+    "bogus",
+    "needs_rerender",
+    false
+   ],
+   [
+    "bogus",
+    "completed",
+    false
+   ],
+   [
+    "bogus",
+    "bogus",
+    false
+   ]
+  ],
+  "normalize": [
+   [
+    "processing",
+    "processing"
+   ],
+   [
+    "rendering",
+    "rendering"
+   ],
+   [
+    "finished",
+    "finished"
+   ],
+   [
+    "error",
+    "error"
+   ],
+   [
+    "cancelled",
+    "cancelled"
+   ],
+   [
+    "needs_rerender",
+    "needs_rerender"
+   ],
+   [
+    "completed",
+    "finished"
+   ],
+   [
+    "bogus",
+    "finished"
+   ],
+   [
+    null,
+    "finished"
+   ],
+   [
+    3,
+    "finished"
+   ]
+  ],
+  "terminal": [
+   [
+    "processing",
+    false
+   ],
+   [
+    "rendering",
+    false
+   ],
+   [
+    "finished",
+    true
+   ],
+   [
+    "error",
+    true
+   ],
+   [
+    "cancelled",
+    true
+   ],
+   [
+    "needs_rerender",
+    false
+   ],
+   [
+    "completed",
+    false
+   ],
+   [
+    "bogus",
+    false
+   ]
+  ]
+ },
+ "ref_index": [
+  {
+   "op": "register",
+   "ref": "ryanair-0600-k8D",
+   "entry": {
+    "embedId": "e1",
+    "appId": "travel",
+    "skillId": "search",
+    "type": "flight"
+   },
+   "changed": true
+  },
+  {
+   "op": "register",
+   "ref": "  hotel–berlin-k8d ",
+   "entry": {
+    "embedId": "e2",
+    "appId": null,
+    "skillId": null,
+    "type": null
+   },
+   "changed": true
+  },
+  {
+   "op": "register",
+   "ref": "ryanair-0600-k8D",
+   "entry": {
+    "embedId": "e1",
+    "appId": "travel",
+    "skillId": "search",
+    "type": "flight"
+   },
+   "changed": false
+  },
+  {
+   "op": "register",
+   "ref": "",
+   "entry": {
+    "embedId": "e3",
+    "appId": null,
+    "skillId": null,
+    "type": null
+   },
+   "changed": false
+  },
+  {
+   "op": "resolve",
+   "ref": "ryanair-0600-k8D",
+   "result": {
+    "embedRef": "ryanair-0600-k8D",
+    "entry": {
+     "embedId": "e1",
+     "appId": "travel",
+     "skillId": "search",
+     "type": "flight"
+    }
+   }
+  },
+  {
+   "op": "resolve",
+   "ref": "e1",
+   "result": {
+    "embedRef": "e1",
+    "entry": {
+     "embedId": "e1",
+     "appId": "travel",
+     "skillId": "search",
+     "type": "flight"
+    }
+   }
+  },
+  {
+   "op": "resolve",
+   "ref": "-k8D",
+   "result": null
+  },
+  {
+   "op": "resolve",
+   "ref": "-K8D",
+   "result": null
+  },
+  {
+   "op": "resolve",
+   "ref": "−k8d",
+   "result": null
+  },
+  {
+   "op": "register",
+   "ref": "train-0900-x1",
+   "entry": {
+    "embedId": "e4",
+    "appId": "travel",
+    "skillId": null,
+    "type": "train"
+   },
+   "changed": true
+  },
+  {
+   "op": "resolve",
+   "ref": "-x1",
+   "result": {
+    "embedRef": "train-0900-x1",
+    "entry": {
+     "embedId": "e4",
+     "appId": "travel",
+     "skillId": null,
+     "type": "train"
+    }
+   }
+  },
+  {
+   "op": "resolve",
+   "ref": "-x",
+   "result": null
+  },
+  {
+   "op": "resolve",
+   "ref": "-k8d",
+   "result": null
+  },
+  {
+   "op": "resolve",
+   "ref": "unknown",
+   "result": null
+  },
+  {
+   "op": "register",
+   "ref": "car-k8d",
+   "entry": {
+    "embedId": "e1",
+    "appId": "travel",
+    "skillId": "search",
+    "type": "flight"
+   },
+   "changed": true
+  },
+  {
+   "op": "resolve",
+   "ref": "-k8d",
+   "result": null
+  },
+  {
+   "op": "clear"
+  },
+  {
+   "op": "resolve",
+   "ref": "e1",
+   "result": null
+  }
+ ]
+}

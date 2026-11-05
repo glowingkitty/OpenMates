@@ -49,8 +49,10 @@ export interface EmbedFullscreenLifetimeContext {
 export const EMBED_SOURCE_CHAT_CONTEXT = Symbol('embed-source-chat-context');
 export interface EmbedSourceChatContext {
 	readonly chatId: string | null;
-	/** Read-only owner of a cross-chat search result; never a follow-up destination. */
+	/** Lookup owner, also populated for normal owner chats; not a follow-up destination. */
 	readonly lookupChatId?: string | null;
+	/** Explicit host policy. Private interaction requires this to be false. */
+	readonly isReadOnly?: boolean;
 	/** Read-only public lookup scope; never a follow-up destination. */
 	readonly exampleChatId?: string | null;
 }

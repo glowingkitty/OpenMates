@@ -93,6 +93,10 @@ describe("OpenMates npm SDK cleartext boundary", () => {
         }
         if (request.url === "/v1/projects/ask") {
           assert.equal(typeof body.encrypted_create.encrypted_name, "string");
+          assert.equal(body.encrypted_create.write_mode, "always_ask");
+          assert.match(body.encrypted_create.default_focus_id, /^[0-9a-f-]{36}$/);
+          assert.equal(typeof body.encrypted_create.encrypted_settings, "string");
+          assert.equal("settings" in body.encrypted_create, false);
           assertNoPlaintextMarker(body.encrypted_create, CLEAR_PUBLIC_PROJECT);
           return { summary: "Created 1 project.", project: body.encrypted_create, projects: [body.encrypted_create] };
         }
@@ -111,7 +115,7 @@ describe("OpenMates npm SDK cleartext boundary", () => {
         assert.equal((project.projects as any[])[0].name, CLEAR_PUBLIC_PROJECT);
         assert.equal((project.projects as any[])[0].description, "project body");
       },
-      `Bearer ${material.apiKey}`,
+      `Bearer ${material.apiKey.split(".")[0]}`,
     );
   });
 });

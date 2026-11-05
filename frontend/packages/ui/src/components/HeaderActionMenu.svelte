@@ -28,6 +28,8 @@
     triggerTestId,
     menuTestId,
     compactMoreOnly = false,
+    reportInMenu = false,
+    leadingAction,
   }: {
     report: Snippet;
     share: Snippet;
@@ -44,6 +46,10 @@
     triggerTestId?: string;
     menuTestId?: string;
     compactMoreOnly?: boolean;
+    /** Opt-in: list Report Issue inside More instead of the primary row. */
+    reportInMenu?: boolean;
+    /** Opt-in: an always-visible action rendered directly before Share/More. */
+    leadingAction?: Snippet;
   } = $props();
   const SHARE_MIN_WIDTH = 460;
   const REPORT_LABEL_MIN_WIDTH = 640;
@@ -64,7 +70,7 @@
   const menuId = $props.id();
   const overflowCount = $derived(actionCount + Number(hasShare && (hasPriorityAction || containerWidth < SHARE_MIN_WIDTH)));
   // Keep Share in More whenever sensitive-data controls occupy the primary slot.
-  const hasOverflowActions = $derived(compactMoreOnly || forceOverflow || overflowCount >= 2 || (hasPriorityAction && overflowCount > 0));
+  const hasOverflowActions = $derived(compactMoreOnly || forceOverflow || reportInMenu || overflowCount >= 2 || (hasPriorityAction && overflowCount > 0));
 
   $effect(() => {
     if (!hasOverflowActions) open = false;
@@ -114,6 +120,42 @@
     return () => observer.disconnect();
   });
 
+  // Long action lists (chat More menu) are paged instead of scrolled: at most
+  // PAGE_SIZE entries show at once, with arrows that switch to the next or
+  // previous set. Entries come from snippets, so pages are applied to the DOM.
+  const PAGE_SIZE = 5;
+  let pageHost = $state<HTMLDivElement>();
+  let page = $state(0);
+  let entryCount = $state(0);
+  const pageCount = $derived(Math.max(1, Math.ceil(entryCount / PAGE_SIZE)));
+  $effect(() => {
+    if (!open) page = 0;
+  });
+  $effect(() => {
+    const host = pageHost;
+    const current = page;
+    if (!open || !host) return;
+    const apply = () => {
+      const entries = Array.from(host.children) as HTMLElement[];
+      entryCount = entries.length;
+      const lastPage = Math.max(0, Math.ceil(entries.length / PAGE_SIZE) - 1);
+      const visiblePage = Math.min(current, lastPage);
+      entries.forEach((entry, index) => {
+        entry.style.display = Math.floor(index / PAGE_SIZE) === visiblePage ? '' : 'none';
+      });
+    };
+    apply();
+    const observer = new MutationObserver(apply);
+    observer.observe(host, { childList: true });
+    return () => observer.disconnect();
+  });
+  async function changePage(delta: number) {
+    page = Math.min(pageCount - 1, Math.max(0, page + delta));
+    await tick();
+    const entries = Array.from(pageHost?.children ?? []) as HTMLElement[];
+    entries[page * PAGE_SIZE]?.querySelector<HTMLElement>('button, a')?.focus({ preventScroll: true });
+  }
+
   function outside(event: PointerEvent) {
     if (open && event.target instanceof Node && !root.contains(event.target))
       open = false;
@@ -123,7 +165,8 @@
       event.target instanceof Element
         ? event.target.closest('button, a')
         : null;
-    if (action && action !== trigger && !action.matches(':disabled')) {
+    // data-keep-menu-open: two-step actions (delete confirmation) stay in the menu.
+    if (action && action !== trigger && !action.matches(':disabled, [data-keep-menu-open]')) {
       open = false;
     }
   }
@@ -159,12 +202,15 @@
 >
   <div class="primary-actions">
     {#if !compactMoreOnly}
+    {#if !reportInMenu}
     <div
       class="report-action"
       class:show-label={containerWidth >= REPORT_LABEL_MIN_WIDTH}
     >
       {@render report()}
     </div>
+    {/if}
+    {#if leadingAction}<div class="leading-action">{@render leadingAction()}</div>{/if}
     {#if hasPriorityAction && priorityAction}
       <div class="priority-action">{@render priorityAction()}</div>
     {:else if hasShare && containerWidth >= SHARE_MIN_WIDTH}<div class="share-action">
@@ -172,7 +218,7 @@
       </div>{/if}
     {@render restoreChat?.()}
     {/if}
-    {#if !compactMoreOnly && overflowCount === 1 && !hasPriorityAction && !forceOverflow}
+    {#if !compactMoreOnly && overflowCount === 1 && !hasPriorityAction && !forceOverflow && !reportInMenu}
       <div class="direct-action">
         {#if hasShare && containerWidth < SHARE_MIN_WIDTH}{@render share()}{/if}
         {#if actionCount === 1}{@render actions()}{/if}
@@ -210,6 +256,7 @@
           style:visibility={compactMoreOnly && !compactMenuPositioned ? 'hidden' : undefined}
           style:--menu-hover-scale={MENU_HOVER_SCALE}
           style:top={`calc(100% + ${MENU_GAP}px)`}
+          data-page={page}
           transition:fly={{
             y: -8,
             duration: window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -218,10 +265,30 @@
               : MENU_DURATION,
           }}
         >
-          {#if compactMoreOnly}{@render report()}{/if}
-          {#if hasShare && (compactMoreOnly || hasPriorityAction || containerWidth < SHARE_MIN_WIDTH)}{@render share()}{/if}
-          {#if compactMoreOnly && hasPriorityAction && priorityAction}{@render priorityAction()}{/if}
-          {@render actions()}
+          {#if page > 0}
+            <button
+              class="page-arrow page-up"
+              data-testid="more-actions-page-up"
+              data-keep-menu-open
+              aria-label={$text('chats.context_menu.previous_options')}
+              onclick={() => changePage(-1)}
+            ><span class="page-triangle" aria-hidden="true"></span></button>
+          {/if}
+          <div class="more-page" bind:this={pageHost}>
+            {#if compactMoreOnly || reportInMenu}{@render report()}{/if}
+            {#if hasShare && (compactMoreOnly || hasPriorityAction || containerWidth < SHARE_MIN_WIDTH)}{@render share()}{/if}
+            {#if compactMoreOnly && hasPriorityAction && priorityAction}{@render priorityAction()}{/if}
+            {@render actions()}
+          </div>
+          {#if page < pageCount - 1}
+            <button
+              class="page-arrow page-down"
+              data-testid="more-actions-page-down"
+              data-keep-menu-open
+              aria-label={$text('chats.context_menu.more_options')}
+              onclick={() => changePage(1)}
+            ><span class="page-triangle" aria-hidden="true"></span></button>
+          {/if}
         </div>
       {/if}
     </div>
@@ -294,6 +361,38 @@
     overflow: visible;
     pointer-events: auto;
   }
+  /* Snippet entries stay direct flex items of the menu column. */
+  .more-page {
+    display: contents;
+  }
+  .page-arrow {
+    all: unset;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 28px;
+    border-radius: var(--radius-full);
+    background-color: var(--color-grey-10);
+    box-shadow: var(--shadow-md);
+    cursor: pointer;
+    pointer-events: auto;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .page-arrow:hover,
+  .page-arrow:focus-visible {
+    background-color: var(--color-grey-20);
+  }
+  .page-triangle {
+    width: 0;
+    height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-top: 8px solid var(--color-primary-start);
+  }
+  .page-up .page-triangle {
+    transform: rotate(180deg);
+  }
   .header-action-menu :global(.header-action) {
     all: unset;
     display: flex;
@@ -314,6 +413,13 @@
     outline: 2px solid var(--color-primary);
     outline-offset: 4px;
     border-radius: 24px;
+  }
+  .header-action-menu :global(.header-action.danger),
+  .header-action-menu :global(.header-action.danger .action-label) {
+    color: #E80000;
+  }
+  .header-action-menu :global(.header-action.danger .clickable-icon) {
+    background: #E80000;
   }
   .header-action-menu :global(.header-action:disabled) {
     opacity: 0.5;

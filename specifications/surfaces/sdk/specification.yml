@@ -27,6 +27,7 @@ scope:
     - Live dev-server SDK smoke coverage that cleans up created resources and revokes temporary API keys.
   excludes:
     - Password, passkey, 2FA, recovery-key, active-session, browser checkout, or Apple login management through SDK API keys.
+    - Password, passkey, imported-session or CLI-login authentication as a public SDK mode; these remain first-party CLI/TUI, web and Apple session authority inside the shared Rust core.
     - CLI terminal UI, self-hosted server operations, local remote-access filesystem bridges, local test-account artifact commands, and newsletter management.
     - UI rendering, DOM interaction, terminal parsing, interactive profile selection, implicit CLI stored-login inheritance, SDK execution through a CLI subprocess, or bypasses of feature-owned REST/WebSocket safety contracts.
     - Backend Rust implementation in this client migration or mandatory replacement of IndexedDB and SwiftData with SQLite or OPFS.
@@ -258,6 +259,10 @@ assertions:
     type: privacy
     must: SDKs may decrypt client-material-wrapped account or grant-scoped resource keys and private resource content only locally in memory, while durable server state and SDK-created persisted payloads remain ciphertext/wrapped-key material, wrapper rows take precedence over stale row-level chat-key fallback, saved-chat recovery persistence is client-encrypted, and public SDK signatures do not require callers to construct encrypted storage fields.
     depends_on: [models.SDKSessionKeyWrapper, models.SDKEncryptedOperation, models.SDKChatSend]
+  - id: sdk.auth.api-key-only
+    type: security
+    must: Public Rust, npm and Python SDK account access authenticates only with an API key the caller supplies or explicitly configures, and is separate from the CLI login. No SDK entrypoint reads CLI state directories, session files, profiles or keychains, and constructing an account client without an API key fails with a typed API-key-required error instead of inheriting a login or falling back to anonymous use. Each API key's own client-material-wrapped account key lets the SDK decrypt chats, messages, embeds and other private content locally in memory, so capabilities offered by password or imported-session login are provided through API-key authentication; such login modes are not public SDK authentication modes, and any capability still missing from the API-key path is tracked open parity work before those modes leave the public surface. The CLI/TUI keeps its own login through the shared Rust core. Explicit anonymous mode remains the only keyless SDK mode.
+    depends_on: [examples.sdk_api_key_only]
   - id: sdk.auth.credential-separation
     type: security
     must: A one-time composite setup credential may be parsed locally, but only its bearer authentication component travels to the backend; that component alone cannot unwrap the account master key or a resource key. Client-only decryption material is distinct and never sent as an authorization header, request field, or server log value.
@@ -309,4 +314,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [sdk_auth, sdk_encryption, sdk_parity, sdk_anonymous, sdk_anonymous_failures, sdk_architecture, client_platforms, client_rollout, web_migration_performance, sdk_distribution]
+  required_groups: [sdk_auth, sdk_api_key_only, sdk_encryption, sdk_parity, sdk_anonymous, sdk_anonymous_failures, sdk_architecture, client_platforms, client_rollout, web_migration_performance, sdk_distribution]

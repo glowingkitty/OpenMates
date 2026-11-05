@@ -81,6 +81,28 @@ class EmbedVersionTransactionService:
     def __init__(self, directus_service: Any) -> None:
         self._directus = directus_service
 
+    async def write_legacy_embed_diff(self, embed_id: str, row: Mapping[str, Any], *, user_id: str) -> dict[str, Any]:
+        """Internal-only history initialization, serialized with atomic edits."""
+        token = os.getenv("INTERNAL_API_SHARED_TOKEN")
+        if not token:
+            raise RuntimeError("INTERNAL_API_SHARED_TOKEN is required for embed transactions")
+        response = await self._directus._make_api_request(
+            "POST", f"{self._directus.base_url.rstrip('/')}/embed-version-transaction/legacy-embed-diff-write",
+            headers={"X-Internal-Service-Token": token},
+            json={"embed_id": embed_id, "actor_user_hash": hashlib.sha256(user_id.encode()).hexdigest(), "row": dict(row)},
+        )
+        body = response.json()
+        if response.status_code != 200:
+            error = body.get("error") if isinstance(body, dict) else None
+            raise EmbedVersionTransactionError(response.status_code,
+                error.get("code", "history_transaction_failed") if isinstance(error, dict) else "history_transaction_failed")
+        result = body.get("data") if isinstance(body, dict) else None
+        if (not isinstance(result, dict) or result.get("embed_id") != embed_id
+                or result.get("version_number") != row.get("version_number")
+                or result.get("canonical_source") != "version_row"):
+            raise RuntimeError("Encrypted history transaction returned malformed success data")
+        return result
+
     async def write_legacy_embed_key(
         self, embed_id: str, wrapper: Mapping[str, Any], *, user_id: str,
     ) -> dict[str, Any]:
@@ -111,6 +133,7 @@ class EmbedVersionTransactionService:
         bundle_context: Mapping[str, Any] | None = None,
         canonical_metadata_enrichment: Mapping[str, Any] | None = None,
         canonical_precondition: CanonicalEmbedPrecondition | None = None,
+        authored_asset_binding: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Persist one client-encrypted embed under the Project revision lock."""
         token = os.getenv("INTERNAL_API_SHARED_TOKEN")
@@ -129,6 +152,8 @@ class EmbedVersionTransactionService:
                    if canonical_metadata_enrichment is not None else {}),
                 **({"canonical_precondition": validate_canonical_precondition(canonical_precondition)}
                    if canonical_precondition is not None else {}),
+                **({"authored_asset_binding": dict(authored_asset_binding)}
+                   if authored_asset_binding is not None else {}),
             },
         )
         try:

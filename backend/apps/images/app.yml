@@ -291,7 +291,10 @@ skills:
       expose_post: false
     preprocessor_hint: >
       Search for images by text description using query. Use when the user asks to
-      find images by topic or visual description. Reverse image search is unavailable.
+      find images, or when appearance, identification, places, or visual comparison
+      would materially improve the answer. Reuse suitable supplied or recent images
+      first; skip decorative searches for abstract or data-only answers. Creating or
+      editing an image uses the generation skills instead. Reverse image search is unavailable.
     class_path: |
       backend.apps.images.skills.search_skill.SearchSkill
     providers:

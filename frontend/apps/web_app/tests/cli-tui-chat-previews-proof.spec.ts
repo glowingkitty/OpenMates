@@ -21,7 +21,7 @@ type ChatFixture = {chatId: string; userMessageId: string; assistantMessageId: s
 	messages: [Record<string, unknown>,Record<string, unknown>]};
 
 function sdk(apiUrl: string, home: string, cli: string, program: string, input: unknown = {}): any {
-	const modulePath = path.join(path.dirname(cli), 'index.js');
+	const modulePath = path.join(path.dirname(cli), 'cli-internal-client.js');
 	const source = `
 		const {pathToFileURL}=require('node:url');
 		const {randomUUID,randomBytes,createHash,webcrypto}=require('node:crypto');

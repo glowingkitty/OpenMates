@@ -30,8 +30,8 @@ model_aliases:
     model_id: gpt-6-astra
     icon: crown
   - id: fast
-    # Hardcoded: Qwen 3 256b via Cerebras — the fastest inference available
-    model_id: qwen3-235b-a22b-2507
+    # Hardcoded: Mercury 3 (Inception diffusion LLM) — the fastest model in the catalog
+    model_id: mercury-3
     icon: lightning
 
 skills:
@@ -402,6 +402,7 @@ skills:
       always_include_skills:
         - web-search
         - images-search
+        - videos-search
 
 marketing_discovery:
   skills:
@@ -416,3 +417,16 @@ marketing_discovery:
         - users need practical AI workflows
       demo_angles:
         - show OpenMates routing a task to useful app skills
+
+# Presentation-only carrier for assistant-authored ordinary result records.
+embed_types:
+  - id: authored_results
+    category: direct
+    frontend_type: ai-authored-results
+    backend_type: authored_results
+    groupable: false
+    preview_component: AuthoredResultsEmbedPreview.svelte
+    fullscreen_component: AuthoredResultsEmbedFullscreen.svelte
+    icon: ai
+    gradient_var: "--color-app-ai"
+    i18n_namespace: embeds.authoring

@@ -25,7 +25,7 @@ scope:
     - Server-authored lifecycle Activity entries for successful Task creation and status transitions, independent of the client or assignee that initiated the mutation.
     - Typed external-chat contexts whose private identifiers and display titles remain client-encrypted while provider and keyed lookup metadata remain server-visible.
     - Explicit Codex connection, read-only thread status and user-invoked interactive resume through the installed runtime; an opt-in foreground adapter may continue an already linked, eligible chat after a dependency or CI event without spawning another chat.
-    - Codex is the supported external assignment and external-chat provider.
+    - Codex is the supported external assignment provider. Codex threads and Claude Code sessions are the supported external-chat providers; a Claude Code link is conversation context only and never an assignee identity, creator attribution, connection, or resume target.
     - Codex creator eligibility derives only from owner-scoped creation receipts after an explicit first-party CLI creator declaration and paired-session authentication; assignment or relinking never grants it.
     - Safe blocked reason codes plus client-encrypted user-facing blocker explanations.
     - Flat Tasks with optional dependency links and Plan phase grouping; no recursive child Task ownership.
@@ -64,7 +64,7 @@ models:
     due_at: {type: timestamp_or_null, nullable: true}
     primary_chat_id: {type: chat_id_or_null, nullable: true}
     hashed_primary_chat_id: {type: hashed_id_or_null, nullable: true}
-    external_chat_provider: {type: enum_or_null, values: [codex], nullable: true, constraints: {allowlisted: true}}
+    external_chat_provider: {type: enum_or_null, values: [codex, claude], nullable: true, constraints: {allowlisted: true}}
     external_chat_lookup_hash: {type: blind_index_or_null, nullable: true, constraints: {computed_client_side: true, raw_external_id_recoverable: false}}
     encrypted_external_chat_id: {type: client_ciphertext_or_null, nullable: true, constraints: {plaintext_external_id_backend_storage: forbidden}}
     encrypted_external_chat_title: {type: client_ciphertext_or_null, nullable: true}
@@ -108,7 +108,7 @@ models:
     display_name: {type: safe_display_name, values: [OpenMates, Codex], required: true, constraints: {client_supplied_override: forbidden}}
 
   TaskExternalChatContext:
-    provider: {type: enum, values: [codex], required: true}
+    provider: {type: enum, values: [codex, claude], required: true}
     lookup_hash: {type: blind_index, required: true, constraints: {domain_separated: true, owner_scoped: true}}
     encrypted_external_id: {type: client_ciphertext, required: true}
     encrypted_display_title: {type: client_ciphertext_or_null, nullable: true}
@@ -203,8 +203,8 @@ assertions:
     depends_on: [models.TaskLifecycleState, examples.task_blocked_reason]
   - id: tasks.external-chat.encrypted-context
     type: security
-    must: A Task may belong to either one native OpenMates primary Chat or one allowlisted external Chat context; external provider is safe metadata, external id and title remain client-encrypted, equality filtering uses a domain-separated owner-scoped blind index, and synthetic native Chat ids or keys are forbidden.
-    depends_on: [models.TaskRecord, models.TaskExternalChatContext, examples.task_external_chat_context]
+    must: A Task may belong to either one native OpenMates primary Chat or one allowlisted external Chat context; external provider is safe metadata, Claude Code session ids are UUIDs, external id and title remain client-encrypted, equality filtering uses a domain-separated owner-scoped blind index, and synthetic native Chat ids or keys are forbidden.
+    depends_on: [models.TaskRecord, models.TaskExternalChatContext]
   - id: tasks.structure.flat-dependencies
     type: invariant
     must: Tasks are flat independently addressable records; ordering and acyclic blocked-by links express execution relationships, while recursive subtasks and Plan-owned duplicate task status are forbidden.
@@ -275,13 +275,13 @@ assertions:
     depends_on: [models.TaskDependency, examples.task_dependencies]
   - id: tasks.surface.semantic-parity
     type: parity
-    must: REST, CLI, SDK, and web preserve encrypted content, native/external Chat context, encrypted blocked explanations, named assignment identities, lifecycle, Activity comments and system entries, tombstones, Plan/Check/Project links, version conflicts, workflow projections, and visible failures wherever Task operations are exposed.
-    depends_on: [models, examples, applies_to]
+    must: REST, CLI, SDK, and web preserve encrypted content, native/external Chat context for every allowlisted provider, encrypted blocked explanations, named assignment identities, lifecycle, Activity comments and system entries, tombstones, Plan/Check/Project links, version conflicts, workflow projections, and visible failures wherever Task operations are exposed.
+    depends_on: [models, examples.task_surface_provider_parity, applies_to]
 
   - id: tasks.conversation.single-owner-claim
     type: invariant
-    must: Creating and linking a Task is one mutation. Ordinary CLI creation is unlinked; an explicit Codex link targets the calling chat. Native Task tools default to their current chat unless link_to_chat is false. A Task has at most one native or external conversation owner across devices. An existing conversation owner must be explicitly released before another conversation claims the Task; same-owner claims are idempotent and competing claims identify the quoted owner title and Codex chat id, or a native chat id with its OpenMates view command. The CLI checks its actual caller identity; this local workflow check is not cryptographic device attestation.
-    depends_on: [models.TaskRecord, models.TaskExternalChatContext, examples.task_owner_claim]
+    must: Creating and linking a Task is one mutation. Ordinary CLI creation is unlinked; an explicit Codex or Claude Code link targets the calling chat, verified through CODEX_THREAD_ID or CLAUDE_CODE_SESSION_ID. Native Task tools default to their current chat unless link_to_chat is false. A Task has at most one native or external conversation owner across devices. An existing conversation owner must be explicitly released before another conversation claims the Task; same-owner claims are idempotent and competing claims identify the quoted owner title and its Codex chat id or Claude Code session id, or a native chat id with its OpenMates view command. The CLI checks its actual caller identity; this local workflow check is not cryptographic device attestation.
+    depends_on: [models.TaskRecord, models.TaskExternalChatContext]
   - id: tasks.conversation.confirmed-deletion
     type: behavior
     must: Confirmed conversation deletion removes its Task links and execution context while preserving Task records, history and readable non-chat keys. In-progress work returns to Todo, Done remains Done, and independent blockers remain. Archive, offline state and absence from a device listing are not deletion evidence.
@@ -314,7 +314,8 @@ applies_to:
     parity: semantic
     requirements:
       - List, show, create, edit, assign, reorder, depend, block, skip, start, complete, and inspect Task blockers with user, OpenMates, external-AI identity, and unassigned semantics.
-      - Create and filter external-chat Tasks through provider:id input while encrypting the external id locally and sending only safe provider plus blind-index metadata.
+      - Create and filter external-chat Tasks through codex:<thread-uuid> or claude:<session-uuid> input while encrypting the external id locally and sending only safe provider plus blind-index metadata.
+      - Claude Code links are created, claimed, and released only from inside the matching Claude Code session, leave assignment unchanged, and are rejected by connect, connection, and resume.
       - Preserve --reason as the legacy blocked-reason-code alias while supporting explicit --reason-code and encrypted --reason-text input.
       - List, add, and delete Activity comments after local Task-key unlock; Team-created comments use via OpenMates CLI attribution.
       - Trusted Codex commands create external_ai Tasks with the codex identity and post ordinary comment_added Activity entries attributed as Codex.

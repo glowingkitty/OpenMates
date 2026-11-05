@@ -22,7 +22,8 @@
 -->
 
 <script lang="ts">
-  import { onDestroy, tick } from 'svelte';
+  import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from "../../../types/authoredResult";
+  import { getContext, onDestroy, tick } from 'svelte';
   import { get } from 'svelte/store';
   import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
   import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
@@ -81,9 +82,12 @@
     showChatButton = false,
     onShowChat,
   }: Props = $props();
+  const authoredContext = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
+  let isAuthored = $derived(Boolean(authoredContext?.authoring || data?.decodedContent?.authoring));
 
   // Extract fields from data.decodedContent with attrs fallback
   let dc = $derived(data.decodedContent);
+  let authoredChannel = $derived(isAuthored && typeof dc.channel === 'string' ? dc.channel : undefined);
   let attrs = $derived(data.attrs ?? {});
   let url = $derived(typeof dc.url === 'string' ? dc.url : (typeof attrs.url === 'string' ? attrs.url : ''));
   let title = $derived(typeof dc.title === 'string' ? dc.title : (typeof attrs.title === 'string' ? attrs.title : undefined));
@@ -93,13 +97,13 @@
   // Build metadata object from decodedContent
   let metadata: VideoMetadata | undefined = $derived.by(() => {
     // Check if we have enough metadata fields to construct a VideoMetadata object
-    const hasMetadata = dc.channel_name || dc.thumbnail || dc.duration_seconds || dc.view_count;
+    const hasMetadata = dc.channel_name || authoredChannel || dc.thumbnail || dc.duration_seconds || dc.view_count;
     if (!hasMetadata) return undefined;
     return {
       title: typeof dc.title === 'string' ? dc.title : undefined,
       videoId: typeof dc.video_id === 'string' ? dc.video_id : (typeof dc.videoId === 'string' ? dc.videoId : undefined),
       thumbnailUrl: typeof dc.thumbnail === 'string' ? dc.thumbnail : undefined,
-      channelName: typeof dc.channel_name === 'string' ? dc.channel_name : undefined,
+      channelName: typeof dc.channel_name === 'string' ? dc.channel_name : authoredChannel,
       channelId: typeof dc.channel_id === 'string' ? dc.channel_id : undefined,
       channelThumbnail: typeof dc.channel_thumbnail === 'string' ? dc.channel_thumbnail : undefined,
       description: typeof dc.description === 'string' ? dc.description : undefined,
@@ -248,7 +252,7 @@
         if (effectiveVideoId) {
           videoId = effectiveVideoId;
           // Generate thumbnail from video ID (hqdefault always exists, maxresdefault only for HD)
-          rawThumbnailUrl = `https://img.youtube.com/vi/${effectiveVideoId}/maxresdefault.jpg`;
+          if (!isAuthored) rawThumbnailUrl = `https://img.youtube.com/vi/${effectiveVideoId}/maxresdefault.jpg`;
         }
 
         if (!title && !metadata?.title) {
@@ -621,9 +625,10 @@
   {onShowChat}
 >
   {#snippet embedHeaderCta()}
-    <!-- Open on YouTube CTA - always visible in header when URL is available -->
+    <!-- Authored video URLs can point to any admitted source; provider cards
+         retain their existing YouTube-specific action. -->
     {#if url}
-      <EmbedHeaderCtaButton href={url} label={$text('embeds.open_on_youtube')} />
+      <EmbedHeaderCtaButton href={url} label={$text(isAuthored ? 'embeds.image_search.view_source' : 'embeds.open_on_youtube')} testId="video-source" />
     {/if}
   {/snippet}
 
@@ -647,7 +652,7 @@
             onerror={(e) => {
               // Try fallback thumbnail quality (also proxied)
               const img = e.target as HTMLImageElement;
-              if (img.src.includes('maxresdefault')) {
+              if (!isAuthored && img.src.includes('maxresdefault')) {
                 const fallbackRaw = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
                 img.src = proxyImage(fallbackRaw, MAX_WIDTH_VIDEO_FULLSCREEN);
               } else {

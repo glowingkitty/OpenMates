@@ -19,7 +19,7 @@ function extractArrayRecords(value: unknown): Record<string, unknown>[] {
 
 /** Shared route parsing used by the map view, search overview and connection previews. */
   function addRoutePoint(points: MapPathPoint[], lat: number | undefined, lon: number | undefined, label = ''): void {
-    if (lat == null || lon == null) return;
+    if (lat == null || lon == null || Math.abs(lat) > 90 || Math.abs(lon) > 180) return;
     const lastPoint = points[points.length - 1];
     if (lastPoint && lastPoint.lat === lat && lastPoint.lon === lon) {
       if (!lastPoint.label && label) lastPoint.label = label;
@@ -125,12 +125,44 @@ function extractArrayRecords(value: unknown): Record<string, unknown>[] {
         const record = point as Record<string, unknown>;
         const lat = firstNumber(record.lat, record.latitude);
         const lon = firstNumber(record.lon, record.lng, record.longitude);
-        return lat != null && lon != null ? { lat, lon } : null;
+        return lat != null && lon != null && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? { lat, lon } : null;
       })
       .filter((point): point is MapPathPoint => point != null);
   }
 
+/** Explicit GeoJSON coordinates are longitude first; never infer missing points. */
+export function extractResultGeoJsonRoute(content: Record<string, unknown> | null): MapPathPoint[] {
+  const geometry = getNestedRecord(content, 'geometry');
+  if (geometry?.type !== 'LineString' || !Array.isArray(geometry.coordinates)) return [];
+  const points: MapPathPoint[] = [];
+  for (const coordinate of geometry.coordinates) {
+    if (!Array.isArray(coordinate) || coordinate.length < 2) return [];
+    const lon = firstNumber(coordinate[0]);
+    const lat = firstNumber(coordinate[1]);
+    if (lat == null || lon == null || Math.abs(lat) > 90 || Math.abs(lon) > 180) return [];
+    addRoutePoint(points, lat, lon);
+  }
+  return points.length > 1 ? points : [];
+}
+
+/** Authored endpoint/segment joins are schematic unless supplied route geometry exists. */
+export function isResultRouteSchematic(content: Record<string, unknown> | null): boolean {
+  if (extractResultGeoJsonRoute(content).length > 1) return false;
+  if (extractRouteFromFlightTrack(content).length > 1) return false;
+  if ([content?.route_points, content?.route, content?.path, content?.polyline_points].some(Array.isArray)) return false;
+  return extractResultRoute(content).length > 1;
+}
+
+/** Price comparisons require every supplied price to name the same currency. */
+export function compatibleResultPriceCurrency(entries: Array<{ price?: number; currency?: string }>): string | undefined {
+  const priced = entries.filter(entry => entry.price != null);
+  const currency = priced[0]?.currency?.trim().toUpperCase();
+  return currency && priced.every(entry => entry.currency?.trim().toUpperCase() === currency) ? currency : undefined;
+}
+
   export function extractResultRoute(content: Record<string, unknown> | null): MapPathPoint[] {
+    const geometryRoute = extractResultGeoJsonRoute(content);
+    if (geometryRoute.length > 1) return geometryRoute;
     const routeValue = content?.route_points || content?.route || content?.path || content?.polyline_points;
     if (Array.isArray(routeValue)) {
       return routeValue
@@ -140,9 +172,14 @@ function extractArrayRecords(value: unknown): Record<string, unknown>[] {
           const lat = firstNumber(record.lat, record.latitude);
           const lon = firstNumber(record.lon, record.lng, record.longitude);
           const label = firstString(record.label, record.name, record.station, record.city);
-          return lat != null && lon != null ? { lat, lon, ...(label ? { label } : {}) } : null;
+          return lat != null && lon != null && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? { lat, lon, ...(label ? { label } : {}) } : null;
         })
         .filter((point): point is MapPathPoint => point != null);
+    }
+
+    if (getNestedRecord(content, 'authoring')) {
+      const authoredTrack = extractRouteFromFlightTrack(content);
+      if (authoredTrack.length > 1) return authoredTrack;
     }
 
     const structuredTravelRoute = extractRouteFromStructuredTravelLegs(content);
@@ -160,7 +197,7 @@ function extractArrayRecords(value: unknown): Record<string, unknown>[] {
     const originLon = firstNumber(content?.origin_lon, content?.origin_lng, content?.origin_longitude, origin?.lon, origin?.lng, origin?.longitude);
     const destinationLat = firstNumber(content?.destination_lat, content?.destination_latitude, destination?.lat, destination?.latitude);
     const destinationLon = firstNumber(content?.destination_lon, content?.destination_lng, content?.destination_longitude, destination?.lon, destination?.lng, destination?.longitude);
-    if (originLat != null && originLon != null && destinationLat != null && destinationLon != null) {
+    if (originLat != null && originLon != null && destinationLat != null && destinationLon != null && Math.abs(originLat) <= 90 && Math.abs(originLon) <= 180 && Math.abs(destinationLat) <= 90 && Math.abs(destinationLon) <= 180) {
       return [
         { lat: originLat, lon: originLon, ...(firstString(content?.origin_name, content?.origin) ? { label: firstString(content?.origin_name, content?.origin) } : {}) },
         { lat: destinationLat, lon: destinationLon, ...(firstString(content?.destination_name, content?.destination) ? { label: firstString(content?.destination_name, content?.destination) } : {}) },
@@ -172,14 +209,14 @@ function extractArrayRecords(value: unknown): Record<string, unknown>[] {
 
 /** Shared map-view route styling. Changing active refs never refits route geometry. */
 export function buildResultRoutePaths(
-  entries: Array<{ref: string; route?: MapPathPoint[] | null}>,
+  entries: Array<{ref: string; route?: MapPathPoint[] | null; routeSchematic?: boolean}>,
   activeRefs: ReadonlySet<string> = new Set(),
   testId = 'search-result-route-path',
 ): MapRoutePath[] {
   return entries.filter(entry => entry.route && entry.route.length > 1).map(entry => ({
     points: entry.route!, ref: entry.ref, testId,
     color: activeRefs.size === 0 ? 'var(--color-app-travel-start)' : activeRefs.has(entry.ref) ? 'var(--color-app-travel-end)' : 'var(--color-grey-50)',
-    weight: 5, opacity: activeRefs.size > 0 && !activeRefs.has(entry.ref) ? 0.5 : 0.8, dashArray: '10 10',
+    weight: 5, opacity: activeRefs.size > 0 && !activeRefs.has(entry.ref) ? 0.5 : 0.8, dashArray: entry.routeSchematic === false ? undefined : '10 10',
   }));
 }
 
@@ -190,6 +227,7 @@ export interface ResultMapEntry {
   lat?: number | null;
   lon?: number | null;
   route?: MapPathPoint[] | null;
+  routeSchematic?: boolean;
   homeGeometry?: MapMarker | null;
   homeLabel?: string;
 }
@@ -242,6 +280,8 @@ export interface ResultMapEntry {
       if (entry.route && entry.route.length > 1) {
         entry.route.forEach((point, index) => {
           const isEndpoint = index === 0 || index === entry.route!.length - 1;
+          // Track vertices describe geometry, not transit stops.
+          if (!isEndpoint && entry.routeSchematic === false) return;
           addMarker(
             entry,
             point,

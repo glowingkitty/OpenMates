@@ -52,6 +52,26 @@ const glossaryTable = `| Term | Definition |
 | CDN | Content Delivery Network — a geographically distributed network of servers for fast content delivery |
 | SLA | Service Level Agreement — a commitment between a service provider and a client on service quality |`;
 
+/** Price calculation: input rows first, then '=' formula rows (16 × 4). */
+export const priceCalculationTable = `| Item | Value | Unit | Note |
+|---|---|---|---|
+| Material cost | 12 | EUR | per unit |
+| Packaging | 5 | EUR | per unit |
+| Shipping | 12 | EUR | per unit |
+| Direct cost | =SUM(B1:B3) | EUR | sum |
+| Hourly wage | 20 | EUR/h | |
+| Hours | 6 | h | |
+| Overhead | 15 | EUR | |
+| Margin | 0.4 | | 40% |
+| Units | 100 | pcs | |
+| Labour | =B5*B6 | EUR | |
+| Cost per unit | =B4+B10/B9 | EUR | |
+| Total cost | =B4+B10+B7 | EUR | |
+| Price | =ROUND(B12/(1-B8),2) | EUR | |
+| Profit | =B13-B12 | EUR | |
+| Revenue | =B13*B9 | EUR | |
+| Check | =B15-B12*B9 | EUR | |`;
+
 /** Default props — shows a fullscreen sheet/table view */
 const sheetData = (title: string, table: string, rowCount: number, colCount: number) => ({
 	decodedContent: { title, table, row_count: rowCount, col_count: colCount },
@@ -95,6 +115,17 @@ export const variants = {
 	/** 2-column glossary — tests that wide text columns size cleanly */
 	glossary: {
 		data: sheetData('Technical Glossary', glossaryTable, 7, 2),
+		onClose: () => {}
+	},
+
+	/** Saved chat sheet with formulas — the Edit toggle is available. */
+	editableFormulas: {
+		data: {
+			...sheetData('Price calculation', priceCalculationTable, 16, 4),
+			embedData: { encrypted_content: 'preview-encrypted', hashed_message_id: 'preview-message' }
+		},
+		embedId: 'preview-sheet-editable',
+		chatId: 'preview-chat',
 		onClose: () => {}
 	},
 

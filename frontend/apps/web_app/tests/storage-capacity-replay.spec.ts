@@ -187,7 +187,8 @@ test('reuses a completed search member and captures every report text segment', 
 	await page.locator('#settings-menu-toggle').click();
 	await page.locator('[data-testid="settings-menu"].visible').getByRole('menuitem', { name: /report.*issue|issue.*report|problem.*melden/i }).first().click();
 	await expect(page.getByTestId('report-issue-form')).toBeVisible();
-	await expect(page.locator('#share-chat-toggle')).toBeChecked();
+	await expect(page.getByTestId('report-issue-chat-included')).toBeVisible();
+	await expect(page.locator('#share-chat-toggle')).toHaveCount(0);
 	await page.getByTestId('report-issue-title').fill('Synthetic segmented message capture');
 	await page.getByTestId('report-issue-submit').click();
 	await expect(page.getByTestId('report-issue-confirmation')).toBeVisible({ timeout: 30_000 });
@@ -198,12 +199,4 @@ test('reuses a completed search member and captures every report text segment', 
 	}
 	expect(captured.indexOf('Search reuse introduction.')).toBeLessThan(captured.indexOf('Search reuse final answer.'));
 	expect(captured.indexOf('Search reuse final answer.')).toBeLessThan(captured.indexOf('Search reuse closing sentence.'));
-	await page.getByTestId('report-issue-submit-another').click();
-	await page.locator('label[for="share-chat-toggle"]').click();
-	await page.getByTestId('report-issue-title').fill('Synthetic capture opt out');
-	await page.getByTestId('report-issue-submit').click();
-	await expect(page.getByTestId('report-issue-confirmation')).toBeVisible();
-	expect(payloads).toHaveLength(2);
-	expect(payloads[1].last_messages_html).toBeNull();
-	expect(payloads[1].chat_or_embed_url).toBeNull();
 });

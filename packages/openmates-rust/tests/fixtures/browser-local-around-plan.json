@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "source": "maintained ciphertext IDB physical-key around protocol; synthetic public fixtures",
+  "anchorPlan": {
+    "version": 1,
+    "kind": "anchor",
+    "operationId": "11111111-1111-4111-8111-111111111111",
+    "owner": "11111111-1111-4111-8111-111111111111",
+    "chatId": "22222222-2222-4222-8222-222222222222",
+    "maxPacketBytes": 262144,
+    "maxCheckpointRows": 0,
+    "maxPayloadRows": 1,
+    "lower": null,
+    "upper": null,
+    "direction": "next",
+    "anchorMessageId": "2222222222-10000000-0000-4000-8000-000000000011"
+  },
+  "missingAnchorReply": {
+    "version": 1,
+    "kind": "anchor",
+    "operationId": "11111111-1111-4111-8111-111111111111",
+    "databaseVersion": 31,
+    "messages": []
+  },
+  "cases": [
+    {
+      "index": 16,
+      "limit": 20,
+      "before": 9,
+      "after": 10,
+      "expectedIndices": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27
+      ]
+    },
+    {
+      "index": 0,
+      "limit": 20,
+      "before": 9,
+      "after": 10,
+      "expectedIndices": [
+        0,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "index": 31,
+      "limit": 20,
+      "before": 9,
+      "after": 10,
+      "expectedIndices": [
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31
+      ]
+    },
+    {
+      "index": 16,
+      "limit": 11,
+      "before": 5,
+      "after": 5,
+      "expectedIndices": [
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        18,
+        19,
+        20,
+        21,
+        22
+      ]
+    },
+    {
+      "index": 16,
+      "limit": 1,
+      "before": 0,
+      "after": 0,
+      "expectedIndices": [
+        16
+      ]
+    }
+  ],
+  "sourceRanges": {
+    "file": "frontend/packages/ui/src/services/db/messageOperations.ts",
+    "older": "lines 688-691: compression-open lower timestamp; anchor-closed upper timestamp; physical comparator < anchor",
+    "anchor": "lines 658-668 and 705: direct physical primary-key get; chat check; included without compression filter",
+    "newer": "lines 697-700: anchor timestamp-open lower range; comparator > anchor",
+    "belowCutoffNote": "When checkpoint exceeds anchor timestamp, deployed raw IDB range is inverted; empty older leg preserves explicit jump while avoiding the invalid range. Root authorized explicit old anchor access."
+  },
+  "belowCutoffCase": {
+    "index": 2,
+    "limit": 11,
+    "cutoff": 110,
+    "before": 5,
+    "after": 5,
+    "expectedIndices": [
+      2,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "excludedSameTimestampNewerIndex": 3,
+    "hasMoreBefore": false,
+    "hasMoreAfter": true
+  }
+}

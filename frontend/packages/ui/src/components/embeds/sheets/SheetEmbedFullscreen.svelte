@@ -30,7 +30,10 @@
     tableToTSV,
     tableToXlsx,
     colIndexToLetter,
+    type TableCell,
+    setMarkdownTableCell,
   } from './sheetEmbedContent';
+  import { commitEmbedContentRevision } from '../../../services/embedDiffStore';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import { includeOriginalPIIInDraftEmbed, loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
   import { piiVisibilityStore } from '../../../stores/piiVisibilityStore';
@@ -106,8 +109,12 @@
   let dc = $derived(data.decodedContent);
   let attrs = $derived(data.attrs);
   let includedOriginalTableContent = $state<string | null>(null);
+  /** Optimistic content after a local cell edit; cleared once the embed data catches up. */
+  let localTable = $state<string | null>(null);
+  let localVersion = $state<number | null>(null);
   let latestTableContent = $derived(
-      typeof dc.table === 'string' ? dc.table
+      localTable !== null ? localTable
+      : typeof dc.table === 'string' ? dc.table
       : typeof dc.code === 'string' ? dc.code
       : typeof attrs?.code === 'string' ? attrs.code as string
       : ''
@@ -135,7 +142,8 @@
     );
   let focusSheetRange = $derived(data.focusSheetRange ?? null);
   let versionNumber = $derived(
-      typeof dc.version_number === 'number' ? dc.version_number
+      localVersion !== null ? localVersion
+      : typeof dc.version_number === 'number' ? dc.version_number
       : data.embedData?.version_number ?? 1
     );
 
@@ -196,6 +204,100 @@
   let renderTitle = $derived(parsedContent.title);
   let parsedTable = $derived(parsedContent.parsedTable);
   
+  // ── Cell editing (inputs + formulas) ───────────────────────────────
+  // Editing writes raw cell text (numbers or "=formulas") into the markdown
+  // table, re-evaluates the whole grid immediately and persists a new embed
+  // version through embedDiffStore (client-side encrypted).
+  let editMode = $state(false);
+  let activeCell = $state<{ row: number; col: number } | null>(null);
+  let cellDraft = $state('');
+  let persistedTable = '';
+  let persistedVersion = 0;
+  let saveChain: Promise<void> = Promise.resolve();
+  let pendingSaves = $state(0);
+  let isViewingHistory = $derived(includedOriginalTableContent !== null && includedOriginalTableContent !== latestTableContent);
+  let canEdit = $derived(!!embedId && !!chatId && !isDraftEmbed && !hasPII && !isViewingHistory);
+  /** Original (unsorted/unfiltered) data-row index for every row object. */
+  let rowOrigin = $derived(new Map(parsedTable.rows.map((r, i) => [r, i])));
+
+  $effect(() => {
+    const fromData = typeof dc.table === 'string' ? dc.table : typeof dc.code === 'string' ? dc.code : '';
+    if (localTable !== null && fromData === localTable) {
+      localTable = null;
+      localVersion = null;
+    }
+  });
+
+  function startCellEdit(row: number, col: number, cell: TableCell) {
+    if (!editMode || !canEdit) return;
+    activeCell = { row, col };
+    cellDraft = cell.formula ?? cell.content;
+  }
+
+  function toggleEditMode() {
+    if (editMode) commitCellEdit();
+    editMode = !editMode;
+    activeCell = null;
+  }
+
+  function cellInputAction(node: HTMLInputElement) {
+    node.focus();
+    node.select();
+  }
+
+  async function persistEdit(prev: string, next: string) {
+    const baseVersion = persistedVersion || versionNumber;
+    const baseContent = persistedTable || prev;
+    try {
+      const result = await commitEmbedContentRevision(embedId!, next, {
+        currentVersion: baseVersion,
+        currentContent: baseContent,
+        chatId,
+        projectId,
+        teamId,
+        buildRestoredContent: (content, newVersion) => ({
+          ...dc,
+          table: content,
+          ...(typeof dc.code === 'string' ? { code: content } : {}),
+          version_number: newVersion,
+        }),
+      });
+      persistedTable = next;
+      persistedVersion = result.version_number;
+      localVersion = result.version_number;
+    } catch (error) {
+      console.error('[SheetEmbedFullscreen] Failed to save cell edit:', error);
+      notificationStore.error(error instanceof Error ? error.message : String(error));
+      localTable = baseContent;
+      persistedTable = baseContent;
+    }
+  }
+
+  function commitCellEdit() {
+    const cell = activeCell;
+    if (!cell) return;
+    activeCell = null;
+    const prev = tableContent;
+    let next: string;
+    try {
+      next = setMarkdownTableCell(prev, cell.row, cell.col, cellDraft);
+    } catch (error) {
+      notificationStore.error(error instanceof Error ? error.message : String(error));
+      return;
+    }
+    if (next === prev) return;
+    localTable = next;
+    pendingSaves += 1;
+    saveChain = saveChain
+      .then(() => persistEdit(prev, next))
+      .finally(() => { pendingSaves -= 1; });
+  }
+
+  function onCellKeydown(event: KeyboardEvent) {
+    if (event.key === 'Enter') { event.preventDefault(); commitCellEdit(); }
+    else if (event.key === 'Escape') { event.preventDefault(); activeCell = null; }
+  }
+
   // Get actual dimensions
   let actualRowCount = $derived(rowCount > 0 ? rowCount : parsedTable.rowCount);
   let actualColCount = $derived(colCount > 0 ? colCount : parsedTable.colCount);
@@ -291,6 +393,9 @@
       return Math.min(Math.max(chars * 8, 80), 320);
     });
   });
+
+  /** Rendered grid width (cell padding included); sizes the pin cover to the full scrollable width. */
+  let gridWidthPx = $state(0);
 
   // Build status text
   let statusText = $derived.by(() => {
@@ -439,6 +544,12 @@
   showPIIIncludeOriginal={canIncludeOriginalPII}
   onIncludeOriginalPII={includeOriginalPII}
   skipInitialScrollReset={!!focusSheetRange}
+  onEdit={canEdit ? toggleEditMode : undefined}
+  editActive={editMode}
+  editPlacement="share"
+  editTestId="sheet-edit-toggle"
+  editLabel={$text('common.edit')}
+  reportInMore={true}
 >
   {#snippet content()}
     <div class="sheet-fullscreen">
@@ -473,6 +584,16 @@
         </div>
       {/if}
       
+      <!-- Edit toggle lives in the shared top bar (round pen button before Share).
+           The save status overlays the grid corner so it never shifts the table. -->
+      {#if canEdit}
+        {#if pendingSaves > 0}
+          <span class="sheet-edit-status" data-testid="sheet-save-status" data-state="saving" role="status">{$text('common.save')}…</span>
+        {:else}
+          <span class="sheet-edit-status" data-testid="sheet-save-status" data-state="saved" role="status"></span>
+        {/if}
+      {/if}
+
       <!-- Filter action bar — only shown when filter is toggled on -->
       {#if showFilters}
         <div class="filter-bar">
@@ -499,10 +620,13 @@
         </div>
       {/if}
       
-      <!-- Spreadsheet area — scrolls both directions -->
+      <!-- Masks scrolled rows in the band behind the floating top bar, above the pinned header row -->
+      <div class="sheet-pin-cover" style:min-width="{gridWidthPx}px" aria-hidden="true"></div>
+
+      <!-- Spreadsheet area — natural height; the fullscreen content area scrolls it -->
       <div class="spreadsheet-wrapper" bind:this={tableContainerEl}>
         {#if parsedTable.headers.length > 0}
-          <table class="spreadsheet">
+          <table class="spreadsheet" bind:clientWidth={gridWidthPx}>
             <colgroup>
               <!-- Row-number gutter: fixed 40px -->
               <col style="width: 40px; min-width: 40px; max-width: 40px;" />
@@ -557,17 +681,44 @@
               </tr>
             </thead>
             <tbody>
-              {#each displayRows as row, rowIndex}
+              {#each displayRows as row}
+                {@const rowIndex = rowOrigin.get(row) ?? 0}
                 <tr>
                   <td class="row-num">{rowIndex + 1}</td>
                   {#each row as cell, colIndex}
                     {@const linkHtml = replaceInlineLinksInText(cell.content)}
-                    {#if linkHtml}
+                    {#if activeCell && activeCell.row === rowIndex && activeCell.col === colIndex}
+                      <td class="sheet-cell-editing" data-testid="sheet-cell" data-cell={`${colIndexToLetter(colIndex)}${rowIndex + 1}`}>
+                        <input
+                          class="sheet-cell-input"
+                          data-testid="sheet-cell-input"
+                          type="text"
+                          bind:value={cellDraft}
+                          onkeydown={onCellKeydown}
+                          onblur={commitCellEdit}
+                          use:cellInputAction
+                        />
+                      </td>
+                    {:else if editMode && canEdit}
+                      <td
+                        class:sheet-cell-highlight={focusedCells.has(`${rowIndex}:${colIndex}`)}
+                        class:sheet-cell-editable={true}
+                        class:sheet-cell-formula={!!cell.formula}
+                        data-testid="sheet-cell"
+                        data-cell={`${colIndexToLetter(colIndex)}${rowIndex + 1}`}
+                        data-formula={cell.formula ?? undefined}
+                        title={cell.formula ?? undefined}
+                        role="gridcell"
+                        tabindex="0"
+                        onclick={() => startCellEdit(rowIndex, colIndex, cell)}
+                        onkeydown={(e) => { if (e.key === 'Enter') startCellEdit(rowIndex, colIndex, cell); }}
+                      >{cell.content}</td>
+                    {:else if linkHtml}
                       <!-- Cell contains inline links — render as HTML with placeholders -->
                       <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is HTML-escaped via embedLinkUtils.escapeHtml() -->
-                      <td class:sheet-cell-highlight={focusedCells.has(`${rowIndex}:${colIndex}`)}>{@html linkHtml}</td>
+                      <td class:sheet-cell-highlight={focusedCells.has(`${rowIndex}:${colIndex}`)} class:sheet-cell-formula={!!cell.formula} data-testid="sheet-cell" data-cell={`${colIndexToLetter(colIndex)}${rowIndex + 1}`} data-formula={cell.formula ?? undefined} title={cell.formula ?? undefined}>{@html linkHtml}</td>
                     {:else}
-                      <td class:sheet-cell-highlight={focusedCells.has(`${rowIndex}:${colIndex}`)}>{cell.content}</td>
+                      <td class:sheet-cell-highlight={focusedCells.has(`${rowIndex}:${colIndex}`)} class:sheet-cell-formula={!!cell.formula} data-testid="sheet-cell" data-cell={`${colIndexToLetter(colIndex)}${rowIndex + 1}`} data-formula={cell.formula ?? undefined} title={cell.formula ?? undefined} tabindex={cell.formula ? 0 : undefined}>{cell.content}</td>
                     {/if}
                   {/each}
                 </tr>
@@ -620,14 +771,44 @@
      var(--color-grey-20) (dark grey). For the spreadsheet look we match
      the page background colour so the table edge aligns cleanly.
      We target the parent classes via :global() from within this scope. */
+  /* No fixed height and no overflow clipping: the table renders at its natural
+     height and the shared .content-area (header banner + sheet) is the ONE
+     scroll surface, so the banner scrolls away and edit mode keeps the full
+     grid. Pinned header row and gutter column stick to that same scroller. */
   .sheet-fullscreen {
+    position: relative;
     display: flex;
     flex-direction: column;
     width: 100%;
-    height: 100%;
-    overflow: hidden;
+  }
+
+  /* Wide tables scroll horizontally in the same surface (the base content-area
+     clips x). The banner stays pinned to the left edge while scrolling sideways. */
+  :global(.unified-embed-fullscreen-overlay:has(.sheet-fullscreen) .content-area) {
+    overflow-x: auto;
+  }
+  :global(.unified-embed-fullscreen-overlay:has(.sheet-fullscreen) .content-area > .embed-header) {
+    position: sticky;
+    left: 0;
   }
   
+  /* The floating top bar (close, edit, share) overlays the top of the scroll
+     surface, so the pinned header row sticks just below it. The zero-height
+     sticky cover paints the surface colour over that band so scrolled rows never
+     show above the pinned header. At scroll top it sits under the header row. */
+  .sheet-fullscreen {
+    --sheet-pin-top: 64px;
+  }
+  .sheet-pin-cover {
+    position: sticky;
+    top: 0;
+    height: var(--sheet-pin-top);
+    margin-bottom: calc(-1 * var(--sheet-pin-top));
+    flex-shrink: 0;
+    z-index: var(--z-index-raised-2);
+    background: var(--embed-content-background);
+  }
+
   /* Bottom gradient → fade to page background instead of grey */
   :global(.unified-embed-fullscreen-overlay:has(.sheet-fullscreen) .bottom-gradient) {
     background: linear-gradient(to bottom, transparent 0%, var(--color-grey-0) 100%) !important;
@@ -696,6 +877,41 @@
     max-width: 180px;
   }
   
+  .sheet-edit-status {
+    position: absolute;
+    top: var(--spacing-2);
+    right: var(--spacing-6);
+    z-index: var(--z-index-raised-3);
+    pointer-events: none;
+    color: var(--color-font-secondary);
+    font-size: var(--font-size-xxs);
+  }
+  .spreadsheet td.sheet-cell-editable {
+    cursor: cell;
+  }
+  /* Calculated (formula) cells: dark-orange italic value so they stand apart
+     from text and hard-coded numbers. Formula text: title + data-formula. */
+  .spreadsheet tbody td.sheet-cell-formula {
+    color: var(--color-sheet-formula);
+    font-style: italic;
+  }
+  .spreadsheet td.sheet-cell-formula:focus-visible {
+    outline: 2px solid var(--color-primary-start);
+    outline-offset: -2px;
+  }
+  .spreadsheet td.sheet-cell-editing {
+    padding: 0;
+  }
+  .sheet-cell-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: var(--spacing-2) var(--spacing-4);
+    border: 2px solid var(--color-primary-start);
+    background: var(--color-grey-0);
+    color: var(--color-font-primary);
+    font: inherit;
+  }
+
   .filter-input {
     width: 100%;
     padding: var(--spacing-2) var(--spacing-4);
@@ -734,19 +950,26 @@
     background: var(--color-error-light);
   }
   
-  /* ── Spreadsheet wrapper — scrolls both axes ───────────── */
+  /* ── Spreadsheet wrapper — natural height, scrolled by .content-area ── */
   
+  /* The grid starts below the gradient banner, which already clears the
+     floating top bar. No padding-top here: sticky header offsets are measured
+     from the scroll container's padding edge, so a top padding left a band in
+     which scrolled rows showed ABOVE the sticky header rows. */
   .spreadsheet-wrapper {
-    flex: 1;
-    overflow: auto;
-    /* Top padding to clear the floating top-bar buttons (~70px) */
-    padding-top: 70px;
+    margin-top: var(--spacing-8);
   }
   
   /* ── Table: theme-adaptive, thin grid, no rounding ──────── */
   
+  /* Separate (not collapsed) borders: Chromium mis-paints sticky header cells
+     in collapsed-border tables inside an offset scroller — scrolled data rows
+     showed through and above the sticky header. Each cell draws only its
+     right/bottom edge; the outer top/left edges come from the header row and
+     the row-number gutter, so the grid still looks single-lined. */
   .spreadsheet {
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     font-size: var(--font-size-xs);
     line-height: 1.4;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -762,7 +985,9 @@
   /* All cells: thin grey border on every edge */
   .spreadsheet th,
   .spreadsheet td {
-    border: 1px solid var(--color-grey-25);
+    border: 0;
+    border-right: 1px solid var(--color-grey-25);
+    border-bottom: 1px solid var(--color-grey-25);
     padding: var(--spacing-3) var(--spacing-6);
     text-align: left;
     vertical-align: top;
@@ -776,17 +1001,26 @@
   
   /* ── Header rows ─────────────────────────────────────── */
   
+  /* The whole header block (letter row + name row) is ONE sticky unit with an
+     opaque background. Per-cell sticky offsets drifted from the real row
+     heights (gutter filter button, mobile padding) and let scrolled data rows
+     show through the gaps between the two header rows. */
+  .spreadsheet thead {
+    position: sticky;
+    top: var(--sheet-pin-top);
+    z-index: var(--z-index-raised-2);
+    background: var(--color-grey-10);
+  }
+
   .spreadsheet thead th {
     background: var(--color-grey-10);
     font-weight: 600;
     color: var(--color-font-primary);
-    position: sticky;
-    z-index: var(--z-index-raised-2);
   }
   
   /* Column letter row (A, B, C...) — sits at the very top */
   .col-letter-row th {
-    top: 0;
+    border-top: 1px solid var(--color-grey-25);
     border-bottom: 1px solid var(--color-grey-30);
     font-weight: 500;
     font-size: var(--font-size-tiny);
@@ -804,10 +1038,8 @@
     user-select: none;
   }
   
-  /* Data header row — offset below the column-letter row */
+  /* Data header row — directly below the column-letter row */
   .spreadsheet thead tr:nth-child(2) th {
-    /* Height of col-letter row: ~24px (2px padding + 11px font + borders) */
-    top: 25px;
     border-bottom: 2px solid var(--color-grey-30);
   }
   
@@ -862,6 +1094,7 @@
     max-width: 40px;
     padding: var(--spacing-3) var(--spacing-2);
     user-select: none;
+    border-left: 1px solid var(--color-grey-25);
     border-right: 2px solid var(--color-grey-30);
   }
   

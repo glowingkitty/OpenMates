@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "provenance",
+    "capabilities"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "provenance": {
+      "type": "string"
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sdk.wikipedia"
+      ],
+      "properties": {
+        "sdk.wikipedia": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "api_key",
+            "device_id",
+            "vectors"
+          ],
+          "properties": {
+            "api_key": {
+              "const": "sk-api-wikipediaOwnerA.localSetupSuffix"
+            },
+            "device_id": {
+              "const": "synthetic-wikipedia-device"
+            },
+            "vectors": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 32,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "operation",
+                  "query",
+                  "title",
+                  "language",
+                  "limit",
+                  "anonymous",
+                  "steps",
+                  "expected_request_count",
+                  "expected_error",
+                  "expected"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9._:-]+$"
+                  },
+                  "operation": {
+                    "enum": [
+                      "search",
+                      "summary",
+                      "learning",
+                      "article"
+                    ]
+                  },
+                  "query": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "title": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "language": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "python_expected_language": {
+                    "type": "string"
+                  },
+                  "limit": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "anonymous": {
+                    "type": "boolean"
+                  },
+                  "steps": {
+                    "type": "array",
+                    "maxItems": 2,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "operation",
+                        "http_status",
+                        "response",
+                        "expected_title"
+                      ],
+                      "properties": {
+                        "operation": {
+                          "enum": [
+                            "search",
+                            "summary",
+                            "learning"
+                          ]
+                        },
+                        "http_status": {
+                          "type": "integer",
+                          "minimum": 200,
+                          "maximum": 599
+                        },
+                        "response": {},
+                        "expected_title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "expected_request_count": {
+                    "enum": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  "expected_error": {
+                    "enum": [
+                      null,
+                      "authentication",
+                      "forbidden",
+                      "invalid",
+                      "conflict",
+                      "offline",
+                      "protocol"
+                    ]
+                  },
+                  "expected": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
