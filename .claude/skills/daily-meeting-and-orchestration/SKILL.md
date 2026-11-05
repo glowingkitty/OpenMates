@@ -38,7 +38,11 @@ only when an item is ambiguous (e.g. a reminder title matches none or several).
    each addition with the date), replace *Current week's goals* if changed.
    Personal items never go into FOCUS.md. Publish with `sessions.py start --mode
    docs` → edit → `sessions.py deploy --title "docs: focus for <date>"`.
-2. **Reminders** via `scripts/mac_reminders.py`: match titles against
+2. **Reminders** via `scripts/mac_reminders.py`: FIRST run `mac_reminders.py sync` and
+   `mac_reminders.py list` to read the live reminders from the Mac (titles, times and
+   lists may have changed since the briefing; decide from the live state, not the note's
+   titles alone; renamed or already-finished items are reported, not guessed). After the
+   batch, `sync`/`list` again and verify every due and completion. Match titles against
    `mac_reminders.py list` (or `logs/daily-meetings/<date>-context.json` when
    the Mac is offline); build one JSON change list (`complete`, `set-due`,
    `create` with `list`) and run `mac_reminders.py batch --file <json>`. Report

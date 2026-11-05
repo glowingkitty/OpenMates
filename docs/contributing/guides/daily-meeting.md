@@ -72,3 +72,6 @@ ERROR/CRITICAL log messages of the last 24 h per server (ids and numbers masked 
 Data comes from `backend/scripts/debug.py` via `scripts/daily_meeting_health.py`. Only short id,
 title, age and status are kept; contact emails and share links (which carry chat keys) are never
 included. The meeting discusses production reports before planning the day's focus.
+
+## Privacy of meeting data
+`logs/` is gitignored: briefings, contexts, decision notes and the reminder caches never enter the repository. Before writing reminders, always sync from the Mac first and work from that live list.
