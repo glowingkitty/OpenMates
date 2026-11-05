@@ -39,7 +39,7 @@ What may be worked on is defined in [`FOCUS.md`](../../../FOCUS.md)
 `scripts/mac_reminders.py` (`sync`, `overview`, `list`, `create`, `complete`,
 `set-due`, `update`, `move`, `batch`) → `apple_remote.py reminders-op` over
 Tailscale SSH → fixed EventKit helper `scripts/_apple_reminders_remote.py` on the
-Mac. Writes only to OpenMates and Personal Tasks; no delete action. EventKit,
+Mac. Writes only to OpenMates and Personal Tasks; delete only on an explicit "delete" decision (irreversible). EventKit,
 not AppleScript: AppleScript lookups scan every reminder and time out. The
 remote command guard (`apple_no_delete_guard.py`) admits only this helper.
 
