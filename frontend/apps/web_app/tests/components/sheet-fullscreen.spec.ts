@@ -120,6 +120,9 @@ for (const width of [390, 1000]) {
     const topBar = page.locator('.embed-top-bar');
     const toggle = topBar.getByTestId('sheet-edit-toggle');
     const wrapper = page.locator('.spreadsheet-wrapper');
+    // The shared content area (banner + sheet) is the ONE scroll surface.
+    const scroller = page.locator('.content-area');
+    const banner = page.locator('.content-area > .embed-header');
     const table = page.locator('table.spreadsheet');
 
     // Round pen button in the header action row; Report Issue lives in More.
@@ -163,40 +166,84 @@ for (const width of [390, 1000]) {
     expect(await table.locator('[data-cell="A4"]').evaluate((el) => getComputedStyle(el).color)).not.toBe(tokenColor);
 
     // Header rows stay pinned to the grid's top edge, before and after scrolling.
+    const scrollTo = (top: 'start' | 'end') => scroller.evaluate((el, where) => {
+      el.scrollTop = where === 'end' ? el.scrollHeight : 0;
+    }, top);
     const assertHeaderOnTop = async (label: string) => {
       const geo = await wrapper.evaluate((el) => {
-        const top = el.getBoundingClientRect().top;
+        const area = document.querySelector('.content-area')!.getBoundingClientRect();
+        // Pinned header sticks below the floating top bar (--sheet-pin-top).
+        const pin = parseFloat(getComputedStyle(document.querySelector('.sheet-fullscreen')!).getPropertyValue('--sheet-pin-top'));
+        const top = Math.max(el.getBoundingClientRect().top, area.top + pin);
         const letter = el.querySelector('.col-letter-row th')!.getBoundingClientRect();
         const header = el.querySelector('thead tr:nth-child(2) th.col-header')!.getBoundingClientRect();
-        // What the user sees just inside the grid's top edge and just above the
-        // name row must be header cells, never a data row scrolled above them.
         const probeX = header.left + header.width / 2;
-        const isHead = (y: number) => !!document.elementFromPoint(probeX, y)?.closest('thead');
-        const headerOnTop = isHead(top + 2) && isHead(header.top + 2);
-        return { delta: Math.round(letter.top - top), stacked: Math.round(header.top - letter.bottom), headerOnTop };
+        const at = (y: number) => document.elementFromPoint(probeX, y);
+        const headerOnTop = !!at(top + 2)?.closest('thead') && !!at(header.top + 2)?.closest('thead');
+        // Nothing but the cover/surface may show in the band above the pinned header.
+        const noRowsAbove = [area.top + 2, top - 3].every((y) => !at(y)?.closest('tbody'));
+        return { delta: Math.round(letter.top - top), stacked: Math.round(header.top - letter.bottom), headerOnTop, noRowsAbove };
       });
       expect(Math.abs(geo.delta), `${label}: letter row at grid top`).toBeLessThanOrEqual(1);
       expect(Math.abs(geo.stacked), `${label}: name row directly below letter row`).toBeLessThanOrEqual(1);
       expect(geo.headerOnTop, `${label}: header cells cover the grid top, no data rows above them`).toBe(true);
+      expect(geo.noRowsAbove, `${label}: scrolled rows never show above the pinned header`).toBe(true);
     };
-    // Paint check (hit-testing alone missed it): the opaque sticky header block
-    // must look identical before and after scrolling, i.e. no data-row pixels
-    // bleed through or above it.
-    const headerPixels = async () => {
-      const box = (await table.locator('thead').boundingBox())!;
-      return page.screenshot({ animations: 'disabled', clip: {
-        x: Math.ceil(box.x), y: Math.ceil(box.y), width: Math.floor(Math.min(box.width, width - box.x)) - 1, height: Math.floor(box.height) - 1 } });
+    // The table keeps its natural height: the wrapper is not an inner scroll
+    // area and the whole grid lives in the single content-area scroll surface.
+    const assertFullHeightSingleScroll = async (label: string) => {
+      const m = await page.evaluate(() => {
+        const wrap = document.querySelector('.spreadsheet-wrapper') as HTMLElement;
+        const tbl = document.querySelector('table.spreadsheet') as HTMLElement;
+        const area = document.querySelector('.content-area') as HTMLElement;
+        const cs = getComputedStyle(wrap);
+        return {
+          overflowY: cs.overflowY,
+          wrapperScrolls: wrap.scrollHeight > wrap.clientHeight + 1,
+          wrapperHeight: Math.round(wrap.getBoundingClientRect().height),
+          tableHeight: Math.round(tbl.getBoundingClientRect().height),
+          areaScrolls: area.scrollHeight > area.clientHeight + 1,
+          areaHeight: area.clientHeight,
+          bannerHeight: Math.round(document.querySelector('.content-area > .embed-header')!.getBoundingClientRect().height),
+        };
+      });
+      expect(m.overflowY, `${label}: wrapper is not an inner scroller`).toBe('visible');
+      expect(m.wrapperScrolls, `${label}: wrapper has no inner scroll`).toBe(false);
+      expect(Math.abs(m.wrapperHeight - m.tableHeight), `${label}: wrapper height equals table height`).toBeLessThanOrEqual(1);
+      // Banner + table must overflow the surface together; an inner grid
+      // viewport (the old bug) would cap the table well below its natural height.
+      expect(m.tableHeight + m.bannerHeight, `${label}: banner and table scroll as one surface`).toBeGreaterThan(m.areaHeight);
+      expect(m.areaScrolls, `${label}: content area scrolls the table`).toBe(true);
     };
+    const assertBannerScrolledAway = async (label: string) => {
+      await scrollTo('start');
+      const topVisible = await banner.evaluate((el) => {
+        const area = document.querySelector('.content-area')!.getBoundingClientRect();
+        const r = el.getBoundingClientRect();
+        return r.bottom > area.top + 1 && r.top < area.bottom;
+      });
+      expect(topVisible, `${label}: banner visible at scroll top`).toBe(true);
+      await scrollTo('end');
+      const away = await banner.evaluate((el) => {
+        const area = document.querySelector('.content-area')!.getBoundingClientRect();
+        return el.getBoundingClientRect().bottom <= area.top + 1;
+      });
+      expect(away, `${label}: banner scrolled out of view`).toBe(true);
+      // Close control is a floating overlay, so it stays reachable while scrolled.
+      await expect(page.getByTestId('embed-minimize'), `${label}: close stays visible`).toBeVisible();
+      const lastRow = table.locator('[data-cell="A16"]');
+      await expect(lastRow, `${label}: last row reachable`).toBeInViewport();
+    };
+    // Short viewport so the banner can scroll fully out of view above the table.
+    await page.setViewportSize({ width, height: 400 });
     await assertHeaderOnTop('view, top');
-    const headerAtTop = await headerPixels();
-    await wrapper.evaluate((el) => { el.scrollTop = el.scrollHeight; });
+    await assertFullHeightSingleScroll('view');
+    await assertBannerScrolledAway('view');
     await assertHeaderOnTop('view, scrolled');
-    expect((await wrapper.evaluate((el) => el.scrollTop)) > 0, 'grid must scroll in this viewport').toBe(true);
-    expect((await headerPixels()).equals(headerAtTop), 'sticky header pixels unchanged after scrolling').toBe(true);
+    expect((await scroller.evaluate((el) => el.scrollTop)) > 0, 'content area must scroll in this viewport').toBe(true);
     await testInfo.attach(`sheet-view-scrolled-${width}`, { body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png' });
-    await wrapper.evaluate((el) => { el.scrollTop = 0; });
+    await scrollTo('start');
 
-    // Edit mode: active pill, formula shown in the input, header still on top.
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-pressed', 'true');
     await expect(pill).toHaveClass(/edit-active/);
@@ -209,8 +256,10 @@ for (const width of [390, 1000]) {
     await testInfo.attach(`sheet-edit-formula-${width}`, { body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png' });
     await input.press('Escape');
     await expect(table.locator('[data-cell="B4"]')).toHaveText('29');
-    await wrapper.evaluate((el) => { el.scrollTop = el.scrollHeight; });
+    await assertFullHeightSingleScroll('edit');
+    await assertBannerScrolledAway('edit');
     await assertHeaderOnTop('edit, scrolled');
+    await testInfo.attach(`sheet-edit-scrolled-${width}`, { body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png' });
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   });
