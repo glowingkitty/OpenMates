@@ -3,8 +3,9 @@
 
 Reads one bounded JSON request from stdin and runs a fixed Swift/EventKit program
 through `/usr/bin/swift -`. Request values reach Swift only as one argv JSON
-string, never by source interpolation. There is deliberately no delete action:
-finishing a reminder means marking it completed. Writes are limited to the lists
+string, never by source interpolation. `delete` removes one reminder by id and is
+irreversible, so callers use it only when the user said "delete"; otherwise finishing a
+reminder means marking it completed. Writes and deletes are limited to the lists
 named in ALLOWED_WRITE_LISTS. (AppleScript/JXA was too slow: one id lookup scans
 every reminder and exceeds two minutes.)
 Docs: docs/contributing/guides/daily-meeting.md
@@ -17,7 +18,7 @@ import subprocess
 import sys
 
 MAX_REQUEST_BYTES = 256 * 1024
-ACTIONS = {"lists", "list", "create", "complete", "set-due", "update", "move", "batch"}
+ACTIONS = {"lists", "list", "create", "complete", "set-due", "update", "move", "delete", "batch"}
 ALLOWED_WRITE_LISTS = ["OpenMates", "Personal Tasks"]
 
 SWIFT = r"""
@@ -136,6 +137,11 @@ func perform(_ req: [String: Any]) throws -> Any {
         if let n = req["notes"] as? String { r.notes = n }
         if let p = req["priority"] as? Int { r.priority = p }
         return try save(r)
+    case "delete":
+        let r = try reminder(req)
+        let gone = describe(r)
+        do { try store.remove(r, commit: true) } catch { throw OpError(code: "delete_failed:\(error.localizedDescription)") }
+        return gone
     case "move":
         let r = try reminder(req)
         let cal = try calendar(named: req["list"] as? String ?? "")

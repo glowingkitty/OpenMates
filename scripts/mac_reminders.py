@@ -3,13 +3,13 @@
 
 Transport: `apple_remote.py reminders-op` (Tailscale SSH) runs the fixed EventKit
 helper `_apple_reminders_remote.py` on the Mac. Reads cover the OpenMates and
-Personal Tasks lists; writes are limited to those lists and never delete
+Personal Tasks lists; writes are limited to those lists and delete only on an explicit "delete" decision
 (finishing a reminder = complete). Apply changes only after the user approved them.
 
   sync                          refresh the local cache (cron every 30 min; Mac often offline)
   overview [--cached]           bucketed snapshot for the meeting (JSON)
   create --list L --title T [--due D] [--notes N]
-  complete|set-due|update|move  single changes by reminder id
+  complete|set-due|update|move|delete  single changes by reminder id
   batch --file changes.json     [{"action": "set-due", "id": ..., "due": ...}, ...]
 
 Due: always a time of day — "YYYY-MM-DD HH:MM" (Berlin) or an ISO instant. A bare
@@ -188,7 +188,7 @@ def main(argv: list[str] | None = None) -> int:
     create.add_argument("--title", required=True)
     create.add_argument("--due", help="'YYYY-MM-DD HH:MM' Berlin time; a time is required")
     create.add_argument("--notes")
-    for name in ("complete", "set-due", "update", "move"):
+    for name in ("complete", "set-due", "update", "move", "delete"):
         cmd = sub.add_parser(name)
         cmd.add_argument("--id", required=True)
         if name == "set-due":

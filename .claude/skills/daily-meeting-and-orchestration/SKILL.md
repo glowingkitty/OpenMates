@@ -48,8 +48,9 @@ only when an item is ambiguous (e.g. a reminder title matches none or several).
    `create` with `list`) and run `mac_reminders.py batch --file <json>`. Report
    failures by title. Mac offline: save the list as
    `logs/daily-meetings/<date>-pending-reminders.json`, tell the user, and apply
-   it when they say the Mac is online. No deletes; writes only to OpenMates and
-   Personal Tasks. A move keeps the reminder's time of day unless the note names one.
+   it when they say the Mac is online. `-> delete` in the note = `mac_reminders.py delete --id` (batch action `delete`;
+   irreversible, only for an explicit delete; anything else is `complete`); writes and
+   deletes only in OpenMates and Personal Tasks. A move keeps the reminder's time of day unless the note names one.
    **Rule: never a date-only reminder.** Every due has a time (`YYYY-MM-DD HH:MM`,
    Berlin); if the note gives only a date, pick a sensible time and report it.
    The tools refuse bare dates; the Mac helper sets due, start and one alarm together.
