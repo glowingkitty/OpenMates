@@ -1,5 +1,5 @@
 // Build-time packaging of the shared Rust core (wasm-bindgen `--target web` output)
-// for the opt-in browser Worker (src/lib/rustCore/production.worker.ts).
+// for the opt-in shared browser Worker (src/lib/rustCore/shared/shared.worker.ts).
 //
 // Inert unless OPENMATES_RUST_CORE_PKG names a package directory: the virtual
 // module then resolves to a stub whose loadBinding() refuses, and nothing in the

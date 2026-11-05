@@ -44,6 +44,8 @@ export interface SharedRustCore {
 	bind(principal: string, signal?: AbortSignal): Promise<number>;
 	/** Ends the current generation; the Worker closes every port opened under it. No-op when unbound. */
 	unbind(signal?: AbortSignal): Promise<void>;
+	/** Loads the realm's single WASM binding ahead of the first `open` (no authority, no generation). */
+	prewarm(signal?: AbortSignal): Promise<void>;
 	/** Current bound generation, null when unbound or after a crash. */
 	readonly generation: number | null;
 	/** Subscribes to crash notifications; returns the unsubscribe function. */
@@ -151,6 +153,9 @@ export function createSharedCoreClient(
 			const ending = generation;
 			await control({ type: 'unbind', generation: ending }, [], signal);
 			if (generation === ending) generation = null;
+		},
+		async prewarm(signal) {
+			await control({ type: 'prewarm' }, [], signal);
 		},
 		onCrash(listener) {
 			crashListeners.add(listener);

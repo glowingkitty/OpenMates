@@ -20,6 +20,7 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { createSignupLogger, createStepScreenshotter, getTestAccount, getE2EDebugUrl, withMockMarker } = require('./signup-flow-helpers');
 const { loginToTestAccount, sendMessage } = require('./helpers/chat-test-helpers');
 const { createBrowserProcessEvidence } = require('./helpers/browser-process-evidence.cjs');
+const { rustCoreInstances } = require('./helpers/rust-core-instances');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -28,7 +29,7 @@ async function rustTransfer(page: any): Promise<Record<string, number>> {
 		const rows: Record<string, number> = { wasmTransfer: 0, wasmDecoded: 0, workerTransfer: 0 };
 		for (const entry of performance.getEntriesByType('resource') as PerformanceResourceTiming[]) {
 			if (entry.name.includes('openmates_browser_bg')) { rows.wasmTransfer += entry.transferSize; rows.wasmDecoded += entry.decodedBodySize; }
-			if (entry.name.includes('production.worker')) rows.workerTransfer += entry.transferSize;
+			if (entry.name.includes('shared.worker')) rows.workerTransfer += entry.transferSize;
 		}
 		const memory = (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory;
 		if (memory) rows.mainHeapBytes = memory.usedJSHeapSize;
@@ -97,6 +98,8 @@ async function openChatAfterReload(page: any, chatId: string, path: 'ts' | 'rust
 	timing.browserCpuMs = process.available ? process.stableReportedProcessCpuMs : null;
 	timing.browserRssBytes = process.available ? process.after.summedReportedProcessRssBytes : null;
 	timing.mainHeapBytes = await page.evaluate(() => (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? null);
+	// Shared-Worker bench counters: dedicated Workers and WASM instantiations of this load.
+	Object.assign(timing, await rustCoreInstances(page));
 	return timing;
 }
 
@@ -165,8 +168,10 @@ test('opens a saved chat in the normal chat UI from Rust-decrypted history', asy
 		log('open timing', { path, ...timing });
 		runs.push({ path, ...timing });
 		expect(timing.chatRendered, `${path} rendered the saved chat after reload`).toBeDefined();
+		expect(timing.wasmMainThreadInstantiations, `${path}: no WASM on the page realm`).toBe(0);
 		if (path === 'ts') {
 			expect(timing.marker, 'TS baseline did not use Rust').toBeNull();
+			expect(timing.sharedWorkerWasm, 'TS baseline instantiated no history WASM').toBe(0);
 			// Bubbles mount before their decrypted content; wait until every content is filled in.
 			await expect.poll(async () => { tsTexts = await renderedTexts(); return tsTexts.length >= 2 && tsTexts.every((text) => text.trim().length > 0); },
 				{ timeout: 20000, message: 'TS rendered the saved message contents' }).toBe(true);
@@ -175,6 +180,10 @@ test('opens a saved chat in the normal chat UI from Rust-decrypted history', asy
 		// 4. The normal UI shows the Rust-decrypted rows.
 		const marker = String(timing.marker);
 		expect(marker, 'Rust supplied the opened chat history').toMatch(/^rust:\d+$/);
+		const workers = timing.workers as { name: string; wasm: number }[];
+		expect(workers.filter((worker) => worker.name === 'shared.worker').length, 'history runs on the one shared Rust core Worker').toBe(1);
+		expect(workers.filter((worker) => worker.name === 'production.worker').length, 'no dedicated history Worker').toBe(0);
+		expect(timing.sharedWorkerWasm, 'one WASM instance serves the Rust history').toBe(1);
 		expect(timing.rustSource, 'Rust rendered the retained IndexedDB rows first (cache-first, like TS)').toBe('cache');
 		const supplied = Number(marker.slice('rust:'.length));
 		expect(supplied).toBeGreaterThanOrEqual(2);
@@ -200,7 +209,8 @@ test('opens a saved chat in the normal chat UI from Rust-decrypted history', asy
 	// vary between ~1.05x and ~1.3x (Worker/WASM readiness is on the critical path).
 	metrics.openToRenderedMs = { runs, tsMedian, rustMedian, rustToTsRatio: tsMedian && rustMedian ? rustMedian / tsMedian : null };
 	metrics.perOpenMedians = Object.fromEntries((['ts', 'rust'] as const).map((path) => [path,
-		{ browserCpuMs: median(path, 'browserCpuMs'), browserRssBytes: median(path, 'browserRssBytes'), mainHeapBytes: median(path, 'mainHeapBytes') }]));
+		{ browserCpuMs: median(path, 'browserCpuMs'), browserRssBytes: median(path, 'browserRssBytes'), mainHeapBytes: median(path, 'mainHeapBytes'),
+			dedicatedWorkers: median(path, 'dedicatedWorkers'), rustWorkers: median(path, 'rustWorkers'), wasmInstantiations: median(path, 'wasmInstantiations'), sharedWorkerWasm: median(path, 'sharedWorkerWasm') }]));
 	metrics.reload = await rustTransfer(page);
 	log('Rust core metrics', metrics);
 	await testInfo.attach('web-rust-core-metrics.json', { body: JSON.stringify(metrics, null, 2), contentType: 'application/json' });

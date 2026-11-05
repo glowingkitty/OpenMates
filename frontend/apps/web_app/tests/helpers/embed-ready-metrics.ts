@@ -28,15 +28,15 @@ async function seedCodeEmbedChat(page: any, log: any, screenshot: any, options: 
 	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
 	const newChatButton = page.getByTestId('new-chat-button');
 	if (await newChatButton.isVisible()) await newChatButton.click();
-	// The flag-on build would otherwise admit the Rust production worker for the TS send.
-	if (options.blockProductionWorker) await page.route('**/production.worker*', (route: any) => route.abort());
+	// The flag-on build would otherwise admit the shared Rust core Worker for the TS send.
+	if (options.blockProductionWorker) await page.route('**/shared.worker*', (route: any) => route.abort());
 	await sendMessage(page, withMockMarker(CODE_PROMPT, 'code_gen_turn1'), log, screenshot, 'seed-code-embed');
 	await expect(page).toHaveURL(/chat-id=[0-9a-f]{8}-/, { timeout: 30000 });
 	const chatId = page.url().match(/chat-id=([0-9a-f-]{36})/)![1];
 	await expect(page.locator('[data-testid="message-assistant"] [data-testid="embed-preview"][data-app-id="code"][data-status="finished"]').first())
 		.toBeVisible({ timeout: 90000 });
 	await expect.poll(() => storedReplies, { timeout: 60000, message: 'server stored the assistant reply with its embed' }).toBeGreaterThanOrEqual(1);
-	if (options.blockProductionWorker) await page.unroute('**/production.worker*');
+	if (options.blockProductionWorker) await page.unroute('**/shared.worker*');
 	log('seeded code embed chat', { chatId });
 	return chatId;
 }

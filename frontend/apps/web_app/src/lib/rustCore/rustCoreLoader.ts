@@ -3,37 +3,44 @@
 // Only reachable from the VITE_OPENMATES_RUST_CORE build (dynamic import); the
 // normal login, sync and IndexedDB storage stay TypeScript-owned.
 import { artifact } from 'virtual:openmates-rust-core-package';
-import workerUrl from './production.worker.ts?worker&url';
 import { BrowserCoreWorkerHost } from '@openmates/ui/src/services/rustCore/workerHost';
+import { createSessionBroker, type CoreLease, type SessionBroker } from '@openmates/ui/src/services/rustCore/host/sessionBroker';
 import { validProductionBootstrap } from './productionBootstrap';
 import type { ProductionBootstrap } from './productionBootstrap';
+import { startSharedRustCore } from './shared/sharedWorkerStart';
 import type { LocalSavedChatSession, ProductionSavedChatSession } from '@openmates/ui/src/services/rustCore/secondDeviceSavedChatSession';
 import type { SavedChatSelection } from '@openmates/ui/src/services/rustCore/selectedSavedChat';
 
 const READY_TIMEOUT_MS = 30_000;
 
-let prewarmed: Worker | null = null;
-function spawnRustCoreWorker(): Worker {
-	return new Worker(new URL(workerUrl, window.location.href), { type: 'module', name: 'openmates-rust-core' });
+// Every Rust core session of this tab is a lease on the one shared Worker (one
+// WASM instance); the broker admits each principal once.
+let broker: SessionBroker | null = null;
+function sessionBroker(): SessionBroker {
+	broker ??= createSessionBroker(startSharedRustCore());
+	return broker;
 }
 
 /**
- * Start the Worker early so its module and WASM load in parallel with page boot.
- * Loading confers nothing: the Worker stays inert until admission posts its
- * bootstrap (principal/session), exactly as for a freshly spawned Worker.
+ * Load the shared Worker's WASM now, in parallel with page boot. Loading confers
+ * nothing: no principal is bound until admission takes its first lease.
  */
 export function prewarmRustCoreWorker(): void {
-	if (prewarmed || typeof window === 'undefined' || !window.isSecureContext || !artifact) return;
-	prewarmed = spawnRustCoreWorker();
+	if (typeof window === 'undefined' || !window.isSecureContext || !artifact) return;
+	void sessionBroker().prewarm().catch(() => undefined);
 }
 
-/** Terminate an unused pre-warmed Worker (page teardown). */
-export function disposePrewarmedRustCoreWorker(): void {
-	prewarmed?.terminate();
-	prewarmed = null;
+/**
+ * The Host drives a Worker; a lease port is that endpoint. Its `terminate()`
+ * releases only this lease (the core unit disposes its dispatcher), never the
+ * shared Worker. Events keep the port itself as their trusted target.
+ */
+function leaseEndpoint(lease: CoreLease): Worker {
+	Object.defineProperty(lease.port, 'terminate', { value: () => lease.close() });
+	return lease.port as unknown as Worker;
 }
 
-/** Start the Worker, load the WASM core and wait for its ready frame. */
+/** Lease a core unit on the shared Worker, post its bootstrap and wait for its ready frame. */
 export async function createRustCoreWorker(input: {
 	apiUrl: string; sessionId: string; expectedPrincipal: string; signal: AbortSignal;
 }): Promise<{ host: BrowserCoreWorkerHost; close(): void }> {
@@ -41,28 +48,31 @@ export async function createRustCoreWorker(input: {
 	const bootstrap: ProductionBootstrap = { version: 1, operation: 'bootstrap_existing_key', artifact: artifact ?? '',
 		apiUrl: input.apiUrl, appOrigin: window.location.origin, sessionId: input.sessionId, expectedPrincipal: input.expectedPrincipal };
 	if (!validProductionBootstrap(bootstrap, window.location.origin, artifact)) throw new Error('rust_core_assets_disabled');
-	// A pre-warmed Worker is single-use; later admissions spawn a fresh one.
-	const worker = prewarmed ?? spawnRustCoreWorker();
-	prewarmed = null;
+	const lease = await sessionBroker().lease(input.expectedPrincipal, { signal: input.signal });
+	const port = lease.port;
 	let host: BrowserCoreWorkerHost | null = null;
 	let closed = false;
 	const close = () => {
 		if (closed) return;
 		closed = true;
 		input.signal.removeEventListener('abort', close);
-		if (host) host.close(); else worker.terminate();
+		stopLost();
+		if (host) host.close(); else lease.close();
 	};
+	// Crash or principal switch: the Host fails its pending requests like a dead Worker.
+	const stopLost = lease.onLost(() => { if (host) host.close('unavailable'); });
 	input.signal.addEventListener('abort', close, { once: true });
 	try {
 		await new Promise<void>((resolve, reject) => {
 			const finish = (error?: Error) => {
 				clearTimeout(timer);
-				worker.removeEventListener('message', receive);
-				worker.removeEventListener('error', fail);
-				worker.removeEventListener('messageerror', fail);
+				port.removeEventListener('message', receive);
+				port.removeEventListener('messageerror', fail);
+				stopFail();
 				if (error) reject(error); else resolve();
 			};
 			const fail = () => finish(new Error('unavailable'));
+			const stopFail = lease.onLost(fail);
 			const receive = (event: MessageEvent<unknown>) => {
 				const data = event.data as { version?: unknown; ready?: unknown; code?: unknown } | null;
 				if (data && data.version === 1 && data.ready === true) finish();
@@ -70,19 +80,46 @@ export async function createRustCoreWorker(input: {
 				else fail();
 			};
 			const timer = setTimeout(fail, READY_TIMEOUT_MS);
-			worker.addEventListener('message', receive);
-			worker.addEventListener('error', fail);
-			worker.addEventListener('messageerror', fail);
-			worker.postMessage(bootstrap);
+			port.addEventListener('message', receive);
+			port.addEventListener('messageerror', fail);
+			port.start();
+			port.postMessage(bootstrap);
 		});
 		if (closed) throw new Error('cancelled');
 		performance.mark('openmates:rust:worker-ready');
-		host = new BrowserCoreWorkerHost(worker, undefined, input.expectedPrincipal);
+		host = new BrowserCoreWorkerHost(leaseEndpoint(lease), undefined, input.expectedPrincipal);
 		return { host, close };
 	} catch (error) {
 		close();
 		throw error;
 	}
+}
+
+type RustCoreWorker = Awaited<ReturnType<typeof createRustCoreWorker>>;
+
+/**
+ * Starts the core lease (bind/open/bootstrap round trips) as soon as the
+ * principal is known, in parallel with admission's profile capture, instead of
+ * after it. Carries no key: admission still restores only after its own checks.
+ * `take` hands it to admission (whose signal then owns it); `discard` releases
+ * an untaken lease when admission failed before asking for its Worker.
+ */
+function earlyRustCoreWorker(input: { apiUrl: string; expectedPrincipal: string }) {
+	const controller = new AbortController();
+	const pending = createRustCoreWorker({ apiUrl: input.apiUrl, sessionId: crypto.randomUUID(),
+		expectedPrincipal: input.expectedPrincipal, signal: controller.signal });
+	// Observed by `take`'s caller; an untaken failure has nothing left to release.
+	pending.catch(() => undefined);
+	let taken = false;
+	return {
+		take(signal: AbortSignal): Promise<RustCoreWorker> {
+			taken = true;
+			if (signal.aborted) controller.abort();
+			else signal.addEventListener('abort', () => controller.abort(), { once: true });
+			return pending;
+		},
+		discard(): void { if (!taken) controller.abort(); }
+	};
 }
 
 type SelectionInput = () => Omit<SavedChatSelection, 'ownerId' | 'teamId' | 'workspaceEpoch'>;
@@ -126,17 +163,18 @@ export async function createRustLocalSession(input: {
 	performance.mark('openmates:rust:admission-modules-ready');
 	const platform = await createBrowserSavedChatPlatform(input.signal, 'local_first');
 	performance.mark('openmates:rust:local-platform-ready');
+	const early = earlyRustCoreWorker({ apiUrl: getApiUrl(), expectedPrincipal: platform.expectedPrincipal });
 	try {
 		const session = await admitLocalSavedChatSession({
 			expectedPrincipal: platform.expectedPrincipal, signal: input.signal, sources: platform.sources,
 			currentSelection: () => platform.selection(input.currentSelection()), lifecycle: browserProfileLifecycle,
 			page: window, createChannel: (name) => new BroadcastChannel(name),
-			createWorker: (signal) => createRustCoreWorker({ apiUrl: getApiUrl(), sessionId: crypto.randomUUID(),
-				expectedPrincipal: platform.expectedPrincipal, signal })
+			createWorker: (signal) => early.take(signal)
 		});
 		session.signal.addEventListener('abort', () => platform.close(), { once: true });
 		return session;
 	} catch (error) {
+		early.discard();
 		platform.close();
 		throw error;
 	}

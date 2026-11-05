@@ -12,7 +12,7 @@ import { localReadToMessageWindow, RustHistoryRefusal, savedReadToMessageWindow 
 import type { MessageWindowResult } from '@openmates/ui/src/services/db/messageOperations';
 import type { LocalSavedChatSession, ProductionSavedChatSession } from '@openmates/ui/src/services/rustCore/secondDeviceSavedChatSession';
 import type { SavedChatReadback, LocalChatReadback } from '@openmates/ui/src/services/rustCore/savedReadProtocol';
-import { createRustCoreWorker, createRustLocalSession, createRustSecondDeviceSession, disposePrewarmedRustCoreWorker, preloadRustAdmissionModules, prewarmRustCoreWorker } from './rustCoreLoader';
+import { createRustCoreWorker, createRustLocalSession, createRustSecondDeviceSession, preloadRustAdmissionModules, prewarmRustCoreWorker } from './rustCoreLoader';
 import { registerRustCoreWorkerFactory } from '@openmates/ui/src/services/rustCore/host/workerFactoryRegistry';
 
 /** Measurement-only opt-out: lets one flag build record the TS baseline. */
@@ -32,8 +32,8 @@ export function installRustChatHistory(): () => void {
 	// Rust-core services in @openmates/ui (drafts) obtain the Worker through this registry.
 	const unregisterWorker = registerRustCoreWorkerFactory(createRustCoreWorker);
 	if (localStorage.getItem(RUST_HISTORY_OPT_OUT_KEY) === 'ts') return unregisterWorker;
-	// Fetch/compile the Worker and WASM now, in parallel with the remaining boot
-	// work; admission later posts its bootstrap to this already-loaded Worker.
+	// Load the shared Worker's single WASM instance now, in parallel with the remaining
+	// boot work; admission later leases a core unit on that already-loaded Worker.
 	markRustStage('history-install');
 	prewarmRustCoreWorker();
 	preloadRustAdmissionModules();
@@ -119,10 +119,13 @@ export function installRustChatHistory(): () => void {
 		markRustStage(session && !session.signal.aborted ? 'read-online-session' : early && !early.signal.aborted ? 'read-local-session' : 'read-no-local-session');
 		if (early && !early.signal.aborted) {
 			const result = await readLocal(early, chatId, anchorMessageId);
-			// Server check on the same Worker (already started at auth-ready); it waits for
-			// the TS check and any in-flight cached read, so the render comes first (TS ordering).
-			void ensureSession().catch(() => undefined);
-			if (result) return result;
+			// Server check (upgrade) on the same Worker, started only now: on a cache hit
+			// one task later, after the rows render, so its page-side IDB checks never
+			// contend with the cached read or the render (TS ordering: cache first).
+			if (result) {
+				setTimeout(() => { if (!lifetime.signal.aborted) void ensureSession().catch(() => undefined); }, 0);
+				return result;
+			}
 		}
 		const owner = await ensureSession();
 		selected = chatId;
@@ -175,10 +178,13 @@ export function installRustChatHistory(): () => void {
 	// for Worker/WASM startup. Failures are logged; the next read retries.
 	const stopAuth = authStore.subscribe((state) => {
 		// TS sets these optimistically from local data before its server check;
-		// the local admission needs no server call, the upgrade waits for that check.
+		// the local admission needs no server call. With a local session the
+		// server-checked upgrade starts from read() right after its cached read, so
+		// its platform/profile IDB checks do not contend with that read on the page.
 		if (state.isAuthenticated && state.isInitialized && !lifetime.signal.aborted) {
-			void ensureLocal().then(() => ensureSession()).catch(() => undefined);
+			void ensureLocal().then((admitted) => admitted && !admitted.signal.aborted ? undefined : ensureSession())
+				.catch(() => undefined);
 		}
 	});
-	return () => { stopAuth(); uninstall(); lifetime.abort(); local?.close(); session?.close(); disposePrewarmedRustCoreWorker(); unregisterWorker(); };
+	return () => { stopAuth(); uninstall(); lifetime.abort(); local?.close(); session?.close(); unregisterWorker(); };
 }

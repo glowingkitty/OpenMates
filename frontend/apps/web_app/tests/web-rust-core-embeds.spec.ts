@@ -18,6 +18,7 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { createSignupLogger, createStepScreenshotter, getTestAccount, getE2EDebugUrl } = require('./signup-flow-helpers');
 const { openFullscreen, closeFullscreen } = require('./helpers/embed-test-helpers');
 const { seedCodeEmbedChat, measureEmbedReady } = require('./helpers/embed-ready-metrics');
+const { rustCoreInstances } = require('./helpers/rust-core-instances');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 /** Measurement-only opt-out of the Rust history source (rustChatHistoryBootstrap.ts). */
@@ -69,6 +70,13 @@ test('Rust core decrypts saved embeds; preview renders and fullscreen opens', as
 			[HISTORY_OPT_OUT_KEY, path === 'ts']);
 		const sample = (await measureEmbedReady(page, chatId, '[data-testid="message-assistant"]', 1) as any).samples[0];
 		expect('rust:history-request' in sample.rustStages, `${path} reload ${path === 'rust' ? 'used' : 'did not use'} Rust history`).toBe(path === 'rust');
+		// Shared-Worker bench counters for this reload.
+		Object.assign(sample, await rustCoreInstances(page));
+		expect(sample.wasmMainThreadInstantiations, `${path}: no WASM on the page realm`).toBe(0);
+		expect(sample.sharedWorkerWasm, `${path}: history WASM instances`).toBe(path === 'rust' ? 1 : 0);
+		const workers = sample.workers as { name: string; wasm: number }[];
+		expect(workers.filter((worker) => worker.name === 'production.worker').length, 'no dedicated history Worker').toBe(0);
+		if (path === 'rust') expect(workers.filter((worker) => worker.name === 'shared.worker').length, 'one shared Rust core Worker').toBe(1);
 		samples[path].push(sample);
 	}
 	await page.evaluate((key: string) => localStorage.removeItem(key), HISTORY_OPT_OUT_KEY);
@@ -76,7 +84,7 @@ test('Rust core decrypts saved embeds; preview renders and fullscreen opens', as
 		const values = rows.map((row) => row[key]).filter((v): v is number => typeof v === 'number').sort((a, b) => a - b);
 		return values.length ? values[Math.floor(values.length / 2)] : null;
 	};
-	const medians = (rows: Record<string, any>[]) => Object.fromEntries(['embedReadyMs', 'assistantRowMs', 'browserCpuMs', 'browserRssBytes', 'mainHeapBytes']
+	const medians = (rows: Record<string, any>[]) => Object.fromEntries(['embedReadyMs', 'assistantRowMs', 'browserCpuMs', 'browserRssBytes', 'mainHeapBytes', 'dedicatedWorkers', 'rustWorkers', 'wasmInstantiations', 'sharedWorkerWasm']
 		.map((key) => [key, median(rows, key)]));
 	const rustReady = median(samples.rust, 'embedReadyMs'), tsReady = median(samples.ts, 'embedReadyMs');
 	// Target: Rust <= 1.1 x TS. Recorded, not yet gated (CI runners measured ~1.1x).

@@ -138,6 +138,32 @@ describe('shared worker router', () => {
 	});
 
 	// contract-test: supporting surface=gui.web assertions=apps.execution.direct-shared-contract
+	it('prewarms the single binding without a generation and passes the bound principal to installers', async () => {
+		const principals: (string | null)[] = [];
+		const { router, replies, loadBinding } = harness({
+			crypto: (context) => { principals.push(context.principal); },
+			core: (context) => { principals.push(context.principal); }
+		});
+		await router.handle({ v: 1, id: 1, type: 'prewarm' }, []);
+		await router.handle({ v: 1, id: 2, type: 'prewarm', extra: 1 }, []);
+		await router.handle({ v: 1, id: 3, type: 'prewarm' }, [port()]);
+		await router.handle({ v: 1, id: 4, type: 'open', ns: 'crypto', generation: null }, [port()]);
+		await router.handle({ v: 1, id: 5, type: 'bind', principal: PRINCIPAL }, []);
+		await router.handle({ v: 1, id: 6, type: 'open', ns: 'core', generation: 1 }, [port()]);
+		expect(replies.slice(0, 3)).toEqual([
+			{ v: 1, id: 1, type: 'ready', generation: null },
+			{ v: 1, id: 2, type: 'refused', code: 'bad_envelope' },
+			{ v: 1, id: 3, type: 'refused', code: 'bad_ports' }
+		]);
+		expect(router.generation).toBe(1);
+		expect(loadBinding).toHaveBeenCalledTimes(1);
+		expect(principals).toEqual([null, PRINCIPAL]);
+		const failing = harness({}, vi.fn(async () => { throw new Error('wasm'); }));
+		await failing.router.handle({ v: 1, id: 1, type: 'prewarm' }, []);
+		expect(failing.last()).toEqual({ v: 1, id: 1, type: 'refused', code: 'binding_unavailable' });
+	});
+
+	// contract-test: supporting surface=gui.web assertions=apps.execution.direct-shared-contract
 	it('validates replies on the page side', () => {
 		expect(parseSharedControlReply({ v: 1, id: 1, type: 'ready', generation: 3 })).toEqual({ v: 1, id: 1, type: 'ready', generation: 3 });
 		expect(parseSharedControlReply({ v: 1, id: 1, type: 'refused', code: 'made_up' })).toBeNull();

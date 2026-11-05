@@ -1,10 +1,11 @@
 /**
  * Control protocol (envelope v1) of the single shared Rust core Worker.
  *
- * The page talks to the Worker over the Worker's own message channel with three
+ * The page talks to the Worker over the Worker's own message channel with four
  * control requests: `bind` (admit one principal, start a new generation),
- * `unbind` (end that generation and close every port it owns) and `open`
- * (attach a MessagePort to one namespace's unit). Every request is answered
+ * `unbind` (end that generation and close every port it owns), `open`
+ * (attach a MessagePort to one namespace's unit) and `prewarm` (load the
+ * realm's single WASM binding early; confers no authority). Every request is answered
  * with `ready` or `refused` carrying a fixed code. Each namespace keeps its own
  * unit protocol on its own port; this router never inspects unit traffic.
  *
@@ -43,7 +44,8 @@ export type SharedRefusalCode = (typeof SHARED_REFUSAL_CODES)[number];
 export type SharedControlRequest =
 	| { v: 1; id: number; type: 'bind'; principal: string }
 	| { v: 1; id: number; type: 'unbind'; generation: number }
-	| { v: 1; id: number; type: 'open'; ns: SharedNamespace; generation: number | null };
+	| { v: 1; id: number; type: 'open'; ns: SharedNamespace; generation: number | null }
+	| { v: 1; id: number; type: 'prewarm' };
 
 export type SharedControlReply =
 	| { v: 1; id: number | null; type: 'ready'; generation: number | null }
@@ -57,6 +59,8 @@ export interface UnitInstallContext {
 	ports: readonly MessagePort[];
 	/** Generation the port belongs to, null for pre-bind namespaces opened unbound. */
 	generation: number | null;
+	/** Principal admitted by `bind` for that generation, null when opened unbound. */
+	principal: string | null;
 	/** Aborted when the generation is unbound; the router also closes the ports. */
 	signal: AbortSignal;
 }
@@ -114,6 +118,10 @@ export function parseSharedControlRequest(value: unknown): Parsed {
 		if (!isSharedNamespace(value.ns)) return refused(id, 'unknown_namespace');
 		return accepted({ v: 1, id, type: 'open', ns: value.ns as SharedNamespace, generation });
 	}
+	if (value.type === 'prewarm') {
+		if (keys !== 'id,type,v') return refused(id, 'bad_envelope');
+		return accepted({ v: 1, id, type: 'prewarm' });
+	}
 	return refused(id, 'bad_envelope');
 }
 
@@ -148,6 +156,7 @@ interface OpenUnit { ports: readonly MessagePort[]; controller: AbortController;
 /** Worker-side router. One instance per Worker realm. */
 export function createSharedWorkerRouter(deps: SharedWorkerRouterDeps): SharedWorkerRouter {
 	let generation: number | null = null;
+	let principal: string | null = null;
 	let nextGeneration = 1;
 	let binding: Promise<unknown> | null = null;
 	const bound: OpenUnit[] = [];
@@ -187,7 +196,8 @@ export function createSharedWorkerRouter(deps: SharedWorkerRouterDeps): SharedWo
 		const controller = new AbortController();
 		let dispose: (() => void) | null;
 		try {
-			const installed = await installer({ binding: loaded, ports, generation: request.generation, signal: controller.signal });
+			const installed = await installer({ binding: loaded, ports, generation: request.generation,
+				principal: request.generation === null ? null : principal, signal: controller.signal });
 			dispose = typeof installed === 'function' ? installed : null;
 		} catch {
 			controller.abort();
@@ -213,15 +223,26 @@ export function createSharedWorkerRouter(deps: SharedWorkerRouterDeps): SharedWo
 			if (!request) return refuse(null, 'bad_envelope', ports);
 			if (request.type === 'open') return open(request, ports);
 			if (ports.length > 0) return refuse(request.id, 'bad_ports', ports);
+			if (request.type === 'prewarm') {
+				binding ??= deps.loadBinding();
+				try {
+					await binding;
+				} catch {
+					return refuse(request.id, 'binding_unavailable', ports);
+				}
+				return deps.reply({ v: 1, id: request.id, type: 'ready', generation: null });
+			}
 			if (request.type === 'bind') {
 				if (generation !== null) return refuse(request.id, 'already_bound', ports);
 				generation = nextGeneration++;
+				principal = request.principal;
 				return deps.reply({ v: 1, id: request.id, type: 'ready', generation });
 			}
 			if (generation === null) return refuse(request.id, 'not_bound', ports);
 			if (request.generation !== generation) return refuse(request.id, 'stale_generation', ports);
 			closeBound();
 			generation = null;
+			principal = null;
 			deps.reply({ v: 1, id: request.id, type: 'ready', generation: null });
 		}
 	};

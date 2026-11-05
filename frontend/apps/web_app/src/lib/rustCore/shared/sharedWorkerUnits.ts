@@ -6,5 +6,8 @@
  * A namespace without an installer is refused as `unit_unavailable`.
  */
 import type { UnitInstallers } from '@openmates/ui/src/services/rustCore/host/sharedWorkerProtocol';
+import { installCoreUnit } from './coreUnit';
 
-export const SHARED_UNIT_INSTALLERS: UnitInstallers = Object.freeze({});
+export const SHARED_UNIT_INSTALLERS: UnitInstallers = Object.freeze({
+	core: installCoreUnit,
+});
