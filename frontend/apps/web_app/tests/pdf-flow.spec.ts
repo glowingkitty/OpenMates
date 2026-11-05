@@ -392,6 +392,7 @@ async function assertAiPdfSkillCard(
 // Main test: PDF upload → AI reads PDF → fullscreen → reload → relogin → delete
 // ---------------------------------------------------------------------------
 
+// contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
 test('pdf: upload, AI reads and answers, embeds persist through reload and relogin', async ({
 	page
 }: {
@@ -700,12 +701,14 @@ test('pdf: upload, AI reads and answers, embeds persist through reload and relog
 		'12-fullscreen-closed-ai'
 	);
 	if (!aiCardOpened) {
-		log(
-			'WARNING: AI skill card fullscreen skipped — the AI could not access the PDF (backend PDF processing may have failed). ' +
-				'The pdf/read skill card rendered correctly but without a resolvable original embed ID.'
-		);
 		await screenshot(page, '11-ai-card-no-fullscreen');
 	}
+	// A card without a resolvable original embed ID means the skill never reached
+	// the uploaded PDF (production regression: "No PDF embed found ... Available: []").
+	expect(
+		aiCardOpened,
+		'AI PDF skill card must resolve the uploaded PDF and open its fullscreen'
+	).toBe(true);
 	saveWarnErrorLogs('pdf', 'after_ai_card_fullscreen');
 
 	// ========================================================================

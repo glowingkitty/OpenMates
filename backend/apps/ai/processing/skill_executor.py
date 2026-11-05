@@ -608,8 +608,16 @@ async def execute_skill_with_multiple_requests(
     # Legacy expansion would wrap the bundle in requests and move private Vault
     # context off the top level, so RunCodeSkill cannot validate or execute it.
     # Names, regions and classes likewise belong to one trademark search.
+    # PDF read/view take one file plus a page list. Splitting the list into one
+    # request per page would also move the server-injected file index and Vault
+    # key off the top level, so the skill could no longer resolve its PDF.
     if should_keep_tasks_create_payload_as_single_request(app_id, skill_id, arguments) or (
-        (app_id, skill_id) in {("business", "search_trademarks"), ("code", "run")}
+        (app_id, skill_id) in {
+            ("business", "search_trademarks"),
+            ("code", "run"),
+            ("pdf", "read"),
+            ("pdf", "view"),
+        }
     ):
         result = await execute_skill(
             app_id, skill_id, arguments, timeout,
@@ -639,7 +647,12 @@ async def execute_skill_with_multiple_requests(
             multiple_requests = multiple_requests[:MAX_PARALLEL_REQUESTS]
         
         # Convert to standard format: {"requests": [...]}
-        standard_arguments = {"requests": multiple_requests}
+        # Server-injected context (file index, Vault key, chat ids) is addressed
+        # to the dispatcher, not to one request, so it stays at the top level.
+        standard_arguments = {
+            "requests": multiple_requests,
+            **{key: value for key, value in arguments.items() if key.startswith("_")},
+        }
         logger.info(f"Executing skill '{app_id}.{skill_id}' with {len(multiple_requests)} requests in a single call (converted from legacy format)")
         # Make ONE call to the skill with all requests
         result = await execute_skill(
