@@ -5,7 +5,7 @@
 //! Unknown coverage remains local/incomplete; no writes or durability ACK occur.
 //! Around performs one physical-key lookup and two independently bounded legs.
 use super::*;
-use crate::client::local_cached_read::{LocalCachedBoundary, wire};
+use crate::client::local_cached_read::{CachedViewMode, LocalCachedBoundary, wire};
 use crate::client::message_window::{MessageWindowDirection, MessageWindowOptions};
 use crate::client::plaintext::Plain;
 use crate::client::saved_chat_read::SavedChatReadOptions;
@@ -96,6 +96,7 @@ impl Client {
         principal: &str,
         chat: &str,
         scope: &sync_capability::AsyncCryptoScope,
+        view: CachedViewMode,
         plan: &Plan<'_>,
         io: &mut F,
     ) -> Result<Plain<Value>>
@@ -104,13 +105,13 @@ impl Client {
         Fut: Future<Output = Result<String>>,
     {
         scope.check_chat(self, chat)?;
-        self.browser_local_read_scope(principal, chat)?;
+        self.browser_cached_view_scope(principal, chat, view)?;
         local_plan_bytes(plan)?;
         let request = serde_json::to_string(plan)?;
         // Own/wipe a successful rich IO string before any post-await refusal.
         let result = io(request).await.map(zeroize::Zeroizing::new);
         scope.check_chat(self, chat)?;
-        self.browser_local_read_scope(principal, chat)?;
+        self.browser_cached_view_scope(principal, chat, view)?;
         let encoded = result?;
         if encoded.len() > plan.max_packet_bytes {
             return Err(Error::Protocol);
@@ -130,6 +131,7 @@ impl Client {
         principal: &str,
         chat: &str,
         admission: &sync_capability::AsyncCryptoScope,
+        view: CachedViewMode,
         plan: &Plan<'_>,
         database_version: u64,
         io: &mut F,
@@ -140,7 +142,7 @@ impl Client {
     {
         let descending = plan.direction == "prev";
         let mut frame = self
-            .local_cursor_io(principal, chat, admission, plan, io)
+            .local_cursor_io(principal, chat, admission, view, plan, io)
             .await?;
         if !closed(
             &frame,
@@ -211,6 +213,7 @@ impl Client {
         principal: &str,
         chat: &str,
         admission: &sync_capability::AsyncCryptoScope,
+        view: CachedViewMode,
         operation_id: &str,
         database_version: u64,
         input: crate::client::local_cached_read::LocalEncryptedWindowInput,
@@ -254,7 +257,7 @@ impl Client {
             anchor_message_id: Some(anchor_id),
         };
         let mut frame = self
-            .local_cursor_io(principal, chat, admission, &plan, io)
+            .local_cursor_io(principal, chat, admission, view, &plan, io)
             .await?;
         if !closed(
             &frame,
@@ -282,7 +285,14 @@ impl Client {
                 compression_boundary_timestamp: None,
             });
             return self
-                .local_cursor_output(principal, chat, admission, input.into_inner(), options)
+                .local_cursor_output(
+                    principal,
+                    chat,
+                    admission,
+                    view,
+                    input.into_inner(),
+                    options,
+                )
                 .await;
         }
         let (time, physical) = wire::position(&normalized[0])?;
@@ -325,7 +335,15 @@ impl Client {
                     anchor_message_id: None,
                 };
                 let (mut rows, exhausted) = self
-                    .local_cursor_rows(principal, chat, admission, &plan, database_version, io)
+                    .local_cursor_rows(
+                        principal,
+                        chat,
+                        admission,
+                        view,
+                        &plan,
+                        database_version,
+                        io,
+                    )
                     .await?;
                 rows.append(&mut input.messages);
                 input.messages = rows.into_inner();
@@ -354,7 +372,15 @@ impl Client {
                 anchor_message_id: None,
             };
             let (mut rows, exhausted) = self
-                .local_cursor_rows(principal, chat, admission, &plan, database_version, io)
+                .local_cursor_rows(
+                    principal,
+                    chat,
+                    admission,
+                    view,
+                    &plan,
+                    database_version,
+                    io,
+                )
                 .await?;
             input.messages.append(&mut rows);
             has_more_after = Some(!exhausted);
@@ -370,12 +396,32 @@ impl Client {
             has_more_after,
             compression_boundary_timestamp: None,
         });
-        self.local_cursor_output(principal, chat, admission, input.into_inner(), options)
-            .await
+        self.local_cursor_output(
+            principal,
+            chat,
+            admission,
+            view,
+            input.into_inner(),
+            options,
+        )
+        .await
     }
-    async fn local_cursor_metadata<F,Fut>(&self,principal:&str,chat:&str,admission:&sync_capability::AsyncCryptoScope,
-        operation_id:&str,io:&mut F)->Result<(Plain<crate::client::local_cached_read::LocalEncryptedWindowInput>,u64)>
-    where F:FnMut(String)->Fut,Fut:Future<Output=Result<String>> {
+    async fn local_cursor_metadata<F, Fut>(
+        &self,
+        principal: &str,
+        chat: &str,
+        admission: &sync_capability::AsyncCryptoScope,
+        view: CachedViewMode,
+        operation_id: &str,
+        io: &mut F,
+    ) -> Result<(
+        Plain<crate::client::local_cached_read::LocalEncryptedWindowInput>,
+        u64,
+    )>
+    where
+        F: FnMut(String) -> Fut,
+        Fut: Future<Output = Result<String>>,
+    {
         let metadata_plan = Plan {
             version: 1,
             kind: "metadata",
@@ -391,7 +437,7 @@ impl Client {
             anchor_message_id: None,
         };
         let mut frame = self
-            .local_cursor_io(principal, chat, admission, &metadata_plan, io)
+            .local_cursor_io(principal, chat, admission, view, &metadata_plan, io)
             .await?;
         if !closed(
             &frame,
@@ -423,51 +469,95 @@ impl Client {
         {
             return Err(Error::Protocol);
         }
-        admission.check_chat(self,chat)?;self.browser_local_read_scope(principal,chat)?;
-        Ok((input,database_version))
+        admission.check_chat(self, chat)?;
+        self.browser_cached_view_scope(principal, chat, view)?;
+        Ok((input, database_version))
     }
     /// One exact retained checkpoint summary. No global PII lookup or history IO.
     /// Uses the same bounded metadata plan and genuine current key capability.
-    pub async fn browser_local_checkpoint_summary_with_io_json<F,Fut>(&self,principal:&str,chat:&str,checkpoint_id:&str,mut io:F)->Result<zeroize::Zeroizing<String>>
-    where F:FnMut(String)->Fut,Fut:Future<Output=Result<String>> {
-        let admission=self.browser_local_read_scope(principal,chat)?;wire::storage_id(checkpoint_id)?;
-        let local_scope=self.local_cached_scope()?;let operation_id=uuid::Uuid::new_v4().to_string();
-        let (input,_)=self.local_cursor_metadata(principal,chat,&admission,&operation_id,&mut io).await?;
-        let wrapping=self.cached_wrapping_capability()?;
-        let key=self.chat_key_with_capability_from(&input.chat_metadata,&wrapping,&input.wrappers).await?;
-        admission.check_chat(self,chat)?;self.browser_local_read_scope(principal,chat)?;
-        let mut output=crate::client::local_cached_read::checkpoint_presentation::project(&input.compression_checkpoints,chat,&key,Some(checkpoint_id),||{
-            admission.check_chat(self,chat)?;self.browser_local_read_scope(principal,chat)?;
-            if self.local_cached_scope()?!=local_scope{return Err(Error::Cancelled);}Ok(())
-        })?;
-        const FRAME_LIMIT:usize=crate::client::local_cached_read::checkpoint_presentation::MAX_PRESENTATION_FRAME_BYTES;
-        if crate::client::monitor::cached_view::bounded_bytes(&output,FRAME_LIMIT).is_none(){output.mark_oversized();}
-        if crate::client::monitor::cached_view::bounded_bytes(&output,FRAME_LIMIT).is_none(){return Err(Error::Protocol);}
-        let encoded=zeroize::Zeroizing::new(serde_json::to_string(&output)?);
-        admission.check_chat(self,chat)?;self.browser_local_read_scope(principal,chat)?;
-        if self.local_cached_scope()?!=local_scope{return Err(Error::Cancelled);}Ok(encoded)
+    pub async fn browser_local_checkpoint_summary_with_io_json<F, Fut>(
+        &self,
+        principal: &str,
+        chat: &str,
+        checkpoint_id: &str,
+        mut io: F,
+    ) -> Result<zeroize::Zeroizing<String>>
+    where
+        F: FnMut(String) -> Fut,
+        Fut: Future<Output = Result<String>>,
+    {
+        let admission = self.browser_local_read_scope(principal, chat)?;
+        wire::storage_id(checkpoint_id)?;
+        let local_scope = self.local_cached_scope()?;
+        let operation_id = uuid::Uuid::new_v4().to_string();
+        let (input, _) = self
+            .local_cursor_metadata(
+                principal,
+                chat,
+                &admission,
+                CachedViewMode::LocalProfile,
+                &operation_id,
+                &mut io,
+            )
+            .await?;
+        let wrapping = self.cached_wrapping_capability()?;
+        let key = self
+            .chat_key_with_capability_from(&input.chat_metadata, &wrapping, &input.wrappers)
+            .await?;
+        admission.check_chat(self, chat)?;
+        self.browser_local_read_scope(principal, chat)?;
+        let mut output = crate::client::local_cached_read::checkpoint_presentation::project(
+            &input.compression_checkpoints,
+            chat,
+            &key,
+            Some(checkpoint_id),
+            || {
+                admission.check_chat(self, chat)?;
+                self.browser_local_read_scope(principal, chat)?;
+                if self.local_cached_scope()? != local_scope {
+                    return Err(Error::Cancelled);
+                }
+                Ok(())
+            },
+        )?;
+        const FRAME_LIMIT: usize =
+            crate::client::local_cached_read::checkpoint_presentation::MAX_PRESENTATION_FRAME_BYTES;
+        if crate::client::monitor::cached_view::bounded_bytes(&output, FRAME_LIMIT).is_none() {
+            output.mark_oversized();
+        }
+        if crate::client::monitor::cached_view::bounded_bytes(&output, FRAME_LIMIT).is_none() {
+            return Err(Error::Protocol);
+        }
+        let encoded = zeroize::Zeroizing::new(serde_json::to_string(&output)?);
+        admission.check_chat(self, chat)?;
+        self.browser_local_read_scope(principal, chat)?;
+        if self.local_cached_scope()? != local_scope {
+            return Err(Error::Cancelled);
+        }
+        Ok(encoded)
     }
     async fn local_cursor_output(
         &self,
         principal: &str,
         chat: &str,
         admission: &sync_capability::AsyncCryptoScope,
+        view: CachedViewMode,
         input: crate::client::local_cached_read::LocalEncryptedWindowInput,
         options: SavedChatReadOptions,
     ) -> Result<zeroize::Zeroizing<String>> {
         admission.check_chat(self, chat)?;
-        self.browser_local_read_scope(principal, chat)?;
+        self.browser_cached_view_scope(principal, chat, view)?;
         let output = self
-            .local_cached_saved_chat_read(chat, options, input)
+            .local_cached_saved_chat_read_in(view, chat, options, input)
             .await?;
         admission.check_chat(self, chat)?;
-        self.browser_local_read_scope(principal, chat)?;
+        self.browser_cached_view_scope(principal, chat, view)?;
         let encoded = zeroize::Zeroizing::new(serde_json::to_string(&output)?);
         if encoded.len() > MAX_PACKET_BYTES {
             return Err(Error::Protocol);
         }
         admission.check_chat(self, chat)?;
-        self.browser_local_read_scope(principal, chat)?;
+        self.browser_cached_view_scope(principal, chat, view)?;
         Ok(encoded)
     }
     /// Bounded existing local-store read. Callback plans contain only selectors;
@@ -478,15 +568,59 @@ impl Client {
         principal: &str,
         chat: &str,
         options: SavedChatReadOptions,
+        io: F,
+    ) -> Result<zeroize::Zeroizing<String>>
+    where
+        F: FnMut(String) -> Fut,
+        Fut: Future<Output = Result<String>>,
+    {
+        self.browser_cached_saved_chat_read_with_io_json(
+            CachedViewMode::LocalProfile,
+            principal,
+            chat,
+            options,
+            io,
+        )
+        .await
+    }
+    /// Same bounded retained read for an ONLINE browser session: renders the
+    /// existing readonly IndexedDB rows before the caller's server reconcile.
+    /// Output stays tagged local/incomplete/not fresh; no write or server IO.
+    pub async fn browser_online_cached_saved_chat_read_with_io_json<F, Fut>(
+        &self,
+        principal: &str,
+        chat: &str,
+        options: SavedChatReadOptions,
+        io: F,
+    ) -> Result<zeroize::Zeroizing<String>>
+    where
+        F: FnMut(String) -> Fut,
+        Fut: Future<Output = Result<String>>,
+    {
+        self.browser_cached_saved_chat_read_with_io_json(
+            CachedViewMode::OnlineCache,
+            principal,
+            chat,
+            options,
+            io,
+        )
+        .await
+    }
+    async fn browser_cached_saved_chat_read_with_io_json<F, Fut>(
+        &self,
+        view: CachedViewMode,
+        principal: &str,
+        chat: &str,
+        options: SavedChatReadOptions,
         mut io: F,
     ) -> Result<zeroize::Zeroizing<String>>
     where
         F: FnMut(String) -> Fut,
         Fut: Future<Output = Result<String>>,
     {
-        let admission = self.browser_local_read_scope(principal, chat)?;
+        let admission = self.browser_cached_view_scope(principal, chat, view)?;
         uuid::Uuid::parse_str(chat).map_err(|_| Error::Invalid("A full chat ID is required."))?;
-        let local_scope = self.local_cached_scope()?;
+        let local_scope = self.local_cached_scope_for(view)?;
         if !(1..=100).contains(&options.limit)
             || !(1..=5).contains(&options.max_pages)
             || usize::from(options.before.is_some())
@@ -516,7 +650,9 @@ impl Client {
         };
         wire::validate_options(&selector, chat, &local_scope)?;
         let operation_id = uuid::Uuid::new_v4().to_string();
-        let (mut input,database_version)=self.local_cursor_metadata(principal,chat,&admission,&operation_id,&mut io).await?;
+        let (mut input, database_version) = self
+            .local_cursor_metadata(principal, chat, &admission, view, &operation_id, &mut io)
+            .await?;
         let timestamp = wire::compression_timestamp(&input.compression_checkpoints, chat)?;
         let compression = if options.respect_compression_boundary {
             timestamp
@@ -529,6 +665,7 @@ impl Client {
                     principal,
                     chat,
                     &admission,
+                    view,
                     &operation_id,
                     database_version,
                     input.into_inner(),
@@ -570,7 +707,14 @@ impl Client {
                 compression_boundary_timestamp: None,
             });
             return self
-                .local_cursor_output(principal, chat, &admission, input.into_inner(), options)
+                .local_cursor_output(
+                    principal,
+                    chat,
+                    &admission,
+                    view,
+                    input.into_inner(),
+                    options,
+                )
                 .await;
         }
         let metadata_bytes =
@@ -601,13 +745,14 @@ impl Client {
                 principal,
                 chat,
                 &admission,
+                view,
                 &rows_plan,
                 database_version,
                 &mut io,
             )
             .await?;
         admission.check_chat(self, chat)?;
-        self.browser_local_read_scope(principal, chat)?;
+        self.browser_cached_view_scope(principal, chat, view)?;
         input.messages = rows.into_inner();
         input.boundary = Some(LocalCachedBoundary {
             has_more_before: if descending { Some(!exhausted) } else { None },
@@ -620,8 +765,15 @@ impl Client {
             },
             compression_boundary_timestamp: None,
         });
-        self.local_cursor_output(principal, chat, &admission, input.into_inner(), options)
-            .await
+        self.local_cursor_output(
+            principal,
+            chat,
+            &admission,
+            view,
+            input.into_inner(),
+            options,
+        )
+        .await
     }
 }
 #[cfg(test)]

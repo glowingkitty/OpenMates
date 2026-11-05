@@ -45,6 +45,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { chatNavigationReader } from '../services/chatNavigationReader';
     import { initialChatHistoryGate } from '../services/initialChatHistoryGate';
     import { fetchAuthenticatedChatMessageWindow } from '../services/authenticatedChatMessageWindow';
+    import { readRustChatHistoryWindow } from '../services/rustCore/activeChatRustHistory';
     import { getWorkspaceCacheEpoch } from '../services/workspaceCacheLifecycle';
     import { VisibleMessageReceipts } from '../services/visibleMessageReceipts';
     import { hasRoomForLargeContinueCards } from '../utils/continueCardLayout';
@@ -10209,6 +10210,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
      // Update the loadChat function
      export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean; autoplayVideo?: boolean; messageId?: string | null; preserveActiveComposer?: boolean; recentCacheRetries?: number }) {
+         // Fixed-name open-to-rendered breakdown mark (Rust-core builds only; no content).
+         if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') performance.mark('openmates:rust:load-chat');
          if (options?.preserveActiveComposer && isPersistedDraftOnlyChat(chat)) {
              // A late autosave can finish after dismissal. It may adopt the
              // current editor, but cannot reopen a draft the user just parked.
@@ -10827,10 +10830,23 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             } else {
                 // For authenticated users, load messages from IndexedDB
                 // Handle case where database might be unavailable (e.g., during logout/deletion)
+                // Opt-in Rust core (VITE_OPENMATES_RUST_CORE): Rust owns this read unless it refuses.
+                let rustOwnedHistory = false;
                 try {
+                    if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') performance.mark('openmates:rust:history-load');
                     currentCompressionCheckpoints = await loadCompressionCheckpointsForChat(currentChat.chat_id);
                     const latestCheckpoint = [...currentCompressionCheckpoints].sort((a, b) => b.created_at - a.created_at)[0];
-                    let windowResult = await chatDB.getMessageWindowForChat(currentChat.chat_id, {
+                    // Default builds fold this to null: no await, the TS path is unchanged.
+                    const rustRead = import.meta.env.VITE_OPENMATES_RUST_CORE !== '1' ? null : await readRustChatHistoryWindow(currentChat, { anchorMessageId: options?.messageId ?? null,
+                        activeTeamId: get(activeTeamId), localInitialPending: initialChatHistoryGate.pending(currentChat.chat_id) })
+                        .catch((rustError: unknown) => { rustOwnedHistory = true; messageLoadFailed = true; throw rustError; });
+                    rustOwnedHistory ||= !!rustRead;
+                    const rustWindow = rustRead?.window ?? null;
+                    // A Rust cache-first page reconciles exactly like the TS IndexedDB window,
+                    // with the Rust server read as the background repair.
+                    const rustReconcile = rustRead?.reconcile ?? null;
+                    const reconcilesLikeLocal = !rustOwnedHistory || !!rustReconcile;
+                    let windowResult = rustWindow ?? await chatDB.getMessageWindowForChat(currentChat.chat_id, {
                         direction: options?.messageId ? 'around' : 'latest',
                         anchorMessageId: options?.messageId ?? undefined,
                         compressedUpToTimestamp: latestCheckpoint && !options?.messageId
@@ -10846,14 +10862,14 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                             MESSAGE_WINDOW_LIMIT,
                         )
                         : 0;
-                    const latestWindowIsShort = !options?.messageId &&
+                    const latestWindowIsShort = reconcilesLikeLocal && !options?.messageId &&
                         expectedLatestMessages > windowResult.messages.length;
-                    const latestWindowMayBePartial = !options?.messageId &&
+                    const latestWindowMayBePartial = reconcilesLikeLocal && !options?.messageId &&
                         windowResult.messages.length > 0 &&
                         !windowResult.hasMoreBefore &&
                         windowResult.messages.length < MESSAGE_WINDOW_LIMIT;
-                    const localWindowCannotRenderTarget = windowResult.messages.length === 0 ||
-                        (options?.messageId && !windowResult.anchorFound);
+                    const localWindowCannotRenderTarget = !rustOwnedHistory && (windowResult.messages.length === 0 ||
+                        (options?.messageId && !windowResult.anchorFound));
                     if (localWindowCannotRenderTarget) {
                         try {
                             windowResult = await fetchAuthenticatedMessageWindow(currentChat.chat_id, {
@@ -10870,13 +10886,13 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     } else if (latestWindowIsShort || latestWindowMayBePartial) {
                         const repairChatId = currentChat.chat_id;
                         const existingRepair = backgroundMessageWindowRepairs.get(repairChatId);
-                        const repairRequest = existingRepair ?? fetchAuthenticatedMessageWindow(repairChatId, {
+                        const repairRequest = existingRepair ?? (rustReconcile ? rustReconcile() : fetchAuthenticatedMessageWindow(repairChatId, {
                                 direction: options?.messageId ? 'around' : 'latest',
                                 anchorMessageId: options?.messageId ?? undefined,
                                 compressedUpToTimestamp: latestCheckpoint && !options?.messageId
                                     ? latestCheckpoint.compressed_up_to_timestamp
                                     : undefined,
-                            }).catch((windowError) => {
+                            })).catch((windowError) => {
                             console.warn(`[ActiveChat] Background bounded server message window failed for ${repairChatId}:`, windowError);
                             return null;
                         });
@@ -10905,7 +10921,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 // The server response (chat_content_batch_response) saves messages to IndexedDB
                 // and dispatches chatUpdated with messagesUpdated=true, which triggers
                 // handleChatUpdated to reload messages from IDB into the view.
-                if (newMessages.length === 0 && currentChat.chat_id && !isPublicChat(currentChat.chat_id)
+                if (!rustOwnedHistory && newMessages.length === 0 && currentChat.chat_id && !isPublicChat(currentChat.chat_id)
                     && !initialChatHistoryGate.pending(currentChat.chat_id)) {
                     const onDemandChatId = currentChat.chat_id;
                     const shouldAwaitOnDemandMessages =

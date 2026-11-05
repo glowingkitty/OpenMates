@@ -96,14 +96,34 @@ fn local_cursor(row: Option<&Value>, id: &str, scope: &str) -> Result<Option<Mes
     })
     .transpose()
 }
+/// Which admitted session reads retained rows: the offline local profile, or
+/// an online browser session rendering its own cache before server reconcile.
+/// Output provenance stays `local_profile` (retained, incomplete) in both modes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CachedViewMode {
+    LocalProfile,
+    OnlineCache,
+}
 impl Client {
+    pub(super) fn cached_view_admitted(&self, view: CachedViewMode) -> bool {
+        match view {
+            CachedViewMode::LocalProfile => self.is_local_browser_profile(),
+            CachedViewMode::OnlineCache => self.is_online_browser_cache_profile(),
+        }
+    }
     pub(super) fn local_cached_scope(&self) -> Result<String> {
+        self.local_cached_scope_for(CachedViewMode::LocalProfile)
+    }
+    pub(super) fn local_cached_scope_for(&self, view: CachedViewMode) -> Result<String> {
         self.require_credentials()?;
-        if !self.is_local_browser_profile() {
+        if !self.cached_view_admitted(view) {
             return Err(Error::Forbidden);
         }
         Ok(sha256(&serde_json::to_string(&(
-            "local_profile",
+            match view {
+                CachedViewMode::LocalProfile => "local_profile",
+                CachedViewMode::OnlineCache => "online_cache",
+            },
             &self.message_window_nonce,
             self.generation,
             self.team()?,
@@ -116,13 +136,30 @@ impl Client {
         input: LocalEncryptedWindowInput,
     ) -> Result<LocalCachedWindow> {
         let result = self
-            .local_cached_page(id, options, input, SavedChatContentMode::PageLocal, false)
+            .local_cached_page(
+                id,
+                options,
+                input,
+                SavedChatContentMode::PageLocal,
+                false,
+                CachedViewMode::LocalProfile,
+            )
             .await?;
         // Retained local models stay Drop-wiped until their final owned move.
         Ok(result.into_window())
     }
     pub(super) async fn local_cached_saved_chat_read(
         &self,
+        id: &str,
+        options: SavedChatReadOptions,
+        input: LocalEncryptedWindowInput,
+    ) -> Result<LocalCachedSavedRead> {
+        self.local_cached_saved_chat_read_in(CachedViewMode::LocalProfile, id, options, input)
+            .await
+    }
+    pub(super) async fn local_cached_saved_chat_read_in(
+        &self,
+        view: CachedViewMode,
         id: &str,
         options: SavedChatReadOptions,
         input: LocalEncryptedWindowInput,
@@ -153,7 +190,7 @@ impl Client {
             respect_compression_boundary: options.respect_compression_boundary,
         };
         let result = self
-            .local_cached_page(id, selector, input, options.content_mode, true)
+            .local_cached_page(id, selector, input, options.content_mode, true, view)
             .await?;
         let mut output = result.into_saved(options.content_mode);
         const FRAME_LIMIT:usize=checkpoint_presentation::MAX_PRESENTATION_FRAME_BYTES;
@@ -176,6 +213,7 @@ impl Client {
         input: LocalEncryptedWindowInput,
         mode: SavedChatContentMode,
         include_checkpoints: bool,
+        view: CachedViewMode,
     ) -> Result<LocalPage> {
         let mut input = Plain::new(input);
         if crate::client::monitor::cached_view::bounded_bytes(
@@ -186,7 +224,7 @@ impl Client {
         {
             return Err(Error::Protocol);
         }
-        let scope = self.local_cached_scope()?;
+        let scope = self.local_cached_scope_for(view)?;
         let admission = AsyncCryptoScope::begin(self)?;
         admission.check_chat(self, id)?;
         uuid::Uuid::parse_str(id).map_err(|_| Error::Invalid("A full chat ID is required."))?;
@@ -224,12 +262,26 @@ impl Client {
             .chat_key_with_capability_from(&input.chat_metadata, &wrapping, &input.wrappers)
             .await?;
         admission.check_chat(self, id)?;
-        if self.local_cached_scope()? != scope {
+        if self.local_cached_scope_for(view)? != scope {
             return Err(Error::Cancelled);
         }
-        let checkpoint_presentation=if include_checkpoints{Some(checkpoint_presentation::project(&input.compression_checkpoints,id,&key,None,||{
-            admission.check_chat(self,id)?;if self.local_cached_scope()?!=scope{return Err(Error::Cancelled);}Ok(())
-        })?)}else{None};
+        let checkpoint_presentation = if include_checkpoints {
+            Some(checkpoint_presentation::project(
+                &input.compression_checkpoints,
+                id,
+                &key,
+                None,
+                || {
+                    admission.check_chat(self, id)?;
+                    if self.local_cached_scope_for(view)? != scope {
+                        return Err(Error::Cancelled);
+                    }
+                    Ok(())
+                },
+            )?)
+        } else {
+            None
+        };
         let boundary = input.boundary.take();
         if boundary
             .as_ref()
@@ -450,7 +502,7 @@ impl Client {
             return Err(Error::Protocol);
         }
         admission.check_chat(self, id)?;
-        if self.local_cached_scope()? != scope {
+        if self.local_cached_scope_for(view)? != scope {
             return Err(Error::Cancelled);
         }
         // This is one local retained page, not network pages or a full census.

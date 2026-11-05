@@ -76,6 +76,7 @@ export interface RustClient extends SendClient {
   reconnect_chat(handle: string, generation: number, chatId: string): Promise<unknown>;
   read_local_chat?(handle:string,generation:number,expectedPrincipal:string,chatId:string,encryptedRows:string,saved:boolean):Promise<string>;
   read_local_saved_chat_cursor?(handle:string,generation:number,expectedPrincipal:string,chatId:string,selector:string,hostEffect:(plan:string)=>Promise<string>):Promise<string>;
+  read_online_cached_saved_chat?(handle:string,generation:number,expectedPrincipal:string,chatId:string,selector:string,hostEffect:(plan:string)=>Promise<string>):Promise<string>;
   read_local_checkpoint_summary?(handle:string,generation:number,principal:string,chatId:string,checkpointId:string,hostEffect:(plan:string)=>Promise<string>):Promise<string>;
   read_saved_chat_page?(handle:string,generation:number,chatId:string,selector:string):Promise<string>;
   read_saved_chat(handle: string, generation: number, chatId: string): Promise<string>;
@@ -108,6 +109,8 @@ export interface BrowserCoreBinding {
     prepare_first_session_original?(profile:PreparedProfile,deviceSignals:string,store:RustInitialSyncStoreBootstrap):RustPreparedFirstSession;
     login_password?(apiUrl:string,appOrigin:string,sessionId:string,email:string,password:string,tfa:string|null,stayLoggedIn?:boolean):Promise<RustClient>;
     restore(apiUrl: string, appOrigin: string, sessionId: string, profile: PreparedProfile): Promise<RustClient>;
+    /** Local-only admission (no server call): cached-profile reads only; `restore` still server-checks. */
+    restore_local?(apiUrl: string, appOrigin: string, sessionId: string, profile: PreparedProfile): RustClient;
   };
 }
 export interface WorkerConfiguration { apiUrl: string; appOrigin: string; sessionId: string; admission?: "prior_profile" | "fresh_password" | "existing_key"; expectedPrincipal?:string }

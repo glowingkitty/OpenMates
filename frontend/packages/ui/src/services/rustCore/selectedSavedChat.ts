@@ -140,6 +140,59 @@ export async function publishSelectedCursorSavedChat<P extends SavedReadWitness>
   });
 }
 
+/** Fixed-name stage marks (no content) for the cache-first breakdown. */
+function stage(name: string): void {
+  if (typeof performance !== "undefined") performance.mark(`openmates:rust:${name}`);
+}
+function fixedCode(error: unknown): string {
+  return error instanceof Error && /^[a-z_]{1,40}$/.test(error.message) ? error.message : "other";
+}
+
+/** Cache-first view: Rust schedules readonly IDB plans over the existing
+ * retained rows and decrypts them in the Worker. `online` runs on a
+ * server-checked session; `local` on the local-only admission that precedes
+ * the server check. A cache miss (`chat_unavailable`) keeps the admitted session
+ * for the server read; every other failure closes it like the canonical read.
+ * Provenance stays local. */
+export async function publishSelectedOnlineCachedSavedChat<P extends SavedReadWitness>(input: SelectedSavedReadInput<P> & {
+  selector: LocalCursorSelector;
+  mode?: "online" | "local";
+  executeReadPlan(selected: Readonly<SavedChatSelection>, plan: LocalReadPlan, signal: AbortSignal): Promise<string>;
+  publish(page: LocalChatReadback): void;
+}): Promise<void> {
+  const selector:LocalCursorSelector=copyPageSelector(input.selector);
+  const selected = { ...input.currentSelection() };
+  const current = selectionGuard(input, selected);
+  try {
+    current(); await input.reader.assertCurrent(input.prior); current();
+    const local=input.mode==="local";
+    if((input.status.localReadOnly===true)!==local)throw Error("unavailable");
+    const response=await input.host.request({operation:local?"read_local_saved_chat_cursor":"read_online_cached_saved_chat",handle:input.status.handle,
+      generation:input.status.generation,expectedPrincipal:input.status.principal,chatId:selected.chatId,selector},input.signal,undefined,{
+      current,
+      async execute(plan,signal){
+        current();
+        if(plan.owner!==selected.ownerId||plan.chatId!==selected.chatId)throw Error("invalidated_snapshot");
+        try{
+          const packet=await input.executeReadPlan(Object.freeze({...selected}),plan,signal);current();
+          stage(`cache-plan-${plan.kind}`);return packet;
+        }catch(error){stage(`cache-plan-${plan.kind}-failed-${fixedCode(error)}`);throw error;}
+      }
+    });
+    if(!response.ok&&"error" in response&&response.error==="chat_unavailable"){current();stage("cache-miss-rust");throw new Error("chat_unavailable");}
+    const read=!response.ok?undefined:local?response.localRead:response.onlineCachedRead;
+    if(!response.ok||!sameStatus(response.status,input.status)||!read||!("chatMetadata" in read)
+      ||read.chat.id!==selected.chatId)throw Error("session_expired");
+    const page:LocalChatReadback=read;current();
+    // An unsupported retained shape is a cache miss; the server read decides.
+    if (!supportedView(page)) { stage("cache-miss-unsupported"); throw new Error("chat_unavailable"); }
+    input.publish(page);
+  } catch (error) {
+    if (!(error instanceof Error && error.message === "chat_unavailable")) input.host.close();
+    throw error;
+  }
+}
+
 /** Exact retained checkpoint; platform executes only Rust's scoped metadata IO. */
 export async function publishSelectedCheckpointSummary<P extends SavedReadWitness>(input:SelectedSavedReadInput<P>&{
   checkpointId:string;executeReadPlan(selected:Readonly<SavedChatSelection>,plan:LocalReadPlan,signal:AbortSignal):Promise<string>;

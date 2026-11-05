@@ -29,11 +29,11 @@ export interface Pending {
   expectedSnapshot?: {handle:string;generation:number;exact?:string};
   expectedSend?: { handle: string; generation: number; operationId?: string; chatId: string | undefined; kind: "started" | "event" | "cancel_requested" | "closed" };
   passwordLogin?: true;
-  existingKeyRestore?: { principal: string };
+  existingKeyRestore?: { principal: string; local?: true };
   firstSession?:{principal:string;dataOnly?:true;stopReason?:"cancelled"|"deadline"|"unavailable";response?:CoreResponse;event?:MessageEvent<unknown>;serialized?:string;terminal?:true};
   localCursor?: { selector: LocalReadSelector; planState: LocalReadPlanState; handler: LocalCursorEffectHandler; controller: AbortController; effectId: number; operationId?: string; inFlight: boolean; terminal: Promise<void> };
   expectedCheckpoint?:{handle:string;generation:number;principal:string;chatId:string;checkpointId:string};
-  expectedLocal?: {handle:string;generation:number;principal:string;chatId:string;saved:boolean};
+  expectedLocal?: {handle:string;generation:number;principal:string;chatId:string;saved:boolean;online?:true};
   expectedInitialSync?:{handle:string;generation:number;owner:string;stopReason?:'cancelled'|'deadline'};
   expectedMonitor?:{handle:string;generation:number;owner:string;operation:'start_cache_monitor'|'wait_cache_monitor'|'stop_cache_monitor';id?:string};
   expectedChat?: { handle: string; generation: number; chatId: string; kind: "chat" | "savedRead" };

@@ -103,6 +103,7 @@
 	import { waitLocale, _ as translationStore } from 'svelte-i18n';
 	import { get } from 'svelte/store';
 	import { browser } from '$app/environment';
+	import { declareRustChatHistorySource } from '@openmates/ui/src/services/rustCore/activeChatRustHistory';
 	import { afterNavigate, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import WorkflowsRoute from './workflows/+page.svelte';
@@ -3840,6 +3841,21 @@
 		return () => { cancelAnimationFrame(firstFrame); cancelAnimationFrame(secondFrame); };
 	});
 
+
+	// Opt-in shared Rust core (build-time VITE_OPENMATES_RUST_CORE === '1'). In default
+	// builds the condition folds to false and this block and its imports are removed.
+	// Rust feeds the normal ActiveChat history (rustChatHistoryBootstrap.ts).
+	if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1' && browser) {
+		// Start at component setup (before children mount), not in onMount: the
+		// deep-link chat open runs before this page's onMount and must wait for the
+		// Rust history source instead of racing its dynamic import.
+		let dispose = () => {};
+		let disposed = false;
+		const installing = import('$lib/rustCore/rustChatHistoryBootstrap')
+			.then(({ installRustChatHistory }) => { if (!disposed) dispose = installRustChatHistory(); });
+		declareRustChatHistorySource(installing);
+		onDestroy(() => { disposed = true; dispose(); });
+	}
 </script>
 
 <!-- SEO meta tags - client-side with translations -->

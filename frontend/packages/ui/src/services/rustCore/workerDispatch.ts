@@ -398,6 +398,25 @@ export const dispatch = async (rt: WorkerRuntimeState, input: unknown) => {
           if(!profileConsumed)prepared.free();if(pending&&!waitConsumed)pending.free();if(receipt&&!receiptConsumed)receipt.free();
           rt.firstSessionControl?.free();rt.firstSessionControl=null;
         }
+      } else if(input.operation==="restore_local") {
+        // Local-only admission of the existing key: no server call or lock. Only
+        // the ordinary (non-recovery) production Worker offers it, before any client.
+        const prepare=rt.binding.PreparedBrowserProfile.from_existing_key,local=rt.binding.BrowserCoreClient.restore_local;
+        if(rt.configuration.admission!=="existing_key"||typeof prepare!=="function"||typeof local!=="function"
+          ||rt.client||rt.originalRecoveryBootstrap||rt.originalStartupStore
+          ||typeof rt.configuration.expectedPrincipal!=="string"||input.profile.principal!==rt.configuration.expectedPrincipal){
+          clearExistingKeyRequest(input);fail("unavailable");return;
+        }
+        let prepared:PreparedProfile;
+        try {prepared=prepare(input.profile.principal,input.key,input.profile.hashedEmail,input.profile.userEmailSalt,false);}
+        finally {clearExistingKeyRequest(input);}
+        // wasm-bindgen consumes the one-use profile, even on failure.
+        const admitted=local.call(rt.binding.BrowserCoreClient,rt.configuration.apiUrl,rt.configuration.appOrigin,rt.configuration.sessionId,prepared);
+        if(rt.disposed){admitted.invalidate();admitted.free();return;}
+        rt.client=admitted;
+        const status=project(rt, rt.client.admitted_status());
+        if(status.persistence!=="memory_only"||status.localReadOnly!==true||status.principal!==rt.configuration.expectedPrincipal)throw Error("unavailable");
+        rt.endpoint.postMessage({version:1,id,ok:true,status});
       } else if(input.operation==="restore_existing") {
         const prepare=rt.binding.PreparedBrowserProfile.from_existing_key;
         if(rt.configuration.admission!=="existing_key"||typeof prepare!=="function"
@@ -592,19 +611,21 @@ export const dispatch = async (rt: WorkerRuntimeState, input: unknown) => {
         else{if(!validBrowserCachedMetadataRead(data)||data.metadataRestored!==(input.operation==='restore_cached_metadata')
             ||data.items.length!==ids.length||data.items.some(row=>!ids.includes(row.id)))throw 'chat_unavailable';
           rt.endpoint.postMessage({version:1,id:input.id,ok:true,status,cachedMetadata:data});}
-      } else if ((input.operation === "read_local_saved_chat_cursor"||input.operation==="read_local_checkpoint_summary")) {
+      } else if ((input.operation === "read_local_saved_chat_cursor"||input.operation==="read_online_cached_saved_chat"||input.operation==="read_local_checkpoint_summary")) {
         if(!rt.client||input.id<=rt.lastLocalReadId){fail("session_expired");return;}
         rt.lastLocalReadId=input.id;
+        // Online cached view: the same readonly plans, but the admitted session must stay online.
+        const online=input.operation==="read_online_cached_saved_chat";
         const owned=rt.client, authority=project(rt, owned.status(input.handle,input.generation));
-        if(rt.configuration.admission!=="existing_key"||authority.localReadOnly!==true||authority.persistence!=="memory_only"
+        if(rt.configuration.admission!=="existing_key"||(authority.localReadOnly===true)===online||authority.persistence!=="memory_only"
           ||input.expectedPrincipal!==rt.configuration.expectedPrincipal||authority.principal!==input.expectedPrincipal
-          ||(input.operation==="read_local_checkpoint_summary"?typeof owned.read_local_checkpoint_summary!=="function":typeof owned.read_local_saved_chat_cursor!=="function")){fail("unavailable");return;}
+          ||(input.operation==="read_local_checkpoint_summary"?typeof owned.read_local_checkpoint_summary!=="function":online?typeof owned.read_online_cached_saved_chat!=="function":typeof owned.read_local_saved_chat_cursor!=="function")){fail("unavailable");return;}
         const operation:NonNullable<typeof rt.localRead>={planState:{effects:0,payloadRows:0},id:input.id,live:true,effectId:0,reply:null};
         rt.localRead=operation;rt.reading=owned;
         const current=()=>{
           if(rt.disposed||rt.lifetime.signal.aborted||rt.localRead!==operation||!operation.live||rt.client!==owned)throw Error("session_expired");
           const status=project(rt, owned.status(input.handle,input.generation));
-          if(status.principal!==input.expectedPrincipal||status.localReadOnly!==true||status.persistence!=="memory_only")throw Error("session_expired");
+          if(status.principal!==input.expectedPrincipal||(status.localReadOnly===true)===online||status.persistence!=="memory_only")throw Error("session_expired");
         };
         const effect=(encoded:string):Promise<string>=>{
           try{
@@ -621,13 +642,18 @@ export const dispatch = async (rt: WorkerRuntimeState, input: unknown) => {
           }catch{return Promise.reject("unavailable");}
         };
         let encoded:string;
-        try{encoded=await withAuthRefreshLock(rt.locks,rt.lifetime.signal,()=>input.operation==="read_local_checkpoint_summary"?owned.read_local_checkpoint_summary!(input.handle,input.generation,input.expectedPrincipal,input.chatId,input.checkpointId,effect):owned.read_local_saved_chat_cursor!(
-          input.handle,input.generation,input.expectedPrincipal,input.chatId,JSON.stringify(input.selector),effect));current();if(operation.reply||operation.planState.effects<(input.operation==="read_local_checkpoint_summary"?1:input.selector.direction==="around"?2:1))throw Error("unavailable");}
+        const readCursor=()=>input.operation==="read_local_checkpoint_summary"?owned.read_local_checkpoint_summary!(input.handle,input.generation,input.expectedPrincipal,input.chatId,input.checkpointId,effect):(online?owned.read_online_cached_saved_chat!:owned.read_local_saved_chat_cursor!).call(owned,
+          input.handle,input.generation,input.expectedPrincipal,input.chatId,JSON.stringify(input.selector),effect);
+        // A local-read-only client has no credentials to refresh or rotate and makes
+        // no server call, so its cursor read does not queue behind the page's
+        // auth-session refresh lock (held by the TS server check during boot).
+        const localOnly=input.operation==="read_local_saved_chat_cursor"&&authority.localReadOnly===true;
+        try{encoded=await (localOnly?readCursor():withAuthRefreshLock(rt.locks,rt.lifetime.signal,readCursor));current();if(operation.reply||operation.planState.effects<(input.operation==="read_local_checkpoint_summary"?1:input.selector.direction==="around"?2:1))throw Error("unavailable");}
         finally{operation.live=false;operation.reply?.reject("cancelled");operation.reply=null;if(rt.localRead===operation)rt.localRead=null;
           rt.reading=null;retireOriginalClient(rt, owned);}
         if(rt.disposed)return;
         const status=project(rt, owned.status(input.handle,input.generation));
-        if(rt.client!==owned||status.principal!==input.expectedPrincipal||status.localReadOnly!==true||status.persistence!=="memory_only"
+        if(rt.client!==owned||status.principal!==input.expectedPrincipal||(status.localReadOnly===true)===online||status.persistence!=="memory_only"
           ||typeof encoded!=="string"||new TextEncoder().encode(encoded).byteLength+8192>256*1024)throw Error("session_expired");
         if(input.operation==="read_local_checkpoint_summary"){
           const checkpointRead:unknown=JSON.parse(encoded);
@@ -636,7 +662,7 @@ export const dispatch = async (rt: WorkerRuntimeState, input: unknown) => {
         }
         const localReadback:unknown=JSON.parse(encoded);
         if(!validLocalRead(localReadback,true)||localReadback.chat.id!==input.chatId)throw "chat_unavailable";
-        rt.endpoint.postMessage({version:1,id:input.id,ok:true,status,localRead:localReadback});
+        rt.endpoint.postMessage(online?{version:1,id:input.id,ok:true,status,onlineCachedRead:localReadback}:{version:1,id:input.id,ok:true,status,localRead:localReadback});
       } else if (input.operation === "read_local_chat" || input.operation === "read_local_saved_chat") {
         if (!rt.client) { fail("session_expired"); return; }
         const owned = rt.client;
@@ -710,14 +736,17 @@ export const dispatch = async (rt: WorkerRuntimeState, input: unknown) => {
       // The final original Rust take is withheld; retain the existing Client so
       // this cancelled A cannot tear down unrelated state or a later B.
       if(input.operation==='read_cache_monitor_update'&&stoppedOriginalUpdate?.()){fail('session_expired');return;}
+      // A readonly online cache miss (absent/unsupported retained rows) leaves the
+      // admitted online session intact; the caller then reads from the server.
+      if((input.operation==="read_online_cached_saved_chat"||input.operation==="read_local_saved_chat_cursor")&&error==="chat_unavailable"&&rt.client){fail("chat_unavailable");return;}
       clearClient(rt);clearExistingKeyRequest(input);
       if(input.operation==='check_first_session'||input.operation==='check_first_session_data'){fail(rt.firstSessionTask?.stopped?'cancelled':'unavailable');return;}
-      if(input.operation==="restore_existing"){fail("unavailable");return;}
+      if(input.operation==="restore_existing"||input.operation==="restore_local"){fail("unavailable");return;}
       if (input.operation==="login_password") {
         clearPasswordRequest(input);
         fail(error==="two_factor_required"?"two_factor_required":"authentication_failed");return;
       }
-      fail(input.operation === "restore" ? "reauthentication_required" : (input.operation === "open_chat" || input.operation === "reconnect_chat" || input.operation === "read_saved_chat" || input.operation === "read_saved_chat_page" || input.operation === "read_local_saved_chat_cursor" || input.operation === "read_local_checkpoint_summary" || input.operation === "read_retained_saved_chat" || input.operation === "restore_cached_metadata" || input.operation === "read_cached_chat_items") && error === "chat_unavailable" ? "chat_unavailable" : "session_expired");
+      fail(input.operation === "restore" ? "reauthentication_required" : (input.operation === "open_chat" || input.operation === "reconnect_chat" || input.operation === "read_saved_chat" || input.operation === "read_saved_chat_page" || input.operation === "read_local_saved_chat_cursor" || input.operation === "read_online_cached_saved_chat" || input.operation === "read_local_checkpoint_summary" || input.operation === "read_retained_saved_chat" || input.operation === "restore_cached_metadata" || input.operation === "read_cached_chat_items") && error === "chat_unavailable" ? "chat_unavailable" : "session_expired");
     } finally { rt.busy = false; }
   };
 

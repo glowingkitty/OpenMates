@@ -8,6 +8,10 @@ import type { BrowserCoreBinding, WorkerEndpoint, RustRecoveryBootstrap, RustIni
 // Importing this bundle performs no admission, account read or credential IO.
 const scope = self as DedicatedWorkerGlobalScope;
 let started = false;
+// Pre-warm: fetch/compile/instantiate the WASM while the page boots. This is code
+// loading only; admission still waits for the validated bootstrap below, which
+// awaits this same memoized load. A failure is observed again there.
+void loadBinding().catch(() => undefined);
 scope.addEventListener('message', async function bootstrap(event: MessageEvent<unknown>) {
   if (started) return;
   started = true; scope.removeEventListener('message',bootstrap);
@@ -31,7 +35,9 @@ scope.addEventListener('message', async function bootstrap(event: MessageEvent<u
       {apiUrl:configuration.apiUrl,appOrigin:configuration.appOrigin,sessionId:configuration.sessionId,
         admission:'existing_key',expectedPrincipal:configuration.expectedPrincipal},scope.navigator.locks,recovery,startup);
     scope.postMessage({version:1,ready:true});
-  } catch {
-    scope.postMessage({version:1,ready:false}); scope.close();
+  } catch (error) {
+    // Bounded fixed code only (never content) so the page can report why admission failed.
+    const message = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+    scope.postMessage({version:1,ready:false,code:/^[a-z][a-z0-9_]{0,63}$/.test(message)?message:'bootstrap_failed'}); scope.close();
   }
 });

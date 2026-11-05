@@ -645,7 +645,9 @@
         "authored-results-flow.spec.ts",
         "authored-results-media.spec.ts",
         "code-run-dependency-flow.spec.ts",
-        "chat-menu-parity.spec.ts"
+        "chat-menu-parity.spec.ts",
+        "web-rust-core-chat.spec.ts",
+        "web-rust-core-embeds.spec.ts"
       ]
     },
     "external_integration": {

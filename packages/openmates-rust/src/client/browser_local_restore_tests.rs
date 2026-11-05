@@ -439,3 +439,50 @@ async fn offline_and_cancelled_grant_clear_retain_same_owner_negative_fences() {
         assert!(c.require_credentials().unwrap().ws_token.is_none());assert!(!c.browser_authority.as_ref().unwrap().owner_guards);assert_eq!(c.is_local_browser_profile(),local);peer.await.unwrap();
     }
 }
+#[tokio::test]
+async fn local_only_admission_makes_no_server_call_and_grants_no_transport() {
+    // An unbound port proves no restore request is dispatched at all.
+    let url = "http://127.0.0.1:9";
+    let mut c = Client::restore_browser_local_inner(
+        url,
+        "https://app.example.invalid",
+        SESSION,
+        legacy_profile(),
+    )
+    .unwrap();
+    assert!(c.is_local_browser_profile());
+    assert!(c.browser_session_status().unwrap().is_local_read_only());
+    assert!(c.require_credentials().unwrap().ws_token.is_none());
+    assert!(c.session.is_none());
+    assert!(c.credential_snapshot().is_none());
+    assert_eq!(c.credential_ack, 0);
+    for method in [Method::GET, Method::POST] {
+        assert!(matches!(
+            c.request(method, "/v1/projects", None).await,
+            Err(Error::Unavailable {
+                code: "browser_offline_read_only",
+                ..
+            })
+        ));
+    }
+    assert!(c.prepare_browser_credential_snapshot().await.is_err());
+}
+#[tokio::test]
+async fn local_only_admission_is_revoked_by_a_failed_server_check() {
+    let (url, peer) = server_raw_response("{}".into(), 401).await;
+    let mut c = Client::restore_browser_local_inner(
+        &url,
+        "https://app.example.invalid",
+        SESSION,
+        legacy_profile(),
+    )
+    .unwrap();
+    let held = c.master_capability().unwrap();
+    assert!(c.validate_session().await.is_err());
+    assert!(c.browser_session_status().is_none());
+    assert!(matches!(
+        held.encrypt_bytes(b"private stale output").await,
+        Err(Error::Cancelled)
+    ));
+    assert!(peer.await.unwrap().starts_with("POST /v1/auth/session "));
+}
