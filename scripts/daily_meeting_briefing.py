@@ -111,7 +111,11 @@ pulled into new features and bugs while marketing (videos, press) slips.
 - Ask **exactly one question at a time**, with your recommendation, then wait for the answer.
 - Respect the phase rules below. In a Marketing Week, gently push back on features, \
 refactors, UX polish and bug fixes that do not block marketing; offer the parking lot.
-- Flow: (1) one-sentence recap of yesterday and today's phase; (2) agree **today's \
+- Flow: (1) one-sentence recap of yesterday and today's phase; (1b) **production first**: \
+summarize the "Alerts" section in a few sentences — reported production issues (new or \
+not processed yet), then dev reports, then the errors that repeat most — and ask whether \
+anything needs attention before planning; production reports outrank everything else; \
+(2) agree **today's \
 single focus** — propose one from the week's goals; (3) go through overdue and \
 today/tomorrow reminders **in groups** (done / move to a date and time you suggest / \
 keep), not one by one. Every moved or new reminder needs a **time of day**, never \
@@ -165,6 +169,35 @@ def _issue_section(title: str, rows: list[dict] | None, extra: str) -> list[str]
     return out + [""]
 
 
+def _alerts_section(alerts: dict) -> list[str]:
+    out = ["", "## Alerts — production and dev (reported issues first, errors of the last 24 h)", ""]
+    if not alerts:
+        return out + ["_Alerts unavailable — see data gaps._"]
+    for env, title in (("production", "Production"), ("dev", "Dev server")):
+        part = alerts.get(env) or {}
+        issues, errors = part.get("issues"), part.get("errors")
+        out.append(f"### {title} — reported issues (last 48 h)")
+        if issues is None:
+            out.append("- unavailable (see data gaps)")
+        else:
+            out += [f"- **{i['id']}** ({i['age']}{', admin' if i['admin'] else ''}, "
+                    f"{'processed' if i['processed'] else '**not processed yet**'}): {i['title']}"
+                    for i in issues["recent"]] or ["- none"]
+            older = issues.get("older_unprocessed_in_latest_batch", 0)
+            if older:
+                out.append(f"- plus {older} older unprocessed reports in the latest batch")
+        out += ["", f"### {title} — repeating errors (last 24 h)"]
+        if errors is None:
+            out.append("- unavailable (see data gaps)")
+        else:
+            out.append(f"{errors['total']} ERROR/CRITICAL rows, {errors['distinct']} distinct"
+                       + (" (query truncated)" if errors.get("truncated") else "") + ".")
+            out += [f"- {e['count']}× `{e['service']}` {e['where']}: {e['message']}"
+                    for e in errors["top"]] or ["- none"]
+        out.append("")
+    return out
+
+
 def _cleanup_section(cleanup: dict) -> list[str]:
     out = ["## 4. Backlog cleanup", "",
            "The meeting also tidies the to-do lists. Review this batch (oldest first): "
@@ -211,6 +244,7 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
                     "Plan agent work to fit what is left."]
     else:
         out += ["", "**Claude subscription:** weekly usage unavailable (see data gaps)."]
+    out += _alerts_section(ev.get("alerts") or {})
     product = ev.get("product") or {}
     if product:
         out += ["", "## About OpenMates", ""]

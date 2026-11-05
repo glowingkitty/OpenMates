@@ -88,3 +88,6 @@ parking-lot changes, chats started.
   resends today's briefing (Gemini Flash in the `api` container summarizes the
   Claude chats).
 - Docs: `docs/contributing/guides/daily-meeting.md`.
+
+## Alerts
+The briefing's "Alerts" section (production and dev reported issues, repeating errors of the last 24 h) comes first. Production reports outrank all other work: if the note says to investigate one, start it via `/debug-issue` or the `issue-forensics` agent. Never copy emails or share links from issue records into notes.

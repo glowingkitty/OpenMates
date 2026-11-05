@@ -374,6 +374,14 @@ def cleanup_batch(out: Path, tasks: list[dict] | None, issues: dict, today: str)
         tasks, issues.get("github"), issues.get("linear"), reviewed, datetime.fromisoformat(today).date())
 
 
+def alerts(gaps: list[str]) -> dict:
+    """Reported issues and repeating errors of production and dev (scripts/daily_meeting_health.py)."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import daily_meeting_health  # noqa: E402 - sibling script, path set just above
+
+    return daily_meeting_health.collect_alerts(gaps)
+
+
 def reminders(gaps: list[str]) -> dict | None:
     """Live from the Mac when it is online, else the copy synced every 30 minutes."""
     sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -515,6 +523,7 @@ def collect(root: Path, now: datetime, since: datetime, out: Path) -> tuple[dict
         "marketing": marketing(since),
         "tasks": task_summary(tasks, previous, {c["session"] for c in chats}),
         "nightly": nightly(root, since),
+        "alerts": alerts(gaps),
         "issues": issues,
         "cleanup": cleanup,
         "reminders": reminders(gaps),

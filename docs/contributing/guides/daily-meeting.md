@@ -63,3 +63,12 @@ asks one question per group with a recommendation (close or delete, merge, delay
 keep) and records the answers in the `Cleanup:` lines of the decisions note. The
 `daily-meeting-and-orchestration` skill applies them: Tasks via `openmates tasks`,
 GitHub via `gh issue close` (as not planned, with a comment), Linear via the API.
+
+## Alerts (production first)
+
+The briefing opens with an "Alerts" section, right after the usage line: reported issues of the
+last 48 h from production, then dev (with processed / not processed yet), and the most repeating
+ERROR/CRITICAL log messages of the last 24 h per server (ids and numbers masked so repeats group).
+Data comes from `backend/scripts/debug.py` via `scripts/daily_meeting_health.py`. Only short id,
+title, age and status are kept; contact emails and share links (which carry chat keys) are never
+included. The meeting discusses production reports before planning the day's focus.
