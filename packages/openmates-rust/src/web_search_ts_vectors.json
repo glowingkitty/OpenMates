@@ -1,0 +1,1746 @@
+{
+ "matchRanges": [
+  {
+   "text": "Hello hello HELLO",
+   "query": "hello",
+   "expected": [
+    {
+     "start": 0,
+     "length": 5
+    },
+    {
+     "start": 6,
+     "length": 5
+    },
+    {
+     "start": 12,
+     "length": 5
+    }
+   ]
+  },
+  {
+   "text": "aaaa",
+   "query": "aa",
+   "expected": [
+    {
+     "start": 0,
+     "length": 2
+    },
+    {
+     "start": 2,
+     "length": 2
+    }
+   ]
+  },
+  {
+   "text": "Straße İstanbul 😀 straße",
+   "query": "straße",
+   "expected": [
+    {
+     "start": 0,
+     "length": 6
+    },
+    {
+     "start": 20,
+     "length": 6
+    }
+   ]
+  },
+  {
+   "text": "İİ x",
+   "query": "x",
+   "expected": [
+    {
+     "start": 5,
+     "length": 1
+    }
+   ]
+  },
+  {
+   "text": "The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. Needle in a haystack with 😀 emoji and Straße, İstanbul. tail words follow here tail words follow here tail words follow here tail words follow here tail words follow here tail words follow here ",
+   "query": "needle",
+   "expected": [
+    {
+     "start": 360,
+     "length": 6
+    }
+   ]
+  },
+  {
+   "text": "nothing here",
+   "query": "zzz",
+   "expected": []
+  },
+  {
+   "text": "",
+   "query": "a",
+   "expected": []
+  }
+ ],
+ "snippets": [
+  {
+   "content": "The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. Needle in a haystack with 😀 emoji and Straße, İstanbul. tail words follow here tail words follow here tail words follow here tail words follow here tail words follow here tail words follow here ",
+   "start": 360,
+   "length": 6,
+   "expected": {
+    "snippet": "... The quick brown fox jumps over the lazy dog. Needle in a haystack with 😀 emoji and Straße, ...",
+    "snippetMatchStart": 49,
+    "snippetMatchLength": 6
+   }
+  },
+  {
+   "content": "short text match here",
+   "start": 11,
+   "length": 5,
+   "expected": {
+    "snippet": "short text match here",
+    "snippetMatchStart": 11,
+    "snippetMatchLength": 5
+   }
+  },
+  {
+   "content": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "start": 100,
+   "length": 3,
+   "expected": {
+    "snippet": "... xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx ...",
+    "snippetMatchStart": 54,
+    "snippetMatchLength": 3
+   }
+  },
+  {
+   "content": "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen match eighteen nineteen twenty twenty-one twenty-two twenty-three",
+   "start": 88,
+   "length": 5,
+   "expected": {
+    "snippet": "... nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen match eighteen nineteen twenty ...",
+    "snippetMatchStart": 52,
+    "snippetMatchLength": 5
+   }
+  },
+  {
+   "content": "😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 hit 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 ",
+   "start": 120,
+   "length": 3,
+   "expected": {
+    "snippet": "... 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 hit 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 😀 ...",
+    "snippetMatchStart": 52,
+    "snippetMatchLength": 3
+   }
+  }
+ ],
+ "savedEmbeds": [
+  {
+   "entries": [
+    [
+     "events",
+     [
+      [
+       "saved_events",
+       [
+        {
+         "id": "a",
+         "item_value": [
+          [
+           "embed_id",
+           "e1"
+          ],
+          [
+           "title",
+           "Berlin design Gathering"
+          ],
+          [
+           "location",
+           "Berlin"
+          ],
+          [
+           "note",
+           " Design  "
+          ],
+          [
+           "url",
+           "https://x"
+          ]
+         ],
+         "updated_at": 1
+        },
+        {
+         "id": "b",
+         "item_value": [
+          [
+           "embed_id",
+           "e1"
+          ],
+          [
+           "title",
+           "Berlin design Gathering"
+          ],
+          [
+           "location",
+           "Berlin"
+          ]
+         ],
+         "updated_at": 2
+        },
+        {
+         "item_value": [
+          [
+           "embed_id",
+           "e2"
+          ],
+          [
+           "name",
+           "Munich"
+          ],
+          [
+           "where",
+           "Hall · 4"
+          ],
+          [
+           "origin",
+           "A"
+          ],
+          [
+           "provider",
+           "P"
+          ]
+         ],
+         "updated_at": 3
+        },
+        {
+         "id": "c",
+         "item_value": [
+          [
+           "embed_id",
+           " "
+          ],
+          [
+           "title",
+           "blank"
+          ]
+         ],
+         "updated_at": 9
+        }
+       ]
+      ],
+      [
+       "saved_trips",
+       [
+        {
+         "id": "d",
+         "item_value": [
+          [
+           "embed_id",
+           "e3"
+          ],
+          [
+           "foo",
+           "design notes"
+          ],
+          [
+           "bar",
+           5
+          ],
+          [
+           "baz",
+           null
+          ]
+         ],
+         "updated_at": 0.5
+        },
+        {
+         "id": "f",
+         "item_value": [
+          [
+           "embed_id",
+           "e4"
+          ],
+          [
+           "title",
+           "Zebra İstanbul"
+          ],
+          [
+           "address",
+           "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          ],
+          [
+           "extra",
+           "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+          ]
+         ]
+        }
+       ]
+      ]
+     ]
+    ],
+    [
+     "travel",
+     [
+      [
+       "stays",
+       [
+        {
+         "id": "g",
+         "item_value": [
+          [
+           "embed_id",
+           "e5"
+          ],
+          [
+           "title",
+           "DESIGN hotel"
+          ]
+         ],
+         "updated_at": 3
+        }
+       ]
+      ]
+     ]
+    ]
+   ],
+   "query": "design",
+   "limit": 6,
+   "expected": [
+    {
+     "embedId": "e5",
+     "settingsPath": "apps/travel/settings_memories/stays/entry/g",
+     "title": "DESIGN hotel",
+     "subtitle": "",
+     "appId": "travel",
+     "updatedAt": 3
+    },
+    {
+     "embedId": "e1",
+     "settingsPath": "apps/events/settings_memories/saved_events/entry/b",
+     "title": "Berlin design Gathering",
+     "subtitle": "Berlin",
+     "appId": "events",
+     "updatedAt": 2
+    },
+    {
+     "embedId": "e3",
+     "settingsPath": "apps/events/settings_memories/saved_trips/entry/d",
+     "title": "saved trips",
+     "subtitle": "",
+     "appId": "events",
+     "updatedAt": 0.5
+    }
+   ]
+  },
+  {
+   "entries": [
+    [
+     "events",
+     [
+      [
+       "saved_events",
+       [
+        {
+         "id": "a",
+         "item_value": [
+          [
+           "embed_id",
+           "e1"
+          ],
+          [
+           "title",
+           "Berlin design Gathering"
+          ],
+          [
+           "location",
+           "Berlin"
+          ],
+          [
+           "note",
+           " Design  "
+          ],
+          [
+           "url",
+           "https://x"
+          ]
+         ],
+         "updated_at": 1
+        },
+        {
+         "id": "b",
+         "item_value": [
+          [
+           "embed_id",
+           "e1"
+          ],
+          [
+           "title",
+           "Berlin design Gathering"
+          ],
+          [
+           "location",
+           "Berlin"
+          ]
+         ],
+         "updated_at": 2
+        },
+        {
+         "item_value": [
+          [
+           "embed_id",
+           "e2"
+          ],
+          [
+           "name",
+           "Munich"
+          ],
+          [
+           "where",
+           "Hall · 4"
+          ],
+          [
+           "origin",
+           "A"
+          ],
+          [
+           "provider",
+           "P"
+          ]
+         ],
+         "updated_at": 3
+        },
+        {
+         "id": "c",
+         "item_value": [
+          [
+           "embed_id",
+           " "
+          ],
+          [
+           "title",
+           "blank"
+          ]
+         ],
+         "updated_at": 9
+        }
+       ]
+      ],
+      [
+       "saved_trips",
+       [
+        {
+         "id": "d",
+         "item_value": [
+          [
+           "embed_id",
+           "e3"
+          ],
+          [
+           "foo",
+           "design notes"
+          ],
+          [
+           "bar",
+           5
+          ],
+          [
+           "baz",
+           null
+          ]
+         ],
+         "updated_at": 0.5
+        },
+        {
+         "id": "f",
+         "item_value": [
+          [
+           "embed_id",
+           "e4"
+          ],
+          [
+           "title",
+           "Zebra İstanbul"
+          ],
+          [
+           "address",
+           "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          ],
+          [
+           "extra",
+           "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+          ]
+         ]
+        }
+       ]
+      ]
+     ]
+    ],
+    [
+     "travel",
+     [
+      [
+       "stays",
+       [
+        {
+         "id": "g",
+         "item_value": [
+          [
+           "embed_id",
+           "e5"
+          ],
+          [
+           "title",
+           "DESIGN hotel"
+          ]
+         ],
+         "updated_at": 3
+        }
+       ]
+      ]
+     ]
+    ]
+   ],
+   "query": "  DESIGN ",
+   "limit": 2,
+   "expected": [
+    {
+     "embedId": "e5",
+     "settingsPath": "apps/travel/settings_memories/stays/entry/g",
+     "title": "DESIGN hotel",
+     "subtitle": "",
+     "appId": "travel",
+     "updatedAt": 3
+    },
+    {
+     "embedId": "e1",
+     "settingsPath": "apps/events/settings_memories/saved_events/entry/b",
+     "title": "Berlin design Gathering",
+     "subtitle": "Berlin",
+     "appId": "events",
+     "updatedAt": 2
+    }
+   ]
+  },
+  {
+   "entries": [
+    [
+     "events",
+     [
+      [
+       "saved_events",
+       [
+        {
+         "id": "a",
+         "item_value": [
+          [
+           "embed_id",
+           "e1"
+          ],
+          [
+           "title",
+           "Berlin design Gathering"
+          ],
+          [
+           "location",
+           "Berlin"
+          ],
+          [
+           "note",
+           " Design  "
+          ],
+          [
+           "url",
+           "https://x"
+          ]
+         ],
+         "updated_at": 1
+        },
+        {
+         "id": "b",
+         "item_value": [
+          [
+           "embed_id",
+           "e1"
+          ],
+          [
+           "title",
+           "Berlin design Gathering"
+          ],
+          [
+           "location",
+           "Berlin"
+          ]
+         ],
+         "updated_at": 2
+        },
+        {
+         "item_value": [
+          [
+           "embed_id",
+           "e2"
+          ],
+          [
+           "name",
+           "Munich"
+          ],
+          [
+           "where",
+           "Hall · 4"
+          ],
+          [
+           "origin",
+           "A"
+          ],
+          [
+           "provider",
+           "P"
+          ]
+         ],
+         "updated_at": 3
+        },
+        {
+         "id": "c",
+         "item_value": [
+          [
+           "embed_id",
+           " "
+          ],
+          [
+           "title",
+           "blank"
+          ]
+         ],
+         "updated_at": 9
+        }
+       ]
+      ],
+      [
+       "saved_trips",
+       [
+        {
+         "id": "d",
+         "item_value": [
+          [
+           "embed_id",
+           "e3"
+          ],
+          [
+           "foo",
+           "design notes"
+          ],
+          [
+           "bar",
+           5
+          ],
+          [
+           "baz",
+           null
+          ]
+         ],
+         "updated_at": 0.5
+        },
+        {
+         "id": "f",
+         "item_value": [
+          [
+           "embed_id",
+           "e4"
+          ],
+          [
+           "title",
+           "Zebra İstanbul"
+          ],
+          [
+           "address",
+           "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          ],
+          [
+           "extra",
+           "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+          ]
+         ]
+        }
+       ]
+      ]
+     ]
+    ],
+    [
+     "travel",
+     [
+      [
+       "stays",
+       [
+        {
+         "id": "g",
+         "item_value": [
+          [
+           "embed_id",
+           "e5"
+          ],
+          [
+           "title",
+           "DESIGN hotel"
+          ]
+         ],
+         "updated_at": 3
+        }
+       ]
+      ]
+     ]
+    ]
+   ],
+   "query": "munich",
+   "limit": 6,
+   "expected": [
+    {
+     "embedId": "e2",
+     "title": "Munich",
+     "subtitle": "Hall · 4 · A · P",
+     "appId": "events",
+     "updatedAt": 3
+    }
+   ]
+  },
+  {
+   "entries": [
+    [
+     "events",
+     [
+      [
+       "saved_events",
+       [
+        {
+         "id": "a",
+         "item_value": [
+          [
+           "embed_id",
+           "e1"
+          ],
+          [
+           "title",
+           "Berlin design Gathering"
+          ],
+          [
+           "location",
+           "Berlin"
+          ],
+          [
+           "note",
+           " Design  "
+          ],
+          [
+           "url",
+           "https://x"
+          ]
+         ],
+         "updated_at": 1
+        },
+        {
+         "id": "b",
+         "item_value": [
+          [
+           "embed_id",
+           "e1"
+          ],
+          [
+           "title",
+           "Berlin design Gathering"
+          ],
+          [
+           "location",
+           "Berlin"
+          ]
+         ],
+         "updated_at": 2
+        },
+        {
+         "item_value": [
+          [
+           "embed_id",
+           "e2"
+          ],
+          [
+           "name",
+           "Munich"
+          ],
+          [
+           "where",
+           "Hall · 4"
+          ],
+          [
+           "origin",
+           "A"
+          ],
+          [
+           "provider",
+           "P"
+          ]
+         ],
+         "updated_at": 3
+        },
+        {
+         "id": "c",
+         "item_value": [
+          [
+           "embed_id",
+           " "
+          ],
+          [
+           "title",
+           "blank"
+          ]
+         ],
+         "updated_at": 9
+        }
+       ]
+      ],
+      [
+       "saved_trips",
+       [
+        {
+         "id": "d",
+         "item_value": [
+          [
+           "embed_id",
+           "e3"
+          ],
+          [
+           "foo",
+           "design notes"
+          ],
+          [
+           "bar",
+           5
+          ],
+          [
+           "baz",
+           null
+          ]
+         ],
+         "updated_at": 0.5
+        },
+        {
+         "id": "f",
+         "item_value": [
+          [
+           "embed_id",
+           "e4"
+          ],
+          [
+           "title",
+           "Zebra İstanbul"
+          ],
+          [
+           "address",
+           "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          ],
+          [
+           "extra",
+           "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+          ]
+         ]
+        }
+       ]
+      ]
+     ]
+    ],
+    [
+     "travel",
+     [
+      [
+       "stays",
+       [
+        {
+         "id": "g",
+         "item_value": [
+          [
+           "embed_id",
+           "e5"
+          ],
+          [
+           "title",
+           "DESIGN hotel"
+          ]
+         ],
+         "updated_at": 3
+        }
+       ]
+      ]
+     ]
+    ]
+   ],
+   "query": "",
+   "limit": 6,
+   "expected": []
+  },
+  {
+   "entries": [
+    [
+     "events",
+     [
+      [
+       "saved_events",
+       [
+        {
+         "id": "a",
+         "item_value": [
+          [
+           "embed_id",
+           "e1"
+          ],
+          [
+           "title",
+           "Berlin design Gathering"
+          ],
+          [
+           "location",
+           "Berlin"
+          ],
+          [
+           "note",
+           " Design  "
+          ],
+          [
+           "url",
+           "https://x"
+          ]
+         ],
+         "updated_at": 1
+        },
+        {
+         "id": "b",
+         "item_value": [
+          [
+           "embed_id",
+           "e1"
+          ],
+          [
+           "title",
+           "Berlin design Gathering"
+          ],
+          [
+           "location",
+           "Berlin"
+          ]
+         ],
+         "updated_at": 2
+        },
+        {
+         "item_value": [
+          [
+           "embed_id",
+           "e2"
+          ],
+          [
+           "name",
+           "Munich"
+          ],
+          [
+           "where",
+           "Hall · 4"
+          ],
+          [
+           "origin",
+           "A"
+          ],
+          [
+           "provider",
+           "P"
+          ]
+         ],
+         "updated_at": 3
+        },
+        {
+         "id": "c",
+         "item_value": [
+          [
+           "embed_id",
+           " "
+          ],
+          [
+           "title",
+           "blank"
+          ]
+         ],
+         "updated_at": 9
+        }
+       ]
+      ],
+      [
+       "saved_trips",
+       [
+        {
+         "id": "d",
+         "item_value": [
+          [
+           "embed_id",
+           "e3"
+          ],
+          [
+           "foo",
+           "design notes"
+          ],
+          [
+           "bar",
+           5
+          ],
+          [
+           "baz",
+           null
+          ]
+         ],
+         "updated_at": 0.5
+        },
+        {
+         "id": "f",
+         "item_value": [
+          [
+           "embed_id",
+           "e4"
+          ],
+          [
+           "title",
+           "Zebra İstanbul"
+          ],
+          [
+           "address",
+           "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          ],
+          [
+           "extra",
+           "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+          ]
+         ]
+        }
+       ]
+      ]
+     ]
+    ],
+    [
+     "travel",
+     [
+      [
+       "stays",
+       [
+        {
+         "id": "g",
+         "item_value": [
+          [
+           "embed_id",
+           "e5"
+          ],
+          [
+           "title",
+           "DESIGN hotel"
+          ]
+         ],
+         "updated_at": 3
+        }
+       ]
+      ]
+     ]
+    ]
+   ],
+   "query": "zzz",
+   "limit": 6,
+   "expected": []
+  },
+  {
+   "entries": [
+    [
+     "events",
+     [
+      [
+       "saved_events",
+       [
+        {
+         "id": "a",
+         "item_value": [
+          [
+           "embed_id",
+           "e1"
+          ],
+          [
+           "title",
+           "Berlin design Gathering"
+          ],
+          [
+           "location",
+           "Berlin"
+          ],
+          [
+           "note",
+           " Design  "
+          ],
+          [
+           "url",
+           "https://x"
+          ]
+         ],
+         "updated_at": 1
+        },
+        {
+         "id": "b",
+         "item_value": [
+          [
+           "embed_id",
+           "e1"
+          ],
+          [
+           "title",
+           "Berlin design Gathering"
+          ],
+          [
+           "location",
+           "Berlin"
+          ]
+         ],
+         "updated_at": 2
+        },
+        {
+         "item_value": [
+          [
+           "embed_id",
+           "e2"
+          ],
+          [
+           "name",
+           "Munich"
+          ],
+          [
+           "where",
+           "Hall · 4"
+          ],
+          [
+           "origin",
+           "A"
+          ],
+          [
+           "provider",
+           "P"
+          ]
+         ],
+         "updated_at": 3
+        },
+        {
+         "id": "c",
+         "item_value": [
+          [
+           "embed_id",
+           " "
+          ],
+          [
+           "title",
+           "blank"
+          ]
+         ],
+         "updated_at": 9
+        }
+       ]
+      ],
+      [
+       "saved_trips",
+       [
+        {
+         "id": "d",
+         "item_value": [
+          [
+           "embed_id",
+           "e3"
+          ],
+          [
+           "foo",
+           "design notes"
+          ],
+          [
+           "bar",
+           5
+          ],
+          [
+           "baz",
+           null
+          ]
+         ],
+         "updated_at": 0.5
+        },
+        {
+         "id": "f",
+         "item_value": [
+          [
+           "embed_id",
+           "e4"
+          ],
+          [
+           "title",
+           "Zebra İstanbul"
+          ],
+          [
+           "address",
+           "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          ],
+          [
+           "extra",
+           "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+          ]
+         ]
+        }
+       ]
+      ]
+     ]
+    ],
+    [
+     "travel",
+     [
+      [
+       "stays",
+       [
+        {
+         "id": "g",
+         "item_value": [
+          [
+           "embed_id",
+           "e5"
+          ],
+          [
+           "title",
+           "DESIGN hotel"
+          ]
+         ],
+         "updated_at": 3
+        }
+       ]
+      ]
+     ]
+    ]
+   ],
+   "query": "design",
+   "limit": 0,
+   "expected": []
+  },
+  {
+   "entries": [
+    [
+     "events",
+     [
+      [
+       "saved_events",
+       [
+        {
+         "id": "a",
+         "item_value": [
+          [
+           "embed_id",
+           "e1"
+          ],
+          [
+           "title",
+           "Berlin design Gathering"
+          ],
+          [
+           "location",
+           "Berlin"
+          ],
+          [
+           "note",
+           " Design  "
+          ],
+          [
+           "url",
+           "https://x"
+          ]
+         ],
+         "updated_at": 1
+        },
+        {
+         "id": "b",
+         "item_value": [
+          [
+           "embed_id",
+           "e1"
+          ],
+          [
+           "title",
+           "Berlin design Gathering"
+          ],
+          [
+           "location",
+           "Berlin"
+          ]
+         ],
+         "updated_at": 2
+        },
+        {
+         "item_value": [
+          [
+           "embed_id",
+           "e2"
+          ],
+          [
+           "name",
+           "Munich"
+          ],
+          [
+           "where",
+           "Hall · 4"
+          ],
+          [
+           "origin",
+           "A"
+          ],
+          [
+           "provider",
+           "P"
+          ]
+         ],
+         "updated_at": 3
+        },
+        {
+         "id": "c",
+         "item_value": [
+          [
+           "embed_id",
+           " "
+          ],
+          [
+           "title",
+           "blank"
+          ]
+         ],
+         "updated_at": 9
+        }
+       ]
+      ],
+      [
+       "saved_trips",
+       [
+        {
+         "id": "d",
+         "item_value": [
+          [
+           "embed_id",
+           "e3"
+          ],
+          [
+           "foo",
+           "design notes"
+          ],
+          [
+           "bar",
+           5
+          ],
+          [
+           "baz",
+           null
+          ]
+         ],
+         "updated_at": 0.5
+        },
+        {
+         "id": "f",
+         "item_value": [
+          [
+           "embed_id",
+           "e4"
+          ],
+          [
+           "title",
+           "Zebra İstanbul"
+          ],
+          [
+           "address",
+           "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          ],
+          [
+           "extra",
+           "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+          ]
+         ]
+        }
+       ]
+      ]
+     ]
+    ],
+    [
+     "travel",
+     [
+      [
+       "stays",
+       [
+        {
+         "id": "g",
+         "item_value": [
+          [
+           "embed_id",
+           "e5"
+          ],
+          [
+           "title",
+           "DESIGN hotel"
+          ]
+         ],
+         "updated_at": 3
+        }
+       ]
+      ]
+     ]
+    ]
+   ],
+   "query": "İstanbul",
+   "limit": 6,
+   "expected": [
+    {
+     "embedId": "e4",
+     "settingsPath": "apps/events/settings_memories/saved_trips/entry/f",
+     "title": "Zebra İstanbul",
+     "subtitle": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "appId": "events",
+     "updatedAt": 0
+    }
+   ]
+  },
+  {
+   "entries": [
+    [
+     "events",
+     [
+      [
+       "saved_events",
+       [
+        {
+         "id": "a",
+         "item_value": [
+          [
+           "embed_id",
+           "e1"
+          ],
+          [
+           "title",
+           "Berlin design Gathering"
+          ],
+          [
+           "location",
+           "Berlin"
+          ],
+          [
+           "note",
+           " Design  "
+          ],
+          [
+           "url",
+           "https://x"
+          ]
+         ],
+         "updated_at": 1
+        },
+        {
+         "id": "b",
+         "item_value": [
+          [
+           "embed_id",
+           "e1"
+          ],
+          [
+           "title",
+           "Berlin design Gathering"
+          ],
+          [
+           "location",
+           "Berlin"
+          ]
+         ],
+         "updated_at": 2
+        },
+        {
+         "item_value": [
+          [
+           "embed_id",
+           "e2"
+          ],
+          [
+           "name",
+           "Munich"
+          ],
+          [
+           "where",
+           "Hall · 4"
+          ],
+          [
+           "origin",
+           "A"
+          ],
+          [
+           "provider",
+           "P"
+          ]
+         ],
+         "updated_at": 3
+        },
+        {
+         "id": "c",
+         "item_value": [
+          [
+           "embed_id",
+           " "
+          ],
+          [
+           "title",
+           "blank"
+          ]
+         ],
+         "updated_at": 9
+        }
+       ]
+      ],
+      [
+       "saved_trips",
+       [
+        {
+         "id": "d",
+         "item_value": [
+          [
+           "embed_id",
+           "e3"
+          ],
+          [
+           "foo",
+           "design notes"
+          ],
+          [
+           "bar",
+           5
+          ],
+          [
+           "baz",
+           null
+          ]
+         ],
+         "updated_at": 0.5
+        },
+        {
+         "id": "f",
+         "item_value": [
+          [
+           "embed_id",
+           "e4"
+          ],
+          [
+           "title",
+           "Zebra İstanbul"
+          ],
+          [
+           "address",
+           "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          ],
+          [
+           "extra",
+           "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+          ]
+         ]
+        }
+       ]
+      ]
+     ]
+    ],
+    [
+     "travel",
+     [
+      [
+       "stays",
+       [
+        {
+         "id": "g",
+         "item_value": [
+          [
+           "embed_id",
+           "e5"
+          ],
+          [
+           "title",
+           "DESIGN hotel"
+          ]
+         ],
+         "updated_at": 3
+        }
+       ]
+      ]
+     ]
+    ]
+   ],
+   "query": "x",
+   "limit": 6,
+   "expected": [
+    {
+     "embedId": "e4",
+     "settingsPath": "apps/events/settings_memories/saved_trips/entry/f",
+     "title": "Zebra İstanbul",
+     "subtitle": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "appId": "events",
+     "updatedAt": 0
+    }
+   ]
+  }
+ ],
+ "piiAliases": [
+  {
+   "source": "[ADDRESS_1_0000000000000002] [ADDRESS_1_0000000000000001] [ADDRESS_1_0000000000000002]",
+   "mappings": [
+    {
+     "type": "ADDRESS",
+     "original": "Maple Avenue",
+     "placeholder": "[ADDRESS_1_0000000000000001]"
+    },
+    {
+     "type": "ADDRESS",
+     "original": "Birch Lane",
+     "placeholder": "[ADDRESS_1_0000000000000002]"
+    }
+   ],
+   "configured": [],
+   "expected": [
+    [
+     "[ADDRESS_1_0000000000000002]",
+     "[ADDRESS_1]"
+    ],
+    [
+     "[ADDRESS_1_0000000000000001]",
+     "[ADDRESS_2]"
+    ]
+   ]
+  },
+  {
+   "source": "[ADDRESS_1] [ADDRESS_1_0000000000000001] [ADDRESS_1_0000000000000002]",
+   "mappings": [
+    {
+     "type": "ADDRESS",
+     "original": "Maple Avenue",
+     "placeholder": "[ADDRESS_1_0000000000000001]"
+    },
+    {
+     "type": "ADDRESS",
+     "original": "Birch Lane",
+     "placeholder": "[ADDRESS_1_0000000000000002]"
+    },
+    {
+     "type": "ADDRESS",
+     "original": "Existing Road",
+     "placeholder": "[ADDRESS_2]"
+    }
+   ],
+   "configured": [
+    "ADDRESS_3"
+   ],
+   "expected": [
+    [
+     "[ADDRESS_1_0000000000000001]",
+     "[ADDRESS_4]"
+    ],
+    [
+     "[ADDRESS_1_0000000000000002]",
+     "[ADDRESS_5]"
+    ]
+   ]
+  },
+  {
+   "source": {
+    "$entries": [
+     [
+      "2",
+      "Birch Lane"
+     ],
+     [
+      "a",
+      [
+       "text with Maple Avenue",
+       {
+        "$entries": [
+         [
+          "b",
+          "[EMAIL_2_00000000000000ff_3_0123456789abcdef0123456789abcdef]"
+         ]
+        ]
+       }
+      ]
+     ],
+     [
+      "n",
+      null
+     ],
+     [
+      "z",
+      null
+     ]
+    ]
+   },
+   "mappings": [
+    {
+     "type": "ADDRESS",
+     "original": "Birch Lane",
+     "placeholder": "[ADDRESS_1_0000000000000002]"
+    },
+    {
+     "type": "EMAIL",
+     "original": "a@example.test",
+     "placeholder": "[EMAIL_2_00000000000000ff_3_0123456789abcdef0123456789abcdef]"
+    },
+    {
+     "type": "ADDRESS",
+     "original": "Maple Avenue",
+     "placeholder": "[ADDRESS_1_0000000000000001]"
+    }
+   ],
+   "configured": [],
+   "expected": [
+    [
+     "[ADDRESS_1_0000000000000002]",
+     "[ADDRESS_1]"
+    ],
+    [
+     "[ADDRESS_1_0000000000000001]",
+     "[ADDRESS_2]"
+    ],
+    [
+     "[EMAIL_2_00000000000000ff_3_0123456789abcdef0123456789abcdef]",
+     "[EMAIL_1]"
+    ]
+   ]
+  },
+  {
+   "source": null,
+   "mappings": [
+    {
+     "type": "ADDRESS",
+     "original": "Maple Avenue",
+     "placeholder": "[ADDRESS_1_0000000000000001]"
+    }
+   ],
+   "configured": [],
+   "expected": []
+  },
+  {
+   "source": "[ADDRESS_1_0000000000000001]",
+   "mappings": [
+    {
+     "type": "ADDRESS",
+     "original": "Maple Avenue",
+     "placeholder": "[ADDRESS_1_0000000000000001]"
+    }
+   ],
+   "configured": [
+    "[ADDRESS_1_0000000000000001]",
+    ""
+   ],
+   "expected": []
+  },
+  {
+   "source": "no mention of anything [EMAIL_1] [EMAIL_2]",
+   "mappings": [
+    {
+     "type": "EMAIL",
+     "original": "",
+     "placeholder": "[EMAIL_2_00000000000000ff_3_0123456789abcdef0123456789abcdef]"
+    },
+    {
+     "type": "EMAIL",
+     "placeholder": "[EMAIL_9_00000000000000aa]"
+    }
+   ],
+   "configured": [],
+   "expected": []
+  }
+ ]
+}

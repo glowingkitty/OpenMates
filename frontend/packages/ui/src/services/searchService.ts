@@ -1457,7 +1457,7 @@ export function findMatchRanges(
  * @param matchLength - Length of the match
  * @returns Object with snippet text and match position within the snippet
  */
-function buildSnippet(
+export function buildSnippet(
   content: string,
   matchStart: number,
   matchLength: number,

@@ -11,6 +11,7 @@ pub mod mentions;
 pub mod mentions_list;
 pub mod model;
 pub mod pairing;
+pub mod pii_display_aliases;
 mod platform;
 pub mod privacy;
 pub mod project_task_sync;
@@ -20,6 +21,10 @@ pub mod remote_command;
 pub mod session;
 pub mod task_order;
 pub mod upload_privacy;
+pub mod web_search;
+pub mod web_search_json;
+#[cfg(test)]
+mod web_search_tests;
 pub use client::{
     Client, ClientIdentity, ClientOptions, PasswordLoginOptions, CredentialEvent, CredentialSnapshot, PairChallenge,
     SendConsentPolicy, SendMemoryRequest, SendOptions, SendOutcome, SendQueueMode, SendStatus,
