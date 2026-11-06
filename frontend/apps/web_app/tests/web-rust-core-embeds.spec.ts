@@ -6,7 +6,8 @@
  * seeded through the normal send (CI mock replay). After reload the normal chat UI
  * (ActiveChat, Rust-decrypted history) shows the chat; the embed preview must
  * finish, the shared fullscreen must open from it and closing it must return to
- * the chat. Rust embed field decryption is asserted by the crypto lane's spec.
+ * the chat. Rust reloads must open the stored embed fields through the shared
+ * Worker's `embedData` unit (row counters, no failures); the other arms never use it.
  * Records embed ready time, browser CPU and memory over three alternating
  * pure-TS / Rust reload pairs: TS reloads opt out of Rust history AND the Rust
  * crypto unit; Rust reloads route both through the one shared Worker. Gated
@@ -82,10 +83,21 @@ test('Rust core decrypts saved embeds; preview renders and fullscreen opens', as
 		// Shared-Worker bench counters for this reload.
 		Object.assign(sample, await rustCoreInstances(page));
 		expect(sample.wasmMainThreadInstantiations, `${path}: no WASM on the page realm`).toBe(0);
-		expect(sample.sharedWorkerWasm, `${path}: shared Worker WASM instances (history + crypto)`).toBe(path === 'ts' ? 0 : 1);
+		// Every arm (Rust auth restores the session in each, web-rust-core-chat.spec.ts):
+		// one shared Rust core Worker holding the tab's single WASM instance.
+		expect(sample.sharedWorkerWasm, `${path}: the shared Worker holds the WASM instance`).toBe(1);
+		expect(sample.wasmInstantiations, `${path}: one WASM instance in the tab`).toBe(1);
 		const workers = sample.workers as { name: string; wasm: number }[];
 		expect(workers.filter((worker) => worker.name === 'production.worker').length, 'no dedicated history Worker').toBe(0);
-		if (path !== 'ts') expect(workers.filter((worker) => worker.name === 'shared.worker').length, 'one shared Rust core Worker').toBe(1);
+		expect(workers.filter((worker) => worker.name === 'shared.worker').length, `${path}: one shared Rust core Worker`).toBe(1);
+		const embedStats = () => page.evaluate(() => (window as any).__openmatesRustEmbedStats?.() ?? null);
+		if (path === 'rust') {
+			await expect.poll(async () => (await embedStats())?.rows ?? 0, { message: 'rust: embed fields opened by the embedData unit' }).toBeGreaterThan(0);
+			expect((await embedStats()).failures, 'rust: no embedData failures').toBe(0);
+		} else {
+			expect((await embedStats())?.rows ?? 0, `${path}: embedData unused with TS crypto`).toBe(0);
+		}
+		sample.rustEmbedData = await embedStats();
 		samples[path].push(sample);
 	}
 	await page.evaluate((keys: string[]) => { for (const key of keys) localStorage.removeItem(key); }, OPT_OUT_KEYS);

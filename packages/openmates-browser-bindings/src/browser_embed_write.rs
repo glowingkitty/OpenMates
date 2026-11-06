@@ -13,6 +13,8 @@ use openmates_sdk::client::embed_write::{
     ProcessingEmbedUpdate, RestoreRequest, StreamedEmbedData,
     history::{self, EncryptedDiffRow},
 };
+use crate::browser_crypto_batch::WebAead;
+use openmates_sdk::crypto::aead::AeadProvider;
 use openmates_sdk::crypto::master::MasterCapability;
 use serde_json::{Value, json};
 use std::cell::RefCell;
@@ -272,6 +274,32 @@ pub fn embed_history_head_version(rows_json: &str, embed_id: &str) -> Result<Opt
 #[wasm_bindgen]
 pub fn embed_should_publish_client_snapshot(row_count: u32, readonly: Option<bool>) -> bool {
     history::should_publish_client_snapshot(row_count as usize, readonly)
+}
+
+/// Opens one stored `embeds` row (separate-fields model) with its embed key:
+/// `encrypted_content` / `encrypted_type` / `encrypted_text_preview` in one
+/// batched WebCrypto call (`embed_write::read`). Resolves to
+/// `{content, content_failed, type, text_preview}` (strings or `null`); the
+/// key bytes are imported non-extractable and the JS copy is not retained.
+#[wasm_bindgen]
+pub async fn embed_open_row_fields(
+    key: Vec<u8>,
+    encrypted_content: Option<String>,
+    encrypted_type: Option<String>,
+    encrypted_text_preview: Option<String>,
+) -> Result<JsValue, JsValue> {
+    worker_only()?;
+    let raw = crate::browser_crypto_batch::chat_key(key).ok_or_else(|| JsValue::from_str("invalid"))?;
+    let handle = WebAead.import_key(&raw).await.map_err(code)?;
+    let fields = [encrypted_content.as_deref(), encrypted_type.as_deref(), encrypted_text_preview.as_deref()];
+    let opened = embed_write::read::open_fields(handle.as_ref(), fields).await.map_err(code)?;
+    let result = js_sys::Object::new();
+    let text = |value: Option<String>| value.map_or(JsValue::NULL, |text| JsValue::from_str(&text));
+    js_sys::Reflect::set(&result, &JsValue::from_str("content"), &text(opened.content))?;
+    js_sys::Reflect::set(&result, &JsValue::from_str("content_failed"), &JsValue::from_bool(opened.content_failed))?;
+    js_sys::Reflect::set(&result, &JsValue::from_str("type"), &text(opened.embed_type))?;
+    js_sys::Reflect::set(&result, &JsValue::from_str("text_preview"), &text(opened.text_preview))?;
+    Ok(result.into())
 }
 
 /// In-memory embed_ref index (never persisted).

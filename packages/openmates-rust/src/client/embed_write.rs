@@ -20,6 +20,8 @@ pub mod history;
 pub mod keys;
 #[path = "embed_write_payload.rs"]
 pub mod payload;
+#[path = "embed_write_read.rs"]
+pub mod read;
 #[path = "embed_write_ref_index.rs"]
 pub mod ref_index;
 #[path = "embed_write_session.rs"]

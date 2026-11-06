@@ -33,6 +33,7 @@ import {
   canPersistPreviewBackfill,
   canStorePreviewBackfillLocally,
 } from "./embedPreviewBackfill";
+import { openedEmbedField, openStoredEmbedContent } from "./rustCore/embeds/embedDataClient";
 import {
   clearEmbedRefIndexEntries,
   embedRefIndexVersion,
@@ -1659,7 +1660,12 @@ export class EmbedStore {
           // with a DOMException OperationError.
           const cleanedContent = entry.encrypted_content.trim();
 
-          const decryptedContent = await decryptWithEmbedKey(
+          // Compile-time flag (default builds keep only the TS call): the Rust
+          // shared Worker `embedData` unit opens content, type and preview at once.
+          const decryptedContent = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+            ? await openStoredEmbedContent(embedKey, entry, () =>
+                decryptWithEmbedKey(cleanedContent, embedKey, { embedId, fieldName: "encrypted_content" }))
+            : await decryptWithEmbedKey(
             cleanedContent,
             embedKey,
             { embedId, fieldName: "encrypted_content" },
@@ -1801,7 +1807,10 @@ export class EmbedStore {
         const embedKey = await this.getEmbedKey(embedId, entry.hashed_chat_id);
 
         if (embedKey) {
-          const decryptedType = await decryptWithEmbedKey(
+          const decryptedType = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+            ? await openedEmbedField(entry, "type", entry.encrypted_type, (data) =>
+                decryptWithEmbedKey(data, embedKey, { embedId, fieldName: "encrypted_type" }))
+            : await decryptWithEmbedKey(
             entry.encrypted_type,
             embedKey,
             { embedId, fieldName: "encrypted_type" },
@@ -1827,7 +1836,10 @@ export class EmbedStore {
         const embedKey = await this.getEmbedKey(embedId, entry.hashed_chat_id);
 
         if (embedKey) {
-          const decryptedPreview = await decryptWithEmbedKey(
+          const decryptedPreview = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+            ? await openedEmbedField(entry, "text_preview", entry.encrypted_text_preview, (data) =>
+                decryptWithEmbedKey(data, embedKey, { embedId, fieldName: "encrypted_text_preview" }))
+            : await decryptWithEmbedKey(
             entry.encrypted_text_preview,
             embedKey,
             { embedId, fieldName: "encrypted_text_preview" },
