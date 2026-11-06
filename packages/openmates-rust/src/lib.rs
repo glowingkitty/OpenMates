@@ -22,7 +22,10 @@ pub mod session;
 pub mod task_order;
 pub mod upload_privacy;
 pub mod web_search;
+pub mod web_search_corpus;
 pub mod web_search_json;
+#[cfg(test)]
+mod web_search_bench;
 #[cfg(test)]
 mod web_search_tests;
 pub use client::{

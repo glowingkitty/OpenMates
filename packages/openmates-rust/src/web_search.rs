@@ -33,41 +33,34 @@ impl Snippet {
     }
 }
 
-fn find_units(hay: &[u16], needle: &[u16], from: usize) -> Option<usize> {
-    if needle.is_empty() {
-        return (from <= hay.len()).then_some(from);
-    }
-    if hay.len() < needle.len() {
-        return None;
-    }
-    let first = needle[0];
-    let last = hay.len() - needle.len();
-    let mut i = from;
-    while i <= last {
-        if hay[i] == first && hay[i..i + needle.len()] == *needle {
-            return Some(i);
-        }
-        i += 1;
-    }
-    None
-}
-
 /// `findMatchRanges`: case-insensitive, non-overlapping. An empty query yields
 /// no ranges (the TypeScript loop never terminates for it; callers guard).
+/// Searches the lowercased UTF-8 text and converts offsets to UTF-16 units
+/// incrementally, so no UTF-16 copy of the text is made.
 pub fn find_match_ranges(text: &str, query: &str) -> Vec<MatchRange> {
-    let lower_query: Vec<u16> = query.to_lowercase().encode_utf16().collect();
+    let lower_query = query.to_lowercase();
     if lower_query.is_empty() {
         return Vec::new();
     }
-    let lower_text: Vec<u16> = text.to_lowercase().encode_utf16().collect();
-    let mut ranges = Vec::new();
-    let mut from = 0;
-    while from < lower_text.len() {
-        let Some(idx) = find_units(&lower_text, &lower_query, from) else { break };
-        ranges.push(MatchRange { start: idx, length: lower_query.len() });
-        from = idx + lower_query.len();
+    lowered_ranges(&text.to_lowercase(), &lower_query)
+}
+
+/// Non-overlapping ranges of an already lowercased query in already lowercased text.
+pub(crate) fn lowered_ranges(lower_text: &str, lower_query: &str) -> Vec<MatchRange> {
+    lowered_hits(lower_text, lower_text.is_ascii(), lower_query).into_iter().map(|(range, _)| range).collect()
+}
+
+/// Like `lowered_ranges`, each range paired with the UTF-8 offset of its start in `lower_text`.
+pub(crate) fn lowered_hits(lower_text: &str, ascii: bool, lower_query: &str) -> Vec<(MatchRange, usize)> {
+    let length = utf16_len(lower_query);
+    let mut hits = Vec::new();
+    let (mut last_byte, mut last_unit) = (0, 0);
+    for (byte, _) in lower_text.match_indices(lower_query) {
+        let start = if ascii { byte } else { last_unit + utf16_len(&lower_text[last_byte..byte]) };
+        (last_byte, last_unit) = (byte, start);
+        hits.push((MatchRange { start, length }, byte));
     }
-    ranges
+    hits
 }
 
 /// Slice plan of `buildSnippet`: `content[from..to]` between optional ellipses.
@@ -205,6 +198,7 @@ pub struct SavedEmbedSuggestion {
 struct Indexed {
     suggestion: SavedEmbedSuggestion,
     search_text: String,
+    title_lower: String,
 }
 
 /// JavaScript `String.prototype.trim` whitespace (differs from Rust's set).
@@ -218,7 +212,7 @@ fn js_trim(s: &str) -> &str {
 }
 
 fn slice_units(s: &str, max: usize) -> String {
-    if s.encode_utf16().count() <= max {
+    if s.len() <= max || s.encode_utf16().count() <= max {
         return s.to_string();
     }
     let units: Vec<u16> = s.encode_utf16().take(max).collect();
@@ -274,6 +268,7 @@ fn build_index(input: &SavedMemoriesInput) -> Vec<Indexed> {
                         .join(" "),
                     500,
                 );
+                let title_lower = title.to_lowercase();
                 let search_text = format!("{} {}", title, metadata).to_lowercase();
                 let settings_path = entry
                     .id
@@ -291,6 +286,7 @@ fn build_index(input: &SavedMemoriesInput) -> Vec<Indexed> {
                         updated_at,
                     },
                     search_text,
+                    title_lower,
                 };
                 match by_id.get(&embed_id) {
                     Some(&slot) => {
@@ -310,18 +306,47 @@ fn build_index(input: &SavedMemoriesInput) -> Vec<Indexed> {
     slots
 }
 
-/// `searchSavedEmbedMemories` (index built per call; the adapter caches by identity).
-pub fn search_saved_embed_memories(input: &SavedMemoriesInput, query: &str, limit: i64) -> Vec<SavedEmbedSuggestion> {
-    let normalized = js_trim(query).to_lowercase();
-    if normalized.is_empty() || limit <= 0 {
-        return Vec::new();
+/// Built index over saved memories; keeping it resident turns each composer
+/// keystroke into a query that crosses the boundary with the query text only.
+pub struct SavedEmbedIndex {
+    entries: Vec<Indexed>,
+}
+
+impl SavedEmbedIndex {
+    pub fn build(input: &SavedMemoriesInput) -> Self {
+        Self { entries: build_index(input) }
     }
-    let index = build_index(input);
-    let mut matches: Vec<&Indexed> = index.iter().filter(|e| e.search_text.contains(&normalized)).collect();
-    matches.sort_by(|a, b| {
-        let a_title = a.suggestion.title.to_lowercase().contains(&normalized);
-        let b_title = b.suggestion.title.to_lowercase().contains(&normalized);
-        b_title.cmp(&a_title).then(b.suggestion.updated_at.total_cmp(&a.suggestion.updated_at))
-    });
-    matches.into_iter().take(limit as usize).map(|e| e.suggestion.clone()).collect()
+
+    /// `searchSavedEmbedMemories` over the built index.
+    pub fn search(&self, query: &str, limit: i64) -> Vec<SavedEmbedSuggestion> {
+        let normalized = js_trim(query).to_lowercase();
+        if normalized.is_empty() || limit <= 0 {
+            return Vec::new();
+        }
+        // `entries` is already newest first (stable), so the TypeScript sort by
+        // (title match, updatedAt) equals a stable partition: title matches first,
+        // then the rest, each in index order. Stop as soon as `limit` are taken.
+        let limit = limit as usize;
+        let mut title_hits: Vec<&Indexed> = Vec::new();
+        let mut other_hits: Vec<&Indexed> = Vec::new();
+        for entry in &self.entries {
+            if title_hits.len() >= limit {
+                break;
+            }
+            if !entry.search_text.contains(&normalized) {
+                continue;
+            }
+            if entry.title_lower.contains(&normalized) {
+                title_hits.push(entry);
+            } else if other_hits.len() < limit {
+                other_hits.push(entry);
+            }
+        }
+        title_hits.into_iter().chain(other_hits).take(limit).map(|e| e.suggestion.clone()).collect()
+    }
+}
+
+/// `searchSavedEmbedMemories` (index built per call; use `SavedEmbedIndex` to keep it).
+pub fn search_saved_embed_memories(input: &SavedMemoriesInput, query: &str, limit: i64) -> Vec<SavedEmbedSuggestion> {
+    SavedEmbedIndex::build(input).search(query, limit)
 }

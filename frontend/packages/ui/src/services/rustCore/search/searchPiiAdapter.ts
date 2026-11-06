@@ -77,3 +77,48 @@ export function createSearchPiiAdapter(binding: SearchPiiBinding): SearchPiiAdap
       )) as Array<[string, string]>),
   };
 }
+
+/**
+ * Worker-resident search state (wasm classes `SearchCorpus` and `SavedMemoriesIndex`).
+ *
+ * The per-call exports above copy their whole input across the wasm boundary and
+ * cannot beat the in-heap TypeScript string operations (measured 1.6x to 17x
+ * slower, see packages/openmates-browser-bindings/tests/bench/searchSnippetBench.cjs).
+ * The hot paths therefore keep the data inside the core:
+ *
+ *   const corpus = new wasm.SearchCorpus();            // one per chat (or per search scope)
+ *   corpus.set_texts_json(JSON.stringify([[messageId, content], ...]));  // once per ingest
+ *   corpus.set_text(messageId, content); corpus.remove(messageId);       // incremental updates
+ *   parseFirstHits(corpus.first_hits(query, 5));        // == searchMessagesInChat's indexOf+buildSnippet loop
+ *   parseCorpusMatches(corpus.search(query, 1));        // all ranges + snippets per matching text
+ *
+ *   const memories = new wasm.SavedMemoriesIndex();
+ *   memories.set_entries_json(JSON.stringify(toOrderedMemories(state.entriesByApp)));  // per snapshot
+ *   JSON.parse(memories.search(query, 6));              // == searchSavedEmbedMemories (cached index)
+ *
+ * Texts are visited in insertion order (replacing a key keeps its position; remove
+ * moves the last text into the freed slot), so callers ingest newest first.
+ */
+export interface SearchCorpusBinding {
+  set_text(key: string, text: string): void;
+  set_texts_json(entriesJson: string): void;
+  remove(key: string): void;
+  len(): number;
+  search(query: string, maxSnippets: number): string;
+  first_hits(query: string, maxResults: number): string;
+}
+
+export interface SavedMemoriesIndexBinding {
+  set_entries_json(entriesJson: string): void;
+  search(query: string, limit: number): string;
+}
+
+export interface CorpusFirstHit { key: string; snippet: string; snippetMatchStart: number; snippetMatchLength: number }
+export interface CorpusMatch {
+  key: string;
+  ranges: Array<{ start: number; length: number }>;
+  snippets: Array<{ snippet: string; snippetMatchStart: number; snippetMatchLength: number }>;
+}
+
+export const parseFirstHits = (json: string): CorpusFirstHit[] => JSON.parse(json);
+export const parseCorpusMatches = (json: string): CorpusMatch[] => JSON.parse(json);
