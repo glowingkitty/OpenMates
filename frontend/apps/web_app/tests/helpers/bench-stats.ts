@@ -14,8 +14,11 @@
  *   inconclusive    otherwise (too noisy or too few pairs; resubmit with a new attempt)
  */
 
-/** Approved perf gate (.claude/rules/cli-sdk.md): wall/CPU within +3%, RSS within +30 MB, at most one WASM instance. */
-const DEFAULT_MARGIN = 0.03;
+/**
+ * Approved perf gate (.claude/rules/cli-sdk.md, "not noticeable" budget): wall time within
+ * max(+10%, +50 ms) plus a p95 allowance, CPU within +15%, RSS within +30 MB, at most one WASM instance.
+ */
+const DEFAULT_MARGIN = 0.1;
 const DEFAULT_RESAMPLES = 4000;
 
 /** Deterministic PRNG so the same samples always give the same interval. */
@@ -58,11 +61,13 @@ function bootstrapMedianCi(values: number[], resamples: number, seed: number): [
 /**
  * @param pairs  rows with numeric `ts` and `rust`; pairs where either is not a finite number are dropped
  * @param options.mode 'ratio' (default, needs ts > 0) or 'difference'
- * @param options.margin allowed relative slowdown for ratio metrics (default 0.03)
+ * @param options.margin allowed relative slowdown for ratio metrics (default 0.10)
+ * @param options.floorMs ratio mode, wall time: the allowed slowdown is max(margin, floorMs / TS median), i.e. max(+margin, +floorMs)
+ * @param options.p95AllowMs ratio mode: Rust p95 may exceed TS p95 by at most this many ms, else verdict 'rust_worse'
  * @param options.limit allowed absolute difference for difference metrics (default 0; e.g. 30 MB RSS)
  * @param options.gate false reports the effect only (verdict 'reported_only')
  */
-function summarizePaired(pairs: { ts: unknown; rust: unknown }[], options: { mode?: 'ratio' | 'difference'; margin?: number; limit?: number; gate?: boolean; resamples?: number; seed?: number } = {}): Record<string, any> {
+function summarizePaired(pairs: { ts: unknown; rust: unknown }[], options: { mode?: 'ratio' | 'difference'; margin?: number; floorMs?: number; p95AllowMs?: number; limit?: number; gate?: boolean; resamples?: number; seed?: number } = {}): Record<string, any> {
 	const mode = options.mode ?? 'ratio';
 	const margin = options.margin ?? DEFAULT_MARGIN;
 	const usable = pairs.filter((p): p is { ts: number; rust: number } => Number.isFinite(p.ts) && Number.isFinite(p.rust) && (mode === 'difference' || (p.ts as number) > 0));
@@ -71,15 +76,25 @@ function summarizePaired(pairs: { ts: unknown; rust: unknown }[], options: { mod
 	}
 	const effects = usable.map((p) => (mode === 'ratio' ? p.rust / p.ts : p.rust - p.ts));
 	const [ciLow, ciHigh] = bootstrapMedianCi(effects, options.resamples ?? DEFAULT_RESAMPLES, options.seed ?? 20260101);
-	const limit = mode === 'ratio' ? 1 + margin : (options.limit ?? 0);
+	const tsMedian = median(usable.map((p) => p.ts));
+	const allowed = options.floorMs !== undefined && tsMedian > 0 ? Math.max(margin, options.floorMs / tsMedian) : margin;
+	const limit = mode === 'ratio' ? 1 + allowed : (options.limit ?? 0);
 	let verdict = 'inconclusive';
 	if (options.gate === false) verdict = 'reported_only';
 	else if (ciHigh <= limit) verdict = 'rust_not_worse';
 	else if (ciLow > limit) verdict = 'rust_worse';
+	let p95: Record<string, number | boolean> | undefined;
+	if (options.p95AllowMs !== undefined) {
+		const tsP95 = quantile(usable.map((p) => p.ts).sort((a, b) => a - b), 0.95);
+		const rustP95 = quantile(usable.map((p) => p.rust).sort((a, b) => a - b), 0.95);
+		p95 = { ts: tsP95, rust: rustP95, diff: rustP95 - tsP95, allowMs: options.p95AllowMs, ok: rustP95 - tsP95 <= options.p95AllowMs };
+		if (!p95.ok && verdict !== 'reported_only') verdict = 'rust_worse';
+	}
 	return {
 		mode,
 		pairs: usable.length,
-		tsMedian: median(usable.map((p) => p.ts)),
+		...(p95 ? { p95 } : {}),
+		tsMedian,
 		rustMedian: median(usable.map((p) => p.rust)),
 		median: median(effects),
 		ci95: [ciLow, ciHigh],

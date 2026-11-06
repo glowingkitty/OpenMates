@@ -69,7 +69,16 @@ const median = (rows: Array<Record<string, unknown>>, path: string, key: string)
 	return values.length ? values[Math.floor((values.length - 1) / 2)] : null;
 };
 
-/** Rust <= TS on every gated median (wall, CPU, RSS) of one user-facing flow. */
+/**
+ * Approved "not noticeable" budget on every gated median of one user-facing flow: wall time
+ * (Ms keys) <= max(+10%, +50 ms), CPU <= +15%, RSS (anything else) <= TS.
+ */
+function medianLimit(key: string, ts: number): number {
+	if (key.endsWith('Ms') && key !== 'browserCpuMs') return Math.max(ts * 1.1, ts + 50);
+	if (key === 'browserCpuMs') return ts * 1.15;
+	return ts;
+}
+
 function expectNotWorseThanTs(flow: string, rows: Array<Record<string, unknown>>, keys: string[]): Record<string, unknown> {
 	const medians: Record<string, unknown> = {};
 	for (const key of keys) {
@@ -78,7 +87,7 @@ function expectNotWorseThanTs(flow: string, rows: Array<Record<string, unknown>>
 		expect(ts, `${flow} TS median ${key}`).not.toBeNull();
 		expect(rust, `${flow} Rust median ${key}: Rust ${rust} vs TS ${ts}`).not.toBeNull();
 		// Soft: every gate of the flow is reported, not only the first miss.
-		expect.soft(rust!, `${flow} ${key}: Rust ${rust} vs TS ${ts}`).toBeLessThanOrEqual(ts!);
+		expect.soft(rust!, `${flow} ${key}: Rust ${rust} vs TS ${ts}`).toBeLessThanOrEqual(medianLimit(key, ts!));
 	}
 	return medians;
 }

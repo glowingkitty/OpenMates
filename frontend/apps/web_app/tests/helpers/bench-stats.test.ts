@@ -29,7 +29,7 @@ test('consistently slower rust is rust_worse', () => {
 	const ts = [1000, 1100, 900, 1000, 1050, 980, 1020, 990, 1010, 1000, 1005, 995];
 	const result = summarizePaired(pairsOf(ts, ts.map((v) => v * 1.3)));
 	assert.equal(result.verdict, 'rust_worse');
-	assert.ok(result.ci95[0] > 1.03);
+	assert.ok(result.ci95[0] > 1.1);
 });
 
 test('wide spread around the limit is inconclusive', () => {
@@ -66,10 +66,10 @@ test('difference limit and report-only gating', () => {
 	assert.equal(summarizePaired(pairsOf(ts, ts.map((v) => v + 40)), { mode: 'difference', gate: false }).verdict, 'reported_only');
 });
 
-test('default margin is the approved +3%', () => {
+test('default margin is +10%', () => {
 	const ts = [1000, 1010, 990, 1000, 1005, 995, 1000, 1000];
-	assert.equal(summarizePaired(pairsOf(ts, ts.map((v) => v * 1.04))).verdict, 'rust_worse');
-	assert.equal(summarizePaired(pairsOf(ts, ts.map((v) => v * 1.02))).verdict, 'rust_not_worse');
+	assert.equal(summarizePaired(pairsOf(ts, ts.map((v) => v * 1.13))).verdict, 'rust_worse');
+	assert.equal(summarizePaired(pairsOf(ts, ts.map((v) => v * 1.08))).verdict, 'rust_not_worse');
 });
 
 const { pairOrder, interpolatedBaselinePairs, transitionIncrements } = require('./bench-stats.ts');
@@ -103,4 +103,38 @@ test('transition increments group by previous and current arm', () => {
 	assert.deepEqual(result['rust->rust'], { n: 1, median: 40 });
 	assert.deepEqual(result['rust->ts'], { n: 1, median: 30 });
 	assert.deepEqual(result['ts->ts'], { n: 1, median: 40 });
+});
+
+test('wall floor: +40 ms on a 100 ms flow (+40%) is within max(+10%, +50 ms)', () => {
+	const ts = [100, 101, 99, 100, 102, 98, 100, 101, 99, 100, 100, 100];
+	const rust = ts.map((v) => v + 40);
+	assert.equal(summarizePaired(pairsOf(ts, rust)).verdict, 'rust_worse');
+	const gated = summarizePaired(pairsOf(ts, rust), { floorMs: 50 });
+	assert.equal(gated.verdict, 'rust_not_worse');
+	assert.ok(Math.abs(gated.limit - 1.5) < 1e-9);
+	assert.equal(summarizePaired(pairsOf(ts, ts.map((v) => v + 80)), { floorMs: 50 }).verdict, 'rust_worse');
+});
+
+test('wall limit uses +10% when it exceeds the 50 ms floor', () => {
+	const ts = [2000, 2010, 1990, 2000, 2020, 1980, 2000, 2010, 1990, 2000, 2000, 2000];
+	const result = summarizePaired(pairsOf(ts, ts.map((v) => v * 1.08)), { floorMs: 50 });
+	assert.equal(result.verdict, 'rust_not_worse');
+	assert.ok(Math.abs(result.limit - 1.1) < 1e-9);
+});
+
+test('p95 rule fails a slow tail even when the median passes', () => {
+	const ts = [1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000];
+	const rust = [1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1400];
+	const fail = summarizePaired(pairsOf(ts, rust), { floorMs: 50, p95AllowMs: 100 });
+	assert.equal(fail.p95.ok, false);
+	assert.equal(fail.verdict, 'rust_worse');
+	const cold = summarizePaired(pairsOf(ts, rust.map((v, i) => (i === 11 ? 1250 : v))), { floorMs: 50, p95AllowMs: 200 });
+	assert.equal(cold.p95.ok, true);
+	assert.equal(cold.verdict, 'rust_not_worse');
+});
+
+test('CPU margin 0.15 allows +12% and rejects +30%', () => {
+	const ts = [1000, 1010, 990, 1000, 1020, 980, 1000, 1010, 990, 1000, 1000, 1000];
+	assert.equal(summarizePaired(pairsOf(ts, ts.map((v) => v * 1.12)), { margin: 0.15 }).verdict, 'rust_not_worse');
+	assert.equal(summarizePaired(pairsOf(ts, ts.map((v) => v * 1.3)), { margin: 0.15 }).verdict, 'rust_worse');
 });

@@ -23,10 +23,15 @@ const { createBenchProfiler } = require('./bench-profile');
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 /** Measurement-only opt-out of the Rust history source (rustChatHistoryBootstrap.ts). */
 const HISTORY_OPT_OUT_KEY = 'openmates_rust_core_history';
-const MARGIN = Number.parseFloat(process.env.OPENMATES_BENCH_MARGIN ?? '0.03') || 0.03;
+const MARGIN = Number.parseFloat(process.env.OPENMATES_BENCH_MARGIN ?? '0.1') || 0.1;
+const CPU_MARGIN = 0.15;
+const WALL_FLOOR_MS = 50;
+const P95_ALLOW_MS = 100;
+const COLD_START_P95_ALLOW_MS = 200;
 
-/** Approved gate: wall time and CPU within +3% (paired 95% CI), RSS within +30 MB, at most one WASM instance. */
-const GATED_RATIO_METRICS = ['chatRenderedMs', 'embedReadyMs', 'uiInteractiveMs', 'browserCpuMs'] as const;
+/** Approved gate: wall time within max(+10%, +50 ms) and p95 +100 ms (+200 ms cold start), CPU within +15% (paired 95% CI), RSS within +30 MB, at most one WASM instance. */
+const GATED_WALL_METRICS = ['chatRenderedMs', 'embedReadyMs', 'uiInteractiveMs'] as const;
+const GATED_RATIO_METRICS = [...GATED_WALL_METRICS, 'browserCpuMs'] as const;
 const RSS_LIMIT_BYTES = 30 * 1024 * 1024;
 const REPORTED_METRICS = ['mainHeapBytes', 'dedicatedWorkers', 'rustWorkers'] as const;
 
@@ -144,7 +149,9 @@ async function runWebRustCoreBench(page: any, testInfo: any, options: { pairs: n
 
 	const column = (metric: string) => pairs.map((pair) => ({ ts: pair.ts[metric], rust: pair.rust[metric] }));
 	const summary: Record<string, Record<string, any>> = {};
-	for (const metric of GATED_RATIO_METRICS) summary[metric] = summarizePaired(column(metric), { mode: 'ratio', margin: MARGIN });
+	for (const metric of GATED_RATIO_METRICS) summary[metric] = metric === 'browserCpuMs'
+		? summarizePaired(column(metric), { mode: 'ratio', margin: CPU_MARGIN })
+		: summarizePaired(column(metric), { mode: 'ratio', margin: MARGIN, floorMs: WALL_FLOOR_MS, p95AllowMs: metric === 'uiInteractiveMs' ? COLD_START_P95_ALLOW_MS : P95_ALLOW_MS });
 	// Summed process RSS climbs with every same-renderer reload whatever the arm, so the
 	// gate compares each Rust sample with the TS level interpolated at its position
 	// (bench-stats.ts interpolatedBaselinePairs); the adjacent-pair difference is reported.
