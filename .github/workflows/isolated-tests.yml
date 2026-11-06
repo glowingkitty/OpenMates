@@ -726,6 +726,9 @@ jobs:
                 python3 ../tooling/scripts/ci_production_rust_browser.py build
               else
                 pnpm --dir frontend/apps/web_app exec vite build
+                if [ "$CI_LANE_WEB_RUST_CORE" != true ]; then
+                  python3 ../tooling/scripts/ci_web_flag_off_guard.py frontend/apps/web_app/build --repo "$PWD"
+                fi
               fi ;;
           esac
           pnpm --dir frontend/apps/web_app exec node scripts/audit-example-seo.js
