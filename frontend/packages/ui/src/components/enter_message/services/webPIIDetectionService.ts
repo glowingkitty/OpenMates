@@ -4,6 +4,7 @@ import { personalDataStore } from '../../../stores/personalDataStore';
 import { detectPII, type PIIDetectionOptions, type PIIMatch } from './piiDetectionService';
 import { mergeWebPIIMatches, type WebPIIEntity } from './webPIIMatches';
 import { createWebPIINetworkBroker, type WebPIIBrokerFailure } from './webPIINetworkBroker';
+import { buildWebPIIWindows, mergeWebPIIWindowEntities } from './webPIIWindows';
 
 export const WEB_PII_ASSET_BASE = '/pii-runtime/redact-4.1.0-litert-2.6.0/';
 export const WEB_PII_SCAN_BUDGET_MS = 2_500;
@@ -144,6 +145,36 @@ function expireScan(scan: Scan): boolean {
   scan.reject(new Error('Enhanced private data detection exceeded its time budget'));
   return true;
 }
+/**
+ * Scan overlapping windows one at a time (see webPIIWindows.ts). Stops before a
+ * window that would not finish inside the deadline, so slow devices keep the
+ * entities of the finished windows instead of losing the whole enhanced scan
+ * (and its loaded model) to the deadline timer.
+ */
+async function scanWindows(scan: Scan, scanGeneration: number): Promise<{ entities: WebPIIEntity[]; windowsDone: number }> {
+  const windows = buildWebPIIWindows(scan.text);
+  const found: WebPIIEntity[] = [];
+  let slowestMs = 0;
+  let windowsDone = 0;
+  for (const window of windows) {
+    if (windowsDone > 0 && Date.now() + slowestMs * 1.25 >= scan.deadline) {
+      state.set({ ...get(state), fallbackReason: 'timeout' });
+      break;
+    }
+    const startedAt = Date.now();
+    const items = await request('scan', scan.text.slice(window.start, window.end));
+    if (scanGeneration !== generation) break;
+    if (Date.now() >= scan.deadline) {
+      if (windowsDone > 0) state.set({ ...get(state), fallbackReason: 'timeout' });
+      break;
+    }
+    slowestMs = Math.max(slowestMs, Date.now() - startedAt);
+    windowsDone++;
+    for (const item of items) found.push({ ...item, start: item.start + window.start, end: item.end + window.start });
+  }
+  return { entities: mergeWebPIIWindowEntities(found), windowsDone };
+}
+
 const queue: Scan[] = [];
 let scanning = false;
 let activeScan: Scan | undefined;
@@ -162,9 +193,10 @@ async function drain(): Promise<void> {
         if (scanGeneration !== generation) throw new Error('Private data detection was reset');
         if (expireScan(scan)) continue;
         scan.phase = 'inference';
-        const entities = await request('scan', scan.text);
+        const { entities, windowsDone } = await scanWindows(scan, scanGeneration);
         if (scanGeneration !== generation) throw new Error('Private data detection was reset');
-        if (expireScan(scan)) continue;
+        // Nothing arrived in time: same fallback as before. Otherwise keep the finished windows.
+        if (windowsDone === 0 && expireScan(scan)) continue;
         scan.resolve(mergeWebPIIMatches(scan.text, entities, scan.options));
       } catch (error) {
         // Invalid model output is an enhanced-detector failure too. Keep the

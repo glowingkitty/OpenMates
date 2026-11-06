@@ -894,3 +894,65 @@ test('pii toggle in embed fullscreen syncs with chat header state', async ({
 
 	logCheckpoint('Embed-fullscreen PII toggle sync test completed successfully.');
 });
+
+// ---------------------------------------------------------------------------
+// Test: the local model finds every name in a longer mail (context-fragile model)
+// ---------------------------------------------------------------------------
+
+// contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,pii.web.local-bounded-inference
+test('pii enhanced detection highlights every name in a long journalist-style mail', async ({
+	page
+}: {
+	page: any;
+}) => {
+	test.slow();
+	test.setTimeout(300000);
+
+	const logCheckpoint = createSignupLogger('PII_LONG_MAIL');
+	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
+		filenamePrefix: 'pii-long-mail'
+	});
+
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	await archiveExistingScreenshots(logCheckpoint);
+	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
+	await startNewChat(page, logCheckpoint);
+
+	const messageEditor = page.getByTestId('message-editor');
+	await expect(messageEditor).toBeVisible({ timeout: 10000 });
+
+	// Scanned as a single text the model returns no entity for "Herr Neumann" and
+	// "Markus Behrens" here (it drops every name next to the employer sentence), so
+	// this only passes when the composer scans overlapping short windows.
+	const mailText =
+		'Hallo Herr Neumann,\n\n' +
+		'mein Name ist Markus Behrens, ich arbeite seit 2019 als Backend-Entwickler bei der ' +
+		'Nordwerk Software GmbH in Hamburg. Seit März liegen die Kundendaten unseres ' +
+		'Zahlungsdienstes (Namen, IBANs, Adressen) unverschlüsselt auf einem Testserver, der aus ' +
+		'dem Internet erreichbar ist. Mein Teamleiter Stefan Albrecht weiß davon und will es nicht melden.\n\n' +
+		'Bitte nur über Signal: +49 151 23456789. Meine private Adresse ist m.behrens@example.org. ' +
+		'Nicht an meine Firmenmail schreiben.';
+	await insertComposerText(page, messageEditor, mailText, ['Herr Neumann', 'Markus Behrens', 'Stefan Albrecht']);
+
+	// The first scan also downloads the local model, so allow a long first wait.
+	const personHighlights = page.locator('[data-testid="pii-highlight"][data-pii-type="PERSON_NAME"]');
+	await expect
+		.poll(
+			async () => (await personHighlights.allTextContents()).join(' '),
+			{ timeout: 120000, message: 'Names should be highlighted by the local model' }
+		)
+		.toMatch(/Neumann[\s\S]*Behrens[\s\S]*Albrecht/);
+
+	const highlightedNames = (await personHighlights.allTextContents()).join(' ');
+	logCheckpoint(`Highlighted person names: "${highlightedNames}"`);
+	expect(highlightedNames).toContain('Neumann');
+	expect(highlightedNames).toContain('Behrens');
+	expect(highlightedNames).toContain('Albrecht');
+	await expect(page.locator('[data-testid="pii-highlight"][data-pii-type="EMAIL"]')).toContainText(
+		'm.behrens@example.org'
+	);
+	await takeStepScreenshot(page, 'pii-long-mail-highlights');
+
+	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'pii-long-mail-cleanup');
+});
