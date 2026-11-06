@@ -5993,6 +5993,7 @@
             "client.inspirations.Inspiration.category",
             "client.inspirations.Inspiration.feature_title",
             "client.inspirations.Inspiration.id",
+            "client.inspirations.Inspiration.legacy_json",
             "client.inspirations.Inspiration.phrase",
             "client.inspirations.Inspiration.surface",
             "client.inspirations.Inspiration.title",
