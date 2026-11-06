@@ -5,7 +5,7 @@
 import {firstSessionLifetimeEnabled} from './firstSessionPlatform';
 import {PROFILE_MUTATION_CHANNEL} from './platformLifecycle';
 const listeners=new Set<()=>void>();
-const FRAME=Object.freeze({version:1,type:'first-session-key-owner-invalidate'});
+const FRAME=/* @__PURE__ */ Object.freeze({version:1,type:'first-session-key-owner-invalidate'});
 export function publishFirstSessionKeyOwnerNegative():void {
  if(!firstSessionLifetimeEnabled)return;
  for(const notify of [...listeners])try{notify();}catch{/* Preserve the original mutation. */}

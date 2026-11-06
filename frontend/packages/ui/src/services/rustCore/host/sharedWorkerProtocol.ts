@@ -23,7 +23,7 @@ export type SharedNamespace = (typeof SHARED_NAMESPACES)[number];
 export const PRE_BIND_NAMESPACES: ReadonlySet<SharedNamespace> = new Set<SharedNamespace>(['crypto', 'auth', 'apps', 'embedData', 'search']);
 
 /** Maximum transferred ports per namespace: ports[0] is the unit port, core may add the recovery port as ports[1]. */
-export const NAMESPACE_MAX_PORTS: Readonly<Record<SharedNamespace, number>> = Object.freeze({
+export const NAMESPACE_MAX_PORTS: Readonly<Record<SharedNamespace, number>> = /* @__PURE__ */ Object.freeze({
 	core: 2, crypto: 1, auth: 1, embedData: 1, embedWrite: 1, chatState: 1, ws: 1, apps: 1, search: 1
 });
 

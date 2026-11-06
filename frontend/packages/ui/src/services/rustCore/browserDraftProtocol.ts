@@ -3,8 +3,8 @@
  * tombstones, pending synchronization and original-resource authorization. */
 export const MAX_DRAFT_MARKDOWN_BYTES=1_000_000;
 export const MAX_DRAFT_PACKET_BYTES=2*1024*1024;
-export const DRAFT_PREDICATES=Object.freeze(['chat_id','id','user_id','owner_id','team_id','hashed_team_id','chat_visibility','encrypted_chat_key','key_version','key_fingerprint','messages_v','draft_v','cleared_draft_v','encrypted_draft_md','encrypted_draft_preview','updated_at'] as const);
-export const DRAFT_WRITES=Object.freeze(['encrypted_draft_md','encrypted_draft_preview','draft_v','updated_at'] as const);
+export const DRAFT_PREDICATES=/* @__PURE__ */ Object.freeze(['chat_id','id','user_id','owner_id','team_id','hashed_team_id','chat_visibility','encrypted_chat_key','key_version','key_fingerprint','messages_v','draft_v','cleared_draft_v','encrypted_draft_md','encrypted_draft_preview','updated_at'] as const);
+export const DRAFT_WRITES=/* @__PURE__ */ Object.freeze(['encrypted_draft_md','encrypted_draft_preview','draft_v','updated_at'] as const);
 export type DraftProjection=Record<typeof DRAFT_PREDICATES[number],{present:boolean;value:unknown}>;
 export interface BrowserDraftScope{lifecycleGeneration:number;workspaceEpoch:number}
 export interface BrowserDraftPlan{

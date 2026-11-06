@@ -19,7 +19,7 @@
 import { SharedCoreError, type SharedRustCore } from './sharedCoreRegistry';
 
 /** Page -> core unit frame that disposes the unit's dispatcher. Never a valid core request. */
-export const CORE_UNIT_CLOSE = Object.freeze({ coreUnitClose: 1 as const });
+export const CORE_UNIT_CLOSE = /* @__PURE__ */ Object.freeze({ coreUnitClose: 1 as const });
 
 /** True only for the exact `CORE_UNIT_CLOSE` frame shape. */
 export function isCoreUnitClose(value: unknown): boolean {

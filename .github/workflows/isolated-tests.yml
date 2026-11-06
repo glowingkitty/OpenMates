@@ -727,8 +727,7 @@ jobs:
               else
                 pnpm --dir frontend/apps/web_app exec vite build
                 if [ "$CI_LANE_WEB_RUST_CORE" != true ]; then
-                  # --report-only: the current dev build leaks Rust core (see warnings); drop it to enforce
-                  python3 ../tooling/scripts/ci_web_flag_off_guard.py frontend/apps/web_app/build --repo "$PWD" --report-only
+                  python3 ../tooling/scripts/ci_web_flag_off_guard.py frontend/apps/web_app/build --repo "$PWD"
                 fi
               fi ;;
           esac

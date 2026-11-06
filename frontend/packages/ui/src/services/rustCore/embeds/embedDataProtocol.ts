@@ -15,7 +15,7 @@
  */
 import type { EmbedKeyWrapperRow, EncryptedDiffRow, PreparedEmbedWrite, StreamCompletionInput } from '../embedWriteAdapter';
 
-export const EMBED_UNIT_CLOSE = Object.freeze({ embedUnitClose: 1 as const });
+export const EMBED_UNIT_CLOSE = /* @__PURE__ */ Object.freeze({ embedUnitClose: 1 as const });
 
 export function isEmbedUnitClose(value: unknown): boolean {
 	return typeof value === 'object' && value !== null && Object.getPrototypeOf(value) === Object.prototype
