@@ -790,6 +790,9 @@
       "specs": [
         "upload-metadata-privacy.spec.ts",
         "cli-privacy.spec.ts",
+        "cli-native-account.spec.ts",
+        "cli-native-billing.spec.ts",
+        "cli-native-notifications.spec.ts",
         "a11y-keyboard-nav.spec.ts",
         "a11y-modal-dialogs.spec.ts",
         "a11y-pages.spec.ts",

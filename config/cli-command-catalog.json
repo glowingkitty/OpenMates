@@ -19587,7 +19587,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Focused native unit tests pass; isolated account integration and platform validation pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -19671,7 +19671,7 @@
       },
       "gaps": [
         "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
-        "Integration against a live backend and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -19710,7 +19710,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Informational web-only notice (legacy SETTINGS_INFO_COMMANDS); needs no credentials. Human text layout differs slightly from the npm header formatting."
+        "Informational web-only notice (legacy SETTINGS_INFO_COMMANDS); needs no credentials. Human text layout differs slightly from the npm header formatting.",
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit code and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -20414,7 +20415,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Focused native unit tests pass; isolated account integration and platform validation pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -20455,7 +20456,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Focused native account tests pass; cookie-session transport only; isolated integration and cross-platform validation pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -20495,7 +20496,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Focused native account tests pass; cookie-session transport only; isolated integration and cross-platform validation pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -20535,7 +20536,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Focused native account tests pass; cookie-session transport only; isolated integration and cross-platform validation pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -20668,7 +20669,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Focused native unit tests pass; isolated account integration and platform validation pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -20708,7 +20709,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Focused native unit tests pass; isolated account integration and platform validation pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -20748,7 +20749,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Focused native unit tests pass; isolated account integration and platform validation pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -32415,7 +32416,8 @@
       },
       "gaps": [
         "Pure URL builder; no network or account access.",
-        "Platform verification remains open."
+        "Platform verification remains open.",
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -32678,7 +32680,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/group_help.rs"
       },
       "gaps": [
-        "Bare group prints native help and exits 0; subcommands are tracked separately."
+        "Bare group prints native help and exits 0; subcommands are tracked separately.",
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit code and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -32765,7 +32768,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Focused native unit tests pass; isolated account integration and platform validation pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -51930,7 +51933,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Focused native unit tests pass; isolated account integration and platform validation pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -52016,7 +52019,7 @@
       },
       "gaps": [
         "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
-        "Integration against a live backend and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -52056,7 +52059,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Informational web-only notice (legacy SETTINGS_INFO_COMMANDS); needs no credentials. Human text layout differs slightly from the npm header formatting."
+        "Informational web-only notice (legacy SETTINGS_INFO_COMMANDS); needs no credentials. Human text layout differs slightly from the npm header formatting.",
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit code and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -52775,7 +52779,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Focused native unit tests pass; isolated account integration and platform validation pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -52817,7 +52821,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Focused native account tests pass; cookie-session transport only; isolated integration and cross-platform validation pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -52858,7 +52862,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Focused native account tests pass; cookie-session transport only; isolated integration and cross-platform validation pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -52899,7 +52903,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Focused native account tests pass; cookie-session transport only; isolated integration and cross-platform validation pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -53035,7 +53039,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Focused native unit tests pass; isolated account integration and platform validation pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -53076,7 +53080,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Focused native unit tests pass; isolated account integration and platform validation pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -53117,7 +53121,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Focused native unit tests pass; isolated account integration and platform validation pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -53326,7 +53330,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account/billing.rs"
       },
       "gaps": [
-        "Live backend integration and platform verification remain open."
+        "Differential gap: on the isolated backend the route answers HTTP 404; npm prints a command_failed error with the HTTP status while the native binary prints the shared SDK invalid_argument error (generic unavailable-item text, exit 2 vs npm exit 1). Success payload parity is not yet verified. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -53413,7 +53417,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Informational web-only notice (legacy SETTINGS_INFO_COMMANDS); needs no credentials. Human text layout differs slightly from the npm header formatting."
+        "Informational web-only notice (legacy SETTINGS_INFO_COMMANDS); needs no credentials. Human text layout differs slightly from the npm header formatting.",
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-billing.spec.ts): exit code and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -53455,7 +53460,7 @@
       },
       "gaps": [
         "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
-        "Integration against a live backend and platform verification remain open."
+        "Differential gap: on the isolated backend the route answers HTTP 404; npm prints a command_failed error with the HTTP status while the native binary prints the shared SDK invalid_argument error (generic unavailable-item text). Success payload parity is not yet verified. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -53544,7 +53549,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Informational web-only notice (legacy SETTINGS_INFO_COMMANDS); needs no credentials. Human text layout differs slightly from the npm header formatting."
+        "Informational web-only notice (legacy SETTINGS_INFO_COMMANDS); needs no credentials. Human text layout differs slightly from the npm header formatting.",
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-billing.spec.ts): exit code and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -53713,7 +53719,7 @@
       },
       "gaps": [
         "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
-        "Integration against a live backend and platform verification remain open."
+        "Differential gap: on the isolated backend the route answers HTTP 404; npm prints a command_failed error with the HTTP status while the native binary prints the shared SDK invalid_argument error (generic unavailable-item text). Success payload parity is not yet verified. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -53803,7 +53809,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account/billing.rs"
       },
       "gaps": [
-        "Live backend integration and platform verification remain open."
+        "Differential gap: on the isolated backend the route answers HTTP 404; npm prints a command_failed error with the HTTP status while the native binary prints the shared SDK invalid_argument error (generic unavailable-item text, exit 2 vs npm exit 1). Success payload parity is not yet verified. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -53985,7 +53991,7 @@
       },
       "gaps": [
         "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
-        "Integration against a live backend and platform verification remain open."
+        "Differential gap: on the isolated backend the route answers HTTP 404; npm prints a command_failed error with the HTTP status while the native binary prints the shared SDK invalid_argument error (generic unavailable-item text). Success payload parity is not yet verified. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54075,7 +54081,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Focused native unit tests pass; isolated account integration and platform validation pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-billing.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54115,7 +54121,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Focused native unit tests pass; isolated account integration and platform validation pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-billing.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54198,7 +54204,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Focused native unit tests pass; isolated account integration and platform validation pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-billing.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54283,7 +54289,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Focused native unit tests pass; isolated account integration and platform validation pending."
+        "Differential gap: on the isolated backend the route answers HTTP 404; npm prints a command_failed error with the HTTP status while the native binary prints the shared SDK invalid_argument error (generic unavailable-item text). Success payload parity is not yet verified. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54325,7 +54331,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Focused native unit tests pass; isolated account integration and platform validation pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-billing.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54366,7 +54372,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Focused native unit tests pass; isolated account integration and platform validation pending."
+        "Differential gap: on the isolated backend the route answers HTTP 422; npm prints a command_failed error with the HTTP status while the native binary prints the shared SDK invalid_argument error (generic rejected-operation text). Success payload parity is not yet verified. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54796,7 +54802,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Focused native unit tests pass; isolated account integration and platform validation pending."
+        "Differential gap: the npm CLI posts {dark_mode} and the dev backend rejects it with HTTP 422 (exit 1); the native binary posts the correct `darkmode` field and succeeds (exit 0). Native behavior is correct; the npm defect is not mirrored. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54837,7 +54843,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Focused native unit tests pass; isolated account integration and platform validation pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54878,7 +54884,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Focused native unit tests pass; isolated account integration and platform validation pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -55546,7 +55552,7 @@
       },
       "gaps": [
         "Newsletter subscribe/confirm/unsubscribe require a signed-in profile natively (npm allows them signed out).",
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-notifications.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -55588,7 +55594,7 @@
       },
       "gaps": [
         "Newsletter subscribe/confirm/unsubscribe require a signed-in profile natively (npm allows them signed out).",
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-notifications.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -55637,7 +55643,7 @@
       },
       "gaps": [
         "Newsletter subscribe/confirm/unsubscribe require a signed-in profile natively (npm allows them signed out).",
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-notifications.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -55679,7 +55685,7 @@
       },
       "gaps": [
         "Newsletter subscribe/confirm/unsubscribe require a signed-in profile natively (npm allows them signed out).",
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-notifications.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -55720,7 +55726,7 @@
       },
       "gaps": [
         "Newsletter subscribe/confirm/unsubscribe require a signed-in profile natively (npm allows them signed out).",
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-notifications.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -55939,7 +55945,7 @@
       },
       "gaps": [
         "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
-        "Integration against a live backend and platform verification remain open."
+        "Differential gap: on the isolated backend the route answers HTTP 404 for an unknown reminder id; npm prints a command_failed error with the HTTP status while the native binary prints the shared SDK invalid_argument error (generic unavailable-item text). Success payload parity is not yet verified. Exit code and success payload otherwise untested (no reminder exists on a fresh account). Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -55979,7 +55985,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account/reminders.rs"
       },
       "gaps": [
-        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-notifications.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -56029,7 +56035,7 @@
       },
       "gaps": [
         "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
-        "Integration against a live backend and platform verification remain open."
+        "Differential gap: on the isolated backend the route answers HTTP 404 for an unknown reminder id; npm prints a command_failed error with the HTTP status while the native binary prints the shared SDK invalid_argument error (generic unavailable-item text). Success payload parity is not yet verified. Exit code and success payload otherwise untested (no reminder exists on a fresh account). Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -60753,7 +60759,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Focused native unit tests pass; isolated account integration and platform validation pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
