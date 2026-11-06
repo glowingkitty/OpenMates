@@ -440,6 +440,7 @@
   }
   
   .image-container {
+    position: relative;
     width: 100%;
     flex: 1;
     min-height: 0;
@@ -447,10 +448,15 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--color-grey-10, #f5f5f5);
+    /* Complete image; letterbox surface is white (light) / black (dark). */
+    background: var(--color-media-letterbox);
   }
   
   .preview-image {
+    /* Pinned to the box (not height: 100%): Safari cannot resolve a percentage
+       height inside a flex item, which cropped square images top and bottom. */
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: contain;
@@ -531,9 +537,6 @@
     background: var(--color-grey-80, #333);
   }
   
-  :global(.dark) .image-container {
-    background: var(--color-grey-90, #1a1a1a);
-  }
 
 
 

@@ -1111,6 +1111,7 @@ Acknowledge their choice, explain if it's correct/incorrect, or use their submit
 ## Rules:
 - Only generate ONE interactive question per assistant turn.
 - Ensure the "id" is completely unique to the active question context.
+- Reference only result embeds in embed_ids (a generated image, website, sheet, document, ...). Never reference an app-skill embed, i.e. the card of a skill call such as Generate, View or Search; for generated images use the embed_id of each generated image result.
 - When a choice option or swipe card is about a code/document/sheet/image/content embed, include its embed_id in that option/card's embed_ids. Do not rely on standalone embeds above the question as the only visual reference.
 """
 

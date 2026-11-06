@@ -58,8 +58,16 @@ imports.
   those rows retain native scrolling and their position indicator. Titles are at
   most two lines with ellipsis; one-line metadata truncates with ellipsis.
 - Show the complete image with `contain`; never crop to fill. Large result cards
-  give one third to information and two thirds to media. Letterboxing is dark,
-  including in light mode. Existing image aspect ratio does not change card size.
+  give one third to information and two thirds to media. Image letterboxing uses
+  `--color-media-letterbox`: white in light mode, black in dark mode. Pin the
+  `<img>` to its box (`position: absolute; inset: 0`) rather than `height: 100%`,
+  which Safari cannot resolve inside a flex item and crops square images.
+  Existing image aspect ratio does not change card size.
+- App-skill embeds (`images/view`, the generation parent) keep the circle and
+  info bar. The generation parent shows thumbnails of its generated children and
+  the first lines of the prompt. App-skill embeds are never referenceable (e.g.
+  in questionnaire options); only result embeds are, and an app-skill reference
+  resolves to its result children.
 - Dated cards reuse `EmbedCalendarDate`: red weekday over a large day number,
   beside the app tile in compact mode and above the title in large mode.
   Appointment time uses its theme-reactive rounded time pill.

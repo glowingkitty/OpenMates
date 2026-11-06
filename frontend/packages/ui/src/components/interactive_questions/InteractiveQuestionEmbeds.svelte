@@ -9,10 +9,43 @@
 -->
 
 <script lang="ts">
+  import { getContext } from 'svelte';
   import EmbedPreviewLarge from '../embeds/EmbedPreviewLarge.svelte';
+  import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
+  import { resolveEmbed, decodeToonContent } from '../../services/embedResolver';
+  import { resolveReferenceableEmbedIds } from './utils/referenceableEmbeds';
 
   let { embedIds = [] }: { embedIds?: string[] } = $props();
-  let normalizedEmbedIds = $derived(embedIds.filter((embedId) => embedId.trim().length > 0));
+  const chatId = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT)?.chatId ?? null;
+  let requestedEmbedIds = $derived(embedIds.filter((embedId) => embedId.trim().length > 0));
+  // Only result embeds may be referenced: app-skill embeds resolve to their
+  // result children (or nothing). Nothing renders until resolved, so a
+  // forbidden app-skill card never flashes.
+  let resolvedEmbedIds = $state<string[]>([]);
+  let normalizedEmbedIds = $derived(resolvedEmbedIds);
+
+  $effect(() => {
+    const requested = requestedEmbedIds;
+    let cancelled = false;
+    resolvedEmbedIds = [];
+    void resolveReferenceableEmbedIds(requested, async (embedId) => {
+      try {
+        const embed = await resolveEmbed(embedId, { chatId });
+        if (!embed) return null;
+        let childEmbedIds = embed.embed_ids ?? [];
+        if (childEmbedIds.length === 0 && embed.content) {
+          const decoded = await decodeToonContent(embed.content);
+          const ids = decoded?.embed_ids;
+          if (Array.isArray(ids)) childEmbedIds = ids.filter((id): id is string => typeof id === 'string');
+        }
+        return { type: embed.type, childEmbedIds };
+      } catch (error) {
+        console.debug('[InteractiveQuestionEmbeds] Referenced embed not resolvable yet:', embedId, error);
+        return null;
+      }
+    }).then((ids) => { if (!cancelled) resolvedEmbedIds = ids; });
+    return () => { cancelled = true; };
+  });
 </script>
 
 {#if normalizedEmbedIds.length > 0}

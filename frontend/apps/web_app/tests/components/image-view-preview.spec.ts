@@ -43,7 +43,13 @@ for (const width of [390, 1280]) {
         await expect(image).toHaveCSS('object-fit', 'contain');
         await expect(card.locator('.skeleton-content')).toHaveCount(0);
         await expect(card.getByTestId('result-card-title')).toHaveCount(0);
-        await expect(card.getByTestId('embed-basic-infos-bar')).toHaveCount(0);
+        // images/view is an app-skill embed: info bar with the skill name, not a result card.
+        await expect(card.getByTestId('embed-basic-infos-bar')).toBeVisible();
+        await expect(card.getByTestId('embed-basic-infos-bar')).toContainText('View');
+        await expect(card).not.toHaveClass(/result-preview/);
+        // The complete image is pinned to its box (Safari-safe) on a theme letterbox surface.
+        await expect(image).toHaveCSS('position', 'absolute');
+        await expect(card.locator('.image-content')).toHaveCSS('background-color', width === 390 ? 'rgb(0, 0, 0)' : 'rgb(255, 255, 255)');
         const bounds = (await card.boundingBox())!;
         expect(bounds.x).toBeGreaterThanOrEqual(0);
         expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
