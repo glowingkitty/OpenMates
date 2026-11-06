@@ -53330,7 +53330,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account/billing.rs"
       },
       "gaps": [
-        "Differential gap: on the isolated backend the route answers HTTP 404; npm prints a command_failed error with the HTTP status while the native binary prints the shared SDK invalid_argument error (generic unavailable-item text, exit 2 vs npm exit 1). Success payload parity is not yet verified. Linux dev and macOS platform verification remains open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-billing.spec.ts): the isolated backend answers HTTP 404 and native prints the same command_failed error with the HTTP status and exits 1, matching npm. Success payload parity is not yet verified. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -53460,7 +53460,7 @@
       },
       "gaps": [
         "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
-        "Differential gap: on the isolated backend the route answers HTTP 404; npm prints a command_failed error with the HTTP status while the native binary prints the shared SDK invalid_argument error (generic unavailable-item text). Success payload parity is not yet verified. Linux dev and macOS platform verification remains open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-billing.spec.ts): the isolated backend answers HTTP 404 and native prints the same command_failed error with the HTTP status and exits 1, matching npm. Success payload parity is not yet verified. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -53719,7 +53719,7 @@
       },
       "gaps": [
         "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
-        "Differential gap: on the isolated backend the route answers HTTP 404; npm prints a command_failed error with the HTTP status while the native binary prints the shared SDK invalid_argument error (generic unavailable-item text). Success payload parity is not yet verified. Linux dev and macOS platform verification remains open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-billing.spec.ts): the isolated backend answers HTTP 404 and native prints the same command_failed error with the HTTP status and exits 1, matching npm. Success payload parity is not yet verified. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -53809,7 +53809,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account/billing.rs"
       },
       "gaps": [
-        "Differential gap: on the isolated backend the route answers HTTP 404; npm prints a command_failed error with the HTTP status while the native binary prints the shared SDK invalid_argument error (generic unavailable-item text, exit 2 vs npm exit 1). Success payload parity is not yet verified. Linux dev and macOS platform verification remains open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-billing.spec.ts): the isolated backend answers HTTP 404 and native prints the same command_failed error with the HTTP status and exits 1, matching npm. Success payload parity is not yet verified. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -53991,7 +53991,7 @@
       },
       "gaps": [
         "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
-        "Differential gap: on the isolated backend the route answers HTTP 404; npm prints a command_failed error with the HTTP status while the native binary prints the shared SDK invalid_argument error (generic unavailable-item text). Success payload parity is not yet verified. Linux dev and macOS platform verification remains open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-billing.spec.ts): the isolated backend answers HTTP 404 and native prints the same command_failed error with the HTTP status and exits 1, matching npm. Success payload parity is not yet verified. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54289,7 +54289,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Differential gap: on the isolated backend the route answers HTTP 404; npm prints a command_failed error with the HTTP status while the native binary prints the shared SDK invalid_argument error (generic unavailable-item text). Success payload parity is not yet verified. Linux dev and macOS platform verification remains open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-billing.spec.ts): the isolated backend answers HTTP 404 and native prints the same command_failed error with the HTTP status and exits 1, matching npm. Success payload parity is not yet verified. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -54372,7 +54372,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account.rs"
       },
       "gaps": [
-        "Differential gap: on the isolated backend the route answers HTTP 422; npm prints a command_failed error with the HTTP status while the native binary prints the shared SDK invalid_argument error (generic rejected-operation text). Success payload parity is not yet verified. Linux dev and macOS platform verification remains open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-billing.spec.ts): the isolated backend answers HTTP 422 and native prints the same command_failed error with the HTTP status and exits 1, matching npm. Success payload parity is not yet verified. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -55945,7 +55945,7 @@
       },
       "gaps": [
         "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
-        "Differential gap: on the isolated backend the route answers HTTP 404 for an unknown reminder id; npm prints a command_failed error with the HTTP status while the native binary prints the shared SDK invalid_argument error (generic unavailable-item text). Success payload parity is not yet verified. Exit code and success payload otherwise untested (no reminder exists on a fresh account). Linux dev and macOS platform verification remains open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-notifications.spec.ts): the isolated backend answers HTTP 404 and native prints the same command_failed error with the HTTP status and exits 1, matching npm. Success payload parity is not yet verified. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -56035,7 +56035,7 @@
       },
       "gaps": [
         "Mirrors printSettingsResult/printSettingsMutationResult; confirmations use --yes or an interactive [y/N] stdin prompt.",
-        "Differential gap: on the isolated backend the route answers HTTP 404 for an unknown reminder id; npm prints a command_failed error with the HTTP status while the native binary prints the shared SDK invalid_argument error (generic unavailable-item text). Success payload parity is not yet verified. Exit code and success payload otherwise untested (no reminder exists on a fresh account). Linux dev and macOS platform verification remains open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-notifications.spec.ts): the isolated backend answers HTTP 404 and native prints the same command_failed error with the HTTP status and exits 1, matching npm. Success payload parity is not yet verified. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",

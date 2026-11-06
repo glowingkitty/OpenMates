@@ -21,15 +21,10 @@ test.describe('CLI native differential: billing', () => {
 	test('read-only billing commands match the npm CLI', async ({ page }: { page: any }, testInfo: TestInfo) => {
 		const diff = await setupDifferential(page, testInfo, 'billing');
 		try {
-			// Documented gap: the isolated backend answers these routes with HTTP 404/422. npm prints a
-			// command_failed error with the HTTP status; the native binary maps the same status to an
-			// invalid_argument error with a generic message (and exit 2 for two of the routes).
-			const unavailable = new Set(['usage summaries', 'usage export', 'invoices list', 'gift-card list', 'gift-card purchased', 'bank-transfer list', 'address show']);
+			// The isolated backend answers these routes with HTTP 404/422. Both CLIs print a
+			// command_failed error with the HTTP status and exit 1.
 			const read = async (name: string, args: string[], catalog = `settings billing ${name}`) =>
-				diff.check(`settings billing ${name}`, ['settings', 'billing', ...args], {
-					catalog: [catalog],
-					expectedGap: unavailable.has(name) ? 'stderr class: npm=http-' : undefined
-				});
+				diff.check(`settings billing ${name}`, ['settings', 'billing', ...args], { catalog: [catalog] });
 			await read('overview', ['overview']);
 			await read('usage', ['usage']);
 			await read('usage overview', ['usage', 'overview']);

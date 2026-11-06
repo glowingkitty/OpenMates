@@ -29,10 +29,9 @@ test.describe('CLI native differential: notifications and reminders', () => {
 			// Reversible: the fresh CI account starts with the defaults, so restore by disabling again.
 			await diff.check('settings notifications email set', ['settings', 'notifications', 'email', 'set', '--enabled', 'false'], { catalog: ['settings notifications email set'] });
 			await diff.check('settings notifications backup set', ['settings', 'notifications', 'backup', 'set', '--enabled', 'false', '--interval', '30'], { catalog: ['settings notifications backup set'] });
-			// Documented gap: HTTP 404 is printed by npm as command_failed with the status, while the shared
-			// Rust SDK transport maps 404/410 to the typed invalid_argument "requested item is unavailable".
-			await diff.check('settings reminders update (unknown id)', ['settings', 'reminders', 'update', '00000000-0000-4000-8000-000000000000', '--enabled', 'false'], { expectedGap: 'stderr class: npm=http-not-found', catalog: ['settings reminders update'] });
-			await diff.check('settings reminders delete (unknown id)', ['settings', 'reminders', 'delete', '00000000-0000-4000-8000-000000000000', '--yes'], { expectedGap: 'stderr class: npm=http-not-found', catalog: ['settings reminders delete'] });
+			// Unknown ids answer HTTP 404; both CLIs print command_failed with the status and exit 1.
+			await diff.check('settings reminders update (unknown id)', ['settings', 'reminders', 'update', '00000000-0000-4000-8000-000000000000', '--enabled', 'false'], { catalog: ['settings reminders update'] });
+			await diff.check('settings reminders delete (unknown id)', ['settings', 'reminders', 'delete', '00000000-0000-4000-8000-000000000000', '--yes'], { catalog: ['settings reminders delete'] });
 		} finally {
 			await finishDifferential(diff);
 		}

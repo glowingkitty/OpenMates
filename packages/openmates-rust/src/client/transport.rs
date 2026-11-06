@@ -629,6 +629,7 @@ impl Client {
             ||!self.browser_transport||self.browser_authority.is_some()||self.browser_credentials.is_some()||self.session.is_some()||!self.user.is_null()){
             return Err(Error::Forbidden)
         }
+        self.in_flight_method = Some(method.as_str().to_owned());
         let settings_reminders = settings_http_error.is_some();
         if settings_reminders != settings_root_keys.is_some() { return Err(Error::Protocol); }
         if settings_reminders && (method != Method::GET || path != "/v1/settings/reminders" || body.is_some()
@@ -799,6 +800,9 @@ impl Client {
         let settings_reminders = settings_root_keys.is_some();
         let mut response = response?;
         let status = response.status();
+        if !status.is_success() && let Some(method) = self.in_flight_method.take() {
+            self.last_http_failure = Some(HttpFailure { method, status: status.as_u16() });
+        }
         if let Some(slot)=auth_response_status{*slot=Some(status.as_u16());}
         // Numeric response evidence is local to this request. Capture before
         // body reads so an HTTP denial cannot look like a no-response outage.

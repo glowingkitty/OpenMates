@@ -7,6 +7,7 @@
 mod billing;
 mod export_archive;
 mod export_start;
+mod http_errors;
 mod imports;
 mod imports_zip;
 mod learning_mode;
@@ -293,7 +294,19 @@ pub(super) async fn execute_key(
     }
     new_chat_suggestions::execute_key(invocation, client, cancel).await
 }
+/// Runs an account command and presents SDK HTTP-status failures like npm
+/// (`command_failed` + exit 1); see [`http_errors`].
 pub(super) async fn execute(
+    invocation: &Invocation,
+    client: &mut Client,
+) -> Result<CliOutput, CliError> {
+    client.clear_http_failure();
+    match execute_command(invocation, client).await {
+        Err(error) => Err(http_errors::present(invocation, client.http_failure(), error)),
+        ok => ok,
+    }
+}
+async fn execute_command(
     invocation: &Invocation,
     client: &mut Client,
 ) -> Result<CliOutput, CliError> {

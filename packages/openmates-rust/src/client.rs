@@ -488,6 +488,27 @@ impl ScopedSendGate {
     }
 }
 
+/// Method and status of the most recent non-success HTTP response.
+///
+/// Lets CLI presentation reproduce the npm CLI's `... failed with HTTP <status>`
+/// wording while the SDK keeps returning its typed [`Error`] values unchanged.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HttpFailure {
+    /// Upper-case HTTP method of the failed request.
+    pub method: String,
+    /// Numeric HTTP status of the failed response.
+    pub status: u16,
+}
+impl Client {
+    /// Forgets recorded HTTP failure evidence; call before each CLI command.
+    pub fn clear_http_failure(&mut self) {
+        self.last_http_failure = None;
+    }
+    /// HTTP failure recorded since the last [`Client::clear_http_failure`].
+    pub fn http_failure(&self) -> Option<&HttpFailure> {
+        self.last_http_failure.as_ref()
+    }
+}
 pub struct Client {
     options: ClientOptions,
     browser_authority: Option<browser::BrowserAuthority>,
@@ -499,6 +520,9 @@ pub struct Client {
     fresh_auth: auth_handoff::FreshAuthState,
     // Revoked before every new shared transport operation. Never serialized.
     inventory_network: std::sync::Arc<std::sync::atomic::AtomicU64>,
+    // Presentation evidence only: the last non-success HTTP exchange. Never changes SDK errors.
+    last_http_failure: Option<HttpFailure>,
+    in_flight_method: Option<String>,
     credential_updates: Option<mpsc::UnboundedSender<CredentialEvent>>,
     // Installed only by one exclusive live read; no credentials/URLs/body.
     monitor_read_audit: Option<monitor::MonitorReadAudit>,
@@ -635,6 +659,8 @@ impl Client {
             display_name_hint: None,
             fresh_auth: Default::default(),
             inventory_network: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            last_http_failure: None,
+            in_flight_method: None,
             credential_updates: None,
             monitor_read_audit: None,
             base,
