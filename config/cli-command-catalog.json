@@ -22608,24 +22608,30 @@
       "positionals": [
         {
           "name": "prefix_name",
-          "required": true,
+          "required": false,
           "variadic": false,
           "at": 3,
           "synopsis": "<prefix:name>"
         }
       ],
       "flags": [
+        "allow-palette-recolor",
         "api-key",
         "api-url",
         "color",
         "format",
+        "height",
         "help",
+        "icon",
         "json",
         "name",
         "output",
+        "palette",
         "prefix",
         "profile",
-        "svg-path"
+        "size",
+        "svg-path",
+        "width"
       ],
       "source_locations": [
         {
@@ -22651,12 +22657,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "cli::extra_ports::design_icon",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/extra_ports/design_icon.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "--api-key credentials are not supported natively; use a native session.",
+        "PNG output is rasterized by resvg without text or filter support, so pixel output can differ from npm resvg-js for icons that use them.",
+        "Live backend integration and platform verification remain open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -33308,12 +33316,14 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "cli::extra_ports::e2e_provision",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/extra_ports/e2e_provision.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Generated TOTP secret and QR code are never echoed to the terminal (npm printed them); credentials are written only to the owner-only artifact file.",
+        "Dev/test only: production API URLs are refused and the trusted Codex profile disables the command. Live account provisioning is not verified in CI.",
+        "Platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46572,12 +46582,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "cli::privacy_cmd",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/privacy_cmd.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Bare 'privacy' reports status like npm. The native CLI has no offline model runtime: status reports 'unsupported'; install/enable/update stay unported.",
+        "Does not stop a running npm privacy worker daemon."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -47843,12 +47854,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.remote_command.presets.enable",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/command_settings.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Writes the grant only when host command protection (OpenMates bubblewrap launcher + AppArmor broker) is already installed; the privileged installer is not started natively and an unprepared host fails with remote_command_setup_required.",
+        "Isolated integration and platform validation pending; uses the npm remote-access state directory (OPENMATES_STATE_DIR / --profile / ~/.openmates) and refuses native --state-dir."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -62365,8 +62377,8 @@
   "coverage": {
     "command_patterns": 724,
     "flags": 608,
-    "native_handlers_partial": 711,
-    "unsupported": 13,
+    "native_handlers_partial": 715,
+    "unsupported": 9,
     "feature_complete": false
   },
   "maintenance": {

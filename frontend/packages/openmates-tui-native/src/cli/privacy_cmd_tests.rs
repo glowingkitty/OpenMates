@@ -102,3 +102,21 @@ fn disable_turns_off_npm_and_native_opt_ins_and_status_reports_unsupported() {
         Err(CliError::Invalid(m)) if m == "Use the full Project ID for its local privacy setting."
     ));
 }
+
+#[test]
+fn bare_privacy_reports_status_like_npm() {
+    let directory = tempfile::tempdir().unwrap();
+    let paths = Paths {
+        native: directory.path().join("native/privacy-preferences.json"),
+        legacy: directory.path().join("legacy/privacy-preferences.json"),
+        model_dir: directory.path().join("model/rev"),
+    };
+    assert!(supported(&invocation("privacy", &[])));
+    let bare = execute_with(&invocation("privacy", &[]), &paths).ok().unwrap();
+    let status = execute_with(&invocation("privacy status", &[]), &paths).ok().unwrap();
+    assert_eq!(bare.stdout, status.stdout);
+    // Installation and enabling need the packaged offline runtime.
+    for command in ["privacy install", "privacy update", "privacy enable"] {
+        assert!(!supported(&invocation(command, &[])), "{command}");
+    }
+}

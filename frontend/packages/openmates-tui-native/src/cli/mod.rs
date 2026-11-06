@@ -13,6 +13,8 @@ mod full_chat_read;
 mod drafts;
 mod embed_commands;
 mod embed_share;
+mod extra_ports;
+pub use extra_ports::{execute_provisioning as execute_e2e_provisioning, is_provisioning as is_e2e_provisioning};
 pub use embed_share::execute_admitted as execute_cookie_embed_share_admitted;
 pub use embed_commands::{execute_sdk_embeds, execute_sdk_embeds_with_gate, supported as sdk_embeds_supported};
 pub use drafts::execute_sdk_drafts;

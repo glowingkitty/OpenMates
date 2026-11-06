@@ -51,6 +51,7 @@ fn supported(invocation: &Invocation) -> bool {
         || super::parity_extras::supported(invocation)
         || super::utility::supported(invocation)
         || super::parity_chat_recovery::supported(invocation)
+        || super::extra_ports::supported(invocation)
         || matches!(
             invocation.command_path().as_str(),
             "wiki search" | "wiki show"
@@ -1061,6 +1062,7 @@ async fn execute_context_with_inventory(
         return Box::pin(super::parity_extras::execute(invocation, client)).await;
     }
     if super::utility::supported(invocation) { return Box::pin(super::utility::execute(invocation, client)).await; }
+    if super::extra_ports::supported(invocation) { return Box::pin(super::extra_ports::execute(invocation, client)).await; }
     if super::parity_chat_recovery::supported(invocation) {
         return Box::pin(super::parity_chat_recovery::execute(invocation, client, cancel)).await;
     }
@@ -1988,7 +1990,7 @@ mod tests {
     }
     #[test]
     fn unsupported_is_explicit_before_credentials() {
-        let command = invocation(&["e2e", "provision-auth-accounts"], &[], &[]);
+        let command = invocation(&["remote-access"], &[], &[]);
         assert!(!requirements(&command).authenticated);
         let error = execute_public(&command).unwrap().err().unwrap();
         assert_eq!(error.exit_code(), 1);

@@ -46,7 +46,7 @@ fn signup_error(error: SignupError) -> CliError {
 }
 
 /// Legacy writeSecretFile: refuses to overwrite without --force, mode 0600.
-fn write_secret_file(path: &str, content: &str, force: bool) -> Result<String, CliError> {
+pub(crate) fn write_secret_file(path: &str, content: &str, force: bool) -> Result<String, CliError> {
     let target = std::path::Path::new(path);
     if target.exists() && !force {
         return Err(CliError::Invalid(format!(

@@ -14,7 +14,7 @@ const UNSUPPORTED: &str = "The native Rust CLI does not include the offline priv
 pub(super) fn supported(i: &Invocation) -> bool {
     matches!(
         i.command_path().as_str(),
-        "privacy status" | "privacy disable" | "privacy remove"
+        "privacy" | "privacy status" | "privacy disable" | "privacy remove"
     )
 }
 fn fail(message: impl Into<String>) -> CliError {
@@ -165,7 +165,7 @@ pub(super) fn execute(i: &Invocation) -> Result<CliOutput, CliError> {
 fn execute_with(i: &Invocation, paths: &Paths) -> Result<CliOutput, CliError> {
     let command = i.command_path();
     let text = match command.as_str() {
-        "privacy status" => {
+        "privacy" | "privacy status" => {
             let value = status(paths)?;
             if i.boolean("json") {
                 return CliOutput::json(&value);

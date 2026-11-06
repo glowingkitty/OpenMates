@@ -1,5 +1,6 @@
 //! Project CLI authoring through the locally encrypted, typed SDK namespace.
 mod ask;
+mod command_protection;
 mod command_settings;
 mod files;
 mod focus;
@@ -64,6 +65,7 @@ pub(super) fn supported(i: &Invocation) -> bool {
             | "projects settings focus deactivate"
             | "projects settings command stop"
             | "projects settings command-presets list"
+            | "projects settings command-presets enable"
             | "projects settings command-presets disable"
             | "projects settings command-resources list"
             | "projects settings command-resources enable writable"
