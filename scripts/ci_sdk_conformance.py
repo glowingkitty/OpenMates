@@ -650,6 +650,16 @@ def compiler_diagnostics(data, root, inputs):
     python = python_traceback_diagnostics(text, root, inputs)
     if python is not None and len(report["compiler"]) < 32:
         report["compiler"].append(python)
+    if len(report["compiler"]) < 24:
+        fatal = re.search(r"(?m)^Fatal Python error: ([A-Za-z_]{1,40})", text)
+        if fatal:
+            report["compiler"].append({"kind": "python_fatal", "code": fatal.group(1), "locations": []})
+        stdlib = re.findall(
+            r'(?m)^\s*File "[^"\n]*/(?:python3\.12|site-packages)/([A-Za-z0-9_./-]{1,80})", line ([0-9]{1,6})',
+            text,
+        )
+        for name, line in stdlib[-8:]:
+            report["compiler"].append({"kind": "python_frame", "code": f"{name}:{line}", "locations": []})
     exits = re.findall(r"child-exit=(-?[0-9]{1,3})\b", text)
     if exits and len(report["compiler"]) < 32:
         report["compiler"].append({"kind": "child_exit", "code": exits[-1], "locations": []})
@@ -1019,7 +1029,9 @@ def failure_diagnostics(private, root, stage, inputs, plan):
             if not ((kind == "rustc" and re.fullmatch(r"E[0-9]{4}", code))
                     or (kind == "typescript" and re.fullmatch(r"TS[0-9]{4,5}", code))
                     or (kind == "python" and code in (*PYTHON_TRACE_EXCEPTIONS, "FatalPythonError"))
-                    or (kind == "child_exit" and re.fullmatch(r"-?[0-9]{1,3}", code))):
+                    or (kind == "child_exit" and re.fullmatch(r"-?[0-9]{1,3}", code))
+                    or (kind == "python_fatal" and re.fullmatch(r"[A-Za-z_]{1,40}", code))
+                    or (kind == "python_frame" and re.fullmatch(r"[A-Za-z0-9_./-]{1,80}:[0-9]{1,6}", code))):
                 continue
             locations = [{key: value[key] for key in ("path", "line", "column")}
                          for value in entry.get("locations", []) if isinstance(value, dict)
