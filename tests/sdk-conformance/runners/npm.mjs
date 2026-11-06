@@ -46,7 +46,7 @@ try {
   const bytes = readFileSync(filename); const fixtureSha256 = createHash('sha256').update(bytes).digest('hex');
   generatedDiagnosticStage='fixture_decode';
   const document = JSON.parse(bytes);
-  const FLAT_FIXTURES = ['sdk.api-key-operations.v1', 'sdk.api-key-memories.v1'];
+  const FLAT_FIXTURES = ['sdk.api-key-memories.v1'];
   const suite = FLAT_FIXTURES.includes(capability) ? document : document.capabilities[capability];
   generatedDiagnosticStage='fixture_contract';
   assert.ok(suite && Array.isArray(suite.vectors));
@@ -137,9 +137,15 @@ try {
       results.push({ id: vector.id, status: 'passed' });
       generatedDiagnosticVector='none';
     }
-  } else if (capability === 'sdk.api-key-operations.v1') {
+  } else if (capability === 'sdk.api-key-operations.v1' || capability === 'sdk.api-key-domains-b.v1') {
     const { runOperationVectors } = await import('./sdk-api-key-operations.mjs');
     results.push(...await runOperationVectors(suite, await import(source('sdk'))));
+  } else if (capability === 'sdk.public-utilities-helpers.v1') {
+    const { runHelperVectors } = await import('./sdk-api-key-operations.mjs');
+    results.push(...runHelperVectors(suite, await import(source('index'))));
+  } else if (capability === 'sdk.key-management.primitives.v1' || capability === 'sdk.models.layout.v1') {
+    const { runLocalPrimitiveVectors } = await import('./sdk-local-primitives.mjs');
+    results.push(...runLocalPrimitiveVectors(capability, suite, await import(source('sdkKeyManagement')), await import(source('sdkModels'))));
   } else if (capability === 'sdk.api-key-memories.v1') {
     const { runMemoryVectors } = await import('./sdk-api-key-operations.mjs');
     results.push(...await runMemoryVectors(suite, await import(source('crypto')), await import(source('sdkCrypto'))));

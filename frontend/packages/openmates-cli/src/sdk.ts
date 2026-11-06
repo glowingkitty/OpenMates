@@ -845,8 +845,9 @@ export class OpenMates {
     return this.request<T>(`/v1/sdk/connected-account-skills/${encodeURIComponent(appId)}/${encodeURIComponent(skillId)}`, {
       input: withAppSkillRunOptions(input, options),
       connected_account_token_ref_inputs: options.connectedAccountTokenRefInputs ?? [],
-      chat_id: options.chatId,
-      message_id: options.messageId,
+      // Explicit nulls match the Rust/Python wire (sdk-api-key-domains-b.json finance vectors).
+      chat_id: options.chatId ?? null,
+      message_id: options.messageId ?? null,
     });
   }
 

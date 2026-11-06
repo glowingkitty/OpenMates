@@ -1,8 +1,9 @@
 """Run every shared API-key wire vector through the real Python SDK.
 
-Covers the operations fixture (billing, settings, reminders, notifications) and
-the domains-B fixture (feedback, inspirations, suggestions, learning mode,
-benchmark plus pure public-utility helpers). Transport is the `requests`
+Gate capabilities: sdk.api-key-operations.v1 (billing, settings, reminders,
+notifications), sdk.api-key-domains-b.v1 (feedback, inspirations, suggestions,
+learning mode, benchmark, finance) and sdk.public-utilities-helpers.v1 (pure
+public-utility helpers). Transport is the `requests`
 module replaced by a recorder: no network, account or purchase is involved.
 """
 from __future__ import annotations
@@ -17,7 +18,6 @@ from types import SimpleNamespace
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "packages/openmates-python"))
 FIXTURES = ROOT / "tests/sdk-conformance/fixtures"
-FILES = ("sdk-api-key-operations.json", "sdk-api-key-domains-b.json")
 API_URL = "https://api.example.invalid"
 API_KEY = "sk-api-synthetic-operations"
 
@@ -81,36 +81,55 @@ def pure_case(utilities, vector: dict) -> None:
     assert function(*vector["args"]) == expected, vector["id"]
 
 
-def run_all() -> tuple[str, list[dict]]:
+WIRE_CAPABILITIES = {
+    "sdk.api-key-operations.v1": "sdk-api-key-operations.json",
+    "sdk.api-key-domains-b.v1": "sdk-api-key-domains-b.json",
+}
+PURE_CAPABILITIES = {"sdk.public-utilities-helpers.v1": "sdk-api-key-domains-b.json"}
+
+
+def run_capability(capability: str, raw: bytes) -> list[dict]:
+    """Execute one gate capability's vectors; unknown capabilities fail closed."""
     from openmates import sdk, public_utilities
 
+    vectors = json.loads(raw)["capabilities"][capability]["vectors"]
+    assert vectors, capability
+    results = []
+    for vector in vectors:
+        if capability in WIRE_CAPABILITIES:
+            wire_case(sdk, vector)
+        elif capability in PURE_CAPABILITIES:
+            pure_case(public_utilities, vector)
+        else:
+            raise AssertionError("Unsupported conformance capability: " + capability)
+        results.append({"id": vector["id"], "status": "passed"})
+    return results
+
+
+def run_all() -> tuple[str, list[dict]]:
+    """Every shared wire/helper vector across both fixtures (Python unit test entry)."""
     digest = hashlib.sha256()
     results = []
-    for name in FILES:
+    for capability, name in {**WIRE_CAPABILITIES, **PURE_CAPABILITIES}.items():
         raw = (FIXTURES / name).read_bytes()
         digest.update(raw)
-        suite = json.loads(raw)
-        for vector in suite["vectors"]:
-            wire_case(sdk, vector)
-            results.append({"id": vector["id"], "status": "passed"})
-        for vector in suite.get("pure", []):
-            pure_case(public_utilities, vector)
-            results.append({"id": vector["id"], "status": "passed"})
+        results.extend(run_capability(capability, raw))
     assert results
     return digest.hexdigest(), results
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--fixture")
-    parser.add_argument("--capability", default="sdk.operations")
+    parser.add_argument("--fixture", required=True)
+    parser.add_argument("--capability", required=True)
     arguments = parser.parse_args()
-    fixture_sha256, results = run_all()
+    raw = Path(arguments.fixture).read_bytes()
+    results = run_capability(arguments.capability, raw)
     print(json.dumps({
         "capability": arguments.capability,
         "language": "python",
         "status": "passed",
-        "fixtureSha256": fixture_sha256,
+        "fixtureSha256": hashlib.sha256(raw).hexdigest(),
         "results": results,
     }))
 

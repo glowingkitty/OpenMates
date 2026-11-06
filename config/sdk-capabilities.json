@@ -1376,7 +1376,7 @@
           "gaps": [
             "Shared wire vectors cover the JSON routes; raw download behaviour (invoices, credit notes, usage export) is covered by Rust-only tests, and Python returns a dict where Rust returns RawDownload.",
             "Rust API-key facade is exercised only against a loopback fixture server; no live backend, purchase, refund or deletion route has been executed.",
-            "No managed cross-language runner (npm/Python/Rust peers) executes the shared vectors in the conformance gate yet; npm and Python remain partial.",
+            "The shared wire vectors run in all three languages through gate capabilities sdk.api-key-operations.v1 and sdk.api-key-domains-b.v1, which prove only the vectored routes; the remaining family APIs listed here have no shared vectors, so the family stays partial.",
             "Matching direct SDK CPU-processing benchmark against TypeScript is absent."
           ],
           "conformance": false
@@ -1685,7 +1685,7 @@
             "Import re-encryption is proven with a local synthetic OMCA1 payload; the backend validation route and real provider tokens are not exercised.",
             "Team connected accounts are refused in every SDK.",
             "Rust API-key facade is exercised only against a loopback fixture server; no live backend, purchase, refund or deletion route has been executed.",
-            "No managed cross-language runner (npm/Python/Rust peers) executes the shared vectors in the conformance gate yet; npm and Python remain partial.",
+            "The shared wire vectors run in all three languages through gate capabilities sdk.api-key-operations.v1 and sdk.api-key-domains-b.v1, which prove only the vectored routes; the remaining family APIs listed here have no shared vectors, so the family stays partial.",
             "Matching direct SDK CPU-processing benchmark against TypeScript is absent."
           ],
           "conformance": false
@@ -2391,7 +2391,7 @@
           ],
           "gaps": [
             "Rust API-key facade is exercised only against a loopback fixture server; no live backend, purchase, refund or deletion route has been executed.",
-            "No managed cross-language runner (npm/Python/Rust peers) executes the shared vectors in the conformance gate yet; npm and Python remain partial.",
+            "The shared wire vectors run in all three languages through gate capabilities sdk.api-key-operations.v1 and sdk.api-key-domains-b.v1, which prove only the vectored routes; the remaining family APIs listed here have no shared vectors, so the family stays partial.",
             "Matching direct SDK CPU-processing benchmark against TypeScript is absent."
           ],
           "conformance": false
@@ -2641,13 +2641,25 @@
       "id": "sdk.key-management",
       "languages": {
         "npm": {
-          "api": [],
-          "conformance": false,
-          "evidence": [],
-          "gaps": [
-            "Equivalent public API and cross-language implementation evidence are not yet established."
+          "api": [
+            "keyManagement",
+            "keyManagement.decodeKey",
+            "keyManagement.decryptCombined",
+            "keyManagement.encodeKey",
+            "keyManagement.encryptCombined",
+            "keyManagement.hashEmail",
+            "keyManagement.hashKey",
+            "keyManagement.keyFingerprint",
+            "keyManagement.randomKey"
           ],
-          "status": "missing"
+          "conformance": false,
+          "evidence": [
+            "tests/sdk-conformance/runners/sdk-local-primitives.mjs"
+          ],
+          "gaps": [
+            "npm exposes only the primitive subset (random/encode/decode key, fingerprint, hashEmail/hashKey, combined encrypt/decrypt) via keyManagement over the shared Rust WASM core, proved by gate capability sdk.key-management.primitives.v1; Rust-only: signup/recovery key material, web share/media/passkey/hidden-chat formats, chat-key policy and AEAD batch APIs."
+          ],
+          "status": "partial"
         },
         "python": {
           "api": [
@@ -2663,11 +2675,11 @@
           ],
           "conformance": false,
           "evidence": [
+            "tests/sdk-conformance/runners/sdk-local-primitives.py",
             "packages/openmates-python/tests/test_sdk_shared_wire_vectors.py"
           ],
           "gaps": [
-            "Python exposes only the primitive subset (random/encode/decode key, fingerprint, hash_email/hash_key, combined encrypt/decrypt) via openmates.key_management; Rust-only: signup/recovery key material, web share/media/passkey/hidden-chat formats, chat-key policy and AEAD batch APIs.",
-            "No shared fixture executes the Python key helpers through the conformance gate; they are covered by a Python unit test only."
+            "Python exposes only the primitive subset (random/encode/decode key, fingerprint, hash_email/hash_key, combined encrypt/decrypt) via openmates.key_management; Rust-only: signup/recovery key material, web share/media/passkey/hidden-chat formats, chat-key policy and AEAD batch APIs."
           ],
           "status": "partial"
         },
@@ -2881,7 +2893,9 @@
             "crypto.web_formats.unwrap_passkey_master_key"
           ],
           "conformance": false,
-          "evidence": [],
+          "evidence": [
+            "packages/openmates-rust/examples/sdk-api-key-shared-conformance/main.rs"
+          ],
           "gaps": [
             "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
             "Rust-only: signup/recovery key material (crypto.signup), web share/media/passkey/hidden-chat formats (crypto.web_formats, crypto.share, crypto.media) and the web chat-key policy (crypto.chat_key_policy) have shared crypto vectors in Rust but no npm/Python SDK API yet."
@@ -3060,13 +3074,21 @@
       "id": "sdk.models",
       "languages": {
         "npm": {
-          "api": [],
-          "conformance": false,
-          "evidence": [],
-          "gaps": [
-            "Equivalent public API and cross-language implementation evidence are not yet established."
+          "api": [
+            "models",
+            "models.parseChat",
+            "models.parseItem",
+            "models.parseMessage",
+            "models.workspaces"
           ],
-          "status": "missing"
+          "conformance": false,
+          "evidence": [
+            "tests/sdk-conformance/runners/sdk-local-primitives.mjs"
+          ],
+          "gaps": [
+            "npm models parse Chat/Message/Item and list workspaces through the shared Rust serde layout (WASM), proved by gate capability sdk.models.layout.v1; StreamUpdate and Mutation are not exposed in npm and are tagged values in Python."
+          ],
+          "status": "partial"
         },
         "python": {
           "api": [
@@ -3083,10 +3105,11 @@
           ],
           "conformance": false,
           "evidence": [
+            "tests/sdk-conformance/runners/sdk-local-primitives.py",
             "packages/openmates-python/tests/test_sdk_shared_wire_vectors.py"
           ],
           "gaps": [
-            "Python models are plain dataclasses parsing the Rust serde layout; no shared fixture runs them through the conformance gate and StreamUpdate/Mutation are tagged values rather than typed variants."
+            "Python models are plain dataclasses parsing the Rust serde layout (Chat/Message/Item/workspaces proved by gate capability sdk.models.layout.v1); StreamUpdate/Mutation are tagged values rather than typed variants and have no shared vectors."
           ],
           "status": "partial"
         },
@@ -3137,7 +3160,9 @@
             "work"
           ],
           "conformance": false,
-          "evidence": [],
+          "evidence": [
+            "packages/openmates-rust/examples/sdk-api-key-shared-conformance/main.rs"
+          ],
           "gaps": [
             "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
           ],
@@ -3263,7 +3288,7 @@
           ],
           "gaps": [
             "Rust API-key facade is exercised only against a loopback fixture server; no live backend, purchase, refund or deletion route has been executed.",
-            "No managed cross-language runner (npm/Python/Rust peers) executes the shared vectors in the conformance gate yet; npm and Python remain partial.",
+            "The shared wire vectors run in all three languages through gate capabilities sdk.api-key-operations.v1 and sdk.api-key-domains-b.v1, which prove only the vectored routes; the remaining family APIs listed here have no shared vectors, so the family stays partial.",
             "Matching direct SDK CPU-processing benchmark against TypeScript is absent."
           ],
           "conformance": false
@@ -4749,7 +4774,7 @@
           ],
           "gaps": [
             "Rust API-key facade is exercised only against a loopback fixture server; no live backend, purchase, refund or deletion route has been executed.",
-            "No managed cross-language runner (npm/Python/Rust peers) executes the shared vectors in the conformance gate yet; npm and Python remain partial.",
+            "The shared wire vectors run in all three languages through gate capabilities sdk.api-key-operations.v1 and sdk.api-key-domains-b.v1, which prove only the vectored routes; the remaining family APIs listed here have no shared vectors, so the family stays partial.",
             "Matching direct SDK CPU-processing benchmark against TypeScript is absent."
           ],
           "conformance": false
@@ -7047,7 +7072,7 @@
           "gaps": [
             "share_debug_logs is a typed unavailable error in every SDK; the debug-log sharing backend path is not exposed through API keys.",
             "Rust API-key facade is exercised only against a loopback fixture server; no live backend, purchase, refund or deletion route has been executed.",
-            "No managed cross-language runner (npm/Python/Rust peers) executes the shared vectors in the conformance gate yet; npm and Python remain partial.",
+            "The shared wire vectors run in all three languages through gate capabilities sdk.api-key-operations.v1 and sdk.api-key-domains-b.v1, which prove only the vectored routes; the remaining family APIs listed here have no shared vectors, so the family stays partial.",
             "Matching direct SDK CPU-processing benchmark against TypeScript is absent."
           ],
           "conformance": false
@@ -7878,6 +7903,186 @@
             "Search/summary backend proxy currently prefers public Origin auth before API-key auth; explicit bearer headers do not prove API-key billing or owner selection. Learning auth and live routing remain unverified."
           ],
           "status": "partial"
+        }
+      }
+    },
+    {
+      "id": "sdk.api-key-operations.v1",
+      "description": "Shared API-key operation wire vectors (billing, settings, reminders, notifications): the exact outbound method, path, JSON body and bearer-only credential through each public client against a fake transport.",
+      "domain": "operations",
+      "fixture": "tests/sdk-conformance/fixtures/sdk-api-key-operations.json",
+      "languages": {
+        "rust": {
+          "status": "implemented",
+          "api": [],
+          "evidence": [
+            "packages/openmates-rust/examples/sdk-api-key-shared-conformance/main.rs"
+          ],
+          "gaps": [],
+          "conformance": true
+        },
+        "npm": {
+          "status": "implemented",
+          "api": [],
+          "evidence": [
+            "tests/sdk-conformance/runners/npm.mjs",
+            "tests/sdk-conformance/runners/sdk-api-key-operations.mjs"
+          ],
+          "gaps": [],
+          "conformance": true
+        },
+        "python": {
+          "status": "implemented",
+          "api": [],
+          "evidence": [
+            "tests/sdk-conformance/runners/sdk-api-key-operations.py"
+          ],
+          "gaps": [],
+          "conformance": true
+        }
+      }
+    },
+    {
+      "id": "sdk.api-key-domains-b.v1",
+      "description": "Shared API-key domains-B wire vectors (feedback, inspirations, new-chat suggestions, learning mode, benchmark, finance prompt-injection default): exact outbound requests through each public client against a fake transport.",
+      "domain": "operations",
+      "fixture": "tests/sdk-conformance/fixtures/sdk-api-key-domains-b.json",
+      "languages": {
+        "rust": {
+          "status": "implemented",
+          "api": [],
+          "evidence": [
+            "packages/openmates-rust/examples/sdk-api-key-shared-conformance/main.rs"
+          ],
+          "gaps": [],
+          "conformance": true
+        },
+        "npm": {
+          "status": "implemented",
+          "api": [],
+          "evidence": [
+            "tests/sdk-conformance/runners/npm.mjs",
+            "tests/sdk-conformance/runners/sdk-api-key-operations.mjs"
+          ],
+          "gaps": [],
+          "conformance": true
+        },
+        "python": {
+          "status": "implemented",
+          "api": [],
+          "evidence": [
+            "tests/sdk-conformance/runners/sdk-api-key-operations.py"
+          ],
+          "gaps": [],
+          "conformance": true
+        }
+      }
+    },
+    {
+      "id": "sdk.public-utilities-helpers.v1",
+      "description": "Shared pure public helper vectors (support info, clone branch, code extension map, app URL derivation, image AI-detection classification/summary, assistant feedback decision) through each public library.",
+      "domain": "configuration",
+      "fixture": "tests/sdk-conformance/fixtures/sdk-api-key-domains-b.json",
+      "languages": {
+        "rust": {
+          "status": "implemented",
+          "api": [],
+          "evidence": [
+            "packages/openmates-rust/examples/sdk-api-key-shared-conformance/main.rs"
+          ],
+          "gaps": [],
+          "conformance": true
+        },
+        "npm": {
+          "status": "implemented",
+          "api": [],
+          "evidence": [
+            "tests/sdk-conformance/runners/npm.mjs",
+            "tests/sdk-conformance/runners/sdk-api-key-operations.mjs"
+          ],
+          "gaps": [],
+          "conformance": true
+        },
+        "python": {
+          "status": "implemented",
+          "api": [],
+          "evidence": [
+            "tests/sdk-conformance/runners/sdk-api-key-operations.py"
+          ],
+          "gaps": [],
+          "conformance": true
+        }
+      }
+    },
+    {
+      "id": "sdk.key-management.primitives.v1",
+      "description": "Shared key-management primitive vectors: base64 key encode/decode (standard and URL-safe), OM FNV-1a32 fingerprint, email/key hashes, OM-framed and legacy AES-GCM combined decrypt, fresh OM writes and random keys. npm runs the shared Rust core through its WASM keyManagement facade.",
+      "domain": "encryption",
+      "fixture": "tests/sdk-conformance/fixtures/sdk-key-management.json",
+      "languages": {
+        "rust": {
+          "status": "implemented",
+          "api": [],
+          "evidence": [
+            "packages/openmates-rust/examples/sdk-api-key-shared-conformance/main.rs"
+          ],
+          "gaps": [],
+          "conformance": true
+        },
+        "npm": {
+          "status": "implemented",
+          "api": [],
+          "evidence": [
+            "tests/sdk-conformance/runners/npm.mjs",
+            "tests/sdk-conformance/runners/sdk-local-primitives.mjs"
+          ],
+          "gaps": [],
+          "conformance": true
+        },
+        "python": {
+          "status": "implemented",
+          "api": [],
+          "evidence": [
+            "tests/sdk-conformance/runners/sdk-local-primitives.py"
+          ],
+          "gaps": [],
+          "conformance": true
+        }
+      }
+    },
+    {
+      "id": "sdk.models.layout.v1",
+      "description": "Shared decrypted presentation model vectors: Chat/Message/Item serde layout with defaults, required-field refusals and workspace order/labels. npm runs the shared Rust model layout through its WASM models facade.",
+      "domain": "configuration",
+      "fixture": "tests/sdk-conformance/fixtures/sdk-models.json",
+      "languages": {
+        "rust": {
+          "status": "implemented",
+          "api": [],
+          "evidence": [
+            "packages/openmates-rust/examples/sdk-api-key-shared-conformance/main.rs"
+          ],
+          "gaps": [],
+          "conformance": true
+        },
+        "npm": {
+          "status": "implemented",
+          "api": [],
+          "evidence": [
+            "tests/sdk-conformance/runners/npm.mjs",
+            "tests/sdk-conformance/runners/sdk-local-primitives.mjs"
+          ],
+          "gaps": [],
+          "conformance": true
+        },
+        "python": {
+          "status": "implemented",
+          "api": [],
+          "evidence": [
+            "tests/sdk-conformance/runners/sdk-local-primitives.py"
+          ],
+          "gaps": [],
+          "conformance": true
         }
       }
     },
@@ -9654,6 +9859,7 @@
           "conformance": false,
           "evidence": [],
           "gaps": [
+            "Intentionally no public npm SDK surface: the source-host transport lifecycle is driven by the native CLI/TUI host adapter for a signed-in session; public SDKs are API-key only and never use CLI/browser session state or native stores (cli-sdk rules). Not planned for the npm SDK; any future public need must be specified as a separate API-key capability.",
             "Required parked source-host binding/facade/protocol conformance is not implemented or executed in this slice; Rust public transport API alone does not establish three-language or production-host readiness."
           ],
           "status": "missing"
@@ -9663,6 +9869,7 @@
           "conformance": false,
           "evidence": [],
           "gaps": [
+            "Intentionally no public python SDK surface: the source-host transport lifecycle is driven by the native CLI/TUI host adapter for a signed-in session; public SDKs are API-key only and never use CLI/browser session state or native stores (cli-sdk rules). Not planned for the python SDK; any future public need must be specified as a separate API-key capability.",
             "Required parked source-host binding/facade/protocol conformance is not implemented or executed in this slice; Rust public transport API alone does not establish three-language or production-host readiness."
           ],
           "status": "missing"
@@ -10740,6 +10947,7 @@
           "conformance": false,
           "evidence": [],
           "gaps": [
+            "Intentionally no public npm SDK surface: the Main metadata native store runs inside the web shared worker against IndexedDB; public SDKs are API-key only and never use CLI/browser session state or native stores (cli-sdk rules). Not planned for the npm SDK; any future public need must be specified as a separate API-key capability.",
             "Direct npm equivalent Main metadata native-store capability is not implemented; no foreign parity or runtime acceptance"
           ],
           "status": "missing"
@@ -10749,6 +10957,7 @@
           "conformance": false,
           "evidence": [],
           "gaps": [
+            "Intentionally no public python SDK surface: the Main metadata native store runs inside the web shared worker against IndexedDB; public SDKs are API-key only and never use CLI/browser session state or native stores (cli-sdk rules). Not planned for the python SDK; any future public need must be specified as a separate API-key capability.",
             "Direct python equivalent Main metadata native-store capability is not implemented; no foreign parity or runtime acceptance"
           ],
           "status": "missing"
@@ -10788,6 +10997,7 @@
           "conformance": false,
           "evidence": [],
           "gaps": [
+            "Intentionally no public npm SDK surface: the ordered-cache ensureSynced/share flow depends on the CLI's cookie session and local cache; public SDKs are API-key only and never use CLI/browser session state or native stores (cli-sdk rules). Not planned for the npm SDK; any future public need must be specified as a separate API-key capability.",
             "Native ordered-cache ensureSynced/share adapter has no matching npm library capability; existing full-ID share is separate; cache/sync/TTL/Team/error/performance parity unfinished"
           ],
           "status": "missing"
@@ -10797,6 +11007,7 @@
           "conformance": false,
           "evidence": [],
           "gaps": [
+            "Intentionally no public python SDK surface: the ordered-cache ensureSynced/share flow depends on the CLI's cookie session and local cache; public SDKs are API-key only and never use CLI/browser session state or native stores (cli-sdk rules). Not planned for the python SDK; any future public need must be specified as a separate API-key capability.",
             "Native ordered-cache ensureSynced/share adapter has no matching python library capability; existing full-ID share is separate; cache/sync/TTL/Team/error/performance parity unfinished"
           ],
           "status": "missing"
@@ -10883,6 +11094,7 @@
           "conformance": false,
           "evidence": [],
           "gaps": [
+            "Intentionally no public npm SDK surface: selected recovered-reply persistence runs inside the web shared worker against IndexedDB; public SDKs are API-key only and never use CLI/browser session state or native stores (cli-sdk rules). Not planned for the npm SDK; any future public need must be specified as a separate API-key capability.",
             "Direct npm selected-reply/Main native-store equivalent is not implemented; existing SDK full-ID share or recovery APIs are separate, no foreign parity or runtime acceptance"
           ],
           "status": "missing"
@@ -10892,6 +11104,7 @@
           "conformance": false,
           "evidence": [],
           "gaps": [
+            "Intentionally no public python SDK surface: selected recovered-reply persistence runs inside the web shared worker against IndexedDB; public SDKs are API-key only and never use CLI/browser session state or native stores (cli-sdk rules). Not planned for the python SDK; any future public need must be specified as a separate API-key capability.",
             "Direct python selected-reply/Main native-store equivalent is not implemented; existing SDK full-ID share or recovery APIs are separate, no foreign parity or runtime acceptance"
           ],
           "status": "missing"
@@ -10935,6 +11148,7 @@
           "conformance": false,
           "evidence": [],
           "gaps": [
+            "Intentionally no public npm SDK surface: selected recovered code-embed persistence runs inside the web shared worker against IndexedDB; public SDKs are API-key only and never use CLI/browser session state or native stores (cli-sdk rules). Not planned for the npm SDK; any future public need must be specified as a separate API-key capability.",
             "Direct npm selected-code Main native-store/phased browser read equivalent is not implemented; existing full-ID share is separate; compiler/native/browser/runtime/cancel/performance and full artifact/ACK parity remain OPEN"
           ],
           "status": "missing"
@@ -10944,6 +11158,7 @@
           "conformance": false,
           "evidence": [],
           "gaps": [
+            "Intentionally no public python SDK surface: selected recovered code-embed persistence runs inside the web shared worker against IndexedDB; public SDKs are API-key only and never use CLI/browser session state or native stores (cli-sdk rules). Not planned for the python SDK; any future public need must be specified as a separate API-key capability.",
             "Direct python selected-code Main native-store/phased browser read equivalent is not implemented; existing full-ID share is separate; compiler/native/browser/runtime/cancel/performance and full artifact/ACK parity remain OPEN"
           ],
           "status": "missing"

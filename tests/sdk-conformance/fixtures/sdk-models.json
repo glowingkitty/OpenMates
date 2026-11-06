@@ -1,0 +1,210 @@
+{
+ "schemaVersion": 1,
+ "description": "Synthetic decrypted presentation model vectors (Chat, Message, Item serde layout with defaults, required-field refusals, workspace order/labels). sdk.models.layout.v1 runs them through Rust openmates_sdk::model serde, the npm models facade over the shared WASM core, and Python openmates.models. StreamUpdate and Mutation shapes are not covered.",
+ "capabilities": {
+  "sdk.models.layout.v1": {
+   "vectors": [
+    {
+     "id": "chat-defaults",
+     "kind": "chat",
+     "input": {
+      "id": "chat-1",
+      "title": "Synthetic"
+     },
+     "expect": {
+      "id": "chat-1",
+      "title": "Synthetic",
+      "category": "",
+      "messages": []
+     }
+    },
+    {
+     "id": "chat-nested-messages-and-embeds",
+     "kind": "chat",
+     "input": {
+      "id": "chat-2",
+      "title": "Nested",
+      "category": "research",
+      "messages": [
+       {
+        "id": "m1",
+        "role": "user",
+        "content": "hi"
+       },
+       {
+        "id": "m2",
+        "role": "assistant",
+        "content": "hello",
+        "sender": "mate",
+        "thinking": "t",
+        "embeds": [
+         {
+          "id": "e1",
+          "title": "Embed",
+          "fields": {
+           "kind": "code",
+           "lines": [
+            1,
+            2
+           ]
+          }
+         }
+        ]
+       }
+      ]
+     },
+     "expect": {
+      "id": "chat-2",
+      "title": "Nested",
+      "category": "research",
+      "messages": [
+       {
+        "id": "m1",
+        "role": "user",
+        "content": "hi",
+        "sender": "",
+        "thinking": "",
+        "embeds": []
+       },
+       {
+        "id": "m2",
+        "role": "assistant",
+        "content": "hello",
+        "sender": "mate",
+        "thinking": "t",
+        "embeds": [
+         {
+          "id": "e1",
+          "title": "Embed",
+          "description": "",
+          "status": "",
+          "category": "",
+          "fields": {
+           "kind": "code",
+           "lines": [
+            1,
+            2
+           ]
+          }
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "id": "message-defaults",
+     "kind": "message",
+     "input": {
+      "id": "m",
+      "role": "user",
+      "content": "Grüße ✓"
+     },
+     "expect": {
+      "id": "m",
+      "role": "user",
+      "content": "Grüße ✓",
+      "sender": "",
+      "thinking": "",
+      "embeds": []
+     }
+    },
+    {
+     "id": "item-defaults-null-fields",
+     "kind": "item",
+     "input": {
+      "id": "i",
+      "title": "Item"
+     },
+     "expect": {
+      "id": "i",
+      "title": "Item",
+      "description": "",
+      "status": "",
+      "category": "",
+      "fields": null
+     }
+    },
+    {
+     "id": "item-preserves-all-fields",
+     "kind": "item",
+     "input": {
+      "id": "i2",
+      "title": "Full",
+      "description": "d",
+      "status": "open",
+      "category": "c",
+      "fields": {
+       "chat_list_title": ""
+      }
+     },
+     "expect": {
+      "id": "i2",
+      "title": "Full",
+      "description": "d",
+      "status": "open",
+      "category": "c",
+      "fields": {
+       "chat_list_title": ""
+      }
+     }
+    },
+    {
+     "id": "item-rejects-missing-title",
+     "kind": "item",
+     "input": {
+      "id": "i3"
+     },
+     "expect_error": true
+    },
+    {
+     "id": "chat-rejects-missing-id",
+     "kind": "chat",
+     "input": {
+      "title": "No id"
+     },
+     "expect_error": true
+    },
+    {
+     "id": "message-rejects-missing-content",
+     "kind": "message",
+     "input": {
+      "id": "m",
+      "role": "user"
+     },
+     "expect_error": true
+    },
+    {
+     "id": "workspaces-order-and-labels",
+     "kind": "workspaces",
+     "expect": [
+      {
+       "id": "chats",
+       "label": "Chats"
+      },
+      {
+       "id": "apps",
+       "label": "Apps"
+      },
+      {
+       "id": "projects",
+       "label": "Projects"
+      },
+      {
+       "id": "workflows",
+       "label": "Workflows"
+      },
+      {
+       "id": "tasks",
+       "label": "Tasks"
+      },
+      {
+       "id": "settings",
+       "label": "Settings"
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

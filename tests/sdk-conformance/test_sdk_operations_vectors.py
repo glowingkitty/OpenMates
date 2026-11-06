@@ -15,7 +15,7 @@ sys.path.insert(0, str(ROOT / "packages/openmates-python"))
 
 from openmates import sdk as sdk_module  # noqa: E402
 
-VECTORS = json.loads((ROOT / "tests/sdk-conformance/fixtures/sdk-api-key-operations.json").read_text())["vectors"]
+VECTORS = json.loads((ROOT / "tests/sdk-conformance/fixtures/sdk-api-key-operations.json").read_text())["capabilities"]["sdk.api-key-operations.v1"]["vectors"]
 
 
 @pytest.mark.parametrize("vector", VECTORS, ids=[v["id"] for v in VECTORS])

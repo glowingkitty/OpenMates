@@ -1,377 +1,381 @@
 {
   "schemaVersion": 1,
-  "description": "Synthetic API-key SDK operation wire vectors (billing, settings, reminders, notifications). Each vector is the exact outbound request a conforming SDK must make; no real backend, purchase or deletion is involved.",
-  "vectors": [
-    {
-      "id": "billing-overview",
-      "operation": "billing.overview",
-      "args": [],
-      "kwargs": {},
-      "expect": {
-        "method": "GET",
-        "path": "/v1/sdk/billing",
-        "body": null
-      }
-    },
-    {
-      "id": "billing-buyer-address",
-      "operation": "billing.buyer_address",
-      "args": [],
-      "kwargs": {},
-      "expect": {
-        "method": "GET",
-        "path": "/v1/sdk/billing/buyer-address",
-        "body": null
-      }
-    },
-    {
-      "id": "billing-save-buyer-address",
-      "operation": "billing.save_buyer_address",
-      "args": [
+  "description": "Synthetic API-key SDK operation wire vectors (billing, settings, reminders, notifications). Each vector is the exact outbound request a conforming SDK must make; no real backend, purchase or deletion is involved. Gate capability sdk.api-key-operations.v1 runs every vector through the public Rust, npm and Python clients.",
+  "capabilities": {
+    "sdk.api-key-operations.v1": {
+      "vectors": [
         {
-          "country": "DE"
-        }
-      ],
-      "kwargs": {},
-      "expect": {
-        "method": "PUT",
-        "path": "/v1/sdk/billing/buyer-address",
-        "body": {
-          "buyer_address": {
-            "country": "DE"
+          "id": "billing-overview",
+          "operation": "billing.overview",
+          "args": [],
+          "kwargs": {},
+          "expect": {
+            "method": "GET",
+            "path": "/v1/sdk/billing",
+            "body": null
+          }
+        },
+        {
+          "id": "billing-buyer-address",
+          "operation": "billing.buyer_address",
+          "args": [],
+          "kwargs": {},
+          "expect": {
+            "method": "GET",
+            "path": "/v1/sdk/billing/buyer-address",
+            "body": null
+          }
+        },
+        {
+          "id": "billing-save-buyer-address",
+          "operation": "billing.save_buyer_address",
+          "args": [
+            {
+              "country": "DE"
+            }
+          ],
+          "kwargs": {},
+          "expect": {
+            "method": "PUT",
+            "path": "/v1/sdk/billing/buyer-address",
+            "body": {
+              "buyer_address": {
+                "country": "DE"
+              }
+            }
+          }
+        },
+        {
+          "id": "billing-usage-details",
+          "operation": "billing.usage_details",
+          "args": [],
+          "kwargs": {
+            "type": "chat",
+            "identifier": "id/1",
+            "year_month": "2026-10"
+          },
+          "expect": {
+            "method": "GET",
+            "path": "/v1/sdk/billing/usage/details?type=chat&identifier=id%2F1&year_month=2026-10",
+            "body": null
+          }
+        },
+        {
+          "id": "billing-chat-total",
+          "operation": "billing.chat_total",
+          "args": [
+            "chat-1"
+          ],
+          "kwargs": {},
+          "expect": {
+            "method": "GET",
+            "path": "/v1/sdk/billing/usage/chat-total?chat_id=chat-1",
+            "body": null
+          }
+        },
+        {
+          "id": "billing-usage-summaries",
+          "operation": "billing.usage_summaries",
+          "args": [],
+          "kwargs": {},
+          "expect": {
+            "method": "GET",
+            "path": "/v1/sdk/billing/usage/summaries",
+            "body": null
+          }
+        },
+        {
+          "id": "billing-usage-daily",
+          "operation": "billing.usage_daily",
+          "args": [],
+          "kwargs": {},
+          "expect": {
+            "method": "GET",
+            "path": "/v1/sdk/billing/usage/daily",
+            "body": null
+          }
+        },
+        {
+          "id": "billing-bank-transfer-order",
+          "operation": "billing.create_bank_transfer_order",
+          "args": [
+            1000
+          ],
+          "kwargs": {},
+          "expect": {
+            "method": "POST",
+            "path": "/v1/sdk/billing/bank-transfer-orders",
+            "body": {
+              "credits_amount": 1000,
+              "currency": "eur",
+              "email_encryption_key": null
+            }
+          }
+        },
+        {
+          "id": "billing-bank-transfer-status-encodes-id",
+          "operation": "billing.bank_transfer_status",
+          "args": [
+            "a/b c"
+          ],
+          "kwargs": {},
+          "expect": {
+            "method": "GET",
+            "path": "/v1/sdk/billing/bank-transfer-orders/a%2Fb%20c",
+            "body": null
+          }
+        },
+        {
+          "id": "billing-list-bank-transfer-orders",
+          "operation": "billing.list_bank_transfer_orders",
+          "args": [],
+          "kwargs": {},
+          "expect": {
+            "method": "GET",
+            "path": "/v1/sdk/billing/bank-transfer-orders",
+            "body": null
+          }
+        },
+        {
+          "id": "billing-list-invoices",
+          "operation": "billing.list_invoices",
+          "args": [],
+          "kwargs": {},
+          "expect": {
+            "method": "GET",
+            "path": "/v1/sdk/billing/invoices",
+            "body": null
+          }
+        },
+        {
+          "id": "billing-refund-confirmed",
+          "operation": "billing.request_refund",
+          "args": [
+            "inv-1"
+          ],
+          "kwargs": {},
+          "expect": {
+            "method": "POST",
+            "path": "/v1/sdk/billing/refund",
+            "body": {
+              "invoice_id": "inv-1",
+              "email_encryption_key": null
+            }
+          },
+          "confirmed": true
+        },
+        {
+          "id": "billing-redeem-gift-card",
+          "operation": "billing.redeem_gift_card",
+          "args": [
+            "GIFT-CODE"
+          ],
+          "kwargs": {},
+          "expect": {
+            "method": "POST",
+            "path": "/v1/sdk/billing/gift-cards/redeem",
+            "body": {
+              "code": "GIFT-CODE"
+            }
+          }
+        },
+        {
+          "id": "billing-list-redeemed-gift-cards",
+          "operation": "billing.list_redeemed_gift_cards",
+          "args": [],
+          "kwargs": {},
+          "expect": {
+            "method": "GET",
+            "path": "/v1/sdk/billing/gift-cards/redeemed",
+            "body": null
+          }
+        },
+        {
+          "id": "billing-gift-card-purchase-status",
+          "operation": "billing.gift_card_purchase_status",
+          "args": [
+            "o1"
+          ],
+          "kwargs": {},
+          "expect": {
+            "method": "GET",
+            "path": "/v1/sdk/billing/gift-cards/purchases/o1",
+            "body": null
+          }
+        },
+        {
+          "id": "billing-list-purchased-gift-cards",
+          "operation": "billing.list_purchased_gift_cards",
+          "args": [],
+          "kwargs": {},
+          "expect": {
+            "method": "GET",
+            "path": "/v1/sdk/billing/gift-cards/purchased",
+            "body": null
+          }
+        },
+        {
+          "id": "billing-auto-topup",
+          "operation": "billing.set_low_balance_auto_topup",
+          "args": [
+            {
+              "enabled": false
+            }
+          ],
+          "kwargs": {},
+          "expect": {
+            "method": "POST",
+            "path": "/v1/sdk/billing/auto-topup/low-balance",
+            "body": {
+              "enabled": false
+            }
+          }
+        },
+        {
+          "id": "settings-language",
+          "operation": "settings.set_language",
+          "args": [
+            "de"
+          ],
+          "kwargs": {},
+          "expect": {
+            "method": "POST",
+            "path": "/v1/sdk/settings/language",
+            "body": {
+              "language": "de"
+            }
+          }
+        },
+        {
+          "id": "settings-dark-mode",
+          "operation": "settings.set_dark_mode",
+          "args": [
+            true
+          ],
+          "kwargs": {},
+          "expect": {
+            "method": "POST",
+            "path": "/v1/sdk/settings/dark-mode",
+            "body": {
+              "enabled": true
+            }
+          }
+        },
+        {
+          "id": "settings-font",
+          "operation": "settings.set_font",
+          "args": [
+            "Lexend"
+          ],
+          "kwargs": {},
+          "expect": {
+            "method": "POST",
+            "path": "/v1/sdk/settings/font",
+            "body": {
+              "font": "Lexend"
+            }
+          }
+        },
+        {
+          "id": "settings-model-defaults-nulls",
+          "operation": "settings.set_model_defaults",
+          "args": [],
+          "kwargs": {
+            "default_ai_model_simple": "m1"
+          },
+          "expect": {
+            "method": "POST",
+            "path": "/v1/sdk/settings/ai-model-defaults",
+            "body": {
+              "default_ai_model_simple": "m1",
+              "default_ai_model_complex": null,
+              "default_ai_model_most_demanding": null
+            }
+          }
+        },
+        {
+          "id": "settings-chat-auto-delete",
+          "operation": "settings.set_chat_auto_delete",
+          "args": [
+            "30d"
+          ],
+          "kwargs": {},
+          "expect": {
+            "method": "POST",
+            "path": "/v1/sdk/settings/auto-delete/chats",
+            "body": {
+              "period": "30d"
+            }
+          }
+        },
+        {
+          "id": "reminders-list",
+          "operation": "reminders.list",
+          "args": [],
+          "kwargs": {},
+          "expect": {
+            "method": "GET",
+            "path": "/v1/sdk/reminders",
+            "body": null
+          }
+        },
+        {
+          "id": "reminders-update-encodes-id",
+          "operation": "reminders.update",
+          "args": [
+            "r/1",
+            {
+              "prompt": "x"
+            }
+          ],
+          "kwargs": {},
+          "expect": {
+            "method": "PATCH",
+            "path": "/v1/sdk/reminders/r%2F1",
+            "body": {
+              "prompt": "x"
+            }
+          }
+        },
+        {
+          "id": "reminders-delete-confirmed",
+          "operation": "reminders.delete",
+          "args": [
+            "r1"
+          ],
+          "kwargs": {},
+          "expect": {
+            "method": "DELETE",
+            "path": "/v1/sdk/reminders/r1",
+            "body": null
+          },
+          "confirmed": true
+        },
+        {
+          "id": "notifications-status",
+          "operation": "notifications.status",
+          "args": [],
+          "kwargs": {},
+          "expect": {
+            "method": "GET",
+            "path": "/v1/sdk/notifications/status",
+            "body": null
+          }
+        },
+        {
+          "id": "notifications-list-limit",
+          "operation": "notifications.list",
+          "args": [],
+          "kwargs": {
+            "limit": 5
+          },
+          "expect": {
+            "method": "GET",
+            "path": "/v1/sdk/notifications?limit=5",
+            "body": null
           }
         }
-      }
-    },
-    {
-      "id": "billing-usage-details",
-      "operation": "billing.usage_details",
-      "args": [],
-      "kwargs": {
-        "type": "chat",
-        "identifier": "id/1",
-        "year_month": "2026-10"
-      },
-      "expect": {
-        "method": "GET",
-        "path": "/v1/sdk/billing/usage/details?type=chat&identifier=id%2F1&year_month=2026-10",
-        "body": null
-      }
-    },
-    {
-      "id": "billing-chat-total",
-      "operation": "billing.chat_total",
-      "args": [
-        "chat-1"
-      ],
-      "kwargs": {},
-      "expect": {
-        "method": "GET",
-        "path": "/v1/sdk/billing/usage/chat-total?chat_id=chat-1",
-        "body": null
-      }
-    },
-    {
-      "id": "billing-usage-summaries",
-      "operation": "billing.usage_summaries",
-      "args": [],
-      "kwargs": {},
-      "expect": {
-        "method": "GET",
-        "path": "/v1/sdk/billing/usage/summaries",
-        "body": null
-      }
-    },
-    {
-      "id": "billing-usage-daily",
-      "operation": "billing.usage_daily",
-      "args": [],
-      "kwargs": {},
-      "expect": {
-        "method": "GET",
-        "path": "/v1/sdk/billing/usage/daily",
-        "body": null
-      }
-    },
-    {
-      "id": "billing-bank-transfer-order",
-      "operation": "billing.create_bank_transfer_order",
-      "args": [
-        1000
-      ],
-      "kwargs": {},
-      "expect": {
-        "method": "POST",
-        "path": "/v1/sdk/billing/bank-transfer-orders",
-        "body": {
-          "credits_amount": 1000,
-          "currency": "eur",
-          "email_encryption_key": null
-        }
-      }
-    },
-    {
-      "id": "billing-bank-transfer-status-encodes-id",
-      "operation": "billing.bank_transfer_status",
-      "args": [
-        "a/b c"
-      ],
-      "kwargs": {},
-      "expect": {
-        "method": "GET",
-        "path": "/v1/sdk/billing/bank-transfer-orders/a%2Fb%20c",
-        "body": null
-      }
-    },
-    {
-      "id": "billing-list-bank-transfer-orders",
-      "operation": "billing.list_bank_transfer_orders",
-      "args": [],
-      "kwargs": {},
-      "expect": {
-        "method": "GET",
-        "path": "/v1/sdk/billing/bank-transfer-orders",
-        "body": null
-      }
-    },
-    {
-      "id": "billing-list-invoices",
-      "operation": "billing.list_invoices",
-      "args": [],
-      "kwargs": {},
-      "expect": {
-        "method": "GET",
-        "path": "/v1/sdk/billing/invoices",
-        "body": null
-      }
-    },
-    {
-      "id": "billing-refund-confirmed",
-      "operation": "billing.request_refund",
-      "args": [
-        "inv-1"
-      ],
-      "kwargs": {},
-      "expect": {
-        "method": "POST",
-        "path": "/v1/sdk/billing/refund",
-        "body": {
-          "invoice_id": "inv-1",
-          "email_encryption_key": null
-        }
-      },
-      "confirmed": true
-    },
-    {
-      "id": "billing-redeem-gift-card",
-      "operation": "billing.redeem_gift_card",
-      "args": [
-        "GIFT-CODE"
-      ],
-      "kwargs": {},
-      "expect": {
-        "method": "POST",
-        "path": "/v1/sdk/billing/gift-cards/redeem",
-        "body": {
-          "code": "GIFT-CODE"
-        }
-      }
-    },
-    {
-      "id": "billing-list-redeemed-gift-cards",
-      "operation": "billing.list_redeemed_gift_cards",
-      "args": [],
-      "kwargs": {},
-      "expect": {
-        "method": "GET",
-        "path": "/v1/sdk/billing/gift-cards/redeemed",
-        "body": null
-      }
-    },
-    {
-      "id": "billing-gift-card-purchase-status",
-      "operation": "billing.gift_card_purchase_status",
-      "args": [
-        "o1"
-      ],
-      "kwargs": {},
-      "expect": {
-        "method": "GET",
-        "path": "/v1/sdk/billing/gift-cards/purchases/o1",
-        "body": null
-      }
-    },
-    {
-      "id": "billing-list-purchased-gift-cards",
-      "operation": "billing.list_purchased_gift_cards",
-      "args": [],
-      "kwargs": {},
-      "expect": {
-        "method": "GET",
-        "path": "/v1/sdk/billing/gift-cards/purchased",
-        "body": null
-      }
-    },
-    {
-      "id": "billing-auto-topup",
-      "operation": "billing.set_low_balance_auto_topup",
-      "args": [
-        {
-          "enabled": false
-        }
-      ],
-      "kwargs": {},
-      "expect": {
-        "method": "POST",
-        "path": "/v1/sdk/billing/auto-topup/low-balance",
-        "body": {
-          "enabled": false
-        }
-      }
-    },
-    {
-      "id": "settings-language",
-      "operation": "settings.set_language",
-      "args": [
-        "de"
-      ],
-      "kwargs": {},
-      "expect": {
-        "method": "POST",
-        "path": "/v1/sdk/settings/language",
-        "body": {
-          "language": "de"
-        }
-      }
-    },
-    {
-      "id": "settings-dark-mode",
-      "operation": "settings.set_dark_mode",
-      "args": [
-        true
-      ],
-      "kwargs": {},
-      "expect": {
-        "method": "POST",
-        "path": "/v1/sdk/settings/dark-mode",
-        "body": {
-          "enabled": true
-        }
-      }
-    },
-    {
-      "id": "settings-font",
-      "operation": "settings.set_font",
-      "args": [
-        "Lexend"
-      ],
-      "kwargs": {},
-      "expect": {
-        "method": "POST",
-        "path": "/v1/sdk/settings/font",
-        "body": {
-          "font": "Lexend"
-        }
-      }
-    },
-    {
-      "id": "settings-model-defaults-nulls",
-      "operation": "settings.set_model_defaults",
-      "args": [],
-      "kwargs": {
-        "default_ai_model_simple": "m1"
-      },
-      "expect": {
-        "method": "POST",
-        "path": "/v1/sdk/settings/ai-model-defaults",
-        "body": {
-          "default_ai_model_simple": "m1",
-          "default_ai_model_complex": null,
-          "default_ai_model_most_demanding": null
-        }
-      }
-    },
-    {
-      "id": "settings-chat-auto-delete",
-      "operation": "settings.set_chat_auto_delete",
-      "args": [
-        "30d"
-      ],
-      "kwargs": {},
-      "expect": {
-        "method": "POST",
-        "path": "/v1/sdk/settings/auto-delete/chats",
-        "body": {
-          "period": "30d"
-        }
-      }
-    },
-    {
-      "id": "reminders-list",
-      "operation": "reminders.list",
-      "args": [],
-      "kwargs": {},
-      "expect": {
-        "method": "GET",
-        "path": "/v1/sdk/reminders",
-        "body": null
-      }
-    },
-    {
-      "id": "reminders-update-encodes-id",
-      "operation": "reminders.update",
-      "args": [
-        "r/1",
-        {
-          "prompt": "x"
-        }
-      ],
-      "kwargs": {},
-      "expect": {
-        "method": "PATCH",
-        "path": "/v1/sdk/reminders/r%2F1",
-        "body": {
-          "prompt": "x"
-        }
-      }
-    },
-    {
-      "id": "reminders-delete-confirmed",
-      "operation": "reminders.delete",
-      "args": [
-        "r1"
-      ],
-      "kwargs": {},
-      "expect": {
-        "method": "DELETE",
-        "path": "/v1/sdk/reminders/r1",
-        "body": null
-      },
-      "confirmed": true
-    },
-    {
-      "id": "notifications-status",
-      "operation": "notifications.status",
-      "args": [],
-      "kwargs": {},
-      "expect": {
-        "method": "GET",
-        "path": "/v1/sdk/notifications/status",
-        "body": null
-      }
-    },
-    {
-      "id": "notifications-list-limit",
-      "operation": "notifications.list",
-      "args": [],
-      "kwargs": {
-        "limit": 5
-      },
-      "expect": {
-        "method": "GET",
-        "path": "/v1/sdk/notifications?limit=5",
-        "body": null
-      }
+      ]
     }
-  ]
+  }
 }

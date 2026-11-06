@@ -478,76 +478,10 @@ async fn connected_account_import_refuses_teams_bad_passcodes_and_bad_payloads_b
     ));
 }
 
-async fn dispatch(
-    c: &OpenMates,
-    op: &str,
-    args: &[Value],
-    kwargs: &Value,
-    confirmed: bool,
-) -> Result<Value, Error> {
-    let text = |i: usize| args[i].as_str().unwrap().to_owned();
-    let kw = |name: &str| kwargs[name].as_str().map(str::to_owned);
-    match op {
-        "billing.overview" => c.billing().overview().await,
-        "billing.buyer_address" => c.billing().buyer_address().await,
-        "billing.save_buyer_address" => c.billing().save_buyer_address(Some(args[0].clone())).await,
-        "billing.usage_details" => {
-            c.billing()
-                .usage_details(
-                    &kw("type").unwrap(),
-                    &kw("identifier").unwrap(),
-                    &kw("year_month").unwrap(),
-                )
-                .await
-        }
-        "billing.chat_total" => c.billing().chat_total(&text(0)).await,
-        "billing.usage_summaries" => c.billing().usage_summaries().await,
-        "billing.usage_daily" => c.billing().usage_daily().await,
-        "billing.create_bank_transfer_order" => {
-            c.billing()
-                .create_bank_transfer_order(args[0].as_i64().unwrap(), None, None)
-                .await
-        }
-        "billing.bank_transfer_status" => c.billing().bank_transfer_status(&text(0)).await,
-        "billing.list_bank_transfer_orders" => c.billing().list_bank_transfer_orders().await,
-        "billing.list_invoices" => c.billing().list_invoices().await,
-        "billing.request_refund" => c.billing().request_refund(&text(0), confirmed, None).await,
-        "billing.redeem_gift_card" => c.billing().redeem_gift_card(&text(0)).await,
-        "billing.list_redeemed_gift_cards" => c.billing().list_redeemed_gift_cards().await,
-        "billing.gift_card_purchase_status" => {
-            c.billing().gift_card_purchase_status(&text(0)).await
-        }
-        "billing.list_purchased_gift_cards" => c.billing().list_purchased_gift_cards().await,
-        "billing.set_low_balance_auto_topup" => {
-            c.billing()
-                .set_low_balance_auto_topup(args[0].clone())
-                .await
-        }
-        "settings.set_language" => c.settings().set_language(&text(0)).await,
-        "settings.set_dark_mode" => c.settings().set_dark_mode(args[0].as_bool().unwrap()).await,
-        "settings.set_font" => c.settings().set_font(&text(0)).await,
-        "settings.set_model_defaults" => {
-            c.settings()
-                .set_model_defaults(ModelDefaults {
-                    default_ai_model_simple: kw("default_ai_model_simple"),
-                    default_ai_model_complex: kw("default_ai_model_complex"),
-                    default_ai_model_most_demanding: kw("default_ai_model_most_demanding"),
-                })
-                .await
-        }
-        "settings.set_chat_auto_delete" => c.settings().set_chat_auto_delete(&text(0)).await,
-        "reminders.list" => c.reminders().list().await,
-        "reminders.update" => c.reminders().update(&text(0), args[1].clone()).await,
-        "reminders.delete" => c.reminders().delete(&text(0), confirmed).await,
-        "notifications.status" => c.notifications().status().await,
-        "notifications.list" => {
-            c.notifications()
-                .list(kwargs["limit"].as_u64().map(|l| l as u32))
-                .await
-        }
-        other => panic!("fixture operation without a Rust dispatcher: {other}"),
-    }
-}
+// One mapping for the gate example and this test (sdk-api-key-shared-conformance).
+#[path = "../examples/sdk-api-key-shared-conformance/dispatch.rs"]
+mod shared_dispatch;
+use shared_dispatch::dispatch;
 
 #[tokio::test]
 async fn shared_operation_wire_vectors() {
@@ -556,7 +490,9 @@ async fn shared_operation_wire_vectors() {
         "/../../tests/sdk-conformance/fixtures/sdk-api-key-operations.json"
     );
     let fixture: Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
-    let vectors = fixture["vectors"].as_array().unwrap();
+    let vectors = fixture["capabilities"]["sdk.api-key-operations.v1"]["vectors"]
+        .as_array()
+        .unwrap();
     assert!(vectors.len() >= 20);
     for vector in vectors {
         let (url, server) = serve(vec![ok()]);
@@ -570,6 +506,7 @@ async fn shared_operation_wire_vectors() {
             vector["confirmed"].as_bool().unwrap_or(false),
         )
         .await
+        .unwrap_or_else(|e| panic!("{}: {e}", vector["id"]))
         .unwrap_or_else(|e| panic!("{}: {e}", vector["id"]));
         let seen = server.join().unwrap().remove(0);
         let mut line = seen.line().split(' ');
