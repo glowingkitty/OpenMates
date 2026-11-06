@@ -24,6 +24,49 @@ opt-level = 3
 strip = true
 lto = "thin"
 
+# Opt-in web Rust core WASM (frontend/apps/web_app/scripts/build-rust-core-web.mjs).
+# Size level "z" for the module; opt-level 3 for the software crypto crates
+# (AES-GCM, GHASH, base64) the in-Worker Rust paths run per message (history
+# decrypt in the core unit). The crypto unit itself runs AES-GCM on the Worker's
+# WebCrypto through the web AeadProvider adapter.
+# Same-tree measurements (V8, 1000 chat messages; brotli vs plain "z"):
+#   plain z 24.7 ms; these overrides 19.1 ms (+0.0%); with simd128 16.6 ms (-1.0%);
+#   whole module at 3 + simd128 14.5 ms (+31.6%).
+[profile.wasm-web]
+inherits = "release"
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+
+[profile.wasm-web.package.aes]
+opt-level = 3
+[profile.wasm-web.package.aes-gcm]
+opt-level = 3
+[profile.wasm-web.package.ghash]
+opt-level = 3
+[profile.wasm-web.package.polyval]
+opt-level = 3
+[profile.wasm-web.package.cipher]
+opt-level = 3
+[profile.wasm-web.package.ctr]
+opt-level = 3
+[profile.wasm-web.package.universal-hash]
+opt-level = 3
+[profile.wasm-web.package.base64]
+opt-level = 3
+[profile.wasm-web.package.aead]
+opt-level = 3
+[profile.wasm-web.package.inout]
+opt-level = 3
+[profile.wasm-web.package.generic-array]
+opt-level = 3
+[profile.wasm-web.package.subtle]
+opt-level = 3
+[profile.wasm-web.package.zeroize]
+opt-level = 3
+[profile.wasm-web.package.crypto-common]
+opt-level = 3
+
 # Functional CI unit coverage only; never used for release or performance proof.
 [profile.ci-unit]
 inherits = "release"

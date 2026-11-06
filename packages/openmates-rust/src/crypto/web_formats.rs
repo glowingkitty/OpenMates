@@ -7,18 +7,8 @@
 //! selected candidate fails.
 use super::*;
 
-/// frontend/.../shareEncryption.ts and embedShareEncryption.ts work factor.
-const SHARE_PBKDF2_ITERATIONS: u32 = 100_000;
-/// frontend/.../shortUrlEncryption.ts work factor.
-const SHORT_URL_PBKDF2_ITERATIONS: u32 = 200_000;
-/// frontend/.../encryption/mediaEncryption.ts MEDIA_ENCRYPTION_V2 marker.
-pub const MEDIA_ENCRYPTION_V2: &str = "aes-gcm-nonce-prefixed-v1";
-
-fn pbkdf2_key(secret: &[u8], salt: &[u8], iterations: u32) -> Key {
-    let mut key = Zeroizing::new([0u8; 32]);
-    pbkdf2::pbkdf2_hmac::<Sha256>(secret, salt, iterations, key.as_mut());
-    key
-}
+pub use super::media::MEDIA_ENCRYPTION_V2;
+use super::share::{self, SHARE_PBKDF2_ITERATIONS, pbkdf2_key};
 
 /// base64(12-byte IV || ciphertext || tag) after browser base64 preprocessing.
 fn open_iv_prefixed(bytes: &[u8], key: &[u8; 32]) -> Result<Zeroizing<Vec<u8>>> {
@@ -49,7 +39,12 @@ pub fn passkey_wrapping_key(prf_output: &[u8], email_salt: &[u8]) -> Result<Key>
 }
 
 /// Unwraps the passkey-wrapped master key (`encrypted_master_key` + `key_iv`).
-pub fn unwrap_passkey_master_key(prf_output: &[u8], email_salt: &[u8], ciphertext: &str, iv: &str) -> Result<Key> {
+pub fn unwrap_passkey_master_key(
+    prf_output: &[u8],
+    email_salt: &[u8],
+    ciphertext: &str,
+    iv: &str,
+) -> Result<Key> {
     let wrapping = passkey_wrapping_key(prf_output, email_salt)?;
     unwrap_master_key_with_wrapping_key(ciphertext, iv, &wrapping)
 }
@@ -66,7 +61,11 @@ pub fn hidden_chat_secret(master: &[u8; 32], code: &str, email_salt: &[u8]) -> R
     combined.extend_from_slice(code.as_bytes());
     let encoded = Zeroizing::new(STANDARD.encode(combined.as_slice()));
     let salt = &email_salt[..email_salt.len().min(16)];
-    Ok(pbkdf2_key(encoded.as_bytes(), salt, LEGACY_PASSWORD_ITERATIONS))
+    Ok(pbkdf2_key(
+        encoded.as_bytes(),
+        salt,
+        LEGACY_PASSWORD_ITERATIONS,
+    ))
 }
 
 /// Opens a hidden chat's `encrypted_chat_key` (IV-prefixed, no OM header).
@@ -76,57 +75,41 @@ pub fn unwrap_hidden_chat_key(encrypted_chat_key: &str, secret: &[u8; 32]) -> Re
 }
 
 // ── Share links (shareEncryption.ts / embedShareEncryption.ts) ──
+// Format logic lives in `crypto::share`; these are the synchronous readers.
 
-/// Non-success results the TS readers report distinctly from authentication
-/// failure (`Err(Error::Crypto)` corresponds to TS `decryption_failed`).
-#[derive(Debug, PartialEq, Eq)]
-pub enum ShareKeyRefusal {
-    Expired,
-    PasswordRequired,
-    InvalidPassword,
-}
+pub use super::share::ShareKeyRefusal;
+use super::share::{ShareKind, ShareNext};
 
-struct ShareBlob {
-    key: Zeroizing<String>,
-    generated_at: f64,
-    duration_seconds: f64,
-    pwd: f64,
-}
-
-/// JS `parseInt(value, 10)`: leading whitespace, optional sign, digit prefix; NaN otherwise.
-fn js_parse_int(value: &str) -> f64 {
-    let trimmed = value.trim_start();
-    let (sign, rest) = match trimmed.as_bytes().first() {
-        Some(b'-') => (-1.0, &trimmed[1..]),
-        Some(b'+') => (1.0, &trimmed[1..]),
-        _ => (1.0, trimmed),
-    };
-    let digits: &str = &rest[..rest.bytes().take_while(u8::is_ascii_digit).count()];
-    if digits.is_empty() { f64::NAN } else { sign * digits.parse::<f64>().unwrap_or(f64::NAN) }
-}
-
-fn open_share_blob(id: &str, encrypted_blob: &str, key_field: &str) -> Result<ShareBlob> {
-    let id_key = pbkdf2_key(id.as_bytes(), b"openmates-share-v1", SHARE_PBKDF2_ITERATIONS);
-    let plain = open_iv_prefixed(&master::decode_browser_base64(encrypted_blob)?, &id_key)?;
-    let serialized = Zeroizing::new(String::from_utf8_lossy(&plain).into_owned());
-    // URLSearchParams.get returns the first value; `|| "0"` maps missing/empty to "0".
-    let get = |name: &str| -> Zeroizing<String> {
-        Zeroizing::new(url::form_urlencoded::parse(serialized.as_bytes())
-            .find(|(k, _)| k == name).map(|(_, v)| v.into_owned()).unwrap_or_default())
-    };
-    let number = |name: &str| { let v = get(name); js_parse_int(if v.is_empty() { "0" } else { v.as_str() }) };
-    Ok(ShareBlob { key: get(key_field), generated_at: number("generated_at"), duration_seconds: number("duration_seconds"), pwd: number("pwd") })
-}
-
-fn share_password_open(id: &str, password: &str, value: &str) -> std::result::Result<Zeroizing<String>, ShareKeyRefusal> {
-    let key = pbkdf2_key(password.as_bytes(), format!("openmates-pwd-{id}").as_bytes(), SHARE_PBKDF2_ITERATIONS);
-    let bytes = master::decode_browser_base64(value).map_err(|_| ShareKeyRefusal::InvalidPassword)?;
-    let plain = open_iv_prefixed(&bytes, &key).map_err(|_| ShareKeyRefusal::InvalidPassword)?;
-    Ok(Zeroizing::new(String::from_utf8_lossy(&plain).into_owned()))
-}
-
-fn expired(blob: &ShareBlob, server_time: i64) -> bool {
-    blob.duration_seconds > 0.0 && (server_time as f64) > blob.generated_at + blob.duration_seconds
+fn read_share(
+    kind: ShareKind,
+    id: &str,
+    encrypted_blob: &str,
+    server_time: i64,
+    password: Option<&str>,
+) -> Result<std::result::Result<Zeroizing<String>, ShareKeyRefusal>> {
+    let id_key = pbkdf2_key(id.as_bytes(), share::SHARE_ID_SALT, SHARE_PBKDF2_ITERATIONS);
+    let plain = share::open_iv_prefixed(encrypted_blob, &id_key)?;
+    Ok(
+        match share::share_next(
+            kind,
+            share::parse_share_blob(kind, &plain),
+            server_time,
+            password,
+        ) {
+            ShareNext::Key(value) => Ok(value),
+            ShareNext::Refused(refusal) => Err(refusal),
+            ShareNext::OpenWithPassword { value, password } => {
+                let key = pbkdf2_key(
+                    password.as_bytes(),
+                    share::password_salt(id).as_bytes(),
+                    SHARE_PBKDF2_ITERATIONS,
+                );
+                share::open_iv_prefixed(&value, &key)
+                    .map(|plain| Zeroizing::new(String::from_utf8_lossy(&plain).into_owned()))
+                    .map_err(|_| ShareKeyRefusal::InvalidPassword)
+            }
+        },
+    )
 }
 
 /// `decryptShareKeyBlob`: returns the shared chat key string (base64) exactly as
@@ -137,18 +120,13 @@ pub fn decrypt_chat_share_key_blob(
     server_time: i64,
     password: Option<&str>,
 ) -> Result<std::result::Result<Zeroizing<String>, ShareKeyRefusal>> {
-    let blob = open_share_blob(chat_id, encrypted_blob, "chat_encryption_key")?;
-    let password = password.filter(|value| !value.is_empty());
-    if blob.pwd == 1.0 && password.is_none() {
-        return Ok(Err(ShareKeyRefusal::PasswordRequired));
-    }
-    if expired(&blob, server_time) {
-        return Ok(Err(ShareKeyRefusal::Expired));
-    }
-    match (blob.pwd == 1.0, password) {
-        (true, Some(password)) => Ok(share_password_open(chat_id, password, &blob.key)),
-        _ => Ok(Ok(blob.key)),
-    }
+    read_share(
+        ShareKind::Chat,
+        chat_id,
+        encrypted_blob,
+        server_time,
+        password,
+    )
 }
 
 /// `decryptEmbedShareKeyBlob`: expiry precedes the password requirement and the
@@ -159,70 +137,35 @@ pub fn decrypt_embed_share_key_blob(
     server_time: i64,
     password: Option<&str>,
 ) -> Result<std::result::Result<Zeroizing<Vec<u8>>, ShareKeyRefusal>> {
-    let blob = open_share_blob(embed_id, encrypted_blob, "embed_encryption_key")?;
-    if expired(&blob, server_time) {
-        return Ok(Err(ShareKeyRefusal::Expired));
+    match read_share(
+        ShareKind::Embed,
+        embed_id,
+        encrypted_blob,
+        server_time,
+        password,
+    )? {
+        Ok(encoded) => Ok(Ok(share::decode_embed_share_key(&encoded)?)),
+        Err(refusal) => Ok(Err(refusal)),
     }
-    let encoded = if blob.pwd == 1.0 {
-        match password.filter(|value| !value.is_empty()) {
-            None => return Ok(Err(ShareKeyRefusal::PasswordRequired)),
-            Some(password) => match share_password_open(embed_id, password, &blob.key) {
-                Ok(value) => value,
-                Err(refusal) => return Ok(Err(refusal)),
-            },
-        }
-    } else {
-        blob.key
-    };
-    if encoded.contains(['-', '_']) {
-        return Err(Error::Crypto);
-    }
-    Ok(Ok(Zeroizing::new(master::decode_browser_base64(&encoded)?)))
 }
 
 /// `decryptShareUrl`: PBKDF2(shortKey, "omts-v1-" + token, 200k), base64url(IV||ct).
 pub fn decrypt_short_url(encrypted_url: &str, token: &str, short_key: &str) -> Result<String> {
-    let key = pbkdf2_key(short_key.as_bytes(), format!("omts-v1-{token}").as_bytes(), SHORT_URL_PBKDF2_ITERATIONS);
-    let plain = open_iv_prefixed(&master::decode_browser_base64(encrypted_url)?, &key)?;
+    let plain = share::open_iv_prefixed(encrypted_url, &share::short_url_key(short_key, token))?;
     Ok(String::from_utf8_lossy(&plain).into_owned())
 }
 
 // ── Media payloads (encryption/mediaEncryption.ts decryptMediaPayload) ──
+// Layout policy lives in `crypto::media`.
 
-/// Stored-media metadata as read by the TS reader. `legacy_nonce` distinguishes
-/// absent (`None`, TS null) from the explicit empty legacy marker (`Some("")`).
-pub struct MediaEncryption<'a> {
-    pub encryption: Option<&'a str>,
-    pub aes_nonce: Option<&'a str>,
-    pub legacy_nonce: Option<&'a str>,
-}
+pub use super::media::MediaEncryption;
 
-pub fn decrypt_media_payload(data: &[u8], aes_key_b64: &str, meta: &MediaEncryption<'_>) -> Result<Zeroizing<Vec<u8>>> {
-    let key = exact_key(&Zeroizing::new(master::decode_browser_base64(aes_key_b64)?))?;
-    let (nonce, ciphertext): (Vec<u8>, &[u8]) = match meta.encryption.filter(|v| !v.is_empty()) {
-        Some(MEDIA_ENCRYPTION_V2) => {
-            if data.len() < 12 + 16 { return Err(Error::Crypto); }
-            (data[..12].to_vec(), &data[12..])
-        }
-        Some(_) => return Err(Error::Crypto),
-        None => match truthy(meta.aes_nonce).or(truthy(meta.legacy_nonce)) {
-            Some(external) => (master::decode_browser_base64(external)?, data),
-            None if meta.legacy_nonce == Some("") => {
-                if data.len() < 12 + 16 { return Err(Error::Crypto); }
-                (data[..12].to_vec(), &data[12..])
-            }
-            None => return Err(Error::Crypto),
-        },
-    };
-    if nonce.len() != 12 {
-        return Err(Error::Crypto);
-    }
-    decrypt_aead(ciphertext, &key, &nonce, &[])
-}
-
-/// JS truthiness for optional metadata strings (`""` and null are falsy).
-fn truthy(value: Option<&str>) -> Option<&str> {
-    value.filter(|v| !v.is_empty())
+pub fn decrypt_media_payload(
+    data: &[u8],
+    aes_key_b64: &str,
+    meta: &MediaEncryption<'_>,
+) -> Result<Zeroizing<Vec<u8>>> {
+    super::media::decrypt_media(data, aes_key_b64, meta).map_err(|_| Error::Crypto)
 }
 
 #[cfg(all(test, not(target_arch = "wasm32")))]

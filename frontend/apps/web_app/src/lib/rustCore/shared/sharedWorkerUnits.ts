@@ -7,7 +7,9 @@
  */
 import type { UnitInstallers } from '@openmates/ui/src/services/rustCore/host/sharedWorkerProtocol';
 import { installCoreUnit } from './coreUnit';
+import { installCryptoUnit } from '@openmates/ui/src/services/rustCore/crypto/cryptoUnitInstaller';
 
 export const SHARED_UNIT_INSTALLERS: UnitInstallers = Object.freeze({
 	core: installCoreUnit,
+	crypto: installCryptoUnit,
 });

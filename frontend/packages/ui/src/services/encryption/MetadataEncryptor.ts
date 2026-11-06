@@ -12,6 +12,11 @@ import {
   base64ToUint8Array,
   getKeyFromStorage,
 } from "../cryptoService";
+import { rustWebCrypto } from "../rustCore/crypto/webCryptoClient";
+import {
+  rustDecryptWithMasterKey,
+  rustEncryptWithMasterKey,
+} from "../rustCore/crypto/webCryptoFacades";
 
 const AES_IV_LENGTH = 12;
 
@@ -44,6 +49,11 @@ export async function encryptWithMasterKeyDirect(
   data: string,
   masterKey: CryptoKey,
 ): Promise<string | null> {
+  // Compile-time flag: default builds fold this to null and drop the Rust branch.
+  const rust = import.meta.env.VITE_OPENMATES_RUST_CORE === "1" ? rustWebCrypto() : null;
+  if (rust) {
+    return rustEncryptWithMasterKey(rust, masterKey, new TextEncoder().encode(data), "Encryption failed:");
+  }
   try {
     const encoder = new TextEncoder();
     const dataBytes = encoder.encode(data);
@@ -89,6 +99,14 @@ export async function decryptWithMasterKeyDirect(
   encryptedDataWithIV: string,
   masterKey: CryptoKey,
 ): Promise<string | null> {
+  // Compile-time flag: default builds fold this to null and drop the Rust branch.
+  const rust = import.meta.env.VITE_OPENMATES_RUST_CORE === "1" ? rustWebCrypto() : null;
+  if (rust) {
+    const plain = await rustDecryptWithMasterKey(
+      rust, masterKey, encryptedDataWithIV, "Decryption failed (likely stale data from a different key):",
+    );
+    return plain ? new TextDecoder().decode(plain) : null;
+  }
   try {
     const combined = base64ToUint8Array(encryptedDataWithIV);
     const iv = combined.slice(0, AES_IV_LENGTH);
@@ -128,6 +146,11 @@ export async function encryptChatKeyWithMasterKey(
   if (!masterKey) {
     return null;
   }
+  // Compile-time flag: default builds fold this to null and drop the Rust branch.
+  const rust = import.meta.env.VITE_OPENMATES_RUST_CORE === "1" ? rustWebCrypto() : null;
+  if (rust) {
+    return rustEncryptWithMasterKey(rust, masterKey, new Uint8Array(chatKey), "Failed to encrypt chat key:");
+  }
 
   try {
     const iv = crypto.getRandomValues(new Uint8Array(AES_IV_LENGTH));
@@ -163,6 +186,13 @@ export async function decryptChatKeyWithMasterKey(
   const masterKey = prefetchedMasterKey ?? await getKeyFromStorage();
   if (!masterKey) {
     return null;
+  }
+  // Compile-time flag: default builds fold this to null and drop the Rust branch.
+  const rust = import.meta.env.VITE_OPENMATES_RUST_CORE === "1" ? rustWebCrypto() : null;
+  if (rust) {
+    return rustDecryptWithMasterKey(
+      rust, masterKey, encryptedChatKeyWithIV, "Failed to decrypt chat key with master key (may be a hidden chat):",
+    );
   }
 
   try {

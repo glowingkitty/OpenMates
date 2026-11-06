@@ -12,6 +12,12 @@
  */
 
 import { uint8ArrayToBase64, base64ToUint8Array } from "../cryptoService";
+import { clearRustChatKeyCaches, rustWebCrypto } from "../rustCore/crypto/webCryptoClient";
+import {
+  rustDecryptWithChatKey,
+  rustEncryptWithChatKey,
+  rustHandlesChatKey,
+} from "../rustCore/crypto/webCryptoFacades";
 
 // AES-GCM constants (redeclared locally — not exported from cryptoService)
 const AES_IV_LENGTH = 12;
@@ -99,6 +105,9 @@ export function clearCryptoKeyCache(fingerprint?: string): void {
     cryptoKeyCache.encrypt.clear();
     cryptoKeyCache.decrypt.clear();
   }
+  // Flag builds: the Rust crypto unit's ciphers are dropped too (all of them;
+  // they are only a cache and rebuild on the next use).
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") clearRustChatKeyCaches();
 }
 
 /**
@@ -181,6 +190,10 @@ export async function encryptWithChatKey(
   data: string,
   chatKey: Uint8Array,
 ): Promise<string> {
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") {
+    const rust = rustWebCrypto();
+    if (rust && rustHandlesChatKey(chatKey)) return rustEncryptWithChatKey(rust, data, chatKey);
+  }
   const encoder = new TextEncoder();
   const dataBytes = encoder.encode(data);
   const rawChatKey = new Uint8Array(chatKey);
@@ -229,6 +242,11 @@ export async function decryptWithChatKey(
   chatKey: Uint8Array,
   context?: { chatId?: string; fieldName?: string },
 ): Promise<string | null> {
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") {
+    const rust = rustWebCrypto();
+    // Queued synchronously, so concurrent callers share one crypto-unit batch.
+    if (rust && rustHandlesChatKey(chatKey)) return rustDecryptWithChatKey(rust, encryptedDataWithIV, chatKey, context);
+  }
   try {
     const combined = base64ToUint8Array(encryptedDataWithIV);
     let decryptionKey: Uint8Array = new Uint8Array(chatKey);

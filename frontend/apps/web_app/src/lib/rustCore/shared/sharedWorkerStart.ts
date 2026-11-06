@@ -8,6 +8,7 @@ import {
 	registerSharedRustCore,
 	type SharedRustCore
 } from '@openmates/ui/src/services/rustCore/host/sharedCoreRegistry';
+import { installRustWebCrypto } from '../webCryptoRegistration';
 
 let started: { core: SharedRustCore; unregister: () => void } | null = null;
 
@@ -21,6 +22,7 @@ export function startSharedRustCore(): SharedRustCore {
 	if (typeof Worker === 'undefined') throw new Error('rust_core_unavailable');
 	const core = createSharedCoreClient(spawnSharedWorker);
 	started = { core, unregister: registerSharedRustCore(core) };
+	installRustWebCrypto(core);
 	return core;
 }
 

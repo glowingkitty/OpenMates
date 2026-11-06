@@ -8,7 +8,10 @@
  * finish, the shared fullscreen must open from it and closing it must return to
  * the chat. Rust embed field decryption is asserted by the crypto lane's spec.
  * Records embed ready time, browser CPU and memory over three alternating
- * TS-history / Rust-history reload pairs (medians and ratio; target <= 1.1x).
+ * pure-TS / Rust reload pairs: TS reloads opt out of Rust history AND the Rust
+ * crypto unit; Rust reloads route both through the one shared Worker. Gated
+ * (medians, Rust <= TS): embed ready wall time, browser CPU and RSS. A third,
+ * recorded arm (Rust history, TS crypto) separates the crypto unit's share.
  * Runs only in the CI lane that builds the Rust core package (web-rust-core-* specs).
  */
 export {};
@@ -23,6 +26,9 @@ const { rustCoreInstances } = require('./helpers/rust-core-instances');
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 /** Measurement-only opt-out of the Rust history source (rustChatHistoryBootstrap.ts). */
 const HISTORY_OPT_OUT_KEY = 'openmates_rust_core_history';
+/** Measurement-only opt-out of the Rust crypto unit (webCryptoRegistration.ts). */
+const CRYPTO_OPT_OUT_KEY = 'openmates_rust_core_crypto';
+const OPT_OUT_KEYS = [HISTORY_OPT_OUT_KEY, CRYPTO_OPT_OUT_KEY];
 
 // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,apps.results.shared-fullscreen,sdk.web.before-after-performance
 let consoleForFailure: string[] = [];
@@ -62,24 +68,27 @@ test('Rust core decrypts saved embeds; preview renders and fullscreen opens', as
 	await closeFullscreen(page, overlay);
 	await expect(preview, 'chat returns after fullscreen closes').toBeVisible({ timeout: 15000 });
 
-	// Alternate TS-history (measurement opt-out) and Rust-history reloads of the same
-	// saved chat in this build, so both medians share one runner and page.
-	const samples: Record<'ts' | 'rust', Record<string, any>[]> = { ts: [], rust: [] };
-	for (const path of ['ts', 'rust', 'ts', 'rust', 'ts', 'rust'] as const) {
-		await page.evaluate(([key, ts]: [string, boolean]) => { if (ts) localStorage.setItem(key, 'ts'); else localStorage.removeItem(key); },
-			[HISTORY_OPT_OUT_KEY, path === 'ts']);
+	// Alternate pure-TS (both measurement opt-outs) and Rust reloads of the same saved
+	// chat in this build, so the medians share one runner and page. The recorded
+	// `history` arm (Rust history, TS crypto) attributes the crypto unit's own share.
+	const samples: Record<'ts' | 'rust' | 'history', Record<string, any>[]> = { ts: [], rust: [], history: [] };
+	for (const path of ['ts', 'rust', 'history', 'ts', 'rust', 'history', 'ts', 'rust', 'history'] as const) {
+		await page.evaluate(([path, history, crypto]: [string, string, string]) => {
+			if (path === 'ts') localStorage.setItem(history, 'ts'); else localStorage.removeItem(history);
+			if (path === 'rust') localStorage.removeItem(crypto); else localStorage.setItem(crypto, 'ts');
+		}, [path, HISTORY_OPT_OUT_KEY, CRYPTO_OPT_OUT_KEY]);
 		const sample = (await measureEmbedReady(page, chatId, '[data-testid="message-assistant"]', 1) as any).samples[0];
-		expect('rust:history-request' in sample.rustStages, `${path} reload ${path === 'rust' ? 'used' : 'did not use'} Rust history`).toBe(path === 'rust');
+		expect('rust:history-request' in sample.rustStages, `${path} reload ${path === 'ts' ? 'did not use' : 'used'} Rust history`).toBe(path !== 'ts');
 		// Shared-Worker bench counters for this reload.
 		Object.assign(sample, await rustCoreInstances(page));
 		expect(sample.wasmMainThreadInstantiations, `${path}: no WASM on the page realm`).toBe(0);
-		expect(sample.sharedWorkerWasm, `${path}: history WASM instances`).toBe(path === 'rust' ? 1 : 0);
+		expect(sample.sharedWorkerWasm, `${path}: shared Worker WASM instances (history + crypto)`).toBe(path === 'ts' ? 0 : 1);
 		const workers = sample.workers as { name: string; wasm: number }[];
 		expect(workers.filter((worker) => worker.name === 'production.worker').length, 'no dedicated history Worker').toBe(0);
-		if (path === 'rust') expect(workers.filter((worker) => worker.name === 'shared.worker').length, 'one shared Rust core Worker').toBe(1);
+		if (path !== 'ts') expect(workers.filter((worker) => worker.name === 'shared.worker').length, 'one shared Rust core Worker').toBe(1);
 		samples[path].push(sample);
 	}
-	await page.evaluate((key: string) => localStorage.removeItem(key), HISTORY_OPT_OUT_KEY);
+	await page.evaluate((keys: string[]) => { for (const key of keys) localStorage.removeItem(key); }, OPT_OUT_KEYS);
 	const median = (rows: Record<string, any>[], key: string) => {
 		const values = rows.map((row) => row[key]).filter((v): v is number => typeof v === 'number').sort((a, b) => a - b);
 		return values.length ? values[Math.floor(values.length / 2)] : null;
@@ -87,11 +96,20 @@ test('Rust core decrypts saved embeds; preview renders and fullscreen opens', as
 	const medians = (rows: Record<string, any>[]) => Object.fromEntries(['embedReadyMs', 'assistantRowMs', 'browserCpuMs', 'browserRssBytes', 'mainHeapBytes', 'dedicatedWorkers', 'rustWorkers', 'wasmInstantiations', 'sharedWorkerWasm']
 		.map((key) => [key, median(rows, key)]));
 	const rustReady = median(samples.rust, 'embedReadyMs'), tsReady = median(samples.ts, 'embedReadyMs');
-	// Target: Rust <= 1.1 x TS. Recorded, not yet gated (CI runners measured ~1.1x).
+	const historyReady = median(samples.history, 'embedReadyMs');
 	const metrics = { path: 'rust', samples: samples.rust, median: medians(samples.rust), tsHistory: { samples: samples.ts, median: medians(samples.ts) },
-		rustToTsEmbedReadyRatio: rustReady && tsReady ? rustReady / tsReady : null };
+		rustHistoryTsCrypto: { samples: samples.history, median: medians(samples.history) },
+		rustToTsEmbedReadyRatio: rustReady && tsReady ? rustReady / tsReady : null,
+		rustCryptoToTsCryptoEmbedReadyRatio: rustReady && historyReady ? rustReady / historyReady : null };
 	log('embed ready metrics', metrics);
 	await testInfo.attach('embed-ready-metrics.json', { body: JSON.stringify(metrics, null, 2), contentType: 'application/json' });
 	expect(rustReady, 'embed became ready on every Rust reload').not.toBeNull();
 	expect(tsReady, 'embed became ready on every TS reload').not.toBeNull();
+	// Strict user-facing gate (attached above, so a failing run keeps its numbers).
+	for (const key of ['embedReadyMs', 'browserCpuMs', 'browserRssBytes']) {
+		const rust = median(samples.rust, key), ts = median(samples.ts, key);
+		expect(rust, `embed-ready Rust median ${key}`).not.toBeNull();
+		expect(ts, `embed-ready TS median ${key}`).not.toBeNull();
+		expect.soft(rust!, `embed-ready ${key}: Rust ${rust} vs TS ${ts}`).toBeLessThanOrEqual(ts!);
+	}
 });

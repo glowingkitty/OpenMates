@@ -1,0 +1,814 @@
+{
+  "schema_version": 1,
+  "synthetic_only": true,
+  "provenance": "Produced by tests/crypto_fixtures/ts_web_policy/generate.cjs running the actual web TypeScript modules listed in ts_sources with a deterministic RNG and stubbed IndexedDB/notification dependencies.",
+  "ts_sources": {
+    "frontend/packages/ui/src/services/encryption/MessageEncryptor.ts": "c793448ab58f4738158e359330823c0fc02b5c187e1a90f72f447c188a8ec79b",
+    "frontend/packages/ui/src/services/cryptoService.ts": "23e2f488e14a824104aa848d8df3b76fd89962232f24131ec78e1d251808668b",
+    "frontend/packages/ui/src/services/encryption/ChatKeyManager.ts": "29272c87d51f6cc9a2d0b71d8e04f089e08543cf76af852c115114255d1370c9",
+    "frontend/packages/ui/src/services/db/decryptionFailureCache.ts": "a94f2d3849d503b65c684ab2046dccf341fe93d7a867b5fb584899dcfa5fb644",
+    "frontend/packages/ui/src/services/chatKeyWriteGuard.ts": "04f216dfd427e1c72a55e2a7e27f2c00034bd31ac1b6b878a125e62113e77102",
+    "frontend/packages/ui/src/services/chatKeyConsistency.ts": "913824d7354ee6960949c8bb1a3513605ed956b8fbf8d8d8b5524a64028cdaee"
+  },
+  "keys": {
+    "k1_b64": "IS47SFVib3yJlqOwvcrX5PH+CxglMj9MWWZzgI2ap7Q=",
+    "k2_b64": "d4SRnqu4xdLf7PkGEyAtOkdUYW57iJWir7zJ1uPw/Qo="
+  },
+  "fingerprints": [
+    {
+      "key_b64": "IS47SFVib3yJlqOwvcrX5PH+CxglMj9MWWZzgI2ap7Q=",
+      "fp16": "06d8fda549445e6b",
+      "fp4": "06d8fda5"
+    },
+    {
+      "key_b64": "d4SRnqu4xdLf7PkGEyAtOkdUYW57iJWir7zJ1uPw/Qo=",
+      "fp16": "fbf238252f2a7fab",
+      "fp4": "fbf23825"
+    },
+    {
+      "key_b64": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      "fp16": "0b2ae445a9c54a8b",
+      "fp4": "0b2ae445"
+    },
+    {
+      "key_b64": "/wwZJjNATVpndIGOm6i1ws/c6fYDEB0qN0RRXmt4hZI=",
+      "fp16": "f7cef9e5a9c162ab",
+      "fp4": "f7cef9e5"
+    }
+  ],
+  "chat_content": [
+    {
+      "label": "om-matching",
+      "ciphertext": "T00G2P2lFnECkEckLwOZMHNP4tpODUK3hdLt1JbM/oZ72nXbuemPNQG5TrmGvrbPcA==",
+      "key": "k1",
+      "ts_plaintext": "policy ✓ text",
+      "ts_candidate_lookup": null
+    },
+    {
+      "label": "om-other-key",
+      "ciphertext": "T0378jglg42GBdqnzRoqEsEEJPj2ezSzDVFR12VNPPM8b5mVceVYbLVAbW57deZ03w==",
+      "key": "k1",
+      "ts_plaintext": null,
+      "ts_candidate_lookup": "fbf23825"
+    },
+    {
+      "label": "legacy-iv",
+      "ciphertext": "AwMDAwMDAwMDAwMDOmOzKS9H7tH+Wxmg14ya9J1reUWHKaYOrjm48IxEYQ==",
+      "key": "k1",
+      "ts_plaintext": "policy ✓ text",
+      "ts_candidate_lookup": null
+    },
+    {
+      "label": "legacy-wrong-key",
+      "ciphertext": "AwMDAwMDAwMDAwMDw6Yb7fqr7PCHFXxfAV+jBcJFuvGBIl9J64fJ+oocdQ==",
+      "key": "k1",
+      "ts_plaintext": null,
+      "ts_candidate_lookup": null
+    },
+    {
+      "label": "legacy-iv-starts-om",
+      "ciphertext": "T00BAgMEBQYHCAkKR4Fdk2M3IJnPpri4Q+oYgQyXRneDrJBuK1Y1dVYXLA==",
+      "key": "k1",
+      "ts_plaintext": null,
+      "ts_candidate_lookup": "01020304"
+    },
+    {
+      "label": "python-marker",
+      "ciphertext": "T00BAAAACQkJCQkJCQkJCQkJ9acbs5m2gDDhgdzbCuyRspoNfq/36e05lYG10FbTHA==",
+      "key": "k1",
+      "ts_plaintext": null,
+      "ts_candidate_lookup": "01000000"
+    },
+    {
+      "label": "truncated",
+      "ciphertext": "AQEBAQEBAQEBAQEBAQEBAQEBAQE=",
+      "key": "k1",
+      "ts_plaintext": null,
+      "ts_candidate_lookup": null
+    },
+    {
+      "label": "empty",
+      "ciphertext": "",
+      "key": "k1",
+      "ts_plaintext": null,
+      "ts_candidate_lookup": null
+    },
+    {
+      "label": "om-urlsafe-unpadded",
+      "ciphertext": "T00G2P2lFnECkEckLwOZMHNP4tpODUK3hdLt1JbM_oZ72nXbuemPNQG5TrmGvrbPcA",
+      "key": "k1",
+      "ts_plaintext": "policy ✓ text",
+      "ts_candidate_lookup": null
+    },
+    {
+      "label": "om-tampered",
+      "ciphertext": "T00G2P2lFnECkEckLwOZMHNP4tpODUK3hdLt1JbM/oZ72nXbuemPNQG5TrmGvrbPcQ==",
+      "key": "k1",
+      "ts_plaintext": null,
+      "ts_candidate_lookup": null
+    }
+  ],
+  "write_guard": [
+    {
+      "label": "no-chat-no-key",
+      "chat": null,
+      "fallback_encrypted_key": null,
+      "options": {},
+      "unwraps": {},
+      "ts_allowed": false,
+      "ts_reason": "encrypted_key_missing",
+      "ts_added_candidate": false,
+      "ts_notices": 0
+    },
+    {
+      "label": "no-chat-allow-missing",
+      "chat": null,
+      "fallback_encrypted_key": null,
+      "options": {
+        "allowMissingEncryptedChatKey": true
+      },
+      "unwraps": {},
+      "ts_allowed": true,
+      "ts_reason": null,
+      "ts_added_candidate": false,
+      "ts_notices": 0
+    },
+    {
+      "label": "direct-allow-missing",
+      "chat": {
+        "chat_visibility": "direct"
+      },
+      "fallback_encrypted_key": null,
+      "options": {
+        "allowMissingEncryptedChatKey": true
+      },
+      "unwraps": {},
+      "ts_allowed": false,
+      "ts_reason": "encrypted_key_missing",
+      "ts_added_candidate": false,
+      "ts_notices": 0
+    },
+    {
+      "label": "candidates-pending",
+      "chat": {
+        "candidate_encrypted_keys": [
+          "x"
+        ],
+        "encrypted_chat_key": "W"
+      },
+      "fallback_encrypted_key": null,
+      "options": {},
+      "unwraps": {},
+      "ts_allowed": false,
+      "ts_reason": "candidate_keys_pending",
+      "ts_added_candidate": false,
+      "ts_notices": 1
+    },
+    {
+      "label": "fingerprint-mismatch",
+      "chat": {
+        "key_fingerprint": "fbf238252f2a7fab",
+        "encrypted_chat_key": "W"
+      },
+      "fallback_encrypted_key": null,
+      "options": {},
+      "unwraps": {},
+      "ts_allowed": false,
+      "ts_reason": "fingerprint_mismatch",
+      "ts_added_candidate": true,
+      "ts_notices": 1
+    },
+    {
+      "label": "fingerprint-mismatch-no-wrapper",
+      "chat": {
+        "key_fingerprint": "fbf238252f2a7fab"
+      },
+      "fallback_encrypted_key": null,
+      "options": {},
+      "unwraps": {},
+      "ts_allowed": false,
+      "ts_reason": "fingerprint_mismatch",
+      "ts_added_candidate": false,
+      "ts_notices": 1
+    },
+    {
+      "label": "fingerprint-match-master-ok",
+      "chat": {
+        "key_fingerprint": "06d8fda549445e6b",
+        "encrypted_chat_key": "W"
+      },
+      "fallback_encrypted_key": null,
+      "options": {},
+      "unwraps": {
+        "master": "k1"
+      },
+      "ts_allowed": true,
+      "ts_reason": null,
+      "ts_added_candidate": false,
+      "ts_notices": 0
+    },
+    {
+      "label": "master-mismatch",
+      "chat": {
+        "encrypted_chat_key": "W"
+      },
+      "fallback_encrypted_key": null,
+      "options": {},
+      "unwraps": {
+        "master": "k2"
+      },
+      "ts_allowed": false,
+      "ts_reason": "persisted_key_mismatch",
+      "ts_added_candidate": true,
+      "ts_notices": 1
+    },
+    {
+      "label": "master-null",
+      "chat": {
+        "encrypted_chat_key": "W"
+      },
+      "fallback_encrypted_key": null,
+      "options": {},
+      "unwraps": {
+        "master": null
+      },
+      "ts_allowed": true,
+      "ts_reason": null,
+      "ts_added_candidate": false,
+      "ts_notices": 0
+    },
+    {
+      "label": "master-throw",
+      "chat": {
+        "encrypted_chat_key": "W"
+      },
+      "fallback_encrypted_key": null,
+      "options": {},
+      "unwraps": {
+        "master": "throw"
+      },
+      "ts_allowed": false,
+      "ts_reason": "persisted_key_unwrap_failed",
+      "ts_added_candidate": false,
+      "ts_notices": 1
+    },
+    {
+      "label": "fallback-encrypted-key",
+      "chat": {},
+      "fallback_encrypted_key": "W",
+      "options": {},
+      "unwraps": {
+        "master": "k1"
+      },
+      "ts_allowed": true,
+      "ts_reason": null,
+      "ts_added_candidate": false,
+      "ts_notices": 0
+    },
+    {
+      "label": "direct-no-team",
+      "chat": {
+        "chat_visibility": "direct",
+        "encrypted_chat_key": "W"
+      },
+      "fallback_encrypted_key": null,
+      "options": {},
+      "unwraps": {
+        "master": "k1"
+      },
+      "ts_allowed": false,
+      "ts_reason": "persisted_key_unwrap_failed",
+      "ts_added_candidate": false,
+      "ts_notices": 1
+    },
+    {
+      "label": "omdm-no-team",
+      "chat": {
+        "encrypted_chat_key": "OMDM1.abc"
+      },
+      "fallback_encrypted_key": null,
+      "options": {},
+      "unwraps": {
+        "master": "k1"
+      },
+      "ts_allowed": false,
+      "ts_reason": "persisted_key_unwrap_failed",
+      "ts_added_candidate": false,
+      "ts_notices": 1
+    },
+    {
+      "label": "team-ok",
+      "chat": {
+        "team_id": "t1",
+        "encrypted_chat_key": "OMDM1.abc"
+      },
+      "fallback_encrypted_key": null,
+      "options": {},
+      "unwraps": {
+        "team": "k1"
+      },
+      "ts_allowed": true,
+      "ts_reason": null,
+      "ts_added_candidate": false,
+      "ts_notices": 0
+    },
+    {
+      "label": "team-mismatch",
+      "chat": {
+        "team_id": "t1",
+        "encrypted_chat_key": "W"
+      },
+      "fallback_encrypted_key": null,
+      "options": {},
+      "unwraps": {
+        "team": "k2"
+      },
+      "ts_allowed": false,
+      "ts_reason": "persisted_key_mismatch",
+      "ts_added_candidate": true,
+      "ts_notices": 1
+    },
+    {
+      "label": "team-throw",
+      "chat": {
+        "team_id": "t1",
+        "encrypted_chat_key": "W"
+      },
+      "fallback_encrypted_key": null,
+      "options": {},
+      "unwraps": {
+        "team": "throw"
+      },
+      "ts_allowed": false,
+      "ts_reason": "persisted_key_unwrap_failed",
+      "ts_added_candidate": false,
+      "ts_notices": 1
+    },
+    {
+      "label": "anonymous-ok",
+      "chat": {
+        "is_anonymous": true
+      },
+      "fallback_encrypted_key": null,
+      "options": {},
+      "unwraps": {
+        "anonymous": "k1"
+      },
+      "ts_allowed": true,
+      "ts_reason": null,
+      "ts_added_candidate": false,
+      "ts_notices": 0
+    },
+    {
+      "label": "anonymous-mismatch",
+      "chat": {
+        "is_anonymous": true
+      },
+      "fallback_encrypted_key": null,
+      "options": {},
+      "unwraps": {
+        "anonymous": "k2"
+      },
+      "ts_allowed": false,
+      "ts_reason": "anonymous_key_mismatch",
+      "ts_added_candidate": false,
+      "ts_notices": 1
+    },
+    {
+      "label": "anonymous-unwrap-failed",
+      "chat": {
+        "is_anonymous": true
+      },
+      "fallback_encrypted_key": null,
+      "options": {},
+      "unwraps": {
+        "anonymous": null
+      },
+      "ts_allowed": false,
+      "ts_reason": "anonymous_key_unwrap_failed",
+      "ts_added_candidate": false,
+      "ts_notices": 0
+    },
+    {
+      "label": "anonymous-with-wrapper",
+      "chat": {
+        "is_anonymous": true,
+        "encrypted_chat_key": "W"
+      },
+      "fallback_encrypted_key": null,
+      "options": {},
+      "unwraps": {
+        "master": "k1"
+      },
+      "ts_allowed": true,
+      "ts_reason": null,
+      "ts_added_candidate": false,
+      "ts_notices": 0
+    },
+    {
+      "label": "report-off-mismatch",
+      "chat": {
+        "key_fingerprint": "fbf238252f2a7fab",
+        "encrypted_chat_key": "W"
+      },
+      "fallback_encrypted_key": null,
+      "options": {
+        "reportFailure": false
+      },
+      "unwraps": {},
+      "ts_allowed": false,
+      "ts_reason": "fingerprint_mismatch",
+      "ts_added_candidate": true,
+      "ts_notices": 0
+    }
+  ],
+  "inject": [
+    {
+      "label": "insert",
+      "existing": null,
+      "inject": [
+        "k1",
+        "share_link",
+        false
+      ],
+      "ts_accepted": true,
+      "ts_source_before": null,
+      "ts_source_after": "share_link",
+      "ts_key_after": "k1"
+    },
+    {
+      "label": "same-upgrade",
+      "existing": [
+        "k1",
+        "share_link"
+      ],
+      "inject": [
+        "k1",
+        "master_key",
+        false
+      ],
+      "ts_accepted": true,
+      "ts_source_before": "share_link",
+      "ts_source_after": "master_key",
+      "ts_key_after": "k1"
+    },
+    {
+      "label": "same-downgrade",
+      "existing": [
+        "k1",
+        "master_key"
+      ],
+      "inject": [
+        "k1",
+        "share_link",
+        false
+      ],
+      "ts_accepted": true,
+      "ts_source_before": "master_key",
+      "ts_source_after": "master_key",
+      "ts_key_after": "k1"
+    },
+    {
+      "label": "same-equal",
+      "existing": [
+        "k1",
+        "server_sync"
+      ],
+      "inject": [
+        "k1",
+        "server_sync",
+        false
+      ],
+      "ts_accepted": true,
+      "ts_source_before": "server_sync",
+      "ts_source_after": "server_sync",
+      "ts_key_after": "k1"
+    },
+    {
+      "label": "different-rejected",
+      "existing": [
+        "k1",
+        "master_key"
+      ],
+      "inject": [
+        "k2",
+        "server_sync",
+        false
+      ],
+      "ts_accepted": false,
+      "ts_source_before": "master_key",
+      "ts_source_after": "master_key",
+      "ts_key_after": "k1"
+    },
+    {
+      "label": "different-forced",
+      "existing": [
+        "k1",
+        "master_key"
+      ],
+      "inject": [
+        "k2",
+        "injected",
+        true
+      ],
+      "ts_accepted": true,
+      "ts_source_before": "master_key",
+      "ts_source_after": "injected",
+      "ts_key_after": "k2"
+    },
+    {
+      "label": "same-from-injected-to-direct_chat",
+      "existing": [
+        "k1",
+        "injected"
+      ],
+      "inject": [
+        "k1",
+        "direct_chat",
+        false
+      ],
+      "ts_accepted": true,
+      "ts_source_before": "injected",
+      "ts_source_after": "direct_chat",
+      "ts_key_after": "k1"
+    },
+    {
+      "label": "same-from-injected-to-master_key",
+      "existing": [
+        "k1",
+        "injected"
+      ],
+      "inject": [
+        "k1",
+        "master_key",
+        false
+      ],
+      "ts_accepted": true,
+      "ts_source_before": "injected",
+      "ts_source_after": "master_key",
+      "ts_key_after": "k1"
+    },
+    {
+      "label": "same-from-injected-to-server_sync",
+      "existing": [
+        "k1",
+        "injected"
+      ],
+      "inject": [
+        "k1",
+        "server_sync",
+        false
+      ],
+      "ts_accepted": true,
+      "ts_source_before": "injected",
+      "ts_source_after": "server_sync",
+      "ts_key_after": "k1"
+    },
+    {
+      "label": "same-from-injected-to-created",
+      "existing": [
+        "k1",
+        "injected"
+      ],
+      "inject": [
+        "k1",
+        "created",
+        false
+      ],
+      "ts_accepted": true,
+      "ts_source_before": "injected",
+      "ts_source_after": "created",
+      "ts_key_after": "k1"
+    },
+    {
+      "label": "same-from-injected-to-hidden_chat",
+      "existing": [
+        "k1",
+        "injected"
+      ],
+      "inject": [
+        "k1",
+        "hidden_chat",
+        false
+      ],
+      "ts_accepted": true,
+      "ts_source_before": "injected",
+      "ts_source_after": "hidden_chat",
+      "ts_key_after": "k1"
+    },
+    {
+      "label": "same-from-injected-to-bulk_init",
+      "existing": [
+        "k1",
+        "injected"
+      ],
+      "inject": [
+        "k1",
+        "bulk_init",
+        false
+      ],
+      "ts_accepted": true,
+      "ts_source_before": "injected",
+      "ts_source_after": "bulk_init",
+      "ts_key_after": "k1"
+    },
+    {
+      "label": "same-from-injected-to-anonymous_session",
+      "existing": [
+        "k1",
+        "injected"
+      ],
+      "inject": [
+        "k1",
+        "anonymous_session",
+        false
+      ],
+      "ts_accepted": true,
+      "ts_source_before": "injected",
+      "ts_source_after": "anonymous_session",
+      "ts_key_after": "k1"
+    },
+    {
+      "label": "same-from-injected-to-shared_storage",
+      "existing": [
+        "k1",
+        "injected"
+      ],
+      "inject": [
+        "k1",
+        "shared_storage",
+        false
+      ],
+      "ts_accepted": true,
+      "ts_source_before": "injected",
+      "ts_source_after": "shared_storage",
+      "ts_key_after": "k1"
+    },
+    {
+      "label": "same-from-injected-to-share_link",
+      "existing": [
+        "k1",
+        "injected"
+      ],
+      "inject": [
+        "k1",
+        "share_link",
+        false
+      ],
+      "ts_accepted": true,
+      "ts_source_before": "injected",
+      "ts_source_after": "share_link",
+      "ts_key_after": "k1"
+    },
+    {
+      "label": "same-from-injected-to-injected",
+      "existing": [
+        "k1",
+        "injected"
+      ],
+      "inject": [
+        "k1",
+        "injected",
+        false
+      ],
+      "ts_accepted": true,
+      "ts_source_before": "injected",
+      "ts_source_after": "injected",
+      "ts_key_after": "k1"
+    }
+  ],
+  "failure_cache": [
+    {
+      "op": "record",
+      "chat": "c1",
+      "message": "m1",
+      "field": "content",
+      "fp": "fpA"
+    },
+    {
+      "op": "is",
+      "chat": "c1",
+      "message": "m1",
+      "field": "content",
+      "fp": "fpA",
+      "ts_known": true
+    },
+    {
+      "op": "is",
+      "chat": "c1",
+      "message": "m1",
+      "field": "content",
+      "fp": "fpB",
+      "ts_known": false
+    },
+    {
+      "op": "is",
+      "chat": "c1",
+      "message": "m1",
+      "field": "content",
+      "fp": null,
+      "ts_known": true
+    },
+    {
+      "op": "is",
+      "chat": "c1",
+      "message": "m1",
+      "field": "cont",
+      "fp": null,
+      "ts_known": false
+    },
+    {
+      "op": "is",
+      "chat": "c1",
+      "message": "m1x",
+      "field": "content",
+      "fp": null,
+      "ts_known": false
+    },
+    {
+      "op": "record",
+      "chat": "c1",
+      "message": "m2",
+      "field": "title",
+      "fp": null
+    },
+    {
+      "op": "is",
+      "chat": "c1",
+      "message": "m2",
+      "field": "title",
+      "fp": null,
+      "ts_known": true
+    },
+    {
+      "op": "is",
+      "chat": "c1",
+      "message": "m2",
+      "field": "title",
+      "fp": "fpA",
+      "ts_known": false
+    },
+    {
+      "op": "is",
+      "chat": "c2",
+      "message": "m1",
+      "field": "content",
+      "fp": "fpA",
+      "ts_known": false
+    },
+    {
+      "op": "clear",
+      "chat": "c1"
+    },
+    {
+      "op": "is",
+      "chat": "c1",
+      "message": "m1",
+      "field": "content",
+      "fp": "fpA",
+      "ts_known": false
+    },
+    {
+      "op": "record",
+      "chat": "c1",
+      "message": "m1",
+      "field": "content",
+      "fp": "fpA"
+    },
+    {
+      "op": "record",
+      "chat": "c2",
+      "message": "m1",
+      "field": "content",
+      "fp": ""
+    },
+    {
+      "op": "is",
+      "chat": "c2",
+      "message": "m1",
+      "field": "content",
+      "fp": null,
+      "ts_known": true
+    },
+    {
+      "op": "clear",
+      "chat": null
+    },
+    {
+      "op": "is",
+      "chat": "c1",
+      "message": "m1",
+      "field": "content",
+      "fp": "fpA",
+      "ts_known": false
+    },
+    {
+      "op": "is",
+      "chat": "c2",
+      "message": "m1",
+      "field": "content",
+      "fp": null,
+      "ts_known": false
+    }
+  ]
+}

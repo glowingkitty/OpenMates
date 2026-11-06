@@ -9,8 +9,12 @@
  *   2. Cold reload with Rust disabled (measurement opt-out): TS opens the chat (baseline).
  *   3. Cold reload with Rust enabled: Rust reads + decrypts the saved chat and the normal
  *      message-user / message-assistant rows render it (html data-rust-core-history).
- * Records WASM/worker transfer sizes and TS vs Rust open-to-rendered timings (five
- * alternating pairs, medians and their ratio; target <= 1.1x) as JSON.
+ *   4. Send/encrypt: new chats sent from the TS composer with TS crypto vs with
+ *      crypto routed through the shared Rust Worker (click to encrypted admission frame).
+ * The TS runs also opt out of the Rust crypto unit (pure TS baseline); the Rust runs
+ * route history AND crypto through the one shared Worker. Records WASM/worker
+ * transfer sizes and TS vs Rust timings as JSON. Gated (medians, Rust <= TS):
+ * saved-chat open-to-rendered and send-to-admission wall time, browser CPU and RSS.
  * Runs only in the CI lane that builds the Rust core package (web-rust-core-* specs).
  */
 export {};
@@ -50,12 +54,38 @@ test.afterEach(async ({ page }: { page: any }, testInfo: any) => {
 });
 
 const HISTORY_OPT_OUT_KEY = 'openmates_rust_core_history';
+// Measurement-only opt-out of the Rust crypto unit (webCryptoRegistration.ts).
+const CRYPTO_OPT_OUT_KEY = 'openmates_rust_core_crypto';
+
+/** TS runs opt out of Rust history and Rust crypto; Rust runs use both. */
+async function selectPath(page: any, path: 'ts' | 'rust'): Promise<void> {
+	await page.evaluate(([keys, value]: [string[], string | null]) => {
+		for (const key of keys) { if (value) localStorage.setItem(key, value); else localStorage.removeItem(key); }
+	}, [[HISTORY_OPT_OUT_KEY, CRYPTO_OPT_OUT_KEY], path === 'ts' ? 'ts' : null]);
+}
+
+const median = (rows: Array<Record<string, unknown>>, path: string, key: string) => {
+	const values = rows.filter((row) => row.path === path && typeof row[key] === 'number').map((row) => Number(row[key])).sort((a, b) => a - b);
+	return values.length ? values[Math.floor((values.length - 1) / 2)] : null;
+};
+
+/** Rust <= TS on every gated median (wall, CPU, RSS) of one user-facing flow. */
+function expectNotWorseThanTs(flow: string, rows: Array<Record<string, unknown>>, keys: string[]): Record<string, unknown> {
+	const medians: Record<string, unknown> = {};
+	for (const key of keys) {
+		const ts = median(rows, 'ts', key), rust = median(rows, 'rust', key);
+		medians[key] = { ts, rust, ratio: ts && rust ? rust / ts : null };
+		expect(ts, `${flow} TS median ${key}`).not.toBeNull();
+		expect(rust, `${flow} Rust median ${key}: Rust ${rust} vs TS ${ts}`).not.toBeNull();
+		// Soft: every gate of the flow is reported, not only the first miss.
+		expect.soft(rust!, `${flow} ${key}: Rust ${rust} vs TS ${ts}`).toBeLessThanOrEqual(ts!);
+	}
+	return medians;
+}
 
 /** Reload the chat deep link and time open-to-rendered (ms since navigation start). */
 async function openChatAfterReload(page: any, chatId: string, path: 'ts' | 'rust', processes: any): Promise<Record<string, unknown>> {
-	await page.evaluate(([key, value]: [string, string | null]) => {
-		if (value) localStorage.setItem(key, value); else localStorage.removeItem(key);
-	}, [HISTORY_OPT_OUT_KEY, path === 'ts' ? 'ts' : null]);
+	await selectPath(page, path);
 	// The URL already carries this chat id, so goto alone is a same-document hash change.
 	await page.goto(getE2EDebugUrl(`/#chat-id=${chatId}`));
 	await processes.begin();
@@ -110,7 +140,8 @@ async function openChatAfterReload(page: any, chatId: string, path: 'ts' | 'rust
 // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,chats.persistence.client-encrypted,chats.streaming.ordered-final,sdk.web.before-after-performance
 test('opens a saved chat in the normal chat UI from Rust-decrypted history', async ({ page }: { page: any }, testInfo: any) => {
 	test.slow();
-	test.setTimeout(240000);
+	// Ten reload opens plus six timed sends (each waits for the reply).
+	test.setTimeout(600000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 	const log = createSignupLogger('WEB_RUST_CORE');
 	const screenshot = createStepScreenshotter(log);
@@ -123,6 +154,20 @@ test('opens a saved chat in the normal chat UI from Rust-decrypted history', asy
 	await page.addInitScript(installMainThreadTrace);
 	// Keep every TS send debug step (the app only exposes the latest one).
 	await page.addInitScript(() => {
+		// Send timing: last composer send gesture -> first encrypted admission frame.
+		const send = { starts: [] as number[], admitAt: null as number | null };
+		(window as unknown as { __sendTiming: typeof send }).__sendTiming = send;
+		const markStart = (event: Event) => {
+			const target = event.target as Element | null;
+			if (event.type === 'custom-send-message' || target?.closest?.('[data-testid="composer-send-button"]')) send.starts.push(performance.now());
+		};
+		document.addEventListener('click', markStart, true);
+		document.addEventListener('custom-send-message', markStart, true);
+		const nativeSend = WebSocket.prototype.send;
+		WebSocket.prototype.send = function (data) {
+			if (send.admitAt === null && typeof data === 'string' && data.includes('"chat_turn_admit"')) send.admitAt = performance.now();
+			return nativeSend.call(this, data);
+		};
 		const trail: unknown[] = [];
 		(window as unknown as { __sendTrail: unknown[] }).__sendTrail = trail;
 		let last: unknown = null;
@@ -176,7 +221,7 @@ test('opens a saved chat in the normal chat UI from Rust-decrypted history', asy
 		expect(timing.wasmMainThreadInstantiations, `${path}: no WASM on the page realm`).toBe(0);
 		if (path === 'ts') {
 			expect(timing.marker, 'TS baseline did not use Rust').toBeNull();
-			expect(timing.sharedWorkerWasm, 'TS baseline instantiated no history WASM').toBe(0);
+			expect(timing.sharedWorkerWasm, 'TS baseline instantiated no Rust WASM (history and crypto opted out)').toBe(0);
 			// Bubbles mount before their decrypted content; wait until every content is filled in.
 			await expect.poll(async () => { tsTexts = await renderedTexts(); return tsTexts.length >= 2 && tsTexts.every((text) => text.trim().length > 0); },
 				{ timeout: 20000, message: 'TS rendered the saved message contents' }).toBe(true);
@@ -204,21 +249,54 @@ test('opens a saved chat in the normal chat UI from Rust-decrypted history', asy
 		expect(await renderedTexts(), 'reconcile kept the decrypted message contents').toEqual(tsTexts);
 		await screenshot(page, `rust-history-${runs.length}`);
 	}
+
+	// 5. Send/encrypt from a fresh chat after a cold reload, alternating TS and Rust crypto.
+	const sends: Array<Record<string, unknown>> = [];
+	for (const path of ['ts', 'rust', 'ts', 'rust', 'ts', 'rust'] as const) {
+		await selectPath(page, path);
+		await page.goto(getE2EDebugUrl('/'));
+		await page.reload();
+		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
+		// Same settle as the first send: post-login sync, then a fresh chat.
+		await page.waitForTimeout(3000);
+		const button = page.getByTestId('new-chat-button');
+		if (await button.isVisible()) { await button.click(); await page.waitForTimeout(2000); }
+		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
+		await page.evaluate(() => { const t = (window as unknown as { __sendTiming: { starts: number[]; admitAt: number | null } }).__sendTiming; t.starts = []; t.admitAt = null; });
+		await processes.begin();
+		await sendMessage(page, withMockMarker(`Please explain how leaves use sunlight, run ${sends.length + 1}.`, 'chat_flow_capital', 'fast'), log, screenshot, `${path}-send-${sends.length + 1}`);
+		const send = await expect.poll(() => page.evaluate(() => (window as unknown as { __sendTiming: { starts: number[]; admitAt: number | null } }).__sendTiming),
+			{ timeout: 30000, message: `${path}: encrypted admission frame sent` }).toMatchObject({ admitAt: expect.any(Number) })
+			.then(() => page.evaluate(() => (window as unknown as { __sendTiming: { starts: number[]; admitAt: number } }).__sendTiming));
+		const process = await processes.end();
+		// After the send: the crypto unit is opened lazily by the first crypto call.
+		const instances = await rustCoreInstances(page);
+		const start = send.starts.filter((value: number) => value <= send.admitAt).at(-1);
+		expect(start, `${path}: send gesture recorded before admission`).toBeDefined();
+		const row = { path, sendToAdmitMs: send.admitAt - start!,
+			browserCpuMs: process.available ? process.stableReportedProcessCpuMs : null,
+			browserRssBytes: process.available ? process.after.summedReportedProcessRssBytes : null,
+			sharedWorkerWasm: instances.sharedWorkerWasm };
+		log('send timing', row);
+		sends.push(row);
+		expect(instances.sharedWorkerWasm, `${path} send: shared Worker WASM (Rust crypto)`).toBe(path === 'ts' ? 0 : 1);
+		await expect(page.getByTestId('message-assistant').last()).toBeVisible({ timeout: 60000 });
+		await expect(page.getByTestId('message-user').last()).toContainText('leaves use sunlight');
+	}
 	await processes.close();
-	const median = (path: string, key = 'chatRendered') => {
-		const values = runs.filter((run) => run.path === path && typeof run[key] === 'number').map((run) => Number(run[key])).sort((a, b) => a - b);
-		return values.length ? values[Math.floor((values.length - 1) / 2)] : null;
-	};
-	const tsMedian = median('ts'), rustMedian = median('rust');
-	// Target: rustMedian <= 1.1 x tsMedian. Recorded, not yet gated: CI runners still
-	// vary between ~1.05x and ~1.3x (Worker/WASM readiness is on the critical path).
-	metrics.openToRenderedMs = { runs, tsMedian, rustMedian, rustToTsRatio: tsMedian && rustMedian ? rustMedian / tsMedian : null };
+	metrics.openToRenderedMs = { runs };
 	metrics.perOpenMedians = Object.fromEntries((['ts', 'rust'] as const).map((path) => [path,
-		{ browserCpuMs: median(path, 'browserCpuMs'), browserRssBytes: median(path, 'browserRssBytes'), mainHeapBytes: median(path, 'mainHeapBytes'),
-			dedicatedWorkers: median(path, 'dedicatedWorkers'), rustWorkers: median(path, 'rustWorkers'), wasmInstantiations: median(path, 'wasmInstantiations'), sharedWorkerWasm: median(path, 'sharedWorkerWasm') }]));
+		{ chatRendered: median(runs, path, 'chatRendered'), browserCpuMs: median(runs, path, 'browserCpuMs'), browserRssBytes: median(runs, path, 'browserRssBytes'),
+			mainHeapBytes: median(runs, path, 'mainHeapBytes'), dedicatedWorkers: median(runs, path, 'dedicatedWorkers'), rustWorkers: median(runs, path, 'rustWorkers'),
+			wasmInstantiations: median(runs, path, 'wasmInstantiations'), sharedWorkerWasm: median(runs, path, 'sharedWorkerWasm') }]));
+	metrics.sendToAdmission = { sends };
 	metrics.reload = await rustTransfer(page);
 	log('Rust core metrics', metrics);
 	await testInfo.attach('web-rust-core-metrics.json', { body: JSON.stringify(metrics, null, 2), contentType: 'application/json' });
-	expect(tsMedian, 'TS baseline median').not.toBeNull();
-	expect(rustMedian, 'Rust median').not.toBeNull();
+	// Strict user-facing gates (attached above, so a failing run keeps its numbers).
+	metrics.gates = {
+		open: expectNotWorseThanTs('saved-chat open', runs, ['chatRendered', 'browserCpuMs', 'browserRssBytes']),
+		send: expectNotWorseThanTs('send/encrypt', sends, ['sendToAdmitMs', 'browserCpuMs', 'browserRssBytes'])
+	};
+	log('Rust core gates', metrics.gates);
 });

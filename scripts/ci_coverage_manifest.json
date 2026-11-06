@@ -801,6 +801,7 @@
         "apple-settings-ui-contracts.spec.ts",
         "auth-session-rotation.spec.ts",
         "web-rust-core-auth.spec.ts",
+        "web-rust-core-crypto.spec.ts",
         "logout-multi-tab-versionchange.spec.ts",
         "backup-code-login-flow.spec.ts",
         "backup-codes-settings.spec.ts",

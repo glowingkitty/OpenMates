@@ -19,6 +19,9 @@
  * Architecture reference: /docs/architecture/short_url_sharing.md
  */
 
+import { rustWebCrypto } from "./rustCore/crypto/webCryptoClient";
+import { rustDecryptShareUrl, rustEncryptShareUrl } from "./rustCore/crypto/webCryptoFacades";
+
 // Base62 alphabet for URL-safe token/key generation
 const BASE62_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 const TOKEN_LENGTH = 8;
@@ -135,6 +138,9 @@ export async function encryptShareUrl(
   token: string,
   shortKey: string,
 ): Promise<string> {
+  // Compile-time flag: default builds fold this to null and drop the Rust branch.
+  const rust = import.meta.env.VITE_OPENMATES_RUST_CORE === "1" ? rustWebCrypto() : null;
+  if (rust) return rustEncryptShareUrl(rust, fullUrl, token, shortKey);
   const key = await deriveKey(shortKey, token);
   const encoder = new TextEncoder();
   const data = encoder.encode(fullUrl);
@@ -169,6 +175,9 @@ export async function decryptShareUrl(
   token: string,
   shortKey: string,
 ): Promise<string> {
+  // Compile-time flag: default builds fold this to null and drop the Rust branch.
+  const rust = import.meta.env.VITE_OPENMATES_RUST_CORE === "1" ? rustWebCrypto() : null;
+  if (rust) return rustDecryptShareUrl(rust, encryptedUrl, token, shortKey);
   const key = await deriveKey(shortKey, token);
   const combined = base64UrlDecode(encryptedUrl);
 

@@ -21,7 +21,7 @@ async function countWasmEntries(target: any): Promise<number> {
 /** Worker entry name without directory or content hash, e.g. `shared.worker`. */
 function workerName(url: string): string {
 	const file = url.split('?')[0].split('/').pop() ?? '';
-	return file.replace(/-[A-Za-z0-9_]{6,}\.js$/, '').replace(/\.js$/, '');
+	return file.replace(/-[A-Za-z0-9_-]{6,}\.js$/, '').replace(/\.js$/, '');
 }
 
 /** Counts after the current page load settled (call once the chat rendered). */
