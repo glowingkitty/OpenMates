@@ -190,4 +190,4 @@ async function runWebRustCoreBench(page: any, testInfo: any, options: { pairs: n
 	expect(maxRustWasm, 'at most one WASM instance per Rust load').toBeLessThanOrEqual(1);
 }
 
-module.exports = { runWebRustCoreBench, benchFailureDiagnostics, skipWithoutCredentials, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY };
+module.exports = { runWebRustCoreBench, benchFailureDiagnostics, waitAllReady, HISTORY_OPT_OUT_KEY, skipWithoutCredentials, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY };

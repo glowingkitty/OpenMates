@@ -288,4 +288,4 @@ async function createBenchProfiler(page: any): Promise<{
 	};
 }
 
-module.exports = { createBenchProfiler, summarizeTrace, summarizeMemoryDump, smapsClasses };
+module.exports = { createBenchProfiler, summarizeTrace, summarizeMemoryDump, smapsClasses, processMemory };
