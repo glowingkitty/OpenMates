@@ -314,7 +314,7 @@ fn paired_cookie_and_team_scope_are_checked_before_goal_chat_inference() {
             assert!(matches!(
                 result,
                 Err(Error::Unavailable {
-                    code: "team_plan_keys_unavailable",
+                    code: "team_plan_writes_unavailable",
                     ..
                 })
             ));

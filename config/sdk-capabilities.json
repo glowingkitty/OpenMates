@@ -3988,6 +3988,7 @@
             "work.plans.Plans.restore",
             "work.plans.Plans.resume",
             "work.plans.Plans.show",
+            "work.plans.Plans.skipped_plan_ids",
             "work.plans.Plans.start",
             "work.plans.Plans.update",
             "work.plans.Plans.with_filters",
@@ -4188,7 +4189,8 @@
           "conformance": false,
           "evidence": [],
           "gaps": [
-            "Shared Rust service APIs exist, but complete equivalent operation coverage, request/state/error semantics and cross-language fixture evidence are not yet established."
+            "Shared Rust service APIs exist, but complete equivalent operation coverage, request/state/error semantics and cross-language fixture evidence are not yet established.",
+            "Team Plan protocol (backend user_plans routes, npm CLI and web parity): Team-scoped list/show and criteria, verification, assumption and reference-pattern lists send team_id and open only the caller's exact epoch-1 Team wrapper or own master wrapper (TS-generated vectors), skipping undecryptable Team Plans like npm; Team-scoped writes, learnings, revisions, dependencies and history are refused before any request (team_plan_writes_unavailable) because the server accepts them only from the personal owner. Live Team integration evidence remains pending."
           ],
           "status": "partial"
         }

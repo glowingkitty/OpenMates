@@ -426,15 +426,33 @@ fn ask_input(invocation: &Invocation) -> Result<(String, PlanAskOptions), CliErr
         },
     ))
 }
+/// npm `resolveTeamContext`: --personal, then --team, then the active Team.
+fn team_context(
+    invocation: &Invocation,
+    active: Option<String>,
+) -> Result<Option<String>, CliError> {
+    if invocation.boolean("personal") && invocation.has("team") {
+        return Err(CliError::Invalid(
+            "Choose --personal or --team, not both.".into(),
+        ));
+    }
+    if invocation.boolean("personal") {
+        return Ok(None);
+    }
+    Ok(input::text(invocation, "team")?
+        .map(str::to_owned)
+        .or(active))
+}
 pub(super) async fn execute(
     invocation: &Invocation,
     client: &mut Client,
     cancel: CancellationToken,
     store: Option<&RuntimeStore>,
 ) -> Result<CliOutput, CliError> {
-    let team = client
+    let active = client
         .session()
         .and_then(|session| session.active_team_id.clone());
+    let team = team_context(invocation, active)?;
     if invocation.command_path() == "plans ask" {
         let (instruction, options) = ask_input(invocation)?;
         let value = client
@@ -575,7 +593,15 @@ async fn execute_service(
                     .collect::<Vec<_>>()
                     .join("\n")
             };
-            return output(invocation, json!({"plans":plans}), text);
+            let mut rendered = output(invocation, json!({"plans":plans}), text)?;
+            // npm `decryptUserPlansForCli` warns on stderr for each skipped Plan.
+            for id in service.skipped_plan_ids() {
+                rendered.stderr.push_str(&format!(
+                    "Warning: skipped undecryptable plan {}.\n",
+                    super::terminal_text(id)
+                ));
+            }
+            return Ok(rendered);
         }
         "plans show" => {
             check(invocation, &["status", "chat", "project"])?;
@@ -697,6 +723,32 @@ mod tests {
                 .map(|(key, value)| ((*key).into(), value.clone()))
                 .collect(),
         }
+    }
+    #[test]
+    fn team_context_prefers_personal_then_flag_then_active_team() {
+        let active = Some("active-team".to_owned());
+        let personal = invocation(&[("personal", json!(true))]);
+        assert_eq!(team_context(&personal, active.clone()).ok().unwrap(), None);
+        let flagged = invocation(&[("team", json!("flag-team"))]);
+        assert_eq!(
+            team_context(&flagged, active.clone())
+                .ok()
+                .unwrap()
+                .as_deref(),
+            Some("flag-team")
+        );
+        assert_eq!(
+            team_context(&invocation(&[]), active.clone())
+                .ok()
+                .unwrap()
+                .as_deref(),
+            Some("active-team")
+        );
+        let both = invocation(&[("personal", json!(true)), ("team", json!("flag-team"))]);
+        assert!(matches!(
+            team_context(&both, active),
+            Err(CliError::Invalid(_))
+        ));
     }
     #[test]
     fn nested_plan_router_preserves_personal_scope_child_status_and_explicit_clears() {

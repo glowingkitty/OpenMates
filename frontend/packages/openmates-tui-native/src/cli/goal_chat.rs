@@ -175,11 +175,12 @@ impl Backend for Cookie<'_> {
             return Err(Error::Expired);
         }
         if session.active_team_id.is_some() {
-            // Match Plans::scope exactly; fail before inference until the SDK
-            // supports exact Team Plan wrappers. No automatic Personal fallback.
+            // Match Plans::scope exactly: the server accepts Plan writes only
+            // from the personal owner, so a Team goal chat fails before
+            // inference. No automatic Personal fallback.
             return Err(Error::Unavailable {
-                code: "team_plan_keys_unavailable",
-                reason: "TEAM_PLAN_WRAPPERS_NOT_SUPPORTED",
+                code: "team_plan_writes_unavailable",
+                reason: "TEAM_PLAN_WRITES_PERSONAL_OWNER_ONLY",
             });
         }
         Ok(())

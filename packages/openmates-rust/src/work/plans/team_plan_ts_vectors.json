@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "provenance": "Synthetic keys. Ciphertexts produced by the npm CLI frontend/packages/openmates-cli/src/crypto.ts encryptBytesWithAesGcm (Team key under master key, Plan key under Team and master keys) and encryptWithAesGcmCombined (Plan fields under the Plan key), self-checked with its decryptors. The Team wrapper layout matches npm decryptPlanContextSummary.",
+  "team_id": "88888888-8888-4888-8888-888888888888",
+  "plan_id": "aabbccdd-2222-4222-8222-aabbccddeeff",
+  "hashed_team_id": "c8f367a876b2c57ec18bd1d1cdc9cf7bc039390e73bd84981b06b873a363f3cf",
+  "master_key_b64": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=",
+  "team_key_b64": "FRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRU=",
+  "plan_key_b64": "KioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKio=",
+  "encrypted_team_key": "qch0xnFhQiztS25tcoRBOng4OMiJyMfaclJFL3xzyz4g4deMe9bE9oJ89IEZ47wvz5KpxenyOcYijftY",
+  "team_wrapper_encrypted_plan_key": "riqKiwYCDbYpbYXhD2PHghH73yppZlqEwf3aEo9+Vs0SHb5DyMQ3dBr0ITUhR6d/F2YCXQlLBv6Iz0KA",
+  "master_wrapper_encrypted_plan_key": "pwM68oqNaDgtO/ICNfG7YEpFpgClEoyW84qINy20UfbqhdiSmYFNZT6WZ4zSWQmBdXYnORYSyz1GxsFR",
+  "encrypted_title": "iAg2oxfIqPCxY598XhU/SJLoKmKB9rkpyNxlobBaOU+HWv5JD1IBwlzHWW9rKX8=",
+  "encrypted_goal": "Ycz7MY3AF9JgcUfXeTevIoyUWrA0hUWEbPo1eF0/cq8ss34gcha74uNqZ8P9jjwa5Q==",
+  "encrypted_criterion_text": "kEBo+c8EUUh2LnibvCnjs+p3P0OSzikUi8Q24WjFEqzHGaXZ4grtOBtmtsgBboeJHdTfWA=="
+}

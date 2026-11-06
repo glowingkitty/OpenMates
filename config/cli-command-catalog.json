@@ -30633,7 +30633,7 @@
       },
       "gaps": [
         "Personal paired-Cookie goal chat composes one saved send and one encrypted Plan with validated Project links. Focused local native verification passed 12 goal-chat tests plus 16 send/ephemeral and 7 workspace-fallback regressions; canonical product CI and platform verification remain pending.",
-        "Team Plan wrappers remain unsupported and fail before inference. Affirmative --accept-task-proposals remains an upfront refusal. Positional chat text remains unsupported.",
+        "Team goal chats fail before inference (team_plan_writes_unavailable) because the server creates Plans only for the personal owner. Affirmative --accept-task-proposals remains an upfront refusal. Positional chat text remains unsupported.",
         "Legacy --summary is accepted but ignored. No model or provider override is introduced; anonymous/API-key goal chat is unsupported."
       ],
       "platforms": {
@@ -31404,7 +31404,7 @@
       },
       "gaps": [
         "Syntax delegates to the existing typed Tasks/Plans handler, retaining its option, output, scope and platform limitations.",
-        "Full legacy chat selector resolution, advanced variants and isolated alias integration remain unverified; Team Plan protocol remains explicitly unavailable."
+        "Full legacy chat selector resolution, advanced variants and isolated alias integration remain unverified. Team scope follows the delegated Plan/Task handler (Team reads supported, Team Plan writes refused before any request)."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -31481,7 +31481,7 @@
       },
       "gaps": [
         "Syntax delegates to the existing typed Tasks/Plans handler, retaining its option, output, scope and platform limitations.",
-        "Full legacy chat selector resolution, advanced variants and isolated alias integration remain unverified; Team Plan protocol remains explicitly unavailable."
+        "Full legacy chat selector resolution, advanced variants and isolated alias integration remain unverified. Team scope follows the delegated Plan/Task handler (Team reads supported, Team Plan writes refused before any request)."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -31534,7 +31534,7 @@
       },
       "gaps": [
         "Syntax delegates to the existing typed Tasks/Plans handler, retaining its option, output, scope and platform limitations.",
-        "Full legacy chat selector resolution, advanced variants and isolated alias integration remain unverified; Team Plan protocol remains explicitly unavailable."
+        "Full legacy chat selector resolution, advanced variants and isolated alias integration remain unverified. Team scope follows the delegated Plan/Task handler (Team reads supported, Team Plan writes refused before any request)."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -32026,7 +32026,7 @@
       },
       "gaps": [
         "Syntax delegates to the existing typed Tasks/Plans handler, retaining its option, output, scope and platform limitations.",
-        "Full legacy chat selector resolution, advanced variants and isolated alias integration remain unverified; Team Plan protocol remains explicitly unavailable."
+        "Full legacy chat selector resolution, advanced variants and isolated alias integration remain unverified. Team scope follows the delegated Plan/Task handler (Team reads supported, Team Plan writes refused before any request)."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -32095,7 +32095,7 @@
       },
       "gaps": [
         "Syntax delegates to the existing typed Tasks/Plans handler, retaining its option, output, scope and platform limitations.",
-        "Full legacy chat selector resolution, advanced variants and isolated alias integration remain unverified; Team Plan protocol remains explicitly unavailable."
+        "Full legacy chat selector resolution, advanced variants and isolated alias integration remain unverified. Team scope follows the delegated Plan/Task handler (Team reads supported, Team Plan writes refused before any request)."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -32150,7 +32150,7 @@
       },
       "gaps": [
         "Syntax delegates to the existing typed Tasks/Plans handler, retaining its option, output, scope and platform limitations.",
-        "Full legacy chat selector resolution, advanced variants and isolated alias integration remain unverified; Team Plan protocol remains explicitly unavailable."
+        "Full legacy chat selector resolution, advanced variants and isolated alias integration remain unverified. Team scope follows the delegated Plan/Task handler (Team reads supported, Team Plan writes refused before any request)."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -35336,7 +35336,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -35390,7 +35390,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -35438,7 +35438,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -35485,7 +35485,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -35536,7 +35536,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "API-key chat continuation and Team Plans unavailable; isolated natural-language integration remains pending."
+        "API-key chat continuation unavailable; Team Plan asks are refused before any request (team_plan_writes_unavailable); isolated natural-language integration remains pending."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -35597,7 +35597,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -35658,7 +35658,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -35713,7 +35713,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team scope (--team or the active Team) reads via team_id and decrypts only with the caller's exact Team or own master wrapper, skipping undecryptable Team Plans with the npm warning."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -35774,7 +35774,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -35822,7 +35822,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -35882,7 +35882,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -35942,7 +35942,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -35999,7 +35999,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36056,7 +36056,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36115,7 +36115,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36174,7 +36174,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36231,7 +36231,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36288,7 +36288,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36348,7 +36348,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36408,7 +36408,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36465,7 +36465,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36522,7 +36522,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36581,7 +36581,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36640,7 +36640,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36697,7 +36697,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36754,7 +36754,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36801,7 +36801,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36857,7 +36857,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36913,7 +36913,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36969,7 +36969,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37025,7 +37025,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37081,7 +37081,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37137,7 +37137,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37193,7 +37193,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37249,7 +37249,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37305,7 +37305,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37361,7 +37361,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37417,7 +37417,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37473,7 +37473,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37529,7 +37529,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37585,7 +37585,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37641,7 +37641,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37697,7 +37697,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37769,7 +37769,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37828,7 +37828,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37887,7 +37887,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37946,7 +37946,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38005,7 +38005,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38064,7 +38064,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38123,7 +38123,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38182,7 +38182,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38241,7 +38241,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38300,7 +38300,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38359,7 +38359,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38418,7 +38418,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38477,7 +38477,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38533,7 +38533,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38589,7 +38589,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38645,7 +38645,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38701,7 +38701,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38757,7 +38757,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38813,7 +38813,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38869,7 +38869,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38925,7 +38925,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38974,7 +38974,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39031,7 +39031,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39086,7 +39086,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39143,7 +39143,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39190,7 +39190,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39241,7 +39241,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39297,7 +39297,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39353,7 +39353,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39409,7 +39409,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39465,7 +39465,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39521,7 +39521,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39577,7 +39577,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39633,7 +39633,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39689,7 +39689,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39737,7 +39737,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39797,7 +39797,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39857,7 +39857,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39914,7 +39914,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39970,7 +39970,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40028,7 +40028,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40083,7 +40083,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40139,7 +40139,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40195,7 +40195,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40253,7 +40253,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40313,7 +40313,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40373,7 +40373,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40430,7 +40430,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40486,7 +40486,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40544,7 +40544,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40599,7 +40599,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40655,7 +40655,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40711,7 +40711,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40769,7 +40769,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40812,7 +40812,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope (--team or the active Team) reads via team_id and decrypts only with the caller's exact Team or own master wrapper, skipping undecryptable Team Plans with the npm warning."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40868,7 +40868,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40924,7 +40924,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40980,7 +40980,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41036,7 +41036,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41092,7 +41092,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41148,7 +41148,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41204,7 +41204,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41260,7 +41260,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41307,7 +41307,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41363,7 +41363,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41419,7 +41419,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41475,7 +41475,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41531,7 +41531,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41587,7 +41587,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41643,7 +41643,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41699,7 +41699,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41755,7 +41755,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41809,7 +41809,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41872,7 +41872,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41919,7 +41919,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42023,7 +42023,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42078,7 +42078,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42133,7 +42133,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42189,7 +42189,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42245,7 +42245,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42301,7 +42301,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42357,7 +42357,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42413,7 +42413,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42469,7 +42469,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42525,7 +42525,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42581,7 +42581,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42637,7 +42637,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42693,7 +42693,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42749,7 +42749,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42805,7 +42805,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42861,7 +42861,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42917,7 +42917,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42973,7 +42973,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43029,7 +43029,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43085,7 +43085,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43141,7 +43141,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43197,7 +43197,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43253,7 +43253,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43309,7 +43309,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43365,7 +43365,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43421,7 +43421,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43477,7 +43477,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43524,7 +43524,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope (--team or the active Team) reads via team_id and decrypts only with the caller's exact Team or own master wrapper, skipping undecryptable Team Plans with the npm warning."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43571,7 +43571,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43610,7 +43610,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope (--team or the active Team) reads via team_id and decrypts only with the caller's exact Team or own master wrapper, skipping undecryptable Team Plans with the npm warning."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43669,7 +43669,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43728,7 +43728,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43787,7 +43787,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43846,7 +43846,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43905,7 +43905,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43964,7 +43964,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -44028,7 +44028,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -44096,7 +44096,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -44158,7 +44158,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -44222,7 +44222,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -44285,7 +44285,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -44425,7 +44425,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable.",
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics.",
         "Original and normalized argv layouts have focused parser and Task/Plan selector-delegation tests; isolated SDK operation integration remains pending."
       ],
       "platforms": {
@@ -44524,7 +44524,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -44586,7 +44586,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -44644,7 +44644,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -44705,7 +44705,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -44765,7 +44765,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -44829,7 +44829,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -44890,7 +44890,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -44953,7 +44953,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -45014,7 +45014,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -45077,7 +45077,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -45137,7 +45137,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -45192,7 +45192,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -45253,7 +45253,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -45308,7 +45308,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -45368,7 +45368,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -45508,7 +45508,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable.",
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics.",
         "Original and normalized argv layouts have focused parser and Task/Plan selector-delegation tests; isolated SDK operation integration remains pending."
       ],
       "platforms": {
@@ -45611,7 +45611,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -45673,7 +45673,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -45733,7 +45733,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -45793,7 +45793,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -45853,7 +45853,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -45913,7 +45913,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -45973,7 +45973,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46033,7 +46033,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46084,7 +46084,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending; Team Plan protocol is explicitly unavailable."
+        "Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46144,7 +46144,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46204,7 +46204,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46261,7 +46261,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46318,7 +46318,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46377,7 +46377,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46436,7 +46436,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46493,7 +46493,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46550,7 +46550,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation and Team Plans remain pending; unsupported server PATCH fields are rejected explicitly."
+        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",

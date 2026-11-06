@@ -38,7 +38,7 @@ async function runVector(suite,vector,fixturePath){
    await rejected(()=>client.workflows.create({title:"invalid",graph:{nodes:[{id:"start",type:"manual_trigger"}],edges:[{from:"start",to:"absent"}]}},filters));
   }else if(mode==="scope"){
    const team={teamId:suite.team.team_id};
-   await rejected(()=>client.plans.list(team),"unavailable");await rejected(()=>client.workflows.run(flow,camel(suite.input.run),team),"unavailable");await rejected(()=>client.plans.list({}));await rejected(()=>client.workflows.list({personal:true,...team}));
+   await rejected(()=>client.plans.create(camel(suite.input.plan),team),"unavailable");await rejected(()=>client.workflows.run(flow,camel(suite.input.run),team),"unavailable");await rejected(()=>client.plans.list({}));await rejected(()=>client.workflows.list({personal:true,...team}));
   }else if(mode==="consent"){
    await rejected(()=>client.workflows.create(camel(suite.input.workflow),filters),"forbidden");await rejected(()=>client.workflows.run(flow,camel(suite.input.run),filters),"forbidden");
   }else if(mode==="confirmation"){
