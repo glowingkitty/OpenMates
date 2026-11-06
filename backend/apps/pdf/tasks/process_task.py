@@ -65,6 +65,9 @@ RETRY_BACKOFF_BASE = 60  # seconds
 # S3 bucket for all PDF artefacts
 PDF_S3_BUCKET = "chatfiles"
 
+# Max concurrent SightEngine requests when scanning page screenshots
+_SIGHTENGINE_SCAN_CONCURRENCY = 8
+
 
 @app.task(
     bind=True,
@@ -302,26 +305,39 @@ async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -
                     "(credentials not configured — set SECRET__SIGHTENGINE__* to enable)"
                 )
             else:
+                # Pages are scanned concurrently (bounded) — sequential scanning
+                # took ~1.35s/page, which pushed large PDFs past the skill wait budget.
+                scan_semaphore = asyncio.Semaphore(_SIGHTENGINE_SCAN_CONCURRENCY)
+
+                async def _scan_page(page_num: int, png_bytes: bytes) -> tuple[int, Any]:
+                    async with scan_semaphore:
+                        filename_hint = f"pdf_{embed_id[:8]}_p{page_num}.png"
+                        result, _ = await _se.check_all(png_bytes, filename=filename_hint)
+                        return page_num, result
+
+                scan_results = await asyncio.gather(
+                    *(_scan_page(p, b) for p, b in sorted(screenshots.items()))
+                )
+
                 rejected_page: int | None = None
-                for page_num, png_bytes in sorted(screenshots.items()):
-                    filename_hint = f"pdf_{embed_id[:8]}_p{page_num}.png"
-                    safety_result, _ = await _se.check_all(png_bytes, filename=filename_hint)
-                    if not safety_result.is_safe:
-                        if safety_result.reason == "safety_service_unavailable":
-                            logger.error(
-                                f"{log_prefix} Step 5.5: SightEngine service unavailable "
-                                f"while scanning page {page_num}. Aborting PDF processing."
-                            )
-                            raise RuntimeError(
-                                "Safety processing failed. Try again later. "
-                                "(SightEngine service unavailable during PDF scan)"
-                            )
-                        logger.warning(
-                            f"{log_prefix} Step 5.5: Page {page_num} REJECTED — "
-                            f"reason: {safety_result.reason}"
+                for page_num, safety_result in scan_results:
+                    if safety_result.is_safe:
+                        continue
+                    if safety_result.reason == "safety_service_unavailable":
+                        logger.error(
+                            f"{log_prefix} Step 5.5: SightEngine service unavailable "
+                            f"while scanning page {page_num}. Aborting PDF processing."
                         )
+                        raise RuntimeError(
+                            "Safety processing failed. Try again later. "
+                            "(SightEngine service unavailable during PDF scan)"
+                        )
+                    logger.warning(
+                        f"{log_prefix} Step 5.5: Page {page_num} REJECTED — "
+                        f"reason: {safety_result.reason}"
+                    )
+                    if rejected_page is None:
                         rejected_page = page_num
-                        break
 
                 if rejected_page is not None:
                     raise RuntimeError(
