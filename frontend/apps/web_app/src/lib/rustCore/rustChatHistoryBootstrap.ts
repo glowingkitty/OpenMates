@@ -79,17 +79,36 @@ export function installRustChatHistory(): () => void {
 		return localPending;
 	};
 
-	/** One live session; re-admitted lazily after a failure closed the previous one.
-	 * The first one upgrades the local session on its Worker (server check). */
+	/** One server-checked admission; the first one upgrades the local session on its
+	 * Worker. A snapshot superseded while admitting (`cancelled`/`invalidated_snapshot`:
+	 * the TS profile lifecycle moved, e.g. a post-sync profile write, or the local
+	 * session closed under the upgrade) is re-admitted ONCE on a fresh platform
+	 * snapshot and Worker lease. Any other failure, or a second supersede, propagates. */
+	const admit = async (): Promise<ProductionSavedChatSession> => {
+		const admitted = await (localPending ?? Promise.resolve(null));
+		const upgrading = admitted && !admitted.signal.aborted ? admitted : null;
+		try {
+			return await createRustSecondDeviceSession({ signal: lifetime.signal, currentSelection, local: upgrading });
+		} catch (error) {
+			const code = rustFailureCode(error);
+			if (lifetime.signal.aborted || (code !== 'cancelled' && code !== 'invalidated_snapshot')) throw error;
+			markRustStage(`session-readmit-${code}`);
+			return createRustSecondDeviceSession({ signal: lifetime.signal, currentSelection, local: null });
+		}
+	};
+
+	/** One live session; re-admitted lazily after a failure closed the previous one. */
 	const ensureSession = (): Promise<ProductionSavedChatSession> => {
 		if (session && !session.signal.aborted) return Promise.resolve(session);
 		if (!pending) markRustStage('session-start');
-		pending ??= (localPending ?? Promise.resolve(null)).then((admitted) => {
-			const upgrading = admitted && !admitted.signal.aborted ? admitted : null;
-			return createRustSecondDeviceSession({ signal: lifetime.signal, currentSelection, local: upgrading });
-		})
+		pending ??= admit()
 			.then((created) => { session = created; markRustStage('session-ready'); return created; },
-				(error: unknown) => { console.warn('[RustCore] session admission failed:', rustFailureCode(error)); throw error; })
+				(error: unknown) => {
+					const code = rustFailureCode(error);
+					markRustStage(`session-failed-${code}`);
+					console.warn('[RustCore] session admission failed:', code);
+					throw error;
+				})
 			.finally(() => { pending = null; });
 		return pending;
 	};

@@ -649,6 +649,7 @@
         "web-rust-core-chat.spec.ts",
         "web-rust-core-embeds.spec.ts",
         "web-rust-core-bench.spec.ts",
+        "web-rust-core-profile.spec.ts",
         "chat-unread-read-position.spec.ts",
         "cli-rust-tui-unread.spec.ts"
       ]

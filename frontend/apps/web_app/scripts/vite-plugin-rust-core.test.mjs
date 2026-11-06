@@ -34,4 +34,6 @@ test('a packaged core exposes its WASM digest and lazy loader', () => {
 	assert.match(source, new RegExp(`artifact = "${createHash('sha256').update(wasm).digest('hex')}"`));
 	assert.match(source, /openmates_browser_bg\.wasm\?url/);
 	assert.match(source, /export function loadBinding\(\)/);
+	assert.match(source, /openmates:rust:wasm-instantiate-start/);
+	assert.match(source, /__openmatesRustCoreWasmBytes/);
 });

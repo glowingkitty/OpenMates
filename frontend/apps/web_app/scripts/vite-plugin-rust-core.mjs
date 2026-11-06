@@ -42,8 +42,20 @@ export function rustCoreModuleSource(directory) {
 		'export const assets = Object.freeze({ artifact, javascriptUrl: import.meta.url, wasmUrl });',
 		'let loading = null;',
 		'export function loadBinding() {',
-		'\tloading ??= init({ module_or_path: wasmUrl }).then(() => binding);',
+		'\tloading ??= instantiate();',
 		'\treturn loading;',
+		'}',
+		// Fixed-name marks (no content) bracket instantiation for the bench profile.
+		// The linear memory's byte count (a number, never the memory) is recorded in
+		// the end mark and readable through a non-enumerable getter of the realm.
+		// WorkerNavigator has no `webdriver`, so this is not automation-gated.
+		'async function instantiate() {',
+		'\tperformance.mark("openmates:rust:wasm-instantiate-start");',
+		'\tconst exports = await init({ module_or_path: wasmUrl });',
+		'\tconst memory = exports?.memory instanceof WebAssembly.Memory ? exports.memory : null;',
+		'\tperformance.mark("openmates:rust:wasm-instantiate-end", { detail: { wasmBytes: memory ? memory.buffer.byteLength : null } });',
+		'\tif (memory) Object.defineProperty(globalThis, "__openmatesRustCoreWasmBytes", { value: () => memory.buffer.byteLength });',
+		'\treturn binding;',
 		'}',
 		''
 	].join('\n');

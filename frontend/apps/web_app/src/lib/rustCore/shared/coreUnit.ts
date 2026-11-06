@@ -24,6 +24,7 @@ import { installBrowserCoreWorker } from '@openmates/ui/src/services/rustCore/wo
 import type { BrowserCoreBinding, WorkerEndpoint } from '@openmates/ui/src/services/rustCore/workerRuntime';
 import type { UnitInstallContext } from '@openmates/ui/src/services/rustCore/host/sharedWorkerProtocol';
 import { isCoreUnitClose } from '@openmates/ui/src/services/rustCore/host/sessionBroker';
+import { installCoreUnitMarks } from './coreUnitMarks';
 
 const FAILURE_CODE = /^[a-z][a-z0-9_]{0,63}$/;
 
@@ -34,6 +35,7 @@ export function installCoreUnit(context: UnitInstallContext): () => void {
 	if (typeof generated.PreparedBrowserProfile?.from_existing_key !== 'function') throw new Error('unavailable');
 	if (typeof generated.capture_initial_sync_store === 'function') throw new Error('unavailable');
 	const port = context.ports[0];
+	const stopMarks = installCoreUnitMarks(port);
 	let started = false;
 	let disposeRuntime: (() => void) | null = null;
 	let disposed = false;
@@ -41,6 +43,7 @@ export function installCoreUnit(context: UnitInstallContext): () => void {
 		if (disposed) return;
 		disposed = true;
 		port.removeEventListener('message', control);
+		stopMarks();
 		disposeRuntime?.();
 		disposeRuntime = null;
 		port.close();
@@ -54,6 +57,7 @@ export function installCoreUnit(context: UnitInstallContext): () => void {
 		}
 		if (started) return;
 		started = true;
+		performance.mark('openmates:rust:core-bootstrap');
 		const configuration = event.data;
 		if (!validProductionBootstrap(configuration, scope.location.origin, artifact)
 			|| configuration.expectedPrincipal.toLowerCase() !== context.principal!.toLowerCase() || event.ports.length > 0) {
@@ -65,6 +69,7 @@ export function installCoreUnit(context: UnitInstallContext): () => void {
 			disposeRuntime = installBrowserCoreWorker(port as unknown as WorkerEndpoint, generated,
 				{ apiUrl: configuration.apiUrl, appOrigin: configuration.appOrigin, sessionId: configuration.sessionId,
 					admission: 'existing_key', expectedPrincipal: configuration.expectedPrincipal }, scope.navigator.locks);
+			performance.mark('openmates:rust:core-ready');
 			port.postMessage({ version: 1, ready: true });
 		} catch (error) {
 			const message = error instanceof Error ? error.message : '';
