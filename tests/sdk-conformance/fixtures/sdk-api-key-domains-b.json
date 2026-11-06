@@ -1,0 +1,526 @@
+{
+ "schemaVersion": 1,
+ "description": "Synthetic API-key SDK domains-B vectors: exact outbound requests and pure helper results. Mirrors packages/openmates-rust/tests/sdk_api_key_domains_b.rs and sdk_public_utilities.rs tests.",
+ "vectors": [
+  {
+   "id": "feedback-low",
+   "operation": "feedback.assistant_response",
+   "args": [],
+   "kwargs": {
+    "rating": 2
+   },
+   "expect": {
+    "method": "POST",
+    "path": "/v1/sdk/feedback/assistant-response",
+    "body": {
+     "rating": 2
+    }
+   }
+  },
+  {
+   "id": "feedback-high",
+   "operation": "feedback.assistant_response",
+   "args": [],
+   "kwargs": {
+    "rating": 5
+   },
+   "expect": {
+    "method": "POST",
+    "path": "/v1/sdk/feedback/assistant-response",
+    "body": {
+     "rating": 5
+    }
+   }
+  },
+  {
+   "id": "inspirations-default",
+   "operation": "inspirations.list",
+   "args": [],
+   "kwargs": {},
+   "expect": {
+    "method": "GET",
+    "path": "/v1/sdk/inspirations",
+    "body": null
+   }
+  },
+  {
+   "id": "inspirations-language",
+   "operation": "inspirations.list",
+   "args": [],
+   "kwargs": {
+    "language": "de"
+   },
+   "expect": {
+    "method": "GET",
+    "path": "/v1/sdk/inspirations?lang=de",
+    "body": null
+   }
+  },
+  {
+   "id": "new-chat-suggestions-default",
+   "operation": "new_chat_suggestions.list",
+   "args": [],
+   "kwargs": {},
+   "expect": {
+    "method": "GET",
+    "path": "/v1/sdk/new-chat-suggestions?limit=10",
+    "body": null
+   }
+  },
+  {
+   "id": "new-chat-suggestions-zero",
+   "operation": "new_chat_suggestions.list",
+   "args": [],
+   "kwargs": {
+    "limit": 0
+   },
+   "expect": {
+    "method": "GET",
+    "path": "/v1/sdk/new-chat-suggestions?limit=0",
+    "body": null
+   }
+  },
+  {
+   "id": "learning-mode-status",
+   "operation": "learning_mode.status",
+   "args": [],
+   "kwargs": {},
+   "expect": {
+    "method": "GET",
+    "path": "/v1/sdk/learning-mode",
+    "body": null
+   }
+  },
+  {
+   "id": "learning-mode-enable",
+   "operation": "learning_mode.enable",
+   "args": [],
+   "kwargs": {
+    "age_group": "teen",
+    "passcode": "synthetic-1234"
+   },
+   "expect": {
+    "method": "POST",
+    "path": "/v1/sdk/learning-mode/enable",
+    "body": {
+     "age_group": "teen",
+     "passcode": "synthetic-1234"
+    }
+   }
+  },
+  {
+   "id": "learning-mode-disable",
+   "operation": "learning_mode.disable",
+   "args": [
+    "synthetic-1234"
+   ],
+   "kwargs": {},
+   "expect": {
+    "method": "POST",
+    "path": "/v1/sdk/learning-mode/disable",
+    "body": {
+     "passcode": "synthetic-1234"
+    }
+   }
+  },
+  {
+   "id": "benchmark-run",
+   "operation": "benchmark.run",
+   "args": [
+    {
+     "suite": "synthetic"
+    }
+   ],
+   "kwargs": {},
+   "expect": {
+    "method": "POST",
+    "path": "/v1/sdk/benchmark/run",
+    "body": {
+     "suite": "synthetic"
+    }
+   }
+  },
+  {
+   "id": "benchmark-estimate",
+   "operation": "benchmark.estimate",
+   "args": [
+    {
+     "suite": "synthetic"
+    }
+   ],
+   "kwargs": {},
+   "expect": {
+    "method": "POST",
+    "path": "/v1/sdk/benchmark/estimate",
+    "body": {
+     "suite": "synthetic"
+    }
+   }
+  },
+  {
+   "id": "finance-default-leaves-prompt-injection-untouched",
+   "operation": "finance.check_accounts",
+   "args": [
+    {
+     "period": "month"
+    }
+   ],
+   "kwargs": {},
+   "expect": {
+    "method": "POST",
+    "path": "/v1/sdk/connected-account-skills/finance/check_accounts",
+    "body": {
+     "input": {
+      "period": "month"
+     },
+     "connected_account_token_ref_inputs": [],
+     "chat_id": null,
+     "message_id": null
+    }
+   }
+  },
+  {
+   "id": "finance-explicit-false-disables-prompt-injection",
+   "operation": "finance.check_accounts",
+   "args": [
+    {
+     "period": "month"
+    }
+   ],
+   "kwargs": {
+    "prompt_injection_protection": false
+   },
+   "expect": {
+    "method": "POST",
+    "path": "/v1/sdk/connected-account-skills/finance/check_accounts",
+    "body": {
+     "input": {
+      "period": "month",
+      "security": {
+       "prompt_injection_protection": "disabled"
+      }
+     },
+     "connected_account_token_ref_inputs": [],
+     "chat_id": null,
+     "message_id": null
+    }
+   }
+  }
+ ],
+ "pure": [
+  {
+   "id": "support-info",
+   "function": "render_support_info",
+   "args": [],
+   "expect": "Support OpenMates development:\n  https://app.openmates.org/#settings/support\n\nFinancial support is voluntary and helps keep OpenMates maintained."
+  },
+  {
+   "id": "clone-branch-1.2.0",
+   "function": "default_clone_branch_for_version",
+   "args": [
+    "1.2.0"
+   ],
+   "expect": null
+  },
+  {
+   "id": "clone-branch-1.2.0-alpha.1",
+   "function": "default_clone_branch_for_version",
+   "args": [
+    "1.2.0-alpha.1"
+   ],
+   "expect": "dev"
+  },
+  {
+   "id": "clone-branch-1.2.0-rc1",
+   "function": "default_clone_branch_for_version",
+   "args": [
+    "1.2.0-rc1"
+   ],
+   "expect": "dev"
+  },
+  {
+   "id": "clone-branch-1.2.0-beta",
+   "function": "default_clone_branch_for_version",
+   "args": [
+    "1.2.0-beta"
+   ],
+   "expect": "dev"
+  },
+  {
+   "id": "clone-branch-1.2.0-rcx",
+   "function": "default_clone_branch_for_version",
+   "args": [
+    "1.2.0-rcx"
+   ],
+   "expect": null
+  },
+  {
+   "id": "ext-TypeScript",
+   "function": "get_ext_for_lang",
+   "args": [
+    "TypeScript"
+   ],
+   "expect": "ts"
+  },
+  {
+   "id": "ext-C#",
+   "function": "get_ext_for_lang",
+   "args": [
+    "C#"
+   ],
+   "expect": "cs"
+  },
+  {
+   "id": "ext-docker",
+   "function": "get_ext_for_lang",
+   "args": [
+    "docker"
+   ],
+   "expect": "Dockerfile"
+  },
+  {
+   "id": "ext-empty",
+   "function": "get_ext_for_lang",
+   "args": [
+    ""
+   ],
+   "expect": "txt"
+  },
+  {
+   "id": "ext-Haskell",
+   "function": "get_ext_for_lang",
+   "args": [
+    "Haskell"
+   ],
+   "expect": "haskell"
+  },
+  {
+   "id": "ext-YML",
+   "function": "get_ext_for_lang",
+   "args": [
+    "YML"
+   ],
+   "expect": "yml"
+  },
+  {
+   "id": "app-url-0",
+   "function": "derive_app_url",
+   "args": [
+    "https://api.openmates.org"
+   ],
+   "expect": "https://app.openmates.org"
+  },
+  {
+   "id": "app-url-1",
+   "function": "derive_app_url",
+   "args": [
+    "https://api.dev.openmates.org/"
+   ],
+   "expect": "https://app.dev.openmates.org"
+  },
+  {
+   "id": "app-url-2",
+   "function": "derive_app_url",
+   "args": [
+    "http://127.0.0.1:8000"
+   ],
+   "expect": "http://localhost:5173"
+  },
+  {
+   "id": "app-url-3",
+   "function": "derive_app_url",
+   "args": [
+    "https://api.example.test:8443/v1?x=1"
+   ],
+   "expect": "https://app.example.test:8443"
+  },
+  {
+   "id": "app-url-4",
+   "function": "derive_app_url",
+   "args": [
+    "https://selfhost.example"
+   ],
+   "expect": "https://selfhost.example"
+  },
+  {
+   "id": "app-url-5",
+   "function": "derive_app_url",
+   "args": [
+    "not a url"
+   ],
+   "expect": "https://app.openmates.org"
+  },
+  {
+   "id": "ai-class-0.71",
+   "function": "classify_images_ai_detection",
+   "args": [
+    0.71
+   ],
+   "expect": "likely_ai_generated"
+  },
+  {
+   "id": "ai-class-0.7",
+   "function": "classify_images_ai_detection",
+   "args": [
+    0.7
+   ],
+   "expect": "possibly_ai_generated"
+  },
+  {
+   "id": "ai-class-0.4",
+   "function": "classify_images_ai_detection",
+   "args": [
+    0.4
+   ],
+   "expect": "likely_not_ai_generated"
+  },
+  {
+   "id": "ai-class-None",
+   "function": "classify_images_ai_detection",
+   "args": [
+    null
+   ],
+   "expect": "unavailable"
+  },
+  {
+   "id": "feedback-decision-1",
+   "function": "build_assistant_feedback_decision",
+   "args": [
+    1
+   ],
+   "expect": {
+    "rating": 1,
+    "action": "report_issue",
+    "message": "Thanks for the feedback!",
+    "report_title": "Assistant response quality bad:"
+   }
+  },
+  {
+   "id": "feedback-decision-2",
+   "function": "build_assistant_feedback_decision",
+   "args": [
+    2
+   ],
+   "expect": {
+    "rating": 2,
+    "action": "report_issue",
+    "message": "Thanks for the feedback!",
+    "report_title": "Assistant response quality bad:"
+   }
+  },
+  {
+   "id": "feedback-decision-3",
+   "function": "build_assistant_feedback_decision",
+   "args": [
+    3
+   ],
+   "expect": {
+    "rating": 3,
+    "action": "report_issue",
+    "message": "Thanks for the feedback!",
+    "report_title": "Assistant response quality bad:"
+   }
+  },
+  {
+   "id": "feedback-decision-4",
+   "function": "build_assistant_feedback_decision",
+   "args": [
+    4
+   ],
+   "expect": {
+    "rating": 4,
+    "action": "thanks",
+    "message": "Thanks for the feedback!",
+    "report_title": null
+   }
+  },
+  {
+   "id": "feedback-decision-5",
+   "function": "build_assistant_feedback_decision",
+   "args": [
+    5
+   ],
+   "expect": {
+    "rating": 5,
+    "action": "thanks",
+    "message": "Thanks for the feedback!",
+    "report_title": null
+   }
+  },
+  {
+   "id": "feedback-decision-rejects-0",
+   "function": "build_assistant_feedback_decision",
+   "args": [
+    0
+   ],
+   "expect": {
+    "error": "invalid"
+   }
+  },
+  {
+   "id": "feedback-decision-rejects-6",
+   "function": "build_assistant_feedback_decision",
+   "args": [
+    6
+   ],
+   "expect": {
+    "error": "invalid"
+   }
+  },
+  {
+   "id": "ai-summary-success",
+   "function": "build_images_ai_detection_summary",
+   "args": [
+    {
+     "content_type": "image/png",
+     "embed_id": "e",
+     "deduplicated": false,
+     "ai_detection": {
+      "status": "success",
+      "ai_generated": 0.9,
+      "provider": "p"
+     }
+    },
+    "/tmp/a/pic.png"
+   ],
+   "expect": {
+    "file": "/tmp/a/pic.png",
+    "filename": "pic.png",
+    "content_type": "image/png",
+    "embed_id": "e",
+    "deduplicated": false,
+    "stored": true,
+    "status": "success",
+    "provider": "p",
+    "ai_generated": 0.9,
+    "classification": "likely_ai_generated",
+    "label": "Likely AI-generated",
+    "error": null
+   }
+  },
+  {
+   "id": "ai-summary-none",
+   "function": "build_images_ai_detection_summary",
+   "args": [
+    {
+     "filename": "x.png"
+    },
+    "x.png"
+   ],
+   "expect": {
+    "file": "x.png",
+    "filename": "x.png",
+    "content_type": null,
+    "embed_id": null,
+    "deduplicated": null,
+    "stored": true,
+    "status": "unavailable",
+    "provider": null,
+    "ai_generated": null,
+    "classification": "unavailable",
+    "label": "Detection unavailable",
+    "error": null
+   }
+  }
+ ]
+}

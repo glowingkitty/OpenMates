@@ -1157,7 +1157,9 @@
             "OpenMatesBenchmark.run"
           ],
           "conformance": false,
-          "evidence": [],
+          "evidence": [
+            "tests/sdk-conformance/runners/sdk-api-key-operations.py"
+          ],
           "gaps": [
             "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
           ],
@@ -1322,7 +1324,9 @@
             "OpenMatesBilling.usage_summaries"
           ],
           "conformance": false,
-          "evidence": [],
+          "evidence": [
+            "tests/sdk-conformance/runners/sdk-api-key-operations.py"
+          ],
           "gaps": [
             "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
           ],
@@ -2288,7 +2292,9 @@
             "OpenMatesFeedback.assistant_response"
           ],
           "conformance": false,
-          "evidence": [],
+          "evidence": [
+            "tests/sdk-conformance/runners/sdk-api-key-operations.py"
+          ],
           "gaps": [
             "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
           ],
@@ -2349,7 +2355,9 @@
             "OpenMatesFinance.check_accounts"
           ],
           "conformance": false,
-          "evidence": [],
+          "evidence": [
+            "tests/sdk-conformance/runners/sdk-api-key-operations.py"
+          ],
           "gaps": [
             "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
           ],
@@ -2372,7 +2380,6 @@
             "packages/openmates-rust/tests/sdk_operations_a.rs"
           ],
           "gaps": [
-            "Python defaults prompt_injection_protection to False for Finance while npm/Rust leave it unset; the divergence is recorded, not unified.",
             "Rust API-key facade is exercised only against a loopback fixture server; no live backend, purchase, refund or deletion route has been executed.",
             "No managed cross-language runner (npm/Python/Rust peers) executes the shared vectors in the conformance gate yet; npm and Python remain partial.",
             "Matching direct SDK CPU-processing benchmark against TypeScript is absent."
@@ -2587,7 +2594,9 @@
             "OpenMatesInspirations.list"
           ],
           "conformance": false,
-          "evidence": [],
+          "evidence": [
+            "tests/sdk-conformance/runners/sdk-api-key-operations.py"
+          ],
           "gaps": [
             "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
           ],
@@ -2628,13 +2637,26 @@
           "status": "missing"
         },
         "python": {
-          "api": [],
-          "conformance": false,
-          "evidence": [],
-          "gaps": [
-            "Equivalent public API and cross-language implementation evidence are not yet established."
+          "api": [
+            "KeyManagementError",
+            "decode_key",
+            "decrypt_combined",
+            "encode_key",
+            "encrypt_combined",
+            "hash_email",
+            "hash_key",
+            "key_fingerprint",
+            "random_key"
           ],
-          "status": "missing"
+          "conformance": false,
+          "evidence": [
+            "packages/openmates-python/tests/test_sdk_shared_wire_vectors.py"
+          ],
+          "gaps": [
+            "Python exposes only the primitive subset (random/encode/decode key, fingerprint, hash_email/hash_key, combined encrypt/decrypt) via openmates.key_management; Rust-only: signup/recovery key material, web share/media/passkey/hidden-chat formats, chat-key policy and AEAD batch APIs.",
+            "No shared fixture executes the Python key helpers through the conformance gate; they are covered by a Python unit test only."
+          ],
+          "status": "partial"
         },
         "rust": {
           "api": [
@@ -2894,7 +2916,9 @@
             "OpenMatesLearningMode.status"
           ],
           "conformance": false,
-          "evidence": [],
+          "evidence": [
+            "tests/sdk-conformance/runners/sdk-api-key-operations.py"
+          ],
           "gaps": [
             "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
           ],
@@ -3029,13 +3053,26 @@
           "status": "missing"
         },
         "python": {
-          "api": [],
-          "conformance": false,
-          "evidence": [],
-          "gaps": [
-            "Equivalent public API and cross-language implementation evidence are not yet established."
+          "api": [
+            "Chat",
+            "Chat.from_json",
+            "Item",
+            "Item.from_json",
+            "Message",
+            "Message.from_json",
+            "Mutation",
+            "StreamUpdate",
+            "Workspace",
+            "Workspace.label"
           ],
-          "status": "missing"
+          "conformance": false,
+          "evidence": [
+            "packages/openmates-python/tests/test_sdk_shared_wire_vectors.py"
+          ],
+          "gaps": [
+            "Python models are plain dataclasses parsing the Rust serde layout; no shared fixture runs them through the conformance gate and StreamUpdate/Mutation are tagged values rather than typed variants."
+          ],
+          "status": "partial"
         },
         "rust": {
           "api": [
@@ -3121,7 +3158,9 @@
             "OpenMatesNewChatSuggestions.list"
           ],
           "conformance": false,
-          "evidence": [],
+          "evidence": [
+            "tests/sdk-conformance/runners/sdk-api-key-operations.py"
+          ],
           "gaps": [
             "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
           ],
@@ -3182,7 +3221,9 @@
             "OpenMatesNotifications.status"
           ],
           "conformance": false,
-          "evidence": [],
+          "evidence": [
+            "tests/sdk-conformance/runners/sdk-api-key-operations.py"
+          ],
           "gaps": [
             "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
           ],
@@ -4568,16 +4609,30 @@
         },
         "python": {
           "api": [
+            "ASSISTANT_FEEDBACK_REPORT_TITLE",
+            "ASSISTANT_FEEDBACK_THANKS",
             "CalendarEvent",
             "CalendarEventDocument",
-            "build_calendar_event_file"
+            "SUPPORT_URL",
+            "build_assistant_feedback_decision",
+            "build_calendar_event_file",
+            "build_images_ai_detection_summary",
+            "classify_images_ai_detection",
+            "default_clone_branch_for_version",
+            "derive_app_url",
+            "format_images_ai_detection_label",
+            "get_ext_for_lang",
+            "render_support_info"
           ],
           "conformance": false,
-          "evidence": [],
-          "gaps": [
-            "Equivalent public API and cross-language implementation evidence are not yet established."
+          "evidence": [
+            "tests/sdk-conformance/runners/sdk-api-key-operations.py",
+            "packages/openmates-python/tests/test_sdk_shared_wire_vectors.py"
           ],
-          "status": "missing"
+          "gaps": [
+            "Python covers the pure helpers also present in Rust (support info, clone branch, app URL, extension map, feedback decision, image AI-detection summary); interest-tag/mate/memory-type registries and plan/calendar builders are not mirrored. Shared vectors run in the Python runner only; Rust and npm do not yet execute tests/sdk-conformance/fixtures/sdk-api-key-domains-b.json."
+          ],
+          "status": "partial"
         },
         "rust": {
           "api": [
@@ -4648,7 +4703,9 @@
             "OpenMatesReminders.update"
           ],
           "conformance": false,
-          "evidence": [],
+          "evidence": [
+            "tests/sdk-conformance/runners/sdk-api-key-operations.py"
+          ],
           "gaps": [
             "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
           ],
@@ -6834,7 +6891,9 @@
             "OpenMatesSettings.share_debug_logs"
           ],
           "conformance": false,
-          "evidence": [],
+          "evidence": [
+            "tests/sdk-conformance/runners/sdk-api-key-operations.py"
+          ],
           "gaps": [
             "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
           ],

@@ -348,10 +348,15 @@ def test_finance_connected_account_skill_uses_sdk_only_endpoint(monkeypatch):
     assert result == {"account_count": 1, "transaction_count": 2}
     assert requests[0]["url"] == "https://api.openmates.org/v1/sdk/connected-account-skills/finance/check_accounts"
     assert requests[0]["json"]["input"]["period"] == "monthly"
-    assert requests[0]["json"]["input"]["security"]["prompt_injection_protection"] == "disabled"
+    # Behaviour change: the default leaves prompt-injection protection untouched
+    # (npm/Rust parity); only an explicit False disables it.
+    assert "security" not in requests[0]["json"]["input"]
     refs = requests[0]["json"]["connected_account_token_ref_inputs"]
     assert refs[0]["provider_id"] == "revolut_business"
     assert "access_token" not in json_module.dumps(requests[0]["json"])
+
+    client.finance.check_accounts({"period": "monthly"}, prompt_injection_protection=False)
+    assert requests[1]["json"]["input"]["security"]["prompt_injection_protection"] == "disabled"
 
 
 def test_native_app_skill_method_maps_prompt_injection_opt_out(monkeypatch):

@@ -6521,7 +6521,7 @@ class OpenMatesFinance:
         connected_account_token_ref_inputs: list[dict[str, Any]] | None = None,
         chat_id: str | None = None,
         message_id: str | None = None,
-        prompt_injection_protection: bool | None = False,
+        prompt_injection_protection: bool | None = None,
     ) -> dict[str, Any]:
         return self._client.run_connected_account_skill(
             "finance",

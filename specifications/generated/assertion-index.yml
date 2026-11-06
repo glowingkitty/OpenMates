@@ -38162,7 +38162,7 @@ assertions:
       surface: gui.web
     - &id4800
       path: packages/openmates-python/tests/test_sdk.py
-      line: 1665
+      line: 1670
       name: test_load_decrypts_chat_messages_client_side
       surface: sdks.pip
     tests:
@@ -38360,12 +38360,12 @@ assertions:
       surface: gui.web
     - &id4823
       path: packages/openmates-python/tests/test_sdk.py
-      line: 1665
+      line: 1670
       name: test_load_decrypts_chat_messages_client_side
       surface: sdks.pip
     - &id4824
       path: packages/openmates-python/tests/test_sdk.py
-      line: 1794
+      line: 1799
       name: test_embed_decoder_preserves_plain_text_and_invalid_toon
       surface: sdks.pip
     tests:
@@ -57999,7 +57999,7 @@ assertions:
       surface: gui.web
     - &id7279
       path: packages/openmates-python/tests/test_sdk.py
-      line: 1816
+      line: 1821
       name: test_embed_decoder_distinguishes_empty_arrays_from_quoted_literals
       surface: sdks.pip
     tests:
@@ -59482,12 +59482,12 @@ assertions:
       surface: gui.web
     - &id7507
       path: packages/openmates-python/tests/test_sdk.py
-      line: 1665
+      line: 1670
       name: test_load_decrypts_chat_messages_client_side
       surface: sdks.pip
     - &id7508
       path: packages/openmates-python/tests/test_sdk.py
-      line: 1816
+      line: 1821
       name: test_embed_decoder_distinguishes_empty_arrays_from_quoted_literals
       surface: sdks.pip
     tests:
@@ -60441,12 +60441,12 @@ assertions:
       surface: gui.web
     - &id7585
       path: packages/openmates-python/tests/test_sdk.py
-      line: 1665
+      line: 1670
       name: test_load_decrypts_chat_messages_client_side
       surface: sdks.pip
     - &id7586
       path: packages/openmates-python/tests/test_sdk.py
-      line: 1816
+      line: 1821
       name: test_embed_decoder_distinguishes_empty_arrays_from_quoted_literals
       surface: sdks.pip
     tests:
@@ -87296,12 +87296,12 @@ assertions:
       surface: gui.web
     - &id11672
       path: packages/openmates-python/tests/test_sdk.py
-      line: 1561
+      line: 1566
       name: test_lazily_unwraps_api_key_session_and_decrypts_chat_metadata
       surface: sdks.pip
     - &id11673
       path: packages/openmates-python/tests/test_sdk.py
-      line: 1613
+      line: 1618
       name: test_searches_decrypted_chat_metadata_locally
       surface: sdks.pip
     supporting_tests:
@@ -105544,12 +105544,12 @@ assertions:
       surface: gui.web
     - &id14120
       path: packages/openmates-python/tests/test_sdk.py
-      line: 1561
+      line: 1566
       name: test_lazily_unwraps_api_key_session_and_decrypts_chat_metadata
       surface: sdks.pip
     - &id14121
       path: packages/openmates-python/tests/test_sdk.py
-      line: 1613
+      line: 1618
       name: test_searches_decrypted_chat_metadata_locally
       surface: sdks.pip
     supporting_tests:
@@ -174456,7 +174456,7 @@ assertions:
       surface: cli
     - &id22365
       path: packages/openmates-python/tests/test_sdk.py
-      line: 966
+      line: 971
       name: test_workflow_workspace_methods_match_npm_sdk_contract
       surface: sdks.pip
     - &id22366
@@ -184353,7 +184353,7 @@ assertions:
       surface: sdks.pip
     - &id23492
       path: packages/openmates-python/tests/test_sdk.py
-      line: 1613
+      line: 1618
       name: test_searches_decrypted_chat_metadata_locally
       surface: sdks.pip
     supporting_tests: []
@@ -187312,17 +187312,17 @@ assertions:
       surface: sdks.pip
     - &id23871
       path: packages/openmates-python/tests/test_sdk.py
-      line: 966
+      line: 971
       name: test_workflow_workspace_methods_match_npm_sdk_contract
       surface: sdks.pip
     - &id23872
       path: packages/openmates-python/tests/test_sdk.py
-      line: 1561
+      line: 1566
       name: test_lazily_unwraps_api_key_session_and_decrypts_chat_metadata
       surface: sdks.pip
     - &id23873
       path: packages/openmates-python/tests/test_sdk.py
-      line: 1613
+      line: 1618
       name: test_searches_decrypted_chat_metadata_locally
       surface: sdks.pip
     - &id23876
@@ -187732,17 +187732,17 @@ assertions:
       surface: sdks.pip
     - &id24005
       path: packages/openmates-python/tests/test_sdk.py
-      line: 966
+      line: 971
       name: test_workflow_workspace_methods_match_npm_sdk_contract
       surface: sdks.pip
     - &id24006
       path: packages/openmates-python/tests/test_sdk.py
-      line: 1561
+      line: 1566
       name: test_lazily_unwraps_api_key_session_and_decrypts_chat_metadata
       surface: sdks.pip
     - &id24007
       path: packages/openmates-python/tests/test_sdk.py
-      line: 1613
+      line: 1618
       name: test_searches_decrypted_chat_metadata_locally
       surface: sdks.pip
     - &id24008
