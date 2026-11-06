@@ -2217,8 +2217,6 @@ def run_e2e(
     )
 
     paired = PAIRED_SPEC in specs
-    # The bench spec serves each web build itself on the only CORS-allowed origin.
-    bench_only = specs == ["web-rust-core-bench.spec.ts"]
     if "rust-core-new-chat-send.spec.ts" in specs and (
         specs != ["rust-core-new-chat-send.spec.ts"]
         or artifact
@@ -2375,7 +2373,7 @@ def run_e2e(
         else:
             app_server = (
                 None
-                if artifact or node_probe_only or paired or bench_only
+                if artifact or node_probe_only or paired
                 else subprocess.Popen(
                     [
                         "pnpm",
@@ -2395,7 +2393,7 @@ def run_e2e(
             )
             child = (
                 None
-                if artifact or node_probe_only or paired or bench_only
+                if artifact or node_probe_only or paired
                 else subprocess.Popen(
                     [
                         sys.executable,
