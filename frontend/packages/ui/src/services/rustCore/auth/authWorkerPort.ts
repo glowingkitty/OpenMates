@@ -60,19 +60,27 @@ export async function createSharedAuthClient(execute: AuthHttpExecutor, onClosed
  * Loads the registered shared core and returns its synchronous retirement:
  * terminate the shared Worker and respawn it with a prewarmed, unbound realm.
  * Without `force` it is skipped while a principal is bound (that realm belongs
- * to a live session); logout passes `force`. Every open unit (including auth
+ * to a live session) and deferred while work is in flight; logout passes
+ * `force`. Every open unit (including auth
  * clients) is told through `onCrash`. A failed respawn is reported, and the next
  * request spawns the Worker again.
  */
 export async function loadSharedAuthRealm(): Promise<{ retire(options: { force: boolean }): void }> {
 	const core = await whenSharedRustCore();
-	return {
-		retire(options) {
-			if (!options.force && core.generation !== null) return;
-			core.terminate();
-			performance.mark('openmates:rust:auth-realm-retired');
-			core.prewarm().catch((error: unknown) => console.warn('[RustAuth] shared core respawn failed:',
-				error instanceof Error ? error.message : 'unknown'));
-		},
-	};
+	function retire(options: { force: boolean }): void {
+		if (!options.force && core.generation !== null) return;
+		// Idle retirement never drops work: while a bind/open is pending or a
+		// crypto/core call is in flight, wait for the realm to go idle first.
+		// Logout (`force`) is an intentional hard stop.
+		if (!options.force && core.busy) {
+			// A macrotask hop lets the settling call's continuation (e.g. bind recording its generation) run first.
+			core.onIdle(() => { setTimeout(() => retire(options), 0); });
+			return;
+		}
+		core.terminate();
+		performance.mark('openmates:rust:auth-realm-retired');
+		core.prewarm().catch((error: unknown) => console.warn('[RustAuth] shared core respawn failed:',
+			error instanceof Error ? error.message : 'unknown'));
+	}
+	return { retire };
 }

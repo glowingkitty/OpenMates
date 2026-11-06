@@ -224,16 +224,33 @@ describe('web crypto client batching', () => {
 	});
 });
 
-function fakeCore(open: () => Promise<MessagePort>) {
+function fakeCore(open: () => Promise<MessagePort>, hold: () => () => void = () => () => undefined) {
 	const crash = new Set<() => void>();
 	const core = {
 		openUnit: vi.fn(open),
+		hold,
 		onCrash: (listener: () => void) => { crash.add(listener); return () => crash.delete(listener); }
 	} as unknown as SharedRustCore;
 	return { core, crash: () => { for (const listener of crash) listener(); } };
 }
 
 describe('shared crypto endpoint', () => {
+	it('holds the realm from send until the reply arrives', async () => {
+		const channel = new MessageChannel();
+		const release = vi.fn();
+		const hold = vi.fn(() => release);
+		const { core } = fakeCore(async () => channel.port1, hold);
+		channel.port2.onmessage = () => channel.port2.postMessage({ version: 1, responses: [{ id: 1, ok: true, value: 1 }] });
+		const endpoint = createSharedCryptoEndpoint(core);
+		const replied = new Promise<void>((resolve) => endpoint.onReplies(() => resolve()));
+		endpoint.send({ version: 1, requests: [{ id: 1, op: 'echo', args: [1] }] });
+		expect(hold).toHaveBeenCalledTimes(1);
+		expect(release).not.toHaveBeenCalled();
+		await replied;
+		expect(release).toHaveBeenCalledTimes(1);
+		endpoint.close();
+	});
+
 	it('buffers batches until the crypto port opens', async () => {
 		const channel = new MessageChannel();
 		const { core } = fakeCore(async () => channel.port1);

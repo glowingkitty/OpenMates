@@ -55,6 +55,15 @@ export interface SharedRustCore {
 	onCrash(listener: () => void): () => void;
 	/** Terminates the Worker (logout / account switch hard stop). Later calls respawn. */
 	terminate(): void;
+	/**
+	 * Marks unit work in flight (a crypto/core call). Returns an idempotent release.
+	 * A crash or `terminate()` clears every lease, so a dead unit cannot pin the realm.
+	 */
+	hold(): () => void;
+	/** True while a control request (open/bind/unbind/prewarm) is pending or a lease is held. */
+	readonly busy: boolean;
+	/** Calls `listener` once when the realm next becomes idle; returns the cancel function. */
+	onIdle(listener: () => void): () => void;
 }
 
 /** Minimal Worker surface so tests can supply a fake. */
@@ -76,6 +85,18 @@ export function createSharedCoreClient(
 	let worker: SharedWorkerEndpoint | null = null;
 	let generation: number | null = null;
 	let nextId = 1;
+	let leases = 0;
+	let leaseEpoch = 0;
+	const idleListeners = new Set<() => void>();
+
+	function isBusy(): boolean { return pending.size > 0 || leases > 0; }
+	function settleIdle(): void {
+		if (isBusy()) return;
+		const listeners = [...idleListeners];
+		idleListeners.clear();
+		for (const listener of listeners) listener();
+	}
+	function clearLeases(): void { leases = 0; leaseEpoch++; }
 
 	function failAll(code: SharedCoreErrorCode): void {
 		for (const [id, entry] of [...pending]) {
@@ -83,11 +104,13 @@ export function createSharedCoreClient(
 			entry.cleanup();
 			entry.reject(new SharedCoreError(code));
 		}
+		settleIdle();
 	}
 	function crash(failed: SharedWorkerEndpoint): void {
 		if (worker !== failed) return;
 		worker = null;
 		generation = null;
+		clearLeases();
 		failed.terminate();
 		failAll('shared_core_crashed');
 		for (const listener of [...crashListeners]) listener();
@@ -106,6 +129,7 @@ export function createSharedCoreClient(
 			entry.cleanup();
 			if (reply.type === 'ready') entry.resolve(reply);
 			else entry.reject(new SharedCoreError(reply.code));
+			settleIdle();
 		});
 		spawned.addEventListener('error', () => crash(spawned));
 		spawned.addEventListener('messageerror', () => crash(spawned));
@@ -123,6 +147,7 @@ export function createSharedCoreClient(
 				pending.delete(id);
 				entry.cleanup();
 				entry.reject(new SharedCoreError(code));
+				settleIdle();
 			};
 			const onAbort = () => drop('shared_core_aborted');
 			const timer = setTimeout(() => drop('shared_core_timeout'), timeoutMs);
@@ -164,10 +189,27 @@ export function createSharedCoreClient(
 			crashListeners.add(listener);
 			return () => { crashListeners.delete(listener); };
 		},
+		get busy() { return isBusy(); },
+		hold() {
+			const epoch = leaseEpoch;
+			let released = false;
+			leases++;
+			return () => {
+				if (released || epoch !== leaseEpoch) return;
+				released = true;
+				leases--;
+				settleIdle();
+			};
+		},
+		onIdle(listener) {
+			idleListeners.add(listener);
+			return () => { idleListeners.delete(listener); };
+		},
 		terminate() {
 			const active = worker;
 			worker = null;
 			generation = null;
+			clearLeases();
 			active?.terminate();
 			failAll('shared_core_terminated');
 			if (active) for (const listener of [...crashListeners]) listener();

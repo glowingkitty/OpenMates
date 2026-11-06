@@ -13,11 +13,19 @@ export function createSharedCryptoEndpoint(core: SharedRustCore): WebCryptoEndpo
   const replyListeners: ((replies: WebCryptoReplies) => void)[] = [];
   const failureListeners: ((error: Error) => void)[] = [];
   let failed = false;
+  // Requests sent and not yet answered keep the realm from idle retirement.
+  let outstanding = 0;
+  let release: (() => void) | null = null;
+  const settleOutstanding = (count: number | null) => {
+    outstanding = count === null ? 0 : Math.max(0, outstanding - count);
+    if (outstanding === 0 && release) { release(); release = null; }
+  };
 
   const fail = (error: Error) => {
     if (failed || closed) return;
     failed = true;
     buffered = [];
+    settleOutstanding(null);
     for (const listener of failureListeners) listener(error);
   };
   const stopCrashWatch = core.onCrash(() => fail(new Error('shared_core_crashed')));
@@ -30,6 +38,7 @@ export function createSharedCryptoEndpoint(core: SharedRustCore): WebCryptoEndpo
       }
       port = opened;
       opened.onmessage = (event: MessageEvent<WebCryptoReplies>) => {
+        settleOutstanding(event.data?.responses?.length ?? 0);
         for (const listener of replyListeners) listener(event.data);
       };
       opened.onmessageerror = () => fail(new Error('rust_web_crypto_bad_reply'));
@@ -42,6 +51,10 @@ export function createSharedCryptoEndpoint(core: SharedRustCore): WebCryptoEndpo
   return {
     send(batch) {
       if (closed || failed) return;
+      if (batch.requests.length > 0) {
+        release ??= core.hold();
+        outstanding += batch.requests.length;
+      }
       if (port) port.postMessage(batch);
       else buffered.push(batch);
     },
@@ -51,6 +64,7 @@ export function createSharedCryptoEndpoint(core: SharedRustCore): WebCryptoEndpo
       if (closed) return;
       closed = true;
       buffered = [];
+      settleOutstanding(null);
       stopCrashWatch();
       if (port) {
         port.onmessage = null;

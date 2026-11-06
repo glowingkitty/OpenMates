@@ -126,6 +126,43 @@ describe('auth unit on the shared Rust core Worker', () => {
 		next.close();
 	});
 
+	it('defers idle retirement while a bind is pending and never kills it', async () => {
+		const shared = sharedCore(binding());
+		cleanup = shared.unregister;
+		const binding_ = shared.core.bind(PRINCIPAL);
+		expect(shared.core.busy).toBe(true);
+		(await loadSharedAuthRealm()).retire({ force: false });
+		expect(shared.workers[0].terminated).toBe(false);
+		await expect(binding_).resolves.toBe(1);
+		await new Promise((resolve) => setTimeout(resolve, 10));
+		expect(shared.workers[0].terminated).toBe(false);
+		expect(shared.core.generation).toBe(1);
+	});
+
+	it('lets a crypto call in flight complete before the idle retirement', async () => {
+		const shared = sharedCore(binding());
+		cleanup = shared.unregister;
+		await shared.core.prewarm();
+		const release = shared.core.hold();
+		(await loadSharedAuthRealm()).retire({ force: false });
+		expect(shared.workers[0].terminated).toBe(false);
+		release();
+		await vi.waitFor(() => expect(shared.workers[0].terminated).toBe(true));
+		expect(shared.workers).toHaveLength(2);
+	});
+
+	it('retires immediately when the realm is truly idle, and a forced retire ignores work', async () => {
+		const shared = sharedCore(binding());
+		cleanup = shared.unregister;
+		await shared.core.prewarm();
+		expect(shared.core.busy).toBe(false);
+		(await loadSharedAuthRealm()).retire({ force: false });
+		expect(shared.workers[0].terminated).toBe(true);
+		shared.core.hold();
+		(await loadSharedAuthRealm()).retire({ force: true });
+		expect(shared.workers[1].terminated).toBe(true);
+	});
+
 	it('keeps a bound realm unless forced (logout)', async () => {
 		const shared = sharedCore(binding());
 		cleanup = shared.unregister;
