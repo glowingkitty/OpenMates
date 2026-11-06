@@ -83,17 +83,17 @@ def scan(build: Path, markers: set[str], stems: set[str], namespaces: frozenset[
             violations.append(f"{rel}: rust core chunk/module name")
         if path.suffix in TEXT_SUFFIXES:
             text = path.read_text(errors="ignore")
-            hits = sorted(m for m in markers if m in text)
+            found = {m: re.search(rf"(?<![A-Za-z0-9_]){re.escape(m)}(?![A-Za-z0-9_])", text) for m in markers}
+            found = {m: hit for m, hit in found.items() if hit}
+            hits = sorted(found)
             if namespaces and all(n in text for n in namespaces):
                 hits.append(f"all shared-worker namespaces {sorted(namespaces)}")
+                found.setdefault(sorted(namespaces)[0], re.search(re.escape(sorted(namespaces)[0]), text))
             if "rustCore/" in text:
                 hits.append("rustCore/ source path")
             if hits:
-                first = next((m for m in markers if m in text), None)
-                context = ""
-                if first:
-                    at = text.index(first)
-                    context = " context=" + repr(text[max(0, at - 80) : at + 80])
+                at = min(hit.start() for hit in found.values())
+                context = " context=" + repr(text[max(0, at - 150) : at + 250])
                 violations.append(f"{rel}: markers {hits}{context}")
     return violations
 
