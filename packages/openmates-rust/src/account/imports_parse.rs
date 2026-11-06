@@ -197,7 +197,7 @@ pub(crate) fn prefix16(value: &str) -> &str {
 }
 
 pub fn append_compression_summary(chat: &mut ParsedImportChat, summary: Option<&str>) {
-    let Some(summary) = summary.filter(|s| !s.trim().is_empty()) else {
+    let Some(summary) = summary.filter(|s| !js_blank(s)) else {
         return;
     };
     chat.messages.push(ParsedImportMessage {
@@ -216,10 +216,20 @@ pub fn source_fingerprint(
     source_chat_id: &str,
     messages: &[ParsedImportMessage],
 ) -> String {
+    source_fingerprint_for(parser.as_str(), source_chat_id, messages)
+}
+
+/// [`source_fingerprint`] over an explicit provider label (the web hashes
+/// generic transcripts as `other`).
+pub fn source_fingerprint_for(
+    provider: &str,
+    source_chat_id: &str,
+    messages: &[ParsedImportMessage],
+) -> String {
     let quote = |value: &str| Value::String(value.to_owned()).to_string();
     let mut text = format!(
         "{{\"provider\":{},\"source_chat_id\":{},\"messages\":[",
-        quote(parser.as_str()),
+        quote(provider),
         quote(source_chat_id)
     );
     for (index, message) in messages.iter().enumerate() {
@@ -244,7 +254,7 @@ pub fn source_fingerprint(
 }
 
 /// JavaScript `String(value ?? fallback)` for JSON values.
-pub(super) fn js_string(value: Option<&Value>, fallback: &str) -> String {
+pub(crate) fn js_string(value: Option<&Value>, fallback: &str) -> String {
     match value {
         None | Some(Value::Null) => fallback.into(),
         Some(Value::String(s)) => s.clone(),
@@ -261,14 +271,23 @@ pub(super) fn js_string(value: Option<&Value>, fallback: &str) -> String {
         Some(Value::Object(_)) => "[object Object]".into(),
     }
 }
-pub(super) fn string_field(value: &Value, key: &str) -> Option<String> {
+pub(crate) fn string_field(value: &Value, key: &str) -> Option<String> {
     value.get(key).and_then(Value::as_str).map(str::to_owned)
 }
 /// `item && typeof item === "object"` (arrays included).
-pub(super) fn is_js_object(value: &Value) -> bool {
+pub(crate) fn is_js_object(value: &Value) -> bool {
     value.is_object() || value.is_array()
 }
-pub(super) fn js_objects(value: Option<&Value>) -> Vec<&Value> {
+/// JavaScript `String.prototype.trim` whitespace: Unicode White_Space without
+/// NEL (U+0085) plus the byte order mark (U+FEFF).
+pub fn js_is_space(c: char) -> bool {
+    c == '\u{feff}' || (c != '\u{85}' && c.is_whitespace())
+}
+/// JavaScript `!value.trim()`.
+pub fn js_blank(value: &str) -> bool {
+    value.chars().all(js_is_space)
+}
+pub(crate) fn js_objects(value: Option<&Value>) -> Vec<&Value> {
     value
         .and_then(Value::as_array)
         .map(|items| items.iter().filter(|v| is_js_object(v)).collect())
@@ -308,14 +327,14 @@ pub fn iso_from_ms(ms: f64) -> Result<String, String> {
         rem % 1000
     ))
 }
-pub(super) fn positive_time(value: Option<&Value>, scale: f64) -> Result<Option<String>, String> {
+pub(crate) fn positive_time(value: Option<&Value>, scale: f64) -> Result<Option<String>, String> {
     match value.and_then(Value::as_f64) {
         Some(v) if v.is_finite() && v > 0.0 => iso_from_ms(v * scale).map(Some),
         _ => Ok(None),
     }
 }
 
-pub(super) fn finalize(
+pub(crate) fn finalize(
     parser: ImportParser,
     selected: ImportSource,
     chats: Vec<ParsedImportChat>,
@@ -329,8 +348,18 @@ pub(super) fn finalize(
             chat.parser_format = parser.as_str().into();
             chat.selected_source = selected.as_str().into();
             for message in &mut chat.messages {
-                message.imported_assistant_identity =
-                    (message.role == "assistant").then(|| identity.clone());
+                message.imported_assistant_identity = (message.role == "assistant").then(|| {
+                    let mut identity = identity.clone();
+                    if let Some(model) = message
+                        .provider_metadata
+                        .get("model")
+                        .and_then(Value::as_str)
+                        && !js_blank(model)
+                    {
+                        identity.model_name = model.to_owned();
+                    }
+                    identity
+                });
             }
             chat
         })
@@ -344,7 +373,7 @@ pub(super) fn finalize(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(super) fn chat(
+pub(crate) fn chat(
     parser: ImportParser,
     selected: ImportSource,
     source_chat_id: String,
@@ -372,7 +401,7 @@ pub(super) fn chat(
         source_metadata,
     }
 }
-pub(super) fn message(
+pub(crate) fn message(
     role: &str,
     content: String,
     created_at: Option<String>,
@@ -396,7 +425,7 @@ fn conversations<'a>(decoded: &'a Value, label: &str) -> Result<Vec<&'a Value>, 
         .ok_or_else(|| format!("{label} export conversations must be an array"))?;
     Ok(raw.iter().filter(|v| is_js_object(v)).collect())
 }
-pub(super) fn decode(text: &str, label: &str) -> Result<Value, String> {
+pub(crate) fn decode(text: &str, label: &str) -> Result<Value, String> {
     serde_json::from_str(text).map_err(|e| format!("{label} could not be parsed: {e}"))
 }
 
@@ -406,9 +435,16 @@ pub fn parse_claude_import(
     source_name: &str,
     selected: ImportSource,
 ) -> Result<ParsedAccountImport, String> {
-    let decoded = decode(text, "Claude export")?;
+    parse_claude_value(&decode(text, "Claude export")?, source_name, selected)
+}
+/// [`parse_claude_import`] over an already decoded export.
+pub fn parse_claude_value(
+    decoded: &Value,
+    source_name: &str,
+    selected: ImportSource,
+) -> Result<ParsedAccountImport, String> {
     let mut chats = vec![];
-    for conversation in conversations(&decoded, "Claude")? {
+    for conversation in conversations(decoded, "Claude")? {
         let source_chat_id = js_string(conversation.get("uuid"), "");
         if source_chat_id.is_empty() {
             return Err("Claude conversation is missing uuid".into());
@@ -509,9 +545,16 @@ pub fn parse_chatgpt_import(
     source_name: &str,
     selected: ImportSource,
 ) -> Result<ParsedAccountImport, String> {
-    let decoded = decode(text, "ChatGPT export")?;
+    parse_chatgpt_value(&decode(text, "ChatGPT export")?, source_name, selected)
+}
+/// [`parse_chatgpt_import`] over an already decoded export.
+pub fn parse_chatgpt_value(
+    decoded: &Value,
+    source_name: &str,
+    selected: ImportSource,
+) -> Result<ParsedAccountImport, String> {
     let mut chats = vec![];
-    for conversation in conversations(&decoded, "ChatGPT")? {
+    for conversation in conversations(decoded, "ChatGPT")? {
         let source_chat_id = match conversation.get("conversation_id").filter(|v| !v.is_null()) {
             Some(v) => js_string(Some(v), ""),
             None => js_string(conversation.get("id"), ""),
@@ -545,7 +588,7 @@ pub fn parse_chatgpt_import(
             let mut assets = 0;
             for part in &parts {
                 match part {
-                    Value::String(s) if !s.trim().is_empty() => texts.push(s.clone()),
+                    Value::String(s) if !js_blank(s) => texts.push(s.clone()),
                     Value::Object(o) if o.contains_key("asset_pointer") => assets += 1,
                     _ => {}
                 }
@@ -556,7 +599,7 @@ pub fn parse_chatgpt_import(
                 texts.push(text.to_owned());
             }
             let text = texts.join("\n");
-            if text.trim().is_empty() {
+            if js_blank(&text) {
                 continue;
             }
             messages.push(message(
@@ -616,4 +659,6 @@ fn chatgpt_active_nodes(conversation: &Value) -> Result<Vec<&Value>, String> {
 
 #[path = "imports_parse_more.rs"]
 mod more;
-pub use more::{parse_generic_import, parse_opencode_import, parse_openmates_import};
+pub use more::{
+    parse_generic_import, parse_opencode_import, parse_opencode_value, parse_openmates_import,
+};

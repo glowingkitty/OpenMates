@@ -14,6 +14,19 @@ import { chatDB } from "./db";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { encryptWithChatKey } from "./encryption/MessageEncryptor";
 import type { Chat, Message } from "../types/chat";
+import type * as RustChatImport from "./rustCore/transfer/rustChatImport";
+
+/** Opt-in shared Rust core build: import parsing runs in the shared Worker `transfer` unit. */
+const RUST_TRANSFER_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1";
+/** Measurement-only opt-out (like `openmates_rust_core_apps`): `'ts'` keeps this TypeScript parser. */
+const RUST_TRANSFER_OPT_OUT_KEY = "openmates_rust_core_transfer";
+let rustImportModule: Promise<typeof RustChatImport> | null = null;
+let rustImportLoaded: typeof RustChatImport | null = null;
+function rustChatImport(): Promise<typeof RustChatImport> | null {
+  if (typeof localStorage === "undefined" || localStorage.getItem(RUST_TRANSFER_OPT_OUT_KEY) === "ts") return null;
+  rustImportModule ??= import("./rustCore/transfer/rustChatImport").then((module) => (rustImportLoaded = module));
+  return rustImportModule;
+}
 
 const DEFAULT_TITLE = "Imported chat";
 const CHARS_PER_TOKEN = 4;
@@ -219,6 +232,12 @@ export function getAllRecentImportedChatData(): RecentImportedChatData[] {
 export function estimateImportCost(
   chats: ParsedImportChat[],
 ): ImportCostEstimate {
+  // Synchronous by contract (reactive selection UI): Rust chats only exist after
+  // rustParseImportFile loaded the module, so a loaded module is always present.
+  if (RUST_TRANSFER_BUILD && rustChatImport()) {
+    if (!rustImportLoaded) throw new Error("rust_transfer_unparsed_chat");
+    return rustImportLoaded.rustEstimateImportCost(chats);
+  }
   let totalInputTokens = 0;
   let messageCount = 0;
   for (const chat of chats) {
@@ -246,6 +265,8 @@ export async function parseImportFile(
 ): Promise<ParsedAccountImport> {
   const selectedSource = typeof selectedSourceOrProgress === "string" ? selectedSourceOrProgress : undefined;
   const onProgress = typeof selectedSourceOrProgress === "function" ? selectedSourceOrProgress : progressCallback;
+  const rust = RUST_TRANSFER_BUILD ? rustChatImport() : null;
+  if (rust) return (await rust).rustParseImportFile(file, selectedSource, onProgress);
   onProgress?.("parsing", "Reading import file...");
   const lowerName = file.name.toLowerCase();
 
@@ -348,10 +369,13 @@ export async function importChats(
     throw new Error("Import resume state does not match the selected chats. Start a new import preview.");
   }
   if (!state) {
+    const rustBatches = RUST_TRANSFER_BUILD ? rustChatImport() : null;
     state = {
       signature,
       confirmed: false,
-      batches: buildMessageBatches(selectedChats, maxMessagesPerBatch),
+      batches: rustBatches
+        ? await (await rustBatches).rustBuildMessageBatches(selectedChats, maxMessagesPerBatch)
+        : buildMessageBatches(selectedChats, maxMessagesPerBatch),
       sanitizedChats: selectedChats.map((chat) => ({ ...chat, messages: [] as ParsedImportMessage[] })),
       sanitizedBatches: [],
       summaries: new Map<string, string>(),
@@ -1142,7 +1166,8 @@ function newestFirst(chats: ParsedImportChat[]): ParsedImportChat[] {
   });
 }
 
-function buildMessageBatches(chats: ParsedImportChat[], maxMessages: number): Array<{
+/** @internal Exported for the Rust parity vectors (web_transfer_ts_vectors.json). */
+export function buildMessageBatches(chats: ParsedImportChat[], maxMessages: number): Array<{
   chatIndex: number;
   chunkIndex: number;
   sourceFingerprint: string;

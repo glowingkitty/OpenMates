@@ -8,7 +8,18 @@ pub fn parse_opencode_import(
     source_name: &str,
     selected: ImportSource,
 ) -> Result<ParsedAccountImport, String> {
-    let record = decode(text, "OpenCode transcript export")?;
+    parse_opencode_value(
+        &decode(text, "OpenCode transcript export")?,
+        source_name,
+        selected,
+    )
+}
+/// [`parse_opencode_import`] over an already decoded transcript.
+pub fn parse_opencode_value(
+    record: &Value,
+    source_name: &str,
+    selected: ImportSource,
+) -> Result<ParsedAccountImport, String> {
     if !record.is_object() {
         return Err("OpenCode transcript export must be an object".into());
     }
@@ -43,11 +54,11 @@ pub fn parse_opencode_import(
             .collect();
         let content = texts
             .iter()
-            .filter(|t| !t.trim().is_empty())
+            .filter(|t| !js_blank(t))
             .copied()
             .collect::<Vec<_>>()
             .join("\n");
-        if content.trim().is_empty() {
+        if js_blank(&content) {
             continue;
         }
         let time = message_info
