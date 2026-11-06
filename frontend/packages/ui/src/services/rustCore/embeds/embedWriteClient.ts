@@ -14,9 +14,9 @@
  *      HTTP reads and diff sends (same order as persistStreamedHistory);
  *   4. `forgetChat` on chat delete/hide/rotation; `close()` before the unbind
  *      of logout/account switch.
- * A crash closes the client (requests reject `unit_closed`). Unbind disposes the
- * Worker-side session and port, but the page end is not told: a request sent
- * after unbind without `close()` fails only by `unit_timeout`.
+ * A crash or terminate retires the port (requests reject `unit_retired`). Unbind
+ * disposes the Worker-side session and port, and the shared-core client ends the
+ * page end at once: pending and later requests reject `unit_unbound`.
  */
 import type { SharedRustCore } from '../host/sharedCoreRegistry';
 import { createUnitPort, type UnitPort } from '../host/unitPort';

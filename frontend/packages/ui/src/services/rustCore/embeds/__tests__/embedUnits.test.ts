@@ -216,8 +216,9 @@ describe('embedWrite unit', () => {
 		await vi.waitFor(() => expect(freed.count).toBe(1));
 		expect(closed).toHaveBeenCalledTimes(1);
 		const after: EmbedWriteProtocol['hasKeys']['request'] = { chatId: 'c', embedId: null };
-		await expect(client.unit.request('hasKeys', after, { timeoutMs: 50 })).rejects.toMatchObject({ code: 'unit_timeout' });
+		expect(client.unit.closed).toBe(true);
+		await expect(client.unit.request('hasKeys', after)).rejects.toMatchObject({ code: 'unit_unbound' });
 		client.close();
-		await expect(client.unit.request('hasKeys', after)).rejects.toMatchObject({ code: 'unit_closed' });
+		await expect(client.unit.request('hasKeys', after)).rejects.toMatchObject({ code: 'unit_unbound' });
 	});
 });

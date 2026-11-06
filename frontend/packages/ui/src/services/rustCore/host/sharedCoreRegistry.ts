@@ -12,6 +12,13 @@
  * dead) and terminates the Worker. `terminate()` (logout / account switch hard
  * stop) notifies the same listeners. The next request respawns a fresh Worker.
  * There is no TypeScript fallback.
+ *
+ * Unit ports: every `createUnitPort` over a port this client opened is ended
+ * here, not by its 30 s request timeout. `unbind()` ends the ports of the
+ * ending generation with `unit_unbound` as soon as the unbind is sent (the
+ * Worker may be busy in that very request); ports opened unbound (pre-bind
+ * units such as search and embedData) are untouched. A crash or `terminate()`
+ * ends every port with `unit_retired`. Callers open a new port to continue.
  */
 import {
 	SHARED_WORKER_PROTOCOL_VERSION,
@@ -20,6 +27,7 @@ import {
 	type SharedNamespace,
 	type SharedRefusalCode
 } from './sharedWorkerProtocol';
+import { retireUnitPorts, type UnitRetireCode } from './unitPort';
 
 export const SHARED_CORE_CONTROL_TIMEOUT_MS = 30_000;
 
@@ -88,6 +96,14 @@ export function createSharedCoreClient(
 	let leases = 0;
 	let leaseEpoch = 0;
 	const idleListeners = new Set<() => void>();
+	// Page end of each opened port -> its generation (null: opened unbound). Weak: closed ports just drop out.
+	const opened = new WeakMap<MessagePort, number | null>();
+	// Generation whose unbind is in flight; an `open` answered meanwhile is already stale.
+	let ending: number | null = null;
+
+	function retirePorts(code: UnitRetireCode, ofGeneration?: number): void {
+		retireUnitPorts((port) => opened.has(port) && (ofGeneration === undefined || opened.get(port) === ofGeneration), code);
+	}
 
 	function isBusy(): boolean { return pending.size > 0 || leases > 0; }
 	function settleIdle(): void {
@@ -110,9 +126,11 @@ export function createSharedCoreClient(
 		if (worker !== failed) return;
 		worker = null;
 		generation = null;
+		ending = null;
 		clearLeases();
 		failed.terminate();
 		failAll('shared_core_crashed');
+		retirePorts('unit_retired');
 		for (const listener of [...crashListeners]) listener();
 	}
 	function endpoint(): SharedWorkerEndpoint {
@@ -162,12 +180,19 @@ export function createSharedCoreClient(
 		async openUnit(ns, open = {}) {
 			const channel = new MessageChannel();
 			const ports = [channel.port2, ...(open.extraPorts ?? [])];
+			const under = open.unbound ? null : generation;
 			try {
-				await control({ type: 'open', ns, generation: open.unbound ? null : generation }, ports, open.signal);
+				await control({ type: 'open', ns, generation: under }, ports, open.signal);
 			} catch (error) {
 				channel.port1.close();
 				throw error;
 			}
+			// Opened under a generation whose unbind was sent meanwhile: the Worker closes it right after.
+			if (under !== null && (under !== generation || under === ending)) {
+				channel.port1.close();
+				throw new SharedCoreError('stale_generation');
+			}
+			opened.set(channel.port1, under);
 			return channel.port1;
 		},
 		async bind(principal, signal) {
@@ -178,9 +203,17 @@ export function createSharedCoreClient(
 		},
 		async unbind(signal) {
 			if (generation === null) return;
-			const ending = generation;
-			await control({ type: 'unbind', generation: ending }, [], signal);
-			if (generation === ending) generation = null;
+			if (signal?.aborted) throw new SharedCoreError('shared_core_aborted');
+			const unbinding = generation;
+			ending = unbinding;
+			const sent = control({ type: 'unbind', generation: unbinding }, [], signal);
+			retirePorts('unit_unbound', unbinding);
+			try {
+				await sent;
+			} finally {
+				if (ending === unbinding) ending = null;
+			}
+			if (generation === unbinding) generation = null;
 		},
 		async prewarm(signal) {
 			await control({ type: 'prewarm' }, [], signal);
@@ -209,9 +242,11 @@ export function createSharedCoreClient(
 			const active = worker;
 			worker = null;
 			generation = null;
+			ending = null;
 			clearLeases();
 			active?.terminate();
 			failAll('shared_core_terminated');
+			retirePorts('unit_retired');
 			if (active) for (const listener of [...crashListeners]) listener();
 		}
 	};
