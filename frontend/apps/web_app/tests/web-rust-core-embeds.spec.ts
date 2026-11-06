@@ -6,12 +6,15 @@
  * seeded through the normal send (CI mock replay). After reload the normal chat UI
  * (ActiveChat, Rust-decrypted history) shows the chat; the embed preview must
  * finish, the shared fullscreen must open from it and closing it must return to
- * the chat. Rust reloads must open the stored embed fields through the shared
- * Worker's `embedData` unit (row counters, no failures); the other arms never use it.
+ * the chat. Rust reloads must open the stored embed rows in the shared Worker
+ * (embed keys resolved there by Rust, `embedWrite` unit; row counters, no
+ * failures) and decode their TOON content with the Rust parser (`embedData`
+ * unit); the other arms never use either. The seeding send streams the code embed
+ * through the Rust `embedWrite` unit (streamed write counter).
  * Records embed ready time, browser CPU and memory over three alternating
  * pure-TS / Rust reload pairs: TS reloads opt out of Rust history AND the Rust
  * crypto unit; Rust reloads route both through the one shared Worker. Gated
- * (medians, Rust <= TS): embed ready wall time, browser CPU and RSS. A third,
+ * (medians, approved migration budget): embed ready wall time, browser CPU and RSS. A third,
  * recorded arm (Rust history, TS crypto) separates the crypto unit's share.
  * Runs only in the CI lane that builds the Rust core package (web-rust-core-* specs).
  */
@@ -30,6 +33,16 @@ const HISTORY_OPT_OUT_KEY = 'openmates_rust_core_history';
 /** Measurement-only opt-out of the Rust crypto unit (webCryptoRegistration.ts). */
 const CRYPTO_OPT_OUT_KEY = 'openmates_rust_core_crypto';
 const OPT_OUT_KEYS = [HISTORY_OPT_OUT_KEY, CRYPTO_OPT_OUT_KEY];
+
+/**
+ * Approved "not noticeable" migration budget (.claude/rules/cli-sdk.md, user decision 2026-11-06):
+ * wall time <= max(+10%, +50 ms), CPU <= +15%, memory <= TS + 30 MB (one shared WASM instance).
+ */
+function budgetLimit(key: string, ts: number): number {
+	if (key === 'browserCpuMs') return ts * 1.15;
+	if (key === 'browserRssBytes') return ts + 30 * 1024 * 1024;
+	return Math.max(ts * 1.1, ts + 50);
+}
 
 // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,apps.results.shared-fullscreen,sdk.web.before-after-performance
 let consoleForFailure: string[] = [];
@@ -53,6 +66,9 @@ test('Rust core decrypts saved embeds; preview renders and fullscreen opens', as
 	page.on('pageerror', (error: Error) => { consoleLines.push(`[pageerror] ${error.message}`.slice(0, 400)); });
 
 	const chatId = await seedCodeEmbedChat(page, log, screenshot);
+	// The finalized streamed code embed was chosen, encrypted and stored by the Rust embedWrite unit.
+	await expect.poll(() => page.evaluate(() => (window as any).__openmatesRustEmbedStats?.()?.streamedWrites ?? 0),
+		{ message: 'streamed embed written by the Rust embedWrite unit', timeout: 30000 }).toBeGreaterThan(0);
 
 	await page.goto(getE2EDebugUrl(`/#chat-id=${chatId}`));
 	await page.reload();
@@ -94,8 +110,10 @@ test('Rust core decrypts saved embeds; preview renders and fullscreen opens', as
 		if (path === 'rust') {
 			await expect.poll(async () => (await embedStats())?.rows ?? 0, { message: 'rust: embed fields opened by the embedData unit' }).toBeGreaterThan(0);
 			expect((await embedStats()).failures, 'rust: no embedData failures').toBe(0);
+			expect((await embedStats()).toonDecodes, 'rust: TOON content decoded by the Rust parser').toBeGreaterThan(0);
 		} else {
 			expect((await embedStats())?.rows ?? 0, `${path}: embedData unused with TS crypto`).toBe(0);
+			expect((await embedStats())?.toonDecodes ?? 0, `${path}: Rust TOON unused with TS crypto`).toBe(0);
 		}
 		sample.rustEmbedData = await embedStats();
 		samples[path].push(sample);
@@ -122,6 +140,6 @@ test('Rust core decrypts saved embeds; preview renders and fullscreen opens', as
 		const rust = median(samples.rust, key), ts = median(samples.ts, key);
 		expect(rust, `embed-ready Rust median ${key}`).not.toBeNull();
 		expect(ts, `embed-ready TS median ${key}`).not.toBeNull();
-		expect.soft(rust!, `embed-ready ${key}: Rust ${rust} vs TS ${ts}`).toBeLessThanOrEqual(ts!);
+		expect.soft(rust!, `embed-ready ${key}: Rust ${rust} vs TS ${ts}`).toBeLessThanOrEqual(budgetLimit(key, ts!));
 	}
 });

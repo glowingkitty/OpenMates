@@ -10,17 +10,21 @@
  * store payload, server key wrappers, ref registration and history payloads.
  * Local key wrappers never leave the Worker. Keys enter only as ciphertext
  * (master-wrapped chat keys, wrapper rows, parent-wrapped child keys) plus the
- * page's non-extractable master CryptoKey (`init`, once per unit).
+ * page's non-extractable master CryptoKey (`init`, once per unit) and chat keys
+ * the page's write guard already validated (`adoptPageChatKey`, zeroed). Stored
+ * rows are opened with keys resolved here (embedKeyResolution.ts).
  *
  * The page performs the network IO (WebSocket store/diff sends, canonical
- * HTTP history reads) between calls. Unbind disposes the session; a malformed
- * request or a second `init` is refused with a fixed code.
+ * HTTP history reads) between calls. Unbind disposes the session (the page end
+ * is ended by the shared-core supervisor); a malformed request or a second
+ * `init` is refused with a fixed code.
  */
 import type { UnitInstallContext } from '../host/sharedWorkerProtocol';
 import { serveUnitPort, UnitRefusal, type UnitHandlers } from '../host/unitPort';
 import {
 	prepareProcessingUpdate,
 	prepareStreamCompletion,
+	type EmbedWriteFunctions,
 	type EmbedWriterPort,
 	type EncryptedDiffRow,
 	type PreparedEmbedWrite
@@ -28,15 +32,18 @@ import {
 import { getEmbedDiffs, persistPreparedEmbedWrite, putEmbedDiff } from '../embedWriteIdb';
 import { isEmbedUnitClose, type EmbedWriteProtocol, type PersistedEmbedWrite } from './embedDataProtocol';
 import { createWorkerChatsDb, type ChatsDbOpener } from './embedWorkerIdb';
+import { createEmbedKeyHandlers, type EmbedKeyResolverPort } from './embedKeyResolution';
 
-export interface EmbedWriteBinding {
-	BrowserEmbedWriter: new (master: CryptoKey) => EmbedWriterPort & { free?: () => void };
+export interface EmbedWriteBinding extends EmbedWriteFunctions {
+	BrowserEmbedWriter: new (master: CryptoKey) => EmbedWriterPort & EmbedKeyResolverPort & { free?: () => void };
 }
 
 const CODE = /^[a-z][a-z0-9_]{0,63}$/;
 
 export function isEmbedWriteBinding(value: unknown): value is EmbedWriteBinding {
-	return typeof (value as Partial<EmbedWriteBinding> | null)?.BrowserEmbedWriter === 'function';
+	const binding = value as Partial<EmbedWriteBinding> | null;
+	return typeof binding?.BrowserEmbedWriter === 'function' && typeof binding.embed_classify_canonical_read === 'function'
+		&& typeof binding.embed_history_head_version === 'function';
 }
 
 function text(value: unknown, field: string): string {
@@ -75,7 +82,7 @@ function withoutLocalWrappers(prepared: PreparedEmbedWrite): PersistedEmbedWrite
 export function createEmbedWriteHandlers(binding: EmbedWriteBinding, openDb: ChatsDbOpener): {
 	handlers: UnitHandlers<EmbedWriteProtocol>; dispose(): void;
 } {
-	let writer: (EmbedWriterPort & { free?: () => void }) | null = null;
+	let writer: (EmbedWriterPort & EmbedKeyResolverPort & { free?: () => void }) | null = null;
 	let disposed = false;
 	const session = () => {
 		if (disposed || !writer) throw new UnitRefusal('embed_write_not_initialized');
@@ -177,6 +184,22 @@ export function createEmbedWriteHandlers(binding: EmbedWriteBinding, openDb: Cha
 			const rows = JSON.stringify(await getEmbedDiffs(await openDb(), embedId));
 			return rust(() => session().reconstruct_versions(embedId, rows));
 		},
+		...createEmbedKeyHandlers(session, openDb, rust),
+		async classifyCanonicalRead(payload) {
+			const request = record(payload, 'request');
+			const { status, version, durableHead, body } = request;
+			if (typeof status !== 'number' || typeof version !== 'number' || typeof durableHead !== 'boolean') {
+				throw new UnitRefusal('embed_write_bad_request');
+			}
+			const bodyJson = body === undefined || body === null ? undefined : JSON.stringify(body);
+			return rust(() => binding.embed_classify_canonical_read(status, bodyJson, version, durableHead));
+		},
+		async historyHeadVersion(payload) {
+			const request = record(payload, 'request');
+			const rows = JSON.stringify(list(request.rows, 'rows'));
+			const head = await rust(() => binding.embed_history_head_version(rows, text(request.embedId, 'embed_id')));
+			return head ?? null;
+		},
 		forgetChat(payload) {
 			session().forget_chat(text(record(payload, 'request').chatId, 'chat_id'));
 			return null;
@@ -219,8 +242,8 @@ export function createEmbedWriteUnitInstaller(openDatabase: () => { open: ChatsD
 			if (isEmbedUnitClose(event.data)) dispose();
 		}
 		port.addEventListener('message', control);
-		context.signal.addEventListener('abort', dispose, { once: true });
-		return dispose;
+		context.signal.addEventListener('abort', () => dispose(), { once: true });
+		return () => dispose();
 	};
 }
 

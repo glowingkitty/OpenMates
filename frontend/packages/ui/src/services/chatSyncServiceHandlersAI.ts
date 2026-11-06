@@ -4489,6 +4489,9 @@ export async function handleSendEmbedDataImpl(
       console.info(
         `[ChatSyncService:AI] Embed ${embedData.embed_id} is finalized (status=${embedData.status}) - encrypting and persisting`,
       );
+      // Compile-time flag: the shared Worker's Rust unit chooses the key, encrypts and persists.
+      if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1" && !persistenceIndexes &&
+        await (await import("./rustCore/embeds/rustStreamedEmbedWrite")).writeStreamedEmbedInRust(serviceInstance, embedData, canonicalLease, options?.localOnly === true)) return;
 
       // Import dependencies
       const embedStoreModule = await import("./embedStore");
@@ -4496,12 +4499,9 @@ export async function handleSendEmbedDataImpl(
       const { computeSHA256 } = await import("../message_parsing/utils");
 
       // 0. Hash IDs first (needed for parent key lookup if this is a child embed)
-      const hashedChatId = persistenceIndexes?.hashed_chat_id
-        ?? await computeSHA256(embedData.chat_id);
-      const hashedMessageId = persistenceIndexes?.hashed_message_id
-        ?? await computeSHA256(embedData.message_id);
-      const hashedUserId = persistenceIndexes?.hashed_user_id
-        ?? await computeSHA256(embedData.user_id);
+      const hashedChatId = persistenceIndexes?.hashed_chat_id ?? await computeSHA256(embedData.chat_id);
+      const hashedMessageId = persistenceIndexes?.hashed_message_id ?? await computeSHA256(embedData.message_id);
+      const hashedUserId = persistenceIndexes?.hashed_user_id ?? await computeSHA256(embedData.user_id);
       const hashedEmbedId = await computeSHA256(embedData.embed_id);
       const isLocalOnlyEmbed = options?.localOnly === true;
 

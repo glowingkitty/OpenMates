@@ -33,7 +33,8 @@ import {
   canPersistPreviewBackfill,
   canStorePreviewBackfillLocally,
 } from "./embedPreviewBackfill";
-import { openedEmbedField, openStoredEmbedContent } from "./rustCore/embeds/embedDataClient";
+import { decodeToonInRust, openedEmbedField, RUST_TOON_INACTIVE, openStoredEmbedContent } from "./rustCore/embeds/embedDataClient";
+import { workerEmbedKey } from "./rustCore/embeds/embedKeyClient";
 import {
   clearEmbedRefIndexEntries,
   embedRefIndexVersion,
@@ -168,6 +169,12 @@ async function decodeToonContentLocal(
     return null;
   }
 
+  // Compile-time flag (default builds keep only the TS decoder): the Worker's Rust TOON parser.
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") {
+    const decoded = await decodeToonInRust(toonContent);
+    if (decoded !== RUST_TOON_INACTIVE) return decoded;
+  }
+
   await initToonDecoder();
 
   if (toonDecode) {
@@ -197,6 +204,11 @@ async function decodeToonContentSilently(
 ): Promise<unknown> {
   if (!toonContent || typeof toonContent !== "string") {
     return typeof toonContent === "object" ? toonContent : null;
+  }
+
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") {
+    const decoded = await decodeToonInRust(toonContent);
+    if (decoded !== RUST_TOON_INACTIVE) return decoded;
   }
 
   await initToonDecoder();
@@ -1650,7 +1662,9 @@ export class EmbedStore {
     if (entry.encrypted_content) {
       try {
         const embedId = entry.embed_id || contentRef.replace("embed:", "");
-        const embedKey = await this.getEmbedKey(embedId, entry.hashed_chat_id);
+        const embedKey = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+          ? await workerEmbedKey(embedId, entry.hashed_chat_id, entry, this, () => this.getEmbedKey(embedId, entry.hashed_chat_id))
+          : await this.getEmbedKey(embedId, entry.hashed_chat_id);
 
         if (embedKey) {
           // Clean the base64 string before decryption (trim whitespace only).
@@ -1804,7 +1818,9 @@ export class EmbedStore {
     if (entry.encrypted_type) {
       try {
         const embedId = entry.embed_id || contentRef.replace("embed:", "");
-        const embedKey = await this.getEmbedKey(embedId, entry.hashed_chat_id);
+        const embedKey = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+          ? await workerEmbedKey(embedId, entry.hashed_chat_id, entry, this, () => this.getEmbedKey(embedId, entry.hashed_chat_id))
+          : await this.getEmbedKey(embedId, entry.hashed_chat_id);
 
         if (embedKey) {
           const decryptedType = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
@@ -1833,7 +1849,9 @@ export class EmbedStore {
     if (entry.encrypted_text_preview) {
       try {
         const embedId = entry.embed_id || contentRef.replace("embed:", "");
-        const embedKey = await this.getEmbedKey(embedId, entry.hashed_chat_id);
+        const embedKey = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+          ? await workerEmbedKey(embedId, entry.hashed_chat_id, entry, this, () => this.getEmbedKey(embedId, entry.hashed_chat_id))
+          : await this.getEmbedKey(embedId, entry.hashed_chat_id);
 
         if (embedKey) {
           const decryptedPreview = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"

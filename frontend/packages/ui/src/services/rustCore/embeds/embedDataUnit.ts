@@ -8,7 +8,7 @@
  * request (as the crypto unit's chat keys do) and is imported non-extractable
  * by Rust; nothing is cached here and no key or plaintext is logged.
  *
- * Wire: host/unitPort.ts (`openFields`), `EMBED_UNIT_CLOSE` disposes the unit.
+ * Wire: host/unitPort.ts (`openFields`, `decodeToon`), `EMBED_UNIT_CLOSE` disposes the unit.
  * A row that Rust rejects answers `{ok:false, code}` for that row only.
  */
 import type { UnitInstallContext } from '../host/sharedWorkerProtocol';
@@ -29,12 +29,15 @@ export interface EmbedDataBinding {
 		encryptedType: string | undefined,
 		encryptedTextPreview: string | undefined
 	): Promise<unknown>;
+	/** Rust `toon_decode::decode_to_json_text`; throws `toon_decode_failed` for refused TOON. */
+	toon_decode(text: string): string;
 }
 
 const CODE = /^[a-z][a-z0-9_]{0,63}$/;
 
 export function isEmbedDataBinding(value: unknown): value is EmbedDataBinding {
-	return typeof (value as Partial<EmbedDataBinding> | null)?.embed_open_row_fields === 'function';
+	const binding = value as Partial<EmbedDataBinding> | null;
+	return typeof binding?.embed_open_row_fields === 'function' && typeof binding.toon_decode === 'function';
 }
 
 function optionalText(value: unknown): value is string | null {
@@ -84,6 +87,22 @@ export function createEmbedDataHandlers(binding: EmbedDataBinding): UnitHandlers
 				}
 				return { ok: true, fields: opened(raw) };
 			}));
+		},
+		decodeToon(payload) {
+			const texts = (payload as { texts?: unknown } | null)?.texts;
+			if (!Array.isArray(texts) || texts.length > EMBED_DATA_MAX_ITEMS || !texts.every((text) => typeof text === 'string')) {
+				throw new UnitRefusal('embed_data_bad_request');
+			}
+			return texts.map((text: string) => {
+				try {
+					return binding.toon_decode(text);
+				} catch (error) {
+					// Only TOON's own refusal maps to null (the page then applies the TS JSON fallback).
+					const code = rejection(error);
+					if (code === 'toon_decode_failed') return null;
+					throw new UnitRefusal(code);
+				}
+			});
 		}
 	};
 }

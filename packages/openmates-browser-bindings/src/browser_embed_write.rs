@@ -22,6 +22,9 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use wasm_bindgen::{JsCast, prelude::*};
 
+#[path = "browser_embed_keys.rs"]
+mod keys;
+
 fn code(error: openmates_sdk::Error) -> JsValue {
     use openmates_sdk::Error as E;
     JsValue::from_str(match error {
@@ -293,6 +296,11 @@ pub async fn embed_open_row_fields(
     let handle = WebAead.import_key(&raw).await.map_err(code)?;
     let fields = [encrypted_content.as_deref(), encrypted_type.as_deref(), encrypted_text_preview.as_deref()];
     let opened = embed_write::read::open_fields(handle.as_ref(), fields).await.map_err(code)?;
+    opened_fields_js(opened)
+}
+
+/// `{content, content_failed, type, text_preview}` (strings or `null`).
+fn opened_fields_js(opened: embed_write::read::OpenedEmbedFields) -> Result<JsValue, JsValue> {
     let result = js_sys::Object::new();
     let text = |value: Option<String>| value.map_or(JsValue::NULL, |text| JsValue::from_str(&text));
     js_sys::Reflect::set(&result, &JsValue::from_str("content"), &text(opened.content))?;

@@ -18,6 +18,10 @@ use crate::error::{Error, Result};
 use serde_json::Value;
 use std::collections::HashMap;
 
+#[path = "embed_write_resolve.rs"]
+mod resolve;
+pub use resolve::KeyLookup;
+
 const PARENT_KEY_PENDING: Error = Error::Unavailable {
     code: "embed_parent_key_pending",
     reason: "PARENT_EMBED_KEY_NOT_YET_AVAILABLE",

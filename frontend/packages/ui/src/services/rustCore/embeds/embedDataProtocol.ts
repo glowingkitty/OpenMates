@@ -46,7 +46,22 @@ export type EmbedFieldsResult = { ok: true; fields: OpenedEmbedFields } | { ok: 
 
 export type EmbedDataProtocol = {
 	openFields: { request: { items: EmbedFieldsRequest[] }; response: EmbedFieldsResult[] };
+	/** Rust TOON decode (non-strict, as `@toon-format/toon` `decode(text, {strict:false})`):
+	 * JSON text per input, or null where TOON refused it (`toon_decode_failed`). */
+	decodeToon: { request: { texts: string[] }; response: (string | null)[] };
 };
+
+/** One stored `embeds` row whose key the Worker resolves itself (embedKeyResolution.ts). */
+export interface StoredRowRequest {
+	embedId: string;
+	hashedChatId: string | null;
+	encrypted_content: string | null;
+	encrypted_type: string | null;
+	encrypted_text_preview: string | null;
+}
+
+/** Opened fields, or a per-row code plus wrapper chats whose validated chat key would unlock it. */
+export type StoredRowResult = { ok: true; fields: OpenedEmbedFields } | { ok: false; code: string; pendingChatHashes: string[] };
 
 /** What crosses back after a Rust-prepared write was persisted in the Worker. */
 export type PersistedEmbedWrite = Omit<PreparedEmbedWrite, 'local_key_wrappers'>;
@@ -71,6 +86,16 @@ export type EmbedWriteProtocol = {
 	adoptCanonicalRow: { request: { embedId: string; page: unknown; row: Record<string, unknown> }; response: EncryptedDiffRow };
 	verifyCanonicalHead: { request: { embedId: string; page: unknown; rows: unknown[] }; response: number };
 	reconstructVersions: { request: { embedId: string }; response: string };
+	/** Rust history policy: a canonical bounded-v1 read is `absent` or `present`. */
+	classifyCanonicalRead: { request: { status: number; body: unknown; version: number; durableHead: boolean }; response: string };
+	/** Rust history policy: highest streamed version of `embedId`, null when none. */
+	historyHeadVersion: { request: { embedId: string; rows: unknown[] }; response: number | null };
+	/** Chat key the page's write guard validated (zeroed after install; never returned). */
+	adoptPageChatKey: { request: { chatId: string; key: Uint8Array }; response: null };
+	/** Early HKDF key of a processing parent; false when the chat key is not installed. */
+	deriveEarlyKey: { request: { embedId: string; chatId: string }; response: boolean };
+	/** Resolves each row's embed key in the Worker (TS getEmbedKey order) and opens its fields. */
+	openStoredRows: { request: { rows: StoredRowRequest[] }; response: StoredRowResult[] };
 	forgetChat: { request: { chatId: string }; response: null };
 	clear: { request: null; response: null };
 };

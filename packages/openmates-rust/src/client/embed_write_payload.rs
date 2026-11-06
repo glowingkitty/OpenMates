@@ -129,8 +129,10 @@ pub struct PreparedEmbedWrite {
 }
 
 /// `decodeToonContentLocal` result when it is an object (TOON, then JSON).
+/// TOON uses the vector-proven port of the web's non-strict decoder
+/// (`crate::toon_decode`), so embed_ref/app metadata match the TS writer.
 pub(crate) fn decode_object(content: &str) -> Option<Map<String, Value>> {
-    match super::super::toon::decode(content) {
+    match crate::toon_decode::decode(content).map(|value| value.to_json_value()) {
         Ok(Value::Object(map)) => Some(map),
         _ => match serde_json::from_str::<Value>(content) {
             Ok(Value::Object(map)) => Some(map),

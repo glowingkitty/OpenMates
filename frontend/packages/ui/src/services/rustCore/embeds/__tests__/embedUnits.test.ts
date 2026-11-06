@@ -32,6 +32,11 @@ function dataBinding(): EmbedDataBinding & { keys: Uint8Array[] } {
 			if (content === 'bad-key') throw 'invalid';
 			if (content === 'internal') throw new Error('Internal: something long and private');
 			return { content: content ? `plain:${content}` : null, content_failed: false, type: type ?? null, text_preview: preview ?? null };
+		},
+		toon_decode(text) {
+			if (text === 'refused') throw 'toon_decode_failed';
+			if (text === 'broken') throw 'unavailable';
+			return JSON.stringify({ decoded: text });
 		}
 	};
 }
@@ -101,10 +106,28 @@ describe('embedData unit', () => {
 		await expect(broken.openFields({ items: [item('a')] }, SIGNAL)).rejects.toMatchObject({ code: 'embed_data_protocol' });
 	});
 
+	// contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+	it('decodes TOON in Rust, maps only TOON refusals to null and refuses other failures', async () => {
+		const handlers = createEmbedDataHandlers(dataBinding());
+		expect(await handlers.decodeToon({ texts: ['a: 1', 'refused'] }, SIGNAL)).toEqual([JSON.stringify({ decoded: 'a: 1' }), null]);
+		expect(() => handlers.decodeToon({ texts: ['broken'] }, SIGNAL)).toThrow(expect.objectContaining({ code: 'unavailable' }));
+		expect(() => handlers.decodeToon({ texts: [1] } as never, SIGNAL)).toThrow(expect.objectContaining({ code: 'embed_data_bad_request' }));
+		const shared = sharedCore({ embedData: installEmbedDataUnit }, dataBinding());
+		cleanup = shared.unregister;
+		const client = new EmbedDataClient(shared.core);
+		await expect(client.decodeToon('k: v')).resolves.toBe(JSON.stringify({ decoded: 'k: v' }));
+		await expect(client.decodeToon('refused')).resolves.toBeNull();
+		await expect(client.decodeToon('broken')).rejects.toMatchObject({ code: 'unavailable' });
+		expect(client.stats).toMatchObject({ toonDecodes: 3, failures: 1 });
+		client.close();
+	});
+
 	it('refuses to install without the Rust export or with extra ports', () => {
 		const { port1, port2 } = new MessageChannel();
 		const context = { ports: [port1], generation: null, principal: null, signal: new AbortController().signal };
 		expect(() => installEmbedDataUnit({ ...context, binding: {} })).toThrow('unavailable');
+		const { toon_decode: _toon, ...withoutToon } = dataBinding();
+		expect(() => installEmbedDataUnit({ ...context, binding: withoutToon })).toThrow('unavailable');
 		expect(() => installEmbedDataUnit({ ...context, ports: [port1, port2], binding: dataBinding() })).toThrow('unavailable');
 		port1.close();
 		port2.close();
@@ -126,7 +149,7 @@ describe('embedData unit', () => {
 		expect(second.status === 'rejected' && second.reason).toBeInstanceOf(RustEmbedDataError);
 		expect(second.status === 'rejected' && (second.reason as RustEmbedDataError).code).toBe('invalid');
 		expect(third).toMatchObject({ status: 'fulfilled', value: { content: 'plain:y', text_preview: 'p' } });
-		expect(client.stats).toEqual({ requests: 1, rows: 3, failures: 0 });
+		expect(client.stats).toEqual({ requests: 1, rows: 3, failures: 0, toonDecodes: 0, streamedWrites: 0 });
 		expect(pageKey.every((byte) => byte === 7)).toBe(true);
 		expect(shared.workers).toHaveLength(1);
 		expect(shared.workers[0].posted.find((message) => message.type === 'open')).toMatchObject({ ns: 'embedData', generation: null });
@@ -163,7 +186,11 @@ function writer(prepared: PreparedEmbedWrite, freed: { count: number }): EmbedWr
 		adopt_canonical_row = unused; verify_canonical_head = unused; prepare_restore = unused; reconstruct_versions = unused;
 		forget_chat = unused; clear = () => undefined; free = () => { freed.count++; };
 	}
-	return { BrowserEmbedWriter: Writer as unknown as EmbedWriteBinding['BrowserEmbedWriter'] };
+	return {
+		BrowserEmbedWriter: Writer as unknown as EmbedWriteBinding['BrowserEmbedWriter'],
+		embed_classify_canonical_read: (status) => (status === 404 ? 'absent' : 'present'),
+		embed_history_head_version: (rows) => (JSON.parse(rows) as unknown[]).length || undefined
+	};
 }
 
 async function masterKey(extractable = false): Promise<CryptoKey> {
@@ -197,6 +224,23 @@ describe('embedWrite unit', () => {
 			.rejects.toMatchObject({ code: 'embed_write_type_mismatch' });
 		dispose();
 		expect(() => handlers.hasKeys({ chatId: 'c', embedId: null }, SIGNAL)).toThrow(expect.objectContaining({ code: 'embed_write_not_initialized' }));
+	});
+
+	// contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+	it('answers the Rust history policy and refuses a binding without it', async () => {
+		const { db } = fakeDb();
+		const binding = writer(sample.expected, { count: 0 });
+		const { handlers } = createEmbedWriteHandlers(binding, async () => db);
+		await expect(handlers.classifyCanonicalRead({ status: 404, body: null, version: 2, durableHead: false }, SIGNAL)).resolves.toBe('absent');
+		await expect(handlers.historyHeadVersion({ embedId: 'e', rows: [] }, SIGNAL)).resolves.toBeNull();
+		await expect(handlers.historyHeadVersion({ embedId: 'e', rows: [{}, {}] }, SIGNAL)).resolves.toBe(2);
+		await expect(handlers.classifyCanonicalRead({ status: '404' } as never, SIGNAL)).rejects.toMatchObject({ code: 'embed_write_bad_request' });
+		const { port1, port2 } = new MessageChannel();
+		const install = createEmbedWriteUnitInstaller(() => ({ open: async () => db, close: () => undefined }));
+		const { embed_history_head_version: _head, ...partial } = binding;
+		expect(() => install({ ports: [port1], generation: 1, principal: PRINCIPAL, signal: SIGNAL, binding: partial } as never)).toThrow('unavailable');
+		port1.close();
+		port2.close();
 	});
 
 	// contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted

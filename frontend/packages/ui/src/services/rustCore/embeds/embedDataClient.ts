@@ -44,7 +44,7 @@ export class EmbedDataClient {
 	private queue: Queued[] = [];
 	private scheduled = false;
 	private stopCrashWatch: (() => void) | null = null;
-	readonly stats = { requests: 0, rows: 0, failures: 0 };
+	readonly stats = { requests: 0, rows: 0, failures: 0, toonDecodes: 0, streamedWrites: 0 };
 
 	constructor(private readonly core: SharedRustCore) {}
 
@@ -66,6 +66,23 @@ export class EmbedDataClient {
 				while (this.queue.length) void this.flush(this.queue.splice(0, EMBED_DATA_MAX_ITEMS));
 			});
 		});
+	}
+
+	/** Rust TOON decode of one text: its JSON text, or null when TOON refused it. */
+	async decodeToon(text: string): Promise<string | null> {
+		const release = this.core.hold();
+		this.stats.toonDecodes += 1;
+		try {
+			const { unit } = await this.open();
+			const [decoded] = await unit.request('decodeToon', { texts: [text] });
+			if (decoded !== null && typeof decoded !== 'string') throw new RustEmbedDataError('embed_data_bad_reply');
+			return decoded;
+		} catch (error) {
+			this.stats.failures += 1;
+			throw error;
+		} finally {
+			release();
+		}
 	}
 
 	close(): void {
@@ -125,12 +142,27 @@ type StoredEmbedRow = { encrypted_content?: unknown; encrypted_type?: unknown; e
 let openedRows: WeakMap<object, OpenedEmbedFields> | null = null;
 
 /**
+ * Marker the embedStore read sites receive instead of an embed key when the
+ * Worker resolved the key and opened the row itself (no key bytes; never used
+ * as a key). `openStoredEmbedContent` / `openedEmbedField` then read the
+ * remembered fields.
+ */
+export const WORKER_RESOLVED_EMBED_KEY: Uint8Array = new Uint8Array(0);
+
+/** Remembers the fields the Worker opened for `row` (read by the hooks below). */
+export function rememberOpenedRow(row: object, fields: OpenedEmbedFields): void {
+	(openedRows ??= new WeakMap()).set(row, fields);
+}
+
+/**
  * Opens a stored row's content (and, in the same Rust call, its type and preview).
  * Returns the content, or null when it did not open (the caller marks the row
  * failed, as for the TS decrypt). A Rust rejection propagates to the caller.
  */
 export async function openStoredEmbedContent(key: Uint8Array, row: StoredEmbedRow,
 	typescript: () => Promise<string | null>): Promise<string | null> {
+	// Key resolved in the Worker (embedKeyClient.ts): the row was already opened there.
+	if (key === WORKER_RESOLVED_EMBED_KEY) return openedRows?.get(row)?.content ?? null;
 	const client = rustEmbedData();
 	if (!client) return typescript();
 	const fields = await client.openFields(key, row);
@@ -143,6 +175,29 @@ export async function openedEmbedField(row: StoredEmbedRow, field: 'type' | 'tex
 	typescript: (ciphertext: string) => Promise<string | null>): Promise<string | null> {
 	const fields = openedRows?.get(row);
 	return fields ? fields[field] : typescript(ciphertext);
+}
+
+/** Returned by `decodeToonInRust` when the Rust crypto arm is inactive: the caller runs its TS decoder. */
+export const RUST_TOON_INACTIVE: unique symbol = Symbol('rust_toon_inactive');
+
+/**
+ * embedStore TOON hook: decodes stored embed content in the Worker's Rust TOON
+ * parser. Where TOON refuses the text, the TS JSON.parse-else-null semantics of
+ * `decodeToonContentLocal` apply (that is the decoder's contract, not a Rust
+ * fallback). `RUST_TOON_INACTIVE` only when the Rust crypto arm is inactive
+ * (measurement opt-out), the documented TS arm.
+ */
+export async function decodeToonInRust(text: string): Promise<unknown> {
+	const client = rustEmbedData();
+	if (!client) return RUST_TOON_INACTIVE;
+	const decoded = await client.decodeToon(text);
+	if (decoded !== null) return JSON.parse(decoded) as unknown;
+	try {
+		return JSON.parse(text) as unknown;
+	} catch (error) {
+		if (error instanceof SyntaxError) return null;
+		throw error;
+	}
 }
 
 declare global {

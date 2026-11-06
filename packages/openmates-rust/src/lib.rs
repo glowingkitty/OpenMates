@@ -20,6 +20,7 @@ pub mod remote_access_crypto;
 pub mod remote_command;
 pub mod session;
 pub mod task_order;
+pub mod toon_decode;
 pub mod upload_privacy;
 pub mod web_search;
 pub mod web_search_chats;

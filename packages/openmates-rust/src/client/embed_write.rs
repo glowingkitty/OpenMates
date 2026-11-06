@@ -36,7 +36,7 @@ pub use history::{
 pub use keys::{NonceSource, OsNonces};
 pub use payload::{PreparedEmbedWrite, ProcessingEmbedUpdate, StreamedEmbedData};
 pub use ref_index::{EmbedRefIndex, EmbedRefIndexEntry, ResolvedEmbedRef};
-pub use session::{AdoptedKey, EmbedWriteSession, KeyAdoption, PlannedEmbedWrite};
+pub use session::{AdoptedKey, EmbedWriteSession, KeyAdoption, KeyLookup, PlannedEmbedWrite};
 pub use status::EmbedStatus;
 
 /// TS `normalizeToUnixSeconds`: non-number/non-finite/<=0 -> fallback,
@@ -57,3 +57,6 @@ pub fn normalize_to_unix_seconds(value: Option<&serde_json::Value>, fallback: i6
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "embed_write_tests.rs"]
 mod tests;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "embed_write_resolve_tests.rs"]
+mod resolve_tests;
