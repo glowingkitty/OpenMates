@@ -16,7 +16,7 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.cache_user_mixin import canonical_session_user_id
 from backend.core.api.app.services.chat_unread_counter import UNREAD_COUNT_UPDATED_EVENT
 from backend.core.api.app.services.pair_session_deadline import get_pair_deadline_hash
-from backend.core.api.app.services.session_security_state import get_session_state_cached
+from backend.core.api.app.services.session_security_state import get_session_lineage_state
 from backend.core.api.app.services.storage_archive_client_compatibility import (
     REQUIRED_CAPABILITY, archive_phase_active, declares_archive_capability, invalidate_runtime_proof,
 )
@@ -323,27 +323,31 @@ async def _fresh_personal_snapshot_authority(
             except (OverflowError, ValueError):
                 return False
 
-    # The cache link selects the owner, while the durable ledger is the
-    # revocation/risk fence. Neither may be replaced by the opening result.
-    link = await cache_service.get(f"session:{session_hash}")
+    # The durable ledger is the revocation/risk fence and follows refresh-token
+    # rotation of this socket's own logical session; the cache link of the live
+    # member selects the owner. Neither may be replaced by the opening result.
+    lineage = await get_session_lineage_state(
+        directus_service, cache_service, session_hash,
+        user_id=user_id, allow_risk=False,
+    )
+    if lineage is None:
+        return False
+    current_hash, state = lineage
+    link = await cache_service.get(f"session:{current_hash}")
     if canonical_session_user_id(link) != user_id:
         return False
-    state, current_pair_deadline, device_profile, token_map = await asyncio.gather(
-        get_session_state_cached(
-            directus_service, cache_service, session_hash,
-            user_id=user_id, allow_risk=False,
-        ),
-        get_pair_deadline_hash(directus_service, cache_service, session_hash),
+    current_pair_deadline, device_profile, token_map = await asyncio.gather(
+        get_pair_deadline_hash(directus_service, cache_service, current_hash),
         directus_service.get_user_fields_direct(
             user_id, ["id", "connected_devices"], no_cache=True,
         ),
         cache_service.get(f"user_tokens:{user_id}"),
         return_exceptions=True,
     )
-    for result in (state, current_pair_deadline, device_profile, token_map):
+    for result in (current_pair_deadline, device_profile, token_map):
         if isinstance(result, BaseException):
             raise result
-    if state is None or state.get("user_id") != user_id:
+    if state.get("user_id") != user_id:
         return False
     if current_pair_deadline is not None and current_pair_deadline <= time.time():
         return False
@@ -354,7 +358,7 @@ async def _fresh_personal_snapshot_authority(
     if device_hash not in {row.get("hash") for row in known_devices}:
         return False
 
-    session_metadata = token_map.get(session_hash) if isinstance(token_map, dict) else None
+    session_metadata = token_map.get(current_hash) if isinstance(token_map, dict) else None
     previous_country = (
         session_metadata.get("security_country_code") or session_metadata.get("country_code")
         if isinstance(session_metadata, dict) else None
@@ -3336,16 +3340,17 @@ async def websocket_endpoint(
     websocket.scope["voice_call_session_hash"] = session_hash
     if session_hash:
         from backend.core.api.app.services.cache_user_mixin import canonical_session_user_id
-        from backend.core.api.app.services.session_security_state import get_session_state_cached
-
         async def watch_session_authority() -> None:
             while True:
                 await asyncio.sleep(10)
                 try:
-                    link = await cache_service.get(f"session:{session_hash}")
-                    state = await get_session_state_cached(
+                    # Follow refresh-token rotation of this socket's own logical
+                    # session; a retired opening hash is not a revocation.
+                    lineage = await get_session_lineage_state(
                         directus_service, cache_service, session_hash, user_id=user_id,
                     )
+                    current_hash, state = lineage if lineage is not None else (session_hash, None)
+                    link = await cache_service.get(f"session:{current_hash}")
                     link_user_id = canonical_session_user_id(link)
                     if (link_user_id != user_id
                             or state is None or state.get("risk_pending")):

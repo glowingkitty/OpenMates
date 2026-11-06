@@ -144,6 +144,24 @@ export async function compilePersonalPrivacy(snapshot: MemorySnapshot): Promise<
   };
 }
 
+/** The socket closed during the check; nothing was transmitted for the turn. */
+class PrivacyConnectionChangedError extends Error {
+  constructor() { super('Personal privacy connection changed'); }
+}
+
+/** A send-time check interrupted by a reconnect is asked once more on the new
+ * socket. Refusals (unauthorized, rate limits) are never retried here. */
+async function requestSendSnapshot(turnId: string, knownGeneration?: string): Promise<Record<string, unknown>> {
+  try {
+    return await requestSnapshot('send', turnId, knownGeneration);
+  } catch (error) {
+    if (!(error instanceof PrivacyConnectionChangedError)) throw error;
+    console.warn('[PreparedPrivacy] Connection changed during freshness check; retrying once on the new connection');
+    await webSocketService.connect();
+    return requestSnapshot('send', turnId, knownGeneration);
+  }
+}
+
 async function requestSnapshot(purpose: 'prepare' | 'send', turnId: string | null, knownGeneration?: string): Promise<Record<string, unknown>> {
   const requestId = crypto.randomUUID();
   return new Promise((resolve, reject) => {
@@ -163,7 +181,7 @@ async function requestSnapshot(purpose: 'prepare' | 'send', turnId: string | nul
       }
       finish(undefined, payload);
     };
-    const closed = () => finish(new Error('Personal privacy connection changed'));
+    const closed = () => finish(new PrivacyConnectionChangedError());
     const timer = setTimeout(() => finish(new Error('Personal privacy freshness check timed out')), 10_000);
     webSocketService.on('personal_send_context_snapshot_result', handler);
     webSocketService.addEventListener('close', closed);
@@ -236,7 +254,7 @@ export async function freshPersonalPrivacyForSend(turnId: string): Promise<Priva
   const sequence = ++requestSequence;
   if (cached) retainBundle({ ...cached, touchedAt: Date.now() });
   const result = capabilities.has('personal_send_context_snapshot_v2')
-    ? await requestSnapshot('send', turnId, cached?.generation) : null;
+    ? await requestSendSnapshot(turnId, cached?.generation) : null;
   const generation = typeof result?.privacy_generation === 'string' ? result.privacy_generation : null;
   if (result && (result.turn_id !== turnId || typeof result.receipt_id !== 'string')) throw new Error('Personal privacy receipt does not match this turn');
   if (result?.unchanged === true && (!cached || !generation || generation !== cached.generation || result.personal_memories !== undefined)) {

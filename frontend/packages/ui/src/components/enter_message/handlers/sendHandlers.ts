@@ -2617,6 +2617,8 @@ export async function handleSend(
       console.warn("Failed to handle message send; retrying after reconnect:", error);
     } else {
       console.error("Failed to handle message send:", error);
+      // The turn was rolled back and the draft restored; never fail silently.
+      notificationStore.error(get(text)("enter_message.send_failed"));
     }
     vibrateMessageField();
   } finally {

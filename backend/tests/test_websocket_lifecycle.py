@@ -116,7 +116,7 @@ def test_actual_session_watcher_logs_safe_category_without_changing_closure(
         "authority_unavailable": HTTPException(503, canary),
         "authority_error": RuntimeError(canary),
     }
-    reads = AsyncMock(return_value=state, side_effect=errors.get(case))
+    reads = AsyncMock(return_value=None if state is None else (canary, state), side_effect=errors.get(case))
     cache = SimpleNamespace(get=AsyncMock(return_value=link))
     closes = []
     sleeps = []
@@ -136,7 +136,7 @@ def test_actual_session_watcher_logs_safe_category_without_changing_closure(
     namespace = {
         "asyncio": SimpleNamespace(sleep=sleep), "cache_service": cache,
         "session_hash": canary, "directus_service": object(), "user_id": user_id,
-        "get_session_state_cached": reads,
+        "get_session_lineage_state": reads,
         "canonical_session_user_id": canonical_session_user_id,
         "logger": logger, "device_fingerprint_hash": "a" * 64,
         "websocket": SimpleNamespace(close=close), "status": status,
@@ -163,7 +163,11 @@ def test_actual_session_watcher_logs_safe_category_without_changing_closure(
         assert record.event_type == "ws_session_authority_close"
         assert canary not in str(vars(record))
         assert "another-owner" not in str(vars(record))
-    cache.get.assert_awaited_once_with("session:" + canary)
+    if case in errors:
+        # Durable authority failures close before any cache link read.
+        cache.get.assert_not_awaited()
+    else:
+        cache.get.assert_awaited_once_with("session:" + canary)
     reads.assert_awaited_once()
 
 
