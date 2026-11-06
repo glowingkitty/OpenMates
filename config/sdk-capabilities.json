@@ -7501,6 +7501,7 @@
         },
         "rust": {
           "api": [
+            "client.Client.open_team_direct_chat",
             "client.Client.teams",
             "work.teams.TeamCreate",
             "work.teams.TeamCreate.description",
@@ -7554,7 +7555,7 @@
           "conformance": false,
           "evidence": [],
           "gaps": [
-            "Cookie-session Team management (list, show, create, update, delete with 2FA/email verification, invites, access requests, roles, members, profiles, billing, storage, usage) is native; move, export/import, profile-image upload/get, billing addresses and bank-transfer orders are not ported. Cross-language conformance is not yet established."
+            "Cookie-session Team management (list, show, create, update, delete with 2FA/email verification, invites, access requests, roles, members, profiles, billing, storage, usage) is native; move, export/import, profile-image upload/get, billing addresses and bank-transfer orders are not ported. Client.open_team_direct_chat finds or creates the two-member Team Direct chat with OMDM1 key sealing byte-identical to TypeScript-generated vectors (client/direct_ts_vectors.json); live backend Direct-chat integration is pending. Cross-language conformance is not yet established."
           ],
           "status": "partial"
         }

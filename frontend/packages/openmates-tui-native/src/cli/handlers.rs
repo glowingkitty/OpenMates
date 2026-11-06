@@ -41,6 +41,7 @@ fn supported(invocation: &Invocation) -> bool {
         || super::projects::supported(invocation)
         || super::workflows::supported(invocation)
         || super::account::supported(invocation)
+        || super::teams_message::supported(invocation)
         || super::mentions_cmd::supported(invocation)
         || super::group_help::is_root(invocation)
         || super::chat_work::supported(invocation)
@@ -1065,6 +1066,9 @@ async fn execute_context_with_inventory(
     if super::extra_ports::supported(invocation) { return Box::pin(super::extra_ports::execute(invocation, client)).await; }
     if super::parity_chat_recovery::supported(invocation) {
         return Box::pin(super::parity_chat_recovery::execute(invocation, client, cancel)).await;
+    }
+    if super::teams_message::supported(invocation) {
+        return Box::pin(super::teams_message::execute(invocation, client, cancel)).await;
     }
     if super::account::supported(invocation) {
         return Box::pin(super::account::execute(invocation, client)).await;

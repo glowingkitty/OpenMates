@@ -42,6 +42,7 @@ pub use send::execute_anonymous;
 mod task_input;
 pub(crate) mod task_queue;
 mod tasks;
+mod teams_message;
 mod workflows;
 pub use global_history::execute_sdk_global_history;
 pub use plans::execute_sdk_plans_with_delivery;

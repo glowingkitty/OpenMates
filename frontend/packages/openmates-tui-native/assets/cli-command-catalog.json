@@ -56829,7 +56829,9 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Encrypted durable delivery, remaining option variants, protocol/output parity and integration validation are still required."
+        "Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --delivery-id replay) is implemented natively.",
+        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -56884,7 +56886,9 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Encrypted durable delivery, remaining option variants, protocol/output parity and integration validation are still required."
+        "Mutation is sent directly; encrypted durable delivery (--delivery-id journal replay) is not implemented for this command.",
+        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -56984,7 +56988,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Encrypted durable delivery, remaining option variants, protocol/output parity and integration validation are still required."
+        "Read-only command: no durable delivery applies.",
+        "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -57034,7 +57039,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Encrypted durable delivery, remaining option variants, protocol/output parity and integration validation are still required."
+        "Read-only command: no durable delivery applies.",
+        "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -57088,7 +57094,9 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Encrypted durable delivery, remaining option variants, protocol/output parity and integration validation are still required."
+        "Mutation is sent directly; encrypted durable delivery (--delivery-id journal replay) is not implemented for this command.",
+        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -57194,7 +57202,9 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Encrypted durable delivery, remaining option variants, protocol/output parity and integration validation are still required."
+        "Mutation is sent directly; encrypted durable delivery (--delivery-id journal replay) is not implemented for this command.",
+        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -57238,7 +57248,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Encrypted durable delivery, remaining option variants, protocol/output parity and integration validation are still required."
+        "Read-only command: no durable delivery applies.",
+        "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -57286,7 +57297,9 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Encrypted durable delivery, remaining option variants, protocol/output parity and integration validation are still required."
+        "Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --delivery-id replay) is implemented natively.",
+        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -57333,7 +57346,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Encrypted durable delivery, remaining option variants, protocol/output parity and integration validation are still required."
+        "Read-only command: no durable delivery applies.",
+        "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -57392,7 +57406,9 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Encrypted durable delivery, remaining option variants, protocol/output parity and integration validation are still required."
+        "Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --delivery-id replay) is implemented natively.",
+        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -57440,7 +57456,9 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Encrypted durable delivery, remaining option variants, protocol/output parity and integration validation are still required."
+        "Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --delivery-id replay) is implemented natively.",
+        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -57498,7 +57516,9 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Encrypted durable delivery, remaining option variants, protocol/output parity and integration validation are still required."
+        "Mutation is sent directly; encrypted durable delivery (--delivery-id journal replay) is not implemented for this command.",
+        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -57546,7 +57566,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Encrypted durable delivery, remaining option variants, protocol/output parity and integration validation are still required."
+        "Read-only command: no durable delivery applies.",
+        "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -57604,7 +57625,9 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Encrypted durable delivery, remaining option variants, protocol/output parity and integration validation are still required."
+        "Mutation is sent directly; encrypted durable delivery (--delivery-id journal replay) is not implemented for this command.",
+        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -57651,7 +57674,9 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Encrypted durable delivery, remaining option variants, protocol/output parity and integration validation are still required."
+        "Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --delivery-id replay) is implemented natively.",
+        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -57709,7 +57734,9 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Encrypted durable delivery, remaining option variants, protocol/output parity and integration validation are still required."
+        "Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --delivery-id replay) is implemented natively.",
+        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -57757,7 +57784,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Encrypted durable delivery, remaining option variants, protocol/output parity and integration validation are still required."
+        "Read-only command: no durable delivery applies.",
+        "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -57802,7 +57830,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Encrypted durable delivery, remaining option variants, protocol/output parity and integration validation are still required."
+        "Read-only command: no durable delivery applies.",
+        "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -57849,7 +57878,9 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Encrypted durable delivery, remaining option variants, protocol/output parity and integration validation are still required."
+        "Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --delivery-id replay) is implemented natively.",
+        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -57903,7 +57934,9 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Encrypted durable delivery, remaining option variants, protocol/output parity and integration validation are still required."
+        "Mutation is sent directly; encrypted durable delivery (--delivery-id journal replay) is not implemented for this command.",
+        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -57954,7 +57987,9 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Encrypted durable delivery, remaining option variants, protocol/output parity and integration validation are still required."
+        "Mutation is sent directly; encrypted durable delivery (--delivery-id journal replay) is not implemented for this command.",
+        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58011,7 +58046,9 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Encrypted durable delivery, remaining option variants, protocol/output parity and integration validation are still required."
+        "Mutation is sent directly; encrypted durable delivery (--delivery-id journal replay) is not implemented for this command.",
+        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58058,7 +58095,9 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Encrypted durable delivery, remaining option variants, protocol/output parity and integration validation are still required."
+        "Mutation is sent directly; encrypted durable delivery (--delivery-id journal replay) is not implemented for this command.",
+        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58105,7 +58144,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Encrypted durable delivery, remaining option variants, protocol/output parity and integration validation are still required."
+        "Read-only command: no durable delivery applies.",
+        "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58152,7 +58192,9 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Encrypted durable delivery, remaining option variants, protocol/output parity and integration validation are still required."
+        "Mutation is sent directly; encrypted durable delivery (--delivery-id journal replay) is not implemented for this command.",
+        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58199,7 +58241,9 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Encrypted durable delivery, remaining option variants, protocol/output parity and integration validation are still required."
+        "Mutation is sent directly; encrypted durable delivery (--delivery-id journal replay) is not implemented for this command.",
+        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58246,7 +58290,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Encrypted durable delivery, remaining option variants, protocol/output parity and integration validation are still required."
+        "Read-only command: no durable delivery applies.",
+        "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58293,7 +58338,9 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Encrypted durable delivery, remaining option variants, protocol/output parity and integration validation are still required."
+        "Mutation is sent directly; encrypted durable delivery (--delivery-id journal replay) is not implemented for this command.",
+        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59253,12 +59300,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.client.open_team_direct_chat",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams_message.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "OMDM1 Direct-chat key sealing, Direct chat lookup/creation and send are native in shared Rust; sealing is byte-identical to TypeScript vectors and existing TypeScript envelopes open.",
+        "Live backend Direct-chat integration (member key enrollment, creation, Team chat sync and send) and E2E validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59435,12 +59483,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.client.open_team_direct_chat",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/teams_message.rs"
       },
       "gaps": [
-        "Original runtime grammar is reviewed; native handling of this spelling has not been implemented or verified."
+        "OMDM1 Direct-chat key sealing, Direct chat lookup/creation and send are native in shared Rust; sealing is byte-identical to TypeScript vectors and existing TypeScript envelopes open.",
+        "Live backend Direct-chat integration (member key enrollment, creation, Team chat sync and send) and E2E validation are still required."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -62600,8 +62649,8 @@
   "coverage": {
     "command_patterns": 724,
     "flags": 608,
-    "native_handlers_partial": 716,
-    "unsupported": 8,
+    "native_handlers_partial": 718,
+    "unsupported": 6,
     "feature_complete": false
   },
   "maintenance": {
