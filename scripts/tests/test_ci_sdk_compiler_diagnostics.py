@@ -109,3 +109,42 @@ def test_cargo_summary_and_json_strings_grant_no_fabricated_code_or_location(tmp
 def test_log_tail_does_not_associate_orphaned_spans_without_held_header(tmp_path):
     text = "error[E0277]: private\n" + "x" * 65536 + f"\n --> {BINDING}:12:7\n"
     assert project(tmp_path, text) == []
+
+
+RUNNER = "tests/sdk-conformance/runners/session-embed-version-content.py"
+SDK = "packages/openmates-python/openmates/session_facades.py"
+
+
+def test_python_traceback_exports_only_class_name_and_tracked_frames(tmp_path):
+    text = (
+        "Traceback (most recent call last):\n"
+        f'  File "{tmp_path / RUNNER}", line 178, in main\n'
+        "    secret-source-line\n"
+        f'  File "{tmp_path / SDK}", line 71, in version_content\n'
+        '  File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run\n'
+        "SessionClientError: private-token-value\n"
+    )
+    result = project(tmp_path, text, (RUNNER, SDK))
+    assert result == [
+        {
+            "kind": "python",
+            "code": "SessionClientError",
+            "locations": [loc(RUNNER, 178, 0), loc(SDK, 71, 0)],
+        }
+    ]
+    assert "private" not in json.dumps(result) and "secret" not in json.dumps(result)
+
+
+def test_python_faulthandler_dump_is_a_fatal_error_with_frames(tmp_path):
+    text = (
+        "Fatal Python error: Segmentation fault\n\n"
+        "Current thread 0x1 (most recent call first):\n"
+        f'  File "{tmp_path / SDK}", line 71 in version_content\n'
+    )
+    assert project(tmp_path, text, (SDK,)) == [
+        {"kind": "python", "code": "FatalPythonError", "locations": [loc(SDK, 71, 0)]}
+    ]
+
+
+def test_python_unknown_exception_class_is_not_exported(tmp_path):
+    assert project(tmp_path, "PrivateAccountError: private\n", (SDK,)) == []

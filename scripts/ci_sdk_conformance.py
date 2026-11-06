@@ -647,7 +647,47 @@ def compiler_diagnostics(data, root, inputs):
                 report["compiler"].append({"kind": "typescript", "code": code,
                     "locations": [{"path": relative, "line": int(line), "column": int(column)}]})
                 break
+    python = python_traceback_diagnostics(text, root, inputs)
+    if python is not None and len(report["compiler"]) < 32:
+        report["compiler"].append(python)
     return report["compiler"]
+
+
+# Closed exception vocabulary: only these class names ever leave the runner.
+PYTHON_TRACE_EXCEPTIONS = (
+    "AssertionError", "AttributeError", "BrokenPipeError", "ConnectionError",
+    "ConnectionResetError", "FileNotFoundError", "ImportError", "JSONDecodeError",
+    "KeyError", "ModuleNotFoundError", "OSError", "PermissionError", "RuntimeError",
+    "SessionClientError", "TimeoutError", "TypeError", "ValueError",
+)
+PYTHON_TRACE_FRAMES = 8
+
+
+def python_traceback_diagnostics(text, root, inputs):
+    """Project a Python traceback or faulthandler dump to tracked file:line frames.
+
+    Only a closed exception class name and line numbers of tracked inputs are
+    exported; messages, locals and untracked paths stay private.
+    """
+    frames = []
+    for match in re.finditer(r'(?m)^\s*File "([^"\n]{1,512})", line ([0-9]{1,8})', text):
+        path, line = match.groups()
+        try:
+            candidate = Path(path) if Path(path).is_absolute() else root / path
+            relative = candidate.resolve().relative_to(root).as_posix()
+        except ValueError:
+            continue
+        if relative in inputs:
+            frames.append({"path": relative, "line": int(line), "column": 0})
+    names = "|".join(PYTHON_TRACE_EXCEPTIONS)
+    named = re.findall(rf"(?m)^(?:[A-Za-z_.]*\.)?({names})\b", text)
+    if re.search(r"(?m)^Fatal Python error:", text):
+        code = "FatalPythonError"
+    elif named:
+        code = named[-1]
+    else:
+        return None
+    return {"kind": "python", "code": code, "locations": frames[-PYTHON_TRACE_FRAMES:]}
 
 
 # Diagnostics are projections, never a replacement for Cargo's actual exit.
@@ -972,7 +1012,8 @@ def failure_diagnostics(private, root, stage, inputs, plan):
                 continue
             kind, code = entry.get("kind"), entry["code"]
             if not ((kind == "rustc" and re.fullmatch(r"E[0-9]{4}", code))
-                    or (kind == "typescript" and re.fullmatch(r"TS[0-9]{4,5}", code))):
+                    or (kind == "typescript" and re.fullmatch(r"TS[0-9]{4,5}", code))
+                    or (kind == "python" and code in (*PYTHON_TRACE_EXCEPTIONS, "FatalPythonError"))):
                 continue
             locations = [{key: value[key] for key in ("path", "line", "column")}
                          for value in entry.get("locations", []) if isinstance(value, dict)

@@ -458,6 +458,10 @@ def isolated_environment(env, index):
     parent = env.get("TMPDIR") or tempfile.gettempdir()
     directory = Path(tempfile.mkdtemp(prefix=f"sdk-adapter-{index}-", dir=parent))
     isolated = dict(env)
+    # A native crash in a pooled Python adapter dumps its Python frames to
+    # stderr, where the driver projects tracked file:line frames only. This is
+    # launch-only, like the user-state directories below.
+    isolated["PYTHONFAULTHANDLER"] = "1"
     for name in ISOLATED_STATE:
         path = directory / name.lower()
         path.mkdir(mode=0o700)
