@@ -80,10 +80,13 @@ export function installRustChatHistory(): () => void {
 	};
 
 	/** One server-checked admission; the first one upgrades the local session on its
-	 * Worker. A snapshot superseded while admitting (`cancelled`/`invalidated_snapshot`:
-	 * the TS profile lifecycle moved, e.g. a post-sync profile write, or the local
-	 * session closed under the upgrade) is re-admitted ONCE on a fresh platform
-	 * snapshot and Worker lease. Any other failure, or a second supersede, propagates. */
+	 * Worker. The upgrade hands the Worker over without advancing the shared profile
+	 * lifecycle, so it no longer cancels its own freshly prepared platform snapshot.
+	 * Safety net only: a snapshot superseded by an EXTERNAL revocation while admitting
+	 * (`cancelled`/`invalidated_snapshot`: another tab's profile/credential change, a
+	 * workspace clear, or the local session failing under the upgrade) is re-admitted
+	 * ONCE on a fresh platform snapshot, which re-checks auth and refuses a logged-out
+	 * or switched profile. Any other failure, or a second supersede, propagates. */
 	const admit = async (): Promise<ProductionSavedChatSession> => {
 		const admitted = await (localPending ?? Promise.resolve(null));
 		const upgrading = admitted && !admitted.signal.aborted ? admitted : null;

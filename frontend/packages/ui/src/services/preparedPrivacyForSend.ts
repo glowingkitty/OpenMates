@@ -155,7 +155,12 @@ async function requestSnapshot(purpose: 'prepare' | 'send', turnId: string | nul
     };
     const handler = (payload: Record<string, unknown>) => {
       if (payload?.request_id !== requestId) return;
-      if (payload.success !== true) return finish(new Error('Personal privacy freshness check failed'));
+      if (payload.success !== true) {
+        // Fixed server refusal code only (e.g. rate_limited, unauthorized); never payload content.
+        const code = (payload.error as { code?: unknown } | undefined)?.code;
+        console.warn('[PreparedPrivacy] Freshness check refused', { purpose, code: typeof code === 'string' ? code : 'unknown' });
+        return finish(new Error('Personal privacy freshness check failed'));
+      }
       finish(undefined, payload);
     };
     const closed = () => finish(new Error('Personal privacy connection changed'));

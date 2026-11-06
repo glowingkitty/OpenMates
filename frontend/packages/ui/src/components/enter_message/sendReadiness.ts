@@ -1,3 +1,24 @@
+import { derived, type Readable } from 'svelte/store';
+
+/**
+ * After a reload the session is authenticated before the profile (the owner id
+ * every send fence compares against) is hydrated. A send that snapshots the
+ * owner in that window is rejected as an owner change once the profile lands,
+ * so wait for the owner to exist. Event-driven; resolves at once when no wait is needed.
+ */
+export function waitForSendOwner(
+    auth: Readable<{ isAuthenticated: boolean }>,
+    profile: Readable<{ user_id?: string | null }>
+): Promise<void> {
+    return new Promise((resolve) => {
+        const unsubscribe = derived([auth, profile], ([a, p]) => !a.isAuthenticated || !!p.user_id).subscribe((ready) => {
+            if (!ready) return;
+            resolve();
+            queueMicrotask(() => unsubscribe());
+        });
+    });
+}
+
 /** Send accepts a click while the saved model preference is restoring. */
 export function isComposerSendBusy(
     sendInProgress: boolean,

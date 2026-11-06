@@ -1,7 +1,22 @@
 import { describe, expect, it, vi } from 'vitest';
-import { isComposerSendBusy, resolveSavedModelForAcceptedSend, shouldDismissComposerAfterSend } from '../sendReadiness';
+import { writable } from 'svelte/store';
+import { isComposerSendBusy, resolveSavedModelForAcceptedSend, shouldDismissComposerAfterSend, waitForSendOwner } from '../sendReadiness';
 
 describe('composer Send readiness shared by expanded and compact controls', () => {
+    // contract-test: supporting surface=gui.web assertions=message-input.send.ownership
+    it('holds a post-reload Send until the authenticated profile owner hydrates', async () => {
+        const auth = writable({ isAuthenticated: true });
+        const profile = writable<{ user_id: string | null }>({ user_id: null });
+        let ready = false;
+        const waiting = waitForSendOwner(auth, profile).then(() => { ready = true; });
+        await Promise.resolve();
+        expect(ready).toBe(false);
+        profile.set({ user_id: 'user-a' });
+        await waiting;
+        expect(ready).toBe(true);
+        await waitForSendOwner(writable({ isAuthenticated: false }), writable({ user_id: null }));
+    });
+
     // contract-test: supporting surface=gui.web assertions=message-input.send.ownership,ai-model-routing.chat-selection.encrypted-user-chat-scope
     it('accepts an ordinary Send while a saved model preference restores', () => {
         expect(isComposerSendBusy(false, false)).toBe(false);

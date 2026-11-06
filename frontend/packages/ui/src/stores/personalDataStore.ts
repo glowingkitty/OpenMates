@@ -269,6 +269,31 @@ async function ensureEnhancementReady(): Promise<void> {
 }
 
 /**
+ * Resolve once the current owner's preferences are hydrated. After a reload the
+ * profile (which defines the owner) and the encrypted preferences arrive
+ * asynchronously; a send that captured its privacy snapshot earlier would see
+ * the owner change and abort silently. Waits on store changes, never on time.
+ * A recorded persistence failure resolves immediately so the caller's own
+ * fences reject the send instead of waiting on state that cannot recover.
+ */
+async function waitForEnhancementReady(): Promise<void> {
+  for (;;) {
+    await ensureEnhancementReady();
+    const owner = getWorkspaceCacheIdentity();
+    if (enhancementOwner !== undefined && get(enhancementReadyStore) && isEnhancementOwnerCurrent(enhancementOwner)) return;
+    if (privacyPersistenceError?.scope === owner) return;
+    await new Promise<void>((resolve) => {
+      let first = true;
+      const unsubscribe = derived([enhancementReadyStore, authStore, userProfile], () => ({})).subscribe(() => {
+        if (first) { first = false; return; }
+        queueMicrotask(() => unsubscribe());
+        resolve();
+      });
+    });
+  }
+}
+
+/**
  * Load all privacy entries from IndexedDB, decrypt them, and populate the stores.
  * Called when privacy settings are opened or after a sync event.
  *
@@ -1056,6 +1081,7 @@ export const personalDataStore = {
   enhancementReady: derived([enhancementReadyStore, authStore, userProfile], ([ready]) =>
     ready && enhancementOwner !== undefined && isEnhancementOwnerCurrent(enhancementOwner)),
   ensureEnhancementReady,
+  waitForEnhancementReady,
 
   /**
    * Subscribe to location precision settings.

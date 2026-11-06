@@ -6,6 +6,7 @@
 // Loaded only by the VITE_OPENMATES_RUST_CORE build (dynamic import).
 import { createOriginalSavedChatSender } from "./originalSavedChatSender";
 import { bindProductionCoreInvalidations } from "./productionInvalidationBridge";
+import type { ProductionCoreInvalidationRelease } from "./productionInvalidationBridge";
 import { publishSelectedOnlineCachedSavedChat, publishSelectedSavedChat, publishSelectedSavedChatPage } from "./selectedSavedChat";
 import type { PriorProfileLifecycle } from "./platformLifecycle";
 import type { BrowserPersistence, ExistingProfileEvidence, LocalCursorSelector, LocalReadPlan, SavedPageSelector, SessionStatus } from "./protocol";
@@ -86,11 +87,12 @@ export async function admitLocalSavedChatSession(input: AdmissionInput): Promise
   let reading: Promise<void> | null = null;
   let witness: ExistingSavedChatProfile | null = null;
   let worker: OwnedWorker | null = null;
-  let releaseInvalidations: (() => void) | null = null;
-  const end = () => {
+  let releaseInvalidations: ProductionCoreInvalidationRelease | null = null;
+  const end = (handover = false) => {
     closed = true; witness = null; lifetime.abort();
     input.signal.removeEventListener("abort", close);
-    releaseInvalidations?.(); releaseInvalidations = null;
+    const release = releaseInvalidations; releaseInvalidations = null;
+    if (handover) release?.handover(); else release?.();
   };
   const close = () => {
     if (closed) return;
@@ -142,7 +144,11 @@ export async function admitLocalSavedChatSession(input: AdmissionInput): Promise
       // The Worker serves one request at a time: let an in-flight cached read finish.
       await reading?.catch(() => undefined);
       if (closed) throw new Error("cancelled");
-      handedOver = true; end();
+      // Handover, not revocation: `closed` already fences this session's views,
+      // and the server-checked admission below binds its own invalidations in
+      // this same synchronous tick. Advancing the lifecycle here closed the
+      // caller's freshly prepared platform, so every upgrade failed `cancelled`.
+      handedOver = true; end(true);
       try {
         return await admitSecondDeviceSavedChatSession({ ...online, createWorker: async () => owned });
       } catch (error) { owned.close(); throw error; }

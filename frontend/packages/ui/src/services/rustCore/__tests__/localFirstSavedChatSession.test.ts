@@ -79,4 +79,44 @@ describe('local-first saved chat session', () => {
     await expect(local.publishCachedPage({ direction: 'latest' }, () => undefined)).rejects.toThrow();
     expect(f.calls.operations).toEqual(['restore_local', 'restore_existing']);
   });
+
+  // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,chats.persistence.client-encrypted
+  it('the upgrade handover keeps the caller\'s prepared platform snapshot (no self-inflicted cancel)', async () => {
+    const f = fixture('ok');
+    const local = await f.admit();
+    // Like createBrowserSavedChatPlatform: the server-checked platform is prepared
+    // BEFORE upgrade(), pins the lifecycle generation and closes on any advance.
+    const prepared = f.common.lifecycle.current();
+    let platformClosed = false;
+    const stopObserving = f.common.lifecycle.observe(() => { platformClosed = true; });
+    const active = () => {
+      if (platformClosed) throw new Error('cancelled');
+      if (f.common.lifecycle.current() !== prepared) throw new Error('invalidated_snapshot');
+    };
+    const sources = {
+      async capture(generation: number) { active(); return f.common.sources.capture(generation); },
+      async assertCurrent() { active(); },
+      executeLocalReadPlan: f.common.sources.executeLocalReadPlan,
+    };
+    const online = await local.upgrade({ ...f.common, sources });
+    expect(platformClosed, 'handover must not advance the shared profile lifecycle').toBe(false);
+    expect(f.common.lifecycle.current()).toBe(prepared);
+    expect(online.status.localReadOnly).toBe(false);
+    expect(f.calls.workersCreated, 'no second Worker / re-admission').toBe(1);
+    // A real teardown still revokes: closing the online session advances the lifecycle.
+    online.close();
+    expect(platformClosed, 'teardown revokes every observer').toBe(true);
+    expect(f.calls.workerClosed).toBe(1);
+    stopObserving();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,chats.persistence.client-encrypted
+  it('closing a local session without handover still revokes the shared lifecycle', async () => {
+    const f = fixture('ok');
+    const local = await f.admit();
+    const before = f.common.lifecycle.current();
+    local.close();
+    expect(f.common.lifecycle.current()).toBeGreaterThan(before);
+    expect(f.calls.workerClosed).toBe(1);
+  });
 });

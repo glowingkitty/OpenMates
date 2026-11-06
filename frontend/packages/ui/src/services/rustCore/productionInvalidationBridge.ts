@@ -11,25 +11,46 @@ export const LEGACY_CRYPTO_CHANNEL = "openmates_crypto_v1";
  * it never captures/adopts an identity, admits, retries, writes storage or locks.
  * Messages are existing best-effort invalidations, not an atomic snapshot.
  */
+export interface ProductionCoreInvalidationRelease {
+  /** Revoking teardown: advances the shared lifecycle and closes the host. */
+  (): void;
+  /** Same-tick Worker handover to a successor admission that has already
+   * installed (or installs synchronously next) its own invalidation binding.
+   * Releases the listeners only: no lifecycle advance and no host close. The
+   * owner must already have ended its own publications (its `closed` flag), so
+   * nothing this binding guarded can still publish. A lifecycle advance here
+   * would revoke the successor's freshly prepared platform snapshot (`cancelled`).
+   */
+  handover(): void;
+}
+
 export function bindProductionCoreInvalidations(input: {
   host: { close(): void };
   page: Pick<Window, "addEventListener" | "removeEventListener">;
   lifecycle: PriorProfileLifecycle;
   createChannel(name: string): OwnedChannel;
-}): () => void {
+}): ProductionCoreInvalidationRelease {
   let closed = false;
   const releases: Array<() => void> = [];
+  const releaseAll = () => {
+    // One faulty platform cleanup must not retain another channel or the key.
+    for (const release of releases.splice(0).reverse()) {
+      try { release(); } catch { /* Resource cleanup has no authority. */ }
+    }
+  };
   const close = (origin?:object) => {
     if (closed) return;
     closed = true;
     // A transport reply may already have resolved while a view still awaits
     // its last profile check. Teardown must revoke that publication too.
     try { input.lifecycle.invalidateFromTeardown(origin); } catch { /* Still release the key below. */ }
-    // One faulty platform cleanup must not retain another channel or the key.
-    for (const release of releases.splice(0).reverse()) {
-      try { release(); } catch { /* Resource cleanup has no authority. */ }
-    }
+    releaseAll();
     input.host.close();
+  };
+  const handover = () => {
+    if (closed) return;
+    closed = true;
+    releaseAll();
   };
   const own = (release: () => void) => {
     if (closed) release(); else releases.push(release);
@@ -59,6 +80,6 @@ export function bindProductionCoreInvalidations(input: {
     };
     own(() => profile.close());
     own(bindProductionProfileLifetime({ ...input, channel: profile, host: { close:()=>close() } },origin=>close(origin)));
-    return close;
+    return Object.assign(() => close(), { handover });
   } catch (error) { close(); throw error; }
 }

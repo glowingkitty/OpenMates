@@ -95,6 +95,23 @@ describe('enhanced personal-data preference hydration', () => {
     expect(await personalDataStore.waitForPrivacyMutations()).toBe(true);
   });
 
+  // contract-test: direct surface=gui.web assertions=pii.web.enhanced-default-and-opt-out
+  it('lets a send wait for the reload-time profile and first encrypted sync instead of capturing stale authority', async () => {
+    mocks.read.mockResolvedValue([]);
+    mocks.owner = null;
+    const { personalDataStore } = await import('../personalDataStore');
+    let settled = false;
+    const waiting = personalDataStore.waitForEnhancementReady().then(() => { settled = true; });
+    await Promise.resolve();
+    mocks.owner = 'account-a';
+    mocks.profile.set({ user_id: 'account-a' });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(settled).toBe(false);
+    window.dispatchEvent(new CustomEvent('appSettingsMemoriesSyncReady'));
+    await waiting;
+    expect(get(personalDataStore.enhancementReady)).toBe(true);
+  });
+
   // contract-test: direct surface=gui.web assertions=pii.web.enhanced-default-and-opt-out,pii.web.local-bounded-inference
   it('does not interpret a cold account cache as permission to initialize before the first encrypted sync', async () => {
     mocks.read.mockResolvedValue([]);

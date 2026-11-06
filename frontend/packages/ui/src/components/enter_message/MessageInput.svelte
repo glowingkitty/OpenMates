@@ -70,7 +70,7 @@
     import SketchView from './SketchView.svelte';
     import PressAndHoldMenu from './in_message_previews/PressAndHoldMenu.svelte';
     import ActionButtons from './ActionButtons.svelte';
-    import { isComposerSendBusy, resolveSavedModelForAcceptedSend, shouldDismissComposerAfterSend } from './sendReadiness';
+    import { isComposerSendBusy, resolveSavedModelForAcceptedSend, shouldDismissComposerAfterSend, waitForSendOwner } from './sendReadiness';
     import KeyboardShortcuts from '../KeyboardShortcuts.svelte';
     import Toggle from '../Toggle.svelte';
     import { Decoration, DecorationSet } from 'prosemirror-view';
@@ -6100,6 +6100,7 @@
         }
         if (sendClickInProgress) return;
         sendClickInProgress = true;
+        if (get(authStore).isAuthenticated && !get(userProfile).user_id) await waitForSendOwner(authStore, userProfile);
         const focusGenerationAtSend = editorFocusGeneration;
         const modelOwner = {
             generation: modelSelectionRestoreGeneration,
@@ -6234,12 +6235,24 @@
                     // A new chat has no saved preference to restore. Keep the
                     // selection visible at this click, including a chosen model.
                     if (!modelOwner.chatId) return modelOwner.selection;
-                    const stillOwned = () => modelOwner.generation === modelSelectionRestoreGeneration &&
-                        modelOwner.userId === $userProfile.user_id &&
-                        modelOwner.chatId === currentChatId &&
-                        modelOwner.draftChatId === get(draftEditorUIState).currentChatId &&
-                        modelOwner.teamId === get(activeTeamId) &&
-                        modelOwner.editor === editor;
+                    const stillOwned = () => {
+                        const draftChatIdNow = get(draftEditorUIState).currentChatId;
+                        const draftBindingMovedToOtherChat = modelOwner.draftChatId !== draftChatIdNow &&
+                            !!draftChatIdNow && draftChatIdNow !== modelOwner.chatId;
+                        const changed = [
+                            modelOwner.generation !== modelSelectionRestoreGeneration && 'restoreGeneration',
+                            modelOwner.userId !== $userProfile.user_id && 'userId',
+                            modelOwner.chatId !== currentChatId && 'chatId',
+                            // After a reload the draft binding settles onto the send's own chat
+                            // (or is released) while this send is in flight; only a binding to
+                            // another chat is an owner change.
+                            draftBindingMovedToOtherChat && 'draftChatId',
+                            modelOwner.teamId !== get(activeTeamId) && 'teamId',
+                            modelOwner.editor !== editor && 'editor',
+                        ].filter(Boolean);
+                        if (changed.length) console.warn('[MessageInput] Send model owner changed:', changed.join(','), { draftAtClick: modelOwner.draftChatId, draftNow: draftChatIdNow });
+                        return changed.length === 0;
+                    };
                     return resolveSavedModelForAcceptedSend({
                         settled: modelOwner.settled,
                         readyAtClick: modelOwner.wasReady,
