@@ -757,6 +757,7 @@
       "assumption",
       "assumptions",
       "before",
+      "blocker-reason",
       "change",
       "chat",
       "check",
@@ -768,6 +769,8 @@
       "context",
       "corrected",
       "cover",
+      "coverage-note",
+      "coverage-status",
       "covers",
       "criterion",
       "cursor",
@@ -780,6 +783,7 @@
       "evaluation-prompt",
       "evaluator-instructions",
       "evidence",
+      "evidence-summary",
       "expected",
       "expected-result",
       "external-chat",
@@ -798,6 +802,8 @@
       "lifecycle",
       "lifecycle-status",
       "limit",
+      "linked-criterion",
+      "linked-task",
       "max-entries",
       "message",
       "newest-first",
@@ -824,6 +830,7 @@
       "reference-patterns",
       "rejection-reason",
       "required",
+      "required-before",
       "required-fixes",
       "risks",
       "root-cause",
@@ -835,6 +842,7 @@
       "score",
       "severity",
       "slug",
+      "source-count",
       "source-embed",
       "source-hash",
       "source-path",
@@ -856,7 +864,9 @@
       "type",
       "user-flows",
       "verification",
-      "verifications"
+      "verification-scope",
+      "verifications",
+      "waiver-reason"
     ],
     "privacy": [
       "api-key",
@@ -2316,6 +2326,19 @@
       ]
     },
     {
+      "long": "blocker-reason",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "backend/core/api/app/routes/user_plans.py",
+          "line": 291,
+          "symbol": "PlanAssumptionUpdateRequest"
+        }
+      ]
+    },
+    {
       "long": "body",
       "arity": "value",
       "repeatable": true,
@@ -3634,6 +3657,32 @@
         {
           "path": "frontend/packages/openmates-cli/src/cli.ts",
           "line": 2826
+        }
+      ]
+    },
+    {
+      "long": "coverage-note",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "backend/core/api/app/routes/user_plans.py",
+          "line": 179,
+          "symbol": "PlanCriterionUpdateRequest"
+        }
+      ]
+    },
+    {
+      "long": "coverage-status",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "backend/core/api/app/routes/user_plans.py",
+          "line": 179,
+          "symbol": "PlanCriterionUpdateRequest"
         }
       ]
     },
@@ -5328,6 +5377,19 @@
         {
           "path": "frontend/packages/openmates-cli/src/cli.ts",
           "line": 2731
+        }
+      ]
+    },
+    {
+      "long": "evidence-summary",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "backend/core/api/app/routes/user_plans.py",
+          "line": 291,
+          "symbol": "PlanAssumptionUpdateRequest"
         }
       ]
     },
@@ -10821,6 +10883,32 @@
       ]
     },
     {
+      "long": "linked-criterion",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "backend/core/api/app/routes/user_plans.py",
+          "line": 272,
+          "symbol": "PlanAssumptionRequest"
+        }
+      ]
+    },
+    {
+      "long": "linked-task",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "backend/core/api/app/routes/user_plans.py",
+          "line": 291,
+          "symbol": "PlanAssumptionUpdateRequest"
+        }
+      ]
+    },
+    {
       "long": "listing-type",
       "arity": "value",
       "repeatable": true,
@@ -15748,6 +15836,19 @@
       ]
     },
     {
+      "long": "required-before",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "backend/core/api/app/routes/user_plans.py",
+          "line": 291,
+          "symbol": "PlanAssumptionUpdateRequest"
+        }
+      ]
+    },
+    {
       "long": "required-fixes",
       "arity": "value",
       "repeatable": true,
@@ -16797,6 +16898,19 @@
           "path": "frontend/packages/openmates-cli/src/cli.ts",
           "line": 15309,
           "symbol": "printWorkflowsHelp"
+        }
+      ]
+    },
+    {
+      "long": "source-count",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "backend/core/api/app/routes/user_plans.py",
+          "line": 291,
+          "symbol": "PlanAssumptionUpdateRequest"
         }
       ]
     },
@@ -18707,6 +18821,19 @@
       ]
     },
     {
+      "long": "verification-scope",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "backend/core/api/app/routes/user_plans.py",
+          "line": 179,
+          "symbol": "PlanCriterionUpdateRequest"
+        }
+      ]
+    },
+    {
       "long": "verifications",
       "arity": "value",
       "repeatable": true,
@@ -18859,6 +18986,19 @@
           "path": "frontend/packages/openmates-cli/src/cli.ts",
           "line": 15350,
           "symbol": "printEmbedsHelp"
+        }
+      ]
+    },
+    {
+      "long": "waiver-reason",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "backend/core/api/app/routes/user_plans.py",
+          "line": 179,
+          "symbol": "PlanCriterionUpdateRequest"
         }
       ]
     },
@@ -20006,7 +20146,6 @@
       },
       "gaps": [
         "Archive reading supports stored/deflate ZIP entries without ZIP64; JSON parse error wording differs from Node.",
-        "--api-key credentials are not supported natively; use a native session.",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -20054,7 +20193,6 @@
       },
       "gaps": [
         "Archive reading supports stored/deflate ZIP entries without ZIP64; JSON parse error wording differs from Node.",
-        "--api-key credentials are not supported natively; use a native session.",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -20102,7 +20240,6 @@
       },
       "gaps": [
         "Archive reading supports stored/deflate ZIP entries without ZIP64; JSON parse error wording differs from Node.",
-        "--api-key credentials are not supported natively; use a native session.",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -20150,7 +20287,6 @@
       },
       "gaps": [
         "Archive reading supports stored/deflate ZIP entries without ZIP64; JSON parse error wording differs from Node.",
-        "--api-key credentials are not supported natively; use a native session.",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -20198,7 +20334,6 @@
       },
       "gaps": [
         "Archive reading supports stored/deflate ZIP entries without ZIP64; JSON parse error wording differs from Node.",
-        "--api-key credentials are not supported natively; use a native session.",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -20239,7 +20374,7 @@
       },
       "gaps": [
         "Sends the parsed chat to the legacy plaintext /v1/settings/import-chat route exactly like npm; the server currently rejects that route (HTTP 503) pending the client-encrypted replacement.",
-        "--api-key credentials are not supported natively; use a native session.",
+        "--api-key credentials are not accepted by the chat-import server route; use a native session.",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -34894,7 +35029,6 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account/learning_mode.rs"
       },
       "gaps": [
-        "--api-key credentials are not supported natively; use a native session.",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -34936,7 +35070,6 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account/learning_mode.rs"
       },
       "gaps": [
-        "--api-key credentials are not supported natively; use a native session.",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -34976,7 +35109,6 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/account/learning_mode.rs"
       },
       "gaps": [
-        "--api-key credentials are not supported natively; use a native session.",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -35243,7 +35375,6 @@
       },
       "gaps": [
         "Reads the Phase 1 sync frame on its own socket (the only server delivery path) without writing chat caches; npm reads them from its full sync.",
-        "--api-key credentials are not supported natively; use a native session.",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -35552,7 +35683,7 @@
       ],
       "summary": "plans assumptions add",
       "usages": [
-        "plans assumptions add <plan-id|short-id> [text-or-child-id...] [--json]"
+        "plans assumptions create|update <plan-id|short-id> [--assumption <id>] [--text <text>] [--category <name>] [--status <status>] [--required-before <phase>] [--sub-chat <chat-id>] [--linked-task <task-id>] [--linked-criterion <ids>] [--source-count <n>] [--corrected <text>] [--evidence-summary <text>] [--blocker-reason <text>] [--waiver-reason <text>] [--proof-embed <id>|--proof-file <path[:start[:end]]>|--proof-url <https-url>] [--json]"
       ],
       "positionals": [
         {
@@ -35574,14 +35705,24 @@
         "api-key",
         "api-url",
         "assumption",
+        "blocker-reason",
+        "category",
+        "corrected",
+        "evidence-summary",
         "help",
         "json",
+        "linked-criterion",
+        "linked-task",
         "profile",
         "proof-embed",
         "proof-file",
         "proof-url",
+        "required-before",
+        "source-count",
+        "status",
         "sub-chat",
-        "text"
+        "text",
+        "waiver-reason"
       ],
       "source_locations": [
         {
@@ -35597,7 +35738,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -35613,7 +35754,7 @@
       ],
       "summary": "plans assumptions create",
       "usages": [
-        "plans assumptions create|update <plan-id|short-id> [--assumption <id>] [--text <text>] [--sub-chat <chat-id>] [--proof-embed <id>|--proof-file <path[:start[:end]]>|--proof-url <https-url>] [--json]"
+        "plans assumptions create|update <plan-id|short-id> [--assumption <id>] [--text <text>] [--category <name>] [--status <status>] [--required-before <phase>] [--sub-chat <chat-id>] [--linked-task <task-id>] [--linked-criterion <ids>] [--source-count <n>] [--corrected <text>] [--evidence-summary <text>] [--blocker-reason <text>] [--waiver-reason <text>] [--proof-embed <id>|--proof-file <path[:start[:end]]>|--proof-url <https-url>] [--json]"
       ],
       "positionals": [
         {
@@ -35635,14 +35776,24 @@
         "api-key",
         "api-url",
         "assumption",
+        "blocker-reason",
+        "category",
+        "corrected",
+        "evidence-summary",
         "help",
         "json",
+        "linked-criterion",
+        "linked-task",
         "profile",
         "proof-embed",
         "proof-file",
         "proof-url",
+        "required-before",
+        "source-count",
+        "status",
         "sub-chat",
-        "text"
+        "text",
+        "waiver-reason"
       ],
       "source_locations": [
         {
@@ -35658,7 +35809,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -35713,7 +35864,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team scope (--team or the active Team) reads via team_id and decrypts only with the caller's exact Team or own master wrapper, skipping undecryptable Team Plans with the npm warning."
+        "Isolated CLI integration validation remains pending. Team scope (--team or the active Team) reads via team_id and decrypts only with the caller's exact Team or own master wrapper, skipping undecryptable Team Plans with the npm warning."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -35729,7 +35880,7 @@
       ],
       "summary": "plans assumptions update",
       "usages": [
-        "plans assumptions create|update <plan-id|short-id> [--assumption <id>] [--text <text>] [--sub-chat <chat-id>] [--proof-embed <id>|--proof-file <path[:start[:end]]>|--proof-url <https-url>] [--json]"
+        "plans assumptions create|update <plan-id|short-id> [--assumption <id>] [--text <text>] [--category <name>] [--status <status>] [--required-before <phase>] [--sub-chat <chat-id>] [--linked-task <task-id>] [--linked-criterion <ids>] [--source-count <n>] [--corrected <text>] [--evidence-summary <text>] [--blocker-reason <text>] [--waiver-reason <text>] [--proof-embed <id>|--proof-file <path[:start[:end]]>|--proof-url <https-url>] [--json]"
       ],
       "positionals": [
         {
@@ -35751,14 +35902,24 @@
         "api-key",
         "api-url",
         "assumption",
+        "blocker-reason",
+        "category",
+        "corrected",
+        "evidence-summary",
         "help",
         "json",
+        "linked-criterion",
+        "linked-task",
         "profile",
         "proof-embed",
         "proof-file",
         "proof-url",
+        "required-before",
+        "source-count",
+        "status",
         "sub-chat",
-        "text"
+        "text",
+        "waiver-reason"
       ],
       "source_locations": [
         {
@@ -35774,7 +35935,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -35882,7 +36043,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -35942,7 +36103,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -35999,7 +36160,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36056,7 +36217,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36115,7 +36276,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36174,7 +36335,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36231,7 +36392,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36288,7 +36449,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36348,7 +36509,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36408,7 +36569,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36465,7 +36626,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36522,7 +36683,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36581,7 +36742,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36640,7 +36801,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36697,7 +36858,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36754,7 +36915,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37806,13 +37967,17 @@
       "flags": [
         "api-key",
         "api-url",
+        "coverage-status",
         "criterion",
         "help",
         "json",
         "profile",
         "required",
+        "status",
         "text",
-        "type"
+        "type",
+        "verification",
+        "verification-scope"
       ],
       "source_locations": [
         {
@@ -37828,7 +37993,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37865,13 +38030,17 @@
       "flags": [
         "api-key",
         "api-url",
+        "coverage-status",
         "criterion",
         "help",
         "json",
         "profile",
         "required",
+        "status",
         "text",
-        "type"
+        "type",
+        "verification",
+        "verification-scope"
       ],
       "source_locations": [
         {
@@ -37887,7 +38056,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37946,7 +38115,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37983,13 +38152,20 @@
       "flags": [
         "api-key",
         "api-url",
+        "coverage-note",
+        "coverage-status",
         "criterion",
+        "evidence",
         "help",
         "json",
         "profile",
         "required",
+        "status",
         "text",
-        "type"
+        "type",
+        "verification",
+        "verification-scope",
+        "waiver-reason"
       ],
       "source_locations": [
         {
@@ -38005,7 +38181,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38064,7 +38240,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38101,13 +38277,20 @@
       "flags": [
         "api-key",
         "api-url",
+        "coverage-note",
+        "coverage-status",
         "criterion",
+        "evidence",
         "help",
         "json",
         "profile",
         "required",
+        "status",
         "text",
-        "type"
+        "type",
+        "verification",
+        "verification-scope",
+        "waiver-reason"
       ],
       "source_locations": [
         {
@@ -38123,7 +38306,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38160,13 +38343,17 @@
       "flags": [
         "api-key",
         "api-url",
+        "coverage-status",
         "criterion",
         "help",
         "json",
         "profile",
         "required",
+        "status",
         "text",
-        "type"
+        "type",
+        "verification",
+        "verification-scope"
       ],
       "source_locations": [
         {
@@ -38182,7 +38369,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38219,13 +38406,17 @@
       "flags": [
         "api-key",
         "api-url",
+        "coverage-status",
         "criterion",
         "help",
         "json",
         "profile",
         "required",
+        "status",
         "text",
-        "type"
+        "type",
+        "verification",
+        "verification-scope"
       ],
       "source_locations": [
         {
@@ -38241,7 +38432,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38300,7 +38491,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38337,13 +38528,20 @@
       "flags": [
         "api-key",
         "api-url",
+        "coverage-note",
+        "coverage-status",
         "criterion",
+        "evidence",
         "help",
         "json",
         "profile",
         "required",
+        "status",
         "text",
-        "type"
+        "type",
+        "verification",
+        "verification-scope",
+        "waiver-reason"
       ],
       "source_locations": [
         {
@@ -38359,7 +38557,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38418,7 +38616,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38455,13 +38653,20 @@
       "flags": [
         "api-key",
         "api-url",
+        "coverage-note",
+        "coverage-status",
         "criterion",
+        "evidence",
         "help",
         "json",
         "profile",
         "required",
+        "status",
         "text",
-        "type"
+        "type",
+        "verification",
+        "verification-scope",
+        "waiver-reason"
       ],
       "source_locations": [
         {
@@ -38477,7 +38682,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39031,7 +39236,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39086,7 +39291,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39143,7 +39348,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39797,7 +40002,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39857,7 +40062,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39914,7 +40119,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39970,7 +40175,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40028,7 +40233,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40083,7 +40288,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40139,7 +40344,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40195,7 +40400,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40253,7 +40458,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40313,7 +40518,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40373,7 +40578,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40430,7 +40635,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40486,7 +40691,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40544,7 +40749,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40599,7 +40804,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40655,7 +40860,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40711,7 +40916,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40769,7 +40974,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42023,7 +42228,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42078,7 +42283,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42133,7 +42338,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43647,13 +43852,17 @@
       "flags": [
         "api-key",
         "api-url",
+        "coverage-status",
         "criterion",
         "help",
         "json",
         "profile",
         "required",
+        "status",
         "text",
-        "type"
+        "type",
+        "verification",
+        "verification-scope"
       ],
       "source_locations": [
         {
@@ -43669,7 +43878,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43706,13 +43915,17 @@
       "flags": [
         "api-key",
         "api-url",
+        "coverage-status",
         "criterion",
         "help",
         "json",
         "profile",
         "required",
+        "status",
         "text",
-        "type"
+        "type",
+        "verification",
+        "verification-scope"
       ],
       "source_locations": [
         {
@@ -43728,7 +43941,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43787,7 +44000,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43824,13 +44037,20 @@
       "flags": [
         "api-key",
         "api-url",
+        "coverage-note",
+        "coverage-status",
         "criterion",
+        "evidence",
         "help",
         "json",
         "profile",
         "required",
+        "status",
         "text",
-        "type"
+        "type",
+        "verification",
+        "verification-scope",
+        "waiver-reason"
       ],
       "source_locations": [
         {
@@ -43846,7 +44066,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43905,7 +44125,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43942,13 +44162,20 @@
       "flags": [
         "api-key",
         "api-url",
+        "coverage-note",
+        "coverage-status",
         "criterion",
+        "evidence",
         "help",
         "json",
         "profile",
         "required",
+        "status",
         "text",
-        "type"
+        "type",
+        "verification",
+        "verification-scope",
+        "waiver-reason"
       ],
       "source_locations": [
         {
@@ -43964,7 +44191,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46144,7 +46371,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46204,7 +46431,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46261,7 +46488,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46318,7 +46545,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46377,7 +46604,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46436,7 +46663,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46493,7 +46720,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46550,7 +46777,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending; unsupported server PATCH fields are rejected explicitly. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -52274,7 +52501,6 @@
       },
       "gaps": [
         "Archive reading supports stored/deflate ZIP entries without ZIP64; JSON parse error wording differs from Node.",
-        "--api-key credentials are not supported natively; use a native session.",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -52323,7 +52549,6 @@
       },
       "gaps": [
         "Archive reading supports stored/deflate ZIP entries without ZIP64; JSON parse error wording differs from Node.",
-        "--api-key credentials are not supported natively; use a native session.",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -52372,7 +52597,6 @@
       },
       "gaps": [
         "Archive reading supports stored/deflate ZIP entries without ZIP64; JSON parse error wording differs from Node.",
-        "--api-key credentials are not supported natively; use a native session.",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -52421,7 +52645,6 @@
       },
       "gaps": [
         "Archive reading supports stored/deflate ZIP entries without ZIP64; JSON parse error wording differs from Node.",
-        "--api-key credentials are not supported natively; use a native session.",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -52470,7 +52693,6 @@
       },
       "gaps": [
         "Archive reading supports stored/deflate ZIP entries without ZIP64; JSON parse error wording differs from Node.",
-        "--api-key credentials are not supported natively; use a native session.",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -52512,7 +52734,7 @@
       },
       "gaps": [
         "Sends the parsed chat to the legacy plaintext /v1/settings/import-chat route exactly like npm; the server currently rejects that route (HTTP 503) pending the client-encrypted replacement.",
-        "--api-key credentials are not supported natively; use a native session.",
+        "--api-key credentials are not accepted by the chat-import server route; use a native session.",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {

@@ -57,6 +57,7 @@ pub mod sdk_ideabucket;
 pub mod sdk_inspirations;
 pub mod sdk_learning_mode;
 pub mod sdk_memories;
+pub mod sdk_account_imports;
 pub mod sdk_new_chat_suggestions;
 pub mod sdk_public_utilities;
 pub mod sdk_transport;

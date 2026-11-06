@@ -7,6 +7,8 @@ use super::imports_zip::{ZipArchive, decrypt_openmates_zip, is_zip};
 use super::settings_more::{confirm, mutation, text_output};
 use super::{CliError, CliOutput, Invocation, handlers, path};
 use crate::client::Client;
+use openmates_sdk::OpenMates;
+use openmates_sdk::account::AccountImportPlan;
 use openmates_sdk::account::imports_chat::parse_chat_import_payload;
 use openmates_sdk::account::imports_parse::{
     ImportParser, ImportSource, ParsedAccountImport, parse_chatgpt_import, parse_claude_import,
@@ -29,16 +31,18 @@ fn invalid(message: impl Into<String>) -> CliError {
 }
 
 pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOutput, CliError> {
-    if i.has("api-key") {
-        return Err(CliError::Unsupported {
-            command: i.command_path(),
-            reason: "Account imports require an authenticated native session; --api-key is not supported.".into(),
-        });
-    }
     let path = path(i);
     match path.strip_prefix("account import ") {
         Some(format) => import(i, client, format).await,
+        None if i.has("api-key") => Err(chat_import_requires_session(i)),
         None => import_chat(i, client).await,
+    }
+}
+
+fn chat_import_requires_session(i: &Invocation) -> CliError {
+    CliError::Unsupported {
+        command: i.command_path(),
+        reason: "Chat import requires an authenticated native session; the server route does not accept --api-key credentials.".into(),
     }
 }
 
@@ -104,7 +108,7 @@ pub(super) fn parse_file(
     }
 }
 
-async fn import(i: &Invocation, client: &mut Client, format: &str) -> Result<CliOutput, CliError> {
+fn load(i: &Invocation, format: &str) -> Result<(ImportParser, ParsedAccountImport), CliError> {
     handlers::flags(
         i,
         &["dry-run", "source", "password", "select", "yes", "domain"],
@@ -137,12 +141,14 @@ async fn import(i: &Invocation, client: &mut Client, format: &str) -> Result<Cli
             "Account Import V1 only supports --domain chats for OpenMates archives.",
         ));
     }
-    let plan = client
-        .account()
-        .preview_account_import(&parsed, i.text("select") == Some("all"))
-        .await?;
+    Ok((parser, parsed))
+}
+
+/// Dry run, blocked and confirmation gates shared by both credentials. `None`
+/// means the import is confirmed and should run.
+async fn gate(i: &Invocation, plan: &AccountImportPlan) -> Result<Option<CliOutput>, CliError> {
     if i.boolean("dry-run") {
-        return print(i, &plan.result);
+        return print(i, &plan.result).map(Some);
     }
     if !plan.can_import() {
         return Err(invalid(format!(
@@ -158,9 +164,43 @@ async fn import(i: &Invocation, client: &mut Client, format: &str) -> Result<Cli
         plan.selected_count
     );
     if !confirm(i, &question).await? {
-        return Ok(text_output("Aborted.\n".into()));
+        return Ok(Some(text_output("Aborted.\n".into())));
+    }
+    Ok(None)
+}
+
+async fn import(i: &Invocation, client: &mut Client, format: &str) -> Result<CliOutput, CliError> {
+    let (_, parsed) = load(i, format)?;
+    let plan = client
+        .account()
+        .preview_account_import(&parsed, i.text("select") == Some("all"))
+        .await?;
+    if let Some(output) = gate(i, &plan).await? {
+        return Ok(output);
     }
     let result = client.account().run_account_import(&parsed, &plan).await?;
+    print(i, &result)
+}
+
+/// `--api-key` variant: the same flow signed with the explicit API key and
+/// encrypted with the API-key-wrapped account key. `import-chat` stays
+/// session-only because its backend route only accepts cookie credentials.
+pub(super) async fn execute_key(
+    i: &Invocation,
+    client: &mut OpenMates,
+) -> Result<CliOutput, CliError> {
+    let path = path(i);
+    let Some(format) = path.strip_prefix("account import ") else {
+        return Err(chat_import_requires_session(i));
+    };
+    let (_, parsed) = load(i, format)?;
+    let plan = client
+        .preview_account_import(&parsed, i.text("select") == Some("all"))
+        .await?;
+    if let Some(output) = gate(i, &plan).await? {
+        return Ok(output);
+    }
+    let result = client.run_account_import(&parsed, &plan).await?;
     print(i, &result)
 }
 

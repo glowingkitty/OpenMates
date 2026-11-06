@@ -47,6 +47,17 @@ pub use global_history::execute_sdk_global_history;
 pub use plans::execute_sdk_plans_with_delivery;
 pub use projects::execute_sdk_projects_with_delivery;
 pub use workflows::execute_sdk_workflows;
+/// True for account commands implemented over the explicit API-key SDK.
+pub fn sdk_key_account_supported(invocation: &Invocation) -> bool {
+    account::key_supported(invocation)
+}
+pub async fn execute_sdk_account(
+    invocation: &Invocation,
+    client: &mut openmates_sdk::sdk::OpenMates,
+    cancel: tokio_util::sync::CancellationToken,
+) -> Result<CliOutput, CliError> {
+    account::execute_key(invocation, client, cancel).await
+}
 pub mod trusted_account;
 pub mod private_path;
 use crate::error::Error;

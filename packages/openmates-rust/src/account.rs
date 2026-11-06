@@ -10,7 +10,7 @@ mod billing;
 mod connected_accounts;
 mod ideabucket;
 mod local_connector;
-mod imports;
+pub(crate) mod imports;
 pub mod imports_chat;
 pub mod imports_parse;
 pub use imports::AccountImportPlan;

@@ -3182,7 +3182,8 @@
             "sdk_new_chat_suggestions.NewChatSuggestions.list",
             "sdk_new_chat_suggestions.NewChatSuggestionsOptions",
             "sdk_new_chat_suggestions.NewChatSuggestionsOptions.limit",
-            "sdk_new_chat_suggestions.OpenMates.new_chat_suggestions"
+            "sdk_new_chat_suggestions.OpenMates.new_chat_suggestions",
+            "sdk_new_chat_suggestions.OpenMates.new_chat_suggestions_decrypted"
           ],
           "conformance": false,
           "evidence": [
@@ -6921,6 +6922,9 @@
           "status": "partial",
           "api": [
             "sdk.OpenMates.settings",
+            "sdk_account_imports",
+            "sdk_account_imports.OpenMates.preview_account_import",
+            "sdk_account_imports.OpenMates.run_account_import",
             "sdk_settings",
             "sdk_settings.ModelDefaults",
             "sdk_settings.ModelDefaults.default_ai_model_complex",

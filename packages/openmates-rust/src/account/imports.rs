@@ -11,7 +11,7 @@ use super::imports_parse::{
     build_account_import_message_batches, prefix16,
 };
 use crate::client::overview::parse_time;
-use crate::{Error, Result, crypto};
+use crate::{Client, Error, Result, crypto};
 use reqwest::Method;
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
@@ -64,15 +64,69 @@ fn acknowledged(value: &Value, sequence: usize) -> bool {
     value["status"] == "acknowledged" && value["sequence"].as_f64() == Some(sequence as f64)
 }
 
+/// Transport the Account Import V1 flow runs over: a first-party session or an
+/// explicit API key. The two never mix; the backend decides which credential
+/// signs the requests and which master key encrypts the imported chats.
+pub(crate) trait ImportBackend {
+    async fn request(&mut self, method: Method, route: &str, body: Option<Value>)
+    -> Result<Value>;
+    async fn master_key(&mut self) -> Result<crypto::Key>;
+}
+pub(crate) struct SessionBackend<'a>(pub(crate) &'a mut Client);
+impl ImportBackend for SessionBackend<'_> {
+    async fn request(
+        &mut self,
+        method: Method,
+        route: &str,
+        body: Option<Value>,
+    ) -> Result<Value> {
+        self.0.require_session()?;
+        self.0.request(method, route, body).await
+    }
+    async fn master_key(&mut self) -> Result<crypto::Key> {
+        Ok(self.0.require_session()?.master_key.clone())
+    }
+}
+/// The import flow itself, generic over its credential transport.
+pub(crate) struct ImportFlow<B: ImportBackend> {
+    pub(crate) backend: B,
+}
+
 impl Account<'_> {
+    /// Session-authenticated preview (`account import --dry-run`).
+    pub async fn preview_account_import(
+        &mut self,
+        parsed: &ParsedAccountImport,
+        select_all: bool,
+    ) -> Result<AccountImportPlan> {
+        ImportFlow {
+            backend: SessionBackend(&mut *self.client),
+        }
+        .preview_account_import(parsed, select_all)
+        .await
+    }
+    /// Runs a confirmed session import; see [`ImportFlow::run_account_import`].
+    pub async fn run_account_import(
+        &mut self,
+        parsed: &ParsedAccountImport,
+        plan: &AccountImportPlan,
+    ) -> Result<Value> {
+        ImportFlow {
+            backend: SessionBackend(&mut *self.client),
+        }
+        .run_account_import(parsed, plan)
+        .await
+    }
+}
+
+impl<B: ImportBackend> ImportFlow<B> {
     async fn imports(
         &mut self,
         method: Method,
         route: String,
         body: Option<Value>,
     ) -> Result<Value> {
-        self.client.require_session()?;
-        self.client.request(method, &route, body).await
+        self.backend.request(method, &route, body).await
     }
     fn import_route(import_id: &str, action: &str) -> Result<String> {
         let id = super::settings_ops::segment(import_id, "Invalid account import ID.")?;
@@ -80,7 +134,7 @@ impl Account<'_> {
     }
 
     /// POST /v1/account-imports/preview and the npm selection arithmetic.
-    pub async fn preview_account_import(
+    pub(crate) async fn preview_account_import(
         &mut self,
         parsed: &ParsedAccountImport,
         select_all: bool,
@@ -147,7 +201,7 @@ impl Account<'_> {
 
     /// Runs a confirmed import. The caller already checked `can_import`, a
     /// positive selection and the user's confirmation.
-    pub async fn run_account_import(
+    pub(crate) async fn run_account_import(
         &mut self,
         parsed: &ParsedAccountImport,
         plan: &AccountImportPlan,
@@ -291,7 +345,7 @@ impl Account<'_> {
             let summary = summaries.get(&chat.source_fingerprint).cloned();
             append_compression_summary(chat, summary.as_deref());
         }
-        let encrypted = self.encrypt_import_chats(&sanitized)?;
+        let encrypted = self.encrypt_import_chats(&sanitized).await?;
         let persistence = self
             .imports(
                 Method::POST,
@@ -328,8 +382,8 @@ impl Account<'_> {
 
     /// Personal chats: random chat key wrapped by the master key (IV||ciphertext,
     /// like the send path), every field in the chat-key combined format.
-    fn encrypt_import_chats(&mut self, chats: &[ParsedImportChat]) -> Result<Vec<Value>> {
-        let master = self.client.require_session()?.master_key.clone();
+    async fn encrypt_import_chats(&mut self, chats: &[ParsedImportChat]) -> Result<Vec<Value>> {
+        let master = self.backend.master_key().await?;
         let now = crate::client::now_ms() / 1000;
         let mut out = vec![];
         for chat in chats {
@@ -405,6 +459,9 @@ impl Account<'_> {
         Ok(out)
     }
 
+}
+
+impl Account<'_> {
     /// POST /v1/settings/import-chat with an already parsed `{chats:[...]}` payload.
     pub async fn import_chat_export(&mut self, payload: Value) -> Result<Value> {
         if !payload["chats"].is_array() {
@@ -412,12 +469,10 @@ impl Account<'_> {
                 "JSON import must contain a chats array, a chat object, or messages.",
             ));
         }
-        self.imports(
-            Method::POST,
-            "/v1/settings/import-chat".into(),
-            Some(payload),
-        )
-        .await
+        self.client.require_session()?;
+        self.client
+            .request(Method::POST, "/v1/settings/import-chat", Some(payload))
+            .await
     }
 }
 

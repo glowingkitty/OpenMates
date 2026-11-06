@@ -162,7 +162,8 @@ async fn run_with_list_stages(
         // any Cookie profile or granting an additional SDK capability.
         let normalized = cli::normalize_chat_work(&invocation)?;
         let invocation = normalized.as_ref().unwrap_or(&invocation);
-        if invocation.command_path() != "apps code get_docs" && invocation.path.first().is_none_or(|name| {
+        let key_account = cli::sdk_key_account_supported(invocation);
+        if !key_account && invocation.command_path() != "apps code get_docs" && invocation.path.first().is_none_or(|name| {
             !matches!(
                 name.as_str(),
                 "tasks" | "plans" | "projects" | "workflows" | "history" | "drafts" | "embeds"
@@ -207,6 +208,9 @@ async fn run_with_list_stages(
         }
         let result = cancellable(
             async {
+                if key_account {
+                    return cli::execute_sdk_account(invocation, &mut sdk, cancel.clone()).await;
+                }
                 match invocation.path.first().map(String::as_str) {
                     Some("apps") => {
                         cli::execute_sdk_apps(invocation, &mut sdk, cancel.clone()).await

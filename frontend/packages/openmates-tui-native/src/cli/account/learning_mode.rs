@@ -4,7 +4,9 @@ use super::settings_more::text_output;
 use super::{CliError, CliOutput, Invocation, handlers};
 use crate::client::Client;
 use openmates_sdk::client::learning_mode::{LearningModeError, learning_mode_age_group};
+use openmates_sdk::sdk::OpenMates;
 use serde_json::Value;
+use tokio_util::sync::CancellationToken;
 
 pub(super) fn supported(invocation: &Invocation) -> bool {
     matches!(
@@ -121,11 +123,46 @@ pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOu
                 .map_err(|error| request_error("deactivation", error))?
         }
     };
+    render(i, &status)
+}
+fn render(i: &Invocation, status: &Value) -> Result<CliOutput, CliError> {
     if i.boolean("json") {
-        CliOutput::json(&status)
+        CliOutput::json(status)
     } else {
-        Ok(text_output(status_text(&status)))
+        Ok(text_output(status_text(status)))
     }
+}
+
+/// Explicit API-key variant: the same flags, validation and rendering over the
+/// shared SDK `/v1/sdk/learning-mode` routes. No session or profile is read.
+/// HTTP failures surface as typed SDK errors.
+pub(super) async fn execute_key(
+    i: &Invocation,
+    client: &mut OpenMates,
+    cancel: CancellationToken,
+) -> Result<CliOutput, CliError> {
+    let status = match i.command_path().as_str() {
+        "learning-mode status" => {
+            handlers::flags(i, &[])?;
+            client.set_operation_cancel(cancel);
+            client.learning_mode().status().await?
+        }
+        "learning-mode enable" => {
+            handlers::flags(i, &["age-group", "passcode"])?;
+            let group = learning_mode_age_group(i.flags.get("age-group").and_then(Value::as_str))
+                .map_err(failed)?;
+            let passcode = passcode(i)?;
+            client.set_operation_cancel(cancel);
+            client.learning_mode().enable(group, passcode).await?
+        }
+        _ => {
+            handlers::flags(i, &["passcode"])?;
+            let passcode = passcode(i)?;
+            client.set_operation_cancel(cancel);
+            client.learning_mode().disable(passcode).await?
+        }
+    };
+    render(i, &status)
 }
 
 #[cfg(test)]

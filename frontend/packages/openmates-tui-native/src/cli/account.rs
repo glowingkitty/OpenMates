@@ -274,6 +274,25 @@ fn api_key_list_text(value: &Value) -> String {
         value
     }).collect::<Vec<_>>().join("\n")
 }
+/// Account commands that run natively under an explicit `--api-key`.
+pub(super) fn key_supported(invocation: &Invocation) -> bool {
+    imports::supported(invocation)
+        || learning_mode::supported(invocation)
+        || new_chat_suggestions::supported(invocation)
+}
+pub(super) async fn execute_key(
+    invocation: &Invocation,
+    client: &mut openmates_sdk::sdk::OpenMates,
+    cancel: tokio_util::sync::CancellationToken,
+) -> Result<CliOutput, CliError> {
+    if imports::supported(invocation) {
+        return imports::execute_key(invocation, client).await;
+    }
+    if learning_mode::supported(invocation) {
+        return learning_mode::execute_key(invocation, client, cancel).await;
+    }
+    new_chat_suggestions::execute_key(invocation, client, cancel).await
+}
 pub(super) async fn execute(
     invocation: &Invocation,
     client: &mut Client,
