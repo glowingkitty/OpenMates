@@ -186,16 +186,23 @@ def git_summary(root: Path, since: datetime, gaps: list[str]) -> dict:
     }
 
 
-def task_snapshot(gaps: list[str]) -> list[dict] | None:
+def task_snapshot(gaps: list[str], status: dict | None = None) -> list[dict] | None:
     """All of the account's Tasks: agents often create Tasks without linking the
-    OpenMates project, so a --project filter would hide them from the meeting."""
-    try:
-        run = subprocess.run(["openmates", "tasks", "list", "--json"],
-                             capture_output=True, text=True, timeout=180)
-        data = json.loads(run.stdout)
-    except (OSError, subprocess.TimeoutExpired, ValueError) as error:
-        gaps.append(f"OpenMates Tasks unavailable ({type(error).__name__})")
+    OpenMates project, so a --project filter would hide them from the meeting.
+    Read live and refresh the private copy; when the live read fails the copy is used and
+    `status` (source, fetched_at, age_hours, fresh) says how old it is."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import daily_meeting_tasks_cache  # noqa: E402 - sibling script, path set just above
+
+    data, info = daily_meeting_tasks_cache.load()
+    if status is not None:
+        status.update(info)
+    if data is None:
+        gaps.append(f"OpenMates Tasks UNAVAILABLE and no earlier copy exists ({info['error']})")
         return None
+    if info["source"] == "cache":
+        gaps.append(f"OpenMates Tasks NOT up to date: live read failed ({info['error']}); "
+                    f"using the copy from {info['fetched_at'][:16]} UTC ({info['age_hours']} h old)")
     if not data.get("complete", True):
         gaps.append("OpenMates Tasks list reported an incomplete page")
     return [{
@@ -500,7 +507,8 @@ def previous_meeting(root: Path, today: str) -> dict | None:
 def collect(root: Path, now: datetime, since: datetime, out: Path) -> tuple[dict, list | None]:
     gaps: list[str] = []
     today = now.astimezone(TZ).date().isoformat()
-    tasks = task_snapshot(gaps)
+    tasks_status: dict = {}
+    tasks = task_snapshot(gaps, tasks_status)
     snapshots = sorted(p for p in out.glob("*-tasks.json") if p.name[:10] < today)
     previous = json.loads(snapshots[-1].read_text()) if snapshots else None
     issues = issue_trackers(gaps)
@@ -523,6 +531,7 @@ def collect(root: Path, now: datetime, since: datetime, out: Path) -> tuple[dict
         "marketing": marketing(since),
         "tasks": task_summary(tasks, previous, {c["session"] for c in chats}),
         "nightly": nightly(root, since),
+        "tasks_status": tasks_status,
         "alerts": alerts(gaps),
         "issues": issues,
         "cleanup": cleanup,

@@ -111,7 +111,8 @@ pulled into new features and bugs while marketing (videos, press) slips.
 - Ask **exactly one question at a time**, with your recommendation, then wait for the answer.
 - Respect the phase rules below. In a Marketing Week, gently push back on features, \
 refactors, UX polish and bug fixes that do not block marketing; offer the parking lot.
-- Flow: (1) one-sentence recap of yesterday and today's phase, then ask about \
+- Flow: (0) if the briefing opens with a ⚠ warning that the OpenMates Tasks are not up to date or unavailable, \
+say so first, before anything else; (1) one-sentence recap of yesterday and today's phase, then ask about \
 yesterday's tasks (done, not done, moved?) — skip that question only when the git \
 commits make the answer obvious, and then still ask for a one-line confirmation; (1b) **production first**: \
 summarize the "Alerts" section in a few sentences — reported production issues (new or \
@@ -217,6 +218,19 @@ def _cleanup_section(cleanup: dict) -> list[str]:
     return out
 
 
+def _tasks_banner(status: dict) -> list[str]:
+    """Loud warning at the very top when the OpenMates Tasks are missing or not current."""
+    if status.get("fresh") and status.get("source") == "live":
+        return []
+    if status.get("source") == "cache":
+        stamp = f"{status['fetched_at'][:16]} UTC, {status.get('age_hours')} h old"
+        return [f"> **⚠ OpenMates Tasks are NOT up to date** — the live read failed, so this briefing "
+                f"uses the copy from {stamp}. Say this at the start of the meeting; Task statuses may "
+                f"have changed since.", ""]
+    return ["> **⚠ OpenMates Tasks are UNAVAILABLE** — no live read and no earlier copy. Say this at the "
+            "start of the meeting and do not plan from Tasks today.", ""]
+
+
 def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> str:
     name, monday, sunday = phase(today)
     next_name, next_monday, _ = phase(monday + timedelta(days=7))
@@ -227,6 +241,7 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
     mix = (ev.get("work_mix") or {}).get("commits_by_type", {})
     mkt = ev.get("marketing") or {}
     out = [f"# OpenMates daily meeting briefing — {today.strftime('%A %d %B %Y')}", ""]
+    out += _tasks_banner(ev.get("tasks_status") or {})
     out.append(f"**Phase:** {name} ({monday:%d %b}–{sunday:%d %b}); next: {next_name} from "
                f"{next_monday:%a %d %b}.  ")
     source = rem.get("source")
@@ -328,6 +343,10 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
         text = summaries.get(chat["session"]) or chat.get("title") or (chat.get("user_prompts") or (chat.get("steered_by_other_sessions") or [""]))[0][:120]
         out.append(f"- {chat['last_activity']} — **{chat.get('title') or 'untitled'}**: {text}")
     out += ["", "## Appendix C — Tasks", ""]
+    ts = ev.get("tasks_status") or {}
+    if ts.get("fetched_at"):
+        out += [f"_Tasks as of {ts['fetched_at'][:16]} UTC ({ts.get('source')}"
+                f"{'' if ts.get('fresh') else ', NOT up to date'})._", ""]
     for label, key in (("In progress", "in_progress"), ("Blocked", "blocked"), ("Top todo", "todo_top")):
         rows = (tasks.get("open") or {}).get(key, [])
         out.append(f"**{label} ({len(rows)}):**")

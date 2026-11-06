@@ -75,3 +75,13 @@ included. The meeting discusses production reports before planning the day's foc
 
 ## Privacy of meeting data
 `logs/` is gitignored: briefings, contexts, decision notes and the reminder caches never enter the repository. Before writing reminders, always sync from the Mac first and work from that live list.
+
+## Freshness of Tasks and Reminders
+Both lists are kept as private, timestamped copies under `~/.local/state/openmates/`
+(`reminders-cache.json` every 30 min, `tasks-cache.json` hourly via
+`scripts/daily_meeting_tasks_cache.py sync`). The briefing refreshes both right before it
+builds. If the live read fails it uses the copy and says how old it is: a warning at the very
+top ("OpenMates Tasks are NOT up to date" / "UNAVAILABLE") that the meeting must read out first,
+plus a data-gap line. Cron has a minimal PATH, so the Tasks script finds the `openmates` CLI in
+`~/.npm-global/bin` itself and the crontab lines set that PATH. `mac_reminders.py` sets a task
+identity for the Apple no-delete guard, which otherwise refused every cron run.

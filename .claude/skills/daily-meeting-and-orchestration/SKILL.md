@@ -54,7 +54,7 @@ only when an item is ambiguous (e.g. a reminder title matches none or several).
    **Rule: never a date-only reminder.** Every due has a time (`YYYY-MM-DD HH:MM`,
    Berlin); if the note gives only a date, pick a sensible time and report it.
    The tools refuse bare dates; the Mac helper sets due, start and one alarm together.
-3. **OpenMates Tasks** are the agents' work queue (Reminders are the user's
+3. **OpenMates Tasks** (read live; `daily_meeting_tasks_cache.py sync` refreshes the private copy; if the CLI fails say so and use the copy) are the agents' work queue (Reminders are the user's
    inbox). For each agreed task that agents work on: find the existing Task
    (`openmates tasks list --json`; Tasks created by chats are often not linked to
    the project) or create it (`openmates tasks create --project

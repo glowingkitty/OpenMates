@@ -24,6 +24,7 @@ import argparse
 from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -171,6 +172,9 @@ def load(prefer_live: bool = True, cache: Path = CACHE) -> tuple[list[dict], str
     data = json.loads(cache.read_text())
     return data["items"], "cache", data["fetched_at"]
 
+
+# The Apple no-delete guard needs a task identity to look up stops; cron and the briefing have none.
+os.environ.setdefault("CLAUDE_CODE_SESSION_ID", "daily-meeting-cron")
 
 WRITE_COMMANDS = {"create", "complete", "set-due", "update", "move", "delete", "batch"}
 
