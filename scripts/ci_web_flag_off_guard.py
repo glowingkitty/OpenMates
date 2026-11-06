@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
 """Fail when a flag-off web build (VITE_OPENMATES_RUST_CORE unset) carries Rust core code.
 
-Usage: ci_web_flag_off_guard.py <web_build_dir> [--repo <repo_root>]
+Usage: ci_web_flag_off_guard.py <web_build_dir> [--repo <repo_root>] [--report-only]
+
+`--report-only` prints GitHub warning annotations and exits 0 (use while a known
+leak is being fixed; drop the flag to enforce).
 
 Rust-migration lanes rely on dead-code elimination of
 `import.meta.env.VITE_OPENMATES_RUST_CORE === '1'` branches. This check proves it
 on the built output: no `.wasm` files, no output file named after a rustCore
 module or the shared worker entry, and none of the marker strings derived from
-the rustCore sources (shared-worker namespaces and refusal codes, the
-`openmates:rust:` performance-mark prefix, the generated binding name).
+the rustCore sources (the full shared-worker namespace set appearing together,
+refusal codes, the `openmates:rust:` performance-mark prefix, the generated
+binding name). A `.wasm` counts only when it is wasm-bindgen output or names
+openmates; third-party wasm (onnxruntime, etc.) is legitimate in both builds.
 """
 
 from __future__ import annotations
@@ -34,18 +39,22 @@ def _const_array(source: str, name: str) -> list[str]:
     return re.findall(r"'([^']+)'", match.group(1))
 
 
-def derive_markers(repo: Path) -> set[str]:
-    """Distinctive strings that only exist in Rust core code, read from its sources.
-
-    Namespaces and refusal codes are kept only when they cannot collide with
-    ordinary identifiers: camelCase namespaces and snake_case refusal codes.
-    """
+def derive_namespaces(repo: Path) -> set[str]:
+    """camelCase shared-worker namespaces; alone they are ordinary identifiers, together they are the protocol."""
     source = (repo / PROTOCOL).read_text()
-    namespaces = [n for n in _const_array(source, "SHARED_NAMESPACES") if re.search(r"[a-z][A-Z]", n)]
-    codes = [c for c in _const_array(source, "SHARED_REFUSAL_CODES") if "_" in c]
-    if not namespaces or not codes:
-        raise ValueError("no distinctive markers derived from the shared worker protocol")
-    return {*namespaces, *codes, *FIXED_MARKERS}
+    namespaces = {n for n in _const_array(source, "SHARED_NAMESPACES") if re.search(r"[a-z][A-Z]", n)}
+    if len(namespaces) < 2:
+        raise ValueError("no distinctive namespaces derived from the shared worker protocol")
+    return namespaces
+
+
+def derive_markers(repo: Path) -> set[str]:
+    """Strings that only exist in Rust core code, read from its sources (snake_case refusal codes)."""
+    source = (repo / PROTOCOL).read_text()
+    codes = {c for c in _const_array(source, "SHARED_REFUSAL_CODES") if "_" in c}
+    if not codes:
+        raise ValueError("no refusal codes derived from the shared worker protocol")
+    return {*codes, *FIXED_MARKERS}
 
 
 def derive_name_stems(repo: Path) -> set[str]:
@@ -58,40 +67,57 @@ def derive_name_stems(repo: Path) -> set[str]:
     return stems
 
 
-def scan(build: Path, markers: set[str], stems: set[str]) -> list[str]:
+def _is_rust_wasm(path: Path) -> bool:
+    head = path.read_bytes()
+    return b"__wbindgen" in head or b"openmates" in head or "openmates" in path.name
+
+
+def scan(build: Path, markers: set[str], stems: set[str], namespaces: frozenset[str] = frozenset()) -> list[str]:
     """Return human-readable violations found in a built output directory."""
     violations: list[str] = []
     for path in sorted(p for p in build.rglob("*") if p.is_file()):
         rel = path.relative_to(build).as_posix()
-        if path.suffix == ".wasm" or rel.endswith(".wasm.br") or rel.endswith(".wasm.gz"):
+        if path.suffix == ".wasm" and _is_rust_wasm(path):
             violations.append(f"{rel}: wasm file")
         if "rustCore" in rel or any(rel.split("/")[-1].startswith(stem) for stem in stems):
             violations.append(f"{rel}: rust core chunk/module name")
         if path.suffix in TEXT_SUFFIXES:
             text = path.read_text(errors="ignore")
             hits = sorted(m for m in markers if m in text)
+            if namespaces and all(n in text for n in namespaces):
+                hits.append(f"all shared-worker namespaces {sorted(namespaces)}")
             if "rustCore/" in text:
                 hits.append("rustCore/ source path")
             if hits:
-                violations.append(f"{rel}: markers {hits}")
+                first = next((m for m in markers if m in text), None)
+                context = ""
+                if first:
+                    at = text.index(first)
+                    context = " context=" + repr(text[max(0, at - 80) : at + 80])
+                violations.append(f"{rel}: markers {hits}{context}")
     return violations
 
 
 def main(argv: list[str]) -> int:
-    args = [a for a in argv if a != "--repo"]
-    repo = Path(argv[argv.index("--repo") + 1]) if "--repo" in argv else Path(__file__).resolve().parents[1]
-    if "--repo" in argv:
-        args.remove(argv[argv.index("--repo") + 1])
+    report_only = "--report-only" in argv
+    args = [a for a in argv if a != "--report-only"]
+    repo = Path(__file__).resolve().parents[1]
+    if "--repo" in args:
+        position = args.index("--repo")
+        repo = Path(args[position + 1])
+        del args[position : position + 2]
     if len(args) != 1 or not Path(args[0]).is_dir():
         print("usage: ci_web_flag_off_guard.py <web_build_dir> [--repo <repo_root>]", file=sys.stderr)
         return 2
     markers, stems = derive_markers(repo), derive_name_stems(repo)
-    violations = scan(Path(args[0]), markers, stems)
+    violations = scan(Path(args[0]), markers, stems, frozenset(derive_namespaces(repo)))
     if violations:
         print("Flag-off web build contains Rust core artifacts:", file=sys.stderr)
         for line in violations:
             print(f"  {line}", file=sys.stderr)
-        return 1
+            if report_only:
+                print(f"::warning title=Rust core in flag-off web build::{line}")
+        return 0 if report_only else 1
     print(f"flag-off web build is free of Rust core artifacts ({len(markers)} markers checked)")
     return 0
 

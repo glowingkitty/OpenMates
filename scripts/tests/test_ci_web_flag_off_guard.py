@@ -12,19 +12,24 @@ ROOT = Path(__file__).resolve().parents[2]
 # contract-test: infrastructure
 def test_markers_are_derived_from_shared_worker_protocol():
     markers = guard.derive_markers(ROOT)
-    assert {"embedData", "embedWrite", "chatState", "unit_unavailable", "openmates:rust:"} <= markers
-    assert "core" not in markers and "ws" not in markers
+    assert {"unit_unavailable", "openmates:rust:"} <= markers
+    assert "embedData" not in markers  # ordinary identifier on its own
+    assert {"embedData", "embedWrite", "chatState"} <= guard.derive_namespaces(ROOT)
 
 
 # contract-test: infrastructure
 def test_scan_flags_wasm_marker_and_chunk_name(tmp_path):
-    (tmp_path / "a.wasm").write_bytes(b"\0asm")
+    (tmp_path / "a.wasm").write_bytes(b"\0asm__wbindgen_placeholder__")
+    (tmp_path / "ort.wasm").write_bytes(b"\0asm")
     (tmp_path / "worker.entry-abc.js").write_text("x")
-    (tmp_path / "app.js").write_text("send('embedWrite')")
-    out = "\n".join(guard.scan(tmp_path, {"embedWrite"}, {"worker.entry"}))
+    (tmp_path / "app.js").write_text("fail('install_failed')")
+    (tmp_path / "ns.js").write_text("['embedData','embedWrite']")
+    out = "\n".join(guard.scan(tmp_path, {"install_failed"}, {"worker.entry"}, frozenset({"embedData", "embedWrite"})))
     assert "a.wasm: wasm file" in out
+    assert "ort.wasm" not in out
     assert "worker.entry-abc.js" in out
-    assert "app.js: markers ['embedWrite']" in out
+    assert "app.js: markers ['install_failed']" in out
+    assert "ns.js: markers [\"all shared-worker namespaces" in out
 
 
 # contract-test: infrastructure
