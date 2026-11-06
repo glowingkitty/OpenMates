@@ -16,6 +16,10 @@
 // CryptoKey objects are structured-cloned (extractable or not, they never expose
 // raw bytes); raw chat keys the page already holds are copied, never transferred
 // out of the caller's buffers.
+// Repeated successful decrypts of the same ciphertext with the same key are
+// answered from a bounded page-side memo (cryptoResultMemo.ts) without a Worker
+// round trip; identical calls in flight share one request.
+import { CryptoResultMemo, isBytes } from './cryptoResultMemo';
 
 export type WebCryptoOp =
   | 'decryptChatContent' | 'encryptChatContent' | 'masterDecrypt' | 'masterEncrypt'
@@ -78,6 +82,9 @@ export interface WebCryptoStats {
   bulkItems: number;
   /** clearChatKeys() runs (logout / account switch / key removal via clearCryptoKeyCache). */
   chatKeyClears: number;
+  /** Calls answered from the decrypt memo, and calls that joined an identical in-flight request. */
+  memoHits: number;
+  memoShared: number;
 }
 
 /** Microtask hops the flush always yields, and at most waits while the queue keeps growing. */
@@ -92,9 +99,11 @@ export class WebCryptoClient {
   private endpoint: WebCryptoEndpoint | null = null;
   private broken: Error | null = null;
   private flushScheduled = false;
+  private readonly memo = new CryptoResultMemo();
   readonly stats: WebCryptoStats = {
     calls: {}, failures: {}, fingerprintMismatches: 0, workerErrors: 0,
     batches: 0, batchedRequests: 0, bulkRequests: 0, bulkItems: 0, chatKeyClears: 0,
+    memoHits: 0, memoShared: 0,
   };
 
   constructor(private readonly factory: WebCryptoEndpointFactory) {}
@@ -161,6 +170,25 @@ export class WebCryptoClient {
       this.recordFailure(op);
       return Promise.reject(this.broken);
     }
+    const slot = this.memo.slotOf(op, args);
+    if (slot === null) return this.request<T>(op, args);
+    const hit = this.memo.get(slot);
+    if (hit !== undefined) {
+      this.stats.memoHits += 1;
+      return Promise.resolve(hit as T);
+    }
+    const pending = this.memo.pending(slot);
+    if (pending) {
+      this.stats.memoShared += 1;
+      // Each sharer gets its own copy of byte results (callers may zeroize theirs).
+      return pending.then((value) => (isBytes(value) ? new Uint8Array(value) : value) as T);
+    }
+    const request = this.request<T>(op, args);
+    this.memo.track(slot, request);
+    return request;
+  }
+
+  private request<T>(op: WebCryptoOp, args: unknown[]): Promise<T> {
     const id = this.nextId++;
     const result = new Promise<T>((resolve, reject) => {
       this.pending.set(id, { resolve: resolve as (value: unknown) => void, reject });
@@ -243,6 +271,7 @@ export class WebCryptoClient {
    */
   clearChatKeys(): Promise<void> {
     this.stats.chatKeyClears += 1;
+    this.memo.clear();
     if (!this.endpoint && this.queue.length === 0) return Promise.resolve();
     return this.call<void>('clearChatKeys');
   }
@@ -260,6 +289,7 @@ export class WebCryptoClient {
     const endpoint = this.endpoint;
     this.endpoint = null;
     endpoint?.close();
+    this.memo.clear();
     this.broken = new Error('rust_web_crypto_closed');
     for (const waiter of this.pending.values()) waiter.reject(this.broken);
     this.pending.clear();

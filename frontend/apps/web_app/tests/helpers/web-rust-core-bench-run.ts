@@ -19,6 +19,7 @@ const { rustCoreInstances } = require('./rust-core-instances');
 const { createBrowserProcessEvidence } = require('./browser-process-evidence.cjs');
 const { summarizePaired, markdownTable, pairOrder, interpolatedBaselinePairs, transitionIncrements } = require('./bench-stats');
 const { createBenchProfiler } = require('./bench-profile');
+const { runSendBench } = require('./web-rust-core-bench-send');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 /** Measurement-only opt-out of the Rust history source (rustChatHistoryBootstrap.ts). */
@@ -113,6 +114,7 @@ async function runWebRustCoreBench(page: any, testInfo: any, options: { pairs: n
 	const pairs: { ts: Record<string, any>; rust: Record<string, any> }[] = [];
 	// Every reload in measurement order (warm-up included) for the RSS level metrics.
 	const sequence: { arm: 'ts' | 'rust'; sample: Record<string, any>; warmUp: boolean }[] = [];
+	let send: Record<string, any> | null = null;
 	try {
 		// Pair 0 is a discarded warm-up (HTTP/WASM caches, JIT); then counterbalanced
 		// pairs (ts,rust / rust,ts alternately) so carry-over from the previous arm cancels.
@@ -142,6 +144,9 @@ async function runWebRustCoreBench(page: any, testInfo: any, options: { pairs: n
 				await profiler.close();
 			}
 		}
+		// Paired send flow (web-rust-core-bench-send.ts), after every reload sample.
+		// Opt-in (OPENMATES_BENCH_SEND=1) until the send-time session refusal flake is fixed.
+		if (process.env.OPENMATES_BENCH_SEND === '1') send = await runSendBench(page, { pairs: Number.parseInt(process.env.OPENMATES_BENCH_SEND_PAIRS ?? '', 10) || PAIRS, margin: MARGIN, processes, log, screenshot, profile: options.profile });
 	} finally {
 		await processes.close();
 		await page.evaluate((key: string) => localStorage.removeItem(key), HISTORY_OPT_OUT_KEY).catch(() => undefined);
@@ -162,6 +167,7 @@ async function runWebRustCoreBench(page: any, testInfo: any, options: { pairs: n
 	// More than one WASM instance in a Rust load is an automatic failure, whatever the statistics say.
 	const maxRustWasm = Math.max(...pairs.map((pair) => Number(pair.rust.wasmInstantiations)));
 	summary.wasmInstantiations = { ...summarizePaired(column('wasmInstantiations'), { mode: 'difference' }), verdict: maxRustWasm > 1 ? 'rust_worse' : 'rust_not_worse', maxRustInstances: maxRustWasm };
+	if (send) Object.assign(summary, send.summary);
 	const loadChat = pairs.map((pair) => pair.rust.loadChatStageMs).filter((v) => typeof v === 'number').sort((a, b) => a - b);
 	const report = {
 		pairs: PAIRS, margin: MARGIN, rssLimitBytes: RSS_LIMIT_BYTES, order: 'counterbalanced ts,rust / rust,ts pairs after one discarded ts,rust warm-up pair',
@@ -170,7 +176,9 @@ async function runWebRustCoreBench(page: any, testInfo: any, options: { pairs: n
 		rssIncrementPerReloadBytes: transitionIncrements(sequence.map((entry) => ({ arm: entry.arm, before: entry.sample.browserRssBeforeBytes, after: entry.sample.browserRssBytes }))),
 		sequence: sequence.map((entry) => `${entry.warmUp ? 'w' : ''}${entry.arm}`).join(','),
 		samples: pairs,
+		send: send ? { sequence: send.sequence, samples: send.samples } : null,
 	};
+	if (send?.profile) await testInfo.attach('web-rust-core-send-profile.json', { body: JSON.stringify(send.profile, null, 2), contentType: 'application/json' });
 	const table = markdownTable(summary);
 	log('bench table\n' + table, { rustLoadChatStageMs: report.rustLoadChatStageMs, rssIncrementPerReloadBytes: report.rssIncrementPerReloadBytes });
 	await testInfo.attach('web-rust-core-bench.json', { body: JSON.stringify(report, null, 2), contentType: 'application/json' });
