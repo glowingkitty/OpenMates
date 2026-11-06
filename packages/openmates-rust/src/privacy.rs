@@ -8,6 +8,8 @@ use std::{
     sync::{Mutex, OnceLock},
 };
 
+mod placeholder;
+
 /// Caller policy; no state directory or installed CLI preferences are consulted.
 #[derive(Clone, Default)]
 pub struct PrivacyOptions {
@@ -303,11 +305,12 @@ fn ranges_for(pattern: &Regex, text: &str) -> Vec<Range> {
         })
         .collect()
 }
+// Hand scanners, not regex: restore runs on every rendered message (see placeholder.rs).
 fn valid_token(token: &str) -> bool {
-    regex(r"^\[[A-Za-z][A-Za-z0-9_]*\]$").is_match(token)
+    placeholder::is_token(token)
 }
 fn generated_token(token: &str) -> bool {
-    regex(r"^\[OM_PII_[A-F0-9]{32}\]$").is_match(token)
+    placeholder::is_generated(token)
 }
 fn legacy_token(token: &str) -> bool {
     let re = regex(r"^\[([A-Z_]+)_[0-9]+_[A-Za-z0-9]{1,3}\]$");
@@ -340,19 +343,36 @@ pub fn restore(text: &str, mappings: &[Value]) -> Result<String> {
 pub(crate) fn restore_page(text: &str, mappings: &[Value]) -> Result<String> {
     restore_internal(text, mappings, Some(LOCAL_PRIVACY_MAX_TEXT_BYTES), true)
 }
-pub(crate) fn restore_page_refs(text:&str,mappings:&[&Value])->Result<String> {
-    restore_borrowed(text,mappings.iter().copied(),Some(LOCAL_PRIVACY_MAX_TEXT_BYTES),true)
+pub(crate) fn restore_page_refs(text: &str, mappings: &[&Value]) -> Result<String> {
+    restore_borrowed(
+        text,
+        mappings.iter().copied(),
+        Some(LOCAL_PRIVACY_MAX_TEXT_BYTES),
+        true,
+    )
 }
-fn restore_internal(text: &str, mappings: &[Value], output_limit: Option<usize>, unknown_literal: bool) -> Result<String> {
-    restore_borrowed(text,mappings.iter(),output_limit,unknown_literal)
+fn restore_internal(
+    text: &str,
+    mappings: &[Value],
+    output_limit: Option<usize>,
+    unknown_literal: bool,
+) -> Result<String> {
+    restore_borrowed(text, mappings.iter(), output_limit, unknown_literal)
 }
-fn restore_borrowed<'a>(text:&str,mappings:impl IntoIterator<Item=&'a Value>,output_limit:Option<usize>,unknown_literal:bool)->Result<String> {
-    let mut count=0usize;
+fn restore_borrowed<'a>(
+    text: &str,
+    mappings: impl IntoIterator<Item = &'a Value>,
+    output_limit: Option<usize>,
+    unknown_literal: bool,
+) -> Result<String> {
+    let mut count = 0usize;
     let mut originals: HashMap<&str, &str> = HashMap::new();
     let mut ambiguous = HashSet::new();
     for mapping in mappings {
-        count+=1;
-        if count>10_000 {return Err(Error::Invalid("Privacy mapping limit exceeded."));}
+        count += 1;
+        if count > 10_000 {
+            return Err(Error::Invalid("Privacy mapping limit exceeded."));
+        }
         let Some(token) = mapping
             .get("placeholder")
             .and_then(Value::as_str)
@@ -376,9 +396,9 @@ fn restore_borrowed<'a>(text:&str,mappings:impl IntoIterator<Item=&'a Value>,out
     }
     let mut result = String::with_capacity(text.len());
     let mut cursor = 0;
-    for matched in regex(r"\[[A-Za-z][A-Za-z0-9_]*\]").find_iter(text) {
-        append_privacy(&mut result, &text[cursor..matched.start()], output_limit)?;
-        let token = matched.as_str();
+    for (start, end) in placeholder::find(text) {
+        append_privacy(&mut result, &text[cursor..start], output_limit)?;
+        let token = &text[start..end];
         if ambiguous.contains(token) {
             return Err(Error::Invalid(
                 "A privacy placeholder has conflicting mappings.",
@@ -393,7 +413,7 @@ fn restore_borrowed<'a>(text:&str,mappings:impl IntoIterator<Item=&'a Value>,out
         } else {
             append_privacy(&mut result, token, output_limit)?;
         }
-        cursor = matched.end();
+        cursor = end;
     }
     append_privacy(&mut result, &text[cursor..], output_limit)?;
     Ok(result)
