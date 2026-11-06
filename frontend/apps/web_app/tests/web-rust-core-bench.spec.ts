@@ -146,4 +146,6 @@ test('interleaved TS vs Rust reload benchmark with paired bootstrap verdicts', a
 	for (const metric of ['chatRenderedMs', 'embedReadyMs'] as const) {
 		expect(summary[metric].pairs, `${metric}: usable pairs`).toBe(PAIRS);
 	}
+	// Approved gate: more than one WASM instance in a Rust load is an automatic failure (report is attached first).
+	expect(maxRustWasm, 'at most one WASM instance per Rust load').toBeLessThanOrEqual(1);
 });
