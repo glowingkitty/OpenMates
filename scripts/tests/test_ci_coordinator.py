@@ -10,6 +10,7 @@ See docs/plans/isolated-github-tests/plan.yml.
 from concurrent.futures import ThreadPoolExecutor
 import datetime as dt
 
+import pytest
 from scripts.ci_coordinator import Queue, GitHub, GitHubError, enqueue_submission
 
 
@@ -971,3 +972,58 @@ def test_vitest_accepts_exact_test_file_filters(tmp_path):
     path = "frontend/packages/ui/src/services/foo.test.ts"
     jobs = enqueue_submission(queue, "owner", "a" * 40, [path], "vitest")
     assert [json.loads(job["specs"]) for job in jobs] == [[path]]
+
+
+def _attention_job(tmp_path, sent=100):
+    q = Queue(tmp_path / "queue.db", max_active=4)
+    job = q.enqueue("owner", "a" * 40, ["x.spec.ts"])
+    with q.connect() as db:
+        db.execute(
+            "UPDATE jobs SET state='attention',sent=? WHERE id=?", (sent, job["id"])
+        )
+    return q, job
+
+
+def test_attention_job_without_remote_run_is_released_after_window(tmp_path, monkeypatch):
+    monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
+    q, job = _attention_job(tmp_path)
+    remote = Remote()
+    q.tick(remote, 100 + 3600)
+    assert q.status(job["id"])[0]["state"] == "attention"
+    q.tick(remote, 100 + 7 * 3600)
+    row = q.status(job["id"])[0]
+    assert row["state"] == "failure"
+    assert "released after remote reconciliation" in row["error"]
+    assert not remote.sent
+
+
+def test_attention_job_whose_run_appears_is_adopted(tmp_path, monkeypatch):
+    monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
+    q, job = _attention_job(tmp_path)
+    full = q.status(job["id"])[0]
+    remote = Remote()
+    remote.visible = [
+        dict(
+            display_title=full["token"],
+            status="completed",
+            conclusion="success",
+            id=9,
+            html_url="https://example.test/9",
+        )
+    ]
+    q.tick(remote, 100 + 7 * 3600)
+    assert q.status(job["id"])[0]["state"] == "success"
+
+
+def test_release_attention_refuses_when_run_exists_and_releases_otherwise(tmp_path):
+    q, job = _attention_job(tmp_path)
+    token = q.status(job["id"])[0]["token"]
+    remote = Remote()
+    remote.visible = [dict(display_title=token, status="queued", id=3, html_url="u")]
+    with pytest.raises(ValueError, match="remote run exists"):
+        q.release_attention(remote, job["id"], "operator")
+    assert q.status(job["id"])[0]["state"] == "attention"
+    remote.visible = []
+    assert q.release_attention(remote, job["id"], "operator")["state"] == "failure"
+    with pytest.raises(ValueError, match="attention"):
+        q.release_attention(remote, job["id"], "operator")

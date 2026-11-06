@@ -34,6 +34,10 @@ LIGHTWEIGHT_MODES = frozenset({"component", "pytest", "vitest", "codex", "rust-c
 RATE_RESERVE = 100
 ERROR_BACKOFF = 60
 UNCERTAIN_SECONDS = 600
+# Far beyond GitHub dispatch visibility delay: an attention job with no remote run
+# after this long never dispatched, so it is released (never re-dispatched).
+ATTENTION_RELEASE_SECONDS = 6 * 3600
+RELEASED_ERROR = "dispatch never became visible; released after remote reconciliation"
 WORKFLOW = "isolated-tests.yml"
 ACTIVE = ("dispatching", "submitted", "running", "attention")
 RECOVERY_FAILURE_CASE_TITLE = "SDK reports a Project directory failure after durable epoch-one first Personal admission"
@@ -1010,6 +1014,32 @@ class Queue:
                 "active": [dict(row) for row in running],
             }
 
+    def release_attention(self, github, key: str, reason: str) -> dict:
+        """Release one attention job only if GitHub has no run carrying its token."""
+        if not reason.strip():
+            raise ValueError("An explicit reason is required")
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            job = db.execute("SELECT * FROM jobs WHERE id=?", (key,)).fetchone()
+            if not job or job["state"] != "attention":
+                raise ValueError("Only a job in attention can be released")
+            if job["run_id"]:
+                raise ValueError("Job has a recorded run; reconcile it instead")
+            matches = [
+                run
+                for run in github.runs()
+                if job["token"] in run.get("display_title", "")
+            ]
+            if matches:
+                raise ValueError(
+                    "A remote run exists for this job; the tick will adopt it"
+                )
+            db.execute(
+                "UPDATE jobs SET state='failure',updated=?,error=? WHERE id=?",
+                (time.time(), f"{RELEASED_ERROR}: {reason.strip()}", key),
+            )
+            return {"id": key, "state": "failure", "reason": reason.strip()}
+
     def prioritize(self, key: str, owner: str, reason: str):
         """Admit one owned prerequisite ahead of bulk work without adding slots."""
         if not reason.strip():
@@ -1182,6 +1212,18 @@ class Queue:
                                     "UPDATE jobs SET phase=?,phase_updated=? WHERE id=?",
                                     (phase, now, job["id"]),
                                 )
+                        elif (
+                            job["state"] == "attention"
+                            and not job["run_id"]
+                            and job["sent"]
+                            and now - job["sent"] > ATTENTION_RELEASE_SECONDS
+                        ):
+                            # Remote reconciliation found no run for this token
+                            # well past the visibility window: release the slot.
+                            db.execute(
+                                "UPDATE jobs SET state='failure',updated=?,error=? WHERE id=?",
+                                (now, RELEASED_ERROR, job["id"]),
+                            )
                         elif job["state"] in ACTIVE:
                             reservations[job["id"]] = 1
                             if job["sent"] and now - job["sent"] > UNCERTAIN_SECONDS:
@@ -1707,6 +1749,12 @@ def main():
     )
     cancel.add_argument("--owner", required=True)
     cancel.add_argument("--reason", required=True)
+    release = sub.add_parser(
+        "release-attention",
+        help="Release an attention job that has no remote GitHub run",
+    )
+    release.add_argument("--id", required=True)
+    release.add_argument("--reason", required=True)
     status = sub.add_parser("status")
     status.add_argument("id", nargs="?")
     status.add_argument(
@@ -1730,7 +1778,7 @@ def main():
     wait.add_argument("id")
     wait.add_argument("--timeout", type=float, default=7200)
     wait.add_argument("--poll", type=float, default=10)
-    for command in (submit, priority, cancel, status, result, verify, health, wait):
+    for command in (submit, priority, cancel, release, status, result, verify, health, wait):
         command.add_argument(
             "--json", action="store_true", help="Emit complete machine-readable data"
         )
@@ -1839,6 +1887,11 @@ def main():
         if not args.id and not args.all:
             rows = [row for row in rows if row["state"] not in TERMINAL][:10]
         print_receipt(rows, as_json=args.json)
+    elif args.action == "release-attention":
+        print_receipt(
+            queue.release_attention(GitHub(root), args.id, args.reason),
+            as_json=args.json,
+        )
     elif args.action == "health":
         with queue.connect() as db:
             print_receipt(
