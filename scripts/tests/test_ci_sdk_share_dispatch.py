@@ -417,7 +417,7 @@ class ShareDispatchTests(unittest.TestCase):
         end = after.index("        require(cwd == self.root", start)
         self.assertEqual(
             hashlib.sha256((after[:start] + after[end:]).encode()).hexdigest(),
-            "ef016aa71c5ceda262c04c1376f6e4ad6e61ff188b6192091d8ae3cd6f6860b4",
+            "7dd3f2f2244d5831d0ccdf4eb77f9a2cc6efa9283f9b71cc813bf6718b65edbb",
         )
         source_path = (
             (

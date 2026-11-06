@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import re
 import selectors
 import shutil
 import subprocess
@@ -338,6 +339,74 @@ class Driver:
             # The outer owned stage group handles descendant cleanup on failure.
 
 
+# Literal `cargo run --example` coordinates inside the fixed Python gate runners.
+RUNNER_EXAMPLE = re.compile(
+    r'"--manifest-path",\s*(?:str\(ROOT\s*/\s*)?"(packages/[A-Za-z0-9_.-]+/Cargo\.toml)"\)?,'
+    r'\s*"--example",\s*"([A-Za-z0-9_-]+)"'
+)
+EXAMPLE_MANIFEST = re.compile(r"packages/[A-Za-z0-9_.-]+/Cargo\.toml")
+EXAMPLE_NAME = re.compile(r"[A-Za-z0-9_-]{1,128}")
+
+
+def rust_example_targets(root, commands):
+    """Every Rust example the fixed plan will `cargo run`, grouped per manifest.
+
+    Sources: the plan's own `cargo run` adapters plus literal coordinates in the
+    fixed Python gate runners the plan launches. Nothing here selects or skips
+    an adapter; it only names what the adapters compile anyway.
+    """
+    targets = {}
+    for command in commands:
+        found = []
+        if command[:2] == ["cargo", "run"]:
+            found.append(
+                (
+                    command[command.index("--manifest-path") + 1],
+                    command[command.index("--example") + 1],
+                )
+            )
+        elif (
+            len(command) > 1
+            and command[0] == sys.executable
+            and command[1].startswith("tests/sdk-conformance/runners/")
+            and command[1].endswith(".py")
+        ):
+            found.extend(RUNNER_EXAMPLE.findall(regular(root / command[1]).decode()))
+        for manifest, example in found:
+            require(
+                EXAMPLE_MANIFEST.fullmatch(manifest)
+                and EXAMPLE_NAME.fullmatch(example)
+                and (root / manifest).is_file(),
+                "prebuild_target",
+            )
+            targets.setdefault(manifest, set()).add(example)
+    return {manifest: sorted(names) for manifest, names in sorted(targets.items())}
+
+
+def prebuild_rust_examples(driver):
+    """Compile every plan example once per manifest INSIDE the bounded stage.
+
+    Same dev profile, default features, --locked flag, private CARGO_HOME,
+    CARGO_TARGET_DIR and environment as the later literal `cargo run --locked
+    --example` adapters, which still re-check freshness and then execute the
+    already built binaries. One invocation per manifest keeps each package's
+    feature resolution identical to its `cargo run`. No adapter, vector,
+    assertion or deadline changes; a compile failure fails this stage exactly
+    as the first affected adapter would have.
+    """
+    jobs = str(max(1, min(4, os.cpu_count() or 1)))
+    for manifest, examples in rust_example_targets(
+        driver.root, driver.commands
+    ).items():
+        command = ["cargo", "build", "--quiet", "--locked", "--manifest-path", manifest]
+        command += ["--jobs", jobs]
+        for example in examples:
+            command += ["--example", example]
+        driver.run(
+            command, cwd=driver.root, capture_output=True, text=True, timeout=1500
+        )
+
+
 def run_packaged_sdk_v1(driver, destination):
     """Fixed real package/native23 step INSIDE the existing bounded stage.
 
@@ -432,8 +501,10 @@ def execute(root, destination, deadline):
         for row in plan
     ]
     namespace["subprocess"] = types.SimpleNamespace(run=driver.run)
-    phase = "packaged"
+    phase = "prebuild"
     try:
+        prebuild_rust_examples(driver)
+        phase = "packaged"
         packaged = run_packaged_sdk_v1(driver, destination)
         phase = "generated"
         namespace["check_generated"](root)
