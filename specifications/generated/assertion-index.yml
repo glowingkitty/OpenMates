@@ -111414,12 +111414,12 @@ assertions:
       surface: gui.web
     - &id14294
       path: scripts/tests/test_message_input_welcome_contract.py
-      line: 65
+      line: 68
       name: test_logout_resets_composer_state_before_restoring_guest_welcome
       surface: gui.web
     - &id14295
       path: scripts/tests/test_message_input_welcome_contract.py
-      line: 114
+      line: 117
       name: test_expanded_landing_intro_preserves_measurable_composer_reserve
       surface: gui.web
     tests:
@@ -116483,12 +116483,12 @@ assertions:
       surface: gui.web
     - &id14922
       path: scripts/tests/test_message_input_welcome_contract.py
-      line: 65
+      line: 68
       name: test_logout_resets_composer_state_before_restoring_guest_welcome
       surface: gui.web
     - &id14923
       path: scripts/tests/test_message_input_welcome_contract.py
-      line: 114
+      line: 117
       name: test_expanded_landing_intro_preserves_measurable_composer_reserve
       surface: gui.web
     tests:
@@ -161992,7 +161992,8 @@ assertions:
     - &id20692
       path: frontend/apps/web_app/tests/components/voice-call-focused-draft.spec.ts
       line: 13
-      name: starts once from the focused welcome composer at ${width}px ${direction}
+      name: hides the handset while the welcome composer is focused and starts once
+        after blur at ${width}px ${direction}
       surface: gui.web
     - &id20693
       path: frontend/apps/web_app/tests/components/voice-call-header-actions.spec.ts
@@ -163434,7 +163435,8 @@ assertions:
     - &id20880
       path: frontend/apps/web_app/tests/components/voice-call-focused-draft.spec.ts
       line: 13
-      name: starts once from the focused welcome composer at ${width}px ${direction}
+      name: hides the handset while the welcome composer is focused and starts once
+        after blur at ${width}px ${direction}
       surface: gui.web
     - &id20883
       path: frontend/packages/ui/src/services/__tests__/preparedChatForSend.test.ts
@@ -166542,7 +166544,8 @@ assertions:
     - &id21273
       path: frontend/apps/web_app/tests/components/voice-call-focused-draft.spec.ts
       line: 13
-      name: starts once from the focused welcome composer at ${width}px ${direction}
+      name: hides the handset while the welcome composer is focused and starts once
+        after blur at ${width}px ${direction}
       surface: gui.web
     - &id21286
       path: frontend/packages/ui/src/components/videocall/callAudio.test.ts

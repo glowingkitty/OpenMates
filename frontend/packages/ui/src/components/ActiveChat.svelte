@@ -14118,8 +14118,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 <div
                     class="chat-side"
                     class:composer-welcome-hidden={hideWelcomeForComposerOverlay && (showWelcome || isActiveDraftOnlyChat)}
-                    inert={showWelcome && messageInputFocused && !hasQueuedFollowUpActions && !voiceContextConsentVisible && !showVoiceCallBarHere
-                        && !(showWelcome && hideWelcomeForKeyboard && voiceCallLaunchEligible)}
+                    inert={showWelcome && messageInputFocused && !hasQueuedFollowUpActions && !voiceContextConsentVisible && !showVoiceCallBarHere}
                     class:welcome-chat-side={showWelcome}
                     data-testid="chat-side"
                     bind:this={chatSideEl}
@@ -14341,13 +14340,10 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         data-testid="chat-top-actions"
                         class:top-buttons-flow={showWelcome}
                         class:guest-all-examples-top-buttons={guestAllExamplesVisible && !$authStore.isAuthenticated}
-                        class:welcome-hiding={showWelcome && hideWelcomeForKeyboard && !voiceCallLaunchEligible}
+                        class:welcome-hiding={showWelcome && hideWelcomeForKeyboard}
                         class:call-strip-stuck={callControlsReplaceToolbar}
-                        inert={(showWelcome && hideWelcomeForKeyboard && !voiceCallLaunchEligible) || callControlsReplaceToolbar}
+                        inert={(showWelcome && hideWelcomeForKeyboard) || callControlsReplaceToolbar}
                     >
-                        {#if showWelcome && hideWelcomeForKeyboard && voiceCallLaunchEligible}
-                            <div class="welcome-focused-call-actions" data-composer-focus-control>{@render close()}</div>
-                        {:else}
                         <HeaderActionMenu
                             resetKey={currentChat?.chat_id}
                             hasShare={hasActiveShareableChatSurface}
@@ -14358,8 +14354,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                             triggerTestId="chat-more-button"
                             menuTestId="chat-more-actions"
                         />
-
-                        {/if}
                         {#if guestAllExamplesVisible && !$authStore.isAuthenticated}
                             <div class="guest-all-examples-toolbar" data-testid="guest-all-examples-toolbar">
                                 <button
@@ -17605,13 +17599,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         /* Ensure full width to keep justify-content: space-between working */
         width: 100%;
         box-sizing: border-box;
-    }
-
-    /* Preserve the handset's existing position while other welcome actions hide. */
-    .welcome-focused-call-actions {
-        display: flex;
-        justify-content: flex-end;
-        width: 100%;
     }
 
     .top-buttons.call-strip-stuck {

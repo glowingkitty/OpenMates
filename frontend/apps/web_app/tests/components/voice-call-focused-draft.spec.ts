@@ -10,7 +10,7 @@ for (const { width, direction } of [
   { width: 390, direction: 'rtl' },
 ]) {
   // contract-test: supporting surface=gui.web assertions=video-call.chat.launch-and-provider,video-call.audio.single-owner,video-call.chat.project-context
-  test(`starts once from the focused welcome composer at ${width}px ${direction}`, async ({ page }) => {
+  test(`hides the handset while the welcome composer is focused and starts once after blur at ${width}px ${direction}`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(`/dev/preview/voicecall/ActiveChatCallHeaderPreview?${new URLSearchParams({
       chrome: '0', theme: 'light', background: '#dbeafe', width: String(width),
@@ -23,26 +23,21 @@ for (const { width, direction } of [
     await expect(fixture).toHaveAttribute('data-call-status', 'idle');
     await editor.click();
     await expect(editor).toBeFocused();
-    const handset = page.locator('.welcome-focused-call-actions [data-testid="voice-call-start"]');
-    await expect(handset).toBeVisible();
-    await expect(handset).toBeEnabled();
-    await expect.poll(() => handset.evaluate(node => node.closest('[inert]') === null)).toBe(true);
+    const handset = page.getByTestId('voice-call-start');
+    await expect(handset).toBeHidden();
+    await expect(page.getByTestId('chat-top-actions')).toHaveAttribute('inert', '');
     for (const hiddenWelcome of ['welcome-content', 'daily-inspiration-area']) {
       await expect(page.getByTestId(hiddenWelcome)).toBeHidden();
       await expect(page.getByTestId(hiddenWelcome)).toHaveAttribute('inert', '');
     }
+    await editor.blur();
+    await expect(handset).toBeVisible();
+    await expect(handset).toBeEnabled();
     await expect(handset.getByTestId('voice-call-handset')).toHaveAttribute('data-icon', 'audiocall');
     const bounds = await handset.boundingBox();
     expect(bounds).not.toBeNull();
     expect(bounds!.x).toBeGreaterThanOrEqual(0);
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
-    await handset.focus();
-    await expect(handset).toBeFocused();
-    await editor.click();
-    await expect(editor).toBeFocused();
-    await expect(handset).toBeVisible();
-    // Native click includes pointerdown; its focus change must not replace the
-    // focused toolbar before the subsequent click reaches startup.
     await handset.click();
     await expect(fixture).toHaveAttribute('data-start-count', '1');
     await expect(fixture).toHaveAttribute('data-start-target', 'new-chat');
