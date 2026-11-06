@@ -39,6 +39,7 @@ from pydantic import BaseModel, Field
 from toon_format import decode as toon_decode
 
 from backend.apps.base_skill import BaseSkill
+from backend.shared.python_utils.pdf_ocr_readiness import wait_for_pdf_artefacts
 
 logger = logging.getLogger(__name__)
 
@@ -316,6 +317,13 @@ class ViewSkill(BaseSkill):
             # --- Step 2: Look up all crypto fields from Redis embed cache ---
             logger.info(f"{log_prefix} Looking up embed content from cache")
             embed_content = await self._lookup_embed_content(embed_id, resolved_vault_key_id)
+            # The assistant often calls this while processing is still running; wait for it.
+            embed_content = await wait_for_pdf_artefacts(
+                lambda: self._lookup_embed_content(embed_id, resolved_vault_key_id),
+                ("vault_wrapped_aes_key", "screenshot_s3_keys"),
+                initial=embed_content,
+                log_prefix=log_prefix,
+            )
 
             vault_wrapped_aes_key = embed_content.get("vault_wrapped_aes_key")
             screenshot_s3_keys: Dict[str, str] = embed_content.get("screenshot_s3_keys") or {}

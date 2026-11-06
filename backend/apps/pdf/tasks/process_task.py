@@ -95,6 +95,27 @@ def process_pdf_task(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
     return asyncio.run(_async_process_pdf(self, arguments))
 
 
+PDF_PROCESS_LOCK_TTL_SECONDS = 900  # above the 660s Celery hard limit
+
+
+async def _claim_pdf_processing(cache_service: Any, embed_id: str, task_id: str) -> bool:
+    """Single-flight per embed. A Celery retry keeps its task id and may re-enter.
+
+    Without a reachable cache the claim cannot be arbitrated; processing then
+    proceeds, because losing a user's PDF is worse than a duplicate OCR run.
+    """
+    client = await cache_service.client
+    if client is None:
+        return True
+    key = f"pdf:{embed_id}:process:lock"
+    if await client.set(key, task_id, nx=True, ex=PDF_PROCESS_LOCK_TTL_SECONDS):
+        return True
+    holder = await client.get(key)
+    if isinstance(holder, bytes):
+        holder = holder.decode("utf-8")
+    return holder == task_id
+
+
 async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -> Dict[str, Any]:
     """
     Main async implementation of the PDF processing pipeline.
@@ -123,6 +144,13 @@ async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -
 
     try:
         await task.initialize_services()
+
+        # The upload route and the message handler can both dispatch this task
+        # for one embed. A second concurrent run would repeat the paid OCR calls
+        # and race the first run's writes, so only one run per embed proceeds.
+        if not await _claim_pdf_processing(task._cache_service, embed_id, task_id):
+            logger.info(f"{log_prefix} Another task already processes this embed — skipping duplicate dispatch")
+            return {"embed_id": embed_id, "status": "duplicate_skipped"}
 
         # -----------------------------------------------------------------------
         # Dedup shortcut: if source_embed_id is provided, try to copy the OCR

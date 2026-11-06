@@ -47,6 +47,10 @@ def get_skill_timeout(app_id: str, skill_id: str, arguments: Dict[str, Any]) -> 
     # inherited output-safety scan before delivery of complete extracted text.
     if (app_id, skill_id) == ("web", "read"):
         return 75.0
+    # The assistant calls PDF skills while the upload's OCR task may still be
+    # running; they wait up to PDF_OCR_MAX_WAIT_SECONDS (150s) for it, then read.
+    if app_id == "pdf" and skill_id in ("read", "search", "view"):
+        return 180.0
     if (app_id, skill_id) == ("web", "browse"):
         from backend.shared.python_schemas.web_browse import BrowseRequest
         # Main processing attaches private dispatch context before selecting the
