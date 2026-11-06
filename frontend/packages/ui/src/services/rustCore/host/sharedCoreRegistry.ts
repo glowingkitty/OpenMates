@@ -9,7 +9,8 @@
  * Supervision: a Worker `error`/`messageerror` marks the realm crashed, rejects
  * every pending control request with `shared_core_crashed`, drops the bound
  * generation, notifies `onCrash` listeners (units must treat their ports as
- * dead) and terminates the Worker. The next request respawns a fresh Worker.
+ * dead) and terminates the Worker. `terminate()` (logout / account switch hard
+ * stop) notifies the same listeners. The next request respawns a fresh Worker.
  * There is no TypeScript fallback.
  */
 import {
@@ -35,6 +36,8 @@ export interface OpenUnitOptions {
 	/** Extra ports in their documented positions (core: ports[1] is the recovery port). */
 	extraPorts?: MessagePort[];
 	signal?: AbortSignal;
+	/** Open a pre-bind namespace (crypto/auth) outside any generation, so unbind does not close it. */
+	unbound?: boolean;
 }
 
 export interface SharedRustCore {
@@ -135,7 +138,7 @@ export function createSharedCoreClient(
 			const channel = new MessageChannel();
 			const ports = [channel.port2, ...(open.extraPorts ?? [])];
 			try {
-				await control({ type: 'open', ns, generation }, ports, open.signal);
+				await control({ type: 'open', ns, generation: open.unbound ? null : generation }, ports, open.signal);
 			} catch (error) {
 				channel.port1.close();
 				throw error;
@@ -167,16 +170,41 @@ export function createSharedCoreClient(
 			generation = null;
 			active?.terminate();
 			failAll('shared_core_terminated');
+			if (active) for (const listener of [...crashListeners]) listener();
 		}
 	};
 }
 
 let registered: SharedRustCore | null = null;
+const registrationWaiters = new Set<(core: SharedRustCore) => void>();
 
 /** Registers the single shared core; returns an unregister function bound to this exact registration. */
 export function registerSharedRustCore(core: SharedRustCore): () => void {
 	registered = core;
+	for (const waiter of [...registrationWaiters]) waiter(core);
 	return () => { if (registered === core) registered = null; };
+}
+/**
+ * Resolves with the registered core, waiting for a registration still in flight
+ * (the web_app registers it from a lazily imported chunk). Rejects with
+ * `shared_core_timeout` after `timeoutMs` and `shared_core_aborted` on abort.
+ */
+export function whenSharedRustCore(options: { timeoutMs?: number; signal?: AbortSignal } = {}): Promise<SharedRustCore> {
+	if (registered) return Promise.resolve(registered);
+	if (options.signal?.aborted) return Promise.reject(new SharedCoreError('shared_core_aborted'));
+	return new Promise((resolve, reject) => {
+		const settle = (error: SharedCoreError | null, core?: SharedRustCore) => {
+			registrationWaiters.delete(waiter);
+			clearTimeout(timer);
+			options.signal?.removeEventListener('abort', onAbort);
+			if (error) reject(error); else resolve(core!);
+		};
+		const waiter = (core: SharedRustCore) => settle(null, core);
+		const onAbort = () => settle(new SharedCoreError('shared_core_aborted'));
+		const timer = setTimeout(() => settle(new SharedCoreError('shared_core_timeout')), options.timeoutMs ?? SHARED_CORE_CONTROL_TIMEOUT_MS);
+		options.signal?.addEventListener('abort', onAbort, { once: true });
+		registrationWaiters.add(waiter);
+	});
 }
 /** True only when the Rust-core build registered the shared Worker. */
 export function isSharedRustCoreRegistered(): boolean { return registered !== null; }
