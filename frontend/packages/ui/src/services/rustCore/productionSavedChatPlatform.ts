@@ -7,7 +7,7 @@ import { parseBrowserLocalReadPlan } from "./protocol";
  * This is TS-equivalent local evidence; Rust's fresh session/expected-principal
  * checks still own remote authority. No cross-store atomicity/association ACK.
  */
-import { awaitBrowserRead, readExistingProfileOwner, readExistingSavedChatRows } from "./existingSavedChatIO";
+import { awaitBrowserRead, holdExistingDatabase, holdExistingProfileDatabase, readExistingSavedChatRows, readHeldProfileOwner } from "./existingSavedChatIO";
 import type { PriorProfileLifecycle } from "./platformLifecycle";
 import type { ExistingSavedChatProfile, ExistingSavedChatSources } from "./secondDeviceSavedChatSession";
 import type { SavedChatSelection } from "./selectedSavedChat";
@@ -58,7 +58,12 @@ export async function prepareSavedChatPlatform(port: BrowserPort): Promise<Prepa
   const owned = new WeakSet<ExistingSavedChatProfile>();
   const local = port.mode === "local_first";
   const compared = contextFields.filter(field => !local || field !== "checking");
-  const close = () => { key = null; if (closed) return; closed = true; lifetime.abort(); release(); port.signal.removeEventListener("abort", close); };
+  // One user_db / chats_db connection each for this platform's repeated checks
+  // and plan reads (no per-read databases() + open). A versionchange or forced
+  // close invalidates the platform's reads for good (fail closed).
+  const profileDatabase = holdExistingProfileDatabase(port.database);
+  const chatsDatabase = holdExistingDatabase(port.database, "chats_db");
+  const close = () => { key = null; if (closed) return; closed = true; lifetime.abort(); profileDatabase.close(); chatsDatabase.close(); release(); port.signal.removeEventListener("abort", close); };
   port.signal.addEventListener("abort", close, { once: true });
   const active = () => { if (closed || port.signal.aborted) throw new Error("cancelled"); };
   const flags = () => JSON.stringify([
@@ -90,7 +95,7 @@ export async function prepareSavedChatPlatform(port: BrowserPort): Promise<Prepa
     const sameProfile = async (signal:AbortSignal=lifetime.signal) => {
       const activeRead=()=>{current();if(signal.aborted)throw Error("cancelled");};
       activeRead();
-      const owner = await readExistingProfileOwner(port.database, signal, activeRead); activeRead();
+      const owner = await readHeldProfileOwner(profileDatabase, signal, activeRead); activeRead();
       const actual = await awaitBrowserRead(port.getMasterKey(), signal); activeRead();
       if (owner !== baseline.ownerId || actual !== key) throw new Error("invalidated_snapshot");
     };
@@ -120,7 +125,7 @@ export async function prepareSavedChatPlatform(port: BrowserPort): Promise<Prepa
           activeRead();if(!local)await sameProfile(combined.signal);activeRead();
           const encoded=JSON.stringify(plan),parsed=parseBrowserLocalReadPlan(encoded);
           if(parsed.owner!==baseline.ownerId||parsed.chatId!==selected.chatId)throw Error("invalidated_snapshot");
-          const packet=await executeBrowserLocalReadPlan(port.database,encoded,combined.signal,activeRead);activeRead();
+          const packet=await executeBrowserLocalReadPlan(port.database,encoded,combined.signal,activeRead,IDBKeyRange,undefined,chatsDatabase);activeRead();
           await sameProfile(combined.signal);activeRead();return packet;
         }finally{for(const source of signals)source.removeEventListener("abort",abort);}
       },

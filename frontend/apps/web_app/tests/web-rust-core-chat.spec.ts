@@ -21,6 +21,7 @@ const { createSignupLogger, createStepScreenshotter, getTestAccount, getE2EDebug
 const { loginToTestAccount, sendMessage } = require('./helpers/chat-test-helpers');
 const { createBrowserProcessEvidence } = require('./helpers/browser-process-evidence.cjs');
 const { rustCoreInstances } = require('./helpers/rust-core-instances');
+const { installMainThreadTrace, readMainThreadTrace } = require('./helpers/main-thread-trace');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -98,6 +99,9 @@ async function openChatAfterReload(page: any, chatId: string, path: 'ts' | 'rust
 	timing.browserCpuMs = process.available ? process.stableReportedProcessCpuMs : null;
 	timing.browserRssBytes = process.available ? process.after.summedReportedProcessRssBytes : null;
 	timing.mainHeapBytes = await page.evaluate(() => (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? null);
+	// Main-thread long tasks and page IndexedDB requests, split at the chat open (load-chat).
+	const stages = (timing.rustStages ?? {}) as Record<string, number>;
+	timing.mainThread = await readMainThreadTrace(page, stages['load-chat'] ?? null, typeof timing.chatRendered === 'number' ? timing.chatRendered : null);
 	// Shared-Worker bench counters: dedicated Workers and WASM instantiations of this load.
 	Object.assign(timing, await rustCoreInstances(page));
 	return timing;
@@ -116,6 +120,7 @@ test('opens a saved chat in the normal chat UI from Rust-decrypted history', asy
 	page.on('console', (msg: any) => { consoleLines.push(`${new Date().toISOString().slice(11, 23)} [${msg.type()}] ${msg.text()}`.slice(0, 500)); });
 	page.on('pageerror', (error: Error) => { consoleLines.push(`[pageerror] ${error.message}`.slice(0, 400)); });
 	page.on('worker', (worker: any) => { consoleLines.push(`[worker] ${worker.url()}`); });
+	await page.addInitScript(installMainThreadTrace);
 	// Keep every TS send debug step (the app only exposes the latest one).
 	await page.addInitScript(() => {
 		const trail: unknown[] = [];

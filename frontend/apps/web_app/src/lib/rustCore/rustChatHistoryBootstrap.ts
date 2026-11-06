@@ -27,6 +27,20 @@ export function markRustStage(stage: string): void {
 	if (typeof performance !== 'undefined') performance.mark(`openmates:rust:${stage}`);
 }
 
+/**
+ * Resolves once the page is idle after the current open (bounded), so background
+ * work (server-checked upgrade, reconcile) never competes with the cached rows'
+ * render for the main thread or the origin's IndexedDB. TS ordering: cache first.
+ */
+const BACKGROUND_IDLE_TIMEOUT_MS = 1000;
+function afterRender(): Promise<void> {
+	return new Promise((resolve) => {
+		if (typeof requestIdleCallback === 'function') requestIdleCallback(() => resolve(), { timeout: BACKGROUND_IDLE_TIMEOUT_MS });
+		// Engines without idle callbacks (Safari): after the next paint.
+		else requestAnimationFrame(() => setTimeout(resolve, 0));
+	});
+}
+
 /** Returns a disposer; safe to call once per page mount. */
 export function installRustChatHistory(): () => void {
 	// Rust-core services in @openmates/ui (drafts) obtain the Worker through this registry.
@@ -119,11 +133,11 @@ export function installRustChatHistory(): () => void {
 		markRustStage(session && !session.signal.aborted ? 'read-online-session' : early && !early.signal.aborted ? 'read-local-session' : 'read-no-local-session');
 		if (early && !early.signal.aborted) {
 			const result = await readLocal(early, chatId, anchorMessageId);
-			// Server check (upgrade) on the same Worker, started only now: on a cache hit
-			// one task later, after the rows render, so its page-side IDB checks never
-			// contend with the cached read or the render (TS ordering: cache first).
+			// Server check (upgrade) on the same Worker, started only once the page is idle
+			// after the cached rows rendered, so its page-side IDB checks never contend
+			// with the cached read or the render (TS ordering: cache first).
 			if (result) {
-				setTimeout(() => { if (!lifetime.signal.aborted) void ensureSession().catch(() => undefined); }, 0);
+				void afterRender().then(() => lifetime.signal.aborted ? undefined : ensureSession()).catch(() => undefined);
 				return result;
 			}
 		}
@@ -142,7 +156,7 @@ export function installRustChatHistory(): () => void {
 		const page = cached as LocalChatReadback | null;
 		if (page && page.chat.messages.length > 0 && (anchorMessageId === null || page.anchorFound)) {
 			return { window: localReadToMessageWindow(page, chatId, anchorMessageId !== null), source: 'cache',
-				reconcile: () => enqueue(() => serverRead(chatId, anchorMessageId)) };
+				reconcile: () => afterRender().then(() => enqueue(() => serverRead(chatId, anchorMessageId))) };
 		}
 		markRustStage(!page ? 'cache-miss-unavailable' : page.chat.messages.length === 0 ? 'cache-miss-empty' : 'cache-miss-anchor');
 		return { window: await serverRead(chatId, anchorMessageId), source: 'server', reconcile: null };
@@ -167,7 +181,7 @@ export function installRustChatHistory(): () => void {
 		const page = cached as LocalChatReadback | null;
 		if (!page || page.chat.messages.length === 0 || (anchorMessageId !== null && !page.anchorFound)) return null;
 		return { window: localReadToMessageWindow(page, chatId, anchorMessageId !== null), source: 'cache',
-			reconcile: () => enqueue(() => serverRead(chatId, anchorMessageId)) };
+			reconcile: () => afterRender().then(() => enqueue(() => serverRead(chatId, anchorMessageId))) };
 	};
 
 	const uninstall = installRustChatHistorySource({

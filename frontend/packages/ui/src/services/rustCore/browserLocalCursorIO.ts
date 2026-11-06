@@ -7,6 +7,7 @@ import type {RustChatIORoutingLease} from './browserAdapters';
  * No database initialization, writes, decryption, PII or schema migration occurs.
  */
 import { readExisting } from "./existingSavedChatIO";
+import type { HeldExistingDatabase } from "./existingSavedChatIO";
 import { boundedJson, validReadMessageId } from "./savedReadProtocol";
 const DATABASE = "chats_db", METADATA = "chats", MESSAGES = "messages", CHECKPOINTS = "chat_compression_checkpoints";
 const INDEX = "chat_id_created_at";
@@ -40,10 +41,13 @@ function compare(current: { createdAt: number; messageId: string }, bound: Local
 /** Generic plan execution only. Bind the guard to the existing admitted profile,
  * request and selection; owner labels in the plan cannot supply that authority. */
 export async function executeBrowserLocalReadPlan(factory: IDBFactory, encoded: string, signal: AbortSignal,
-  guard: () => void, keyRange: Pick<typeof IDBKeyRange, "bound"> = IDBKeyRange,routingLease?:RustChatIORoutingLease): Promise<string> {
+  guard: () => void, keyRange: Pick<typeof IDBKeyRange, "bound"> = IDBKeyRange,routingLease?:RustChatIORoutingLease,
+  /** Platform-held `chats_db` connection (unrouted plans only). */
+  held?: HeldExistingDatabase): Promise<string> {
+  if (held && routingLease) throw new Error("unavailable");
   guard(); if (signal.aborted) throw new Error("cancelled"); const plan = parseBrowserLocalReadPlan(encoded);
   const stores = (plan.kind === "metadata" || plan.kind === "owned_metadata") ? [METADATA, CHECKPOINTS] : [MESSAGES];
-  const reply = await readExisting<Record<string, unknown>>(factory, DATABASE, stores, signal, guard, (transaction, fail) => {
+  const issue = (transaction: IDBTransaction, fail: (error: unknown) => void): () => Record<string, unknown> => {
     const base = { version: 1, kind: plan.kind, operationId: plan.operationId, databaseVersion: transaction.db.version };
     let bytes = 1024;
     const count = (row: unknown) => {
@@ -74,7 +78,7 @@ export async function executeBrowserLocalReadPlan(factory: IDBFactory, encoded: 
       request.onsuccess=()=>{try{guard();if(request.result!==undefined){const anchor=jsonRow(request.result);count(anchor);messages.push(anchor);}}catch(error){fail(error);}};
       return()=>({...base,messages});
     }
-    const messages: unknown[] = []; let nextKey: ReturnType<typeof position> | null = null, rangeExhausted = false;
+    const messages: unknown[] = []; let nextKey: ReturnType<typeof position> | null = null, rangeExhausted = false, accepted = 0, loaded = 0;
     const lower = plan.lower, upper = plan.upper;
     const store = transaction.objectStore(MESSAGES);
     const request = store.index(INDEX).openKeyCursor(keyRange.bound([plan.chatId, lower?.createdAt ?? -Infinity],
@@ -94,12 +98,20 @@ export async function executeBrowserLocalReadPlan(factory: IDBFactory, encoded: 
         if (high > 0 && upper.messageId !== null) cursor.continuePrimaryKey([plan.chatId, upper.createdAt], upper.messageId);
         else cursor.continue(); return;
       }
-      if (messages.length === plan.maxPayloadRows) { nextKey = current; return; }
+      if (accepted === plan.maxPayloadRows) { nextKey = current; return; }
+      // Pipelined: the row read is queued and the key cursor advances at once (one
+      // main-thread hop per row, like TS's value cursor, instead of get-then-continue).
+      // A transaction runs its requests in placement order, so each row's success
+      // fires before the cursor's next one; the slot keeps the cursor order anyway.
+      const slot = accepted++;
       const row = store.get(cursor.primaryKey);
-      row.onsuccess = () => { try { guard(); const value = jsonRow(row.result); count(value); messages.push(value); cursor.continue(); } catch (error) { fail(error); } };
+      row.onsuccess = () => { try { guard(); const value = jsonRow(row.result); count(value); messages[slot] = value; loaded++; } catch (error) { fail(error); } };
+      cursor.continue();
     } catch (error) { fail(error); } };
-    return () => ({ ...base, messages, nextKey, rangeExhausted });
-  },routingLease);
+    return () => { if (loaded !== accepted) throw new Error("unavailable"); return { ...base, messages, nextKey, rangeExhausted }; };
+  };
+  const reply = held ? await held.read(stores, signal, guard, issue)
+    : await readExisting<Record<string, unknown>>(factory, DATABASE, stores, signal, guard, issue, routingLease);
   guard(); if (signal.aborted) throw new Error("cancelled");
   if (!boundedJson(reply)) throw new Error("unavailable");
   const result = JSON.stringify(reply);
