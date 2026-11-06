@@ -12,6 +12,29 @@ fn present_text<'a>(row: &'a Value, field: &str) -> Option<&'a str> {
 fn draft_version(row: &Value) -> u64 {
     row.get("draft_v").and_then(Value::as_u64).unwrap_or(0)
 }
+/// The selected read replaces the saved row, so the server unread count from
+/// `read_details` becomes the row's `unread_count`; without it `chats list`
+/// would lose the badge after a chat is opened (feature.chat-unread@1). A
+/// server that omits it keeps the count the saved row already had.
+pub(super) fn with_selected_unread(
+    row: &Value,
+    details: &Value,
+    cached_count: Option<u64>,
+) -> Result<Value> {
+    let mut selected = row.clone();
+    match details.get("unread_count") {
+        None | Some(Value::Null) => {
+            if let Some(count) = cached_count {
+                selected["unread_count"] = json!(count);
+            }
+        }
+        Some(value) => {
+            let count = value.as_u64().ok_or(Error::Protocol)?;
+            selected["unread_count"] = json!(count);
+        }
+    }
+    Ok(selected)
+}
 impl Client {
     /// True only when the server's selected row renders exactly the cached
     /// row's list output (title, summary, category, clocks, pin, versions and

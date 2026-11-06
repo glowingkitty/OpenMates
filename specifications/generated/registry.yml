@@ -589,6 +589,14 @@ specifications:
     required_applies_to:
     - gui.web
     - gui.apple
+  feature.chat-unread:
+    version: 1
+    status: draft
+    path: features/chat-unread
+    fingerprint: 7482f359d8b120f21ec9b8264f84596dee3603ac78daa2b3fa9fb3f6fdb853c6
+    required_applies_to:
+    - cli
+    - gui.web
   feature.chats:
     version: 7
     status: draft
@@ -7382,6 +7390,46 @@ assertions:
     required_applies_to:
     - gui.web
     - gui.apple
+  chat-unread.reply.read-at-last-line:
+    specification: feature.chat-unread@1
+    specification_id: feature.chat-unread
+    type: behavior
+    fingerprint: d0229a6184c6187f455b253f1269bf783bfa7507c78b56fc21ebc3c6dc142c45
+    required_applies_to:
+    - cli
+    - gui.web
+  chat-unread.followup.implies-read:
+    specification: feature.chat-unread@1
+    specification_id: feature.chat-unread
+    type: behavior
+    fingerprint: 1d2018ef44c62a50b08718cfb9053c6d134b52bb0912110a48ff1482e0344295
+    required_applies_to:
+    - cli
+    - gui.web
+  chat-unread.surfaces.sidebar-and-continue:
+    specification: feature.chat-unread@1
+    specification_id: feature.chat-unread
+    type: behavior
+    fingerprint: 0fc3b2b2edfae89c981f9978129f35f83a22b13716052998d56cfb55f7025c8a
+    required_applies_to:
+    - cli
+    - gui.web
+  chat-unread.persistence.cross-device:
+    specification: feature.chat-unread@1
+    specification_id: feature.chat-unread
+    type: invariant
+    fingerprint: 195342c78e0ff3eb352a867b98b6342984649a75292dbd63bbe7d49a7224baa5
+    required_applies_to:
+    - cli
+    - gui.web
+  chat-unread.manual.mark-unread:
+    specification: feature.chat-unread@1
+    specification_id: feature.chat-unread
+    type: behavior
+    fingerprint: daa2acce1dd3be1f0e2e9647c159197662c34f4ea45268d3c86947d22abc96d9
+    required_applies_to:
+    - cli
+    - gui.web
   chats.completion.independent-metadata:
     specification: feature.chats@7
     specification_id: feature.chats

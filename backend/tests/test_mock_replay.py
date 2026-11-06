@@ -33,6 +33,24 @@ class _StubCacheService:
     async def publish_event(self, channel: str, payload: dict) -> None:
         self.events.append((channel, payload))
 
+    async def get_chat_list_item_data(self, _user_id: str, _chat_id: str, refresh_ttl: bool = True):
+        return None
+
+    async def update_chat_read_status(self, *, user_id: str, chat_id: str, unread_count: int) -> bool:
+        return True
+
+
+class _StubDirectusChat:
+    def __init__(self) -> None:
+        self.unread_count = 0
+
+    async def get_chat_metadata(self, _chat_id: str) -> dict:
+        return {"unread_count": self.unread_count}
+
+    async def update_chat_read_status(self, *, chat_id: str, unread_count: int) -> bool:
+        self.unread_count = unread_count
+        return True
+
 
 class _StubDirectusResponse:
     status_code = 200
@@ -49,6 +67,7 @@ class _StubDirectusService:
 
     def __init__(self) -> None:
         self.requests = []
+        self.chat = _StubDirectusChat()
 
     async def _make_api_request(self, method: str, url: str, **kwargs) -> _StubDirectusResponse:
         request_json = kwargs["json"]
@@ -253,6 +272,18 @@ def test_replay_fixture_recovery_final_chunk_includes_sealed_job_metadata(
     assert final_chunk["chat_key_version"] == 7
     assert final_chunk["recovery_protocol_version"] == 1
     assert final_chunk["recovery_job_id"] == directus_service.requests[0]["data"]["job_id"]
+
+    # Fixture replay keeps the finished reply unread, like the stream consumer.
+    unread_events = [(channel, payload) for channel, payload in cache_service.events
+                     if payload.get("type") == "chat_unread_count_updated"]
+    assert unread_events == [("ai_message_persisted::owner-hash", {
+        "type": "chat_unread_count_updated",
+        "user_id_uuid": "11111111-1111-4111-8111-111111111111",
+        "chat_id": chat_id,
+        "unread_count": 1,
+        "message_id": final_chunk["message_id"],
+    })]
+    assert directus_service.chat.unread_count == 1
 
 
 def test_replay_fixture_publishes_fixture_postprocessing_metadata(monkeypatch) -> None:

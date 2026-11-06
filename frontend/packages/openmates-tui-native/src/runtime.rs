@@ -476,7 +476,8 @@ async fn run_terminal(args: Args) -> Result<()> {
                     terminal.backend_mut().flush()?;
                     dirty=false; painted=true;
                 }
-                Vec::new()
+                // Read detection runs while painting (feature.chat-unread@1).
+                ui.take_deferred_commands()
             },
             _ = auth_tick.tick(), if !demo => {
                 if expires_at.is_some_and(|deadline| deadline <= now_ms()) {
@@ -708,7 +709,7 @@ async fn run_terminal(args: Args) -> Result<()> {
                             }
                         }
                     }
-                    ui.set_busy(true);
+                    if !matches!(command, UiCommand::MarkRead(_)) { ui.set_busy(true); }
                     let critical = matches!(command, UiCommand::Logout | UiCommand::SwitchTeam(_));
                     let request = Request {
                         epoch,
@@ -768,6 +769,8 @@ fn demo_command(ui: &mut Ui, command: UiCommand) {
                 },
             ],
         }),
+        // The synthetic demo has no server-side unread counter to clear.
+        UiCommand::MarkRead(_) => {}
         _ => ui.set_status("Synthetic demo · this action requires a signed-in account"),
     }
 }
@@ -1013,7 +1016,7 @@ async fn actor(
         _=live_tick.tick(), if state.live_monitor.as_ref().is_some_and(|m|m.is_valid()) && !state.live_cancel.is_cancelled()
             =>Some(Request{epoch:state.live_epoch,work:Work::Live,cancel:state.live_cancel.clone()}),
     } {
-        let background = matches!(&request.work, Work::Live | Work::Inspirations);
+        let background = matches!(&request.work, Work::Live | Work::Inspirations | Work::Command(UiCommand::MarkRead(_)));
         let booting = matches!(&request.work, Work::Boot);
         let syncing = matches!(&request.work, Work::BootSync);
         let opening_chat = matches!(&request.work, Work::Command(UiCommand::Open(Workspace::Chats, _)));
@@ -2181,6 +2184,12 @@ impl Actor {
                     self.persist().await?;
                     if !generation.is_current() { return Err(Error::Cancelled); }
                     Self::emit(replies, epoch, view).await
+                }),
+                UiCommand::MarkRead(chat_id) => Box::pin(async move {
+                    let _request_cancel = &cancel;
+                    self.client.set_operation_cancel(cancel.clone());
+                    self.client.mark_chat_read(&chat_id).await?;
+                    self.persist().await
                 }),
                 UiCommand::Mutate(mutation) => Box::pin(async move {
                     let _request_cancel = &cancel;

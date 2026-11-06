@@ -1965,3 +1965,18 @@ async def test_bounded_chat_reads_cancel_and_drain_outstanding_reads() -> None:
         await task
     # Every started read was cancelled and drained before the caller saw the cancel.
     assert sorted(finished) == ["a", "b"]
+
+
+# contract-test: supporting surface=gui.web assertions=chat-unread.persistence.cross-device
+def test_phase2_always_sends_unread_chats_because_unread_changes_bump_no_version() -> None:
+    from backend.core.api.app.routes.handlers.websocket_handlers.sync_delta_hints import phase2_delta_reason
+
+    def reason(unread_count):
+        return phase2_delta_reason(
+            {"id": "chat-1", "unread_count": unread_count}, {"messages_v": 2}, SimpleNamespace(),
+            refresh=False, on_client=True, is_current=lambda *_args: True,
+        )
+
+    assert reason(1) == "sent_unread"
+    assert reason(0) == "skipped_current_redis"
+    assert reason(None) == "skipped_current_redis"

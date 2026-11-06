@@ -491,6 +491,14 @@ async fn observe_with_writers_mode(
     } else {
         invocation.text("chat")
     };
+    // Answering implies the previous reply was read (feature.chat-unread@1):
+    // clear the counter before dispatch so only the new reply counts.
+    if anonymous_id.is_none()
+        && !ephemeral
+        && let Some(id) = chat_id.filter(|id| uuid::Uuid::parse_str(id).is_ok())
+    {
+        client.mark_chat_read(id).await?;
+    }
     let (tx, mut updates) = mpsc::channel(64);
     let (consent, receiver) = mpsc::unbounded_channel();
     client.set_consent_receiver(receiver);

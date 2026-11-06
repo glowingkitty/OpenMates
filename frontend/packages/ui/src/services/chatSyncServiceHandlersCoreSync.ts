@@ -88,7 +88,7 @@ async function notifyBackgroundAssistantBatchMessage(
   );
   if (!assistantMessage) return;
 
-  unreadMessagesStore.incrementUnread(chatId);
+  unreadMessagesStore.incrementUnread(chatId, assistantMessage.message_id);
 
   let chatTitle = chat.title || "New message";
   if (!chat.title && chat.encrypted_title) {

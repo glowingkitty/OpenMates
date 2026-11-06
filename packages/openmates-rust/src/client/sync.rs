@@ -896,6 +896,8 @@ impl Client {
         let wrapping = self.wrapping_capability().await?;
         crypto_scope.check(self)?;
         self.active_chat = Some(id.to_owned());
+        let mut row = row;
+        self.carry_cached_unread_count(id, &mut row);
         self.insert_chat_row(id.to_owned(), row.clone());
         if draft_only(&row) && self.team()?.is_none() {
             let mut item = Plain::new(self.draft_item_with_capability(&row).await?);

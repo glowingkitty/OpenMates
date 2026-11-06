@@ -141,7 +141,7 @@ pub(super) fn saved_item(row: &Value, key: &[u8; 32]) -> Result<Item> {
         ..Item::default()
     });
     item.title = decrypt_optional(row, "encrypted_title", key)?;
-    item.fields = json!({"created_at":row["created_at"],"updated_at":row["updated_at"],"pinned":row["pinned"],"messages_v":row["messages_v"],"chat_list_title":if row.get("encrypted_title").and_then(Value::as_str).is_some_and(|v|!v.is_empty()){Value::String(item.title.clone())}else{Value::Null}});
+    item.fields = json!({"created_at":row["created_at"],"updated_at":row["updated_at"],"pinned":row["pinned"],"messages_v":row["messages_v"],"unread_count":row["unread_count"],"chat_list_title":if row.get("encrypted_title").and_then(Value::as_str).is_some_and(|v|!v.is_empty()){Value::String(item.title.clone())}else{Value::Null}});
     item.description = decrypt_optional(row, "encrypted_chat_summary", key)?;
     item.category = decrypt_optional(row, "encrypted_category", key)?;
     Ok(item.into_inner())

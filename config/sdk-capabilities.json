@@ -4345,7 +4345,8 @@
             "Reviewed serialized saved-send cancellation security source preserves original admitted root/key/owner/denial/policy and opaque final allocation guards. Global cancel targets current work/output; identity/root retirement remains distinct, including malformed replacement entry. Only after actual original driver drain may terminal continuation validate the genuine unchanged parent; old A output still refuses, with no replay or inferred remote cancellation/settlement. Existing10 work vectors remain exact prefix of23 authored vectors on the same Rust/npm/Python adapters; actual compiled23x3 execution and strict original-task cancel_ai_task notification race remain required UNRUN. Uncertain original admission remains bounded wiping memory with100/32MiB backpressure, not canonical encrypted durable journal/reload/settlement. Owned-driver V3/sibling scopes, actual B read/store/readback/publication while A held, writer/producer handoff and matched CPU/end-to-end/RAM/platform evidence remain separate required work. Browser facade/scheduler stays inactive; ordinary authorized tabs remain peers. Pure decode extraction grants no new API/IO/permission. This serialized baseline is no B-progress/durability/performance/release acceptance.",
             "Rust-only: @mention parsing/resolution (mentions.*, Client.resolve_mentions) is not yet exposed by the npm/Python SessionClient.",
             "Rust-only: sectioned encrypted cache snapshots and lazy cached-content restore (client.snapshot_sections, CachedContentLoader, restore_cached_chat_content, partially_restored_chats) back the native CLI/TUI cache-first open; the npm/Python SessionClient have no persistent cache API yet.",
-            "Rust-only: the chat sync feed (sync_feed, catch_up_chat_sync_feed, prefetch_chat_sync_feed, has_chat_sync_cursor), the workspace overview and home-card builders (overview, overview_cards, workspace_overview, due-soon saved items), chat-list ordering (order_chat_list_items, chat_list_from_feed), daily inspirations and the display-name hint back the native CLI/TUI warm start; the npm/Python SessionClient expose none of them yet."
+            "Rust-only: the chat sync feed (sync_feed, catch_up_chat_sync_feed, prefetch_chat_sync_feed, has_chat_sync_cursor), the workspace overview and home-card builders (overview, overview_cards, workspace_overview, due-soon saved items), chat-list ordering (order_chat_list_items, chat_list_from_feed), daily inspirations and the display-name hint back the native CLI/TUI warm start; the npm/Python SessionClient expose none of them yet.",
+            "Native Cookie mark-chat-read (feature.chat-unread@1) clears the server unread counter for the CLI/TUI with focused fixtures; npm/Python exposure and executable cross-SDK conformance remain open (the web app keeps its existing browser read-status write)."
           ],
           "status": "partial"
         },
@@ -4830,6 +4831,7 @@
             "client.Client.logout",
             "client.Client.mention_catalog",
             "client.Client.move_workspace_to_team",
+            "client.Client.mark_chat_read",
             "client.Client.mutate",
             "client.Client.new",
             "client.Client.new_chat_suggestions",

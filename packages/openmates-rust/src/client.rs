@@ -51,6 +51,7 @@ mod browser_draft;
 pub use browser_draft::{BrowserDraftAdmission, BrowserDraftControl, BrowserDraftPublication, BrowserDraftWrite};
 mod draft_clear;
 pub mod draft_preview;
+mod chat_read;
 mod draft_read;
 pub use draft_read::DraftReadAdmission;
 mod embed;

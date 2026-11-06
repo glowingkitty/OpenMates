@@ -506,7 +506,7 @@ async function notifyBackgroundAssistantBroadcast(
   // navigation to this chat. Recheck before either unread or private preview UI.
   if (expectedIdentity !== getWorkspaceCacheIdentity() || ownerID !== (get(userProfile).user_id || "") ||
       isChatVisiblyActive(chatId) || !claimChatMessageNotification(ownerID, chatId, message.message_id)) return;
-  unreadMessagesStore.incrementUnread(chatId);
+  unreadMessagesStore.incrementUnread(chatId, message.message_id);
   notificationStore.chatMessage(
     chatId,
     chatTitle,
@@ -2021,7 +2021,7 @@ export async function handleChatDeletedImpl(
  */
 export async function handleChatReadStatusUpdatedImpl(
   _serviceInstance: ChatSynchronizationService,
-  payload: { chat_id: string; unread_count: number },
+  payload: { chat_id: string; unread_count: number; message_id?: string },
 ): Promise<void> {
   if (!payload || !payload.chat_id) {
     console.error(
@@ -2031,14 +2031,14 @@ export async function handleChatReadStatusUpdatedImpl(
     return;
   }
 
-  const { chat_id, unread_count } = payload;
+  const { chat_id, unread_count, message_id } = payload;
   console.debug(
     `[ChatSyncService:ChatUpdates] Received chat_read_status_updated for chat ${chat_id}: unread_count=${unread_count}`,
   );
 
   // 1. Update the in-memory unread store so badges update immediately
   const { unreadMessagesStore } = await import("../stores/unreadMessagesStore");
-  unreadMessagesStore.setUnread(chat_id, unread_count);
+  unreadMessagesStore.setUnread(chat_id, unread_count, message_id);
 
   // 2. Persist to IndexedDB so the count survives page reloads
   try {

@@ -14,6 +14,7 @@ from backend.core.api.app.utils.websocket_lifecycle import (
 # Import necessary services and utilities
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.cache_user_mixin import canonical_session_user_id
+from backend.core.api.app.services.chat_unread_counter import UNREAD_COUNT_UPDATED_EVENT
 from backend.core.api.app.services.pair_session_deadline import get_pair_deadline_hash
 from backend.core.api.app.services.session_security_state import get_session_state_cached
 from backend.core.api.app.services.storage_archive_client_compatibility import (
@@ -2526,6 +2527,24 @@ async def listen_for_ai_message_persisted_events(app: FastAPI):
                 redis_channel_name = message.get("channel", "")
                 
                 internal_event_type = redis_payload.get("type")
+                if internal_event_type == UNREAD_COUNT_UPDATED_EVENT:
+                    unread_count = redis_payload.get("unread_count")
+                    if not redis_payload.get("user_id_uuid") or not isinstance(unread_count, int):
+                        logger.warning(
+                            "AI Persisted Listener: Malformed unread payload "
+                            f"(summary: {_safe_payload_summary(redis_payload)})"
+                        )
+                        continue
+                    await manager.broadcast_to_user_specific_event(
+                        user_id=redis_payload["user_id_uuid"],
+                        event_name="chat_read_status_updated",
+                        payload={
+                            "chat_id": redis_payload.get("chat_id"),
+                            "unread_count": unread_count,
+                            "message_id": redis_payload.get("message_id"),
+                        },
+                    )
+                    continue
                 if internal_event_type != "ai_message_persisted":
                     logger.warning(f"AI Persisted Listener: Received unexpected event type '{internal_event_type}' on channel '{redis_channel_name}'. Skipping.")
                     continue
@@ -2586,6 +2605,21 @@ async def listen_for_ai_message_persisted_events(app: FastAPI):
                     f"AI Persisted Listener: Broadcasted '{event_for_client}' to user {user_id_uuid} "
                     f"with payload summary: {_safe_payload_summary(client_payload)}"
                 )
+
+                # Server-authoritative unread count for the reply (set by stream_consumer).
+                # Sent to every device, including the visible one, which re-reports 0
+                # immediately if the reply's last line is already on screen.
+                unread_count = redis_payload.get("unread_count")
+                if isinstance(unread_count, int):
+                    await manager.broadcast_to_user_specific_event(
+                        user_id=user_id_uuid,
+                        event_name="chat_read_status_updated",
+                        payload={
+                            "chat_id": redis_payload.get("chat_id"),
+                            "unread_count": unread_count,
+                            "message_id": message_content_for_client.get("message_id"),
+                        },
+                    )
 
             elif message and message.get("error") == "json_decode_error":
                 logger.error(
@@ -4851,7 +4885,7 @@ async def websocket_endpoint(
                         user_id=user_id,
                         exclude_device_hash=device_fingerprint_hash,
                     )
-                    
+
                     logger.info(f"User {user_id}: Updated and broadcast read status for chat {chat_id}: unread_count = {unread_count}")
                 except Exception as e:
                     logger.error(f"User {user_id}: Failed to update read status: {str(e)}")

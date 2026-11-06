@@ -1,0 +1,61 @@
+{
+  "fixture_id": "unread_long_reply",
+  "recorded_at": "2026-11-03T10:00:00Z",
+  "speed_profile": "instant",
+  "user_message_snippet": "Explain rainbows step by step",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "science",
+    "title": "How Rainbows Form",
+    "icon_names": [
+      "rainbow"
+    ],
+    "selected_model_id": "anthropic/claude-sonnet-4-20250514",
+    "selected_model_name": "Claude Sonnet",
+    "mate_id": "default",
+    "chat_summary": "User asked how rainbows form",
+    "chat_tags": [
+      "science",
+      "optics"
+    ],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.7,
+    "complexity": "simple",
+    "steps": [
+      {
+        "step": "title_generated",
+        "data": {
+          "title": "How Rainbows Form"
+        }
+      },
+      {
+        "step": "mate_selected",
+        "data": {
+          "mate_id": "default"
+        }
+      },
+      {
+        "step": "model_selected",
+        "data": {
+          "model_name": "Claude Sonnet",
+          "provider_name": "Anthropic"
+        }
+      }
+    ]
+  },
+  "typing_started": {
+    "category": "science",
+    "model_name": "Claude Sonnet",
+    "provider_name": "Anthropic",
+    "server_region": "EU"
+  },
+  "response": "## 1. Light enters a raindrop\n\nLight enters a raindrop is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Light enters a raindrop is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Light enters a raindrop is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Light enters a raindrop is one of the steps that turns sunlight and falling rain into the arc you see in the sky.\n\n## 2. Refraction bends each wavelength\n\nRefraction bends each wavelength is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Refraction bends each wavelength is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Refraction bends each wavelength is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Refraction bends each wavelength is one of the steps that turns sunlight and falling rain into the arc you see in the sky.\n\n## 3. Internal reflection\n\nInternal reflection is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Internal reflection is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Internal reflection is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Internal reflection is one of the steps that turns sunlight and falling rain into the arc you see in the sky.\n\n## 4. Dispersion separates colours\n\nDispersion separates colours is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Dispersion separates colours is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Dispersion separates colours is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Dispersion separates colours is one of the steps that turns sunlight and falling rain into the arc you see in the sky.\n\n## 5. The 42 degree angle\n\nThe 42 degree angle is one of the steps that turns sunlight and falling rain into the arc you see in the sky. The 42 degree angle is one of the steps that turns sunlight and falling rain into the arc you see in the sky. The 42 degree angle is one of the steps that turns sunlight and falling rain into the arc you see in the sky. The 42 degree angle is one of the steps that turns sunlight and falling rain into the arc you see in the sky.\n\n## 6. Secondary rainbows\n\nSecondary rainbows is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Secondary rainbows is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Secondary rainbows is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Secondary rainbows is one of the steps that turns sunlight and falling rain into the arc you see in the sky.\n\n## 7. Alexander's dark band\n\nAlexander's dark band is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Alexander's dark band is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Alexander's dark band is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Alexander's dark band is one of the steps that turns sunlight and falling rain into the arc you see in the sky.\n\n## 8. Supernumerary bows\n\nSupernumerary bows is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Supernumerary bows is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Supernumerary bows is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Supernumerary bows is one of the steps that turns sunlight and falling rain into the arc you see in the sky.\n\n## 9. Fogbows\n\nFogbows is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Fogbows is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Fogbows is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Fogbows is one of the steps that turns sunlight and falling rain into the arc you see in the sky.\n\n## 10. Moonbows\n\nMoonbows is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Moonbows is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Moonbows is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Moonbows is one of the steps that turns sunlight and falling rain into the arc you see in the sky.\n\n## 11. Polarisation\n\nPolarisation is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Polarisation is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Polarisation is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Polarisation is one of the steps that turns sunlight and falling rain into the arc you see in the sky.\n\n## 12. Why rainbows are circles\n\nWhy rainbows are circles is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Why rainbows are circles is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Why rainbows are circles is one of the steps that turns sunlight and falling rain into the arc you see in the sky. Why rainbows are circles is one of the steps that turns sunlight and falling rain into the arc you see in the sky.\n\nThat is the whole journey of light through a raindrop, from the first refraction to the final arc.\n\nUNREAD_LONG_REPLY_LAST_LINE",
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": 45,
+    "completion_tokens": 900,
+    "total_credits": 3,
+    "model_name": "Claude Sonnet"
+  }
+}

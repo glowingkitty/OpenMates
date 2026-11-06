@@ -561,7 +561,10 @@ fn record_change(changes: &Changes, kind: &str, value: &Value) -> Result<()> {
         | "ai_background_response_completed"
         | "team_chat_message_created"
         | "team_ai_response_completed"
-        | "team_chat_created" => {
+        | "team_chat_created"
+        // Another device (or the server, after a finished reply) changed the
+        // unread counter: re-read that chat's metadata (feature.chat-unread@1).
+        | "chat_read_status_updated" => {
             let id = if kind == "team_chat_created" {
                 chat_id(&value["chat"], "id")?
             } else {
@@ -1337,6 +1340,23 @@ mod tests {
         error
     }
 // contract-test: supporting surface=sdks.rust assertions=auth.session.authoritative-enforcement,sync.client.shared-rust-policy
+    // contract-test: supporting surface=cli assertions=chat-unread.persistence.cross-device
+    #[test]
+    fn read_status_updates_queue_an_exact_chat_metadata_refresh() {
+        let id = "11111111-1111-4111-8111-111111111111";
+        let changes = Changes {
+            read_port: Mutex::new(None),
+            send_lane: None,
+            pending: Mutex::new(Pending::default()),
+            wake: Notify::new(),
+        };
+        record_change(&changes, "chat_read_status_updated", &json!({"chat_id":id,"unread_count":1})).unwrap();
+        let pending = changes.pending.lock().unwrap();
+        assert!(pending.refresh);
+        assert!(pending.chats.contains(id));
+        assert!(record_change(&changes, "chat_read_status_updated", &json!({"chat_id":"x"})).is_err());
+    }
+
     #[tokio::test]
     async fn force_logout_revokes_an_idle_client() {
         assert_eq!(

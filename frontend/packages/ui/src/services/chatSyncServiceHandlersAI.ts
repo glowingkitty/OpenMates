@@ -1181,7 +1181,7 @@ export async function handleAIBackgroundResponseCompletedImpl(
       );
 
       // Increment unread count for this chat
-      unreadMessagesStore.incrementUnread(payload.chat_id);
+      unreadMessagesStore.incrementUnread(payload.chat_id, payload.message_id);
 
       // Extract a preview from the AI response content (first ~120 chars, strip markdown)
       let messagePreview = "New AI response ready";
@@ -6214,7 +6214,7 @@ export async function handleAwaitingUserInputImpl(
     );
 
     if (!isChatVisiblyActive(payload.chat_id)) {
-      unreadMessagesStore.incrementUnread(payload.chat_id);
+      unreadMessagesStore.incrementUnread(payload.chat_id, questionMessage.message_id);
       notificationStore.chatMessage(
         payload.chat_id,
         chat.title || "Sub-chat needs input",

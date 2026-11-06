@@ -41,6 +41,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import type { Chat, ChatCompressionCheckpoint, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult, ResumeCardImageBubble } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
+    import { markChatRead, markReadIfLatestReplySeen, hasUnread } from '../services/chatReadState';
+    import { unreadMessagesStore } from '../stores/unreadMessagesStore';
+    import ContinueCardUnreadBadge from './workspace/ContinueCardUnreadBadge.svelte';
     import { isChatMetadataTurnCurrent, getChatMetadataTurnKey } from '../services/lateChatMetadataGuard';
     import { chatNavigationReader } from '../services/chatNavigationReader';
     import { initialChatHistoryGate } from '../services/initialChatHistoryGate';
@@ -334,6 +337,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         revealSubmittedMessage: (messageId: string) => Promise<void>;
         restoreScrollPosition: (messageId: string) => void;
         scrollToLatestAssistantMessage: () => void;
+        isLatestMessageEndVisible: () => boolean;
     };
 
     type MessageInputFieldRef = {
@@ -7455,6 +7459,15 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             editCreatedAt?: number,
         };
 
+        // Answering a reply implies it was read, even if not scrolled to its end;
+        // the follow-up reply then counts as a single new unread message.
+        if (!newChat && currentChat?.chat_id === message.chat_id && $authStore.isAuthenticated
+            && !isPublicChat(message.chat_id) && hasUnread(message.chat_id, currentChat.unread_count)) {
+            currentChat = { ...currentChat, unread_count: 0 };
+            void markChatRead(message.chat_id, 'follow-up sent').catch((error) =>
+                console.error('[ActiveChat] Error marking chat read on send:', error));
+        }
+
         if ((newChat || !currentChat?.chat_id) && cancelledPendingNewChatDraftText && (!cancelledPendingNewChatId || cancelledPendingNewChatId === message.chat_id)) {
             const draftText = cancelledPendingNewChatDraftText;
             const preserveChatId = cancelledPendingNewChatPreserveId;
@@ -10070,22 +10083,62 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             return;
         }
         void reportVisibleMessages(currentChat.chat_id);
-        
+        await markCurrentChatReadIfLatestReplySeen();
+    }
+
+    // A chat is read only once the last line of its newest reply has been visible.
+    // Opening a chat, or seeing only the first lines of a long reply, keeps it unread.
+    async function markCurrentChatReadIfLatestReplySeen(): Promise<void> {
+        const chat = currentChat;
+        if (!chat?.chat_id || !chatHistoryRef || isPublicChat(chat.chat_id) || !$authStore.isAuthenticated) return;
+        const historyRef = chatHistoryRef;
         try {
-            // Update unread count to 0 (mark as read)
-            await chatDB.updateChatReadStatus(currentChat.chat_id, 0);
-            
-            // Send to server
-            await chatSyncService.sendChatReadStatus(currentChat.chat_id, 0);
-            
-            // Update local state
-            currentChat = { ...currentChat, unread_count: 0 };
-            
-            console.debug(`[ActiveChat] Marked chat ${currentChat.chat_id} as read (unread_count = 0)`);
+            const marked = await markReadIfLatestReplySeen({
+                chatId: chat.chat_id,
+                persistedUnreadCount: chat.unread_count,
+                isLatestMessageEndVisible: () => historyRef.isLatestMessageEndVisible(),
+                isChatStillOpen: () => currentChat?.chat_id === chat.chat_id && chatHistoryRef === historyRef,
+            });
+            if (marked && currentChat?.chat_id === chat.chat_id) {
+                currentChat = { ...currentChat, unread_count: 0 };
+            }
         } catch (error) {
             console.error('[ActiveChat] Error marking chat as read:', error);
         }
     }
+
+    // Re-check when a new reply becomes unread for the visible chat (it may already
+    // be fully on screen), when the newest reply finishes rendering (the unread
+    // signal can arrive before it does) and when the tab becomes visible again.
+    let currentChatUnreadCount = $derived(
+        currentChat?.chat_id ? ($unreadMessagesStore.unreadCounts.get(currentChat.chat_id) ?? 0) : 0
+    );
+    let latestMessageRenderKey = $derived.by(() => {
+        const latest = currentMessages[currentMessages.length - 1];
+        return latest ? `${latest.message_id}:${latest.status}` : '';
+    });
+    $effect(() => {
+        void latestMessageRenderKey;
+        if (currentChatUnreadCount <= 0) return;
+        untrack(() => {
+            void tick().then(() => requestAnimationFrame(() => { void markCurrentChatReadIfLatestReplySeen(); }));
+        });
+    });
+    $effect(() => {
+        const onVisible = () => { if (document.visibilityState === 'visible') void markCurrentChatReadIfLatestReplySeen(); };
+        document.addEventListener('visibilitychange', onVisible);
+        return () => document.removeEventListener('visibilitychange', onVisible);
+    });
+
+    // A manual "mark as unread" lasts until the user leaves that chat.
+    let previousReadTrackedChatId: string | null = null;
+    $effect(() => {
+        const chatId = currentChat?.chat_id ?? null;
+        if (previousReadTrackedChatId && previousReadTrackedChatId !== chatId) {
+            unreadMessagesStore.releaseManualUnread(previousReadTrackedChatId);
+        }
+        previousReadTrackedChatId = chatId;
+    });
 
     /** The page recovery path must not reopen a surface this component already owns. */
     export function getCurrentChatId(): string | null {
@@ -14492,6 +14545,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                                 ontouchend={handleResumeCardTouchEnd}
                                                 type="button"
                                             >
+                                                <ContinueCardUnreadBadge chatId={priorityChat.chat_id} variant="large" />
                                                 <div class="continue-priority-pill" data-testid="continue-priority-pill">
                                                     <PriorityPillIcon size={12} color="white" />
                                                     <span>{item.priority.label}</span>
@@ -14549,6 +14603,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                                 ontouchend={handleResumeCardTouchEnd}
                                                 type="button"
                                             >
+                                                <ContinueCardUnreadBadge chatId={item.kind === 'chat' ? item.chat.chat_id : ''} variant="compact" />
                                                 <div class="resume-chat-compact-icon">
                                                     <PriorityIconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
                                                 </div>
@@ -14589,6 +14644,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                                 onmouseleave={handleResumeLargeCardMouseLeave}
                                                 type="button"
                                             >
+                                                <ContinueCardUnreadBadge chatId={resumeChatData.chat_id} variant="large" />
                                                 {#if resumeChatData.pinned}
                                                     {@const PinIcon = getLucideIcon('pin')}
                                                     <div class="resume-card-pin-badge" data-testid="resume-card-pin">
@@ -14650,6 +14706,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                                 ontouchend={handleResumeCardTouchEnd}
                                                 type="button"
                                             >
+                                                <ContinueCardUnreadBadge chatId={resumeChatData.chat_id} variant="compact" />
                                                 {#if resumeChatData.pinned}
                                                     {@const PinIconCompact = getLucideIcon('pin')}
                                                     <div class="resume-card-pin-badge compact" data-testid="resume-card-pin">
@@ -14703,6 +14760,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                                 ontouchend={handleResumeCardTouchEnd}
                                                 type="button"
                                             >
+                                                <ContinueCardUnreadBadge chatId={meta.chat.chat_id} variant="compact" />
                                                 <div class="resume-chat-content resume-chat-draft-content">
                                                     <span class="resume-chat-draft-label">{$text('enter_message.draft')}</span>
                                                     <span class="resume-chat-draft-preview">{meta.draftPreview.length > 80 ? meta.draftPreview.slice(0, 80) + '…' : meta.draftPreview}</span>
@@ -14730,6 +14788,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                                 onmousemove={(e) => tilt?.onMouseMove(e)}
                                                 onmouseleave={() => tilt?.onMouseLeave()}
                                             >
+                                                <ContinueCardUnreadBadge chatId={meta.chat.chat_id} variant="large" />
                                                 {#if meta.chat.pinned}
                                                     {@const PinIcon = getLucideIcon('pin')}
                                                     <div class="resume-card-pin-badge" data-testid="resume-card-pin">
@@ -14788,6 +14847,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                                 ontouchend={handleResumeCardTouchEnd}
                                                 type="button"
                                             >
+                                                <ContinueCardUnreadBadge chatId={meta.chat.chat_id} variant="compact" />
                                                 {#if meta.chat.pinned}
                                                     {@const PinIcon = getLucideIcon('pin')}
                                                     <div class="resume-card-pin-badge compact" data-testid="resume-card-pin">

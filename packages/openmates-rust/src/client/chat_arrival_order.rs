@@ -18,6 +18,9 @@ pub(super) fn restore(value:Option<&Value>,chats:&BTreeMap<String,Value>)->Resul
 }
 impl Client {
     pub(super) fn insert_chat_row(&mut self,id:String,row:Value)->Option<Value>{
+        // Every replacement path keeps the server counter until a row states a new one.
+        let mut row=row;
+        self.carry_cached_unread_count(&id,&mut row);
         if !self.chats.contains_key(&id) {if let Some(order)=&mut self.chat_arrival_order {order.push(id.clone());}}
         self.chats.insert(id,row)
     }

@@ -20,6 +20,7 @@ from backend.shared.python_utils.saved_chat_turn_authority import admission_chat
 from backend.core.api.app.tasks import celery_config
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.chat_unread_counter import increment_unread_for_assistant_reply
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.translations import TranslationService
@@ -4052,6 +4053,13 @@ async def _update_chat_metadata(
     # This ensures follow-up messages include assistant responses in the history
     # The cache tracks its own messages_v for AI inference purposes
     if cache_service:
+        # Server-authoritative unread counter: a finished top-level assistant reply
+        # stays unread until a client reports its last line was seen.
+        unread_count: Optional[int] = None
+        if not rejection_reason and not request_data.parent_id:
+            unread_count = await increment_unread_for_assistant_reply(
+                cache_service, directus_service, request_data.user_id, request_data.chat_id,
+            )
         await _save_to_cache_and_publish(
             request_data, task_id, category, timestamp,
             new_messages_v, cache_service,  # Pass the NEW version, cache will use it explicitly
@@ -4060,6 +4068,7 @@ async def _update_chat_metadata(
             model_name=model_name,
             rejection_reason=rejection_reason,
             native_cache_context=native_cache_context,
+            unread_count=unread_count,
         )
 
 
@@ -4137,6 +4146,7 @@ async def _save_to_cache_and_publish(
     model_name: Optional[str] = None,
     rejection_reason: Optional[str] = None,
     native_cache_context: Optional[Dict[str, Any]] = None,
+    unread_count: Optional[int] = None,
 ) -> None:
     """Save message to cache and publish persistence event.
 
@@ -4249,7 +4259,8 @@ async def _save_to_cache_and_publish(
             "user_id_hash": request_data.user_id_hash,
             "message": client_message,
             "versions": {"messages_v": messages_version},
-            "last_edited_overall_timestamp": timestamp
+            "last_edited_overall_timestamp": timestamp,
+            "unread_count": unread_count,
         }
         
         persisted_channel = f"ai_message_persisted::{request_data.user_id_hash}"

@@ -649,6 +649,13 @@ impl Client {
                     code: "chat_details_projection_unavailable",
                     reason: "The server does not provide the selected rich-read projection.",
                 })?;
+        let cached_unread = self
+            .chats
+            .get(id)
+            .and_then(|cached| cached.get("unread_count"))
+            .and_then(Value::as_u64);
+        let selected = prefetch::with_selected_unread(row, source, cached_unread)?;
+        let row = &selected;
         let wrapping = self.wrapping_capability().await?;
         admission.check(self)?;
         scope.check_chat(self, id)?;

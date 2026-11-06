@@ -3037,6 +3037,30 @@ import { storageArchiveFetch } from "../config/api";
     }
   }
 
+  const UNFINISHED_REPLY_STATUSES = new Set(['processing', 'streaming', 'sending']);
+
+  /**
+   * True when the end (last text line) of the newest rendered message is inside
+   * the visible chat viewport. Drives unread clearing: a reply only counts as
+   * read once its last line has been on screen, not when the chat is opened.
+   * The newest message must be a finished assistant reply: while a reply is
+   * pending or still rendering, its short placeholder (or the user's question
+   * above it) is not the reply's last line.
+   */
+  export function isLatestMessageEndVisible(): boolean {
+    if (!container || timelineSection !== null || isRestoringScroll) return false;
+    const messages = container.querySelectorAll<HTMLElement>('[data-message-id]');
+    const latest = messages[messages.length - 1];
+    if (!latest) return false;
+    if (latest.dataset.testid !== 'message-assistant' || latest.dataset.streaming === 'true'
+        || UNFINISHED_REPLY_STATUSES.has(latest.dataset.status ?? '')) return false;
+    const containerRect = container.getBoundingClientRect();
+    const latestRect = latest.getBoundingClientRect();
+    if (latestRect.height <= 0) return false;
+    // Same 50px tolerance as the scrolled-to-bottom check.
+    return latestRect.bottom <= containerRect.bottom + 50 && latestRect.bottom > containerRect.top;
+  }
+
   // Restore scroll position to a specific message with 70px offset
   export function restoreScrollPosition(messageId: string) {
     // Background repair/restoration of the live window must not move a reader

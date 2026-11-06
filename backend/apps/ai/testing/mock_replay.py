@@ -25,6 +25,7 @@ from backend.apps.ai.processing.preprocessor import PreprocessingResult
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+from backend.core.api.app.services.chat_unread_counter import increment_and_publish_unread
 from backend.shared.python_utils.chat_completion_recovery_job import build_sealed_recovery_job_data
 
 if TYPE_CHECKING:
@@ -530,6 +531,16 @@ async def replay_fixture(
             await _publish_skill_status(
                 skill_event, task_id, request_data, cache_service
             )
+
+    # Same unread step as the stream consumer's _update_chat_metadata, which
+    # fixture replay skips: a finished top-level reply stays unread until seen.
+    if directus_service is not None and not request_data.is_external and not request_data.parent_id:
+        await increment_and_publish_unread(
+            cache_service, directus_service,
+            user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+            chat_id=request_data.chat_id,
+            message_id=_assistant_message_id(task_id, request_data),
+        )
 
     # --- 5. Publish thinking content (if any) ---
     thinking_content_text = fixture_data.get("thinking_content")

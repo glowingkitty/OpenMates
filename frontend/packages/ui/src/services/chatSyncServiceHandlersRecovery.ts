@@ -1413,7 +1413,7 @@ export async function handleRecoveryJobsAvailableImpl(
       }
       aiTypingStore.clearTyping(job.chat_id, job.assistant_message_id);
       if (!isChatVisiblyActive(job.chat_id) && !updatedChat.is_sub_chat && !updatedChat.parent_id) {
-        unreadMessagesStore.incrementUnread(job.chat_id);
+        unreadMessagesStore.incrementUnread(job.chat_id, job.assistant_message_id);
         notificationStore.chatMessage(
           job.chat_id,
           updatedChat.title || "New message",

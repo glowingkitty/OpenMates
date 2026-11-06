@@ -1136,31 +1136,9 @@
   let isPinned = $derived(pinnedOverride ?? !!chat?.pinned);
   let chatForContextMenu = $derived(chat ? { ...chat, pinned: isPinned, unread_count: unreadCount } : undefined);
   
-  // Flag to temporarily suppress auto-clear when user manually marks as unread
-  // This prevents the effect from immediately clearing the unread state
-  let suppressAutoClear = $state(false);
-  
-  // Track previous active state to detect when user navigates away
-  let wasActive = $state(false);
-  
-  // Clear unread count when chat becomes active (user is viewing it)
-  // But NOT if we just marked it as unread (suppressAutoClear flag)
-  $effect(() => {
-    if (isActive && chat?.chat_id && unreadCount > 0 && !suppressAutoClear) {
-      unreadMessagesStore.clearUnread(chat.chat_id);
-    }
-  });
-  
-  // Reset suppressAutoClear when user navigates away from the chat
-  // This ensures that when user opens the chat again, it will be marked as read
-  $effect(() => {
-    if (wasActive && !isActive) {
-      // User navigated away from this chat, reset the suppress flag
-      suppressAutoClear = false;
-    }
-    wasActive = isActive;
-  });
-  
+  // Opening a chat does not mark it read: ActiveChat clears the count only once
+  // the last line of the latest reply has been visible (see unreadMessagesStore).
+
   // Detect if this is a draft-only chat (has draft content but no title and no messages) using Svelte 5 runes.
   // CRITICAL: Also check the raw chat object for draft indicators (encrypted_draft_preview / encrypted_draft_md)
   // so isDraftOnly is true immediately on first render, before the async updateDisplayInfo() call resolves
@@ -1810,14 +1788,9 @@
       // Set unread count to 1 (marking as unread) - always 1, never increment
       const newUnreadCount = 1;
 
-      // Suppress auto-clear so the effect doesn't immediately clear this
-      // The flag will be cleared when user navigates away and back
-      suppressAutoClear = true;
-
-      // Clear existing count first (to ensure we set to exactly 1, not increment)
-      unreadMessagesStore.clearUnread(chatIdToMarkUnread);
-      // Then set to 1
-      unreadMessagesStore.incrementUnread(chatIdToMarkUnread);
+      // Exactly 1; ActiveChat's visibility-based read detection skips manual
+      // marks until the user leaves the chat.
+      unreadMessagesStore.markManuallyUnread(chatIdToMarkUnread);
 
       // Update the chat in IndexedDB
       const updatedChat = { ...snapshotChatForStorage(), unread_count: newUnreadCount };
@@ -1858,9 +1831,6 @@
 
       // Set unread count to 0 (marking as read)
       const newUnreadCount = 0;
-
-      // Clear the suppress flag since user is marking as read
-      suppressAutoClear = false;
 
       // Clear local unread store for immediate UI feedback
       unreadMessagesStore.clearUnread(chatIdToMarkRead);

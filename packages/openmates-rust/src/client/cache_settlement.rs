@@ -232,6 +232,8 @@ impl Client {
         scope.check_chat(self, id)?;
         self.require_canonical_read_profile()?;
         self.verify_private_operation()?;
+        let mut row = row;
+        self.carry_cached_unread_count(id, &mut row);
         self.insert_chat_row(id.to_owned(), row);
         self.active_chat = Some(id.to_owned());
         Ok(Some(chat.into_inner()))

@@ -647,7 +647,9 @@
         "code-run-dependency-flow.spec.ts",
         "chat-menu-parity.spec.ts",
         "web-rust-core-chat.spec.ts",
-        "web-rust-core-embeds.spec.ts"
+        "web-rust-core-embeds.spec.ts",
+        "chat-unread-read-position.spec.ts",
+        "cli-rust-tui-unread.spec.ts"
       ]
     },
     "external_integration": {

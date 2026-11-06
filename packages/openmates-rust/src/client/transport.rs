@@ -504,6 +504,31 @@ impl Client {
         )
         .await
     }
+    /// The server's stored unread counter for one chat (`read_details` of the
+    /// selected metadata row); `None` when the row carries no counter.
+    pub(super) async fn request_chat_unread_count(&mut self, id: &str) -> Result<Option<u64>> {
+        uuid::Uuid::parse_str(id).map_err(|_| Error::Protocol)?;
+        self.require_credentials()?;
+        let path = self.scoped("/v1/chats/metadata/batch")?;
+        let metadata = self
+            .request_task_headers_inner(
+                Method::POST,
+                &path,
+                Some(RequestBody::Ordinary(json!({"chat_ids":[id],"include_read_details":true}))),
+                None,
+                None,
+                None,
+                None,
+                true,
+                None,
+                None,
+            )
+            .await?
+            .ok_or(Error::Forbidden)?;
+        let rows = metadata["chats"].as_array().ok_or(Error::Protocol)?;
+        let row = rows.iter().find(|row| text(row, "id") == id).ok_or(Error::Forbidden)?;
+        Ok(row["read_details"]["unread_count"].as_u64())
+    }
     /// A fixed Task readback completes an already committed ciphertext write.
     /// It grants no permission to dispatch another mutation after cancellation.
     pub(super) async fn request_committed_task(

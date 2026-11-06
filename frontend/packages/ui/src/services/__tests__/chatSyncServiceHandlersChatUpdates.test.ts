@@ -27,8 +27,16 @@ import {
 
 const emptyCleanup = vi.hoisted(()=>({safe:true,eligible:true,pending:false}));
 const notificationScope = vi.hoisted(() => ({ identity: 'owner' as string | null }));
-vi.mock('../workspaceQueryCache',()=>({getWorkspaceCacheIdentity:()=> notificationScope.identity}));
-vi.mock('../workspaceCacheLifecycle',()=>({getWorkspaceCacheEpoch:()=> 1}));
+// Partial mock: the real draft DB path imports teamService, which builds a
+// WorkspaceQueryCache at module load, so keep the real exports.
+vi.mock('../workspaceQueryCache', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../workspaceQueryCache')>(),
+  getWorkspaceCacheIdentity: () => notificationScope.identity,
+}));
+vi.mock('../workspaceCacheLifecycle', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../workspaceCacheLifecycle')>(),
+  getWorkspaceCacheEpoch: () => 1,
+}));
 vi.mock('../voiceCallEmptyChatCleanup',()=>({
   prepareEmptyVoiceCallLocalDraftGuard:async()=>()=>emptyCleanup.safe,
   readEmptyVoiceCallCleanupSnapshot:async(_input:unknown,signals:{hasPendingTurn:boolean})=>({chat:{chat_id:'remote-deleted'},hasPendingTurn:signals.hasPendingTurn}),
@@ -1487,7 +1495,7 @@ describe("handleChatMessageReceivedImpl", () => {
     expect(mocks.chatDB.saveMessage).toHaveBeenCalledWith(
       expect.objectContaining({ message_id: "assistant-1", role: "assistant" }),
     );
-    expect(mocks.unreadMessagesStore.incrementUnread).toHaveBeenCalledWith("chat-a");
+    expect(mocks.unreadMessagesStore.incrementUnread).toHaveBeenCalledWith("chat-a", "assistant-1");
     expect(mocks.notificationStore.chatMessage).toHaveBeenCalledWith(
       "chat-a",
       "Chat A",

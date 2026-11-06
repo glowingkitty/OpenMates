@@ -51,8 +51,8 @@ async function setPinned(chat: Chat, pinned: boolean): Promise<ChatMenuActionRes
 
 async function setUnreadCount(chat: Chat, unreadCount: 0 | 1): Promise<ChatMenuActionResult> {
   const { unreadMessagesStore } = await import('../stores/unreadMessagesStore');
-  unreadMessagesStore.clearUnread(chat.chat_id);
-  if (unreadCount) unreadMessagesStore.incrementUnread(chat.chat_id);
+  if (unreadCount) unreadMessagesStore.markManuallyUnread(chat.chat_id);
+  else unreadMessagesStore.clearUnread(chat.chat_id);
   const updatedChat = { ...chat, unread_count: unreadCount };
   await chatDB.updateChat(updatedChat);
   chatListCache.markDirty();
