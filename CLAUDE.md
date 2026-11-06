@@ -72,6 +72,7 @@ when a skill or this file points to it.
 - No new source files >800 lines; extract instead of growing files >2,500 lines.
 - No broad `except Exception`/`catch` in business logic, no silent fallbacks.
 - No `@ts-ignore`/`eslint-disable`/`noqa`/`type: ignore` without reason; no TODOs.
+- Rust: module/pub docs, structure and error rules in `.claude/rules/rust.md`.
 - Never commit secrets or private data; examples use placeholders.
 
 ## Specialist sub-agents and skills
