@@ -72,3 +72,15 @@ test("SDK validates canonical OM fingerprints while preserving the historical Py
   bytes[2] ^= 1;
   assert.equal(await decryptWithAesGcmCombined(bytes.toString("base64"), key), null);
 });
+
+test("npm API-key operations emit the shared wire vectors used by Rust and Python", async () => {
+  const { runOperationVectors, runMemoryVectors } = await import(resolve(root, "tests/sdk-conformance/runners/sdk-api-key-operations.mjs"));
+  const operations = JSON.parse(readFileSync(resolve(root, "tests/sdk-conformance/fixtures/sdk-api-key-operations.json"), "utf8"));
+  const sdk = await import("../src/sdk.ts");
+  const results = await runOperationVectors(operations, sdk);
+  assert.equal(results.length, operations.vectors.length);
+  const memories = JSON.parse(readFileSync(resolve(root, "tests/sdk-conformance/fixtures/sdk-api-key-memories.json"), "utf8"));
+  const crypto = await import("../src/crypto.ts");
+  const sdkCrypto = await import("../src/sdkCrypto.ts");
+  assert.equal((await runMemoryVectors(memories, crypto, sdkCrypto)).length, memories.vectors.length + memories.hashes.length + 1);
+});

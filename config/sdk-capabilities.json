@@ -1266,9 +1266,12 @@
             "OpenMatesClient.billing.usageSummaries"
           ],
           "conformance": false,
-          "evidence": [],
+          "evidence": [
+            "tests/sdk-conformance/runners/npm.mjs",
+            "frontend/packages/openmates-cli/tests/sdk-conformance.test.ts"
+          ],
           "gaps": [
-            "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
+            "Shared API-key wire vectors (18 of 27 in sdk-api-key-operations.json) pass through the public npm client with fake fetch (npm.mjs capability sdk.api-key-operations.v1, sdk-conformance.test.ts); the Rust and Python suites run the same file in their own tests, not in the conformance gate, so the family stays partial and conformance stays false until all three run in the gate."
           ],
           "status": "partial"
         },
@@ -2503,9 +2506,12 @@
             "OpenMatesIdeaBucket.status"
           ],
           "conformance": false,
-          "evidence": [],
+          "evidence": [
+            "tests/sdk-conformance/runners/npm.mjs",
+            "frontend/packages/openmates-cli/tests/sdk-conformance.test.ts"
+          ],
           "gaps": [
-            "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
+            "npm generates and decrypts the shared memories crypto fixture (sdk-api-key-memories.json: ciphertexts, item-key hashes, wrapped chat key) via npm.mjs capability sdk.api-key-memories.v1; Rust verifies the same file. Not yet a three-language gate capability."
           ],
           "status": "partial"
         },
@@ -2974,9 +2980,12 @@
             "OpenMatesMemories.update"
           ],
           "conformance": false,
-          "evidence": [],
+          "evidence": [
+            "tests/sdk-conformance/runners/npm.mjs",
+            "frontend/packages/openmates-cli/tests/sdk-conformance.test.ts"
+          ],
           "gaps": [
-            "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
+            "npm generates and decrypts the shared memories crypto fixture (sdk-api-key-memories.json: ciphertexts, item-key hashes, wrapped chat key) via npm.mjs capability sdk.api-key-memories.v1; Rust verifies the same file. Not yet a three-language gate capability."
           ],
           "status": "partial"
         },
@@ -3205,9 +3214,12 @@
             "OpenMatesNotifications.status"
           ],
           "conformance": false,
-          "evidence": [],
+          "evidence": [
+            "tests/sdk-conformance/runners/npm.mjs",
+            "frontend/packages/openmates-cli/tests/sdk-conformance.test.ts"
+          ],
           "gaps": [
-            "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
+            "Shared API-key wire vectors (2 of 27 in sdk-api-key-operations.json) pass through the public npm client with fake fetch (npm.mjs capability sdk.api-key-operations.v1, sdk-conformance.test.ts); the Rust and Python suites run the same file in their own tests, not in the conformance gate, so the family stays partial and conformance stays false until all three run in the gate."
           ],
           "status": "partial"
         },
@@ -4685,9 +4697,12 @@
             "OpenMatesReminders.update"
           ],
           "conformance": false,
-          "evidence": [],
+          "evidence": [
+            "tests/sdk-conformance/runners/npm.mjs",
+            "frontend/packages/openmates-cli/tests/sdk-conformance.test.ts"
+          ],
           "gaps": [
-            "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
+            "Shared API-key wire vectors (3 of 27 in sdk-api-key-operations.json) pass through the public npm client with fake fetch (npm.mjs capability sdk.api-key-operations.v1, sdk-conformance.test.ts); the Rust and Python suites run the same file in their own tests, not in the conformance gate, so the family stays partial and conformance stays false until all three run in the gate."
           ],
           "status": "partial"
         },
@@ -6867,9 +6882,12 @@
             "OpenMatesSettings.shareDebugLogs"
           ],
           "conformance": false,
-          "evidence": [],
+          "evidence": [
+            "tests/sdk-conformance/runners/npm.mjs",
+            "frontend/packages/openmates-cli/tests/sdk-conformance.test.ts"
+          ],
           "gaps": [
-            "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
+            "Shared API-key wire vectors (5 of 27 in sdk-api-key-operations.json) pass through the public npm client with fake fetch (npm.mjs capability sdk.api-key-operations.v1, sdk-conformance.test.ts); the Rust and Python suites run the same file in their own tests, not in the conformance gate, so the family stays partial and conformance stays false until all three run in the gate."
           ],
           "status": "partial"
         },
