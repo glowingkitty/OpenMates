@@ -33,6 +33,14 @@ import {
   makePendingAppsResultId, type PendingAppsResult,
 } from "./appsWorkspaceResultOutbox";
 
+/** Opt-in shared Rust core build: the result-graph policy runs in the shared Worker `apps` unit. */
+const RUST_APPS_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1';
+/** Measurement-only opt-out shared with appsWorkspaceService.ts: `'ts'` keeps this TypeScript policy. */
+function rustAppsResults(): Promise<typeof import('./rustCore/apps/rustAppsRetention')> | null {
+  if (typeof localStorage === 'undefined' || localStorage.getItem('openmates_rust_core_apps') === 'ts') return null;
+  return import('./rustCore/apps/rustAppsRetention');
+}
+
 export type AppsResultStatus = "processing" | "finished" | "error" | "cancelled";
 export interface AppsResultItem {
   embedId: string;
@@ -769,6 +777,16 @@ export async function refreshAppsGeneratedAssetUrls(embedIds: string[], teamId?:
 
 /** Persist one request graph, including a processing parent before provider dispatch. */
 export async function retainAppsResult(args: RetainAppsResultInput): Promise<string> {
+  if (RUST_APPS_BUILD) {
+    const rust = rustAppsResults();
+    if (rust) {
+      return (await rust).retainRustAppsResult(args, {
+        activeKeys, activeContexts, pendingGraphs, saveStates: appsResultSaveStates, guestRecords, getAppsResult, hydrateRows, writeGuest,
+        assertSameAuthenticatedUser, stagePendingAppsResult, setSaveState, notifyResultUpdated, uploadPendingResult, uploadGraph,
+        refreshAppsGeneratedAssetUrls, saveKey: appsResultSaveKey, savePendingError: (rootId) => new AppsResultSavePendingError(rootId),
+      });
+    }
+  }
   const rootId = args.rootEmbedId || args.requestId || crypto.randomUUID();
   const guest = Boolean(args.guest);
   if (!guest && !get(userProfile).user_id) throw new Error("Apps result owner is unavailable");

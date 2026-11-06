@@ -83,6 +83,43 @@ export function createAppsHandlers(binding: AppsBinding): UnitHandlers<AppsUnitP
 			const p = record(payload);
 			return call(() => binding.apps_task_result(text(p.text)));
 		},
+		requestPlan: (payload) => {
+			const p = record(payload);
+			return call(() => binding.apps_request_plan(text(p.facts), text(p.context)));
+		},
+		requestBody: (payload) => {
+			const p = record(payload);
+			return call(() => binding.apps_request_body(text(p.facts), text(p.requestId), text(p.protectedText), text(p.protectedContext),
+				text(p.attachments), text(p.protectedAttachments), text(p.assets)));
+		},
+		interpretation: (payload) => {
+			const p = http(payload);
+			const q = record(payload);
+			return call(() => binding.apps_interpretation(p.ok, p.text, flag(q.hasAttachments), flag(q.hasChat), flag(q.hasWorkflow)));
+		},
+		validateInput: (payload) => {
+			const p = record(payload);
+			return call(() => binding.apps_validate_input(text(p.schema), text(p.input)));
+		},
+		retentionPlan: (payload) => {
+			const p = record(payload);
+			return call(() => binding.apps_retention_plan(text(p.facts), text(p.response), text(p.previous)));
+		},
+		outboxScopeValid: (payload) => {
+			const p = record(payload);
+			try {
+				return binding.apps_outbox_scope_valid(text(p.scope));
+			} catch (error) {
+				if (error instanceof UnitRefusal) throw error;
+				throw new UnitRefusal('protocol');
+			}
+		},
+		freshRecommendations: (payload) => {
+			const p = record(payload);
+			if (typeof p.now !== 'number' || !Number.isFinite(p.now)) throw new UnitRefusal('protocol');
+			const now = p.now;
+			return call(() => binding.apps_fresh_recommendations(text(p.items), now));
+		},
 	};
 }
 

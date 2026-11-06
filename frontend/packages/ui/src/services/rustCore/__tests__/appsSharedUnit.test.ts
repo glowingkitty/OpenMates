@@ -31,6 +31,14 @@ const binding: AppsBinding = {
 		return JSON.stringify({ kind: 'done', text: `{"envelope":${envelope},"data":${JSON.stringify(JSON.parse(JSON.parse(polls)[0]).result)}}` });
 	},
 	apps_task_result: () => { throw new Error('protocol'); },
+	// Request/result policy exports (covered by appsRequestUnit.test.ts); unused by these flows.
+	apps_request_plan: () => { throw new Error('protocol'); },
+	apps_request_body: () => { throw new Error('protocol'); },
+	apps_interpretation: () => { throw new Error('protocol'); },
+	apps_validate_input: () => { throw new Error('protocol'); },
+	apps_retention_plan: () => { throw new Error('protocol'); },
+	apps_outbox_scope_valid: () => { throw new Error('protocol'); },
+	apps_fresh_recommendations: () => { throw new Error('protocol'); },
 };
 
 function fakeWorker() {

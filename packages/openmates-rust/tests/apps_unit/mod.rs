@@ -234,20 +234,10 @@ fn canonical_metadata_schema_and_automatic_routing_controls() {
         false
     );
     let schema = &item.fields["input_schema"];
-    assert!(validate_schema(schema, schema, &fields()["input"], 0));
-    assert!(!validate_schema(
-        schema,
-        schema,
-        &json!({"requests":[{"query":42}]}),
-        0
-    ));
-    assert!(!validate_schema(schema, schema, &json!({"requests":[]}), 0));
-    assert!(!validate_schema(
-        schema,
-        schema,
-        &json!({"requests":[{}]}),
-        0
-    ));
+    assert!(validate_schema(schema, &fields()["input"]));
+    assert!(!validate_schema(schema, &json!({"requests":[{"query":42}]})));
+    assert!(!validate_schema(schema, &json!({"requests":[]})));
+    assert!(!validate_schema(schema, &json!({"requests":[{}]})));
     assert_eq!(
         automatic_input(&json!({"requests":[{"query":"hello","model":"auto"}]}), 0).unwrap(),
         json!({"requests":[{"query":"hello"}]})

@@ -11,6 +11,16 @@ import { mapAppsRequestText } from './appsWorkspaceRequestPrivacy';
 import { rankAppsWorkspaceImageResults } from './appsWorkspaceImageRankingService';
 import { prepareAppsRequestAttachments } from './appsWorkspaceAttachmentService';
 import { retainAppsResult } from './appsWorkspaceResultsService';
+import type { AppsRequestDeps } from './rustCore/apps/rustAppsRequest';
+
+/** Opt-in shared Rust core build: the request policy runs in the shared Worker `apps` unit. */
+const RUST_APPS_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1';
+/** Measurement-only opt-out shared with appsWorkspaceService.ts: `'ts'` keeps this TypeScript policy. */
+const RUST_APPS_OPT_OUT_KEY = 'openmates_rust_core_apps';
+function rustAppsRequest(): Promise<typeof import('./rustCore/apps/rustAppsRequest')> | null {
+  if (typeof localStorage === 'undefined' || localStorage.getItem(RUST_APPS_OPT_OUT_KEY) === 'ts') return null;
+  return import('./rustCore/apps/rustAppsRequest');
+}
 
 let identityGeneration = 0;
 let lastAuth = get(authStore).isAuthenticated;
@@ -76,6 +86,13 @@ async function requestPrivacy(authenticated: boolean) {
 
 /** Interpret first; only an accepted execution produces a retained fullscreen result. */
 export async function runAppsWorkspaceRequest(options: AppsWorkspaceRequestOptions): Promise<AppsWorkspaceRequestResult> {
+  if (RUST_APPS_BUILD) {
+    const rust = rustAppsRequest();
+    if (rust) {
+      const deps: AppsRequestDeps = { identityGeneration: () => identityGeneration, requestPrivacy };
+      return (await rust).runRustAppsWorkspaceRequest(options, deps);
+    }
+  }
   const text = options.text.trim();
   if (!text) throw new Error('request_required');
   const requestId = options.requestId ?? crypto.randomUUID();

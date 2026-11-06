@@ -12,8 +12,16 @@ use serde::de::{Deserializer, MapAccess, Visitor};
 use serde_json::value::RawValue;
 use serde_json::{json, Value};
 
-/// Delay between two task polls and the total poll budget (ms).
+/// Natural-language request policy (interpret flow, bounds, handoffs).
+pub mod request;
+/// Result retention, outbox scope and recommendation freshness policy.
+pub mod results;
+/// Skill input validation with the web form's JSON-schema semantics.
+pub mod schema;
+
+/// Delay between two task polls (ms).
 pub const POLL_INTERVAL_MS: u64 = 2_000;
+/// Total task poll budget (ms).
 pub const POLL_TIMEOUT_MS: u64 = 10 * 60 * 1_000;
 
 fn protocol<E>(_: E) -> String {

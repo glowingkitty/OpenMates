@@ -8,9 +8,11 @@
  * request quote and provider response): the result fullscreen must show both
  * results. Alternating reloads run the same request on the TypeScript policy
  * (measurement opt-out `openmates_rust_core_apps=ts`) and on the Rust unit; the
- * Rust arm must route its decisions through the unit (stats hook) with exactly
- * one shared Worker, one WASM instance and none on the page. Records request ->
- * result-ready latency per arm (paired medians, Rust <= TS soft gate).
+ * Rust arm must route its decisions through the unit (stats hook): skill
+ * execution, the natural-language request plan/body/interpretation, input
+ * validation and result retention, with exactly one shared Worker, one WASM
+ * instance and none on the page. Request -> result-ready latency runs as 12
+ * ABBA pairs against the web Rust budget (web-rust-core-apps-bench.ts).
  * Runs only in the CI lane that builds the Rust core package (web-rust-core-* specs).
  */
 export {};
@@ -18,9 +20,9 @@ export {};
 const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 const { rustCoreInstances } = require('./helpers/rust-core-instances');
+const { APPS_BENCH_PAIRS, runAppsLatencyPairs } = require('./helpers/web-rust-core-apps-bench');
 
 const APPS_OPT_OUT_KEY = 'openmates_rust_core_apps';
-const PAIRS = 6;
 
 async function fixtureRoutes(page: any): Promise<{ providerPosts: () => number }> {
 	let providerPosts = 0;
@@ -66,12 +68,11 @@ async function runRequest(page: any): Promise<number> {
 // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,apps.requests.natural-language,sdk.web.before-after-performance
 test('guest Apps skill runs on the shared Rust apps unit with one Worker and one WASM instance', async ({ page }: { page: any }, testInfo: any) => {
 	test.slow();
-	test.setTimeout(300000);
+	test.setTimeout(900000);
 	await page.setViewportSize({ width: 1180, height: 844 });
 	const routes = await fixtureRoutes(page);
 	const samples: Record<'ts' | 'rust', Record<string, any>[]> = { ts: [], rust: [] };
-	for (let i = 0; i < PAIRS * 2; i++) {
-		const path = i % 2 === 0 ? 'ts' : 'rust';
+	const sample = async (path: 'ts' | 'rust'): Promise<number> => {
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.evaluate(([key, ts]: [string, boolean]) => { if (ts) localStorage.setItem(key, 'ts'); else localStorage.removeItem(key); },
 			[APPS_OPT_OUT_KEY, path === 'ts']);
@@ -83,8 +84,9 @@ test('guest Apps skill runs on the shared Rust apps unit with one Worker and one
 		const stats = await page.evaluate(() => (window as any).__openmatesRustAppsStats?.() ?? null);
 		if (path === 'rust') {
 			expect(stats, 'Rust arm loaded the apps unit client').not.toBeNull();
-			// details request + outcome, admission, quote, provider response at least.
-			expect(stats.calls, 'Rust arm routed its decisions through the apps unit').toBeGreaterThanOrEqual(5);
+			// Skill execution (details, admission, quote, provider response) plus the
+			// request plan, interpreter body, interpretation, input validation and retention plan.
+			expect(stats.calls, 'Rust arm routed its decisions through the apps unit').toBeGreaterThanOrEqual(10);
 			expect(stats.failures, 'no apps unit call failed').toBe(0);
 		} else {
 			expect(stats, 'TS arm never loaded the Rust apps adapter').toBeNull();
@@ -95,15 +97,16 @@ test('guest Apps skill runs on the shared Rust apps unit with one Worker and one
 		expect(instances.rustWorkers, `${path}: no other Rust core Worker`).toBe(1);
 		if (path === 'rust') expect(instances.sharedWorkerWasm, 'rust: one WASM instance in the shared Worker').toBe(1);
 		samples[path].push({ requestMs, ...instances, stats });
-	}
+		return requestMs;
+	};
+	// Warm-up sample (index 0 of pairOrder's scheme) is not part of the paired set.
+	await sample('ts');
+	samples.ts.length = 0;
+	const bench = await runAppsLatencyPairs(sample, APPS_BENCH_PAIRS);
 	await page.evaluate((key: string) => localStorage.removeItem(key), APPS_OPT_OUT_KEY);
-	const median = (values: number[]) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
-	const rust = median(samples.rust.map((row) => row.requestMs));
-	const ts = median(samples.ts.map((row) => row.requestMs));
-	const pairedRatios = samples.rust.map((row, index) => row.requestMs / Math.max(1, samples.ts[index].requestMs));
-	const metrics = { pairs: PAIRS, rustMedianMs: rust, tsMedianMs: ts, medianPairedRatio: median(pairedRatios),
-		verdict: rust <= Math.max(ts * 1.1, ts + 50) ? 'rust_not_worse' : 'rust_worse', samples };
-	console.log(`[web-rust-core-apps] ${JSON.stringify({ rustMedianMs: rust, tsMedianMs: ts, medianPairedRatio: metrics.medianPairedRatio, verdict: metrics.verdict })}`);
-	await testInfo.attach('apps-skill-latency.json', { body: JSON.stringify(metrics, null, 2), contentType: 'application/json' });
-	expect.soft(rust, `app-skill request latency: Rust ${rust} ms vs TS ${ts} ms`).toBeLessThanOrEqual(Math.max(ts * 1.1, ts + 50));
+	const summary = { pairs: bench.pairs, ratio: bench.ratio, difference: bench.difference, tsP95: bench.tsP95, rustP95: bench.rustP95, verdict: bench.verdict };
+	console.log(`[web-rust-core-apps] ${JSON.stringify(summary)}`);
+	await testInfo.attach('apps-skill-latency.json', { body: JSON.stringify({ ...bench, samples }, null, 2), contentType: 'application/json' });
+	expect(bench.pairs, 'budget needs at least 12 pairs').toBeGreaterThanOrEqual(12);
+	expect.soft(bench.verdict, `app request latency budget: ${JSON.stringify(summary)}`).toBe('rust_not_worse');
 });

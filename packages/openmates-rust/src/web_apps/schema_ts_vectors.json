@@ -1,0 +1,3505 @@
+{
+ "source": "appsSkillFormUtils.validateSkillInput",
+ "cases": [
+  {
+   "name": "search ok",
+   "schema": {
+    "type": "object",
+    "required": [
+     "requests"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "requests": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+       "type": "object",
+       "required": [
+        "query"
+       ],
+       "properties": {
+        "query": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 8
+        },
+        "count": {
+         "type": "integer",
+         "minimum": 1,
+         "maximum": 20
+        },
+        "model": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    }
+   },
+   "input": {
+    "requests": [
+     {
+      "query": "gardens",
+      "count": 2
+     }
+    ]
+   },
+   "out": []
+  },
+  {
+   "name": "search wrong type",
+   "schema": {
+    "type": "object",
+    "required": [
+     "requests"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "requests": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+       "type": "object",
+       "required": [
+        "query"
+       ],
+       "properties": {
+        "query": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 8
+        },
+        "count": {
+         "type": "integer",
+         "minimum": 1,
+         "maximum": 20
+        },
+        "model": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    }
+   },
+   "input": {
+    "requests": [
+     {
+      "query": 42
+     }
+    ]
+   },
+   "out": [
+    {
+     "path": "requests[0].query",
+     "code": "type"
+    }
+   ]
+  },
+  {
+   "name": "search empty array",
+   "schema": {
+    "type": "object",
+    "required": [
+     "requests"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "requests": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+       "type": "object",
+       "required": [
+        "query"
+       ],
+       "properties": {
+        "query": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 8
+        },
+        "count": {
+         "type": "integer",
+         "minimum": 1,
+         "maximum": 20
+        },
+        "model": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    }
+   },
+   "input": {
+    "requests": []
+   },
+   "out": [
+    {
+     "path": "requests",
+     "code": "minItems"
+    }
+   ]
+  },
+  {
+   "name": "search missing query",
+   "schema": {
+    "type": "object",
+    "required": [
+     "requests"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "requests": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+       "type": "object",
+       "required": [
+        "query"
+       ],
+       "properties": {
+        "query": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 8
+        },
+        "count": {
+         "type": "integer",
+         "minimum": 1,
+         "maximum": 20
+        },
+        "model": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    }
+   },
+   "input": {
+    "requests": [
+     {}
+    ]
+   },
+   "out": [
+    {
+     "path": "requests[0].query",
+     "code": "required"
+    }
+   ]
+  },
+  {
+   "name": "search empty query",
+   "schema": {
+    "type": "object",
+    "required": [
+     "requests"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "requests": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+       "type": "object",
+       "required": [
+        "query"
+       ],
+       "properties": {
+        "query": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 8
+        },
+        "count": {
+         "type": "integer",
+         "minimum": 1,
+         "maximum": 20
+        },
+        "model": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    }
+   },
+   "input": {
+    "requests": [
+     {
+      "query": ""
+     }
+    ]
+   },
+   "out": [
+    {
+     "path": "requests[0].query",
+     "code": "required"
+    }
+   ]
+  },
+  {
+   "name": "search null query",
+   "schema": {
+    "type": "object",
+    "required": [
+     "requests"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "requests": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+       "type": "object",
+       "required": [
+        "query"
+       ],
+       "properties": {
+        "query": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 8
+        },
+        "count": {
+         "type": "integer",
+         "minimum": 1,
+         "maximum": 20
+        },
+        "model": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    }
+   },
+   "input": {
+    "requests": [
+     {
+      "query": null
+     }
+    ]
+   },
+   "out": [
+    {
+     "path": "requests[0].query",
+     "code": "required"
+    }
+   ]
+  },
+  {
+   "name": "search too many",
+   "schema": {
+    "type": "object",
+    "required": [
+     "requests"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "requests": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+       "type": "object",
+       "required": [
+        "query"
+       ],
+       "properties": {
+        "query": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 8
+        },
+        "count": {
+         "type": "integer",
+         "minimum": 1,
+         "maximum": 20
+        },
+        "model": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    }
+   },
+   "input": {
+    "requests": [
+     {
+      "query": "a"
+     },
+     {
+      "query": "b"
+     },
+     {
+      "query": "c"
+     },
+     {
+      "query": "d"
+     }
+    ]
+   },
+   "out": [
+    {
+     "path": "requests",
+     "code": "maxItems"
+    }
+   ]
+  },
+  {
+   "name": "search bounds",
+   "schema": {
+    "type": "object",
+    "required": [
+     "requests"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "requests": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+       "type": "object",
+       "required": [
+        "query"
+       ],
+       "properties": {
+        "query": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 8
+        },
+        "count": {
+         "type": "integer",
+         "minimum": 1,
+         "maximum": 20
+        },
+        "model": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    }
+   },
+   "input": {
+    "requests": [
+     {
+      "query": "toolongquery",
+      "count": 0
+     },
+     {
+      "query": "x",
+      "count": 21.5
+     }
+    ]
+   },
+   "out": [
+    {
+     "path": "requests[0].query",
+     "code": "maxLength"
+    },
+    {
+     "path": "requests[0].count",
+     "code": "minimum"
+    },
+    {
+     "path": "requests[1].count",
+     "code": "type"
+    }
+   ]
+  },
+  {
+   "name": "search extra prop allowed",
+   "schema": {
+    "type": "object",
+    "required": [
+     "requests"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "requests": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+       "type": "object",
+       "required": [
+        "query"
+       ],
+       "properties": {
+        "query": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 8
+        },
+        "count": {
+         "type": "integer",
+         "minimum": 1,
+         "maximum": 20
+        },
+        "model": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    }
+   },
+   "input": {
+    "requests": [
+     {
+      "query": "ok"
+     }
+    ],
+    "extra": true
+   },
+   "out": []
+  },
+  {
+   "name": "search not array",
+   "schema": {
+    "type": "object",
+    "required": [
+     "requests"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "requests": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+       "type": "object",
+       "required": [
+        "query"
+       ],
+       "properties": {
+        "query": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 8
+        },
+        "count": {
+         "type": "integer",
+         "minimum": 1,
+         "maximum": 20
+        },
+        "model": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    }
+   },
+   "input": {
+    "requests": "x"
+   },
+   "out": [
+    {
+     "path": "requests",
+     "code": "type"
+    }
+   ]
+  },
+  {
+   "name": "search root array",
+   "schema": {
+    "type": "object",
+    "required": [
+     "requests"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "requests": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+       "type": "object",
+       "required": [
+        "query"
+       ],
+       "properties": {
+        "query": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 8
+        },
+        "count": {
+         "type": "integer",
+         "minimum": 1,
+         "maximum": 20
+        },
+        "model": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    }
+   },
+   "input": [],
+   "out": [
+    {
+     "path": "",
+     "code": "type"
+    }
+   ]
+  },
+  {
+   "name": "search root null",
+   "schema": {
+    "type": "object",
+    "required": [
+     "requests"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "requests": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+       "type": "object",
+       "required": [
+        "query"
+       ],
+       "properties": {
+        "query": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 8
+        },
+        "count": {
+         "type": "integer",
+         "minimum": 1,
+         "maximum": 20
+        },
+        "model": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    }
+   },
+   "input": null,
+   "out": [
+    {
+     "path": "",
+     "code": "required"
+    }
+   ]
+  },
+  {
+   "name": "search count float integer",
+   "schema": {
+    "type": "object",
+    "required": [
+     "requests"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "requests": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+       "type": "object",
+       "required": [
+        "query"
+       ],
+       "properties": {
+        "query": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 8
+        },
+        "count": {
+         "type": "integer",
+         "minimum": 1,
+         "maximum": 20
+        },
+        "model": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    }
+   },
+   "input": {
+    "requests": [
+     {
+      "query": "a",
+      "count": 3
+     }
+    ]
+   },
+   "out": []
+  },
+  {
+   "name": "refs ok",
+   "schema": {
+    "type": "object",
+    "$defs": {
+     "Req": {
+      "type": "object",
+      "required": [
+       "q"
+      ],
+      "properties": {
+       "q": {
+        "type": "string",
+        "pattern": "^[a-z]+$"
+       },
+       "n": {
+        "anyOf": [
+         {
+          "type": "number",
+          "minimum": 0
+         },
+         {
+          "type": "null"
+         }
+        ]
+       }
+      }
+     },
+     "Loop": {
+      "$ref": "#/$defs/Loop"
+     },
+     "a/b": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "r"
+    ],
+    "properties": {
+     "r": {
+      "$ref": "#/$defs/Req"
+     },
+     "list": {
+      "type": "array",
+      "items": {
+       "$ref": "#/$defs/Req"
+      }
+     },
+     "loop": {
+      "$ref": "#/$defs/Loop"
+     },
+     "bad": {
+      "$ref": "http://x/y"
+     },
+     "missing": {
+      "$ref": "#/$defs/Nope"
+     },
+     "esc": {
+      "$ref": "#/$defs/a~1b"
+     }
+    }
+   },
+   "input": {
+    "r": {
+     "q": "abc",
+     "n": null
+    },
+    "list": [
+     {
+      "q": "x"
+     },
+     {
+      "q": "y",
+      "n": 2
+     }
+    ]
+   },
+   "out": []
+  },
+  {
+   "name": "refs pattern",
+   "schema": {
+    "type": "object",
+    "$defs": {
+     "Req": {
+      "type": "object",
+      "required": [
+       "q"
+      ],
+      "properties": {
+       "q": {
+        "type": "string",
+        "pattern": "^[a-z]+$"
+       },
+       "n": {
+        "anyOf": [
+         {
+          "type": "number",
+          "minimum": 0
+         },
+         {
+          "type": "null"
+         }
+        ]
+       }
+      }
+     },
+     "Loop": {
+      "$ref": "#/$defs/Loop"
+     },
+     "a/b": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "r"
+    ],
+    "properties": {
+     "r": {
+      "$ref": "#/$defs/Req"
+     },
+     "list": {
+      "type": "array",
+      "items": {
+       "$ref": "#/$defs/Req"
+      }
+     },
+     "loop": {
+      "$ref": "#/$defs/Loop"
+     },
+     "bad": {
+      "$ref": "http://x/y"
+     },
+     "missing": {
+      "$ref": "#/$defs/Nope"
+     },
+     "esc": {
+      "$ref": "#/$defs/a~1b"
+     }
+    }
+   },
+   "input": {
+    "r": {
+     "q": "ABC"
+    }
+   },
+   "out": [
+    {
+     "path": "r.q",
+     "code": "pattern"
+    }
+   ]
+  },
+  {
+   "name": "refs nullable variant",
+   "schema": {
+    "type": "object",
+    "$defs": {
+     "Req": {
+      "type": "object",
+      "required": [
+       "q"
+      ],
+      "properties": {
+       "q": {
+        "type": "string",
+        "pattern": "^[a-z]+$"
+       },
+       "n": {
+        "anyOf": [
+         {
+          "type": "number",
+          "minimum": 0
+         },
+         {
+          "type": "null"
+         }
+        ]
+       }
+      }
+     },
+     "Loop": {
+      "$ref": "#/$defs/Loop"
+     },
+     "a/b": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "r"
+    ],
+    "properties": {
+     "r": {
+      "$ref": "#/$defs/Req"
+     },
+     "list": {
+      "type": "array",
+      "items": {
+       "$ref": "#/$defs/Req"
+      }
+     },
+     "loop": {
+      "$ref": "#/$defs/Loop"
+     },
+     "bad": {
+      "$ref": "http://x/y"
+     },
+     "missing": {
+      "$ref": "#/$defs/Nope"
+     },
+     "esc": {
+      "$ref": "#/$defs/a~1b"
+     }
+    }
+   },
+   "input": {
+    "r": {
+     "q": "a",
+     "n": -1
+    }
+   },
+   "out": [
+    {
+     "path": "r.n",
+     "code": "minimum"
+    }
+   ]
+  },
+  {
+   "name": "refs list item",
+   "schema": {
+    "type": "object",
+    "$defs": {
+     "Req": {
+      "type": "object",
+      "required": [
+       "q"
+      ],
+      "properties": {
+       "q": {
+        "type": "string",
+        "pattern": "^[a-z]+$"
+       },
+       "n": {
+        "anyOf": [
+         {
+          "type": "number",
+          "minimum": 0
+         },
+         {
+          "type": "null"
+         }
+        ]
+       }
+      }
+     },
+     "Loop": {
+      "$ref": "#/$defs/Loop"
+     },
+     "a/b": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "r"
+    ],
+    "properties": {
+     "r": {
+      "$ref": "#/$defs/Req"
+     },
+     "list": {
+      "type": "array",
+      "items": {
+       "$ref": "#/$defs/Req"
+      }
+     },
+     "loop": {
+      "$ref": "#/$defs/Loop"
+     },
+     "bad": {
+      "$ref": "http://x/y"
+     },
+     "missing": {
+      "$ref": "#/$defs/Nope"
+     },
+     "esc": {
+      "$ref": "#/$defs/a~1b"
+     }
+    }
+   },
+   "input": {
+    "r": {
+     "q": "a"
+    },
+    "list": [
+     {},
+     {
+      "q": 5
+     }
+    ]
+   },
+   "out": [
+    {
+     "path": "list[0].q",
+     "code": "required"
+    },
+    {
+     "path": "list[1].q",
+     "code": "type"
+    }
+   ]
+  },
+  {
+   "name": "refs loop",
+   "schema": {
+    "type": "object",
+    "$defs": {
+     "Req": {
+      "type": "object",
+      "required": [
+       "q"
+      ],
+      "properties": {
+       "q": {
+        "type": "string",
+        "pattern": "^[a-z]+$"
+       },
+       "n": {
+        "anyOf": [
+         {
+          "type": "number",
+          "minimum": 0
+         },
+         {
+          "type": "null"
+         }
+        ]
+       }
+      }
+     },
+     "Loop": {
+      "$ref": "#/$defs/Loop"
+     },
+     "a/b": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "r"
+    ],
+    "properties": {
+     "r": {
+      "$ref": "#/$defs/Req"
+     },
+     "list": {
+      "type": "array",
+      "items": {
+       "$ref": "#/$defs/Req"
+      }
+     },
+     "loop": {
+      "$ref": "#/$defs/Loop"
+     },
+     "bad": {
+      "$ref": "http://x/y"
+     },
+     "missing": {
+      "$ref": "#/$defs/Nope"
+     },
+     "esc": {
+      "$ref": "#/$defs/a~1b"
+     }
+    }
+   },
+   "input": {
+    "r": {
+     "q": "a"
+    },
+    "loop": 7
+   },
+   "out": [
+    {
+     "path": "loop",
+     "code": "type"
+    }
+   ]
+  },
+  {
+   "name": "refs bad",
+   "schema": {
+    "type": "object",
+    "$defs": {
+     "Req": {
+      "type": "object",
+      "required": [
+       "q"
+      ],
+      "properties": {
+       "q": {
+        "type": "string",
+        "pattern": "^[a-z]+$"
+       },
+       "n": {
+        "anyOf": [
+         {
+          "type": "number",
+          "minimum": 0
+         },
+         {
+          "type": "null"
+         }
+        ]
+       }
+      }
+     },
+     "Loop": {
+      "$ref": "#/$defs/Loop"
+     },
+     "a/b": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "r"
+    ],
+    "properties": {
+     "r": {
+      "$ref": "#/$defs/Req"
+     },
+     "list": {
+      "type": "array",
+      "items": {
+       "$ref": "#/$defs/Req"
+      }
+     },
+     "loop": {
+      "$ref": "#/$defs/Loop"
+     },
+     "bad": {
+      "$ref": "http://x/y"
+     },
+     "missing": {
+      "$ref": "#/$defs/Nope"
+     },
+     "esc": {
+      "$ref": "#/$defs/a~1b"
+     }
+    }
+   },
+   "input": {
+    "r": {
+     "q": "a"
+    },
+    "bad": 1,
+    "missing": 2,
+    "esc": "yes"
+   },
+   "out": [
+    {
+     "path": "bad",
+     "code": "type"
+    },
+    {
+     "path": "missing",
+     "code": "type"
+    },
+    {
+     "path": "esc",
+     "code": "type"
+    }
+   ]
+  },
+  {
+   "name": "refs required missing",
+   "schema": {
+    "type": "object",
+    "$defs": {
+     "Req": {
+      "type": "object",
+      "required": [
+       "q"
+      ],
+      "properties": {
+       "q": {
+        "type": "string",
+        "pattern": "^[a-z]+$"
+       },
+       "n": {
+        "anyOf": [
+         {
+          "type": "number",
+          "minimum": 0
+         },
+         {
+          "type": "null"
+         }
+        ]
+       }
+      }
+     },
+     "Loop": {
+      "$ref": "#/$defs/Loop"
+     },
+     "a/b": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "r"
+    ],
+    "properties": {
+     "r": {
+      "$ref": "#/$defs/Req"
+     },
+     "list": {
+      "type": "array",
+      "items": {
+       "$ref": "#/$defs/Req"
+      }
+     },
+     "loop": {
+      "$ref": "#/$defs/Loop"
+     },
+     "bad": {
+      "$ref": "http://x/y"
+     },
+     "missing": {
+      "$ref": "#/$defs/Nope"
+     },
+     "esc": {
+      "$ref": "#/$defs/a~1b"
+     }
+    }
+   },
+   "input": {},
+   "out": [
+    {
+     "path": "r",
+     "code": "required"
+    }
+   ]
+  },
+  {
+   "name": "misc ok",
+   "schema": {
+    "type": "object",
+    "required": [
+     "mode",
+     "flag"
+    ],
+    "properties": {
+     "mode": {
+      "enum": [
+       "fast",
+       "slow",
+       1
+      ]
+     },
+     "flag": {
+      "type": "boolean"
+     },
+     "num": {
+      "type": "number",
+      "minimum": "2",
+      "maximum": null
+     },
+     "str": {
+      "minLength": 2
+     },
+     "any": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "opt": {
+      "oneOf": [
+       {
+        "type": "string",
+        "maxLength": 3
+       }
+      ]
+     },
+     "nul": {
+      "type": "null"
+     },
+     "nested": {
+      "properties": {
+       "deep": {
+        "type": "integer"
+       }
+      },
+      "required": [
+       "deep"
+      ]
+     },
+     "items": {
+      "type": "array"
+     },
+     "emoji": {
+      "type": "string",
+      "maxLength": 2
+     },
+     "badpat": {
+      "type": "string",
+      "pattern": "("
+     },
+     "nullitems": {
+      "type": "array",
+      "items": null
+     },
+     "reqstr": {
+      "type": "object",
+      "required": "abc",
+      "properties": {
+       "ab": {
+        "type": "string"
+       },
+       "x": {
+        "type": "string"
+       }
+      }
+     },
+     "trueitems": {
+      "type": "array",
+      "items": true
+     },
+     "date": {
+      "type": "string",
+      "pattern": "\\d{4}-\\d{2}"
+     }
+    }
+   },
+   "input": {
+    "mode": "fast",
+    "flag": true,
+    "num": 2,
+    "str": "ab",
+    "any": null,
+    "opt": "abc",
+    "nul": null,
+    "nested": {
+     "deep": 1
+    }
+   },
+   "out": [
+    {
+     "path": "num",
+     "code": "maximum"
+    },
+    {
+     "path": "any",
+     "code": "type"
+    }
+   ]
+  },
+  {
+   "name": "misc enum",
+   "schema": {
+    "type": "object",
+    "required": [
+     "mode",
+     "flag"
+    ],
+    "properties": {
+     "mode": {
+      "enum": [
+       "fast",
+       "slow",
+       1
+      ]
+     },
+     "flag": {
+      "type": "boolean"
+     },
+     "num": {
+      "type": "number",
+      "minimum": "2",
+      "maximum": null
+     },
+     "str": {
+      "minLength": 2
+     },
+     "any": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "opt": {
+      "oneOf": [
+       {
+        "type": "string",
+        "maxLength": 3
+       }
+      ]
+     },
+     "nul": {
+      "type": "null"
+     },
+     "nested": {
+      "properties": {
+       "deep": {
+        "type": "integer"
+       }
+      },
+      "required": [
+       "deep"
+      ]
+     },
+     "items": {
+      "type": "array"
+     },
+     "emoji": {
+      "type": "string",
+      "maxLength": 2
+     },
+     "badpat": {
+      "type": "string",
+      "pattern": "("
+     },
+     "nullitems": {
+      "type": "array",
+      "items": null
+     },
+     "reqstr": {
+      "type": "object",
+      "required": "abc",
+      "properties": {
+       "ab": {
+        "type": "string"
+       },
+       "x": {
+        "type": "string"
+       }
+      }
+     },
+     "trueitems": {
+      "type": "array",
+      "items": true
+     },
+     "date": {
+      "type": "string",
+      "pattern": "\\d{4}-\\d{2}"
+     }
+    }
+   },
+   "input": {
+    "mode": "medium",
+    "flag": false
+   },
+   "out": [
+    {
+     "path": "mode",
+     "code": "enum"
+    }
+   ]
+  },
+  {
+   "name": "misc enum number",
+   "schema": {
+    "type": "object",
+    "required": [
+     "mode",
+     "flag"
+    ],
+    "properties": {
+     "mode": {
+      "enum": [
+       "fast",
+       "slow",
+       1
+      ]
+     },
+     "flag": {
+      "type": "boolean"
+     },
+     "num": {
+      "type": "number",
+      "minimum": "2",
+      "maximum": null
+     },
+     "str": {
+      "minLength": 2
+     },
+     "any": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "opt": {
+      "oneOf": [
+       {
+        "type": "string",
+        "maxLength": 3
+       }
+      ]
+     },
+     "nul": {
+      "type": "null"
+     },
+     "nested": {
+      "properties": {
+       "deep": {
+        "type": "integer"
+       }
+      },
+      "required": [
+       "deep"
+      ]
+     },
+     "items": {
+      "type": "array"
+     },
+     "emoji": {
+      "type": "string",
+      "maxLength": 2
+     },
+     "badpat": {
+      "type": "string",
+      "pattern": "("
+     },
+     "nullitems": {
+      "type": "array",
+      "items": null
+     },
+     "reqstr": {
+      "type": "object",
+      "required": "abc",
+      "properties": {
+       "ab": {
+        "type": "string"
+       },
+       "x": {
+        "type": "string"
+       }
+      }
+     },
+     "trueitems": {
+      "type": "array",
+      "items": true
+     },
+     "date": {
+      "type": "string",
+      "pattern": "\\d{4}-\\d{2}"
+     }
+    }
+   },
+   "input": {
+    "mode": 1,
+    "flag": false
+   },
+   "out": [
+    {
+     "path": "mode",
+     "code": "type"
+    }
+   ]
+  },
+  {
+   "name": "misc enum object",
+   "schema": {
+    "type": "object",
+    "required": [
+     "mode",
+     "flag"
+    ],
+    "properties": {
+     "mode": {
+      "enum": [
+       "fast",
+       "slow",
+       1
+      ]
+     },
+     "flag": {
+      "type": "boolean"
+     },
+     "num": {
+      "type": "number",
+      "minimum": "2",
+      "maximum": null
+     },
+     "str": {
+      "minLength": 2
+     },
+     "any": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "opt": {
+      "oneOf": [
+       {
+        "type": "string",
+        "maxLength": 3
+       }
+      ]
+     },
+     "nul": {
+      "type": "null"
+     },
+     "nested": {
+      "properties": {
+       "deep": {
+        "type": "integer"
+       }
+      },
+      "required": [
+       "deep"
+      ]
+     },
+     "items": {
+      "type": "array"
+     },
+     "emoji": {
+      "type": "string",
+      "maxLength": 2
+     },
+     "badpat": {
+      "type": "string",
+      "pattern": "("
+     },
+     "nullitems": {
+      "type": "array",
+      "items": null
+     },
+     "reqstr": {
+      "type": "object",
+      "required": "abc",
+      "properties": {
+       "ab": {
+        "type": "string"
+       },
+       "x": {
+        "type": "string"
+       }
+      }
+     },
+     "trueitems": {
+      "type": "array",
+      "items": true
+     },
+     "date": {
+      "type": "string",
+      "pattern": "\\d{4}-\\d{2}"
+     }
+    }
+   },
+   "input": {
+    "mode": {},
+    "flag": "no"
+   },
+   "out": [
+    {
+     "path": "mode",
+     "code": "enum"
+    },
+    {
+     "path": "mode",
+     "code": "type"
+    },
+    {
+     "path": "flag",
+     "code": "type"
+    }
+   ]
+  },
+  {
+   "name": "misc coerced bounds",
+   "schema": {
+    "type": "object",
+    "required": [
+     "mode",
+     "flag"
+    ],
+    "properties": {
+     "mode": {
+      "enum": [
+       "fast",
+       "slow",
+       1
+      ]
+     },
+     "flag": {
+      "type": "boolean"
+     },
+     "num": {
+      "type": "number",
+      "minimum": "2",
+      "maximum": null
+     },
+     "str": {
+      "minLength": 2
+     },
+     "any": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "opt": {
+      "oneOf": [
+       {
+        "type": "string",
+        "maxLength": 3
+       }
+      ]
+     },
+     "nul": {
+      "type": "null"
+     },
+     "nested": {
+      "properties": {
+       "deep": {
+        "type": "integer"
+       }
+      },
+      "required": [
+       "deep"
+      ]
+     },
+     "items": {
+      "type": "array"
+     },
+     "emoji": {
+      "type": "string",
+      "maxLength": 2
+     },
+     "badpat": {
+      "type": "string",
+      "pattern": "("
+     },
+     "nullitems": {
+      "type": "array",
+      "items": null
+     },
+     "reqstr": {
+      "type": "object",
+      "required": "abc",
+      "properties": {
+       "ab": {
+        "type": "string"
+       },
+       "x": {
+        "type": "string"
+       }
+      }
+     },
+     "trueitems": {
+      "type": "array",
+      "items": true
+     },
+     "date": {
+      "type": "string",
+      "pattern": "\\d{4}-\\d{2}"
+     }
+    }
+   },
+   "input": {
+    "mode": "slow",
+    "flag": true,
+    "num": 1
+   },
+   "out": [
+    {
+     "path": "num",
+     "code": "minimum"
+    },
+    {
+     "path": "num",
+     "code": "maximum"
+    }
+   ]
+  },
+  {
+   "name": "misc null maximum",
+   "schema": {
+    "type": "object",
+    "required": [
+     "mode",
+     "flag"
+    ],
+    "properties": {
+     "mode": {
+      "enum": [
+       "fast",
+       "slow",
+       1
+      ]
+     },
+     "flag": {
+      "type": "boolean"
+     },
+     "num": {
+      "type": "number",
+      "minimum": "2",
+      "maximum": null
+     },
+     "str": {
+      "minLength": 2
+     },
+     "any": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "opt": {
+      "oneOf": [
+       {
+        "type": "string",
+        "maxLength": 3
+       }
+      ]
+     },
+     "nul": {
+      "type": "null"
+     },
+     "nested": {
+      "properties": {
+       "deep": {
+        "type": "integer"
+       }
+      },
+      "required": [
+       "deep"
+      ]
+     },
+     "items": {
+      "type": "array"
+     },
+     "emoji": {
+      "type": "string",
+      "maxLength": 2
+     },
+     "badpat": {
+      "type": "string",
+      "pattern": "("
+     },
+     "nullitems": {
+      "type": "array",
+      "items": null
+     },
+     "reqstr": {
+      "type": "object",
+      "required": "abc",
+      "properties": {
+       "ab": {
+        "type": "string"
+       },
+       "x": {
+        "type": "string"
+       }
+      }
+     },
+     "trueitems": {
+      "type": "array",
+      "items": true
+     },
+     "date": {
+      "type": "string",
+      "pattern": "\\d{4}-\\d{2}"
+     }
+    }
+   },
+   "input": {
+    "mode": "slow",
+    "flag": true,
+    "num": 0.5
+   },
+   "out": [
+    {
+     "path": "num",
+     "code": "minimum"
+    },
+    {
+     "path": "num",
+     "code": "maximum"
+    }
+   ]
+  },
+  {
+   "name": "misc untyped string",
+   "schema": {
+    "type": "object",
+    "required": [
+     "mode",
+     "flag"
+    ],
+    "properties": {
+     "mode": {
+      "enum": [
+       "fast",
+       "slow",
+       1
+      ]
+     },
+     "flag": {
+      "type": "boolean"
+     },
+     "num": {
+      "type": "number",
+      "minimum": "2",
+      "maximum": null
+     },
+     "str": {
+      "minLength": 2
+     },
+     "any": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "opt": {
+      "oneOf": [
+       {
+        "type": "string",
+        "maxLength": 3
+       }
+      ]
+     },
+     "nul": {
+      "type": "null"
+     },
+     "nested": {
+      "properties": {
+       "deep": {
+        "type": "integer"
+       }
+      },
+      "required": [
+       "deep"
+      ]
+     },
+     "items": {
+      "type": "array"
+     },
+     "emoji": {
+      "type": "string",
+      "maxLength": 2
+     },
+     "badpat": {
+      "type": "string",
+      "pattern": "("
+     },
+     "nullitems": {
+      "type": "array",
+      "items": null
+     },
+     "reqstr": {
+      "type": "object",
+      "required": "abc",
+      "properties": {
+       "ab": {
+        "type": "string"
+       },
+       "x": {
+        "type": "string"
+       }
+      }
+     },
+     "trueitems": {
+      "type": "array",
+      "items": true
+     },
+     "date": {
+      "type": "string",
+      "pattern": "\\d{4}-\\d{2}"
+     }
+    }
+   },
+   "input": {
+    "mode": "slow",
+    "flag": true,
+    "str": "a"
+   },
+   "out": [
+    {
+     "path": "str",
+     "code": "minLength"
+    }
+   ]
+  },
+  {
+   "name": "misc untyped non string",
+   "schema": {
+    "type": "object",
+    "required": [
+     "mode",
+     "flag"
+    ],
+    "properties": {
+     "mode": {
+      "enum": [
+       "fast",
+       "slow",
+       1
+      ]
+     },
+     "flag": {
+      "type": "boolean"
+     },
+     "num": {
+      "type": "number",
+      "minimum": "2",
+      "maximum": null
+     },
+     "str": {
+      "minLength": 2
+     },
+     "any": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "opt": {
+      "oneOf": [
+       {
+        "type": "string",
+        "maxLength": 3
+       }
+      ]
+     },
+     "nul": {
+      "type": "null"
+     },
+     "nested": {
+      "properties": {
+       "deep": {
+        "type": "integer"
+       }
+      },
+      "required": [
+       "deep"
+      ]
+     },
+     "items": {
+      "type": "array"
+     },
+     "emoji": {
+      "type": "string",
+      "maxLength": 2
+     },
+     "badpat": {
+      "type": "string",
+      "pattern": "("
+     },
+     "nullitems": {
+      "type": "array",
+      "items": null
+     },
+     "reqstr": {
+      "type": "object",
+      "required": "abc",
+      "properties": {
+       "ab": {
+        "type": "string"
+       },
+       "x": {
+        "type": "string"
+       }
+      }
+     },
+     "trueitems": {
+      "type": "array",
+      "items": true
+     },
+     "date": {
+      "type": "string",
+      "pattern": "\\d{4}-\\d{2}"
+     }
+    }
+   },
+   "input": {
+    "mode": "slow",
+    "flag": true,
+    "str": 5
+   },
+   "out": [
+    {
+     "path": "str",
+     "code": "type"
+    }
+   ]
+  },
+  {
+   "name": "misc array type passes",
+   "schema": {
+    "type": "object",
+    "required": [
+     "mode",
+     "flag"
+    ],
+    "properties": {
+     "mode": {
+      "enum": [
+       "fast",
+       "slow",
+       1
+      ]
+     },
+     "flag": {
+      "type": "boolean"
+     },
+     "num": {
+      "type": "number",
+      "minimum": "2",
+      "maximum": null
+     },
+     "str": {
+      "minLength": 2
+     },
+     "any": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "opt": {
+      "oneOf": [
+       {
+        "type": "string",
+        "maxLength": 3
+       }
+      ]
+     },
+     "nul": {
+      "type": "null"
+     },
+     "nested": {
+      "properties": {
+       "deep": {
+        "type": "integer"
+       }
+      },
+      "required": [
+       "deep"
+      ]
+     },
+     "items": {
+      "type": "array"
+     },
+     "emoji": {
+      "type": "string",
+      "maxLength": 2
+     },
+     "badpat": {
+      "type": "string",
+      "pattern": "("
+     },
+     "nullitems": {
+      "type": "array",
+      "items": null
+     },
+     "reqstr": {
+      "type": "object",
+      "required": "abc",
+      "properties": {
+       "ab": {
+        "type": "string"
+       },
+       "x": {
+        "type": "string"
+       }
+      }
+     },
+     "trueitems": {
+      "type": "array",
+      "items": true
+     },
+     "date": {
+      "type": "string",
+      "pattern": "\\d{4}-\\d{2}"
+     }
+    }
+   },
+   "input": {
+    "mode": "slow",
+    "flag": true,
+    "any": 7
+   },
+   "out": []
+  },
+  {
+   "name": "misc oneOf collapse",
+   "schema": {
+    "type": "object",
+    "required": [
+     "mode",
+     "flag"
+    ],
+    "properties": {
+     "mode": {
+      "enum": [
+       "fast",
+       "slow",
+       1
+      ]
+     },
+     "flag": {
+      "type": "boolean"
+     },
+     "num": {
+      "type": "number",
+      "minimum": "2",
+      "maximum": null
+     },
+     "str": {
+      "minLength": 2
+     },
+     "any": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "opt": {
+      "oneOf": [
+       {
+        "type": "string",
+        "maxLength": 3
+       }
+      ]
+     },
+     "nul": {
+      "type": "null"
+     },
+     "nested": {
+      "properties": {
+       "deep": {
+        "type": "integer"
+       }
+      },
+      "required": [
+       "deep"
+      ]
+     },
+     "items": {
+      "type": "array"
+     },
+     "emoji": {
+      "type": "string",
+      "maxLength": 2
+     },
+     "badpat": {
+      "type": "string",
+      "pattern": "("
+     },
+     "nullitems": {
+      "type": "array",
+      "items": null
+     },
+     "reqstr": {
+      "type": "object",
+      "required": "abc",
+      "properties": {
+       "ab": {
+        "type": "string"
+       },
+       "x": {
+        "type": "string"
+       }
+      }
+     },
+     "trueitems": {
+      "type": "array",
+      "items": true
+     },
+     "date": {
+      "type": "string",
+      "pattern": "\\d{4}-\\d{2}"
+     }
+    }
+   },
+   "input": {
+    "mode": "slow",
+    "flag": true,
+    "opt": "abcd"
+   },
+   "out": [
+    {
+     "path": "opt",
+     "code": "maxLength"
+    }
+   ]
+  },
+  {
+   "name": "misc null not nullable",
+   "schema": {
+    "type": "object",
+    "required": [
+     "mode",
+     "flag"
+    ],
+    "properties": {
+     "mode": {
+      "enum": [
+       "fast",
+       "slow",
+       1
+      ]
+     },
+     "flag": {
+      "type": "boolean"
+     },
+     "num": {
+      "type": "number",
+      "minimum": "2",
+      "maximum": null
+     },
+     "str": {
+      "minLength": 2
+     },
+     "any": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "opt": {
+      "oneOf": [
+       {
+        "type": "string",
+        "maxLength": 3
+       }
+      ]
+     },
+     "nul": {
+      "type": "null"
+     },
+     "nested": {
+      "properties": {
+       "deep": {
+        "type": "integer"
+       }
+      },
+      "required": [
+       "deep"
+      ]
+     },
+     "items": {
+      "type": "array"
+     },
+     "emoji": {
+      "type": "string",
+      "maxLength": 2
+     },
+     "badpat": {
+      "type": "string",
+      "pattern": "("
+     },
+     "nullitems": {
+      "type": "array",
+      "items": null
+     },
+     "reqstr": {
+      "type": "object",
+      "required": "abc",
+      "properties": {
+       "ab": {
+        "type": "string"
+       },
+       "x": {
+        "type": "string"
+       }
+      }
+     },
+     "trueitems": {
+      "type": "array",
+      "items": true
+     },
+     "date": {
+      "type": "string",
+      "pattern": "\\d{4}-\\d{2}"
+     }
+    }
+   },
+   "input": {
+    "mode": "slow",
+    "flag": null,
+    "opt": null
+   },
+   "out": [
+    {
+     "path": "flag",
+     "code": "required"
+    },
+    {
+     "path": "opt",
+     "code": "type"
+    }
+   ]
+  },
+  {
+   "name": "misc nested missing",
+   "schema": {
+    "type": "object",
+    "required": [
+     "mode",
+     "flag"
+    ],
+    "properties": {
+     "mode": {
+      "enum": [
+       "fast",
+       "slow",
+       1
+      ]
+     },
+     "flag": {
+      "type": "boolean"
+     },
+     "num": {
+      "type": "number",
+      "minimum": "2",
+      "maximum": null
+     },
+     "str": {
+      "minLength": 2
+     },
+     "any": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "opt": {
+      "oneOf": [
+       {
+        "type": "string",
+        "maxLength": 3
+       }
+      ]
+     },
+     "nul": {
+      "type": "null"
+     },
+     "nested": {
+      "properties": {
+       "deep": {
+        "type": "integer"
+       }
+      },
+      "required": [
+       "deep"
+      ]
+     },
+     "items": {
+      "type": "array"
+     },
+     "emoji": {
+      "type": "string",
+      "maxLength": 2
+     },
+     "badpat": {
+      "type": "string",
+      "pattern": "("
+     },
+     "nullitems": {
+      "type": "array",
+      "items": null
+     },
+     "reqstr": {
+      "type": "object",
+      "required": "abc",
+      "properties": {
+       "ab": {
+        "type": "string"
+       },
+       "x": {
+        "type": "string"
+       }
+      }
+     },
+     "trueitems": {
+      "type": "array",
+      "items": true
+     },
+     "date": {
+      "type": "string",
+      "pattern": "\\d{4}-\\d{2}"
+     }
+    }
+   },
+   "input": {
+    "mode": "slow",
+    "flag": true,
+    "nested": {}
+   },
+   "out": [
+    {
+     "path": "nested.deep",
+     "code": "required"
+    }
+   ]
+  },
+  {
+   "name": "misc nested type",
+   "schema": {
+    "type": "object",
+    "required": [
+     "mode",
+     "flag"
+    ],
+    "properties": {
+     "mode": {
+      "enum": [
+       "fast",
+       "slow",
+       1
+      ]
+     },
+     "flag": {
+      "type": "boolean"
+     },
+     "num": {
+      "type": "number",
+      "minimum": "2",
+      "maximum": null
+     },
+     "str": {
+      "minLength": 2
+     },
+     "any": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "opt": {
+      "oneOf": [
+       {
+        "type": "string",
+        "maxLength": 3
+       }
+      ]
+     },
+     "nul": {
+      "type": "null"
+     },
+     "nested": {
+      "properties": {
+       "deep": {
+        "type": "integer"
+       }
+      },
+      "required": [
+       "deep"
+      ]
+     },
+     "items": {
+      "type": "array"
+     },
+     "emoji": {
+      "type": "string",
+      "maxLength": 2
+     },
+     "badpat": {
+      "type": "string",
+      "pattern": "("
+     },
+     "nullitems": {
+      "type": "array",
+      "items": null
+     },
+     "reqstr": {
+      "type": "object",
+      "required": "abc",
+      "properties": {
+       "ab": {
+        "type": "string"
+       },
+       "x": {
+        "type": "string"
+       }
+      }
+     },
+     "trueitems": {
+      "type": "array",
+      "items": true
+     },
+     "date": {
+      "type": "string",
+      "pattern": "\\d{4}-\\d{2}"
+     }
+    }
+   },
+   "input": {
+    "mode": "slow",
+    "flag": true,
+    "nested": []
+   },
+   "out": [
+    {
+     "path": "nested",
+     "code": "type"
+    }
+   ]
+  },
+  {
+   "name": "misc array items untyped",
+   "schema": {
+    "type": "object",
+    "required": [
+     "mode",
+     "flag"
+    ],
+    "properties": {
+     "mode": {
+      "enum": [
+       "fast",
+       "slow",
+       1
+      ]
+     },
+     "flag": {
+      "type": "boolean"
+     },
+     "num": {
+      "type": "number",
+      "minimum": "2",
+      "maximum": null
+     },
+     "str": {
+      "minLength": 2
+     },
+     "any": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "opt": {
+      "oneOf": [
+       {
+        "type": "string",
+        "maxLength": 3
+       }
+      ]
+     },
+     "nul": {
+      "type": "null"
+     },
+     "nested": {
+      "properties": {
+       "deep": {
+        "type": "integer"
+       }
+      },
+      "required": [
+       "deep"
+      ]
+     },
+     "items": {
+      "type": "array"
+     },
+     "emoji": {
+      "type": "string",
+      "maxLength": 2
+     },
+     "badpat": {
+      "type": "string",
+      "pattern": "("
+     },
+     "nullitems": {
+      "type": "array",
+      "items": null
+     },
+     "reqstr": {
+      "type": "object",
+      "required": "abc",
+      "properties": {
+       "ab": {
+        "type": "string"
+       },
+       "x": {
+        "type": "string"
+       }
+      }
+     },
+     "trueitems": {
+      "type": "array",
+      "items": true
+     },
+     "date": {
+      "type": "string",
+      "pattern": "\\d{4}-\\d{2}"
+     }
+    }
+   },
+   "input": {
+    "mode": "slow",
+    "flag": true,
+    "items": [
+     1,
+     "a",
+     null
+    ]
+   },
+   "out": [
+    {
+     "path": "items[0]",
+     "code": "type"
+    },
+    {
+     "path": "items[2]",
+     "code": "required"
+    }
+   ]
+  },
+  {
+   "name": "misc utf16 length",
+   "schema": {
+    "type": "object",
+    "required": [
+     "mode",
+     "flag"
+    ],
+    "properties": {
+     "mode": {
+      "enum": [
+       "fast",
+       "slow",
+       1
+      ]
+     },
+     "flag": {
+      "type": "boolean"
+     },
+     "num": {
+      "type": "number",
+      "minimum": "2",
+      "maximum": null
+     },
+     "str": {
+      "minLength": 2
+     },
+     "any": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "opt": {
+      "oneOf": [
+       {
+        "type": "string",
+        "maxLength": 3
+       }
+      ]
+     },
+     "nul": {
+      "type": "null"
+     },
+     "nested": {
+      "properties": {
+       "deep": {
+        "type": "integer"
+       }
+      },
+      "required": [
+       "deep"
+      ]
+     },
+     "items": {
+      "type": "array"
+     },
+     "emoji": {
+      "type": "string",
+      "maxLength": 2
+     },
+     "badpat": {
+      "type": "string",
+      "pattern": "("
+     },
+     "nullitems": {
+      "type": "array",
+      "items": null
+     },
+     "reqstr": {
+      "type": "object",
+      "required": "abc",
+      "properties": {
+       "ab": {
+        "type": "string"
+       },
+       "x": {
+        "type": "string"
+       }
+      }
+     },
+     "trueitems": {
+      "type": "array",
+      "items": true
+     },
+     "date": {
+      "type": "string",
+      "pattern": "\\d{4}-\\d{2}"
+     }
+    }
+   },
+   "input": {
+    "mode": "slow",
+    "flag": true,
+    "emoji": "😀"
+   },
+   "out": []
+  },
+  {
+   "name": "misc utf16 too long",
+   "schema": {
+    "type": "object",
+    "required": [
+     "mode",
+     "flag"
+    ],
+    "properties": {
+     "mode": {
+      "enum": [
+       "fast",
+       "slow",
+       1
+      ]
+     },
+     "flag": {
+      "type": "boolean"
+     },
+     "num": {
+      "type": "number",
+      "minimum": "2",
+      "maximum": null
+     },
+     "str": {
+      "minLength": 2
+     },
+     "any": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "opt": {
+      "oneOf": [
+       {
+        "type": "string",
+        "maxLength": 3
+       }
+      ]
+     },
+     "nul": {
+      "type": "null"
+     },
+     "nested": {
+      "properties": {
+       "deep": {
+        "type": "integer"
+       }
+      },
+      "required": [
+       "deep"
+      ]
+     },
+     "items": {
+      "type": "array"
+     },
+     "emoji": {
+      "type": "string",
+      "maxLength": 2
+     },
+     "badpat": {
+      "type": "string",
+      "pattern": "("
+     },
+     "nullitems": {
+      "type": "array",
+      "items": null
+     },
+     "reqstr": {
+      "type": "object",
+      "required": "abc",
+      "properties": {
+       "ab": {
+        "type": "string"
+       },
+       "x": {
+        "type": "string"
+       }
+      }
+     },
+     "trueitems": {
+      "type": "array",
+      "items": true
+     },
+     "date": {
+      "type": "string",
+      "pattern": "\\d{4}-\\d{2}"
+     }
+    }
+   },
+   "input": {
+    "mode": "slow",
+    "flag": true,
+    "emoji": "😀a"
+   },
+   "out": [
+    {
+     "path": "emoji",
+     "code": "maxLength"
+    }
+   ]
+  },
+  {
+   "name": "misc bad pattern ignored",
+   "schema": {
+    "type": "object",
+    "required": [
+     "mode",
+     "flag"
+    ],
+    "properties": {
+     "mode": {
+      "enum": [
+       "fast",
+       "slow",
+       1
+      ]
+     },
+     "flag": {
+      "type": "boolean"
+     },
+     "num": {
+      "type": "number",
+      "minimum": "2",
+      "maximum": null
+     },
+     "str": {
+      "minLength": 2
+     },
+     "any": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "opt": {
+      "oneOf": [
+       {
+        "type": "string",
+        "maxLength": 3
+       }
+      ]
+     },
+     "nul": {
+      "type": "null"
+     },
+     "nested": {
+      "properties": {
+       "deep": {
+        "type": "integer"
+       }
+      },
+      "required": [
+       "deep"
+      ]
+     },
+     "items": {
+      "type": "array"
+     },
+     "emoji": {
+      "type": "string",
+      "maxLength": 2
+     },
+     "badpat": {
+      "type": "string",
+      "pattern": "("
+     },
+     "nullitems": {
+      "type": "array",
+      "items": null
+     },
+     "reqstr": {
+      "type": "object",
+      "required": "abc",
+      "properties": {
+       "ab": {
+        "type": "string"
+       },
+       "x": {
+        "type": "string"
+       }
+      }
+     },
+     "trueitems": {
+      "type": "array",
+      "items": true
+     },
+     "date": {
+      "type": "string",
+      "pattern": "\\d{4}-\\d{2}"
+     }
+    }
+   },
+   "input": {
+    "mode": "slow",
+    "flag": true,
+    "badpat": "x"
+   },
+   "out": []
+  },
+  {
+   "name": "misc null items",
+   "schema": {
+    "type": "object",
+    "required": [
+     "mode",
+     "flag"
+    ],
+    "properties": {
+     "mode": {
+      "enum": [
+       "fast",
+       "slow",
+       1
+      ]
+     },
+     "flag": {
+      "type": "boolean"
+     },
+     "num": {
+      "type": "number",
+      "minimum": "2",
+      "maximum": null
+     },
+     "str": {
+      "minLength": 2
+     },
+     "any": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "opt": {
+      "oneOf": [
+       {
+        "type": "string",
+        "maxLength": 3
+       }
+      ]
+     },
+     "nul": {
+      "type": "null"
+     },
+     "nested": {
+      "properties": {
+       "deep": {
+        "type": "integer"
+       }
+      },
+      "required": [
+       "deep"
+      ]
+     },
+     "items": {
+      "type": "array"
+     },
+     "emoji": {
+      "type": "string",
+      "maxLength": 2
+     },
+     "badpat": {
+      "type": "string",
+      "pattern": "("
+     },
+     "nullitems": {
+      "type": "array",
+      "items": null
+     },
+     "reqstr": {
+      "type": "object",
+      "required": "abc",
+      "properties": {
+       "ab": {
+        "type": "string"
+       },
+       "x": {
+        "type": "string"
+       }
+      }
+     },
+     "trueitems": {
+      "type": "array",
+      "items": true
+     },
+     "date": {
+      "type": "string",
+      "pattern": "\\d{4}-\\d{2}"
+     }
+    }
+   },
+   "input": {
+    "mode": "slow",
+    "flag": true,
+    "nullitems": [
+     "a",
+     2
+    ]
+   },
+   "out": [
+    {
+     "path": "nullitems[1]",
+     "code": "type"
+    }
+   ]
+  },
+  {
+   "name": "misc string required",
+   "schema": {
+    "type": "object",
+    "required": [
+     "mode",
+     "flag"
+    ],
+    "properties": {
+     "mode": {
+      "enum": [
+       "fast",
+       "slow",
+       1
+      ]
+     },
+     "flag": {
+      "type": "boolean"
+     },
+     "num": {
+      "type": "number",
+      "minimum": "2",
+      "maximum": null
+     },
+     "str": {
+      "minLength": 2
+     },
+     "any": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "opt": {
+      "oneOf": [
+       {
+        "type": "string",
+        "maxLength": 3
+       }
+      ]
+     },
+     "nul": {
+      "type": "null"
+     },
+     "nested": {
+      "properties": {
+       "deep": {
+        "type": "integer"
+       }
+      },
+      "required": [
+       "deep"
+      ]
+     },
+     "items": {
+      "type": "array"
+     },
+     "emoji": {
+      "type": "string",
+      "maxLength": 2
+     },
+     "badpat": {
+      "type": "string",
+      "pattern": "("
+     },
+     "nullitems": {
+      "type": "array",
+      "items": null
+     },
+     "reqstr": {
+      "type": "object",
+      "required": "abc",
+      "properties": {
+       "ab": {
+        "type": "string"
+       },
+       "x": {
+        "type": "string"
+       }
+      }
+     },
+     "trueitems": {
+      "type": "array",
+      "items": true
+     },
+     "date": {
+      "type": "string",
+      "pattern": "\\d{4}-\\d{2}"
+     }
+    }
+   },
+   "input": {
+    "mode": "slow",
+    "flag": true,
+    "reqstr": {}
+   },
+   "out": [
+    {
+     "path": "reqstr.ab",
+     "code": "required"
+    }
+   ]
+  },
+  {
+   "name": "misc true items",
+   "schema": {
+    "type": "object",
+    "required": [
+     "mode",
+     "flag"
+    ],
+    "properties": {
+     "mode": {
+      "enum": [
+       "fast",
+       "slow",
+       1
+      ]
+     },
+     "flag": {
+      "type": "boolean"
+     },
+     "num": {
+      "type": "number",
+      "minimum": "2",
+      "maximum": null
+     },
+     "str": {
+      "minLength": 2
+     },
+     "any": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "opt": {
+      "oneOf": [
+       {
+        "type": "string",
+        "maxLength": 3
+       }
+      ]
+     },
+     "nul": {
+      "type": "null"
+     },
+     "nested": {
+      "properties": {
+       "deep": {
+        "type": "integer"
+       }
+      },
+      "required": [
+       "deep"
+      ]
+     },
+     "items": {
+      "type": "array"
+     },
+     "emoji": {
+      "type": "string",
+      "maxLength": 2
+     },
+     "badpat": {
+      "type": "string",
+      "pattern": "("
+     },
+     "nullitems": {
+      "type": "array",
+      "items": null
+     },
+     "reqstr": {
+      "type": "object",
+      "required": "abc",
+      "properties": {
+       "ab": {
+        "type": "string"
+       },
+       "x": {
+        "type": "string"
+       }
+      }
+     },
+     "trueitems": {
+      "type": "array",
+      "items": true
+     },
+     "date": {
+      "type": "string",
+      "pattern": "\\d{4}-\\d{2}"
+     }
+    }
+   },
+   "input": {
+    "mode": "slow",
+    "flag": true,
+    "trueitems": [
+     "a",
+     1
+    ]
+   },
+   "out": [
+    {
+     "path": "trueitems[1]",
+     "code": "type"
+    }
+   ]
+  },
+  {
+   "name": "misc digit pattern",
+   "schema": {
+    "type": "object",
+    "required": [
+     "mode",
+     "flag"
+    ],
+    "properties": {
+     "mode": {
+      "enum": [
+       "fast",
+       "slow",
+       1
+      ]
+     },
+     "flag": {
+      "type": "boolean"
+     },
+     "num": {
+      "type": "number",
+      "minimum": "2",
+      "maximum": null
+     },
+     "str": {
+      "minLength": 2
+     },
+     "any": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "opt": {
+      "oneOf": [
+       {
+        "type": "string",
+        "maxLength": 3
+       }
+      ]
+     },
+     "nul": {
+      "type": "null"
+     },
+     "nested": {
+      "properties": {
+       "deep": {
+        "type": "integer"
+       }
+      },
+      "required": [
+       "deep"
+      ]
+     },
+     "items": {
+      "type": "array"
+     },
+     "emoji": {
+      "type": "string",
+      "maxLength": 2
+     },
+     "badpat": {
+      "type": "string",
+      "pattern": "("
+     },
+     "nullitems": {
+      "type": "array",
+      "items": null
+     },
+     "reqstr": {
+      "type": "object",
+      "required": "abc",
+      "properties": {
+       "ab": {
+        "type": "string"
+       },
+       "x": {
+        "type": "string"
+       }
+      }
+     },
+     "trueitems": {
+      "type": "array",
+      "items": true
+     },
+     "date": {
+      "type": "string",
+      "pattern": "\\d{4}-\\d{2}"
+     }
+    }
+   },
+   "input": {
+    "mode": "slow",
+    "flag": true,
+    "date": "on 2026-11"
+   },
+   "out": []
+  },
+  {
+   "name": "misc digit pattern miss",
+   "schema": {
+    "type": "object",
+    "required": [
+     "mode",
+     "flag"
+    ],
+    "properties": {
+     "mode": {
+      "enum": [
+       "fast",
+       "slow",
+       1
+      ]
+     },
+     "flag": {
+      "type": "boolean"
+     },
+     "num": {
+      "type": "number",
+      "minimum": "2",
+      "maximum": null
+     },
+     "str": {
+      "minLength": 2
+     },
+     "any": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "opt": {
+      "oneOf": [
+       {
+        "type": "string",
+        "maxLength": 3
+       }
+      ]
+     },
+     "nul": {
+      "type": "null"
+     },
+     "nested": {
+      "properties": {
+       "deep": {
+        "type": "integer"
+       }
+      },
+      "required": [
+       "deep"
+      ]
+     },
+     "items": {
+      "type": "array"
+     },
+     "emoji": {
+      "type": "string",
+      "maxLength": 2
+     },
+     "badpat": {
+      "type": "string",
+      "pattern": "("
+     },
+     "nullitems": {
+      "type": "array",
+      "items": null
+     },
+     "reqstr": {
+      "type": "object",
+      "required": "abc",
+      "properties": {
+       "ab": {
+        "type": "string"
+       },
+       "x": {
+        "type": "string"
+       }
+      }
+     },
+     "trueitems": {
+      "type": "array",
+      "items": true
+     },
+     "date": {
+      "type": "string",
+      "pattern": "\\d{4}-\\d{2}"
+     }
+    }
+   },
+   "input": {
+    "mode": "slow",
+    "flag": true,
+    "date": "26-11"
+   },
+   "out": [
+    {
+     "path": "date",
+     "code": "pattern"
+    }
+   ]
+  },
+  {
+   "name": "empty schema string",
+   "schema": {},
+   "input": "text",
+   "out": []
+  },
+  {
+   "name": "empty schema object",
+   "schema": {},
+   "input": {
+    "a": 1
+   },
+   "out": [
+    {
+     "path": "",
+     "code": "type"
+    }
+   ]
+  }
+ ]
+}
