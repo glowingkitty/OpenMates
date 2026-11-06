@@ -96,3 +96,10 @@ parking-lot changes, chats started.
 
 ## Alerts
 The briefing's "Alerts" section (production and dev reported issues, repeating errors of the last 24 h) comes first. Production reports outrank all other work: if the note says to investigate one, start it via `/debug-issue` or the `issue-forensics` agent. Never copy emails or share links from issue records into notes.
+
+## Meeting conduct (from the 06 Nov decisions)
+- Always ask about yesterday's tasks (done / not done / moved). Skip the question only when
+  git commits make the answer obvious, and even then ask for a one-line confirmation.
+- Keep Claude usage low: Sonnet for most work, Rust work excepted.
+- Voice mode has no repo access: checks of the repo ("is bug X already fixed?") are done by
+  the dev server when the note is applied, and the result goes into the closing summary.

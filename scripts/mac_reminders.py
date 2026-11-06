@@ -172,6 +172,9 @@ def load(prefer_live: bool = True, cache: Path = CACHE) -> tuple[list[dict], str
     return data["items"], "cache", data["fetched_at"]
 
 
+WRITE_COMMANDS = {"create", "complete", "set-due", "update", "move", "delete", "batch"}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="command", required=True)
@@ -230,6 +233,11 @@ def main(argv: list[str] | None = None) -> int:
         if "due" in request:
             request["due"] = normalize_due(request["due"])
         result = remote(request)
+    if args.command in WRITE_COMMANDS:
+        try:
+            sync()  # keep the local copy current so the next briefing never shows finished items
+        except (RemindersError, subprocess.TimeoutExpired, OSError) as error:
+            print(f"warning: cache refresh after the change failed: {error}", file=sys.stderr)
     print(json.dumps(result, indent=1, ensure_ascii=False))
     return 0
 
