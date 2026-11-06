@@ -68,8 +68,23 @@ class Driver:
         self.launches = []
         self.failure = None
         self.inputs = {}
+        self.started = time.monotonic()
 
-    def run(
+    def run(self, command, **options):
+        """Time each admitted launch (public: durations only, no output)."""
+        count, began = len(self.launches), time.monotonic()
+        try:
+            return self.launch(command, **options)
+        finally:
+            if len(self.launches) > count:
+                self.launches[-1]["startedOffsetSeconds"] = round(
+                    began - self.started, 3
+                )
+                self.launches[-1]["elapsedSeconds"] = round(
+                    time.monotonic() - began, 3
+                )
+
+    def launch(
         self, command, *, cwd, capture_output, text, timeout, env=None, check=False
     ):
         # Only the three externally admitted fixed share adapters use this
