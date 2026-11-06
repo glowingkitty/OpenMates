@@ -148,3 +148,10 @@ def test_python_faulthandler_dump_is_a_fatal_error_with_frames(tmp_path):
 
 def test_python_unknown_exception_class_is_not_exported(tmp_path):
     assert project(tmp_path, "PrivateAccountError: private\n", (SDK,)) == []
+
+
+def test_child_exit_code_is_exported_as_a_bounded_number_only(tmp_path):
+    text = "AssertionError: genuine adapter executable failed child-exit=-9: private-tail\n"
+    result = project(tmp_path, text, (SDK,))
+    assert {"kind": "child_exit", "code": "-9", "locations": []} in result
+    assert "private" not in json.dumps(result)

@@ -123,7 +123,7 @@ def invoke(argv, case):
                         assert len(output) <= 1024 * 1024, "Adapter output bound"
         code = child.wait(timeout=max(0.001, deadline - time.monotonic()))
         errors.seek(0)
-        assert code == 0, f"adapter exit {code}: " + errors.read()[-1800:].decode(
+        assert code == 0, f"child-exit={code}: " + errors.read()[-1800:].decode(
             "utf-8", "replace"
         )
         return json.loads(output)

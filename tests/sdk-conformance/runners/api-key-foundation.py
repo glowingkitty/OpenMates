@@ -112,7 +112,8 @@ def main():
             )
             _probe_child(result)
             assert result.returncode == 0, (
-                "genuine adapter executable failed: " + result.stderr[-1800:]
+                f"genuine adapter executable failed child-exit={result.returncode}: "
+                + result.stderr[-1800:]
             )
             _probe_mark("result_decode", vector["id"])
             actual = json.loads(result.stdout)

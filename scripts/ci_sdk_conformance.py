@@ -650,6 +650,9 @@ def compiler_diagnostics(data, root, inputs):
     python = python_traceback_diagnostics(text, root, inputs)
     if python is not None and len(report["compiler"]) < 32:
         report["compiler"].append(python)
+    exits = re.findall(r"child-exit=(-?[0-9]{1,3})\b", text)
+    if exits and len(report["compiler"]) < 32:
+        report["compiler"].append({"kind": "child_exit", "code": exits[-1], "locations": []})
     return report["compiler"]
 
 
@@ -1013,7 +1016,8 @@ def failure_diagnostics(private, root, stage, inputs, plan):
             kind, code = entry.get("kind"), entry["code"]
             if not ((kind == "rustc" and re.fullmatch(r"E[0-9]{4}", code))
                     or (kind == "typescript" and re.fullmatch(r"TS[0-9]{4,5}", code))
-                    or (kind == "python" and code in (*PYTHON_TRACE_EXCEPTIONS, "FatalPythonError"))):
+                    or (kind == "python" and code in (*PYTHON_TRACE_EXCEPTIONS, "FatalPythonError"))
+                    or (kind == "child_exit" and re.fullmatch(r"-?[0-9]{1,3}", code))):
                 continue
             locations = [{key: value[key] for key in ("path", "line", "column")}
                          for value in entry.get("locations", []) if isinstance(value, dict)
