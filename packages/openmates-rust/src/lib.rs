@@ -50,6 +50,16 @@ pub mod sdk_notifications;
 pub mod sdk_finance;
 pub mod sdk_connected_accounts;
 pub mod sdk_embeds;
+pub mod sdk_benchmark;
+pub mod sdk_design;
+pub mod sdk_feedback;
+pub mod sdk_ideabucket;
+pub mod sdk_inspirations;
+pub mod sdk_learning_mode;
+pub mod sdk_memories;
+pub mod sdk_new_chat_suggestions;
+pub mod sdk_public_utilities;
+pub mod sdk_transport;
 pub use sdk::{AnonymousMessage, ApiKey, OpenMates, SdkCredentials, SdkOptions};
 
 pub mod work;

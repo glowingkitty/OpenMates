@@ -36,6 +36,7 @@ pub use crate::client::transport::local_connector::LocalConnectorSocket;
 pub use ideabucket::{IDEABUCKET_DEFAULT_PROCESSING_PROMPT, IdeaBucketText, normalize_processing_times};
 pub use settings_read::{SettingsReadError, SettingsReadResponse};
 use crate::{Client, Error, Result, crypto};
+pub(crate) use ideabucket::{next_send_at, today};
 pub use api_keys::{
     ApiKeyCreateConfirmation, ApiKeyList, ApiKeyRecord, ApiKeyRevokeConfirmation, CreatedApiKey,
 };

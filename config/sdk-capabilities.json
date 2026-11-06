@@ -1164,13 +1164,22 @@
           "status": "partial"
         },
         "rust": {
-          "api": [],
-          "conformance": false,
-          "evidence": [],
-          "gaps": [
-            "Equivalent public API and cross-language implementation evidence are not yet established."
+          "api": [
+            "sdk_benchmark",
+            "sdk_benchmark.Benchmark",
+            "sdk_benchmark.Benchmark.estimate",
+            "sdk_benchmark.Benchmark.run",
+            "sdk_benchmark.OpenMates.benchmark"
           ],
-          "status": "missing"
+          "conformance": false,
+          "evidence": [
+            "packages/openmates-rust/tests/sdk_api_key_domains_b.rs"
+          ],
+          "gaps": [
+            "Rust API-key facade is covered by Rust unit tests only; a shared cross-language conformance runner executing the actual npm, Python and Rust adapters against one fixture is not yet authored.",
+            "Benchmark orchestration (model/prompt-budget) stays in the CLI handlers; the Rust SDK exposes only run and estimate transport calls."
+          ],
+          "status": "partial"
         }
       }
     },
@@ -1705,13 +1714,41 @@
           "status": "partial"
         },
         "rust": {
-          "api": [],
-          "conformance": false,
-          "evidence": [],
-          "gaps": [
-            "Equivalent public API and cross-language implementation evidence are not yet established."
+          "api": [
+            "sdk_design",
+            "sdk_design.Design",
+            "sdk_design.Design.export_icon",
+            "sdk_design.IconExport",
+            "sdk_design.IconExport.content_type",
+            "sdk_design.IconExport.data",
+            "sdk_design.IconExport.format",
+            "sdk_design.IconExport.svg",
+            "sdk_design.IconExport.svg_path",
+            "sdk_design.IconExportOptions",
+            "sdk_design.IconExportOptions.allow_palette_recolor",
+            "sdk_design.IconExportOptions.color",
+            "sdk_design.IconExportOptions.format",
+            "sdk_design.IconExportOptions.name",
+            "sdk_design.IconExportOptions.palette",
+            "sdk_design.IconExportOptions.prefix",
+            "sdk_design.IconExportOptions.svg_path",
+            "sdk_design.IconFormat",
+            "sdk_design.IconFormat.Png",
+            "sdk_design.IconFormat.Svg",
+            "sdk_design.OpenMates.design",
+            "sdk_design.apply_icon_color",
+            "sdk_design.normalize_icon_color",
+            "sdk_design.resolve_icon_svg_path"
           ],
-          "status": "missing"
+          "conformance": false,
+          "evidence": [
+            "packages/openmates-rust/tests/sdk_api_key_domains_b.rs"
+          ],
+          "gaps": [
+            "Rust API-key facade is covered by Rust unit tests only; a shared cross-language conformance runner executing the actual npm, Python and Rust adapters against one fixture is not yet authored.",
+            "PNG export is a typed Unavailable error in Rust because the portable core embeds no rasterizer; npm renders PNG via resvg. Local file output is left to the caller."
+          ],
+          "status": "partial"
         }
       }
     },
@@ -2258,13 +2295,28 @@
           "status": "partial"
         },
         "rust": {
-          "api": [],
-          "conformance": false,
-          "evidence": [],
-          "gaps": [
-            "Equivalent public API and cross-language implementation evidence are not yet established."
+          "api": [
+            "sdk_feedback",
+            "sdk_feedback.ASSISTANT_FEEDBACK_REPORT_TITLE",
+            "sdk_feedback.ASSISTANT_FEEDBACK_THANKS",
+            "sdk_feedback.AssistantFeedbackDecision",
+            "sdk_feedback.AssistantFeedbackDecision.action",
+            "sdk_feedback.AssistantFeedbackDecision.message",
+            "sdk_feedback.AssistantFeedbackDecision.rating",
+            "sdk_feedback.AssistantFeedbackDecision.report_title",
+            "sdk_feedback.Feedback",
+            "sdk_feedback.Feedback.assistant_response",
+            "sdk_feedback.OpenMates.feedback",
+            "sdk_feedback.build_assistant_feedback_decision"
           ],
-          "status": "missing"
+          "conformance": false,
+          "evidence": [
+            "packages/openmates-rust/tests/sdk_api_key_domains_b.rs"
+          ],
+          "gaps": [
+            "Rust API-key facade is covered by Rust unit tests only; a shared cross-language conformance runner executing the actual npm, Python and Rust adapters against one fixture is not yet authored."
+          ],
+          "status": "partial"
         }
       }
     },
@@ -2473,13 +2525,36 @@
           "status": "partial"
         },
         "rust": {
-          "api": [],
-          "conformance": false,
-          "evidence": [],
-          "gaps": [
-            "Equivalent public API and cross-language implementation evidence are not yet established."
+          "api": [
+            "sdk_ideabucket",
+            "sdk_ideabucket.IdeaBucket",
+            "sdk_ideabucket.IdeaBucket.add",
+            "sdk_ideabucket.IdeaBucket.process",
+            "sdk_ideabucket.IdeaBucket.save_settings",
+            "sdk_ideabucket.IdeaBucket.settings",
+            "sdk_ideabucket.IdeaBucket.status",
+            "sdk_ideabucket.IdeaBucketAddInput",
+            "sdk_ideabucket.IdeaBucketAddInput.bucket_id",
+            "sdk_ideabucket.IdeaBucketAddInput.chat_id",
+            "sdk_ideabucket.IdeaBucketAddInput.prompt",
+            "sdk_ideabucket.IdeaBucketAddInput.scheduled_send_at",
+            "sdk_ideabucket.IdeaBucketAddInput.text",
+            "sdk_ideabucket.IdeaBucketSettingsInput",
+            "sdk_ideabucket.IdeaBucketSettingsInput.processing_prompt",
+            "sdk_ideabucket.IdeaBucketSettingsInput.processing_times",
+            "sdk_ideabucket.OpenMates.ideabucket",
+            "sdk_ideabucket.ideabucket_markdown",
+            "sdk_ideabucket.processing_payload"
           ],
-          "status": "missing"
+          "conformance": false,
+          "evidence": [
+            "packages/openmates-rust/tests/sdk_api_key_domains_b.rs"
+          ],
+          "gaps": [
+            "Rust API-key facade is covered by Rust unit tests only; a shared cross-language conformance runner executing the actual npm, Python and Rust adapters against one fixture is not yet authored.",
+            "Next scheduled send time uses UTC day boundaries where npm uses the host time zone; encrypted add payload is verified by Rust round-trip tests, not yet by an npm-side decrypt peer."
+          ],
+          "status": "partial"
         }
       }
     },
@@ -2519,13 +2594,22 @@
           "status": "partial"
         },
         "rust": {
-          "api": [],
-          "conformance": false,
-          "evidence": [],
-          "gaps": [
-            "Equivalent public API and cross-language implementation evidence are not yet established."
+          "api": [
+            "sdk_inspirations",
+            "sdk_inspirations.Inspirations",
+            "sdk_inspirations.Inspirations.list",
+            "sdk_inspirations.InspirationsOptions",
+            "sdk_inspirations.InspirationsOptions.language",
+            "sdk_inspirations.OpenMates.inspirations"
           ],
-          "status": "missing"
+          "conformance": false,
+          "evidence": [
+            "packages/openmates-rust/tests/sdk_api_key_domains_b.rs"
+          ],
+          "gaps": [
+            "Rust API-key facade is covered by Rust unit tests only; a shared cross-language conformance runner executing the actual npm, Python and Rust adapters against one fixture is not yet authored."
+          ],
+          "status": "partial"
         }
       }
     },
@@ -2817,13 +2901,22 @@
           "status": "partial"
         },
         "rust": {
-          "api": [],
-          "conformance": false,
-          "evidence": [],
-          "gaps": [
-            "Equivalent public API and cross-language implementation evidence are not yet established."
+          "api": [
+            "sdk_learning_mode",
+            "sdk_learning_mode.LearningMode",
+            "sdk_learning_mode.LearningMode.disable",
+            "sdk_learning_mode.LearningMode.enable",
+            "sdk_learning_mode.LearningMode.status",
+            "sdk_learning_mode.OpenMates.learning_mode"
           ],
-          "status": "missing"
+          "conformance": false,
+          "evidence": [
+            "packages/openmates-rust/tests/sdk_api_key_domains_b.rs"
+          ],
+          "gaps": [
+            "Rust API-key facade is covered by Rust unit tests only; a shared cross-language conformance runner executing the actual npm, Python and Rust adapters against one fixture is not yet authored."
+          ],
+          "status": "partial"
         }
       }
     },
@@ -2888,13 +2981,36 @@
           "status": "partial"
         },
         "rust": {
-          "api": [],
-          "conformance": false,
-          "evidence": [],
-          "gaps": [
-            "Equivalent public API and cross-language implementation evidence are not yet established."
+          "api": [
+            "sdk_memories",
+            "sdk_memories.Memories",
+            "sdk_memories.Memories.create",
+            "sdk_memories.Memories.delete",
+            "sdk_memories.Memories.list",
+            "sdk_memories.Memories.published",
+            "sdk_memories.Memories.types",
+            "sdk_memories.Memories.update",
+            "sdk_memories.MemoryInput",
+            "sdk_memories.MemoryInput.app_id",
+            "sdk_memories.MemoryInput.created_at",
+            "sdk_memories.MemoryInput.id",
+            "sdk_memories.MemoryInput.item_type",
+            "sdk_memories.MemoryInput.item_value",
+            "sdk_memories.MemoryInput.item_version",
+            "sdk_memories.OpenMates.memories",
+            "sdk_memories.hash_item_key",
+            "sdk_memories.memory_plaintext"
           ],
-          "status": "missing"
+          "conformance": false,
+          "evidence": [
+            "tests/sdk-conformance/generate_sdk_api_key_memories.mjs",
+            "packages/openmates-rust/tests/sdk_api_key_domains_b.rs"
+          ],
+          "gaps": [
+            "Rust API-key facade is covered by Rust unit tests only; a shared cross-language conformance runner executing the actual npm, Python and Rust adapters against one fixture is not yet authored.",
+            "Memory plaintext that is neither JSON nor a bare string (TOON-encoded) is returned as the raw string because the shared TOON decoder is crate-private."
+          ],
+          "status": "partial"
         }
       }
     },
@@ -3012,13 +3128,23 @@
           "status": "partial"
         },
         "rust": {
-          "api": [],
-          "conformance": false,
-          "evidence": [],
-          "gaps": [
-            "Equivalent public API and cross-language implementation evidence are not yet established."
+          "api": [
+            "sdk_new_chat_suggestions",
+            "sdk_new_chat_suggestions.NewChatSuggestions",
+            "sdk_new_chat_suggestions.NewChatSuggestions.list",
+            "sdk_new_chat_suggestions.NewChatSuggestionsOptions",
+            "sdk_new_chat_suggestions.NewChatSuggestionsOptions.limit",
+            "sdk_new_chat_suggestions.OpenMates.new_chat_suggestions"
           ],
-          "status": "missing"
+          "conformance": false,
+          "evidence": [
+            "packages/openmates-rust/tests/sdk_api_key_domains_b.rs"
+          ],
+          "gaps": [
+            "Rust API-key facade is covered by Rust unit tests only; a shared cross-language conformance runner executing the actual npm, Python and Rust adapters against one fixture is not yet authored.",
+            "npm also exposes a decrypted suggestion type for CLI callers; the Rust API-key facade returns the server envelope unchanged."
+          ],
+          "status": "partial"
         }
       }
     },
@@ -4452,13 +4578,32 @@
           "status": "missing"
         },
         "rust": {
-          "api": [],
-          "conformance": false,
-          "evidence": [],
-          "gaps": [
-            "Equivalent public API and cross-language implementation evidence are not yet established."
+          "api": [
+            "sdk_public_utilities",
+            "sdk_public_utilities.ImagesAiDetectionClassification",
+            "sdk_public_utilities.ImagesAiDetectionClassification.LikelyAiGenerated",
+            "sdk_public_utilities.ImagesAiDetectionClassification.LikelyNotAiGenerated",
+            "sdk_public_utilities.ImagesAiDetectionClassification.PossiblyAiGenerated",
+            "sdk_public_utilities.ImagesAiDetectionClassification.Unavailable",
+            "sdk_public_utilities.ImagesAiDetectionClassification.as_str",
+            "sdk_public_utilities.SUPPORT_URL",
+            "sdk_public_utilities.build_images_ai_detection_summary",
+            "sdk_public_utilities.classify_images_ai_detection",
+            "sdk_public_utilities.default_clone_branch_for_version",
+            "sdk_public_utilities.derive_app_url",
+            "sdk_public_utilities.format_images_ai_detection_label",
+            "sdk_public_utilities.get_ext_for_lang",
+            "sdk_public_utilities.render_support_info"
           ],
-          "status": "missing"
+          "conformance": false,
+          "evidence": [
+            "packages/openmates-rust/tests/sdk_api_key_domains_b.rs"
+          ],
+          "gaps": [
+            "Rust API-key facade is covered by Rust unit tests only; a shared cross-language conformance runner executing the actual npm, Python and Rust adapters against one fixture is not yet authored.",
+            "Not yet ported to Rust: plan builders, decryptors and renderers, calendar file builder, assistant speech projection/selection, chat model preferences, authoritative chat reconciliation, serialize_to_yaml and the generated App skill metadata constant. Python exposes only the calendar event helpers and has no equivalents of the remaining utilities."
+          ],
+          "status": "partial"
         }
       }
     },
@@ -4566,7 +4711,7 @@
             "Opaque master capability and existing-browser-profile async/CAS interfaces are shared Rust platform glue, not a foreign SDK completion. The exact eleven existing native crypto vectors are mirrored for authored native/worker tests only. Browser strict legacy Format C/D still rejects native OM/FNV and historical Python framing; cross-format parity, every consumer, local/offline and stayLoggedIn lifecycle, nonextractable enrollment/pairing/HKDF, actual native/three-SDK/browser/worker execution and matched full-application CPU/end-to-end performance remain required. Local capability identity grants no account association, freshness, persistence receipt, native ACK, automatic CLI login or fresh enrollment authority.",
             "Browser-only local encrypted-row read adapters are private migration drafts. They delegate the same shared read operations with explicit local_profile/readOnly/cached/fresh=false/historyComplete=false/retained_only tags and nullable boundaries. Rust compilation, real WASM/CryptoKey/Worker/IndexedDB, product offline/owner races, native/browser durable ACK, npm/Python local-row platform shapes and cross-SDK equivalent-operation execution remain unverified. No activation, one-language capability release or browser acceptance follows source/parser and pure transport checks.",
             "Bounded existing-browser local-storage wire and Rust-owned cursor IO are SDK-required reusable operations, not browser-only completion. Physical IDs/raw checkpoint cutoff and latest/before/after 20-row plus key-only sentinel plans are source-reviewed only; around/two-leg paging remains unsupported. Direct npm/Python callback equivalents and executable shared-fixture conformance, native/WASM/real nonextractable CryptoKey/Worker/IndexedDB owner/key/denial/cancel/selection lifecycle, long-chat pagination and matching-source CPU/end-to-end/transfer/RSS remain unverified. Local results stay readOnly/cached, fresh=false/historyComplete=false/retained_only/pagesRead=0; no canonical/export/recovery/freshness/persistence ACK/credential enrollment authority or parity waiver follows source or pure checks.",
-            "Read-message ID compatibility supports exact visible ASCII bytes 0x21..0x7e, length1–256, including deployed chat-suffix UUIDs; Chat UUID/send/recovery authority stays strict. Backend-permitted spaces, Unicode and IDs longer than256bytes, and dot-only exact-route IDs remain unsupported pending safe parser/transport proof. Equivalent bounded read-message ID behavior and executable three-SDK execution of the expanded27-window/66-saved-read fixtures remain unverified; language API shapes may differ. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance.",
+            "Read-message ID compatibility supports exact visible ASCII bytes 0x21..0x7e, length1\u2013256, including deployed chat-suffix UUIDs; Chat UUID/send/recovery authority stays strict. Backend-permitted spaces, Unicode and IDs longer than256bytes, and dot-only exact-route IDs remain unsupported pending safe parser/transport proof. Equivalent bounded read-message ID behavior and executable three-SDK execution of the expanded27-window/66-saved-read fixtures remain unverified; language API shapes may differ. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance.",
             "Ordinary fresh-password retention remains required partial: equivalent direct explicit-credential ordinary-retention behavior and executable shared three-SDK functional fixture/schema/driver remain missing or unverified; language API shapes may differ and no matching Rust helper/enum exports are required.",
             "Selected Personal metadata-cache and saved-embed behavior remains required partial: restore/persist only selected existing encrypted metadata with independent monotonic counters, original owner/key/epoch/request/private-denial fences, bounded IO terminal/readback receipts, and no message/history/journal/unknown-field writes or native credential ACK; full-ID Personal Cookie saved-embed reads must retain original publication scope, negative-only source authorization and staged key isolation, fail closed for cached source/hash/global/overflow denial, reject Team/Direct/prefix substitution, and wipe plaintext on release failure. Equivalent direct explicit-credential Rust/npm/Python functionality and inverse/adversarial shared executable fixtures, compiled native/WASM/Worker/IndexedDB/HTTP/WS execution, packaging and matched CPU/end-to-end/RAM/size proof remain unverified; language API shapes may differ and matching helper/enum names are not required. Core synthetic Rust fixtures and source/pure checks grant no runtime, activation, performance or release acceptance.",
             "Owning-Worker selected browser metadata/message/retained-view/monitor operations remain source-held required partial pending independent core semantic review: preserve original admitted profile/master resource, owner/key/request/private-denial/epoch fences across all awaits, same-store physical readback, exact terminal drain and original final publication. Equivalent direct Rust/npm/Python functional IO adapters and genuine shared executable conformance remain missing or unverified; matching helper/type names are not required and no native Session/key substitution is admitted. The38 merge-policy and8 header cases are pure-policy inputs, not real SDK/WASM/browser execution or new plan authority. Full continuous sync/recovery, absence/tombstone/draft reconciliation, cold/context integration, actual Rust/WASM/Worker/IndexedDB/socket/scheduler/owner/revocation behavior, package/Linux/Mac and matched TS CPU/end-to-end/RAM/size remain incomplete or UNRUN. Cached/retained output grants no canonical incoming-window durability, native ACK, cross-database proof, complete history/inventory or recovery authority; no activation, parity/performance or release waiver follows this source registration.",
@@ -4612,7 +4757,7 @@
             "Opaque master capability and existing-browser-profile async/CAS interfaces are shared Rust platform glue, not a foreign SDK completion. The exact eleven existing native crypto vectors are mirrored for authored native/worker tests only. Browser strict legacy Format C/D still rejects native OM/FNV and historical Python framing; cross-format parity, every consumer, local/offline and stayLoggedIn lifecycle, nonextractable enrollment/pairing/HKDF, actual native/three-SDK/browser/worker execution and matched full-application CPU/end-to-end performance remain required. Local capability identity grants no account association, freshness, persistence receipt, native ACK, automatic CLI login or fresh enrollment authority.",
             "Browser-only local encrypted-row read adapters are private migration drafts. They delegate the same shared read operations with explicit local_profile/readOnly/cached/fresh=false/historyComplete=false/retained_only tags and nullable boundaries. Rust compilation, real WASM/CryptoKey/Worker/IndexedDB, product offline/owner races, native/browser durable ACK, npm/Python local-row platform shapes and cross-SDK equivalent-operation execution remain unverified. No activation, one-language capability release or browser acceptance follows source/parser and pure transport checks.",
             "Bounded existing-browser local-storage wire and Rust-owned cursor IO are SDK-required reusable operations, not browser-only completion. Physical IDs/raw checkpoint cutoff and latest/before/after 20-row plus key-only sentinel plans are source-reviewed only; around/two-leg paging remains unsupported. Direct npm/Python callback equivalents and executable shared-fixture conformance, native/WASM/real nonextractable CryptoKey/Worker/IndexedDB owner/key/denial/cancel/selection lifecycle, long-chat pagination and matching-source CPU/end-to-end/transfer/RSS remain unverified. Local results stay readOnly/cached, fresh=false/historyComplete=false/retained_only/pagesRead=0; no canonical/export/recovery/freshness/persistence ACK/credential enrollment authority or parity waiver follows source or pure checks.",
-            "Read-message ID compatibility supports exact visible ASCII bytes 0x21..0x7e, length1–256, including deployed chat-suffix UUIDs; Chat UUID/send/recovery authority stays strict. Backend-permitted spaces, Unicode and IDs longer than256bytes, and dot-only exact-route IDs remain unsupported pending safe parser/transport proof. Equivalent bounded read-message ID behavior and executable three-SDK execution of the expanded27-window/66-saved-read fixtures remain unverified; language API shapes may differ. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance.",
+            "Read-message ID compatibility supports exact visible ASCII bytes 0x21..0x7e, length1\u2013256, including deployed chat-suffix UUIDs; Chat UUID/send/recovery authority stays strict. Backend-permitted spaces, Unicode and IDs longer than256bytes, and dot-only exact-route IDs remain unsupported pending safe parser/transport proof. Equivalent bounded read-message ID behavior and executable three-SDK execution of the expanded27-window/66-saved-read fixtures remain unverified; language API shapes may differ. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance.",
             "Ordinary fresh-password retention remains required partial: equivalent direct explicit-credential ordinary-retention behavior and executable shared three-SDK functional fixture/schema/driver remain missing or unverified; language API shapes may differ and no matching Rust helper/enum exports are required.",
             "Selected Personal metadata-cache and saved-embed behavior remains required partial: restore/persist only selected existing encrypted metadata with independent monotonic counters, original owner/key/epoch/request/private-denial fences, bounded IO terminal/readback receipts, and no message/history/journal/unknown-field writes or native credential ACK; full-ID Personal Cookie saved-embed reads must retain original publication scope, negative-only source authorization and staged key isolation, fail closed for cached source/hash/global/overflow denial, reject Team/Direct/prefix substitution, and wipe plaintext on release failure. Equivalent direct explicit-credential Rust/npm/Python functionality and inverse/adversarial shared executable fixtures, compiled native/WASM/Worker/IndexedDB/HTTP/WS execution, packaging and matched CPU/end-to-end/RAM/size proof remain unverified; language API shapes may differ and matching helper/enum names are not required. Core synthetic Rust fixtures and source/pure checks grant no runtime, activation, performance or release acceptance.",
             "Owning-Worker selected browser metadata/message/retained-view/monitor operations remain source-held required partial pending independent core semantic review: preserve original admitted profile/master resource, owner/key/request/private-denial/epoch fences across all awaits, same-store physical readback, exact terminal drain and original final publication. Equivalent direct Rust/npm/Python functional IO adapters and genuine shared executable conformance remain missing or unverified; matching helper/type names are not required and no native Session/key substitution is admitted. The38 merge-policy and8 header cases are pure-policy inputs, not real SDK/WASM/browser execution or new plan authority. Full continuous sync/recovery, absence/tombstone/draft reconciliation, cold/context integration, actual Rust/WASM/Worker/IndexedDB/socket/scheduler/owner/revocation behavior, package/Linux/Mac and matched TS CPU/end-to-end/RAM/size remain incomplete or UNRUN. Cached/retained output grants no canonical incoming-window durability, native ACK, cross-database proof, complete history/inventory or recovery authority; no activation, parity/performance or release waiver follows this source registration.",
@@ -6618,7 +6763,7 @@
             "Opaque master capability and existing-browser-profile async/CAS interfaces are shared Rust platform glue, not a foreign SDK completion. The exact eleven existing native crypto vectors are mirrored for authored native/worker tests only. Browser strict legacy Format C/D still rejects native OM/FNV and historical Python framing; cross-format parity, every consumer, local/offline and stayLoggedIn lifecycle, nonextractable enrollment/pairing/HKDF, actual native/three-SDK/browser/worker execution and matched full-application CPU/end-to-end performance remain required. Local capability identity grants no account association, freshness, persistence receipt, native ACK, automatic CLI login or fresh enrollment authority.",
             "Browser-only local encrypted-row read adapters are private migration drafts. They delegate the same shared read operations with explicit local_profile/readOnly/cached/fresh=false/historyComplete=false/retained_only tags and nullable boundaries. Rust compilation, real WASM/CryptoKey/Worker/IndexedDB, product offline/owner races, native/browser durable ACK, npm/Python local-row platform shapes and cross-SDK equivalent-operation execution remain unverified. No activation, one-language capability release or browser acceptance follows source/parser and pure transport checks.",
             "Bounded existing-browser local-storage wire and Rust-owned cursor IO are SDK-required reusable operations, not browser-only completion. Physical IDs/raw checkpoint cutoff and latest/before/after 20-row plus key-only sentinel plans are source-reviewed only; around/two-leg paging remains unsupported. Direct npm/Python callback equivalents and executable shared-fixture conformance, native/WASM/real nonextractable CryptoKey/Worker/IndexedDB owner/key/denial/cancel/selection lifecycle, long-chat pagination and matching-source CPU/end-to-end/transfer/RSS remain unverified. Local results stay readOnly/cached, fresh=false/historyComplete=false/retained_only/pagesRead=0; no canonical/export/recovery/freshness/persistence ACK/credential enrollment authority or parity waiver follows source or pure checks.",
-            "Read-message ID compatibility supports exact visible ASCII bytes 0x21..0x7e, length1–256, including deployed chat-suffix UUIDs; Chat UUID/send/recovery authority stays strict. Backend-permitted spaces, Unicode and IDs longer than256bytes, and dot-only exact-route IDs remain unsupported pending safe parser/transport proof. Equivalent bounded read-message ID behavior and executable three-SDK execution of the expanded27-window/66-saved-read fixtures remain unverified; language API shapes may differ. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance.",
+            "Read-message ID compatibility supports exact visible ASCII bytes 0x21..0x7e, length1\u2013256, including deployed chat-suffix UUIDs; Chat UUID/send/recovery authority stays strict. Backend-permitted spaces, Unicode and IDs longer than256bytes, and dot-only exact-route IDs remain unsupported pending safe parser/transport proof. Equivalent bounded read-message ID behavior and executable three-SDK execution of the expanded27-window/66-saved-read fixtures remain unverified; language API shapes may differ. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance.",
             "Ordinary fresh-password retention remains required partial: native policy/public-consumer and genuine WASM/CryptoKey/Worker/IndexedDB retention/read tests are authored unrun; executable shared three-SDK functional retention conformance and generated package/runtime/performance acceptance remain unverified.",
             "Selected Personal metadata-cache and saved-embed behavior remains required partial: restore/persist only selected existing encrypted metadata with independent monotonic counters, original owner/key/epoch/request/private-denial fences, bounded IO terminal/readback receipts, and no message/history/journal/unknown-field writes or native credential ACK; full-ID Personal Cookie saved-embed reads must retain original publication scope, negative-only source authorization and staged key isolation, fail closed for cached source/hash/global/overflow denial, reject Team/Direct/prefix substitution, and wipe plaintext on release failure. Equivalent direct explicit-credential Rust/npm/Python functionality and inverse/adversarial shared executable fixtures, compiled native/WASM/Worker/IndexedDB/HTTP/WS execution, packaging and matched CPU/end-to-end/RAM/size proof remain unverified; language API shapes may differ and matching helper/enum names are not required. Core synthetic Rust fixtures and source/pure checks grant no runtime, activation, performance or release acceptance.",
             "Owning-Worker selected browser metadata/message/retained-view/monitor operations remain source-held required partial pending independent core semantic review: preserve original admitted profile/master resource, owner/key/request/private-denial/epoch fences across all awaits, same-store physical readback, exact terminal drain and original final publication. Equivalent direct Rust/npm/Python functional IO adapters and genuine shared executable conformance remain missing or unverified; matching helper/type names are not required and no native Session/key substitution is admitted. The38 merge-policy and8 header cases are pure-policy inputs, not real SDK/WASM/browser execution or new plan authority. Full continuous sync/recovery, absence/tombstone/draft reconciliation, cold/context integration, actual Rust/WASM/Worker/IndexedDB/socket/scheduler/owner/revocation behavior, package/Linux/Mac and matched TS CPU/end-to-end/RAM/size remain incomplete or UNRUN. Cached/retained output grants no canonical incoming-window durability, native ACK, cross-database proof, complete history/inventory or recovery authority; no activation, parity/performance or release waiver follows this source registration.",
@@ -7393,13 +7538,33 @@
           "status": "partial"
         },
         "rust": {
-          "api": [],
-          "conformance": false,
-          "evidence": [],
-          "gaps": [
-            "Equivalent public API and cross-language implementation evidence are not yet established."
+          "api": [
+            "sdk_transport",
+            "sdk_transport.OpenMates.delete",
+            "sdk_transport.OpenMates.get",
+            "sdk_transport.OpenMates.get_public",
+            "sdk_transport.OpenMates.get_raw",
+            "sdk_transport.OpenMates.patch",
+            "sdk_transport.OpenMates.post",
+            "sdk_transport.OpenMates.put",
+            "sdk_transport.OpenMates.request_json",
+            "sdk_transport.OpenMates.web_origin",
+            "sdk_transport.RawResponse",
+            "sdk_transport.RawResponse.content_type",
+            "sdk_transport.RawResponse.data",
+            "sdk_transport.RawResponse.filename",
+            "sdk_transport.filename_from_disposition",
+            "sdk_transport.with_query"
           ],
-          "status": "missing"
+          "conformance": false,
+          "evidence": [
+            "packages/openmates-rust/tests/sdk_api_key_domains_b.rs"
+          ],
+          "gaps": [
+            "Rust API-key facade is covered by Rust unit tests only; a shared cross-language conformance runner executing the actual npm, Python and Rust adapters against one fixture is not yet authored.",
+            "npm chatIdentity, decryptChatMetadata, decryptLoadedChatPayload and resolveEmbedKeyForShare have no public Rust equivalent; chats().load() performs metadata decryption internally. runAppSkill, masterKey, sdkSession and isAnonymous are covered by sdk.OpenMates methods classified in other capabilities."
+          ],
+          "status": "partial"
         }
       }
     },
@@ -9407,7 +9572,7 @@
           ],
           "gaps": [
             "Staged synthetic one-page vectors and source-only checks do not establish compiled runtime, live backend, browser integration, all cross-SDK chat capabilities or release readiness. Complete-history/recovery authority is never inferred from a page.",
-            "Read-message ID compatibility supports exact visible ASCII bytes 0x21..0x7e, length1–256, including deployed chat-suffix UUIDs; Chat UUID/send/recovery authority stays strict. Backend-permitted spaces, Unicode and IDs longer than256bytes, and dot-only exact-route IDs remain unsupported pending safe parser/transport proof. Equivalent bounded read-message ID behavior and executable three-SDK execution of the expanded27-window/66-saved-read fixtures remain unverified; language API shapes may differ. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance."
+            "Read-message ID compatibility supports exact visible ASCII bytes 0x21..0x7e, length1\u2013256, including deployed chat-suffix UUIDs; Chat UUID/send/recovery authority stays strict. Backend-permitted spaces, Unicode and IDs longer than256bytes, and dot-only exact-route IDs remain unsupported pending safe parser/transport proof. Equivalent bounded read-message ID behavior and executable three-SDK execution of the expanded27-window/66-saved-read fixtures remain unverified; language API shapes may differ. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance."
           ],
           "status": "partial"
         },
@@ -9420,7 +9585,7 @@
           ],
           "gaps": [
             "Staged synthetic one-page vectors and source-only checks do not establish compiled runtime, live backend, browser integration, all cross-SDK chat capabilities or release readiness. Complete-history/recovery authority is never inferred from a page.",
-            "Read-message ID compatibility supports exact visible ASCII bytes 0x21..0x7e, length1–256, including deployed chat-suffix UUIDs; Chat UUID/send/recovery authority stays strict. Backend-permitted spaces, Unicode and IDs longer than256bytes, and dot-only exact-route IDs remain unsupported pending safe parser/transport proof. Equivalent bounded read-message ID behavior and executable three-SDK execution of the expanded27-window/66-saved-read fixtures remain unverified; language API shapes may differ. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance."
+            "Read-message ID compatibility supports exact visible ASCII bytes 0x21..0x7e, length1\u2013256, including deployed chat-suffix UUIDs; Chat UUID/send/recovery authority stays strict. Backend-permitted spaces, Unicode and IDs longer than256bytes, and dot-only exact-route IDs remain unsupported pending safe parser/transport proof. Equivalent bounded read-message ID behavior and executable three-SDK execution of the expanded27-window/66-saved-read fixtures remain unverified; language API shapes may differ. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance."
           ],
           "status": "partial"
         },
@@ -9433,7 +9598,7 @@
           ],
           "gaps": [
             "Staged synthetic one-page vectors and source-only checks do not establish compiled runtime, live backend, browser integration, all cross-SDK chat capabilities or release readiness. Complete-history/recovery authority is never inferred from a page.",
-            "Read-message ID compatibility supports exact visible ASCII bytes 0x21..0x7e, length1–256, including deployed chat-suffix UUIDs; Chat UUID/send/recovery authority stays strict. Backend-permitted spaces, Unicode and IDs longer than256bytes, and dot-only exact-route IDs remain unsupported pending safe parser/transport proof. Equivalent bounded read-message ID behavior and executable three-SDK execution of the expanded27-window/66-saved-read fixtures remain unverified; language API shapes may differ. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance."
+            "Read-message ID compatibility supports exact visible ASCII bytes 0x21..0x7e, length1\u2013256, including deployed chat-suffix UUIDs; Chat UUID/send/recovery authority stays strict. Backend-permitted spaces, Unicode and IDs longer than256bytes, and dot-only exact-route IDs remain unsupported pending safe parser/transport proof. Equivalent bounded read-message ID behavior and executable three-SDK execution of the expanded27-window/66-saved-read fixtures remain unverified; language API shapes may differ. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance."
           ],
           "status": "partial"
         }

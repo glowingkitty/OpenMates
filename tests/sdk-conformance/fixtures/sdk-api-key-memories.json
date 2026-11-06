@@ -1,0 +1,37 @@
+{
+  "schema": "sdk-api-key-memories.v1",
+  "master_key_b64": "AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09o=",
+  "chat_key_b64": "BRAbJjE8R1JdaHN+iZSfqrXAy9bh7PcCDRgjLjlET1o=",
+  "vectors": [
+    {
+      "name": "structured_unicode",
+      "plaintext": "{\"title\":\"Dune 界\",\"settings_group\":\"books\",\"_original_item_key\":\"favorite_books\",\"added_date\":1700000000}",
+      "ciphertext": "BX45alOx8GdLgQbAwqRSu4xw1MePAk7GVggYMDesPDWpp/aPZapj0/wmin+3/irNoE7V38SzEw46ulH7L9hFNRaJ8/CT/r3D44cT5Yp6DpsJtv4oIIAmJTpgrDU0KC036kkFPowb9flab2l8ZF/JqDWtqJxKFLhSaC25thGz4QkE7slzmXiS"
+    },
+    {
+      "name": "ideabucket_settings",
+      "plaintext": "{\"processing_prompt\":\"Process my ideas\",\"processing_times\":\"09:00,17:30\",\"settings_group\":\"ideabucket\",\"_original_item_key\":\"processing_settings\",\"added_date\":1700000001}",
+      "ciphertext": "64arr+5e6Ni5M+iD0ATKW3G2mSXyvTgTFwmxPuu4ngWNWD6C0EBsNqUf7rJOao0F2pcocluGlzRDXWIfoXGk14VhJmtTtnQ1l+r9VD1UW86UFuHEjfAfXGH8svqkTGYpk0xQtcvmBayAGiWZsRKbaRHbjwU3bWHExBHv+3if0gE7aydVt/K71AuzQLXulsIW08oSuZSt8vpAsfqEwCsj58ZSDEvqFyFDsNcIaqJ7Csy3OFLauIX3w2qyEj8f60XIDJXIAI+Z"
+    },
+    {
+      "name": "plain_string",
+      "plaintext": "not json at all",
+      "ciphertext": "WvDGPz655SUNMQIKW35gG1RY5ogdjHX0K3Dok/sCG8d89uucRq+dMuakvw=="
+    }
+  ],
+  "hashes": [
+    {
+      "app": "books",
+      "type": "favorite_books",
+      "millis": 1700000000123,
+      "hash": "9461c675c191585b698d14a95bbbf3fb"
+    },
+    {
+      "app": "ideabucket",
+      "type": "processing_settings",
+      "millis": 1700000000123,
+      "hash": "2889c3fa34eaf27cdd889658581dc23e"
+    }
+  ],
+  "wrapped_chat_key": "SFFvH2IB0khb1nUv53WBHUH68IILy4g5aWyBTpvWOApvII5pYtFbEGtSoEHpRdYp+DZoHJLZuWMDgPCD"
+}

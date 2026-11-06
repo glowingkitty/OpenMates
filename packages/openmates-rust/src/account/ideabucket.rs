@@ -84,7 +84,7 @@ fn settings_json(
     Ok(value)
 }
 /// Next HH:MM slot after `now` (UTC; npm uses the host time zone).
-fn next_send_at(now: i64, times: &[String]) -> i64 {
+pub(crate) fn next_send_at(now: i64, times: &[String]) -> i64 {
     let day = now - now.rem_euclid(86_400);
     times
         .iter()
@@ -101,7 +101,7 @@ fn next_send_at(now: i64, times: &[String]) -> i64 {
         .unwrap_or(day + 86_400 + 9 * 3600)
 }
 /// UTC calendar date (npm `toISOString().slice(0, 10)`).
-fn today(now: i64) -> String {
+pub(crate) fn today(now: i64) -> String {
     // Civil-from-days (H. Hinnant), valid for the proleptic Gregorian calendar.
     let z = now.div_euclid(86_400) + 719_468;
     let era = z.div_euclid(146_097);

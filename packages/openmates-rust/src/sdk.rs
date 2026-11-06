@@ -110,6 +110,24 @@ impl OpenMates {
             operation_cancel: CancellationToken::new(),
         })
     }
+    /// Same-origin GET builder for `sdk_transport`: confined `/v1/` path, SDK identity
+    /// headers and, only when `authenticated`, the explicit API-key bearer.
+    pub(crate) fn get_request(&self, path: &str, authenticated: bool) -> Result<crate::platform::http::RequestBuilder> {
+        if self.operation_cancel.is_cancelled() { return Err(Error::Cancelled); }
+        if !path.starts_with("/v1/") || path.contains(['\\', '#']) || path.contains("//") { return Err(Error::Forbidden); }
+        let url = self.base.join(path).map_err(|_| Error::Protocol)?;
+        if url.origin() != self.base.origin() { return Err(Error::Forbidden); }
+        let mut request = self.http.request(Method::GET, url)
+            .header("X-OpenMates-SDK", self.options.identity.header())
+            .header("X-OpenMates-Device-Identity", &self.device_id)
+            .header("Origin", &self.origin);
+        if authenticated {
+            let SdkCredentials::ApiKey(key) = &self.credentials else { return Err(Error::Authentication); };
+            request = request.bearer_auth(key.bearer.as_str());
+        }
+        Ok(request)
+    }
+    pub(crate) fn origin_str(&self) -> &str { &self.origin }
     pub(crate) fn operation_cancel_token(&self) -> CancellationToken { self.operation_cancel.clone() }
     /// Authenticated API-key documentation; the public Client facade stays independent.
     pub fn docs(&self) -> crate::sdk_docs::Docs<'_> { crate::sdk_docs::Docs::new(self) }
