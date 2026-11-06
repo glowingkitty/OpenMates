@@ -58,6 +58,21 @@ sync and persistence policy also follows `specifications/architecture/sync/` and
   initialization, usable-chat time, essential core-flow responsiveness, CPU and RAM
   under matching full-application conditions. Do not assume minimal WASM overhead.
   Keep warm/renderer-only measurements separate.
+- Web Rust performance gate (user decision):
+  - Gate only user-facing flows: cold start to usable chat, open chat, send/stream,
+    embed ready and search.
+  - Rust must not be slower than TS in wall time or CPU. Measure this with a paired,
+    interleaved benchmark of at least 12 pairs; the upper bound of the 95% CI must
+    be ≤ +3%.
+  - Isolated micro-ops, such as single page-to-worker calls, are reported but not gated.
+  - Memory during the migration: at most one WASM instance, about +30 MB. More than
+    one is a blocker. The final build with the TS paths removed must have RAM and
+    download ≤ TS.
+- Web architecture:
+  - Run one shared worker and one WASM instance, with no main-thread WASM.
+  - Run logic in the worker next to its data, and send only results to the page.
+  - Put platform primitives (WebCrypto, IndexedDB, CryptoKit) behind thin adapters.
+    Never duplicate Rust logic in TS for speed.
 - Follow `architecture.sync` for bounded startup and on-demand sub-chat messages.
   The approved cold-start parent-content budget is 20; warm sync uses the cursor
   feed without transcript content, and one-shot CLI commands perform no account
