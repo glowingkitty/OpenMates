@@ -942,6 +942,7 @@ const indexWaiters: Array<() => void> = [];
 
 /** Re-read a chat after its messages change, including newly arrived embeds. */
 export function invalidateChatSearchIndex(chatId: string): void {
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") rustSearch?.invalidateRustChat(chatId);
   messageIndex.delete(chatId);
   const pending = pendingIndexJobs.get(chatId);
   if (pending) {
@@ -1105,6 +1106,8 @@ async function buildChatMessageIndex(chatId: string, generation: number): Promis
     }
 
     if (generation !== indexGeneration) return [];
+    // Rust-core builds: indexChatInRustUnit transfers the entries to the Worker index (it sorts them); the page keeps no copy.
+    if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1" && rustSearchOwnsIndex()) return entries;
     entries.sort(compareSearchEntriesNewestFirst);
     messageIndex.set(chatId, entries);
     return entries;
@@ -1114,7 +1117,7 @@ async function buildChatMessageIndex(chatId: string, generation: number): Promis
       error,
     );
     // Mark as indexed even on error to avoid repeated failures
-    if (generation === indexGeneration) messageIndex.set(chatId, []);
+    if (generation === indexGeneration && !(import.meta.env.VITE_OPENMATES_RUST_CORE === "1" && rustSearchOwnsIndex())) messageIndex.set(chatId, []);
     return [];
   }
 }
@@ -1140,7 +1143,7 @@ export async function warmUpSearchIndex(chatIds: string[]): Promise<void> {
     for (let i = 0; i < chatIds.length; i += BATCH_SIZE) {
       if (generation !== indexGeneration) break;
       const batch = chatIds.slice(i, i + BATCH_SIZE);
-      await Promise.all(batch.map((chatId) => indexChatMessages(chatId)));
+      await Promise.all(batch.map((chatId) => import.meta.env.VITE_OPENMATES_RUST_CORE === "1" && rustSearchOwnsIndex() ? indexChatInRustUnit(chatId) : indexChatMessages(chatId)));
 
       // Yield to the event loop between batches so UI stays responsive
       if (i + BATCH_SIZE < chatIds.length) {
@@ -1595,31 +1598,139 @@ export async function searchMessagesInChat(
   return { snippets, embeds };
 }
 
+// --- Rust-core builds only (VITE_OPENMATES_RUST_CORE=1; dead code otherwise) ---
+// The shared Worker's `search` unit owns the message index and runs the search
+// (rustCore/search/rustChatSearch.ts). The page builds a chat's entries from the
+// source with buildChatMessageIndex, transfers them once and keeps no copy; after
+// a Worker crash the next search re-indexes from the source.
+
+/** Measurement-only TypeScript opt-out; same key as rustChatSearch.ts SEARCH_OPT_OUT_KEY. */
+const RUST_SEARCH_OPT_OUT_KEY = "openmates_rust_core_search";
+let rustSearch: typeof import("./rustCore/search/rustChatSearch") | null = null;
+const pendingRustIndexJobs = new Map<string, Promise<void>>();
+
+function rustSearchOwnsIndex(): boolean {
+  return typeof localStorage === "undefined" || localStorage.getItem(RUST_SEARCH_OPT_OUT_KEY) !== "ts";
+}
+
+async function loadRustSearch() {
+  rustSearch ??= await import("./rustCore/search/rustChatSearch");
+  return rustSearch;
+}
+
+/** indexChatMessages for the Worker index: same dedupe and global concurrency limit. */
+async function indexChatInRustUnit(chatId: string): Promise<void> {
+  const rust = await loadRustSearch();
+  if (rust.isRustChatIndexed(chatId)) return;
+  const pending = pendingRustIndexJobs.get(chatId);
+  if (pending) return pending;
+  const generation = indexGeneration;
+  const epoch = rust.rustChatEpoch(chatId);
+  const job = (async () => {
+    if (activeIndexJobs >= MAX_CONCURRENT_INDEX_JOBS) {
+      await new Promise<void>(resolve => indexWaiters.push(resolve));
+    } else { activeIndexJobs++; }
+    let entries: SearchEntries;
+    try {
+      if (generation !== indexGeneration) return;
+      entries = await buildChatMessageIndex(chatId, generation);
+    } finally {
+      const next = indexWaiters.shift();
+      if (next) next(); else activeIndexJobs--;
+    }
+    if (generation !== indexGeneration) return;
+    await rust.ingestRustChat(chatId, entries, epoch);
+  })();
+  pendingRustIndexJobs.set(chatId, job);
+  try { await job; } finally {
+    if (pendingRustIndexJobs.get(chatId) === job) pendingRustIndexJobs.delete(chatId);
+  }
+}
+
 /**
- * Rust-core builds only (dead code otherwise): resolves the same per-chat
- * entries the TypeScript loop would search, then asks the shared Worker's
- * `search` unit once for all of them. Null when the measurement-only
- * TypeScript opt-out is set (rustChatSearch.ts).
+ * `search` on the Worker: the page resolves per-chat metadata exactly like the
+ * TypeScript loop (I/O and decryption stay here), indexes chats on demand, then
+ * one request returns ranked chats, snippets, embeds and catalog matches.
  */
-async function prefetchRustMessageHits(
-  chats: Chat[],
+async function searchViaRustUnit(
   query: string,
-  warmIndexOnly: boolean,
+  chats: Chat[],
+  textFn: (key: string) => string,
+  isAuthenticated: boolean,
+  isAdmin: boolean,
+  signal: AbortSignal | undefined,
   includeEmbeds: boolean,
-  signal?: AbortSignal,
-) {
-  const rust = await import("./rustCore/search/rustChatSearch");
-  if (!rust.rustChatSearchSelected()) return null;
-  // Open the Worker unit while the page gathers its index entries.
-  const [scoped] = await Promise.all([
-    Promise.all(chats.filter((chat) => !chat.is_metadata_only).map(async (chat) => ({
-      chatId: chat.chat_id,
-      entries: warmIndexOnly ? messageIndex.get(chat.chat_id) : await indexChatMessages(chat.chat_id),
-    }))),
-    rust.prepareRustChatSearch(),
-  ]);
-  signal?.throwIfAborted();
-  return rust.searchRustChatMessages(query, scoped, includeEmbeds, (chatId) => messageIndex.has(chatId), signal);
+  warmIndexOnly: boolean,
+): Promise<SearchResults> {
+  const rust = await loadRustSearch();
+  // Open the Worker unit while the page reads metadata and indexes chats.
+  const opening = rust.prepareRustChatSearch();
+  const inputs: import("./rustCore/search/rustChatSearch").RustQueryChat[] = new Array(chats.length);
+  for (let offset = 0; offset < chats.length; offset += MAX_CONCURRENT_INDEX_JOBS) {
+    await Promise.all(chats.slice(offset, offset + MAX_CONCURRENT_INDEX_JOBS).map(async (chat, slot) => {
+      signal?.throwIfAborted();
+      const input: import("./rustCore/search/rustChatSearch").RustQueryChat = {
+        chatId: chat.chat_id, messages: !chat.is_metadata_only, title: null, activeFocusId: null,
+        summary: null, tags: null, draft: null, lastEdited: chat.last_edited_overall_timestamp,
+      };
+      if (isPublicChat(chat.chat_id)) {
+        input.title = chat.title || null;
+      } else {
+        const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
+        signal?.throwIfAborted();
+        input.title = metadata?.title || chat.title || null;
+        input.activeFocusId = metadata?.activeFocusId || null;
+        if (!chat.is_metadata_only && metadata) {
+          input.summary = metadata.summary ?? null;
+          input.tags = metadata.tags ?? null;
+          input.draft = metadata.draftPreview ?? null;
+        }
+      }
+      if (chat.is_metadata_only) {
+        const meta = metadataIndex.get(chat.chat_id);
+        input.summary = meta?.summary ?? null;
+        input.tags = meta?.tags ?? null;
+        input.draft = meta?.draftPreview ?? null;
+      } else if (!warmIndexOnly) {
+        await indexChatInRustUnit(chat.chat_id);
+        signal?.throwIfAborted();
+      }
+      inputs[offset + slot] = input;
+    }));
+  }
+  const memories = searchUserSettingsMemoriesEntries(query, textFn, isAuthenticated);
+  const settingsCatalog = getSettingsSearchCatalog();
+  const settingsLabels = settingsCatalog.map((entry) => textFn(entry.translationKey));
+  const appCatalog = getAppCatalog(textFn);
+  await opening;
+  const found = await rust.queryRustSearch({
+    query, includeEmbeds, isAuthenticated, isAdmin, chats: inputs,
+    settings: settingsCatalog.map((entry, index) => ({ label: settingsLabels[index], keywords: entry.keywords, access: entry.access })),
+    apps: appCatalog.map((entry) => ({ label: entry.label, keywords: entry.keywords })),
+  }, signal);
+  const chatResults: ChatSearchResult[] = found.chats.map((hit) => ({
+    chat: chats[hit.position],
+    titleMatch: hit.titleMatchRanges.length > 0,
+    titleMatchRanges: hit.titleMatchRanges,
+    decryptedTitle: inputs[hit.position].title,
+    messageSnippets: hit.messageSnippets,
+    metadataSnippets: hit.metadataSnippets,
+  }));
+  const settingsResults: SettingsSearchResult[] = [
+    ...(await memories),
+    ...found.settings.map((index) => ({ entry: settingsCatalog[index], label: settingsLabels[index], icon: settingsCatalog[index].icon })),
+  ];
+  const appCatalogResults: AppCatalogSearchResult[] = found.apps.map((index) => ({
+    entry: appCatalog[index], label: appCatalog[index].label, icon: appCatalog[index].icon, entryType: appCatalog[index].entryType,
+  }));
+  return {
+    chats: chatResults,
+    embeds: found.embeds,
+    settings: settingsResults,
+    appCatalog: appCatalogResults,
+    totalCount: chatResults.length + settingsResults.length + appCatalogResults.length,
+    isWarmingUp: warmUpInProgress,
+  };
 }
 
 /**
@@ -1786,13 +1897,13 @@ export async function search(
     signal?.throwIfAborted();
   }
 
+  // Rust-core builds: the shared Worker's search unit holds the message index and runs the whole search (rustCore/search/).
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1" && rustSearchOwnsIndex()) {
+    return searchViaRustUnit(trimmedQuery, allSearchableChats, textFn, isAuthenticated, isAdmin, signal, includeEmbedResults, useWarmIndexOnly);
+  }
+
   const chatResults: ChatSearchResult[] = [];
   const embedMatches: EmbedSearchResult[] = [];
-  // Rust-core builds: every chat's message matches come from one query to the
-  // shared Worker's search unit, which holds the index (rustCore/search/).
-  const rustMessageHits = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
-    ? await prefetchRustMessageHits(allSearchableChats, trimmedQuery, useWarmIndexOnly, includeEmbedResults, signal)
-    : null;
 
   // Search each chat
   for (let offset = 0; offset < allSearchableChats.length; offset += MAX_CONCURRENT_INDEX_JOBS) {
@@ -1823,13 +1934,9 @@ export async function search(
     // Check message matches (only for full chats — metadata-only chats have no messages)
     let messageSnippets: MessageMatchSnippet[] = [];
     if (!chat.is_metadata_only) {
-      const entries = import.meta.env.VITE_OPENMATES_RUST_CORE === "1" && rustMessageHits
-        ? undefined
-        : useWarmIndexOnly ? messageIndex.get(chat.chat_id) : await indexChatMessages(chat.chat_id);
+      const entries = useWarmIndexOnly ? messageIndex.get(chat.chat_id) : await indexChatMessages(chat.chat_id);
       signal?.throwIfAborted();
-      const messageMatches = import.meta.env.VITE_OPENMATES_RUST_CORE === "1" && rustMessageHits
-        ? rustMessageHits.take(chat.chat_id, activeFocusId)
-        : await searchMessagesInChat(
+      const messageMatches = await searchMessagesInChat(
         chat.chat_id,
         trimmedQuery,
         activeFocusId,
@@ -1950,6 +2057,7 @@ if (typeof window !== "undefined") {
     metadataIndex.clear();
     indexedMetadataChatIds.clear();
     pendingIndexJobs.clear();
+    if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") pendingRustIndexJobs.clear();
     metadataWarmUpInProgress = false;
     warmUpInProgress = false;
   });

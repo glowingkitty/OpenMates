@@ -22,10 +22,10 @@ vi.mock('../../../demo_chats', () => ({
 }));
 
 import { searchMessagesInChat, type SearchEntries } from '../../searchService';
-import { decodeSearchRows, materializeHits, type RustSearchEntry } from '../search/rustChatSearch';
+import { decodeSearchReply, ingestColumns, queryColumns } from '../search/rustChatSearch';
 import { installSearchUnit, type ChatSearchIndexBinding } from '../search/searchUnit';
 import { createUnitPort, UnitPortError } from '../host/unitPort';
-import type { SearchUnitProtocol } from '../search/searchUnitProtocol';
+import { FOCUS_NONE, NO_TEXT, type SearchUnitProtocol } from '../search/searchUnitProtocol';
 
 const VECTORS = resolve(__dirname, '../../../../../../../packages/openmates-rust/src/web_search_chats_ts_vectors.json');
 
@@ -97,49 +97,84 @@ describe('Rust chat search vectors', () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
-  it('rebuilds searchMessagesInChat results from Worker rows', async () => {
-    const entries = toEntries(chats.plain) as RustSearchEntry[];
-    const text = entries[1].content;
-    const start = text.toLowerCase().indexOf('needle');
-    // Row of the second entry: plan the TS snippet by hand as [from, to, flags, matchStart].
-    const ts = await searchMessagesInChat('chat', 'needle', null, entries as SearchEntries, undefined, true);
-    const expected = ts.snippets.find((snippet) => snippet.embedId === 'e1')!;
-    const body = expected.snippet.replace(/^\.\.\. /, '').replace(/ \.\.\.$/, '');
-    const from = text.indexOf(body);
-    const rows = new Uint32Array([0, 1, 1, 1, from, from + body.length, 3, expected.matchStart, 1]);
-    const decoded = decodeSearchRows(rows, [{ chatId: 'chat', entries }]);
-    const built = materializeHits(decoded.get('chat'), 6, null);
-    expect(start).toBeGreaterThan(0);
-    expect(built.snippets).toEqual([expected]);
-    expect(built.embeds).toEqual([ts.embeds.find((embed) => embed.embedId === 'e1')]);
-    expect(() => decodeSearchRows(new Uint32Array([5, 0, 0]), [{ chatId: 'chat', entries }])).toThrow('rust_search_bad_rows');
-    expect(() => decodeSearchRows(new Uint32Array([0, 2, 0, 1]), [{ chatId: 'chat', entries }])).toThrow('rust_search_bad_rows');
+  it('encodes ingest and query columns and decodes Worker rows into searchService results', () => {
+    const chat = ingestColumns(4, [
+      { messageId: 'm1', content: 'plain', createdAt: 2 },
+      { messageId: 'm1', content: 'embed', createdAt: 2, embedSourceLabel: 'Doc', embedId: 'e1', embedTitle: 'T' },
+    ]);
+    expect({ ...chat, createdAt: [...chat.createdAt], metaEntries: [...chat.metaEntries], metaMasks: [...chat.metaMasks] }).toEqual({
+      handle: 4, messageIds: ['m1', 'm1'], contents: ['plain', 'embed'], createdAt: [2, 2],
+      metaEntries: [1], metaMasks: [0b1011], metaValues: ['Doc', 'e1', 'T'],
+    });
+    const columns = queryColumns({
+      query: 'q', includeEmbeds: true, isAuthenticated: true, isAdmin: false,
+      chats: [
+        { chatId: 'a', messages: true, title: 'Title', activeFocusId: null, summary: 'S', tags: ['x', 'y'], draft: null, lastEdited: 9 },
+        { chatId: 'b', messages: false, title: null, activeFocusId: 'f', summary: null, tags: null, draft: 'D', lastEdited: 8 },
+      ],
+      settings: [{ label: 'Admin', keywords: ['k'], access: 'admin' }],
+      apps: [{ label: 'App', keywords: [] }],
+    }, (chatId) => (chatId === 'a' ? 7 : 99));
+    expect([...columns.handles]).toEqual([7, 0]);
+    expect([...columns.chatMasks]).toEqual([1 | 4 | 16, 2 | 8]);
+    expect(columns.chatValues).toEqual(['Title', 'S', 'x', 'y', 'f', 'D']);
+    expect([...columns.tagCounts]).toEqual([2, 0]);
+    expect([...columns.catalogFlags]).toEqual([2, 4]);
+    expect(columns.flags).toBe(3);
+
+    const texts = ['... the snippet', 'm1', 'Doc', 'e1', 'tag', 'e1', 'docs-doc', 'm1', 'Title', 'Doc'];
+    const rows = new Uint32Array([
+      1, 1, 1, 1,
+      0, 1, 1, 1, 0, 3,
+      0, 4, 3, 1, 2, 3, NO_TEXT, NO_TEXT, NO_TEXT, NO_TEXT, NO_TEXT, FOCUS_NONE,
+      4, 0, 3, 1,
+      0, 5, 6, 7, 8, 9, NO_TEXT,
+      0,
+      3,
+    ]);
+    const decoded = decodeSearchReply({ rows, texts, numbers: new Float64Array([2]) }, ['a', 'b'], 1);
+    expect(decoded).toEqual({
+      chats: [{
+        position: 0, titleMatchRanges: [{ start: 0, length: 3 }],
+        messageSnippets: [{ messageId: 'm1', chatId: 'a', snippet: '... the snippet', matchStart: 4, matchLength: 3, embedSourceLabel: 'Doc', embedId: 'e1', embedFocusIsActive: undefined }],
+        metadataSnippets: [{ chatId: 'a', snippet: 'tag', matchStart: 0, matchLength: 3, matchSource: 'tags' }],
+      }],
+      embeds: [{ embedId: 'e1', embedType: 'docs-doc', chatId: 'a', messageId: 'm1', title: 'Title', subtitle: 'Doc', appId: undefined, createdAt: 2 }],
+      settings: [0],
+      apps: [2],
+    });
+    expect(() => decodeSearchReply({ rows: new Uint32Array([1, 0, 0, 0, 5, 0, 0, 0]), texts: [], numbers: new Float64Array() }, ['a'], 0)).toThrow('rust_search_bad_rows');
+    expect(() => decodeSearchReply({ rows: new Uint32Array([0, 0, 0, 0, 1]), texts: [], numbers: new Float64Array() }, ['a'], 0)).toThrow('rust_search_bad_rows');
+    expect(() => decodeSearchReply({ rows: new Uint32Array([0, 1, 0, 0]), texts: [], numbers: new Float64Array() }, ['a'], 0)).toThrow('rust_search_bad_rows');
   });
 
   // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
-  it('search unit applies removes and sets in order, refuses bad payloads and frees the index on close', async () => {
+  it('search unit applies removes before ingest and query, refuses bad payloads and frees the index on close', async () => {
     const calls: string[] = [];
     class FakeIndex implements ChatSearchIndexBinding {
-      reset_chat(handle: number) { calls.push(`reset:${handle}`); }
-      push_entry(handle: number, messageId: string, text: string, embedId: string, titled: boolean) { calls.push(`push:${handle}:${messageId}:${text}:${embedId}:${titled}`); }
+      ingest_chat(handle: number, messageIds: string[], contents: string[]) { calls.push(`ingest:${handle}:${messageIds}:${contents}`); return new Uint32Array([2]); }
       remove_chat(handle: number) { calls.push(`remove:${handle}`); }
       clear() { calls.push('clear'); }
       chat_count() { return 2; }
-      search(query: string, handles: Uint32Array, includeEmbeds: boolean) { calls.push(`search:${query}:${[...handles]}:${includeEmbeds}`); return new Uint32Array([0, 0, 0]); }
+      query(query: string, flags: number, handles: Uint32Array) {
+        calls.push(`query:${query}:${flags}:${[...handles]}`);
+        if (query === 'bad') throw 'protocol';
+        return { rows: new Uint32Array([0, 0, 0, 0]), texts: [], numbers: new Float64Array() };
+      }
       free() { calls.push('free'); }
     }
     const channel = new MessageChannel();
     const controller = new AbortController();
     installSearchUnit({ binding: { ChatSearchIndex: FakeIndex }, ports: [channel.port2], generation: null, principal: null, signal: controller.signal });
     const port = createUnitPort<SearchUnitProtocol>(channel.port1);
-    const reply = await port.request('search', {
-      removes: [3], query: 'q', handles: new Uint32Array([1]), includeEmbeds: true,
-      sets: [{ handle: 1, messageIds: ['m'], contents: ['text'], embedIds: [''], embedTitled: new Uint8Array([0]) }],
-    });
-    expect([...reply.rows]).toEqual([0, 0, 0]);
-    expect(calls).toEqual(['remove:3', 'reset:1', 'push:1:m:text::false', 'search:q:1:true']);
-    await expect(port.request('search', { removes: [0], sets: [], query: 'q', handles: new Uint32Array(), includeEmbeds: false }))
-      .rejects.toEqual(new UnitPortError('protocol'));
+    const ingest = await port.request('ingest', { removes: [3], chat: ingestColumns(1, [{ messageId: 'm', content: 'text', createdAt: 1 }]) });
+    expect([...ingest.evicted]).toEqual([2]);
+    const query = { query: 'q', removes: [5], ...queryColumns({ query: 'q', includeEmbeds: false, isAuthenticated: false, isAdmin: false, chats: [], settings: [], apps: [] }, () => 0) };
+    expect([...(await port.request('query', query)).rows]).toEqual([0, 0, 0, 0]);
+    expect(calls).toEqual(['remove:3', 'ingest:1:m:text', 'remove:5', 'query:q:0:']);
+    await expect(port.request('query', { ...query, removes: [], query: 'bad' })).rejects.toEqual(new UnitPortError('protocol'));
+    await expect(port.request('query', { ...query, removes: [0] })).rejects.toEqual(new UnitPortError('protocol'));
+    await expect(port.request('ingest', { removes: [], chat: { ...ingestColumns(1, []), createdAt: [] as unknown as Float64Array } })).rejects.toEqual(new UnitPortError('protocol'));
     expect(await port.request('close', {})).toEqual({ chats: 2 });
     await new Promise((settle) => setTimeout(settle, 5));
     expect(calls[calls.length - 1]).toBe('free');

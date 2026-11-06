@@ -1,80 +1,124 @@
 /**
  * Page side of the shared Rust core Worker's `search` unit (Rust-core builds
- * only; searchService.ts reaches it through a flag-guarded dynamic import, so
+ * only; searchService.ts reaches it through flag-guarded dynamic imports, so
  * default builds never bundle it).
  *
- * The page keeps building the decrypted index exactly as before (it is the
- * ingest source and the measurement baseline). Each chat's entries cross to the
- * Worker once per index version; a query then crosses as text plus chat
- * handles in ONE request, and only flat `Uint32Array` rows come back. Snippet
- * strings are rebuilt here from the Rust slice plan over the entry content
- * the page already holds, so no text crosses back and nothing is JSON parsed.
+ * The Worker owns the chat message index. searchService.ts builds a chat's
+ * entries from its source (decrypted IndexedDB rows, or in-memory public
+ * chats) and `ingestRustChat` transfers them once; the page keeps only
+ * chatId -> handle. A query sends the page's per-chat metadata and the
+ * translated catalogs; the Worker returns flat rows that `decodeSearchReply`
+ * turns into searchService result objects.
  *
- * Failures are not hidden: a refused open, a crashed Worker or a unit error
- * rejects the search (Chats.svelte reports it); the next search reopens the
- * unit and resends the index. There is no TypeScript fallback.
+ * Crash recovery: a crashed Worker (or a generation change) drops the unit and
+ * every handle, so the next search re-indexes each chat from its source, never
+ * from a page copy. Failures are not hidden: a refused open, a crash or a unit
+ * error rejects the search (Chats.svelte reports it). There is no TypeScript
+ * fallback; the TS opt-out below is measurement-only.
  */
 import { whenSharedRustCore, type SharedRustCore } from '../host/sharedCoreRegistry';
 import { createUnitPort, UnitPortError, type UnitPort } from '../host/unitPort';
-import type { EmbedSearchResult, MessageMatchSnippet } from '../../searchService';
+import type { EmbedSearchResult, MessageMatchSnippet, MetadataMatchSnippet } from '../../searchService';
 import {
-	SEARCH_FLAG_BACK_ELLIPSIS,
-	SEARCH_FLAG_FRONT_ELLIPSIS,
-	SEARCH_HEADER_WORDS,
-	SEARCH_SNIPPET_WORDS,
-	type SearchChatSet,
-	type SearchUnitProtocol,
+	CATALOG_ACCESS, CATALOG_APP, CHAT_DRAFT, CHAT_FOCUS, CHAT_SUMMARY, CHAT_TAGS, CHAT_TITLE, EMBED_WORDS, FOCUS_ACTIVE, FOCUS_NONE,
+	MESSAGE_SNIPPET_WORDS, META_FIELDS, METADATA_SNIPPET_WORDS, NO_TEXT, QUERY_FLAG_ADMIN, QUERY_FLAG_AUTHENTICATED, QUERY_FLAG_INCLUDE_EMBEDS,
+	type SearchIngestChat, type SearchQueryReply, type SearchQueryRequest, type SearchUnitProtocol,
 } from './searchUnitProtocol';
 
 /** Measurement-only opt-out (`'ts'`): the paired bench runs the TypeScript search in the same build. */
 export const SEARCH_OPT_OUT_KEY = 'openmates_rust_core_search';
 const OPEN_TIMEOUT_MS = 10_000;
 
-/** The fields of a searchService index entry this adapter reads. */
-export interface RustSearchEntry {
+/** The fields of a searchService index entry the Worker index stores. */
+export type RustSearchEntry = {
 	messageId: string;
 	content: string;
 	createdAt: number;
-	embedSourceLabel?: string;
-	embedId?: string;
-	embedType?: string;
-	embedTitle?: string;
-	embedSubtitle?: string;
-	embedAppId?: string;
-	embedSkillId?: string;
-	embedFocusId?: string;
-	embedFocusModeName?: string;
+} & { [K in (typeof META_FIELDS)[number]]?: string };
+
+/** Page data of one searchable chat (searchService.ts resolves it like the TS loop). */
+export interface RustQueryChat {
+	chatId: string;
+	/** Search messages (false for metadata-only chats). */
+	messages: boolean;
+	title: string | null;
+	activeFocusId: string | null;
+	summary: string | null;
+	tags: string[] | null;
+	draft: string | null;
+	lastEdited: number;
 }
 
-export interface RustSearchChat { chatId: string; entries: readonly RustSearchEntry[] | undefined }
+export interface RustCatalogEntry { label: string; keywords: readonly string[]; access?: 'public' | 'authenticated' | 'admin' }
 
-export interface RustMessageHits {
-	/** The chat's matches in `searchMessagesInChat` shape; empty for chats without hits. */
-	take(chatId: string, activeFocusId: string | null): { snippets: MessageMatchSnippet[]; embeds: EmbedSearchResult[] };
+export interface RustQueryInput {
+	query: string;
+	includeEmbeds: boolean;
+	isAuthenticated: boolean;
+	isAdmin: boolean;
+	chats: readonly RustQueryChat[];
+	settings: readonly RustCatalogEntry[];
+	apps: readonly RustCatalogEntry[];
 }
 
-interface Sent { handle: number; entries: readonly RustSearchEntry[] }
+export interface RustChatHit {
+	position: number;
+	titleMatchRanges: Array<{ start: number; length: number }>;
+	messageSnippets: MessageMatchSnippet[];
+	metadataSnippets: MetadataMatchSnippet[];
+}
+
+export interface RustSearchResult {
+	/** In display order. */
+	chats: RustChatHit[];
+	embeds: EmbedSearchResult[];
+	/** Indices into `settings` / `apps` of the request. */
+	settings: number[];
+	apps: number[];
+}
+
 interface Unit { core: SharedRustCore; port: UnitPort<SearchUnitProtocol>; generation: number | null; stopCrashWatch: () => void }
 
 let unit: Unit | null = null;
 let opening: Promise<Unit> | null = null;
-const sent = new Map<string, Sent>();
+const indexed = new Map<string, number>();
+const chatOfHandle = new Map<number, string>();
+const epochs = new Map<string, number>();
+let removes: number[] = [];
 let nextHandle = 1;
 let served = 0;
 
-export function rustChatSearchSelected(): boolean {
-	return typeof localStorage === 'undefined' || localStorage.getItem(SEARCH_OPT_OUT_KEY) !== 'ts';
+/** Whether the Worker index currently holds `chatId`. */
+export function isRustChatIndexed(chatId: string): boolean {
+	return indexed.has(chatId);
 }
 
-/**
- * Forgets `current` (and what was sent to it). With `freeRemote` the unit is
- * first told to free its index; the page port closes right after, so that
- * request's own `unit_closed` rejection is expected and anything else is logged.
- */
+/** Invalidation counter of `chatId`; an ingest built before a later invalidation is discarded. */
+export function rustChatEpoch(chatId: string): number {
+	return epochs.get(chatId) ?? 0;
+}
+
+function forget(chatId: string): void {
+	const handle = indexed.get(chatId);
+	if (handle === undefined) return;
+	indexed.delete(chatId);
+	chatOfHandle.delete(handle);
+	removes.push(handle);
+}
+
+/** The chat's messages changed: the Worker drops it with the next request; the next search re-indexes it. */
+export function invalidateRustChat(chatId: string): void {
+	epochs.set(chatId, rustChatEpoch(chatId) + 1);
+	forget(chatId);
+}
+
+/** Forgets `current`; a crashed or replaced unit took its index with it, so every handle is dropped. */
 function dropUnit(current: Unit, freeRemote = false): void {
 	if (unit === current) {
 		unit = null;
-		sent.clear();
+		indexed.clear();
+		chatOfHandle.clear();
+		removes = [];
 	}
 	current.stopCrashWatch();
 	if (freeRemote && !current.port.closed) {
@@ -92,15 +136,10 @@ async function openUnit(): Promise<Unit> {
 	const raw = await core.openUnit('search', { unbound: generation === null });
 	const opened: Unit = { core, port: createUnitPort<SearchUnitProtocol>(raw), generation, stopCrashWatch: () => undefined };
 	opened.stopCrashWatch = core.onCrash(() => dropUnit(opened));
-	sent.clear();
 	return opened;
 }
 
-/**
- * Opens (or reuses) the Worker search unit ahead of the first query, so the
- * unit's Worker-side load overlaps the page's index gathering. Callers await the
- * returned promise; a failure rejects exactly like the search itself would.
- */
+/** Opens (or reuses) the Worker search unit, so its load overlaps the page's metadata and index work. */
 export async function prepareRustChatSearch(): Promise<void> {
 	await currentUnit();
 }
@@ -111,141 +150,210 @@ async function currentUnit(): Promise<Unit> {
 	if (unit) return unit;
 	opening ??= openUnit().finally(() => { opening = null; });
 	const opened = await opening;
-	unit ??= opened;
+	if (!unit) {
+		unit = opened;
+		indexed.clear();
+		chatOfHandle.clear();
+		removes = [];
+	}
 	return unit;
 }
 
-function columns(handle: number, entries: readonly RustSearchEntry[]): SearchChatSet {
-	const length = entries.length;
-	const set: SearchChatSet = { handle, messageIds: new Array(length), contents: new Array(length), embedIds: new Array(length), embedTitled: new Uint8Array(length) };
-	for (let index = 0; index < length; index++) {
-		const entry = entries[index];
-		set.messageIds[index] = entry.messageId;
-		set.contents[index] = entry.content;
-		set.embedIds[index] = entry.embedId || '';
-		set.embedTitled[index] = entry.embedId && entry.embedTitle ? 1 : 0;
-	}
-	return set;
-}
-
-interface ChatHits { chatId: string; entries: readonly RustSearchEntry[]; snippets: number[]; embeds: number[] }
-
-/** Decodes Worker rows against the entry snapshots that were searched (exported for unit tests). */
-export function decodeSearchRows(rows: Uint32Array, chats: readonly { chatId: string; entries: readonly RustSearchEntry[] }[]): Map<string, ChatHits> {
-	const out = new Map<string, ChatHits>();
-	let at = 0;
-	while (at < rows.length) {
-		const chat = chats[rows[at]];
-		const snippetCount = rows[at + 1];
-		const embedCount = rows[at + 2];
-		const end = at + SEARCH_HEADER_WORDS + snippetCount * SEARCH_SNIPPET_WORDS + embedCount;
-		if (!chat || end > rows.length) throw new Error('rust_search_bad_rows');
-		const snippets = Array.from(rows.subarray(at + SEARCH_HEADER_WORDS, at + SEARCH_HEADER_WORDS + snippetCount * SEARCH_SNIPPET_WORDS));
-		const embeds = Array.from(rows.subarray(end - embedCount, end));
-		out.set(chat.chatId, { chatId: chat.chatId, entries: chat.entries, snippets, embeds });
-		at = end;
-	}
-	return out;
-}
-
-/** Builds `searchMessagesInChat` results from decoded rows (exported for unit tests). */
-export function materializeHits(hits: ChatHits | undefined, matchLength: number, activeFocusId: string | null) {
-	const snippets: MessageMatchSnippet[] = [];
-	const embeds: EmbedSearchResult[] = [];
-	if (!hits) return { snippets, embeds };
-	for (let at = 0; at < hits.snippets.length; at += SEARCH_SNIPPET_WORDS) {
-		const entry = hits.entries[hits.snippets[at]];
-		const flags = hits.snippets[at + 3];
-		if (!entry) throw new Error('rust_search_bad_rows');
-		const body = entry.content.slice(hits.snippets[at + 1], hits.snippets[at + 2]);
-		snippets.push({
-			messageId: entry.messageId,
-			chatId: hits.chatId,
-			snippet: (flags & SEARCH_FLAG_FRONT_ELLIPSIS ? '... ' : '') + body + (flags & SEARCH_FLAG_BACK_ELLIPSIS ? ' ...' : ''),
-			matchStart: hits.snippets[at + 4],
-			matchLength,
-			embedSourceLabel: entry.embedSourceLabel,
-			embedId: entry.embedId,
-			embedType: entry.embedType,
-			embedAppId: entry.embedAppId,
-			embedSkillId: entry.embedSkillId,
-			embedFocusId: entry.embedFocusId,
-			embedFocusModeName: entry.embedFocusModeName,
-			embedFocusIsActive: entry.embedType === 'focus-mode-activation' && entry.embedFocusId ? entry.embedFocusId === activeFocusId : undefined,
-		});
-	}
-	for (const index of hits.embeds) {
-		const entry = hits.entries[index];
-		if (!entry?.embedId || !entry.embedTitle) throw new Error('rust_search_bad_rows');
-		embeds.push({
-			embedId: entry.embedId,
-			embedType: entry.embedType || '',
-			chatId: hits.chatId,
-			messageId: entry.messageId,
-			title: entry.embedTitle,
-			subtitle: entry.embedSubtitle || entry.embedSourceLabel || 'Embed',
-			appId: entry.embedAppId,
-			createdAt: entry.createdAt,
-		});
-	}
-	return { snippets, embeds };
-}
-
-/**
- * One Worker query for every chat in `chats` (chats without an index entry
- * have no message hits, as in `searchMessagesInChat`). `isIndexed` tells which
- * previously sent chats the page still indexes; the rest are dropped.
- */
-export async function searchRustChatMessages(
-	query: string,
-	chats: readonly RustSearchChat[],
-	includeEmbeds: boolean,
-	isIndexed: (chatId: string) => boolean,
-	signal?: AbortSignal,
-): Promise<RustMessageHits> {
-	const target = await currentUnit();
-	signal?.throwIfAborted();
-	const removes: number[] = [];
-	for (const [chatId, entry] of sent) {
-		if (isIndexed(chatId)) continue;
-		removes.push(entry.handle);
-		sent.delete(chatId);
-	}
-	const searched: { chatId: string; entries: readonly RustSearchEntry[] }[] = [];
-	const sets: SearchChatSet[] = [];
-	for (const chat of chats) {
-		if (!chat.entries) continue;
-		let known = sent.get(chat.chatId);
-		if (!known || known.entries !== chat.entries) {
-			known = { handle: known?.handle ?? nextHandle++, entries: chat.entries };
-			sent.set(chat.chatId, known);
-			sets.push(columns(known.handle, chat.entries));
-		}
-		searched.push({ chatId: chat.chatId, entries: chat.entries });
-	}
-	const handles = new Uint32Array(searched.length);
-	for (let index = 0; index < searched.length; index++) handles[index] = sent.get(searched[index].chatId)!.handle;
-	performance.mark('openmates:rust:search-start');
-	let rows: Uint32Array;
+/** Runs one request; any failure but an abort leaves the unit state unknown, so it is dropped. */
+async function send<K extends 'ingest' | 'query'>(target: Unit, op: K, payload: SearchUnitProtocol[K]['request'], options: { signal?: AbortSignal; transfer: Transferable[] }) {
 	try {
-		({ rows } = await target.port.request('search', { removes, sets, query, handles, includeEmbeds }, { signal, transfer: [handles.buffer] }));
+		return await target.port.request(op, payload, options);
 	} catch (error) {
 		// An abort only drops the reply: the unit still applies the request in port order.
-		// Any other failure leaves its state unknown, so the next search reopens and resends.
 		if (!(error instanceof UnitPortError && error.code === 'unit_aborted')) dropUnit(target);
 		throw error;
 	}
-	const decoded = decodeSearchRows(rows, searched);
+}
+
+function takeRemoves(): number[] {
+	const taken = removes;
+	removes = [];
+	return taken;
+}
+
+/** Column form of one chat's entries (exported for unit tests). */
+export function ingestColumns(handle: number, entries: readonly RustSearchEntry[]): SearchIngestChat {
+	const length = entries.length;
+	const messageIds: string[] = new Array(length);
+	const contents: string[] = new Array(length);
+	const createdAt = new Float64Array(length);
+	const metaEntries: number[] = [];
+	const metaMasks: number[] = [];
+	const metaValues: string[] = [];
+	for (let index = 0; index < length; index++) {
+		const entry = entries[index];
+		messageIds[index] = entry.messageId;
+		contents[index] = entry.content;
+		createdAt[index] = entry.createdAt;
+		let mask = 0;
+		for (let field = 0; field < META_FIELDS.length; field++) {
+			const value = entry[META_FIELDS[field]];
+			if (value === undefined) continue;
+			mask |= 1 << field;
+			metaValues.push(value);
+		}
+		if (mask !== 0) {
+			metaEntries.push(index);
+			metaMasks.push(mask);
+		}
+	}
+	return { handle, messageIds, contents, createdAt, metaEntries: Uint32Array.from(metaEntries), metaMasks: Uint16Array.from(metaMasks), metaValues };
+}
+
+/**
+ * Transfers `chatId`'s freshly built entries to the Worker index (the page keeps
+ * no copy). Skipped when the chat was invalidated after `epoch` was read.
+ */
+export async function ingestRustChat(chatId: string, entries: readonly RustSearchEntry[], epoch: number): Promise<void> {
+	if (rustChatEpoch(chatId) !== epoch) return;
+	const target = await currentUnit();
+	forget(chatId);
+	const handle = nextHandle++;
+	const chat = ingestColumns(handle, entries);
+	const { evicted } = await send(target, 'ingest', { removes: takeRemoves(), chat }, { transfer: [chat.createdAt.buffer, chat.metaEntries.buffer, chat.metaMasks.buffer] });
+	if (unit !== target) return;
+	for (const gone of evicted) {
+		const evictedChat = chatOfHandle.get(gone);
+		if (evictedChat !== undefined) { indexed.delete(evictedChat); chatOfHandle.delete(gone); }
+	}
+	const kept = !evicted.includes(handle);
+	if (kept && rustChatEpoch(chatId) === epoch && !indexed.has(chatId)) {
+		indexed.set(chatId, handle);
+		chatOfHandle.set(handle, chatId);
+	} else if (kept) {
+		removes.push(handle);
+	}
+}
+
+/** Request columns of one search (exported for unit tests). */
+export function queryColumns(input: RustQueryInput, handleOf: (chatId: string) => number): Omit<SearchQueryRequest, 'removes'> {
+	const count = input.chats.length;
+	const handles = new Uint32Array(count);
+	const chatMasks = new Uint8Array(count);
+	const tagCounts = new Uint32Array(count);
+	const lastEdited = new Float64Array(count);
+	const chatValues: string[] = [];
+	for (let index = 0; index < count; index++) {
+		const chat = input.chats[index];
+		handles[index] = chat.messages ? handleOf(chat.chatId) : 0;
+		lastEdited[index] = chat.lastEdited;
+		let mask = 0;
+		const add = (bit: number, value: string | null) => {
+			if (value === null) return;
+			mask |= bit;
+			chatValues.push(value);
+		};
+		add(CHAT_TITLE, chat.title);
+		add(CHAT_FOCUS, chat.activeFocusId);
+		add(CHAT_SUMMARY, chat.summary);
+		add(CHAT_DRAFT, chat.draft);
+		if (chat.tags) {
+			mask |= CHAT_TAGS;
+			tagCounts[index] = chat.tags.length;
+			for (const tag of chat.tags) chatValues.push(tag);
+		}
+		chatMasks[index] = mask;
+	}
+	const catalog = [...input.settings, ...input.apps];
+	const catalogFlags = new Uint8Array(catalog.length);
+	const catalogKeywordCounts = new Uint32Array(catalog.length);
+	const catalogLabels: string[] = new Array(catalog.length);
+	const catalogKeywords: string[] = [];
+	for (let index = 0; index < catalog.length; index++) {
+		const entry = catalog[index];
+		catalogFlags[index] = CATALOG_ACCESS[entry.access ?? 'public'] | (index >= input.settings.length ? CATALOG_APP : 0);
+		catalogLabels[index] = entry.label;
+		catalogKeywordCounts[index] = entry.keywords.length;
+		for (const keyword of entry.keywords) catalogKeywords.push(keyword);
+	}
+	const flags = (input.includeEmbeds ? QUERY_FLAG_INCLUDE_EMBEDS : 0) | (input.isAuthenticated ? QUERY_FLAG_AUTHENTICATED : 0) | (input.isAdmin ? QUERY_FLAG_ADMIN : 0);
+	return { query: input.query, flags, handles, chatMasks, chatValues, tagCounts, lastEdited, catalogFlags, catalogLabels, catalogKeywordCounts, catalogKeywords };
+}
+
+const METADATA_SOURCES = ['summary', 'tags', 'draft'] as const;
+
+/** Decodes Worker rows (web_search_query.rs `EncodedOutcome`) into result objects (exported for unit tests). */
+export function decodeSearchReply(reply: SearchQueryReply, chatIds: readonly string[], settingsCount: number): RustSearchResult {
+	const { rows, texts, numbers } = reply;
+	const bad = (): never => { throw new Error('rust_search_bad_rows'); };
+	let at = 0;
+	const word = () => (at < rows.length ? rows[at++] : bad());
+	const text = () => { const cell = word(); return cell === NO_TEXT ? undefined : texts[cell] ?? bad(); };
+	const required = () => text() ?? bad();
+	const [chatCount, embedCount, settingsHits, appHits] = [word(), word(), word(), word()];
+	const result: RustSearchResult = { chats: [], embeds: [], settings: [], apps: [] };
+	for (let chat = 0; chat < chatCount; chat++) {
+		const position = word();
+		const chatId = chatIds[position] ?? bad();
+		const [ranges, messages, metadata] = [word(), word(), word()];
+		if (at + ranges * 2 + messages * MESSAGE_SNIPPET_WORDS + metadata * METADATA_SNIPPET_WORDS > rows.length) bad();
+		const hit: RustChatHit = { position, titleMatchRanges: [], messageSnippets: [], metadataSnippets: [] };
+		for (let range = 0; range < ranges; range++) hit.titleMatchRanges.push({ start: word(), length: word() });
+		for (let snippet = 0; snippet < messages; snippet++) {
+			const body = required();
+			const matchStart = word();
+			const matchLength = word();
+			const messageId = required();
+			const [embedSourceLabel, embedId, embedType, embedAppId, embedSkillId, embedFocusId, embedFocusModeName] = [text(), text(), text(), text(), text(), text(), text()];
+			const focus = word();
+			hit.messageSnippets.push({
+				messageId, chatId, snippet: body, matchStart, matchLength,
+				embedSourceLabel, embedId, embedType, embedAppId, embedSkillId, embedFocusId, embedFocusModeName,
+				embedFocusIsActive: focus === FOCUS_NONE ? undefined : focus === FOCUS_ACTIVE,
+			});
+		}
+		for (let snippet = 0; snippet < metadata; snippet++) {
+			const body = required();
+			const matchStart = word();
+			const matchLength = word();
+			const matchSource = METADATA_SOURCES[word()] ?? bad();
+			hit.metadataSnippets.push({ chatId, snippet: body, matchStart, matchLength, matchSource });
+		}
+		result.chats.push(hit);
+	}
+	if (numbers.length !== embedCount) bad();
+	for (let embed = 0; embed < embedCount; embed++) {
+		if (at + EMBED_WORDS > rows.length) bad();
+		const chatId = chatIds[word()] ?? bad();
+		const [embedId, embedType, messageId, title, subtitle] = [required(), text() ?? bad(), required(), required(), required()];
+		const appId = text();
+		result.embeds.push({ embedId, embedType, chatId, messageId, title, subtitle, appId, createdAt: numbers[embed] });
+	}
+	for (let hit = 0; hit < settingsHits; hit++) result.settings.push(word());
+	for (let hit = 0; hit < appHits; hit++) result.apps.push(word() - settingsCount);
+	if (at !== rows.length) bad();
+	return result;
+}
+
+/** One complete search in the Worker; chats not indexed (yet) get no message hits. */
+export async function queryRustSearch(input: RustQueryInput, signal?: AbortSignal): Promise<RustSearchResult> {
+	const target = await currentUnit();
+	signal?.throwIfAborted();
+	const columns = queryColumns(input, (chatId) => indexed.get(chatId) ?? 0);
+	performance.mark('openmates:rust:search-start');
+	const reply = await send(target, 'query', { removes: takeRemoves(), ...columns }, {
+		signal,
+		transfer: [columns.handles.buffer, columns.chatMasks.buffer, columns.tagCounts.buffer, columns.lastEdited.buffer, columns.catalogFlags.buffer, columns.catalogKeywordCounts.buffer],
+	});
+	const decoded = decodeSearchReply(reply, input.chats.map((chat) => chat.chatId), input.settings.length);
 	served += 1;
 	performance.measure('openmates:rust:search', 'openmates:rust:search-start');
 	if (typeof document !== 'undefined') document.documentElement.dataset.rustCoreSearch = `rust:${served}`;
-	return { take: (chatId, activeFocusId) => materializeHits(decoded.get(chatId), query.length, activeFocusId) };
+	return decoded;
 }
 
-/** Logout: drop the Worker index and the page's record of what was sent. */
+/** Logout: drop the Worker index and the page's handles. */
 export function clearRustChatSearch(): void {
-	sent.clear();
+	epochs.clear();
 	if (unit) dropUnit(unit, true);
+	indexed.clear();
+	chatOfHandle.clear();
+	removes = [];
 }
 
 if (typeof window !== 'undefined') window.addEventListener('userLoggingOut', clearRustChatSearch);

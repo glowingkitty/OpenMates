@@ -5,7 +5,8 @@ use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub fn search_find_match_ranges(text: &str, query: &str) -> Result<String, JsValue> {
-    openmates_sdk::web_search_json::find_match_ranges_json(text, query).map_err(|e| JsValue::from_str(&e))
+    openmates_sdk::web_search_json::find_match_ranges_json(text, query)
+        .map_err(|e| JsValue::from_str(&e))
 }
 
 #[wasm_bindgen]
@@ -14,15 +15,31 @@ pub fn search_build_snippet(content: &str, match_start: usize, match_length: usi
 }
 
 #[wasm_bindgen]
-pub fn search_saved_embed_memories(entries_json: &str, query: &str, limit: i32) -> Result<String, JsValue> {
-    openmates_sdk::web_search_json::search_saved_embed_memories_json(entries_json, query, i64::from(limit))
-        .map_err(|e| JsValue::from_str(&e))
+pub fn search_saved_embed_memories(
+    entries_json: &str,
+    query: &str,
+    limit: i32,
+) -> Result<String, JsValue> {
+    openmates_sdk::web_search_json::search_saved_embed_memories_json(
+        entries_json,
+        query,
+        i64::from(limit),
+    )
+    .map_err(|e| JsValue::from_str(&e))
 }
 
 #[wasm_bindgen]
-pub fn pii_create_display_aliases(source_json: &str, mappings_json: &str, configured_json: &str) -> Result<String, JsValue> {
-    openmates_sdk::web_search_json::create_pii_display_aliases_json(source_json, mappings_json, configured_json)
-        .map_err(|e| JsValue::from_str(&e))
+pub fn pii_create_display_aliases(
+    source_json: &str,
+    mappings_json: &str,
+    configured_json: &str,
+) -> Result<String, JsValue> {
+    openmates_sdk::web_search_json::create_pii_display_aliases_json(
+        source_json,
+        mappings_json,
+        configured_json,
+    )
+    .map_err(|e| JsValue::from_str(&e))
 }
 
 /// Worker-resident search corpus: texts cross the boundary once (`set_text`,
@@ -47,7 +64,9 @@ impl SearchCorpus {
 
     /// `[[key,text],...]`
     pub fn set_texts_json(&mut self, entries_json: &str) -> Result<(), JsValue> {
-        self.inner.set_many_json(entries_json).map_err(|e| JsValue::from_str(&e))
+        self.inner
+            .set_many_json(entries_json)
+            .map_err(|e| JsValue::from_str(&e))
     }
 
     pub fn remove(&mut self, key: &str) {
@@ -84,23 +103,31 @@ impl SavedMemoriesIndex {
     }
 
     pub fn set_entries_json(&mut self, entries_json: &str) -> Result<(), JsValue> {
-        self.inner = Some(openmates_sdk::web_search_json::saved_embed_index_from_json(entries_json).map_err(|e| JsValue::from_str(&e))?);
+        self.inner = Some(
+            openmates_sdk::web_search_json::saved_embed_index_from_json(entries_json)
+                .map_err(|e| JsValue::from_str(&e))?,
+        );
         Ok(())
     }
 
     pub fn search(&self, query: &str, limit: i32) -> Result<String, JsValue> {
         match &self.inner {
-            Some(index) => openmates_sdk::web_search_json::saved_embed_index_search_json(index, query, i64::from(limit))
-                .map_err(|e| JsValue::from_str(&e)),
+            Some(index) => openmates_sdk::web_search_json::saved_embed_index_search_json(
+                index,
+                query,
+                i64::from(limit),
+            )
+            .map_err(|e| JsValue::from_str(&e)),
             None => Ok("[]".to_string()),
         }
     }
 }
 
-/// Worker-resident chat message search for the shared core `search` unit
-/// (`web_search_chats`). Chats are addressed by page-assigned `u32` handles;
-/// `search` returns flat `u32` rows (a `Uint32Array`) that carry entry indices
-/// and UTF-16 snippet slice plans, never text.
+/// Worker-resident chat search for the shared core `search` unit
+/// (`web_search_chats` index + `web_search_query`). The page ingests each chat's
+/// entries once (column arrays) and keeps no copy; a query returns flat `u32`
+/// rows, a text table and embed timestamps (layout: `web_search_query::EncodedOutcome`).
+/// Malformed columns reject with the stable code `protocol`.
 #[wasm_bindgen]
 #[derive(Default)]
 pub struct ChatSearchIndex {
@@ -115,14 +142,28 @@ impl ChatSearchIndex {
         ChatSearchIndex::default()
     }
 
-    /// Empties `handle` before its entries are pushed again.
-    pub fn reset_chat(&mut self, handle: u32) {
-        self.inner.reset_chat(handle);
-    }
-
-    /// Appends one entry in the page's index order (`embed_id` is empty for message text).
-    pub fn push_entry(&mut self, handle: u32, message_id: &str, text: &str, embed_id: &str, embed_titled: bool) {
-        self.inner.push_entry(handle, message_id, text, embed_id, embed_titled);
+    /// Replaces `handle`'s entries; returns the handles evicted by the index budget.
+    #[allow(clippy::too_many_arguments)] // Flat wire columns: one wasm call per chat, no per-field JS reads.
+    pub fn ingest_chat(
+        &mut self,
+        handle: u32,
+        message_ids: Vec<String>,
+        contents: Vec<String>,
+        created_at: Vec<f64>,
+        meta_entries: Vec<u32>,
+        meta_masks: Vec<u16>,
+        meta_values: Vec<String>,
+    ) -> Result<Vec<u32>, JsValue> {
+        let entries = openmates_sdk::web_search_chats::decode_ingest(
+            message_ids,
+            contents,
+            &created_at,
+            &meta_entries,
+            &meta_masks,
+            meta_values,
+        )
+        .map_err(|error| JsValue::from_str(error.code()))?;
+        Ok(self.inner.ingest_chat(handle, entries))
     }
 
     /// Drops `handle`.
@@ -140,8 +181,61 @@ impl ChatSearchIndex {
         self.inner.chat_count()
     }
 
-    /// Flat result rows as a `Uint32Array` (layout in `web_search_chats`).
-    pub fn search(&self, query: &str, handles: &[u32], include_embeds: bool) -> Vec<u32> {
-        self.inner.search(query, handles, include_embeds)
+    /// One complete search; returns `{ rows: Uint32Array, texts: string[], numbers: Float64Array }`.
+    #[allow(clippy::too_many_arguments)] // Flat wire columns of `web_search_query::QueryColumns`.
+    pub fn query(
+        &mut self,
+        query: &str,
+        flags: u32,
+        handles: Vec<u32>,
+        chat_masks: Vec<u8>,
+        chat_values: Vec<String>,
+        tag_counts: Vec<u32>,
+        last_edited: Vec<f64>,
+        catalog_flags: Vec<u8>,
+        catalog_labels: Vec<String>,
+        catalog_keyword_counts: Vec<u32>,
+        catalog_keywords: Vec<String>,
+    ) -> Result<js_sys::Object, JsValue> {
+        use openmates_sdk::web_search_query::{run_search, QueryColumns, SearchQuery, Text};
+        let request = SearchQuery::from_wire(QueryColumns {
+            query,
+            flags,
+            handles: &handles,
+            chat_masks: &chat_masks,
+            chat_values,
+            tag_counts: &tag_counts,
+            last_edited: &last_edited,
+            catalog_flags: &catalog_flags,
+            catalog_labels,
+            catalog_keyword_counts: &catalog_keyword_counts,
+            catalog_keywords,
+        })
+        .map_err(|error| JsValue::from_str(error.code()))?;
+        self.inner.touch(&request.handles());
+        let encoded = run_search(&self.inner, &request).encode();
+        let texts = js_sys::Array::new_with_length(encoded.texts.len() as u32);
+        for (at, text) in encoded.texts.iter().enumerate() {
+            let value: JsValue = match text {
+                Text::Str(text) => JsValue::from_str(text),
+                // Exact UTF-16 (a cut surrogate pair stays a lone surrogate, as JS `slice` leaves it).
+                Text::Units(units) => js_sys::JsString::from_char_code(units).into(),
+            };
+            texts.set(at as u32, value);
+        }
+        let out = js_sys::Object::new();
+        let set = |key: &str, value: &JsValue| {
+            js_sys::Reflect::set(&out, &JsValue::from_str(key), value).map(|_| ())
+        };
+        set(
+            "rows",
+            &js_sys::Uint32Array::from(encoded.rows.as_slice()).into(),
+        )?;
+        set("texts", &texts.into())?;
+        set(
+            "numbers",
+            &js_sys::Float64Array::from(encoded.numbers.as_slice()).into(),
+        )?;
+        Ok(out)
     }
 }

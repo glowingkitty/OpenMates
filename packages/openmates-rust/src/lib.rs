@@ -26,6 +26,7 @@ pub mod web_search;
 pub mod web_search_chats;
 pub mod web_search_corpus;
 pub mod web_search_json;
+pub mod web_search_query;
 pub mod web_apps;
 pub mod web_transfer;
 pub mod web_sync;
@@ -33,6 +34,8 @@ pub mod web_sync;
 mod web_search_bench;
 #[cfg(test)]
 mod web_search_chats_tests;
+#[cfg(test)]
+mod web_search_query_tests;
 #[cfg(test)]
 mod web_search_tests;
 pub use client::{

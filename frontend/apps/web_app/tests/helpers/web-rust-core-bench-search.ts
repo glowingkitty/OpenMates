@@ -16,7 +16,7 @@
  * opt-out (rustChatSearch.ts SEARCH_OPT_OUT_KEY). Each sample searches only after
  * the per-load app metadata settled (appMetadataSettled). Every pair must render the
  * same snippet texts (compared as sorted lists: chats with equal timestamps
- * may settle in either order on both arms). Gated per metric (paired bootstrap 95% CI, ratio <= +3%):
+ * may settle in either order on both arms). Gated per metric (paired bootstrap 95% CI upper bound within max(+10%, +50 ms) wall, +15% CPU):
  *   searchRenderedMs  query typed -> rare-query snippet rendered (cold index)
  *   commonSearchMs    query typed -> common-query snippets rendered (warm index)
  *   searchCpuMs       browser CPU (all verified Chromium processes) over both searches
@@ -37,7 +37,11 @@ const { summarizePaired, markdownTable, pairOrder, interpolatedBaselinePairs, tr
 const SEARCH_OPT_OUT_KEY = 'openmates_rust_core_search';
 const RARE_QUERY = 'pandas';
 const COMMON_QUERY = 'the';
-const MARGIN = Number.parseFloat(process.env.OPENMATES_BENCH_MARGIN ?? '0.03') || 0.03;
+/** Approved budget (.claude/rules/cli-sdk.md): wall max(+10%, +50 ms) with p95 at most +100 ms; CPU +15%. */
+const MARGIN = Number.parseFloat(process.env.OPENMATES_BENCH_MARGIN ?? '0.1') || 0.1;
+const WALL_FLOOR_MS = 50;
+const P95_ALLOW_MS = 100;
+const CPU_MARGIN = 0.15;
 const RSS_LIMIT_BYTES = 30 * 1024 * 1024;
 const GATED_RATIO_METRICS = ['searchRenderedMs', 'commonSearchMs', 'searchCpuMs'] as const;
 const SNIPPETS = '[data-testid="search-results"] .message-snippet:not(.metadata-snippet)';
@@ -160,7 +164,11 @@ async function runSearchBench(page: any, testInfo: any, options: { pairs: number
 	await screenshot(page, 'search-bench-done');
 	const column = (metric: string) => pairs.map((pair) => ({ ts: pair.ts[metric], rust: pair.rust[metric] }));
 	const summary: Record<string, Record<string, any>> = {};
-	for (const metric of GATED_RATIO_METRICS) summary[metric] = summarizePaired(column(metric), { mode: 'ratio', margin: MARGIN });
+	for (const metric of GATED_RATIO_METRICS) {
+		summary[metric] = metric === 'searchCpuMs'
+			? summarizePaired(column(metric), { mode: 'ratio', margin: CPU_MARGIN })
+			: summarizePaired(column(metric), { mode: 'ratio', margin: MARGIN, floorMs: WALL_FLOOR_MS, p95AllowMs: P95_ALLOW_MS });
+	}
 	const measured = sequence.filter((entry) => !entry.warmUp);
 	summary.browserRssBytes = summarizePaired(interpolatedBaselinePairs(measured.map((entry) => ({ arm: entry.arm, value: entry.sample.browserRssBytes }))), { mode: 'difference', limit: RSS_LIMIT_BYTES });
 	summary.browserRssBytesAdjacentPair = summarizePaired(column('browserRssBytes'), { mode: 'difference', gate: false });
@@ -169,7 +177,7 @@ async function runSearchBench(page: any, testInfo: any, options: { pairs: number
 	summary.wasmInstantiations = { ...summarizePaired(column('wasmInstantiations'), { mode: 'difference' }), verdict: maxRustWasm > 1 ? 'rust_worse' : 'rust_not_worse', maxRustInstances: maxRustWasm };
 	const commonSnippetCount = pairs[0]?.rust.commonSnippets.length ?? 0;
 	const report = {
-		flow: 'search', pairs: options.pairs, margin: MARGIN, rssLimitBytes: RSS_LIMIT_BYTES, queries: { rare: RARE_QUERY, common: COMMON_QUERY, commonSnippetCount },
+		flow: 'search', pairs: options.pairs, margin: MARGIN, cpuMargin: CPU_MARGIN, wallFloorMs: WALL_FLOOR_MS, p95AllowMs: P95_ALLOW_MS, rssLimitBytes: RSS_LIMIT_BYTES, queries: { rare: RARE_QUERY, common: COMMON_QUERY, commonSnippetCount },
 		order: 'counterbalanced ts,rust / rust,ts pairs after one discarded ts,rust warm-up pair', summary,
 		rssIncrementPerReloadBytes: transitionIncrements(sequence.map((entry) => ({ arm: entry.arm, before: entry.sample.browserRssBeforeBytes, after: entry.sample.browserRssBytes }))),
 		sequence: sequence.map((entry) => `${entry.warmUp ? 'w' : ''}${entry.arm}`).join(','),
@@ -181,7 +189,7 @@ async function runSearchBench(page: any, testInfo: any, options: { pairs: number
 	await testInfo.attach('web-rust-core-bench-search.md', { body: table, contentType: 'text/markdown' });
 	for (const metric of ['searchRenderedMs', 'commonSearchMs'] as const) expect(summary[metric].pairs, `${metric}: usable pairs`).toBe(options.pairs);
 	expect(maxRustWasm, 'at most one WASM instance per Rust load').toBeLessThanOrEqual(1);
-	for (const metric of GATED_RATIO_METRICS) expect.soft(summary[metric].verdict, `${metric} gate (CI upper bound <= +${MARGIN * 100}%)`).not.toBe('rust_worse');
+	for (const metric of GATED_RATIO_METRICS) expect.soft(summary[metric].verdict, `${metric} gate (CI upper bound <= ${metric === 'searchCpuMs' ? `+${CPU_MARGIN * 100}%` : `max(+${MARGIN * 100}%, +${WALL_FLOOR_MS} ms), p95 +${P95_ALLOW_MS} ms`})`).not.toBe('rust_worse');
 }
 
 module.exports = { runSearchBench, appMetadataSettled, openSidebarSearch, searchAndWait, sorted, SEARCH_OPT_OUT_KEY, SNIPPETS, RARE_QUERY, COMMON_QUERY };
