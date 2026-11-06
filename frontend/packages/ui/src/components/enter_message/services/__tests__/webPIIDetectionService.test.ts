@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
-import { createWebPIIScanContext, WEB_PII_MAX_ENHANCED_CHARS, WEB_PII_SCAN_BUDGET_MS, detectPIIForWeb, isWebPIIModelSupported, isWebPIIModelEnabled, preloadWebPIIDetector, resetWebPIIDetector, webPIIDetectorState } from '../webPIIDetectionService';
+import { createWebPIIDocumentScanContext, createWebPIIScanContext, WEB_PII_MAX_ENHANCED_CHARS, WEB_PII_SCAN_BUDGET_MS, detectPIIForWeb, isWebPIIModelSupported, isWebPIIModelEnabled, preloadWebPIIDetector, resetWebPIIDetector, webPIIDetectorState } from '../webPIIDetectionService';
 import * as basicDetector from '../piiDetectionService';
 import { buildWebPIIWindows } from '../webPIIWindows';
 
@@ -412,6 +412,28 @@ describe('browser PII runtime lifecycle', () => {
     expect(matches.map(match => match.match)).toEqual(['Amina']);
     expect(worker.terminated).toBe(false);
     expect(get(webPIIDetectorState)).toMatchObject({ status: 'ready', fallbackReason: 'timeout' });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,pii.web.local-bounded-inference
+  it('scans documents beyond the typed-text size limit with the model under a larger shared budget', async () => {
+    const text = `Amina ${Array.from({ length: 400 }, (_, i) => `wort${i}`).join(' ')}`;
+    expect(text.length).toBeGreaterThan(WEB_PII_MAX_ENHANCED_CHARS);
+    const context = createWebPIIDocumentScanContext();
+    const scan = detectPIIForWeb(text, {}, context);
+    const worker = FakeWorker.workers[0];
+    await tick(); worker.respond(0); await tick();
+    const windows = buildWebPIIWindows(text);
+    for (let index = 0; index < windows.length; index++) {
+      const window = windows[index];
+      const items = window.start === 0 ? [{ label: 'GIVEN_NAME', original: 'Amina', start: 0, end: 5, confidence: 1 }] : [];
+      worker.respond(index + 1, { items });
+      await tick();
+    }
+    const matches = await scan;
+    expect(matches.map(match => match.match)).toEqual(['Amina']);
+    expect(worker.messages.filter(message => message.kind === 'scan')).toHaveLength(windows.length);
+    expect(get(webPIIDetectorState).fallbackReason).toBeUndefined();
+    expect(context.deadline! - Date.now()).toBeGreaterThan(WEB_PII_SCAN_BUDGET_MS);
   });
 
 });

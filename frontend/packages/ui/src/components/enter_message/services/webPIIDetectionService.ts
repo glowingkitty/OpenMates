@@ -12,9 +12,16 @@ export const WEB_PII_SCAN_BUDGET_MS = 2_500;
 // 2,048 UTF-16 code units is roughly two windows of typical prose, not a token
 // guarantee. Token-dense text is additionally bounded by the shared deadline.
 export const WEB_PII_MAX_ENHANCED_CHARS = 2_048;
-export interface WebPIIScanContext { purpose?: 'preview' | 'send'; deadline?: number; enhancedEnabled?: boolean }
+// Pasted/attached documents are scanned in the same overlapping windows as typed
+// text, but with a larger budget (about 70 windows, ~550 words, at ~0.4 s each on
+// a loaded host). Text past the budget keeps the basic detector's result.
+export const WEB_PII_DOCUMENT_BUDGET_MS = 30_000;
+export const WEB_PII_MAX_DOCUMENT_CHARS = 200_000;
+export interface WebPIIScanContext { purpose?: 'preview' | 'send' | 'document'; deadline?: number; enhancedEnabled?: boolean }
 /** Share one lazily started budget across every text field in a captured send. */
 export function createWebPIIScanContext(): WebPIIScanContext { return { purpose: 'send', enhancedEnabled: isWebPIIModelEnabled() }; }
+/** One budget for every text field of a pasted or attached document. */
+export function createWebPIIDocumentScanContext(): WebPIIScanContext { return { purpose: 'document', enhancedEnabled: isWebPIIModelEnabled() }; }
 export interface WebPIIDetectorState { status: 'disabled' | 'loading' | 'ready' | 'error'; progress?: number; fallbackReason?: 'size' | 'timeout'; failureCode?: WebPIIBrokerFailure }
 const state = writable<WebPIIDetectorState>({ status: 'disabled' });
 export const webPIIDetectorState = { subscribe: state.subscribe };
@@ -137,7 +144,7 @@ export async function preloadWebPIIDetector(): Promise<void> {
   return ready;
 }
 
-interface Scan { text: string; options: PIIDetectionOptions; purpose: 'preview' | 'send'; deadline: number; phase: 'queued' | 'loading' | 'inference' | 'done'; resolve: (matches: PIIMatch[]) => void; reject: (error: Error) => void }
+interface Scan { text: string; options: PIIDetectionOptions; purpose: 'preview' | 'send' | 'document'; deadline: number; phase: 'queued' | 'loading' | 'inference' | 'done'; resolve: (matches: PIIMatch[]) => void; reject: (error: Error) => void }
 function isScanDone(scan: Scan): boolean { return scan.phase === 'done'; }
 function expireScan(scan: Scan): boolean {
   if (Date.now() < scan.deadline) return false;
@@ -230,11 +237,12 @@ export async function detectPIIForWeb(text: string, options: PIIDetectionOptions
     for (let i = queue.length - 1; i >= 0; i--) if (queue[i].purpose === 'preview') queue.splice(i, 1)[0].resolve([]);
   }
   if (failure) return basic;
-  if (text.length > WEB_PII_MAX_ENHANCED_CHARS) {
+  const isDocument = purpose === 'document';
+  if (text.length > (isDocument ? WEB_PII_MAX_DOCUMENT_CHARS : WEB_PII_MAX_ENHANCED_CHARS)) {
     state.set({ ...get(state), fallbackReason: 'size' });
     return basic;
   }
-  context.deadline ??= Date.now() + WEB_PII_SCAN_BUDGET_MS;
+  context.deadline ??= Date.now() + (isDocument ? WEB_PII_DOCUMENT_BUDGET_MS : WEB_PII_SCAN_BUDGET_MS);
   const remaining = context.deadline - Date.now();
   if (remaining <= 0) {
     state.set({ ...get(state), fallbackReason: 'timeout' });

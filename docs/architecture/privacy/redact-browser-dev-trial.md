@@ -44,8 +44,12 @@ The current scope decision on 2026-10-27 keeps enhanced detection in message
 inputs and the existing recording/transcript text send path. Document/file
 scanning on Linux servers is deferred, including small-file and optional full-scan
 integration. The native evaluation and resource-policy prototype remain
-engineering evidence; they do not enable a product feature. Existing document
-and code embed paths retain basic detection wherever already supported. CLI/TUI
+engineering evidence; they do not enable a product feature. Text that the browser
+turns into a document, code, sheet or mail embed (pasted documents and attached
+files, read locally) is scanned in the browser with the same windowed local model
+as typed text, under its own 30 s budget shared across one document's fields and a
+200,000-character ceiling; text beyond the budget keeps complete basic detection.
+CLI/TUI
 model activation remains deferred. Inputs longer than 2,048 UTF-16 code units use complete basic detection plus
 configured private entries, without semantic inference. Short inputs share a
 2,500 ms enhanced-work deadline across queueing, model readiness, exclusions,

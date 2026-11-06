@@ -30,7 +30,6 @@ import { generateUUID } from "../../../message_parsing/utils";
 import { createEmbedReferenceBlock } from "./urlMetadataService";
 import { decode as toonDecode, encode as toonEncode } from "@toon-format/toon";
 import {
-  detectPII,
   replacePIIWithPlaceholders,
   createPIIMappingsForStorage,
   restorePIIInText,
@@ -38,6 +37,7 @@ import {
   type PIIDetectionOptions,
   type PersonalDataForDetection,
 } from "./piiDetectionService";
+import { createWebPIIDocumentScanContext, detectPIIForWeb, type WebPIIScanContext } from "./webPIIDetectionService";
 import {
   personalDataStore,
   type PIIDetectionSettings,
@@ -204,7 +204,15 @@ async function storeEmbedPIIMappings(
   }
 }
 
-export function redactEmbedContent(content: string): EmbedRedactionResult {
+/**
+ * Redact embed text with the basic detector plus the local model (windowed scan,
+ * document budget). Pass one scan context to share the time budget across the
+ * several fields of a single document.
+ */
+export async function redactEmbedContent(
+  content: string,
+  scanContext: WebPIIScanContext = createWebPIIDocumentScanContext(),
+): Promise<EmbedRedactionResult> {
   let redactedContent = content;
   let piiMappings: PIIMappingForStorage[] = [];
 
@@ -214,7 +222,7 @@ export function redactEmbedContent(content: string): EmbedRedactionResult {
   }
 
   try {
-    const piiMatches = detectPII(content, detectionOptions);
+    const piiMatches = await detectPIIForWeb(content, detectionOptions, scanContext);
     if (piiMatches.length === 0) {
       return { redactedContent, piiMappings };
     }
@@ -228,13 +236,13 @@ export function redactEmbedContent(content: string): EmbedRedactionResult {
   return { redactedContent, piiMappings };
 }
 
-function redactEmbedFields<T extends Record<string, string>>(
+async function redactEmbedFields<T extends Record<string, string>>(
   fields: T,
-): { redactedFields: T; piiMappings: PIIMappingForStorage[] } {
+): Promise<{ redactedFields: T; piiMappings: PIIMappingForStorage[] }> {
   const entries = Object.entries(fields) as Array<[keyof T, string]>;
   const separator = "\n\u0000OPENMATES_FIELD_SEPARATOR\u0000\n";
   const combined = entries.map(([, value]) => value).join(separator);
-  const { redactedContent, piiMappings } = redactEmbedContent(combined);
+  const { redactedContent, piiMappings } = await redactEmbedContent(combined);
   const parts = redactedContent.split(separator);
   const redactedFields = { ...fields };
 
@@ -390,7 +398,7 @@ export async function createCodeEmbed(
   const {
     redactedContent: codeContent,
     piiMappings: piiMappingsForStorage,
-  } = redactEmbedContent(content);
+  } = await redactEmbedContent(content);
 
   // ── Build TOON Content ───────────────────────────────────────────────────
   // The TOON content contains the REDACTED code (with placeholders).
@@ -814,7 +822,7 @@ export async function createDocEmbed(
     filename: filename || "none",
   });
 
-  const { redactedContent, piiMappings } = redactEmbedContent(content);
+  const { redactedContent, piiMappings } = await redactEmbedContent(content);
   const redactedWordCount = redactedContent.split(/\s+/).filter((w) => w.trim()).length;
 
   const embedContent = {
@@ -885,7 +893,7 @@ export async function createSheetEmbed(
   title?: string,
 ): Promise<SheetEmbedCreationResult> {
   const embed_id = generateUUID();
-  const { redactedContent, piiMappings } = redactEmbedContent(tableMarkdown);
+  const { redactedContent, piiMappings } = await redactEmbedContent(tableMarkdown);
   const rows = redactedContent
     .split("\n")
     .map((line) => line.trim())
@@ -954,7 +962,7 @@ export async function createMailEmbed(
   filename?: string,
 ): Promise<MailEmbedCreationResult> {
   const embed_id = generateUUID();
-  const { redactedFields, piiMappings } = redactEmbedFields({
+  const { redactedFields, piiMappings } = await redactEmbedFields({
     receiver: fields.receiver || "",
     subject: fields.subject || "",
     content: fields.content || "",

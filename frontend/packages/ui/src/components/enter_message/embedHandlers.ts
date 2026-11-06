@@ -15,6 +15,7 @@ import {
   redactEmbedContent,
   createSheetEmbed,
 } from "./services/codeEmbedService";
+import { createWebPIIDocumentScanContext } from "./services/webPIIDetectionService";
 import { classifyMindMapUploadSource } from "./services/mindMapUploadDetection";
 import { delimitedTextToMarkdownTable, docxArrayBufferToHtml, parseEmlText, xlsxArrayBufferToMarkdownTable } from "./utils/fileContentParsers";
 import { encode as toonEncode } from "@toon-format/toon";
@@ -984,7 +985,7 @@ export async function createCodeFileEmbedNode(
     // so we use the same "preview:" contentRef convention that pasted embeds use
     // during write mode — the GroupRenderer reads `item.code` for these nodes.
     const embedId = generateUUID();
-    const { redactedContent, piiMappings } = redactEmbedContent(fileContent);
+    const { redactedContent, piiMappings } = await redactEmbedContent(fileContent);
     const lineCount = redactedContent.split("\n").length;
 
     console.debug(
@@ -1127,7 +1128,7 @@ export async function createDelimitedTableFileEmbedNode(
 
   if (!isAuthenticated) {
     const embedId = generateUUID();
-    const { redactedContent } = redactEmbedContent(tableMarkdown);
+    const { redactedContent } = await redactEmbedContent(tableMarkdown);
     const { rowCount, colCount, cellCount } = getMarkdownTableDimensions(redactedContent);
     return {
       type: "embed",
@@ -1182,10 +1183,11 @@ export async function createEmailFileEmbedNode(
   const parsedEmail = parseEmlText(fileContent);
   if (!isAuthenticated) {
     const embedId = generateUUID();
-    const receiver = redactEmbedContent(parsedEmail.receiver || "").redactedContent;
-    const subject = redactEmbedContent(parsedEmail.subject || "").redactedContent;
-    const content = redactEmbedContent(parsedEmail.content || "").redactedContent;
-    const footer = redactEmbedContent(parsedEmail.footer || "").redactedContent;
+    const scanContext = createWebPIIDocumentScanContext();
+    const receiver = (await redactEmbedContent(parsedEmail.receiver || "", scanContext)).redactedContent;
+    const subject = (await redactEmbedContent(parsedEmail.subject || "", scanContext)).redactedContent;
+    const content = (await redactEmbedContent(parsedEmail.content || "", scanContext)).redactedContent;
+    const footer = (await redactEmbedContent(parsedEmail.footer || "", scanContext)).redactedContent;
     return {
       type: "embed",
       attrs: {
@@ -1243,7 +1245,7 @@ export async function createOfficeDocumentFileEmbedNode(
 
   if (!isAuthenticated) {
     const embedId = generateUUID();
-    const { redactedContent } = redactEmbedContent(html);
+    const { redactedContent } = await redactEmbedContent(html);
     const wordCount = redactedContent.split(/\s+/).filter((word) => word.trim()).length;
     return {
       type: "embed",
@@ -1302,7 +1304,7 @@ export async function createOfficeSpreadsheetFileEmbedNode(
 
   if (!isAuthenticated) {
     const embedId = generateUUID();
-    const { redactedContent } = redactEmbedContent(tableMarkdown);
+    const { redactedContent } = await redactEmbedContent(tableMarkdown);
     const { rowCount, colCount, cellCount } = getMarkdownTableDimensions(redactedContent);
     return {
       type: "embed",
