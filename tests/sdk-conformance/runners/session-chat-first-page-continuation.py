@@ -223,7 +223,7 @@ async def vector(suite, entry, fixture):
                 "--message-id-mode",
                 id_mode,
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.DEVNULL,
+                stderr=None,  # inherited: the driver projects only class and tracked frames
             )
             endpoint = json.loads(await asyncio.wait_for(peer.stdout.readline(), 5))[
                 "endpoint"

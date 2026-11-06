@@ -103,7 +103,7 @@ def invoke(argv, case):
         cwd=ROOT,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
+        stderr=None,  # inherited: the driver projects only class and tracked frames
         start_new_session=True,
     )
     selector = selectors.DefaultSelector()

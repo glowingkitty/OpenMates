@@ -662,6 +662,8 @@ PYTHON_TRACE_EXCEPTIONS = (
     "ConnectionResetError", "FileNotFoundError", "ImportError", "JSONDecodeError",
     "KeyError", "ModuleNotFoundError", "OSError", "PermissionError", "RuntimeError",
     "SessionClientError", "TimeoutError", "TypeError", "ValueError",
+    "BlockingIOError", "CancelledError", "EOFError", "InvalidStateError",
+    "NotImplementedError", "PanicException", "UnicodeDecodeError",
 )
 PYTHON_TRACE_FRAMES = 8
 
