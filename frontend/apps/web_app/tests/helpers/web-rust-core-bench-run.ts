@@ -17,7 +17,7 @@ const { createSignupLogger, createStepScreenshotter, getTestAccount, getE2EDebug
 const { seedCodeEmbedChat } = require('./embed-ready-metrics');
 const { rustCoreInstances } = require('./rust-core-instances');
 const { createBrowserProcessEvidence } = require('./browser-process-evidence.cjs');
-const { summarizePaired, markdownTable } = require('./bench-stats');
+const { summarizePaired, markdownTable, pairOrder, interpolatedBaselinePairs, transitionIncrements } = require('./bench-stats');
 const { createBenchProfiler } = require('./bench-profile');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -69,6 +69,7 @@ async function reloadSample(page: any, chatId: string, path: 'ts' | 'rust', proc
 	const process = await processes.end();
 	sample.browserCpuMs = process.available ? process.stableReportedProcessCpuMs : null;
 	sample.browserRssBytes = process.available ? process.after.summedReportedProcessRssBytes : null;
+	sample.browserRssBeforeBytes = process.available ? process.before.summedReportedProcessRssBytes : null;
 	sample.mainHeapBytes = await page.evaluate(() => (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? null);
 	Object.assign(sample, await rustCoreInstances(page));
 	expect(sample.chatRenderedMs, `${path}: saved chat rendered`).toBeDefined();
@@ -105,15 +106,24 @@ async function runWebRustCoreBench(page: any, testInfo: any, options: { pairs: n
 	const chatId = await seedCodeEmbedChat(page, log, screenshot);
 	const processes = await createBrowserProcessEvidence(page);
 	const pairs: { ts: Record<string, any>; rust: Record<string, any> }[] = [];
+	// Every reload in measurement order (warm-up included) for the RSS level metrics.
+	const sequence: { arm: 'ts' | 'rust'; sample: Record<string, any>; warmUp: boolean }[] = [];
 	try {
-		// Pair 0 is a discarded warm-up (HTTP/WASM caches, JIT); then ABAB.
+		// Pair 0 is a discarded warm-up (HTTP/WASM caches, JIT); then counterbalanced
+		// pairs (ts,rust / rust,ts alternately) so carry-over from the previous arm cancels.
 		for (let index = 0; index <= PAIRS; index += 1) {
-			const ts = await reloadSample(page, chatId, 'ts', processes);
-			const rust = await reloadSample(page, chatId, 'rust', processes);
+			const pair: Record<string, Record<string, any>> = {};
+			for (const arm of pairOrder(index)) {
+				pair[arm] = await reloadSample(page, chatId, arm, processes);
+				sequence.push({ arm, sample: pair[arm], warmUp: index === 0 });
+			}
 			if (index === 0) continue;
+			const { ts, rust } = pair;
 			pairs.push({ ts, rust });
-			log('pair', { index, tsRendered: ts.chatRenderedMs, rustRendered: rust.chatRenderedMs, tsEmbed: ts.embedReadyMs, rustEmbed: rust.embedReadyMs });
+			log('pair', { index, order: pairOrder(index).join(','), tsRendered: ts.chatRenderedMs, rustRendered: rust.chatRenderedMs, tsEmbed: ts.embedReadyMs, rustEmbed: rust.embedReadyMs });
 		}
+		// The RSS baseline interpolates between TS samples on both sides of each Rust sample.
+		if (sequence[sequence.length - 1].arm === 'rust') sequence.push({ arm: 'ts', sample: await reloadSample(page, chatId, 'ts', processes), warmUp: false });
 		if (options.profile) {
 			const profiler = await createBenchProfiler(page);
 			try {
@@ -135,20 +145,27 @@ async function runWebRustCoreBench(page: any, testInfo: any, options: { pairs: n
 	const column = (metric: string) => pairs.map((pair) => ({ ts: pair.ts[metric], rust: pair.rust[metric] }));
 	const summary: Record<string, Record<string, any>> = {};
 	for (const metric of GATED_RATIO_METRICS) summary[metric] = summarizePaired(column(metric), { mode: 'ratio', margin: MARGIN });
-	summary.browserRssBytes = summarizePaired(column('browserRssBytes'), { mode: 'difference', limit: RSS_LIMIT_BYTES });
+	// Summed process RSS climbs with every same-renderer reload whatever the arm, so the
+	// gate compares each Rust sample with the TS level interpolated at its position
+	// (bench-stats.ts interpolatedBaselinePairs); the adjacent-pair difference is reported.
+	const measured = sequence.filter((entry) => !entry.warmUp);
+	summary.browserRssBytes = summarizePaired(interpolatedBaselinePairs(measured.map((entry) => ({ arm: entry.arm, value: entry.sample.browserRssBytes }))), { mode: 'difference', limit: RSS_LIMIT_BYTES });
+	summary.browserRssBytesAdjacentPair = summarizePaired(column('browserRssBytes'), { mode: 'difference', gate: false });
 	for (const metric of REPORTED_METRICS) summary[metric] = summarizePaired(column(metric), { mode: 'difference', gate: false });
 	// More than one WASM instance in a Rust load is an automatic failure, whatever the statistics say.
 	const maxRustWasm = Math.max(...pairs.map((pair) => Number(pair.rust.wasmInstantiations)));
 	summary.wasmInstantiations = { ...summarizePaired(column('wasmInstantiations'), { mode: 'difference' }), verdict: maxRustWasm > 1 ? 'rust_worse' : 'rust_not_worse', maxRustInstances: maxRustWasm };
 	const loadChat = pairs.map((pair) => pair.rust.loadChatStageMs).filter((v) => typeof v === 'number').sort((a, b) => a - b);
 	const report = {
-		pairs: PAIRS, margin: MARGIN, rssLimitBytes: RSS_LIMIT_BYTES, order: 'ts,rust interleaved after one discarded warm-up pair',
+		pairs: PAIRS, margin: MARGIN, rssLimitBytes: RSS_LIMIT_BYTES, order: 'counterbalanced ts,rust / rust,ts pairs after one discarded ts,rust warm-up pair',
 		summary,
 		rustLoadChatStageMs: { n: loadChat.length, median: loadChat.length ? loadChat[Math.floor((loadChat.length - 1) / 2)] : null },
+		rssIncrementPerReloadBytes: transitionIncrements(sequence.map((entry) => ({ arm: entry.arm, before: entry.sample.browserRssBeforeBytes, after: entry.sample.browserRssBytes }))),
+		sequence: sequence.map((entry) => `${entry.warmUp ? 'w' : ''}${entry.arm}`).join(','),
 		samples: pairs,
 	};
 	const table = markdownTable(summary);
-	log('bench table\n' + table, { rustLoadChatStageMs: report.rustLoadChatStageMs });
+	log('bench table\n' + table, { rustLoadChatStageMs: report.rustLoadChatStageMs, rssIncrementPerReloadBytes: report.rssIncrementPerReloadBytes });
 	await testInfo.attach('web-rust-core-bench.json', { body: JSON.stringify(report, null, 2), contentType: 'application/json' });
 	await testInfo.attach('web-rust-core-bench.md', { body: table, contentType: 'text/markdown' });
 	for (const metric of ['chatRenderedMs', 'embedReadyMs'] as const) {

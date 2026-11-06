@@ -1,8 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- CommonJS Playwright helper. */
 /**
  * Paired statistics for the interleaved TS-vs-Rust web benchmark
- * (web-rust-core-bench.spec.ts). Pair i is one TS sample and the Rust sample
- * taken right after it in the same job, so slow-runner drift cancels out.
+ * (web-rust-core-bench.spec.ts). Pair i is one TS and one Rust sample taken back
+ * to back in the same job, in counterbalanced order (pairOrder), so slow-runner
+ * drift and carry-over from the previous arm cancel out. Level metrics that
+ * accumulate across reloads (RSS) use interpolatedBaselinePairs instead.
  *
  * Per metric: median of paired ratios (rust / ts) or, for count metrics whose TS
  * value can be zero, of paired differences (rust - ts), with a seeded percentile
@@ -86,6 +88,53 @@ function summarizePaired(pairs: { ts: unknown; rust: unknown }[], options: { mod
 	};
 }
 
+/** Arm order of paired sample `index` (0 = warm-up): ts,rust then rust,ts alternately (ABBA counterbalancing). */
+function pairOrder(index: number): ('ts' | 'rust')[] {
+	return index % 2 === 0 ? ['ts', 'rust'] : ['rust', 'ts'];
+}
+
+/**
+ * Drift-corrected pairs for level metrics such as summed process RSS. A same-renderer
+ * reload does not return all freed memory to the OS, so RSS climbs with every reload
+ * (about 40 MB per reload in bench 4d5da97f) whatever the arm. Comparing a Rust sample
+ * with the TS sample right before it then charges one reload of drift to Rust. Here
+ * each Rust sample is compared with the TS level linearly interpolated, at the Rust
+ * sample's position, between the nearest TS samples before and after it; a Rust
+ * sample without a TS sample on both sides is dropped.
+ * @param sequence samples in measurement order
+ */
+function interpolatedBaselinePairs(sequence: { arm: 'ts' | 'rust'; value: unknown }[]): { ts: number; rust: number }[] {
+	const pairs: { ts: number; rust: number }[] = [];
+	const usableTs = (i: number) => sequence[i].arm === 'ts' && Number.isFinite(sequence[i].value);
+	sequence.forEach((sample, k) => {
+		if (sample.arm !== 'rust' || !Number.isFinite(sample.value)) return;
+		let before = k - 1;
+		while (before >= 0 && !usableTs(before)) before -= 1;
+		let after = k + 1;
+		while (after < sequence.length && !usableTs(after)) after += 1;
+		if (before < 0 || after >= sequence.length) return;
+		const low = sequence[before].value as number;
+		const high = sequence[after].value as number;
+		pairs.push({ ts: low + ((high - low) * (k - before)) / (after - before), rust: sample.value as number });
+	});
+	return pairs;
+}
+
+/**
+ * Median increment of a level metric across one reload, by transition (previous arm ->
+ * this arm), from each sample's own before/after endpoints. Equal ts->ts and rust->rust
+ * increments mean the arms differ in level only; a larger rust->rust increment means
+ * memory a Rust load leaves behind after the next reload.
+ */
+function transitionIncrements(sequence: { arm: 'ts' | 'rust'; before: unknown; after: unknown }[]): Record<string, { n: number; median: number | null }> {
+	const groups: Record<string, number[]> = { 'ts->ts': [], 'ts->rust': [], 'rust->ts': [], 'rust->rust': [] };
+	for (let k = 1; k < sequence.length; k += 1) {
+		const { before, after } = sequence[k];
+		if (Number.isFinite(before) && Number.isFinite(after)) groups[`${sequence[k - 1].arm}->${sequence[k].arm}`].push((after as number) - (before as number));
+	}
+	return Object.fromEntries(Object.entries(groups).map(([key, values]) => [key, { n: values.length, median: values.length ? median(values) : null }]));
+}
+
 function fmt(value: unknown): string {
 	if (typeof value !== 'number') return '-';
 	if (Math.abs(value) >= 1000) return value.toFixed(0);
@@ -103,4 +152,4 @@ function markdownTable(summary: Record<string, Record<string, any>>): string {
 	return rows.join('\n');
 }
 
-module.exports = { summarizePaired, markdownTable, median, bootstrapMedianCi };
+module.exports = { summarizePaired, markdownTable, median, bootstrapMedianCi, pairOrder, interpolatedBaselinePairs, transitionIncrements };

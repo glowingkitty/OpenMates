@@ -71,3 +71,36 @@ test('default margin is the approved +3%', () => {
 	assert.equal(summarizePaired(pairsOf(ts, ts.map((v) => v * 1.04))).verdict, 'rust_worse');
 	assert.equal(summarizePaired(pairsOf(ts, ts.map((v) => v * 1.02))).verdict, 'rust_not_worse');
 });
+
+const { pairOrder, interpolatedBaselinePairs, transitionIncrements } = require('./bench-stats.ts');
+
+test('pair order alternates ts-first and rust-first', () => {
+	assert.deepEqual([0, 1, 2, 3].map(pairOrder), [['ts', 'rust'], ['rust', 'ts'], ['ts', 'rust'], ['rust', 'ts']]);
+});
+
+test('interpolated baseline removes linear reload drift', () => {
+	// Level = 1000 + 40 per reload, Rust 10 above TS; counterbalanced order T R R T T R T.
+	const arms: ('ts' | 'rust')[] = ['ts', 'rust', 'rust', 'ts', 'ts', 'rust', 'ts'];
+	const sequence = arms.map((arm, k) => ({ arm, value: 1000 + 40 * k + (arm === 'rust' ? 10 : 0) }));
+	const pairs = interpolatedBaselinePairs(sequence);
+	assert.equal(pairs.length, 3);
+	for (const pair of pairs) assert.equal(pair.rust - pair.ts, 10);
+	// The adjacent-pair difference would have charged the drift to Rust.
+	assert.equal(sequence[1].value - sequence[0].value, 50);
+});
+
+test('interpolated baseline drops Rust samples without TS on both sides', () => {
+	const pairs = interpolatedBaselinePairs([{ arm: 'rust', value: 1 }, { arm: 'ts', value: 2 }, { arm: 'rust', value: 3 }, { arm: 'ts', value: null }]);
+	assert.deepEqual(pairs, []);
+});
+
+test('transition increments group by previous and current arm', () => {
+	const result = transitionIncrements([
+		{ arm: 'ts', before: 0, after: 40 }, { arm: 'rust', before: 40, after: 90 },
+		{ arm: 'rust', before: 90, after: 130 }, { arm: 'ts', before: 130, after: 160 }, { arm: 'ts', before: 160, after: 200 }
+	]);
+	assert.deepEqual(result['ts->rust'], { n: 1, median: 50 });
+	assert.deepEqual(result['rust->rust'], { n: 1, median: 40 });
+	assert.deepEqual(result['rust->ts'], { n: 1, median: 30 });
+	assert.deepEqual(result['ts->ts'], { n: 1, median: 40 });
+});

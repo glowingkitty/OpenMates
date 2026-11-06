@@ -4,14 +4,17 @@
  *
  * Engineering benchmark for the Rust migration, not a product flow. One code-embed
  * chat is seeded through the normal TS send. The same saved chat is then reloaded
- * in strict ABAB order (TS history, Rust history, TS, Rust, ...) inside one job on
+ * in counterbalanced pairs (TS,Rust then Rust,TS alternately) inside one job on
  * one runner and one page, N pairs (default 12, env OPENMATES_BENCH_PAIRS; one
- * discarded warm-up pair first). Each reload records, from the same navigation:
+ * discarded TS,Rust warm-up pair first). Each reload records, from the same navigation:
  *   chatRenderedMs   saved chat open -> decrypted user + assistant rows rendered
  *   embedReadyMs     -> finished code embed preview in the DOM
  *   uiInteractiveMs  boot: -> message editor present
  *   loadChatStageMs  -> first openmates:rust:load-chat mark (Rust arm only; not paired)
  *   browserCpuMs, browserRssBytes, mainHeapBytes, dedicatedWorkers, rustWorkers, wasmInstantiations
+ * Summed process RSS climbs with every same-renderer reload whatever the arm, so its
+ * gate compares each Rust sample with the TS level interpolated between the TS
+ * samples around it (bench-stats.ts interpolatedBaselinePairs).
  * Per metric the median of paired rust/ts ratios (count metrics: paired differences)
  * with a bootstrap 95% CI and a verdict rust_not_worse / rust_worse / inconclusive
  * is attached as web-rust-core-bench.json plus a short markdown table.

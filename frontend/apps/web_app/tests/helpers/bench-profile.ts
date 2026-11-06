@@ -7,7 +7,13 @@
  * behaviour. Per profiled reload it captures:
  *   - a Chromium trace with the V8 sampling profiler: top self-time functions and
  *     top trace events (inclusive, by name) per thread, wasm compile/cache events;
- *   - per-process RSS/PSS/anonymous memory from /proc (Linux runner);
+ *   - per-process RSS/PSS/anonymous memory from /proc (Linux runner), with the
+ *     renderer's resident anonymous executable mappings (JIT code: JS code space
+ *     plus WASM Liftoff/TurboFan code) split out;
+ *   - after the chat rendered, one deterministic (GC-first) memory-infra dump per
+ *     process: resident set and allocator leaves summed by path prefix, i.e. V8
+ *     heap per isolate (page `v8/main`, Workers `v8/workers`), code stats,
+ *     PartitionAlloc, malloc and Blink GC;
  *   - WebAssembly.Memory byteLength of each Rust Worker (automation-only hook in
  *     the Rust core package loader) at instantiation and after the chat rendered;
  *   - fixed-name `openmates:rust:*` marks/measures of the page and every Worker;
@@ -103,22 +109,100 @@ function summarizeTrace(trace: any): Record<string, any> {
 	};
 }
 
+/** Resident KiB of a /proc/<pid>/smaps file by mapping class (anonymous executable = JIT code). */
+function smapsClasses(text: string): Record<string, number> {
+	const classes: Record<string, number> = { anonExecMiB: 0, anonOtherMiB: 0, fileMiB: 0 };
+	let current = 'anonOtherMiB';
+	for (const line of text.split('\n')) {
+		const header = /^[0-9a-f]+-[0-9a-f]+ ([rwxps-]{4}) [0-9a-f]+ \S+ (\d+)\s*(.*)$/.exec(line);
+		if (header) {
+			const [, perms, inode, path] = header;
+			const anonymous = inode === '0' || path.startsWith('/memfd:');
+			current = anonymous ? (perms.includes('x') ? 'anonExecMiB' : 'anonOtherMiB') : 'fileMiB';
+			continue;
+		}
+		const rss = /^Rss:\s+(\d+) kB$/.exec(line);
+		if (rss) classes[current] += Number(rss[1]) / 1024;
+	}
+	return Object.fromEntries(Object.entries(classes).map(([key, value]) => [key, round(value)]));
+}
+
 /** Per-process memory from /proc for the processes Chromium reports (Linux runner only). */
 async function processMemory(browserSession: any): Promise<any[]> {
 	const info = await browserSession.send('SystemInfo.getProcessInfo');
 	return (info.processInfo ?? []).map((row: any) => {
-		const result: Record<string, any> = { type: row.type, cpuSeconds: row.cpuTime };
+		const result: Record<string, any> = { type: row.type, pid: row.id, cpuSeconds: row.cpuTime };
 		try {
 			const rollup = fs.readFileSync(`/proc/${row.id}/smaps_rollup`, 'utf8');
 			for (const field of ['Rss', 'Pss', 'Anonymous']) {
 				const match = new RegExp(`^${field}:\\s+(\\d+) kB$`, 'm').exec(rollup);
 				if (match) result[`${field.toLowerCase()}MiB`] = round(Number(match[1]) / 1024);
 			}
+			if (row.type === 'renderer') Object.assign(result, smapsClasses(fs.readFileSync(`/proc/${row.id}/smaps`, 'utf8')));
 		} catch {
 			result.unavailable = true;
 		}
 		return result;
 	});
+}
+
+function dumpBytes(node: any): number {
+	const value = node?.attrs?.size?.value;
+	return typeof value === 'string' ? Number.parseInt(value, 16) : 0;
+}
+
+/**
+ * Summarizes the memory-infra dump `guid` of a trace: per process, the resident set
+ * and the allocator leaf sizes summed by path prefix (depth 2 and 3; isolate and
+ * partition addresses collapsed so page and Worker isolates stay apart by name).
+ */
+function summarizeMemoryDump(trace: any, guid: string | null): Record<string, any> {
+	const events: any[] = Array.isArray(trace) ? trace : trace.traceEvents ?? [];
+	const names = new Map<number, string>();
+	for (const event of events) {
+		if (event.ph === 'M' && event.name === 'process_name') names.set(event.pid, String(event.args?.name ?? ''));
+	}
+	// Trace event ids and the CDP dumpGuid differ in hex formatting (prefix, padding).
+	const normalize = (id: unknown) => String(id ?? '').toLowerCase().replace(/^0x/, '').replace(/^0+/, '');
+	const wanted = guid ? normalize(guid) : null;
+	const matched = new Map<number, any>();
+	const detailed = new Map<number, any>();
+	let dumpEvents = 0;
+	for (const event of events) {
+		if (event.ph !== 'v' || !event.args?.dumps) continue;
+		dumpEvents += 1;
+		if (wanted && normalize(event.id) === wanted) matched.set(event.pid, event.args.dumps);
+		if (event.args.dumps.level_of_detail === 'detailed') detailed.set(event.pid, event.args.dumps);
+	}
+	// The requested dump, else (labelled) the last detailed dump of each process in this trace.
+	const matchedBy = matched.size ? 'guid' : detailed.size ? 'last_detailed' : 'none';
+	const latest = matched.size ? matched : detailed;
+	const processes: Record<string, any>[] = [];
+	for (const [pid, dumps] of latest) {
+		const allocators: Record<string, any> = dumps.allocators ?? {};
+		const paths = Object.keys(allocators);
+		const leaves = paths.filter((path) => !paths.some((other) => other.startsWith(path + '/')));
+		const byPrefix = new Map<string, number>();
+		for (const leaf of leaves) {
+			const bytes = dumpBytes(allocators[leaf]);
+			if (!bytes) continue;
+			const parts = leaf.replace(/0x[0-9a-f]+/gi, 'X').split('/');
+			for (const depth of [2, 3]) {
+				if (parts.length < depth) continue;
+				const prefix = parts.slice(0, depth).join('/');
+				byPrefix.set(prefix, (byPrefix.get(prefix) ?? 0) + bytes);
+			}
+		}
+		const resident = dumps.process_totals?.resident_set_bytes;
+		processes.push({
+			pid,
+			name: names.get(pid) ?? null,
+			residentMiB: typeof resident === 'string' ? round(Number.parseInt(resident, 16) / 1048576) : null,
+			allocatorsMiB: Object.fromEntries([...byPrefix.entries()].filter(([, bytes]) => bytes >= 262144)
+				.sort((a, b) => b[1] - a[1]).slice(0, 60).map(([prefix, bytes]) => [prefix, round(bytes / 1048576)]))
+		});
+	}
+	return { guid, dumpEvents, matchedBy, processes };
 }
 
 async function workerSnapshots(page: any): Promise<any[]> {
@@ -180,12 +264,17 @@ async function createBenchProfiler(page: any): Promise<{
 		},
 		async end() {
 			const trace = JSON.parse((await browser.stopTracing()).toString('utf8'));
+			// A separate short trace holds only the memory dump (GC first, then dump).
+			await browser.startTracing(undefined, { categories: ['disabled-by-default-memory-infra'] });
+			const dump = await browserSession.send('Tracing.requestMemoryDump', { deterministic: true, levelOfDetail: 'detailed' });
+			const memoryTrace = JSON.parse((await browser.stopTracing()).toString('utf8'));
 			const workers = await workerSnapshots(page);
 			const pageEntries = await page.evaluate(() => performance.getEntries().filter((entry) => entry.name.startsWith('openmates:rust:'))
 				.map((entry) => ({ name: entry.name, type: entry.entryType, start: Math.round(entry.startTime * 10) / 10, ms: Math.round(entry.duration * 10) / 10 })));
 			return {
 				trace: summarizeTrace(trace),
 				processes: await processMemory(browserSession),
+				memoryDump: { success: dump?.success === true, ...summarizeMemoryDump(memoryTrace, dump?.success ? String(dump.dumpGuid) : null) },
 				wasmBytesAfterInstantiate: workers.flatMap((worker) => (worker.entries ?? [])
 					.filter((entry: any) => entry.name === 'openmates:rust:wasm-instantiate-end').map((entry: any) => ({ name: worker.name, wasmBytes: entry.wasmBytes ?? null }))),
 				workers: workers.map((worker) => ({ ...worker, measureTotals: measureTotals(worker.entries) })),
@@ -199,4 +288,4 @@ async function createBenchProfiler(page: any): Promise<{
 	};
 }
 
-module.exports = { createBenchProfiler, summarizeTrace };
+module.exports = { createBenchProfiler, summarizeTrace, summarizeMemoryDump, smapsClasses };
