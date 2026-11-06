@@ -24,13 +24,13 @@ impl Default for ChatListOptions {
 }
 
 pub struct Chats<'a> {
-    client: &'a mut OpenMates,
+    pub(crate) client: &'a mut OpenMates,
 }
 impl<'a> Chats<'a> {
     pub(crate) fn new(client: &'a mut OpenMates) -> Self {
         Self { client }
     }
-    async fn read(&self, path: String) -> Result<Value> {
+    pub(crate) async fn read(&self, path: String) -> Result<Value> {
         if self.client.is_anonymous() {
             return Err(Error::Authentication);
         }
@@ -86,7 +86,7 @@ impl<'a> Chats<'a> {
         };
         self.decrypt_payload(payload).await
     }
-    async fn resolve_id(&mut self, chat_id: &str) -> Result<String> {
+    pub(crate) async fn resolve_id(&mut self, chat_id: &str) -> Result<String> {
         if is_canonical_uuid(chat_id) {
             return Ok(chat_id.to_owned());
         }
@@ -142,7 +142,7 @@ impl<'a> Chats<'a> {
         }
         Err(Error::Invalid("The chat was not found."))
     }
-    async fn chat_key(&mut self, chat: &Value, wrappers: &[Value]) -> Result<Option<ChatKey>> {
+    pub(crate) async fn chat_key(&mut self, chat: &Value, wrappers: &[Value]) -> Result<Option<ChatKey>> {
         if chat["chat_visibility"] == "direct" {
             // Direct chats need the account chat identity enrollment, which this
             // Rust API-key slice does not implement yet. Refuse explicitly.

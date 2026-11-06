@@ -263,6 +263,49 @@ pub(super) fn open_target(
     })
 }
 
+/// `chats open [n]` under an explicit `--api-key`: the n-th owned chat from
+/// the server's `/v1/sdk/chats` order (pinned, then most recently updated),
+/// with its locally decrypted title. Only signed-in positions are supported.
+pub(super) async fn execute_open_key(
+    invocation: &Invocation,
+    sdk: &mut openmates_sdk::sdk::OpenMates,
+) -> Result<CliOutput, CliError> {
+    handlers::flags(invocation, &[])?;
+    let position = open_position(invocation)?;
+    let limit = u32::try_from(position)
+        .ok()
+        .filter(|n| *n <= 1000)
+        .ok_or_else(|| CliError::Invalid(format!("Chat position #{position} is beyond the 1000-chat server window.")))?;
+    let chats = sdk
+        .chats()
+        .list(openmates_sdk::sdk_chats::ChatListOptions { limit, offset: 0 })
+        .await?;
+    let target = key_open_target(&chats, position)?;
+    let url = format!("{}/#chat-id={}", sdk.web_origin().trim_end_matches('/'), target.id);
+    let opened = open_browser(&url);
+    open_output(invocation, position, &target, &url, opened)
+}
+
+/// Same "no chats" / "only N" wording as the session `open_target`.
+pub(super) fn key_open_target(chats: &[Value], position: usize) -> Result<OpenTarget, CliError> {
+    if chats.is_empty() {
+        return Err(CliError::Invalid(
+            "No chats found. Run 'openmates chats list' to sync.".into(),
+        ));
+    }
+    let Some(chat) = chats.get(position - 1) else {
+        return Err(CliError::Invalid(format!(
+            "Only {} chat(s) available — cannot open chat #{position}.",
+            chats.len()
+        )));
+    };
+    let id = chat["id"].as_str().filter(|id| !id.is_empty()).ok_or(CliError::Client(Error::Protocol))?;
+    Ok(OpenTarget {
+        id: id.to_owned(),
+        title: chat["title"].as_str().filter(|t| !t.is_empty()).map(str::to_owned),
+    })
+}
+
 /// Same validated opener as the TUI: http(s) only, no embedded credentials.
 fn open_browser(url: &str) -> bool {
     url::Url::parse(url).ok().is_some_and(|parsed| {

@@ -58,7 +58,7 @@ async fn usage_api_key_and_selector_refusals_happen_before_any_request() {
         ),
         (
             vec!["openmates", "chats", "retry", ID, "--api-key", "sk-placeholder"],
-            "unsupported: API-key chat fork, rewind and retry are not ported; Cookie credentials were not used as a fallback.".to_owned(),
+            "unsupported: API-key chat fork, rewind and retry run only through the explicit-key route; Cookie credentials were not used as a fallback.".to_owned(),
         ),
     ];
     for (args, expected) in cases {
@@ -162,4 +162,37 @@ fn applied_rewind_text_matches_print_chat_rewind_result() {
     assert_eq!(rewind_text(&result), format!("Rewound chat {ID}\nDeleted 1 message.\nm3\n\nfresh reply\n"));
     assert_eq!(rewind_text(&json!({"dry_run":false})), "Rewound chat \nDeleted 0 messages.\n");
     assert_eq!(fork_text(&json!({})), "Forked chat undefined (undefined messages copied)");
+}
+
+fn unreachable_sdk() -> openmates_sdk::sdk::OpenMates {
+    openmates_sdk::sdk::OpenMates::new(openmates_sdk::SdkOptions {
+        api_url: "http://127.0.0.1:9".into(),
+        credentials: openmates_sdk::SdkCredentials::ApiKey(
+            openmates_sdk::ApiKey::new("sk-api-synthetic.synthetic").unwrap(),
+        ),
+        device_id: "synthetic".into(),
+        client_options: Default::default(),
+    })
+    .unwrap()
+}
+
+#[tokio::test]
+async fn api_key_resend_steps_and_bad_selectors_are_refused_before_any_request() {
+    // Port 9 is never served: any network attempt would surface as a transport
+    // error instead of these explicit refusals.
+    let mut sdk = unreachable_sdk();
+    let resend = "needs saved-chat send, which the Rust API-key SDK does not implement yet; nothing was rewound and Cookie credentials were not used.";
+    let cases = [
+        (vec!["openmates", "chats", "retry", ID, "--yes", "--api-key", "sk-placeholder"], format!("unsupported: API-key retry --yes {resend}")),
+        (
+            vec!["openmates", "chats", "rewind", ID, "--to-message", "m1", "--send", "again", "--yes", "--api-key", "sk-placeholder"],
+            format!("unsupported: API-key rewind --send {resend}"),
+        ),
+        (vec!["openmates", "chats", "fork", "last", "--from-message", "m1", "--api-key", "sk-placeholder"], "A canonical full chat ID is required.".to_owned()),
+        (vec!["openmates", "chats", "fork", ID, "--api-key", "sk-placeholder"], FORK_USAGE.to_owned()),
+    ];
+    for (args, expected) in cases {
+        let result = execute_key(&parsed(&args), &mut sdk).await;
+        assert_eq!(invalid(result), expected, "{args:?}");
+    }
 }

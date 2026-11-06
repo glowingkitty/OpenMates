@@ -27,12 +27,23 @@ pub(super) fn supported(i: &Invocation) -> bool {
 /// Authenticated commands that run on an opened session client.
 pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOutput, CliError> {
     match i.command_path().as_str() {
-        design_icon::COMMAND => design_icon::execute(i, client).await,
+        design_icon::COMMAND => design_icon::execute(i, design_icon::SvgSource::Session(client)).await,
         _ => Err(CliError::Unsupported {
             command: i.command_path(),
             reason: "This command runs on a credential-free profile.".into(),
         }),
     }
+}
+
+/// `apps design export-icon` under an explicit `--api-key`.
+pub(super) fn key_supported(i: &Invocation) -> bool {
+    i.command_path() == design_icon::COMMAND
+}
+pub(super) async fn execute_key(
+    i: &Invocation,
+    sdk: &openmates_sdk::sdk::OpenMates,
+) -> Result<CliOutput, CliError> {
+    design_icon::execute(i, design_icon::SvgSource::ApiKey(sdk)).await
 }
 
 /// True for the command that creates its own account and session.

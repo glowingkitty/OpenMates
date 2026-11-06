@@ -230,6 +230,39 @@ pub(super) fn result_text(result: &Value) -> String {
     }
     out
 }
+/// Explicit `--api-key` check. The skill route accepts API keys, but
+/// connected-account discovery (`GET /v1/connected-accounts`) accepts only
+/// Cookie sessions, so a key runs CSV statements only and must say so with
+/// `--csv-only` rather than silently skipping a connected account.
+pub(super) async fn execute_key(
+    i: &Invocation,
+    sdk: &openmates_sdk::sdk::OpenMates,
+) -> Result<CliOutput, CliError> {
+    handlers::flags(i, FLAGS)?;
+    if !i.boolean("csv-only") || text_flag(i, "connected-account").is_some() {
+        return Err(CliError::Unsupported {
+            command: i.command_path(),
+            reason: KEY_CSV_ONLY.into(),
+        });
+    }
+    let csv = statements(i)?;
+    if csv.is_empty() {
+        return Err(fail(
+            "Check accounts requires a Revolut Business connected account or --csv <file.csv>.",
+        ));
+    }
+    let options = openmates_sdk::sdk_finance::CheckAccountsOptions {
+        chat_id: Some(format!("cli-finance-{}", uuid::Uuid::new_v4())),
+        message_id: Some(format!("cli-finance-message-{}", uuid::Uuid::new_v4())),
+        ..Default::default()
+    };
+    let result = sdk.finance().check_accounts(input(i, &csv, None), options).await?;
+    if i.boolean("json") {
+        return CliOutput::json(&result);
+    }
+    Ok(CliOutput::text(result_text(&result)))
+}
+pub(super) const KEY_CSV_ONLY: &str = "API-key Finance checks run only with --csv-only and --csv <file>: connected-account selection reads GET /v1/connected-accounts, which accepts only Cookie sessions. Cookie credentials were not used.";
 pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOutput, CliError> {
     handlers::flags(i, FLAGS)?;
     if i.has("api-key") {

@@ -198,7 +198,7 @@ async fn export_fetches_the_svg_recolors_and_writes_png_and_svg() {
     let png_out = directory.path().join("home.png");
     let mut client = Client::new(&api, Some(test_session(&api))).unwrap();
     let svg = export(
-        &mut client,
+        SvgSource::Session(&mut client),
         svg_out.to_str().unwrap(),
         None,
         Some("#ff0000"),
@@ -217,7 +217,7 @@ async fn export_fetches_the_svg_recolors_and_writes_png_and_svg() {
             .contains(r##"stroke="#ff0000""##)
     );
     let png = export(
-        &mut client,
+        SvgSource::Session(&mut client),
         png_out.to_str().unwrap(),
         None,
         None,
@@ -232,7 +232,7 @@ async fn export_fetches_the_svg_recolors_and_writes_png_and_svg() {
     assert_eq!(png.format, Format::Png);
     assert_eq!(&std::fs::read(&png_out).unwrap()[..4], b"\x89PNG");
     let missing = export(
-        &mut client,
+        SvgSource::Session(&mut client),
         directory.path().join("none.svg").to_str().unwrap(),
         None,
         None,
@@ -255,7 +255,7 @@ async fn export_fetches_the_svg_recolors_and_writes_png_and_svg() {
             .contains("accept: image/svg+xml,application/octet-stream")
     );
     let palette = export(
-        &mut client,
+        SvgSource::Session(&mut client),
         directory.path().join("p.svg").to_str().unwrap(),
         None,
         Some("#fff"),
@@ -269,4 +269,49 @@ async fn export_fetches_the_svg_recolors_and_writes_png_and_svg() {
         palette.err().unwrap().to_string(),
         "Palette icons cannot be recolored unless allowPaletteRecolor is true"
     );
+}
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
+#[tokio::test]
+async fn api_key_export_uses_the_sdk_route_with_bearer_and_rasterizes_png_locally() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let api = format!("http://{}", listener.local_addr().unwrap());
+    let server = tokio::spawn(async move {
+        let (mut socket, _) = listener.accept().await.unwrap();
+        let mut buffer = [0; 8192];
+        let n = socket.read(&mut buffer).await.unwrap();
+        socket.write_all(format!("HTTP/1.1 200 OK\r\nContent-Type: image/svg+xml\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{ICON}", ICON.len()).as_bytes()).await.unwrap();
+        String::from_utf8_lossy(&buffer[..n]).into_owned()
+    });
+    let sdk = openmates_sdk::sdk::OpenMates::new(openmates_sdk::SdkOptions {
+        api_url: api,
+        credentials: openmates_sdk::SdkCredentials::ApiKey(
+            openmates_sdk::ApiKey::new("sk-api-synthetic.synthetic").unwrap(),
+        ),
+        device_id: "synthetic".into(),
+        client_options: Default::default(),
+    })
+    .unwrap();
+    let directory = tempfile::tempdir().unwrap();
+    let png_out = directory.path().join("home.png");
+    let png = export(
+        SvgSource::ApiKey(&sdk),
+        png_out.to_str().unwrap(),
+        None,
+        Some("#ff0000"),
+        false,
+        false,
+        (Some(16), None, None),
+        (None, Some("lucide"), Some("home")),
+    )
+    .await
+    .ok()
+    .unwrap();
+    assert_eq!(png.format, Format::Png);
+    assert_eq!(&std::fs::read(&png_out).unwrap()[..4], b"\x89PNG");
+    let request = server.await.unwrap();
+    assert!(request.starts_with("GET /v1/apps/design/icons/iconify/lucide/home.svg "));
+    assert!(request.to_ascii_lowercase().contains("authorization: bearer sk-api-synthetic"));
+    assert!(!request.to_ascii_lowercase().contains("cookie:"));
 }

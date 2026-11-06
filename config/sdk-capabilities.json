@@ -1516,7 +1516,14 @@
             "sdk_chats.Chats",
             "sdk_chats.Chats.list",
             "sdk_chats.Chats.load",
-            "sdk_chats.Chats.search"
+            "sdk_chats.Chats.search",
+            "sdk_chat_rewrite",
+            "sdk_chat_rewrite.ApiKeyChatRewrite",
+            "sdk_chat_rewrite.ApiKeyChatRewrite.state",
+            "sdk_chat_rewrite.Chats.fork",
+            "sdk_chat_rewrite.Chats.retry",
+            "sdk_chat_rewrite.Chats.rewind",
+            "sdk_chat_rewrite.Chats.rewrite_state"
           ],
           "conformance": true,
           "evidence": [
@@ -1526,7 +1533,7 @@
             "Managed isolated CI must execute these authored direct adapters on exact reviewed source; registration alone implies no runtime pass.",
             "Send, streaming, cancellation, recovery, message pagination (messages/messagePages), export, fork, share, delete, retry, rewind, follow-ups, incognito and Project link/unlink have no cross-SDK conformance vectors yet.",
             "Direct (two-participant) chats and TOON-encoded embed content are not covered by the shared vectors.",
-            "Rust implements only list/search/load; every other npm/Python chat method, including API-key send/stream/cancel, is missing.",
+            "Rust implements list/search/load plus personal-chat fork/rewind/retry (sdk_chat_rewrite, unit-tested against the shared rewrite builders and a loopback /v1/sdk/chats route; retry returns the prompt for the caller to resend). Every other npm/Python chat method, including API-key send/stream/cancel, is missing, so Rust retry cannot resend by itself.",
             "Direct chats are refused with a typed unavailable error until the account chat identity enrollment exists in Rust; TOON embed content is returned as raw text."
           ],
           "status": "partial"

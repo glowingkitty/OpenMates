@@ -340,3 +340,86 @@ fn revolut_setup_helpers_follow_npm_rules() {
     assert!(text.contains("Production IP whitelist: unavailable"));
     assert!(text.contains("Private key saved locally: /k.pem\n"));
 }
+
+fn key_sdk(api: &str) -> openmates_sdk::sdk::OpenMates {
+    openmates_sdk::sdk::OpenMates::new(openmates_sdk::SdkOptions {
+        api_url: api.into(),
+        credentials: openmates_sdk::SdkCredentials::ApiKey(
+            openmates_sdk::ApiKey::new("sk-api-synthetic.synthetic").unwrap(),
+        ),
+        device_id: "synthetic".into(),
+        client_options: Default::default(),
+    })
+    .unwrap()
+}
+
+#[tokio::test]
+async fn api_key_finance_requires_explicit_csv_only_before_any_request() {
+    let sdk = key_sdk("http://127.0.0.1:9");
+    for flags in [
+        vec![("csv", json!("a.csv"))],
+        vec![("csv-only", json!(true)), ("csv", json!("a.csv")), ("connected-account", json!("acc"))],
+    ] {
+        let i = invocation("finance check-accounts", &[], &flags);
+        match execute_finance_key(&i, &sdk).await {
+            Err(CliError::Unsupported { reason, .. }) => assert_eq!(reason, finance::KEY_CSV_ONLY),
+            _ => panic!("expected the explicit csv-only refusal"),
+        }
+    }
+    let empty = invocation("finance check_accounts", &[], &[("csv-only", json!(true))]);
+    assert_eq!(
+        invalid(execute_finance_key(&empty, &sdk).await.err().unwrap()),
+        "Check accounts requires a Revolut Business connected account or --csv <file.csv>."
+    );
+}
+
+#[tokio::test]
+async fn api_key_finance_posts_csv_statements_to_the_key_skill_route_without_token_refs() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let directory = tempfile::tempdir().unwrap();
+    let csv = directory.path().join("statement.csv");
+    std::fs::write(&csv, "date,amount\n2026-01-01,1\n").unwrap();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let api = format!("http://{}", listener.local_addr().unwrap());
+    let server = tokio::spawn(async move {
+        let (mut socket, _) = listener.accept().await.unwrap();
+        let mut buf = Vec::new();
+        loop {
+            let mut bytes = [0; 4096];
+            let n = socket.read(&mut bytes).await.unwrap();
+            assert!(n > 0);
+            buf.extend_from_slice(&bytes[..n]);
+            if let Some(end) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
+                let head = String::from_utf8_lossy(&buf[..end]).to_ascii_lowercase();
+                let size = head
+                    .lines()
+                    .find_map(|l| l.strip_prefix("content-length:").and_then(|n| n.trim().parse::<usize>().ok()))
+                    .unwrap_or(0);
+                if buf.len() >= end + 4 + size {
+                    break;
+                }
+            }
+        }
+        let body = r#"{"success":true}"#;
+        socket
+            .write_all(format!("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).as_bytes())
+            .await
+            .unwrap();
+        String::from_utf8(buf).unwrap()
+    });
+    let sdk = key_sdk(&api);
+    let i = invocation(
+        "finance check-accounts",
+        &[],
+        &[("csv-only", json!(true)), ("csv", json!(csv.to_str().unwrap())), ("json", json!(true))],
+    );
+    let out = execute_finance_key(&i, &sdk).await.ok().unwrap();
+    assert_eq!(serde_json::from_str::<Value>(&out.stdout).unwrap(), json!({"success": true}));
+    let request = server.await.unwrap();
+    assert!(request.starts_with("POST /v1/sdk/connected-account-skills/finance/check_accounts "));
+    assert!(request.to_ascii_lowercase().contains("authorization: bearer sk-api-synthetic"));
+    let body: Value = serde_json::from_str(request.split("\r\n\r\n").nth(1).unwrap()).unwrap();
+    assert_eq!(body["connected_account_token_ref_inputs"], json!([]));
+    assert_eq!(body["input"]["csv_statements"][0]["filename"], "statement.csv");
+    assert!(body["chat_id"].as_str().unwrap().starts_with("cli-finance-"));
+}

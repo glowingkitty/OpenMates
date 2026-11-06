@@ -22798,7 +22798,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/extra_ports/design_icon.rs"
       },
       "gaps": [
-        "--api-key credentials are not supported natively; use a native session.",
+        "Under --api-key, HTTP failures surface as typed SDK errors instead of 'Raw resource request failed with HTTP <status>'.",
         "PNG output is rasterized by resvg without text or filter support, so pixel output can differ from npm resvg-js for icons that use them.",
         "Live backend integration and platform verification remain open."
       ],
@@ -28550,7 +28550,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/parity_extras.rs"
       },
       "gaps": [
-        "--api-key credentials are not supported natively; use a native session.",
+        "--api-key cannot be served: the server no longer exposes POST /v1/apps/travel/booking-link (removed with an unsupported booking integration), so neither credential mode resolves booking links.",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -31133,7 +31133,6 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/chat_rewrite.rs"
       },
       "gaps": [
-        "--api-key credentials are not supported natively; use a native session.",
         "Only full canonical chat IDs are accepted; npm 'last', short-ID and slug selectors need a synced cache that one-shot commands do not perform.",
         "HTTP failures surface as typed SDK errors instead of npm's 'Chat fork failed with HTTP <status>: <body>' text.",
         "Live backend integration and platform verification remain open."
@@ -31480,7 +31479,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/chat_media.rs"
       },
       "gaps": [
-        "--api-key credentials are not supported natively; use a native session.",
+        "--api-key positions follow the server /v1/sdk/chats order (pinned, then most recently updated) and are limited to the first 1000 chats.",
         "Signed-out example-chat and slug targets are not ported.",
         "Positions come from the synced metadata window rather than npm listChats(n).",
         "Live backend integration and platform verification remain open."
@@ -31774,7 +31773,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/chat_rewrite.rs"
       },
       "gaps": [
-        "--api-key credentials are not supported natively; use a native session.",
+        "--api-key supports dry runs only; retry --yes under a key is refused before any mutation because the Rust API-key SDK has no saved-chat send yet.",
         "Only full canonical chat IDs are accepted; npm 'last', short-ID and slug selectors need a synced cache that one-shot commands do not perform.",
         "--response-timeout is not accepted; HTTP failures surface as typed SDK errors.",
         "Live backend integration and platform verification remain open."
@@ -31828,7 +31827,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/chat_rewrite.rs"
       },
       "gaps": [
-        "--api-key credentials are not supported natively; use a native session.",
+        "--api-key runs rewind without --send; rewind --send under a key is refused before any mutation because the Rust API-key SDK has no saved-chat send yet.",
         "Only full canonical chat IDs are accepted; npm 'last', short-ID and slug selectors need a synced cache that one-shot commands do not perform.",
         "--response-timeout is not accepted; HTTP failures surface as typed SDK errors.",
         "Live backend integration and platform verification remain open."
@@ -34255,7 +34254,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/utility/finance.rs"
       },
       "gaps": [
-        "--api-key credentials are not supported natively; use a native session.",
+        "--api-key runs only explicit --csv-only CSV checks; connected-account selection reads GET /v1/connected-accounts, which accepts only Cookie sessions.",
         "HTTP failures use the native error text instead of 'Connected-account skill execution failed with HTTP <status>: <code>'.",
         "Live backend integration and platform verification remain open."
       ],
@@ -34314,7 +34313,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/utility/finance.rs"
       },
       "gaps": [
-        "--api-key credentials are not supported natively; use a native session.",
+        "--api-key runs only explicit --csv-only CSV checks; connected-account selection reads GET /v1/connected-accounts, which accepts only Cookie sessions.",
         "HTTP failures use the native error text instead of 'Connected-account skill execution failed with HTTP <status>: <code>'.",
         "Live backend integration and platform verification remain open."
       ],

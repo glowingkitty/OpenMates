@@ -1,6 +1,7 @@
 //! `openmates apps design export-icon` (npm handleDesignIconExport +
-//! designIcons.ts). The SVG is fetched through the authenticated binary
-//! transport; PNG output is rasterized locally with resvg.
+//! designIcons.ts). The SVG is fetched through the session binary transport
+//! or, under an explicit `--api-key`, the shared SDK `design().export_icon`
+//! facade; PNG output is rasterized locally with resvg in both cases.
 use super::super::{CliError, CliOutput, Invocation, handlers, terminal_text};
 use super::failed;
 use crate::client::Client;
@@ -241,7 +242,13 @@ fn write_export(path: &str, data: &[u8]) -> Result<(), CliError> {
     Ok(())
 }
 
-pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOutput, CliError> {
+/// Where the sanitized Iconify SVG comes from; the two credentials never mix.
+pub(super) enum SvgSource<'a> {
+    Session(&'a mut Client),
+    ApiKey(&'a openmates_sdk::sdk::OpenMates),
+}
+
+pub(super) async fn execute(i: &Invocation, source: SvgSource<'_>) -> Result<CliOutput, CliError> {
     handlers::flags(i, FLAGS)?;
     let Some(output) = i.text("output").map(str::trim).filter(|v| !v.is_empty()) else {
         return Err(failed(USAGE.trim_end()));
@@ -254,7 +261,7 @@ pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOu
     );
     let (path, prefix, name) = reference(i)?;
     let exported = export(
-        client,
+        source,
         output,
         format,
         i.text("color"),
@@ -291,7 +298,7 @@ struct Exported {
 
 #[allow(clippy::too_many_arguments)]
 async fn export(
-    client: &mut Client,
+    source: SvgSource<'_>,
     output: &str,
     format: Option<Format>,
     color: Option<&str>,
@@ -308,15 +315,34 @@ async fn export(
             "Palette icons cannot be recolored unless allowPaletteRecolor is true",
         ));
     }
-    let response = client.get_binary(&svg_path, ACCEPT).await?;
-    if !response.ok() {
-        return Err(failed(format!(
-            "Raw resource request failed with HTTP {}",
-            response.status
-        )));
-    }
-    let svg = String::from_utf8_lossy(&response.data).into_owned();
-    let svg = apply_color(&svg, color.as_deref())?;
+    let svg = match source {
+        SvgSource::Session(client) => {
+            let response = client.get_binary(&svg_path, ACCEPT).await?;
+            if !response.ok() {
+                return Err(failed(format!(
+                    "Raw resource request failed with HTTP {}",
+                    response.status
+                )));
+            }
+            let svg = String::from_utf8_lossy(&response.data).into_owned();
+            apply_color(&svg, color.as_deref())?
+        }
+        // The SDK facade fetches the same OpenMates route and recolors with the
+        // shared npm-parity algorithm; PNG stays a local CLI rasterization.
+        SvgSource::ApiKey(sdk) => {
+            sdk.design()
+                .export_icon(openmates_sdk::sdk_design::IconExportOptions {
+                    svg_path: Some(svg_path.clone()),
+                    format: Some(openmates_sdk::sdk_design::IconFormat::Svg),
+                    color: color.clone(),
+                    palette,
+                    allow_palette_recolor: allow_recolor,
+                    ..Default::default()
+                })
+                .await?
+                .svg
+        }
+    };
     let data = match format {
         Format::Svg => svg.into_bytes(),
         Format::Png => render_png(&svg, size, width, height)?,

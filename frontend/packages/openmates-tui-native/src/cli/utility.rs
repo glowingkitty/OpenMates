@@ -69,6 +69,17 @@ pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOu
     finance::execute(i, client).await
 }
 
+/// `finance check-accounts` under an explicit `--api-key` (CSV statements only).
+pub(super) fn finance_key_supported(i: &Invocation) -> bool {
+    finance::supported(i)
+}
+pub(super) async fn execute_finance_key(
+    i: &Invocation,
+    sdk: &openmates_sdk::sdk::OpenMates,
+) -> Result<CliOutput, CliError> {
+    finance::execute_key(i, sdk).await
+}
+
 /// JavaScript `String(number)` for finite values that fit the JSON artifacts.
 pub(super) fn js_number(value: f64) -> String {
     if value.fract() == 0.0 && value.abs() < 1e21 {

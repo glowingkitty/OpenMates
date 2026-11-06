@@ -42,6 +42,7 @@ pub use session::Session;
 pub mod generated;
 pub mod sdk;
 pub mod sdk_chats;
+pub mod sdk_chat_rewrite;
 pub mod sdk_drafts;
 pub mod sdk_history;
 pub mod sdk_docs;

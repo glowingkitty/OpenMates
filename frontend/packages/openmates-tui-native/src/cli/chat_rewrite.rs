@@ -43,11 +43,16 @@ fn chat_id<'a>(i: &'a Invocation, target: bool, usage: &str) -> Result<&'a str, 
 }
 fn admit(i: &Invocation, id: &str) -> Result<(), CliError> {
     if i.has("api-key") {
+        // Explicit-key invocations are routed to `execute_key` by the runtime;
+        // reaching the session adapter with a key must never mix credentials.
         return Err(CliError::Unsupported {
             command: i.command_path(),
-            reason: "API-key chat fork, rewind and retry are not ported; Cookie credentials were not used as a fallback.".into(),
+            reason: "API-key chat fork, rewind and retry run only through the explicit-key route; Cookie credentials were not used as a fallback.".into(),
         });
     }
+    canonical(id)
+}
+fn canonical(id: &str) -> Result<(), CliError> {
     if uuid::Uuid::parse_str(id)
         .ok()
         .is_none_or(|parsed| parsed.hyphenated().to_string() != id)
@@ -75,6 +80,64 @@ fn js(value: Option<&Value>) -> String {
 }
 fn dry_run(i: &Invocation) -> bool {
     i.boolean("dry-run") || !i.boolean("yes")
+}
+
+/// Saved-chat send is not in the Rust API-key SDK, so a step that would resend
+/// is refused before any server mutation instead of leaving a rewound chat.
+const KEY_RESEND: &str = "needs saved-chat send, which the Rust API-key SDK does not implement yet; nothing was rewound and Cookie credentials were not used.";
+
+/// `chats fork|rewind|retry` under an explicit `--api-key` (npm SDK
+/// `chats.fork|rewind|retry` over `/v1/sdk/chats/{id}/...`).
+pub(super) async fn execute_key(
+    i: &Invocation,
+    sdk: &mut openmates_sdk::sdk::OpenMates,
+) -> Result<CliOutput, CliError> {
+    match i.command_path().as_str() {
+        "chats fork" => {
+            handlers::flags(i, &["from-message", "title"])?;
+            let from = nonempty(i.text("from-message"));
+            let id = chat_id(i, from.is_some(), FORK_USAGE)?;
+            canonical(id)?;
+            let rewrite = sdk.chats().rewrite_state(id).await?;
+            let index = boundary(rewrite.state(), from.unwrap_or_default())?;
+            let result = sdk.chats().fork(&rewrite, index, i.text("title")).await?;
+            let text = fork_text(&result);
+            handlers::output(i, result, text)
+        }
+        "chats rewind" => {
+            handlers::flags(i, &["to-message", "send", "dry-run", "yes"])?;
+            let to = nonempty(i.text("to-message"));
+            let id = chat_id(i, to.is_some(), REWIND_USAGE)?;
+            canonical(id)?;
+            let dry = dry_run(i);
+            if !dry && nonempty(i.text("send")).is_some() {
+                return Err(key_resend(i, "API-key rewind --send"));
+            }
+            let rewrite = sdk.chats().rewrite_state(id).await?;
+            let index = boundary(rewrite.state(), to.unwrap_or_default())?;
+            let result = sdk.chats().rewind(&rewrite, index, dry, i.boolean("yes")).await?;
+            let text = rewind_text(&result);
+            handlers::output(i, result, text)
+        }
+        _ => {
+            handlers::flags(i, &["dry-run", "yes"])?;
+            let id = chat_id(i, true, RETRY_USAGE)?;
+            canonical(id)?;
+            if !dry_run(i) {
+                return Err(key_resend(i, "API-key retry --yes"));
+            }
+            let rewrite = sdk.chats().rewrite_state(id).await?;
+            let (result, _) = sdk.chats().retry(&rewrite, true, i.boolean("yes")).await?;
+            let text = rewind_text(&result);
+            handlers::output(i, result, text)
+        }
+    }
+}
+fn key_resend(i: &Invocation, what: &str) -> CliError {
+    CliError::Unsupported {
+        command: i.command_path(),
+        reason: format!("{what} {KEY_RESEND}"),
+    }
 }
 
 async fn fork(i: &Invocation, client: &mut Client) -> Result<CliOutput, CliError> {

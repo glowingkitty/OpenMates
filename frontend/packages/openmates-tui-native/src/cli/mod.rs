@@ -59,6 +59,26 @@ pub async fn execute_sdk_account(
 ) -> Result<CliOutput, CliError> {
     account::execute_key(invocation, client, cancel).await
 }
+/// Non-account commands with an explicit-key route: `chats fork|rewind|retry|open`,
+/// `finance check-accounts` (CSV only) and `apps design export-icon`.
+pub fn sdk_key_command_supported(invocation: &Invocation) -> bool {
+    parity_chat_recovery::key_supported(invocation)
+        || utility::finance_key_supported(invocation)
+        || extra_ports::key_supported(invocation)
+}
+/// Runs a [`sdk_key_command_supported`] command over the API-key SDK only.
+pub async fn execute_sdk_key_command(
+    invocation: &Invocation,
+    client: &mut openmates_sdk::sdk::OpenMates,
+) -> Result<CliOutput, CliError> {
+    if parity_chat_recovery::key_supported(invocation) {
+        return parity_chat_recovery::execute_key(invocation, client).await;
+    }
+    if utility::finance_key_supported(invocation) {
+        return utility::execute_finance_key(invocation, client).await;
+    }
+    extra_ports::execute_key(invocation, client).await
+}
 pub mod trusted_account;
 pub mod private_path;
 use crate::error::Error;
