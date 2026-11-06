@@ -10328,6 +10328,54 @@
     "send_failed": {
       "text": "Deine Nachricht konnte nicht gesendet werden. Sie steht noch im Eingabefeld, bitte versuche es erneut."
     },
+    "file_import_failed": {
+      "text": "{filename} konnte nicht gelesen werden und wurde nicht angehängt. Die Datei ist möglicherweise leer, beschädigt oder passwortgeschützt."
+    },
+    "file_unsupported_type": {
+      "text": "{filename} wurde nicht angehängt, da dieser Dateityp noch nicht unterstützt wird."
+    },
+    "file_pptx_coming_soon": {
+      "text": "PowerPoint-Dateien werden noch nicht unterstützt – Unterstützung für Folien kommt bald. {filename} wurde nicht angehängt."
+    },
+    "xlsx_features_removed": {
+      "text": "{filename} wurde als Tabellen importiert. Diese Excel-Funktionen werden nicht unterstützt und wurden entfernt: {features}."
+    },
+    "xlsx_feature_formatting": {
+      "text": "Zellfarben und Formatierung"
+    },
+    "xlsx_feature_conditional_formatting": {
+      "text": "bedingte Formatierung"
+    },
+    "xlsx_feature_merged_cells": {
+      "text": "verbundene Zellen"
+    },
+    "xlsx_feature_charts": {
+      "text": "Diagramme"
+    },
+    "xlsx_feature_images": {
+      "text": "Bilder"
+    },
+    "xlsx_feature_pivot_tables": {
+      "text": "Pivot-Tabellen"
+    },
+    "xlsx_feature_macros": {
+      "text": "Makros"
+    },
+    "xlsx_feature_external_links": {
+      "text": "Verknüpfungen zu anderen Arbeitsmappen"
+    },
+    "xlsx_feature_comments": {
+      "text": "Kommentare"
+    },
+    "xlsx_feature_unsupported_formulas": {
+      "text": "noch nicht unterstützte Formeln (die berechneten Werte wurden übernommen)"
+    },
+    "xlsx_feature_hidden_sheets": {
+      "text": "ausgeblendete Blätter"
+    },
+    "xlsx_feature_sheet_limit": {
+      "text": "Blätter nach den ersten 10"
+    },
     "mention_dropdown": {
       "header": {
         "text": "OpenMates wählt standardmäßig das KI-Modell, Mates, App-Skills, Fokusmodi sowie Einstellungen & Erinnerungen automatisch aus. Suche, um die automatische Auswahl zu überschreiben"
@@ -24790,7 +24838,7 @@
       "text": "Kostenlos testen"
     },
     "version_title": {
-      "text": "v0.29"
+      "text": "v0.30"
     },
     "domain_not_allowed": {
       "text": "E-Mail-Domain nicht erlaubt."

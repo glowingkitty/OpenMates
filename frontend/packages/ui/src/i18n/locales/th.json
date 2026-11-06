@@ -8741,6 +8741,54 @@
     "send_failed": {
       "text": "ไม่สามารถส่งข้อความของคุณได้ ข้อความยังอยู่ในช่องป้อนข้อมูล โปรดลองอีกครั้ง"
     },
+    "file_import_failed": {
+      "text": "ไม่สามารถอ่าน {filename} จึงไม่ได้แนบไฟล์ ไฟล์อาจว่างเปล่า เสียหาย หรือมีการป้องกันด้วยรหัสผ่าน"
+    },
+    "file_unsupported_type": {
+      "text": "ไม่ได้แนบ {filename} เนื่องจากยังไม่รองรับไฟล์ประเภทนี้"
+    },
+    "file_pptx_coming_soon": {
+      "text": "ยังไม่รองรับไฟล์ PowerPoint - การรองรับสไลด์จะมาในเร็วๆ นี้ ไม่ได้แนบ {filename}"
+    },
+    "xlsx_features_removed": {
+      "text": "นำเข้า {filename} เป็นชีตแล้ว ฟีเจอร์ Excel ต่อไปนี้ไม่รองรับและถูกนำออก: {features}"
+    },
+    "xlsx_feature_formatting": {
+      "text": "สีและรูปแบบของเซลล์"
+    },
+    "xlsx_feature_conditional_formatting": {
+      "text": "การจัดรูปแบบตามเงื่อนไข"
+    },
+    "xlsx_feature_merged_cells": {
+      "text": "เซลล์ที่ผสาน"
+    },
+    "xlsx_feature_charts": {
+      "text": "แผนภูมิ"
+    },
+    "xlsx_feature_images": {
+      "text": "รูปภาพ"
+    },
+    "xlsx_feature_pivot_tables": {
+      "text": "พิวอตเทเบิล"
+    },
+    "xlsx_feature_macros": {
+      "text": "มาโคร"
+    },
+    "xlsx_feature_external_links": {
+      "text": "ลิงก์ไปยังสมุดงานอื่น"
+    },
+    "xlsx_feature_comments": {
+      "text": "ความคิดเห็น"
+    },
+    "xlsx_feature_unsupported_formulas": {
+      "text": "สูตรที่ยังไม่รองรับ (เก็บค่าที่คำนวณไว้แล้ว)"
+    },
+    "xlsx_feature_hidden_sheets": {
+      "text": "ชีตที่ซ่อนอยู่"
+    },
+    "xlsx_feature_sheet_limit": {
+      "text": "ชีตหลังจาก 10 ชีตแรก"
+    },
     "mention_dropdown": {
       "header": {
         "text": "โดยค่าเริ่มต้น OpenMates จะเลือกโมเดล AI, mates, ทักษะแอป, โหมดโฟกัส และการตั้งค่าและความจำโดยอัตโนมัติ ค้นหาเพื่อเขียนทับการเลือกอัตโนมัติ"
@@ -21052,7 +21100,7 @@
       "text": "ทดลองฟรี"
     },
     "version_title": {
-      "text": "v0.29"
+      "text": "v0.30"
     },
     "domain_not_allowed": {
       "text": "ไม่อนุญาตโดเมนอีเมล"

@@ -8768,6 +8768,54 @@
     "send_failed": {
       "text": "Impossibile inviare il messaggio. È ancora nel campo di inserimento, riprova."
     },
+    "file_import_failed": {
+      "text": "Impossibile leggere {filename}, quindi non è stato allegato. Il file potrebbe essere vuoto, danneggiato o protetto da password."
+    },
+    "file_unsupported_type": {
+      "text": "{filename} non è stato allegato perché questo tipo di file non è ancora supportato."
+    },
+    "file_pptx_coming_soon": {
+      "text": "I file PowerPoint non sono ancora supportati: il supporto alle slide arriverà presto. {filename} non è stato allegato."
+    },
+    "xlsx_features_removed": {
+      "text": "{filename} è stato importato come fogli. Queste funzioni di Excel non sono supportate e sono state rimosse: {features}."
+    },
+    "xlsx_feature_formatting": {
+      "text": "colori e stili delle celle"
+    },
+    "xlsx_feature_conditional_formatting": {
+      "text": "formattazione condizionale"
+    },
+    "xlsx_feature_merged_cells": {
+      "text": "celle unite"
+    },
+    "xlsx_feature_charts": {
+      "text": "grafici"
+    },
+    "xlsx_feature_images": {
+      "text": "immagini"
+    },
+    "xlsx_feature_pivot_tables": {
+      "text": "tabelle pivot"
+    },
+    "xlsx_feature_macros": {
+      "text": "macro"
+    },
+    "xlsx_feature_external_links": {
+      "text": "collegamenti ad altre cartelle di lavoro"
+    },
+    "xlsx_feature_comments": {
+      "text": "commenti"
+    },
+    "xlsx_feature_unsupported_formulas": {
+      "text": "formule non ancora supportate (i valori calcolati sono stati mantenuti)"
+    },
+    "xlsx_feature_hidden_sheets": {
+      "text": "fogli nascosti"
+    },
+    "xlsx_feature_sheet_limit": {
+      "text": "fogli oltre i primi 10"
+    },
     "mention_dropdown": {
       "header": {
         "text": "Per impostazione predefinita, OpenMates seleziona automaticamente il modello AI, i mates, le competenze dell'app, le modalità di focus e le impostazioni e memorie. Cerca per sovrascrivere la selezione automatica"
@@ -21079,7 +21127,7 @@
       "text": "Prova gratis"
     },
     "version_title": {
-      "text": "v0.29"
+      "text": "v0.30"
     },
     "domain_not_allowed": {
       "text": "Dominio e-mail non consentito."

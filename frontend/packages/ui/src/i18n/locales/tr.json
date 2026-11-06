@@ -8741,6 +8741,54 @@
     "send_failed": {
       "text": "Mesajınız gönderilemedi. Giriş alanında duruyor, lütfen tekrar deneyin."
     },
+    "file_import_failed": {
+      "text": "{filename} okunamadı, bu yüzden eklenmedi. Dosya boş, hasarlı veya parola korumalı olabilir."
+    },
+    "file_unsupported_type": {
+      "text": "Bu dosya türü henüz desteklenmediği için {filename} eklenmedi."
+    },
+    "file_pptx_coming_soon": {
+      "text": "PowerPoint dosyaları henüz desteklenmiyor; slayt desteği yakında geliyor. {filename} eklenmedi."
+    },
+    "xlsx_features_removed": {
+      "text": "{filename} sayfa olarak içe aktarıldı. Şu Excel özellikleri desteklenmiyor ve kaldırıldı: {features}."
+    },
+    "xlsx_feature_formatting": {
+      "text": "hücre renkleri ve stilleri"
+    },
+    "xlsx_feature_conditional_formatting": {
+      "text": "koşullu biçimlendirme"
+    },
+    "xlsx_feature_merged_cells": {
+      "text": "birleştirilmiş hücreler"
+    },
+    "xlsx_feature_charts": {
+      "text": "grafikler"
+    },
+    "xlsx_feature_images": {
+      "text": "görseller"
+    },
+    "xlsx_feature_pivot_tables": {
+      "text": "pivot tablolar"
+    },
+    "xlsx_feature_macros": {
+      "text": "makrolar"
+    },
+    "xlsx_feature_external_links": {
+      "text": "diğer çalışma kitaplarına bağlantılar"
+    },
+    "xlsx_feature_comments": {
+      "text": "yorumlar"
+    },
+    "xlsx_feature_unsupported_formulas": {
+      "text": "henüz desteklenmeyen formüller (hesaplanan değerler korundu)"
+    },
+    "xlsx_feature_hidden_sheets": {
+      "text": "gizli sayfalar"
+    },
+    "xlsx_feature_sheet_limit": {
+      "text": "ilk 10 sayfadan sonraki sayfalar"
+    },
     "mention_dropdown": {
       "header": {
         "text": "Varsayılan olarak OpenMates, AI modelini, mates'leri, uygulama becerilerini, odak modlarını ve ayarlar & anıları otomatik seçer. Otomatik seçimi geçersiz kılmak için arayın"
@@ -21052,7 +21100,7 @@
       "text": "Ücretsiz dene"
     },
     "version_title": {
-      "text": "v0.29"
+      "text": "v0.30"
     },
     "domain_not_allowed": {
       "text": "E-posta etki alanına izin verilmiyor."

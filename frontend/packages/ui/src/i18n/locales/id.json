@@ -8741,6 +8741,54 @@
     "send_failed": {
       "text": "Pesan Anda tidak dapat dikirim. Pesan masih ada di kolom input, silakan coba lagi."
     },
+    "file_import_failed": {
+      "text": "{filename} tidak dapat dibaca sehingga tidak dilampirkan. File mungkin kosong, rusak, atau dilindungi kata sandi."
+    },
+    "file_unsupported_type": {
+      "text": "{filename} tidak dilampirkan karena jenis file ini belum didukung."
+    },
+    "file_pptx_coming_soon": {
+      "text": "File PowerPoint belum didukung - dukungan slide segera hadir. {filename} tidak dilampirkan."
+    },
+    "xlsx_features_removed": {
+      "text": "{filename} diimpor sebagai sheet. Fitur Excel berikut tidak didukung dan telah dihapus: {features}."
+    },
+    "xlsx_feature_formatting": {
+      "text": "warna dan gaya sel"
+    },
+    "xlsx_feature_conditional_formatting": {
+      "text": "pemformatan bersyarat"
+    },
+    "xlsx_feature_merged_cells": {
+      "text": "sel yang digabung"
+    },
+    "xlsx_feature_charts": {
+      "text": "grafik"
+    },
+    "xlsx_feature_images": {
+      "text": "gambar"
+    },
+    "xlsx_feature_pivot_tables": {
+      "text": "tabel pivot"
+    },
+    "xlsx_feature_macros": {
+      "text": "makro"
+    },
+    "xlsx_feature_external_links": {
+      "text": "tautan ke buku kerja lain"
+    },
+    "xlsx_feature_comments": {
+      "text": "komentar"
+    },
+    "xlsx_feature_unsupported_formulas": {
+      "text": "rumus yang belum didukung (nilai hasil hitungnya dipertahankan)"
+    },
+    "xlsx_feature_hidden_sheets": {
+      "text": "sheet tersembunyi"
+    },
+    "xlsx_feature_sheet_limit": {
+      "text": "sheet setelah 10 sheet pertama"
+    },
     "mention_dropdown": {
       "header": {
         "text": "Secara default, OpenMates otomatis memilih model AI, mates, keterampilan aplikasi, mode fokus dan pengaturan & memori. Cari untuk menimpa pemilihan otomatis"
@@ -21052,7 +21100,7 @@
       "text": "Coba gratis"
     },
     "version_title": {
-      "text": "v0.29"
+      "text": "v0.30"
     },
     "domain_not_allowed": {
       "text": "Domain e-mail tidak diizinkan."

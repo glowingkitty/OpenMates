@@ -8741,6 +8741,54 @@
     "send_failed": {
       "text": "تعذر إرسال رسالتك. ما زالت في حقل الإدخال، يرجى المحاولة مرة أخرى."
     },
+    "file_import_failed": {
+      "text": "تعذّرت قراءة {filename} لذا لم يتم إرفاقه. قد يكون الملف فارغًا أو تالفًا أو محميًا بكلمة مرور."
+    },
+    "file_unsupported_type": {
+      "text": "لم يتم إرفاق {filename} لأن نوع الملف هذا غير مدعوم بعد."
+    },
+    "file_pptx_coming_soon": {
+      "text": "ملفات PowerPoint غير مدعومة بعد - دعم الشرائح قادم قريبًا. لم يتم إرفاق {filename}."
+    },
+    "xlsx_features_removed": {
+      "text": "تم استيراد {filename} كجداول. ميزات Excel التالية غير مدعومة وتمت إزالتها: {features}."
+    },
+    "xlsx_feature_formatting": {
+      "text": "ألوان الخلايا وتنسيقها"
+    },
+    "xlsx_feature_conditional_formatting": {
+      "text": "التنسيق الشرطي"
+    },
+    "xlsx_feature_merged_cells": {
+      "text": "الخلايا المدمجة"
+    },
+    "xlsx_feature_charts": {
+      "text": "المخططات"
+    },
+    "xlsx_feature_images": {
+      "text": "الصور"
+    },
+    "xlsx_feature_pivot_tables": {
+      "text": "الجداول المحورية"
+    },
+    "xlsx_feature_macros": {
+      "text": "وحدات الماكرو"
+    },
+    "xlsx_feature_external_links": {
+      "text": "الروابط إلى مصنفات أخرى"
+    },
+    "xlsx_feature_comments": {
+      "text": "التعليقات"
+    },
+    "xlsx_feature_unsupported_formulas": {
+      "text": "الصيغ غير المدعومة بعد (تم الاحتفاظ بقيمها المحسوبة)"
+    },
+    "xlsx_feature_hidden_sheets": {
+      "text": "الأوراق المخفية"
+    },
+    "xlsx_feature_sheet_limit": {
+      "text": "الأوراق بعد أول 10"
+    },
     "mention_dropdown": {
       "header": {
         "text": "بشكل افتراضي، يختار OpenMates تلقائيًا نموذج الذكاء الاصطناعي والـ mates ومهارات التطبيق وأوضاع التركيز والإعدادات والذاكرة. ابحث لتجاوز الاختيار التلقائي"
@@ -21052,7 +21100,7 @@
       "text": "جرّب مجانًا"
     },
     "version_title": {
-      "text": "v0.29"
+      "text": "v0.30"
     },
     "domain_not_allowed": {
       "text": "نطاق البريد الإلكتروني غير مسموح به."

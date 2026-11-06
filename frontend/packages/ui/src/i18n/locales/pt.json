@@ -8768,6 +8768,54 @@
     "send_failed": {
       "text": "Não foi possível enviar sua mensagem. Ela continua no campo de entrada, tente novamente."
     },
+    "file_import_failed": {
+      "text": "Não foi possível ler {filename}, por isso ele não foi anexado. O arquivo pode estar vazio, danificado ou protegido por senha."
+    },
+    "file_unsupported_type": {
+      "text": "{filename} não foi anexado porque este tipo de arquivo ainda não é compatível."
+    },
+    "file_pptx_coming_soon": {
+      "text": "Arquivos do PowerPoint ainda não são compatíveis; o suporte a apresentações chegará em breve. {filename} não foi anexado."
+    },
+    "xlsx_features_removed": {
+      "text": "{filename} foi importado como planilhas. Estes recursos do Excel não são compatíveis e foram removidos: {features}."
+    },
+    "xlsx_feature_formatting": {
+      "text": "cores e estilos de célula"
+    },
+    "xlsx_feature_conditional_formatting": {
+      "text": "formatação condicional"
+    },
+    "xlsx_feature_merged_cells": {
+      "text": "células mescladas"
+    },
+    "xlsx_feature_charts": {
+      "text": "gráficos"
+    },
+    "xlsx_feature_images": {
+      "text": "imagens"
+    },
+    "xlsx_feature_pivot_tables": {
+      "text": "tabelas dinâmicas"
+    },
+    "xlsx_feature_macros": {
+      "text": "macros"
+    },
+    "xlsx_feature_external_links": {
+      "text": "vínculos com outras pastas de trabalho"
+    },
+    "xlsx_feature_comments": {
+      "text": "comentários"
+    },
+    "xlsx_feature_unsupported_formulas": {
+      "text": "fórmulas ainda não compatíveis (os valores calculados foram mantidos)"
+    },
+    "xlsx_feature_hidden_sheets": {
+      "text": "planilhas ocultas"
+    },
+    "xlsx_feature_sheet_limit": {
+      "text": "planilhas além das 10 primeiras"
+    },
     "mention_dropdown": {
       "header": {
         "text": "Por padrão, o OpenMates seleciona automaticamente o modelo de IA, mates, habilidades de aplicativo, modos de foco e configurações e memórias. Pesquise para substituir a seleção automática"
@@ -21079,7 +21127,7 @@
       "text": "Testar gratuitamente"
     },
     "version_title": {
-      "text": "v0.29"
+      "text": "v0.30"
     },
     "domain_not_allowed": {
       "text": "Domínio de e-mail não permitido."

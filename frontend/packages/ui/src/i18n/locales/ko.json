@@ -8741,6 +8741,54 @@
     "send_failed": {
       "text": "메시지를 보내지 못했습니다. 입력창에 그대로 남아 있으니 다시 시도해 주세요."
     },
+    "file_import_failed": {
+      "text": "{filename}을(를) 읽을 수 없어 첨부되지 않았습니다. 파일이 비어 있거나 손상되었거나 암호로 보호되어 있을 수 있습니다."
+    },
+    "file_unsupported_type": {
+      "text": "이 파일 형식은 아직 지원되지 않아 {filename}을(를) 첨부하지 못했습니다."
+    },
+    "file_pptx_coming_soon": {
+      "text": "PowerPoint 파일은 아직 지원되지 않습니다. 슬라이드 지원이 곧 제공될 예정입니다. {filename}은(는) 첨부되지 않았습니다."
+    },
+    "xlsx_features_removed": {
+      "text": "{filename}을(를) 시트로 가져왔습니다. 다음 Excel 기능은 지원되지 않아 제거되었습니다: {features}."
+    },
+    "xlsx_feature_formatting": {
+      "text": "셀 색상 및 스타일"
+    },
+    "xlsx_feature_conditional_formatting": {
+      "text": "조건부 서식"
+    },
+    "xlsx_feature_merged_cells": {
+      "text": "병합된 셀"
+    },
+    "xlsx_feature_charts": {
+      "text": "차트"
+    },
+    "xlsx_feature_images": {
+      "text": "이미지"
+    },
+    "xlsx_feature_pivot_tables": {
+      "text": "피벗 테이블"
+    },
+    "xlsx_feature_macros": {
+      "text": "매크로"
+    },
+    "xlsx_feature_external_links": {
+      "text": "다른 통합 문서 링크"
+    },
+    "xlsx_feature_comments": {
+      "text": "메모"
+    },
+    "xlsx_feature_unsupported_formulas": {
+      "text": "아직 지원되지 않는 수식(계산된 값은 유지됨)"
+    },
+    "xlsx_feature_hidden_sheets": {
+      "text": "숨겨진 시트"
+    },
+    "xlsx_feature_sheet_limit": {
+      "text": "처음 10개를 넘는 시트"
+    },
     "mention_dropdown": {
       "header": {
         "text": "기본적으로 OpenMates는 AI 모델, mates, 앱 스킬, 집중 모드 및 설정과 기억을 자동으로 선택합니다. 자동 선택을 덮어쓰려면 검색하세요"
@@ -21052,7 +21100,7 @@
       "text": "무료로 테스트"
     },
     "version_title": {
-      "text": "v0.29"
+      "text": "v0.30"
     },
     "domain_not_allowed": {
       "text": "이메일 도메인이 허용되지 않습니다."

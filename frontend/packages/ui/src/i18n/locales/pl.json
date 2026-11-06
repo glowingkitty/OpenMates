@@ -8741,6 +8741,54 @@
     "send_failed": {
       "text": "Nie udało się wysłać wiadomości. Nadal jest w polu wpisywania, spróbuj ponownie."
     },
+    "file_import_failed": {
+      "text": "Nie udało się odczytać pliku {filename}, więc nie został dołączony. Plik może być pusty, uszkodzony lub chroniony hasłem."
+    },
+    "file_unsupported_type": {
+      "text": "Plik {filename} nie został dołączony, ponieważ ten typ pliku nie jest jeszcze obsługiwany."
+    },
+    "file_pptx_coming_soon": {
+      "text": "Pliki PowerPoint nie są jeszcze obsługiwane – obsługa slajdów pojawi się wkrótce. Plik {filename} nie został dołączony."
+    },
+    "xlsx_features_removed": {
+      "text": "Plik {filename} zaimportowano jako arkusze. Te funkcje Excela nie są obsługiwane i zostały usunięte: {features}."
+    },
+    "xlsx_feature_formatting": {
+      "text": "kolory i style komórek"
+    },
+    "xlsx_feature_conditional_formatting": {
+      "text": "formatowanie warunkowe"
+    },
+    "xlsx_feature_merged_cells": {
+      "text": "scalone komórki"
+    },
+    "xlsx_feature_charts": {
+      "text": "wykresy"
+    },
+    "xlsx_feature_images": {
+      "text": "obrazy"
+    },
+    "xlsx_feature_pivot_tables": {
+      "text": "tabele przestawne"
+    },
+    "xlsx_feature_macros": {
+      "text": "makra"
+    },
+    "xlsx_feature_external_links": {
+      "text": "łącza do innych skoroszytów"
+    },
+    "xlsx_feature_comments": {
+      "text": "komentarze"
+    },
+    "xlsx_feature_unsupported_formulas": {
+      "text": "formuły, które nie są jeszcze obsługiwane (zachowano obliczone wartości)"
+    },
+    "xlsx_feature_hidden_sheets": {
+      "text": "ukryte arkusze"
+    },
+    "xlsx_feature_sheet_limit": {
+      "text": "arkusze po pierwszych 10"
+    },
     "mention_dropdown": {
       "header": {
         "text": "Domyślnie OpenMates automatycznie wybiera model AI, mates, umiejętności aplikacji, tryby skupienia oraz ustawienia i wspomnienia. Wyszukaj, aby nadpisać automatyczny wybór"
@@ -21052,7 +21100,7 @@
       "text": "Testuj za darmo"
     },
     "version_title": {
-      "text": "v0.29"
+      "text": "v0.30"
     },
     "domain_not_allowed": {
       "text": "Domena e-mail niedozwolona."

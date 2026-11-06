@@ -8741,6 +8741,54 @@
     "send_failed": {
       "text": "Je bericht kon niet worden verzonden. Het staat nog in het invoerveld, probeer het opnieuw."
     },
+    "file_import_failed": {
+      "text": "{filename} kon niet worden gelezen en is daarom niet toegevoegd. Het bestand is mogelijk leeg, beschadigd of met een wachtwoord beveiligd."
+    },
+    "file_unsupported_type": {
+      "text": "{filename} is niet toegevoegd omdat dit bestandstype nog niet wordt ondersteund."
+    },
+    "file_pptx_coming_soon": {
+      "text": "PowerPoint-bestanden worden nog niet ondersteund - ondersteuning voor slides komt binnenkort. {filename} is niet toegevoegd."
+    },
+    "xlsx_features_removed": {
+      "text": "{filename} is geïmporteerd als sheets. Deze Excel-functies worden niet ondersteund en zijn verwijderd: {features}."
+    },
+    "xlsx_feature_formatting": {
+      "text": "celkleuren en opmaak"
+    },
+    "xlsx_feature_conditional_formatting": {
+      "text": "voorwaardelijke opmaak"
+    },
+    "xlsx_feature_merged_cells": {
+      "text": "samengevoegde cellen"
+    },
+    "xlsx_feature_charts": {
+      "text": "grafieken"
+    },
+    "xlsx_feature_images": {
+      "text": "afbeeldingen"
+    },
+    "xlsx_feature_pivot_tables": {
+      "text": "draaitabellen"
+    },
+    "xlsx_feature_macros": {
+      "text": "macro's"
+    },
+    "xlsx_feature_external_links": {
+      "text": "koppelingen naar andere werkmappen"
+    },
+    "xlsx_feature_comments": {
+      "text": "opmerkingen"
+    },
+    "xlsx_feature_unsupported_formulas": {
+      "text": "formules die nog niet worden ondersteund (de berekende waarden zijn behouden)"
+    },
+    "xlsx_feature_hidden_sheets": {
+      "text": "verborgen bladen"
+    },
+    "xlsx_feature_sheet_limit": {
+      "text": "bladen na de eerste 10"
+    },
     "mention_dropdown": {
       "header": {
         "text": "Standaard selecteert OpenMates automatisch het AI-model, mates, app-vaardigheden, focusmodi en instellingen en herinneringen. Zoek om de automatische selectie te overschrijven"
@@ -21052,7 +21100,7 @@
       "text": "Gratis testen"
     },
     "version_title": {
-      "text": "v0.29"
+      "text": "v0.30"
     },
     "domain_not_allowed": {
       "text": "E-maildomein niet toegestaan."

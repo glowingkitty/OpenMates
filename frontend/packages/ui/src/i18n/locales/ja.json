@@ -8741,6 +8741,54 @@
     "send_failed": {
       "text": "メッセージを送信できませんでした。入力欄に残っているので、もう一度お試しください。"
     },
+    "file_import_failed": {
+      "text": "{filename} を読み取れなかったため、添付されませんでした。ファイルが空、破損、またはパスワードで保護されている可能性があります。"
+    },
+    "file_unsupported_type": {
+      "text": "このファイル形式にはまだ対応していないため、{filename} は添付されませんでした。"
+    },
+    "file_pptx_coming_soon": {
+      "text": "PowerPoint ファイルにはまだ対応していません。スライドへの対応は近日公開予定です。{filename} は添付されませんでした。"
+    },
+    "xlsx_features_removed": {
+      "text": "{filename} をシートとして取り込みました。次の Excel 機能は未対応のため削除されました：{features}。"
+    },
+    "xlsx_feature_formatting": {
+      "text": "セルの色とスタイル"
+    },
+    "xlsx_feature_conditional_formatting": {
+      "text": "条件付き書式"
+    },
+    "xlsx_feature_merged_cells": {
+      "text": "セルの結合"
+    },
+    "xlsx_feature_charts": {
+      "text": "グラフ"
+    },
+    "xlsx_feature_images": {
+      "text": "画像"
+    },
+    "xlsx_feature_pivot_tables": {
+      "text": "ピボットテーブル"
+    },
+    "xlsx_feature_macros": {
+      "text": "マクロ"
+    },
+    "xlsx_feature_external_links": {
+      "text": "他のブックへのリンク"
+    },
+    "xlsx_feature_comments": {
+      "text": "コメント"
+    },
+    "xlsx_feature_unsupported_formulas": {
+      "text": "未対応の数式（計算結果の値は保持されます）"
+    },
+    "xlsx_feature_hidden_sheets": {
+      "text": "非表示のシート"
+    },
+    "xlsx_feature_sheet_limit": {
+      "text": "最初の 10 枚を超えるシート"
+    },
     "mention_dropdown": {
       "header": {
         "text": "デフォルトでは、OpenMates は AI モデル、mates、アプリスキル、フォーカスモード、設定とメモリを自動選択します。自動選択を上書きするには検索してください"
@@ -21052,7 +21100,7 @@
       "text": "無料で試す"
     },
     "version_title": {
-      "text": "v0.29"
+      "text": "v0.30"
     },
     "domain_not_allowed": {
       "text": "メールドメインが許可されていません。"

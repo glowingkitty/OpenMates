@@ -17,7 +17,8 @@ import {
 } from "./services/codeEmbedService";
 import { createWebPIIDocumentScanContext } from "./services/webPIIDetectionService";
 import { classifyMindMapUploadSource } from "./services/mindMapUploadDetection";
-import { delimitedTextToMarkdownTable, docxArrayBufferToHtml, parseEmlText, xlsxArrayBufferToMarkdownTable } from "./utils/fileContentParsers";
+import { delimitedTextToMarkdownTable, docxArrayBufferToHtml, parseEmlText } from "./utils/fileContentParsers";
+import { convertXlsxWorkbook, type ConvertedXlsxSheet, type XlsxRemovedFeature } from "./utils/xlsxSheetConverter";
 import { encode as toonEncode } from "@toon-format/toon";
 import { getApiUrl } from "../../config/api";
 import { notificationStore } from "../../stores/notificationStore";
@@ -1277,34 +1278,60 @@ export async function createOfficeDocumentFileEmbedNode(
   };
 }
 
+export interface OfficeSpreadsheetEmbedResult {
+  nodes: FileEmbedNodeContent[];
+  /** Workbook features that were not carried over (shown to the user). */
+  removed: XlsxRemovedFeature[];
+}
+
 export async function insertOfficeSpreadsheetFile(
   editor: Editor,
   file: File,
 ): Promise<void> {
-  const node = await createOfficeSpreadsheetFileEmbedNode(file);
-  if (node) insertFileEmbedNodes(editor, [node]);
+  const result = await createOfficeSpreadsheetFileEmbedNodes(file);
+  if (result) insertFileEmbedNodes(editor, result.nodes);
 }
 
-export async function createOfficeSpreadsheetFileEmbedNode(
+/**
+ * Converts an .xlsx workbook to one sheets-sheet embed per visible worksheet.
+ * Supported formulas are kept; unsupported workbook features are dropped and
+ * listed in `removed`. Returns null when the file is unreadable or has no data.
+ */
+export async function createOfficeSpreadsheetFileEmbedNodes(
   file: File,
   isAuthenticated: boolean = true,
-): Promise<FileEmbedNodeContent | null> {
-  let tableMarkdown: string;
+): Promise<OfficeSpreadsheetEmbedResult | null> {
+  let workbook: Awaited<ReturnType<typeof convertXlsxWorkbook>>;
   try {
-    tableMarkdown = await xlsxArrayBufferToMarkdownTable(await file.arrayBuffer());
+    workbook = await convertXlsxWorkbook(await file.arrayBuffer());
   } catch (error) {
     console.error("[EmbedHandlers] Failed to parse XLSX file content:", error);
     return null;
   }
 
-  if (!tableMarkdown) {
+  if (workbook.sheets.length === 0) {
     console.warn("[EmbedHandlers] Empty XLSX file skipped:", file.name);
     return null;
   }
 
+  const nodes: FileEmbedNodeContent[] = [];
+  for (const sheet of workbook.sheets) {
+    nodes.push(await createSheetEmbedNode(sheet, file.name, workbook.sheets.length > 1, isAuthenticated));
+  }
+  return { nodes, removed: workbook.removed };
+}
+
+async function createSheetEmbedNode(
+  sheet: ConvertedXlsxSheet,
+  filename: string,
+  multiSheet: boolean,
+  isAuthenticated: boolean,
+): Promise<FileEmbedNodeContent> {
+  const title = multiSheet ? `${filename} - ${sheet.name}` : filename;
+
   if (!isAuthenticated) {
     const embedId = generateUUID();
-    const { redactedContent } = await redactEmbedContent(tableMarkdown);
+    const { redactedContent } = await redactEmbedContent(sheet.markdown);
     const { rowCount, colCount, cellCount } = getMarkdownTableDimensions(redactedContent);
     return {
       type: "embed",
@@ -1313,7 +1340,7 @@ export async function createOfficeSpreadsheetFileEmbedNode(
         type: "sheets-sheet",
         status: "finished",
         contentRef: `preview:sheets-sheet:${embedId}`,
-        title: file.name,
+        title,
         code: redactedContent,
         rows: rowCount,
         cols: colCount,
@@ -1323,7 +1350,7 @@ export async function createOfficeSpreadsheetFileEmbedNode(
     };
   }
 
-  const result = await createSheetEmbed(tableMarkdown, file.name);
+  const result = await createSheetEmbed(sheet.markdown, title);
   return {
     type: "embed",
     attrs: {
@@ -1331,7 +1358,7 @@ export async function createOfficeSpreadsheetFileEmbedNode(
       type: "sheets-sheet",
       status: "finished",
       contentRef: `embed:${result.embed_id}`,
-      title: file.name,
+      title,
     },
   };
 }

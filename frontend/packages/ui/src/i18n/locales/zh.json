@@ -8741,6 +8741,54 @@
     "send_failed": {
       "text": "消息发送失败。内容仍保留在输入框中，请重试。"
     },
+    "file_import_failed": {
+      "text": "无法读取 {filename}，因此未添加附件。文件可能为空、已损坏或受密码保护。"
+    },
+    "file_unsupported_type": {
+      "text": "未添加 {filename}，因为暂不支持此文件类型。"
+    },
+    "file_pptx_coming_soon": {
+      "text": "暂不支持 PowerPoint 文件，幻灯片支持即将推出。未添加 {filename}。"
+    },
+    "xlsx_features_removed": {
+      "text": "{filename} 已作为表格导入。以下 Excel 功能不受支持，已被移除：{features}。"
+    },
+    "xlsx_feature_formatting": {
+      "text": "单元格颜色和样式"
+    },
+    "xlsx_feature_conditional_formatting": {
+      "text": "条件格式"
+    },
+    "xlsx_feature_merged_cells": {
+      "text": "合并单元格"
+    },
+    "xlsx_feature_charts": {
+      "text": "图表"
+    },
+    "xlsx_feature_images": {
+      "text": "图片"
+    },
+    "xlsx_feature_pivot_tables": {
+      "text": "数据透视表"
+    },
+    "xlsx_feature_macros": {
+      "text": "宏"
+    },
+    "xlsx_feature_external_links": {
+      "text": "指向其他工作簿的链接"
+    },
+    "xlsx_feature_comments": {
+      "text": "批注"
+    },
+    "xlsx_feature_unsupported_formulas": {
+      "text": "暂不支持的公式（已保留其计算结果）"
+    },
+    "xlsx_feature_hidden_sheets": {
+      "text": "隐藏的工作表"
+    },
+    "xlsx_feature_sheet_limit": {
+      "text": "前 10 个之后的工作表"
+    },
     "mention_dropdown": {
       "header": {
         "text": "默认情况下，OpenMates 自动选择 AI 模型、mates、应用技能、专注模式和设置与记忆。搜索以覆盖自动选择"
@@ -21052,7 +21100,7 @@
       "text": "免费测试"
     },
     "version_title": {
-      "text": "v0.29"
+      "text": "v0.30"
     },
     "domain_not_allowed": {
       "text": "不允许的电子邮件域名。"

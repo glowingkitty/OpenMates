@@ -8768,6 +8768,54 @@
     "send_failed": {
       "text": "No se pudo enviar tu mensaje. Sigue en el campo de entrada, inténtalo de nuevo."
     },
+    "file_import_failed": {
+      "text": "No se pudo leer {filename}, por lo que no se adjuntó. El archivo puede estar vacío, dañado o protegido con contraseña."
+    },
+    "file_unsupported_type": {
+      "text": "No se adjuntó {filename} porque este tipo de archivo aún no es compatible."
+    },
+    "file_pptx_coming_soon": {
+      "text": "Los archivos de PowerPoint aún no son compatibles; el soporte para presentaciones llegará pronto. No se adjuntó {filename}."
+    },
+    "xlsx_features_removed": {
+      "text": "{filename} se importó como hojas. Estas funciones de Excel no son compatibles y se eliminaron: {features}."
+    },
+    "xlsx_feature_formatting": {
+      "text": "colores y estilos de celda"
+    },
+    "xlsx_feature_conditional_formatting": {
+      "text": "formato condicional"
+    },
+    "xlsx_feature_merged_cells": {
+      "text": "celdas combinadas"
+    },
+    "xlsx_feature_charts": {
+      "text": "gráficos"
+    },
+    "xlsx_feature_images": {
+      "text": "imágenes"
+    },
+    "xlsx_feature_pivot_tables": {
+      "text": "tablas dinámicas"
+    },
+    "xlsx_feature_macros": {
+      "text": "macros"
+    },
+    "xlsx_feature_external_links": {
+      "text": "vínculos a otros libros"
+    },
+    "xlsx_feature_comments": {
+      "text": "comentarios"
+    },
+    "xlsx_feature_unsupported_formulas": {
+      "text": "fórmulas aún no compatibles (se conservaron sus valores calculados)"
+    },
+    "xlsx_feature_hidden_sheets": {
+      "text": "hojas ocultas"
+    },
+    "xlsx_feature_sheet_limit": {
+      "text": "hojas posteriores a las 10 primeras"
+    },
     "mention_dropdown": {
       "header": {
         "text": "Por defecto, OpenMates selecciona automáticamente el modelo de IA, mates, habilidades de aplicación, modos de enfoque y configuraciones y memorias. Busca para sobrescribir la selección automática"
@@ -21079,7 +21127,7 @@
       "text": "Probar gratis"
     },
     "version_title": {
-      "text": "v0.29"
+      "text": "v0.30"
     },
     "domain_not_allowed": {
       "text": "Dominio de correo electrónico no permitido."

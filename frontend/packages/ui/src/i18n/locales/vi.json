@@ -8741,6 +8741,54 @@
     "send_failed": {
       "text": "Không thể gửi tin nhắn của bạn. Tin nhắn vẫn còn trong ô nhập, vui lòng thử lại."
     },
+    "file_import_failed": {
+      "text": "Không thể đọc {filename} nên tệp chưa được đính kèm. Tệp có thể trống, bị hỏng hoặc được bảo vệ bằng mật khẩu."
+    },
+    "file_unsupported_type": {
+      "text": "{filename} chưa được đính kèm vì loại tệp này hiện chưa được hỗ trợ."
+    },
+    "file_pptx_coming_soon": {
+      "text": "Tệp PowerPoint hiện chưa được hỗ trợ - tính năng hỗ trợ slide sẽ sớm ra mắt. {filename} chưa được đính kèm."
+    },
+    "xlsx_features_removed": {
+      "text": "{filename} đã được nhập dưới dạng trang tính. Các tính năng Excel sau không được hỗ trợ và đã bị loại bỏ: {features}."
+    },
+    "xlsx_feature_formatting": {
+      "text": "màu sắc và kiểu ô"
+    },
+    "xlsx_feature_conditional_formatting": {
+      "text": "định dạng có điều kiện"
+    },
+    "xlsx_feature_merged_cells": {
+      "text": "ô đã gộp"
+    },
+    "xlsx_feature_charts": {
+      "text": "biểu đồ"
+    },
+    "xlsx_feature_images": {
+      "text": "hình ảnh"
+    },
+    "xlsx_feature_pivot_tables": {
+      "text": "bảng tổng hợp (pivot)"
+    },
+    "xlsx_feature_macros": {
+      "text": "macro"
+    },
+    "xlsx_feature_external_links": {
+      "text": "liên kết đến sổ làm việc khác"
+    },
+    "xlsx_feature_comments": {
+      "text": "ghi chú"
+    },
+    "xlsx_feature_unsupported_formulas": {
+      "text": "công thức chưa được hỗ trợ (giá trị đã tính được giữ lại)"
+    },
+    "xlsx_feature_hidden_sheets": {
+      "text": "trang tính ẩn"
+    },
+    "xlsx_feature_sheet_limit": {
+      "text": "các trang tính sau 10 trang đầu"
+    },
     "mention_dropdown": {
       "header": {
         "text": "Theo mặc định, OpenMates tự động chọn mô hình AI, mates, kỹ năng ứng dụng, chế độ tập trung và cài đặt & bộ nhớ. Tìm kiếm để ghi đè lựa chọn tự động"
@@ -21052,7 +21100,7 @@
       "text": "Dùng thử miễn phí"
     },
     "version_title": {
-      "text": "v0.29"
+      "text": "v0.30"
     },
     "domain_not_allowed": {
       "text": "Tên miền e-mail không được phép."

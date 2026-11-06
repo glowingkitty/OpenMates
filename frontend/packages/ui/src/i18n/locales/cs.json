@@ -8741,6 +8741,54 @@
     "send_failed": {
       "text": "Zprávu se nepodařilo odeslat. Zůstala v poli pro zadání, zkuste to prosím znovu."
     },
+    "file_import_failed": {
+      "text": "Soubor {filename} se nepodařilo přečíst, a proto nebyl připojen. Soubor může být prázdný, poškozený nebo chráněný heslem."
+    },
+    "file_unsupported_type": {
+      "text": "Soubor {filename} nebyl připojen, protože tento typ souboru zatím není podporován."
+    },
+    "file_pptx_coming_soon": {
+      "text": "Soubory PowerPoint zatím nejsou podporovány – podpora prezentací brzy přijde. Soubor {filename} nebyl připojen."
+    },
+    "xlsx_features_removed": {
+      "text": "Soubor {filename} byl importován jako listy. Tyto funkce Excelu nejsou podporovány a byly odstraněny: {features}."
+    },
+    "xlsx_feature_formatting": {
+      "text": "barvy a styly buněk"
+    },
+    "xlsx_feature_conditional_formatting": {
+      "text": "podmíněné formátování"
+    },
+    "xlsx_feature_merged_cells": {
+      "text": "sloučené buňky"
+    },
+    "xlsx_feature_charts": {
+      "text": "grafy"
+    },
+    "xlsx_feature_images": {
+      "text": "obrázky"
+    },
+    "xlsx_feature_pivot_tables": {
+      "text": "kontingenční tabulky"
+    },
+    "xlsx_feature_macros": {
+      "text": "makra"
+    },
+    "xlsx_feature_external_links": {
+      "text": "odkazy na jiné sešity"
+    },
+    "xlsx_feature_comments": {
+      "text": "komentáře"
+    },
+    "xlsx_feature_unsupported_formulas": {
+      "text": "vzorce, které zatím nejsou podporovány (vypočtené hodnoty zůstaly zachovány)"
+    },
+    "xlsx_feature_hidden_sheets": {
+      "text": "skryté listy"
+    },
+    "xlsx_feature_sheet_limit": {
+      "text": "listy za prvními 10"
+    },
     "mention_dropdown": {
       "header": {
         "text": "Ve výchozím nastavení OpenMates automaticky vybírá model AI, mates, dovednosti aplikace, režimy soustředění a nastavení a vzpomínky. Vyhledejte pro přepsání automatického výběru"
@@ -21052,7 +21100,7 @@
       "text": "Vyzkoušet zdarma"
     },
     "version_title": {
-      "text": "v0.29"
+      "text": "v0.30"
     },
     "domain_not_allowed": {
       "text": "E-mailová doména není povolena."

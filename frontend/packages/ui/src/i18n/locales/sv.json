@@ -8741,6 +8741,54 @@
     "send_failed": {
       "text": "Ditt meddelande kunde inte skickas. Det finns kvar i inmatningsfältet, försök igen."
     },
+    "file_import_failed": {
+      "text": "{filename} kunde inte läsas och bifogades därför inte. Filen kan vara tom, skadad eller lösenordsskyddad."
+    },
+    "file_unsupported_type": {
+      "text": "{filename} bifogades inte eftersom den här filtypen inte stöds ännu."
+    },
+    "file_pptx_coming_soon": {
+      "text": "PowerPoint-filer stöds inte ännu – stöd för bildspel kommer snart. {filename} bifogades inte."
+    },
+    "xlsx_features_removed": {
+      "text": "{filename} importerades som blad. Dessa Excel-funktioner stöds inte och togs bort: {features}."
+    },
+    "xlsx_feature_formatting": {
+      "text": "cellfärger och formatering"
+    },
+    "xlsx_feature_conditional_formatting": {
+      "text": "villkorsstyrd formatering"
+    },
+    "xlsx_feature_merged_cells": {
+      "text": "sammanslagna celler"
+    },
+    "xlsx_feature_charts": {
+      "text": "diagram"
+    },
+    "xlsx_feature_images": {
+      "text": "bilder"
+    },
+    "xlsx_feature_pivot_tables": {
+      "text": "pivottabeller"
+    },
+    "xlsx_feature_macros": {
+      "text": "makron"
+    },
+    "xlsx_feature_external_links": {
+      "text": "länkar till andra arbetsböcker"
+    },
+    "xlsx_feature_comments": {
+      "text": "kommentarer"
+    },
+    "xlsx_feature_unsupported_formulas": {
+      "text": "formler som inte stöds ännu (de beräknade värdena behölls)"
+    },
+    "xlsx_feature_hidden_sheets": {
+      "text": "dolda blad"
+    },
+    "xlsx_feature_sheet_limit": {
+      "text": "blad efter de första 10"
+    },
     "mention_dropdown": {
       "header": {
         "text": "Som standard väljer OpenMates automatiskt AI-modell, mates, app-färdigheter, fokusmoder samt inställningar och minnen. Sök för att åsidosätta det automatiska valet"
@@ -21052,7 +21100,7 @@
       "text": "Testa gratis"
     },
     "version_title": {
-      "text": "v0.29"
+      "text": "v0.30"
     },
     "domain_not_allowed": {
       "text": "E-postdomän är inte tillåten."

@@ -8741,6 +8741,54 @@
     "send_failed": {
       "text": "לא ניתן היה לשלוח את ההודעה. היא עדיין בשדה ההקלדה, נסה שוב."
     },
+    "file_import_failed": {
+      "text": "לא ניתן היה לקרוא את {filename}, ולכן הוא לא צורף. ייתכן שהקובץ ריק, פגום או מוגן בסיסמה."
+    },
+    "file_unsupported_type": {
+      "text": "{filename} לא צורף כי סוג קובץ זה עדיין אינו נתמך."
+    },
+    "file_pptx_coming_soon": {
+      "text": "קובצי PowerPoint עדיין אינם נתמכים - התמיכה במצגות תגיע בקרוב. {filename} לא צורף."
+    },
+    "xlsx_features_removed": {
+      "text": "{filename} יובא כגיליונות. תכונות Excel הבאות אינן נתמכות והוסרו: {features}."
+    },
+    "xlsx_feature_formatting": {
+      "text": "צבעי תאים ועיצוב"
+    },
+    "xlsx_feature_conditional_formatting": {
+      "text": "עיצוב מותנה"
+    },
+    "xlsx_feature_merged_cells": {
+      "text": "תאים ממוזגים"
+    },
+    "xlsx_feature_charts": {
+      "text": "תרשימים"
+    },
+    "xlsx_feature_images": {
+      "text": "תמונות"
+    },
+    "xlsx_feature_pivot_tables": {
+      "text": "טבלאות ציר"
+    },
+    "xlsx_feature_macros": {
+      "text": "מאקרו"
+    },
+    "xlsx_feature_external_links": {
+      "text": "קישורים לחוברות עבודה אחרות"
+    },
+    "xlsx_feature_comments": {
+      "text": "הערות"
+    },
+    "xlsx_feature_unsupported_formulas": {
+      "text": "נוסחאות שעדיין אינן נתמכות (הערכים המחושבים נשמרו)"
+    },
+    "xlsx_feature_hidden_sheets": {
+      "text": "גיליונות מוסתרים"
+    },
+    "xlsx_feature_sheet_limit": {
+      "text": "גיליונות אחרי ה-10 הראשונים"
+    },
     "mention_dropdown": {
       "header": {
         "text": "כברירת מחדל, OpenMates בוחרת אוטומטית את מודל ה-AI, ה-mates, כישורי האפליקציה, מצבי המיקוד וההגדרות והזיכרונות. חפש כדי לדרוס את הבחירה האוטומטית"
@@ -21052,7 +21100,7 @@
       "text": "נסו בחינם"
     },
     "version_title": {
-      "text": "v0.29"
+      "text": "v0.30"
     },
     "domain_not_allowed": {
       "text": "דומיין האימייל אינו מורשה."

@@ -7744,7 +7744,7 @@
         {/if}
 
         <!-- Supported: images, PDFs (authenticated only — server-side OCR pipeline), and code/text files. Extensions mirror isCodeOrTextFile() in utils/fileHelpers.ts. -->
-        <input bind:this={fileInput} data-testid="message-file-input" type="file" oncancel={() => nativeAttachmentPickerOpen = false} onchange={onFileSelected} style="display: none" multiple accept="image/*,.pdf,application/pdf,.py,.js,.mjs,.cjs,.ts,.html,.css,.json,.jsonl,.svelte,.java,.cpp,.cc,.cxx,.c,.h,.hpp,.hh,.hxx,.rs,.go,.rb,.php,.swift,.kt,.kts,.cs,.scala,.r,.pl,.pm,.lua,.dart,.txt,.md,.mdx,.xml,.yaml,.yml,.toml,.ini,.cfg,.conf,.env,.log,.sh,.bash,.zsh,.fish,.ps1,.bat,.cmd,.sql,.vue,.jsx,.tsx,.scss,.less,.sass,.csv,.tsv,.eml,.docx,.xlsx,Dockerfile,Makefile" />
+        <input bind:this={fileInput} data-testid="message-file-input" type="file" oncancel={() => nativeAttachmentPickerOpen = false} onchange={onFileSelected} style="display: none" multiple accept="image/*,.pdf,application/pdf,.py,.js,.mjs,.cjs,.ts,.html,.css,.json,.jsonl,.svelte,.java,.cpp,.cc,.cxx,.c,.h,.hpp,.hh,.hxx,.rs,.go,.rb,.php,.swift,.kt,.kts,.cs,.scala,.r,.pl,.pm,.lua,.dart,.txt,.md,.mdx,.xml,.yaml,.yml,.toml,.ini,.cfg,.conf,.env,.log,.sh,.bash,.zsh,.fish,.ps1,.bat,.cmd,.sql,.vue,.jsx,.tsx,.scss,.less,.sass,.csv,.tsv,.eml,.docx,.xlsx,.pptx,Dockerfile,Makefile" />
         <!-- Video capture disabled: video upload not yet supported. Remove video/* when re-enabling. -->
         <input bind:this={cameraInput} data-testid="message-camera-input" oncancel={() => nativeAttachmentPickerOpen = false} type="file" accept="image/*" capture="environment" onchange={onFileSelected} style="display: none" />
 

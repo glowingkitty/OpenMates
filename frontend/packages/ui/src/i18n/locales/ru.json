@@ -8741,6 +8741,54 @@
     "send_failed": {
       "text": "Не удалось отправить сообщение. Оно осталось в поле ввода, попробуйте ещё раз."
     },
+    "file_import_failed": {
+      "text": "Не удалось прочитать {filename}, поэтому файл не прикреплён. Возможно, он пуст, повреждён или защищён паролем."
+    },
+    "file_unsupported_type": {
+      "text": "Файл {filename} не прикреплён: этот тип файлов пока не поддерживается."
+    },
+    "file_pptx_coming_soon": {
+      "text": "Файлы PowerPoint пока не поддерживаются — поддержка слайдов скоро появится. Файл {filename} не прикреплён."
+    },
+    "xlsx_features_removed": {
+      "text": "{filename} импортирован как таблицы. Эти функции Excel не поддерживаются и были удалены: {features}."
+    },
+    "xlsx_feature_formatting": {
+      "text": "цвета и стили ячеек"
+    },
+    "xlsx_feature_conditional_formatting": {
+      "text": "условное форматирование"
+    },
+    "xlsx_feature_merged_cells": {
+      "text": "объединённые ячейки"
+    },
+    "xlsx_feature_charts": {
+      "text": "диаграммы"
+    },
+    "xlsx_feature_images": {
+      "text": "изображения"
+    },
+    "xlsx_feature_pivot_tables": {
+      "text": "сводные таблицы"
+    },
+    "xlsx_feature_macros": {
+      "text": "макросы"
+    },
+    "xlsx_feature_external_links": {
+      "text": "ссылки на другие книги"
+    },
+    "xlsx_feature_comments": {
+      "text": "комментарии"
+    },
+    "xlsx_feature_unsupported_formulas": {
+      "text": "формулы, которые пока не поддерживаются (вычисленные значения сохранены)"
+    },
+    "xlsx_feature_hidden_sheets": {
+      "text": "скрытые листы"
+    },
+    "xlsx_feature_sheet_limit": {
+      "text": "листы после первых 10"
+    },
     "mention_dropdown": {
       "header": {
         "text": "По умолчанию OpenMates автоматически выбирает модель ИИ, помощников, навыки приложений, режимы фокуса и настройки и воспоминания. Выполните поиск, чтобы переопределить автовыбор"
@@ -21052,7 +21100,7 @@
       "text": "Попробовать бесплатно"
     },
     "version_title": {
-      "text": "v0.29"
+      "text": "v0.30"
     },
     "domain_not_allowed": {
       "text": "Домен электронной почты не разрешен."

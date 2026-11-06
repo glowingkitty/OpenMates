@@ -8741,6 +8741,54 @@
     "send_failed": {
       "text": "आपका संदेश भेजा नहीं जा सका। वह इनपुट फ़ील्ड में मौजूद है, कृपया फिर से कोशिश करें।"
     },
+    "file_import_failed": {
+      "text": "{filename} को पढ़ा नहीं जा सका, इसलिए उसे संलग्न नहीं किया गया। फ़ाइल खाली, क्षतिग्रस्त या पासवर्ड से सुरक्षित हो सकती है।"
+    },
+    "file_unsupported_type": {
+      "text": "{filename} संलग्न नहीं किया गया क्योंकि यह फ़ाइल प्रकार अभी समर्थित नहीं है।"
+    },
+    "file_pptx_coming_soon": {
+      "text": "PowerPoint फ़ाइलें अभी समर्थित नहीं हैं - स्लाइड सपोर्ट जल्द आ रहा है। {filename} संलग्न नहीं किया गया।"
+    },
+    "xlsx_features_removed": {
+      "text": "{filename} को शीट के रूप में आयात किया गया। ये Excel सुविधाएँ समर्थित नहीं हैं और हटा दी गईं: {features}।"
+    },
+    "xlsx_feature_formatting": {
+      "text": "सेल के रंग और शैली"
+    },
+    "xlsx_feature_conditional_formatting": {
+      "text": "कंडीशनल फ़ॉर्मेटिंग"
+    },
+    "xlsx_feature_merged_cells": {
+      "text": "मर्ज की गई सेल"
+    },
+    "xlsx_feature_charts": {
+      "text": "चार्ट"
+    },
+    "xlsx_feature_images": {
+      "text": "छवियाँ"
+    },
+    "xlsx_feature_pivot_tables": {
+      "text": "पिवट टेबल"
+    },
+    "xlsx_feature_macros": {
+      "text": "मैक्रो"
+    },
+    "xlsx_feature_external_links": {
+      "text": "अन्य वर्कबुक के लिंक"
+    },
+    "xlsx_feature_comments": {
+      "text": "टिप्पणियाँ"
+    },
+    "xlsx_feature_unsupported_formulas": {
+      "text": "ऐसे फ़ॉर्मूले जो अभी समर्थित नहीं हैं (उनके परिकलित मान रखे गए)"
+    },
+    "xlsx_feature_hidden_sheets": {
+      "text": "छिपी हुई शीट"
+    },
+    "xlsx_feature_sheet_limit": {
+      "text": "पहली 10 के बाद की शीट"
+    },
     "mention_dropdown": {
       "header": {
         "text": "डिफ़ॉल्ट रूप से, OpenMates AI मॉडल, mates, ऐप कौशल, फोकस मोड और सेटिंग्स और यादें स्वचालित रूप से चुनता है। स्वचालित चयन को ओवरराइट करने के लिए खोजें"
@@ -21052,7 +21100,7 @@
       "text": "मुफ्त में आज़माएँ"
     },
     "version_title": {
-      "text": "v0.29"
+      "text": "v0.30"
     },
     "domain_not_allowed": {
       "text": "ई-मेल डोमेन की अनुमति नहीं है।"
