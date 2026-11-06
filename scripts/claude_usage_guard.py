@@ -4,13 +4,16 @@
 Deterministic decision, minimal model use. Every check:
   1. reads the subscription's weekly (seven_day) usage from the account endpoint
      Claude Code's /usage uses (read-only, undocumented, failures are reported),
-  2. evaluates two tiers, each triggering when used >= its threshold AND more than its
+  2. evaluates three tiers, each triggering when used >= its threshold AND more than its
      minimum hours remain until the reset (close to the reset it is cheaper to wait):
+       pace     remaining <= 15% x full days until the reset: stop, report progress and what
+                is open. The threshold moves down each day; chats that become active later
+                are told too (each chat at most once per day step),
        wrapup   >= 90% used (10% left), > 24h to reset: orderly wind-down,
        reserve  >= 97% used (3% left),  > 10h to reset: stop now, keep an emergency reserve,
-  3. at most once per tier and weekly window, lists the active chats and delivers one
-     fixed message to each through a restricted headless ``claude -p`` that may only call
-     ListAgents/SendMessage (the supported way to reach a running, mid-turn chat).
+  3. at most once per tier and weekly window (pace: per day step), lists the active chats and
+     delivers one fixed message to each through a restricted headless ``claude -p`` that may
+     only call ListAgents/SendMessage (the supported way to reach a running, mid-turn chat).
 
 Commands:
   status   Print usage, the decision and this window's delivery record.
@@ -43,7 +46,10 @@ RESERVE_THRESHOLD_PERCENT = 97.0
 RESERVE_MIN_HOURS_TO_RESET = 10.0
 WRAPUP_TIER = "wrapup"
 RESERVE_TIER = "reserve"
-TIERS = (WRAPUP_TIER, RESERVE_TIER)
+PACE_TIER = "pace"
+TIERS = (WRAPUP_TIER, RESERVE_TIER, PACE_TIER)
+PACE_PERCENT_PER_DAY = 15.0
+PACE_MAX_DAYS = 6  # a 7-day window has at most 6 full days left once it has started
 RESERVE_STOP_MINUTES = 3
 ACTIVE_MINUTES = 30
 MAX_ATTEMPTS = 3
@@ -108,6 +114,18 @@ def fetch_weekly_usage() -> tuple[float, datetime]:
 def window_key(resets: datetime) -> str:
     return resets.astimezone(timezone.utc).replace(minute=0, second=0, microsecond=0).isoformat()
 
+
+def pace_days(hours_to_reset: float) -> int:
+    """Full days left until the reset (the running partial day is not charged)."""
+    return max(0, min(PACE_MAX_DAYS, int(hours_to_reset // 24)))
+
+def pace_required_remaining(hours_to_reset: float) -> float:
+    """Percent of the weekly budget that must still be left: 15% per full day to the reset."""
+    return PACE_PERCENT_PER_DAY * pace_days(hours_to_reset)
+
+def pace_threshold(hours_to_reset: float) -> float:
+    """Used percent from which the pace rule fires (same unit as the other tiers' threshold)."""
+    return 100.0 - pace_required_remaining(hours_to_reset)
 
 def same_window(record: dict | None, resets: datetime) -> bool:
     """True when the stored record belongs to the weekly window ending at ``resets``.
@@ -184,8 +202,29 @@ def reserve_message(used: float, resets: datetime, hours: float) -> str:
     )
 
 
+def pace_message(used: float, resets: datetime, hours: float) -> str:
+    reset_text = resets.astimezone(LOCAL_TZ).strftime("%a %d %b %H:%M")
+    days = pace_days(hours)
+    return (
+        f"STOP: only {100 - used:.0f}% of the weekly Claude budget is left, but {days} full day(s) remain until the "
+        f"reset ({reset_text}); the plan keeps {PACE_PERCENT_PER_DAY:.0f}% per remaining day "
+        f"(= {pace_required_remaining(hours):.0f}%). Stop this chat now, within about {WRAPUP_MINUTES} minutes.\n"
+        "Automated by scripts/claude_usage_guard.py (set up by the user).\n"
+        "1. Do not start new work, sub-agents, CI runs, deploys or long waits. Cancel pending waits.\n"
+        f"2. If a deploy or merge of verified work can be finished in about {WRAPUP_MINUTES} minutes, complete it; "
+        "otherwise stop at the next safe point (no half-applied edits; no raw git commit/push/stash). "
+        "Never rush or publish unverified work.\n"
+        "3. Update your linked OpenMates Task(s): honest status (never Done while incomplete), session id and "
+        "workspace, commits/deploys made, what is verified and how, blockers, and the exact next command or file "
+        "to resume from. If unfinished work has no Task, create one with /new-task.\n"
+        "4. Final reply: a short report of the progress made and what remains open, then the recommended next "
+        "steps in order. Then do nothing further until the user writes to you.\n"
+        "An explicit newer instruction from the user overrides this message."
+    )
+
 def tier_message(tier: str, used: float, resets: datetime, hours: float) -> str:
-    return (reserve_message if tier == RESERVE_TIER else wrapup_message)(used, resets, hours)
+    builders = {RESERVE_TIER: reserve_message, PACE_TIER: pace_message, WRAPUP_TIER: wrapup_message}
+    return builders[tier](used, resets, hours)
 
 
 def list_background_agents() -> list[dict]:
@@ -301,12 +340,30 @@ def save_record(directory: Path, record: dict, tier: str = WRAPUP_TIER) -> None:
     temporary.replace(directory / state_file(tier))
 
 
+def pace_record(record: dict | None, resets: datetime, step: int) -> dict | None:
+    """Pace record for the current day step, without ``sent_at`` so new chats can still be told.
+
+    Pace keeps firing within a step (only chats not yet told are messaged), so the "already
+    sent" short-circuit of ``decide`` must not apply; a different step or window starts clean.
+    """
+    if not same_window(record, resets) or record.get("step") != step:
+        return None
+    return {key: value for key, value in record.items() if key != "sent_at"}
+
 def run_check(dry_run: bool, threshold: float, min_hours: float, active_minutes: int,
               directory: Path | None = None, now: datetime | None = None, tier: str = WRAPUP_TIER) -> Decision:
     directory = directory or state_dir()
     now = now or datetime.now(timezone.utc)
     used, resets = fetch_weekly_usage()
     record = load_record(directory, tier)
+    pace = tier == PACE_TIER
+    if pace:
+        # The pace threshold falls each day; a new day step starts a fresh record, and within a
+        # step the record only remembers who was told, so later-started chats are still reached.
+        hours_now = (resets - now).total_seconds() / 3600
+        threshold, min_hours = pace_threshold(hours_now), 0.0
+        step = pace_days(hours_now)
+        record = pace_record(record, resets, step)
     decision = decide(used, resets, now, record, threshold, min_hours)
     log(f"[{tier}] weekly usage {used:.1f}%, {decision.hours_to_reset:.1f}h to reset -> {decision.action}")
     if decision.action != "trigger":
@@ -314,6 +371,12 @@ def run_check(dry_run: bool, threshold: float, min_hours: float, active_minutes:
     root = repository_root(Path.cwd())
     targets = active_targets(list_background_agents(), root, time.time(), active_minutes,
                              os.environ.get("CLAUDE_CODE_SESSION_ID", ""))
+    notified = list(record.get("notified", [])) if pace and record else []
+    if pace:
+        targets = [t for t in targets if t["sessionId"] not in notified]
+        if not targets:
+            log("no newly active chats to tell")
+            return decision
     message = tier_message(tier, used, resets, decision.hours_to_reset)
     if dry_run:
         log(f"dry run: would message {len(targets)} chats: {[t['name'] for t in targets]}")
@@ -322,6 +385,8 @@ def run_check(dry_run: bool, threshold: float, min_hours: float, active_minutes:
     attempts = record.get("attempts", 0) if same_window(record, resets) else 0
     record = {"window": decision.window, "attempts": attempts + 1, "used_percent": used,
               "targets": targets, "triggered_at": now.isoformat(timespec="seconds")}
+    if pace:
+        record.update(step=step, notified=notified)
     if not targets:
         record["sent_at"] = now.isoformat(timespec="seconds")
         record["result"] = "no active chats at trigger time"
@@ -336,6 +401,9 @@ def run_check(dry_run: bool, threshold: float, min_hours: float, active_minutes:
     try:
         record["result"] = deliver(targets, message, root, mode)
         record["sent_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        if pace:
+            record["notified"] = notified + [t["sessionId"] for t in targets]
+            record["attempts"] = 0  # only failed deliveries count toward giving up; later chats still get told
         log(f"delivered to {len(targets)} chats: {record['result'][:300]}")
     except DeliveryFailed as error:
         record["error"] = str(error)
@@ -395,9 +463,19 @@ def run_status(rules: dict[str, tuple[float, float]]) -> int:
     print(f"weekly usage {used:.1f}% | resets {resets.astimezone(LOCAL_TZ):%a %d %b %H:%M}")
     for tier, (threshold, min_hours) in rules.items():
         record = load_record(state_dir(), tier)
-        decision = decide(used, resets, datetime.now(timezone.utc), record, threshold, min_hours)
+        now = datetime.now(timezone.utc)
+        if tier == PACE_TIER:
+            hours = (resets - now).total_seconds() / 3600
+            threshold, min_hours = pace_threshold(hours), 0.0
+            record = pace_record(record, resets, pace_days(hours))
+            rule = (f"remaining <= {PACE_PERCENT_PER_DAY:.0f}% x {pace_days(hours)} full day(s) = "
+                    f"{pace_required_remaining(hours):.0f}% (i.e. >= {threshold:.0f}% used); each active chat is told "
+                    "once per day step")
+        else:
+            rule = f"used >= {threshold:.0f}% and > {min_hours:.0f}h to reset, once per weekly window"
+        decision = decide(used, resets, now, record, threshold, min_hours)
         print(f"[{tier}] {decision.hours_to_reset:.1f}h to reset | action now: {decision.action}")
-        print(f"[{tier}] rule: >= {threshold:.0f}% used and > {min_hours:.0f}h to reset, once per weekly window")
+        print(f"[{tier}] rule: {rule}")
         current = record if same_window(record, resets) else None
         print(f"[{tier}] this window: " + (json.dumps({k: v for k, v in current.items() if k != "targets"}, indent=2)
                                           if current else "nothing sent"))
@@ -417,15 +495,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
     rules = {WRAPUP_TIER: (args.threshold, args.min_hours),
-             RESERVE_TIER: (args.reserve_threshold, args.reserve_min_hours)}
+             RESERVE_TIER: (args.reserve_threshold, args.reserve_min_hours),
+             PACE_TIER: (0.0, 0.0)}  # pace threshold is computed from the time left, see run_check
 
     def check_all() -> None:
         # Reserve first: it is the more urgent message; each tier fires once per window.
-        for tier in (RESERVE_TIER, WRAPUP_TIER):
+        for tier in (RESERVE_TIER, PACE_TIER, WRAPUP_TIER):
             run_check(args.dry_run, *rules[tier], args.active_minutes, tier=tier)
 
     if args.command == "message":
         for tier, (threshold, min_hours) in rules.items():
+            if tier == PACE_TIER:
+                threshold, min_hours = 100 - pace_required_remaining(4 * 24 + 1), 4 * 24 + 1
             print(f"--- {tier} ---")
             print(tier_message(tier, threshold, datetime.now(timezone.utc) + timedelta(hours=min_hours + 1),
                                min_hours + 1))
