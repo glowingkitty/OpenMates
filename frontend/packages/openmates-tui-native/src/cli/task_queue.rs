@@ -19,7 +19,7 @@ pub(super) fn supported(invocation: &Invocation) -> bool {
             | "tasks release"
             | "tasks activity add"
             | "tasks activity flush"
-    )
+    ) || super::task_queue_actions::handles(&invocation.command_path())
 }
 pub(crate) fn retryable(error: &CliError) -> bool {
     matches!(
@@ -74,7 +74,7 @@ fn pending(delivery: &TaskDelivery, source: Error) -> CliError {
         persistent: false,
     }
 }
-async fn dispatch(
+pub(super) async fn dispatch(
     service: &mut Tasks<'_>,
     journal: &Journal,
     id: &str,
@@ -390,12 +390,7 @@ async fn prepare(
             super::codex::guard_release(service, id()?).await?;
             service.prepare_release(id()?, delivery_id).await
         }
-        _ => {
-            return Err(CliError::Unsupported {
-                command: invocation.command_path(),
-                reason: "This operation has no typed encrypted delivery preparation.".into(),
-            });
-        }
+        _ => return super::task_queue_actions::prepare(invocation, service, delivery_id).await,
     };
     result.map_err(CliError::from)
 }

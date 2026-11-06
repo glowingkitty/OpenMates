@@ -352,7 +352,28 @@ impl Journal {
     /// Compatibility/manual preparation. Missing actor/order evidence remains
     /// quarantined from automatic replay, including after an explicit retry.
     pub async fn insert(&self, delivery: TaskDelivery, intent: String) -> Result<StoredDelivery> {
-        self.insert_inner(delivery, intent, None).await
+        self.insert_inner(delivery, intent, None, Phase::Prepared)
+            .await
+    }
+    /// Adopt a Human-caller intent migrated from the npm CLI outbox. `uncertain`
+    /// carries npm's "may have reached the server" flag so the first native
+    /// dispatch reconciles before resending (read-before-retry).
+    pub async fn insert_adopted(
+        &self,
+        delivery: TaskDelivery,
+        intent: String,
+        uncertain: bool,
+    ) -> Result<StoredDelivery> {
+        if delivery.creator || delivery.actor_assignee {
+            return Err(Error::Forbidden);
+        }
+        let phase = if uncertain {
+            Phase::Uncertain
+        } else {
+            Phase::Prepared
+        };
+        self.insert_inner(delivery, intent, Some(OriginalCaller::Human), phase)
+            .await
     }
     pub async fn insert_for_caller(
         &self,
@@ -367,13 +388,15 @@ impl Journal {
         {
             return Err(Error::Forbidden);
         }
-        self.insert_inner(delivery, intent, Some(caller)).await
+        self.insert_inner(delivery, intent, Some(caller), Phase::Prepared)
+            .await
     }
     async fn insert_inner(
         &self,
         delivery: TaskDelivery,
         intent: String,
         caller: Option<OriginalCaller>,
+        phase: Phase,
     ) -> Result<StoredDelivery> {
         let context = self.context.clone();
         self.access(move |mut state| {
@@ -423,7 +446,7 @@ impl Journal {
                 delivery,
                 intent,
                 context,
-                phase: Phase::Prepared,
+                phase,
                 result: None,
                 retry: RetryState::default(),
                 replay,

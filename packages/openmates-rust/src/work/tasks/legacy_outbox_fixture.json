@@ -1,0 +1,47 @@
+{
+ "generator": "scripts/fixtures/legacy_task_outbox/generate.mjs",
+ "master_key_byte": 7,
+ "scope": [
+  "https://api.example.org",
+  "fixture-owner",
+  "personal"
+ ],
+ "existing_task": {
+  "task_id": "bbbbbbbb-1111-4111-8111-aabbccddeeff",
+  "version": 3,
+  "encrypted_task_key": "NNkjDr1m6U0VD5mbv5JtIePB0Rhmi3QrbP5/7yqmauKapWpyvfXr+kXvx6egekiKsfOp6o7kp3cvjZJT",
+  "encrypted_slug": "tJLu105WEaxp//wNWOjcIpOQlsmwy+qz+xAAHs/MhSkzRDknVy/n97eN",
+  "slug_lookup_hash": "a0d50bce5a585f9c5836a5c4e6d17608efbb3e68529b1789a2521e8c5a2c0014",
+  "encrypted_title": "Zujjf1GiJXAu5MtZ3pLrl1LA+C1XED2gMaTdFWm8MLbCJ8JfoHrSNels",
+  "encrypted_description": "eWIgJ6fXepZvzFrDSr7EA/cwa7s9VCXufw86DgFr9QRyQl7oLUiNkp72Fls=",
+  "encrypted_labels": "XMqOMr0IUY6X52mE+KKX45PdlWqUoedPgQB6MvHN",
+  "encrypted_tags": "x/QJ3TtGzghp8UmUT/urpomYOqnW5aYzs4o2/YcP",
+  "label_hashes": [],
+  "encrypted_linked_project_ids": "oTTK/zDQMSAEmCIoUjNclnuwzKRO2+ECIhnuggjN",
+  "status": "todo",
+  "assignee_type": "user",
+  "assignee_identity": null,
+  "assignee_hash": null,
+  "primary_chat_id": null,
+  "linked_project_ids": [],
+  "plan_id": null,
+  "due_at": null,
+  "priority": 0,
+  "position": 1793981712,
+  "created_at": 1793981712,
+  "updated_at": 1793981712,
+  "source": "user"
+ },
+ "files": {
+  "task-activity-delivery/19873f1fd537fcb5d950e9dc92540266e1dc315eec5971710b73172c83604ccc/pending/6666666666666666666666666666666666666666666666666666666666666666.json": "{\"input\":{\"entry_id\":\"6666666666666666666666666666666666666666666666666666666666666666\",\"encrypted_message\":\"X7tf/w8yB+3vPubaScopiM8F4Xpe55UK4OatpB9whhdiOx9lb2bUbYkcuX/czBSrtXjf\",\"embed_refs\":[],\"created_at\":1793981712}}",
+  "task-activity-delivery/19873f1fd537fcb5d950e9dc92540266e1dc315eec5971710b73172c83604ccc/scope.json": "[\"https://api.example.org\",\"fixture-owner\",\"personal\",\"bbbbbbbb-1111-4111-8111-aabbccddeeff\",\"assignee\"]",
+  "task-activity-delivery/df1e72707b179acad41ad911d4719794b752ca95c44e5b2532452c55be6f4e43/pending/5555555555555555555555555555555555555555555555555555555555555555.json": "{\"input\":{\"entry_id\":\"5555555555555555555555555555555555555555555555555555555555555555\",\"encrypted_message\":\"ZRUmcoAMtC24IlKQgLd/gqEcmqGO66otG9H4+ZyeAKQZuM1KBaZBsNf5B6nX5MU=\",\"embed_refs\":[],\"created_at\":1793981712}}",
+  "task-activity-delivery/df1e72707b179acad41ad911d4719794b752ca95c44e5b2532452c55be6f4e43/scope.json": "[\"https://api.example.org\",\"fixture-owner\",\"personal\",\"bbbbbbbb-1111-4111-8111-aabbccddeeff\",\"user\"]",
+  "task-delivery-control/f2153685fff907c9652ce28bc0bf4cc8445c22b49f5fd48352620b71099eb26a/retry.json": "{\"failures\":2,\"first_failure_at\":1793981712672,\"retry_at\":1793982321990.6875,\"notified\":false}",
+  "task-mutation-delivery/f2153685fff907c9652ce28bc0bf4cc8445c22b49f5fd48352620b71099eb26a/1111111111111111111111111111111111111111111111111111111111111111.json": "{\"mutation\":{\"kind\":\"create\",\"taskId\":\"aabbccdd-1111-4111-8111-aabbccddeeff\",\"input\":{\"task_id\":\"aabbccdd-1111-4111-8111-aabbccddeeff\",\"version\":1,\"encrypted_task_key\":\"LzqHGf4jz7cjYfZNpwqNDU2VGFNCYWwXmzUKYV48jCje7605Hg340nZc26swBo9LnvMMbr61LtsGHCnq\",\"encrypted_slug\":\"YucM6wrjKkpmYkNrAEAaDT4IgiLOC2hxu7bvDbRpLdTIjB4fzI2FD0jNVjRSO8fM\",\"slug_lookup_hash\":\"523168588a437d2b6a52e85c8366a62cd987b08cb61ba596a29e93d9141c8a12\",\"encrypted_title\":\"NYinyQcUGMdA9qrn5bfkMbktkxKz8zi+lqnoX01A6yl4PcRKoPhND6mgg+Y5Fi88\",\"encrypted_description\":\"ZmcftudpWtxRyVrV5WAfhQjqAw70bVcVRs7mE2/NpTu2dxpC/671RoSkI/v4zLQhKWw=\",\"encrypted_labels\":\"FQyewsF4pZ4Cwzx1TgU28I74Z8fOoLWgfd5uZWx8\",\"encrypted_tags\":\"sshs2z1WVN5xg6r1NZ2HQx6ua4ooOyqswVnk7F94\",\"label_hashes\":[],\"encrypted_linked_project_ids\":\"JyoqTURH/uz5CFmkrIsdc2Jd6tuq5LhXcbb61RYF\",\"status\":\"todo\",\"assignee_type\":\"openmates\",\"assignee_identity\":\"openmates\",\"assignee_hash\":null,\"primary_chat_id\":null,\"linked_project_ids\":[],\"plan_id\":null,\"due_at\":null,\"priority\":0,\"position\":1793981712,\"created_at\":1793981712,\"updated_at\":1793981712,\"plaintext_title\":\"Legacy private title\",\"plaintext_description\":\"Legacy private details\"}},\"uncertain\":true}",
+  "task-mutation-delivery/f2153685fff907c9652ce28bc0bf4cc8445c22b49f5fd48352620b71099eb26a/2222222222222222222222222222222222222222222222222222222222222222.json": "{\"mutation\":{\"kind\":\"update\",\"taskId\":\"bbbbbbbb-1111-4111-8111-aabbccddeeff\",\"input\":{\"version\":3,\"updated_at\":1793981712,\"encrypted_title\":\"K4XGIlfhEbpGzKaxXvtUvZZTJ7NQJW0FV8epxy2lKk0ixUzv49JNl0MSHQ/wsjY=\"}}}",
+  "task-mutation-delivery/f2153685fff907c9652ce28bc0bf4cc8445c22b49f5fd48352620b71099eb26a/3333333333333333333333333333333333333333333333333333333333333333.json": "{\"mutation\":{\"kind\":\"complete\",\"taskId\":\"bbbbbbbb-1111-4111-8111-aabbccddeeff\",\"input\":{\"version\":3}}}",
+  "task-mutation-delivery/f2153685fff907c9652ce28bc0bf4cc8445c22b49f5fd48352620b71099eb26a/4444444444444444444444444444444444444444444444444444444444444444.json": "{\"mutation\":{\"kind\":\"create\",\"taskId\":\"cccccccc-1111-4111-8111-aabbccddeeff\",\"input\":{\"task_id\":\"cccccccc-1111-4111-8111-aabbccddeeff\",\"version\":1,\"encrypted_task_key\":\"NNkjDr1m6U0VD5mbv5JtIePB0Rhmi3QrbP5/7yqmauKapWpyvfXr+kXvx6egekiKsfOp6o7kp3cvjZJT\",\"encrypted_slug\":\"tJLu105WEaxp//wNWOjcIpOQlsmwy+qz+xAAHs/MhSkzRDknVy/n97eN\",\"slug_lookup_hash\":\"a0d50bce5a585f9c5836a5c4e6d17608efbb3e68529b1789a2521e8c5a2c0014\",\"encrypted_title\":\"Zujjf1GiJXAu5MtZ3pLrl1LA+C1XED2gMaTdFWm8MLbCJ8JfoHrSNels\",\"encrypted_description\":\"eWIgJ6fXepZvzFrDSr7EA/cwa7s9VCXufw86DgFr9QRyQl7oLUiNkp72Fls=\",\"encrypted_labels\":\"XMqOMr0IUY6X52mE+KKX45PdlWqUoedPgQB6MvHN\",\"encrypted_tags\":\"x/QJ3TtGzghp8UmUT/urpomYOqnW5aYzs4o2/YcP\",\"label_hashes\":[],\"encrypted_linked_project_ids\":\"oTTK/zDQMSAEmCIoUjNclnuwzKRO2+ECIhnuggjN\",\"status\":\"todo\",\"assignee_type\":\"user\",\"assignee_identity\":null,\"assignee_hash\":null,\"primary_chat_id\":null,\"linked_project_ids\":[],\"plan_id\":null,\"due_at\":null,\"priority\":0,\"position\":1793981712,\"created_at\":1793981712,\"updated_at\":1793981712},\"creator\":\"codex\"}}",
+  "task-mutation-delivery/f2153685fff907c9652ce28bc0bf4cc8445c22b49f5fd48352620b71099eb26a/scope.json": "[\"https://api.example.org\",\"fixture-owner\",\"personal\"]"
+ }
+}

@@ -4,8 +4,7 @@ use crate::{client::Client, error::Error};
 use openmates_sdk::{
     OpenMates,
     work::{
-        DependencyTarget, RestoreState, TaskActivityInput, TaskActivityQuery, TaskAskOptions,
-        TaskCaller, TaskMove, Tasks, WorkKind,
+        TaskActivityInput, TaskActivityQuery, TaskAskOptions, TaskCaller, Tasks,
     },
 };
 use serde_json::{Value, json};
@@ -61,6 +60,9 @@ pub(super) async fn execute(
                 .map_err(CliError::from)
         })
         .transpose()?;
+    if let Some(journal) = journal.as_ref() {
+        super::task_legacy_outbox::drain(client, journal, &cancel).await?;
+    }
     let team = client
         .session()
         .and_then(|session| session.active_team_id.clone());
@@ -239,30 +241,6 @@ fn number(invocation: &Invocation, name: &str, default: u16, max: u16) -> Result
             .filter(|value| *value > 0 && *value <= max)
             .ok_or_else(|| CliError::Invalid(format!("--{name} must be from 1 to {max}."))),
     }
-}
-fn target(invocation: &Invocation) -> Result<DependencyTarget, CliError> {
-    let value = input::text(invocation, "target")?
-        .or(invocation.positionals.get(1).map(String::as_str))
-        .ok_or_else(|| CliError::Invalid("Provide --target task:<id> or plan:<id>.".into()))?;
-    let (kind, id) = value.split_once(':').ok_or_else(|| {
-        CliError::Invalid("Dependency target must be task:<id> or plan:<id>.".into())
-    })?;
-    let kind = match kind {
-        "task" => WorkKind::Task,
-        "plan" => WorkKind::Plan,
-        _ => {
-            return Err(CliError::Invalid(
-                "Dependency target must be task:<id> or plan:<id>.".into(),
-            ));
-        }
-    };
-    if id.trim().is_empty() {
-        return Err(CliError::Invalid("Dependency target is empty.".into()));
-    }
-    Ok(DependencyTarget {
-        kind,
-        id: id.into(),
-    })
 }
 pub(super) async fn verify_external(
     external: &mut Option<openmates_sdk::work::ExternalChat>,
@@ -493,6 +471,10 @@ async fn execute_service(
                 Ok(value) => value,
                 Err(error) => return super::task_queue::pending_output(invocation, error),
             };
+            let value = match super::task_queue_actions::render(&path, value) {
+                Ok((value, text)) => return result(invocation, value, text),
+                Err(value) => value,
+            };
             let text = if path == "tasks activity add" {
                 value["message"]
                     .as_str()
@@ -636,14 +618,8 @@ fn execute_command<'a>(
         }
         "tasks block" => Box::pin(async move {
             input::check_flags(invocation, &["reason-code", "reason", "reason-text"])?;
-            let reason = input::text(invocation, "reason-code")?
-                .or(input::text(invocation, "reason")?)
-                .ok_or_else(|| {
-                    CliError::Invalid("Blocking a Task requires --reason-code.".into())
-                })?;
-            let task = service
-                .block(id()?, reason, input::text(invocation, "reason-text")?)
-                .await?;
+            let (reason, text) = super::task_queue_actions::block_args(invocation)?;
+            let task = service.block(id()?, reason, text).await?;
             task_result(invocation, task)
         }),
         "tasks delete" => Box::pin(async move {
@@ -665,31 +641,13 @@ fn execute_command<'a>(
         }),
         "tasks restore" => Box::pin(async move {
             input::check_flags(invocation, &["entry", "entry-id", "state"])?;
-            let entry = super::history::entry(invocation)?;
-            let state = match input::text(invocation, "state")?.unwrap_or("before") {
-                "before" => RestoreState::Before,
-                "after" => RestoreState::After,
-                _ => return Err(CliError::Invalid("--state must be before or after.".into())),
-            };
+            let (entry, state) = super::task_queue_actions::restore_args(invocation)?;
             let value = service.restore(id()?, entry, state).await?;
             result(invocation, value, "Task restored.".into())
         }),
         "tasks reorder" => Box::pin(async move {
             input::check_flags(invocation, &["before", "after", "position"])?;
-            let movement = TaskMove {
-                before_task_id: input::text(invocation, "before")?.map(str::to_owned),
-                after_task_id: input::text(invocation, "after")?.map(str::to_owned),
-                status: input::text(invocation, "status")?
-                    .map(input::status)
-                    .transpose()?,
-                position: input::text(invocation, "position")?
-                    .map(|value| {
-                        value
-                            .parse::<i64>()
-                            .map_err(|_| CliError::Invalid("--position must be an integer.".into()))
-                    })
-                    .transpose()?,
-            };
+            let movement = super::task_queue_actions::task_move(invocation)?;
             let value = service.reorder(id()?, movement).await?;
             result(invocation, json!({"tasks":value}), "Task reordered.".into())
         }),
@@ -712,7 +670,7 @@ fn execute_command<'a>(
         }),
         "tasks dependencies add" | "tasks dependencies remove" => Box::pin(async move {
             input::check_flags(invocation, &["target"])?;
-            let target = target(invocation)?;
+            let target = super::task_queue_actions::target(invocation)?;
             let value = if path == "tasks dependencies add" {
                 service.dependencies().add(id()?, &target).await?
             } else {

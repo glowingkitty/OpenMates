@@ -56871,7 +56871,7 @@
       },
       "gaps": [
         "Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --delivery-id replay) is implemented natively.",
-        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Pending npm CLI task-mutation and task-activity outbox records for the session's account/Team are adopted byte-for-byte into the native encrypted journal (npm records marked migrated) on the next cookie Task command; Codex creator/assignee records and the Codex-hook task-command-delivery outbox are not migrated.",
         "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
@@ -56927,8 +56927,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Mutation is sent directly; encrypted durable delivery (--delivery-id journal replay) is not implemented for this command.",
-        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --delivery-id replay with read-before-retry reconciliation) is implemented natively.",
+        "Pending npm CLI task-mutation and task-activity outbox records for the session's account/Team are adopted byte-for-byte into the native encrypted journal (npm records marked migrated) on the next cookie Task command; Codex creator/assignee records and the Codex-hook task-command-delivery outbox are not migrated.",
         "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
@@ -56978,7 +56978,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/task_queue.rs"
       },
       "gaps": [
-        "Only the native encrypted outbox is processed; legacy TypeScript outboxes remain isolated."
+        "Processes the native encrypted journal; matching npm outbox records are adopted into it first. Codex creator/assignee npm records remain in the npm outbox."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -57135,8 +57135,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Mutation is sent directly; encrypted durable delivery (--delivery-id journal replay) is not implemented for this command.",
-        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --delivery-id replay with read-before-retry reconciliation) is implemented natively.",
+        "Pending npm CLI task-mutation and task-activity outbox records for the session's account/Team are adopted byte-for-byte into the native encrypted journal (npm records marked migrated) on the next cookie Task command; Codex creator/assignee records and the Codex-hook task-command-delivery outbox are not migrated.",
         "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
@@ -57243,8 +57243,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Mutation is sent directly; encrypted durable delivery (--delivery-id journal replay) is not implemented for this command.",
-        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --delivery-id replay with read-before-retry reconciliation) is implemented natively.",
+        "Pending npm CLI task-mutation and task-activity outbox records for the session's account/Team are adopted byte-for-byte into the native encrypted journal (npm records marked migrated) on the next cookie Task command; Codex creator/assignee records and the Codex-hook task-command-delivery outbox are not migrated.",
         "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
@@ -57339,7 +57339,7 @@
       },
       "gaps": [
         "Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --delivery-id replay) is implemented natively.",
-        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Pending npm CLI task-mutation and task-activity outbox records for the session's account/Team are adopted byte-for-byte into the native encrypted journal (npm records marked migrated) on the next cookie Task command; Codex creator/assignee records and the Codex-hook task-command-delivery outbox are not migrated.",
         "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
@@ -57448,7 +57448,7 @@
       },
       "gaps": [
         "Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --delivery-id replay) is implemented natively.",
-        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Pending npm CLI task-mutation and task-activity outbox records for the session's account/Team are adopted byte-for-byte into the native encrypted journal (npm records marked migrated) on the next cookie Task command; Codex creator/assignee records and the Codex-hook task-command-delivery outbox are not migrated.",
         "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
@@ -57507,7 +57507,7 @@
       },
       "gaps": [
         "Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --delivery-id replay) is implemented natively.",
-        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Pending npm CLI task-mutation and task-activity outbox records for the session's account/Team are adopted byte-for-byte into the native encrypted journal (npm records marked migrated) on the next cookie Task command; Codex creator/assignee records and the Codex-hook task-command-delivery outbox are not migrated.",
         "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
@@ -57575,8 +57575,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Mutation is sent directly; encrypted durable delivery (--delivery-id journal replay) is not implemented for this command.",
-        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --delivery-id replay with read-before-retry reconciliation) is implemented natively.",
+        "Pending npm CLI task-mutation and task-activity outbox records for the session's account/Team are adopted byte-for-byte into the native encrypted journal (npm records marked migrated) on the next cookie Task command; Codex creator/assignee records and the Codex-hook task-command-delivery outbox are not migrated.",
         "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
@@ -57684,8 +57684,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Mutation is sent directly; encrypted durable delivery (--delivery-id journal replay) is not implemented for this command.",
-        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --delivery-id replay with read-before-retry reconciliation) is implemented natively.",
+        "Pending npm CLI task-mutation and task-activity outbox records for the session's account/Team are adopted byte-for-byte into the native encrypted journal (npm records marked migrated) on the next cookie Task command; Codex creator/assignee records and the Codex-hook task-command-delivery outbox are not migrated.",
         "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
@@ -57734,7 +57734,7 @@
       },
       "gaps": [
         "Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --delivery-id replay) is implemented natively.",
-        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Pending npm CLI task-mutation and task-activity outbox records for the session's account/Team are adopted byte-for-byte into the native encrypted journal (npm records marked migrated) on the next cookie Task command; Codex creator/assignee records and the Codex-hook task-command-delivery outbox are not migrated.",
         "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
@@ -57794,7 +57794,7 @@
       },
       "gaps": [
         "Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --delivery-id replay) is implemented natively.",
-        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Pending npm CLI task-mutation and task-activity outbox records for the session's account/Team are adopted byte-for-byte into the native encrypted journal (npm records marked migrated) on the next cookie Task command; Codex creator/assignee records and the Codex-hook task-command-delivery outbox are not migrated.",
         "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
@@ -57947,7 +57947,7 @@
       },
       "gaps": [
         "Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --delivery-id replay) is implemented natively.",
-        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Pending npm CLI task-mutation and task-activity outbox records for the session's account/Team are adopted byte-for-byte into the native encrypted journal (npm records marked migrated) on the next cookie Task command; Codex creator/assignee records and the Codex-hook task-command-delivery outbox are not migrated.",
         "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
@@ -58002,8 +58002,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Mutation is sent directly; encrypted durable delivery (--delivery-id journal replay) is not implemented for this command.",
-        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --delivery-id replay with read-before-retry reconciliation) is implemented natively.",
+        "Pending npm CLI task-mutation and task-activity outbox records for the session's account/Team are adopted byte-for-byte into the native encrypted journal (npm records marked migrated) on the next cookie Task command; Codex creator/assignee records and the Codex-hook task-command-delivery outbox are not migrated.",
         "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
@@ -58055,8 +58055,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Mutation is sent directly; encrypted durable delivery (--delivery-id journal replay) is not implemented for this command.",
-        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --delivery-id replay with read-before-retry reconciliation) is implemented natively.",
+        "Pending npm CLI task-mutation and task-activity outbox records for the session's account/Team are adopted byte-for-byte into the native encrypted journal (npm records marked migrated) on the next cookie Task command; Codex creator/assignee records and the Codex-hook task-command-delivery outbox are not migrated.",
         "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
@@ -58114,8 +58114,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Mutation is sent directly; encrypted durable delivery (--delivery-id journal replay) is not implemented for this command.",
-        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --delivery-id replay with read-before-retry reconciliation) is implemented natively.",
+        "Pending npm CLI task-mutation and task-activity outbox records for the session's account/Team are adopted byte-for-byte into the native encrypted journal (npm records marked migrated) on the next cookie Task command; Codex creator/assignee records and the Codex-hook task-command-delivery outbox are not migrated.",
         "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
@@ -58163,8 +58163,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Mutation is sent directly; encrypted durable delivery (--delivery-id journal replay) is not implemented for this command.",
-        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Launches the local Codex thread and performs no OpenMates backend mutation; durable delivery does not apply.",
+        "Pending npm CLI task-mutation and task-activity outbox records for the session's account/Team are adopted byte-for-byte into the native encrypted journal (npm records marked migrated) on the next cookie Task command; Codex creator/assignee records and the Codex-hook task-command-delivery outbox are not migrated.",
         "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
@@ -58269,8 +58269,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Mutation is sent directly; encrypted durable delivery (--delivery-id journal replay) is not implemented for this command.",
-        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --delivery-id replay with read-before-retry reconciliation) is implemented natively.",
+        "Pending npm CLI task-mutation and task-activity outbox records for the session's account/Team are adopted byte-for-byte into the native encrypted journal (npm records marked migrated) on the next cookie Task command; Codex creator/assignee records and the Codex-hook task-command-delivery outbox are not migrated.",
         "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
@@ -58318,8 +58318,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Mutation is sent directly; encrypted durable delivery (--delivery-id journal replay) is not implemented for this command.",
-        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --delivery-id replay with read-before-retry reconciliation) is implemented natively.",
+        "Pending npm CLI task-mutation and task-activity outbox records for the session's account/Team are adopted byte-for-byte into the native encrypted journal (npm records marked migrated) on the next cookie Task command; Codex creator/assignee records and the Codex-hook task-command-delivery outbox are not migrated.",
         "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
@@ -58415,8 +58415,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
-        "Mutation is sent directly; encrypted durable delivery (--delivery-id journal replay) is not implemented for this command.",
-        "Pending entries in the npm CLI's legacy on-disk task outboxes are not drained by the native runtime.",
+        "Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --delivery-id replay with read-before-retry reconciliation) is implemented natively.",
+        "Pending npm CLI task-mutation and task-activity outbox records for the session's account/Team are adopted byte-for-byte into the native encrypted journal (npm records marked migrated) on the next cookie Task command; Codex creator/assignee records and the Codex-hook task-command-delivery outbox are not migrated.",
         "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
