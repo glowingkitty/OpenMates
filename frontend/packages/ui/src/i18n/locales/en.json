@@ -10354,6 +10354,9 @@
         "text": "Selected model:"
       }
     },
+    "send_failed": {
+      "text": "Your message could not be sent. It is still in the input field, so please try again."
+    },
     "mention_dropdown": {
       "header": {
         "text": "By default, OpenMates auto selects the AI model, mates, app- skills, focus modes and memories. Search to overwrite the auto selection"

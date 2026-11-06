@@ -8738,6 +8738,9 @@
         "text": "Model dipilih:"
       }
     },
+    "send_failed": {
+      "text": "Pesan Anda tidak dapat dikirim. Pesan masih ada di kolom input, silakan coba lagi."
+    },
     "mention_dropdown": {
       "header": {
         "text": "Secara default, OpenMates otomatis memilih model AI, mates, keterampilan aplikasi, mode fokus dan pengaturan & memori. Cari untuk menimpa pemilihan otomatis"

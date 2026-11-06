@@ -8738,6 +8738,9 @@
         "text": "Mô hình đã chọn:"
       }
     },
+    "send_failed": {
+      "text": "Không thể gửi tin nhắn của bạn. Tin nhắn vẫn còn trong ô nhập, vui lòng thử lại."
+    },
     "mention_dropdown": {
       "header": {
         "text": "Theo mặc định, OpenMates tự động chọn mô hình AI, mates, kỹ năng ứng dụng, chế độ tập trung và cài đặt & bộ nhớ. Tìm kiếm để ghi đè lựa chọn tự động"

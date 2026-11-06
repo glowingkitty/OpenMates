@@ -6266,6 +6266,7 @@
         ).catch((error) => {
             console.error('[MessageInput] Send preparation failed:', error);
             vibrateMessageField();
+            notificationStore.error($text('enter_message.send_failed'));
             return false;
         });
         sendClickInProgress = false;

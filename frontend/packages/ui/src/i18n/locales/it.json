@@ -8765,6 +8765,9 @@
         "text": "Modello selezionato:"
       }
     },
+    "send_failed": {
+      "text": "Impossibile inviare il messaggio. È ancora nel campo di inserimento, riprova."
+    },
     "mention_dropdown": {
       "header": {
         "text": "Per impostazione predefinita, OpenMates seleziona automaticamente il modello AI, i mates, le competenze dell'app, le modalità di focus e le impostazioni e memorie. Cerca per sovrascrivere la selezione automatica"

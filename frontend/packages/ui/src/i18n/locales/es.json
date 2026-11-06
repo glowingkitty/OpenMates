@@ -8765,6 +8765,9 @@
         "text": "Modelo seleccionado:"
       }
     },
+    "send_failed": {
+      "text": "No se pudo enviar tu mensaje. Sigue en el campo de entrada, inténtalo de nuevo."
+    },
     "mention_dropdown": {
       "header": {
         "text": "Por defecto, OpenMates selecciona automáticamente el modelo de IA, mates, habilidades de aplicación, modos de enfoque y configuraciones y memorias. Busca para sobrescribir la selección automática"

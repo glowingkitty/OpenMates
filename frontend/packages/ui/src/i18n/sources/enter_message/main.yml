@@ -1136,3 +1136,27 @@ preprocessing_step.selected_model_label:
   sv: "Vald modell:"
   he: "מודל שנבחר:"
   verified_by_human: []
+send_failed:
+  context: Error notification when sending a message failed unexpectedly and the draft was kept
+  en: Your message could not be sent. It is still in the input field, so please try again.
+  de: Deine Nachricht konnte nicht gesendet werden. Sie steht noch im Eingabefeld, bitte versuche es erneut.
+  zh: 消息发送失败。内容仍保留在输入框中，请重试。
+  es: No se pudo enviar tu mensaje. Sigue en el campo de entrada, inténtalo de nuevo.
+  fr: Votre message n'a pas pu être envoyé. Il reste dans le champ de saisie, veuillez réessayer.
+  pt: Não foi possível enviar sua mensagem. Ela continua no campo de entrada, tente novamente.
+  ru: Не удалось отправить сообщение. Оно осталось в поле ввода, попробуйте ещё раз.
+  ja: メッセージを送信できませんでした。入力欄に残っているので、もう一度お試しください。
+  ko: 메시지를 보내지 못했습니다. 입력창에 그대로 남아 있으니 다시 시도해 주세요.
+  it: Impossibile inviare il messaggio. È ancora nel campo di inserimento, riprova.
+  tr: Mesajınız gönderilemedi. Giriş alanında duruyor, lütfen tekrar deneyin.
+  vi: Không thể gửi tin nhắn của bạn. Tin nhắn vẫn còn trong ô nhập, vui lòng thử lại.
+  id: Pesan Anda tidak dapat dikirim. Pesan masih ada di kolom input, silakan coba lagi.
+  pl: Nie udało się wysłać wiadomości. Nadal jest w polu wpisywania, spróbuj ponownie.
+  nl: Je bericht kon niet worden verzonden. Het staat nog in het invoerveld, probeer het opnieuw.
+  ar: تعذر إرسال رسالتك. ما زالت في حقل الإدخال، يرجى المحاولة مرة أخرى.
+  hi: आपका संदेश भेजा नहीं जा सका। वह इनपुट फ़ील्ड में मौजूद है, कृपया फिर से कोशिश करें।
+  th: ไม่สามารถส่งข้อความของคุณได้ ข้อความยังอยู่ในช่องป้อนข้อมูล โปรดลองอีกครั้ง
+  cs: Zprávu se nepodařilo odeslat. Zůstala v poli pro zadání, zkuste to prosím znovu.
+  sv: "Ditt meddelande kunde inte skickas. Det finns kvar i inmatningsfältet, försök igen."
+  he: לא ניתן היה לשלוח את ההודעה. היא עדיין בשדה ההקלדה, נסה שוב.
+  verified_by_human: []

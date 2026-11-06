@@ -8738,6 +8738,9 @@
         "text": "Vald modell:"
       }
     },
+    "send_failed": {
+      "text": "Ditt meddelande kunde inte skickas. Det finns kvar i inmatningsfältet, försök igen."
+    },
     "mention_dropdown": {
       "header": {
         "text": "Som standard väljer OpenMates automatiskt AI-modell, mates, app-färdigheter, fokusmoder samt inställningar och minnen. Sök för att åsidosätta det automatiska valet"

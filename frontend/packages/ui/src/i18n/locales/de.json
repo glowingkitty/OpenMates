@@ -10325,6 +10325,9 @@
         "text": "Ausgewähltes Modell:"
       }
     },
+    "send_failed": {
+      "text": "Deine Nachricht konnte nicht gesendet werden. Sie steht noch im Eingabefeld, bitte versuche es erneut."
+    },
     "mention_dropdown": {
       "header": {
         "text": "OpenMates wählt standardmäßig das KI-Modell, Mates, App-Skills, Fokusmodi sowie Einstellungen & Erinnerungen automatisch aus. Suche, um die automatische Auswahl zu überschreiben"

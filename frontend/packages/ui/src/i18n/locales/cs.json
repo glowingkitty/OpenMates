@@ -8738,6 +8738,9 @@
         "text": "Vybraný model:"
       }
     },
+    "send_failed": {
+      "text": "Zprávu se nepodařilo odeslat. Zůstala v poli pro zadání, zkuste to prosím znovu."
+    },
     "mention_dropdown": {
       "header": {
         "text": "Ve výchozím nastavení OpenMates automaticky vybírá model AI, mates, dovednosti aplikace, režimy soustředění a nastavení a vzpomínky. Vyhledejte pro přepsání automatického výběru"

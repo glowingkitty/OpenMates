@@ -8738,6 +8738,9 @@
         "text": "Wybrany model:"
       }
     },
+    "send_failed": {
+      "text": "Nie udało się wysłać wiadomości. Nadal jest w polu wpisywania, spróbuj ponownie."
+    },
     "mention_dropdown": {
       "header": {
         "text": "Domyślnie OpenMates automatycznie wybiera model AI, mates, umiejętności aplikacji, tryby skupienia oraz ustawienia i wspomnienia. Wyszukaj, aby nadpisać automatyczny wybór"

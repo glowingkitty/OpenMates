@@ -8738,6 +8738,9 @@
         "text": "Seçilen model:"
       }
     },
+    "send_failed": {
+      "text": "Mesajınız gönderilemedi. Giriş alanında duruyor, lütfen tekrar deneyin."
+    },
     "mention_dropdown": {
       "header": {
         "text": "Varsayılan olarak OpenMates, AI modelini, mates'leri, uygulama becerilerini, odak modlarını ve ayarlar & anıları otomatik seçer. Otomatik seçimi geçersiz kılmak için arayın"

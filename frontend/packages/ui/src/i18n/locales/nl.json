@@ -8738,6 +8738,9 @@
         "text": "Geselecteerd model:"
       }
     },
+    "send_failed": {
+      "text": "Je bericht kon niet worden verzonden. Het staat nog in het invoerveld, probeer het opnieuw."
+    },
     "mention_dropdown": {
       "header": {
         "text": "Standaard selecteert OpenMates automatisch het AI-model, mates, app-vaardigheden, focusmodi en instellingen en herinneringen. Zoek om de automatische selectie te overschrijven"

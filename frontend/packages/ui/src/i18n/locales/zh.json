@@ -8738,6 +8738,9 @@
         "text": "已选择模型："
       }
     },
+    "send_failed": {
+      "text": "消息发送失败。内容仍保留在输入框中，请重试。"
+    },
     "mention_dropdown": {
       "header": {
         "text": "默认情况下，OpenMates 自动选择 AI 模型、mates、应用技能、专注模式和设置与记忆。搜索以覆盖自动选择"
