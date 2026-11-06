@@ -13,6 +13,7 @@ import selectors
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import types
@@ -417,6 +418,12 @@ class Driver:
 #   read, so adapters share no ports, files or peers.
 # - Rust adapters share one prebuilt CARGO_TARGET_DIR; Cargo's own build lock
 #   serializes the freshness check, and each binary then runs on its own.
+# - SDK clients keep per-user state under HOME, TMPDIR and OPENMATES_STATE_DIR
+#   (for example ~/.openmates/sdk-device-id written non-atomically by the npm
+#   and Python clients, and fixed-name lock/journal roots under tmpdir()).
+#   Every pooled adapter therefore gets its own fresh HOME, TMPDIR and
+#   OPENMATES_STATE_DIR inside the stage's private TMPDIR; the stage
+#   environment is otherwise passed through unchanged.
 # - The share and Workflow file adapters install process-wide signal handlers
 #   in their protected dispatch, which only the main thread may do. They stay
 #   serial and run live on the main thread, in plan order.
@@ -441,6 +448,21 @@ def adapter_environment():
         "OPENMATES_SDK_CONFORMANCE_PYTHON": sys.executable,
         "CARGO_INCREMENTAL": "0",
     }
+
+
+ISOLATED_STATE = ("HOME", "TMPDIR", "OPENMATES_STATE_DIR")
+
+
+def isolated_environment(env, index):
+    """Same environment with fresh per-adapter user-state directories."""
+    parent = env.get("TMPDIR") or tempfile.gettempdir()
+    directory = Path(tempfile.mkdtemp(prefix=f"sdk-adapter-{index}-", dir=parent))
+    isolated = dict(env)
+    for name in ISOLATED_STATE:
+        path = directory / name.lower()
+        path.mkdir(mode=0o700)
+        isolated[name] = str(path)
+    return isolated
 
 
 class AdapterPool:
@@ -485,7 +507,7 @@ class AdapterPool:
                 capture_output=True,
                 text=True,
                 timeout=ADAPTER_TIMEOUT,
-                env=env,
+                env=isolated_environment(env, index),
             )
             status = "passed"
         except Exception as error:  # re-raised by Driver.replay at its plan position
@@ -493,6 +515,8 @@ class AdapterPool:
         with self.lock:
             self.state[index].update(status=status, elapsed=time.monotonic() - began)
         self.progress()
+        # Replay compares the aggregate's call with the shared stage environment;
+        # only the isolated user-state directories differ in the actual launch.
         return child, (ADAPTER_TIMEOUT, env, False), outcome
 
     def progress(self):

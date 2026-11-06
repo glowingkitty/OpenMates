@@ -6,6 +6,7 @@ test_ci_sdk_conformance.py; only the executor's concurrency is exercised here.
 """
 
 import json
+from pathlib import Path
 import time
 
 import pytest
@@ -32,9 +33,12 @@ def conformance(matrix,root):
 '''
 
 DRIVER = '''
-import argparse,hashlib,json,sys,time
+import argparse,hashlib,json,os,sys,time
 from pathlib import Path
 p=argparse.ArgumentParser();p.add_argument('--language');p.add_argument('--fixture');p.add_argument('--capability');a=p.parse_args()
+# Exclusive creation fails if any two adapters share user state.
+for name in ('HOME','TMPDIR','OPENMATES_STATE_DIR'):
+    state=Path(os.environ[name])/'.openmates';state.mkdir();(state/'sdk-device-id').open('x').write(a.language)
 time.sleep(SLEEP)
 if a.language in FAIL:
     print('never-export-private-stream', file=sys.stderr); sys.exit(3)
@@ -60,6 +64,12 @@ def prepare(tmp_path, monkeypatch, *, sleep=0.0, fail=(), timeout=600, workers=3
     monkeypatch.setattr(executor, "adapter_workers", lambda: workers)
     private = tmp_path / "private"
     private.mkdir()
+    stage = tmp_path / "stage"
+    for name in ("home", "tmp", "state"):
+        (stage / name).mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(stage / "home"))
+    monkeypatch.setenv("TMPDIR", str(stage / "tmp"))
+    monkeypatch.setenv("OPENMATES_STATE_DIR", str(stage / "state"))
     return root, trust, private
 
 
@@ -124,3 +134,12 @@ def test_timing_diagnostics_drop_unknown_or_mismatched_rows(tmp_path):
     assert [row["phase"] for row in value["steps"]] == ["prebuild"]
     assert [row["planIndex"] for row in value["adapters"]] == [0]
     assert "never-export" not in json.dumps(value)
+
+
+def test_each_pooled_adapter_gets_fresh_user_state(tmp_path, monkeypatch):
+    base = {"HOME": "/stage/home", "TMPDIR": str(tmp_path), "OPENMATES_STATE_DIR": "/stage/state", "PATH": "/bin"}
+    first, second = executor.isolated_environment(base, 1), executor.isolated_environment(base, 2)
+    for name in executor.ISOLATED_STATE:
+        assert first[name] != second[name] and first[name] != base[name]
+        assert first[name].startswith(str(tmp_path)) and not any(Path(first[name]).iterdir())
+    assert first["PATH"] == base["PATH"] and base["HOME"] == "/stage/home"
