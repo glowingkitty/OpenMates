@@ -4,6 +4,21 @@ import { authStore } from '../stores/authState';
 import { userProfile } from '../stores/userProfile';
 import { anonymousChatStorage } from './anonymousChatStorage';
 import type { AppsSkillDetails, AppsSkillGuestEligibility, AppsSkillResponse } from '../types/appsWorkspace';
+import type { RustAppsSkillExecution } from './rustCore/apps/rustAppsSkillExecution';
+
+/** Opt-in shared Rust core build: skill execution policy runs in the shared Worker `apps` unit. */
+const RUST_APPS_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1';
+/** Measurement-only opt-out (like `openmates_rust_core_crypto`): `'ts'` keeps this TypeScript policy. */
+const RUST_APPS_OPT_OUT_KEY = 'openmates_rust_core_apps';
+let rustApps: Promise<RustAppsSkillExecution> | null = null;
+function rustAppsExecution(): Promise<RustAppsSkillExecution> | null {
+  if (typeof localStorage === 'undefined' || localStorage.getItem(RUST_APPS_OPT_OUT_KEY) === 'ts') return null;
+  rustApps ??= import('./rustCore/apps/rustAppsSkillExecution').then(module => module.createRustAppsSkillExecution({
+    apiEndpoint: getApiEndpoint, anonymousId: () => anonymousChatStorage.getAnonymousId(), authGeneration: () => authGeneration,
+    captureIdentity: captureExecutionIdentity, assertIdentity: assertExecutionIdentity,
+  }));
+  return rustApps;
+}
 
 type FreeUsageStatus = { active?: boolean; can_send_text?: boolean; reason?: string | null } | null | undefined;
 export type AppsSkillExecuteOptions = {
@@ -38,7 +53,8 @@ userProfile.subscribe(profile => {
 const pollIntervalMs = 2000;
 const pollTimeoutMs = 10 * 60 * 1000;
 
-function errorDetail(body: unknown, status: number): string {
+/** @internal Exported for the Rust parity vectors (web_apps_ts_vectors.json). */
+export function errorDetail(body: unknown, status: number): string {
   const response = body && typeof body === 'object' ? body as Record<string, unknown> : {};
   const detail = response.detail ?? response.error;
   if (typeof detail === 'string') return detail;
@@ -77,6 +93,8 @@ function assertExecutionIdentity(identity: ExecutionIdentity): void {
 
 /** Public details are loaded only when a skill opens; failures are never cached. */
 export function getAppsSkillDetails(appId: string, skillId: string, signal?: AbortSignal): Promise<AppsSkillDetails> {
+  const rust = RUST_APPS_BUILD ? rustAppsExecution() : null;
+  if (rust) return rust.then(apps => apps.getAppsSkillDetails(appId, skillId, signal));
   const key = `${appId}/${skillId}`;
   // Private mail metadata must be admitted by the server for every account.
   if (appId === 'mail' && skillId === 'search') return fetchDetails(appId, skillId, signal);
@@ -118,6 +136,8 @@ export function canRunGuestAppsSkill(metadata: AppsSkillDetails, status: FreeUsa
 export async function getAnonymousAppsSkillAvailability(
   appId: string, skillId: string, input: Record<string, unknown>, signal?: AbortSignal,
 ): Promise<AppsSkillGuestEligibility> {
+  const rust = RUST_APPS_BUILD ? rustAppsExecution() : null;
+  if (rust) return rust.then(apps => apps.getAnonymousAppsSkillAvailability(appId, skillId, input, signal));
   const url = getApiEndpoint(`/v1/anonymous/apps/${encodeURIComponent(appId)}/skills/${encodeURIComponent(skillId)}/availability`);
   const response = await fetch(url, {
     method: 'POST', cache: 'no-store', signal,
@@ -129,7 +149,8 @@ export async function getAnonymousAppsSkillAvailability(
   return { allowed: body.allowed === true, reason: typeof body.reason === 'string' ? body.reason : null };
 }
 
-function failedSkillResponse(body: AppsSkillResponse): string | null {
+/** @internal Exported for the Rust parity vectors. */
+export function failedSkillResponse(body: AppsSkillResponse): string | null {
   if (body.success === false) return body.error || 'skill_failed';
   const data = body.data && typeof body.data === 'object' ? body.data as Record<string, unknown> : null;
   if (data?.success === false || typeof data?.error === 'string') return String(data.error || 'skill_failed');
@@ -158,11 +179,14 @@ async function pollTask(taskId: string, signal?: AbortSignal, identity?: Executi
 
 /** Resume one already accepted job; this never dispatches or bills the skill again. */
 export function pollAppsSkillTask(taskId: string, options: { signal?: AbortSignal; expectedUserId?: string } = {}): Promise<unknown> {
+  const rust = RUST_APPS_BUILD ? rustAppsExecution() : null;
+  if (rust) return rust.then(apps => apps.pollAppsSkillTask(taskId, options));
   const identity = captureExecutionIdentity(false, options.expectedUserId);
   return pollTask(taskId, options.signal, identity);
 }
 
-function acceptedTaskIds(envelope: AppsSkillResponse): string[] {
+/** @internal Exported for the Rust parity vectors. */
+export function acceptedTaskIds(envelope: AppsSkillResponse): string[] {
   const data = envelope.data && typeof envelope.data === 'object' ? envelope.data as Record<string, unknown> : envelope;
   return typeof data.task_id === 'string' ? [data.task_id] : Array.isArray(data.task_ids) ? data.task_ids.filter((item): item is string => typeof item === 'string') : [];
 }
@@ -181,6 +205,8 @@ async function resolveAsyncResponse(envelope: AppsSkillResponse, options: AppsSk
 
 /** Direct REST dispatch, with one in-flight operation per identical input. */
 export async function executeAppsSkill(appId: string, skillId: string, input: Record<string, unknown>, options: AppsSkillExecuteOptions): Promise<AppsSkillResponse> {
+  const rust = RUST_APPS_BUILD ? rustAppsExecution() : null;
+  if (rust) return (await rust).executeAppsSkill(appId, skillId, input, options);
   const identity = captureExecutionIdentity(options.guest);
   const key = JSON.stringify([identity.userId, identity.anonymousId, identity.authGeneration, appId, skillId, input, options.guest, options.teamId ?? null]);
   const pending = pendingExecutions.get(key);

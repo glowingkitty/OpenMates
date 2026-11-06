@@ -1,0 +1,1193 @@
+{
+ "errorDetail": [
+  {
+   "body": {
+    "detail": "not_allowed"
+   },
+   "status": 403,
+   "out": "not_allowed"
+  },
+  {
+   "body": {
+    "error": "bad"
+   },
+   "status": 400,
+   "out": "bad"
+  },
+  {
+   "body": {
+    "detail": null,
+    "error": "fallback"
+   },
+   "status": 400,
+   "out": "fallback"
+  },
+  {
+   "body": {
+    "detail": {
+     "message": "m",
+     "code": "c"
+    }
+   },
+   "status": 422,
+   "out": "m"
+  },
+  {
+   "body": {
+    "detail": {
+     "code": "c"
+    }
+   },
+   "status": 422,
+   "out": "c"
+  },
+  {
+   "body": {
+    "detail": {}
+   },
+   "status": 500,
+   "out": "HTTP 500"
+  },
+  {
+   "body": {
+    "detail": 5
+   },
+   "status": 400,
+   "out": "HTTP 400"
+  },
+  {
+   "body": {
+    "detail": [
+     {
+      "msg": "field required"
+     },
+     {
+      "msg": "too long"
+     }
+    ]
+   },
+   "status": 422,
+   "out": "field required; too long"
+  },
+  {
+   "body": [],
+   "status": 418,
+   "out": "HTTP 418"
+  },
+  {
+   "body": "text",
+   "status": 400,
+   "out": "HTTP 400"
+  },
+  {
+   "body": {
+    "detail": {
+     "message": null,
+     "code": 7
+    }
+   },
+   "status": 409,
+   "out": "7"
+  },
+  {
+   "body": {
+    "detail": 0,
+    "error": "x"
+   },
+   "status": 400,
+   "out": "HTTP 400"
+  },
+  {
+   "body": {
+    "detail": []
+   },
+   "status": 422,
+   "out": ""
+  },
+  {
+   "body": {
+    "detail": {
+     "message": {
+      "a": 1
+     }
+    }
+   },
+   "status": 422,
+   "out": "[object Object]"
+  },
+  {
+   "body": {
+    "detail": false
+   },
+   "status": 400,
+   "out": "HTTP 400"
+  },
+  {
+   "body": {
+    "detail": [
+     {
+      "msg": null
+     }
+    ]
+   },
+   "status": 422,
+   "out": "null"
+  },
+  {
+   "body": {},
+   "status": 502,
+   "out": "HTTP 502"
+  }
+ ],
+ "errorDetailRaw": [
+  {
+   "text": "{\"detail\":[{\"msg\":1.5e-7},1e21,true,null,[1,null,\"a\"],{\"x\":1},{\"msg\":0.000001},{\"msg\":123.456},{\"msg\":-0.5},100]}",
+   "status": 422,
+   "out": "1.5e-7; 1e+21; true; null; 1,,a; [object Object]; 0.000001; 123.456; -0.5; 100"
+  }
+ ],
+ "failure": [
+  {
+   "body": {
+    "success": true,
+    "data": {
+     "results": []
+    }
+   },
+   "out": null
+  },
+  {
+   "body": {
+    "success": false,
+    "error": "quota"
+   },
+   "out": "quota"
+  },
+  {
+   "body": {
+    "success": false
+   },
+   "out": "skill_failed"
+  },
+  {
+   "body": {
+    "success": false,
+    "error": ""
+   },
+   "out": "skill_failed"
+  },
+  {
+   "body": {
+    "success": false,
+    "error": 42
+   },
+   "out": "42"
+  },
+  {
+   "body": {
+    "data": {
+     "success": false
+    }
+   },
+   "out": "skill_failed"
+  },
+  {
+   "body": {
+    "data": {
+     "error": "provider down"
+    }
+   },
+   "out": "provider down"
+  },
+  {
+   "body": {
+    "data": {
+     "error": ""
+    }
+   },
+   "out": "skill_failed"
+  },
+  {
+   "body": {
+    "data": {
+     "error": null
+    }
+   },
+   "out": null
+  },
+  {
+   "body": {
+    "data": [
+     1,
+     2
+    ]
+   },
+   "out": null
+  },
+  {
+   "body": {
+    "data": "text"
+   },
+   "out": null
+  },
+  {
+   "body": {
+    "success": "false"
+   },
+   "out": null
+  },
+  {
+   "body": {
+    "data": {
+     "success": false,
+     "error": {
+      "code": 1
+     }
+    }
+   },
+   "out": "[object Object]"
+  },
+  {
+   "body": {
+    "data": null,
+    "success": true
+   },
+   "out": null
+  },
+  {
+   "body": 5,
+   "out": null
+  }
+ ],
+ "taskIds": [
+  {
+   "envelope": {
+    "data": {
+     "task_id": "t1"
+    }
+   },
+   "out": [
+    "t1"
+   ]
+  },
+  {
+   "envelope": {
+    "task_id": "t2"
+   },
+   "out": [
+    "t2"
+   ]
+  },
+  {
+   "envelope": {
+    "data": {
+     "task_ids": [
+      "a",
+      1,
+      "b",
+      null
+     ]
+    }
+   },
+   "out": [
+    "a",
+    "b"
+   ]
+  },
+  {
+   "envelope": {
+    "data": {
+     "task_id": 5,
+     "task_ids": [
+      "c"
+     ]
+    }
+   },
+   "out": [
+    "c"
+   ]
+  },
+  {
+   "envelope": {
+    "data": "x",
+    "task_id": "top"
+   },
+   "out": [
+    "top"
+   ]
+  },
+  {
+   "envelope": {
+    "data": {
+     "results": []
+    },
+    "task_id": "ignored"
+   },
+   "out": []
+  },
+  {
+   "envelope": {},
+   "out": []
+  },
+  {
+   "envelope": {
+    "data": [
+     {
+      "task_id": "z"
+     }
+    ]
+   },
+   "out": []
+  }
+ ],
+ "details": [
+  {
+   "app": "events",
+   "skill": "search",
+   "response": {
+    "status": 200,
+    "text": "{\"app_id\":\"events\",\"skill_id\":\"search\",\"b\":1,\"a\":2}"
+   },
+   "url": "/v1/apps/events/skills/search/details",
+   "credentials": "omit",
+   "out": {
+    "ok": true,
+    "value": {
+     "app_id": "events",
+     "skill_id": "search",
+     "b": 1,
+     "a": 2
+    }
+   }
+  },
+  {
+   "app": "mail",
+   "skill": "search",
+   "response": {
+    "status": 200,
+    "text": "{\"app_id\":\"mail\",\"skill_id\":\"search\"}"
+   },
+   "url": "/v1/apps/mail/skills/search/details",
+   "credentials": "include",
+   "out": {
+    "ok": true,
+    "value": {
+     "app_id": "mail",
+     "skill_id": "search"
+    }
+   }
+  },
+  {
+   "app": "web",
+   "skill": "search",
+   "response": {
+    "status": 404,
+    "text": "{\"detail\":\"Not Found\"}"
+   },
+   "url": "/v1/apps/web/skills/search/details",
+   "credentials": "omit",
+   "out": {
+    "ok": false,
+    "message": "Not Found"
+   }
+  },
+  {
+   "app": "web",
+   "skill": "search",
+   "response": {
+    "status": 200,
+    "text": "not json"
+   },
+   "url": "/v1/apps/web/skills/search/details",
+   "credentials": "omit",
+   "out": {
+    "ok": true,
+    "value": {}
+   }
+  },
+  {
+   "app": "a b",
+   "skill": "x/y?é",
+   "response": {
+    "status": 200,
+    "text": "{\"ok\":1}"
+   },
+   "url": "/v1/apps/a%20b/skills/x%2Fy%3F%C3%A9/details",
+   "credentials": "omit",
+   "out": {
+    "ok": true,
+    "value": {
+     "ok": 1
+    }
+   }
+  },
+  {
+   "app": "web",
+   "skill": "search",
+   "response": {
+    "status": 500,
+    "text": ""
+   },
+   "url": "/v1/apps/web/skills/search/details",
+   "credentials": "omit",
+   "out": {
+    "ok": false,
+    "message": "HTTP 500"
+   }
+  }
+ ],
+ "availability": [
+  {
+   "response": {
+    "status": 200,
+    "text": "{\"allowed\":true}"
+   },
+   "out": {
+    "allowed": true,
+    "reason": null
+   },
+   "url": "/v1/anonymous/apps/web/skills/search/availability"
+  },
+  {
+   "response": {
+    "status": 200,
+    "text": "{\"allowed\":false,\"reason\":\"daily_limit_reached\"}"
+   },
+   "out": {
+    "allowed": false,
+    "reason": "daily_limit_reached"
+   },
+   "url": "/v1/anonymous/apps/web/skills/search/availability"
+  },
+  {
+   "response": {
+    "status": 200,
+    "text": "{\"allowed\":\"yes\",\"reason\":5}"
+   },
+   "out": {
+    "allowed": false,
+    "reason": null
+   },
+   "url": "/v1/anonymous/apps/web/skills/search/availability"
+  },
+  {
+   "response": {
+    "status": 429,
+    "text": "{\"detail\":\"rate_limited\"}"
+   },
+   "out": {
+    "allowed": false,
+    "reason": "rate_limited"
+   },
+   "url": "/v1/anonymous/apps/web/skills/search/availability"
+  },
+  {
+   "response": {
+    "status": 200,
+    "text": "oops"
+   },
+   "out": {
+    "allowed": false,
+    "reason": null
+   },
+   "url": "/v1/anonymous/apps/web/skills/search/availability"
+  }
+ ],
+ "execute": [
+  {
+   "name": "sync success",
+   "app": "web",
+   "skill": "search",
+   "guest": false,
+   "teamId": null,
+   "metadata": {
+    "app_id": "web",
+    "skill_id": "search",
+    "execution_available": true,
+    "unavailable_reason": null,
+    "anonymous_allowed": false,
+    "execution_mode": "sync"
+   },
+   "routes": {
+    "POST /v1/apps/web/skills/search": [
+     {
+      "status": 200,
+      "text": "{\"success\":true,\"data\":{\"results\":[{\"title\":\"x\"}]},\"credits_charged\":2}"
+     }
+    ]
+   },
+   "out": {
+    "ok": true,
+    "value": {
+     "success": true,
+     "data": {
+      "results": [
+       {
+        "title": "x"
+       }
+      ]
+     },
+     "credits_charged": 2
+    }
+   },
+   "calls": [
+    "POST /v1/apps/web/skills/search"
+   ]
+  },
+  {
+   "name": "http error",
+   "app": "web",
+   "skill": "search",
+   "guest": false,
+   "teamId": null,
+   "metadata": {
+    "app_id": "web",
+    "skill_id": "search",
+    "execution_available": true,
+    "unavailable_reason": null,
+    "anonymous_allowed": false,
+    "execution_mode": "sync"
+   },
+   "routes": {
+    "POST /v1/apps/web/skills/search": [
+     {
+      "status": 402,
+      "text": "{\"detail\":\"insufficient_credits\"}"
+     }
+    ]
+   },
+   "out": {
+    "ok": false,
+    "message": "insufficient_credits"
+   },
+   "calls": [
+    "POST /v1/apps/web/skills/search"
+   ]
+  },
+  {
+   "name": "skill failure",
+   "app": "web",
+   "skill": "search",
+   "guest": false,
+   "teamId": null,
+   "metadata": {
+    "app_id": "web",
+    "skill_id": "search",
+    "execution_available": true,
+    "unavailable_reason": null,
+    "anonymous_allowed": false,
+    "execution_mode": "sync"
+   },
+   "routes": {
+    "POST /v1/apps/web/skills/search": [
+     {
+      "status": 200,
+      "text": "{\"success\":false,\"error\":\"provider_failed\"}"
+     }
+    ]
+   },
+   "out": {
+    "ok": false,
+    "message": "provider_failed"
+   },
+   "calls": [
+    "POST /v1/apps/web/skills/search"
+   ]
+  },
+  {
+   "name": "async single task",
+   "app": "web",
+   "skill": "search",
+   "guest": false,
+   "teamId": null,
+   "metadata": {
+    "app_id": "web",
+    "skill_id": "search",
+    "execution_available": true,
+    "unavailable_reason": null,
+    "anonymous_allowed": false,
+    "execution_mode": "sync"
+   },
+   "routes": {
+    "POST /v1/apps/web/skills/search": [
+     {
+      "status": 200,
+      "text": "{\"success\":true,\"data\":{\"task_id\":\"task-1\",\"status\":\"processing\"},\"credits_charged\":0}"
+     }
+    ],
+    "GET /v1/tasks/task-1": [
+     {
+      "status": 200,
+      "text": "{\"task_id\":\"task-1\",\"status\":\"processing\"}"
+     },
+     {
+      "status": 200,
+      "text": "{\"task_id\":\"task-1\",\"status\":\"completed\",\"result\":{\"z\":1,\"a\":[1,2]}}"
+     }
+    ]
+   },
+   "out": {
+    "ok": true,
+    "value": {
+     "success": true,
+     "data": {
+      "z": 1,
+      "a": [
+       1,
+       2
+      ]
+     },
+     "credits_charged": 0
+    }
+   },
+   "calls": [
+    "GET /v1/tasks/task-1",
+    "GET /v1/tasks/task-1",
+    "POST /v1/apps/web/skills/search"
+   ]
+  },
+  {
+   "name": "async task array",
+   "app": "web",
+   "skill": "search",
+   "guest": false,
+   "teamId": null,
+   "metadata": {
+    "app_id": "web",
+    "skill_id": "search",
+    "execution_available": true,
+    "unavailable_reason": null,
+    "anonymous_allowed": false,
+    "execution_mode": "sync"
+   },
+   "routes": {
+    "POST /v1/apps/web/skills/search": [
+     {
+      "status": 200,
+      "text": "{\"success\":true,\"data\":{\"task_ids\":[\"a1\",\"b2\"]}}"
+     }
+    ],
+    "GET /v1/tasks/a1": [
+     {
+      "status": 200,
+      "text": "{\"task_id\":\"a1\",\"status\":\"completed\",\"result\":{\"results\":[1]}}"
+     }
+    ],
+    "GET /v1/tasks/b2": [
+     {
+      "status": 200,
+      "text": "{\"task_id\":\"b2\",\"status\":\"pending\"}"
+     },
+     {
+      "status": 200,
+      "text": "{\"task_id\":\"b2\",\"status\":\"completed\",\"result\":{\"results\":[2]}}"
+     }
+    ]
+   },
+   "out": {
+    "ok": true,
+    "value": {
+     "success": true,
+     "data": [
+      {
+       "results": [
+        1
+       ]
+      },
+      {
+       "results": [
+        2
+       ]
+      }
+     ]
+    }
+   },
+   "calls": [
+    "GET /v1/tasks/a1",
+    "GET /v1/tasks/b2",
+    "GET /v1/tasks/b2",
+    "POST /v1/apps/web/skills/search"
+   ]
+  },
+  {
+   "name": "task failed",
+   "app": "web",
+   "skill": "search",
+   "guest": false,
+   "teamId": null,
+   "metadata": {
+    "app_id": "web",
+    "skill_id": "search",
+    "execution_available": true,
+    "unavailable_reason": null,
+    "anonymous_allowed": false,
+    "execution_mode": "sync"
+   },
+   "routes": {
+    "POST /v1/apps/web/skills/search": [
+     {
+      "status": 200,
+      "text": "{\"data\":{\"task_id\":\"t\"}}"
+     }
+    ],
+    "GET /v1/tasks/t": [
+     {
+      "status": 200,
+      "text": "{\"task_id\":\"t\",\"status\":\"failed\",\"error\":\"boom\"}"
+     }
+    ]
+   },
+   "out": {
+    "ok": false,
+    "message": "Task t: boom"
+   },
+   "calls": [
+    "GET /v1/tasks/t",
+    "POST /v1/apps/web/skills/search"
+   ]
+  },
+  {
+   "name": "task failed without error",
+   "app": "web",
+   "skill": "search",
+   "guest": false,
+   "teamId": null,
+   "metadata": {
+    "app_id": "web",
+    "skill_id": "search",
+    "execution_available": true,
+    "unavailable_reason": null,
+    "anonymous_allowed": false,
+    "execution_mode": "sync"
+   },
+   "routes": {
+    "POST /v1/apps/web/skills/search": [
+     {
+      "status": 200,
+      "text": "{\"data\":{\"task_id\":\"t\"}}"
+     }
+    ],
+    "GET /v1/tasks/t": [
+     {
+      "status": 200,
+      "text": "{\"task_id\":\"t\",\"status\":\"failed\",\"error\":null}"
+     }
+    ]
+   },
+   "out": {
+    "ok": false,
+    "message": "Task t: task_failed"
+   },
+   "calls": [
+    "GET /v1/tasks/t",
+    "POST /v1/apps/web/skills/search"
+   ]
+  },
+  {
+   "name": "task not found",
+   "app": "web",
+   "skill": "search",
+   "guest": false,
+   "teamId": null,
+   "metadata": {
+    "app_id": "web",
+    "skill_id": "search",
+    "execution_available": true,
+    "unavailable_reason": null,
+    "anonymous_allowed": false,
+    "execution_mode": "sync"
+   },
+   "routes": {
+    "POST /v1/apps/web/skills/search": [
+     {
+      "status": 200,
+      "text": "{\"data\":{\"task_id\":\"t\"}}"
+     }
+    ],
+    "GET /v1/tasks/t": [
+     {
+      "status": 404,
+      "text": "{\"detail\":\"Task not found\"}"
+     }
+    ]
+   },
+   "out": {
+    "ok": false,
+    "message": "Task t: Task not found"
+   },
+   "calls": [
+    "GET /v1/tasks/t",
+    "POST /v1/apps/web/skills/search"
+   ]
+  },
+  {
+   "name": "task 503 then completed",
+   "app": "web",
+   "skill": "search",
+   "guest": false,
+   "teamId": null,
+   "metadata": {
+    "app_id": "web",
+    "skill_id": "search",
+    "execution_available": true,
+    "unavailable_reason": null,
+    "anonymous_allowed": false,
+    "execution_mode": "sync"
+   },
+   "routes": {
+    "POST /v1/apps/web/skills/search": [
+     {
+      "status": 200,
+      "text": "{\"data\":{\"task_id\":\"t\"}}"
+     }
+    ],
+    "GET /v1/tasks/t": [
+     {
+      "status": 503,
+      "text": "upstream"
+     },
+     {
+      "status": 200,
+      "text": "{\"task_id\":\"t\",\"status\":\"completed\",\"result\":\"plain\"}"
+     }
+    ]
+   },
+   "out": {
+    "ok": true,
+    "value": {
+     "data": "plain"
+    }
+   },
+   "calls": [
+    "GET /v1/tasks/t",
+    "GET /v1/tasks/t",
+    "POST /v1/apps/web/skills/search"
+   ]
+  },
+  {
+   "name": "resolved failure",
+   "app": "web",
+   "skill": "search",
+   "guest": false,
+   "teamId": null,
+   "metadata": {
+    "app_id": "web",
+    "skill_id": "search",
+    "execution_available": true,
+    "unavailable_reason": null,
+    "anonymous_allowed": false,
+    "execution_mode": "sync"
+   },
+   "routes": {
+    "POST /v1/apps/web/skills/search": [
+     {
+      "status": 200,
+      "text": "{\"success\":true,\"data\":{\"task_id\":\"t\"}}"
+     }
+    ],
+    "GET /v1/tasks/t": [
+     {
+      "status": 200,
+      "text": "{\"task_id\":\"t\",\"status\":\"completed\",\"result\":{\"success\":false,\"error\":\"late failure\"}}"
+     }
+    ]
+   },
+   "out": {
+    "ok": false,
+    "message": "late failure"
+   },
+   "calls": [
+    "GET /v1/tasks/t",
+    "POST /v1/apps/web/skills/search"
+   ]
+  },
+  {
+   "name": "completed without result",
+   "app": "web",
+   "skill": "search",
+   "guest": false,
+   "teamId": null,
+   "metadata": {
+    "app_id": "web",
+    "skill_id": "search",
+    "execution_available": true,
+    "unavailable_reason": null,
+    "anonymous_allowed": false,
+    "execution_mode": "sync"
+   },
+   "routes": {
+    "POST /v1/apps/web/skills/search": [
+     {
+      "status": 200,
+      "text": "{\"success\":true,\"data\":{\"task_id\":\"t\"}}"
+     }
+    ],
+    "GET /v1/tasks/t": [
+     {
+      "status": 200,
+      "text": "{\"task_id\":\"t\",\"status\":\"completed\"}"
+     }
+    ]
+   },
+   "out": {
+    "ok": true,
+    "value": {
+     "success": true
+    }
+   },
+   "calls": [
+    "GET /v1/tasks/t",
+    "POST /v1/apps/web/skills/search"
+   ]
+  },
+  {
+   "name": "unavailable",
+   "app": "web",
+   "skill": "search",
+   "guest": false,
+   "teamId": null,
+   "metadata": {
+    "app_id": "web",
+    "skill_id": "search",
+    "execution_available": false,
+    "unavailable_reason": "maintenance",
+    "anonymous_allowed": false,
+    "execution_mode": "sync"
+   },
+   "routes": {},
+   "out": {
+    "ok": false,
+    "message": "maintenance"
+   },
+   "calls": []
+  },
+  {
+   "name": "mismatched skill",
+   "app": "web",
+   "skill": "search",
+   "guest": false,
+   "teamId": null,
+   "metadata": {
+    "app_id": "other",
+    "skill_id": "search",
+    "execution_available": true,
+    "unavailable_reason": null,
+    "anonymous_allowed": false,
+    "execution_mode": "sync"
+   },
+   "routes": {},
+   "out": {
+    "ok": false,
+    "message": "skill_unavailable"
+   },
+   "calls": []
+  },
+  {
+   "name": "team scoped",
+   "app": "web",
+   "skill": "search",
+   "guest": false,
+   "teamId": "team-1",
+   "metadata": {
+    "app_id": "web",
+    "skill_id": "search",
+    "execution_available": true,
+    "unavailable_reason": null,
+    "anonymous_allowed": false,
+    "execution_mode": "sync"
+   },
+   "routes": {
+    "POST /v1/apps/web/skills/search?team_id=team-1": [
+     {
+      "status": 200,
+      "text": "{\"success\":true,\"data\":{}}"
+     }
+    ]
+   },
+   "out": {
+    "ok": true,
+    "value": {
+     "success": true,
+     "data": {}
+    }
+   },
+   "calls": [
+    "POST /v1/apps/web/skills/search?team_id=team-1"
+   ]
+  },
+  {
+   "name": "guest accepted without polling",
+   "app": "web",
+   "skill": "search",
+   "guest": true,
+   "teamId": null,
+   "metadata": {
+    "app_id": "web",
+    "skill_id": "search",
+    "execution_available": true,
+    "unavailable_reason": null,
+    "anonymous_allowed": true,
+    "execution_mode": "sync"
+   },
+   "routes": {
+    "POST /v1/anonymous/apps/web/skills/search/availability": [
+     {
+      "status": 200,
+      "text": "{\"allowed\":true}"
+     }
+    ],
+    "POST /v1/anonymous/apps/web/skills/search": [
+     {
+      "status": 200,
+      "text": "{\"success\":true,\"data\":{\"task_id\":\"x\"}}"
+     }
+    ]
+   },
+   "out": {
+    "ok": true,
+    "value": {
+     "success": true,
+     "data": {
+      "task_id": "x"
+     }
+    }
+   },
+   "calls": [
+    "POST /v1/anonymous/apps/web/skills/search",
+    "POST /v1/anonymous/apps/web/skills/search/availability"
+   ]
+  },
+  {
+   "name": "guest quote denied",
+   "app": "web",
+   "skill": "search",
+   "guest": true,
+   "teamId": null,
+   "metadata": {
+    "app_id": "web",
+    "skill_id": "search",
+    "execution_available": true,
+    "unavailable_reason": null,
+    "anonymous_allowed": true,
+    "execution_mode": "sync"
+   },
+   "routes": {
+    "POST /v1/anonymous/apps/web/skills/search/availability": [
+     {
+      "status": 200,
+      "text": "{\"allowed\":false}"
+     }
+    ]
+   },
+   "out": {
+    "ok": false,
+    "message": "signup_required"
+   },
+   "calls": [
+    "POST /v1/anonymous/apps/web/skills/search/availability"
+   ]
+  },
+  {
+   "name": "guest quote reason",
+   "app": "web",
+   "skill": "search",
+   "guest": true,
+   "teamId": null,
+   "metadata": {
+    "app_id": "web",
+    "skill_id": "search",
+    "execution_available": true,
+    "unavailable_reason": null,
+    "anonymous_allowed": true,
+    "execution_mode": "sync"
+   },
+   "routes": {
+    "POST /v1/anonymous/apps/web/skills/search/availability": [
+     {
+      "status": 200,
+      "text": "{\"allowed\":false,\"reason\":\"daily_limit_reached\"}"
+     }
+    ]
+   },
+   "out": {
+    "ok": false,
+    "message": "daily_limit_reached"
+   },
+   "calls": [
+    "POST /v1/anonymous/apps/web/skills/search/availability"
+   ]
+  },
+  {
+   "name": "guest signup required",
+   "app": "web",
+   "skill": "search",
+   "guest": true,
+   "teamId": null,
+   "metadata": {
+    "app_id": "web",
+    "skill_id": "search",
+    "execution_available": true,
+    "unavailable_reason": null,
+    "anonymous_allowed": false,
+    "execution_mode": "sync"
+   },
+   "routes": {},
+   "out": {
+    "ok": false,
+    "message": "signup_required"
+   },
+   "calls": []
+  },
+  {
+   "name": "guest async mode",
+   "app": "web",
+   "skill": "search",
+   "guest": true,
+   "teamId": null,
+   "metadata": {
+    "app_id": "web",
+    "skill_id": "search",
+    "execution_available": true,
+    "unavailable_reason": null,
+    "anonymous_allowed": true,
+    "execution_mode": "async_job"
+   },
+   "routes": {},
+   "out": {
+    "ok": false,
+    "message": "signup_required"
+   },
+   "calls": []
+  },
+  {
+   "name": "invalid json body",
+   "app": "web",
+   "skill": "search",
+   "guest": false,
+   "teamId": null,
+   "metadata": {
+    "app_id": "web",
+    "skill_id": "search",
+    "execution_available": true,
+    "unavailable_reason": null,
+    "anonymous_allowed": false,
+    "execution_mode": "sync"
+   },
+   "routes": {
+    "POST /v1/apps/web/skills/search": [
+     {
+      "status": 200,
+      "text": "nope"
+     }
+    ]
+   },
+   "out": {
+    "ok": true,
+    "value": {}
+   },
+   "calls": [
+    "POST /v1/apps/web/skills/search"
+   ]
+  }
+ ]
+}

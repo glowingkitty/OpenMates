@@ -24,6 +24,7 @@ pub mod upload_privacy;
 pub mod web_search;
 pub mod web_search_corpus;
 pub mod web_search_json;
+pub mod web_apps;
 #[cfg(test)]
 mod web_search_bench;
 #[cfg(test)]

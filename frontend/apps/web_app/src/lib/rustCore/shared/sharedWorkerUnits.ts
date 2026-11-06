@@ -13,4 +13,5 @@ export const SHARED_UNIT_INSTALLERS: UnitInstallers = Object.freeze({
 	core: installCoreUnit,
 	crypto: installCryptoUnit,
 	auth: (context) => import('@openmates/ui/src/services/rustCore/auth/authUnit').then((unit) => unit.installAuthUnit(context)),
+	apps: (context) => import('@openmates/ui/src/services/rustCore/apps/appsUnit').then((unit) => unit.installAppsUnit(context)),
 });
