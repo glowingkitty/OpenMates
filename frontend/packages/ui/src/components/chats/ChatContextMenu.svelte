@@ -13,6 +13,8 @@
     import { userProfile } from '../../stores/userProfile';
     import { requestChatProjectPicker } from '../../services/chatProjectService';
     import { buildChatMenuItems, type ChatMenuItem } from './chatMenuItems';
+    import { featureAvailabilityStore } from '../../stores/appSkillsStore';
+    import { isWorkspaceFeatureAvailable } from '../../config/workspaceFeatureGates';
     import { chatMenuUsageStore, hydrateChatMenuUsage, rankChatMenuItems, recordChatMenuUsage } from '../../services/chatMenuUsage';
 
     // Props using Svelte 5 $props()
@@ -89,6 +91,7 @@
         shareAllowed,
         isUnread,
         debugActive: $chatDebugStore.rawTextMode,
+        projectsEnabled: isWorkspaceFeatureAvailable('platform:projects', $featureAvailabilityStore.disabledById),
         hide: {
             delete: hideDelete, download: hideDownload, copy: hideCopy, select: hideSelect,
             share: hideShare, visibility: hideVisibility, pin: hidePin, readStatus: hideReadStatus,

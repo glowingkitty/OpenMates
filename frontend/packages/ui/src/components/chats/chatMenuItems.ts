@@ -31,6 +31,8 @@ export interface ChatMenuContext {
   shareAllowed: boolean;
   isUnread: boolean;
   debugActive: boolean;
+  /** Project actions are offered only when the projects feature is released/active. */
+  projectsEnabled: boolean;
   hide?: Partial<Record<'delete' | 'download' | 'copy' | 'select' | 'share' | 'visibility' | 'pin' | 'readStatus' | 'openNewTab', boolean>>;
 }
 
@@ -43,7 +45,7 @@ export function buildChatMenuItems(ctx: ChatMenuContext): ChatMenuItem[] {
       && !isDemoChat(chat.chat_id) && !isLegalChat(chat.chat_id) && !isPublic,
   );
 
-  if (ownsChat) {
+  if (ownsChat && ctx.projectsEnabled) {
     items.push(
       { action: 'addToProject', usageId: 'addToProject', icon: 'icon_project', labelKey: 'chats.projects.add', testId: 'chat-context-add-to-project' },
       { action: 'createProject', usageId: 'createProject', icon: 'icon_create', labelKey: 'chats.projects.create', testId: 'chat-context-create-project' },

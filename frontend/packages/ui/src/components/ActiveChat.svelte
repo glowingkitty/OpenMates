@@ -81,7 +81,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { CHUNK_ERROR_MESSAGE, forcePageReload, isChunkLoadError, logChunkLoadError } from '../utils/chunkErrorHandler';
     import { normalizeEmbedType as registryNormalizeEmbedType } from '../data/embedRegistry.generated';
     import FocusModeContextMenu from './embeds/FocusModeContextMenu.svelte';
-    import { appSkillsStore, initializeUserAvailableSkills, initializeFeatureAvailability } from '../stores/appSkillsStore'; // For resolving active focus mode name in header banner
+    import { appSkillsStore, initializeUserAvailableSkills, initializeFeatureAvailability, featureAvailabilityStore } from '../stores/appSkillsStore'; // For resolving active focus mode name in header banner
+    import { isWorkspaceFeatureAvailable } from '../config/workspaceFeatureGates';
     import { userProfile } from '../stores/userProfile';
     import { 
         isInSignupProcess, 
@@ -8014,6 +8015,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 shareAllowed: false,
                 isUnread: (currentChat.unread_count ?? 0) > 0,
                 debugActive: false,
+                projectsEnabled: isWorkspaceFeatureAvailable('platform:projects', $featureAvailabilityStore.disabledById),
                 hide: { select: true, share: true },
             }), $chatMenuUsageStore)
             : [],

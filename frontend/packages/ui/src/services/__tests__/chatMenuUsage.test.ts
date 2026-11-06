@@ -2,24 +2,25 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
 
 const mocks = vi.hoisted(() => ({ decrypt: vi.fn(), encrypt: vi.fn(), fetch: vi.fn() }));
-const { auth, profile } = await vi.hoisted(async () => {
-  const store = await import('svelte/store');
+vi.mock('../encryption/MetadataEncryptor', () => ({ decryptWithMasterKey: mocks.decrypt, encryptWithMasterKey: mocks.encrypt }));
+vi.mock('../../stores/authStore', async () => {
+  const { writable } = await import('svelte/store');
+  return { authStore: writable({ isAuthenticated: true }) };
+});
+vi.mock('../../stores/userProfile', async () => {
+  const { writable } = await import('svelte/store');
+  const profile = writable<{ encrypted_settings: string | null }>({ encrypted_settings: null });
   return {
-    auth: store.writable({ isAuthenticated: true }),
-    profile: store.writable<{ encrypted_settings: string | null }>({ encrypted_settings: null }),
+    userProfile: profile,
+    updateProfile: (patch: { encrypted_settings: string | null }) => profile.update(p => ({ ...p, ...patch })),
   };
 });
-vi.mock('../encryption/MetadataEncryptor', () => ({ decryptWithMasterKey: mocks.decrypt, encryptWithMasterKey: mocks.encrypt }));
-vi.mock('../../stores/authStore', () => ({ authStore: auth }));
-vi.mock('../../stores/userProfile', () => ({
-  userProfile: profile,
-  updateProfile: (patch: { encrypted_settings: string | null }) => profile.update(p => ({ ...p, ...patch })),
-}));
 vi.mock('../../config/api', () => ({ getApiEndpoint: (path: string) => `https://api.test${path}` }));
 vi.mock('../../demo_chats', () => ({ isDemoChat: () => false, isLegalChat: () => false, isPublicChat: () => false }));
 
 import { chatMenuUsageScore, chatMenuUsageStore, hydrateChatMenuUsage, rankChatMenuItems, recordChatMenuUsage } from '../chatMenuUsage';
 import { buildChatMenuItems } from '../../components/chats/chatMenuItems';
+import { userProfile as profile } from '../../stores/userProfile';
 
 const DAY = 86_400_000;
 const NOW = 1_800_000_000_000;
@@ -60,7 +61,7 @@ describe('chat menu usage persistence', () => {
     vi.useFakeTimers();
     vi.stubGlobal('fetch', mocks.fetch);
     mocks.fetch.mockResolvedValue({ ok: true });
-    profile.set({ encrypted_settings: 'cipher-1' });
+    profile.set({ encrypted_settings: 'cipher-1' } as never);
     mocks.decrypt.mockResolvedValue(JSON.stringify({ topic_preferences: { version: 1 }, chat_menu_usage: { version: 1, actions: { copy: { count: 3, lastUsedAt: NOW } } } }));
     mocks.encrypt.mockImplementation(async (plain: string) => `enc:${plain}`);
   });
@@ -98,7 +99,7 @@ describe('chat menu catalog', () => {
 
   // contract-test: supporting surface=gui.web assertions=chat-navigation.menu.parity-ranked
   it('uses existing icons for project actions', () => {
-    const list = buildChatMenuItems({ chat, isAuthenticated: true, isAdmin: false, shareAllowed: true, isUnread: false, debugActive: false });
+    const list = buildChatMenuItems({ chat, isAuthenticated: true, isAdmin: false, shareAllowed: true, isUnread: false, debugActive: false, projectsEnabled: true });
     const icons = Object.fromEntries(list.map(i => [i.action, i.icon]));
     expect(icons.addToProject).toBe('icon_project');
     expect(icons.createProject).toBe('icon_create');
@@ -107,9 +108,16 @@ describe('chat menu catalog', () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=chat-navigation.menu.parity-ranked
+  it('omits project actions while the projects feature is not active', () => {
+    const list = buildChatMenuItems({ chat, isAuthenticated: true, isAdmin: false, shareAllowed: true, isUnread: false, debugActive: false, projectsEnabled: false });
+    expect(list.some(i => ['addToProject', 'createProject', 'moveToProject'].includes(i.action))).toBe(false);
+    expect(list.some(i => i.action === 'download')).toBe(true);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-navigation.menu.parity-ranked
   it('honours hidden actions for the fullscreen More menu', () => {
-    const list = buildChatMenuItems({ chat, isAuthenticated: true, isAdmin: true, shareAllowed: true, isUnread: false, debugActive: false, hide: { select: true, share: true } });
+    const list = buildChatMenuItems({ chat, isAuthenticated: true, isAdmin: true, shareAllowed: true, isUnread: false, debugActive: false, projectsEnabled: true, hide: { select: true, share: true } });
     expect(list.some(i => i.action === 'share' || i.action === 'enterSelectMode')).toBe(false);
-    expect(list.at(-1)?.action).toBe('toggleDebug');
+    expect(list[list.length - 1]?.action).toBe('toggleDebug');
   });
 });
