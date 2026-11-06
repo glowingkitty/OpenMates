@@ -61,12 +61,17 @@ sync and persistence policy also follows `specifications/architecture/sync/` and
 - Web Rust performance gate (user decision):
   - Gate only user-facing flows: cold start to usable chat, open chat, send/stream,
     embed ready and search.
-  - Rust must not be slower than TS in wall time or CPU. Measure this with a paired,
-    interleaved benchmark of at least 12 pairs; the upper bound of the 95% CI must
-    be ≤ +3%.
+  - Budget: Rust may be slower than TS only by an amount users cannot notice
+    (user decision 2026-11-06; it replaces the earlier +3% gate).
+    - Measure with a paired, interleaved benchmark of at least 12 pairs.
+    - Wall time per flow: the upper bound of the 95% CI must be
+      ≤ max(+10%, +50 ms).
+    - Slow end: p95 at most +100 ms slower than TS (+200 ms for cold start).
+    - CPU: the upper bound of the 95% CI must be ≤ +15%.
+    - Don't spend effort optimizing inside this budget; port code instead.
   - Isolated micro-ops, such as single page-to-worker calls, are reported but not gated.
   - Memory during the migration: at most one WASM instance, about +30 MB. More than
-    one is a blocker. The final build with the TS paths removed must have RAM and
+    one is a blocker. Memory that grows per page reload is always a bug. The final build with the TS paths removed must have RAM and
     download ≤ TS.
 - Web architecture:
   - Run one shared worker and one WASM instance, with no main-thread WASM.
