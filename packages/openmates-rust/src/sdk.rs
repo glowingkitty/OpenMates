@@ -16,6 +16,8 @@ use zeroize::Zeroizing;
 
 #[path="sdk_skill_release.rs"]
 mod skill_release;
+#[path="sdk_raw.rs"]
+mod raw;
 use skill_release::{SkillRelease,SkillValue,SkillValues};
 const MAX_BODY: usize = 16 * 1024 * 1024;
 
@@ -112,6 +114,12 @@ impl OpenMates {
     /// Authenticated API-key documentation; the public Client facade stays independent.
     pub fn docs(&self) -> crate::sdk_docs::Docs<'_> { crate::sdk_docs::Docs::new(self) }
     pub fn wikipedia(&self) -> crate::sdk_wikipedia::Wikipedia<'_> { crate::sdk_wikipedia::Wikipedia::new(self) }
+    pub fn billing(&self) -> crate::sdk_billing::Billing<'_> { crate::sdk_billing::Billing::new(self) }
+    pub fn settings(&self) -> crate::sdk_settings::Settings<'_> { crate::sdk_settings::Settings::new(self) }
+    pub fn reminders(&self) -> crate::sdk_reminders::Reminders<'_> { crate::sdk_reminders::Reminders::new(self) }
+    pub fn notifications(&self) -> crate::sdk_notifications::Notifications<'_> { crate::sdk_notifications::Notifications::new(self) }
+    pub fn finance(&self) -> crate::sdk_finance::Finance<'_> { crate::sdk_finance::Finance::new(self) }
+    pub fn connected_accounts(&mut self) -> crate::sdk_connected_accounts::ConnectedAccounts<'_> { crate::sdk_connected_accounts::ConnectedAccounts::new(self) }
     pub fn embeds(&mut self) -> crate::sdk_embeds::Embeds<'_> { crate::sdk_embeds::Embeds::new(self) }
     pub fn set_operation_cancel(&mut self, cancel: CancellationToken) {
         self.operation_cancel.cancel();

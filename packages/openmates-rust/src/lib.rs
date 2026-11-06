@@ -42,6 +42,13 @@ pub mod sdk_drafts;
 pub mod sdk_history;
 pub mod sdk_docs;
 pub mod sdk_wikipedia;
+pub mod sdk_ops;
+pub mod sdk_billing;
+pub mod sdk_settings;
+pub mod sdk_reminders;
+pub mod sdk_notifications;
+pub mod sdk_finance;
+pub mod sdk_connected_accounts;
 pub mod sdk_embeds;
 pub use sdk::{AnonymousMessage, ApiKey, OpenMates, SdkCredentials, SdkOptions};
 

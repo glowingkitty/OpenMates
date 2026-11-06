@@ -1320,13 +1320,50 @@
           "status": "partial"
         },
         "rust": {
-          "api": [],
-          "conformance": false,
-          "evidence": [],
-          "gaps": [
-            "Equivalent public API and cross-language implementation evidence are not yet established."
+          "status": "partial",
+          "api": [
+            "sdk.OpenMates.billing",
+            "sdk_billing",
+            "sdk_billing.Billing",
+            "sdk_billing.Billing.bank_transfer_status",
+            "sdk_billing.Billing.buyer_address",
+            "sdk_billing.Billing.chat_total",
+            "sdk_billing.Billing.create_bank_transfer_order",
+            "sdk_billing.Billing.create_gift_card_bank_transfer_order",
+            "sdk_billing.Billing.download_credit_note",
+            "sdk_billing.Billing.download_invoice",
+            "sdk_billing.Billing.gift_card_purchase_status",
+            "sdk_billing.Billing.list_bank_transfer_orders",
+            "sdk_billing.Billing.list_invoices",
+            "sdk_billing.Billing.list_purchased_gift_cards",
+            "sdk_billing.Billing.list_redeemed_gift_cards",
+            "sdk_billing.Billing.overview",
+            "sdk_billing.Billing.redeem_gift_card",
+            "sdk_billing.Billing.request_refund",
+            "sdk_billing.Billing.save_buyer_address",
+            "sdk_billing.Billing.set_low_balance_auto_topup",
+            "sdk_billing.Billing.usage",
+            "sdk_billing.Billing.usage_daily",
+            "sdk_billing.Billing.usage_details",
+            "sdk_billing.Billing.usage_export",
+            "sdk_billing.Billing.usage_overview",
+            "sdk_billing.Billing.usage_summaries",
+            "sdk_ops",
+            "sdk_ops.RawDownload",
+            "sdk_ops.RawDownload.content_type",
+            "sdk_ops.RawDownload.data",
+            "sdk_ops.RawDownload.filename"
           ],
-          "status": "missing"
+          "evidence": [
+            "packages/openmates-rust/tests/sdk_operations_a.rs"
+          ],
+          "gaps": [
+            "Shared wire vectors cover the JSON routes; raw download behaviour (invoices, credit notes, usage export) is covered by Rust-only tests, and Python returns a dict where Rust returns RawDownload.",
+            "Rust API-key facade is exercised only against a loopback fixture server; no live backend, purchase, refund or deletion route has been executed.",
+            "No managed cross-language runner (npm/Python/Rust peers) executes the shared vectors in the conformance gate yet; npm and Python remain partial.",
+            "Matching direct SDK CPU-processing benchmark against TypeScript is absent."
+          ],
+          "conformance": false
         }
       }
     },
@@ -1611,13 +1648,24 @@
           "status": "partial"
         },
         "rust": {
-          "api": [],
-          "conformance": false,
-          "evidence": [],
-          "gaps": [
-            "Equivalent public API and cross-language implementation evidence are not yet established."
+          "status": "partial",
+          "api": [
+            "sdk.OpenMates.connected_accounts",
+            "sdk_connected_accounts",
+            "sdk_connected_accounts.ConnectedAccounts",
+            "sdk_connected_accounts.ConnectedAccounts.import_account"
           ],
-          "status": "missing"
+          "evidence": [
+            "packages/openmates-rust/tests/sdk_operations_a.rs"
+          ],
+          "gaps": [
+            "Import re-encryption is proven with a local synthetic OMCA1 payload; the backend validation route and real provider tokens are not exercised.",
+            "Team connected accounts are refused in every SDK.",
+            "Rust API-key facade is exercised only against a loopback fixture server; no live backend, purchase, refund or deletion route has been executed.",
+            "No managed cross-language runner (npm/Python/Rust peers) executes the shared vectors in the conformance gate yet; npm and Python remain partial.",
+            "Matching direct SDK CPU-processing benchmark against TypeScript is absent."
+          ],
+          "conformance": false
         }
       }
     },
@@ -2256,13 +2304,28 @@
           "status": "partial"
         },
         "rust": {
-          "api": [],
-          "conformance": false,
-          "evidence": [],
-          "gaps": [
-            "Equivalent public API and cross-language implementation evidence are not yet established."
+          "status": "partial",
+          "api": [
+            "sdk.OpenMates.finance",
+            "sdk_finance",
+            "sdk_finance.CheckAccountsOptions",
+            "sdk_finance.CheckAccountsOptions.chat_id",
+            "sdk_finance.CheckAccountsOptions.connected_account_token_ref_inputs",
+            "sdk_finance.CheckAccountsOptions.message_id",
+            "sdk_finance.CheckAccountsOptions.prompt_injection_protection",
+            "sdk_finance.Finance",
+            "sdk_finance.Finance.check_accounts"
           ],
-          "status": "missing"
+          "evidence": [
+            "packages/openmates-rust/tests/sdk_operations_a.rs"
+          ],
+          "gaps": [
+            "Python defaults prompt_injection_protection to False for Finance while npm/Rust leave it unset; the divergence is recorded, not unified.",
+            "Rust API-key facade is exercised only against a loopback fixture server; no live backend, purchase, refund or deletion route has been executed.",
+            "No managed cross-language runner (npm/Python/Rust peers) executes the shared vectors in the conformance gate yet; npm and Python remain partial.",
+            "Matching direct SDK CPU-processing benchmark against TypeScript is absent."
+          ],
+          "conformance": false
         }
       }
     },
@@ -3000,13 +3063,23 @@
           "status": "partial"
         },
         "rust": {
-          "api": [],
-          "conformance": false,
-          "evidence": [],
-          "gaps": [
-            "Equivalent public API and cross-language implementation evidence are not yet established."
+          "status": "partial",
+          "api": [
+            "sdk.OpenMates.notifications",
+            "sdk_notifications",
+            "sdk_notifications.Notifications",
+            "sdk_notifications.Notifications.list",
+            "sdk_notifications.Notifications.status"
           ],
-          "status": "missing"
+          "evidence": [
+            "packages/openmates-rust/tests/sdk_operations_a.rs"
+          ],
+          "gaps": [
+            "Rust API-key facade is exercised only against a loopback fixture server; no live backend, purchase, refund or deletion route has been executed.",
+            "No managed cross-language runner (npm/Python/Rust peers) executes the shared vectors in the conformance gate yet; npm and Python remain partial.",
+            "Matching direct SDK CPU-processing benchmark against TypeScript is absent."
+          ],
+          "conformance": false
         }
       }
     },
@@ -4435,13 +4508,24 @@
           "status": "partial"
         },
         "rust": {
-          "api": [],
-          "conformance": false,
-          "evidence": [],
-          "gaps": [
-            "Equivalent public API and cross-language implementation evidence are not yet established."
+          "status": "partial",
+          "api": [
+            "sdk.OpenMates.reminders",
+            "sdk_reminders",
+            "sdk_reminders.Reminders",
+            "sdk_reminders.Reminders.delete",
+            "sdk_reminders.Reminders.list",
+            "sdk_reminders.Reminders.update"
           ],
-          "status": "missing"
+          "evidence": [
+            "packages/openmates-rust/tests/sdk_operations_a.rs"
+          ],
+          "gaps": [
+            "Rust API-key facade is exercised only against a loopback fixture server; no live backend, purchase, refund or deletion route has been executed.",
+            "No managed cross-language runner (npm/Python/Rust peers) executes the shared vectors in the conformance gate yet; npm and Python remain partial.",
+            "Matching direct SDK CPU-processing benchmark against TypeScript is absent."
+          ],
+          "conformance": false
         }
       }
     },
@@ -4663,6 +4747,14 @@
             "account.imports_parse_more.parse_generic_import",
             "account.imports_parse_more.parse_opencode_import",
             "account.imports_parse_more.parse_openmates_import",
+            "account.local_connector.Account.complete_local_connector_request",
+            "account.local_connector.Account.local_connector_heartbeat",
+            "account.local_connector.Account.open_local_connector_socket",
+            "account.local_connector.Account.register_local_connector",
+            "account.local_connector.LocalConnectorSession",
+            "account.local_connector.LocalConnectorSession.connected_account_id",
+            "account.local_connector.LocalConnectorSession.connector_session_id",
+            "account.local_connector.LocalConnectorSession.heartbeat_interval_ms",
             "account.settings_extra.Account.record_mates_consent",
             "account.settings_extra.Account.report_issue",
             "account.settings_extra.Account.report_issue_status",
@@ -4974,14 +5066,15 @@
             "client.Client.list",
             "client.Client.login_password",
             "client.Client.logout",
+            "client.Client.mark_chat_read",
             "client.Client.mention_catalog",
             "client.Client.move_workspace_to_team",
-            "client.Client.mark_chat_read",
             "client.Client.mutate",
             "client.Client.new",
             "client.Client.new_chat_suggestions",
             "client.Client.open_chat",
             "client.Client.open_chat_with_fresh_chat_inventory",
+            "client.Client.open_local_connector_socket",
             "client.Client.open_sse",
             "client.Client.options",
             "client.Client.order_chat_list_items",
@@ -5884,6 +5977,9 @@
             "client.transport.binary_stream.SseStream",
             "client.transport.binary_stream.SseStream.next",
             "client.transport.binary_stream.parse_sse_message",
+            "client.transport.local_connector.LocalConnectorSocket",
+            "client.transport.local_connector.LocalConnectorSocket.close",
+            "client.transport.local_connector.LocalConnectorSocket.next_request",
             "client.upload.AudioTranscription",
             "client.upload.AudioTranscription.correction_model",
             "client.upload.AudioTranscription.model",
@@ -6598,13 +6694,32 @@
           "status": "partial"
         },
         "rust": {
-          "api": [],
-          "conformance": false,
-          "evidence": [],
-          "gaps": [
-            "Equivalent public API and cross-language implementation evidence are not yet established."
+          "status": "partial",
+          "api": [
+            "sdk.OpenMates.settings",
+            "sdk_settings",
+            "sdk_settings.ModelDefaults",
+            "sdk_settings.ModelDefaults.default_ai_model_complex",
+            "sdk_settings.ModelDefaults.default_ai_model_most_demanding",
+            "sdk_settings.ModelDefaults.default_ai_model_simple",
+            "sdk_settings.Settings",
+            "sdk_settings.Settings.set_chat_auto_delete",
+            "sdk_settings.Settings.set_dark_mode",
+            "sdk_settings.Settings.set_font",
+            "sdk_settings.Settings.set_language",
+            "sdk_settings.Settings.set_model_defaults",
+            "sdk_settings.Settings.share_debug_logs"
           ],
-          "status": "missing"
+          "evidence": [
+            "packages/openmates-rust/tests/sdk_operations_a.rs"
+          ],
+          "gaps": [
+            "share_debug_logs is a typed unavailable error in every SDK; the debug-log sharing backend path is not exposed through API keys.",
+            "Rust API-key facade is exercised only against a loopback fixture server; no live backend, purchase, refund or deletion route has been executed.",
+            "No managed cross-language runner (npm/Python/Rust peers) executes the shared vectors in the conformance gate yet; npm and Python remain partial.",
+            "Matching direct SDK CPU-processing benchmark against TypeScript is absent."
+          ],
+          "conformance": false
         }
       }
     },

@@ -12,6 +12,8 @@ mod examples;
 mod finance;
 #[path = "utility/prompt_budget.rs"]
 mod prompt_budget;
+#[path = "utility/proton.rs"]
+mod proton;
 #[path = "utility/revolut.rs"]
 mod revolut;
 #[path = "utility/self_update.rs"]
@@ -33,7 +35,7 @@ pub(super) fn is_public(i: &Invocation) -> bool {
     local(i) || is_network_public(i)
 }
 pub(super) fn supported(i: &Invocation) -> bool {
-    is_public(i) || finance::supported(i) || revolut::supported(i)
+    is_public(i) || finance::supported(i) || revolut::supported(i) || proton::supported(i)
 }
 /// Synchronous local handlers; run before any credential storage is opened.
 pub(super) fn public(i: &Invocation) -> Option<Result<CliOutput, CliError>> {
@@ -58,6 +60,9 @@ pub(super) async fn execute_public(i: &Invocation) -> Result<CliOutput, CliError
     self_update::execute(i).await
 }
 pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOutput, CliError> {
+    if proton::supported(i) {
+        return proton::execute(i, client).await;
+    }
     if revolut::supported(i) {
         return revolut::execute(i, client).await;
     }

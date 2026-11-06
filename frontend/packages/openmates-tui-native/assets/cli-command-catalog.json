@@ -32229,12 +32229,13 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "utility::proton::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/utility/proton.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Verified against recorded Bridge fixtures only; no live Proton Bridge run (requires a paid Proton plan and an amd64 Linux or macOS Bridge install).",
+        "Heartbeat and request handling share one sequential loop, so a long IMAP search can delay a heartbeat."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -62377,8 +62378,8 @@
   "coverage": {
     "command_patterns": 724,
     "flags": 608,
-    "native_handlers_partial": 715,
-    "unsupported": 9,
+    "native_handlers_partial": 716,
+    "unsupported": 8,
     "feature_complete": false
   },
   "maintenance": {

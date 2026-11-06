@@ -9,6 +9,7 @@ mod api_keys;
 mod billing;
 mod connected_accounts;
 mod ideabucket;
+mod local_connector;
 mod imports;
 pub mod imports_chat;
 pub mod imports_parse;
@@ -28,7 +29,10 @@ pub use settings_ops::AccountExportStart;
 pub use connected_accounts::{
     decrypt_connected_account_transfer, revolut_business_consent_url, revolut_business_token_url,
 };
+pub(crate) use connected_accounts::{assert_no_secret, import_row};
 pub use billing::validate_buyer_address;
+pub use local_connector::{LocalConnectorSession};
+pub use crate::client::transport::local_connector::LocalConnectorSocket;
 pub use ideabucket::{IDEABUCKET_DEFAULT_PROCESSING_PROMPT, IdeaBucketText, normalize_processing_times};
 pub use settings_read::{SettingsReadError, SettingsReadResponse};
 use crate::{Client, Error, Result, crypto};

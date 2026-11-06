@@ -102,7 +102,7 @@ fn validate(payload: &Value) -> Result<()> {
     Ok(())
 }
 /// npm assertNoConnectedAccountSecretLeak (forbidden plaintext keys).
-fn assert_no_secret(value: &Value) -> Result<()> {
+pub(crate) fn assert_no_secret(value: &Value) -> Result<()> {
     let serialized = value.to_string();
     for key in [
         "refresh_token",
