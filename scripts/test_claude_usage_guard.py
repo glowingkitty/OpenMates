@@ -262,3 +262,15 @@ def test_pace_message_demands_a_stop_with_progress_and_open_items() -> None:
                    "overrides this message"):
         assert needle in text
     assert guard.tier_message(guard.PACE_TIER, 20, resets_in(160.5), 160.5) == text
+
+
+def test_pace_tier_is_off_unless_enabled(monkeypatch, capsys) -> None:
+    seen: list[str] = []
+    monkeypatch.setattr(guard, "run_check", lambda *args, tier=guard.WRAPUP_TIER, **kw: seen.append(tier))
+    assert guard.main(["check"]) == 0
+    assert seen == [guard.RESERVE_TIER, guard.WRAPUP_TIER]
+    seen.clear()
+    assert guard.main(["check", "--enable-pace"]) == 0
+    assert seen == [guard.RESERVE_TIER, guard.PACE_TIER, guard.WRAPUP_TIER]
+    guard.main(["message"])
+    assert "--- pace ---" not in capsys.readouterr().out

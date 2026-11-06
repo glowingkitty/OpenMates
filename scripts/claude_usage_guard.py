@@ -4,9 +4,9 @@
 Deterministic decision, minimal model use. Every check:
   1. reads the subscription's weekly (seven_day) usage from the account endpoint
      Claude Code's /usage uses (read-only, undocumented, failures are reported),
-  2. evaluates three tiers, each triggering when used >= its threshold AND more than its
+  2. evaluates two tiers by default plus an opt-in third (``--enable-pace``, off by default), each triggering when used >= its threshold AND more than its
      minimum hours remain until the reset (close to the reset it is cheaper to wait):
-       pace     remaining <= 15% x full days until the reset: stop, report progress and what
+       pace     (opt-in) remaining <= 15% x full days until the reset: stop, report progress and what
                 is open. The threshold moves down each day; chats that become active later
                 are told too (each chat at most once per day step),
        wrapup   >= 90% used (10% left), > 24h to reset: orderly wind-down,
@@ -488,6 +488,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--to", help="chat name for ping")
     parser.add_argument("--threshold", type=float, default=THRESHOLD_PERCENT)
     parser.add_argument("--min-hours", type=float, default=MIN_HOURS_TO_RESET)
+    parser.add_argument("--enable-pace", action="store_true",
+                        help="also run the pace tier (stop chats when the budget falls behind 15%% per remaining day)")
     parser.add_argument("--reserve-threshold", type=float, default=RESERVE_THRESHOLD_PERCENT)
     parser.add_argument("--reserve-min-hours", type=float, default=RESERVE_MIN_HOURS_TO_RESET)
     parser.add_argument("--active-minutes", type=int, default=ACTIVE_MINUTES)
@@ -495,13 +497,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
     rules = {WRAPUP_TIER: (args.threshold, args.min_hours),
-             RESERVE_TIER: (args.reserve_threshold, args.reserve_min_hours),
-             PACE_TIER: (0.0, 0.0)}  # pace threshold is computed from the time left, see run_check
+             RESERVE_TIER: (args.reserve_threshold, args.reserve_min_hours)}
+    if args.enable_pace:
+        rules[PACE_TIER] = (0.0, 0.0)  # pace threshold is computed from the time left, see run_check
 
     def check_all() -> None:
         # Reserve first: it is the more urgent message; each tier fires once per window.
         for tier in (RESERVE_TIER, PACE_TIER, WRAPUP_TIER):
-            run_check(args.dry_run, *rules[tier], args.active_minutes, tier=tier)
+            if tier in rules:
+                run_check(args.dry_run, *rules[tier], args.active_minutes, tier=tier)
 
     if args.command == "message":
         for tier, (threshold, min_hours) in rules.items():
