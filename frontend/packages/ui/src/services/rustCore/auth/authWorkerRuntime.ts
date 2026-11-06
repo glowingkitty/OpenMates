@@ -1,7 +1,8 @@
 /**
- * Worker-side dispatcher for the Rust web auth exports. Separate from the Worker
- * entry so it can be unit tested with a synthetic binding. Rust error values are
- * fixed codes; arbitrary exception text never crosses back to the page.
+ * Worker-side dispatcher for the Rust web auth exports, installed on the shared
+ * Rust core Worker's `auth` unit port (authUnit.ts). Environment-free so it can
+ * be unit tested with a synthetic binding. Rust error values are fixed codes;
+ * arbitrary exception text never crosses back to the page.
  */
 import { AUTH_PROTOCOL_VERSION, isAuthHttpRequest, type AuthCall, type AuthHttpReply, type AuthToWorker } from './authProtocol';
 
@@ -46,13 +47,20 @@ function refusal(error: unknown): string {
 	return typeof error === 'string' && /^[a-z_]{1,48}$/.test(error) ? error : 'rust_auth_failed';
 }
 
-export function installAuthWorker(scope: AuthWorkerScope, binding: RustWebAuthBinding): void {
+/**
+ * Serves the auth protocol on `scope`. The returned dispose rejects every login
+ * still waiting for a page reply (`cancelled`), so its derived keys are freed
+ * now, and ignores later traffic. It does not close the scope.
+ */
+export function installAuthWorker(scope: AuthWorkerScope, binding: RustWebAuthBinding): () => void {
+	let disposed = false;
 	const replies = new Map<number, { resolve(reply: AuthHttpReply): void; reject(error: string): void }>();
 	const post = (message: Record<string, unknown>) => scope.postMessage({ v: AUTH_PROTOCOL_VERSION, ...message });
 
 	const fetchViaPage = (id: number, encoded: string): Promise<AuthHttpReply> => {
 		const http: unknown = JSON.parse(encoded);
 		if (!isAuthHttpRequest(http)) return Promise.reject('protocol');
+		if (disposed) return Promise.reject('cancelled');
 		return new Promise((resolve, reject) => { replies.set(id, { resolve, reject }); post({ id, http }); });
 	};
 
@@ -101,6 +109,7 @@ export function installAuthWorker(scope: AuthWorkerScope, binding: RustWebAuthBi
 	}
 
 	scope.addEventListener('message', (event) => {
+		if (disposed) return;
 		const data = event.data as AuthToWorker | null;
 		if (!data || data.v !== AUTH_PROTOCOL_VERSION || !Number.isSafeInteger(data.id)) { scope.close(); return; }
 		if ('reply' in data || 'replyFailed' in data) {
@@ -112,9 +121,15 @@ export function installAuthWorker(scope: AuthWorkerScope, binding: RustWebAuthBi
 		}
 		const id = data.id;
 		Promise.resolve().then(() => run(id, data)).then(
-			(value) => post({ id, ok: true, value }),
-			(error: unknown) => post({ id, ok: false, code: refusal(error) }),
+			(value) => { if (!disposed) post({ id, ok: true, value }); },
+			(error: unknown) => { if (!disposed) post({ id, ok: false, code: refusal(error) }); },
 		);
 	});
 	post({ ready: true });
+	return () => {
+		if (disposed) return;
+		disposed = true;
+		for (const waiting of replies.values()) waiting.reject('cancelled');
+		replies.clear();
+	};
 }

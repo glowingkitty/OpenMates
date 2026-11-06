@@ -12,4 +12,5 @@ import { installCryptoUnit } from '@openmates/ui/src/services/rustCore/crypto/cr
 export const SHARED_UNIT_INSTALLERS: UnitInstallers = Object.freeze({
 	core: installCoreUnit,
 	crypto: installCryptoUnit,
+	auth: (context) => import('@openmates/ui/src/services/rustCore/auth/authUnit').then((unit) => unit.installAuthUnit(context)),
 });

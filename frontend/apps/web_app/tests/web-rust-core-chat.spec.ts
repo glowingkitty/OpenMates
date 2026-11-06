@@ -219,9 +219,16 @@ test('opens a saved chat in the normal chat UI from Rust-decrypted history', asy
 		runs.push({ path, ...timing });
 		expect(timing.chatRendered, `${path} rendered the saved chat after reload`).toBeDefined();
 		expect(timing.wasmMainThreadInstantiations, `${path}: no WASM on the page realm`).toBe(0);
+		// Flag-on reload (both arms; Rust auth restores the session in each, as before the
+		// shared Worker): exactly one Rust Worker, the shared core Worker, with one WASM instance.
+		const loadWorkers = timing.workers as { name: string; wasm: number }[];
+		expect(loadWorkers.filter((worker) => worker.name === 'auth.worker').length, `${path}: no dedicated auth Worker`).toBe(0);
+		expect(timing.rustWorkers, `${path}: one Rust Worker after reload`).toBe(1);
+		expect(timing.dedicatedWorkers, `${path}: one dedicated Worker after reload`).toBe(1);
+		expect(timing.sharedWorkerWasm, `${path}: the shared Worker holds the WASM instance`).toBe(1);
+		expect(timing.wasmInstantiations, `${path}: one WASM instance in the tab`).toBe(1);
 		if (path === 'ts') {
 			expect(timing.marker, 'TS baseline did not use Rust').toBeNull();
-			expect(timing.sharedWorkerWasm, 'TS baseline instantiated no Rust WASM (history and crypto opted out)').toBe(0);
 			// Bubbles mount before their decrypted content; wait until every content is filled in.
 			await expect.poll(async () => { tsTexts = await renderedTexts(); return tsTexts.length >= 2 && tsTexts.every((text) => text.trim().length > 0); },
 				{ timeout: 20000, message: 'TS rendered the saved message contents' }).toBe(true);
@@ -279,7 +286,9 @@ test('opens a saved chat in the normal chat UI from Rust-decrypted history', asy
 			sharedWorkerWasm: instances.sharedWorkerWasm };
 		log('send timing', row);
 		sends.push(row);
-		expect(instances.sharedWorkerWasm, `${path} send: shared Worker WASM (Rust crypto)`).toBe(path === 'ts' ? 0 : 1);
+		// One shared-Worker WASM instance in both arms: Rust auth (both) plus Rust crypto (Rust arm).
+		expect(instances.sharedWorkerWasm, `${path} send: one shared Worker WASM instance`).toBe(1);
+		expect(instances.wasmInstantiations, `${path} send: one WASM instance in the tab`).toBe(1);
 		await expect(page.getByTestId('message-assistant').last()).toBeVisible({ timeout: 60000 });
 		await expect(page.getByTestId('message-user').last()).toContainText('leaves use sunlight');
 	}

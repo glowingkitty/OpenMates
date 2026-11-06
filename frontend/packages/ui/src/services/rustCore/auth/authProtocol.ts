@@ -77,3 +77,11 @@ export function isAuthFromWorker(value: unknown): value is AuthFromWorker {
 	if ('http' in value) return isAuthHttpRequest(value.http);
 	return value.ok === true ? 'value' in value : value.ok === false && typeof value.code === 'string';
 }
+
+/** page → auth unit: release this unit port only; the shared Worker keeps running. Never a valid call. */
+export const AUTH_UNIT_CLOSE = /* @__PURE__ */ Object.freeze({ v: AUTH_PROTOCOL_VERSION, authUnitClose: true as const });
+/** True only for the exact `AUTH_UNIT_CLOSE` frame shape. */
+export function isAuthUnitClose(value: unknown): boolean {
+	return record(value) && Object.getPrototypeOf(value) === Object.prototype && Object.keys(value).length === 2
+		&& value.v === AUTH_PROTOCOL_VERSION && value.authUnitClose === true;
+}

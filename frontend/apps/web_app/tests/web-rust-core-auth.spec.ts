@@ -307,9 +307,11 @@ test('Rust login, restore and logout match the TypeScript requests and cookies',
 		cookies[arm] = await cookieAttributeShape(context);
 		await assertNoThirdPartyCookies(context);
 
-		const rustWorkers = workers.slice(workersBefore).filter((url) => /auth\.worker/.test(url));
-		if (arm === 'rust') expect(rustWorkers.length, 'the Rust arm must run auth in the Rust auth Worker').toBeGreaterThan(0);
-		else expect(rustWorkers, 'the TypeScript arm must not start the Rust auth Worker').toEqual([]);
+		// Auth runs on the `auth` unit of the one shared Rust core Worker; the dedicated auth Worker is gone.
+		expect(workers.slice(workersBefore).filter((url) => /auth\.worker/.test(url)), 'no dedicated Rust auth Worker').toEqual([]);
+		const authUnitOpens = await page.evaluate(() => performance.getEntriesByName('openmates:rust:auth-unit-open').length);
+		if (arm === 'rust') expect(authUnitOpens, 'the Rust arm must run auth on the shared Worker auth unit').toBeGreaterThan(0);
+		else expect(authUnitOpens, 'the TypeScript arm must not open the Rust auth unit').toBe(0);
 
 		// 3. Logout (Rust arm: with a second tab that must follow).
 		let peer: any = null;
@@ -376,7 +378,8 @@ test('Rust login, restore and logout match the TypeScript requests and cookies',
 			heapAfterRestoreMedianBytes: restoreMedian('heap'),
 			heapAfterRestoreGcMedianBytes: restoreMedian('heapGc'),
 			mainThreadWasmAfterRestoreMedianBytes: restoreMedian('wasm'),
-			authWorkers: rustWorkers.length,
+			authUnitOpensLastLoad: authUnitOpens,
+			sharedWorkersStarted: workers.slice(workersBefore).filter((url) => /shared\.worker/.test(url)).length,
 		};
 		log(`${arm} arm done`, report[arm] as Record<string, unknown>);
 	}

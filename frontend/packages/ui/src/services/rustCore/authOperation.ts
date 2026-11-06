@@ -59,6 +59,36 @@ let idleTimer: ReturnType<typeof setTimeout> | null = null;
  * closed sooner makes every page load recompile the module from scratch.
  */
 const WORKER_IDLE_MS = 4000;
+/** Flag builds: a login derived keys in the shared realm since it was last retired. */
+let keysDerived = false;
+/** Flag builds: longest wait for other auth calls before a retirement proceeds. */
+const DRAIN_LIMIT_MS = 5000;
+/** Flag builds: resolved whenever an auth operation ends (see `retireWhenDrained`). */
+let drainWaiters: (() => void)[] = [];
+
+/**
+ * Flag builds: terminate the shared Rust core Worker and respawn it unbound, so
+ * key material a login derived in its WASM memory does not outlive the login
+ * (`force`: also while a principal is bound, i.e. on logout). Waits until at
+ * most `own` auth operations (the caller's) are running, at most
+ * DRAIN_LIMIT_MS, then terminates synchronously, so other auth calls are not
+ * cut off by the retirement and a hung call cannot keep the realm alive.
+ */
+async function retireWhenDrained(force: boolean, own: number): Promise<void> {
+	if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') {
+		const { loadSharedAuthRealm } = await import('./auth/authWorkerPort');
+		const realm = await loadSharedAuthRealm();
+		const deadline = Date.now() + DRAIN_LIMIT_MS;
+		while (users > own && Date.now() < deadline) {
+			await new Promise<void>((resolve) => {
+				const timer = setTimeout(resolve, deadline - Date.now());
+				drainWaiters.push(() => { clearTimeout(timer); resolve(); });
+			});
+		}
+		keysDerived = false;
+		realm.retire({ force });
+	}
+}
 
 /** Each operation holds the Worker; the last one to finish releases it. */
 function core(): Promise<RustAuthClient> {
@@ -66,8 +96,14 @@ function core(): Promise<RustAuthClient> {
 	if (idleTimer !== null) { clearTimeout(idleTimer); idleTimer = null; }
 	if (testClient) return Promise.resolve(testClient);
 	if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') {
-		client ??= import('./auth/authWorkerPort').then(({ createWorkerAuthClient }) =>
-			createWorkerAuthClient((request) => executeAuthRequest(request)));
+		if (!client) {
+			// A closed client (idle close, protocol failure, shared Worker crash or
+			// retirement) is dropped, so the next operation opens a fresh unit port.
+			const opening: Promise<RustAuthClient> = import('./auth/authWorkerPort').then(({ createSharedAuthClient }) =>
+				createSharedAuthClient((request) => executeAuthRequest(request), () => { if (client === opening) client = null; }));
+			opening.catch(() => { if (client === opening) client = null; });
+			client = opening;
+		}
 		return client;
 	}
 	return Promise.reject(new Error('rust_core_not_enabled'));
@@ -76,6 +112,11 @@ function core(): Promise<RustAuthClient> {
 /** Release the Worker (and its WASM memory, e.g. the 64 MiB Argon2 arena) once idle. */
 function retire(): void {
 	users = Math.max(0, users - 1);
+	if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1' && drainWaiters.length > 0) {
+		const waiting = drainWaiters;
+		drainWaiters = [];
+		for (const resolve of waiting) resolve();
+	}
 	if (users > 0 || testClient || !client || idleTimer !== null) return;
 	idleTimer = setTimeout(() => {
 		idleTimer = null;
@@ -83,6 +124,9 @@ function retire(): void {
 		const closing = client;
 		client = null;
 		void closing.then((active) => active.close(), () => undefined);
+		if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1' && keysDerived) {
+			void retireWhenDrained(false, 0).catch((error: unknown) => console.warn('[RustAuth] shared core retirement failed:', error instanceof Error ? error.message : 'unknown'));
+		}
 	}, WORKER_IDLE_MS);
 }
 
@@ -123,6 +167,17 @@ function toOutcome(result: PasswordLoginResult): RustPasswordLoginOutcome {
 	};
 }
 
+/**
+ * Flag builds: a login derived keys in the shared realm. It is retired once auth
+ * is idle unless the page bound a principal meanwhile (the realm then belongs
+ * to that session and is terminated on logout or account switch). Retiring it
+ * right after a successful login would cut off the crypto and core units the
+ * page starts for the new session and recompile the WASM on the hot path.
+ */
+function afterKeyDerivingLogin(): void {
+	if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') keysDerived = true;
+}
+
 /** Password (+ optional OTP/backup code) step: challenge, proof, v2/v1 login and key unwrap in Rust. */
 export async function rustPasswordLogin(input: RustPasswordLoginInput): Promise<RustPasswordLoginOutcome> {
 	try {
@@ -133,6 +188,7 @@ export async function rustPasswordLogin(input: RustPasswordLoginInput): Promise<
 			password: input.password,
 			tfa: input.tfa?.code ?? null,
 		});
+		if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1' && !testClient) afterKeyDerivingLogin();
 		return toOutcome(result);
 	} finally {
 		retire();
@@ -156,6 +212,7 @@ export async function rustRecoveryKeyLogin(input: RustRecoveryLoginInput): Promi
 				emailEncryptionKey: input.emailEncryptionKey, stayLoggedIn: input.stayLoggedIn },
 			recoveryKey: input.recoveryKey,
 		});
+		if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1' && !testClient) afterKeyDerivingLogin();
 		return toOutcome(result);
 	} finally {
 		retire();
@@ -245,6 +302,10 @@ export async function rustLogoutServer(input: LogoutInput & { signal: AbortSigna
 		return { kind: 'sent', ok: reply.status >= 200 && reply.status < 300, status: reply.status };
 	} finally {
 		retire();
+		// Flag builds: logout ends the account's shared realm (no newer login started meanwhile).
+		if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1' && !testClient && input.current() === input.captured) {
+			await retireWhenDrained(true, Number.POSITIVE_INFINITY);
+		}
 	}
 }
 

@@ -10,7 +10,7 @@
 export {};
 
 const WASM_ASSET = 'openmates_browser_bg';
-/** Rust core Worker entries: the shared core Worker, the removed dedicated history Worker, the auth Worker. */
+/** Rust core Worker entries: the shared core Worker plus the removed dedicated history and auth Workers (must stay 0). */
 const RUST_WORKER = /(shared|production|auth)\.worker/;
 
 async function countWasmEntries(target: any): Promise<number> {
