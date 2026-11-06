@@ -18,6 +18,8 @@ Reminders:
 - "<exact title>" -> done | move YYYY-MM-DD HH:MM | keep
 New reminders:
 - "<title>" (OpenMates|Personal Tasks, YYYY-MM-DD HH:MM)
+Chats:
+- <chat title or 8-char id> -> reply: <text> | park | archive | done | keep
 Cleanup:
 - <GitHub #123 | Linear ABC-1 | TASK-123> -> close | delete | merge <other id> | delay | keep
 Parking lot:
@@ -77,6 +79,12 @@ only when an item is ambiguous (e.g. a reminder title matches none or several).
    - Record every `keep` in `logs/daily-meetings/cleanup-reviewed.json` (`{"<id>":
      "YYYY-MM-DD"}`, private) so it is not offered again for 30 days.
    Report counts and any failures by id.
+4b. **Chats** (the `Chats:` lines, from the briefing's "Chats waiting on you"): `reply: <text>`
+   → print the ready-to-paste reply for the user and do NOT send it to the chat; `park` →
+   parking-lot line; `archive`/`done` → archive the chat via `archive_session` when it has a
+   session id, otherwise just record it; `keep` → nothing. Record every non-reply decision in
+   `logs/daily-meetings/waiting-reviewed.json` (`{"<full session id>": "YYYY-MM-DD"}`, private)
+   so the chat is not offered again for 14 days. Never message or stop the Rust chat.
 5. **Work chats** (optional, ask once with a recommendation): one Claude chat per
    agent task — `create_session` with the `dev-server:OpenMates…` bridge
    environment and a handoff naming the Task ID, goal, done-criterion and "read

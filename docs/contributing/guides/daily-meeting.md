@@ -85,3 +85,11 @@ top ("OpenMates Tasks are NOT up to date" / "UNAVAILABLE") that the meeting must
 plus a data-gap line. Cron has a minimal PATH, so the Tasks script finds the `openmates` CLI in
 `~/.npm-global/bin` itself and the crontab lines set that PATH. `mac_reminders.py` sets a task
 identity for the Apple no-delete guard, which otherwise refused every cron run.
+
+## Chats waiting on you
+After the alerts the briefing lists dev-server Claude Code chats whose last real message came
+from the assistant (idle at least 2 h, last 5 days; finished-work replies only within 36 h; chats
+whose Task is Done or that were dismissed in the last 14 days are skipped). Each shows what it is
+waiting for (question, blocker, done), its Task if linked, and the last reply. The meeting goes
+through them one at a time; answers go into the `Chats:` lines of the decisions note. Replies are
+printed for the user to paste, never sent automatically. Data: `scripts/daily_meeting_waiting.py`.

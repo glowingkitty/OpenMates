@@ -118,6 +118,9 @@ commits make the answer obvious, and then still ask for a one-line confirmation;
 summarize the "Alerts" section in a few sentences — reported production issues (new or \
 not processed yet), then dev reports, then the errors that repeat most — and ask whether \
 anything needs attention before planning; production reports outrank everything else; \
+(1c) **chats waiting on the founder**: go through the "Chats waiting" section one chat at a time \
+(questions and blockers first), say in one sentence what it is waiting for and ask what to do — continue \
+(and with what reply), park, archive or done — with your recommendation; \
 (2) agree **today's \
 single focus** — propose one from the week's goals; (3) go through overdue and \
 today/tomorrow reminders **in groups** (done / move to a date and time you suggest / \
@@ -150,6 +153,8 @@ Reminders:
 - "<exact reminder title>" -> done | move YYYY-MM-DD HH:MM | keep
 New reminders:
 - "<title>" (OpenMates|Personal Tasks, YYYY-MM-DD HH:MM)
+Chats:
+- <chat title or 8-char id> -> reply: <text> | park | archive | done | keep
 Cleanup:
 - <GitHub #123 | Linear ABC-1 | TASK-123> -> close | delete | merge <other id> | delay | keep
 Parking lot:
@@ -231,6 +236,20 @@ def _tasks_banner(status: dict) -> list[str]:
             "start of the meeting and do not plan from Tasks today.", ""]
 
 
+def _waiting_section(waiting: dict) -> list[str]:
+    chats = waiting.get("chats") or []
+    out = ["", "## Chats waiting on you (the assistant spoke last)", ""]
+    if not chats:
+        return out + ["_None: every recent dev-server chat has your last word or is finished._"]
+    for chat in chats:
+        task = f", Task {chat['task']}" if chat.get("task") else ""
+        out.append(f"- **{chat['title']}** (`{chat['session'][:8]}`, idle {chat['idle_hours']} h{task}) — "
+                   f"{chat['signal']}: {chat['last_reply'][:300]}")
+    if waiting.get("omitted"):
+        out.append(f"- plus {waiting['omitted']} more waiting chats (older or finished work), not listed")
+    return out + [""]
+
+
 def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> str:
     name, monday, sunday = phase(today)
     next_name, next_monday, _ = phase(monday + timedelta(days=7))
@@ -262,6 +281,7 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
     else:
         out += ["", "**Claude subscription:** weekly usage unavailable (see data gaps)."]
     out += _alerts_section(ev.get("alerts") or {})
+    out += _waiting_section(ev.get("waiting_chats") or {})
     product = ev.get("product") or {}
     if product:
         out += ["", "## About OpenMates", ""]
