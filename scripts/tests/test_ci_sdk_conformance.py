@@ -547,7 +547,7 @@ def test_trusted_executor_launches_actual_inert_drivers_not_candidate_main(tmp_p
     program.parent.mkdir()
     program.write_text('''
 from pathlib import Path
-import sys,json
+import os,sys,json
 ROOT=Path(__file__).resolve().parents[1]
 RUNNERS={language:[sys.executable,str(ROOT/'synthetic-driver.py'),'--language',language] for language in ('rust','npm','python')}
 ADAPTER_OVERRIDES={}
@@ -557,7 +557,7 @@ def validate_matrix(matrix,inventory,root): return ['synthetic.local.v1 [rust] p
 def conformance(matrix,root):
     output=[]
     for language in ('rust','npm','python'):
-        result=subprocess.run(RUNNERS[language]+['--fixture',str(root/matrix['fixture']),'--capability','synthetic.local.v1'],cwd=root,capture_output=True,text=True,timeout=2)
+        result=subprocess.run(RUNNERS[language]+['--fixture',str(root/matrix['fixture']),'--capability','synthetic.local.v1'],cwd=root,capture_output=True,text=True,timeout=600,env={**os.environ,'OPENMATES_SDK_CONFORMANCE_PYTHON':sys.executable,'CARGO_INCREMENTAL':'0'})
         output.append(json.loads(result.stdout))
     return output
 if __name__=='__main__': raise RuntimeError('candidate main must never execute')

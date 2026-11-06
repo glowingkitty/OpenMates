@@ -13,8 +13,10 @@ import selectors
 import shutil
 import subprocess
 import sys
+import threading
 import time
 import types
+from concurrent.futures import ThreadPoolExecutor
 
 try:
     from ci_sdk_conformance import (
@@ -69,20 +71,69 @@ class Driver:
         self.failure = None
         self.inputs = {}
         self.started = time.monotonic()
+        # Non-adapter launches (prebuild, packaging) timed by executor phase.
+        self.steps = []
+        self.phase = "driver"
+        self.active = None
+        # Called after timing changes so a killed stage still leaves durations.
+        self.progress = None
+        # Plan index -> Future of an adapter pre-run by AdapterPool.
+        self.prefetched = {}
+        # Set when a failure makes still-running pooled adapters irrelevant.
+        self.stop = None
 
     def run(self, command, **options):
         """Time each admitted launch (public: durations only, no output)."""
         count, began = len(self.launches), time.monotonic()
+        self.active = (count, began)
+        if self.progress is not None:
+            self.progress()
+        status = "failed"
         try:
-            return self.launch(command, **options)
+            result = self.launch(command, **options)
+            status = "passed"
+            return result
         finally:
+            self.active = None
             if len(self.launches) > count:
-                self.launches[-1]["startedOffsetSeconds"] = round(
-                    began - self.started, 3
+                # A replayed pooled adapter keeps its own measured timing.
+                if "elapsedSeconds" not in self.launches[-1]:
+                    self.launches[-1]["startedOffsetSeconds"] = round(
+                        began - self.started, 3
+                    )
+                    self.launches[-1]["elapsedSeconds"] = round(
+                        time.monotonic() - began, 3
+                    )
+            else:
+                self.steps.append(
+                    {
+                        "phase": self.phase,
+                        "status": status,
+                        "startedOffsetSeconds": round(began - self.started, 3),
+                        "elapsedSeconds": round(time.monotonic() - began, 3),
+                    }
                 )
-                self.launches[-1]["elapsedSeconds"] = round(
-                    time.monotonic() - began, 3
-                )
+            if self.progress is not None:
+                self.progress()
+
+    def replay(self, index, command, *, timeout, env, check):
+        """Return one pooled adapter's outcome at its sequential plan position.
+
+        The pooled launch used this same Driver.launch path; replay only checks
+        that the aggregate asked for exactly what was pre-run.
+        """
+        child, admitted, outcome = self.prefetched.pop(index).result()
+        require(
+            command == self.commands[index] and admitted == (timeout, env, check),
+            "driver_prefetch_mismatch",
+        )
+        if len(child.launches) > index:
+            self.launches.append(child.launches[index])
+        if isinstance(outcome, BaseException):
+            self.failure = child.failure
+            raise outcome
+        require(len(self.launches) == index + 1, "driver_count")
+        return outcome
 
     def launch(
         self, command, *, cwd, capture_output, text, timeout, env=None, check=False
@@ -129,6 +180,10 @@ class Driver:
                 check=check,
             )
         require(cwd == self.root and capture_output and text, "driver_contract")
+        if len(self.launches) in self.prefetched:
+            return self.replay(
+                len(self.launches), command, timeout=timeout, env=env, check=check
+            )
         verify_programs(self.root, self.trust)
         identity = None
         if "--capability" in command:
@@ -159,6 +214,7 @@ class Driver:
         try:
             while selector.get_map():
                 require(time.monotonic() < deadline, "driver_deadline")
+                require(self.stop is None or not self.stop.is_set(), "driver_cancelled")
                 for key, _ in selector.select(
                     timeout=min(0.25, max(0, deadline - time.monotonic()))
                 ):
@@ -354,6 +410,164 @@ class Driver:
             # The outer owned stage group handles descendant cleanup on failure.
 
 
+# Concurrency of real adapters (reviewed independence):
+# - Every adapter is its own process tree started from the fixed plan command.
+#   Its fixture peers and servers bind 127.0.0.1 port 0, durable stores live in
+#   per-run mkdtemp/TemporaryDirectory/uuid temp paths, and fixtures are only
+#   read, so adapters share no ports, files or peers.
+# - Rust adapters share one prebuilt CARGO_TARGET_DIR; Cargo's own build lock
+#   serializes the freshness check, and each binary then runs on its own.
+# - The share and Workflow file adapters install process-wide signal handlers
+#   in their protected dispatch, which only the main thread may do. They stay
+#   serial and run live on the main thread, in plan order.
+# Every pooled adapter keeps its deadline, output limit, verify_programs and
+# cleanup, because it runs through the unchanged Driver.launch path.
+SERIAL_CAPABILITIES = frozenset(
+    {"session.embeds.admitted-share-url.v1", "work.project-workflow-file-sync.v1"}
+)
+# Same arguments check_sdk_conformance.conformance() passes; replay refuses
+# any difference, so the pooled run is exactly the launch the aggregate asks for.
+ADAPTER_TIMEOUT = 600
+
+
+def adapter_workers():
+    """Pool size: the cores this runner process may actually use."""
+    return max(1, len(os.sched_getaffinity(0)))
+
+
+def adapter_environment():
+    return {
+        **os.environ,
+        "OPENMATES_SDK_CONFORMANCE_PYTHON": sys.executable,
+        "CARGO_INCREMENTAL": "0",
+    }
+
+
+class AdapterPool:
+    """Pre-run independent plan adapters on a bounded worker pool.
+
+    Results are consumed only by Driver.replay, in plan order, so the gate
+    output and the first reported failure stay deterministic.
+    """
+
+    def __init__(self, driver, workers):
+        self.driver, self.workers = driver, workers
+        self.lock = threading.Lock()
+        self.state = {}
+        self.stop = threading.Event()
+        self.pool = ThreadPoolExecutor(
+            max_workers=workers, thread_name_prefix="sdk-adapter"
+        )
+
+    def start(self):
+        env = adapter_environment()
+        for index, identity in enumerate(self.driver.plan):
+            if identity["capability"] not in SERIAL_CAPABILITIES:
+                self.driver.prefetched[index] = self.pool.submit(self.job, index, env)
+
+    def job(self, index, env):
+        parent = self.driver
+        child = Driver(parent.root, parent.trust, parent.plan, parent.deadline)
+        child.started, child.inputs = parent.started, parent.inputs
+        child.commands, child.phase = parent.commands, "adapters"
+        child.stop = self.stop
+        # Positional placeholders: launch admits exactly plan[index].
+        child.launches = [None] * index
+        began = time.monotonic()
+        with self.lock:
+            self.state[index] = {"began": began, "status": "running"}
+        self.progress()
+        status = "failed"
+        try:
+            outcome = child.run(
+                parent.commands[index],
+                cwd=parent.root,
+                capture_output=True,
+                text=True,
+                timeout=ADAPTER_TIMEOUT,
+                env=env,
+            )
+            status = "passed"
+        except Exception as error:  # re-raised by Driver.replay at its plan position
+            outcome = error
+        with self.lock:
+            self.state[index].update(status=status, elapsed=time.monotonic() - began)
+        self.progress()
+        return child, (ADAPTER_TIMEOUT, env, False), outcome
+
+    def progress(self):
+        if self.driver.progress is not None:
+            self.driver.progress()
+
+    def close(self):
+        """Cancel queued adapters, stop running ones, wait for their cleanup."""
+        self.stop.set()
+        self.pool.shutdown(wait=True, cancel_futures=True)
+
+    def snapshot(self):
+        with self.lock:
+            return {index: dict(value) for index, value in self.state.items()}
+
+
+def launch_timings(driver, pool):
+    """Names and durations only: no output, command, path or environment."""
+    started = driver.started
+    adapters = {}
+    for index, value in (pool.snapshot() if pool else {}).items():
+        row = {
+            "status": value["status"],
+            "startedOffsetSeconds": round(value["began"] - started, 3),
+        }
+        if "elapsed" in value:
+            row["elapsedSeconds"] = round(value["elapsed"], 3)
+        adapters[index] = row
+    for index, record in enumerate(driver.launches):
+        if record is not None and "elapsedSeconds" in record:
+            adapters.setdefault(
+                index,
+                {
+                    "status": "passed" if record["status"] == "passed" else "failed",
+                    "startedOffsetSeconds": record["startedOffsetSeconds"],
+                    "elapsedSeconds": record["elapsedSeconds"],
+                },
+            )
+    steps = [dict(value) for value in driver.steps]
+    active = driver.active
+    if active is not None:
+        index, began = active
+        offset = round(began - started, 3)
+        if (
+            driver.phase == "adapters"
+            and index < len(driver.plan)
+            and index not in driver.prefetched
+        ):
+            adapters.setdefault(
+                index, {"status": "running", "startedOffsetSeconds": offset}
+            )
+        else:
+            steps.append(
+                {
+                    "phase": driver.phase,
+                    "status": "running",
+                    "startedOffsetSeconds": offset,
+                }
+            )
+    return {
+        "workers": pool.workers if pool else 1,
+        "elapsedSeconds": round(time.monotonic() - started, 3),
+        "steps": steps,
+        "adapters": [
+            {
+                "planIndex": index,
+                "capability": driver.plan[index]["capability"],
+                "language": driver.plan[index]["language"],
+                **adapters[index],
+            }
+            for index in sorted(adapters)
+        ],
+    }
+
+
 # Literal `cargo run --example` coordinates inside the fixed Python gate runners.
 RUNNER_EXAMPLE = re.compile(
     r'"--manifest-path",\s*(?:str\(ROOT\s*/\s*)?"(packages/[A-Za-z0-9_.-]+/Cargo\.toml)"\)?,'
@@ -516,27 +730,41 @@ def execute(root, destination, deadline):
         for row in plan
     ]
     namespace["subprocess"] = types.SimpleNamespace(run=driver.run)
-    phase = "prebuild"
+    pool = None
+    timings_lock = threading.Lock()
+
+    def export_timings():
+        # Rewritten after every timing change: an outer stage kill keeps them.
+        with timings_lock:
+            write(timings, launch_timings(driver, pool))
+
+    timings = destination.with_name("driver-timings.json")
+    driver.progress = export_timings
+    phase = driver.phase = "prebuild"
     try:
         prebuild_rust_examples(driver)
-        phase = "packaged"
+        phase = driver.phase = "packaged"
         packaged = run_packaged_sdk_v1(driver, destination)
-        phase = "generated"
+        phase = driver.phase = "generated"
         namespace["check_generated"](root)
-        phase = "inventory"
+        phase = driver.phase = "inventory"
         inventory = namespace["discover_inventory"](root)
-        phase = "matrix"
+        phase = driver.phase = "matrix"
         independently_derived_gaps = namespace["validate_matrix"](
             matrix, inventory, root
         )
         require(independently_derived_gaps == trust["gaps"], "independent_gap_set")
-        phase = "adapters"
+        phase = driver.phase = "adapters"
+        pool = AdapterPool(driver, adapter_workers())
+        pool.start()
         results = namespace["conformance"](matrix, root)
         require(
-            len(driver.launches) == len(plan)
+            not driver.prefetched
+            and len(driver.launches) == len(plan)
             and all(row["status"] == "passed" for row in driver.launches),
             "drivers_not_executed",
         )
+        pool.close()
         verify_programs(root, trust)
         write(
             destination,
@@ -558,7 +786,12 @@ def execute(root, destination, deadline):
             destination.with_name("driver-failure.json"),
             driver.failure or {"code": "trusted_" + phase + "_failed"},
         )
+        export_timings()
+        if pool is not None:
+            pool.close()
         raise
+    finally:
+        export_timings()
 
 
 def main():

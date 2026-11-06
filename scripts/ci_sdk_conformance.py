@@ -842,6 +842,65 @@ def project_vector_diagnostic(value, expected, failed_ids):
     return {key: value[key] for key in keys}
 
 
+TIMING_PHASES = frozenset({"driver", "prebuild", "packaged", "generated", "inventory", "matrix", "adapters"})
+TIMING_STATUSES = frozenset({"running", "passed", "failed"})
+
+
+def timing_seconds(value):
+    return type(value) in (int, float) and math.isfinite(value) and 0 <= value <= 86400
+
+
+def launch_timing_diagnostics(private, plan):
+    """Closed per-launch durations from the executor: names and seconds only.
+
+    The executor rewrites driver-timings.json after every launch, so this also
+    covers a stage killed at its deadline. Unknown or malformed rows are dropped.
+    """
+    path = private / "driver-timings.json"
+    if not path.exists():
+        return None
+    try:
+        value = json.loads(regular(path, 1024**2))
+    except (Refused, OSError, ValueError):
+        return {"status": "unavailable"}
+    if not isinstance(value, dict):
+        return {"status": "unavailable"}
+    report = {"status": "recorded", "steps": [], "adapters": []}
+    if type(value.get("workers")) is int and 1 <= value["workers"] <= 1024:
+        report["workers"] = value["workers"]
+    if timing_seconds(value.get("elapsedSeconds")):
+        report["elapsedSeconds"] = value["elapsedSeconds"]
+
+    def times(row):
+        kept = {"status": row.get("status")}
+        for key in ("startedOffsetSeconds", "elapsedSeconds"):
+            if timing_seconds(row.get(key)):
+                kept[key] = row[key]
+        return kept if kept["status"] in TIMING_STATUSES and "startedOffsetSeconds" in kept else None
+
+    for row in value.get("steps", [])[:256] if isinstance(value.get("steps"), list) else []:
+        kept = times(row) if isinstance(row, dict) else None
+        if kept and row.get("phase") in TIMING_PHASES:
+            report["steps"].append({"phase": row["phase"], **kept})
+    seen = set()
+    for row in value.get("adapters", [])[:4096] if isinstance(value.get("adapters"), list) else []:
+        if not isinstance(row, dict):
+            continue
+        index = row.get("planIndex")
+        if type(index) is not int or not 0 <= index < len(plan) or index in seen:
+            continue
+        expected = plan[index]
+        kept = times(row)
+        if kept and row.get("capability") == expected["capability"] and row.get("language") == expected["language"]:
+            seen.add(index)
+            report["adapters"].append({"planIndex": index, "capability": expected["capability"],
+                                       "language": expected["language"], **kept})
+    report["slowest"] = [row["planIndex"] for row in sorted(
+        (row for row in report["adapters"] if "elapsedSeconds" in row),
+        key=lambda row: (-row["elapsedSeconds"], row["planIndex"]))[:10]]
+    return report
+
+
 def failure_diagnostics(private, root, stage, inputs, plan):
     """Retain raw bytes privately; export only closed codes and tracked locations."""
     report = {"category": "adapter_conformance" if stage == "real-conformance" else
@@ -882,12 +941,15 @@ def failure_diagnostics(private, root, stage, inputs, plan):
                 report["loadError"] = "dynamic_library_load_failed"
             elif "MODULE_NOT_FOUND" in text:
                 report["loadError"] = "module_missing"
+    timings = launch_timing_diagnostics(private, plan) if stage == "real-conformance" else None
+    if timings is not None:
+        report["launchTimings"] = timings
     driver_file = private / "driver-failure.json"
     if driver_file.exists():
         driver = json.loads(regular(driver_file, 65536))
         allowed = {"driver_deadline", "driver_output_bound", "driver_failed", "driver_vector_result",
                    "driver_unclassified", "trusted_gate_validation_failed", "reviewed_program_changed", "reviewed_contract_changed",
-                   "driver_contract", "driver_count", "driver_order", "trusted_generated_failed", "trusted_inventory_failed",
+                   "driver_contract", "driver_count", "driver_order", "driver_cancelled", "driver_prefetch_mismatch", "trusted_generated_failed", "trusted_inventory_failed",
                    "trusted_matrix_failed", "trusted_adapters_failed"}
         report["driverCode"] = driver.get("code") if driver.get("code") in allowed else "unclassified"
         identity = driver.get("adapter")
@@ -1078,7 +1140,7 @@ def run(root, results, node, *, verify_node, environ=None):
                                  for path in sorted((root / "frontend/packages/openmates-cli/dist").rglob("*")) if path.is_file()}, "dist_changed")
                 gate = gate_receipt(root, json.loads(regular(report, 16 * 1024**2)), trust=trust)
                 require(gate["packagedSdkV1"]["nativeSha256"] == node_before["sha256"], "gate_result_identity")
-                evidence.update(gate=gate,
+                evidence.update(gate=gate, launchTimings=launch_timing_diagnostics(private, trust["plan"]),
                                 artifacts={"npm": node_before, "python": python_before, "wasm": wasm_before}, dist=dist,
                                 loadIdentityVerified=True, sourceHeld=True, status="passed", stage="complete", code=None)
             except Exception:
