@@ -651,7 +651,7 @@ def compiler_diagnostics(data, root, inputs):
     if python is not None and len(report["compiler"]) < 32:
         report["compiler"].append(python)
     if len(report["compiler"]) < 24:
-        fatal = re.search(r"(?m)^Fatal Python error: ([A-Za-z_]{1,40})", text)
+        fatal = re.search(r"Fatal Python error: ([A-Za-z_]{1,40})", text)
         if fatal:
             report["compiler"].append({"kind": "python_fatal", "code": fatal.group(1), "locations": []})
         stdlib = re.findall(
@@ -696,7 +696,7 @@ def python_traceback_diagnostics(text, root, inputs):
             frames.append({"path": relative, "line": int(line), "column": 0})
     names = "|".join(PYTHON_TRACE_EXCEPTIONS)
     named = re.findall(rf"(?m)^(?:[A-Za-z_.]*\.)?({names})\b", text)
-    if re.search(r"(?m)^Fatal Python error:", text):
+    if re.search(r"Fatal Python error:", text):
         code = "FatalPythonError"
     elif named:
         code = named[-1]

@@ -172,3 +172,9 @@ def test_fatal_reason_and_stdlib_frames_are_bounded_identifiers_only(tmp_path):
     assert {"kind": "python_frame", "code": "asyncio/base_events.py:687", "locations": []} in result
     assert {"kind": "python_frame", "code": "aiohttp/client.py:12", "locations": []} in result
     assert "private" not in json.dumps(result) and "secret" not in json.dumps(result)
+
+
+def test_fatal_error_after_assertion_prefix_is_still_projected(tmp_path):
+    text = "AssertionError: child-exit=-11: Fatal Python error: Segmentation fault\n"
+    result = project(tmp_path, text, (SDK,))
+    assert {"kind": "python_fatal", "code": "Segmentation", "locations": []} in result
