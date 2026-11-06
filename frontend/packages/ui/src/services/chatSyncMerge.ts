@@ -10,6 +10,13 @@ import { chatKeysEqual } from "./chatKeyConsistency";
 import { decryptChatKeyWithMasterKey } from "./encryption/MetadataEncryptor";
 
 const MAX_CANDIDATE_KEYS = 5;
+/** Opt-in shared Rust core build: the decision runs in the shared Worker `sync` unit. */
+// Measurement-only opt-out (`openmates_rust_core_sync` = 'ts'), read once per page load.
+const RUST_SYNC_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+  && !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_sync") === "ts");
+function rustSyncPolicy() {
+  return import("./rustCore/sync/rustChatSyncPolicy");
+}
 
 function newestTimestamp(
   ...timestamps: Array<number | null | undefined>
@@ -24,6 +31,7 @@ export async function hasEncryptedChatKeyMismatch(
   serverChat: Partial<Chat> & { id: string },
   localChat: Chat | null,
 ): Promise<boolean> {
+  if (RUST_SYNC_BUILD) return (await rustSyncPolicy()).hasEncryptedChatKeyMismatch(serverChat, localChat);
   if (serverChat.key_fingerprint && localChat?.key_fingerprint) {
     return serverChat.key_fingerprint !== localChat.key_fingerprint;
   }
@@ -102,6 +110,7 @@ export async function mergeServerChatWithLocal(
   localChat: Chat | null,
   currentUserId?: string,
 ): Promise<Chat> {
+  if (RUST_SYNC_BUILD) return (await rustSyncPolicy()).mergeServerChatWithLocal(serverChat, localChat, currentUserId);
   const nowTimestamp = Math.floor(Date.now() / 1000);
 
   if (!localChat) {

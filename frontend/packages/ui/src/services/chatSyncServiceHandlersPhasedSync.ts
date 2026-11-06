@@ -46,6 +46,13 @@ async function unwrapTeamOrDirectChatKey(teamId: string, chatId: string, encrypt
   return directChats.unwrapTeamOrDirectChatKey(teamId, chatId, encryptedKey, visibility);
 }
 import { isActiveTeamContext } from "../stores/teamStore";
+/** Opt-in shared Rust core build: sync decisions run in the shared Worker `sync` unit. */
+// Measurement-only opt-out (`openmates_rust_core_sync` = 'ts'), read once per page load.
+const RUST_SYNC_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+  && !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_sync") === "ts");
+function rustSyncPolicy() {
+  return import("./rustCore/sync/rustChatSyncPolicy");
+}
 
 /**
  * Tracks chat IDs fully processed in Phase 2 so Phase 3 can skip them.
@@ -78,7 +85,8 @@ function isKeyOptionalSyncedChat(
   );
 }
 
-function shouldSkipSyncedChatWithoutKey(
+/** @internal Exported for the Rust parity vectors (web_sync/ts_vectors.json). */
+export function shouldSkipSyncedChatWithoutKey(
   phase: string,
   chatId: string,
   serverChat: Partial<Chat>,
@@ -99,7 +107,8 @@ function shouldSkipSyncedChatWithoutKey(
   return true;
 }
 
-function buildMetadataOnlyChatFromDetails(
+/** @internal Exported for the Rust parity vectors (web_sync/ts_vectors.json). */
+export function buildMetadataOnlyChatFromDetails(
   details: Partial<Chat> & { id: string },
   existingChat: Chat | null,
 ): Chat {
@@ -243,11 +252,13 @@ function yieldToMainThread(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-async function applyAuthoritativeDeletedChats(
+/** @internal Exported for the Rust parity vectors (web_sync/ts_vectors.json). */
+export async function applyAuthoritativeDeletedChats(
   serviceInstance: ChatSynchronizationService,
   deletedChatIds: string[] | undefined,
   explicitDeletedChatIds: string[] | undefined,
 ): Promise<void> {
+  if (RUST_SYNC_BUILD) return (await rustSyncPolicy()).applyAuthoritativeDeletedChats(serviceInstance, deletedChatIds, explicitDeletedChatIds);
   const uniqueDeletedChatIds = Array.from(new Set(deletedChatIds ?? [])).filter(
     Boolean,
   );
@@ -870,14 +881,9 @@ async function storeRecentChats(
 
       // Get existing local chat to compare versions
       const existingChat = await chatDB.getChat(chatId);
-      if (
-        shouldSkipSyncedChatWithoutKey(
-          "Phase 2",
-          chatId,
-          chat_details,
-          existingChat,
-        )
-      ) {
+      if (RUST_SYNC_BUILD
+        ? await (await rustSyncPolicy()).shouldSkipSyncedChatWithoutKey("Phase 2", chatId, chat_details, existingChat)
+        : shouldSkipSyncedChatWithoutKey("Phase 2", chatId, chat_details, existingChat)) {
         continue;
       }
       const keyMismatch = await hasEncryptedChatKeyMismatch(
@@ -1106,14 +1112,9 @@ async function storeAllChats(
 
       // Get existing local chat to compare versions
       const existingChat = await chatDB.getChat(chatId);
-      if (
-        shouldSkipSyncedChatWithoutKey(
-          "Phase 3",
-          chatId,
-          chat_details,
-          existingChat,
-        )
-      ) {
+      if (RUST_SYNC_BUILD
+        ? await (await rustSyncPolicy()).shouldSkipSyncedChatWithoutKey("Phase 3", chatId, chat_details, existingChat)
+        : shouldSkipSyncedChatWithoutKey("Phase 3", chatId, chat_details, existingChat)) {
         continue;
       }
       const keyMismatch = await hasEncryptedChatKeyMismatch(
@@ -1545,16 +1546,12 @@ export async function handleLoadMoreChatsResponseImpl(
       }
       if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
       const existingChat = await chatDB.getChat(details.id);
-      if (
-        shouldSkipSyncedChatWithoutKey(
-          "Load more",
-          details.id,
-          details,
-          existingChat,
-        )
-      ) {
+      if (RUST_SYNC_BUILD) {
+        const chat = await (await rustSyncPolicy()).metadataOnlyChat("Load more", details, existingChat);
+        if (chat) chats.push(chat);
         continue;
       }
+      if (shouldSkipSyncedChatWithoutKey("Load more", details.id, details, existingChat)) continue;
       chats.push(buildMetadataOnlyChatFromDetails(details, existingChat));
     }
 
@@ -1615,16 +1612,12 @@ export async function handleSyncMetadataChatsResponseImpl(
       }
       if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
       const existingChat = await chatDB.getChat(details.id);
-      if (
-        shouldSkipSyncedChatWithoutKey(
-          "Metadata sync",
-          details.id,
-          details,
-          existingChat,
-        )
-      ) {
+      if (RUST_SYNC_BUILD) {
+        const chat = await (await rustSyncPolicy()).metadataOnlyChat("Metadata sync", details, existingChat);
+        if (chat) chats.push(chat);
         continue;
       }
+      if (shouldSkipSyncedChatWithoutKey("Metadata sync", details.id, details, existingChat)) continue;
       chats.push(buildMetadataOnlyChatFromDetails(details, existingChat));
     }
 

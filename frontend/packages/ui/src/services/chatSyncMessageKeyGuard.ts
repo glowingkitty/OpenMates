@@ -20,6 +20,14 @@ const ENCRYPTED_MESSAGE_FIELDS = [
   "encrypted_pii_mappings",
 ] as const;
 
+/** Opt-in shared Rust core build: the decision runs in the shared Worker `sync` unit. */
+// Measurement-only opt-out (`openmates_rust_core_sync` = 'ts'), read once per page load.
+const RUST_SYNC_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+  && !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_sync") === "ts");
+function rustSyncPolicy() {
+  return import("./rustCore/sync/rustChatSyncPolicy");
+}
+
 type EncryptedMessageField = (typeof ENCRYPTED_MESSAGE_FIELDS)[number];
 
 export interface SyncedMessageFilterResult {
@@ -110,6 +118,9 @@ export async function filterPersistableSyncedMessagesWithSkipped(
   encryptedChatKeysByChatId: Map<string, string | null | undefined>,
   context: string,
 ): Promise<SyncedMessageFilterResult> {
+  if (RUST_SYNC_BUILD) {
+    return (await rustSyncPolicy()).filterPersistableSyncedMessagesWithSkipped(messages, encryptedChatKeysByChatId, context);
+  }
   const messagesByChatId = new Map<string, Message[]>();
 
   for (const message of messages) {

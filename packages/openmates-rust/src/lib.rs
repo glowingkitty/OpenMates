@@ -27,6 +27,7 @@ pub mod web_search_corpus;
 pub mod web_search_json;
 pub mod web_apps;
 pub mod web_transfer;
+pub mod web_sync;
 #[cfg(test)]
 mod web_search_bench;
 #[cfg(test)]
