@@ -290,7 +290,13 @@ impl<'a> Projects<'a> {
         if data["project"]["project_id"] != project.raw["project_id"] {
             return Err(Error::Forbidden);
         }
-        let mut public = decode(data["project"].clone(), project.key)?.public;
+        // Like npm (`{...project.encrypted, ...updated}`), fields the PATCH
+        // response omits (for example mutation_permissions) keep the read value.
+        let mut merged = project.raw.clone();
+        if let (Some(row), Some(updated)) = (merged.as_object_mut(), data["project"].as_object()) {
+            row.extend(updated.iter().map(|(k, v)| (k.clone(), v.clone())));
+        }
+        let mut public = decode(merged, project.key)?.public;
         if let Some(history) = data.get("history") {
             public["history"] = history.clone();
         }
@@ -299,15 +305,20 @@ impl<'a> Projects<'a> {
     pub async fn edit(&mut self, id: &str, input: ProjectPatch) -> Result<Value> {
         self.update(id, input).await
     }
+    /// Mark the Project opened and return it as it was read before the
+    /// `last_opened_at` write (npm `projects open` prints the resolved Project).
     pub async fn open(&mut self, id: &str) -> Result<Value> {
+        let project = self.resolve(id).await?;
+        let project_id = string(&project.raw, "project_id")?.to_owned();
         self.update(
-            id,
+            &project_id,
             ProjectPatch {
                 last_opened_at: Some(now()),
                 ..Default::default()
             },
         )
-        .await
+        .await?;
+        Ok(project.public)
     }
     pub async fn archive(&mut self, id: &str) -> Result<Value> {
         self.update(

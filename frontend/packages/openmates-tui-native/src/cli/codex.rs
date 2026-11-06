@@ -23,9 +23,10 @@ pub(super) struct Connection {
 pub(super) fn assert_caller(thread_id: &str) -> Result<(), CliError> {
     valid_thread(thread_id)?;
     if std::env::var("CODEX_THREAD_ID").ok().as_deref() != Some(thread_id) {
-        return Err(CliError::Invalid(format!(
+        // npm throws a plain Error here: command_failed, exit 1.
+        return Err(CliError::Contract { code: "command_failed", message: format!(
             "Only the owning Codex chat can claim a Task. Run this command inside Codex chat ID: {thread_id}. Ordinary CLI creation can omit --external-chat to leave the Task unlinked."
-        )));
+        ) });
     }
     Ok(())
 }
@@ -165,9 +166,10 @@ pub(super) async fn guard_release(
 pub(super) fn connection_thread(task: &serde_json::Value) -> Result<&str, CliError> {
     let external = &task["external_chat"];
     match external["provider"].as_str() {
-        None => Err(CliError::Invalid(
-            "This Task has no external connection. Use tasks connect first.".into(),
-        )),
+        None => Err(CliError::Contract {
+            code: "command_failed",
+            message: "This Task has no external connection. Use tasks connect first.".into(),
+        }),
         Some("claude") => Err(CliError::Invalid(format!(
             "This Task is linked to a Claude Code session. Tasks connect, connection and resume support Codex threads only; resume it in Claude Code with: claude --resume {}",
             external["id"].as_str().unwrap_or("")
@@ -357,8 +359,8 @@ mod tests {
     const SESSION: &str = "00000000-0000-4000-8000-00000000c1a0";
     fn invalid(result: Result<impl Sized, CliError>) -> String {
         match result {
-            Err(CliError::Invalid(message)) => message,
-            _ => panic!("expected an invalid-input error"),
+            Err(CliError::Invalid(message) | CliError::Contract { message, .. }) => message,
+            _ => panic!("expected an input or command failure"),
         }
     }
     // contract-test: supporting surface=cli assertions=tasks.external-chat.encrypted-context
@@ -464,6 +466,11 @@ mod tests {
             invalid(connection_thread(&json!({"external_chat":null}))),
             "This Task has no external connection. Use tasks connect first."
         );
+        // npm exits 1 (command_failed) when the Task has no connection.
+        assert!(matches!(
+            connection_thread(&json!({"external_chat":null})),
+            Err(CliError::Contract { code: "command_failed", .. })
+        ));
         let codex = json!({"external_chat":{"provider":"codex","id":"thread"}});
         assert_eq!(connection_thread(&codex).ok(), Some("thread"));
     }

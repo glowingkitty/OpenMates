@@ -160,6 +160,10 @@ fn task_json(task: &Value) -> Value {
     ] {
         value[field] = task[field].clone();
     }
+    // npm tasksCli `queueState: record.queue_state ?? "none"`.
+    if value["queue_state"].is_null() {
+        value["queue_state"] = json!("none");
+    }
     for field in ["slug", "blocked_reason"] {
         value[field] = task[field]
             .as_str()
@@ -273,9 +277,11 @@ fn ask_input(invocation: &Invocation) -> Result<(String, TaskAskOptions), CliErr
         .trim()
         .to_owned();
     if instruction.is_empty() {
-        return Err(CliError::Invalid(
-            "Provide a Task ask instruction with --text or positional text.".into(),
-        ));
+        // npm requiredAskInstruction: a runtime failure (exit 1), not a usage error.
+        return Err(CliError::Contract {
+            code: "command_failed",
+            message: "Missing ask instruction. Example: openmates tasks ask \"Prepare launch copy\"".into(),
+        });
     }
     let mut fields = invocation.flags.clone();
     fields.insert("title".into(), json!("Task proposal"));

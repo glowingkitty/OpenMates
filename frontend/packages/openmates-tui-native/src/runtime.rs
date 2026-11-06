@@ -1764,7 +1764,10 @@ impl Actor {
             return Ok(());
         }
         match self.client.daily_inspirations("en").await {
-            Ok(list) => Self::emit(replies, epoch, View::Inspirations(list)).await,
+            Ok(mut list) => {
+                list.retain(|inspiration| inspiration.surface == "chats");
+                Self::emit(replies, epoch, View::Inspirations(list)).await
+            }
             Err(_) => Ok(()),
         }
     }

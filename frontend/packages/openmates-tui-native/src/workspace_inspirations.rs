@@ -25,6 +25,7 @@ pub fn workspace_defaults(workspace: Workspace) -> Vec<Inspiration> {
             category: (*category).into(),
             feature_title: Some((*feature).into()),
             surface: label.to_lowercase(),
+            legacy_json: serde_json::Value::Null,
         })
         .collect()
 }

@@ -32824,9 +32824,9 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/docs.rs"
       },
       "gaps": [
-        "Public native SDK tree/search/Markdown transport and CLI rendering are implemented; no credential/profile read is required. Isolated product CLI CI coverage is pending.",
         "Legacy docs show and download acknowledgements remain raw text under --json.",
-        "Native downloads intentionally refuse overwrites and symlinked directories; files use owner-only permissions and fsync. Downloads are Unix-only until equivalent secure filesystem handling is implemented elsewhere."
+        "Native downloads intentionally refuse overwrites and symlinked directories; files use owner-only permissions and fsync. Downloads are Unix-only until equivalent secure filesystem handling is implemented elsewhere.",
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-content.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -32881,9 +32881,9 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/docs.rs"
       },
       "gaps": [
-        "Public native SDK tree/search/Markdown transport and CLI rendering are implemented; no credential/profile read is required. Isolated product CLI CI coverage is pending.",
         "Legacy docs show and download acknowledgements remain raw text under --json.",
-        "Native downloads intentionally refuse overwrites and symlinked directories; files use owner-only permissions and fsync. Downloads are Unix-only until equivalent secure filesystem handling is implemented elsewhere."
+        "Native downloads intentionally refuse overwrites and symlinked directories; files use owner-only permissions and fsync. Downloads are Unix-only until equivalent secure filesystem handling is implemented elsewhere.",
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-content.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -32961,9 +32961,9 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/docs.rs"
       },
       "gaps": [
-        "Public native SDK tree/search/Markdown transport and CLI rendering are implemented; no credential/profile read is required. Isolated product CLI CI coverage is pending.",
         "Legacy docs show and download acknowledgements remain raw text under --json.",
-        "Native downloads intentionally refuse overwrites and symlinked directories; files use owner-only permissions and fsync. Downloads are Unix-only until equivalent secure filesystem handling is implemented elsewhere."
+        "Native downloads intentionally refuse overwrites and symlinked directories; files use owner-only permissions and fsync. Downloads are Unix-only until equivalent secure filesystem handling is implemented elsewhere.",
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-content.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -33010,9 +33010,9 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/docs.rs"
       },
       "gaps": [
-        "Public native SDK tree/search/Markdown transport and CLI rendering are implemented; no credential/profile read is required. Isolated product CLI CI coverage is pending.",
         "Legacy docs show and download acknowledgements remain raw text under --json.",
-        "Native downloads intentionally refuse overwrites and symlinked directories; files use owner-only permissions and fsync. Downloads are Unix-only until equivalent secure filesystem handling is implemented elsewhere."
+        "Native downloads intentionally refuse overwrites and symlinked directories; files use owner-only permissions and fsync. Downloads are Unix-only until equivalent secure filesystem handling is implemented elsewhere.",
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-content.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -33059,9 +33059,9 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/docs.rs"
       },
       "gaps": [
-        "Public native SDK tree/search/Markdown transport and CLI rendering are implemented; no credential/profile read is required. Isolated product CLI CI coverage is pending.",
         "Legacy docs show and download acknowledgements remain raw text under --json.",
-        "Native downloads intentionally refuse overwrites and symlinked directories; files use owner-only permissions and fsync. Downloads are Unix-only until equivalent secure filesystem handling is implemented elsewhere."
+        "Native downloads intentionally refuse overwrites and symlinked directories; files use owner-only permissions and fsync. Downloads are Unix-only until equivalent secure filesystem handling is implemented elsewhere.",
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-content.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -34434,7 +34434,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/global_history.rs"
       },
       "gaps": [
-        "Global metadata list/show/undo adapter authored; Rust compile, isolated cookie/API-key protocol, real encrypted-vault E2E and Linux/Mac validation remain required. Fractional/nonfinite/out-of-i64-range --limit is rejected locally rather than forwarded to backend validation."
+        "Global metadata list/show/undo adapter authored; Rust compile, isolated cookie/API-key protocol, real encrypted-vault E2E and Linux/Mac validation remain required. Fractional/nonfinite/out-of-i64-range --limit is rejected locally rather than forwarded to backend validation.",
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -34478,7 +34479,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/global_history.rs"
       },
       "gaps": [
-        "Global metadata list/show/undo adapter authored; Rust compile, isolated cookie/API-key protocol, real encrypted-vault E2E and Linux/Mac validation remain required. Fractional/nonfinite/out-of-i64-range --limit is rejected locally rather than forwarded to backend validation."
+        "Global metadata list/show/undo adapter authored; Rust compile, isolated cookie/API-key protocol, real encrypted-vault E2E and Linux/Mac validation remain required. Fractional/nonfinite/out-of-i64-range --limit is rejected locally rather than forwarded to backend validation.",
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -34530,7 +34532,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/global_history.rs"
       },
       "gaps": [
-        "Global metadata list/show/undo adapter authored; Rust compile, isolated cookie/API-key protocol, real encrypted-vault E2E and Linux/Mac validation remain required. Fractional/nonfinite/out-of-i64-range --limit is rejected locally rather than forwarded to backend validation."
+        "Global metadata list/show/undo adapter authored; Rust compile, isolated cookie/API-key protocol, real encrypted-vault E2E and Linux/Mac validation remain required. Fractional/nonfinite/out-of-i64-range --limit is rejected locally rather than forwarded to backend validation.",
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -34582,7 +34585,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/global_history.rs"
       },
       "gaps": [
-        "Global metadata list/show/undo adapter authored; Rust compile, isolated cookie/API-key protocol, real encrypted-vault E2E and Linux/Mac validation remain required. Fractional/nonfinite/out-of-i64-range --limit is rejected locally rather than forwarded to backend validation."
+        "Global metadata list/show/undo adapter authored; Rust compile, isolated cookie/API-key protocol, real encrypted-vault E2E and Linux/Mac validation remain required. Fractional/nonfinite/out-of-i64-range --limit is rejected locally rather than forwarded to backend validation.",
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -34626,7 +34630,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/group_help.rs"
       },
       "gaps": [
-        "Bare group prints native help and exits 0; subcommands are tracked separately."
+        "Bare group prints native help and exits 0; subcommands are tracked separately.",
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-content.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -34678,7 +34683,7 @@
       },
       "gaps": [
         "Scheduled processing times are evaluated in UTC (npm uses the host time zone).",
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-content.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -34731,7 +34736,7 @@
       "gaps": [
         "A file whose content is detected as non-audio (for example a renamed image) is refused instead of being image-sanitized and uploaded as npm does.",
         "The store_embed / store_embed_keys receipt flow has no mock-socket test yet.",
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-content.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -34781,7 +34786,7 @@
       },
       "gaps": [
         "Scheduled processing times are evaluated in UTC (npm uses the host time zone).",
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-content.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -34822,7 +34827,7 @@
       },
       "gaps": [
         "Scheduled processing times are evaluated in UTC (npm uses the host time zone).",
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-content.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -34865,7 +34870,7 @@
       },
       "gaps": [
         "Scheduled processing times are evaluated in UTC (npm uses the host time zone).",
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-content.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -34914,7 +34919,7 @@
       },
       "gaps": [
         "Scheduled processing times are evaluated in UTC (npm uses the host time zone).",
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-content.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -34965,7 +34970,7 @@
       },
       "gaps": [
         "Output carries phrase/title/category/feature only; assistant_response, video, follow-up suggestions and opened state are not decoded natively.",
-        "Signed-out public inspirations need a native session; live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-content.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -35267,7 +35272,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/group_help.rs"
       },
       "gaps": [
-        "Bare group prints native help and exits 0; subcommands are tracked separately."
+        "Bare group prints native help and exits 0; subcommands are tracked separately.",
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-content.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -35307,7 +35313,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/mentions_cmd.rs"
       },
       "gaps": [
-        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-content.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -35354,7 +35360,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/mentions_cmd.rs"
       },
       "gaps": [
-        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-content.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46846,7 +46852,8 @@
       },
       "gaps": [
         "Bare 'privacy' reports status like npm. The native CLI has no offline model runtime: status reports 'unsupported'; install/enable/update stay unported.",
-        "Does not stop a running npm privacy worker daemon."
+        "Does not stop a running npm privacy worker daemon.",
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-content.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46900,7 +46907,8 @@
       },
       "gaps": [
         "The native CLI has no offline model runtime: status reports 'unsupported'; install/enable/update stay unported. Disable/remove also update an npm-profile preference file so native sends are unblocked.",
-        "Does not stop a running npm privacy worker daemon."
+        "Does not stop a running npm privacy worker daemon.",
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-content.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -47036,7 +47044,8 @@
       },
       "gaps": [
         "The native CLI has no offline model runtime: status reports 'unsupported'; install/enable/update stay unported. Disable/remove also update an npm-profile preference file so native sends are unblocked.",
-        "Does not stop a running npm privacy worker daemon."
+        "Does not stop a running npm privacy worker daemon.",
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-content.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -47160,7 +47169,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/group_help.rs"
       },
       "gaps": [
-        "Bare group prints native help and exits 0; subcommands are tracked separately."
+        "Bare group prints native help and exits 0; subcommands are tracked separately.",
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -47209,7 +47219,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/projects.rs"
       },
       "gaps": [
-        "Isolated Project integration and platform validation pending; interactive write-policy/exact-confirmation prompts require explicit flags; remote files, sources and command grants are separate unported families."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -47267,7 +47277,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/projects/ask.rs"
       },
       "gaps": [
-        "Isolated Project ask integration pending. Creation requires explicit native --write-policy; exact rename/archive/delete are typed and selector-resolved. Ambiguous mutations and multiple selectors are rejected. API-key chat continuation is unavailable."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -47323,7 +47333,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/projects.rs"
       },
       "gaps": [
-        "Isolated Project integration and platform validation pending; interactive write-policy/exact-confirmation prompts require explicit flags; remote files, sources and command grants are separate unported families."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "verified",
@@ -47382,7 +47392,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/projects.rs"
       },
       "gaps": [
-        "Isolated Project integration and platform validation pending; interactive write-policy/exact-confirmation prompts require explicit flags; remote files, sources and command grants are separate unported families."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "verified",
@@ -47445,7 +47455,7 @@
       },
       "gaps": [
         "Multiple online sources require --source (npm's interactive source picker is not ported); approved ignored-file reads (--include-ignored) are not ported.",
-        "Exercised against a simulated source host; live source-host integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -47505,7 +47515,7 @@
       },
       "gaps": [
         "Multiple online sources require --source (npm's interactive source picker is not ported); approved ignored-file reads (--include-ignored) are not ported.",
-        "Exercised against a simulated source host; live source-host integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -47564,7 +47574,7 @@
       },
       "gaps": [
         "Multiple online sources require --source (npm's interactive source picker is not ported); approved ignored-file reads (--include-ignored) are not ported.",
-        "Exercised against a simulated source host; live source-host integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -47662,7 +47672,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/projects.rs"
       },
       "gaps": [
-        "Native shared-Rust encrypted Project item listing preserves the legacy projection and supports Cookie sessions plus already-authorized API-key Project detail reads. Isolated product CI and full cross-language operation parity remain pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -47715,7 +47725,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/projects.rs"
       },
       "gaps": [
-        "Native Cookie unlink uses the existing scoped Project item endpoint and explicit --confirm; it never deletes linked objects. API-key unlink is unsupported by the existing backend route and fails before operation dispatch. Interactive y/N prompting is not ported; explicit --confirm is required. Isolated product CI and complete cross-language parity remain pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -47757,7 +47767,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/projects.rs"
       },
       "gaps": [
-        "Isolated Project integration and platform validation pending; interactive write-policy/exact-confirmation prompts require explicit flags; remote files, sources and command grants are separate unported families."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -47806,7 +47816,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/projects.rs"
       },
       "gaps": [
-        "Isolated Project integration and platform validation pending; interactive write-policy/exact-confirmation prompts require explicit flags; remote files, sources and command grants are separate unported families."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -47853,7 +47863,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/projects.rs"
       },
       "gaps": [
-        "Isolated Project integration and platform validation pending; interactive write-policy/exact-confirmation prompts require explicit flags; remote files, sources and command grants are separate unported families."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -47909,7 +47919,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/projects.rs"
       },
       "gaps": [
-        "Isolated Project integration and platform validation pending; interactive write-policy/exact-confirmation prompts require explicit flags; remote files, sources and command grants are separate unported families."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48086,7 +48096,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/projects/command_settings.rs"
       },
       "gaps": [
-        "Isolated integration and platform validation pending; uses the npm remote-access state directory (OPENMATES_STATE_DIR / --profile / ~/.openmates) and refuses native --state-dir; Project-not-found text differs from npm; JSON object keys are emitted sorted."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48145,7 +48155,7 @@
       },
       "gaps": [
         "Writes the grant only when host command protection (OpenMates bubblewrap launcher + AppArmor broker) is already installed; the privileged installer is not started natively and an unprepared host fails with remote_command_setup_required.",
-        "Isolated integration and platform validation pending; uses the npm remote-access state directory (OPENMATES_STATE_DIR / --profile / ~/.openmates) and refuses native --state-dir."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48203,7 +48213,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/projects/command_settings.rs"
       },
       "gaps": [
-        "Isolated integration and platform validation pending; uses the npm remote-access state directory (OPENMATES_STATE_DIR / --profile / ~/.openmates) and refuses native --state-dir; Project-not-found text differs from npm; JSON object keys are emitted sorted."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48264,7 +48274,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/projects/command_settings.rs"
       },
       "gaps": [
-        "Isolated integration and platform validation pending; uses the npm remote-access state directory (OPENMATES_STATE_DIR / --profile / ~/.openmates) and refuses native --state-dir; Project-not-found text differs from npm; JSON object keys are emitted sorted."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48325,7 +48335,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/projects/command_settings.rs"
       },
       "gaps": [
-        "Isolated integration and platform validation pending; uses the npm remote-access state directory (OPENMATES_STATE_DIR / --profile / ~/.openmates) and refuses native --state-dir; Project-not-found text differs from npm; JSON object keys are emitted sorted."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48386,7 +48396,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/projects/command_settings.rs"
       },
       "gaps": [
-        "Isolated integration and platform validation pending; uses the npm remote-access state directory (OPENMATES_STATE_DIR / --profile / ~/.openmates) and refuses native --state-dir; Project-not-found text differs from npm; JSON object keys are emitted sorted."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48447,8 +48457,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/projects/command_settings.rs"
       },
       "gaps": [
-        "Isolated integration and platform validation pending; uses the npm remote-access state directory (OPENMATES_STATE_DIR / --profile / ~/.openmates) and refuses native --state-dir; Project-not-found text differs from npm; JSON object keys are emitted sorted.",
-        "Stores environment variable names only, never their values."
+        "Stores environment variable names only, never their values.",
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48509,7 +48519,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/projects/command_settings.rs"
       },
       "gaps": [
-        "Isolated integration and platform validation pending; uses the npm remote-access state directory (OPENMATES_STATE_DIR / --profile / ~/.openmates) and refuses native --state-dir; Project-not-found text differs from npm; JSON object keys are emitted sorted."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48570,7 +48580,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/projects/command_settings.rs"
       },
       "gaps": [
-        "Isolated integration and platform validation pending; uses the npm remote-access state directory (OPENMATES_STATE_DIR / --profile / ~/.openmates) and refuses native --state-dir; Project-not-found text differs from npm; JSON object keys are emitted sorted."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48621,7 +48631,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/projects/command_settings.rs"
       },
       "gaps": [
-        "Isolated integration and platform validation pending; uses the npm remote-access state directory (OPENMATES_STATE_DIR / --profile / ~/.openmates) and refuses native --state-dir; Project-not-found text differs from npm; JSON object keys are emitted sorted."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48826,7 +48836,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/projects.rs"
       },
       "gaps": [
-        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48925,7 +48935,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/projects.rs"
       },
       "gaps": [
-        "Isolated Project integration and platform validation pending; interactive write-policy/exact-confirmation prompts require explicit flags; remote files, sources and command grants are separate unported families."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -48974,7 +48984,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/projects.rs"
       },
       "gaps": [
-        "Isolated Project integration and platform validation pending; interactive write-policy/exact-confirmation prompts require explicit flags; remote files, sources and command grants are separate unported families."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -49029,7 +49039,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/projects.rs"
       },
       "gaps": [
-        "Isolated Project integration and platform validation pending; interactive write-policy/exact-confirmation prompts require explicit flags; remote files, sources and command grants are separate unported families."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -49067,7 +49077,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/recovery.rs"
       },
       "gaps": [
-        "Prints the npm usage line; undeclared subcommand words are rejected by the native parser before the handler."
+        "Prints the npm usage line; undeclared subcommand words are rejected by the native parser before the handler.",
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -49108,7 +49119,7 @@
       "gaps": [
         "YAML is semantically identical to npm but not byte-identical (key order, list indentation, quoting); JSON keys are sorted.",
         "Project selector errors use the SDK message instead of npm's \"Project 'x' not found.\".",
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -49149,7 +49160,7 @@
       "gaps": [
         "JSON keys are sorted; project selector errors use the SDK message.",
         "Restore apply is covered by unit tests for inputs/validation only; no end-to-end restore proof yet.",
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -49188,7 +49199,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/recovery.rs"
       },
       "gaps": [
-        "JSON keys are sorted rather than npm insertion order."
+        "JSON keys are sorted rather than npm insertion order.",
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58500,7 +58512,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/group_help.rs"
       },
       "gaps": [
-        "Bare group prints native help and exits 0; subcommands are tracked separately."
+        "Bare group prints native help and exits 0; subcommands are tracked separately.",
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58549,7 +58562,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58598,7 +58611,7 @@
       },
       "gaps": [
         "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58701,7 +58714,7 @@
       },
       "gaps": [
         "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58749,7 +58762,7 @@
       },
       "gaps": [
         "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58807,7 +58820,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams_billing.rs"
       },
       "gaps": [
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58911,7 +58924,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams_billing.rs"
       },
       "gaps": [
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -58970,7 +58983,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams_billing.rs"
       },
       "gaps": [
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59013,7 +59026,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "verified",
@@ -59069,7 +59082,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59169,7 +59182,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams_billing.rs"
       },
       "gaps": [
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59212,7 +59225,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams_billing.rs"
       },
       "gaps": [
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59263,7 +59276,7 @@
       },
       "gaps": [
         "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59302,8 +59315,8 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Live backend integration and platform verification remain open.",
-        "Publishes the Direct-chat identity like npm; the native store keeps no local Team-key file, and pruning per-Team encrypted caches for departed Teams is not yet implemented."
+        "Publishes the Direct-chat identity like npm; the native store keeps no local Team-key file, and pruning per-Team encrypted caches for departed Teams is not yet implemented.",
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59351,7 +59364,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59486,7 +59499,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59551,7 +59564,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59686,7 +59699,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59779,7 +59792,7 @@
       },
       "gaps": [
         "Explicit Cookie-session Personal context and legacy output are implemented; API keys cannot select stored session context.",
-        "The outer application still admits sessions online; offline local-switch parity, full runtime persistence/trusted-account integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59829,7 +59842,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59877,7 +59890,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59942,7 +59955,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -59993,7 +60006,7 @@
       },
       "gaps": [
         "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -60046,7 +60059,7 @@
         "Native 401/transport failures use native error text instead of the npm fetch error text.",
         "Team identifiers '.' and '..' are refused before the request instead of being URL-normalized.",
         "Downloads are bounded by the shared 16 MiB response limit.",
-        "Exercised against loopback doubles only; live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -60154,7 +60167,7 @@
       },
       "gaps": [
         "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -60210,7 +60223,7 @@
       },
       "gaps": [
         "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -60267,7 +60280,7 @@
       },
       "gaps": [
         "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -60315,8 +60328,8 @@
       },
       "gaps": [
         "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
-        "Live backend integration and platform verification remain open.",
-        "Publishes the Direct-chat identity like npm; the native store keeps no local Team-key file, and pruning per-Team encrypted caches for departed Teams is not yet implemented."
+        "Publishes the Direct-chat identity like npm; the native store keeps no local Team-key file, and pruning per-Team encrypted caches for departed Teams is not yet implemented.",
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -60364,7 +60377,7 @@
       },
       "gaps": [
         "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -60415,7 +60428,7 @@
       },
       "gaps": [
         "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -60463,7 +60476,7 @@
       },
       "gaps": [
         "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -60515,7 +60528,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/teams.rs"
       },
       "gaps": [
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -60566,7 +60579,7 @@
       },
       "gaps": [
         "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -60615,7 +60628,7 @@
       },
       "gaps": [
         "--team <team-id> selects the Team like npm; it also scopes the command context, so 'teams switch --team' does not persist the switch (use the positional ID).",
-        "Live backend integration and platform verification remain open."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -60922,7 +60935,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/docs.rs"
       },
       "gaps": [
-        "Bare Wiki/help is public text. Wiki search/show require a session as in legacy; API-key Wikipedia transport is explicitly unported. Product CLI coverage and three-SDK namespace conformance remain pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-content.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -60961,7 +60974,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/docs.rs"
       },
       "gaps": [
-        "Public text help implemented, including --json text behavior; isolated platform verification pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-content.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -61009,7 +61022,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/docs.rs"
       },
       "gaps": [
-        "Session-authenticated search/summary and canonical learning transport implemented; learning unavailability preserves article summary. API-key Wikipedia remains explicitly unsupported; product CI and three-SDK conformance pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-content.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -61057,7 +61070,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/docs.rs"
       },
       "gaps": [
-        "Session-authenticated search/summary and canonical learning transport implemented; learning unavailability preserves article summary. API-key Wikipedia remains explicitly unsupported; product CI and three-SDK conformance pending."
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-content.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",

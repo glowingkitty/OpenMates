@@ -423,7 +423,9 @@ where
         // The preserved TypeScript sources-list handler owns its first selector:
         // absent/blank values produce command_failed + exit1; later positional
         // values are ignored. Keep other commands' parser arity unchanged.
-        let project_source_selector = path.as_slice() == ["projects", "sources", "list"];
+        let project_source_selector = path.as_slice() == ["projects", "sources", "list"]
+            // npm `projects ask` reports its own "Missing ask instruction" (exit 1).
+            || path.as_slice() == ["projects", "ask"];
         if positionals.len() < minimum
             && !flags.contains_key("followup")
             && !project_source_selector
@@ -742,6 +744,11 @@ mod tests {
     fn task_ask_accepts_flag_and_positional_instructions() {
         assert!(parse_from(["openmates", "tasks", "ask", "--text", "Prepare launch copy"]).is_ok());
         assert!(parse_from(["openmates", "tasks", "ask", "Prepare", "launch", "copy"]).is_ok());
+    }
+    #[test]
+    fn project_ask_without_instruction_reaches_the_npm_style_handler_error() {
+        // The handler, not the arity check, owns npm's exit-1 "Missing ask instruction".
+        assert!(parse_from(["openmates", "projects", "ask"]).is_ok());
     }
     #[test]
     fn plan_confirm_and_nullable_link_flags_keep_command_specific_arity() {

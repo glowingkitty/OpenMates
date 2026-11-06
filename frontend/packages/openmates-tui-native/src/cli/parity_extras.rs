@@ -2,7 +2,7 @@
 //! `inspirations` and `apps travel booking-link`.
 use super::{CliError, CliOutput, Invocation, handlers};
 use crate::client::Client;
-use serde_json::{Value, json};
+use serde_json::Value;
 
 /// Roots whose usage is the bare name (no `[--help]`), so `group_help.rs`
 /// does not cover them; the generic group help in `execute_public` serves them.
@@ -46,14 +46,7 @@ async fn inspirations(i: &Invocation, client: &mut Client) -> Result<CliOutput, 
     handlers::flags(i, &["lang"])?;
     let lang = i.text("lang").unwrap_or("en");
     let rows = client.daily_inspirations(lang).await?;
-    let value = Value::Array(
-        rows.iter()
-            .map(|r| {
-                json!({"id": r.id, "phrase": r.phrase, "title": r.title, "category": r.category,
-                       "feature": r.feature_title.as_ref().map(|t| json!({"title": t})), "surface": r.surface})
-            })
-            .collect(),
-    );
+    let value = Value::Array(rows.iter().map(|r| r.legacy_json.clone()).collect());
     handlers::output(i, value, inspirations_text(&rows, lang))
 }
 

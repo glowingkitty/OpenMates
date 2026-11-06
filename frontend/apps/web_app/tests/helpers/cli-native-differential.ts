@@ -31,6 +31,8 @@
  *   - ignoreKeys: JSON keys removed at every depth before comparing.
  *   - expectedGap: documented known difference; the check then passes only while
  *     the diff still contains this substring, and fails once the gap disappears.
+ *   - The returned record carries a non-enumerable `raw` ({npm, native} RunResult) so a
+ *     create check can read each CLI's own fixture id; it never enters the report.
  *   - nativeArgs: argument vector for the native run when each CLI must act on its own
  *     fixture (e.g. delete the entry it created); ids are normalized before comparing.
  *   - between: async hook run after the npm run and before the native run, to restore
@@ -93,6 +95,8 @@ interface CheckRecord {
 	diffs: string[];
 	npm: Outcome;
 	native: Outcome;
+	/** Raw results (non-enumerable, never serialized into the report). */
+	raw?: { npm: RunResult; native: RunResult };
 }
 
 interface Differential {
@@ -267,6 +271,7 @@ async function setupDifferential(page: any, testInfo: TestInfo, groupName: strin
 				if (!matched) diffs.push(`expected gap "${options.expectedGap}" no longer present: remove expectedGap and update the catalog`);
 			}
 			const record: CheckRecord = { label, args: fullArgs, catalog: options.catalog ?? [], verdict, diffs, npm: npmOutcome, native: nativeOutcome };
+			Object.defineProperty(record, 'raw', { value: { npm: npmResult, native: nativeResult }, enumerable: false });
 			records.push(record);
 			console.log(`DIFFERENTIAL_RESULT ${verdict} ${label}${diffs.length ? ` :: ${diffs.slice(0, 4).join(' | ')}` : ''}`);
 			return record;

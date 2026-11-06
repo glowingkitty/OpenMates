@@ -285,6 +285,11 @@ fn with_project(mut output: CliOutput, id: &str, json: bool) -> Result<CliOutput
         let mut value: Value =
             serde_json::from_str(&output.stdout).map_err(|_| CliError::Client(Error::Protocol))?;
         value["project_id"] = json!(id);
+        // npm `projects tasks|plans --json` prints only {project_id, tasks|plans};
+        // the delegated `tasks list` completeness marker is not part of it.
+        if let Some(object) = value.as_object_mut() {
+            object.remove("complete");
+        }
         output = CliOutput::json(&value)?;
     }
     Ok(output)
@@ -654,15 +659,15 @@ mod tests {
         assert!(delegated.boolean("personal"));
         assert_eq!(delegated.text("project"), Some("canonical"));
         let output = with_project(
-            CliOutput::json(&json!({"tasks":[]})).ok().unwrap(),
+            CliOutput::json(&json!({"tasks":[],"complete":true})).ok().unwrap(),
             "canonical",
             true,
         )
         .ok()
         .unwrap();
         assert_eq!(
-            serde_json::from_str::<Value>(&output.stdout).unwrap()["project_id"],
-            "canonical"
+            serde_json::from_str::<Value>(&output.stdout).unwrap(),
+            json!({"project_id":"canonical","tasks":[]})
         );
     }
 }
