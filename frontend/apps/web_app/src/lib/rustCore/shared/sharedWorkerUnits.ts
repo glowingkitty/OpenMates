@@ -16,4 +16,5 @@ export const SHARED_UNIT_INSTALLERS: UnitInstallers = Object.freeze({
 	apps: (context) => import('@openmates/ui/src/services/rustCore/apps/appsUnit').then((unit) => unit.installAppsUnit(context)),
 	embedData: (context) => import('@openmates/ui/src/services/rustCore/embeds/embedDataUnit').then((unit) => unit.installEmbedDataUnit(context)),
 	embedWrite: (context) => import('@openmates/ui/src/services/rustCore/embeds/embedWriteUnit').then((unit) => unit.installEmbedWriteUnit(context)),
+	search: (context) => import('@openmates/ui/src/services/rustCore/search/searchUnit').then((unit) => unit.installSearchUnit(context)),
 });

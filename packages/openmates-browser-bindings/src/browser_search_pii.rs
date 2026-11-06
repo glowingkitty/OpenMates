@@ -96,3 +96,52 @@ impl SavedMemoriesIndex {
         }
     }
 }
+
+/// Worker-resident chat message search for the shared core `search` unit
+/// (`web_search_chats`). Chats are addressed by page-assigned `u32` handles;
+/// `search` returns flat `u32` rows (a `Uint32Array`) that carry entry indices
+/// and UTF-16 snippet slice plans, never text.
+#[wasm_bindgen]
+#[derive(Default)]
+pub struct ChatSearchIndex {
+    inner: openmates_sdk::web_search_chats::ChatSearchIndex,
+}
+
+#[wasm_bindgen]
+impl ChatSearchIndex {
+    /// Empty index (one per shared Worker `search` unit).
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> ChatSearchIndex {
+        ChatSearchIndex::default()
+    }
+
+    /// Empties `handle` before its entries are pushed again.
+    pub fn reset_chat(&mut self, handle: u32) {
+        self.inner.reset_chat(handle);
+    }
+
+    /// Appends one entry in the page's index order (`embed_id` is empty for message text).
+    pub fn push_entry(&mut self, handle: u32, message_id: &str, text: &str, embed_id: &str, embed_titled: bool) {
+        self.inner.push_entry(handle, message_id, text, embed_id, embed_titled);
+    }
+
+    /// Drops `handle`.
+    pub fn remove_chat(&mut self, handle: u32) {
+        self.inner.remove_chat(handle);
+    }
+
+    /// Drops every chat (logout).
+    pub fn clear(&mut self) {
+        self.inner.clear();
+    }
+
+    /// Number of chats held.
+    pub fn chat_count(&self) -> usize {
+        self.inner.chat_count()
+    }
+
+    /// Flat result rows as a `Uint32Array` (layout in `web_search_chats`).
+    pub fn search(&self, query: &str, handles: &[u32], include_embeds: bool) -> Vec<u32> {
+        self.inner.search(query, handles, include_embeds)
+    }
+}

@@ -649,6 +649,7 @@
         "chat-menu-parity.spec.ts",
         "web-rust-core-chat.spec.ts",
         "web-rust-core-embeds.spec.ts",
+        "web-rust-core-search.spec.ts",
         "web-rust-core-bench.spec.ts",
         "web-rust-core-profile.spec.ts",
         "chat-unread-read-position.spec.ts",
