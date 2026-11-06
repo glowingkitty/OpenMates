@@ -35158,10 +35158,19 @@
         "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
-        "linux": "not_verified",
+        "linux": "verified",
         "macos": "not_verified",
         "windows": "not_verified"
-      }
+      },
+      "evidence": [
+        {
+          "spec": "cli-team-tasks-real.spec.ts",
+          "impl": "native",
+          "ci_request": "0e25f4bf7250ff4666ec41d00a062765b6707c4e2bab5b64ab6377f6cdf93d0f",
+          "github_run": 42239892023,
+          "source": "d59a8ae50e18842e1bb8d04b48fdfc52eaa44775"
+        }
+      ]
     },
     {
       "path": [
@@ -47299,10 +47308,19 @@
         "Isolated Project integration and platform validation pending; interactive write-policy/exact-confirmation prompts require explicit flags; remote files, sources and command grants are separate unported families."
       ],
       "platforms": {
-        "linux": "not_verified",
+        "linux": "verified",
         "macos": "not_verified",
         "windows": "not_verified"
-      }
+      },
+      "evidence": [
+        {
+          "spec": "cli-project-focus-settings.spec.ts",
+          "impl": "native",
+          "ci_request": "16413e8835e864900ab5a6058e8291b496740da7700661c9e0d23dfe749e6df7",
+          "github_run": 42240742254,
+          "source": "d59a8ae50e18842e1bb8d04b48fdfc52eaa44775"
+        }
+      ]
     },
     {
       "path": [
@@ -47349,10 +47367,19 @@
         "Isolated Project integration and platform validation pending; interactive write-policy/exact-confirmation prompts require explicit flags; remote files, sources and command grants are separate unported families."
       ],
       "platforms": {
-        "linux": "not_verified",
+        "linux": "verified",
         "macos": "not_verified",
         "windows": "not_verified"
-      }
+      },
+      "evidence": [
+        {
+          "spec": "cli-project-focus-settings.spec.ts",
+          "impl": "native",
+          "ci_request": "16413e8835e864900ab5a6058e8291b496740da7700661c9e0d23dfe749e6df7",
+          "github_run": 42240742254,
+          "source": "d59a8ae50e18842e1bb8d04b48fdfc52eaa44775"
+        }
+      ]
     },
     {
       "path": [
@@ -47919,10 +47946,19 @@
         "Isolated Project integration and platform validation pending; interactive write-policy/exact-confirmation prompts require explicit flags; remote files, sources and command grants are separate unported families."
       ],
       "platforms": {
-        "linux": "not_verified",
+        "linux": "verified",
         "macos": "not_verified",
         "windows": "not_verified"
-      }
+      },
+      "evidence": [
+        {
+          "spec": "cli-project-focus-settings.spec.ts",
+          "impl": "native",
+          "ci_request": "16413e8835e864900ab5a6058e8291b496740da7700661c9e0d23dfe749e6df7",
+          "github_run": 42240742254,
+          "source": "d59a8ae50e18842e1bb8d04b48fdfc52eaa44775"
+        }
+      ]
     },
     {
       "path": [
@@ -57417,10 +57453,19 @@
         "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
-        "linux": "not_verified",
+        "linux": "verified",
         "macos": "not_verified",
         "windows": "not_verified"
-      }
+      },
+      "evidence": [
+        {
+          "spec": "cli-team-tasks-real.spec.ts",
+          "impl": "native",
+          "ci_request": "0e25f4bf7250ff4666ec41d00a062765b6707c4e2bab5b64ab6377f6cdf93d0f",
+          "github_run": 42239892023,
+          "source": "d59a8ae50e18842e1bb8d04b48fdfc52eaa44775"
+        }
+      ]
     },
     {
       "path": [
@@ -57467,10 +57512,19 @@
         "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
-        "linux": "not_verified",
+        "linux": "verified",
         "macos": "not_verified",
         "windows": "not_verified"
-      }
+      },
+      "evidence": [
+        {
+          "spec": "cli-team-tasks-real.spec.ts",
+          "impl": "native",
+          "ci_request": "0e25f4bf7250ff4666ec41d00a062765b6707c4e2bab5b64ab6377f6cdf93d0f",
+          "github_run": 42239892023,
+          "source": "d59a8ae50e18842e1bb8d04b48fdfc52eaa44775"
+        }
+      ]
     },
     {
       "path": [
@@ -57840,10 +57894,19 @@
         "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
-        "linux": "not_verified",
+        "linux": "verified",
         "macos": "not_verified",
         "windows": "not_verified"
-      }
+      },
+      "evidence": [
+        {
+          "spec": "cli-team-tasks-real.spec.ts",
+          "impl": "native",
+          "ci_request": "0e25f4bf7250ff4666ec41d00a062765b6707c4e2bab5b64ab6377f6cdf93d0f",
+          "github_run": 42239892023,
+          "source": "d59a8ae50e18842e1bb8d04b48fdfc52eaa44775"
+        }
+      ]
     },
     {
       "path": [
@@ -58154,10 +58217,19 @@
         "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
       "platforms": {
-        "linux": "not_verified",
+        "linux": "verified",
         "macos": "not_verified",
         "windows": "not_verified"
-      }
+      },
+      "evidence": [
+        {
+          "spec": "cli-team-tasks-real.spec.ts",
+          "impl": "native",
+          "ci_request": "0e25f4bf7250ff4666ec41d00a062765b6707c4e2bab5b64ab6377f6cdf93d0f",
+          "github_run": 42239892023,
+          "source": "d59a8ae50e18842e1bb8d04b48fdfc52eaa44775"
+        }
+      ]
     },
     {
       "path": [
@@ -58906,10 +58978,19 @@
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
-        "linux": "not_verified",
+        "linux": "verified",
         "macos": "not_verified",
         "windows": "not_verified"
-      }
+      },
+      "evidence": [
+        {
+          "spec": "cli-team-tasks-real.spec.ts",
+          "impl": "native",
+          "ci_request": "0e25f4bf7250ff4666ec41d00a062765b6707c4e2bab5b64ab6377f6cdf93d0f",
+          "github_run": 42239892023,
+          "source": "d59a8ae50e18842e1bb8d04b48fdfc52eaa44775"
+        }
+      ]
     },
     {
       "path": [

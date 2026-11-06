@@ -30,6 +30,7 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 const CLI_DIST = fs.existsSync('/workspace/cli/dist/cli.js')
 	? '/workspace/cli/dist/cli.js'
 	: path.resolve(__dirname, '../../../packages/openmates-cli/dist/cli.js');
+const { CLI_LOGIN_SUCCESS, cliNativeEnv, cliSpawnArgs } = require('./helpers/cli-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount(1);
 const consoleLogs: string[] = [];
@@ -76,9 +77,10 @@ function spawnCliLogin(apiUrl: string): {
 	const stdout: string[] = [];
 	const stderr: string[] = [];
 	const cliDir = path.dirname(path.dirname(CLI_DIST));
-	const child = spawn('node', [CLI_DIST, 'login'], {
+	const child = spawn(...cliSpawnArgs(['login']), {
 		env: {
 			...process.env,
+			...cliNativeEnv(),
 			OPENMATES_API_URL: apiUrl,
 			NODE_PATH: path.join(cliDir, 'node_modules'),
 			TERM: 'dumb'
@@ -147,9 +149,10 @@ async function runCli(
 ): Promise<{ code: number | null; stdout: string; stderr: string }> {
 	const cliDir = path.dirname(path.dirname(CLI_DIST));
 	return new Promise((resolve) => {
-		const child = spawn('node', [CLI_DIST, ...args], {
+		const child = spawn(...cliSpawnArgs(args), {
 			env: {
 				...process.env,
+			...cliNativeEnv(),
 				OPENMATES_API_URL: apiUrl,
 				NODE_PATH: path.join(cliDir, 'node_modules')
 			},
@@ -227,7 +230,7 @@ async function loginCliViaPair(page: any, apiUrl: string, baseUrl: string, log: 
 
 	cli.sendPin(pin);
 	const { code, output } = await cli.waitForExit();
-	expect(output).toContain('Login successful');
+	expect(output).toContain(CLI_LOGIN_SUCCESS);
 	expect(code).toBe(0);
 }
 

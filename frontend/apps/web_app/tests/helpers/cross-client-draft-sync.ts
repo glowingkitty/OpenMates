@@ -3,6 +3,7 @@
 import type { Page, WebSocketRoute } from '@playwright/test';
 const { expect } = require('./cookie-audit');
 const { spawn } = require('child_process');
+const { CLI_LOGIN_SUCCESS, cliNativeEnv, cliSpawnArgs, cliStateDir } = require('./cli-test-helpers');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -214,6 +215,7 @@ function cliEnvironment(apiUrl: string): Record<string, string | undefined> {
 	const cliDir = path.dirname(path.dirname(CLI_DIST));
 	return {
 		...process.env,
+		...cliNativeEnv(),
 		...(activeCliHome ? { HOME: activeCliHome } : {}),
 		OPENMATES_API_URL: apiUrl,
 		NODE_PATH: path.join(cliDir, 'node_modules'),
@@ -233,7 +235,7 @@ function cleanupIsolatedCliHome(cliHome: string | null): void {
 
 function logCliCacheDiagnostics(cliHome: string | null, chatId: string, label: string): void {
 	if (!cliHome) return;
-	const cachePath = path.join(cliHome, '.openmates', 'sync_cache.json');
+	const cachePath = path.join(cliStateDir(cliHome), 'sync_cache.json');
 	try {
 		const cache = JSON.parse(fs.readFileSync(cachePath, 'utf8'));
 		const chat = Array.isArray(cache?.chats)
@@ -261,7 +263,7 @@ function logCliCacheDiagnostics(cliHome: string | null, chatId: string, label: s
 
 async function logCliRestDraftDiagnostics(apiUrl: string, cliHome: string | null, chatId: string, label: string): Promise<void> {
 	if (!cliHome) return;
-	const sessionPath = path.join(cliHome, '.openmates', 'session.json');
+	const sessionPath = path.join(cliStateDir(cliHome), 'session.json');
 	try {
 		const session = JSON.parse(fs.readFileSync(sessionPath, 'utf8'));
 		const cookies = session?.cookies && typeof session.cookies === 'object'
@@ -301,7 +303,7 @@ async function runCli(
 	timeoutMs = 60_000
 ): Promise<{ code: number | null; stdout: string; stderr: string }> {
 	return new Promise((resolve) => {
-		const child = spawn('node', [CLI_DIST, ...args], {
+		const child = spawn(...cliSpawnArgs(args), {
 			env: cliEnvironment(apiUrl),
 			stdio: ['ignore', 'pipe', 'pipe']
 		});
@@ -368,7 +370,7 @@ async function pairCli(page: any, apiUrl: string, baseUrl: string): Promise<void
 	let lastStderr = '';
 	let lastError = '';
 	for (let attempt = 0; attempt < 3; attempt += 1) {
-		const child = spawn('node', [CLI_DIST, 'login'], {
+		const child = spawn(...cliSpawnArgs(['login']), {
 			env: cliEnvironment(apiUrl),
 			stdio: ['pipe', 'pipe', 'pipe']
 		});
@@ -413,7 +415,7 @@ async function pairCli(page: any, apiUrl: string, baseUrl: string): Promise<void
 				});
 			});
 			expect(exit.code, `CLI login failed: ${stdout.join('')} ${stderr.join('')}`).toBe(0);
-			expect(stdout.join('')).toContain('Login successful');
+			expect(stdout.join('')).toContain(CLI_LOGIN_SUCCESS);
 			return;
 		} catch (error) {
 			lastStdout = stdout.join('');

@@ -60,3 +60,11 @@ test('creates openmates recording wrapper before capture', () => {
 		fs.rmSync(tmp, {recursive: true, force: true});
 	}
 });
+
+test('CLI implementation selector accepts only native or npm', () => {
+	const {resolveCliImplementation} = require('./cli-test-helpers.ts');
+	assert.equal(resolveCliImplementation('native'), 'native');
+	assert.equal(resolveCliImplementation('npm'), 'npm');
+	assert.equal(resolveCliImplementation(''), 'npm');
+	assert.throws(() => resolveCliImplementation('rust'), /OPENMATES_CLI_IMPL must be/);
+});

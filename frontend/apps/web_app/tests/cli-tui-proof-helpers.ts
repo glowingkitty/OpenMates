@@ -11,6 +11,7 @@ const path = require('node:path');
 const {getTestAccount} = require('./signup-flow-helpers');
 const {terminalRowsAtCheckpoint} = require('./helpers/terminal-frame');
 const {skipWithoutCredentials} = require('./helpers/env-guard');
+const {cliSpawnArgs} = require('./helpers/cli-test-helpers');
 const {
 	createWorkflowCliHome, deleteWorkflowQuietly, loginWorkflowCliViaPair,
 	removeWorkflowCliHome, runWorkflowCli, runWorkflowCliJson, workflowApiUrl,
@@ -80,13 +81,15 @@ function sha256(file: string): string {
 
 async function recordInteractiveCli(apiUrl: string, home: string, outputDir: string, inputPlan: string, candidateCli: string): Promise<{code: number | null; stdout: string; stderr: string}> {
 	const cliDir = path.dirname(path.dirname(candidateCli));
+	// Synthetic .mjs fixtures only exist for the npm TUI; the real CLI follows OPENMATES_CLI_IMPL.
+	const [cliCommand, cliCommandArgs]: [string, string[]] = candidateCli.endsWith('.mjs') ? ['node', [candidateCli]] : cliSpawnArgs([], candidateCli);
 	const args = [
 		path.join(ROOT, 'scripts/cli_video_capture.py'), '--output-dir', outputDir,
 		'--target-environment', apiUrl, '--classification', candidateCli.endsWith('/tests/fixtures/tui-streaming-proof.mjs') ? 'cli_tui_synthetic_stream'
 			: candidateCli.endsWith('/tests/fixtures/tui-cache-startup-proof.mjs') ? 'cli_tui_synthetic_encrypted_cache' : 'cli_tui_workspace',
 		'--display-number', String(110 + Number(process.env.PLAYWRIGHT_WORKER_SLOT || '1')),
 		'--timeout-seconds', '90', '--input-plan', inputPlan, '--no-response-media',
-		'--', 'node', candidateCli
+		'--', cliCommand, ...cliCommandArgs
 	];
 	return new Promise((resolve) => {
 		const child = spawn('python3', args, {

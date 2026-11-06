@@ -5,6 +5,7 @@ import type {TestInfo} from '@playwright/test';
 const {spawn, execFileSync} = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
+const {CLI_PIN_PROMPT, cliNativeEnv, cliSpawnArgs} = require('./cli-test-helpers');
 const ROOT = path.resolve(__dirname, '../../../../..');
 let recorderReady = false;
 
@@ -16,12 +17,13 @@ function recordPairLogin(cli: string, env: Record<string, string | undefined>, a
   }
   const outputDir = testInfo.outputPath('cli-pair-terminal');
   const display = ':' + (140 + Number(process.env.PLAYWRIGHT_WORKER_SLOT || '1'));
-  const terminalEnv = {...env, DISPLAY: display, TERM: 'xterm-256color', LIBGL_ALWAYS_SOFTWARE: 'true', GALLIUM_DRIVER: 'llvmpipe'};
+  const terminalEnv = {...env, ...cliNativeEnv(), DISPLAY: display, TERM: 'xterm-256color', LIBGL_ALWAYS_SOFTWARE: 'true', GALLIUM_DRIVER: 'llvmpipe'};
+  const [cliCommand, cliCommandArgs] = cliSpawnArgs(['login'], cli);
   const child = spawn('python3', [
     path.join(ROOT, 'scripts/cli_video_capture.py'), '--output-dir', outputDir,
     '--target-environment', apiUrl, '--classification', 'cli_pair_login',
     '--display-number', display.slice(1), '--timeout-seconds', '90', '--no-response-media',
-    '--', 'node', cli, 'login'
+    '--', cliCommand, ...cliCommandArgs
   ], {cwd: ROOT, env: terminalEnv, stdio: ['ignore', 'pipe', 'pipe']});
   let closed = false, stdout = '', stderr = '';
   child.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString(); });
@@ -52,7 +54,7 @@ function recordPairLogin(cli: string, env: Record<string, string | undefined>, a
     },
     async sendPin(pin: string): Promise<void> {
       // Wait until readline has hidden input; never put the PIN in argv or artifacts.
-      await waitForOutput(/Enter 6-char pairing PIN:/);
+      await waitForOutput(new RegExp(CLI_PIN_PROMPT));
       execFileSync('xdotool', ['windowfocus', '--sync', windowId()], {env: terminalEnv, timeout: 5_000});
       execFileSync('xdotool', ['type', '--clearmodifiers', '--delay', '15', '--file', '-'],
         {env: terminalEnv, input: pin, timeout: 5_000});

@@ -54,6 +54,7 @@ const { submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
 const CLI_DIST = fs.existsSync('/workspace/cli/dist/cli.js')
 	? '/workspace/cli/dist/cli.js'
 	: path.resolve(__dirname, '../../../packages/openmates-cli/dist/cli.js');
+const { cliNativeEnv, cliSpawnArgs } = require('./helpers/cli-test-helpers');
 
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
@@ -121,9 +122,10 @@ function deriveApiUrl(baseUrl: string): string {
 
 function spawnCliLogin(apiUrl: string) {
 	const cliDir = path.dirname(path.dirname(CLI_DIST));
-	const child = spawn('node', [CLI_DIST, 'login'], {
+	const child = spawn(...cliSpawnArgs(['login']), {
 		env: {
 			...process.env,
+			...cliNativeEnv(),
 			OPENMATES_API_URL: apiUrl,
 			NODE_PATH: path.join(cliDir, 'node_modules'),
 			TERM: 'dumb'
@@ -193,9 +195,10 @@ async function runCli(
 ): Promise<{ code: number | null; stdout: string; stderr: string }> {
 	const cliDir = path.dirname(path.dirname(CLI_DIST));
 	return new Promise((resolve) => {
-		const child = spawn('node', [CLI_DIST, ...args], {
+		const child = spawn(...cliSpawnArgs(args), {
 			env: {
 				...process.env,
+			...cliNativeEnv(),
 				OPENMATES_API_URL: apiUrl,
 				NODE_PATH: path.join(cliDir, 'node_modules')
 			},
@@ -289,6 +292,7 @@ const SAMPLE_PNG = path.join(__dirname, 'fixtures', 'sample.png');
 
 // ── Main test ───────────────────────────────────────────────────────────────
 
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,cli.output.actionable-readable
 test('CLI file upload - text/code/docs/sheets files with PII + image file', async ({ page }: any) => {
 	test.setTimeout(600_000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);

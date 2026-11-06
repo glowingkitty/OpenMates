@@ -265,12 +265,16 @@ pub(super) async fn deliver(
             .insert_for_caller(delivery, intent.clone(), caller)
             .await?;
     }
-    // stderr carries a recoverable operation identity even if an outer runtime
-    // deadline interrupts the waiting process after durable dispatch admission.
+    // A captured (non-terminal) stderr carries a recoverable operation identity
+    // even if an outer runtime deadline interrupts the waiting process after
+    // durable dispatch admission. A terminal is a person or a terminal recording
+    // that merges stderr into the stdout JSON, so it stays identical to npm.
     {
-        use std::io::Write;
+        use std::io::{IsTerminal, Write};
         let mut stderr = std::io::stderr();
-        let _ = writeln!(stderr, "Task delivery: {delivery_id}").and_then(|()| stderr.flush());
+        if !stderr.is_terminal() {
+            let _ = writeln!(stderr, "Task delivery: {delivery_id}").and_then(|()| stderr.flush());
+        }
     }
     dispatch(service, journal, &delivery_id, &intent, cancel).await
 }

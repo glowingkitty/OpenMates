@@ -6,10 +6,11 @@ import type { Page } from '@playwright/test';
 const { spawn } = require('node:child_process');
 const { expect } = require('./cookie-audit');
 const { workflowCliEnv } = require('./workflow-cli-e2e-helpers');
+const { CLI_LOGIN_SUCCESS, CLI_PIN_PROMPT, cliSpawnArgs } = require('./cli-test-helpers');
 
 /** Authorizes an isolated CLI home with the already signed-in actor's real web session. */
 export async function pairDirectChatCli(page: Page, apiUrl: string, home: string, candidateCli: string): Promise<void> {
-	const child = spawn('node', [candidateCli, 'login'], {
+	const child = spawn(...cliSpawnArgs(['login'], candidateCli), {
 		env: workflowCliEnv(apiUrl, home), stdio: ['pipe', 'pipe', 'pipe']
 	});
 	let output = '';
@@ -25,14 +26,14 @@ export async function pairDirectChatCli(page: Page, apiUrl: string, home: string
 		await page.getByTestId('pair-allow-button').click();
 		const pin = ((await page.getByTestId('pair-pin-display').innerText()) || '').replace(/\s/g, '').trim();
 		expect(pin).toMatch(/^[A-Z0-9]{6}$/);
-		await expect.poll(() => output.includes('Enter 6-char pairing PIN:'), { timeout: 20_000 }).toBe(true);
+		await expect.poll(() => output.includes(CLI_PIN_PROMPT), { timeout: 20_000 }).toBe(true);
 		child.stdin.write(`${pin}\n`);
 		const code = await Promise.race([
 			new Promise<number | null>(resolve => child.on('close', resolve)),
 			new Promise<null>(resolve => setTimeout(() => { child.kill('SIGTERM'); resolve(null); }, 30_000))
 		]);
 		expect(code, output).toBe(0);
-		expect(output).toContain('Login successful');
+		expect(output).toContain(CLI_LOGIN_SUCCESS);
 	} finally {
 		if (child.exitCode === null) child.kill('SIGTERM');
 	}
