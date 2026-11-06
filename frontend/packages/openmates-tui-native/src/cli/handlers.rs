@@ -1137,6 +1137,9 @@ async fn execute_context_with_inventory(
             let results = client.search_chats(&query).await?;
             super::history::chat_search_output(invocation, results)
         }
+        _ if super::apps_metadata::handles(invocation) => {
+            Box::pin(super::apps_metadata::execute(invocation, client)).await
+        }
         "chats list" | "projects list" | "workflows list" | "apps list" => {
             flags(invocation, &["limit", "page", "status", "personal", "team"])?;
             let command = invocation.path[0].as_str();

@@ -218,7 +218,11 @@ pub(super) async fn execute_public(
     invocation: &Invocation,
     client: &mut Client,
 ) -> Result<CliOutput, CliError> {
-    notifications::execute(invocation, client).await
+    client.clear_http_failure();
+    match notifications::execute(invocation, client).await {
+        Err(error) => Err(http_errors::present(invocation, client.http_failure(), error)),
+        ok => ok,
+    }
 }
 pub(super) fn is_info(invocation: &Invocation) -> bool {
     info(invocation).is_some()

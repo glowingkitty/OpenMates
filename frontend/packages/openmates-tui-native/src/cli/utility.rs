@@ -34,11 +34,36 @@ pub(super) fn is_network_public(i: &Invocation) -> bool {
 pub(super) fn is_public(i: &Invocation) -> bool {
     local(i) || is_network_public(i)
 }
+/// npm refuses credit-spending benchmark runs without `--confirm-spend-credits`
+/// (or `--dry-run`) before any network call. The runners themselves are not
+/// ported, so confirmed or dry-run invocations still report unsupported. The refusal is
+/// a pre-flight answer from `public`, deliberately not part of `is_public`/`supported`
+/// (the catalog keeps these benchmark rows unsupported).
+fn spend_refusal(i: &Invocation) -> Option<&'static str> {
+    if i.boolean("dry-run") || i.boolean("confirm-spend-credits") {
+        return None;
+    }
+    match i.command_path().as_str() {
+        "benchmark model" if !i.positionals.is_empty() => Some(
+            "Benchmark runs spend real credits from the logged-in account. Rerun with --confirm-spend-credits, or use --dry-run to preview the plan.",
+        ),
+        "benchmark prompt-budget" if i.positionals.is_empty() => Some(
+            "Prompt-budget benchmark runs spend real credits from the logged-in account. Rerun with --confirm-spend-credits, or use --dry-run to preview the plan.",
+        ),
+        _ => None,
+    }
+}
 pub(super) fn supported(i: &Invocation) -> bool {
     is_public(i) || finance::supported(i) || revolut::supported(i) || proton::supported(i)
 }
 /// Synchronous local handlers; run before any credential storage is opened.
 pub(super) fn public(i: &Invocation) -> Option<Result<CliOutput, CliError>> {
+    if let Some(message) = spend_refusal(i) {
+        return Some(Err(CliError::Contract {
+            code: "command_failed",
+            message: message.into(),
+        }));
+    }
     if !local(i) {
         return None;
     }

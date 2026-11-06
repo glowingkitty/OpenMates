@@ -1,6 +1,7 @@
 //! Native command parser and dispatcher. The migration inventory is the command
 //! catalog; an unported operation always fails explicitly, never delegates to npm.
 mod account;
+mod apps_metadata;
 mod apps_run;
 mod generated_files;
 pub use apps_run::execute_sdk_apps;

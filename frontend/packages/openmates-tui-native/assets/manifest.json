@@ -9,12 +9,12 @@
     {
       "path": "assets/cli-command-catalog.json",
       "source": "config/cli-command-catalog.json",
-      "sha256": "d072f797d9c0da146e4305b37bbd9216b3b2ffa002d780ec0cc95f2c5cb5362e"
+      "sha256": "7cd225c625b8b2f455ede750e43d84761b68657af3084db487e758175338c9f0"
     },
     {
       "path": "assets/example-chat-index.json",
       "source": "config/cli-example-chat-index.json",
-      "sha256": "6359504ab78ef48a86e54064c1df21e3c71e4af4f0c0668d910c5dacdf411220"
+      "sha256": "2afc4edf5d0761eda13f9f6305a3fda813c82d93f49896fbf04b894188683061"
     },
     {
       "path": "assets/host_reporter/README.md",

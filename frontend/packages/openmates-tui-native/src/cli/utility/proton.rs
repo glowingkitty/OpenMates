@@ -26,6 +26,14 @@ pub(super) fn supported(i: &Invocation) -> bool {
 fn fail(message: impl Into<String>) -> CliError {
     CliError::Invalid(logic::redact_secrets(&message.into()))
 }
+/// Runtime refusals (Bridge missing, unsupported host, declined write mode): npm throws a
+/// plain `Error` for these, which it reports as `command_failed` with exit 1.
+fn runtime_fail(message: impl Into<String>) -> CliError {
+    CliError::Contract {
+        code: "command_failed",
+        message: logic::redact_secrets(&message.into()),
+    }
+}
 fn platform() -> &'static str {
     match std::env::consts::OS {
         "macos" => "macos",
@@ -69,7 +77,7 @@ pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOu
             .line("Type ENABLE WRITE to enable Proton write mode: ")
             .await?;
         if answer.trim() != "ENABLE WRITE" {
-            return Err(fail(
+            return Err(runtime_fail(
                 "Proton write mode was not enabled because confirmation was declined.",
             ));
         }
@@ -81,15 +89,15 @@ pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOu
         find_executable,
         find_executable("brew").is_some(),
     )
-    .map_err(CliError::Invalid)?;
+    .map_err(runtime_fail)?;
     if !command.should_start {
-        return Err(fail(
+        return Err(runtime_fail(
             command
                 .guidance
                 .unwrap_or_else(|| "Proton Mail Bridge is not installed.".into()),
         ));
     }
-    let bridge = io::Bridge::spawn(&command.command, &command.args).map_err(CliError::Invalid)?;
+    let bridge = io::Bridge::spawn(&command.command, &command.args).map_err(runtime_fail)?;
     let outcome = run(client, &mut terminal, &command, write, json_output).await;
     bridge.stop().await;
     let (session, capabilities) = outcome?;

@@ -10,6 +10,8 @@ mod configuration;
 mod data;
 mod fs;
 mod host_reporter;
+mod human;
+pub use human::human_text;
 mod local_models;
 mod monitoring;
 mod notifications;

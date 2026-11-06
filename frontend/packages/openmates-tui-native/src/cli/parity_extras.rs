@@ -98,8 +98,37 @@ async fn booking_link(i: &Invocation, client: &mut Client) -> Result<CliOutput, 
                 .ok_or_else(|| CliError::Invalid("Invalid --context JSON.".into()))
         })
         .transpose()?;
-    let result = client.travel_booking_link(token, context).await?;
+    client.clear_http_failure();
+    let result = match client.travel_booking_link(token, context).await {
+        Ok(result) => result,
+        Err(error) => return Err(booking_http_error(client.http_failure(), error.into())),
+    };
     render_booking(i, result)
+}
+
+/// npm wraps HTTP error statuses as `Booking link request failed: Booking link
+/// request failed with HTTP <status>` and exits 1 (`command_failed`). The SDK
+/// folds 400/404/410/422 into `Invalid`; only those are re-presented here.
+pub(super) fn booking_http_error(
+    failure: Option<&openmates_sdk::client::HttpFailure>,
+    error: CliError,
+) -> CliError {
+    let invalid = matches!(
+        error,
+        CliError::Invalid(_) | CliError::Client(crate::error::Error::Invalid(_))
+    );
+    match failure {
+        Some(failure) if invalid && matches!(failure.status, 400 | 404 | 410 | 422) => {
+            CliError::Contract {
+                code: "command_failed",
+                message: format!(
+                    "Booking link request failed: Booking link request failed with HTTP {}",
+                    failure.status
+                ),
+            }
+        }
+        _ => error,
+    }
 }
 
 pub(super) fn render_booking(i: &Invocation, result: Value) -> Result<CliOutput, CliError> {

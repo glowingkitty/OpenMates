@@ -13,6 +13,16 @@ fn invocation(path: &str, positionals: &[&str], flags: &[(&str, Value)]) -> Invo
             .collect(),
     }
 }
+fn command_failed(error: CliError) -> String {
+    match error {
+        CliError::Contract {
+            code: "command_failed",
+            message,
+        } => message,
+        _ => panic!("expected a command_failed error"),
+    }
+}
+
 fn invalid(error: CliError) -> String {
     match error {
         CliError::Invalid(message) => message,
@@ -29,6 +39,27 @@ fn routing_marks_local_network_and_session_commands() {
     let finance = invocation("finance check_accounts", &[], &[]);
     assert!(supported(&finance) && !is_public(&finance));
     assert!(!supported(&invocation("benchmark model", &[], &[])));
+}
+
+#[test]
+fn credit_spending_benchmarks_refuse_without_confirmation() {
+    let prompt = invocation(
+        "benchmark prompt-budget",
+        &[],
+        &[("phase", json!("baseline"))],
+    );
+    assert!(spend_refusal(&prompt).is_some() && !supported(&prompt));
+    let message = command_failed(public(&prompt).expect("refusal").err().expect("refusal"));
+    assert!(message.starts_with("Prompt-budget benchmark runs spend real credits"));
+    let model = invocation("benchmark model", &["openai/gpt-oss-120b"], &[]);
+    let message = command_failed(public(&model).expect("refusal").err().expect("refusal"));
+    assert!(message.starts_with("Benchmark runs spend real credits"));
+    let confirmed = invocation(
+        "benchmark model",
+        &["openai/gpt-oss-120b"],
+        &[("confirm-spend-credits", json!(true))],
+    );
+    assert!(public(&confirmed).is_none() && !supported(&confirmed));
 }
 
 #[test]
@@ -284,15 +315,15 @@ fn finance_input_selection_and_text_follow_npm_shape() {
     assert!(value.get("end_date").is_none());
 
     assert!(
-        invalid(select(vec![], None).err().unwrap())
+        command_failed(select(vec![], None).err().unwrap())
             .starts_with("No revolut_business connected account found.")
     );
     assert!(
-        invalid(select(vec![], Some("x")).err().unwrap())
+        command_failed(select(vec![], Some("x")).err().unwrap())
             .contains("Connected account x was not found")
     );
     assert!(
-        invalid(select(vec![json!({}), json!({})], None).err().unwrap())
+        command_failed(select(vec![json!({}), json!({})], None).err().unwrap())
             .starts_with("Multiple revolut_business accounts")
     );
 
@@ -368,7 +399,7 @@ async fn api_key_finance_requires_explicit_csv_only_before_any_request() {
     }
     let empty = invocation("finance check_accounts", &[], &[("csv-only", json!(true))]);
     assert_eq!(
-        invalid(execute_finance_key(&empty, &sdk).await.err().unwrap()),
+        command_failed(execute_finance_key(&empty, &sdk).await.err().unwrap()),
         "Check accounts requires a Revolut Business connected account or --csv <file.csv>."
     );
 }

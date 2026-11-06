@@ -29,6 +29,13 @@ pub(super) fn supported(i: &Invocation) -> bool {
 fn invalid(message: impl Into<String>) -> CliError {
     CliError::Invalid(message.into())
 }
+/// npm throws a plain `Error` for unusable chat-import content: `command_failed`, exit 1.
+fn failed(message: impl Into<String>) -> CliError {
+    CliError::Contract {
+        code: "command_failed",
+        message: message.into(),
+    }
+}
 
 pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOutput, CliError> {
     let path = path(i);
@@ -56,7 +63,7 @@ async fn import_chat(i: &Invocation, client: &mut Client) -> Result<CliOutput, C
         invalid("Missing import file. Example: openmates settings account import-chat ./chat.yml")
     })?;
     let raw = read(file)?;
-    let payload = parse_chat_import_payload(&String::from_utf8_lossy(&raw)).map_err(invalid)?;
+    let payload = parse_chat_import_payload(&String::from_utf8_lossy(&raw)).map_err(failed)?;
     let result = client.account().import_chat_export(payload).await?;
     mutation(i, &result)
 }

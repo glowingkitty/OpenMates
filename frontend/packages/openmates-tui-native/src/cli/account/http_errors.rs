@@ -20,6 +20,9 @@ pub(super) fn npm_message(command: &str, method: &str, status: u16) -> String {
         "billing address set" | "billing address clear" => {
             format!("Billing address could not be saved (HTTP {status}).")
         }
+        "newsletter subscribe" => format!("Newsletter subscribe failed (HTTP {status})"),
+        "newsletter confirm" => format!("Newsletter confirmation failed (HTTP {status})"),
+        "newsletter unsubscribe" => format!("Newsletter unsubscribe failed (HTTP {status})"),
         "billing invoices list" => format!("Failed to fetch invoices (HTTP {status})"),
         "billing gift-card list" => format!("Failed to fetch redeemed gift cards (HTTP {status})"),
         "billing gift-card purchased" => {

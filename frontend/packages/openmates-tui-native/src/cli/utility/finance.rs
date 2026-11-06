@@ -36,8 +36,12 @@ pub(super) fn supported(i: &Invocation) -> bool {
         "finance check-accounts" | "finance check_accounts"
     )
 }
+/// npm throws plain `Error`s here, which its CLI prints as `command_failed` with exit 1.
 fn fail(message: impl Into<String>) -> CliError {
-    CliError::Invalid(message.into())
+    CliError::Contract {
+        code: "command_failed",
+        message: message.into(),
+    }
 }
 fn text_flag<'a>(i: &'a Invocation, key: &str) -> Option<&'a str> {
     i.text(key).filter(|v| !v.is_empty())

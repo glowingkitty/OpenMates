@@ -63,7 +63,7 @@ def _translate(value: str | None, locale: dict) -> str | None:
 
 def _chat(path: Path, locale: dict) -> dict:
     source = path.read_text(encoding="utf-8")
-    messages = re.search(r"^  messages: \[(.*?)^  \],", source, re.M | re.S)
+    messages = re.search(r"^  messages: \[(.*?)^ {0,2}\],", source, re.M | re.S)
     timestamps = [
         int(value)
         for value in re.findall(r'"?created_at"?: (\d+)', messages.group(1) if messages else "")

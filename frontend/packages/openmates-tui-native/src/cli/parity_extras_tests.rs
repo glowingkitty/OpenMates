@@ -78,3 +78,17 @@ async fn inspirations_print_public_rows_after_empty_personal_rows() {
     assert!(server.await.unwrap()[1].contains("lang=de"));
     assert!(inspirations_text(&[], "en").contains("No inspirations"));
 }
+
+#[test]
+fn booking_link_http_404_is_presented_like_npm() {
+    let failure = openmates_sdk::client::HttpFailure { method: "POST".into(), status: 404 };
+    let error = booking_http_error(Some(&failure), CliError::Invalid("Invalid request.".into()));
+    match error {
+        CliError::Contract { code: "command_failed", message } => {
+            assert_eq!(message, "Booking link request failed: Booking link request failed with HTTP 404");
+        }
+        _ => panic!("expected command_failed"),
+    }
+    let other = booking_http_error(None, CliError::Invalid("x".into()));
+    assert!(matches!(other, CliError::Invalid(_)));
+}

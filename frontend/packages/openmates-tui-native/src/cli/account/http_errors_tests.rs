@@ -46,3 +46,10 @@ fn leaves_non_invalid_errors_untouched_even_with_http_evidence() {
     let error = present(&i, Some(&failure("GET", 404)), CliError::Client(Error::Offline));
     assert!(matches!(error, CliError::Client(Error::Offline)));
 }
+#[test]
+fn maps_newsletter_subscribe_rejections_to_the_npm_message() {
+    let i = invocation(&["openmates", "settings", "newsletter", "subscribe", "not-an-email"]);
+    let error = present(&i, Some(&failure("POST", 422)), CliError::Invalid("x".into()));
+    assert_eq!(error.exit_code(), 1);
+    assert_eq!(error.to_string(), "Newsletter subscribe failed (HTTP 422)");
+}

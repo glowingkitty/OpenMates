@@ -31,6 +31,10 @@
  *   - ignoreKeys: JSON keys removed at every depth before comparing.
  *   - expectedGap: documented known difference; the check then passes only while
  *     the diff still contains this substring, and fails once the gap disappears.
+ *   - nativeArgs: argument vector for the native run when each CLI must act on its own
+ *     fixture (e.g. delete the entry it created); ids are normalized before comparing.
+ *   - between: async hook run after the npm run and before the native run, to restore
+ *     state a mutating command changed (e.g. disable learning mode again).
  *
  * Adding a group: create a new cli-native-<group>.spec.ts, call setupDifferential
  * once per test (it logs both CLIs in with isolated HOME/state dirs through browser
@@ -70,6 +74,8 @@ interface CheckOptions {
 	ignoreKeys?: string[];
 	expectedGap?: string;
 	timeoutMs?: number;
+	nativeArgs?: string[];
+	between?: () => Promise<void>;
 }
 
 interface Outcome {
@@ -238,10 +244,12 @@ async function setupDifferential(page: any, testInfo: TestInfo, groupName: strin
 		native: runNative,
 		async check(label, args, options = {}) {
 			const mode: Mode = options.mode ?? 'json';
-			const fullArgs = mode === 'json' && !args.includes('--json') ? [...args, '--json'] : args;
+			const withJson = (argv: string[]) => (mode === 'json' && !argv.includes('--json') ? [...argv, '--json'] : argv);
+			const fullArgs = withJson(args);
 			const timeout = options.timeoutMs ?? 60_000;
 			const npmResult = await runNpm(fullArgs, timeout);
-			const nativeResult = await runNative(fullArgs, timeout);
+			if (options.between) await options.between();
+			const nativeResult = await runNative(options.nativeArgs ? withJson(options.nativeArgs) : fullArgs, timeout);
 			const npmOutcome = toOutcome(npmResult, mode, homes, options);
 			const nativeOutcome = toOutcome(nativeResult, mode, homes, options);
 			const diffs: string[] = [];

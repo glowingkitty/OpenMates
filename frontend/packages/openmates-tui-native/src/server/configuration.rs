@@ -426,16 +426,19 @@ pub(super) fn environment(
             Ok(json!({"command":action,"status":"success","key":name}))
         }
         "env check" | "env doctor" => {
-            let mut result = preflight(c)?;
-            result["command"] = json!(action);
-            result["missingRuntime"] = result["missingRequiredEnvKeys"].clone();
-            result["ok"] = json!(
-                !result["blocked"].as_bool().unwrap_or(true)
-                    && result["secretPreflight"]["emptySecretEnvKeys"]
-                        .as_array()
-                        .is_some_and(Vec::is_empty)
-            );
-            Ok(result)
+            // npm prints exactly {command, role, missingRuntime, secretPreflight, ok}.
+            let result = preflight(c)?;
+            let ok = !result["blocked"].as_bool().unwrap_or(true)
+                && result["secretPreflight"]["emptySecretEnvKeys"]
+                    .as_array()
+                    .is_some_and(Vec::is_empty);
+            Ok(json!({
+                "command": action,
+                "role": result["role"],
+                "missingRuntime": result["missingRequiredEnvKeys"],
+                "secretPreflight": result["secretPreflight"],
+                "ok": ok,
+            }))
         }
         "env edit" => {
             let edit = Edit(
@@ -662,7 +665,7 @@ pub(super) fn features(action: &str, c: &Configuration, args: &[String]) -> Resu
         .remove("disabled_apps");
     let bytes = Zeroizing::new(serde_yaml::to_string(&config).map_err(|_| Error::Protocol)?);
     fs::write(&path, bytes.as_bytes(), mode)?;
-    Ok(json!({"command":action,"status":"success","feature":id,"restartRequired":true}))
+    Ok(json!({"command":action,"status":"success","feature":id,"restartRequired":true,"path":path}))
 }
 #[cfg(test)]
 mod tests {

@@ -668,3 +668,13 @@ async fn concurrent_task_gets_cancel_all_held_reads_without_releasing_or_redispa
         server.abort();controls.drain().await;
     }
 }
+
+#[test]
+fn identifiers_accept_hyphenated_skill_ids_from_app_yml() {
+    for id in ["web", "list-reminders", "get-docs", "search_icons", "models3d"] {
+        assert!(identifier(id), "{id} must be accepted");
+    }
+    for id in ["", "-docs", "Get-docs", "a/b", "a.b", "1app", &"a".repeat(65)] {
+        assert!(!identifier(id), "{id:?} must be rejected");
+    }
+}

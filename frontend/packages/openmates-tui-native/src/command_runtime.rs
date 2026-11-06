@@ -870,8 +870,17 @@ async fn run_server(
     context: ServerContext,
     cancel: &CancellationToken,
 ) -> Result<CliOutput, CliError> {
-    if server_action(invocation) != "update" || !invocation.boolean("continuous") {
+    let action = server_action(invocation);
+    if let Some(output) = server_group_usage(&action) {
+        return output;
+    }
+    if action != "update" || !invocation.boolean("continuous") {
         let value = server_once(invocation, &context, cancel).await?;
+        if !context.json_output
+            && let Some(text) = server::human_text(&action, &value)
+        {
+            return Ok(CliOutput::text(text));
+        }
         return server_output(&value, context.json_output);
     }
     let interval = continuous_interval(&invocation.flags)?;
@@ -1091,6 +1100,27 @@ fn server_account_profile(context: &ServerContext) -> Result<profile::ResolvedPr
         &context.home,
     )
     .map_err(CliError::from)
+}
+
+/// npm behavior for the bare `server` group (help, exit 0) and for the `ai` and
+/// `notifications` groups without a subcommand (usage error, exit 1).
+fn server_group_usage(action: &str) -> Option<Result<CliOutput, CliError>> {
+    let usage = match action {
+        "" => {
+            let mut help = cli::command();
+            let server = help.find_subcommand_mut("server")?;
+            return Some(Ok(CliOutput::text(server.render_long_help().to_string())));
+        }
+        "ai" => "Usage: openmates server ai models <add|list|test|remove>",
+        "notifications" => {
+            "Usage: openmates server notifications test --channel email|discord|webhook|all [--json]"
+        }
+        _ => return None,
+    };
+    Some(Err(CliError::Contract {
+        code: "command_failed",
+        message: usage.into(),
+    }))
 }
 
 fn server_output(value: &serde_json::Value, json_output: bool) -> Result<CliOutput, CliError> {

@@ -5,16 +5,20 @@ use super::plaintext::{Plain, Wipe};
 use super::sync_capability::AsyncCryptoScope;
 #[path = "apps_input_size.rs"]
 mod input_size;
+#[path = "apps_metadata.rs"]
+mod metadata;
 
 // Existing accepted task-array bound, shared by validation and concurrency.
 const MAX_APP_TASKS:usize=64;
+/// App and skill ids as declared in backend app.yml: lowercase start, then lowercase,
+/// digits, `_` or `-` (e.g. `reminder/list-reminders`, `openmates/get-docs`).
 fn identifier(value: &str) -> bool {
     !value.is_empty()
         && value.len() <= 64
         && value.as_bytes()[0].is_ascii_lowercase()
         && value
             .bytes()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'_')
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'_' || c == b'-')
 }
 fn routing_field(key: &str) -> bool {
     matches!(
