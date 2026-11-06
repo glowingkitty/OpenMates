@@ -337,7 +337,7 @@ class Coordinator(CoordinatorState):
             ).fetchall()
             by_fs = {}
             for row in waiting:
-                if row["repository"] in enabled:
+                if row["repository"] in enabled and not self.owner_dead(row):
                     by_fs.setdefault(row["filesystem"], []).append(row)
             for fs, rows in by_fs.items():
                 db.execute(
