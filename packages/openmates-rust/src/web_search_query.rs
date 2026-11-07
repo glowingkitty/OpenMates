@@ -4,6 +4,7 @@
 //! `search`: title ranges, message/metadata snippets, focus-mode activity,
 //! chat ranking, embed ranking/dedupe/cap and catalog access filters.
 //! Vectors: web_search_query_ts_vectors.json. Spec: sdk.client.thin-platform-boundary.
+//! spec: sdk.client.thin-platform-boundary
 use crate::web_search::{lowered_ranges, utf16_len, MatchRange};
 use crate::web_search_chats::{
     snippet_slice, ChatSearchIndex, EntryMeta, LoweredQuery, SearchWireError,

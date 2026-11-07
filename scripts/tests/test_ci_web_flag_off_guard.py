@@ -36,3 +36,13 @@ def test_scan_flags_wasm_marker_and_chunk_name(tmp_path):
 def test_scan_passes_clean_build(tmp_path):
     (tmp_path / "app.js").write_text("console.log(1)")
     assert guard.scan(tmp_path, {"embedWrite"}, {"worker.entry"}) == []
+
+
+# contract-test: infrastructure
+def test_scan_ignores_generated_documentation_pages(tmp_path):
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "status.html").write_text("unit_unavailable")
+    (tmp_path / "app.js").write_text("fail('unit_unavailable')")
+    out = "\n".join(guard.scan(tmp_path, {"unit_unavailable"}, set()))
+    assert "docs/status.html" not in out
+    assert "app.js: markers" in out

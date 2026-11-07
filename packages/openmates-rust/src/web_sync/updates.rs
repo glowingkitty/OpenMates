@@ -5,6 +5,7 @@
 //! thinking fields of a recovered message. Proven against TS-generated vectors
 //! (`updates_ts_vectors.json`). Spec: `feature.chats`, `surface.sdk`
 //! (sdk.client.thin-platform-boundary).
+//! spec: chats.persistence.client-encrypted, sdk.client.thin-platform-boundary
 use regex::Regex;
 use serde_json::{Value, json};
 use std::sync::OnceLock;

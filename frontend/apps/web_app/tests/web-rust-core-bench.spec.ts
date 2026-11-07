@@ -56,6 +56,6 @@ test('interleaved TS vs Rust search benchmark with paired bootstrap verdicts', a
 	test.setTimeout(1500000);
 	bench.skipWithoutCredentials(test, bench.TEST_EMAIL, bench.TEST_PASSWORD, bench.TEST_OTP_KEY);
 	await search.runSearchBench(page, testInfo, {
-		pairs: Math.max(3, Number.parseInt(process.env.OPENMATES_BENCH_PAIRS ?? '12', 10) || 12)
+		pairs: Math.max(3, Number.parseInt(process.env.OPENMATES_BENCH_PAIRS ?? '30', 10) || 30)
 	});
 });

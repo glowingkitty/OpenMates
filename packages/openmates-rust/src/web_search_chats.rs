@@ -5,6 +5,7 @@
 //! The page builds entries from decrypted messages once per chat and transfers
 //! them here; it keeps no copy. Vectors: web_search_chats_ts_vectors.json.
 //! Spec: sdk.client.thin-platform-boundary.
+//! spec: sdk.client.thin-platform-boundary
 use crate::web_search::{context_bounds, plan_snippet, plan_window, utf16_len, utf16_window};
 use std::cmp::Ordering;
 use std::collections::HashMap;

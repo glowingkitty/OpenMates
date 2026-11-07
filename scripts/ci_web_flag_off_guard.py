@@ -29,6 +29,9 @@ RUST_CORE_DIRS = (
 PROTOCOL = "frontend/packages/ui/src/services/rustCore/host/sharedWorkerProtocol.ts"
 SOURCE_SUFFIXES = (".ts", ".js", ".mjs", ".svelte")
 TEXT_SUFFIXES = (".js", ".mjs", ".css", ".html", ".json", ".map", ".webmanifest", ".txt")
+# Generated documentation pages describe the Rust units in prose; they are static
+# content, not code, so the markers they quote are not a dead-code-elimination leak.
+DOC_PAGE_PREFIXES = ("docs/", "generated/docs/")
 FIXED_MARKERS = ("openmates:rust:", "openmates_browser", "rust_core_assets_disabled")
 
 
@@ -81,7 +84,7 @@ def scan(build: Path, markers: set[str], stems: set[str], namespaces: frozenset[
             violations.append(f"{rel}: wasm file")
         if "rustCore" in rel or any(rel.split("/")[-1].startswith(stem) for stem in stems):
             violations.append(f"{rel}: rust core chunk/module name")
-        if path.suffix in TEXT_SUFFIXES:
+        if path.suffix in TEXT_SUFFIXES and not rel.startswith(DOC_PAGE_PREFIXES):
             text = path.read_text(errors="ignore")
             found = {m: re.search(rf"(?<![A-Za-z0-9_]){re.escape(m)}(?![A-Za-z0-9_])", text) for m in markers}
             found = {m: hit for m, hit in found.items() if hit}
