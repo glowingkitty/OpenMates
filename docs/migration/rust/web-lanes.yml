@@ -230,7 +230,7 @@ lanes:
 - rank: 3
   name: sync-inbound
   kind: wave4
-  status: planned
+  status: running
   commit: null
   size: L
   wave: B
@@ -257,7 +257,7 @@ lanes:
   - chat-sync-empty-indexeddb-recovery.spec.ts
   - chat-metadata-recovery.spec.ts
   - cross-client-draft-sync.spec.ts
-  notes: ''
+  notes: 'Slice 1: draft-only shell clearing (web_sync/inbound.rs, chatInboundDecisions.ts) and CoreSync batch preview reuse the updates.rs preview. Remaining: version-wins/apply plans of ChatUpdates and CoreSync, frame routing, guards (IDB-callback and stateful guards need async redesign).'
   spec_assertions:
   - sync.delta.cursor-gap-free
   - sync.delta.metadata-only

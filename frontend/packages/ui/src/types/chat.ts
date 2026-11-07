@@ -1104,6 +1104,7 @@ export interface InitialSyncResponsePayload {
     updated_at: number;
     encrypted_title?: string;
     encrypted_chat_summary?: string | null;
+    encrypted_suggested_followup_message?: string | null;
     encrypted_draft_md?: string | null;
     encrypted_draft_preview?: string | null;
     encrypted_chat_key?: string | null; // Encrypted chat-specific key for decryption

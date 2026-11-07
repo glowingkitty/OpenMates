@@ -1,4 +1,5 @@
 import { hasPendingPersonalChatTurn } from './personalChatTurnBarrier';
+import { clearDraftOnlyShellForMessages } from "./chatInboundDecisions";
 import { messagePreview, RUST_UPDATES_POLICY, rustUpdatesPolicy } from './chatSyncUpdatesPolicy';
 // frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
 import type { ChatSynchronizationService } from "./chatSyncService";
@@ -395,23 +396,6 @@ function mergePendingMessageFlushSummary(
  * getChat + updateChat entirely on repeat calls.
  */
 const _chatKeyPersistedToIDB: Set<string> = new Set();
-
-function clearDraftOnlyShellForMessages(chat: Chat, messagesV: number): Chat {
-  if (
-    messagesV <= 0 ||
-    (chat.messages_v || 0) !== 0 ||
-    !(chat.encrypted_draft_md || chat.encrypted_draft_preview)
-  ) {
-    return chat;
-  }
-
-  return {
-    ...chat,
-    encrypted_draft_md: null,
-    encrypted_draft_preview: null,
-    draft_v: 0,
-  };
-}
 
 async function requestMissingMetadataMessageContent(
   serviceInstance: ChatSynchronizationService,
@@ -1628,7 +1612,7 @@ export async function handleChatMessageReceivedImpl(
         // saves the messages, messages_v stays at 0 and the health check flags
         // the chat as having issues.
         if (payload.versions?.messages_v !== undefined) {
-          const chatWithDraftTombstone = clearDraftOnlyShellForMessages(
+          const chatWithDraftTombstone = await clearDraftOnlyShellForMessages(
             chat,
             payload.versions.messages_v,
           );
@@ -1676,7 +1660,7 @@ export async function handleChatMessageReceivedImpl(
 
       // CRITICAL: Only update specific fields, preserve all encrypted metadata
       // Create a minimal update object that only touches what we need to change
-      const chatWithDraftTombstone = clearDraftOnlyShellForMessages(
+      const chatWithDraftTombstone = await clearDraftOnlyShellForMessages(
         chat,
         payload.versions.messages_v,
       );

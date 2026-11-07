@@ -7,6 +7,7 @@
  * records a decision needs; the unit answers small JSON outcomes.
  */
 import type { UnitProtocol } from '../host/unitPort';
+import { INBOUND_OPS, type InboundProtocol } from './inboundProtocol';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -32,7 +33,7 @@ export interface SyncMergeInput {
 	currentUserId?: string | null;
 }
 
-export interface SyncUnitProtocol extends UnitProtocol {
+export interface SyncUnitProtocol extends UnitProtocol, InboundProtocol {
 	merge: { request: SyncMergeInput; response: SyncMergeOutcome };
 	keyMismatch: { request: { server: JsonRecord; local: JsonRecord | null }; response: SyncKeyMismatchPlan };
 	retry: { request: { retryable?: unknown; timerPending: boolean; attempt: number; retryAfterMs?: unknown }; response: SyncRetryStep };
@@ -55,6 +56,7 @@ export interface SyncBinding {
 	sync_message_key_plan(input: string): string;
 	sync_message_preview(input: string): string;
 	sync_thinking_fields(input: string): string;
+	sync_draft_shell(input: string): string;
 }
 
 /** Operation to binding export. */
@@ -68,6 +70,7 @@ export const SYNC_OPS: Readonly<Record<keyof SyncUnitProtocol & string, keyof Sy
 	messageKeyPlan: 'sync_message_key_plan',
 	messagePreview: 'sync_message_preview',
 	thinkingFields: 'sync_thinking_fields',
+	...INBOUND_OPS,
 });
 
 export function isSyncBinding(value: unknown): value is SyncBinding {

@@ -1,4 +1,5 @@
 // frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+import { messagePreview, RUST_UPDATES_POLICY, rustUpdatesPolicy } from "./chatSyncUpdatesPolicy";
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { chatDB } from "./db";
 import { clearQueuedProcessingForMessage, hasQueuedProcessing } from "./queuedMessageLifecycle";
@@ -56,23 +57,6 @@ function yieldToMainThread(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-function buildBatchAssistantMessagePreview(message: Message): string {
-  const plainText = (message.content || "")
-    .replace(/#{1,6}\s+/g, "")
-    .replace(/\*\*(.+?)\*\*/g, "$1")
-    .replace(/\*(.+?)\*/g, "$1")
-    .replace(/`{1,3}[^`]*`{1,3}/g, "")
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
-    .replace(/>\s+/g, "")
-    .replace(/[-*+]\s+/g, "")
-    .replace(/\n+/g, " ")
-    .trim();
-
-  if (!plainText) return "New AI response ready";
-  return plainText.length > 120 ? `${plainText.substring(0, 120)}...` : plainText;
-}
-
 async function notifyBackgroundAssistantBatchMessage(
   chatId: string,
   messages: Message[],
@@ -112,7 +96,9 @@ async function notifyBackgroundAssistantBatchMessage(
   notificationStore.chatMessage(
     chatId,
     chatTitle,
-    buildBatchAssistantMessagePreview(assistantMessage),
+    RUST_UPDATES_POLICY
+      ? await (await rustUpdatesPolicy()).messagePreview(assistantMessage.content)
+      : messagePreview(assistantMessage.content),
     undefined,
     assistantMessage.category || chat.category || undefined,
   );

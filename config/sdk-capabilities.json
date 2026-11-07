@@ -6878,6 +6878,7 @@
             "web_search_query.run_search",
             "web_sync",
             "web_sync.PROTOCOL",
+            "web_sync.inbound.draft_shell_json",
             "web_sync.merge.KeyMismatchPlan",
             "web_sync.merge.KeyMismatchPlan.CompareDirect",
             "web_sync.merge.KeyMismatchPlan.CompareMaster",

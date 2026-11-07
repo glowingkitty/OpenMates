@@ -1,0 +1,345 @@
+{
+ "schema": 1,
+ "draft": [
+  {
+   "chat": {
+    "messages_v": 0,
+    "encrypted_draft_md": "d"
+   },
+   "messagesV": 5,
+   "clear": true
+  },
+  {
+   "chat": {
+    "messages_v": 0,
+    "encrypted_draft_md": "d"
+   },
+   "messagesV": 1,
+   "clear": true
+  },
+  {
+   "chat": {
+    "messages_v": 0,
+    "encrypted_draft_md": "d"
+   },
+   "messagesV": 0,
+   "clear": false
+  },
+  {
+   "chat": {
+    "messages_v": 0,
+    "encrypted_draft_md": "d"
+   },
+   "messagesV": -1,
+   "clear": false
+  },
+  {
+   "chat": {
+    "messages_v": 0,
+    "encrypted_draft_md": "d"
+   },
+   "messagesV": 0.5,
+   "clear": true
+  },
+  {
+   "chat": {
+    "messages_v": 0,
+    "encrypted_draft_preview": "p"
+   },
+   "messagesV": 5,
+   "clear": true
+  },
+  {
+   "chat": {
+    "messages_v": 0,
+    "encrypted_draft_preview": "p"
+   },
+   "messagesV": 1,
+   "clear": true
+  },
+  {
+   "chat": {
+    "messages_v": 0,
+    "encrypted_draft_preview": "p"
+   },
+   "messagesV": 0,
+   "clear": false
+  },
+  {
+   "chat": {
+    "messages_v": 0,
+    "encrypted_draft_preview": "p"
+   },
+   "messagesV": -1,
+   "clear": false
+  },
+  {
+   "chat": {
+    "messages_v": 0,
+    "encrypted_draft_preview": "p"
+   },
+   "messagesV": 0.5,
+   "clear": true
+  },
+  {
+   "chat": {
+    "messages_v": 0,
+    "encrypted_draft_md": "",
+    "encrypted_draft_preview": ""
+   },
+   "messagesV": 5,
+   "clear": false
+  },
+  {
+   "chat": {
+    "messages_v": 0,
+    "encrypted_draft_md": "",
+    "encrypted_draft_preview": ""
+   },
+   "messagesV": 1,
+   "clear": false
+  },
+  {
+   "chat": {
+    "messages_v": 0,
+    "encrypted_draft_md": "",
+    "encrypted_draft_preview": ""
+   },
+   "messagesV": 0,
+   "clear": false
+  },
+  {
+   "chat": {
+    "messages_v": 0,
+    "encrypted_draft_md": "",
+    "encrypted_draft_preview": ""
+   },
+   "messagesV": -1,
+   "clear": false
+  },
+  {
+   "chat": {
+    "messages_v": 0,
+    "encrypted_draft_md": "",
+    "encrypted_draft_preview": ""
+   },
+   "messagesV": 0.5,
+   "clear": false
+  },
+  {
+   "chat": {
+    "messages_v": 0
+   },
+   "messagesV": 5,
+   "clear": false
+  },
+  {
+   "chat": {
+    "messages_v": 0
+   },
+   "messagesV": 1,
+   "clear": false
+  },
+  {
+   "chat": {
+    "messages_v": 0
+   },
+   "messagesV": 0,
+   "clear": false
+  },
+  {
+   "chat": {
+    "messages_v": 0
+   },
+   "messagesV": -1,
+   "clear": false
+  },
+  {
+   "chat": {
+    "messages_v": 0
+   },
+   "messagesV": 0.5,
+   "clear": false
+  },
+  {
+   "chat": {},
+   "messagesV": 5,
+   "clear": false
+  },
+  {
+   "chat": {},
+   "messagesV": 1,
+   "clear": false
+  },
+  {
+   "chat": {},
+   "messagesV": 0,
+   "clear": false
+  },
+  {
+   "chat": {},
+   "messagesV": -1,
+   "clear": false
+  },
+  {
+   "chat": {},
+   "messagesV": 0.5,
+   "clear": false
+  },
+  {
+   "chat": {
+    "messages_v": 1,
+    "encrypted_draft_md": "d"
+   },
+   "messagesV": 5,
+   "clear": false
+  },
+  {
+   "chat": {
+    "messages_v": 1,
+    "encrypted_draft_md": "d"
+   },
+   "messagesV": 1,
+   "clear": false
+  },
+  {
+   "chat": {
+    "messages_v": 1,
+    "encrypted_draft_md": "d"
+   },
+   "messagesV": 0,
+   "clear": false
+  },
+  {
+   "chat": {
+    "messages_v": 1,
+    "encrypted_draft_md": "d"
+   },
+   "messagesV": -1,
+   "clear": false
+  },
+  {
+   "chat": {
+    "messages_v": 1,
+    "encrypted_draft_md": "d"
+   },
+   "messagesV": 0.5,
+   "clear": false
+  },
+  {
+   "chat": {
+    "messages_v": null,
+    "encrypted_draft_md": "d"
+   },
+   "messagesV": 5,
+   "clear": true
+  },
+  {
+   "chat": {
+    "messages_v": null,
+    "encrypted_draft_md": "d"
+   },
+   "messagesV": 1,
+   "clear": true
+  },
+  {
+   "chat": {
+    "messages_v": null,
+    "encrypted_draft_md": "d"
+   },
+   "messagesV": 0,
+   "clear": false
+  },
+  {
+   "chat": {
+    "messages_v": null,
+    "encrypted_draft_md": "d"
+   },
+   "messagesV": -1,
+   "clear": false
+  },
+  {
+   "chat": {
+    "messages_v": null,
+    "encrypted_draft_md": "d"
+   },
+   "messagesV": 0.5,
+   "clear": true
+  },
+  {
+   "chat": {
+    "encrypted_draft_md": "d"
+   },
+   "messagesV": 5,
+   "clear": true
+  },
+  {
+   "chat": {
+    "encrypted_draft_md": "d"
+   },
+   "messagesV": 1,
+   "clear": true
+  },
+  {
+   "chat": {
+    "encrypted_draft_md": "d"
+   },
+   "messagesV": 0,
+   "clear": false
+  },
+  {
+   "chat": {
+    "encrypted_draft_md": "d"
+   },
+   "messagesV": -1,
+   "clear": false
+  },
+  {
+   "chat": {
+    "encrypted_draft_md": "d"
+   },
+   "messagesV": 0.5,
+   "clear": true
+  },
+  {
+   "chat": {
+    "messages_v": 3,
+    "encrypted_draft_preview": "p"
+   },
+   "messagesV": 5,
+   "clear": false
+  },
+  {
+   "chat": {
+    "messages_v": 3,
+    "encrypted_draft_preview": "p"
+   },
+   "messagesV": 1,
+   "clear": false
+  },
+  {
+   "chat": {
+    "messages_v": 3,
+    "encrypted_draft_preview": "p"
+   },
+   "messagesV": 0,
+   "clear": false
+  },
+  {
+   "chat": {
+    "messages_v": 3,
+    "encrypted_draft_preview": "p"
+   },
+   "messagesV": -1,
+   "clear": false
+  },
+  {
+   "chat": {
+    "messages_v": 3,
+    "encrypted_draft_preview": "p"
+   },
+   "messagesV": 0.5,
+   "clear": false
+  }
+ ]
+}

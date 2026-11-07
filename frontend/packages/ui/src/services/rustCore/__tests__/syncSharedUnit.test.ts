@@ -73,6 +73,7 @@ const binding: SyncBinding = {
 		const c = updateVectors.preview.find((v: { input: unknown }) => key(v.input) === key(request.content === null ? {} : request));
 		return JSON.stringify({ units: c.units });
 	},
+	sync_draft_shell: () => { throw new Error('protocol'); },
 	sync_thinking_fields: (input) => {
 		const request = JSON.parse(input).payload;
 		const c = updateVectors.thinking.find((v: { request: unknown }) => key(v.request) === key(request));
