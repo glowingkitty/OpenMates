@@ -9,7 +9,8 @@
 //! already parsed, newest-first ordering, the web error wording and the cost
 //! estimate inputs. The page keeps the file picker, JSZip, YAML text parsing,
 //! Fetch, encryption and IndexedDB. Every entry point takes and returns JSON
-//! text so the browser binding is a thin pass-through.
+//! text so the browser binding is a thin pass-through. Chat export (filename,
+//! timestamp, PII restore and YAML building) lives in `web_transfer_export.rs`.
 use crate::account::imports_parse::{
     ImportParser, ImportSource, ParsedAccountImport, ParsedImportChat, js_blank,
 };
@@ -22,9 +23,18 @@ pub use import::{
     parse_openmates_archive_json, zip_plan_json,
 };
 
+#[path = "web_transfer_yaml.rs"]
+mod yaml;
+#[path = "web_transfer_export.rs"]
+mod export;
+pub use export::{export_draft_kind_json, export_filename_json, export_yaml_json};
+
 #[cfg(test)]
 #[path = "web_transfer_tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "web_transfer_export_tests.rs"]
+mod export_tests;
 
 /// `Math.max(1, Math.ceil(content.length / 4))` over non-blank messages, per chat.
 pub fn chat_estimate(chat: &ParsedImportChat) -> (u64, u64) {

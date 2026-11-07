@@ -44,3 +44,21 @@ pub fn transfer_parse_openmates_archive(input: &str) -> Result<String, JsValue> 
 pub fn transfer_batch_plan(input: &str) -> Result<String, JsValue> {
     js(web_transfer::batch_plan_json(input))
 }
+
+/// `generateChatFilename`: dated, sanitized chat export filename.
+#[wasm_bindgen]
+pub fn transfer_export_filename(input: &str) -> Result<String, JsValue> {
+    js(web_transfer::export_filename_json(input))
+}
+
+/// Whether a stored chat draft is cleartext or needs the page to decrypt it.
+#[wasm_bindgen]
+pub fn transfer_export_draft_kind(input: &str) -> Result<String, JsValue> {
+    js(web_transfer::export_draft_kind_json(input))
+}
+
+/// `convertChatToYaml` over the page-resolved chat, messages and embeds.
+#[wasm_bindgen]
+pub fn transfer_export_yaml(input: &str) -> Result<String, JsValue> {
+    js(web_transfer::export_yaml_json(input))
+}

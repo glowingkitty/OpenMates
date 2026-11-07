@@ -1,0 +1,2435 @@
+{
+ "now": "2026-11-06T12:00:00.000Z",
+ "yaml": [
+  {
+   "name": "basic-chat-decrypted-metadata",
+   "request": {
+    "exportedAt": "2026-11-06T12:00:00.000Z",
+    "link": null,
+    "titles": {
+     "decrypted": "Trip: Rome & \"Paris\"",
+     "plain": "ignored plain title"
+    },
+    "summaries": {
+     "decrypted": "Planning a trip",
+     "plain": null
+    },
+    "draft": null,
+    "completeness": null,
+    "checkpoints": [],
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": 1784700001,
+      "category": null,
+      "assistantCategory": null,
+      "content": "Hello there",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "assistant",
+      "createdAt": 1784700002,
+      "category": null,
+      "assistantCategory": null,
+      "content": "Hi! How can I help?",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     }
+    ],
+    "embeds": [],
+    "pii": null
+   },
+   "out": "chat:\n  title: \"Trip: Rome & \\\"Paris\\\"\"\n  exported_at: \"2026-11-06T12:00:00.000Z\"\n  message_count: 2\n  draft: null\n  summary: Planning a trip\n  export_completeness:\n    status: complete\n    requested_message_count: 2\n    hydrated_message_count: 2\n    checkpoint_count: 0\n    warnings:\nmessages:\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:01.000Z\"\n    content: Hello there\n  -\n    role: assistant\n    completed_at: \"2026-07-22T06:00:02.000Z\"\n    content: \"Hi! How can I help?\"\nembeds:\ncompression_checkpoints:"
+  },
+  {
+   "name": "demo-chat-plain-title-link-ms-timestamps",
+   "request": {
+    "exportedAt": "2026-11-06T12:00:00.000Z",
+    "link": "http://localhost:3000/#chat-id=demo-intro",
+    "titles": {
+     "decrypted": null,
+     "plain": "Welcome"
+    },
+    "summaries": {
+     "decrypted": null,
+     "plain": "Intro to OpenMates"
+    },
+    "draft": null,
+    "completeness": null,
+    "checkpoints": [],
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": 1784700000500,
+      "category": null,
+      "assistantCategory": null,
+      "content": "Hello",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "assistant",
+      "createdAt": 1784700001500,
+      "category": null,
+      "assistantCategory": null,
+      "content": "Welcome!",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     }
+    ],
+    "embeds": [],
+    "pii": null
+   },
+   "out": "chat:\n  title: Welcome\n  exported_at: \"2026-11-06T12:00:00.000Z\"\n  message_count: 2\n  draft: null\n  summary: Intro to OpenMates\n  export_completeness:\n    status: complete\n    requested_message_count: 2\n    hydrated_message_count: 2\n    checkpoint_count: 0\n    warnings:\n  link: \"http://localhost:3000/#chat-id=demo-intro\"\nmessages:\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:00.500Z\"\n    content: Hello\n  -\n    role: assistant\n    completed_at: \"2026-07-22T06:00:01.500Z\"\n    content: \"Welcome!\"\nembeds:\ncompression_checkpoints:"
+  },
+  {
+   "name": "no-title-no-summary-empty-chat",
+   "request": {
+    "exportedAt": "2026-11-06T12:00:00.000Z",
+    "link": null,
+    "titles": {
+     "decrypted": null,
+     "plain": null
+    },
+    "summaries": {
+     "decrypted": null,
+     "plain": null
+    },
+    "draft": null,
+    "completeness": null,
+    "checkpoints": [],
+    "messages": [],
+    "embeds": [],
+    "pii": null
+   },
+   "out": "chat:\n  title: null\n  exported_at: \"2026-11-06T12:00:00.000Z\"\n  message_count: 0\n  draft: null\n  summary: null\n  export_completeness:\n    status: complete\n    requested_message_count: 0\n    hydrated_message_count: 0\n    checkpoint_count: 0\n    warnings:\nmessages:\nembeds:\ncompression_checkpoints:"
+  },
+  {
+   "name": "empty-string-title-falls-back-to-plain",
+   "request": {
+    "exportedAt": "2026-11-06T12:00:00.000Z",
+    "link": null,
+    "titles": {
+     "decrypted": "",
+     "plain": "plain fallback"
+    },
+    "summaries": {
+     "decrypted": "",
+     "plain": "plain summary"
+    },
+    "draft": null,
+    "completeness": null,
+    "checkpoints": [],
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": 1784700001,
+      "category": null,
+      "assistantCategory": null,
+      "content": "x",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     }
+    ],
+    "embeds": [],
+    "pii": null
+   },
+   "out": "chat:\n  title: plain fallback\n  exported_at: \"2026-11-06T12:00:00.000Z\"\n  message_count: 1\n  draft: null\n  summary: plain summary\n  export_completeness:\n    status: complete\n    requested_message_count: 1\n    hydrated_message_count: 1\n    checkpoint_count: 0\n    warnings:\nmessages:\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:01.000Z\"\n    content: x\nembeds:\ncompression_checkpoints:"
+  },
+  {
+   "name": "multiline-block-scalars",
+   "request": {
+    "exportedAt": "2026-11-06T12:00:00.000Z",
+    "link": null,
+    "titles": {
+     "decrypted": null,
+     "plain": "Block"
+    },
+    "summaries": {
+     "decrypted": null,
+     "plain": null
+    },
+    "draft": null,
+    "completeness": null,
+    "checkpoints": [],
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": 1784700001,
+      "category": null,
+      "assistantCategory": null,
+      "content": "line one\nline two with \\ backslash and $dollar\n\n  indented\ntrailing newline\n",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "assistant",
+      "createdAt": 1784700002,
+      "category": null,
+      "assistantCategory": null,
+      "content": "```python\nprint(\"hi\")\n```\n\n$HOME \\n literal",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700001,
+      "category": null,
+      "assistantCategory": null,
+      "content": "\n",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700001,
+      "category": null,
+      "assistantCategory": null,
+      "content": "a\r\nb\r\n",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     }
+    ],
+    "embeds": [],
+    "pii": null
+   },
+   "out": "chat:\n  title: Block\n  exported_at: \"2026-11-06T12:00:00.000Z\"\n  message_count: 4\n  draft: null\n  summary: null\n  export_completeness:\n    status: complete\n    requested_message_count: 4\n    hydrated_message_count: 4\n    checkpoint_count: 0\n    warnings:\nmessages:\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:01.000Z\"\n    content: |\n      line one\n      line two with \\\\ backslash and \\$dollar\n      \n        indented\n      trailing newline\n      \n  -\n    role: assistant\n    completed_at: \"2026-07-22T06:00:02.000Z\"\n    content: |\n      ```python\n      print(\"hi\")\n      ```\n      \n      \\$HOME \\\\n literal\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:01.000Z\"\n    content: |\n      \n      \n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:01.000Z\"\n    content: |\n      a\r\n      b\r\n      \nembeds:\ncompression_checkpoints:"
+  },
+  {
+   "name": "single-line-quoting-edges",
+   "request": {
+    "exportedAt": "2026-11-06T12:00:00.000Z",
+    "link": null,
+    "titles": {
+     "decrypted": null,
+     "plain": "Quoting"
+    },
+    "summaries": {
+     "decrypted": null,
+     "plain": null
+    },
+    "draft": null,
+    "completeness": null,
+    "checkpoints": [],
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": 1784700100,
+      "category": null,
+      "assistantCategory": null,
+      "content": "plain text",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700101,
+      "category": null,
+      "assistantCategory": null,
+      "content": "yes",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700102,
+      "category": null,
+      "assistantCategory": null,
+      "content": "No",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700103,
+      "category": null,
+      "assistantCategory": null,
+      "content": "on",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700104,
+      "category": null,
+      "assistantCategory": null,
+      "content": "off",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700105,
+      "category": null,
+      "assistantCategory": null,
+      "content": "null",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700106,
+      "category": null,
+      "assistantCategory": null,
+      "content": "true",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700107,
+      "category": null,
+      "assistantCategory": null,
+      "content": "false",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700108,
+      "category": null,
+      "assistantCategory": null,
+      "content": "123",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700109,
+      "category": null,
+      "assistantCategory": null,
+      "content": "0",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700110,
+      "category": null,
+      "assistantCategory": null,
+      "content": "007",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700111,
+      "category": null,
+      "assistantCategory": null,
+      "content": "+5",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700112,
+      "category": null,
+      "assistantCategory": null,
+      "content": "-5",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700113,
+      "category": null,
+      "assistantCategory": null,
+      "content": ".5",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700114,
+      "category": null,
+      "assistantCategory": null,
+      "content": "0.5",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700115,
+      "category": null,
+      "assistantCategory": null,
+      "content": "1.50",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700116,
+      "category": null,
+      "assistantCategory": null,
+      "content": "1e3",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700117,
+      "category": null,
+      "assistantCategory": null,
+      "content": "1e+21",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700118,
+      "category": null,
+      "assistantCategory": null,
+      "content": "100000000000000000000",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700119,
+      "category": null,
+      "assistantCategory": null,
+      "content": "1e21",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700120,
+      "category": null,
+      "assistantCategory": null,
+      "content": "1e999",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700121,
+      "category": null,
+      "assistantCategory": null,
+      "content": "0x1F",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700122,
+      "category": null,
+      "assistantCategory": null,
+      "content": "12 ",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700123,
+      "category": null,
+      "assistantCategory": null,
+      "content": "12\u000b",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700124,
+      "category": null,
+      "assistantCategory": null,
+      "content": "3 apples",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700125,
+      "category": null,
+      "assistantCategory": null,
+      "content": "a: b",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700126,
+      "category": null,
+      "assistantCategory": null,
+      "content": "a #b",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700127,
+      "category": null,
+      "assistantCategory": null,
+      "content": "say \"hi\"",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700128,
+      "category": null,
+      "assistantCategory": null,
+      "content": "it's",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700129,
+      "category": null,
+      "assistantCategory": null,
+      "content": "tab\there",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700130,
+      "category": null,
+      "assistantCategory": null,
+      "content": "carriage\rreturn",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700131,
+      "category": null,
+      "assistantCategory": null,
+      "content": "back\\slash",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700132,
+      "category": null,
+      "assistantCategory": null,
+      "content": "http://x.example/a?b=c",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700133,
+      "category": null,
+      "assistantCategory": null,
+      "content": "&amp;",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700134,
+      "category": null,
+      "assistantCategory": null,
+      "content": "a,b",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700135,
+      "category": null,
+      "assistantCategory": null,
+      "content": "{x}",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700136,
+      "category": null,
+      "assistantCategory": null,
+      "content": "[x]",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700137,
+      "category": null,
+      "assistantCategory": null,
+      "content": "100%",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700138,
+      "category": null,
+      "assistantCategory": null,
+      "content": "@mention",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700139,
+      "category": null,
+      "assistantCategory": null,
+      "content": "a|b",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700140,
+      "category": null,
+      "assistantCategory": null,
+      "content": "a>b",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700141,
+      "category": null,
+      "assistantCategory": null,
+      "content": "`code`",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700142,
+      "category": null,
+      "assistantCategory": null,
+      "content": "",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700143,
+      "category": null,
+      "assistantCategory": null,
+      "content": " ",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700144,
+      "category": null,
+      "assistantCategory": null,
+      "content": " leading",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700145,
+      "category": null,
+      "assistantCategory": null,
+      "content": "trailing ",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700146,
+      "category": null,
+      "assistantCategory": null,
+      "content": "\u0001ctl",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700147,
+      "category": null,
+      "assistantCategory": null,
+      "content": "del",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700148,
+      "category": null,
+      "assistantCategory": null,
+      "content": "café 😀",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700149,
+      "category": null,
+      "assistantCategory": null,
+      "content": "lone�surrogate",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700150,
+      "category": null,
+      "assistantCategory": null,
+      "content": " nbsp",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     }
+    ],
+    "embeds": [],
+    "pii": null
+   },
+   "out": "chat:\n  title: Quoting\n  exported_at: \"2026-11-06T12:00:00.000Z\"\n  message_count: 51\n  draft: null\n  summary: null\n  export_completeness:\n    status: complete\n    requested_message_count: 51\n    hydrated_message_count: 51\n    checkpoint_count: 0\n    warnings:\nmessages:\n  -\n    role: user\n    completed_at: \"2026-07-22T06:01:40.000Z\"\n    content: plain text\n  -\n    role: user\n    completed_at: \"2026-07-22T06:01:41.000Z\"\n    content: \"yes\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:01:42.000Z\"\n    content: No\n  -\n    role: user\n    completed_at: \"2026-07-22T06:01:43.000Z\"\n    content: \"on\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:01:44.000Z\"\n    content: \"off\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:01:45.000Z\"\n    content: \"null\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:01:46.000Z\"\n    content: \"true\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:01:47.000Z\"\n    content: \"false\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:01:48.000Z\"\n    content: 123\n  -\n    role: user\n    completed_at: \"2026-07-22T06:01:49.000Z\"\n    content: 0\n  -\n    role: user\n    completed_at: \"2026-07-22T06:01:50.000Z\"\n    content: 007\n  -\n    role: user\n    completed_at: \"2026-07-22T06:01:51.000Z\"\n    content: \"+5\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:01:52.000Z\"\n    content: \"-5\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:01:53.000Z\"\n    content: \".5\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:01:54.000Z\"\n    content: 0.5\n  -\n    role: user\n    completed_at: \"2026-07-22T06:01:55.000Z\"\n    content: 1.50\n  -\n    role: user\n    completed_at: \"2026-07-22T06:01:56.000Z\"\n    content: 1e3\n  -\n    role: user\n    completed_at: \"2026-07-22T06:01:57.000Z\"\n    content: 1e+21\n  -\n    role: user\n    completed_at: \"2026-07-22T06:01:58.000Z\"\n    content: 100000000000000000000\n  -\n    role: user\n    completed_at: \"2026-07-22T06:01:59.000Z\"\n    content: 1e21\n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:00.000Z\"\n    content: 1e999\n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:01.000Z\"\n    content: 0x1F\n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:02.000Z\"\n    content: 12 \n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:03.000Z\"\n    content: 12\u000b\n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:04.000Z\"\n    content: 3 apples\n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:05.000Z\"\n    content: \"a: b\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:06.000Z\"\n    content: \"a #b\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:07.000Z\"\n    content: \"say \\\"hi\\\"\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:08.000Z\"\n    content: \"it's\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:09.000Z\"\n    content: tab\there\n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:10.000Z\"\n    content: carriage\rreturn\n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:11.000Z\"\n    content: \"back\\\\slash\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:12.000Z\"\n    content: \"http://x.example/a?b=c\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:13.000Z\"\n    content: \"&amp;\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:14.000Z\"\n    content: \"a,b\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:15.000Z\"\n    content: \"{x}\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:16.000Z\"\n    content: \"[x]\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:17.000Z\"\n    content: \"100%\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:18.000Z\"\n    content: \"@mention\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:19.000Z\"\n    content: \"a|b\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:20.000Z\"\n    content: \"a>b\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:21.000Z\"\n    content: \"`code`\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:22.000Z\"\n    content: \"\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:23.000Z\"\n    content:  \n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:24.000Z\"\n    content:  leading\n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:25.000Z\"\n    content: trailing \n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:26.000Z\"\n    content: \"\u0001ctl\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:27.000Z\"\n    content: \"del\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:28.000Z\"\n    content: café 😀\n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:29.000Z\"\n    content: lone�surrogate\n  -\n    role: user\n    completed_at: \"2026-07-22T06:02:30.000Z\"\n    content:  nbsp\nembeds:\ncompression_checkpoints:"
+  },
+  {
+   "name": "assistant-fields-thinking-category",
+   "request": {
+    "exportedAt": "2026-11-06T12:00:00.000Z",
+    "link": null,
+    "titles": {
+     "decrypted": null,
+     "plain": "Thinking"
+    },
+    "summaries": {
+     "decrypted": null,
+     "plain": null
+    },
+    "draft": null,
+    "completeness": null,
+    "checkpoints": [],
+    "messages": [
+     {
+      "role": "assistant",
+      "createdAt": 1784700010,
+      "category": "coding",
+      "assistantCategory": "ignored",
+      "content": "plain",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "assistant",
+      "createdAt": 1784700011,
+      "category": null,
+      "assistantCategory": "research",
+      "content": "fallback category",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "assistant",
+      "createdAt": 1784700012,
+      "category": null,
+      "assistantCategory": null,
+      "content": "decrypted thinking",
+      "thinking": "Let me think: step 1\nstep 2",
+      "hasThinking": true,
+      "thinkingTokenCount": 42
+     },
+     {
+      "role": "assistant",
+      "createdAt": 1784700013,
+      "category": null,
+      "assistantCategory": null,
+      "content": "encrypted thinking",
+      "thinking": "dec:cipher-a",
+      "hasThinking": true,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "assistant",
+      "createdAt": 1784700014,
+      "category": null,
+      "assistantCategory": null,
+      "content": "undecryptable thinking",
+      "thinking": null,
+      "hasThinking": true,
+      "thinkingTokenCount": 0
+     },
+     {
+      "role": "assistant",
+      "createdAt": 1784700015,
+      "category": null,
+      "assistantCategory": null,
+      "content": "throwing thinking",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "assistant",
+      "createdAt": 1784700016,
+      "category": null,
+      "assistantCategory": null,
+      "content": "tokens only",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": 7
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700017,
+      "category": "x",
+      "assistantCategory": null,
+      "content": "user ignores assistant fields",
+      "thinking": null,
+      "hasThinking": true,
+      "thinkingTokenCount": 3
+     },
+     {
+      "role": "system",
+      "createdAt": 1784700018,
+      "category": null,
+      "assistantCategory": null,
+      "content": "system text",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     }
+    ],
+    "embeds": [],
+    "pii": null
+   },
+   "out": "chat:\n  title: Thinking\n  exported_at: \"2026-11-06T12:00:00.000Z\"\n  message_count: 9\n  draft: null\n  summary: null\n  export_completeness:\n    status: complete\n    requested_message_count: 9\n    hydrated_message_count: 9\n    checkpoint_count: 0\n    warnings:\nmessages:\n  -\n    role: assistant\n    completed_at: \"2026-07-22T06:00:10.000Z\"\n    assistant_category: coding\n    content: plain\n  -\n    role: assistant\n    completed_at: \"2026-07-22T06:00:11.000Z\"\n    assistant_category: research\n    content: fallback category\n  -\n    role: assistant\n    completed_at: \"2026-07-22T06:00:12.000Z\"\n    content: decrypted thinking\n    thinking: |\n      Let me think: step 1\n      step 2\n    has_thinking: true\n    thinking_tokens: 42\n  -\n    role: assistant\n    completed_at: \"2026-07-22T06:00:13.000Z\"\n    content: encrypted thinking\n    thinking: \"dec:cipher-a\"\n    has_thinking: true\n  -\n    role: assistant\n    completed_at: \"2026-07-22T06:00:14.000Z\"\n    content: undecryptable thinking\n    has_thinking: true\n  -\n    role: assistant\n    completed_at: \"2026-07-22T06:00:15.000Z\"\n    content: throwing thinking\n  -\n    role: assistant\n    completed_at: \"2026-07-22T06:00:16.000Z\"\n    content: tokens only\n    thinking_tokens: 7\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:17.000Z\"\n    content: user ignores assistant fields\n  -\n    role: system\n    completed_at: \"2026-07-22T06:00:18.000Z\"\n    content: system text\nembeds:\ncompression_checkpoints:"
+  },
+  {
+   "name": "assistant-thinking-without-chat-key",
+   "request": {
+    "exportedAt": "2026-11-06T12:00:00.000Z",
+    "link": null,
+    "titles": {
+     "decrypted": null,
+     "plain": "No key"
+    },
+    "summaries": {
+     "decrypted": null,
+     "plain": null
+    },
+    "draft": null,
+    "completeness": null,
+    "checkpoints": [],
+    "messages": [
+     {
+      "role": "assistant",
+      "createdAt": 1784700020,
+      "category": null,
+      "assistantCategory": null,
+      "content": "x",
+      "thinking": null,
+      "hasThinking": true,
+      "thinkingTokenCount": null
+     }
+    ],
+    "embeds": [],
+    "pii": null
+   },
+   "out": "chat:\n  title: No key\n  exported_at: \"2026-11-06T12:00:00.000Z\"\n  message_count: 1\n  draft: null\n  summary: null\n  export_completeness:\n    status: complete\n    requested_message_count: 1\n    hydrated_message_count: 1\n    checkpoint_count: 0\n    warnings:\nmessages:\n  -\n    role: assistant\n    completed_at: \"2026-07-22T06:00:20.000Z\"\n    content: x\n    has_thinking: true\nembeds:\ncompression_checkpoints:"
+  },
+  {
+   "name": "tiptap-and-odd-content",
+   "request": {
+    "exportedAt": "2026-11-06T12:00:00.000Z",
+    "link": null,
+    "titles": {
+     "decrypted": null,
+     "plain": "TipTap"
+    },
+    "summaries": {
+     "decrypted": null,
+     "plain": null
+    },
+    "draft": null,
+    "completeness": null,
+    "checkpoints": [],
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": 1784700030,
+      "category": null,
+      "assistantCategory": null,
+      "content": "From **tiptap**\nsecond line",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700031,
+      "category": null,
+      "assistantCategory": null,
+      "content": "",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700032,
+      "category": null,
+      "assistantCategory": null,
+      "content": "",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700033,
+      "category": null,
+      "assistantCategory": null,
+      "content": "",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700034,
+      "category": null,
+      "assistantCategory": null,
+      "content": "",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700035,
+      "category": null,
+      "assistantCategory": null,
+      "content": "",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     }
+    ],
+    "embeds": [],
+    "pii": null
+   },
+   "out": "chat:\n  title: TipTap\n  exported_at: \"2026-11-06T12:00:00.000Z\"\n  message_count: 6\n  draft: null\n  summary: null\n  export_completeness:\n    status: complete\n    requested_message_count: 6\n    hydrated_message_count: 6\n    checkpoint_count: 0\n    warnings:\nmessages:\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:30.000Z\"\n    content: |\n      From **tiptap**\n      second line\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:31.000Z\"\n    content: \"\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:32.000Z\"\n    content: \"\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:33.000Z\"\n    content: \"\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:34.000Z\"\n    content: \"\"\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:35.000Z\"\n    content: \"\"\nembeds:\ncompression_checkpoints:"
+  },
+  {
+   "name": "pii-revealed-originals",
+   "request": {
+    "exportedAt": "2026-11-06T12:00:00.000Z",
+    "link": null,
+    "titles": {
+     "decrypted": null,
+     "plain": "PII"
+    },
+    "summaries": {
+     "decrypted": null,
+     "plain": null
+    },
+    "draft": null,
+    "completeness": null,
+    "checkpoints": [],
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": 1784700001,
+      "category": null,
+      "assistantCategory": null,
+      "content": "Mail [EMAIL_1_com] or call [PHONE_1]; again [EMAIL_1_com].",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "assistant",
+      "createdAt": 1784700002,
+      "category": null,
+      "assistantCategory": null,
+      "content": "Bare EMAIL_1_com, (EMAIL_1_com), xEMAIL_1_com, EMAIL_1_comx, [EMAIL_1_com] PHONE_1\nPHONE_1.",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     }
+    ],
+    "embeds": [],
+    "pii": {
+     "hidden": false,
+     "mappings": [
+      {
+       "placeholder": "[EMAIL_1_com]",
+       "original": "user@example.com"
+      },
+      {
+       "placeholder": "[PHONE_1]",
+       "original": "+49 170 1234567"
+      }
+     ]
+    }
+   },
+   "out": "chat:\n  title: PII\n  exported_at: \"2026-11-06T12:00:00.000Z\"\n  message_count: 2\n  draft: null\n  summary: null\n  export_completeness:\n    status: complete\n    requested_message_count: 2\n    hydrated_message_count: 2\n    checkpoint_count: 0\n    warnings:\nmessages:\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:01.000Z\"\n    content: \"Mail user@example.com or call +49 170 1234567; again user@example.com.\"\n  -\n    role: assistant\n    completed_at: \"2026-07-22T06:00:02.000Z\"\n    content: |\n      Bare user@example.com, (user@example.com), xEMAIL_1_com, EMAIL_1_comx, user@example.com +49 170 1234567\n      +49 170 1234567.\nembeds:\ncompression_checkpoints:"
+  },
+  {
+   "name": "pii-hidden-and-empty-mappings",
+   "request": {
+    "exportedAt": "2026-11-06T12:00:00.000Z",
+    "link": null,
+    "titles": {
+     "decrypted": null,
+     "plain": "PII hidden"
+    },
+    "summaries": {
+     "decrypted": null,
+     "plain": null
+    },
+    "draft": null,
+    "completeness": null,
+    "checkpoints": [],
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": 1784700001,
+      "category": null,
+      "assistantCategory": null,
+      "content": "Mail [EMAIL_1_com] bare EMAIL_1_com",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     }
+    ],
+    "embeds": [],
+    "pii": {
+     "hidden": true,
+     "mappings": [
+      {
+       "placeholder": "[EMAIL_1_com]",
+       "original": "user@example.com"
+      }
+     ]
+    }
+   },
+   "out": "chat:\n  title: PII hidden\n  exported_at: \"2026-11-06T12:00:00.000Z\"\n  message_count: 1\n  draft: null\n  summary: null\n  export_completeness:\n    status: complete\n    requested_message_count: 1\n    hydrated_message_count: 1\n    checkpoint_count: 0\n    warnings:\nmessages:\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:01.000Z\"\n    content: \"Mail [EMAIL_1_com] bare EMAIL_1_com\"\nembeds:\ncompression_checkpoints:"
+  },
+  {
+   "name": "pii-no-mappings-revealed",
+   "request": {
+    "exportedAt": "2026-11-06T12:00:00.000Z",
+    "link": null,
+    "titles": {
+     "decrypted": null,
+     "plain": "PII none"
+    },
+    "summaries": {
+     "decrypted": null,
+     "plain": null
+    },
+    "draft": null,
+    "completeness": null,
+    "checkpoints": [],
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": 1784700001,
+      "category": null,
+      "assistantCategory": null,
+      "content": "Mail [EMAIL_1_com]",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     }
+    ],
+    "embeds": [],
+    "pii": {
+     "hidden": false,
+     "mappings": []
+    }
+   },
+   "out": "chat:\n  title: PII none\n  exported_at: \"2026-11-06T12:00:00.000Z\"\n  message_count: 1\n  draft: null\n  summary: null\n  export_completeness:\n    status: complete\n    requested_message_count: 1\n    hydrated_message_count: 1\n    checkpoint_count: 0\n    warnings:\nmessages:\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:01.000Z\"\n    content: \"Mail [EMAIL_1_com]\"\nembeds:\ncompression_checkpoints:"
+  },
+  {
+   "name": "pii-odd-placeholders",
+   "request": {
+    "exportedAt": "2026-11-06T12:00:00.000Z",
+    "link": null,
+    "titles": {
+     "decrypted": null,
+     "plain": "PII odd"
+    },
+    "summaries": {
+     "decrypted": null,
+     "plain": null
+    },
+    "draft": null,
+    "completeness": null,
+    "checkpoints": [],
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": 1784700001,
+      "category": null,
+      "assistantCategory": null,
+      "content": "abc [A.B*C] A.B*C A-B-C [X] X [Y] Y $& 😀z",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     }
+    ],
+    "embeds": [],
+    "pii": {
+     "hidden": false,
+     "mappings": [
+      {
+       "placeholder": "[A.B*C]",
+       "original": "regex-special"
+      },
+      {
+       "placeholder": "",
+       "original": "_"
+      },
+      {
+       "placeholder": "[]",
+       "original": "empty-bare"
+      },
+      {
+       "placeholder": "[X]",
+       "original": "[Y] and Y"
+      },
+      {
+       "placeholder": "[Y]",
+       "original": "why"
+      },
+      {
+       "placeholder": "$&",
+       "original": "dollar-amp"
+      }
+     ]
+    }
+   },
+   "out": "chat:\n  title: PII odd\n  exported_at: \"2026-11-06T12:00:00.000Z\"\n  message_count: 1\n  draft: null\n  summary: null\n  export_completeness:\n    status: complete\n    requested_message_count: 1\n    hydrated_message_count: 1\n    checkpoint_count: 0\n    warnings:\nmessages:\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:01.000Z\"\n    content: \"a_b_c_ _r_e_g_e_x_-_s_p_e_c_i_a_l_ _r_e_g_e_x_-_s_p_e_c_i_a_l_ _A_-_B_-_C_ _[_X_]_ _X_ _[_Y_]_ _Y_ _$_&_ _�_�_z\"\nembeds:\ncompression_checkpoints:"
+  },
+  {
+   "name": "pii-astral-originals",
+   "request": {
+    "exportedAt": "2026-11-06T12:00:00.000Z",
+    "link": null,
+    "titles": {
+     "decrypted": null,
+     "plain": "PII astral"
+    },
+    "summaries": {
+     "decrypted": null,
+     "plain": null
+    },
+    "draft": null,
+    "completeness": null,
+    "checkpoints": [],
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": 1784700001,
+      "category": null,
+      "assistantCategory": null,
+      "content": "😀[E_1}E_1 ab😀",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     }
+    ],
+    "embeds": [],
+    "pii": {
+     "hidden": false,
+     "mappings": [
+      {
+       "placeholder": "[E_1]",
+       "original": "m😀"
+      },
+      {
+       "placeholder": "",
+       "original": "|"
+      }
+     ]
+    }
+   },
+   "out": "chat:\n  title: PII astral\n  exported_at: \"2026-11-06T12:00:00.000Z\"\n  message_count: 1\n  draft: null\n  summary: null\n  export_completeness:\n    status: complete\n    requested_message_count: 1\n    hydrated_message_count: 1\n    checkpoint_count: 0\n    warnings:\nmessages:\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:01.000Z\"\n    content: \"�|�|[|E|_|1|}|m|�|�| |a|b|�|�\"\nembeds:\ncompression_checkpoints:"
+  },
+  {
+   "name": "draft-cleartext",
+   "request": {
+    "exportedAt": "2026-11-06T12:00:00.000Z",
+    "link": null,
+    "titles": {
+     "decrypted": null,
+     "plain": "Draft"
+    },
+    "summaries": {
+     "decrypted": null,
+     "plain": null
+    },
+    "draft": "Typed but **unsent**",
+    "completeness": null,
+    "checkpoints": [],
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": 1784700001,
+      "category": null,
+      "assistantCategory": null,
+      "content": "x",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     }
+    ],
+    "embeds": [],
+    "pii": null
+   },
+   "out": "chat:\n  title: Draft\n  exported_at: \"2026-11-06T12:00:00.000Z\"\n  message_count: 1\n  draft: \"Typed but **unsent**\"\n  summary: null\n  export_completeness:\n    status: complete\n    requested_message_count: 1\n    hydrated_message_count: 1\n    checkpoint_count: 0\n    warnings:\nmessages:\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:01.000Z\"\n    content: x\nembeds:\ncompression_checkpoints:"
+  },
+  {
+   "name": "draft-encrypted-and-failures",
+   "request": {
+    "exportedAt": "2026-11-06T12:00:00.000Z",
+    "link": null,
+    "titles": {
+     "decrypted": null,
+     "plain": "Draft enc"
+    },
+    "summaries": {
+     "decrypted": null,
+     "plain": null
+    },
+    "draft": "dec:v1:ciphertext-draft",
+    "completeness": null,
+    "checkpoints": [],
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": 1784700001,
+      "category": null,
+      "assistantCategory": null,
+      "content": "x",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     }
+    ],
+    "embeds": [],
+    "pii": null
+   },
+   "out": "chat:\n  title: Draft enc\n  exported_at: \"2026-11-06T12:00:00.000Z\"\n  message_count: 1\n  draft: \"dec:v1:ciphertext-draft\"\n  summary: null\n  export_completeness:\n    status: complete\n    requested_message_count: 1\n    hydrated_message_count: 1\n    checkpoint_count: 0\n    warnings:\nmessages:\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:01.000Z\"\n    content: x\nembeds:\ncompression_checkpoints:"
+  },
+  {
+   "name": "draft-encrypted-decrypts-to-null",
+   "request": {
+    "exportedAt": "2026-11-06T12:00:00.000Z",
+    "link": null,
+    "titles": {
+     "decrypted": null,
+     "plain": "Draft null"
+    },
+    "summaries": {
+     "decrypted": null,
+     "plain": null
+    },
+    "draft": null,
+    "completeness": null,
+    "checkpoints": [],
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": 1784700001,
+      "category": null,
+      "assistantCategory": null,
+      "content": "x",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     }
+    ],
+    "embeds": [],
+    "pii": null
+   },
+   "out": "chat:\n  title: Draft null\n  exported_at: \"2026-11-06T12:00:00.000Z\"\n  message_count: 1\n  draft: null\n  summary: null\n  export_completeness:\n    status: complete\n    requested_message_count: 1\n    hydrated_message_count: 1\n    checkpoint_count: 0\n    warnings:\nmessages:\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:01.000Z\"\n    content: x\nembeds:\ncompression_checkpoints:"
+  },
+  {
+   "name": "draft-decrypt-throws",
+   "request": {
+    "exportedAt": "2026-11-06T12:00:00.000Z",
+    "link": null,
+    "titles": {
+     "decrypted": null,
+     "plain": "Draft throws"
+    },
+    "summaries": {
+     "decrypted": null,
+     "plain": null
+    },
+    "draft": null,
+    "completeness": null,
+    "checkpoints": [],
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": 1784700001,
+      "category": null,
+      "assistantCategory": null,
+      "content": "x",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     }
+    ],
+    "embeds": [],
+    "pii": null
+   },
+   "out": "chat:\n  title: Draft throws\n  exported_at: \"2026-11-06T12:00:00.000Z\"\n  message_count: 1\n  draft: null\n  summary: null\n  export_completeness:\n    status: complete\n    requested_message_count: 1\n    hydrated_message_count: 1\n    checkpoint_count: 0\n    warnings:\nmessages:\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:01.000Z\"\n    content: x\nembeds:\ncompression_checkpoints:"
+  },
+  {
+   "name": "draft-long-cleartext-treated-as-ciphertext",
+   "request": {
+    "exportedAt": "2026-11-06T12:00:00.000Z",
+    "link": null,
+    "titles": {
+     "decrypted": null,
+     "plain": "Draft long"
+    },
+    "summaries": {
+     "decrypted": null,
+     "plain": null
+    },
+    "draft": "dec:long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft ",
+    "completeness": null,
+    "checkpoints": [],
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": 1784700001,
+      "category": null,
+      "assistantCategory": null,
+      "content": "x",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     }
+    ],
+    "embeds": [],
+    "pii": null
+   },
+   "out": "chat:\n  title: Draft long\n  exported_at: \"2026-11-06T12:00:00.000Z\"\n  message_count: 1\n  draft: \"dec:long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft long draft \"\n  summary: null\n  export_completeness:\n    status: complete\n    requested_message_count: 1\n    hydrated_message_count: 1\n    checkpoint_count: 0\n    warnings:\nmessages:\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:01.000Z\"\n    content: x\nembeds:\ncompression_checkpoints:"
+  },
+  {
+   "name": "hydration-partial-and-checkpoints",
+   "request": {
+    "exportedAt": "2026-11-06T12:00:00.000Z",
+    "link": null,
+    "titles": {
+     "decrypted": null,
+     "plain": "Partial"
+    },
+    "summaries": {
+     "decrypted": null,
+     "plain": null
+    },
+    "draft": null,
+    "completeness": {
+     "status": "partial",
+     "requested_message_count": 101,
+     "hydrated_message_count": 100,
+     "checkpoint_count": 3,
+     "warnings": [
+      "Only 100 of 101 durable messages were available locally.",
+      "Could not hydrate: \"quoted\" warning"
+     ]
+    },
+    "checkpoints": [
+     {
+      "id": "cp-1",
+      "created_at": 1784700500,
+      "compressed_up_to_timestamp": 1784700400,
+      "compressed_message_count": 80,
+      "summary_token_estimate": 42,
+      "summary": "Older: history\nsecond line"
+     },
+     {
+      "id": "cp-2",
+      "created_at": {
+       "$om_raw": "NaN"
+      },
+      "compressed_up_to_timestamp": 100000000000000000000,
+      "compressed_message_count": 0,
+      "summary_token_estimate": null,
+      "summary": null
+     },
+     {
+      "id": "cp-3",
+      "created_at": 0,
+      "compressed_up_to_timestamp": -5,
+      "compressed_message_count": 3,
+      "summary_token_estimate": 0,
+      "summary": ""
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": 1784700001,
+      "category": null,
+      "assistantCategory": null,
+      "content": "a",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "assistant",
+      "createdAt": 1784700002,
+      "category": null,
+      "assistantCategory": null,
+      "content": "b",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     }
+    ],
+    "embeds": [],
+    "pii": null
+   },
+   "out": "chat:\n  title: Partial\n  exported_at: \"2026-11-06T12:00:00.000Z\"\n  message_count: 2\n  draft: null\n  summary: null\n  export_completeness:\n    status: partial\n    requested_message_count: 101\n    hydrated_message_count: 100\n    checkpoint_count: 3\n    warnings:\n      - Only 100 of 101 durable messages were available locally.\n      - \"Could not hydrate: \\\"quoted\\\" warning\"\nmessages:\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:01.000Z\"\n    content: a\n  -\n    role: assistant\n    completed_at: \"2026-07-22T06:00:02.000Z\"\n    content: b\nembeds:\ncompression_checkpoints:\n  -\n    id: cp-1\n    created_at: \"2026-07-22T06:08:20.000Z\"\n    compressed_up_to: \"2026-07-22T06:06:40.000Z\"\n    compressed_message_count: 80\n    summary_token_estimate: 42\n    summary: |\n      Older: history\n      second line\n  -\n    id: cp-2\n    created_at: null\n    compressed_up_to: null\n    compressed_message_count: 0\n    summary_token_estimate: null\n    summary: null\n  -\n    id: cp-3\n    created_at: \"1970-01-01T00:00:00.000Z\"\n    compressed_up_to: \"1969-12-31T23:59:55.000Z\"\n    compressed_message_count: 3\n    summary_token_estimate: 0\n    summary: \"\""
+  },
+  {
+   "name": "timestamps-invalid-and-extreme",
+   "request": {
+    "exportedAt": "2026-11-06T12:00:00.000Z",
+    "link": null,
+    "titles": {
+     "decrypted": null,
+     "plain": "Times"
+    },
+    "summaries": {
+     "decrypted": null,
+     "plain": null
+    },
+    "draft": null,
+    "completeness": null,
+    "checkpoints": [],
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": {
+       "$om_raw": "NaN"
+      },
+      "category": null,
+      "assistantCategory": null,
+      "content": "nan",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700001,
+      "category": null,
+      "assistantCategory": null,
+      "content": "undefined timestamp",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 0,
+      "category": null,
+      "assistantCategory": null,
+      "content": "zero",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": -86400,
+      "category": null,
+      "assistantCategory": null,
+      "content": "negative seconds",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700000.987654,
+      "category": null,
+      "assistantCategory": null,
+      "content": "fraction",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 999999999999,
+      "category": null,
+      "assistantCategory": null,
+      "content": "boundary ms",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1000000000000,
+      "category": null,
+      "assistantCategory": null,
+      "content": "boundary above",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 8640000000000000,
+      "category": null,
+      "assistantCategory": null,
+      "content": "max date",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 8640000000000001,
+      "category": null,
+      "assistantCategory": null,
+      "content": "over max date",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": {
+       "$om_raw": "Infinity"
+      },
+      "category": null,
+      "assistantCategory": null,
+      "content": "infinite",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 253402300800000,
+      "category": null,
+      "assistantCategory": null,
+      "content": "year 10000",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": -62198755200000,
+      "category": null,
+      "assistantCategory": null,
+      "content": "year -1",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     }
+    ],
+    "embeds": [],
+    "pii": null
+   },
+   "out": "chat:\n  title: Times\n  exported_at: \"2026-11-06T12:00:00.000Z\"\n  message_count: 12\n  draft: null\n  summary: null\n  export_completeness:\n    status: complete\n    requested_message_count: 12\n    hydrated_message_count: 12\n    checkpoint_count: 0\n    warnings:\nmessages:\n  -\n    role: user\n    completed_at: \"2026-11-06T12:00:00.000Z\"\n    content: nan\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:01.000Z\"\n    content: undefined timestamp\n  -\n    role: user\n    completed_at: \"1970-01-01T00:00:00.000Z\"\n    content: zero\n  -\n    role: user\n    completed_at: \"1969-12-31T00:00:00.000Z\"\n    content: negative seconds\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:00.987Z\"\n    content: fraction\n  -\n    role: user\n    completed_at: \"+033658-09-27T01:46:39.000Z\"\n    content: boundary ms\n  -\n    role: user\n    completed_at: \"2001-09-09T01:46:40.000Z\"\n    content: boundary above\n  -\n    role: user\n    completed_at: \"+275760-09-13T00:00:00.000Z\"\n    content: max date\n  -\n    role: user\n    completed_at: \"2026-11-06T12:00:00.000Z\"\n    content: over max date\n  -\n    role: user\n    completed_at: \"2026-11-06T12:00:00.000Z\"\n    content: infinite\n  -\n    role: user\n    completed_at: \"+010000-01-01T00:00:00.000Z\"\n    content: year 10000\n  -\n    role: user\n    completed_at: \"2026-11-06T12:00:00.000Z\"\n    content: year -1\nembeds:\ncompression_checkpoints:"
+  },
+  {
+   "name": "unicode-and-lone-surrogates",
+   "request": {
+    "exportedAt": "2026-11-06T12:00:00.000Z",
+    "link": null,
+    "titles": {
+     "decrypted": "Türkiye 🇩🇪",
+     "plain": "Unicode 😀"
+    },
+    "summaries": {
+     "decrypted": "café ‮ rtl",
+     "plain": null
+    },
+    "draft": null,
+    "completeness": null,
+    "checkpoints": [],
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": 1784700001,
+      "category": null,
+      "assistantCategory": null,
+      "content": "emoji 😀👨‍👩‍👧",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700001,
+      "category": null,
+      "assistantCategory": null,
+      "content": "lone high � end",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700001,
+      "category": null,
+      "assistantCategory": null,
+      "content": "lone low � end",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "user",
+      "createdAt": 1784700001,
+      "category": null,
+      "assistantCategory": null,
+      "content": "😀 pair ok",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     }
+    ],
+    "embeds": [],
+    "pii": null
+   },
+   "out": "chat:\n  title: Türkiye 🇩🇪\n  exported_at: \"2026-11-06T12:00:00.000Z\"\n  message_count: 4\n  draft: null\n  summary: café ‮ rtl\n  export_completeness:\n    status: complete\n    requested_message_count: 4\n    hydrated_message_count: 4\n    checkpoint_count: 0\n    warnings:\nmessages:\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:01.000Z\"\n    content: emoji 😀👨‍👩‍👧\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:01.000Z\"\n    content: lone high � end\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:01.000Z\"\n    content: lone low � end\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:01.000Z\"\n    content: 😀 pair ok\nembeds:\ncompression_checkpoints:"
+  },
+  {
+   "name": "embeds-nested-and-numbers",
+   "request": {
+    "exportedAt": "2026-11-06T12:00:00.000Z",
+    "link": null,
+    "titles": {
+     "decrypted": null,
+     "plain": "Embeds"
+    },
+    "summaries": {
+     "decrypted": null,
+     "plain": null
+    },
+    "draft": null,
+    "completeness": null,
+    "checkpoints": [],
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": 1784700001,
+      "category": null,
+      "assistantCategory": null,
+      "content": "see [embed:parent-1] and [embed:plain-2] and [embed:bad-3] and [embed:nocontent-4] again [embed:plain-2]",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     },
+     {
+      "role": "assistant",
+      "createdAt": 1784700002,
+      "category": null,
+      "assistantCategory": null,
+      "content": "also [embed:pipe-5]",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     }
+    ],
+    "embeds": [
+     {
+      "kind": "ok",
+      "embed_id": "child-a",
+      "type": "website",
+      "status": "finished",
+      "content": {
+       "url": "https://example.org/a?b=c",
+       "title": "A: B",
+       "items": [
+        {
+         "k": "v",
+         "n": null
+        },
+        "x y",
+        true,
+        null,
+        [
+         "nested",
+         [
+          "deep"
+         ]
+        ],
+        {},
+        []
+       ]
+      },
+      "createdAt": 0,
+      "updatedAt": null,
+      "text_preview": null
+     },
+     {
+      "kind": "ok",
+      "embed_id": "child-c",
+      "type": "website",
+      "status": null,
+      "content": {
+       "1": "one",
+       "2": "two",
+       "b": "bee",
+       "nested": {
+        "flag": false,
+        "count": 3,
+        "empty": ""
+       }
+      },
+      "createdAt": 1784700001,
+      "updatedAt": 1784700002,
+      "text_preview": null
+     },
+     {
+      "kind": "ok",
+      "embed_id": "child-b",
+      "type": "website",
+      "status": "finished",
+      "content": "plain decoded string\nwith lines",
+      "createdAt": null,
+      "updatedAt": null,
+      "text_preview": null
+     },
+     {
+      "kind": "ok",
+      "embed_id": "parent-1",
+      "type": "app_skill_use",
+      "status": "finished",
+      "content": {
+       "app_id": "web",
+       "skill": "search",
+       "embed_ids": [
+        "child-a",
+        "child-c"
+       ],
+       "results": [
+        1,
+        2.5,
+        0,
+        0.1,
+        1e+21,
+        1e-7,
+        123456789012345680000,
+        1152921504606847000,
+        5e-324
+       ]
+      },
+      "createdAt": 1784700100,
+      "updatedAt": 1784700200.5,
+      "text_preview": "Preview: text"
+     },
+     {
+      "kind": "ok",
+      "embed_id": "plain-2",
+      "type": "code",
+      "status": "finished",
+      "content": {
+       "code": "x = 1\ny = \"2\"",
+       "lang": "python"
+      },
+      "createdAt": 1000000000000,
+      "updatedAt": {
+       "$om_raw": "NaN"
+      },
+      "text_preview": null
+     },
+     {
+      "kind": "error",
+      "embed_id": "bad-3",
+      "type": "broken",
+      "error": "Failed to decode embed content"
+     },
+     {
+      "kind": "error",
+      "embed_id": "nocontent-4",
+      "type": "empty",
+      "error": "Embed content field is missing or invalid"
+     },
+     {
+      "kind": "ok",
+      "embed_id": "pipe-5",
+      "type": "composite",
+      "status": "finished",
+      "content": {
+       "embed_ids": "child-b| |child-c|",
+       "mixed": [
+        {
+         "$om_raw": "NaN"
+        },
+        {
+         "$om_raw": "Infinity"
+        },
+        {
+         "$om_raw": "-Infinity"
+        },
+        {
+         "$om_raw": "undefined"
+        },
+        "after"
+       ],
+       "missing": null,
+       "nan": {
+        "$om_raw": "NaN"
+       },
+       "inf": {
+        "$om_raw": "Infinity"
+       }
+      },
+      "createdAt": null,
+      "updatedAt": null,
+      "text_preview": null
+     }
+    ],
+    "pii": null
+   },
+   "out": "chat:\n  title: Embeds\n  exported_at: \"2026-11-06T12:00:00.000Z\"\n  message_count: 2\n  draft: null\n  summary: null\n  export_completeness:\n    status: complete\n    requested_message_count: 2\n    hydrated_message_count: 2\n    checkpoint_count: 0\n    warnings:\nmessages:\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:01.000Z\"\n    content: \"see [embed:parent-1] and [embed:plain-2] and [embed:bad-3] and [embed:nocontent-4] again [embed:plain-2]\"\n  -\n    role: assistant\n    completed_at: \"2026-07-22T06:00:02.000Z\"\n    content: \"also [embed:pipe-5]\"\nembeds:\n  -\n    embed_id: child-a\n    type: website\n    status: finished\n    content:\n      url: \"https://example.org/a?b=c\"\n      title: \"A: B\"\n      items:\n        -\n          k: v\n          n: null\n        - x y\n        - true\n        - null\n        -\n          0: nested\n          1:\n            - deep\n        -\n        -\n    createdAt: null\n    updatedAt: null\n  -\n    embed_id: child-c\n    type: website\n    status: null\n    content:\n      1: one\n      2: two\n      b: bee\n      nested:\n        flag: false\n        count: 3\n        empty: \"\"\n    createdAt: \"2026-07-22T06:00:01.000Z\"\n    updatedAt: \"2026-07-22T06:00:02.000Z\"\n  -\n    embed_id: child-b\n    type: website\n    status: finished\n    content: |\n      plain decoded string\n      with lines\n    createdAt: null\n    updatedAt: null\n  -\n    embed_id: parent-1\n    type: app_skill_use\n    status: finished\n    content:\n      app_id: web\n      skill: search\n      embed_ids:\n        - child-a\n        - child-c\n      results:\n        - 1\n        - 2.5\n        - 0\n        - 0.1\n        - 1e+21\n        - 1e-7\n        - 123456789012345680000\n        - 1152921504606847000\n        - 5e-324\n    createdAt: \"2026-07-22T06:01:40.000Z\"\n    updatedAt: \"2026-07-22T06:03:20.500Z\"\n    text_preview: \"Preview: text\"\n  -\n    embed_id: plain-2\n    type: code\n    status: finished\n    content:\n      code: |\n        x = 1\n        y = \"2\"\n      lang: python\n    createdAt: \"2001-09-09T01:46:40.000Z\"\n    updatedAt: null\n  -\n    embed_id: bad-3\n    type: broken\n    status: error\n    content: null\n    error: Failed to decode embed content\n  -\n    embed_id: nocontent-4\n    type: empty\n    status: error\n    content: null\n    error: Embed content field is missing or invalid\n  -\n    embed_id: pipe-5\n    type: composite\n    status: finished\n    content:\n      embed_ids: \"child-b| |child-c|\"\n      mixed:\n        - NaN\n        - Infinity\n        - -Infinity\n        - undefined\n        - after\n      missing: null\n      nan: NaN\n      inf: Infinity\n    createdAt: null\n    updatedAt: null\ncompression_checkpoints:"
+  },
+  {
+   "name": "embed-content-null-and-scalar-roots",
+   "request": {
+    "exportedAt": "2026-11-06T12:00:00.000Z",
+    "link": null,
+    "titles": {
+     "decrypted": null,
+     "plain": "Embeds scalar"
+    },
+    "summaries": {
+     "decrypted": null,
+     "plain": null
+    },
+    "draft": null,
+    "completeness": null,
+    "checkpoints": [],
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": 1784700001,
+      "category": null,
+      "assistantCategory": null,
+      "content": "[embed:null-1] [embed:num-2] [embed:str-3] [embed:arr-4]",
+      "thinking": null,
+      "hasThinking": false,
+      "thinkingTokenCount": null
+     }
+    ],
+    "embeds": [
+     {
+      "kind": "ok",
+      "embed_id": "null-1",
+      "type": "x",
+      "status": "finished",
+      "content": null,
+      "createdAt": null,
+      "updatedAt": null,
+      "text_preview": null
+     },
+     {
+      "kind": "ok",
+      "embed_id": "num-2",
+      "type": "x",
+      "status": "finished",
+      "content": 42,
+      "createdAt": null,
+      "updatedAt": null,
+      "text_preview": null
+     },
+     {
+      "kind": "ok",
+      "embed_id": "str-3",
+      "type": "x",
+      "status": "finished",
+      "content": "007",
+      "createdAt": null,
+      "updatedAt": null,
+      "text_preview": null
+     },
+     {
+      "kind": "ok",
+      "embed_id": "arr-4",
+      "type": "x",
+      "status": "finished",
+      "content": [
+       "a",
+       1,
+       [
+        2,
+        3
+       ],
+       {
+        "z": []
+       }
+      ],
+      "createdAt": null,
+      "updatedAt": null,
+      "text_preview": null
+     }
+    ],
+    "pii": null
+   },
+   "out": "chat:\n  title: Embeds scalar\n  exported_at: \"2026-11-06T12:00:00.000Z\"\n  message_count: 1\n  draft: null\n  summary: null\n  export_completeness:\n    status: complete\n    requested_message_count: 1\n    hydrated_message_count: 1\n    checkpoint_count: 0\n    warnings:\nmessages:\n  -\n    role: user\n    completed_at: \"2026-07-22T06:00:01.000Z\"\n    content: \"[embed:null-1] [embed:num-2] [embed:str-3] [embed:arr-4]\"\nembeds:\n  -\n    embed_id: null-1\n    type: x\n    status: finished\n    content: null\n    createdAt: null\n    updatedAt: null\n  -\n    embed_id: num-2\n    type: x\n    status: finished\n    content: 42\n    createdAt: null\n    updatedAt: null\n  -\n    embed_id: str-3\n    type: x\n    status: finished\n    content: 007\n    createdAt: null\n    updatedAt: null\n  -\n    embed_id: arr-4\n    type: x\n    status: finished\n    content:\n      - a\n      - 1\n      -\n        0: 2\n        1: 3\n      -\n        z:\n    createdAt: null\n    updatedAt: null\ncompression_checkpoints:"
+  }
+ ],
+ "filename": [
+  {
+   "name": "seconds",
+   "request": {
+    "createdAt": 1784700000,
+    "titleDecrypted": "Trip to Rome",
+    "titlePlain": null,
+    "extension": "yaml"
+   },
+   "out": {
+    "ok": true,
+    "filename": "2026-07-22_06-00-00_Trip to Rome.yaml"
+   }
+  },
+  {
+   "name": "milliseconds",
+   "request": {
+    "createdAt": 1784700000123,
+    "titleDecrypted": null,
+    "titlePlain": "Demo: chat/with*odd?chars",
+    "extension": "yaml"
+   },
+   "out": {
+    "ok": true,
+    "filename": "2026-07-22_06-00-00_Demo chatwithoddchars.yaml"
+   }
+  },
+  {
+   "name": "untitled",
+   "request": {
+    "createdAt": 1784700000,
+    "titleDecrypted": null,
+    "titlePlain": null,
+    "extension": "yaml"
+   },
+   "out": {
+    "ok": true,
+    "filename": "2026-07-22_06-00-00_Untitled Chat.yaml"
+   }
+  },
+  {
+   "name": "empty-titles-untitled",
+   "request": {
+    "createdAt": 1784700000,
+    "titleDecrypted": "",
+    "titlePlain": "",
+    "extension": "md"
+   },
+   "out": {
+    "ok": true,
+    "filename": "2026-07-22_06-00-00_Untitled Chat.md"
+   }
+  },
+  {
+   "name": "invalid-chars-removed",
+   "request": {
+    "createdAt": 1784700000,
+    "titleDecrypted": "<>:\"/\\|?*",
+    "titlePlain": null,
+    "extension": "yaml"
+   },
+   "out": {
+    "ok": true,
+    "filename": "2026-07-22_06-00-00_.yaml"
+   }
+  },
+  {
+   "name": "sanitized-to-empty",
+   "request": {
+    "createdAt": 1784700000,
+    "titleDecrypted": "???",
+    "titlePlain": "fallback not used",
+    "extension": "yaml"
+   },
+   "out": {
+    "ok": true,
+    "filename": "2026-07-22_06-00-00_.yaml"
+   }
+  },
+  {
+   "name": "trim-whitespace",
+   "request": {
+    "createdAt": 1784700000,
+    "titleDecrypted": "   padded  ",
+    "titlePlain": null,
+    "extension": "yaml"
+   },
+   "out": {
+    "ok": true,
+    "filename": "2026-07-22_06-00-00_padded.yaml"
+   }
+  },
+  {
+   "name": "length-50",
+   "request": {
+    "createdAt": 1784700000,
+    "titleDecrypted": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "titlePlain": null,
+    "extension": "yaml"
+   },
+   "out": {
+    "ok": true,
+    "filename": "2026-07-22_06-00-00_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.yaml"
+   }
+  },
+  {
+   "name": "length-50-trailing-space",
+   "request": {
+    "createdAt": 1784700000,
+    "titleDecrypted": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy zzzzzzzzzzzzzzzzzzzz",
+    "titlePlain": null,
+    "extension": "yaml"
+   },
+   "out": {
+    "ok": true,
+    "filename": "2026-07-22_06-00-00_yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy.yaml"
+   }
+  },
+  {
+   "name": "emoji-split-at-50",
+   "request": {
+    "createdAt": 1784700000,
+    "titleDecrypted": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa😀tail",
+    "titlePlain": null,
+    "extension": "yaml"
+   },
+   "out": {
+    "ok": true,
+    "filename": "2026-07-22_06-00-00_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa�.yaml"
+   }
+  },
+  {
+   "name": "emoji-whole-at-50",
+   "request": {
+    "createdAt": 1784700000,
+    "titleDecrypted": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa😀tail",
+    "titlePlain": null,
+    "extension": "yaml"
+   },
+   "out": {
+    "ok": true,
+    "filename": "2026-07-22_06-00-00_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa😀.yaml"
+   }
+  },
+  {
+   "name": "epoch-zero",
+   "request": {
+    "createdAt": 0,
+    "titleDecrypted": "zero",
+    "titlePlain": null,
+    "extension": "yaml"
+   },
+   "out": {
+    "ok": true,
+    "filename": "1970-01-01_00-00-00_zero.yaml"
+   }
+  },
+  {
+   "name": "negative",
+   "request": {
+    "createdAt": -1,
+    "titleDecrypted": "neg",
+    "titlePlain": null,
+    "extension": "yaml"
+   },
+   "out": {
+    "ok": true,
+    "filename": "1969-12-31_23-59-59_neg.yaml"
+   }
+  },
+  {
+   "name": "fractional",
+   "request": {
+    "createdAt": 1784700000.9,
+    "titleDecrypted": "frac",
+    "titlePlain": null,
+    "extension": "yaml"
+   },
+   "out": {
+    "ok": true,
+    "filename": "2026-07-22_06-00-00_frac.yaml"
+   }
+  },
+  {
+   "name": "year-10000",
+   "request": {
+    "createdAt": 253402300800000,
+    "titleDecrypted": "far",
+    "titlePlain": null,
+    "extension": "yaml"
+   },
+   "out": {
+    "ok": true,
+    "filename": "+010000-01-01_00-00_far.yaml"
+   }
+  },
+  {
+   "name": "nan-created-at",
+   "request": {
+    "createdAt": {
+     "$om_raw": "NaN"
+    },
+    "titleDecrypted": "nan",
+    "titlePlain": null,
+    "extension": "yaml"
+   },
+   "out": {
+    "ok": false,
+    "message": "Invalid time value"
+   }
+  },
+  {
+   "name": "undefined-created-at",
+   "request": {
+    "createdAt": null,
+    "titleDecrypted": "undef",
+    "titlePlain": null,
+    "extension": "yaml"
+   },
+   "out": {
+    "ok": false,
+    "message": "Invalid time value"
+   }
+  },
+  {
+   "name": "infinite-created-at",
+   "request": {
+    "createdAt": {
+     "$om_raw": "Infinity"
+    },
+    "titleDecrypted": "inf",
+    "titlePlain": null,
+    "extension": "yaml"
+   },
+   "out": {
+    "ok": false,
+    "message": "Invalid time value"
+   }
+  },
+  {
+   "name": "out-of-range",
+   "request": {
+    "createdAt": 8640000000001000,
+    "titleDecrypted": "range",
+    "titlePlain": null,
+    "extension": "yaml"
+   },
+   "out": {
+    "ok": false,
+    "message": "Invalid time value"
+   }
+  }
+ ],
+ "pii": [
+  {
+   "name": "plain-placeholder",
+   "text": "a [EMAIL_1] b [EMAIL_1]",
+   "mappings": [
+    {
+     "placeholder": "[EMAIL_1]",
+     "original": "e@x.y"
+    }
+   ],
+   "out": "a e@x.y b e@x.y"
+  },
+  {
+   "name": "bare-variants",
+   "text": "EMAIL_1 (EMAIL_1) xEMAIL_1 EMAIL_1x EMAIL_1_ EMAIL_1] [EMAIL_1 \nEMAIL_1\tEMAIL_1",
+   "mappings": [
+    {
+     "placeholder": "[EMAIL_1]",
+     "original": "e@x.y"
+    }
+   ],
+   "out": "e@x.y (e@x.y) xEMAIL_1 EMAIL_1x EMAIL_1_ EMAIL_1] [EMAIL_1 \ne@x.y\te@x.y"
+  },
+  {
+   "name": "bare-at-start-and-end",
+   "text": "EMAIL_1",
+   "mappings": [
+    {
+     "placeholder": "[EMAIL_1]",
+     "original": "E"
+    }
+   ],
+   "out": "E"
+  },
+  {
+   "name": "adjacent-bare-occurrences",
+   "text": "EMAIL_1 EMAIL_1 EMAIL_1,EMAIL_1",
+   "mappings": [
+    {
+     "placeholder": "[EMAIL_1]",
+     "original": "E"
+    }
+   ],
+   "out": "E E E,E"
+  },
+  {
+   "name": "sequential-expansion",
+   "text": "[A] [B]",
+   "mappings": [
+    {
+     "placeholder": "[A]",
+     "original": "[B]"
+    },
+    {
+     "placeholder": "[B]",
+     "original": "final"
+    }
+   ],
+   "out": "final final"
+  },
+  {
+   "name": "later-original-not-reexpanded-backwards",
+   "text": "[A] [B]",
+   "mappings": [
+    {
+     "placeholder": "[B]",
+     "original": "[A]"
+    },
+    {
+     "placeholder": "[A]",
+     "original": "final"
+    }
+   ],
+   "out": "final final"
+  },
+  {
+   "name": "empty-placeholder",
+   "text": "abc",
+   "mappings": [
+    {
+     "placeholder": "",
+     "original": "-"
+    }
+   ],
+   "out": "a-b-c"
+  },
+  {
+   "name": "empty-placeholder-empty-text",
+   "text": "",
+   "mappings": [
+    {
+     "placeholder": "",
+     "original": "-"
+    }
+   ],
+   "out": ""
+  },
+  {
+   "name": "empty-placeholder-astral",
+   "text": "a😀b",
+   "mappings": [
+    {
+     "placeholder": "",
+     "original": "-"
+    }
+   ],
+   "out": "a-�-�-b"
+  },
+  {
+   "name": "brackets-only",
+   "text": "[] [[]] ] [",
+   "mappings": [
+    {
+     "placeholder": "[]",
+     "original": "E"
+    },
+    {
+     "placeholder": "[]]",
+     "original": "F"
+    },
+    {
+     "placeholder": "[",
+     "original": "G"
+    }
+   ],
+   "out": "E GE] F G"
+  },
+  {
+   "name": "regex-special",
+   "text": "a.b*c (x) $1 \\d [a.b*c]",
+   "mappings": [
+    {
+     "placeholder": "[a.b*c]",
+     "original": "<$1>"
+    },
+    {
+     "placeholder": "(x)",
+     "original": "\\0"
+    }
+   ],
+   "out": "<$1> \\0 $1 \\d <$1>"
+  },
+  {
+   "name": "dollar-replacement",
+   "text": "[P] $& $1",
+   "mappings": [
+    {
+     "placeholder": "[P]",
+     "original": "$& $` $' $$"
+    }
+   ],
+   "out": "$& $` $' $$ $& $1"
+  },
+  {
+   "name": "no-mappings",
+   "text": "untouched [EMAIL_1]",
+   "mappings": [],
+   "out": "untouched [EMAIL_1]"
+  },
+  {
+   "name": "empty-original",
+   "text": "[P]x P",
+   "mappings": [
+    {
+     "placeholder": "[P]",
+     "original": ""
+    }
+   ],
+   "out": "x "
+  },
+  {
+   "name": "unicode-boundary",
+   "text": "éP 😀P Pé",
+   "mappings": [
+    {
+     "placeholder": "[P]",
+     "original": "p"
+    }
+   ],
+   "out": "ép 😀p pé"
+  },
+  {
+   "name": "surrogate-prefix",
+   "text": "😀P",
+   "mappings": [
+    {
+     "placeholder": "[P]",
+     "original": "p"
+    }
+   ],
+   "out": "😀p"
+  }
+ ],
+ "draftKind": [
+  {
+   "draft": "",
+   "cleartext": true
+  },
+  {
+   "draft": "Typed text",
+   "cleartext": true
+  },
+  {
+   "draft": "v1:abc",
+   "cleartext": false
+  },
+  {
+   "draft": "xv1:abc",
+   "cleartext": true
+  },
+  {
+   "draft": "has encrypted: marker",
+   "cleartext": false
+  },
+  {
+   "draft": "encrypted:abc",
+   "cleartext": false
+  },
+  {
+   "draft": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "cleartext": true
+  },
+  {
+   "draft": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "cleartext": false
+  },
+  {
+   "draft": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "cleartext": false
+  },
+  {
+   "draft": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+   "cleartext": true
+  },
+  {
+   "draft": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+   "cleartext": false
+  },
+  {
+   "draft": "line\nbreak",
+   "cleartext": true
+  }
+ ]
+}

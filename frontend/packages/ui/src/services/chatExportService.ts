@@ -16,6 +16,23 @@ import {
 import { restorePIIInText } from "../components/enter_message/services/piiDetectionService";
 import type { TipTapDoc } from "../message_parsing/types";
 import { copyToClipboard } from "../utils/clipboardUtils";
+import type * as RustChatExport from "./rustCore/transfer/rustChatExport";
+import type { TransferExportEmbed } from "./rustCore/transfer/transferProtocol";
+
+/** Opt-in shared Rust core build: export building runs in the shared Worker `transfer` unit. */
+const RUST_TRANSFER_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1";
+/** Measurement-only opt-out (like chatImportService): `'ts'` keeps this TypeScript exporter. */
+const RUST_TRANSFER_OPT_OUT_KEY = "openmates_rust_core_transfer";
+let rustExportModule: Promise<typeof RustChatExport> | null = null;
+function rustChatExport(): Promise<typeof RustChatExport> | null {
+  if (!RUST_TRANSFER_BUILD) return null;
+  if (typeof localStorage === "undefined" || localStorage.getItem(RUST_TRANSFER_OPT_OUT_KEY) === "ts") return null;
+  rustExportModule ??= import("./rustCore/transfer/rustChatExport");
+  return rustExportModule;
+}
+
+/** An embed as collected for export (decoded content, raw timestamps), before shaping. */
+type ChatExportEmbedRecord = TransferExportEmbed;
 
 /**
  * Options for controlling PII handling during export.
@@ -163,6 +180,11 @@ export async function generateChatFilename(
   chat: Chat,
   extension: string = "yaml",
 ): Promise<string> {
+  const rust = rustChatExport();
+  if (rust) {
+    const cached = await chatMetadataCache.getDecryptedMetadata(chat);
+    return (await rust).rustGenerateChatFilename(chat.created_at, cached?.title, chat.title, extension);
+  }
   // Use chat's creation timestamp instead of current time
   // Handle both seconds (regular chats) and milliseconds (demo chats) timestamps
   // Timestamps in seconds are typically < 1e12 (before year ~2001 in ms)
@@ -235,6 +257,34 @@ function formatTimestamp(timestamp: number | undefined | null): string | null {
 }
 
 /**
+ * Final export object of a collected embed (TypeScript path; the Rust path
+ * builds the same object in web_transfer_export.rs).
+ */
+function shapeEmbedRecord(record: ChatExportEmbedRecord): Record<string, unknown> {
+  if (record.kind === "error") {
+    return {
+      embed_id: record.embed_id,
+      type: record.type,
+      status: "error",
+      content: null,
+      error: record.error,
+    };
+  }
+  const embedExport: Record<string, unknown> = {
+    embed_id: record.embed_id,
+    type: record.type,
+    status: record.status,
+    content: record.content,
+    createdAt: formatTimestamp(record.createdAt),
+    updatedAt: formatTimestamp(record.updatedAt),
+  };
+  if (record.text_preview) {
+    embedExport.text_preview = record.text_preview;
+  }
+  return embedExport;
+}
+
+/**
  * Recursively loads embeds including nested child embeds
  * @param embedIds - Array of embed IDs to load
  * @param loadedEmbedIds - Set of already loaded embed IDs to avoid duplicates
@@ -243,8 +293,8 @@ function formatTimestamp(timestamp: number | undefined | null): string | null {
 async function loadEmbedsRecursively(
   embedIds: string[],
   loadedEmbedIds: Set<string> = new Set(),
-): Promise<Record<string, unknown>[]> {
-  const embedsForExport: Record<string, unknown>[] = [];
+): Promise<ChatExportEmbedRecord[]> {
+  const embedsForExport: ChatExportEmbedRecord[] = [];
 
   // Filter out already loaded embeds
   const newEmbedIds = embedIds.filter((id) => !loadedEmbedIds.has(id));
@@ -287,10 +337,9 @@ async function loadEmbedsRecursively(
         );
         // Include embed with error indicator
         embedsForExport.push({
+          kind: "error",
           embed_id: embed.embed_id,
           type: embed.type,
-          status: "error",
-          content: null,
           error: "Embed content field is missing or invalid",
         });
         continue;
@@ -299,20 +348,18 @@ async function loadEmbedsRecursively(
       // Decode TOON content to get actual embed values
       const decodedContent = await decodeToonContent(embed.content);
 
-      // Create export object with embed metadata and decoded content
-      const embedExport: Record<string, unknown> = {
+      // Collect embed metadata and decoded content; timestamps and the final
+      // export object are shaped by shapeEmbedRecord (TypeScript) or Rust.
+      const embedExport: ChatExportEmbedRecord = {
+        kind: "ok",
         embed_id: embed.embed_id,
         type: embed.type,
         status: embed.status,
         content: decodedContent, // Decoded content (actual values, not TOON)
-        createdAt: formatTimestamp(embed.createdAt),
-        updatedAt: formatTimestamp(embed.updatedAt),
+        createdAt: embed.createdAt,
+        updatedAt: embed.updatedAt,
+        text_preview: embed.text_preview,
       };
-
-      // Add optional fields if present
-      if (embed.text_preview) {
-        embedExport.text_preview = embed.text_preview;
-      }
 
       // Handle nested embeds (composite embeds like app_skill_use)
       const childEmbedIds: string[] = [];
@@ -368,10 +415,9 @@ async function loadEmbedsRecursively(
       );
       // Include embed with error indicator
       embedsForExport.push({
+        kind: "error",
         embed_id: embed.embed_id,
         type: embed.type,
-        status: "error",
-        content: null,
         error: "Failed to decode embed content",
       });
     }
@@ -386,7 +432,7 @@ async function loadEmbedsRecursively(
  * @param messages - Array of messages in the chat
  * @returns Array of embed data with decoded content
  */
-async function getAllEmbedsForChat(messages: Message[]): Promise<Record<string, unknown>[]> {
+async function getAllEmbedsForChat(messages: Message[]): Promise<ChatExportEmbedRecord[]> {
   try {
     console.debug("[ChatExportService] Collecting embeds for chat export");
 
@@ -454,6 +500,13 @@ export async function convertChatToYaml(
   piiOptions?: PIIExportOptions,
   hydration?: ChatExportHydrationResult,
 ): Promise<string> {
+  const rust = rustChatExport();
+  if (rust) {
+    return (await rust).rustConvertChatToYaml(
+      { chat, messages, includeLink, piiOptions, hydration },
+      chatExportPageIO,
+    );
+  }
   const chatMeta: Record<string, unknown> = {
     title: null as string | null,
     exported_at: new Date().toISOString(),
@@ -575,7 +628,7 @@ export async function convertChatToYaml(
   }
 
   // Add embeds with decoded content (separate field)
-  yamlData.embeds = await embedsPromise;
+  yamlData.embeds = (await embedsPromise).map(shapeEmbedRecord);
 
   return convertToYamlString(yamlData);
 }
@@ -599,6 +652,65 @@ function safeTimestampToISO(
   } catch {
     return null;
   }
+}
+
+/**
+ * Thinking text of an assistant message: the already decrypted
+ * `thinking_content`, else `encrypted_thinking_content` decrypted with the chat
+ * key (page IO: key manager and crypto). Failures are logged and omit the text.
+ */
+async function resolveThinkingText(message: Message): Promise<string | undefined> {
+  // Try decrypted thinking_content first (if already decrypted)
+  if (message.thinking_content) {
+    console.debug(
+      "[ChatExportService] Included decrypted thinking content in export",
+    );
+    return message.thinking_content;
+  }
+  // Fall back to encrypted_thinking_content and decrypt it
+  if (message.encrypted_thinking_content) {
+    try {
+      // Get chat key for this message's chat to decrypt thinking content
+      const chatKey = await chatKeyManager.getKey(message.chat_id);
+      if (chatKey) {
+        const { decryptWithChatKey } = await import("./cryptoService");
+        const decryptedThinking = await decryptWithChatKey(
+          message.encrypted_thinking_content,
+          chatKey,
+        );
+        if (decryptedThinking) {
+          console.debug(
+            "[ChatExportService] Decrypted and included thinking content in export",
+          );
+          return decryptedThinking;
+        }
+      } else {
+        console.warn(
+          "[ChatExportService] Could not decrypt thinking content: chat key not available",
+        );
+      }
+    } catch (decryptError) {
+      console.error(
+        "[ChatExportService] Error decrypting thinking content:",
+        decryptError,
+      );
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Message body as export Markdown: string content as is, TipTap JSON through the
+ * canonical serializer, anything else empty. Page IO (the serializer stays TS).
+ */
+async function messageMarkdown(message: Message): Promise<string> {
+  if (typeof message.content === "string") {
+    return message.content;
+  }
+  if (message.content && typeof message.content === "object") {
+    return convertTiptapToMarkdown(message.content as unknown as TipTapDoc);
+  }
+  return "";
 }
 
 /**
@@ -645,41 +757,9 @@ async function convertMessageToYaml(
     // Include thinking content for thinking models (Gemini, Anthropic Claude, etc.)
     // Thinking content is the model's internal reasoning process
     if (message.role === "assistant") {
-      // Try decrypted thinking_content first (if already decrypted)
-      if (message.thinking_content) {
-        messageData.thinking = message.thinking_content;
-        console.debug(
-          "[ChatExportService] Included decrypted thinking content in export",
-        );
-      }
-      // Fall back to encrypted_thinking_content and decrypt it
-      else if (message.encrypted_thinking_content) {
-        try {
-          // Get chat key for this message's chat to decrypt thinking content
-          const chatKey = await chatKeyManager.getKey(message.chat_id);
-          if (chatKey) {
-            const { decryptWithChatKey } = await import("./cryptoService");
-            const decryptedThinking = await decryptWithChatKey(
-              message.encrypted_thinking_content,
-              chatKey,
-            );
-            if (decryptedThinking) {
-              messageData.thinking = decryptedThinking;
-              console.debug(
-                "[ChatExportService] Decrypted and included thinking content in export",
-              );
-            }
-          } else {
-            console.warn(
-              "[ChatExportService] Could not decrypt thinking content: chat key not available",
-            );
-          }
-        } catch (decryptError) {
-          console.error(
-            "[ChatExportService] Error decrypting thinking content:",
-            decryptError,
-          );
-        }
+      const thinking = await resolveThinkingText(message);
+      if (thinking) {
+        messageData.thinking = thinking;
       }
       // Also include thinking metadata if available
       if (message.has_thinking) {
@@ -901,6 +981,23 @@ export function generateChatLink(chatId: string): string {
 
   return link;
 }
+
+/**
+ * Page-side inputs of the Rust export (metadata cache, crypto, serializers and
+ * embed loading); the Rust unit builds everything else.
+ * @internal Exported for the Rust parity vectors (web_transfer_export_ts_vectors.json).
+ */
+export const chatExportPageIO: RustChatExport.ChatExportPageIO = {
+  decryptedMetadata: (chat) => chatMetadataCache.getDecryptedMetadata(chat),
+  decryptDraft: async (encrypted) => {
+    const { decryptWithMasterKey } = await import("./cryptoService");
+    return decryptWithMasterKey(encrypted);
+  },
+  thinkingText: resolveThinkingText,
+  messageMarkdown,
+  collectEmbeds: getAllEmbedsForChat,
+  chatLink: generateChatLink,
+};
 
 /**
  * Copies the chat to clipboard in YAML format wrapped in a markdown code block.

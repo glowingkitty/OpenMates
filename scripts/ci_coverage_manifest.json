@@ -524,8 +524,7 @@
         "components/assistant-speech-action.spec.ts",
         "task-detail-fullscreen.spec.ts",
         "components/chat-context-menu-preview.spec.ts",
-        "web-rust-core-apps.spec.ts",
-        "web-rust-core-transfer.spec.ts"
+        "web-rust-core-apps.spec.ts"
       ],
       "enabling_work": "Run existing public browser/component/source assertions on the built candidate; report product failures rather than holding execution.",
       "execution": "e2e"
@@ -657,7 +656,8 @@
         "web-rust-core-reload-memory.spec.ts",
         "web-rust-core-memory-level.spec.ts",
         "chat-unread-read-position.spec.ts",
-        "cli-rust-tui-unread.spec.ts"
+        "cli-rust-tui-unread.spec.ts",
+        "web-rust-core-transfer.spec.ts"
       ]
     },
     "external_integration": {

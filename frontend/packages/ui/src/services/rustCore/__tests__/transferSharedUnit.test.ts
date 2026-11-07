@@ -9,8 +9,11 @@ import { createSharedWorkerRouter } from '../host/sharedWorkerProtocol';
 import { installTransferUnit } from '../transfer/transferUnit';
 import { rustTransferStats } from '../transfer/transferUnitClient';
 import { rustBuildMessageBatches, rustEstimateImportCost, rustParseImportFile } from '../transfer/rustChatImport';
+import { rustConvertChatToYaml, rustGenerateChatFilename, type ChatExportPageIO } from '../transfer/rustChatExport';
+import { exportJsonReplacer, wellFormed } from '../transfer/transferUnit';
 import type { TransferBinding } from '../transfer/transferProtocol';
 import type { ParsedImportChat } from '../../chatImportService';
+import type { Chat, Message } from '../../../types/chat';
 
 const calls: string[] = [];
 const chat = (fingerprint: string, count: number) => ({
@@ -48,6 +51,14 @@ const binding: TransferBinding = {
 		if (p.maxMessages <= 0) return JSON.stringify({ kind: 'error', message: 'Import message batch size must be positive.' });
 		return JSON.stringify({ kind: 'ok', batches: [[0, 0, 0, 1, 'scan-fp-a-0'], [1, 0, 0, 2, 'scan-fp-b-0'], [1, 1, 2, 3, 'scan-fp-b-1']] });
 	},
+	transfer_export_filename: (input) => {
+		calls.push(`exportFilename ${input}`);
+		return JSON.stringify(typeof JSON.parse(input).createdAt !== 'number'
+			? { kind: 'error', message: 'Invalid time value' }
+			: { kind: 'ok', filename: '2026-07-22_06-00-00_Title.yaml' });
+	},
+	transfer_export_draft_kind: (input) => (calls.push(`draftKind ${input}`), JSON.stringify({ kind: 'ok', cleartext: JSON.parse(input).draft.startsWith('plain') })),
+	transfer_export_yaml: (input) => (calls.push(`exportYaml ${input}`), JSON.stringify({ kind: 'ok', yaml: 'chat:\n  title: T' })),
 };
 
 function fakeWorker() {
@@ -125,5 +136,51 @@ describe('shared transfer unit', () => {
 			[0, 0, 'scan-fp-a-0', ['m0']], [1, 0, 'scan-fp-b-0', ['m0', 'm1']], [1, 1, 'scan-fp-b-1', ['m2']],
 		]);
 		await expect(rustBuildMessageBatches(chats, 0)).rejects.toThrow('Import message batch size must be positive.');
+	});
+
+	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
+	it('builds export filenames in Rust and throws the RangeError for an invalid creation time', async () => {
+		await expect(rustGenerateChatFilename(1784700000, 'Title', undefined, 'yaml')).resolves.toBe('2026-07-22_06-00-00_Title.yaml');
+		expect(calls[calls.length - 1]).toBe('exportFilename {"createdAt":1784700000,"titleDecrypted":"Title","titlePlain":null,"extension":"yaml"}');
+		await expect(rustGenerateChatFilename(Number.NaN, 'Title', undefined, 'yaml')).rejects.toThrow(new RangeError('Invalid time value'));
+	});
+
+	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
+	it('sends page-resolved chat values to Rust and returns its YAML unchanged', async () => {
+		const io: ChatExportPageIO = {
+			decryptedMetadata: async () => ({ title: 'Decrypted', summary: 'Sum' }),
+			decryptDraft: async () => 'decrypted draft',
+			thinkingText: async (message) => (message.message_id === 'a1' ? 'thought' : undefined),
+			messageMarkdown: async (message) => `md:${message.content as string}`,
+			collectEmbeds: async () => [{ kind: 'ok', embed_id: 'e1', type: 'code', status: undefined, content: { n: Number.NaN, list: [1, undefined] }, createdAt: 5, updatedAt: undefined, text_preview: undefined }],
+			chatLink: (id) => `https://app.test/#chat-id=${id}`,
+		};
+		const chat = { chat_id: 'c1', created_at: 1, title: 'Plain', encrypted_draft_md: 'v1:cipher' } as Chat;
+		const messages = [
+			{ message_id: 'u1', role: 'user', content: 'hi', created_at: 10 },
+			{ message_id: 'a1', role: 'assistant', content: 'yo', created_at: 11, has_thinking: true, thinking_token_count: 4 },
+		] as unknown as Message[];
+		const yaml = await rustConvertChatToYaml({
+			chat, messages, includeLink: true, hydration: undefined,
+			piiOptions: { piiHidden: false, piiMappings: [{ placeholder: '[E]', original: 'e@x.y', type: 'EMAIL' }] },
+		}, io);
+		expect(yaml).toBe('chat:\n  title: T');
+		expect(calls.some((call) => call.startsWith('draftKind {"draft":"v1:cipher"}'))).toBe(true);
+		const sent = JSON.parse((calls[calls.length - 1] as string).replace('exportYaml ', ''));
+		expect(sent).toMatchObject({
+			link: 'https://app.test/#chat-id=c1', draft: 'decrypted draft', completeness: null,
+			titles: { decrypted: 'Decrypted', plain: 'Plain' }, summaries: { decrypted: 'Sum', plain: null },
+			pii: { hidden: false, mappings: [{ placeholder: '[E]', original: 'e@x.y' }] },
+		});
+		expect(sent.messages.map((m: { thinking: string | null; hasThinking: boolean; content: string }) => [m.content, m.thinking, m.hasThinking]))
+			.toEqual([['md:hi', null, false], ['md:yo', 'thought', true]]);
+		expect(sent.embeds[0]).toMatchObject({ status: null, content: { n: { $om_raw: 'NaN' }, list: [1, { $om_raw: 'undefined' }] }, createdAt: 5, updatedAt: null });
+	});
+
+	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
+	it('serializes export payloads with well-formed strings and raw non-finite markers', () => {
+		expect(wellFormed('a\ud83db\ude00c\ud83d\ude00')).toBe('a\ufffdb\ufffdc\ud83d\ude00');
+		expect(JSON.stringify({ a: undefined, b: [undefined, Number.POSITIVE_INFINITY], c: 'x\ud83d' }, exportJsonReplacer))
+			.toBe('{"a":null,"b":[{"$om_raw":"undefined"},{"$om_raw":"Infinity"}],"c":"x\ufffd"}');
 	});
 });
