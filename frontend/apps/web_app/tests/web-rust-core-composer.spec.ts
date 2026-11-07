@@ -7,7 +7,8 @@
  * draft with two emails and one phone number; the editor must highlight exactly
  * those three spans, with the detection served by the Rust composer unit (zero
  * failures, one shared Worker, no WASM on the page). Records keystroke ->
- * highlight latency as an advisory metric. Runs only in the CI lane that builds
+ * highlight latency as an advisory metric. A second case types an @-mention query
+ * and asserts the mention ranking (project mention search) is served by the unit. Runs only in the CI lane that builds
  * the Rust core package (web-rust-core-* specs).
  */
 export {};
@@ -59,4 +60,32 @@ test('composer PII highlights are served by the shared Rust composer unit', asyn
 	console.log(`[web-rust-core-composer] ${JSON.stringify({ highlightMs, calls: stats.calls })}`);
 	await testInfo.attach('composer-pii-latency.json', { body: JSON.stringify({ highlightMs, stats, ...instances }, null, 2), contentType: 'application/json' });
 	await screenshot(page, 'composer-pii-highlighted');
+});
+
+// contract-test: supporting surface=gui.web assertions=message-input.suggestions.contextual
+test('composer mention ranking is served by the shared Rust composer unit', async ({ page }: { page: any }) => {
+	test.slow();
+	test.setTimeout(300000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	const log = createSignupLogger('WEB_RUST_CORE_COMPOSER_MENTION');
+	const screenshot = createStepScreenshotter(log);
+	const unitErrors: string[] = [];
+	page.on('console', (msg: any) => {
+		const text = msg.text();
+		if (/UnitPortError|MentionSearch\] Failed/.test(text)) unitErrors.push(text.slice(0, 300));
+	});
+	await loginToTestAccount(page, log, screenshot);
+	await startNewChat(page, log);
+	const editor = page.getByTestId('message-editor');
+	await expect(editor).toBeVisible({ timeout: 15000 });
+	await editor.click({ position: { x: 12, y: 12 }, force: true });
+	const before = await page.evaluate(() => (window as any).__openmatesRustComposerStats?.()?.calls ?? 0);
+	await page.keyboard.type('@gem', { delay: 30 });
+	await expect(page.getByTestId('mention-dropdown')).toBeVisible({ timeout: 15000 });
+	await expect(page.getByTestId('mention-result').first()).toBeVisible({ timeout: 15000 });
+	await expect.poll(async () => page.evaluate(() => (window as any).__openmatesRustComposerStats?.()?.calls ?? 0), { timeout: 15000 }).toBeGreaterThan(before);
+	const stats = await page.evaluate(() => (window as any).__openmatesRustComposerStats?.() ?? null);
+	expect(stats.failures, 'no composer unit call failed').toBe(0);
+	expect(unitErrors, 'no composer unit or mention search errors').toEqual([]);
+	await screenshot(page, 'composer-mention-dropdown');
 });

@@ -1,8 +1,9 @@
 //! Worker exports for the shared `composer` unit (paste classification, PII
-//! detect/redact/restore, known-original rewrite, local-model span merge).
+//! detect/redact/restore, known-original rewrite, local-model span merge,
+//! mention/saved-embed ranking, ghost-suggestion validation).
 //! Pure string-in/string-out JSON text functions; a malformed payload rejects
 //! with the stable code `protocol` (`invalid_offsets` for model offset breaks).
-use openmates_sdk::web_composer::{paste, pii_detect, pii_text, rewrite, web_pii};
+use openmates_sdk::web_composer::{mentions, paste, pii_detect, pii_text, rewrite, suggestions, web_pii};
 use wasm_bindgen::prelude::*;
 
 fn js(result: Result<String, String>) -> Result<String, JsValue> {
@@ -79,4 +80,22 @@ pub fn composer_pii_merge_window_entities(input: &str) -> Result<String, JsValue
 #[wasm_bindgen]
 pub fn composer_pii_merge_matches(input: &str) -> Result<String, JsValue> {
     js(web_pii::merge_matches_json(input))
+}
+
+/// `rankMentionResults` (indices and scores).
+#[wasm_bindgen]
+pub fn composer_mentions_rank(input: &str) -> Result<String, JsValue> {
+    js(mentions::rank_mentions_json(input))
+}
+
+/// `rankSavedEmbedIndex` (indices).
+#[wasm_bindgen]
+pub fn composer_saved_embeds_rank(input: &str) -> Result<String, JsValue> {
+    js(mentions::rank_saved_embeds_json(input))
+}
+
+/// `decodeComposerGhostSuggestion` validity.
+#[wasm_bindgen]
+pub fn composer_ghost_validate(input: &str) -> Result<String, JsValue> {
+    js(suggestions::ghost_validate_json(input))
 }

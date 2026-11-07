@@ -602,7 +602,10 @@ lanes:
   name: composer
   kind: wave4
   status: running
-  commit: dcc2ea8
+  slices:
+  - id: slice-1
+    commit: dcc2ea813e
+    note: PII detect/redact/rewrite, model span merge, paste classification
   size: M
   wave: A
   deps: [search-snippet-perf]
@@ -634,7 +637,7 @@ lanes:
   - mention-dropdown-settings-memory.spec.ts
   - focus-mode-mention.spec.ts
   - office-import-notices.spec.ts
-  notes: 'Slice 1 (PII + paste): web_composer Rust (paste, pii_detect, pii_text, rewrite, web_pii) with TS-generated vectors incl. Unicode/emoji offsets; composer unit + adapter wired behind VITE_OPENMATES_RUST_CORE in async callers only (detectPIIForWeb, model window merge, MessageInput async paste, redactEmbedContent). Sync call sites (restorePIIInText in derived values, preparedPrivacyForSend, projectFilePrivacy) stay TypeScript until their callers become async. Slices 2-3 (mentions/suggestions, code/url/upload/xlsx/image helpers) pending.'
+  notes: 'Slice 1 (PII + paste): web_composer Rust (paste, pii_detect, pii_text, rewrite, web_pii) with TS-generated vectors incl. Unicode/emoji offsets; composer unit + adapter wired behind VITE_OPENMATES_RUST_CORE in async callers only (detectPIIForWeb, model window merge, MessageInput async paste, redactEmbedContent). Sync call sites (restorePIIInText in derived values, preparedPrivacyForSend, projectFilePrivacy) stay TypeScript until their callers become async. Slice 2 (mentions + suggestions, web_composer/{mentions,suggestions}.rs, TS vectors suggestion_ts_vectors.json from the real mentionRanking.ts, embedSuggestionSearch.ts and composerGhostDecode.ts): mention score/filter/rank (searchProjectMentions), saved-embed filter/rank (searchSavedEmbeds) and ghost-suggestion validation (decryptComposerGhostSuggestion) run on the unit with the flag on; Rust answers indices and the page reorders its own objects. Declined with reasons: searchMentions (sync call inside MentionDropdown $effect), extractMentionQuery and checkMentionTrigger (sync editor-update hot path), chatAllowsComposerGhostSuggestion (sync store reads), uploadPrivacy (already the @repo/upload-privacy package, IO bound), url/code detection helpers and xlsx/image helpers (large or platform-bound, left for slice 3). Known flag-on difference: a lone UTF-16 surrogate in ranked text is replaced by U+FFFD before crossing the Worker boundary, and a ghost payload containing a lone-surrogate JSON escape validates as invalid.'
   spec_assertions:
   - pii.composer.detect-redact-exclude
   - pii.composer.city-not-personal

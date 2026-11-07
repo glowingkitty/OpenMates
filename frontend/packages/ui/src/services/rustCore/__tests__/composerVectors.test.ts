@@ -62,6 +62,9 @@ describe('composer handlers', () => {
 		composer_pii_windows: () => '[]',
 		composer_pii_merge_window_entities: () => '[]',
 		composer_pii_merge_matches: fail,
+		composer_mentions_rank: () => '[]',
+		composer_saved_embeds_rank: () => '[]',
+		composer_ghost_validate: () => JSON.stringify({ valid: true }),
 	} as ComposerBinding;
 	// contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude
 	it('forwards JSON text and maps binding rejection to its code', async () => {

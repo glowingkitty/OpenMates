@@ -14,26 +14,9 @@ import { encryptWithChatKey, decryptWithChatKey } from './encryption/MessageEncr
 import { ensureChatKeySafeForWrite } from './chatKeyWriteGuard';
 import { webSocketService } from './websocketService';
 import type { ChatSynchronizationService } from './chatSyncService';
+import { decodeComposerGhostSuggestion, type ComposerGhostSuggestion } from './composerGhostDecode';
 
-export interface ComposerGhostSuggestion {
-  text: string;
-  sourceMessageId: string;
-  sourceUserMessageId: string;
-  sourceTaskId: string;
-}
-
-export function decodeComposerGhostSuggestion(value: string): ComposerGhostSuggestion | null {
-  try {
-    const parsed = JSON.parse(value) as Partial<ComposerGhostSuggestion>;
-    if (typeof parsed.text !== 'string' || !parsed.text.trim() || parsed.text.length > 400 ||
-        typeof parsed.sourceMessageId !== 'string' || !parsed.sourceMessageId ||
-        typeof parsed.sourceUserMessageId !== 'string' || !parsed.sourceUserMessageId ||
-        typeof parsed.sourceTaskId !== 'string' || !parsed.sourceTaskId) return null;
-    return parsed as ComposerGhostSuggestion;
-  } catch {
-    return null;
-  }
-}
+export { decodeComposerGhostSuggestion, type ComposerGhostSuggestion } from './composerGhostDecode';
 
 export function chatAllowsComposerGhostSuggestion(chat: Chat): boolean {
   const profile = get(userProfile);
@@ -51,7 +34,7 @@ export async function decryptComposerGhostSuggestion(chat: Chat): Promise<Compos
     const handle = await getKeyHandle(chat.chat_id);
     if (!handle) return null;
     const text = await handle.decrypt(chat.encrypted_suggested_followup_message);
-    return text ? decodeComposerGhostSuggestion(text) : null;
+    return text ? (await import('../components/enter_message/services/rustComposerSuggestions')).rustDecodeComposerGhostSuggestion(text) : null;
   }
   const key = await chatKeyManager.getKey(chat.chat_id);
   if (!key) return null;

@@ -40,6 +40,9 @@ export function createComposerHandlers(binding: ComposerBinding): UnitHandlers<C
 		piiWindows: (p) => call(p, (j) => binding.composer_pii_windows(j)),
 		piiMergeWindowEntities: (p) => call(p, (j) => binding.composer_pii_merge_window_entities(j)),
 		piiMergeMatches: (p) => call(p, (j) => binding.composer_pii_merge_matches(j)),
+		mentionsRank: (p) => call(p, (j) => binding.composer_mentions_rank(j)),
+		savedEmbedsRank: (p) => call(p, (j) => binding.composer_saved_embeds_rank(j)),
+		ghostValidate: (p) => call(p, (j) => binding.composer_ghost_validate(j)),
 	};
 }
 

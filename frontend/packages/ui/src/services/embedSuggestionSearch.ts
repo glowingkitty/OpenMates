@@ -18,7 +18,7 @@ export interface SavedMemoriesLike {
   entriesByApp: Map<string, Record<string, SavedMemoryEntryLike[]>>;
 }
 
-interface IndexedSavedEmbed extends SavedEmbedSuggestion {
+export interface IndexedSavedEmbed extends SavedEmbedSuggestion {
   searchText: string;
 }
 
@@ -55,18 +55,21 @@ function buildIndex(entriesByApp: SavedMemoriesLike['entriesByApp']): IndexedSav
   return Array.from(byId.values()).sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
-export function searchSavedEmbedMemories(
-  state: SavedMemoriesLike,
-  query: string,
-  limit = 6,
-): SavedEmbedSuggestion[] {
-  const normalized = query.trim().toLowerCase();
-  if (!normalized || limit <= 0) return [];
+export function savedEmbedIndex(state: SavedMemoriesLike): IndexedSavedEmbed[] {
   let index = indexByEntries.get(state.entriesByApp);
   if (!index) {
     index = buildIndex(state.entriesByApp);
     indexByEntries.set(state.entriesByApp, index);
   }
+  return index;
+}
+
+/** Filter, rank and cut the index; the Rust `composer` unit mirrors this (web_composer/mentions.rs). */
+export function rankSavedEmbedIndex(
+  index: IndexedSavedEmbed[],
+  normalized: string,
+  limit: number,
+): SavedEmbedSuggestion[] {
   const matches: IndexedSavedEmbed[] = [];
   for (const entry of index) {
     if (!entry.searchText.includes(normalized)) continue;
@@ -78,6 +81,16 @@ export function searchSavedEmbedMemories(
     return bTitle - aTitle || b.updatedAt - a.updatedAt;
   });
   return matches.slice(0, limit).map(({ searchText: _searchText, ...result }) => result);
+}
+
+export function searchSavedEmbedMemories(
+  state: SavedMemoriesLike,
+  query: string,
+  limit = 6,
+): SavedEmbedSuggestion[] {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized || limit <= 0) return [];
+  return rankSavedEmbedIndex(savedEmbedIndex(state), normalized, limit);
 }
 
 /** Minimal shape of a saved embed (see savedEmbedService.SavedEmbed). */
@@ -113,5 +126,12 @@ export async function searchSavedEmbeds(query: string, limit = 6): Promise<Saved
     }
     cachedSaved = import('./savedEmbedService').then(async (module) => savedEmbedsToMemoriesLike(await module.listSavedEmbeds()));
   }
-  return searchSavedEmbedMemories(await cachedSaved, query, limit);
+  const state = await cachedSaved;
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized || limit <= 0) return [];
+    return (await import('../components/enter_message/services/rustComposerSuggestions'))
+      .rustRankSavedEmbeds(savedEmbedIndex(state), normalized, limit);
+  }
+  return searchSavedEmbedMemories(state, query, limit);
 }

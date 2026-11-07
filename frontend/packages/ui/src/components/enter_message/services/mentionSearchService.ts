@@ -30,6 +30,7 @@ import { getApiUrl } from "../../../config/api";
 import { getCurrentLanguage } from "../../../i18n/setup";
 import { proxyImage } from "../../../utils/imageProxy";
 import { buildProjectMentionSyntax } from "./projectMentionSyntax";
+import { rankMentionResults } from "./mentionRanking";
 
 /**
  * Types of mentionable items in the @ dropdown.
@@ -363,53 +364,7 @@ function buildSearchTerms(...strings: (string | undefined)[]): string[] {
   return Array.from(new Set(terms)); // Remove duplicates
 }
 
-/** Score boost for settings/memory categories and entries when the query matches (so they can appear in results). */
-const SETTINGS_MEMORY_SCORE_BOOST = 30;
-const PROJECT_MENTION_SCORE_BOOST = 40;
 const PROJECT_MENTION_LIMIT = 8;
-
-/**
- * Calculate match score for a search query against terms.
- * Higher score = better match.
- * Settings/memory results get a small boost when they match so they can compete with models/skills.
- */
-function calculateMatchScore(
-  query: string,
-  terms: string[],
-  type?: MentionType,
-): number {
-  if (!query) return 1; // No query = all results are equal
-
-  const queryLower = query.toLowerCase();
-  let score = 0;
-
-  for (const term of terms) {
-    if (term === queryLower) {
-      score += 100; // Exact match
-    } else if (term.startsWith(queryLower)) {
-      score += 50; // Prefix match
-    } else if (term.includes(queryLower)) {
-      score += 25; // Contains match
-    }
-  }
-
-  // Boost settings/memory types when they match so they can appear and be selected
-  if (
-    score > 0 &&
-    (type === "settings_memory" || type === "settings_memory_entry")
-  ) {
-    score += SETTINGS_MEMORY_SCORE_BOOST;
-  }
-
-  if (
-    score > 0 &&
-    (type === "project" || type === "project_folder" || type === "project_file")
-  ) {
-    score += PROJECT_MENTION_SCORE_BOOST;
-  }
-
-  return score;
-}
 
 function toProjectMentionAccessMode(writeMode: unknown): ProjectMentionAccessMode {
   return writeMode === "apply_and_show" ? "read_write" : "read";
@@ -531,14 +486,9 @@ export async function searchProjectMentions(
       }
     }
 
-    return results
-      .map((result) => ({
-        ...result,
-        score: calculateMatchScore(query, result.searchTerms, result.type),
-      }))
-      .filter((result) => result.score > 0)
-      .sort((a, b) => (b.score || 0) - (a.score || 0))
-      .slice(0, limit);
+    return import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+      ? await (await import("./rustComposerSuggestions")).rustRankMentionResults(results, query, limit)
+      : rankMentionResults(results, query, limit);
   } catch (error) {
     console.warn("[MentionSearch] Failed to load Project mention results:", error);
     return [];
@@ -1029,15 +979,7 @@ export function searchMentions(
     : getAllMentionResults(true);
 
   // Score and filter results (settings_memory / settings_memory_entry get a boost when they match)
-  const scoredResults = allResults
-    .map((result) => ({
-      ...result,
-      score: calculateMatchScore(query, result.searchTerms, result.type),
-    }))
-    .filter((result) => result.score > 0)
-    .sort((a, b) => (b.score || 0) - (a.score || 0));
-
-  return scoredResults.slice(0, limit);
+  return rankMentionResults(allResults, query, limit);
 }
 
 /**

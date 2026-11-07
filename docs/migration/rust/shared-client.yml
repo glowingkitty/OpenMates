@@ -166,7 +166,9 @@ shared_vector_files: [packages/openmates-rust/src/chat_state/bookmark_highlight_
   packages/openmates-rust/src/web_apps/results_ts_vectors.json, packages/openmates-rust/src/web_apps/schema_ts_vectors.json,
   packages/openmates-rust/src/web_apps_ts_vectors.json, packages/openmates-rust/src/web_chat_state/transition_vectors.json,
   packages/openmates-rust/src/web_chat_state/ts_vectors.json, packages/openmates-rust/src/web_chat_state/view_ts_vectors.json,
-  packages/openmates-rust/src/web_guest_ts_vectors.json, packages/openmates-rust/src/web_keys_ts_vectors.json, packages/openmates-rust/src/web_parse/blocks_ts_vectors.json,
+  packages/openmates-rust/src/web_composer/suggestion_ts_vectors.json, packages/openmates-rust/src/web_composer/ts_vectors.json,
+  packages/openmates-rust/src/web_guest_ts_vectors.json, packages/openmates-rust/src/web_key_bulk_ts_vectors.json,
+  packages/openmates-rust/src/web_keys_ts_vectors.json, packages/openmates-rust/src/web_parse/blocks_ts_vectors.json,
   packages/openmates-rust/src/web_persist/policy_vectors.json, packages/openmates-rust/src/web_persist/ts_vectors.json,
   packages/openmates-rust/src/web_search_chats_ts_vectors.json, packages/openmates-rust/src/web_search_query_ts_vectors.json,
   packages/openmates-rust/src/web_search_ts_vectors.json, packages/openmates-rust/src/web_send_prep/ts_vectors.json,
@@ -185,7 +187,7 @@ capabilities:
   has_fixture: false
   rust:
     status: partial
-    api_symbols: 2476
+    api_symbols: 2503
     conformance: false
     gaps: 16
   npm:

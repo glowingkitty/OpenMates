@@ -9,25 +9,25 @@ flag:
   default: 'off'
   flag_off_behavior: original TypeScript path, byte-identical build output (guarded in CI)
 summary:
-  total: 16
-  done: 16
+  total: 17
+  done: 17
   partial: 0
   missing: 0
   percent: 100.0
 e2e_specs_in_repo: [web-rust-core-apps.spec.ts, web-rust-core-auth.spec.ts, web-rust-core-bench.spec.ts, web-rust-core-chat.spec.ts,
   web-rust-core-chatstate-fork-conversation.spec.ts, web-rust-core-chatstate-hidden-chats-flow.spec.ts, web-rust-core-chatstate-message-highlights.spec.ts,
-  web-rust-core-chatstate.spec.ts, web-rust-core-crypto.spec.ts, web-rust-core-drafts.spec.ts, web-rust-core-embeds.spec.ts,
-  web-rust-core-memory-level.spec.ts, web-rust-core-persist.spec.ts, web-rust-core-profile.spec.ts, web-rust-core-reload-memory.spec.ts,
-  web-rust-core-search.spec.ts, web-rust-core-send-bench.spec.ts, web-rust-core-sync.spec.ts, web-rust-core-transfer.spec.ts,
-  web-rust-core-ws.spec.ts]
+  web-rust-core-chatstate.spec.ts, web-rust-core-composer.spec.ts, web-rust-core-crypto.spec.ts, web-rust-core-drafts.spec.ts,
+  web-rust-core-embeds.spec.ts, web-rust-core-memory-level.spec.ts, web-rust-core-persist.spec.ts, web-rust-core-profile.spec.ts,
+  web-rust-core-reload-memory.spec.ts, web-rust-core-search.spec.ts, web-rust-core-send-bench.spec.ts, web-rust-core-sync.spec.ts,
+  web-rust-core-transfer.spec.ts, web-rust-core-ws.spec.ts]
 lanes:
   file: web-lanes.yml
   plan: web-lanes.md
   plan_date: 2026-11-07
   total: 21
   by_status:
-    planned: 5
-    running: 13
+    planned: 4
+    running: 14
     landed: 3
   landed:
   - name: search-snippet-perf
@@ -37,8 +37,8 @@ lanes:
   - name: memory-rss
     commit: bd07710
   running: [w3-web-drafts, w3-web-import-export, w3-web-send-perf, send-correctness, chatstate-core, embeds-3, sync-inbound,
-    ai-stream-recovery, persistence, send-prep-outbox, parse, auth-rest, share-guest-crypto]
-  next_planned_by_rank: [ws-unit, keys, settings-memories, composer, chatstate-hidden-fork]
+    ai-stream-recovery, persistence, send-prep-outbox, parse, composer, auth-rest, share-guest-crypto]
+  next_planned_by_rank: [ws-unit, keys, settings-memories, chatstate-hidden-fork]
 units:
 - namespace: core
   status: installed
@@ -66,8 +66,8 @@ units:
     out). Serves the WebCryptoBatch protocol of webCryptoClient.ts on ports[0] against the realm''s single WASM
     binding.'
   typescript_fallback: none declared (2 files)
-  unit_tests: [chatKeyAdmissionVectors.test.ts, chatKeyHandles.test.ts, cryptoResultMemo.test.ts, cryptoUnit.test.ts,
-    guestPromotionVectors.test.ts, shareStateVectors.test.ts]
+  unit_tests: [chatKeyAdmissionVectors.test.ts, chatKeyBulkPlanVectors.test.ts, chatKeyHandles.test.ts, cryptoResultMemo.test.ts,
+    cryptoUnit.test.ts, guestPromotionVectors.test.ts, shareStateVectors.test.ts]
   e2e_specs: [web-rust-core-crypto.spec.ts]
   vectors: [packages/openmates-rust/src/crypto/signup_vectors.json]
   open_gaps: []
@@ -296,3 +296,19 @@ units:
   open_gaps: [No flag-on e2e spec exists for the settings unit yet.]
   spec_assertions: []
   spec_gaps: [App settings/memories permission request and response/confirm decisions have no assertion.]
+- namespace: composer
+  status: installed
+  pre_bind: true
+  installer: frontend/packages/ui/src/services/rustCore/composer/composerUnit.ts
+  what_moved: Serves the composer operations (composerProtocol.ts) on the unit port from the realm's single WASM
+    binding. It holds no account state, so it is a pre-bind namespace.
+  typescript_fallback: none declared (1 file)
+  unit_tests: [composerVectors.test.ts, suggestionVectors.test.ts]
+  e2e_specs: [web-rust-core-composer.spec.ts]
+  vectors: [packages/openmates-rust/src/web_composer/ts_vectors.json, packages/openmates-rust/src/web_composer/suggestion_ts_vectors.json]
+  open_gaps: ['Slices 1-2 only (PII, paste, mention/saved-embed ranking, ghost-suggestion validation); sync mention
+      search, extractMentionQuery and code/URL/upload/xlsx/image helpers are not moved.', 'Sync PII call sites (restorePIIInText
+      in derived values, preparedPrivacyForSend, projectFilePrivacy) stay TypeScript until their callers are async.',
+    The flag-on composer spec records one unpaired keystroke-to-highlight sample; no paired TS arm yet.]
+  spec_assertions: [pii.composer.detect-redact-exclude, pii.outbound.known-original-rewrite, pii.message.owner-local-reveal]
+  spec_gaps: ['Paste classification, code/URL embed services and upload privacy have no assertion.']
