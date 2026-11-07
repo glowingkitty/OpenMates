@@ -16,15 +16,15 @@
 export const SHARED_WORKER_PROTOCOL_VERSION = 1 as const;
 
 /** Static namespace allowlist. Anything else is refused as `unknown_namespace`. */
-export const SHARED_NAMESPACES = ['core', 'crypto', 'auth', 'embedData', 'embedWrite', 'chatState', 'ws', 'apps', 'search', 'transfer', 'sync', 'drafts'] as const;
+export const SHARED_NAMESPACES = ['core', 'crypto', 'auth', 'embedData', 'embedWrite', 'chatState', 'ws', 'apps', 'search', 'transfer', 'sync', 'drafts', 'parse'] as const;
 export type SharedNamespace = (typeof SHARED_NAMESPACES)[number];
 
 /** Namespaces that may open before any principal is bound (login, key preparation, guest app skills, stateless embed field decryption, signed-out public chat search, stateless import parsing, stateless sync policy). */
-export const PRE_BIND_NAMESPACES: ReadonlySet<SharedNamespace> = new Set<SharedNamespace>(['crypto', 'auth', 'apps', 'embedData', 'search', 'transfer', 'sync']);
+export const PRE_BIND_NAMESPACES: ReadonlySet<SharedNamespace> = new Set<SharedNamespace>(['crypto', 'auth', 'apps', 'embedData', 'search', 'transfer', 'sync', 'parse']);
 
 /** Maximum transferred ports per namespace: ports[0] is the unit port, core may add the recovery port as ports[1]. */
 export const NAMESPACE_MAX_PORTS: Readonly<Record<SharedNamespace, number>> = /* @__PURE__ */ Object.freeze({
-	core: 2, crypto: 1, auth: 1, embedData: 1, embedWrite: 1, chatState: 1, ws: 1, apps: 1, search: 1, transfer: 1, sync: 1, drafts: 1
+	core: 2, crypto: 1, auth: 1, embedData: 1, embedWrite: 1, chatState: 1, ws: 1, apps: 1, search: 1, transfer: 1, sync: 1, drafts: 1, parse: 1
 });
 
 export const SHARED_REFUSAL_CODES = [

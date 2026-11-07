@@ -308,9 +308,9 @@ Sources: `frontend/apps/web_app/src/lib/rustCore/shared/sharedWorkerUnits.ts` (i
 
 | Metric | Count |
 |---|---|
-| Namespaces in the allowlist | 11 |
-| Units installed (installer registered) | 9 / 11 (82%) |
-| Units planned (namespace reserved, no installer) | 2 / 11 (18%) |
+| Namespaces in the allowlist | 13 |
+| Units installed (installer registered) | 11 / 13 (85%) |
+| Units planned (namespace reserved, no installer) | 2 / 13 (15%) |
 
 Planned: `chatState`, `ws`. A namespace without an installer is refused as `unit_unavailable`.
 
@@ -323,13 +323,15 @@ Planned: `chatState`, `ws`. A namespace without an installer is refused as `unit
 | `embedWrite` | no | One installer call = one Rust embed write session (`BrowserEmbedWriter`) under the bound generation, next to the Worker-side `chats_db` rows it writes. Rust owns key choice, every ciphertext, row/payload shapes and the revision-history decisions (embedWriteAdapter.ts sequences them); this unit persists the prepared rows (embe... | none declared (3 files) | `frontend/packages/ui/src/services/rustCore/embeds/embedWriteUnit.ts` | `embedKeyResolution.test.ts`, `embedUnits.test.ts` |
 | `apps` | yes | Serves the Apps skill execution policy (appsProtocol.ts) on the unit port from the realm's single WASM binding. It holds no per-account state and does no IO, so it is a pre-bind namespace: guests run app skills before any principal exists. | none declared (1 file) | `frontend/packages/ui/src/services/rustCore/apps/appsUnit.ts` | `appsPolicyVectors.test.ts`, `appsRequestUnit.test.ts`, `appsSharedUnit.test.ts` |
 | `search` | yes | Owns the chat message search index in the realm's single WASM binding (`ChatSearchIndex`: packages/openmates-rust/src/web_search_chats.rs and web_search_query.rs). The page transfers each chat's entries once when it (re)indexes the chat from its source (decrypted IndexedDB rows) and keeps no copy; a query runs titles, snippet... | none declared (1 file) | `frontend/packages/ui/src/services/rustCore/search/searchUnit.ts` | `chatSearchVectors.test.ts`, `rustChatSearchPipeline.test.ts`, `searchPiiVectors.test.ts` |
-| `transfer` | yes | Serves chat import routing/parsing (transferProtocol.ts) on the unit port from the realm's single WASM binding. It holds no account state and does no IO, so it is a pre-bind namespace. | none declared (1 file) | `frontend/packages/ui/src/services/rustCore/transfer/transferUnit.ts` | `transferExportVectors.test.ts`, `transferSharedUnit.test.ts` |
-| `sync` | yes | Serves the chat-sync decision policy (syncProtocol.ts) on the unit port from the realm's single WASM binding. It holds no per-account state and does no IO, so it is a pre-bind namespace. | none declared (2 files) | `frontend/packages/ui/src/services/rustCore/sync/syncUnit.ts` | `syncSharedUnit.test.ts` |
+| `transfer` | yes | Serves chat import routing/parsing (transferProtocol.ts) on the unit port from the realm's single WASM binding. It holds no account state and does no IO, so it is a pre-bind namespace. | none declared (2 files) | `frontend/packages/ui/src/services/rustCore/transfer/transferUnit.ts` | `transferExportVectors.test.ts`, `transferSharedUnit.test.ts`, `transferZipVectors.test.ts` |
+| `sync` | yes | Serves the chat-sync decision policy (syncProtocol.ts) on the unit port from the realm's single WASM binding. It holds no per-account state and does no IO, so it is a pre-bind namespace. | none declared (3 files) | `frontend/packages/ui/src/services/rustCore/sync/syncUnit.ts` | `syncSharedUnit.test.ts` |
+| `drafts` | no | Draft policy (encryption, versioning, closed IndexedDB predicates, durable encrypted sync intent, readback) is shared Rust (`prepare_local_draft_with_preview`, `remote_payload`, `acknowledge_transport`). This unit only marshals: it runs the Rust calls on the ADMITTED client of the bound history `core` lease (borrowed via core... | not declared in unit sources | `frontend/packages/ui/src/services/rustCore/drafts/draftsUnit.ts` | `rustDraftsUnit.test.ts` |
+| `parse` | yes | Serves the render-plan block model (parseProtocol.ts) on the unit port from the realm's single WASM binding. Stateless and IO-free, hence pre-bind. | none declared (2 files) | `frontend/packages/ui/src/services/rustCore/parse/parseUnit.ts` | - |
 | `chatState` | no | Planned; no installer yet. | - | - | - |
 | `ws` | no | Planned; no installer yet. | - | - | - |
 
 All units run only in builds with `VITE_OPENMATES_RUST_CORE=1`; with the flag off the original TypeScript path is unchanged.
-Web Rust core E2E specs in `frontend/apps/web_app/tests`: `web-rust-core-apps.spec.ts`, `web-rust-core-auth.spec.ts`, `web-rust-core-bench.spec.ts`, `web-rust-core-chat.spec.ts`, `web-rust-core-crypto.spec.ts`, `web-rust-core-embeds.spec.ts`, `web-rust-core-memory-level.spec.ts`, `web-rust-core-profile.spec.ts`, `web-rust-core-reload-memory.spec.ts`, `web-rust-core-search.spec.ts`, `web-rust-core-sync.spec.ts`, `web-rust-core-transfer.spec.ts`.
+Web Rust core E2E specs in `frontend/apps/web_app/tests`: `web-rust-core-apps.spec.ts`, `web-rust-core-auth.spec.ts`, `web-rust-core-bench.spec.ts`, `web-rust-core-chat.spec.ts`, `web-rust-core-crypto.spec.ts`, `web-rust-core-drafts.spec.ts`, `web-rust-core-embeds.spec.ts`, `web-rust-core-memory-level.spec.ts`, `web-rust-core-profile.spec.ts`, `web-rust-core-reload-memory.spec.ts`, `web-rust-core-search.spec.ts`, `web-rust-core-send-bench.spec.ts`, `web-rust-core-sync.spec.ts`, `web-rust-core-transfer.spec.ts`.
 
 ## Performance verdicts
 
