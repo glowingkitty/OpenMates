@@ -596,7 +596,7 @@ lanes:
   name: composer
   kind: wave4
   status: running
-  commit: null
+  commit: dcc2ea8
   size: M
   wave: A
   deps: [search-snippet-perf]
