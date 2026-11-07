@@ -84,12 +84,24 @@ async function gcDump(page: any, browserSession: any): Promise<{ dumpOk: boolean
 	return { dumpOk: dump?.success === true, allocators, retainedBytes: retained.every((value) => typeof value === 'number') ? retained.reduce((sum, value) => sum + (value as number), 0) : null };
 }
 
+/**
+ * The TS arm is the flag-off behaviour: besides the history opt-out it must also opt out of
+ * Rust crypto (which gates the embedData/embedWrite Worker paths) and the persist unit. With
+ * the history opt-out alone no Worker session is bound, so embed reads wait for a bind that
+ * never comes (embed_write_not_bound) and the embed preview never finishes.
+ */
+const CRYPTO_OPT_OUT_KEY = 'openmates_rust_core_crypto';
+const PERSIST_OPT_OUT_KEY = 'openmates_rust_core_persist';
+function tsArmOptOutKeys(historyKey: string): string[] {
+	return [historyKey, CRYPTO_OPT_OUT_KEY, PERSIST_OPT_OUT_KEY];
+}
+
 /** Reloads the chat tab once in `arm`, waits until usable, reads RSS and (with `dump`) the GC-first dump. */
 async function measuredReload(page: any, arm: Arm, deps: { browserSession: any; waitAllReady: any; optOutKey: string; pageEvents: string[] }, dump: boolean): Promise<Sample> {
 	const failures: string[] = [];
 	let ready: Record<string, any>;
 	for (;;) {
-		await page.evaluate(([key, ts]: [string, boolean]) => { if (ts) localStorage.setItem(key, 'ts'); else localStorage.removeItem(key); }, [deps.optOutKey, arm === 'ts']);
+		await page.evaluate(([keys, ts]: [string[], boolean]) => { for (const key of keys) { if (ts) localStorage.setItem(key, 'ts'); else localStorage.removeItem(key); } }, [tsArmOptOutKeys(deps.optOutKey), arm === 'ts']);
 		await page.reload();
 		ready = await page.evaluate(deps.waitAllReady, arm === 'rust');
 		if (ready.chatRenderedMs !== undefined && ready.embedReadyMs !== undefined) break;
@@ -193,7 +205,7 @@ async function runReloadMemory(page: any, chatId: string, options: {
 		page.off('response', onResponse);
 		page.off('pageerror', onPageError);
 		page.off('console', onConsole);
-		await page.evaluate((key: string) => localStorage.removeItem(key), options.optOutKey).catch(() => undefined);
+		await page.evaluate((keys: string[]) => keys.forEach((key) => localStorage.removeItem(key)), tsArmOptOutKeys(options.optOutKey)).catch(() => undefined);
 		await browserSession.detach().catch(() => undefined);
 	}
 
