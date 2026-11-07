@@ -9,7 +9,7 @@
     {
       "path": "assets/cli-command-catalog.json",
       "source": "config/cli-command-catalog.json",
-      "sha256": "b0e40a221746ce596254725947c9a21dc1f11c0e761e5be2fbbade111103cfe6"
+      "sha256": "ddb7d851ec38de1aaef7cdad5689122fd0c22dd6f6e667d4d8b06f8cdcb00c23"
     },
     {
       "path": "assets/example-chat-index.json",

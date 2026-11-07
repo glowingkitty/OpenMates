@@ -5,7 +5,7 @@
   "source_snapshots": [
     {
       "path": "frontend/packages/openmates-cli/src/cli.ts",
-      "sha256": "68ca0c38c64c818f9f222601af29e8a54e8b23d744dc94f47e9cfe90916057fd"
+      "sha256": "da9b4a6e47954474d36051e30ca986ec18e3d18c7fe7d3bdbd3b39480682ae2e"
     },
     {
       "path": "frontend/packages/openmates-cli/src/server.ts",
@@ -55087,7 +55087,7 @@
         "settings",
         "memories"
       ],
-      "summary": "Manage encrypted memories",
+      "summary": "List or delete Memories (typed app memories were replaced; create in the web app under Settings > Memories)",
       "usages": [
         "settings memories"
       ],
@@ -55105,7 +55105,7 @@
       "source_locations": [
         {
           "path": "frontend/packages/openmates-cli/src/cli.ts",
-          "line": 9368,
+          "line": 9417,
           "symbol": "SETTINGS_COMMANDS"
         }
       ],
@@ -55201,7 +55201,7 @@
       "source_locations": [
         {
           "path": "frontend/packages/openmates-cli/src/cli.ts",
-          "line": 15456,
+          "line": 15411,
           "symbol": "printMemoriesHelp"
         }
       ],
@@ -55246,7 +55246,7 @@
       "source_locations": [
         {
           "path": "frontend/packages/openmates-cli/src/cli.ts",
-          "line": 15452,
+          "line": 15409,
           "symbol": "printMemoriesHelp"
         }
       ],
@@ -55320,7 +55320,7 @@
       ],
       "summary": "settings memories update",
       "usages": [
-        "settings memories update --id <id> --app-id <id> --item-type <type> --data '<json>' [--version <n>]"
+        "settings memories update --id account-memory-<id> --data '<json>'"
       ],
       "positionals": [],
       "flags": [
@@ -55338,7 +55338,7 @@
       "source_locations": [
         {
           "path": "frontend/packages/openmates-cli/src/cli.ts",
-          "line": 15455,
+          "line": 15410,
           "symbol": "printMemoriesHelp"
         }
       ],
