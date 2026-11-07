@@ -196,7 +196,7 @@ lanes:
 - rank: 2
   name: embeds-3
   kind: wave4
-  status: planned
+  status: running
   commit: null
   size: M
   wave: A
@@ -221,7 +221,7 @@ lanes:
   - anonymous-child-embeds.spec.ts
   - historical-image-child-recovery.spec.ts
   - draft-embed-preview.spec.ts
-  notes: ''
+  notes: 'Slice 3 landed in aa27557: Rust embed_read (status machine, link/ref parsing, version patch replay; 172 TS vectors) and the embedData applyVersionPatches op with flag-on reconstruct via versionOps.ts. Status machine, link parser and ref generator are not yet called from web (their TS callers are synchronous). Remaining: embedResolver, embedStore read paths, sheet/mindmap/docs content, embedSenders, audioEmbedCrypto. embed-ready bench not measured (TS arm fails in the bench).'
   spec_assertions:
   - chats.persistence.client-encrypted
   - chats.rendering.assistant-document-convergence

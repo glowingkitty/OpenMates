@@ -466,3 +466,19 @@ measurements:
       over the gate (+354, +24, +306 ms): the first sort/group waits for the shared Worker to be ready.
       Needs the 12-pair bench and a decision before the flag is enabled.'
     ts_value: 1070.0
+  - id: 2026-11-07-embedReady-01
+    date: '2026-11-07'
+    flow: embedReady
+    metric: embedReadyMs
+    value_kind: ratio
+    value: null
+    ci95: null
+    n_pairs: null
+    verdict: invalid_measurement
+    verdict_basis: reported
+    ci_job: c91a60a2
+    source_commit: ddff9fdc38
+    evidence: web-rust-core-bench reload, attempts 271cf78d and c91a60a2 on embeds-3 source
+    confidence: traced
+    notes: 'TS arm failed before pairing (''ts: embed preview finished'' undefined) in both attempts; no
+      embed-ready numbers. Patch replay runs only on version-history reads.'
