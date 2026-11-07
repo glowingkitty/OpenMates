@@ -222,6 +222,8 @@ def main():
             peer.stop()
         _probe_mark("case_complete", vector["id"])
     assert len(results) == 23 and len({v["id"] for v in results}) == 23
+    if args.language == "python":
+        _python_exit_burst(fixture)
     _probe_mark("complete")
     print(
         json.dumps(
@@ -234,6 +236,46 @@ def main():
             }
         )
     )
+
+
+EXIT_BURST_RUNS = 24
+EXIT_BURST_PARALLEL = 8
+
+
+def _python_exit_burst(fixture: Path) -> None:
+    """Interpreter exit right after native completions must not crash.
+
+    TASK-1968: completion threads re-attached during finalization and killed
+    about 7% of such processes with SIGSEGV after their results were delivered.
+    Parallel children reproduce the CPU contention seen on CI runners.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    _probe_mark("exit_burst")
+    command = [
+        sys.executable,
+        str(ROOT / "tests/sdk-conformance/runners/api_key_exit_burst_case.py"),
+        str(fixture),
+    ]
+
+    def child(_index: int) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            command,
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            env=os.environ.copy(),
+        )
+
+    with ThreadPoolExecutor(EXIT_BURST_PARALLEL) as pool:
+        children = list(pool.map(child, range(EXIT_BURST_RUNS)))
+    for result in children:
+        _probe_child(result)
+        assert result.returncode == 0, (
+            f"native interpreter-exit burst failed child-exit={result.returncode}: "
+            + result.stderr[-1800:]
+        )
 
 
 if __name__ == "__main__":

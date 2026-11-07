@@ -16,6 +16,8 @@ pub use embed_version::reconstruct_embed_version_json;
 mod python;
 #[cfg(feature = "python-bindings")]
 mod python_api_key;
+#[cfg(feature = "python-bindings")]
+mod python_future;
 #[cfg(not(target_arch = "wasm32"))]
 mod session;
 mod task_order;

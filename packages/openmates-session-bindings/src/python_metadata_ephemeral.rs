@@ -8,11 +8,11 @@ impl PythonMetadataAuthentication {
     #[new]
     fn new(input_json:String)->PyResult<Self>{MetadataAuthenticationHandle::new(input_json,openmates_sdk::ClientIdentity::Pip).map(|handle|Self{handle}).map_err(error)}
     fn authenticate<'py>(&self,py:Python<'py>)->PyResult<Bound<'py,PyAny>>{
-        let handle=self.handle.clone();pyo3_async_runtimes::tokio::future_into_py(py,async move{Ok(PythonMetadataClient{handle:handle.authenticate().await.map_err(error)?})})
+        let handle=self.handle.clone();crate::python_future::future_into_py(py,async move{Ok(PythonMetadataClient{handle:handle.authenticate().await.map_err(error)?})})
     }
     fn credential_snapshot_json(&self)->PyResult<String>{self.handle.credential_snapshot_json().map_err(error)}
     fn cancel(&self){self.handle.cancel();}
-    fn cancel_and_drain<'py>(&self,py:Python<'py>)->PyResult<Bound<'py,PyAny>>{let handle=self.handle.clone();pyo3_async_runtimes::tokio::future_into_py(py,async move{handle.cancel_and_drain().await.map_err(error)})}
+    fn cancel_and_drain<'py>(&self,py:Python<'py>)->PyResult<Bound<'py,PyAny>>{let handle=self.handle.clone();crate::python_future::future_into_py(py,async move{handle.cancel_and_drain().await.map_err(error)})}
 }
 #[pyclass(name="NativeEphemeralMetadataClient",module="openmates._native")]
 struct PythonMetadataClient{handle:MetadataClientHandle}
@@ -20,7 +20,7 @@ struct PythonMetadataClient{handle:MetadataClientHandle}
 impl PythonMetadataClient {
     fn prepare_initial_sync(&self)->PyResult<PythonMetadataStartup>{self.handle.prepare_initial_sync().map(|handle|PythonMetadataStartup{handle}).map_err(error)}
     fn credential_snapshot_json(&self)->PyResult<String>{self.handle.credential_snapshot_json().map_err(error)}
-    fn close<'py>(&self,py:Python<'py>)->PyResult<Bound<'py,PyAny>>{let handle=self.handle.clone();pyo3_async_runtimes::tokio::future_into_py(py,async move{handle.close().await.map_err(error)})}
+    fn close<'py>(&self,py:Python<'py>)->PyResult<Bound<'py,PyAny>>{let handle=self.handle.clone();crate::python_future::future_into_py(py,async move{handle.close().await.map_err(error)})}
 }
 #[pyclass(name="NativeEphemeralMetadataStartup",module="openmates._native")]
 struct PythonMetadataStartup{handle:MetadataStartupHandle}
@@ -28,7 +28,7 @@ struct PythonMetadataStartup{handle:MetadataStartupHandle}
 impl PythonMetadataStartup {
     fn run<'py>(&self,py:Python<'py>)->PyResult<Bound<'py,PyAny>>{
         let pending=self.handle.take().map_err(error)?;let control=self.handle.control();
-        pyo3_async_runtimes::tokio::future_into_py(py,async move{Ok(PythonMetadataSnapshot{handle:MetadataSnapshotHandle{inner:pending.run().await.map_err(|e|error(e.into()))?,_control:control}})})
+        crate::python_future::future_into_py(py,async move{Ok(PythonMetadataSnapshot{handle:MetadataSnapshotHandle{inner:pending.run().await.map_err(|e|error(e.into()))?,_control:control}})})
     }
     fn cancel(&self){self.handle.cancel();}
 }
