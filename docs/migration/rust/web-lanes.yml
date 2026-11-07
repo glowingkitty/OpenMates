@@ -88,7 +88,7 @@ wave3_lanes:
   owns:
   - web_search*.rs
   - browser_search_pii.rs
-  notes: Pipelined worker ingests; search bench still inconclusive, see performance-history.yml.
+  notes: Pipelined worker ingests; 30-pair search bench searchRenderedMs 1.132x [1.02,1.291] rust_worse (+81 ms); query and CPU not worse; extra cost sits in the flag-on chat decrypt/index build, see performance-history.yml.
   spec_assertions: [chat-awareness.search.device-executed]
   spec_gaps:
   - Search ranking, snippets and the performance budget have no assertion.

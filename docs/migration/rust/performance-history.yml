@@ -396,3 +396,21 @@ measurements:
     evidence: TASK-1968 activity note 2026-11-07T00:37
     confidence: traced
     notes: 1 WASM instance during the search bench.
+  - id: 2026-11-07-search-03
+    date: '2026-11-07'
+    flow: search
+    metric: searchRenderedMs
+    value_kind: ratio
+    value: 1.132
+    ci95: [1.02, 1.291]
+    n_pairs: 30
+    verdict: rust_worse
+    verdict_basis: reported
+    ci_job: ff53c7d2
+    source_commit: 70ceb38f89108cab24847f8e5dda16a3228f499c
+    evidence: web-rust-core-bench search 30 pairs (pipelined ingest + unit prepare on bar open)
+    confidence: traced
+    notes: Median +81 ms. commonSearchMs 1.002 [0.942,1.062] and CPU 1.035 [1.002,1.081] rust_not_worse,
+      1 WASM, RSS flat. search:build.ms summed TS 677 vs Rust 781 (main-thread decrypt/index build under
+      flag-on), warm-up +9 ms, query round trip 35 ms.
+    ts_value: 552.95
