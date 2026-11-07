@@ -53,7 +53,7 @@ function fakeBinding() {
 		'webCryptoEncryptShareUrl', 'webCryptoDecryptShareUrl', 'webCryptoDecryptMedia', 'webCryptoChatKeyGuardBegin',
 		'webCryptoChatKeyGuardAfterAnonymous', 'webCryptoChatKeyGuardAfterPersisted',
 		'keysFingerprint', 'keysEqual', 'keysInjectDecision',
-			'keysStateOffer', 'keysStateHandle', 'keysStateState', 'keysStateSetState', 'keysStateEnqueue', 'keysStateCancel', 'keysStatePending', 'keysStateMarkPersisted', 'keysStateReset', 'keysStateRemove', 'keysStateClear', 'keysStateStats', 'keysStateDecrypt', 'keysStateEncrypt']) {
+			'keysStateOffer', 'keysStateHandle', 'keysStateState', 'keysStateSetState', 'keysStateEnqueue', 'keysStateCancel', 'keysStatePending', 'keysStateMarkPersisted', 'keysStateReset', 'keysStateRemove', 'keysStateClear', 'keysStateStats', 'keysStateDecrypt', 'keysStateEncrypt', 'guestPromotionPlan']) {
 		binding[name] = record(name, async (...args: unknown[]) => {
 			if (args[1] === 'reject') throw 'crypto';
 			return new Uint8Array([args.length]);

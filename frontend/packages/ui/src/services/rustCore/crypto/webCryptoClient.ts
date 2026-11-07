@@ -21,6 +21,7 @@
 // round trip; identical calls in flight share one request.
 import { CryptoResultMemo, isBytes } from './cryptoResultMemo';
 import type { KeyOp } from './keyOps';
+import type { GuestOp } from './guestOps';
 
 export type WebCryptoOp =
   | 'decryptChatContent' | 'encryptChatContent' | 'masterDecrypt' | 'masterEncrypt'
@@ -30,6 +31,7 @@ export type WebCryptoOp =
   // unchanged; `profileChatDecrypt` answers per-stage timings, never key bytes.
   | 'echo' | 'profileChatDecrypt'
   | KeyOp
+  | GuestOp
   | 'bulk';
 
 /** Per-item ops the flush coalesces: `[key, item]` args, one `bulk` request per key. */

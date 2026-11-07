@@ -690,7 +690,7 @@ lanes:
 - rank: 14
   name: share-guest-crypto
   kind: wave4
-  status: planned
+  status: running
   commit: null
   size: M
   wave: C
@@ -715,7 +715,7 @@ lanes:
   - anonymous-child-embeds.spec.ts
   - incognito-mode.spec.ts
   - application-preview-share.spec.ts
-  notes: ''
+  notes: 'Share-link blob, embed-share blob and short-URL encryption already run in shared Rust (crypto/share.rs, browser_web_crypto.rs, shareEncryption/embedShareEncryption/shortUrlEncryption flag branches) before this lane. Slice 1 adds web_guest.rs (anonymous chat promotion plan: promotable rows, system-row deletes, synced re-saves, messages_v and timestamps) with TS vectors (guestPromotionVectors.test.ts, web_guest_ts_vectors.json), browser_guest.rs, rustCore/crypto/guestOps.ts on the crypto unit and the anonymousChatPromotionPlan.ts flag branch. Anonymous session-key wrapping is the master-key format and is not yet routed through masterEncrypt/masterDecrypt (needs a non-extractable session CryptoKey import on the page). Not yet moved: sharedChatKeyStorage, shareMetadataQueue, sharedChatDetailsService, incognitoChatService, anonymousChatStorage.'
   spec_assertions: [chat-share-settings.generated-link-controls, chat-share-settings.shared-link-open, apps.anonymous.local-results-and-promotion]
   spec_gaps:
   - Share, short-URL and embed-share encryption and guest chat promotion have no assertion.

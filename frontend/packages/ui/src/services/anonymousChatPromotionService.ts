@@ -10,6 +10,7 @@ import { chatDB } from "./db";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { webSocketService } from "./websocketService";
 import { encryptChatKeyWithMasterKey } from "./cryptoService";
+import { planPromotion, type PromotionPlan } from "./anonymousChatPromotionPlan";
 import type { Chat, Message } from "../types/chat";
 
 export interface AnonymousPromotionResult {
@@ -30,18 +31,9 @@ type EncryptedHistoryMessage = Pick<
   | "encrypted_pii_mappings"
 >;
 
-function isPromotableMessage(message: Message): boolean {
-  return (
-    message.status !== "failed" &&
-    message.role !== "system" &&
-    typeof message.content === "string" &&
-    message.content.trim().length > 0
-  );
-}
-
-async function buildEncryptedHistory(messages: Message[], chatId: string): Promise<EncryptedHistoryMessage[]> {
+async function buildEncryptedHistory(promotable: Message[], chatId: string): Promise<EncryptedHistoryMessage[]> {
   const encryptedMessages: EncryptedHistoryMessage[] = [];
-  for (const message of messages.filter(isPromotableMessage)) {
+  for (const message of promotable) {
     const syncedMessage: Message = { ...message, status: "synced" };
     const encrypted = await chatDB.encryptMessageFields(syncedMessage, chatId);
     if (!encrypted.encrypted_content) continue;
@@ -88,19 +80,16 @@ async function dispatchPromotedChat(chat: Chat, encryptedHistory: EncryptedHisto
   }
 }
 
-async function markChatPromoted(chat: Chat, encryptedChatKey: string, messages: Message[]): Promise<Chat> {
-  const promotableMessages = messages.filter(isPromotableMessage);
-  const firstCreatedAt = promotableMessages[0]?.created_at ?? chat.created_at;
-  const lastEditedAt = promotableMessages[promotableMessages.length - 1]?.created_at ?? chat.updated_at;
+async function markChatPromoted(chat: Chat, encryptedChatKey: string, plan: PromotionPlan): Promise<Chat> {
   const promotedChat: Chat = {
     ...chat,
     encrypted_chat_key: encryptedChatKey,
     anonymous_encrypted_chat_key: null,
     is_anonymous: false,
-    messages_v: promotableMessages.length,
-    created_at: chat.created_at ?? firstCreatedAt,
-    updated_at: lastEditedAt,
-    last_edited_overall_timestamp: lastEditedAt,
+    messages_v: plan.messagesV,
+    created_at: plan.createdAt as number,
+    updated_at: plan.lastEditedAt as number,
+    last_edited_overall_timestamp: plan.lastEditedAt as number,
     waiting_for_metadata: false,
     processing_metadata: false,
   };
@@ -111,13 +100,8 @@ async function markChatPromoted(chat: Chat, encryptedChatKey: string, messages: 
   delete promotedChat.follow_up_request_suggestions;
   await chatDB.updateChat(promotedChat);
 
-  for (const message of messages) {
-    if (message.role === "system") {
-      await chatDB.deleteMessage(message.message_id);
-    } else if (isPromotableMessage(message) && message.status !== "synced") {
-      await chatDB.saveMessage({ ...message, status: "synced" });
-    }
-  }
+  for (const message of plan.toDelete) await chatDB.deleteMessage(message.message_id);
+  for (const message of plan.toResave) await chatDB.saveMessage({ ...message, status: "synced" });
 
   return promotedChat;
 }
@@ -133,7 +117,8 @@ export async function promoteAnonymousChatsAfterSignup(): Promise<AnonymousPromo
 
   for (const anonymousChat of anonymousChats) {
     const anonymousMessages = await anonymousChatStorage.getMessagesForChat(anonymousChat.chat_id);
-    if (!anonymousMessages.some(isPromotableMessage)) continue;
+    const plan = await planPromotion(anonymousChat, anonymousMessages);
+    if (plan.promotable.length === 0) continue;
 
     const chatKey = await chatKeyManager.getKey(anonymousChat.chat_id);
     if (!chatKey) {
@@ -145,7 +130,7 @@ export async function promoteAnonymousChatsAfterSignup(): Promise<AnonymousPromo
       throw new Error(`[AnonymousChatPromotion] Failed to wrap chat key for ${anonymousChat.chat_id}`);
     }
 
-    const encryptedHistory = await buildEncryptedHistory(anonymousMessages, anonymousChat.chat_id);
+    const encryptedHistory = await buildEncryptedHistory(plan.promotable, anonymousChat.chat_id);
     const uploadChat: Chat = {
       ...anonymousChat,
       encrypted_chat_key: encryptedChatKey,
@@ -162,7 +147,7 @@ export async function promoteAnonymousChatsAfterSignup(): Promise<AnonymousPromo
     delete uploadChat.follow_up_request_suggestions;
 
     await dispatchPromotedChat(uploadChat, encryptedHistory);
-    await markChatPromoted(anonymousChat, encryptedChatKey, anonymousMessages);
+    await markChatPromoted(anonymousChat, encryptedChatKey, plan);
     promotedChatIds.push(anonymousChat.chat_id);
   }
 

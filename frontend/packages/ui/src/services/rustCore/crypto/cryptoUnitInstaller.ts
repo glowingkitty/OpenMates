@@ -21,6 +21,7 @@ import type {
 } from './webCryptoClient';
 import { BULK_EXPORTS, createBulkRunner } from './cryptoUnitBulk';
 import { KEY_ASYNC_EXPORTS } from './keyOps';
+import { GUEST_ASYNC_EXPORTS } from './guestOps';
 import type { UnitInstaller } from '../host/sharedWorkerProtocol';
 
 type Fn = (...args: unknown[]) => unknown;
@@ -41,6 +42,7 @@ const ASYNC_EXPORTS: Partial<Record<WebCryptoOp, string>> = {
   guardAfterAnonymous: 'webCryptoChatKeyGuardAfterAnonymous',
   guardAfterPersisted: 'webCryptoChatKeyGuardAfterPersisted',
   ...KEY_ASYNC_EXPORTS,
+  ...GUEST_ASYNC_EXPORTS,
 };
 
 const REQUIRED = [

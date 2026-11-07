@@ -41,6 +41,9 @@ pub mod web_key_state;
 mod web_key_state_tests;
 #[cfg(test)]
 mod web_keys_tests;
+pub mod web_guest;
+#[cfg(test)]
+mod web_guest_tests;
 pub mod web_stream;
 pub mod web_sync;
 pub mod web_chat_state;

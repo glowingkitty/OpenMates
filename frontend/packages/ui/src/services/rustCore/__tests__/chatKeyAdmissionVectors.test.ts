@@ -65,7 +65,7 @@ describe('crypto unit key ops', () => {
 			webCryptoEncryptShareUrl: () => null, webCryptoDecryptShareUrl: () => null,
 			webCryptoDecryptMedia: () => null, webCryptoChatKeyGuardBegin: () => null,
 			webCryptoChatKeyGuardAfterAnonymous: () => null, webCryptoChatKeyGuardAfterPersisted: () => null,
-			webCryptoBulkDecryptChat: () => [], webCryptoBulkEncryptChat: () => [], webCryptoBulkMasterDecrypt: () => [],
+			webCryptoBulkDecryptChat: () => [], webCryptoBulkEncryptChat: () => [], webCryptoBulkMasterDecrypt: () => [], guestPromotionPlan: () => '{}',
 			webCryptoClearChatKeys: () => undefined, webCryptoChatKeyCacheSize: () => 0,
 			keysFingerprint: record('fp', 'abc'), keysEqual: record('eq', true), keysInjectDecision: record('inj', 'reject'),
 			...Object.fromEntries(['keysStateOffer', 'keysStateHandle', 'keysStateState', 'keysStateSetState', 'keysStateEnqueue', 'keysStateCancel', 'keysStatePending', 'keysStateMarkPersisted', 'keysStateReset', 'keysStateRemove', 'keysStateClear', 'keysStateStats', 'keysStateDecrypt', 'keysStateEncrypt'].map((n) => [n, () => undefined]))
