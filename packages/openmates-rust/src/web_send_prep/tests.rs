@@ -3,6 +3,7 @@
 //! `decideOfflineBatchReceipt` on the cases, including every refusal branch).
 use super::outbox_order::order_offline_changes_json;
 use super::outbox_receipt::offline_batch_receipt_json;
+use super::routing_restrictions::model_routing_restrictions_json;
 use serde_json::{Value, json};
 
 fn vectors() -> Value {
@@ -34,8 +35,23 @@ fn outbox_receipt_equals_typescript() {
 }
 
 #[test]
+fn routing_restrictions_equal_typescript() {
+    let cases: Value = serde_json::from_str(include_str!("ts_routing_vectors.json")).expect("routing vectors");
+    for case in cases.as_array().expect("routing cases") {
+        let got: Value = serde_json::from_str(
+            &model_routing_restrictions_json(&case["profile"].to_string()).expect("protocol-valid input"),
+        ).expect("json");
+        assert_eq!(got["ok"], case["ok"], "{}", case["name"]);
+        if case["ok"] == json!(true) {
+            assert_eq!(got["restrictions"], case["restrictions"], "{}", case["name"]);
+        }
+    }
+}
+
+#[test]
 fn malformed_payloads_are_protocol_errors() {
     assert_eq!(order_offline_changes_json("{").unwrap_err(), "protocol");
     assert_eq!(order_offline_changes_json("{\"rows\":[{\"type\":\"draft\"}]}").unwrap_err(), "protocol");
     assert_eq!(offline_batch_receipt_json("{\"changeIds\":[1]}").unwrap_err(), "protocol");
+    assert_eq!(model_routing_restrictions_json("[]").unwrap_err(), "protocol");
 }

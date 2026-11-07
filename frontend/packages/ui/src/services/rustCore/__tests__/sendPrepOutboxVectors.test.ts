@@ -7,6 +7,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { modelRoutingRestrictionsForTurn } from '../../modelRoutingRestrictions';
 import { orderOfflineChanges } from '../../offlineChangeOrder';
 import { decideOfflineBatchReceipt } from '../../offlineBatchReceipt';
 import { createSendPrepHandlers } from '../send/sendPrepUnit';
@@ -14,6 +15,8 @@ import { isSendPrepBinding, type SendPrepBinding } from '../send/sendPrepProtoco
 import type { OfflineChange } from '../../../types/chat';
 
 const vectors = JSON.parse(readFileSync(resolve(__dirname, '../../../../../../../packages/openmates-rust/src/web_send_prep/ts_vectors.json'), 'utf8'));
+
+const routingVectors = JSON.parse(readFileSync(resolve(__dirname, '../../../../../../../packages/openmates-rust/src/web_send_prep/ts_routing_vectors.json'), 'utf8'));
 
 describe('offline outbox vectors', () => {
 	// contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent
@@ -35,8 +38,19 @@ describe('offline outbox vectors', () => {
 	});
 });
 
+describe('routing restriction vectors', () => {
+	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
+	it('equal the TypeScript service', () => {
+		for (const c of routingVectors) {
+			if (c.ok) expect(modelRoutingRestrictionsForTurn(c.profile), c.name).toEqual(c.restrictions);
+			else expect(() => modelRoutingRestrictionsForTurn(c.profile), c.name).toThrow('Invalid model routing restrictions');
+		}
+	});
+});
+
 describe('sendPrep handlers', () => {
 	const binding: SendPrepBinding = {
+		send_prep_routing_restrictions: () => JSON.stringify({ ok: false }),
 		send_prep_order_offline: (input) => JSON.stringify({ ready: [JSON.parse(input).rows.length - 1], retained: 0 }),
 		send_prep_offline_receipt: () => { throw 'protocol'; },
 	};
@@ -47,6 +61,7 @@ describe('sendPrep handlers', () => {
 		const handlers = createSendPrepHandlers(binding);
 		const order = await handlers.orderOffline({ rows: [{ chat_id: 'a', type: 'draft' }, { chat_id: 'b', type: 'draft' }] }, undefined as never);
 		expect(order).toEqual({ ready: [1], retained: 0 });
+		expect(await handlers.routingRestrictions({}, undefined as never)).toEqual({ ok: false });
 		await expect(Promise.resolve().then(() => handlers.offlineReceipt({ changeIds: [], terminalConflictDeleteIds: [], successfulIds: [], counts: null }, undefined as never)))
 			.rejects.toMatchObject({ code: 'protocol' });
 		await expect(Promise.resolve().then(() => handlers.orderOffline('x' as never, undefined as never))).rejects.toMatchObject({ code: 'protocol' });

@@ -17,9 +17,21 @@ export interface OutboxOrderRow {
 }
 export interface OfflineReceiptCounts { processed: number; errors: number; conflicts: number }
 
+/** Routing fields of the user profile; the unit validates and copies them for one turn. */
+export interface RoutingProfileFields {
+	disabled_ai_models?: unknown;
+	disabled_ai_servers?: unknown;
+	server_region_preference?: unknown;
+}
+export interface RoutingRestrictionsAnswer {
+	ok: boolean;
+	restrictions?: { disabled_ai_models: string[]; disabled_ai_servers: Record<string, string[]>; server_region_preference: 'eu' | 'global' };
+}
+
 export interface SendPrepUnitProtocol extends UnitProtocol {
 	/** `ready`: indices into `rows` in replay order; `retained`: rows with ambiguous order. */
 	orderOffline: { request: { rows: OutboxOrderRow[] }; response: { ready: number[]; retained: number } };
+	routingRestrictions: { request: RoutingProfileFields; response: RoutingRestrictionsAnswer };
 	offlineReceipt: {
 		request: {
 			changeIds: string[]; terminalConflictDeleteIds: string[]; successfulIds: string[];
@@ -33,9 +45,10 @@ export interface SendPrepUnitProtocol extends UnitProtocol {
 export interface SendPrepBinding {
 	send_prep_order_offline(input: string): string;
 	send_prep_offline_receipt(input: string): string;
+	send_prep_routing_restrictions(input: string): string;
 }
 
-const BINDING_EXPORTS: readonly (keyof SendPrepBinding)[] = ['send_prep_order_offline', 'send_prep_offline_receipt'];
+const BINDING_EXPORTS: readonly (keyof SendPrepBinding)[] = ['send_prep_order_offline', 'send_prep_offline_receipt', 'send_prep_routing_restrictions'];
 
 export function isSendPrepBinding(value: unknown): value is SendPrepBinding {
 	if (typeof value !== 'object' || value === null) return false;

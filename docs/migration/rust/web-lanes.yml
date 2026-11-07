@@ -372,6 +372,13 @@ lanes:
   kind: wave4
   status: running
   commit: null
+  slices:
+  - id: slice-1
+    commit: 676cdeab80
+    note: offline outbox replay order and batch receipt decision
+  - id: slice-2
+    commit: null
+    note: per-turn model routing restrictions validation (web_send_prep/routing_restrictions.rs; both async send call sites, flag-on only)
   size: L
   wave: B
   deps: [w3-web-send-perf]

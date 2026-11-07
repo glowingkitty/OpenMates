@@ -18,3 +18,9 @@ pub fn send_prep_order_offline(input: &str) -> Result<String, JsValue> {
 pub fn send_prep_offline_receipt(input: &str) -> Result<String, JsValue> {
     js(web_send_prep::outbox_receipt::offline_batch_receipt_json(input))
 }
+
+/// Validated per-turn model routing restrictions (`modelRoutingRestrictionsForTurn`).
+#[wasm_bindgen]
+pub fn send_prep_routing_restrictions(input: &str) -> Result<String, JsValue> {
+    js(web_send_prep::routing_restrictions::model_routing_restrictions_json(input))
+}

@@ -72,6 +72,8 @@ import { ordinaryTeamPreflightStorageKey, retainOrReuseOrdinaryTeamPreflight } f
 import { PreflightRejectionError, isPreflightAcknowledgementTimeout, waitForPreflightAcknowledgement, recoverTimedOutAdmission } from "./preflightAcknowledgement";
 import { observePersonalChatCanonicalVersion, awaitPersonalChatPredecessor, bindPersonalChatTurn, failPersonalChatTurn, reservePersonalChatTurn, hasRecoveryBoundPersonalChatMessage, markPersonalChatTurnLegacy, type PersonalChatTurn } from "./personalChatTurnBarrier";
 import { isDraftContextDispatchActive, reserveDraftContextDispatch } from "./draftContextDispatchBarrier";
+/** Build-time opt-in to the shared Rust core `sendPrep` unit (default off). */
+const RUST_SEND_PREP_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1";
 export { isPreflightAcknowledgementTimeout } from "./preflightAcknowledgement";
 
 /** Metadata-only Memory catalog; a catalog failure must not block sending the message. */
@@ -1333,7 +1335,9 @@ async function dispatchFastPersonalTurn(input: {
 	if (!encryptedFields.encrypted_content) throw new Error("Durable turn admission requires encrypted user content.");
 	const { userProfile: routingProfileStore } = await import("../stores/userProfile");
 	const inferenceRequest: Record<string, unknown> = {
-		model_routing_restrictions: modelRoutingRestrictionsForTurn(get(routingProfileStore)),
+		model_routing_restrictions: RUST_SEND_PREP_BUILD
+			? await (await import("./rustCore/send/rustRoutingRestrictions")).rustModelRoutingRestrictionsForTurn(get(routingProfileStore))
+			: modelRoutingRestrictionsForTurn(get(routingProfileStore)),
 		chat_id: message.chat_id,
 		turn_id: turnId,
 		recovery_public_key: recoveryKeypair.publicKey,
@@ -2470,7 +2474,9 @@ export async function sendNewMessageImpl(
 	}
 	const { userProfile: routingProfileStore } = await import("../stores/userProfile");
 	let payload: SendMessagePayload = {
-		model_routing_restrictions: modelRoutingRestrictionsForTurn(get(routingProfileStore)),
+		model_routing_restrictions: RUST_SEND_PREP_BUILD
+			? await (await import("./rustCore/send/rustRoutingRestrictions")).rustModelRoutingRestrictionsForTurn(get(routingProfileStore))
+			: modelRoutingRestrictionsForTurn(get(routingProfileStore)),
 		...(message.preserve_draft === true ? { preserve_draft: true } : {}),
 		chat_id: message.chat_id,
 		parent_id: chat?.parent_id || null,
