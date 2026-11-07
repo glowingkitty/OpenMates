@@ -606,6 +606,9 @@ lanes:
   - id: slice-1
     commit: dcc2ea813e
     note: PII detect/redact/rewrite, model span merge, paste classification
+  - id: slice-2
+    commit: 5643d35c26
+    note: mention and saved-embed ranking, ghost-suggestion validation
   size: M
   wave: A
   deps: [search-snippet-perf]
