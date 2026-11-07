@@ -1,0 +1,6760 @@
+{
+ "schema": 1,
+ "apply": [
+  {
+   "latest": {
+    "messages_v": 5,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 0,
+   "now": 50,
+   "out": {
+    "keep": true
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 5,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 0,
+   "now": 200,
+   "out": {
+    "keep": true
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 5,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 5,
+   "now": 50,
+   "out": {
+    "keep": false,
+    "messages_v": 5,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 5,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 5,
+   "now": 200,
+   "out": {
+    "keep": false,
+    "messages_v": 5,
+    "last_edited_overall_timestamp": 200,
+    "updated_at": 200
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 5,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 6,
+   "now": 50,
+   "out": {
+    "keep": false,
+    "messages_v": 6,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 5,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 6,
+   "now": 200,
+   "out": {
+    "keep": false,
+    "messages_v": 6,
+    "last_edited_overall_timestamp": 200,
+    "updated_at": 200
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 5,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 7,
+   "now": 50,
+   "out": {
+    "keep": false,
+    "messages_v": 7,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 5,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 7,
+   "now": 200,
+   "out": {
+    "keep": false,
+    "messages_v": 7,
+    "last_edited_overall_timestamp": 200,
+    "updated_at": 200
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 5,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 12,
+   "now": 50,
+   "out": {
+    "keep": false,
+    "messages_v": 12,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 5,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 12,
+   "now": 200,
+   "out": {
+    "keep": false,
+    "messages_v": 12,
+    "last_edited_overall_timestamp": 200,
+    "updated_at": 200
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 7,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 0,
+   "now": 50,
+   "out": {
+    "keep": true
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 7,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 0,
+   "now": 200,
+   "out": {
+    "keep": true
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 7,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 5,
+   "now": 50,
+   "out": {
+    "keep": true
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 7,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 5,
+   "now": 200,
+   "out": {
+    "keep": true
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 7,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 6,
+   "now": 50,
+   "out": {
+    "keep": true
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 7,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 6,
+   "now": 200,
+   "out": {
+    "keep": true
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 7,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 7,
+   "now": 50,
+   "out": {
+    "keep": false,
+    "messages_v": 7,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 7,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 7,
+   "now": 200,
+   "out": {
+    "keep": false,
+    "messages_v": 7,
+    "last_edited_overall_timestamp": 200,
+    "updated_at": 200
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 7,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 12,
+   "now": 50,
+   "out": {
+    "keep": false,
+    "messages_v": 12,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 7,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 12,
+   "now": 200,
+   "out": {
+    "keep": false,
+    "messages_v": 12,
+    "last_edited_overall_timestamp": 200,
+    "updated_at": 200
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 6,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 0,
+   "now": 50,
+   "out": {
+    "keep": true
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 6,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 0,
+   "now": 200,
+   "out": {
+    "keep": true
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 6,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 5,
+   "now": 50,
+   "out": {
+    "keep": true
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 6,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 5,
+   "now": 200,
+   "out": {
+    "keep": true
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 6,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 6,
+   "now": 50,
+   "out": {
+    "keep": false,
+    "messages_v": 6,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 6,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 6,
+   "now": 200,
+   "out": {
+    "keep": false,
+    "messages_v": 6,
+    "last_edited_overall_timestamp": 200,
+    "updated_at": 200
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 6,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 7,
+   "now": 50,
+   "out": {
+    "keep": false,
+    "messages_v": 7,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 6,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 7,
+   "now": 200,
+   "out": {
+    "keep": false,
+    "messages_v": 7,
+    "last_edited_overall_timestamp": 200,
+    "updated_at": 200
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 6,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 12,
+   "now": 50,
+   "out": {
+    "keep": false,
+    "messages_v": 12,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 6,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 12,
+   "now": 200,
+   "out": {
+    "keep": false,
+    "messages_v": 12,
+    "last_edited_overall_timestamp": 200,
+    "updated_at": 200
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 0,
+    "last_edited_overall_timestamp": 0,
+    "updated_at": 0
+   },
+   "committedVersion": 0,
+   "now": 50,
+   "out": {
+    "keep": false,
+    "messages_v": 0,
+    "last_edited_overall_timestamp": 50,
+    "updated_at": 50
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 0,
+    "last_edited_overall_timestamp": 0,
+    "updated_at": 0
+   },
+   "committedVersion": 0,
+   "now": 200,
+   "out": {
+    "keep": false,
+    "messages_v": 0,
+    "last_edited_overall_timestamp": 200,
+    "updated_at": 200
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 0,
+    "last_edited_overall_timestamp": 0,
+    "updated_at": 0
+   },
+   "committedVersion": 5,
+   "now": 50,
+   "out": {
+    "keep": false,
+    "messages_v": 5,
+    "last_edited_overall_timestamp": 50,
+    "updated_at": 50
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 0,
+    "last_edited_overall_timestamp": 0,
+    "updated_at": 0
+   },
+   "committedVersion": 5,
+   "now": 200,
+   "out": {
+    "keep": false,
+    "messages_v": 5,
+    "last_edited_overall_timestamp": 200,
+    "updated_at": 200
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 0,
+    "last_edited_overall_timestamp": 0,
+    "updated_at": 0
+   },
+   "committedVersion": 6,
+   "now": 50,
+   "out": {
+    "keep": false,
+    "messages_v": 6,
+    "last_edited_overall_timestamp": 50,
+    "updated_at": 50
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 0,
+    "last_edited_overall_timestamp": 0,
+    "updated_at": 0
+   },
+   "committedVersion": 6,
+   "now": 200,
+   "out": {
+    "keep": false,
+    "messages_v": 6,
+    "last_edited_overall_timestamp": 200,
+    "updated_at": 200
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 0,
+    "last_edited_overall_timestamp": 0,
+    "updated_at": 0
+   },
+   "committedVersion": 7,
+   "now": 50,
+   "out": {
+    "keep": false,
+    "messages_v": 7,
+    "last_edited_overall_timestamp": 50,
+    "updated_at": 50
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 0,
+    "last_edited_overall_timestamp": 0,
+    "updated_at": 0
+   },
+   "committedVersion": 7,
+   "now": 200,
+   "out": {
+    "keep": false,
+    "messages_v": 7,
+    "last_edited_overall_timestamp": 200,
+    "updated_at": 200
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 0,
+    "last_edited_overall_timestamp": 0,
+    "updated_at": 0
+   },
+   "committedVersion": 12,
+   "now": 50,
+   "out": {
+    "keep": false,
+    "messages_v": 12,
+    "last_edited_overall_timestamp": 50,
+    "updated_at": 50
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 0,
+    "last_edited_overall_timestamp": 0,
+    "updated_at": 0
+   },
+   "committedVersion": 12,
+   "now": 200,
+   "out": {
+    "keep": false,
+    "messages_v": 12,
+    "last_edited_overall_timestamp": 200,
+    "updated_at": 200
+   }
+  },
+  {
+   "latest": {
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 0,
+   "now": 50,
+   "out": {
+    "keep": false,
+    "messages_v": 0,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   }
+  },
+  {
+   "latest": {
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 0,
+   "now": 200,
+   "out": {
+    "keep": false,
+    "messages_v": 0,
+    "last_edited_overall_timestamp": 200,
+    "updated_at": 200
+   }
+  },
+  {
+   "latest": {
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 5,
+   "now": 50,
+   "out": {
+    "keep": false,
+    "messages_v": 5,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   }
+  },
+  {
+   "latest": {
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 5,
+   "now": 200,
+   "out": {
+    "keep": false,
+    "messages_v": 5,
+    "last_edited_overall_timestamp": 200,
+    "updated_at": 200
+   }
+  },
+  {
+   "latest": {
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 6,
+   "now": 50,
+   "out": {
+    "keep": false,
+    "messages_v": 6,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   }
+  },
+  {
+   "latest": {
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 6,
+   "now": 200,
+   "out": {
+    "keep": false,
+    "messages_v": 6,
+    "last_edited_overall_timestamp": 200,
+    "updated_at": 200
+   }
+  },
+  {
+   "latest": {
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 7,
+   "now": 50,
+   "out": {
+    "keep": false,
+    "messages_v": 7,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   }
+  },
+  {
+   "latest": {
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 7,
+   "now": 200,
+   "out": {
+    "keep": false,
+    "messages_v": 7,
+    "last_edited_overall_timestamp": 200,
+    "updated_at": 200
+   }
+  },
+  {
+   "latest": {
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 12,
+   "now": 50,
+   "out": {
+    "keep": false,
+    "messages_v": 12,
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   }
+  },
+  {
+   "latest": {
+    "last_edited_overall_timestamp": 100,
+    "updated_at": 100
+   },
+   "committedVersion": 12,
+   "now": 200,
+   "out": {
+    "keep": false,
+    "messages_v": 12,
+    "last_edited_overall_timestamp": 200,
+    "updated_at": 200
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 3,
+    "updated_at": 50
+   },
+   "committedVersion": 0,
+   "now": 50,
+   "out": {
+    "keep": true
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 3,
+    "updated_at": 50
+   },
+   "committedVersion": 0,
+   "now": 200,
+   "out": {
+    "keep": true
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 3,
+    "updated_at": 50
+   },
+   "committedVersion": 5,
+   "now": 50,
+   "out": {
+    "keep": false,
+    "messages_v": 5,
+    "last_edited_overall_timestamp": null,
+    "updated_at": 50
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 3,
+    "updated_at": 50
+   },
+   "committedVersion": 5,
+   "now": 200,
+   "out": {
+    "keep": false,
+    "messages_v": 5,
+    "last_edited_overall_timestamp": null,
+    "updated_at": 200
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 3,
+    "updated_at": 50
+   },
+   "committedVersion": 6,
+   "now": 50,
+   "out": {
+    "keep": false,
+    "messages_v": 6,
+    "last_edited_overall_timestamp": null,
+    "updated_at": 50
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 3,
+    "updated_at": 50
+   },
+   "committedVersion": 6,
+   "now": 200,
+   "out": {
+    "keep": false,
+    "messages_v": 6,
+    "last_edited_overall_timestamp": null,
+    "updated_at": 200
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 3,
+    "updated_at": 50
+   },
+   "committedVersion": 7,
+   "now": 50,
+   "out": {
+    "keep": false,
+    "messages_v": 7,
+    "last_edited_overall_timestamp": null,
+    "updated_at": 50
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 3,
+    "updated_at": 50
+   },
+   "committedVersion": 7,
+   "now": 200,
+   "out": {
+    "keep": false,
+    "messages_v": 7,
+    "last_edited_overall_timestamp": null,
+    "updated_at": 200
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 3,
+    "updated_at": 50
+   },
+   "committedVersion": 12,
+   "now": 50,
+   "out": {
+    "keep": false,
+    "messages_v": 12,
+    "last_edited_overall_timestamp": null,
+    "updated_at": 50
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 3,
+    "updated_at": 50
+   },
+   "committedVersion": 12,
+   "now": 200,
+   "out": {
+    "keep": false,
+    "messages_v": 12,
+    "last_edited_overall_timestamp": null,
+    "updated_at": 200
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 3,
+    "last_edited_overall_timestamp": 900,
+    "updated_at": 20
+   },
+   "committedVersion": 0,
+   "now": 50,
+   "out": {
+    "keep": true
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 3,
+    "last_edited_overall_timestamp": 900,
+    "updated_at": 20
+   },
+   "committedVersion": 0,
+   "now": 200,
+   "out": {
+    "keep": true
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 3,
+    "last_edited_overall_timestamp": 900,
+    "updated_at": 20
+   },
+   "committedVersion": 5,
+   "now": 50,
+   "out": {
+    "keep": false,
+    "messages_v": 5,
+    "last_edited_overall_timestamp": 900,
+    "updated_at": 50
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 3,
+    "last_edited_overall_timestamp": 900,
+    "updated_at": 20
+   },
+   "committedVersion": 5,
+   "now": 200,
+   "out": {
+    "keep": false,
+    "messages_v": 5,
+    "last_edited_overall_timestamp": 900,
+    "updated_at": 200
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 3,
+    "last_edited_overall_timestamp": 900,
+    "updated_at": 20
+   },
+   "committedVersion": 6,
+   "now": 50,
+   "out": {
+    "keep": false,
+    "messages_v": 6,
+    "last_edited_overall_timestamp": 900,
+    "updated_at": 50
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 3,
+    "last_edited_overall_timestamp": 900,
+    "updated_at": 20
+   },
+   "committedVersion": 6,
+   "now": 200,
+   "out": {
+    "keep": false,
+    "messages_v": 6,
+    "last_edited_overall_timestamp": 900,
+    "updated_at": 200
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 3,
+    "last_edited_overall_timestamp": 900,
+    "updated_at": 20
+   },
+   "committedVersion": 7,
+   "now": 50,
+   "out": {
+    "keep": false,
+    "messages_v": 7,
+    "last_edited_overall_timestamp": 900,
+    "updated_at": 50
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 3,
+    "last_edited_overall_timestamp": 900,
+    "updated_at": 20
+   },
+   "committedVersion": 7,
+   "now": 200,
+   "out": {
+    "keep": false,
+    "messages_v": 7,
+    "last_edited_overall_timestamp": 900,
+    "updated_at": 200
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 3,
+    "last_edited_overall_timestamp": 900,
+    "updated_at": 20
+   },
+   "committedVersion": 12,
+   "now": 50,
+   "out": {
+    "keep": false,
+    "messages_v": 12,
+    "last_edited_overall_timestamp": 900,
+    "updated_at": 50
+   }
+  },
+  {
+   "latest": {
+    "messages_v": 3,
+    "last_edited_overall_timestamp": 900,
+    "updated_at": 20
+   },
+   "committedVersion": 12,
+   "now": 200,
+   "out": {
+    "keep": false,
+    "messages_v": 12,
+    "last_edited_overall_timestamp": 900,
+    "updated_at": 200
+   }
+  }
+ ],
+ "windowVersion": [
+  {
+   "chatId": "chat-1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 4
+   },
+   "out": {
+    "version": 4
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 0
+   },
+   "out": {
+    "version": 0
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": -1
+   },
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 1.5
+   },
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": "4"
+   },
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 9007199254740992
+   },
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "result": {
+    "chat_id": "other",
+    "messages_v": 4
+   },
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "result": {
+    "messages_v": 4
+   },
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "result": {
+    "chat_id": "chat-1"
+   },
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "result": null,
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "result": 5,
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "result": [],
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 6,
+    "messages": [
+     {
+      "message_id": "a1",
+      "chat_id": "chat-1",
+      "role": "assistant",
+      "user_message_id": "u1",
+      "encrypted_content": "enc"
+     }
+    ]
+   },
+   "out": {
+    "version": 6
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 6,
+    "messages": [
+     {
+      "message_id": "a1",
+      "chat_id": "chat-1",
+      "role": "assistant",
+      "user_message_id": "u1",
+      "encrypted_content": "   ﻿ "
+     }
+    ]
+   },
+   "out": {
+    "version": 6
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 6,
+    "messages": [
+     {
+      "message_id": "a1",
+      "chat_id": "chat-1",
+      "role": "assistant",
+      "user_message_id": "u1",
+      "encrypted_content": ""
+     }
+    ]
+   },
+   "out": {
+    "version": 6
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 6,
+    "messages": [
+     {
+      "message_id": "a1",
+      "chat_id": "chat-1",
+      "role": "user",
+      "user_message_id": "u1",
+      "encrypted_content": "enc"
+     }
+    ]
+   },
+   "out": {
+    "version": 6
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 6,
+    "messages": [
+     {
+      "message_id": "a1",
+      "chat_id": "chat-1",
+      "role": "assistant",
+      "user_message_id": "u2",
+      "encrypted_content": "enc"
+     }
+    ]
+   },
+   "out": {
+    "version": 6
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 6,
+    "messages": [
+     {
+      "message_id": "a1",
+      "chat_id": "x",
+      "role": "assistant",
+      "user_message_id": "u1",
+      "encrypted_content": "enc"
+     }
+    ]
+   },
+   "out": {
+    "version": 6
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 6,
+    "messages": [
+     {
+      "message_id": "a2",
+      "chat_id": "chat-1",
+      "role": "assistant",
+      "user_message_id": "u1",
+      "encrypted_content": "enc"
+     }
+    ]
+   },
+   "out": {
+    "version": 6
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 6,
+    "messages": [
+     null,
+     {
+      "message_id": "a1",
+      "chat_id": "chat-1",
+      "role": "assistant",
+      "user_message_id": "u1",
+      "encrypted_content": "enc"
+     }
+    ]
+   },
+   "out": {
+    "version": 6
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 6,
+    "messages": [
+     {
+      "message_id": "a1",
+      "chat_id": "chat-1",
+      "role": "assistant",
+      "user_message_id": "u1",
+      "encrypted_content": 7
+     }
+    ]
+   },
+   "out": {
+    "version": 6
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 6,
+    "messages": {}
+   },
+   "out": {
+    "version": 6
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 6
+   },
+   "out": {
+    "version": 6
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 6,
+    "messages": []
+   },
+   "out": {
+    "version": 6
+   }
+  }
+ ],
+ "assistantVersion": [
+  {
+   "chatId": "chat-1",
+   "assistantMessageId": "a1",
+   "userMessageId": "u1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 4
+   },
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "assistantMessageId": "a1",
+   "userMessageId": "u1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 0
+   },
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "assistantMessageId": "a1",
+   "userMessageId": "u1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": -1
+   },
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "assistantMessageId": "a1",
+   "userMessageId": "u1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 1.5
+   },
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "assistantMessageId": "a1",
+   "userMessageId": "u1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": "4"
+   },
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "assistantMessageId": "a1",
+   "userMessageId": "u1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 9007199254740992
+   },
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "assistantMessageId": "a1",
+   "userMessageId": "u1",
+   "result": {
+    "chat_id": "other",
+    "messages_v": 4
+   },
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "assistantMessageId": "a1",
+   "userMessageId": "u1",
+   "result": {
+    "messages_v": 4
+   },
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "assistantMessageId": "a1",
+   "userMessageId": "u1",
+   "result": {
+    "chat_id": "chat-1"
+   },
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "assistantMessageId": "a1",
+   "userMessageId": "u1",
+   "result": null,
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "assistantMessageId": "a1",
+   "userMessageId": "u1",
+   "result": 5,
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "assistantMessageId": "a1",
+   "userMessageId": "u1",
+   "result": [],
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "assistantMessageId": "a1",
+   "userMessageId": "u1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 6,
+    "messages": [
+     {
+      "message_id": "a1",
+      "chat_id": "chat-1",
+      "role": "assistant",
+      "user_message_id": "u1",
+      "encrypted_content": "enc"
+     }
+    ]
+   },
+   "out": {
+    "version": 6
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "assistantMessageId": "a1",
+   "userMessageId": "u1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 6,
+    "messages": [
+     {
+      "message_id": "a1",
+      "chat_id": "chat-1",
+      "role": "assistant",
+      "user_message_id": "u1",
+      "encrypted_content": "   ﻿ "
+     }
+    ]
+   },
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "assistantMessageId": "a1",
+   "userMessageId": "u1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 6,
+    "messages": [
+     {
+      "message_id": "a1",
+      "chat_id": "chat-1",
+      "role": "assistant",
+      "user_message_id": "u1",
+      "encrypted_content": ""
+     }
+    ]
+   },
+   "out": {
+    "version": 6
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "assistantMessageId": "a1",
+   "userMessageId": "u1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 6,
+    "messages": [
+     {
+      "message_id": "a1",
+      "chat_id": "chat-1",
+      "role": "user",
+      "user_message_id": "u1",
+      "encrypted_content": "enc"
+     }
+    ]
+   },
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "assistantMessageId": "a1",
+   "userMessageId": "u1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 6,
+    "messages": [
+     {
+      "message_id": "a1",
+      "chat_id": "chat-1",
+      "role": "assistant",
+      "user_message_id": "u2",
+      "encrypted_content": "enc"
+     }
+    ]
+   },
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "assistantMessageId": "a1",
+   "userMessageId": "u1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 6,
+    "messages": [
+     {
+      "message_id": "a1",
+      "chat_id": "x",
+      "role": "assistant",
+      "user_message_id": "u1",
+      "encrypted_content": "enc"
+     }
+    ]
+   },
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "assistantMessageId": "a1",
+   "userMessageId": "u1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 6,
+    "messages": [
+     {
+      "message_id": "a2",
+      "chat_id": "chat-1",
+      "role": "assistant",
+      "user_message_id": "u1",
+      "encrypted_content": "enc"
+     }
+    ]
+   },
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "assistantMessageId": "a1",
+   "userMessageId": "u1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 6,
+    "messages": [
+     null,
+     {
+      "message_id": "a1",
+      "chat_id": "chat-1",
+      "role": "assistant",
+      "user_message_id": "u1",
+      "encrypted_content": "enc"
+     }
+    ]
+   },
+   "out": {
+    "version": 6
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "assistantMessageId": "a1",
+   "userMessageId": "u1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 6,
+    "messages": [
+     {
+      "message_id": "a1",
+      "chat_id": "chat-1",
+      "role": "assistant",
+      "user_message_id": "u1",
+      "encrypted_content": 7
+     }
+    ]
+   },
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "assistantMessageId": "a1",
+   "userMessageId": "u1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 6,
+    "messages": {}
+   },
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "assistantMessageId": "a1",
+   "userMessageId": "u1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 6
+   },
+   "out": {
+    "version": null
+   }
+  },
+  {
+   "chatId": "chat-1",
+   "assistantMessageId": "a1",
+   "userMessageId": "u1",
+   "result": {
+    "chat_id": "chat-1",
+    "messages_v": 6,
+    "messages": []
+   },
+   "out": {
+    "version": null
+   }
+  }
+ ],
+ "initialDiff": [
+  {
+   "status": 409,
+   "detail": "snapshot_required",
+   "version": 1,
+   "out": {
+    "unwritten": true
+   }
+  },
+  {
+   "status": 409,
+   "detail": "snapshot_required",
+   "version": 2,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 409,
+   "detail": "snapshot_required",
+   "version": 0,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 409,
+   "detail": "other",
+   "version": 1,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 409,
+   "detail": "other",
+   "version": 2,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 409,
+   "detail": "other",
+   "version": 0,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 409,
+   "detail": null,
+   "version": 1,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 409,
+   "detail": null,
+   "version": 2,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 409,
+   "detail": null,
+   "version": 0,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 409,
+   "detail": 7,
+   "version": 1,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 409,
+   "detail": 7,
+   "version": 2,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 409,
+   "detail": 7,
+   "version": 0,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 404,
+   "detail": "snapshot_required",
+   "version": 1,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 404,
+   "detail": "snapshot_required",
+   "version": 2,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 404,
+   "detail": "snapshot_required",
+   "version": 0,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 404,
+   "detail": "other",
+   "version": 1,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 404,
+   "detail": "other",
+   "version": 2,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 404,
+   "detail": "other",
+   "version": 0,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 404,
+   "detail": null,
+   "version": 1,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 404,
+   "detail": null,
+   "version": 2,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 404,
+   "detail": null,
+   "version": 0,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 404,
+   "detail": 7,
+   "version": 1,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 404,
+   "detail": 7,
+   "version": 2,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 404,
+   "detail": 7,
+   "version": 0,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 200,
+   "detail": "snapshot_required",
+   "version": 1,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 200,
+   "detail": "snapshot_required",
+   "version": 2,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 200,
+   "detail": "snapshot_required",
+   "version": 0,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 200,
+   "detail": "other",
+   "version": 1,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 200,
+   "detail": "other",
+   "version": 2,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 200,
+   "detail": "other",
+   "version": 0,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 200,
+   "detail": null,
+   "version": 1,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 200,
+   "detail": null,
+   "version": 2,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 200,
+   "detail": null,
+   "version": 0,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 200,
+   "detail": 7,
+   "version": 1,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 200,
+   "detail": 7,
+   "version": 2,
+   "out": {
+    "unwritten": false
+   }
+  },
+  {
+   "status": 200,
+   "detail": 7,
+   "version": 0,
+   "out": {
+    "unwritten": false
+   }
+  }
+ ],
+ "catalog": [
+  {
+   "fields": null,
+   "out": null
+  },
+  {
+   "fields": {},
+   "out": null
+  },
+  {
+   "fields": {
+    "app_id": "web",
+    "skill_id": "search"
+   },
+   "out": {
+    "app_id": "web",
+    "skill_id": "search"
+   }
+  },
+  {
+   "fields": {
+    "app_id": null,
+    "skill_id": "x"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "fields": {
+    "app_id": "web"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "fields": {
+    "skill_id": "Search"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "fields": {
+    "app_id": 7,
+    "skill_id": "x"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": "search",
+   "fields": {},
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": "search",
+   "fields": {
+    "app_id": "web",
+    "skill_id": "search"
+   },
+   "out": {
+    "app_id": "web",
+    "skill_id": "search"
+   }
+  },
+  {
+   "producerSkill": "search",
+   "fields": {
+    "app_id": null,
+    "skill_id": "x"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": "search",
+   "fields": {
+    "app_id": "web"
+   },
+   "out": {
+    "app_id": "web",
+    "skill_id": "search"
+   }
+  },
+  {
+   "producerSkill": "search",
+   "fields": {
+    "skill_id": "Search"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": "search",
+   "fields": {
+    "app_id": 7,
+    "skill_id": "x"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": null,
+   "fields": null,
+   "out": null
+  },
+  {
+   "producerSkill": null,
+   "fields": {},
+   "out": null
+  },
+  {
+   "producerSkill": null,
+   "fields": {
+    "app_id": "web",
+    "skill_id": "search"
+   },
+   "out": {
+    "app_id": "web",
+    "skill_id": "search"
+   }
+  },
+  {
+   "producerSkill": null,
+   "fields": {
+    "app_id": null,
+    "skill_id": "x"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": null,
+   "fields": {
+    "app_id": "web"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": null,
+   "fields": {
+    "skill_id": "Search"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": null,
+   "fields": {
+    "app_id": 7,
+    "skill_id": "x"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": "Bad",
+   "fields": {},
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": "Bad",
+   "fields": {
+    "app_id": "web",
+    "skill_id": "search"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": "Bad",
+   "fields": {
+    "app_id": null,
+    "skill_id": "x"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": "Bad",
+   "fields": {
+    "app_id": "web"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": "Bad",
+   "fields": {
+    "skill_id": "Search"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": "Bad",
+   "fields": {
+    "app_id": 7,
+    "skill_id": "x"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "fields": null,
+   "out": null
+  },
+  {
+   "producerApp": null,
+   "fields": {},
+   "out": null
+  },
+  {
+   "producerApp": null,
+   "fields": {
+    "app_id": "web",
+    "skill_id": "search"
+   },
+   "out": {
+    "app_id": "web",
+    "skill_id": "search"
+   }
+  },
+  {
+   "producerApp": null,
+   "fields": {
+    "app_id": null,
+    "skill_id": "x"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "fields": {
+    "app_id": "web"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "fields": {
+    "skill_id": "Search"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "fields": {
+    "app_id": 7,
+    "skill_id": "x"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": null,
+   "fields": null,
+   "out": null
+  },
+  {
+   "producerApp": null,
+   "producerSkill": null,
+   "fields": null,
+   "out": null
+  },
+  {
+   "producerApp": null,
+   "producerSkill": null,
+   "fields": null,
+   "out": null
+  },
+  {
+   "producerApp": null,
+   "producerSkill": null,
+   "fields": null,
+   "out": null
+  },
+  {
+   "producerApp": null,
+   "producerSkill": null,
+   "fields": null,
+   "out": null
+  },
+  {
+   "producerApp": null,
+   "producerSkill": null,
+   "fields": null,
+   "out": null
+  },
+  {
+   "producerApp": null,
+   "producerSkill": null,
+   "fields": null,
+   "out": null
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "fields": {},
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "fields": {
+    "app_id": "web",
+    "skill_id": "search"
+   },
+   "out": {
+    "app_id": "app_1",
+    "skill_id": "search"
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "fields": {
+    "app_id": null,
+    "skill_id": "x"
+   },
+   "out": {
+    "app_id": "app_1",
+    "skill_id": "x"
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "fields": {
+    "app_id": "web"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "fields": {
+    "skill_id": "Search"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "fields": {
+    "app_id": 7,
+    "skill_id": "x"
+   },
+   "out": {
+    "app_id": "app_1",
+    "skill_id": "x"
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "app_id": "app_1",
+    "skill_id": "search"
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "app_id": "app_1",
+    "skill_id": "search"
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "app_id": "app_1",
+    "skill_id": "search"
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "app_id": "app_1",
+    "skill_id": "search"
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "app_id": "app_1",
+    "skill_id": "search"
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "app_id": "app_1",
+    "skill_id": "search"
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "app_id": "app_1",
+    "skill_id": "search"
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "fields": {},
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "fields": {
+    "app_id": "web",
+    "skill_id": "search"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "fields": {
+    "app_id": null,
+    "skill_id": "x"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "fields": {
+    "app_id": "web"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "fields": {
+    "skill_id": "Search"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "fields": {
+    "app_id": 7,
+    "skill_id": "x"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "fields": {},
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "fields": {
+    "app_id": "web",
+    "skill_id": "search"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "fields": {
+    "app_id": null,
+    "skill_id": "x"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "fields": {
+    "app_id": "web"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "fields": {
+    "skill_id": "Search"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "fields": {
+    "app_id": 7,
+    "skill_id": "x"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "fields": {},
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "fields": {
+    "app_id": "web",
+    "skill_id": "search"
+   },
+   "out": {
+    "app_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "skill_id": "search"
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "fields": {
+    "app_id": null,
+    "skill_id": "x"
+   },
+   "out": {
+    "app_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "skill_id": "x"
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "fields": {
+    "app_id": "web"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "fields": {
+    "skill_id": "Search"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "fields": {
+    "app_id": 7,
+    "skill_id": "x"
+   },
+   "out": {
+    "app_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "skill_id": "x"
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "app_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "skill_id": "search"
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "app_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "skill_id": "search"
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "app_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "skill_id": "search"
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "app_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "skill_id": "search"
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "app_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "skill_id": "search"
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "app_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "skill_id": "search"
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "app_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "skill_id": "search"
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "fields": {},
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "fields": {
+    "app_id": "web",
+    "skill_id": "search"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "fields": {
+    "app_id": null,
+    "skill_id": "x"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "fields": {
+    "app_id": "web"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "fields": {
+    "skill_id": "Search"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "fields": {
+    "app_id": 7,
+    "skill_id": "x"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "fields": {},
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "fields": {
+    "app_id": "web",
+    "skill_id": "search"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "fields": {
+    "app_id": null,
+    "skill_id": "x"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "fields": {
+    "app_id": "web"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "fields": {
+    "skill_id": "Search"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "fields": {
+    "app_id": 7,
+    "skill_id": "x"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "fields": {},
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "fields": {
+    "app_id": "web",
+    "skill_id": "search"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "fields": {
+    "app_id": null,
+    "skill_id": "x"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "fields": {
+    "app_id": "web"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "fields": {
+    "skill_id": "Search"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "fields": {
+    "app_id": 7,
+    "skill_id": "x"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "fields": {},
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "fields": {
+    "app_id": "web",
+    "skill_id": "search"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "fields": {
+    "app_id": null,
+    "skill_id": "x"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "fields": {
+    "app_id": "web"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "fields": {
+    "skill_id": "Search"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "fields": {
+    "app_id": 7,
+    "skill_id": "x"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  }
+ ],
+ "historySource": [
+  {
+   "type": "code",
+   "decoded": {
+    "type": "code",
+    "code": "let a = 1;"
+   },
+   "out": "let a = 1;"
+  },
+  {
+   "type": "code",
+   "decoded": {
+    "type": "code",
+    "code": 5
+   },
+   "out": {
+    "error": "Historical recovery does not know this embed source format."
+   }
+  },
+  {
+   "type": "code",
+   "decoded": {
+    "type": "sheet",
+    "code": "x"
+   },
+   "out": {
+    "error": "Sealed embed does not contain the expected historical source."
+   }
+  },
+  {
+   "type": "pcb_schematic",
+   "decoded": {
+    "type": "pcb_schematic",
+    "code": "pcb"
+   },
+   "out": "pcb"
+  },
+  {
+   "type": "sheet",
+   "decoded": {
+    "type": "sheet",
+    "table": "a|b"
+   },
+   "out": "a|b"
+  },
+  {
+   "type": "mermaid",
+   "decoded": {
+    "type": "mermaid",
+    "diagram_code": "graph TD"
+   },
+   "out": "graph TD"
+  },
+  {
+   "type": "mermaid",
+   "decoded": {
+    "type": "mermaid"
+   },
+   "out": {
+    "error": "Historical recovery does not know this embed source format."
+   }
+  },
+  {
+   "type": "image",
+   "decoded": {
+    "type": "image",
+    "code": "x"
+   },
+   "out": {
+    "error": "Historical recovery does not know this embed source format."
+   }
+  },
+  {
+   "type": "mail",
+   "decoded": {
+    "type": "mail",
+    "receiver": "a@b.c",
+    "subject": "Hi",
+    "content": "Body",
+    "footer": "Bye"
+   },
+   "out": "to: a@b.c\nsubject: Hi\ncontent:\nBody\nfooter:\nBye"
+  },
+  {
+   "type": "mail",
+   "decoded": {
+    "type": "mail",
+    "content": "Body"
+   },
+   "out": "content:\nBody"
+  },
+  {
+   "type": "mail",
+   "decoded": {
+    "type": "mail"
+   },
+   "out": "content:"
+  },
+  {
+   "type": "mail",
+   "decoded": {
+    "type": "mail",
+    "receiver": 5
+   },
+   "out": {
+    "error": "Sealed mail source has invalid fields."
+   }
+  },
+  {
+   "type": "mail",
+   "decoded": {
+    "type": "mail",
+    "subject": "S",
+    "footer": "F"
+   },
+   "out": "subject: S\ncontent:\nfooter:\nF"
+  },
+  {
+   "type": "document",
+   "decoded": {
+    "type": "document",
+    "html": "<p>x</p>",
+    "docx_model": {
+     "b": 1,
+     "a": [
+      1,
+      2
+     ]
+    }
+   },
+   "out": "<p>x</p>"
+  },
+  {
+   "type": "document",
+   "decoded": {
+    "type": "document",
+    "html": "",
+    "docx_model": {
+     "z": 1,
+     "a": {
+      "y": 2,
+      "b": []
+     }
+    }
+   },
+   "out": "{\n  \"z\": 1,\n  \"a\": {\n    \"y\": 2,\n    \"b\": []\n  }\n}"
+  },
+  {
+   "type": "document",
+   "decoded": {
+    "type": "document",
+    "docx_model": [
+     1
+    ]
+   },
+   "out": {
+    "error": "Sealed document source has no supported historical body."
+   }
+  },
+  {
+   "type": "document",
+   "decoded": {
+    "type": "document"
+   },
+   "out": {
+    "error": "Sealed document source has no supported historical body."
+   }
+  },
+  {
+   "type": "document",
+   "decoded": {
+    "type": "document",
+    "html": 5,
+    "docx_model": {
+     "k": "v"
+    }
+   },
+   "out": "{\n  \"k\": \"v\"\n}"
+  },
+  {
+   "type": "notebook",
+   "decoded": {
+    "type": "notebook",
+    "notebook": {
+     "cells": [],
+     "meta": {
+      "n": 1
+     }
+    }
+   },
+   "out": "{\n  \"cells\": [],\n  \"meta\": {\n    \"n\": 1\n  }\n}"
+  },
+  {
+   "type": "notebook",
+   "decoded": {
+    "type": "notebook",
+    "content": "raw"
+   },
+   "out": "raw"
+  },
+  {
+   "type": "notebook",
+   "decoded": {
+    "type": "notebook",
+    "content": ""
+   },
+   "out": ""
+  },
+  {
+   "type": "notebook",
+   "decoded": {
+    "type": "notebook",
+    "notebook": "str",
+    "content": "c"
+   },
+   "out": "c"
+  },
+  {
+   "type": "notebook",
+   "decoded": {
+    "type": "notebook"
+   },
+   "out": {
+    "error": "Sealed document source has no supported historical body."
+   }
+  },
+  {
+   "type": "notebook",
+   "decoded": {
+    "type": "document",
+    "notebook": {}
+   },
+   "out": {
+    "error": "Sealed embed does not contain the expected historical source."
+   }
+  }
+ ],
+ "finalTimestamps": [
+  {
+   "op": "record",
+   "now": 1000000,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m1",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1001,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "get",
+   "now": 1000000,
+   "chat_id": "c",
+   "message_id": "m1",
+   "job_id": "j",
+   "turn_id": "t",
+   "out": {
+    "createdAt": 1001
+   }
+  },
+  {
+   "op": "get",
+   "now": 1000000,
+   "chat_id": "c",
+   "message_id": "m2",
+   "job_id": "j",
+   "turn_id": "t",
+   "out": {
+    "createdAt": null
+   }
+  },
+  {
+   "op": "get",
+   "now": 1000000,
+   "chat_id": "c",
+   "message_id": "m1",
+   "job_id": "other",
+   "turn_id": "t",
+   "out": {
+    "createdAt": null
+   }
+  },
+  {
+   "op": "record",
+   "now": 1000000,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m1",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 5000,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "get",
+   "now": 1000000,
+   "chat_id": "c",
+   "message_id": "m1",
+   "job_id": "j",
+   "turn_id": "t",
+   "out": {
+    "createdAt": 5000
+   }
+  },
+  {
+   "op": "record",
+   "now": 1000000,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m9",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1009,
+    "is_final_chunk": false
+   }
+  },
+  {
+   "op": "get",
+   "now": 1000000,
+   "chat_id": "c",
+   "message_id": "m9",
+   "job_id": "j",
+   "turn_id": "t",
+   "out": {
+    "createdAt": null
+   }
+  },
+  {
+   "op": "record",
+   "now": 1000000,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m9",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 2,
+    "created_at": 1009,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "get",
+   "now": 1000000,
+   "chat_id": "c",
+   "message_id": "m9",
+   "job_id": "j",
+   "turn_id": "t",
+   "out": {
+    "createdAt": null
+   }
+  },
+  {
+   "op": "record",
+   "now": 1000000,
+   "event": {
+    "chat_id": "",
+    "message_id": "m9",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1009,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "get",
+   "now": 1000000,
+   "chat_id": "c",
+   "message_id": "m9",
+   "job_id": "j",
+   "turn_id": "t",
+   "out": {
+    "createdAt": null
+   }
+  },
+  {
+   "op": "record",
+   "now": 1000000,
+   "event": {
+    "chat_id": "c",
+    "message_id": "",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1009,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "get",
+   "now": 1000000,
+   "chat_id": "c",
+   "message_id": "m9",
+   "job_id": "j",
+   "turn_id": "t",
+   "out": {
+    "createdAt": null
+   }
+  },
+  {
+   "op": "record",
+   "now": 1000000,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m9",
+    "user_message_id": "",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1009,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "get",
+   "now": 1000000,
+   "chat_id": "c",
+   "message_id": "m9",
+   "job_id": "j",
+   "turn_id": "t",
+   "out": {
+    "createdAt": null
+   }
+  },
+  {
+   "op": "record",
+   "now": 1000000,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m9",
+    "user_message_id": "u",
+    "recovery_job_id": null,
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1009,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "get",
+   "now": 1000000,
+   "chat_id": "c",
+   "message_id": "m9",
+   "job_id": "j",
+   "turn_id": "t",
+   "out": {
+    "createdAt": null
+   }
+  },
+  {
+   "op": "record",
+   "now": 1000000,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m9",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_protocol_version": 1,
+    "created_at": 1009,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "get",
+   "now": 1000000,
+   "chat_id": "c",
+   "message_id": "m9",
+   "job_id": "j",
+   "turn_id": "t",
+   "out": {
+    "createdAt": null
+   }
+  },
+  {
+   "op": "record",
+   "now": 1000000,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m9",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 0,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "get",
+   "now": 1000000,
+   "chat_id": "c",
+   "message_id": "m9",
+   "job_id": "j",
+   "turn_id": "t",
+   "out": {
+    "createdAt": null
+   }
+  },
+  {
+   "op": "record",
+   "now": 1000000,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m9",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1.5,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "get",
+   "now": 1000000,
+   "chat_id": "c",
+   "message_id": "m9",
+   "job_id": "j",
+   "turn_id": "t",
+   "out": {
+    "createdAt": null
+   }
+  },
+  {
+   "op": "record",
+   "now": 1000000,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m9",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": "5",
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "get",
+   "now": 1000000,
+   "chat_id": "c",
+   "message_id": "m9",
+   "job_id": "j",
+   "turn_id": "t",
+   "out": {
+    "createdAt": null
+   }
+  },
+  {
+   "op": "get",
+   "now": 1599999,
+   "chat_id": "c",
+   "message_id": "m1",
+   "job_id": "j",
+   "turn_id": "t",
+   "out": {
+    "createdAt": 5000
+   }
+  },
+  {
+   "op": "get",
+   "now": 1600001,
+   "chat_id": "c",
+   "message_id": "m1",
+   "job_id": "j",
+   "turn_id": "t",
+   "out": {
+    "createdAt": null
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700000,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m3",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1003,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "get",
+   "now": 1700000,
+   "chat_id": "c",
+   "message_id": "m1",
+   "job_id": "j",
+   "turn_id": "t",
+   "out": {
+    "createdAt": null
+   }
+  },
+  {
+   "op": "get",
+   "now": 1700000,
+   "chat_id": "c",
+   "message_id": "m3",
+   "job_id": "j",
+   "turn_id": "t",
+   "out": {
+    "createdAt": 1003
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m10",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1010,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m11",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1011,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m12",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1012,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m13",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1013,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m14",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1014,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m15",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1015,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m16",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1016,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m17",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1017,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m18",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1018,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m19",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1019,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m20",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1020,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m21",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1021,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m22",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1022,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m23",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1023,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m24",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1024,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m25",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1025,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m26",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1026,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m27",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1027,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m28",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1028,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m29",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1029,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m30",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1030,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m31",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1031,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m32",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1032,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m33",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1033,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m34",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1034,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m35",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1035,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m36",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1036,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m37",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1037,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m38",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1038,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m39",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1039,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m40",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1040,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m41",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1041,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m42",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1042,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m43",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1043,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m44",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1044,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m45",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1045,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m46",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1046,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m47",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1047,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m48",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1048,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m49",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1049,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m50",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1050,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m51",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1051,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m52",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1052,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m53",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1053,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m54",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1054,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m55",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1055,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m56",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1056,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m57",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1057,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m58",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1058,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m59",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1059,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m60",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1060,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m61",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1061,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m62",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1062,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m63",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1063,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m64",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1064,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m65",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1065,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m66",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1066,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m67",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1067,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m68",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1068,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m69",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1069,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m70",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1070,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m71",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1071,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m72",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1072,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m73",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1073,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m74",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1074,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m75",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1075,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m76",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1076,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m77",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1077,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m78",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1078,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m79",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1079,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m80",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1080,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m81",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1081,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m82",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1082,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m83",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1083,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m84",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1084,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m85",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1085,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m86",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1086,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m87",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1087,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m88",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1088,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m89",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1089,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m90",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1090,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m91",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1091,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m92",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1092,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m93",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1093,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m94",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1094,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m95",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1095,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m96",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1096,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m97",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1097,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m98",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1098,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m99",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1099,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m100",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1100,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m101",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1101,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m102",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1102,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m103",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1103,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m104",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1104,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m105",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1105,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m106",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1106,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m107",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1107,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m108",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1108,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m109",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1109,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m110",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1110,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m111",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1111,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m112",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1112,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m113",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1113,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m114",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1114,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m115",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1115,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m116",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1116,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m117",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1117,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m118",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1118,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m119",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1119,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m120",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1120,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m121",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1121,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m122",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1122,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m123",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1123,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m124",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1124,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m125",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1125,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m126",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1126,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m127",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1127,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m128",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1128,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m129",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1129,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m130",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1130,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m131",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1131,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m132",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1132,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m133",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1133,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m134",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1134,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m135",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1135,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m136",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1136,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m137",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1137,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m138",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1138,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "record",
+   "now": 1700100,
+   "event": {
+    "chat_id": "c",
+    "message_id": "m139",
+    "user_message_id": "u",
+    "recovery_job_id": "j",
+    "recovery_turn_id": "t",
+    "recovery_protocol_version": 1,
+    "created_at": 1139,
+    "is_final_chunk": true
+   }
+  },
+  {
+   "op": "get",
+   "now": 1700100,
+   "chat_id": "c",
+   "message_id": "m10",
+   "job_id": "j",
+   "turn_id": "t",
+   "out": {
+    "createdAt": null
+   }
+  },
+  {
+   "op": "get",
+   "now": 1700100,
+   "chat_id": "c",
+   "message_id": "m11",
+   "job_id": "j",
+   "turn_id": "t",
+   "out": {
+    "createdAt": null
+   }
+  },
+  {
+   "op": "get",
+   "now": 1700100,
+   "chat_id": "c",
+   "message_id": "m12",
+   "job_id": "j",
+   "turn_id": "t",
+   "out": {
+    "createdAt": 1012
+   }
+  },
+  {
+   "op": "get",
+   "now": 1700100,
+   "chat_id": "c",
+   "message_id": "m138",
+   "job_id": "j",
+   "turn_id": "t",
+   "out": {
+    "createdAt": 1138
+   }
+  },
+  {
+   "op": "get",
+   "now": 1700100,
+   "chat_id": "c",
+   "message_id": "m139",
+   "job_id": "j",
+   "turn_id": "t",
+   "out": {
+    "createdAt": 1139
+   }
+  }
+ ]
+}

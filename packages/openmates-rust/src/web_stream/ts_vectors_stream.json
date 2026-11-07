@@ -1,0 +1,1646 @@
+{
+ "schema": 1,
+ "thinking": [
+  {
+   "steps": [
+    {
+     "op": "thinkingChunk",
+     "in": {
+      "chat_id": "c1",
+      "task_id": "t1",
+      "message_id": "m1",
+      "content": "He"
+     },
+     "out": {
+      "message_id": "m1"
+     }
+    },
+    {
+     "op": "thinkingChunk",
+     "in": {
+      "chat_id": "c1",
+      "task_id": "t1",
+      "message_id": "m1",
+      "content": "llo"
+     },
+     "out": {
+      "message_id": "m1"
+     }
+    },
+    {
+     "op": "thinkingComplete",
+     "in": {
+      "chat_id": "c1",
+      "task_id": "t1",
+      "message_id": "m1",
+      "signature": "sig",
+      "total_tokens": 7
+     },
+     "out": {
+      "message_id": "m1",
+      "fields": {
+       "thinking_content": "Hello",
+       "thinking_signature": "sig",
+       "has_thinking": true,
+       "thinking_token_count": 7
+      }
+     }
+    }
+   ]
+  },
+  {
+   "steps": [
+    {
+     "op": "thinkingChunk",
+     "in": {
+      "chat_id": "c1",
+      "task_id": "t1",
+      "message_id": "m2",
+      "content": "abc"
+     },
+     "out": {
+      "message_id": "m2"
+     }
+    },
+    {
+     "op": "thinkingComplete",
+     "in": {
+      "chat_id": "c1",
+      "task_id": "t1",
+      "message_id": "m2"
+     },
+     "out": {
+      "message_id": "m2",
+      "fields": {
+       "thinking_content": "abc",
+       "has_thinking": true
+      }
+     }
+    }
+   ]
+  },
+  {
+   "steps": [
+    {
+     "op": "thinkingChunk",
+     "in": {
+      "chat_id": "c1",
+      "task_id": "t1",
+      "message_id": "",
+      "content": "task keyed"
+     },
+     "out": {
+      "message_id": "t1"
+     }
+    },
+    {
+     "op": "thinkingComplete",
+     "in": {
+      "chat_id": "c1",
+      "task_id": "t1",
+      "message_id": "",
+      "signature": "s"
+     },
+     "out": {
+      "message_id": "t1",
+      "fields": {
+       "thinking_content": "task keyed",
+       "thinking_signature": "s",
+       "has_thinking": true
+      }
+     }
+    }
+   ]
+  },
+  {
+   "steps": [
+    {
+     "op": "thinkingComplete",
+     "in": {
+      "chat_id": "c1",
+      "task_id": "t1",
+      "message_id": "m3",
+      "signature": "s",
+      "total_tokens": 3
+     },
+     "out": {
+      "message_id": "m3",
+      "fields": null
+     }
+    }
+   ]
+  },
+  {
+   "steps": [
+    {
+     "op": "thinkingChunk",
+     "in": {
+      "chat_id": "c1",
+      "task_id": "t1",
+      "message_id": "m4",
+      "content": ""
+     },
+     "out": {
+      "message_id": "m4"
+     }
+    },
+    {
+     "op": "thinkingComplete",
+     "in": {
+      "chat_id": "c1",
+      "task_id": "t1",
+      "message_id": "m4"
+     },
+     "out": {
+      "message_id": "m4",
+      "fields": {
+       "thinking_content": "",
+       "has_thinking": false
+      }
+     }
+    }
+   ]
+  },
+  {
+   "steps": [
+    {
+     "op": "thinkingChunk",
+     "in": {
+      "chat_id": "c1",
+      "task_id": "t1",
+      "message_id": "m5",
+      "content": "x"
+     },
+     "out": {
+      "message_id": "m5"
+     }
+    },
+    {
+     "op": "thinkingComplete",
+     "in": {
+      "chat_id": "c1",
+      "task_id": "t1",
+      "message_id": "m5",
+      "signature": "first",
+      "total_tokens": 1
+     },
+     "out": {
+      "message_id": "m5",
+      "fields": {
+       "thinking_content": "x",
+       "thinking_signature": "first",
+       "has_thinking": true,
+       "thinking_token_count": 1
+      }
+     }
+    },
+    {
+     "op": "thinkingComplete",
+     "in": {
+      "chat_id": "c1",
+      "task_id": "t1",
+      "message_id": "m5",
+      "signature": null,
+      "total_tokens": null
+     },
+     "out": {
+      "message_id": "m5",
+      "fields": {
+       "thinking_content": "x",
+       "thinking_signature": "first",
+       "has_thinking": true,
+       "thinking_token_count": 1
+      }
+     }
+    },
+    {
+     "op": "thinkingComplete",
+     "in": {
+      "chat_id": "c1",
+      "task_id": "t1",
+      "message_id": "m5",
+      "signature": "second"
+     },
+     "out": {
+      "message_id": "m5",
+      "fields": {
+       "thinking_content": "x",
+       "thinking_signature": "second",
+       "has_thinking": true,
+       "thinking_token_count": 1
+      }
+     }
+    }
+   ]
+  },
+  {
+   "steps": [
+    {
+     "op": "thinkingChunk",
+     "in": {
+      "chat_id": "c1",
+      "task_id": "t1",
+      "message_id": "m6",
+      "content": "x"
+     },
+     "out": {
+      "message_id": "m6"
+     }
+    },
+    {
+     "op": "thinkingComplete",
+     "in": {
+      "chat_id": "c1",
+      "task_id": "t1",
+      "message_id": "m6",
+      "total_tokens": 0
+     },
+     "out": {
+      "message_id": "m6",
+      "fields": {
+       "thinking_content": "x",
+       "has_thinking": true,
+       "thinking_token_count": 0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "steps": [
+    {
+     "op": "thinkingChunk",
+     "in": {
+      "chat_id": "c1",
+      "task_id": "t1",
+      "message_id": "m7",
+      "content": "x"
+     },
+     "out": {
+      "message_id": "m7"
+     }
+    },
+    {
+     "op": "thinkingComplete",
+     "in": {
+      "chat_id": "c1",
+      "task_id": "t1",
+      "message_id": "m7",
+      "signature": ""
+     },
+     "out": {
+      "message_id": "m7",
+      "fields": {
+       "thinking_content": "x",
+       "has_thinking": true
+      }
+     }
+    }
+   ]
+  },
+  {
+   "steps": [
+    {
+     "op": "thinkingChunk",
+     "in": {
+      "chat_id": "c1",
+      "task_id": "t1",
+      "message_id": "m8",
+      "content": "a"
+     },
+     "out": {
+      "message_id": "m8"
+     }
+    },
+    {
+     "op": "thinkingChunk",
+     "in": {
+      "chat_id": "c1",
+      "task_id": "t1",
+      "message_id": "m8"
+     },
+     "out": {
+      "message_id": "m8"
+     }
+    },
+    {
+     "op": "thinkingChunk",
+     "in": {
+      "chat_id": "c2",
+      "task_id": "t1",
+      "message_id": "m8",
+      "content": "b"
+     },
+     "out": {
+      "message_id": "m8"
+     }
+    },
+    {
+     "op": "thinkingComplete",
+     "in": {
+      "chat_id": "c1",
+      "task_id": "t1",
+      "message_id": "m8"
+     },
+     "out": {
+      "message_id": "m8",
+      "fields": {
+       "thinking_content": "ab",
+       "has_thinking": true
+      }
+     }
+    }
+   ]
+  },
+  {
+   "steps": [
+    {
+     "op": "thinkingChunk",
+     "in": {
+      "chat_id": "c1",
+      "task_id": "t1",
+      "message_id": "m9",
+      "content": "one"
+     },
+     "out": {
+      "message_id": "m9"
+     }
+    },
+    {
+     "op": "thinkingChunk",
+     "in": {
+      "chat_id": "c1",
+      "task_id": "t1",
+      "message_id": "m10",
+      "content": "two"
+     },
+     "out": {
+      "message_id": "m10"
+     }
+    },
+    {
+     "op": "thinkingComplete",
+     "in": {
+      "chat_id": "c1",
+      "task_id": "t1",
+      "message_id": "m10"
+     },
+     "out": {
+      "message_id": "m10",
+      "fields": {
+       "thinking_content": "two",
+       "has_thinking": true
+      }
+     }
+    },
+    {
+     "op": "thinkingChunk",
+     "in": {
+      "chat_id": "c1",
+      "task_id": "t1",
+      "message_id": "m9",
+      "content": "+"
+     },
+     "out": {
+      "message_id": "m9"
+     }
+    },
+    {
+     "op": "thinkingComplete",
+     "in": {
+      "chat_id": "c1",
+      "task_id": "t1",
+      "message_id": "m9"
+     },
+     "out": {
+      "message_id": "m9",
+      "fields": {
+       "thinking_content": "one+",
+       "has_thinking": true
+      }
+     }
+    }
+   ]
+  }
+ ],
+ "finalPlan": [
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": false,
+     "interrupted_by_revocation": false,
+     "interrupted_by_soft_limit": false
+    },
+    "activeTask": null
+   },
+   "out": {
+    "action": "final",
+    "status": "completed",
+    "matched": false,
+    "userMessageId": "u-payload"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": false,
+     "interrupted_by_revocation": false,
+     "interrupted_by_soft_limit": false
+    },
+    "activeTask": {
+     "taskId": "t1",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "final",
+    "status": "completed",
+    "matched": true,
+    "userMessageId": "u-active"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": false,
+     "interrupted_by_revocation": false,
+     "interrupted_by_soft_limit": false
+    },
+    "activeTask": {
+     "taskId": "t2",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "ignore"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": false,
+     "interrupted_by_revocation": false,
+     "interrupted_by_soft_limit": false,
+     "rejection_reason": "policy"
+    },
+    "activeTask": null
+   },
+   "out": {
+    "action": "final",
+    "status": "completed",
+    "matched": false,
+    "userMessageId": "u-payload"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": false,
+     "interrupted_by_revocation": false,
+     "interrupted_by_soft_limit": false,
+     "rejection_reason": "policy"
+    },
+    "activeTask": {
+     "taskId": "t1",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "final",
+    "status": "completed",
+    "matched": true,
+    "userMessageId": "u-active"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": false,
+     "interrupted_by_revocation": false,
+     "interrupted_by_soft_limit": false,
+     "rejection_reason": "policy"
+    },
+    "activeTask": {
+     "taskId": "t2",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "ignore"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": false,
+     "interrupted_by_revocation": false,
+     "interrupted_by_soft_limit": true
+    },
+    "activeTask": null
+   },
+   "out": {
+    "action": "final",
+    "status": "timed_out",
+    "matched": false,
+    "userMessageId": "u-payload"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": false,
+     "interrupted_by_revocation": false,
+     "interrupted_by_soft_limit": true
+    },
+    "activeTask": {
+     "taskId": "t1",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "final",
+    "status": "timed_out",
+    "matched": true,
+    "userMessageId": "u-active"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": false,
+     "interrupted_by_revocation": false,
+     "interrupted_by_soft_limit": true
+    },
+    "activeTask": {
+     "taskId": "t2",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "ignore"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": false,
+     "interrupted_by_revocation": false,
+     "interrupted_by_soft_limit": true,
+     "rejection_reason": "policy"
+    },
+    "activeTask": null
+   },
+   "out": {
+    "action": "final",
+    "status": "timed_out",
+    "matched": false,
+    "userMessageId": "u-payload"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": false,
+     "interrupted_by_revocation": false,
+     "interrupted_by_soft_limit": true,
+     "rejection_reason": "policy"
+    },
+    "activeTask": {
+     "taskId": "t1",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "final",
+    "status": "timed_out",
+    "matched": true,
+    "userMessageId": "u-active"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": false,
+     "interrupted_by_revocation": false,
+     "interrupted_by_soft_limit": true,
+     "rejection_reason": "policy"
+    },
+    "activeTask": {
+     "taskId": "t2",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "ignore"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": false,
+     "interrupted_by_revocation": true,
+     "interrupted_by_soft_limit": false
+    },
+    "activeTask": null
+   },
+   "out": {
+    "action": "final",
+    "status": "cancelled",
+    "matched": false,
+    "userMessageId": "u-payload"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": false,
+     "interrupted_by_revocation": true,
+     "interrupted_by_soft_limit": false
+    },
+    "activeTask": {
+     "taskId": "t1",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "final",
+    "status": "cancelled",
+    "matched": true,
+    "userMessageId": "u-active"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": false,
+     "interrupted_by_revocation": true,
+     "interrupted_by_soft_limit": false
+    },
+    "activeTask": {
+     "taskId": "t2",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "ignore"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": false,
+     "interrupted_by_revocation": true,
+     "interrupted_by_soft_limit": false,
+     "rejection_reason": "policy"
+    },
+    "activeTask": null
+   },
+   "out": {
+    "action": "final",
+    "status": "cancelled",
+    "matched": false,
+    "userMessageId": "u-payload"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": false,
+     "interrupted_by_revocation": true,
+     "interrupted_by_soft_limit": false,
+     "rejection_reason": "policy"
+    },
+    "activeTask": {
+     "taskId": "t1",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "final",
+    "status": "cancelled",
+    "matched": true,
+    "userMessageId": "u-active"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": false,
+     "interrupted_by_revocation": true,
+     "interrupted_by_soft_limit": false,
+     "rejection_reason": "policy"
+    },
+    "activeTask": {
+     "taskId": "t2",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "ignore"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": false,
+     "interrupted_by_revocation": true,
+     "interrupted_by_soft_limit": true
+    },
+    "activeTask": null
+   },
+   "out": {
+    "action": "final",
+    "status": "cancelled",
+    "matched": false,
+    "userMessageId": "u-payload"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": false,
+     "interrupted_by_revocation": true,
+     "interrupted_by_soft_limit": true
+    },
+    "activeTask": {
+     "taskId": "t1",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "final",
+    "status": "cancelled",
+    "matched": true,
+    "userMessageId": "u-active"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": false,
+     "interrupted_by_revocation": true,
+     "interrupted_by_soft_limit": true
+    },
+    "activeTask": {
+     "taskId": "t2",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "ignore"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": false,
+     "interrupted_by_revocation": true,
+     "interrupted_by_soft_limit": true,
+     "rejection_reason": "policy"
+    },
+    "activeTask": null
+   },
+   "out": {
+    "action": "final",
+    "status": "cancelled",
+    "matched": false,
+    "userMessageId": "u-payload"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": false,
+     "interrupted_by_revocation": true,
+     "interrupted_by_soft_limit": true,
+     "rejection_reason": "policy"
+    },
+    "activeTask": {
+     "taskId": "t1",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "final",
+    "status": "cancelled",
+    "matched": true,
+    "userMessageId": "u-active"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": false,
+     "interrupted_by_revocation": true,
+     "interrupted_by_soft_limit": true,
+     "rejection_reason": "policy"
+    },
+    "activeTask": {
+     "taskId": "t2",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "ignore"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": true,
+     "interrupted_by_revocation": false,
+     "interrupted_by_soft_limit": false
+    },
+    "activeTask": null
+   },
+   "out": {
+    "action": "ignore"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": true,
+     "interrupted_by_revocation": false,
+     "interrupted_by_soft_limit": false
+    },
+    "activeTask": {
+     "taskId": "t1",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "ignore"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": true,
+     "interrupted_by_revocation": false,
+     "interrupted_by_soft_limit": false
+    },
+    "activeTask": {
+     "taskId": "t2",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "ignore"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": true,
+     "interrupted_by_revocation": false,
+     "interrupted_by_soft_limit": false,
+     "rejection_reason": "policy"
+    },
+    "activeTask": null
+   },
+   "out": {
+    "action": "final",
+    "status": "completed",
+    "matched": false,
+    "userMessageId": "u-payload"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": true,
+     "interrupted_by_revocation": false,
+     "interrupted_by_soft_limit": false,
+     "rejection_reason": "policy"
+    },
+    "activeTask": {
+     "taskId": "t1",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "final",
+    "status": "completed",
+    "matched": true,
+    "userMessageId": "u-active"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": true,
+     "interrupted_by_revocation": false,
+     "interrupted_by_soft_limit": false,
+     "rejection_reason": "policy"
+    },
+    "activeTask": {
+     "taskId": "t2",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "ignore"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": true,
+     "interrupted_by_revocation": false,
+     "interrupted_by_soft_limit": true
+    },
+    "activeTask": null
+   },
+   "out": {
+    "action": "final",
+    "status": "timed_out",
+    "matched": false,
+    "userMessageId": "u-payload"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": true,
+     "interrupted_by_revocation": false,
+     "interrupted_by_soft_limit": true
+    },
+    "activeTask": {
+     "taskId": "t1",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "final",
+    "status": "timed_out",
+    "matched": true,
+    "userMessageId": "u-active"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": true,
+     "interrupted_by_revocation": false,
+     "interrupted_by_soft_limit": true
+    },
+    "activeTask": {
+     "taskId": "t2",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "ignore"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": true,
+     "interrupted_by_revocation": false,
+     "interrupted_by_soft_limit": true,
+     "rejection_reason": "policy"
+    },
+    "activeTask": null
+   },
+   "out": {
+    "action": "final",
+    "status": "timed_out",
+    "matched": false,
+    "userMessageId": "u-payload"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": true,
+     "interrupted_by_revocation": false,
+     "interrupted_by_soft_limit": true,
+     "rejection_reason": "policy"
+    },
+    "activeTask": {
+     "taskId": "t1",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "final",
+    "status": "timed_out",
+    "matched": true,
+    "userMessageId": "u-active"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": true,
+     "interrupted_by_revocation": false,
+     "interrupted_by_soft_limit": true,
+     "rejection_reason": "policy"
+    },
+    "activeTask": {
+     "taskId": "t2",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "ignore"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": true,
+     "interrupted_by_revocation": true,
+     "interrupted_by_soft_limit": false
+    },
+    "activeTask": null
+   },
+   "out": {
+    "action": "final",
+    "status": "cancelled",
+    "matched": false,
+    "userMessageId": "u-payload"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": true,
+     "interrupted_by_revocation": true,
+     "interrupted_by_soft_limit": false
+    },
+    "activeTask": {
+     "taskId": "t1",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "final",
+    "status": "cancelled",
+    "matched": true,
+    "userMessageId": "u-active"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": true,
+     "interrupted_by_revocation": true,
+     "interrupted_by_soft_limit": false
+    },
+    "activeTask": {
+     "taskId": "t2",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "ignore"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": true,
+     "interrupted_by_revocation": true,
+     "interrupted_by_soft_limit": false,
+     "rejection_reason": "policy"
+    },
+    "activeTask": null
+   },
+   "out": {
+    "action": "final",
+    "status": "cancelled",
+    "matched": false,
+    "userMessageId": "u-payload"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": true,
+     "interrupted_by_revocation": true,
+     "interrupted_by_soft_limit": false,
+     "rejection_reason": "policy"
+    },
+    "activeTask": {
+     "taskId": "t1",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "final",
+    "status": "cancelled",
+    "matched": true,
+    "userMessageId": "u-active"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": true,
+     "interrupted_by_revocation": true,
+     "interrupted_by_soft_limit": false,
+     "rejection_reason": "policy"
+    },
+    "activeTask": {
+     "taskId": "t2",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "ignore"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": true,
+     "interrupted_by_revocation": true,
+     "interrupted_by_soft_limit": true
+    },
+    "activeTask": null
+   },
+   "out": {
+    "action": "final",
+    "status": "cancelled",
+    "matched": false,
+    "userMessageId": "u-payload"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": true,
+     "interrupted_by_revocation": true,
+     "interrupted_by_soft_limit": true
+    },
+    "activeTask": {
+     "taskId": "t1",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "final",
+    "status": "cancelled",
+    "matched": true,
+    "userMessageId": "u-active"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": true,
+     "interrupted_by_revocation": true,
+     "interrupted_by_soft_limit": true
+    },
+    "activeTask": {
+     "taskId": "t2",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "ignore"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": true,
+     "interrupted_by_revocation": true,
+     "interrupted_by_soft_limit": true,
+     "rejection_reason": "policy"
+    },
+    "activeTask": null
+   },
+   "out": {
+    "action": "final",
+    "status": "cancelled",
+    "matched": false,
+    "userMessageId": "u-payload"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": true,
+     "interrupted_by_revocation": true,
+     "interrupted_by_soft_limit": true,
+     "rejection_reason": "policy"
+    },
+    "activeTask": {
+     "taskId": "t1",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "final",
+    "status": "cancelled",
+    "matched": true,
+    "userMessageId": "u-active"
+   }
+  },
+  {
+   "in": {
+    "payload": {
+     "type": "ai_message_chunk",
+     "chat_id": "c1",
+     "task_id": "t1",
+     "message_id": "a1",
+     "user_message_id": "u-payload",
+     "full_content_so_far": "",
+     "sequence": 1,
+     "is_final_chunk": true,
+     "awaiting_async_skill_continuation": true,
+     "interrupted_by_revocation": true,
+     "interrupted_by_soft_limit": true,
+     "rejection_reason": "policy"
+    },
+    "activeTask": {
+     "taskId": "t2",
+     "userMessageId": "u-active"
+    }
+   },
+   "out": {
+    "action": "ignore"
+   }
+  }
+ ]
+}

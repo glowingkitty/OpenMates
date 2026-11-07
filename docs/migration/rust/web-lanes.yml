@@ -275,7 +275,7 @@ lanes:
 - rank: 4
   name: ai-stream-recovery
   kind: wave4
-  status: planned
+  status: running
   commit: null
   size: L
   wave: B
@@ -301,7 +301,7 @@ lanes:
   - chat-scroll-streaming.spec.ts
   - chat-followup-recovery-disabled.spec.ts
   - historical-image-child-recovery.spec.ts
-  notes: ''
+  notes: 'Slice 1: stateless recovery ops (version fence, window/assistant version, initial-diff, catalog, history source) on the sync unit behind the flag; stateful thinking/final-timestamp assembler built and vector-tested but mounted by the ws unit. Gap: chatCompletionRecovery crypto, UI-reactive assistantActivity*/pendingAIResponses/fastAdmission files not moved.'
   spec_assertions:
   - chats.streaming.ordered-final
   - chats.streaming.progressive-presentation

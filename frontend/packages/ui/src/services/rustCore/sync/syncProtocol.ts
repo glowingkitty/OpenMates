@@ -8,6 +8,7 @@
  */
 import type { UnitProtocol } from '../host/unitPort';
 import { INBOUND_OPS, type InboundProtocol } from './inboundProtocol';
+import { RECOVERY_OPS, type RecoveryBinding, type RecoveryProtocol } from './recoveryOps';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -33,7 +34,7 @@ export interface SyncMergeInput {
 	currentUserId?: string | null;
 }
 
-export interface SyncUnitProtocol extends UnitProtocol, InboundProtocol {
+export interface SyncUnitProtocol extends UnitProtocol, InboundProtocol, RecoveryProtocol {
 	merge: { request: SyncMergeInput; response: SyncMergeOutcome };
 	keyMismatch: { request: { server: JsonRecord; local: JsonRecord | null }; response: SyncKeyMismatchPlan };
 	retry: { request: { retryable?: unknown; timerPending: boolean; attempt: number; retryAfterMs?: unknown }; response: SyncRetryStep };
@@ -46,7 +47,7 @@ export interface SyncUnitProtocol extends UnitProtocol, InboundProtocol {
 }
 
 /** Worker module exports (JSON text in, JSON text out) of browser_sync.rs. */
-export interface SyncBinding {
+export interface SyncBinding extends RecoveryBinding {
 	sync_merge_chat(input: string): string;
 	sync_key_mismatch(input: string): string;
 	sync_retry_step(input: string): string;
@@ -71,6 +72,7 @@ export const SYNC_OPS: Readonly<Record<keyof SyncUnitProtocol & string, keyof Sy
 	messagePreview: 'sync_message_preview',
 	thinkingFields: 'sync_thinking_fields',
 	...INBOUND_OPS,
+	...RECOVERY_OPS,
 });
 
 export function isSyncBinding(value: unknown): value is SyncBinding {

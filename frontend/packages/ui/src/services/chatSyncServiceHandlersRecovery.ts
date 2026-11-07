@@ -42,6 +42,13 @@ import { reconstructEncryptedVersionRows, type EmbedVersionMeta } from "./embedD
 import { catalogContextFromSealedEmbed, historySourceFromSealedEmbed, isUnwrittenInitialDiffRead } from "./recoveryEmbedSource";
 import { refreshRecoveryChatVersion } from "./chatRecoveryVersionRefresh";
 import { chatAfterRecoveredReply } from "./chatRecoveryVersionApply";
+/** Opt-in shared Rust core build: the decision runs in the shared Worker `sync` unit. */
+// Measurement-only opt-out (`openmates_rust_core_sync` = 'ts'), read once per page load.
+const RUST_SYNC_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+  && !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_sync") === "ts");
+function rustRecoveryPolicy() {
+  return import("./rustCore/sync/rustRecoveryPolicy");
+}
 import { clearRecoveryFinalTimestamps, recoveryFinalTimestamp, waitForRecoveryFinalTimestamp } from "./recoveryAssistantTimestamp";
 import { clearPersonalChatTurnBarriers, completePersonalChatTurn, failMatchingPersonalChatTurn } from "./personalChatTurnBarrier";
 import {
@@ -727,7 +734,9 @@ async function readRecoveredCanonicalDiff(
   if (!response.ok) {
     if ([502, 503, 504].includes(response.status)) throw canonicalReadError("Canonical diff read failed", response.status);
     const error = await response.json().catch(() => null) as { detail?: unknown } | null;
-    if (isUnwrittenInitialDiffRead(response.status, error?.detail, output.output_version)) return null;
+    if (RUST_SYNC_BUILD
+      ? await (await rustRecoveryPolicy()).isUnwrittenInitialDiffRead(response.status, error?.detail, output.output_version)
+      : isUnwrittenInitialDiffRead(response.status, error?.detail, output.output_version)) return null;
     const detail = typeof error?.detail === "string" ? error.detail.slice(0, 80) : "unknown";
     throw new Error(`Canonical diff read failed (${response.status}: ${detail}).`);
   }
@@ -1190,7 +1199,9 @@ export async function handleRecoveryJobsAvailableImpl(
           : null;
         if (terminalChat) {
           const currentChat = await chatDB.getChat(job.chat_id);
-          await chatDB.updateChat(chatAfterRecoveredReply(currentChat, terminalChat, terminalChat.messages_v, Math.floor(Date.now() / 1000)));
+          await chatDB.updateChat(RUST_SYNC_BUILD
+            ? await (await rustRecoveryPolicy()).chatAfterRecoveredReply(currentChat, terminalChat, terminalChat.messages_v, Math.floor(Date.now() / 1000))
+            : chatAfterRecoveredReply(currentChat, terminalChat, terminalChat.messages_v, Math.floor(Date.now() / 1000)));
           completePersonalChatTurn(job.chat_id, job.turn_id, terminalChat.messages_v);
           if (generation === recoveryLifecycleGeneration) noteHydratedRecoveryTurn(serviceInstance, job.chat_id, job.turn_id);
           success = true;
@@ -1365,7 +1376,9 @@ export async function handleRecoveryJobsAvailableImpl(
       const committedVersion = typeof persistedResult.committed_messages_v === "number"
         ? persistedResult.committed_messages_v : persistBaseChat.messages_v;
       const currentChat = await chatDB.getChat(job.chat_id);
-      const updatedChat = chatAfterRecoveredReply(currentChat, persistBaseChat, committedVersion, now);
+      const updatedChat = RUST_SYNC_BUILD
+        ? await (await rustRecoveryPolicy()).chatAfterRecoveredReply(currentChat, persistBaseChat, committedVersion, now)
+        : chatAfterRecoveredReply(currentChat, persistBaseChat, committedVersion, now);
       await chatDB.updateChat(updatedChat);
       completePersonalChatTurn(job.chat_id, job.turn_id, committedVersion);
       if (generation === recoveryLifecycleGeneration) noteHydratedRecoveryTurn(serviceInstance, job.chat_id, job.turn_id);

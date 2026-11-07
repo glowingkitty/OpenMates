@@ -48,6 +48,13 @@ import {
 import { completePersonalChatMessage } from "./personalChatTurnBarrier";
 import { refreshPersistedAssistantVersion } from "./chatRecoveryVersionRefresh";
 import { chatAfterRecoveredReply } from "./chatRecoveryVersionApply";
+/** Opt-in shared Rust core build: the decision runs in the shared Worker `sync` unit. */
+// Measurement-only opt-out (`openmates_rust_core_sync` = 'ts'), read once per page load.
+const RUST_SYNC_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+  && !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_sync") === "ts");
+function rustRecoveryPolicy() {
+  return import("./rustCore/sync/rustRecoveryPolicy");
+}
 import { getConnectedAccountMutationEpoch } from "./connectedAccountStorageService";
 
 const storageFailureImmediateRetryIds = new Set<string>();
@@ -2446,12 +2453,16 @@ export async function handleAIResponseStorageConfirmedImpl(
         if (!isCurrent()) return;
         if (!current) return;
         const now = Math.floor(Date.now() / 1000);
-        const updated = chatAfterRecoveredReply(current, chat, version, now);
+        const updated = RUST_SYNC_BUILD
+          ? await (await rustRecoveryPolicy()).chatAfterRecoveredReply(current, chat, version, now)
+          : chatAfterRecoveredReply(current, chat, version, now);
         await chatDB.updateChat(updated);
         if (!isCurrent()) return;
         // A later call may already have advanced the in-memory projection.
         const cached = chatListCache.getCache()?.find((row) => row.chat_id === payload.chat_id) ?? null;
-        chatListCache.upsertChat(chatAfterRecoveredReply(cached, updated, updated.messages_v, now));
+        chatListCache.upsertChat(RUST_SYNC_BUILD
+          ? await (await rustRecoveryPolicy()).chatAfterRecoveredReply(cached, updated, updated.messages_v, now)
+          : chatAfterRecoveredReply(cached, updated, updated.messages_v, now));
         completePersonalChatMessage(payload.chat_id, assistant.user_message_id, version);
         removePendingAIResponse(payload.message_id);
       } else {

@@ -2,6 +2,14 @@
 import { getApiEndpoint, storageArchiveFetch } from "../config/api";
 import type { Chat } from "../types/chat";
 
+/** Opt-in shared Rust core build: the decision runs in the shared Worker `sync` unit. */
+// Measurement-only opt-out (`openmates_rust_core_sync` = 'ts'), read once per page load.
+const RUST_SYNC_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+  && !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_sync") === "ts");
+function rustRecoveryPolicy() {
+  return import("./rustCore/sync/rustRecoveryPolicy");
+}
+
 export async function refreshRecoveryChatVersion(chat: Chat): Promise<Chat | null> {
   const query = new URLSearchParams({ limit: "1", respect_compression_boundary: "false" });
   if (chat.team_id) query.set("team_id", chat.team_id);
@@ -14,6 +22,10 @@ export async function refreshRecoveryChatVersion(chat: Chat): Promise<Chat | nul
     });
     if (!response.ok) return null;
     const result = await response.json();
+    if (RUST_SYNC_BUILD) {
+      const version = await (await rustRecoveryPolicy()).windowVersion(chat.chat_id, result);
+      return version === null ? null : { ...chat, messages_v: version };
+    }
     if (result.chat_id !== chat.chat_id || !Number.isSafeInteger(result.messages_v) || result.messages_v < 0) return null;
     return { ...chat, messages_v: result.messages_v };
   } catch { return null; }
@@ -33,6 +45,7 @@ export async function refreshPersistedAssistantVersion(chat: Chat, assistantMess
     });
     if (!response.ok) return null;
     const result = await response.json();
+    if (RUST_SYNC_BUILD) return (await rustRecoveryPolicy()).assistantVersion(chat.chat_id, assistantMessageId, userMessageId, result);
     if (result.chat_id !== chat.chat_id || !Number.isSafeInteger(result.messages_v) || result.messages_v < 0) return null;
     if (!Array.isArray(result.messages) || !result.messages.some((row: Record<string, unknown>) =>
       row && row.message_id === assistantMessageId && row.chat_id === chat.chat_id &&
