@@ -61,14 +61,13 @@ sync and persistence policy also follows `specifications/architecture/sync/` and
 - Web Rust performance gate (user decision):
   - Gate only user-facing flows: cold start to usable chat, open chat, send/stream,
     embed ready and search.
-  - Budget: Rust may be slower than TS only by an amount users cannot notice
-    (user decision 2026-11-06; it replaces the earlier +3% gate).
-    - Measure with a paired, interleaved benchmark of at least 12 pairs.
-    - Wall time per flow: the upper bound of the 95% CI must be
-      ≤ max(+10%, +50 ms).
-    - Slow end: p95 at most +100 ms slower than TS (+200 ms for cold start).
-    - CPU: the upper bound of the 95% CI must be ≤ +15%.
-    - Don't spend effort optimizing inside this budget; port code instead.
+  - Budget is advisory (user decision 2026-11-07; replaces the 2026-11-06
+    CI-bound budget). Only a gross regression blocks a slice: Rust worse by
+    more than +25% AND more than +100 ms on a user-visible flow, per-reload
+    growth/leak, or a functional break. Everything else is recorded in
+    `performance-history.yml` and does not block.
+    - Measure with a paired, interleaved benchmark of about 12 pairs; do not
+      over-test. Port code instead of optimizing inside the advisory range.
   - Isolated micro-ops, such as single page-to-worker calls, are reported but not gated.
   - After every web bench, append the result to `docs/migration/rust/performance-history.yml`
     with `scripts/record_perf_measurement.py` (append-only; never edit old entries).

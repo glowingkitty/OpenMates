@@ -54,6 +54,10 @@ case "$FILE" in
         "$OWNER_PATH"|"$OWNER_PATH"/*) exit 0 ;;
       esac
     fi
+    # Parallel lane: the parent opened this pre-created session with
+    # `sessions.py lane-open`; sub-agents (same conversation id) may edit it.
+    LANE=$(jq -r --arg o "$OWNER" '.sessions[$o].lane_edit // false' "$SESSIONS_FILE" 2>/dev/null)
+    [ "$LANE" = "true" ] && exit 0
     if [ -z "$CURRENT" ]; then
       deny "this conversation owns no sessions.py session, but $FILE is in session $OWNER's worktree. Never borrow another task's workspace. $START_HINT"
     fi

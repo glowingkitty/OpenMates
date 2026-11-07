@@ -204,6 +204,15 @@ run_case "session-gate: edit in another worktree from a different cwd still bloc
   "session-edit-gate.sh" \
   "{\"session_id\":\"conv-1\",\"cwd\":\"$GATE_TMP/.openmates-agent-worktrees/agent-aaaa\",\"tool_input\":{\"file_path\":\"$GATE_TMP/.openmates-agent-worktrees/agent-bbbb/x.txt\"}}" \
   2 "belongs to session" "OPENMATES_PROJECT_ROOT=$GATE_TMP"
+# Lane flag: a pre-created session opened with `sessions.py lane-open` admits
+# sub-agents of the conversation even from a cwd outside its worktree.
+cat > "$GATE_TMP/.claude/sessions.json" <<JSON
+{"sessions":{"aaaa":{"agent_task_id":"conv-1","worktree":{"path":"$GATE_TMP/.openmates-agent-worktrees/agent-aaaa"}},"bbbb":{"agent_task_id":"other","lane_edit":true,"worktree":{"path":"$GATE_TMP/.openmates-agent-worktrees/agent-bbbb"}}}}
+JSON
+run_case "session-gate: lane_edit session admits sub-agent edits from any cwd" \
+  "session-edit-gate.sh" \
+  "{\"session_id\":\"conv-1\",\"cwd\":\"$GATE_TMP\",\"tool_input\":{\"file_path\":\"$GATE_TMP/.openmates-agent-worktrees/agent-bbbb/x.txt\"}}" \
+  0 "" "OPENMATES_PROJECT_ROOT=$GATE_TMP"
 rm -rf "$GATE_TMP"
 run_case "session-gate: gitignored private file allowed" \
   "session-edit-gate.sh" \

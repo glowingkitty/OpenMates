@@ -9,6 +9,13 @@ paths:
   `sessions.py start --mode <bug|feature|docs|testing> --task <outcome>`; it
   reuses an existing binding for this Claude terminal. Sub-agents share it.
   SSH/manual work passes the returned `--session`.
+- Parallel lanes: the parent runs `python3 scripts/lane_start.py --task "<outcome>"`
+  per lane (fresh session, `lane-open` flag so the edit gate admits sub-agents
+  in that worktree only) and gives each agent its `session=` and `worktree=`.
+  Lane agents `cd` into the worktree, pass `--session <id>` and never run
+  `start`/`end`. `start` refuses a stale or ended binding; use `start --new`.
+- Saved patches: the rtk filter turns `git diff` into a stat summary; use
+  `rtk proxy git diff --binary`.
 - Other running Claude chats (task, workspace, recent files) are injected at
   session start and whenever they change (`.claude/hooks/peer-chats.sh`).
   Inspect one with `python3 scripts/agent_peers.py history <chat-id>`.

@@ -2438,11 +2438,22 @@ def _resolve_deploy_selection(
 
     default_files = set(_session_deploy_files(session, exclude))
     if requested_only:
-        unavailable = sorted(requested_only - default_files)
+        unavailable = requested_only - default_files
+        if unavailable:
+            # Files git reports dirty in the session checkout are real work even
+            # when modified_files never recorded them (edited via a sub-agent).
+            dirty = {
+                _canonical_stored_repo_path(path)
+                for path in _get_dirty_files(
+                    checkout_root=_session_checkout_root(session), missing_ok=True
+                )
+            }
+            unavailable -= dirty
         if unavailable:
             raise RuntimeError(
-                "--only contains files that are not tracked dirty work for this session: "
-                + ", ".join(unavailable)
+                "--only contains files that are not dirty in this session's worktree: "
+                + ", ".join(sorted(unavailable))
+                + ". Check the path is repo-relative and edited inside the session worktree."
             )
         return sorted(requested_only), "only"
 
@@ -7414,6 +7425,39 @@ def _refuse_new_session_when_host_overloaded() -> None:
         raise SystemExit(host_load_guard.EXIT_OVERLOADED)
 
 
+STALE_BINDING_MAX_BEHIND = 50
+
+
+def _worktree_commits_behind_dev(path: Path) -> int:
+    """Commits the worktree HEAD is behind origin/dev (0 when unknown)."""
+    result = subprocess.run(
+        ["git", "rev-list", "--count", "HEAD..origin/dev"],
+        cwd=str(path), capture_output=True, text=True, timeout=60,
+    )
+    try:
+        return int(result.stdout.strip()) if result.returncode == 0 else 0
+    except ValueError:
+        return 0
+
+
+def _binding_problem(record: dict, behind_fn=_worktree_commits_behind_dev) -> str:
+    """Return why an existing agent binding is unusable, or "" when reusable.
+
+    Sub-agents share the parent's conversation id, so a silently reused stale
+    binding hands them a workspace nobody can deploy from.
+    """
+    metadata = record.get("worktree")
+    if not isinstance(metadata, dict) or not metadata.get("path"):
+        return ""  # not worktree-backed: nothing to validate
+    path = Path(str(metadata["path"]))
+    if not path.is_dir():
+        return f"its worktree {path} no longer exists"
+    behind = behind_fn(path)
+    if behind > STALE_BINDING_MAX_BEHIND:
+        return f"its worktree {path} is {behind} commits behind origin/dev (limit {STALE_BINDING_MAX_BEHIND})"
+    return ""
+
+
 def cmd_start(args: argparse.Namespace) -> None:
     """Bind a task to its workspace and emit a compact receipt."""
     repo = _repo_metadata(_resolve_repo_id(getattr(args, "repo", None)))
@@ -7430,6 +7474,34 @@ def cmd_start(args: argparse.Namespace) -> None:
             existing = (sid, data["sessions"][sid])
         except RuntimeError:
             pass
+    force_new = bool(getattr(args, "new", False))
+    ended = (data.get("ended_agent_tasks") or {}).get(task_id) if task_id else None
+    if existing and force_new:
+        stale_sid = existing[0]
+
+        def detach(state):
+            state["sessions"][stale_sid]["agent_task_id"] = None
+        _mutate_sessions(detach)
+        existing = None
+    elif existing:
+        problem = _binding_problem(existing[1])
+        if problem:
+            print(
+                f"ERROR: this conversation is bound to session {existing[0]} but {problem}. "
+                "Refusing to reuse it. Sub-agents: cd into your pre-created session worktree "
+                "and pass --session <id>. Parent: run `sessions.py start --new ...` for a "
+                "fresh workspace (the old binding is detached, not deleted).",
+                file=sys.stderr,
+            )
+            raise SystemExit(2)
+    if not existing and ended and not force_new:
+        print(
+            f"ERROR: session {ended.get('session')} of this conversation was ended at "
+            f"{ended.get('ended_at')}; refusing to silently create a replacement. "
+            "Pass --new to start a fresh workspace deliberately.",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
     if existing:
         sid, record = existing
         def refresh(state):
@@ -7452,6 +7524,8 @@ def cmd_start(args: argparse.Namespace) -> None:
                   "agent_host": socket.gethostname() if task_id else None,
                   "binding_mode": "legacy_grandfathered", "auto_integration_policy": "disabled"}
         sid, _, _, _, created = register_session_record(record)
+        if ended:
+            _mutate_sessions(lambda st: (st.get("ended_agent_tasks") or {}).pop(task_id, None))
     if mode != "question" and repo["repo_kind"] == "control_plane":
         ensure_session_worktree(sid)
     data = _load_sessions()
@@ -7484,6 +7558,7 @@ def cmd_end(args: argparse.Namespace) -> None:
         return
 
     modified = session.get("modified_files", [])
+    ended_task = session.get("agent_task_id")
 
     # Check for uncommitted modified files — BLOCK unless --force
     if modified:
@@ -7568,6 +7643,11 @@ def cmd_end(args: argparse.Namespace) -> None:
             _prune_checkpoint_lock_files(current)
         _mutate_sessions(remove_plain)
 
+    if ended_task:
+        def mark_ended(state):
+            state.setdefault("ended_agent_tasks", {})[ended_task] = {
+                "session": sid, "ended_at": _now_iso()}
+        _mutate_sessions(mark_ended)
     print(f"Session {sid} ended and removed from sessions.json.")
 
 
@@ -8428,6 +8508,29 @@ def cmd_track_stdin(args: argparse.Namespace) -> None:
     if isinstance(worktree, dict):
         worktree["last_active"] = now
     _save_sessions(data)
+
+
+def cmd_lane_open(args: argparse.Namespace) -> None:
+    """Let sub-agents of this conversation edit inside one pre-created session.
+
+    Sub-agents share the parent's conversation id, so the edit gate cannot tell
+    them apart from the parent. `lane_edit` marks one session worktree as an
+    approved parallel lane: the gate admits edits to that worktree only.
+    """
+    sid = args.session
+    sessions = _load_sessions().get("sessions", {})
+    if sid not in sessions:
+        print(f"Error: Session {sid} not found.", file=sys.stderr)
+        sys.exit(1)
+    if not (sessions[sid].get("worktree") or {}).get("path"):
+        print(f"Error: Session {sid} has no worktree to open as a lane.", file=sys.stderr)
+        sys.exit(1)
+
+    def set_flag(state):
+        state["sessions"][sid]["lane_edit"] = not args.close
+
+    _mutate_sessions(set_flag)
+    print(f"Session {sid} lane edit {'closed' if args.close else 'opened'}.")
 
 
 def cmd_untrack(args: argparse.Namespace) -> None:
@@ -14521,6 +14624,7 @@ def main() -> None:
         "Controls which context sections are shown.",
     )
     p_start.add_argument("--require-proof-video", action="store_true", help="Record a user-requested proof deliverable")
+    p_start.add_argument("--new", action="store_true", help="Deliberately start a fresh workspace, detaching a stale or ended binding")
     p_start.add_argument("--json", action="store_true", help="Emit a compact machine receipt")
     p_start.add_argument("--full", action="store_true", help="Include diagnostic and documentation context")
     p_start.add_argument("--task", "-t", help="Task description")
@@ -14756,6 +14860,13 @@ def main() -> None:
         "track-stdin", help="Track file from hook stdin"
     )
     p_track_stdin.add_argument("--session", "-s", help="Session ID")
+
+    p_lane_open = sub.add_parser(
+        "lane-open",
+        help="Admit sub-agents' edits inside this session's worktree (parallel lane)",
+    )
+    p_lane_open.add_argument("--session", "-s", required=True, help="Pre-created session ID")
+    p_lane_open.add_argument("--close", action="store_true", help="Revoke the lane flag")
 
     # untrack — remove files from a session's modified_files list
     p_untrack = sub.add_parser(
@@ -15339,6 +15450,7 @@ def main() -> None:
 
     p_wait_deploy = sub.add_parser("wait-deploy", help="Wait for Vercel status on an exact commit")
     p_wait_deploy.add_argument("--commit", required=True)
+    p_wait_deploy.add_argument("--session", "-s", help="Accepted for symmetry with deploy; the commit alone selects the deployment")
     p_wait_deploy.add_argument("--timeout", type=float, default=600)
     p_wait_deploy.add_argument("--poll", type=float, default=15)
     p_wait_deploy.add_argument("--json", action="store_true")
@@ -15445,6 +15557,7 @@ def main() -> None:
         "track": cmd_track,
         "track-stdin": cmd_track_stdin,
         "untrack": cmd_untrack,
+        "lane-open": cmd_lane_open,
         "check-write": cmd_check_write,
         "edit-lease": cmd_edit_lease,
         "decision": cmd_decision,
