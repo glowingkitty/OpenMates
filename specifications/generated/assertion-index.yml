@@ -89243,7 +89243,7 @@ assertions:
       surface: gui.web
     - &id11315
       path: frontend/apps/web_app/tests/web-rust-core-chat.spec.ts
-      line: 150
+      line: 153
       name: opens a saved chat in the normal chat UI from Rust-decrypted history
       surface: gui.web
     - &id11316
@@ -99031,7 +99031,7 @@ assertions:
       surface: gui.web
     - &id12617
       path: frontend/apps/web_app/tests/web-rust-core-chat.spec.ts
-      line: 150
+      line: 153
       name: opens a saved chat in the normal chat UI from Rust-decrypted history
       surface: gui.web
     - &id12618
@@ -187187,7 +187187,7 @@ assertions:
       surface: gui.web
     - &id23853
       path: frontend/apps/web_app/tests/web-rust-core-chat.spec.ts
-      line: 150
+      line: 153
       name: opens a saved chat in the normal chat UI from Rust-decrypted history
       surface: gui.web
     - &id23854
@@ -187763,7 +187763,7 @@ assertions:
       surface: gui.web
     - &id23930
       path: frontend/apps/web_app/tests/web-rust-core-chat.spec.ts
-      line: 150
+      line: 153
       name: opens a saved chat in the normal chat UI from Rust-decrypted history
       surface: gui.web
     - &id23931

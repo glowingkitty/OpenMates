@@ -25,11 +25,18 @@ const { getE2EDebugUrl, withMockMarker } = require('../signup-flow-helpers');
 const { sendMessage, waitForChatReady, focusMessageEditor } = require('./chat-test-helpers');
 const { summarizePaired, pairOrder } = require('./bench-stats');
 const { createBenchProfiler } = require('./bench-profile');
+const { rustCoreInstances } = require('./rust-core-instances');
 
 const HISTORY_OPT_OUT_KEY = 'openmates_rust_core_history';
 const CRYPTO_OPT_OUT_KEY = 'openmates_rust_core_crypto';
 /** sessionStorage switch of recordSendPreparationPhase (chatSyncService.ts). */
 const SEND_PREP_TIMING_KEY = 'openmates:send-prep-timing';
+/** Approved budget (.claude/rules/cli-sdk.md): wall within max(+margin, +50 ms), p95 at most +100 ms, CPU within +15%. */
+const WALL_FLOOR_MS = 50;
+const P95_ALLOW_MS = 100;
+const CPU_MARGIN = 0.15;
+/** Failed (not slow) sends tolerated and retried per run; each is reported as `failures`. */
+const MAX_FAILED_SAMPLES = 2;
 
 /** In-page (init script): send gesture and first admission frame timestamps. */
 function installSendTiming(): void {
@@ -92,6 +99,10 @@ async function sendSample(page: any, arm: Arm, index: number, ctx: { processes: 
 		phases: (window as any).__openmatesSendPrepPhases ?? [],
 		crypto: (window as any).__openmatesRustCryptoStats?.() ?? null
 	}));
+	// One shared-Worker WASM instance serves both arms (Rust auth in both, Rust crypto in the Rust arm).
+	const instances = await rustCoreInstances(page);
+	expect(instances.sharedWorkerWasm, `${arm} send: one shared Worker WASM instance`).toBe(1);
+	expect(instances.wasmInstantiations, `${arm} send: one WASM instance in the tab`).toBe(1);
 	const start = inPage.timing.starts.filter((value: number) => value <= inPage.timing.admitAt).at(-1);
 	expect(start, `${arm}: send gesture recorded before admission`).toBeDefined();
 	const phases = Object.fromEntries(inPage.phases.filter((entry: any) => entry.ms >= start)
@@ -126,17 +137,32 @@ async function runSendBench(page: any, options: { pairs: number; margin: number;
 	const pairs: { ts: Record<string, any>; rust: Record<string, any> }[] = [];
 	const sequence: string[] = [];
 	let profiled: Record<string, any> | null = null;
+	const failures: { index: number; arm: string; error: string }[] = [];
 	let index = 0;
 	try {
 		for (; index <= options.pairs; index += 1) {
 			const pair: Record<string, Record<string, any>> = {};
-			for (const arm of pairOrder(index)) {
-				pair[arm] = await sendSample(page, arm, index, options);
-				sequence.push(`${index === 0 ? 'w' : ''}${arm}`);
+			const armsRun: string[] = [];
+			try {
+				for (const arm of pairOrder(index)) {
+					pair[arm] = await sendSample(page, arm, index, options);
+					armsRun.push(`${index === 0 ? 'w' : ''}${arm}`);
+				}
+			} catch (error) {
+				// A send the app itself failed (e.g. server refusal) is a product failure, not a
+				// latency sample: it is recorded in the report and the pair is retried, within a
+				// bounded budget; beyond it the bench fails with the underlying error.
+				const arm = pairOrder(index)[armsRun.length];
+				failures.push({ index, arm, error: String((error as Error)?.message ?? error).split('\n')[0].slice(0, 300) });
+				options.log('send sample failed; pair retried', failures[failures.length - 1]);
+				if (failures.length > MAX_FAILED_SAMPLES) throw error;
+				index -= 1;
+				continue;
 			}
+			sequence.push(...armsRun);
 			if (index === 0) continue;
 			pairs.push({ ts: pair.ts, rust: pair.rust });
-			options.log('send pair', { index, ts: pair.ts.sendToAdmitMs, rust: pair.rust.sendToAdmitMs, tsCpu: pair.ts.browserCpuMs, rustCpu: pair.rust.browserCpuMs });
+			options.log('send pair', { index, ts: pair.ts.sendToAdmitMs, rust: pair.rust.sendToAdmitMs, tsCpu: pair.ts.browserCpuMs, rustCpu: pair.rust.browserCpuMs, tsPhases: pair.ts.phases, rustPhases: pair.rust.phases, rustCryptoOps: pair.rust.cryptoOps });
 		}
 		if (options.profile) {
 			const profiler = await createBenchProfiler(page);
@@ -151,11 +177,17 @@ async function runSendBench(page: any, options: { pairs: number; margin: number;
 		await page.evaluate((keys: string[]) => { for (const key of keys) localStorage.removeItem(key); }, [HISTORY_OPT_OUT_KEY, CRYPTO_OPT_OUT_KEY]).catch(() => undefined);
 	}
 	const column = (metric: string) => pairs.map((pair) => ({ ts: pair.ts[metric], rust: pair.rust[metric] }));
+	// Per send-preparation phase: paired difference (rust - ts) in ms, reported only (not gated).
+	const phaseNames = [...new Set(pairs.flatMap((pair) => [...Object.keys(pair.ts.phases), ...Object.keys(pair.rust.phases)]))];
+	const phaseDeltas = Object.fromEntries(phaseNames.map((phase) => [phase, summarizePaired(
+		pairs.map((pair) => ({ ts: pair.ts.phases[phase], rust: pair.rust.phases[phase] })), { mode: 'difference', gate: false })]));
 	return {
 		summary: {
-			sendToAdmitMs: summarizePaired(column('sendToAdmitMs'), { mode: 'ratio', margin: options.margin }),
-			sendBrowserCpuMs: summarizePaired(column('browserCpuMs'), { mode: 'ratio', margin: options.margin })
+			sendToAdmitMs: summarizePaired(column('sendToAdmitMs'), { mode: 'ratio', margin: options.margin, floorMs: WALL_FLOOR_MS, p95AllowMs: P95_ALLOW_MS }),
+			sendBrowserCpuMs: summarizePaired(column('browserCpuMs'), { mode: 'ratio', margin: CPU_MARGIN })
 		},
+		phaseDeltas,
+		failures,
 		sequence: sequence.join(','),
 		samples: pairs,
 		profile: profiled

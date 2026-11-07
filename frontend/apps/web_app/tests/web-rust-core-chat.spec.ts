@@ -13,8 +13,8 @@
  *      crypto routed through the shared Rust Worker (click to encrypted admission frame).
  * The TS runs also opt out of the Rust crypto unit (pure TS baseline); the Rust runs
  * route history AND crypto through the one shared Worker. Records WASM/worker
- * transfer sizes and TS vs Rust timings as JSON. Gated (medians, Rust <= TS):
- * saved-chat open-to-rendered and send-to-admission wall time, browser CPU and RSS.
+ * transfer sizes and TS vs Rust timings as JSON. Gated: saved-chat open-to-rendered
+ * medians (Rust <= TS budget) and the paired ABBA send bench verdicts (wall, p95, CPU).
  * Runs only in the CI lane that builds the Rust core package (web-rust-core-* specs).
  */
 export {};
@@ -25,6 +25,7 @@ const { createSignupLogger, createStepScreenshotter, getTestAccount, getE2EDebug
 const { loginToTestAccount, sendMessage } = require('./helpers/chat-test-helpers');
 const { createBrowserProcessEvidence } = require('./helpers/browser-process-evidence.cjs');
 const { rustCoreInstances } = require('./helpers/rust-core-instances');
+const { runSendBench } = require('./helpers/web-rust-core-bench-send');
 const { installMainThreadTrace, readMainThreadTrace } = require('./helpers/main-thread-trace');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -53,6 +54,8 @@ test.afterEach(async ({ page }: { page: any }, testInfo: any) => {
 	}
 });
 
+/** Paired ABBA send samples (plus one discarded warm-up pair): 12 sends stay under the per-account chat limit of one run. */
+const SEND_PAIRS = 5;
 const HISTORY_OPT_OUT_KEY = 'openmates_rust_core_history';
 // Measurement-only opt-out of the Rust crypto unit (webCryptoRegistration.ts).
 const CRYPTO_OPT_OUT_KEY = 'openmates_rust_core_crypto';
@@ -149,7 +152,7 @@ async function openChatAfterReload(page: any, chatId: string, path: 'ts' | 'rust
 // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,chats.persistence.client-encrypted,chats.streaming.ordered-final,sdk.web.before-after-performance
 test('opens a saved chat in the normal chat UI from Rust-decrypted history', async ({ page }: { page: any }, testInfo: any) => {
 	test.slow();
-	// Ten reload opens plus six timed sends (each waits for the reply).
+	// Ten reload opens plus twelve paired sends (each waits for the reply).
 	test.setTimeout(600000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 	const log = createSignupLogger('WEB_RUST_CORE');
@@ -163,20 +166,6 @@ test('opens a saved chat in the normal chat UI from Rust-decrypted history', asy
 	await page.addInitScript(installMainThreadTrace);
 	// Keep every TS send debug step (the app only exposes the latest one).
 	await page.addInitScript(() => {
-		// Send timing: last composer send gesture -> first encrypted admission frame.
-		const send = { starts: [] as number[], admitAt: null as number | null };
-		(window as unknown as { __sendTiming: typeof send }).__sendTiming = send;
-		const markStart = (event: Event) => {
-			const target = event.target as Element | null;
-			if (event.type === 'custom-send-message' || target?.closest?.('[data-testid="composer-send-button"]')) send.starts.push(performance.now());
-		};
-		document.addEventListener('click', markStart, true);
-		document.addEventListener('custom-send-message', markStart, true);
-		const nativeSend = WebSocket.prototype.send;
-		WebSocket.prototype.send = function (data) {
-			if (send.admitAt === null && typeof data === 'string' && data.includes('"chat_turn_admit"')) send.admitAt = performance.now();
-			return nativeSend.call(this, data);
-		};
 		const trail: unknown[] = [];
 		(window as unknown as { __sendTrail: unknown[] }).__sendTrail = trail;
 		let last: unknown = null;
@@ -266,55 +255,30 @@ test('opens a saved chat in the normal chat UI from Rust-decrypted history', asy
 		await screenshot(page, `rust-history-${runs.length}`);
 	}
 
-	// 5. Send/encrypt from a fresh chat after a cold reload, alternating TS and Rust crypto.
-	const sends: Array<Record<string, unknown>> = [];
-	for (const path of ['ts', 'rust', 'ts', 'rust', 'ts', 'rust'] as const) {
-		await selectPath(page, path);
-		await page.goto(getE2EDebugUrl('/'));
-		await page.reload();
-		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
-		// Same settle as the first send: post-login sync, then a fresh chat.
-		await page.waitForTimeout(3000);
-		const button = page.getByTestId('new-chat-button');
-		if (await button.isVisible()) { await button.click(); await page.waitForTimeout(2000); }
-		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
-		await page.evaluate(() => { const t = (window as unknown as { __sendTiming: { starts: number[]; admitAt: number | null } }).__sendTiming; t.starts = []; t.admitAt = null; });
-		await processes.begin();
-		await sendMessage(page, withMockMarker(`Please explain how leaves use sunlight, run ${sends.length + 1}.`, 'chat_flow_capital', 'fast'), log, screenshot, `${path}-send-${sends.length + 1}`);
-		const send = await expect.poll(() => page.evaluate(() => (window as unknown as { __sendTiming: { starts: number[]; admitAt: number | null } }).__sendTiming),
-			{ timeout: 30000, message: `${path}: encrypted admission frame sent` }).toMatchObject({ admitAt: expect.any(Number) })
-			.then(() => page.evaluate(() => (window as unknown as { __sendTiming: { starts: number[]; admitAt: number } }).__sendTiming));
-		const process = await processes.end();
-		// After the send: the crypto unit is opened lazily by the first crypto call.
-		const instances = await rustCoreInstances(page);
-		const start = send.starts.filter((value: number) => value <= send.admitAt).at(-1);
-		expect(start, `${path}: send gesture recorded before admission`).toBeDefined();
-		const row = { path, sendToAdmitMs: send.admitAt - start!,
-			browserCpuMs: process.available ? process.stableReportedProcessCpuMs : null,
-			browserRssBytes: process.available ? process.after.summedReportedProcessRssBytes : null,
-			sharedWorkerWasm: instances.sharedWorkerWasm };
-		log('send timing', row);
-		sends.push(row);
-		// One shared-Worker WASM instance in both arms: Rust auth (both) plus Rust crypto (Rust arm).
-		expect(instances.sharedWorkerWasm, `${path} send: one shared Worker WASM instance`).toBe(1);
-		expect(instances.wasmInstantiations, `${path} send: one WASM instance in the tab`).toBe(1);
-		await expect(page.getByTestId('message-assistant').last()).toBeVisible({ timeout: 60000 });
-		await expect(page.getByTestId('message-user').last()).toContainText('leaves use sunlight');
-	}
+	// 5. Send/encrypt: the shared paired ABBA send bench (helpers/web-rust-core-bench-send.ts):
+	//    each sample cold-reloads, primes a saved draft chat, waits for the model selector and
+	//    sends one message from the normal composer, TS crypto vs crypto through the shared
+	//    Rust Worker. Pairs are counterbalanced (every send adds a chat, so later sends are
+	//    slower in both arms; ABBA cancels that drift) after one discarded warm-up pair.
+	const sendBench = await runSendBench(page, { pairs: SEND_PAIRS, margin: 0.1, processes, log, screenshot, profile: false });
 	await processes.close();
 	metrics.openToRenderedMs = { runs };
 	metrics.perOpenMedians = Object.fromEntries((['ts', 'rust'] as const).map((path) => [path,
 		{ chatRendered: median(runs, path, 'chatRendered'), browserCpuMs: median(runs, path, 'browserCpuMs'), browserRssBytes: median(runs, path, 'browserRssBytes'),
 			mainHeapBytes: median(runs, path, 'mainHeapBytes'), dedicatedWorkers: median(runs, path, 'dedicatedWorkers'), rustWorkers: median(runs, path, 'rustWorkers'),
 			wasmInstantiations: median(runs, path, 'wasmInstantiations'), sharedWorkerWasm: median(runs, path, 'sharedWorkerWasm') }]));
-	metrics.sendToAdmission = { sends };
+	metrics.sendToAdmission = { summary: sendBench.summary, phaseDeltas: sendBench.phaseDeltas, failures: sendBench.failures, sequence: sendBench.sequence, samples: sendBench.samples };
 	metrics.reload = await rustTransfer(page);
 	log('Rust core metrics', metrics);
 	await testInfo.attach('web-rust-core-metrics.json', { body: JSON.stringify(metrics, null, 2), contentType: 'application/json' });
 	// Strict user-facing gates (attached above, so a failing run keeps its numbers).
-	metrics.gates = {
-		open: expectNotWorseThanTs('saved-chat open', runs, ['chatRendered', 'browserCpuMs', 'browserRssBytes']),
-		send: expectNotWorseThanTs('send/encrypt', sends, ['sendToAdmitMs', 'browserCpuMs', 'browserRssBytes'])
-	};
-	log('Rust core gates', metrics.gates);
+	// Open: medians. Send: the approved budget verdicts of the paired bench (bench-stats.ts):
+	// wall within max(+10%, +50 ms) with p95 at most +100 ms, CPU within +15% (95% CI);
+	// 'inconclusive' (too few pairs for the noise) is reported but only 'rust_worse' fails.
+	metrics.gates = { open: expectNotWorseThanTs('saved-chat open', runs, ['chatRendered', 'browserCpuMs', 'browserRssBytes']) };
+	for (const metric of ['sendToAdmitMs', 'sendBrowserCpuMs'] as const) {
+		expect.soft(sendBench.summary[metric].verdict, `send ${metric}: ${JSON.stringify(sendBench.summary[metric])}`).not.toBe('rust_worse');
+	}
+	expect(sendBench.failures.length, 'every paired send was accepted by the app').toBe(0);
+	log('Rust core gates', { ...metrics.gates as object, send: sendBench.summary });
 });
