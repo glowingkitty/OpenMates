@@ -268,7 +268,8 @@
 
             let inSignupFlow = false;
             try {
-                const { isSignupPath } = await import('../stores/signupState');
+                const { isSignupPath, primeSignupLocation } = await import('../stores/signupState');
+                if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') await primeSignupLocation(data.user?.last_opened);
                 inSignupFlow = isSignupPath(data.user?.last_opened) || false;
             } catch (signupStateErr) {
                 console.error('[EnterRecoveryKey] Failed to import signupState:', signupStateErr);

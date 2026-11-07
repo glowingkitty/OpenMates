@@ -1052,7 +1052,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // This ensures signup state is preserved and login interface stays open
         try {
             if (inSignupFlow && user?.last_opened) {
-                const { currentSignupStep, isInSignupProcess, getStepFromPath } = await import('../stores/signupState');
+                const { currentSignupStep, isInSignupProcess, getStepFromPath, primeSignupLocation } = await import('../stores/signupState');
+                if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') await primeSignupLocation(user.last_opened);
                 const step = getStepFromPath(user.last_opened);
                 currentSignupStep.set(step);
                 isInSignupProcess.set(true);

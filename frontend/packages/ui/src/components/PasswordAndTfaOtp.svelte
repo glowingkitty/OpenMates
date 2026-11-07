@@ -256,7 +256,8 @@
                     // tfa_app_name is optional and doesn't indicate if 2FA is configured
                     const isTfaConfigured = data.user?.tfa_enabled === true;
                     // Import isSignupPath helper for checking signup paths
-                    const { isSignupPath } = await import('../stores/signupState');
+                    const { isSignupPath, primeSignupLocation } = await import('../stores/signupState');
+                    if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') await primeSignupLocation(data.user?.last_opened);
                     const isInSignupFlow = isSignupPath(data.user?.last_opened) || false;
 
                     // If account exists but 2FA is not configured (user hasn't finished signup),
@@ -341,7 +342,8 @@
                     const hasUserData = data.user !== undefined && data.user !== null;
                     const isTfaConfigured = data.user?.tfa_enabled === true;
                     // Import isSignupPath helper for checking signup paths
-                    const { isSignupPath } = await import('../stores/signupState');
+                    const { isSignupPath, primeSignupLocation } = await import('../stores/signupState');
+                    if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') await primeSignupLocation(data.user?.last_opened);
                     const isInSignupFlow = isSignupPath(data.user?.last_opened) || false;
                     
                     // If 2FA is required but not actually configured (tfa_enabled is false) AND user is in signup flow,
@@ -583,7 +585,8 @@
         // ── Determine signup flow (needed for dispatch payload) ──
         let inSignupFlow = false;
         try {
-            const { isSignupPath } = await import('../stores/signupState');
+            const { isSignupPath, primeSignupLocation } = await import('../stores/signupState');
+            if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') await primeSignupLocation(data.user?.last_opened);
             inSignupFlow = isSignupPath(data.user?.last_opened) || false;
         } catch (importErr) {
             console.error('[PasswordAndTfaOtp] Failed to import signupState:', importErr);

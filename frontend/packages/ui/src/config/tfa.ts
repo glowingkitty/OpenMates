@@ -1,7 +1,12 @@
+import { createReactiveTfaApps } from './tfaReactive.svelte';
 import { authFlowActive, loadTfaApps } from '../services/rustCore/auth/flowPush';
 
+// Flag builds: the lists are owned by the shared Rust core. They start empty
+// (neutral default) and are filled when the Worker answers. The app list is a
+// `$state` array, so components that already rendered or captured it update on push.
+const rustOwned: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1' && authFlowActive();
 
-export const tfaApps: string[] = [
+export const tfaApps: string[] = rustOwned ? createReactiveTfaApps() : [
     'Google Authenticator',
     'Twilio Authy',
     'Microsoft Authenticator',
@@ -10,7 +15,7 @@ export const tfaApps: string[] = [
     'Proton Authenticator'
 ];
 
-export const tfaAppIcons: Record<string, string> = {
+export const tfaAppIcons: Record<string, string> = rustOwned ? {} : {
     'Google Authenticator': 'google-authenticator',
     'Twilio Authy': 'authy',
     'Microsoft Authenticator': 'microsoft-authenticator',
@@ -19,11 +24,4 @@ export const tfaAppIcons: Record<string, string> = {
     'Proton Authenticator': 'proton-authenticator'
 };
 
-// Flag builds: the lists are owned by the shared Rust core. They start empty
-// (neutral default) and are filled in place once the Worker answers, which is
-// long before the signup and security screens that read them are opened.
-if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1' && authFlowActive()) {
-    tfaApps.length = 0;
-    for (const name of Object.keys(tfaAppIcons)) delete tfaAppIcons[name];
-    void loadTfaApps(tfaApps, tfaAppIcons);
-}
+if (rustOwned) void loadTfaApps(tfaApps, tfaAppIcons);

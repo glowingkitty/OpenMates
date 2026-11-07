@@ -622,9 +622,16 @@ lanes:
     note: push-to-store adapters (services/rustCore/auth/flowPush.ts) for pairSessionState, pairActivate/rehydrate/auto-logout
       tick, pairV2.pairExpired, signup getStepFromPath/isSignupPath (primeSignupLocation in login/session auth actions)
       and config/tfa.ts lists; sync reads return the last pushed value or a neutral default
+      Follow-up (same slice) - pair state fails closed (restricted until Rust's view arrives, while activation is pending and when Rust errors
+      on rehydrate); tfa list is a $state array (config/tfaReactive.svelte.ts); primeSignupLocation in Login, PasswordAndTfaOtp,
+      EnterBackupCode, EnterRecoveryKey, ActiveChat; signup-hash deep link primed in prewarmRustAuth. pairExpired stays UI-only
+      (server enforces pair expiry); unknown deadline reads not-expired until the next poll.
+    ci_note: browser E2E blocked 2026-11-07 by runner image ubuntu26.04 (Playwright chromium unsupported); sdk-conformance red at
+      base 6df2e95b16 too (baseline)
     remaining:
     - getPathFromStep/isSettingsStep/STEP_SEQUENCE and completeSignup (sync, URL-writing) still TS
     - authSessionActions/authLoginLogoutActions/authMiscActions decision parts beyond the signup-location prime
+    - +page.svelte tab-reload read of the stored profile's last_opened is not primed (neutral false until a prior prime)
   blocked:
   - passwordV2 master-key handling in the Worker needs the keys lane K2 protocol
   owns:

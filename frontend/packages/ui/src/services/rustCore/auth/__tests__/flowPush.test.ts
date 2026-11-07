@@ -57,7 +57,7 @@ describe('signup push cache', () => {
 });
 
 describe('pair push', () => {
-	it('pairSessionState starts unrestricted and receives the Rust view', async () => {
+	it('pairSessionState is restricted (fail closed) for a stored record until the Rust view arrives', async () => {
 		const v = byOp('pair_view').find((x) => (x.expect as { isPairSession: boolean }).isPairSession) as Vector;
 		vi.useFakeTimers({ toFake: ['Date'] });
 		vi.setSystemTime(v.args.nowMs as number);
@@ -65,7 +65,7 @@ describe('pair push', () => {
 		const store = await import('../../../../stores/pairSessionStore');
 		const seen: unknown[] = [];
 		const stop = store.pairSessionState.subscribe((value) => seen.push(value));
-		expect(seen[0]).toMatchObject({ isPairSession: false });
+		expect(seen[0]).toMatchObject({ isPairSession: true });
 		await flush();
 		expect(get(store.pairSessionState)).toEqual(v.expect);
 		stop();
@@ -83,6 +83,38 @@ describe('pair push', () => {
 		vi.useRealTimers();
 	});
 
+	it('a freshly activated pair session is restricted before Rust answers', async () => {
+		const v = byOp('pair_activate')[0];
+		vi.useFakeTimers({ toFake: ['Date'] });
+		vi.setSystemTime(v.args.nowMs as number);
+		const store = await import('../../../../stores/pairSessionStore');
+		const stop = store.pairSessionState.subscribe(() => undefined);
+		expect(get(store.pairSessionState).isPairSession).toBe(false);
+		const activation = store.activatePairSession(v.args.input as never);
+		expect(get(store.isRestrictedSession)).toBe(true);
+		await activation;
+		await flush();
+		expect(get(store.isRestrictedSession)).toBe(true);
+		stop();
+		vi.useRealTimers();
+	});
+
+	it('stays restricted when Rust cannot answer on rehydrate', async () => {
+		const v = byOp('pair_view').find((x) => (x.expect as { isPairSession: boolean }).isPairSession) as Vector;
+		vi.useFakeTimers({ toFake: ['Date'] });
+		vi.setSystemTime(v.args.nowMs as number);
+		sessionStorage.setItem('openmates_pair_session', JSON.stringify(v.args.data));
+		rustAuthFlow.mockRejectedValue(new Error('worker down'));
+		const store = await import('../../../../stores/pairSessionStore');
+		const stop = store.pairSessionState.subscribe(() => undefined);
+		await store.rehydratePairSession();
+		await flush();
+		expect(get(store.isRestrictedSession)).toBe(true);
+		stop();
+		rustAuthFlow.mockReset();
+		vi.useRealTimers();
+	});
+
 	it('activatePairSession stores the record Rust built', async () => {
 		const v = byOp('pair_activate')[0];
 		vi.useFakeTimers({ toFake: ['Date'] });
@@ -97,10 +129,10 @@ describe('pair push', () => {
 describe('2FA apps push', () => {
 	it('fills the shared lists in place from Rust and none are left from TypeScript', async () => {
 		const { tfaApps, tfaAppIcons } = await import('../../../../config/tfa');
-		expect(tfaApps).toEqual([]);
+		expect(Array.from(tfaApps)).toEqual([]);
 		await flush();
 		const list = TFA_REPLY;
-		expect(tfaApps).toEqual(list.map((app) => app.name));
+		expect(Array.from(tfaApps)).toEqual(list.map((app) => app.name));
 		expect(tfaAppIcons).toEqual(Object.fromEntries(list.map((app) => [app.name, app.icon])));
 	});
 });

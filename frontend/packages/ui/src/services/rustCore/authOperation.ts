@@ -14,7 +14,7 @@
  */
 import { getApiEndpoint } from '../../config/api';
 import type { RustAuthClient } from './auth/authClient';
-import { authFlowActive, RUST_AUTH_SELECT_KEY as SELECT_KEY } from './auth/flowPush';
+import { authFlowActive, primeSignupPath, RUST_AUTH_SELECT_KEY as SELECT_KEY } from './auth/flowPush';
 import { PAGE_ORIGIN_PLACEHOLDER, type AuthHttpReply, type AuthHttpRequest, type PasswordLoginResult } from './auth/authProtocol';
 
 export const RUST_AUTH_SELECT_KEY = SELECT_KEY;
@@ -132,6 +132,8 @@ function retire(): void {
 /** Start the Worker early so the first auth call does not pay WASM start-up. */
 export function prewarmRustAuth(): void {
 	if (!rustAuthEnabled()) return;
+	// A #signup/... deep link is routed with synchronous reads later; have Rust answer for it now.
+	if (window.location.hash.startsWith('#signup/')) void primeSignupPath(window.location.hash.substring(1));
 	void core().catch(() => undefined);
 	retire(); // Warm-up does not hold the Worker: it closes after the idle time unless an operation starts.
 }

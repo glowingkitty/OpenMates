@@ -55,6 +55,11 @@ export const NEUTRAL_PAIR_STATE: PairSessionState = {
 	isPairSession: false, authorizerDeviceName: null, autoLogoutAt: null, autoLogoutWarning: false, remainingSeconds: null,
 };
 
+/** Restricted view used until Rust answers for a stored or just-activated pair session (fail closed). */
+export const FAIL_CLOSED_PAIR_STATE: PairSessionState = {
+	isPairSession: true, authorizerDeviceName: null, autoLogoutAt: null, autoLogoutWarning: false, remainingSeconds: null,
+};
+
 /** Computes the restricted-session view in Rust and pushes it; stale answers are dropped. */
 export function pushPairView(data: PairSessionData | null, nowMs: number, set: (value: PairSessionState) => void): void {
 	const seq = ++pairSeq;
@@ -122,12 +127,13 @@ export function isSignupPathPushed(path: string | null | undefined): boolean {
 
 // -------------------------------------------------------------------- 2FA ---
 
-/** Fills the shared 2FA app lists in place from Rust; resolves once pushed. */
+/** Fills the shared 2FA app lists in place from Rust (`apps` is a reactive array); resolves once pushed. */
 export async function loadTfaApps(apps: string[], icons: Record<string, string>): Promise<void> {
 	try {
 		const list = await flow<{ name: string; icon: string }[]>('tfa_apps', {});
-		apps.splice(0, apps.length, ...list.map((app) => app.name));
+		// Icons first: the app list is reactive and renders icons as soon as it changes.
 		for (const app of list) icons[app.name] = app.icon;
+		apps.splice(0, apps.length, ...list.map((app) => app.name));
 	} catch (error) {
 		warn('tfa_apps', error);
 	}
