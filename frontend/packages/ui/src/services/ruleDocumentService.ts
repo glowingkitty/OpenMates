@@ -10,7 +10,7 @@ import { decryptWithEmbedKey, encryptWithEmbedKey, wrapEmbedKeyWithChatKey } fro
 import { chatKeyManager } from './encryption/ChatKeyManager';
 import {
   approveProjectWrite, getActiveProjectFocus, getProject, getProjectContents,
-  getProjectSettings, getProjectFileRevisionReceipt, readEncryptedProjectFile,
+  getProjectSettings, getProjectFileRevisionReceipt, readEncryptedProjectFile, removeEmbedFromProject,
   type ActiveProjectFocus, type ProjectItemViewModel,
 } from './projectService';
 import {
@@ -146,7 +146,7 @@ export async function deletePersonalRuleDocument(id: string): Promise<void> {
 /**
  * Client-side expiry: deletes personal memories expired beyond the 7 day grace.
  * Returns the number of deleted memories. Project memories are excluded from
- * catalogs by buildMemoryCatalog while expired; their deletion needs an active Project.
+ * catalogs by buildMemoryCatalog while expired; deleteExpiredProjectMemories removes them while their Project is active.
  */
 export async function deleteExpiredPersonalMemories(now: Date | number = Date.now()): Promise<number> {
   const snapshot = await accountSettings();
@@ -159,6 +159,31 @@ export async function deleteExpiredPersonalMemories(now: Date | number = Date.no
   }
   await persistPersonalSettings(snapshot);
   return expired.size;
+}
+
+/**
+ * Deletes Project memories expired beyond the 7 day grace, same rule as personal memories.
+ * Needs the active Project's authoritative documents (callers pass the freshly listed set),
+ * so it can only run while that Project is active. Returns the number deleted.
+ */
+export async function deleteExpiredProjectMemories(
+  input: { projectId: string; teamId?: string | null; documents: readonly EditableRuleDocument[] },
+  now: Date | number = Date.now(),
+): Promise<number> {
+  const expired = input.documents.filter((item) => item.source === 'project' && item.id
+    && isMemoryExpiredBeyondGrace(parseRuleDocument(item.document), now));
+  if (!expired.length) return 0;
+  const context = { teamId: input.teamId ?? undefined };
+  const contents = await getProjectContents(await getProject(input.projectId, context), context);
+  let deleted = 0;
+  for (const memory of expired) {
+    const item = contents.items.find((candidate) => candidate.project_item_id === memory.id);
+    if (!item?.target_id) continue;
+    await removeEmbedFromProject(input.projectId, item.target_id, context);
+    deleted += 1;
+  }
+  if (deleted) broadcastProjectFilesChanged(input.projectId);
+  return deleted;
 }
 
 let expirySweepStarted = false;
@@ -401,6 +426,8 @@ export async function collectCustomRuleDocuments(input: {
   if (!get(authStore).isAuthenticated || get(userProfile).user_id !== owner) return [];
   if (!focus || input.projectId && focus.project_id !== input.projectId) return personal;
   const project = await listProjectRuleDocuments({ chatId: input.chatId, projectId: focus.project_id });
+  try { await deleteExpiredProjectMemories({ projectId: focus.project_id, teamId: focus.team_id, documents: project }); }
+  catch (error) { console.warn('[ruleDocumentService] Project memory expiry sweep skipped', error); }
   const fresh = await getActiveProjectFocus(input.chatId);
   if (requireOwner() !== owner) return [];
   const documents = fresh?.project_id === focus.project_id && fresh?.team_id === focus.team_id ? [...personal, ...project] : personal;

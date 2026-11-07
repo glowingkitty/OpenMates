@@ -47,7 +47,7 @@ Directus is the system of record. Most user PII is encrypted at rest with a per-
 - `usage` — `user_id_hash`, `device_hash`, encrypted model / credit-cost / token fields, encrypted server region.
 - `invoices` / `credit_notes` — `encrypted_amount`, `encrypted_s3_object_key`, `encrypted_aes_key`, `encrypted_currency`, `provider` enum `stripe` (plus historical legacy provider values).
 - `reminders` — `encrypted_user_id`, `encrypted_prompt`, `encrypted_chat_history`, repeat/random configs.
-- `user_app_settings_and_memories` — `encrypted_app_key`, `encrypted_item_json`.
+- `user_app_settings_and_memories` — legacy encrypted rows only; Memories are unified client-encrypted documents and the server keeps no typed app-memory storage or plaintext bodies.
 - `user_daily_inspirations` — encrypted phrases, AI responses, video metadata.
 - `safety_audit_log` — **`user_id` cleartext** (see M3).
 - `upload_files` — `original_filename`, `content_hash`, `aes_key` (base64 cleartext) + `vault_wrapped_aes_key` (see H10).

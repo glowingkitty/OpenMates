@@ -419,3 +419,13 @@ async def test_continuation_uses_stored_snapshot_limited_to_requested_ids():
         {"memory_catalog_ciphertext": "sealed"}, ["memory:m2", "code:prefs"], Encryption(), "vault")
     assert [row["id"] for row in got] == ["m2"] and SECRET not in json.dumps(got)
     assert await handler._requested_memory_catalog({}, ["memory:m2"], Encryption(), "vault") == []
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.load-modes
+def test_mention_only_is_never_listed_to_preprocessor_or_postprocessor():
+    # The shared catalog type has no mention_only, so neither stage can see or suggest an update for it.
+    assert "mention_only" not in str(MemoryCatalogEntry.model_fields["load_mode"].annotation)
+    with pytest.raises(ValueError):
+        parse_memory_catalog([entry(mode="mention_only")])
+    from backend.apps.ai.processing import postprocessing_context_suggestions as post
+    assert post.sanitize_context_suggestion({"kind": "memory_update", "memory_id": "m1", "title": "x"}, []) is None

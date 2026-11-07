@@ -3,7 +3,7 @@ import { webcrypto } from 'node:crypto';
 
 const mocks = vi.hoisted(() => ({
   activeFocus: vi.fn(), getProject: vi.fn(), contents: vi.fn(), settings: vi.fn(),
-  readHead: vi.fn(), receipt: vi.fn(), approve: vi.fn(), decrypt: vi.fn(), encrypt: vi.fn(),
+  readHead: vi.fn(), removeEmbed: vi.fn(), receipt: vi.fn(), approve: vi.fn(), decrypt: vi.fn(), encrypt: vi.fn(),
 }));
 vi.mock('../../config/api', () => ({ getApiEndpoint: (path: string) => `https://api.test${path}` }));
 vi.mock('../../stores/authStore', async () => {
@@ -23,11 +23,12 @@ vi.mock('../projectService', () => ({
   getActiveProjectFocus: mocks.activeFocus, getProject: mocks.getProject, getProjectContents: mocks.contents,
   getProjectSettings: mocks.settings, readEncryptedProjectFile: mocks.readHead,
   getProjectFileRevisionReceipt: mocks.receipt, approveProjectWrite: mocks.approve,
+  removeEmbedFromProject: mocks.removeEmbed,
 }));
 
 import { authStore } from '../../stores/authStore';
 import { userProfile } from '../../stores/userProfile';
-import { collectCustomRuleDocuments, personalDocumentMemoryEntries, listPersonalRuleDocuments, savePersonalRuleDocument, saveProjectMarkdownDocument, readActiveProjectMarkdownDocuments } from '../ruleDocumentService';
+import { deleteExpiredProjectMemories, collectCustomRuleDocuments, personalDocumentMemoryEntries, listPersonalRuleDocuments, savePersonalRuleDocument, saveProjectMarkdownDocument, readActiveProjectMarkdownDocuments } from '../ruleDocumentService';
 import { collectProjectFocusCatalog, collectPrivateFocusForRequest, collectProjectReferenceDocuments } from '../agenticProjectContextService';
 
 const guide = '---\ntitle: Private Python practices\ndescription: Private reusable service practices.\nwhen_to_use: Writing Python services.\n---\n- Preserve cancellation.\n- Release resources.\n';
@@ -186,4 +187,21 @@ it('merges legacy account Memories once and exposes entries only to the private 
   expect(entries[0].item_value.document).toBe(updated);
   mocks.activeFocus.mockResolvedValue(null);
   expect(await collectCustomRuleDocuments({chatId: 'chat-1'})).toEqual([]);
+});
+
+// contract-test: direct surface=gui.web assertions=app-memories.expiry.client-enforced
+it('deletes Project memories only after expiry plus the 7 day grace', async () => {
+  const now = Date.parse('2026-06-20T00:00:00Z');
+  const doc = (validUntil: string) => `---\ntitle: Temp\nvalid_until: '${validUntil}'\n---\nBody\n`;
+  const rule = (id: string, validUntil: string) => ({ id, source: 'project' as const, project_id: 'p1', document: doc(validUntil) });
+  mocks.getProject.mockResolvedValue(project);
+  mocks.contents.mockResolvedValue({ folders: [], items: [
+    { project_item_id: 'item-old', target_id: 'embed-old', metadata: {} },
+    { project_item_id: 'item-grace', target_id: 'embed-grace', metadata: {} },
+  ] });
+  const deleted = await deleteExpiredProjectMemories({ projectId: 'p1', teamId: null, documents: [
+    rule('item-old', '2026-06-01T00:00:00Z'), rule('item-grace', '2026-06-18T00:00:00Z'),
+  ] }, now);
+  expect(deleted).toBe(1);
+  expect(mocks.removeEmbed).toHaveBeenCalledExactlyOnceWith('p1', 'embed-old', { teamId: undefined });
 });

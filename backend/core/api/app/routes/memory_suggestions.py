@@ -47,6 +47,9 @@ class UpdatePreviewRequest(BaseModel):
 async def update_preview(request: Request, response: Response, body: UpdatePreviewRequest) -> Dict[str, Any]:
     state = request.app.state
     user = await _user(request, response)
+    # Ownership first: no LLM call or charge may be attributed to a foreign chat.
+    if not await state.directus_service.chat.check_chat_ownership(body.chat_id, user.id):
+        raise HTTPException(status_code=404, detail="Chat not found")
     user_id_hash = hashlib.sha256(user.id.encode()).hexdigest()
     billing = BillingService(state.cache_service, state.directus_service, state.encryption_service)
     if await billing.get_authoritative_personal_balance(user_id=user.id, user_id_hash=user_id_hash) < 1:

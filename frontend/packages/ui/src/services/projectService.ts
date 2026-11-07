@@ -1479,6 +1479,13 @@ export async function removeChatFromProject(projectId: string, chatId: string, c
   }), { method: 'DELETE' });
 }
 
+/** Remove one embed's Project association (e.g. an expired Project memory file); the embed row follows the server rule. */
+export async function removeEmbedFromProject(projectId: string, embedId: string, context: ProjectApiContext = {}): Promise<void> {
+  await requestJson(withProjectRemoteQuery(`/v1/projects/${encodeURIComponent(projectId)}/items`, {
+    item_type: 'embed', target_id: embedId, team_id: context.teamId,
+  }), { method: 'DELETE' });
+}
+
 function embedTypeForUpload(upload: UploadFileResponse): string {
   const contentType = upload.content_type || "";
   const filename = upload.filename.toLowerCase();
