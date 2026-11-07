@@ -531,7 +531,7 @@ measurements:
     confidence: traced
     notes: 'Advisory under the 2026-11-07 policy: +103 ms is not gross (needs >+25% and >+100 ms). Prepare-early
       applied; the median delta fell from +354/+306 to roughly +100-190 ms.'
-  - id: 2026-11-07-chatRendered-persist-01
+  - id: 2026-11-07-chatRendered-06
     date: '2026-11-07'
     flow: chatRendered
     metric: chatRenderedMs
@@ -546,3 +546,52 @@ measurements:
     evidence: web-rust-core-bench reload CI job 6c58976e (run 42365398525), persist opt-out added to the TS arm
     confidence: traced
     notes: 'TS arm failed before pairing (''ts: embed preview finished'' undefined; embed_write_not_bound in the console), the same embed blocker as the embeds-3 attempts; web-rust-core-reload-memory fails the same way. No paired persist numbers: an unchanged-chat reload makes no row-policy writes. The persist send phase is asserted by web-rust-core-persist.spec (job 023db33c, success).'
+  - id: 2026-11-07-embedReady-02
+    date: '2026-11-07'
+    flow: embedReady
+    metric: embedReadyMs
+    value_kind: ratio
+    value: 1.038
+    ci95: [1.005, 1.064]
+    n_pairs: 12
+    verdict: rust_not_worse
+    verdict_basis: reported
+    ci_job: 5dfe0d42
+    source_commit: f1c2e376a9b2ee7d0a38905493ea6cb1dee3d293
+    evidence: web-rust-core-bench reload, 12 pairs, 4b92329 TS arm opt-outs
+    confidence: traced
+    notes: TS 924.1 ms vs Rust 953.1 ms (+29 ms, not gross). Resolves the embeds-3 blocker; the TS arm failure
+      was a harness bug (history opt-out binds no Worker session).
+  - id: 2026-11-07-chatRendered-07
+    date: '2026-11-07'
+    flow: chatRendered
+    metric: chatRenderedMs
+    value_kind: ratio
+    value: 1.03
+    ci95: [0.988, 1.073]
+    n_pairs: 12
+    verdict: rust_not_worse
+    verdict_basis: reported
+    ci_job: 5dfe0d42
+    source_commit: f1c2e376a9b2ee7d0a38905493ea6cb1dee3d293
+    evidence: web-rust-core-bench reload, 12 pairs, persist opt-out in TS arm
+    confidence: traced
+    notes: TS 896.5 ms vs Rust 923.85 ms (+27 ms). Includes IndexedDB message row policy (persist unit);
+      also uiInteractive 1.003x, browserCpu 1.041x, RSS +3.0 MB, 1 Worker / 1 WASM.
+  - id: 2026-11-07-reloadMemory-01
+    date: '2026-11-07'
+    flow: reloadMemory
+    metric: retainedBytes
+    value_kind: delta_mib_per_reload
+    value: 0.24
+    ci95: [-0.43, 0.9]
+    n_pairs: 20
+    verdict: rust_not_worse
+    verdict_basis: reported
+    ci_job: a887f5d2
+    source_commit: f1c2e376a9b2ee7d0a38905493ea6cb1dee3d293
+    evidence: web-rust-core-reload-memory, ABBA blocks, 4b92329 TS arm opt-outs
+    confidence: traced
+    notes: Rust per-reload retained-heap slope +0.24 MiB [-0.43,0.90] vs TS -0.77 [-1.46,-0.09]; total RSS
+      Rust +0.39 [-0.09,0.89] vs TS -0.34 [-0.84,0.15] (n=16). Within the +1 MiB gate; no growth beyond
+      noise.
