@@ -632,7 +632,8 @@ lanes:
     remaining:
     - +page.svelte tab-reload read of the stored profile's last_opened is not primed (neutral false until a prior prime)
   - id: slice-3
-    status: running
+    status: landed
+    commit: 84cb77e2a6
     note: web_auth_actions.rs (login_verdict, debug_session_resume, language_reconcile via the existing web_auth_flow export;
       no new pub symbol) plus services/rustCore/auth/actionsPush.ts. Wired flag-on in authLoginLogoutActions (login reply
       classification, debug-session resume, logout cookie decision) and authSessionActions (missing-master-key plan with fail-closed
