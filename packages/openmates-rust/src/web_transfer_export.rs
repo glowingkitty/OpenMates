@@ -10,26 +10,26 @@ use super::yaml::{Node, to_yaml_string};
 use crate::account::imports_parse::{iso_from_ms, js_is_space};
 use serde_json::json;
 
-fn protocol<E>(_: E) -> String {
+pub(super) fn protocol<E>(_: E) -> String {
     "protocol".into()
 }
-fn parse(text: &str) -> Result<Node, String> {
+pub(super) fn parse(text: &str) -> Result<Node, String> {
     serde_json::from_str(text).map_err(protocol)
 }
-fn field<'a>(node: &'a Node, key: &str) -> Result<&'a Node, String> {
+pub(super) fn field<'a>(node: &'a Node, key: &str) -> Result<&'a Node, String> {
     node.get(key).ok_or_else(|| "protocol".to_string())
 }
-fn text_field<'a>(node: &'a Node, key: &str) -> Result<&'a str, String> {
+pub(super) fn text_field<'a>(node: &'a Node, key: &str) -> Result<&'a str, String> {
     field(node, key)?.as_str().ok_or_else(|| "protocol".into())
 }
-fn array_field<'a>(node: &'a Node, key: &str) -> Result<&'a [Node], String> {
+pub(super) fn array_field<'a>(node: &'a Node, key: &str) -> Result<&'a [Node], String> {
     match field(node, key)? {
         Node::Array(items) => Ok(items),
         _ => Err("protocol".into()),
     }
 }
 /// Optional member that is absent, `null` or a string.
-fn opt_text<'a>(node: &'a Node, key: &str) -> Result<Option<&'a str>, String> {
+pub(super) fn opt_text<'a>(node: &'a Node, key: &str) -> Result<Option<&'a str>, String> {
     match node.get(key) {
         None | Some(Node::Null) => Ok(None),
         Some(Node::Str(text)) => Ok(Some(text)),
@@ -41,7 +41,7 @@ fn member(node: &Node, key: &str) -> Node {
 }
 
 /// Seconds-vs-milliseconds heuristic shared by every export timestamp.
-fn timestamp_ms(value: f64) -> f64 {
+pub(super) fn timestamp_ms(value: f64) -> f64 {
     if value < 1e12 { value * 1000.0 } else { value }
 }
 
@@ -139,7 +139,7 @@ pub fn export_draft_kind_json(input: &str) -> Result<String, String> {
 }
 
 /// `[placeholder, original]` PII mapping in UTF-16 units (JavaScript semantics).
-type PiiMapping = (Vec<u16>, Vec<u16>);
+pub(super) type PiiMapping = (Vec<u16>, Vec<u16>);
 
 /// `text.split(pattern).join(replacement)` over UTF-16 units.
 fn split_join(text: &[u16], pattern: &[u16], replacement: &[u16]) -> Vec<u16> {
@@ -215,7 +215,7 @@ pub(crate) fn restore_pii(text: &str, mappings: &[PiiMapping]) -> String {
 }
 
 /// The export's PII options: `None` when no mappings apply or PII stays hidden.
-fn pii_mappings(input: &Node) -> Result<Vec<PiiMapping>, String> {
+pub(super) fn pii_mappings(input: &Node) -> Result<Vec<PiiMapping>, String> {
     let options = match input.get("pii") {
         None | Some(Node::Null) => return Ok(Vec::new()),
         Some(options) => options,
@@ -233,7 +233,7 @@ fn pii_mappings(input: &Node) -> Result<Vec<PiiMapping>, String> {
         .collect()
 }
 
-fn object(entries: Vec<(&str, Node)>) -> Node {
+pub(super) fn object(entries: Vec<(&str, Node)>) -> Node {
     Node::Object(
         entries
             .into_iter()

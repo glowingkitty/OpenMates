@@ -62,3 +62,33 @@ pub fn transfer_export_draft_kind(input: &str) -> Result<String, JsValue> {
 pub fn transfer_export_yaml(input: &str) -> Result<String, JsValue> {
     js(web_transfer::export_yaml_json(input))
 }
+
+/// Entry layout, Markdown and names of a single or bulk chat ZIP download.
+#[wasm_bindgen]
+pub fn transfer_zip_chat_plan(input: &str) -> Result<String, JsValue> {
+    js(web_transfer::zip_chat_plan_json(input))
+}
+
+/// Download names of a code-file download or code-files ZIP.
+#[wasm_bindgen]
+pub fn transfer_zip_code_files(input: &str) -> Result<String, JsValue> {
+    js(web_transfer::zip_code_files_json(input))
+}
+
+/// Sanitized paths and zip name of an application project ZIP.
+#[wasm_bindgen]
+pub fn transfer_zip_application(input: &str) -> Result<String, JsValue> {
+    js(web_transfer::zip_application_json(input))
+}
+
+/// Dated name of a bulk chat ZIP download.
+#[wasm_bindgen]
+pub fn transfer_zip_bulk_name(input: &str) -> Result<String, JsValue> {
+    js(web_transfer::zip_bulk_name_json(input))
+}
+
+/// Ordered Account Export V1 archive entries with the secret guards applied.
+#[wasm_bindgen]
+pub fn transfer_account_export_archive(input: &str) -> Result<String, JsValue> {
+    js(web_transfer::account_export_archive_json(input))
+}

@@ -28,6 +28,14 @@ mod yaml;
 #[path = "web_transfer_export.rs"]
 mod export;
 pub use export::{export_draft_kind_json, export_filename_json, export_yaml_json};
+#[path = "web_transfer_zip.rs"]
+mod zip;
+pub use zip::{
+    zip_application_json, zip_bulk_name_json, zip_chat_plan_json, zip_code_files_json,
+};
+#[path = "web_transfer_account_export.rs"]
+mod account_export;
+pub use account_export::account_export_archive_json;
 
 #[cfg(test)]
 #[path = "web_transfer_tests.rs"]
@@ -35,6 +43,9 @@ mod tests;
 #[cfg(test)]
 #[path = "web_transfer_export_tests.rs"]
 mod export_tests;
+#[cfg(test)]
+#[path = "web_transfer_zip_tests.rs"]
+mod zip_tests;
 
 /// `Math.max(1, Math.ceil(content.length / 4))` over non-blank messages, per chat.
 pub fn chat_estimate(chat: &ParsedImportChat) -> (u64, u64) {

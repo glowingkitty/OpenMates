@@ -12,6 +12,10 @@
  * Chat export (web_transfer_export.rs, port of chatExportService.ts) builds the
  * download filename and the chat YAML from values the page resolved (decrypted
  * titles, Markdown message bodies, decrypted thinking, collected embeds).
+ *
+ * ZIP exports (web_transfer_zip.rs, web_transfer_account_export.rs) plan the
+ * archive: entry paths, Markdown, names, the Account Export V1 documents and
+ * their secret guards. The page loads embeds/blobs and writes the zip bytes.
  */
 import type { UnitProtocol } from '../host/unitPort';
 import type { AccountImportSource, ParsedAccountImport } from '../../chatImportService';
@@ -64,6 +68,34 @@ export interface TransferExportYamlRequest {
 	pii: { hidden: boolean; mappings: Array<{ placeholder: string; original: string }> } | null;
 }
 
+/** One entry of a planned zip: Rust text, or a reference the page resolves to its data. */
+export type TransferZipEntry =
+	| { path: string; text: string }
+	| { path: string; src: [group: string, index: number, page?: number] };
+export interface TransferZipChatRequest {
+	/** `generateChatFilename(chat, "")`; the extension rule strips from it. */
+	filename: string;
+	/** `JSON.stringify(completeness, null, 2)`, or null for bulk exports (no metadata file). */
+	completenessJson: string | null;
+	chat: { title: string | null; createdAt: number | undefined };
+	/** `content` is the page-serialized readable Markdown, or null when serialization failed. */
+	messages: Array<{ role: string; createdAt: number | undefined; content: string | null }>;
+	pii: { hidden: boolean; mappings: Array<{ placeholder: string; original: string }> } | null;
+	code: Array<{ filePath: string | null; filename: string | null; language: string; embedId: string }>;
+	transcripts: string[];
+	images: string[];
+	generatedAudio: string[];
+	staticFiles: string[];
+	audio: string[];
+	pdfs: Array<{ folderName: string; pages: string[] }>;
+}
+export interface TransferAccountExportRequest {
+	export: { export_id: unknown; status: unknown };
+	manifest: unknown;
+	chunks: Array<{ chunk_id: unknown; domain: unknown; sequence: unknown; status: unknown; payload: unknown }>;
+	exportedAt: string;
+}
+
 export interface TransferParseMeta {
 	fileName: string;
 	container: 'json' | 'zip';
@@ -101,6 +133,25 @@ export interface TransferUnitProtocol extends UnitProtocol {
 	/** Whether a stored draft is cleartext (no decryption needed). */
 	exportDraftKind: { request: { draft: string }; response: { kind: 'ok'; cleartext: boolean } };
 	exportYaml: { request: TransferExportYamlRequest; response: { kind: 'ok'; yaml: string } };
+	/** Entry layout, Markdown and zip name of a chat ZIP download (single or one bulk folder). */
+	zipChatPlan: {
+		request: TransferZipChatRequest;
+		response: { kind: 'ok'; base: string; zipName: string; entries: TransferZipEntry[] };
+	};
+	zipCodeFiles: {
+		request: { nowIso: string; files: Array<{ filename: string | null; headerFilename: string | null; language: string }> };
+		response: { kind: 'ok'; zipName: string; names: string[] };
+	};
+	zipApplication: {
+		request: { appName: string | null; paths: string[] };
+		response: { kind: 'ok'; zipName: string; paths: string[] };
+	};
+	zipBulkName: { request: { nowIso: string }; response: { kind: 'ok'; zipName: string } };
+	/** Account Export V1 archive entries; `error` carries the secret-guard message the TS service throws. */
+	accountExportArchive: {
+		request: TransferAccountExportRequest;
+		response: { kind: 'ok'; entries: Array<{ path: string; content: string }> } | TransferError;
+	};
 }
 
 /** Worker module exports (snake_case, JSON text) of browser_transfer.rs. */
@@ -114,12 +165,19 @@ export interface TransferBinding {
 	transfer_export_filename(input: string): string;
 	transfer_export_draft_kind(input: string): string;
 	transfer_export_yaml(input: string): string;
+	transfer_zip_chat_plan(input: string): string;
+	transfer_zip_code_files(input: string): string;
+	transfer_zip_application(input: string): string;
+	transfer_zip_bulk_name(input: string): string;
+	transfer_account_export_archive(input: string): string;
 }
 
 const BINDING_EXPORTS: readonly (keyof TransferBinding)[] = [
 	'transfer_import_route', 'transfer_parse_json_import', 'transfer_zip_plan',
 	'transfer_openmates_manifest', 'transfer_parse_openmates_archive', 'transfer_batch_plan',
 	'transfer_export_filename', 'transfer_export_draft_kind', 'transfer_export_yaml',
+	'transfer_zip_chat_plan', 'transfer_zip_code_files', 'transfer_zip_application',
+	'transfer_zip_bulk_name', 'transfer_account_export_archive',
 ];
 
 export function isTransferBinding(value: unknown): value is TransferBinding {

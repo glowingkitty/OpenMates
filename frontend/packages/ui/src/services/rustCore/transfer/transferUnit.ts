@@ -71,6 +71,11 @@ export function createTransferHandlers(binding: TransferBinding): UnitHandlers<T
 		exportFilename: (payload) => call(() => binding.transfer_export_filename(exportEnvelope(payload))),
 		exportDraftKind: (payload) => call(() => binding.transfer_export_draft_kind(exportEnvelope(payload))),
 		exportYaml: (payload) => call(() => binding.transfer_export_yaml(exportEnvelope(payload))),
+		zipChatPlan: (payload) => call(() => binding.transfer_zip_chat_plan(exportEnvelope(payload))),
+		zipCodeFiles: (payload) => call(() => binding.transfer_zip_code_files(exportEnvelope(payload))),
+		zipApplication: (payload) => call(() => binding.transfer_zip_application(exportEnvelope(payload))),
+		zipBulkName: (payload) => call(() => binding.transfer_zip_bulk_name(exportEnvelope(payload))),
+		accountExportArchive: (payload) => call(() => binding.transfer_account_export_archive(exportEnvelope(payload))),
 	};
 }
 

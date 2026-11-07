@@ -30,6 +30,19 @@ import {
 import { userProfile, updateProfile } from "../stores/userProfile";
 import { get } from "svelte/store";
 import type { Chat, Message } from "../types/chat";
+import type * as RustChatZip from "./rustCore/transfer/rustChatZip";
+
+/** Opt-in shared Rust core build: archive assembly runs in the shared Worker `transfer` unit. */
+const RUST_TRANSFER_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1";
+/** Measurement-only opt-out (like chatExportService): `'ts'` keeps this TypeScript assembler. */
+const RUST_TRANSFER_OPT_OUT_KEY = "openmates_rust_core_transfer";
+let rustZipModule: Promise<typeof RustChatZip> | null = null;
+function rustChatZip(): Promise<typeof RustChatZip> | null {
+  if (!RUST_TRANSFER_BUILD) return null;
+  if (typeof localStorage === "undefined" || localStorage.getItem(RUST_TRANSFER_OPT_OUT_KEY) === "ts") return null;
+  rustZipModule ??= import("./rustCore/transfer/rustChatZip");
+  return rustZipModule;
+}
 
 // ============================================================================
 // TYPES
@@ -82,7 +95,7 @@ export interface ExportProgress {
 
 export type ExportProgressCallback = (progress: ExportProgress) => void;
 
-type AccountExportJob = Record<string, unknown> & {
+export type AccountExportJob = Record<string, unknown> & {
   export_id?: string;
   status?: string;
   selected_domains?: string[];
@@ -92,7 +105,7 @@ type AccountExportJob = Record<string, unknown> & {
   domain_results?: Record<string, unknown>;
 };
 
-type AccountExportChunk = Record<string, unknown> & {
+export type AccountExportChunk = Record<string, unknown> & {
   chunk_id?: string;
   domain?: string;
   sequence?: number;
@@ -100,7 +113,7 @@ type AccountExportChunk = Record<string, unknown> & {
   payload?: unknown;
 };
 
-type AccountExportBundle = {
+export type AccountExportBundle = {
   export: AccountExportJob;
   manifest: Record<string, unknown>;
   chunks: AccountExportChunk[];
@@ -359,7 +372,7 @@ export async function exportAllUserData(
     onProgress({ phase: "creating_zip", progress: 80, message: "Creating archive..." });
     const zipBlob = await createAccountExportV1Zip({
       export: { ...ready, status: "complete" },
-      manifest: sanitizeAccountExportManifest(manifest),
+      manifest,
       chunks,
     });
     ensureBrowserArchiveSize(zipBlob);
@@ -407,7 +420,7 @@ export async function acceptPartialAccountExport(
   onProgress({ phase: "creating_zip", progress: 80, message: "Creating partial archive..." });
   const zipBlob = await createAccountExportV1Zip({
     export: { export_id: exportId, status: "partial_accepted" },
-    manifest: sanitizeAccountExportManifest(manifest),
+    manifest,
     chunks,
   });
   ensureBrowserArchiveSize(zipBlob);
@@ -653,22 +666,36 @@ function sanitizeAccountExportManifest(manifest: Record<string, unknown>): Recor
 
 async function createAccountExportV1Zip(bundle: AccountExportBundle): Promise<Blob> {
   const zip = new JSZip();
-  writeSafeZipText(zip, "README.md", buildAccountExportV1Readme(bundle));
-  writeSafeZipText(zip, "manifest.yml", serializeArchiveYaml(bundle.manifest));
-  writeSafeZipText(zip, "manifest.json", `${JSON.stringify(bundle.manifest, null, 2)}\n`);
-  writeSafeZipText(zip, "export-report.yml", serializeArchiveYaml(buildAccountExportV1Report(bundle)));
-  const domainPayloads = collectAccountExportDomainPayloads(bundle.chunks);
-  for (const [domain, payloads] of Object.entries(domainPayloads)) {
-    const domainFile = payloads.length === 1 ? payloads[0] : { chunks: payloads };
-    writeSafeZipText(zip, `domains/${safeArchiveSegment(domain)}.json`, `${JSON.stringify(domainFile, null, 2)}\n`);
-  }
-  writeAccountExportV1ChatFiles(zip, domainPayloads.chats ?? []);
+  const exportedAt = new Date().toISOString();
+  const rust = rustChatZip();
+  const entries = rust
+    ? await (await rust).rustAccountExportEntries(bundle, exportedAt)
+    : buildAccountExportV1EntriesTs(bundle, exportedAt);
+  for (const entry of entries) zip.file(entry.path, entry.content);
   return await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
 }
 
-function writeSafeZipText(zip: JSZip, relativePath: string, content: string): void {
-  assertAccountExportTextSafe(content, relativePath);
-  zip.file(relativePath, content);
+/** TypeScript assembly of the archive documents (flag-off path); throws on secret-like content. */
+export function buildAccountExportV1EntriesTs(
+  rawBundle: AccountExportBundle, exportedAt: string,
+): Array<{ path: string; content: string }> {
+  const bundle = { ...rawBundle, manifest: sanitizeAccountExportManifest(rawBundle.manifest) };
+  const entries: Array<{ path: string; content: string }> = [];
+  const write = (relativePath: string, content: string) => {
+    assertAccountExportTextSafe(content, relativePath);
+    entries.push({ path: relativePath, content });
+  };
+  write("README.md", buildAccountExportV1Readme(bundle, exportedAt));
+  write("manifest.yml", serializeArchiveYaml(bundle.manifest));
+  write("manifest.json", `${JSON.stringify(bundle.manifest, null, 2)}\n`);
+  write("export-report.yml", serializeArchiveYaml(buildAccountExportV1Report(bundle)));
+  const domainPayloads = collectAccountExportDomainPayloads(bundle.chunks);
+  for (const [domain, payloads] of Object.entries(domainPayloads)) {
+    const domainFile = payloads.length === 1 ? payloads[0] : { chunks: payloads };
+    write(`domains/${safeArchiveSegment(domain)}.json`, `${JSON.stringify(domainFile, null, 2)}\n`);
+  }
+  collectAccountExportV1ChatFiles(domainPayloads.chats ?? [], write);
+  return entries;
 }
 
 function assertAccountExportTextSafe(content: string, relativePath: string): void {
@@ -683,7 +710,7 @@ function assertAccountExportTextSafe(content: string, relativePath: string): voi
   });
 }
 
-function buildAccountExportV1Readme(bundle: AccountExportBundle): string {
+function buildAccountExportV1Readme(bundle: AccountExportBundle, exportedAt: string): string {
   const selectedDomains = Array.isArray(bundle.manifest.selected_domains) ? bundle.manifest.selected_domains.map(String) : [];
   return [
     "# OpenMates Account Export",
@@ -691,7 +718,7 @@ function buildAccountExportV1Readme(bundle: AccountExportBundle): string {
     `Export ID: ${String(bundle.export.export_id ?? "unknown")}`,
     `Status: ${String(bundle.export.status ?? "unknown")}`,
     `Schema: ${String(bundle.manifest.schema_version ?? "account-export-v1")}`,
-    `Exported at: ${new Date().toISOString()}`,
+    `Exported at: ${exportedAt}`,
     "",
     "## Contents",
     "",
@@ -741,7 +768,10 @@ function collectAccountExportDomainPayloads(chunks: AccountExportChunk[]): Recor
   return grouped;
 }
 
-function writeAccountExportV1ChatFiles(zip: JSZip, chatPayloads: Array<Record<string, unknown>>): void {
+function collectAccountExportV1ChatFiles(
+  chatPayloads: Array<Record<string, unknown>>,
+  write: (relativePath: string, content: string) => void,
+): void {
   const chats: Array<Record<string, unknown>> = [];
   for (const payload of chatPayloads) {
     if (Array.isArray(payload.items)) {
@@ -750,8 +780,8 @@ function writeAccountExportV1ChatFiles(zip: JSZip, chatPayloads: Array<Record<st
   }
   chats.forEach((chat, index) => {
     const chatId = safeArchiveSegment(String(chat.id ?? chat.chat_id ?? `chat-${index + 1}`));
-    writeSafeZipText(zip, `chats/${chatId}.yml`, serializeArchiveYaml({ chat, messages: Array.isArray(chat.messages) ? chat.messages : [] }));
-    writeSafeZipText(zip, `chats/${chatId}.md`, buildAccountExportV1ChatMarkdown(chat));
+    write(`chats/${chatId}.yml`, serializeArchiveYaml({ chat, messages: Array.isArray(chat.messages) ? chat.messages : [] }));
+    write(`chats/${chatId}.md`, buildAccountExportV1ChatMarkdown(chat));
   });
 }
 
