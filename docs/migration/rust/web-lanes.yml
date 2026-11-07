@@ -300,7 +300,7 @@ lanes:
     commit: 2aa5cd645c
     note: stateless recovery decisions and stream assembler
   - id: slice-2
-    commit: null
+    commit: d68d2ad91e
     note: retained admission-phase frame check
   size: L
   wave: B
