@@ -23,6 +23,33 @@ import { get } from "svelte/store";
 import { forcedLogoutInProgress } from "../../stores/signupState";
 import { websocketStatus } from "../../stores/websocketStatusStore";
 import { isAnonymousChatId } from "../anonymousChatIds";
+import {
+  BULK_RETRY_DELAY_MS,
+  bulkBatchRanges,
+  bulkRetryStep,
+  type BulkRetryStep,
+} from "./chatKeyBulkPlan";
+import { rustWebCrypto } from "../rustCore/crypto/webCryptoClient";
+import { keyBulkBatches, keyBulkRetryStep } from "../rustCore/crypto/keyOps";
+
+/** The Worker crypto client when the Rust core flag is on, else null (TS reference plan). */
+function bulkPlanClient() {
+  return import.meta.env.VITE_OPENMATES_RUST_CORE === "1" ? rustWebCrypto() : null;
+}
+
+/** Batch ranges for the collected keys; Rust plan flag-on, no TS fallback. Sync when flag-off. */
+function planBulkBatches(count: number): Array<[number, number]> | Promise<Array<[number, number]>> {
+  const client = bulkPlanClient();
+  return client ? keyBulkBatches(client, count) : bulkBatchRanges(count);
+}
+
+/** Retry timer step; Rust plan flag-on, no TS fallback. Sync when flag-off. */
+function planBulkRetryStep(retryCount: number, masterKeyAvailable: boolean): BulkRetryStep | Promise<BulkRetryStep> {
+  const client = bulkPlanClient();
+  return client
+    ? keyBulkRetryStep(client, retryCount, masterKeyAvailable)
+    : bulkRetryStep(retryCount, masterKeyAvailable);
+}
 
 // ---------------------------------------------------------------------------
 // Cached chat version map — populated during loadChatKeysFromDatabase cursor
@@ -310,22 +337,27 @@ export async function loadChatKeysFromDatabase(
                 console.warn(
                   `[ChatDatabase] No master key available yet, scheduling retry for ${keysToDecrypt.length} chat keys`,
                 );
-                const RETRY_DELAY_MS = 500;
-                const MAX_RETRIES = 6; // 3 seconds total
+                const RETRY_DELAY_MS = BULK_RETRY_DELAY_MS;
                 let retryCount = 0;
                 const retryBulkDecrypt = async () => {
                   if (!isCurrentLoad()) return;
                   retryCount++;
                   const masterKey = await getKeyFromStorage();
                   if (!isCurrentLoad()) return;
-                  if (masterKey) {
+                  const step = bulkPlanClient()
+                    ? await planBulkRetryStep(retryCount, !!masterKey)
+                    : planBulkRetryStep(retryCount, !!masterKey) as BulkRetryStep;
+                  if (!isCurrentLoad()) return;
+                  if (step === "decrypt" && masterKey) {
                     console.info(
                       `[ChatDatabase] Master key available on retry ${retryCount}, decrypting ${keysToDecrypt.length} chat keys`,
                     );
-                    const BATCH_SIZE = 20;
-                    for (let i = 0; i < keysToDecrypt.length; i += BATCH_SIZE) {
+                    const ranges = bulkPlanClient()
+                      ? await planBulkBatches(keysToDecrypt.length)
+                      : planBulkBatches(keysToDecrypt.length) as Array<[number, number]>;
+                    for (const [start, end] of ranges) {
                       if (!isCurrentLoad()) return;
-                      const batch = keysToDecrypt.slice(i, i + BATCH_SIZE);
+                      const batch = keysToDecrypt.slice(start, end);
                       await Promise.all(
                         batch.map(({ chatId, encryptedKey }) =>
                           decryptChatKeyWithMasterKey(encryptedKey, masterKey)
@@ -343,11 +375,11 @@ export async function loadChatKeysFromDatabase(
                     console.debug(
                       `[ChatDatabase] Retry: loaded ${keysToDecrypt.length} chat keys`,
                     );
-                  } else if (retryCount < MAX_RETRIES && isCurrentLoad()) {
+                  } else if (step === "retry" && isCurrentLoad()) {
                     setTimeout(retryBulkDecrypt, RETRY_DELAY_MS);
                   } else {
                     console.error(
-                      `[ChatDatabase] Master key still unavailable after ${MAX_RETRIES} retries. ` +
+                      `[ChatDatabase] Master key still unavailable after ${retryCount} retries. ` +
                         `${keysToDecrypt.length} chat keys remain undecrypted.`,
                     );
                   }
@@ -357,17 +389,15 @@ export async function loadChatKeysFromDatabase(
                 return;
               }
 
-              const BATCH_SIZE = 20;
-              for (
-                let i = 0;
-                i < keysToDecrypt.length;
-                i += BATCH_SIZE
-              ) {
+              const ranges = bulkPlanClient()
+                ? await planBulkBatches(keysToDecrypt.length)
+                : planBulkBatches(keysToDecrypt.length) as Array<[number, number]>;
+              for (const [start, end] of ranges) {
                 if (!isCurrentLoad()) {
                   resolve();
                   return;
                 }
-                const batch = keysToDecrypt.slice(i, i + BATCH_SIZE);
+                const batch = keysToDecrypt.slice(start, end);
                 await Promise.all(
                   batch.map(({ chatId, encryptedKey }) =>
                     decryptChatKeyWithMasterKey(encryptedKey, prefetchedMasterKey)

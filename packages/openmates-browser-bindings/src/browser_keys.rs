@@ -12,6 +12,7 @@
 //! `rust_keys_no_key`, `rust_keys_queue_full`), never key material.
 use js_sys::{Array, Object, Reflect};
 use openmates_sdk::web_key_state::{Enqueue, KeyState, KeyStore};
+use openmates_sdk::web_key_bulk;
 use openmates_sdk::web_keys::{self, KeySource};
 use std::cell::RefCell;
 use wasm_bindgen::prelude::*;
@@ -248,4 +249,27 @@ pub async fn keys_state_decrypt(chat_id: String, ciphertext: String) -> Result<J
 #[wasm_bindgen(js_name = keysStateEncrypt)]
 pub async fn keys_state_encrypt(chat_id: String, plaintext: String) -> Result<String, JsValue> {
     crate::browser_web_crypto::encrypt_chat_content(stored_key(&chat_id)?, plaintext).await
+}
+
+/// Bulk chat-key load batches for `count` collected keys as `[[start, end], ...]` (no key material).
+#[wasm_bindgen(js_name = keysBulkBatches)]
+pub fn keys_bulk_batches(count: u32) -> Array {
+    web_key_bulk::batch_ranges(count as usize)
+        .into_iter()
+        .map(|(start, end)| {
+            Array::of2(
+                &JsValue::from_f64(start as f64),
+                &JsValue::from_f64(end as f64),
+            )
+            .into()
+        })
+        .collect()
+}
+
+/// Master-key retry step of the bulk load: `decrypt`, `retry` or `give_up`.
+#[wasm_bindgen(js_name = keysBulkRetryStep)]
+pub fn keys_bulk_retry_step(retry_count: u32, master_key_available: bool) -> String {
+    web_key_bulk::retry_step(retry_count, master_key_available)
+        .as_str()
+        .to_owned()
 }

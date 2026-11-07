@@ -451,6 +451,9 @@ lanes:
   - id: K2
     commit: 5ce60fbeaf
     note: Worker-resident chat-key state, async key handles, logout termination
+  - id: K3
+    commit: pending
+    note: bulk chat-key load plan (batch ranges, master-key retry step)
   size: L
   wave: B
   deps: [w3-web-sync-policy, w3-web-send-perf, auth-rest-slice-0]
@@ -482,7 +485,7 @@ lanes:
     sites, e.g. sendersMessageHighlights, voiceCallMessages, userTaskService, userPlanService, voiceCallVisuals, ChatMessage/ChatHistory,
     sendHandlers, sync handlers) migrate to getKeyHandle; ChatKeyManager still loads/wraps/persists and holds the TS copy (K3), and pending
     operation closures stay in TS (the Rust ticket queue is ready, not yet wired). K3 (needs auth-rest slice 0): chatKeyManagement.ts,
-    cryptoKeyStorage.ts, cryptoService master-key parts, MessageEncryptor/MetadataEncryptor/mediaEncryption page-side key material.'
+    cryptoKeyStorage.ts, cryptoService master-key parts, MessageEncryptor/MetadataEncryptor/mediaEncryption page-side key material. K3 slice (session ee5e): the bulk chat-key load of chatKeyManagement.loadChatKeysFromDatabase takes its decrypt batch ranges and the master-key retry step (decrypt/retry/give_up) from web_key_bulk.rs in the Worker (ops keysBulkBatches/keysBulkRetryStep, keyOps.ts) with the flag on, no TS fallback; flag off uses db/chatKeyBulkPlan.ts synchronously (no added await). TS-generated vectors web_key_bulk_ts_vectors.json replayed by web_key_bulk_tests.rs and chatKeyBulkPlanVectors.test.ts. Declined (no async-safe cut): the IndexedDB cursor row selection (chatKeyManager.hasKey inside onsuccess, transaction must stay alive), ChatKeyManager.getKeySync callers (~180 sync sites), cryptoKeyStorage master-key IDB I/O (platform), MessageEncryptor/MetadataEncryptor sync callers; remaining caller migration to getKeyHandle continues. Master key and chat key unwrap stay page-side; no key bytes cross the new ops.'
   spec_assertions:
   - auth.keys.client-wrapped
   - auth.keys.independent-unlock

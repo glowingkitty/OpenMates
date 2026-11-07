@@ -16,7 +16,9 @@ export type KeyStateOp =
   | 'keysStateCancel' | 'keysStatePending' | 'keysStateMarkPersisted' | 'keysStateReset' | 'keysStateRemove'
   | 'keysStateClear' | 'keysStateStats' | 'keysStateDecrypt' | 'keysStateEncrypt';
 
-export type KeyOp = 'keysFingerprint' | 'keysEqual' | 'keysInjectDecision' | KeyStateOp;
+export type KeyBulkOp = 'keysBulkBatches' | 'keysBulkRetryStep';
+
+export type KeyOp = 'keysFingerprint' | 'keysEqual' | 'keysInjectDecision' | KeyStateOp | KeyBulkOp;
 
 /** Worker export behind each op; spread into the crypto unit's async export table. */
 export const KEY_ASYNC_EXPORTS: Record<KeyOp, string> = {
@@ -37,6 +39,8 @@ export const KEY_ASYNC_EXPORTS: Record<KeyOp, string> = {
   keysStateStats: 'keysStateStats',
   keysStateDecrypt: 'keysStateDecrypt',
   keysStateEncrypt: 'keysStateEncrypt',
+  keysBulkBatches: 'keysBulkBatches',
+  keysBulkRetryStep: 'keysBulkRetryStep',
 };
 
 export type KeySourceName =
@@ -153,4 +157,16 @@ export function keyStateDecrypt<T>(client: KeyOpsClient, chatId: string, ciphert
 
 export function keyStateEncrypt(client: KeyOpsClient, chatId: string, plaintext: string): Promise<string> {
   return client.call<string>('keysStateEncrypt', chatId, plaintext);
+}
+
+/** Decrypt batch ranges `[start, end)` for `count` collected keys (bulk key load, K3). */
+export function keyBulkBatches(client: KeyOpsClient, count: number): Promise<Array<[number, number]>> {
+  return client.call<Array<[number, number]>>('keysBulkBatches', count);
+}
+
+export type KeyBulkRetryStep = 'decrypt' | 'retry' | 'give_up';
+
+/** What the bulk load's master-key retry timer does after `retryCount` attempts. */
+export function keyBulkRetryStep(client: KeyOpsClient, retryCount: number, masterKeyAvailable: boolean): Promise<KeyBulkRetryStep> {
+  return client.call<KeyBulkRetryStep>('keysBulkRetryStep', retryCount, masterKeyAvailable);
 }

@@ -36,6 +36,9 @@ pub mod web_settings;
 pub mod web_parse;
 pub mod web_transfer;
 pub mod web_keys;
+pub mod web_key_bulk;
+#[cfg(test)]
+mod web_key_bulk_tests;
 pub mod web_key_state;
 #[cfg(test)]
 mod web_key_state_tests;
