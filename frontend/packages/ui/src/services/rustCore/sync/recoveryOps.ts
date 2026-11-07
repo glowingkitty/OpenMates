@@ -20,6 +20,7 @@ export type RecoveryHistorySourceOutcome =
 	| { kind: 'source'; source: string }
 	| { kind: 'json_model'; field: 'docx_model' | 'notebook' }
 	| { kind: 'error'; code: 'mismatch' | 'mail_fields' | 'document_body' | 'format' };
+export type RecoveryContextFrameOutcome = { kind: 'ok' } | { kind: 'error'; code: 'undecryptable' | 'invalid' | 'identity' };
 export interface RecoveryProtocol extends UnitProtocol {
 	recoveryApply: { request: { latest: RecoveryChatFence; committedVersion: number; now: number }; response: RecoveryApplyOutcome };
 	recoveryWindowVersion: { request: { chatId: string; result: unknown }; response: { version: number | null } };
@@ -29,6 +30,10 @@ export interface RecoveryProtocol extends UnitProtocol {
 	};
 	recoveryInitialDiff: { request: { status: number; detail: unknown; version: number }; response: { unwritten: boolean } };
 	recoveryCatalog: { request: { producerApp?: unknown; producerSkill?: unknown; fields?: unknown }; response: RecoveryCatalogOutcome };
+	recoveryContextFrame: {
+		request: { plaintext: string | null; identity: Record<string, unknown>; phase: string };
+		response: RecoveryContextFrameOutcome;
+	};
 	recoveryHistorySource: { request: { type: string; decoded: unknown }; response: RecoveryHistorySourceOutcome };
 }
 
@@ -39,6 +44,7 @@ export interface RecoveryBinding {
 	stream_recovery_assistant_version(input: string): string;
 	stream_recovery_initial_diff(input: string): string;
 	stream_recovery_catalog(input: string): string;
+	stream_recovery_context_frame(input: string): string;
 	stream_recovery_history_source(input: string): string;
 }
 
@@ -49,5 +55,6 @@ export const RECOVERY_OPS: Readonly<Record<keyof RecoveryProtocol & string, keyo
 	recoveryAssistantVersion: 'stream_recovery_assistant_version',
 	recoveryInitialDiff: 'stream_recovery_initial_diff',
 	recoveryCatalog: 'stream_recovery_catalog',
+	recoveryContextFrame: 'stream_recovery_context_frame',
 	recoveryHistorySource: 'stream_recovery_history_source',
 });

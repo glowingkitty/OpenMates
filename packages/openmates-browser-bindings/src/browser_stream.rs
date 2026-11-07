@@ -48,6 +48,12 @@ pub fn stream_recovery_catalog(input_json: &str) -> Result<String, JsValue> {
     js(recovery::catalog_json(input_json))
 }
 
+/// Retained admission phase frame check (`retainOrReuseContextPhaseFrameWithSeal`).
+#[wasm_bindgen]
+pub fn stream_recovery_context_frame(input_json: &str) -> Result<String, JsValue> {
+    js(recovery::context_frame_json(input_json))
+}
+
 /// Historical embed source (`historySourceFromSealedEmbed`).
 #[wasm_bindgen]
 pub fn stream_recovery_history_source(input_json: &str) -> Result<String, JsValue> {

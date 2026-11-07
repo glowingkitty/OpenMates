@@ -295,6 +295,13 @@ lanes:
   kind: wave4
   status: running
   commit: null
+  slices:
+  - id: slice-1
+    commit: 2aa5cd645c
+    note: stateless recovery decisions and stream assembler
+  - id: slice-2
+    commit: null
+    note: retained admission-phase frame check
   size: L
   wave: B
   deps: [w3-web-sync-policy]
@@ -319,7 +326,7 @@ lanes:
   - chat-scroll-streaming.spec.ts
   - chat-followup-recovery-disabled.spec.ts
   - historical-image-child-recovery.spec.ts
-  notes: 'Slice 1: stateless recovery ops (version fence, window/assistant version, initial-diff, catalog, history source) on the sync unit behind the flag; stateful thinking/final-timestamp assembler built and vector-tested but mounted by the ws unit. Gap: chatCompletionRecovery crypto, UI-reactive assistantActivity*/pendingAIResponses/fastAdmission files not moved.'
+  notes: 'Slice 1: stateless recovery ops (version fence, window/assistant version, initial-diff, catalog, history source) on the sync unit behind the flag; stateful thinking/final-timestamp assembler built and vector-tested but mounted by the ws unit. Slice 2 (session f782): the retained admission-phase frame check of fastAdmissionPhaseJournal (undecryptable / invalid JSON / turn identity + phase + context-object rule) runs as sync op recoveryContextFrame (web_stream/recovery.rs context_frame_json) with the flag on, no TS fallback; flag off keeps the TS check inline (no added await). The page still parses the text itself. Vectors: web_stream/context_frame_ts_vectors.json (42 cases) replayed in Rust and contextFrameVectors.test.ts against the real journal. Declined (sync-bound or no decision): assistantActivityRuns/assistantActivityCompletion (called from reactive $derived/render paths, must stay synchronous), postAdmissionContextPhases publish/retain flows (pure control flow around page I/O callbacks and isCurrent closures), chatCompletionRecovery (crypto). Gap: chatCompletionRecovery crypto, UI-reactive assistantActivity*/pendingAIResponses/fastAdmission files not moved.'
   spec_assertions:
   - chats.streaming.ordered-final
   - chats.streaming.progressive-presentation

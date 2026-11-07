@@ -1,3 +1,7 @@
+// Opt-in shared Rust core build: the retained-frame check runs in the Worker `sync` unit.
+const RUST_SYNC_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+  && !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_sync") === "ts");
+
 export type AdmissionContextPhase = 'routing' | 'details';
 
 export interface AdmissionContextIdentity {
@@ -27,6 +31,11 @@ export async function retainOrReuseContextPhaseFrameWithSeal(
   const sealed = previous ?? await input.commit(candidate!);
   const created = candidate !== null && sealed === candidate;
   const plaintext = await input.open(sealed);
+  if (RUST_SYNC_BUILD) {
+    await (await import("./rustCore/sync/rustRecoveryPolicy")).assertContextFrame(
+      plaintext, input.identity as unknown as Record<string, unknown>, input.phase);
+    return { frame: JSON.parse(plaintext!) as Record<string, unknown>, sealed, created };
+  }
   if (!plaintext) throw new Error(`Pending ${input.phase} context cannot be decrypted.`);
   let frame: Record<string, unknown>;
   try { frame = JSON.parse(plaintext) as Record<string, unknown>; }

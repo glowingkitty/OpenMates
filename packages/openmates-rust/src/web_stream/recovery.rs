@@ -235,3 +235,50 @@ pub fn history_source_json(input: &str) -> Result<String, String> {
         None => error("format"),
     }
 }
+
+/// JS `===` over the JSON values a turn identity carries (`undefined` is absent;
+/// numbers compare as `f64`).
+fn js_strict_eq(a: Option<&Value>, b: Option<&Value>) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(Value::Number(x)), Some(Value::Number(y))) => x.as_f64() == y.as_f64(),
+        (Some(x), Some(y)) => x == y && !x.is_object() && !x.is_array(),
+        _ => false,
+    }
+}
+
+/// `retainOrReuseContextPhaseFrameWithSeal` frame check: whether a retained
+/// admission phase is usable for this exact turn. Input `{plaintext, identity:
+/// {chat_id,turn_id,message_id,request_id}, phase}` where `plaintext` is the
+/// opened journal text (`null` when it cannot be decrypted). Output
+/// `{kind:"ok"}` (the page parses the text itself, keeping the frame object it
+/// returns) or `{kind:"error",code}` with code `undecryptable`, `invalid` or
+/// `identity` (the page throws the matching original message).
+///
+/// # Errors
+/// `protocol` when the input is not valid JSON.
+pub fn context_frame_json(input: &str) -> Result<String, String> {
+    let input = parse(input)?;
+    let error = |code: &str| Ok(json!({ "kind": "error", "code": code }).to_string());
+    let Some(text) = field(&input, "plaintext")
+        .and_then(Value::as_str)
+        .filter(|s| !s.is_empty())
+    else {
+        return error("undecryptable");
+    };
+    let Ok(frame) = serde_json::from_str::<Value>(text) else {
+        return error("invalid");
+    };
+    let identity = field(&input, "identity");
+    let same_turn = ["chat_id", "turn_id", "message_id", "request_id"]
+        .iter()
+        .all(|key| js_strict_eq(field(&frame, key), identity.and_then(|i| field(i, key))))
+        && field(&frame, "phase").and_then(Value::as_str).is_some()
+        && field(&frame, "phase") == field(&input, "phase")
+        && field(&frame, "context").is_some_and(Value::is_object);
+    if same_turn {
+        Ok(json!({ "kind": "ok" }).to_string())
+    } else {
+        error("identity")
+    }
+}

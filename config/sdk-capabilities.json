@@ -7064,6 +7064,7 @@
             "web_stream.recovery.apply_json",
             "web_stream.recovery.assistant_version_json",
             "web_stream.recovery.catalog_json",
+            "web_stream.recovery.context_frame_json",
             "web_stream.recovery.history_source_json",
             "web_stream.recovery.initial_diff_json",
             "web_stream.recovery.window_version_json",

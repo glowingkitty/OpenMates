@@ -1,0 +1,581 @@
+{
+ "schema": 1,
+ "contextFrame": [
+  {
+   "plaintext": "{\"chat_id\": \"chat\", \"turn_id\": \"turn\", \"message_id\": \"message\", \"request_id\": \"request\", \"phase\": \"routing\", \"context\": {\"project_focus_candidates\": []}}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "ok"
+   }
+  },
+  {
+   "plaintext": null,
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "undecryptable"
+   }
+  },
+  {
+   "plaintext": "",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "undecryptable"
+   }
+  },
+  {
+   "plaintext": "{not json",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "invalid"
+   }
+  },
+  {
+   "plaintext": "{\"a\":",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "invalid"
+   }
+  },
+  {
+   "plaintext": "nope",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "invalid"
+   }
+  },
+  {
+   "plaintext": "5",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "[]",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "\"x\"",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "true",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": \"other\", \"turn_id\": \"turn\", \"message_id\": \"message\", \"request_id\": \"request\", \"phase\": \"routing\", \"context\": {\"project_focus_candidates\": []}}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "{\"turn_id\": \"turn\", \"message_id\": \"message\", \"request_id\": \"request\", \"phase\": \"routing\", \"context\": {\"project_focus_candidates\": []}}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": null, \"turn_id\": \"turn\", \"message_id\": \"message\", \"request_id\": \"request\", \"phase\": \"routing\", \"context\": {\"project_focus_candidates\": []}}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": 7, \"turn_id\": \"turn\", \"message_id\": \"message\", \"request_id\": \"request\", \"phase\": \"routing\", \"context\": {\"project_focus_candidates\": []}}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": \"chat\", \"turn_id\": \"other\", \"message_id\": \"message\", \"request_id\": \"request\", \"phase\": \"routing\", \"context\": {\"project_focus_candidates\": []}}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": \"chat\", \"message_id\": \"message\", \"request_id\": \"request\", \"phase\": \"routing\", \"context\": {\"project_focus_candidates\": []}}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": \"chat\", \"turn_id\": null, \"message_id\": \"message\", \"request_id\": \"request\", \"phase\": \"routing\", \"context\": {\"project_focus_candidates\": []}}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": \"chat\", \"turn_id\": 7, \"message_id\": \"message\", \"request_id\": \"request\", \"phase\": \"routing\", \"context\": {\"project_focus_candidates\": []}}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": \"chat\", \"turn_id\": \"turn\", \"message_id\": \"other\", \"request_id\": \"request\", \"phase\": \"routing\", \"context\": {\"project_focus_candidates\": []}}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": \"chat\", \"turn_id\": \"turn\", \"request_id\": \"request\", \"phase\": \"routing\", \"context\": {\"project_focus_candidates\": []}}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": \"chat\", \"turn_id\": \"turn\", \"message_id\": null, \"request_id\": \"request\", \"phase\": \"routing\", \"context\": {\"project_focus_candidates\": []}}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": \"chat\", \"turn_id\": \"turn\", \"message_id\": 7, \"request_id\": \"request\", \"phase\": \"routing\", \"context\": {\"project_focus_candidates\": []}}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": \"chat\", \"turn_id\": \"turn\", \"message_id\": \"message\", \"request_id\": \"other\", \"phase\": \"routing\", \"context\": {\"project_focus_candidates\": []}}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": \"chat\", \"turn_id\": \"turn\", \"message_id\": \"message\", \"phase\": \"routing\", \"context\": {\"project_focus_candidates\": []}}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": \"chat\", \"turn_id\": \"turn\", \"message_id\": \"message\", \"request_id\": null, \"phase\": \"routing\", \"context\": {\"project_focus_candidates\": []}}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": \"chat\", \"turn_id\": \"turn\", \"message_id\": \"message\", \"request_id\": 7, \"phase\": \"routing\", \"context\": {\"project_focus_candidates\": []}}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": \"chat\", \"turn_id\": \"turn\", \"message_id\": \"message\", \"request_id\": \"request\", \"phase\": \"details\", \"context\": {\"project_focus_candidates\": []}}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": \"chat\", \"turn_id\": \"turn\", \"message_id\": \"message\", \"request_id\": \"request\", \"context\": {\"project_focus_candidates\": []}}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": \"chat\", \"turn_id\": \"turn\", \"message_id\": \"message\", \"request_id\": \"request\", \"phase\": 3, \"context\": {\"project_focus_candidates\": []}}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": \"chat\", \"turn_id\": \"turn\", \"message_id\": \"message\", \"request_id\": \"request\", \"phase\": \"details\", \"context\": {\"project_focus_candidates\": []}}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "details",
+   "out": {
+    "kind": "ok"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": \"chat\", \"turn_id\": \"turn\", \"message_id\": \"message\", \"request_id\": \"request\", \"phase\": \"routing\"}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": \"chat\", \"turn_id\": \"turn\", \"message_id\": \"message\", \"request_id\": \"request\", \"phase\": \"routing\", \"context\": null}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": \"chat\", \"turn_id\": \"turn\", \"message_id\": \"message\", \"request_id\": \"request\", \"phase\": \"routing\", \"context\": []}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": \"chat\", \"turn_id\": \"turn\", \"message_id\": \"message\", \"request_id\": \"request\", \"phase\": \"routing\", \"context\": \"s\"}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": \"chat\", \"turn_id\": \"turn\", \"message_id\": \"message\", \"request_id\": \"request\", \"phase\": \"routing\", \"context\": 0}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": \"chat\", \"turn_id\": \"turn\", \"message_id\": \"message\", \"request_id\": \"request\", \"phase\": \"routing\", \"context\": false}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": \"chat\", \"turn_id\": \"turn\", \"message_id\": \"message\", \"request_id\": \"request\", \"phase\": \"routing\", \"context\": {}}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "ok"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": \"chat\", \"turn_id\": \"turn\", \"message_id\": \"message\", \"request_id\": \"request\", \"phase\": \"routing\", \"context\": {\"project_focus_candidates\": []}, \"extra\": {\"a\": 1}}",
+   "identity": {
+    "chat_id": "chat",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "ok"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": 1.0, \"turn_id\": \"turn\", \"message_id\": \"message\", \"request_id\": \"request\", \"phase\": \"routing\", \"context\": {\"project_focus_candidates\": []}}",
+   "identity": {
+    "chat_id": 1,
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "ok"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": 1, \"turn_id\": \"turn\", \"message_id\": \"message\", \"request_id\": \"request\", \"phase\": \"routing\", \"context\": {\"project_focus_candidates\": []}}",
+   "identity": {
+    "chat_id": "1",
+    "turn_id": "turn",
+    "message_id": "message",
+    "request_id": "request"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": \"chat\", \"phase\": \"routing\", \"context\": {}}",
+   "identity": {
+    "chat_id": "chat"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "ok"
+   }
+  },
+  {
+   "plaintext": "{\"chat_id\": \"chat\", \"turn_id\": null, \"phase\": \"routing\", \"context\": {}}",
+   "identity": {
+    "chat_id": "chat"
+   },
+   "phase": "routing",
+   "out": {
+    "kind": "error",
+    "code": "identity"
+   }
+  }
+ ]
+}

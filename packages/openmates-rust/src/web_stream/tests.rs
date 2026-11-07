@@ -187,3 +187,13 @@ fn malformed_input_is_refused_with_the_protocol_code() {
         Err("protocol".into())
     );
 }
+
+// contract-test: supporting surface=sdks.rust assertions=sync.client.shared-rust-policy
+#[test]
+fn retained_admission_frames_match_typescript() {
+    let v: Value = serde_json::from_str(include_str!("context_frame_ts_vectors.json"))
+        .expect("committed context-frame vectors are valid JSON");
+    for case in cases(&v, "contextFrame") {
+        assert_same(&run(recovery::context_frame_json, case), &case["out"], case);
+    }
+}

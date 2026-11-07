@@ -71,3 +71,15 @@ export async function historySource(type: string, decoded: unknown): Promise<str
 	// Key order of the sealed model is the page's to print; Rust only picks the field.
 	return JSON.stringify((decoded as Record<string, unknown>)[outcome.field], null, 2);
 }
+
+const CONTEXT_FRAME_ERRORS = (phase: string) => ({
+	undecryptable: `Pending ${phase} context cannot be decrypted.`,
+	invalid: `Pending ${phase} context is invalid.`,
+	identity: `Pending ${phase} context has a different turn identity.`,
+}) as const;
+
+/** Admission journal check: throws the original message when the retained frame is unusable. */
+export async function assertContextFrame(plaintext: string | null, identity: Record<string, unknown>, phase: string): Promise<void> {
+	const outcome = await syncCall('recoveryContextFrame', { plaintext, identity, phase });
+	if (outcome.kind === 'error') throw new Error(CONTEXT_FRAME_ERRORS(phase)[outcome.code]);
+}
