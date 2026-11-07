@@ -38,7 +38,8 @@ export function createParseHandlers(binding: ParseBinding): UnitHandlers<ParseUn
 		normalizePlan: (payload) => {
 			const p = record(payload);
 			return call(() => binding.parse_normalize_plan(text(p.plan)));
-		},
+			},
+			stripVoiceCues: (payload) => binding.parse_strip_voice_cues(text(record(payload).markdown)),
 	};
 }
 

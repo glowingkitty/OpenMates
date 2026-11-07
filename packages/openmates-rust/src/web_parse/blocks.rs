@@ -15,7 +15,7 @@ use std::collections::HashMap;
 pub const PROTOCOL: &str = "protocol";
 
 /// JS `String.prototype.trim` whitespace (differs from Rust: U+FEFF yes, U+0085 no).
-fn js_ws(c: char) -> bool {
+pub(crate) fn js_ws(c: char) -> bool {
     matches!(
         c,
         '\t' | '\n' | '\u{0B}' | '\u{0C}' | '\r' | ' ' | '\u{A0}' | '\u{1680}' | '\u{2000}'..='\u{200A}'

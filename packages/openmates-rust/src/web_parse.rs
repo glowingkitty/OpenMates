@@ -15,5 +15,10 @@
 /// Pure block partitioning, id assignment, operations and normalization.
 pub mod blocks;
 
+/// Voice-delivery cue stripping of the assistant read projection.
+pub mod voice_cues;
+
 #[cfg(test)]
 mod blocks_tests;
+#[cfg(test)]
+mod voice_cues_tests;

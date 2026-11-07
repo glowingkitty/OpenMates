@@ -31,15 +31,18 @@ export interface ParseNormalized { appSkillIds: string[]; blocks: Array<{ id: st
 export interface ParseUnitProtocol extends UnitProtocol {
 	planBlocks: { request: { markdown: string; phase: ParsePhase; previous: string }; response: ParsePlan };
 	normalizePlan: { request: { plan: string }; response: ParseNormalized };
+	/** Read projection without voice-delivery cues (voiceDeliveryCues.ts semantics). */
+	stripVoiceCues: { request: { markdown: string }; response: string };
 }
 
 /** Worker module exports (snake_case, JSON strings) of browser_parse.rs. */
 export interface ParseBinding {
 	parse_plan_blocks(markdown: string, phase: string, previousJson: string): string;
 	parse_normalize_plan(planJson: string): string;
+	parse_strip_voice_cues(markdown: string): string;
 }
 
-const BINDING_EXPORTS: readonly (keyof ParseBinding)[] = ['parse_plan_blocks', 'parse_normalize_plan'];
+const BINDING_EXPORTS: readonly (keyof ParseBinding)[] = ['parse_plan_blocks', 'parse_normalize_plan', 'parse_strip_voice_cues'];
 
 export function isParseBinding(value: unknown): value is ParseBinding {
 	if (typeof value !== 'object' || value === null) return false;
