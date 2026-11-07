@@ -6684,7 +6684,6 @@
             "web_auth.WireJson.wire_json",
             "web_auth.accept_logout_frame",
             "web_auth.classify_session",
-            "web_auth.flow_call",
             "web_auth.logout_frame",
             "web_auth.logout_may_delete_cookies",
             "web_auth.logout_server_step",
