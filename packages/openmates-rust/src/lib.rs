@@ -34,6 +34,9 @@ pub mod web_send_prep;
 pub mod web_apps;
 pub mod web_parse;
 pub mod web_transfer;
+pub mod web_keys;
+#[cfg(test)]
+mod web_keys_tests;
 pub mod web_stream;
 pub mod web_sync;
 pub mod web_chat_state;

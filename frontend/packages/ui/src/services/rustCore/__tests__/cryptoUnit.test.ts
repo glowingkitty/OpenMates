@@ -51,7 +51,8 @@ function fakeBinding() {
 	};
 	for (const name of ['webCryptoMasterDecrypt', 'webCryptoMasterEncrypt', 'webCryptoGenerateShareKeyBlob', 'webCryptoDecryptShareKeyBlob',
 		'webCryptoEncryptShareUrl', 'webCryptoDecryptShareUrl', 'webCryptoDecryptMedia', 'webCryptoChatKeyGuardBegin',
-		'webCryptoChatKeyGuardAfterAnonymous', 'webCryptoChatKeyGuardAfterPersisted']) {
+		'webCryptoChatKeyGuardAfterAnonymous', 'webCryptoChatKeyGuardAfterPersisted',
+		'keysFingerprint', 'keysEqual', 'keysInjectDecision']) {
 		binding[name] = record(name, async (...args: unknown[]) => {
 			if (args[1] === 'reject') throw 'crypto';
 			return new Uint8Array([args.length]);

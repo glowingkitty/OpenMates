@@ -20,6 +20,7 @@
 // answered from a bounded page-side memo (cryptoResultMemo.ts) without a Worker
 // round trip; identical calls in flight share one request.
 import { CryptoResultMemo, isBytes } from './cryptoResultMemo';
+import type { KeyOp } from './keyOps';
 
 export type WebCryptoOp =
   | 'decryptChatContent' | 'encryptChatContent' | 'masterDecrypt' | 'masterEncrypt'
@@ -28,6 +29,7 @@ export type WebCryptoOp =
   // Benchmark attribution only (E2E proof harness): `echo` answers its argument
   // unchanged; `profileChatDecrypt` answers per-stage timings, never key bytes.
   | 'echo' | 'profileChatDecrypt'
+  | KeyOp
   | 'bulk';
 
 /** Per-item ops the flush coalesces: `[key, item]` args, one `bulk` request per key. */

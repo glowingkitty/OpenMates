@@ -20,6 +20,7 @@ import type {
   WebCryptoResponse,
 } from './webCryptoClient';
 import { BULK_EXPORTS, createBulkRunner } from './cryptoUnitBulk';
+import { KEY_ASYNC_EXPORTS } from './keyOps';
 import type { UnitInstaller } from '../host/sharedWorkerProtocol';
 
 type Fn = (...args: unknown[]) => unknown;
@@ -39,6 +40,7 @@ const ASYNC_EXPORTS: Partial<Record<WebCryptoOp, string>> = {
   guardBegin: 'webCryptoChatKeyGuardBegin',
   guardAfterAnonymous: 'webCryptoChatKeyGuardAfterAnonymous',
   guardAfterPersisted: 'webCryptoChatKeyGuardAfterPersisted',
+  ...KEY_ASYNC_EXPORTS,
 };
 
 const REQUIRED = [

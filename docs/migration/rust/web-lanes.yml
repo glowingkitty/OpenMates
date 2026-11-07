@@ -447,7 +447,11 @@ lanes:
   - web-rust-core-auth.spec.ts
   - cross-client-draft-sync.spec.ts
   - recovery-key-login-flow.spec.ts
-  notes: ''
+  notes: 'K1 landed behind the flag: web_keys.rs (fingerprint, key equality, KeySource priority, injectKey admission) with TS vectors
+    (chatKeyAdmissionVectors.test.ts), browser_keys.rs and rustCore/crypto/keyOps.ts served by the crypto unit. ChatKeyManager.ts is
+    unchanged (its injectKey is synchronous; the async handle API of K2 is the first caller). K2 (Rust-owned key state in the Worker,
+    additive handle API next to getKeySync/getKey, terminate on logout/account switch, first one or two callers) and K3 (needs
+    auth-rest slice 0) remain; remaining callers get listed here as K2 migrates them.'
   spec_assertions:
   - auth.keys.client-wrapped
   - auth.keys.independent-unlock
