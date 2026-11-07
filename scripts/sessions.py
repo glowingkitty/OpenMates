@@ -10664,11 +10664,46 @@ def _get_lint_flags(files: list[str]) -> list[str]:
     return flags
 
 
+RUST_MIGRATION_YAML_PREFIXES = (
+    "docs/migration/rust/",
+    "packages/openmates-rust/",
+    "config/sdk-capabilities.json",
+    "frontend/packages/ui/src/services/rustCore/",
+)
+
+
+def _rust_migration_yaml_check(files: list[str], *, checkout_root: Path | None = None) -> tuple[int, str, str]:
+    """Validate docs/migration/rust YAML (incl. performance-history) when Rust-migration inputs change."""
+    if not any(f.startswith(RUST_MIGRATION_YAML_PREFIXES) for f in files):
+        return 0, "", ""
+    root = checkout_root or CONTROL_PLANE_ROOT
+    rc, out, err = _run_cmd(
+        ["python3", "scripts/rust_migration_yaml.py", "--check"], cwd=str(root), timeout=120
+    )
+    if rc == 0:
+        return 0, "Rust migration YAML: ok (rust_migration_yaml.py --check)\n", err
+    hint = (
+        "\nRust migration YAML check failed. Fix: edit the curated source (docs/migration/rust/*-lanes.yml, "
+        "curated/spec-links, or the perf-history entry via scripts/record_perf_measurement.py), then run "
+        "`python3 scripts/rust_migration_yaml.py` to regenerate and re-verify with "
+        "`python3 scripts/rust_migration_yaml.py --check`. Never hand-edit generated files.\n"
+    )
+    return rc, out, err + hint
+
+
 def _run_lint(files: list[str], *, checkout_root: Path | None = None) -> tuple[int, str, str]:
     """Run linter on specific files. Returns (returncode, stdout, stderr)."""
+    mig_rc, mig_out, mig_err = _rust_migration_yaml_check(files, checkout_root=checkout_root)
+    if mig_rc != 0:
+        return mig_rc, mig_out, mig_err
     lint_flags = _get_lint_flags(files)
     if not lint_flags:
-        return 0, "", ""
+        return 0, mig_out, mig_err
+    rc, out, err = _run_lint_flags(files, lint_flags, checkout_root=checkout_root)
+    return rc, mig_out + out, mig_err + err
+
+
+def _run_lint_flags(files: list[str], lint_flags: list[str], *, checkout_root: Path | None = None) -> tuple[int, str, str]:
     path_args: list[str] = []
     for f in files:
         path_args += ["--path", f]
