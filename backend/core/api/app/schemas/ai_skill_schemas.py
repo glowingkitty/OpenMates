@@ -78,7 +78,6 @@ class AskSkillRequest(BaseModel):
     def _unique_memory_catalog(cls, value: List[MemoryCatalogEntry]) -> List[MemoryCatalogEntry]:
         return list(parse_memory_catalog(value))
 
-    approved_search_chat_ids: List[str] = Field(default_factory=list, max_length=10, description="Chats the user referenced from an approved Memory; the only extra chats the main processor may search this turn. Server-derived from the confirmation handler, never from the chat request.")
     project_focus_catalog: List[Dict[str, Any]] = Field(default_factory=list, repr=False, max_length=20, description="Private Project Focus metadata only; full definitions are loaded separately after selection.")
     project_focus_documents: List[Dict[str, Any]] = Field(default_factory=list, repr=False, max_length=8, description="Selected client-decrypted Project Focus documents with fresh item revisions; never Project consent.")
     project_context_documents: List[Dict[str, Any]] = Field(default_factory=list, repr=False, max_length=20, description="Transient authorized Project Specification, fact and folder context; data never grants access.")

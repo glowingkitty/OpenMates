@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildWholeDocumentPatch, isMemoryActive, isMemoryExpiredBeyondGrace, parseRuleDocument, serializeRuleDocument, validateRuleCatalog } from '../ruleDocuments';
+import { buildWholeDocumentPatch, isMemoryActive, isMemoryExpired, parseRuleDocument, serializeRuleDocument, validateRuleCatalog } from '../ruleDocuments';
 import { applyProjectFilePatch } from '../projectFilePatch';
 
 const guide = '---\ntitle: Python practices\ndescription: Reliable services.\nwhen_to_use: Writing Python.\n---\n- Release resources.\n- Preserve cancellation.\n';
@@ -35,15 +35,21 @@ describe('Rule Markdown boundaries', () => {
   });
 });
 
-const canonical = '---\ntitle: Trip\nload_mode: ask_first\nvalid_from: "2026-01-01T00:00:00Z"\nvalid_until: "2026-02-01T00:00:00Z"\nreferences:\n  - kind: embed\n    id: e1\n  - kind: chat\n    id: c1\n---\nPacking list.\n';
+const canonical = '---\ntitle: Trip\nload_mode: ask_first\nvalid_from: "2026-01-01T00:00:00Z"\nvalid_until: "2026-02-01T00:00:00Z"\nreferences:\n  - kind: embed\n    id: e1\n---\nPacking list.\n';
 
-// contract-test: supporting surface=rest_api assertions=app-memories.document.canonical-shape,app-memories.load-modes,app-memories.references.embeds-and-chats
+// contract-test: supporting surface=rest_api assertions=app-memories.document.canonical-shape,app-memories.load-modes,app-memories.references.embeds
 describe('canonical Memory shape', () => {
   it('parses and round-trips every new field with blank when_to_use', () => {
     const fields = parseRuleDocument(canonical);
     expect(fields).toMatchObject({ title: 'Trip', when_to_use: '', load_mode: 'ask_first', body: 'Packing list.' });
-    expect(fields.references).toEqual([{ kind: 'embed', id: 'e1' }, { kind: 'chat', id: 'c1' }]);
+    expect(fields.references).toEqual([{ kind: 'embed', id: 'e1' }]);
     expect(parseRuleDocument(serializeRuleDocument(fields))).toEqual(fields);
+  });
+
+  // contract-test: direct surface=gui.web assertions=app-memories.references.embeds
+  it('drops legacy stored chat references on read without throwing', () => {
+    const legacy = canonical.replace('---\nPacking', '  - kind: chat\n    id: c1\n---\nPacking');
+    expect(parseRuleDocument(legacy).references).toEqual([{ kind: 'embed', id: 'e1' }]);
   });
 
   // contract-test: supporting surface=gui.web assertions=app-memories.document.canonical-shape
@@ -57,8 +63,8 @@ describe('canonical Memory shape', () => {
     canonical.replace('ask_first', 'sometimes'),
     canonical.replace('2026-02-01T00:00:00Z', '2025-01-01T00:00:00Z'),
     canonical.replace('"2026-01-01T00:00:00Z"', 'not-a-date'),
-    canonical.replace('kind: chat', 'kind: note'),
-    canonical.replace('id: c1', 'id: e1').replace('kind: chat', 'kind: embed'),
+    canonical.replace('kind: embed', 'kind: note'),
+    canonical.replace('  - kind: embed\n    id: e1\n', '  - kind: embed\n    id: e1\n  - kind: embed\n    id: e1\n'),
     canonical.replace('title: Trip\n', 'title: Trip\nextra: 1\n'),
     canonical.replace('title: Trip\n', ''),
   ])('rejects invalid canonical document %#', (document) => {
@@ -76,10 +82,10 @@ describe('Memory expiry window', () => {
     expect(isMemoryActive({}, new Date())).toBe(true);
   });
   // contract-test: supporting surface=gui.web assertions=app-memories.expiry.client-enforced
-  it('is deletable only after the grace period', () => {
-    expect(isMemoryExpiredBeyondGrace(window, new Date('2026-02-07T00:00:00Z'))).toBe(false);
-    expect(isMemoryExpiredBeyondGrace(window, new Date('2026-02-09T00:00:00Z'))).toBe(true);
-    expect(isMemoryExpiredBeyondGrace({}, new Date('2030-01-01'))).toBe(false);
+  it('is deletable as soon as it is expired, with no grace period', () => {
+    expect(isMemoryExpired(window, new Date('2026-02-01T00:00:00Z'))).toBe(false);
+    expect(isMemoryExpired(window, new Date('2026-02-02T00:00:00Z'))).toBe(true);
+    expect(isMemoryExpired({}, new Date('2030-01-01'))).toBe(false);
   });
 });
 

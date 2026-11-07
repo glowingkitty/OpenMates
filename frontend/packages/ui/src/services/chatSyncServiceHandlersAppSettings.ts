@@ -157,8 +157,6 @@ export type MemoryPermissionResponse = Array<{
   app_id: string; item_key: string; content: unknown;
   /** Memory references that could not be resolved or fit the budget (never an error). */
   references_unavailable?: boolean;
-  /** Chats referenced by an approved Memory; the only extra chats searchable this turn. */
-  approved_search_chat_ids?: string[];
 }>;
 // Call requests retain the ordinary consent dialog/history, but their answer
 // resumes the issuing call rather than starting a second normal AI response.

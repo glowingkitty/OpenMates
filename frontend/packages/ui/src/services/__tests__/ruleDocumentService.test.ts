@@ -190,18 +190,21 @@ it('merges legacy account Memories once and exposes entries only to the private 
 });
 
 // contract-test: direct surface=gui.web assertions=app-memories.expiry.client-enforced
-it('deletes Project memories only after expiry plus the 7 day grace', async () => {
+it('deletes Project memories as soon as they are expired', async () => {
   const now = Date.parse('2026-06-20T00:00:00Z');
   const doc = (validUntil: string) => `---\ntitle: Temp\nvalid_until: '${validUntil}'\n---\nBody\n`;
   const rule = (id: string, validUntil: string) => ({ id, source: 'project' as const, project_id: 'p1', document: doc(validUntil) });
   mocks.getProject.mockResolvedValue(project);
   mocks.contents.mockResolvedValue({ folders: [], items: [
     { project_item_id: 'item-old', target_id: 'embed-old', metadata: {} },
-    { project_item_id: 'item-grace', target_id: 'embed-grace', metadata: {} },
+    { project_item_id: 'item-recent', target_id: 'embed-recent', metadata: {} },
+    { project_item_id: 'item-live', target_id: 'embed-live', metadata: {} },
   ] });
   const deleted = await deleteExpiredProjectMemories({ projectId: 'p1', teamId: null, documents: [
-    rule('item-old', '2026-06-01T00:00:00Z'), rule('item-grace', '2026-06-18T00:00:00Z'),
+    rule('item-old', '2026-06-01T00:00:00Z'), rule('item-recent', '2026-06-18T00:00:00Z'), rule('item-live', '2026-06-21T00:00:00Z'),
   ] }, now);
-  expect(deleted).toBe(1);
-  expect(mocks.removeEmbed).toHaveBeenCalledExactlyOnceWith('p1', 'embed-old', { teamId: undefined });
+  expect(deleted).toBe(2);
+  expect(mocks.removeEmbed).toHaveBeenCalledTimes(2);
+  expect(mocks.removeEmbed).toHaveBeenCalledWith('p1', 'embed-old', { teamId: undefined });
+  expect(mocks.removeEmbed).toHaveBeenCalledWith('p1', 'embed-recent', { teamId: undefined });
 });

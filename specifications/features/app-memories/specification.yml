@@ -9,7 +9,7 @@ summary: Memories are free-form documents (title, memory, when to use, optional 
 scope:
   includes:
   - One free-form Memory document shape for personal, team and Project memories, with load modes, optional start and expiry,
-    and embed and chat references.
+    and embed references.
   - Personal and team-owned encrypted memory entry lifecycle operations.
   - Authenticated REST, CLI, npm SDK, pip SDK, web, and Apple access.
   - Versioned multi-device synchronization and pending user review.
@@ -168,13 +168,12 @@ models:
       nullable: true
       constraints:
         outside_window_never_sent_to_server: true
-        expired_deleted_by_client_after_grace: true
+        expired_deleted_by_client_when_expired: true
     references:
       type: typed_reference_list
       constraints:
         kinds:
         - embed
-        - chat
         resolution: client_side_with_reader_keys
         depth: 1
   MemoryReference:
@@ -182,7 +181,6 @@ models:
       type: enum
       values:
       - embed
-      - chat
       required: true
     target_id:
       type: stable_id
@@ -385,20 +383,19 @@ assertions:
 - id: app-memories.expiry.client-enforced
   type: invariant
   must: Start and expiry times are enforced by the client, which omits out-of-window memories from every catalog, and expired
-    memories are deleted by a client after a short renewal grace period. The server needs no plaintext expiry for ordinary
+    memories are deleted by a client as soon as they expire, with no grace period. The server needs no plaintext expiry for ordinary
     memories. A Workflow snapshot stores its expiry in Automation Vault metadata and the runtime enforces it, so an unattended
     run never uses an expired snapshot.
   depends_on:
   - models.MemoryDocument.valid_until
   - examples.expiry
-- id: app-memories.references.embeds-and-chats
+- id: app-memories.references.embeds
   type: privacy
-  must: A Memory may reference embeds and chats. References resolve only on a client holding the reader's keys, to one level.
-    Loading a memory automatically includes referenced embed content within the loading budget and, for chats, only title,
-    id, summary and last-updated time, never messages. Referencing a chat is the user's clear consent for the main processor
-    to search that chat while the memory is loaded, and only that chat is added to the approved searchable set. Ask first
+  must: A Memory may reference embeds; chats cannot be referenced. References resolve only on a client holding the reader's
+    keys, to one level. Loading a memory automatically includes referenced embed content within the loading budget. Ask first
     approval lists referenced items. Unavailable or unauthorized references show a marker and never fail the memory; budget
-    overflow is marked, never silently truncated. Team readers resolve only references they are authorized for.
+    overflow is marked, never silently truncated. Team readers resolve only references they are authorized for. A reference
+    to a chat found in older data is ignored.
   depends_on:
   - models.MemoryReference
   - examples.references

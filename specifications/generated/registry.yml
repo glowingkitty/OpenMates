@@ -148,7 +148,7 @@ specifications:
     version: 4
     status: draft
     path: features/app-memories
-    fingerprint: 9abeaa82bbc74699e0f8f1afc27df332247e6070ddf7d60cc39e101c0f977887
+    fingerprint: 5de254bcfe32b5402372d4f574d4da702851aa8c09b439eb03cd29a4ea4a3c4e
     required_applies_to:
     - rest_api
     - cli
@@ -2878,7 +2878,7 @@ assertions:
     specification: feature.app-memories@4
     specification_id: feature.app-memories
     type: invariant
-    fingerprint: 270857cdf731436c24197af5e1ca45030386ec8b2369405905273920fd66dc0a
+    fingerprint: 382daf0e407facbed4c9c81689b1f0b59b45394bf52855f6cf8a8f99cf8a0f40
     required_applies_to:
     - rest_api
     - cli
@@ -2902,7 +2902,7 @@ assertions:
     specification: feature.app-memories@4
     specification_id: feature.app-memories
     type: privacy
-    fingerprint: b7858bb4fe268040df30642be6e3d5191bc648a44db22f148cfe8800a87f6291
+    fingerprint: e5363472640d552d498e6f47d74839f8c34a07e31c8c97ac6ba1007dc40b7fd5
     required_applies_to:
     - rest_api
     - cli
@@ -2962,7 +2962,7 @@ assertions:
     specification: feature.app-memories@4
     specification_id: feature.app-memories
     type: parity
-    fingerprint: 0cb56ed588e82051c4b380497a35533dadd5a88ca0fd01d0c29c30884903b4ca
+    fingerprint: 78f33c53ff72fd59b4a84047894a44941992422db966df0e0b689f6334b7b446
     required_applies_to:
     - rest_api
     - cli
@@ -2974,7 +2974,7 @@ assertions:
     specification: feature.app-memories@4
     specification_id: feature.app-memories
     type: validation
-    fingerprint: 417fbef4a5c5da8e053acbb5c97ba689e40c3af37646d8f224c6332a71c1b8bd
+    fingerprint: c7df86fc1031186b638bcd665b868807af35f69f34e3cf7960d3bbf2d68bb292
     required_applies_to:
     - rest_api
     - cli
@@ -2986,7 +2986,7 @@ assertions:
     specification: feature.app-memories@4
     specification_id: feature.app-memories
     type: security
-    fingerprint: 16e97ff94ddfb970197808d7239aa9420f25945a79a92fd8bf48a643c8ddb731
+    fingerprint: f484828c7a8a5b1d700329752d58957b3ba412312222956af3e56eab6a2f104c
     required_applies_to:
     - rest_api
     - cli
@@ -2998,7 +2998,7 @@ assertions:
     specification: feature.app-memories@4
     specification_id: feature.app-memories
     type: invariant
-    fingerprint: b16a6711b8ad8260f5eb7664d60c3d1d1b3c3c429b738d66007175a7d5499cea
+    fingerprint: 942965d1bd938ddf0eb433af125d68a919810564b783773bdebddd297c14e229
     required_applies_to:
     - rest_api
     - cli
@@ -3010,7 +3010,7 @@ assertions:
     specification: feature.app-memories@4
     specification_id: feature.app-memories
     type: parity
-    fingerprint: ba5546c851cd65bd0505ca073d16a9b34af706140f5e769c50d94525cc1715ff
+    fingerprint: 99022fd17da305c4a3680839f611b530278a1d805c6f309cee049b9885520b39
     required_applies_to:
     - rest_api
     - cli
@@ -3022,7 +3022,7 @@ assertions:
     specification: feature.app-memories@4
     specification_id: feature.app-memories
     type: parity
-    fingerprint: cef39b5dd17b94f4275e2fd324e54ae61c7713c06c9da5d25f856eb0571ce9f9
+    fingerprint: 46843babb29523084e2981a43c2486b150c989e97a4d310f0deab4aea2b5c879
     required_applies_to:
     - rest_api
     - cli
@@ -3034,7 +3034,7 @@ assertions:
     specification: feature.app-memories@4
     specification_id: feature.app-memories
     type: invariant
-    fingerprint: b3614dc5e60af5b53f038939af27809bfb9b1e81afdd1c001af6e3af3dacb0a7
+    fingerprint: cb390b8189c317dfc7f150b6c0011dae4c19b2835e380e1978e59b39619524ee
     required_applies_to:
     - rest_api
     - cli
@@ -3046,7 +3046,7 @@ assertions:
     specification: feature.app-memories@4
     specification_id: feature.app-memories
     type: behavior
-    fingerprint: 8d5febf5c806a209084301b6a4b51c25669c2553aabed5e67f359834c79d731b
+    fingerprint: 7ec287df4d28b3df7daf056bdb14fed11c2bd6529434b895e1b196d03fdc8f81
     required_applies_to:
     - rest_api
     - cli
@@ -3070,7 +3070,7 @@ assertions:
     specification: feature.app-memories@4
     specification_id: feature.app-memories
     type: invariant
-    fingerprint: f6f35c862cfd0b085c3554d7caca316e5b31d0e8a3aad1c29defb8fedfe08129
+    fingerprint: 49305420f9974c58940c1d2595d824bbb4a25cdc7f9b2f7783e788599de0d9f9
     required_applies_to:
     - rest_api
     - cli
@@ -3078,11 +3078,11 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
-  app-memories.references.embeds-and-chats:
+  app-memories.references.embeds:
     specification: feature.app-memories@4
     specification_id: feature.app-memories
     type: privacy
-    fingerprint: df09d8852b00392f197d1b26128a72fa07a9782c35ea42418b159459a56dba6c
+    fingerprint: 9296f2846b71de1f37333f20f6f05295709c905e3c4a0eb7fde9c57b001829b2
     required_applies_to:
     - rest_api
     - cli
@@ -3118,7 +3118,7 @@ assertions:
     specification: feature.app-memories@4
     specification_id: feature.app-memories
     type: privacy
-    fingerprint: 2d222b3296126e800d1608fb62b5005df5812ca639e826aabc738f02c1789158
+    fingerprint: 50c4199cca1d9f8419e6d2d85d393b028b304e5b499a5c308a3a2e57ecaea9c8
     required_applies_to:
     - rest_api
     - cli

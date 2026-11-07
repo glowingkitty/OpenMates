@@ -243,10 +243,10 @@ load_modes:
   when: The user sends an unrelated message, then later types @Therapy notes.
   then: No model stage sees it in the first message; after the mention only that body is sent.
 expiry:
-- id: client-deletes-after-grace
-  given: A memory expired on Monday and has a seven day renewal grace period.
-  when: A client connects the next Tuesday week.
-  then: The client deletes it; during the grace period it showed as expired with a Renew button.
+- id: client-deletes-when-expired
+  given: A memory expired on Monday.
+  when: A client connects on Tuesday.
+  then: The client deletes it immediately; it was never loaded after it expired.
 - id: workflow-snapshot-expiry
   given: A Workflow step has a memory snapshot expiring on 1 December.
   when: The scheduler runs the Workflow on 2 December with no client online.
@@ -256,11 +256,10 @@ references:
   given: A memory references an embed holding the API contract.
   when: The memory is loaded.
   then: The embed content is included automatically up to the loading budget.
-- id: chat-metadata-only
-  given: A memory references the chat "Auth decision".
+- id: chat-reference-unavailable
+  given: Older data has a memory reference to the chat "Auth decision".
   when: The memory is loaded.
-  then: Only its title, id, summary and last-updated time are supplied; the main processor may search that chat, and no other
-    chat becomes searchable.
+  then: The chat reference is ignored; only embed references are resolved and no chat content or metadata is supplied.
 suggestions:
 - id: update-title-only
   given: The memory "Staging API" says port 8001 and the chat reveals port 8002.

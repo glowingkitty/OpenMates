@@ -1,10 +1,10 @@
 <!-- frontend/packages/ui/src/components/settings/MemoryReferencesField.svelte
-     Reference chips for a Memory (embeds and chats). Spec: app-memories.references.embeds-and-chats.
-     Chats are picked by their locally decrypted title; embeds by id (validated against the reader's own store).
+     Reference chips for a Memory (embeds only). Spec: app-memories.references.embeds.
+     Embeds are added by id (validated against the reader's own store).
      Unavailable items stay as chips with a marker; they never block saving. Nothing here leaves the device. -->
 <script lang="ts">
   import { text } from '../../i18n/translations';
-  import { SettingsInput, SettingsDropdown, SettingsButton, SettingsBadge, SettingsItem } from './elements';
+  import { SettingsInput, SettingsButton, SettingsBadge, SettingsItem } from './elements';
   import { MAX_MEMORY_REFERENCES, type MemoryReference } from '../../utils/ruleDocuments';
   import {
     defaultReferenceReaders, lookupReferenceLabels, referenceEntryId, type ReferenceLabel, type ReferenceReaders,
@@ -16,12 +16,10 @@
     onChange: (references: MemoryReference[]) => void;
     /** Test seam; defaults to the reader's own embed store and chat database. */
     readers?: ReferenceReaders;
-    listChats?: () => Promise<Array<{ id: string; title: string }>>;
   }
-  let { references, disabled = false, onChange, readers, listChats }: Props = $props();
+  let { references, disabled = false, onChange, readers }: Props = $props();
 
   let labels = $state<ReferenceLabel[]>([]);
-  let chats = $state<Array<{ id: string; title: string }>>([]);
   let embedId = $state('');
   let error = $state('');
 
@@ -31,18 +29,6 @@
     const current = references;
     void (async () => { labels = await lookupReferenceLabels(current, await activeReaders()); })();
   });
-
-  $effect(() => {
-    void (async () => {
-      if (listChats) { chats = await listChats(); return; }
-      const { chatDB } = await import('../../services/db');
-      chats = (await chatDB.getAllChats()).filter((chat) => chat.title?.trim()).map((chat) => ({ id: chat.chat_id, title: chat.title as string }));
-    })();
-  });
-
-  const chatOptions = $derived(chats
-    .filter((chat) => !references.some((ref) => ref.kind === 'chat' && ref.id === chat.id))
-    .map((chat) => ({ value: chat.id, label: chat.title })));
 
   function add(reference: MemoryReference) {
     error = '';
@@ -72,7 +58,7 @@
       {#each labels as label (referenceEntryId(label.reference))}
         <li class="chip" class:unavailable={!label.available} data-testid="memory-reference-chip"
           data-kind={label.reference.kind} data-available={label.available}>
-          <SettingsBadge variant="neutral" text={$text(label.reference.kind === 'chat' ? 'memories.reference_chat' : 'memories.reference_embed')} />
+          <SettingsBadge variant="neutral" text={$text('memories.reference_embed')} />
           <span class="chip-title">{label.available ? label.title : $text('memories.reference_unavailable')}</span>
           <button type="button" class="chip-remove" {disabled} aria-label={$text('memories.reference_remove')}
             data-testid="memory-reference-remove" onclick={() => remove(label.reference)}>&times;</button>
@@ -80,8 +66,6 @@
       {/each}
     </ul>
   {/if}
-  <SettingsDropdown value="" options={chatOptions} {disabled} ariaLabel={$text('memories.reference_add_chat')}
-    dataTestid="memory-reference-add-chat" onChange={(value) => { if (value) add({ kind: 'chat', id: value }); }} />
   <SettingsInput bind:value={embedId} {disabled} ariaLabel={$text('memories.reference_add_embed')}
     dataTestid="memory-reference-embed-id" />
   <SettingsButton variant="secondary" size="sm" {disabled} dataTestid="memory-reference-add-embed" onClick={() => void addEmbed()}>

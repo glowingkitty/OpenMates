@@ -382,14 +382,9 @@ references:
   de: Verweise
   verified_by_human: []
 references_hint:
-  context: Explains that referenced embeds load with the Memory and referenced chats only share metadata and become searchable
-  en: Embeds load with this Memory. For chats only the title, summary and last update are shared, and the assistant may search those chats while this Memory is loaded.
-  de: Embeds werden mit dieser Erinnerung geladen. Bei Chats werden nur Titel, Zusammenfassung und letzte Änderung geteilt, und der Assistent darf diese Chats durchsuchen, solange diese Erinnerung geladen ist.
-  verified_by_human: []
-reference_chat:
-  context: Badge on a referenced chat chip
-  en: Chat
-  de: Chat
+  context: Explains that referenced embeds load with the Memory
+  en: Embeds load with this Memory.
+  de: Embeds werden mit dieser Erinnerung geladen.
   verified_by_human: []
 reference_embed:
   context: Badge on a referenced embed chip
@@ -405,11 +400,6 @@ reference_remove:
   context: Button label to remove a reference from a Memory
   en: Remove reference
   de: Verweis entfernen
-  verified_by_human: []
-reference_add_chat:
-  context: Label of the chat picker in the Memory references field
-  en: Add a chat
-  de: Chat hinzufügen
   verified_by_human: []
 reference_add_embed:
   context: Label and button to add an embed reference by id

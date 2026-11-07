@@ -28,10 +28,10 @@ _HEADER_KEYS = {"title", "description", "when_to_use", "load_mode", "valid_from"
 LoadMode = Literal["auto_include", "ask_first", "mention_only"]
 
 class MemoryReference(BaseModel):
-    """Pointer to an embed or chat; resolution happens only on a client holding the reader's keys."""
+    """Pointer to an embed; resolution happens only on a client holding the reader's keys."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
-    kind: Literal["embed", "chat"]
+    kind: Literal["embed"]
     id: str = Field(min_length=1, max_length=240)
 
 def _parse_timestamp(value: object, key: str) -> str | None:
@@ -136,7 +136,10 @@ def parse_memory_md(
         if not isinstance(refs, list):
             raise ValueError("Memory references must be a list")
         try:
-            values["references"] = tuple(MemoryReference.model_validate(ref) for ref in refs)
+            values["references"] = tuple(
+                MemoryReference.model_validate(ref) for ref in refs
+                if not (isinstance(ref, dict) and ref.get("kind") == "chat")  # legacy chat references are dropped
+            )
         except ValueError as exc:
             raise ValueError("Invalid Memory reference") from exc
         if len({(r.kind, r.id) for r in values["references"]}) != len(values["references"]):

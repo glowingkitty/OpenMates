@@ -10,7 +10,7 @@ export const MEMORY_LOAD_MODES: readonly MemoryLoadMode[] = ['auto_include', 'as
 export const MAX_MEMORY_REFERENCES = 50;
 
 export interface MemoryReference {
-  kind: 'embed' | 'chat';
+  kind: 'embed';
   id: string;
 }
 
@@ -81,15 +81,18 @@ export function parseRuleDocument(document: string): RuleDocumentFields {
     const refs = record.references;
     if (!Array.isArray(refs) || refs.length > MAX_MEMORY_REFERENCES) throw new Error('invalid_rule_document');
     const seen = new Set<string>();
-    fields.references = refs.map((ref) => {
+    // Legacy stored chat references are dropped on read; only embed references remain supported.
+    const embedRefs = refs.filter((ref) => !(ref && typeof ref === 'object' && !Array.isArray(ref)
+      && (ref as Record<string, unknown>).kind === 'chat'));
+    fields.references = embedRefs.map((ref) => {
       if (!ref || typeof ref !== 'object' || Array.isArray(ref)) throw new Error('invalid_rule_document');
       const entry = ref as Record<string, unknown>;
-      if (Object.keys(entry).length !== 2 || (entry.kind !== 'embed' && entry.kind !== 'chat')
+      if (Object.keys(entry).length !== 2 || entry.kind !== 'embed'
         || typeof entry.id !== 'string' || !entry.id.trim() || entry.id.length > 240) throw new Error('invalid_rule_document');
       const key = `${entry.kind}:${entry.id}`;
       if (seen.has(key)) throw new Error('invalid_rule_document');
       seen.add(key);
-      return { kind: entry.kind, id: entry.id };
+      return { kind: 'embed' as const, id: entry.id };
     });
   }
   return fields;
@@ -118,11 +121,11 @@ export function isMemoryActive(fields: MemoryWindow, now: Date | number = Date.n
   return true;
 }
 
-/** True once the expiry is more than `graceDays` in the past; clients then delete the memory. */
-export function isMemoryExpiredBeyondGrace(fields: MemoryWindow, now: Date | number = Date.now(), graceDays = 7): boolean {
+/** True as soon as the expiry is in the past (no grace window); clients then delete the memory. */
+export function isMemoryExpired(fields: MemoryWindow, now: Date | number = Date.now()): boolean {
   if (!fields.valid_until) return false;
   const time = typeof now === 'number' ? now : now.getTime();
-  return time > Date.parse(fields.valid_until) + graceDays * 86_400_000;
+  return time > Date.parse(fields.valid_until);
 }
 
 export function validateRuleCatalog(documents: CustomRuleDocument[]): CustomRuleDocument[] {

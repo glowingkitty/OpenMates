@@ -23,7 +23,6 @@ from typing import Dict, Any, List
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
-from backend.shared.python_utils import memory_chat_grants as grants
 from backend.shared.python_utils.app_memory_policy import (
     REMOVED_APP_MEMORY_ERROR,
     is_removed_app_memory,
@@ -370,8 +369,6 @@ async def _trigger_continuation(
     chat_id: str,
     device_fingerprint_hash: str,
     is_rejection: bool,
-    confirmed_entries: Any = None,
-    approved_search_chat_ids_raw: Any = None,
 ) -> None:
     """
     Load pending request context and trigger a new ask_skill task.
@@ -523,13 +520,7 @@ async def _trigger_continuation(
             logger.info(f"Passing {len(app_settings_memories_metadata)} app_settings_memories_metadata keys to continuation task.")
             logger.debug(f"App settings/memories metadata keys for continuation: {app_settings_memories_metadata}")
         
-        approved_search_chat_ids: List[str] = [] if is_rejection else await grants.approved_search_chat_ids(
-            approved_search_chat_ids_raw, entries=confirmed_entries, requested_keys=requested_keys,
-            current_chat_id=chat_id,
-            is_owned=lambda other_chat_id: directus_service.chat.check_chat_ownership(other_chat_id, user_id),
-        )
         request_data_dict = {
-            "approved_search_chat_ids": approved_search_chat_ids,
             # Body-free catalog snapshot restricted to ids requested in this pending
             # request; the continuation accepts memory content for these ids only.
             "memory_catalog": await _requested_memory_catalog(

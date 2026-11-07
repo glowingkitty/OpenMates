@@ -19,7 +19,7 @@ import {
 import { projectFileMutationDigest, type ProjectFileMutation } from '../utils/projectFileMutationProtocol';
 import type { ProjectFileJob } from './projectFileJobExecutor';
 import {
-  buildWholeDocumentPatch, isMemoryExpiredBeyondGrace, parseRuleDocument, serializeRuleDocument, validateRuleCatalog,
+  buildWholeDocumentPatch, isMemoryExpired, parseRuleDocument, serializeRuleDocument, validateRuleCatalog,
   type CustomRuleDocument,
 } from '../utils/ruleDocuments';
 import { buildMemoryCatalog, type MemoryCatalogEntry } from '../utils/memoryCatalog';
@@ -144,14 +144,14 @@ export async function deletePersonalRuleDocument(id: string): Promise<void> {
 }
 
 /**
- * Client-side expiry: deletes personal memories expired beyond the 7 day grace.
+ * Client-side expiry: deletes personal memories as soon as they are expired.
  * Returns the number of deleted memories. Project memories are excluded from
  * catalogs by buildMemoryCatalog while expired; deleteExpiredProjectMemories removes them while their Project is active.
  */
 export async function deleteExpiredPersonalMemories(now: Date | number = Date.now()): Promise<number> {
   const snapshot = await accountSettings();
   const expired = new Set(personalDocuments(snapshot.settings)
-    .filter((item) => isMemoryExpiredBeyondGrace(parseRuleDocument(item.document), now)).map((item) => item.id));
+    .filter((item) => isMemoryExpired(parseRuleDocument(item.document), now)).map((item) => item.id));
   if (!expired.size) return 0;
   for (const key of [PERSONAL_SETTINGS_KEY, LEGACY_PERSONAL_SETTINGS_KEY]) {
     const values = snapshot.settings[key];
@@ -162,7 +162,7 @@ export async function deleteExpiredPersonalMemories(now: Date | number = Date.no
 }
 
 /**
- * Deletes Project memories expired beyond the 7 day grace, same rule as personal memories.
+ * Deletes expired Project memories immediately, same rule as personal memories.
  * Needs the active Project's authoritative documents (callers pass the freshly listed set),
  * so it can only run while that Project is active. Returns the number deleted.
  */
@@ -171,7 +171,7 @@ export async function deleteExpiredProjectMemories(
   now: Date | number = Date.now(),
 ): Promise<number> {
   const expired = input.documents.filter((item) => item.source === 'project' && item.id
-    && isMemoryExpiredBeyondGrace(parseRuleDocument(item.document), now));
+    && isMemoryExpired(parseRuleDocument(item.document), now));
   if (!expired.length) return 0;
   const context = { teamId: input.teamId ?? undefined };
   const contents = await getProjectContents(await getProject(input.projectId, context), context);

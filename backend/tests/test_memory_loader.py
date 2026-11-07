@@ -75,13 +75,13 @@ references:
 Packing list.
 """
 
-# contract-test: supporting surface=rest_api assertions=app-memories.document.canonical-shape,app-memories.load-modes,app-memories.references.embeds-and-chats,app-memories.expiry.client-enforced
+# contract-test: supporting surface=rest_api assertions=app-memories.document.canonical-shape,app-memories.load-modes,app-memories.references.embeds,app-memories.expiry.client-enforced
 def test_canonical_shape_parses_new_fields_and_blank_when_to_use():
     memory = parse_memory_md(CANONICAL, memory_id="p:1", source="personal")
     assert memory.when_to_use == "" and memory.description == ""
     assert memory.load_mode == "ask_first"
     assert memory.valid_from == "2026-01-01T00:00:00Z" and memory.valid_until == "2026-02-01T00:00:00Z"
-    assert [(r.kind, r.id) for r in memory.references] == [("embed", "e1"), ("chat", "c1")]
+    assert [(r.kind, r.id) for r in memory.references] == [("embed", "e1")]  # legacy chat reference dropped
 
 # contract-test: supporting surface=rest_api assertions=app-memories.compatibility.legacy-documents,app-memories.document.canonical-shape
 def test_legacy_document_keeps_revision_and_defaults():
@@ -94,7 +94,7 @@ def test_legacy_document_keeps_revision_and_defaults():
 # contract-test: supporting surface=rest_api assertions=app-memories.document.canonical-shape,app-memories.load-modes,app-memories.expiry.client-enforced
 @pytest.mark.parametrize("old,new", [
     ("ask_first", "sometimes"), ("2026-02-01T00:00:00Z", "2025-01-01T00:00:00Z"),
-    ('"2026-01-01T00:00:00Z"', "not-a-date"), ("kind: chat", "kind: note"),
+    ('"2026-01-01T00:00:00Z"', "not-a-date"), ("kind: embed", "kind: note"),
     ("title: Trip\n", "title: Trip\nextra: 1\n"), ("title: Trip\n", ""),
 ])
 def test_invalid_canonical_fields_are_rejected(old, new):
