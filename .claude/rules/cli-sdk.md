@@ -70,6 +70,9 @@ sync and persistence policy also follows `specifications/architecture/sync/` and
     - CPU: the upper bound of the 95% CI must be ≤ +15%.
     - Don't spend effort optimizing inside this budget; port code instead.
   - Isolated micro-ops, such as single page-to-worker calls, are reported but not gated.
+  - After every web bench, append the result to `docs/migration/rust/performance-history.yml`
+    with `scripts/record_perf_measurement.py` (append-only; never edit old entries).
+    Refresh the status with `python3 scripts/rust_migration_yaml.py`.
   - Memory during the migration: at most one WASM instance, about +30 MB. More than
     one is a blocker. Memory that grows per page reload is always a bug. The final build with the TS paths removed must have RAM and
     download ≤ TS.

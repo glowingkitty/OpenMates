@@ -68,4 +68,4 @@ do not create a competing client-core contract.
 - [Web App](../frontend/web-app.md) -- SvelteKit app architecture and public docs processing.
 - [CLI](cli.md) -- command-line platform architecture and capabilities.
 - [Apple App](../frontend/native-apps.md) -- native app architecture and web-parity model.
-- [Rust migration status](rust-migration-status.md) -- generated SDK, CLI and web unit progress with side-by-side metrics.
+- [Rust migration status](rust-migration-status.md) -- generated readable report; the structured source is [docs/migration/rust/overview.yml](../../migration/rust/overview.yml) (areas, sub-files and the append-only performance-history.yml).

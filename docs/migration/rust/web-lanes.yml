@@ -1,0 +1,524 @@
+# Web client logic -> Rust: lane plan and live lane status. HAND-CURATED (edit lane
+# `status` / `commit` as lanes progress, then run python3 scripts/rust_migration_yaml.py).
+# Validated by scripts/rust_migration_yaml.py: every lane has a status; landed lanes name
+# a commit; ranks are 1..N; deps resolve to a lane or a slice id.
+# status: planned | running | landed.  commit: lowercase hex, required when landed.
+# Narrative plan: web-lanes.md. Lane briefs were working files and are not kept in the repo.
+schema_version: 1
+plan_date: 2026-11-07
+base_commit: f725997112
+goal: Move all web client-side logic into shared Rust in the one shared Worker; Svelte keeps UI/DOM/browser APIs;
+  VITE_OPENMATES_RUST_CORE default off; flag-off byte-identical.
+units:
+  installed:
+  - core
+  - crypto
+  - auth
+  - apps
+  - embedData
+  - embedWrite
+  - search
+  - transfer
+  - sync
+  planned: [chatState, ws]
+  new_in_wave: [settings, composer, parse]
+hot_files:
+- frontend/packages/ui/src/services/rustCore/host/sharedWorkerProtocol.ts
+- frontend/apps/web_app/src/lib/rustCore/shared/sharedWorkerUnits.ts
+- packages/openmates-browser-bindings/src/lib.rs
+- packages/openmates-rust/src/lib.rs
+- '**/mod.rs'
+- config/sdk-capabilities.json
+- config/cli-command-catalog.json
+- docs/architecture/platforms/rust-migration-status.md
+- frontend/packages/ui/src/services/rustCore/sync/syncProtocol.ts
+- frontend/packages/ui/src/services/rustCore/crypto/cryptoUnitInstaller.ts
+- frontend/packages/ui/src/services/rustCore/auth/authProtocol.ts
+- frontend/packages/ui/src/services/rustCore/embeds/embedDataProtocol.ts
+- frontend/packages/ui/src/services/rustCore/chatState/chatStateProtocol.ts
+- frontend/apps/web_app/src/lib/rustCore/shared/coreUnit.ts
+- frontend/packages/ui/src/services/rustCore/workerDispatch.ts
+- frontend/apps/web_app/tests/web-rust-core-bench-run.ts
+landing_protocol:
+- work only in owned and new files
+- all hot hunks in one final registry commit
+- sessions.py worktree refresh-base, then sessions.py edit-lease acquire --file <hot files>; wait once if held
+- regenerate generated files with generators; run the sdk-capabilities matrix validator
+- deploy with ONE --only list; wait-deploy; edit-lease release
+- simultaneous readiness lands in rank order; new namespaces appended to SHARED_NAMESPACES
+- each new namespace proves it does not leak into the flag-off build
+gates:
+  ci: [rust-check, rust-wasm, vitest, sdk-conformance, lane e2e flag-on, flag-off byte-identical]
+  bench:
+    workers: 1
+    wasm_instances: 1
+    main_thread_wasm: 0
+    verdict: rust_not_worse
+    per_reload_memory_growth: none
+  perf_budget: wall CI95 upper <= max(+10%, +50 ms); p95 <= +100 ms (+200 ms cold start); CPU CI95 upper <= +15%
+wave3_lanes:
+- name: w3-web-drafts
+  kind: wave3
+  status: running
+  commit: null
+  owns: [services/drafts/*, rustCore/browserDraft*, rustCore/draftEditorAdapter.ts, rustCore/productionDraftBinding.ts]
+  notes: Drafts save rust-synced; visible-editor E2E rerun pending.
+- name: search-snippet-perf
+  kind: wave3
+  status: landed
+  commit: bc918c7
+  owns: [web_search*.rs, browser_search_pii.rs]
+  notes: Pipelined worker ingests; search bench still inconclusive, see performance-history.yml.
+- name: w3-web-sync-policy
+  kind: wave3
+  status: landed
+  commit: c577ddd
+  owns: [chatSyncMerge.ts, chatSyncPhasedRetry.ts, chatSyncMessageKeyGuard.ts, chatKeyWriteGuard.ts, chatKeyConsistency.ts,
+    rustCore/sync/*]
+  notes: 'Gap: chatKeyWriteGuard/chatKeyConsistency and ChatUpdates/Recovery helpers not moved.'
+- name: w3-web-import-export
+  kind: wave3
+  status: running
+  commit: null
+  owns: [zipExportService.ts, accountExportService.ts, chatExportService.ts, chatImportService.ts, rustCore/transfer/*]
+  notes: Scopes 1 (b33404b) and 2 (f7259971) landed; scope 3 zip/account export unverified.
+- name: w3-web-send-perf
+  kind: wave3
+  status: running
+  commit: null
+  owns: [rustCore/sendOperation.ts, rustCore/sendProtocol.ts, rustCore/originalSavedChatSender.ts, rustCore/browserWsLink.ts,
+    crypto send path]
+  notes: Paired send bench exists; 12 pairs in one job blocked by sends stalling after about 15 sends.
+- name: send-correctness
+  kind: wave3
+  status: running
+  commit: null
+  owns:
+  - lib/rustCore/rustChatHistoryBootstrap.ts
+  - lib/rustCore/shared/coreUnit.ts
+  - rustCore/host/sessionBroker.ts
+  notes: 403/core-retire fix and session broker work.
+- name: memory-rss
+  kind: wave3
+  status: landed
+  commit: bd07710
+  owns: [build-rust-core-web.mjs, vite rust plugin, Cargo profiles, browser-bindings lib.rs exports, bench helpers]
+  notes: Reload-memory gate rust_not_worse (CI 348d19f1).
+lanes:
+- rank: 1
+  name: chatstate-core
+  kind: wave4
+  status: planned
+  commit: null
+  size: M
+  wave: A
+  deps: []
+  unit: chatState
+  installs_namespace: chatState
+  approval_to_enable: true
+  risk: encrypted bookmark/highlight writes; chat key resolved in Worker
+  gated_flows: [open_chat]
+  loc_moved: 2300
+  owns:
+  - frontend/packages/ui/src/services/rustCore/chatState/{chatStateUnit,chatStateProtocol,chatStateClient,chatStateAdapter,chatStateBinding}.ts
+  - frontend/packages/ui/src/services/{visibleMessageReceipts,chatReadState,messageBookmarks,handlersMessageHighlights,sendersMessageHighlights,sendersChatManagement,pendingChatDeletions,chatProjectService,chatMenuActionService,chatMenuUsage}.ts
+  - frontend/packages/ui/src/services/db/messageHighlights.ts
+  - frontend/packages/ui/src/utils/messageHighlights.ts
+  - packages/openmates-rust/src/chat_state/{receipts,bookmarks,highlights,management,projects}*.rs
+  - packages/openmates-browser-bindings/src/browser_chat_state*.rs
+  hot: [sharedWorkerUnits.ts, chatStateProtocol.ts (creates), sdk-capabilities.json]
+  e2e: [message-highlights.spec.ts, message-highlights-touch.spec.ts, web-rust-core-chat.spec.ts]
+  notes: ''
+- rank: 2
+  name: embeds-3
+  kind: wave4
+  status: planned
+  commit: null
+  size: M
+  wave: A
+  deps: []
+  unit: embedData
+  approval_to_enable: true
+  approval_note: partial (audioEmbedCrypto)
+  risk: key paths for audio; version reconstruction correctness
+  gated_flows: [embed_ready]
+  loc_moved: 9000
+  owns:
+  - frontend/packages/ui/src/services/{embedResolver,embedStore,embedDiffStore,embedStateMachine,embedRefIndex,embedFullscreenResolver,embedPreviewBackfill,streamedEmbedRevisionHistory,canonicalEmbedWriteCoordinator,embedSenders,personalEmbedReadOperation}.ts
+  - frontend/packages/ui/src/utils/{embedVersionReconstruction,embedLinkUtils,embedContentResolver,embedFragmentUtils}.ts
+  - frontend/packages/ui/src/components/embeds/{sheets/sheetEmbedContent,sheets/sheetFormulaEngine,mindmaps/mindMapContent,docs/docsEmbedContent,resultMapRoutes,audio/audioEmbedCrypto}.ts
+  - frontend/packages/ui/src/services/rustCore/embeds/{resolveOps,versionOps,contentOps}.ts
+  - packages/openmates-rust/src/embed_read/*
+  - packages/openmates-browser-bindings/src/browser_embed_read.rs
+  hot: [embedDataProtocol.ts, browser-bindings lib.rs, sdk-capabilities.json]
+  e2e: [web-rust-core-embeds.spec.ts, embed-fullscreen-followup, anonymous-child-embeds.spec.ts, historical-image-child-recovery.spec.ts,
+    draft-embed-preview.spec.ts]
+  notes: ''
+- rank: 3
+  name: sync-inbound
+  kind: wave4
+  status: planned
+  commit: null
+  size: L
+  wave: B
+  deps: [w3-web-sync-policy]
+  unit: sync
+  approval_to_enable: true
+  risk: drives IDB writes; out-of-order frames
+  gated_flows: [cold_start, open_chat]
+  loc_moved: 9000
+  owns:
+  - frontend/packages/ui/src/services/{chatSyncServiceHandlersChatUpdates,chatSyncServiceHandlersCoreSync,chatSyncService,lateChatMetadataGuard,generatedChatMetadataPersistence,chatMetadataWarmup,initialChatHistoryGate,chatSyncServiceHandlersWebhooks,chatSyncServiceHandlersAgentContext,chatSyncServiceHandlersFocusPhases}.ts
+  - frontend/packages/ui/src/stores/phasedSyncStateStore.ts (logic hunks)
+  - frontend/packages/ui/src/services/rustCore/sync/inboundOps.ts
+  - packages/openmates-rust/src/web_sync/inbound*.rs
+  - packages/openmates-browser-bindings/src/browser_sync_inbound.rs
+  hot: [syncProtocol.ts SYNC_OPS, web_sync/mod.rs, browser-bindings lib.rs, sdk-capabilities.json]
+  e2e:
+  - web-rust-core-sync.spec.ts
+  - web-rust-core-chat.spec.ts
+  - chat-sync-empty-indexeddb-recovery.spec.ts
+  - chat-metadata-recovery.spec.ts
+  - cross-client-draft-sync.spec.ts
+  notes: ''
+- rank: 4
+  name: ai-stream-recovery
+  kind: wave4
+  status: planned
+  commit: null
+  size: L
+  wave: B
+  deps: [w3-web-sync-policy]
+  soft_deps: [ws-unit]
+  unit: sync (recovery ops) + ws (streamOps)
+  approval_to_enable: true
+  risk: stream correctness; heartbeat delay from long WASM batches
+  gated_flows: [send_stream]
+  loc_moved: 8000
+  owns:
+  - frontend/packages/ui/src/services/{chatSyncServiceHandlersAI,chatSyncServiceHandlersRecovery,pendingAIResponses,fastAdmissionJournal,fastAdmissionPhaseJournal,postAdmissionContextPhases,chatRecoveryVersionApply,chatRecoveryVersionRefresh,recoveryAssistantTimestamp,recoveryEmbedSource}.ts
+  - frontend/packages/ui/src/utils/chatCompletionRecovery.ts
+  - frontend/packages/ui/src/message_parsing/{assistantActivityStatus,assistantActivityCompletion,assistantActivityRuns,assistantResponseTurn}.ts
+  - frontend/packages/ui/src/services/rustCore/sync/recoveryOps.ts
+  - frontend/packages/ui/src/services/rustCore/ws/streamOps.ts
+  - packages/openmates-rust/src/web_stream/*
+  - packages/openmates-browser-bindings/src/browser_stream.rs
+  hot: [syncProtocol.ts SYNC_OPS, browser-bindings lib.rs, sdk-capabilities.json]
+  e2e:
+  - web-rust-core-chat.spec.ts
+  - chat-streaming-render-performance.spec.ts
+  - chat-scroll-streaming.spec.ts
+  - chat-followup-recovery-disabled.spec.ts
+  - historical-image-child-recovery.spec.ts
+  notes: ''
+- rank: 5
+  name: persistence
+  kind: wave4
+  status: planned
+  commit: null
+  size: L
+  wave: B
+  deps: [w3-web-drafts, send-correctness]
+  unit: core
+  approval_to_enable: true
+  risk: IndexedDB writes; all historical row versions must read
+  gated_flows: [cold_start, open_chat]
+  loc_moved: 11000
+  owns:
+  - frontend/packages/ui/src/services/db.ts
+  - frontend/packages/ui/src/services/db/{chatCrudOperations,messageOperations,index,decryptionFailureCache,quotaRecovery,pendingEmbedQueue,codeRunOutputs,notebookRunOutputs}.ts
+  - frontend/packages/ui/src/services/{chatListCache,chatMetadataCache,recentChatWindowCache,authenticatedChatMessageWindow}.ts
+  - frontend/packages/ui/src/utils/{messageWindowPruning,contentCache}.ts
+  - frontend/packages/ui/src/services/rustCore/persist/*
+  - packages/openmates-rust/src/web_persist/*
+  - packages/openmates-browser-bindings/src/browser_persist.rs
+  hot: [coreUnit.ts, workerDispatch.ts, browser-bindings lib.rs, sdk-capabilities.json]
+  e2e:
+  - web-rust-core-chat.spec.ts
+  - web-rust-core-reload-memory.spec.ts
+  - chat-sync-empty-indexeddb-recovery.spec.ts
+  - persisted-draft-discovery.spec.ts
+  - web-rust-core-sync.spec.ts
+  notes: ''
+- rank: 6
+  name: send-prep-outbox
+  kind: wave4
+  status: planned
+  commit: null
+  size: L
+  wave: B
+  deps: [w3-web-send-perf]
+  unit: core
+  approval_to_enable: true
+  risk: outbox IDB writes; send latency gate
+  gated_flows: [send_stream]
+  loc_moved: 10000
+  owns:
+  - frontend/packages/ui/src/services/{sendersChatMessages,chatModelSelection,modelRoutingRestrictions,unavailableModelRecovery,serverCapabilityGate,preparedChatForSend,preparedPrivacyForSend,earlyProjectRoutingForSend,projectFocusSendPreflight,preflightAcknowledgement,personalChatTurnBarrier,ordinaryTeamPreflightRetry,sendersChatMessagesDispatchFailure,outboundMessageSends,offlineSyncBatch,offlineChangeOrder,queuedMessageLifecycle,sendersSync}.ts
+  - frontend/packages/ui/src/services/db/offlineChangesAndUpdates.ts
+  - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts (non-UI, extract-only)
+  - frontend/packages/ui/src/services/rustCore/send/*
+  - packages/openmates-rust/src/web_send_prep/*
+  - packages/openmates-browser-bindings/src/browser_send_prep.rs
+  hot: [coreUnit.ts, workerDispatch.ts, browser-bindings lib.rs, sdk-capabilities.json]
+  e2e: [web-rust-core-chat.spec.ts, offline-draft-replay.spec.ts, focus-mode-mention.spec.ts, default-model-settings-proof.spec.ts]
+  notes: ''
+- rank: 7
+  name: ws-unit
+  kind: wave4
+  status: planned
+  commit: null
+  size: L
+  wave: B
+  deps: [w3-web-send-perf, send-correctness]
+  unit: ws
+  installs_namespace: ws
+  approval_to_enable: true
+  risk: session token in Worker; single event loop; supervisor respawn
+  gated_flows: [send_stream, cold_start]
+  loc_moved: 2200
+  owns:
+  - frontend/packages/ui/src/services/websocketService.ts
+  - frontend/packages/ui/src/services/tracing/wsSpans.ts
+  - frontend/packages/ui/src/stores/{connectionFeedbackStore,serverStatusStore}.ts (logic hunks)
+  - frontend/packages/ui/src/services/rustCore/ws/* (except streamOps.ts)
+  - frontend/packages/ui/src/services/rustCore/host/ws/{wsLinkWorkerRuntime,wsLinkPort}.ts
+  - frontend/packages/ui/src/services/rustCore/browserWsLink.ts (after send-perf hands over)
+  - packages/openmates-rust/src/ws_link/*
+  - packages/openmates-browser-bindings/src/browser_ws_link.rs
+  hot:
+  - sharedWorkerUnits.ts
+  - sharedWorkerProtocol.ts NAMESPACE_MAX_PORTS
+  - browser-bindings lib.rs
+  - sdk-capabilities.json
+  e2e: [web-rust-core-chat.spec.ts, web-rust-core-sync.spec.ts, web-rust-core-auth.spec.ts]
+  notes: ''
+- rank: 8
+  name: keys
+  kind: wave4
+  status: planned
+  commit: null
+  size: L
+  wave: B
+  deps: [w3-web-sync-policy, w3-web-send-perf, auth-rest-slice-0]
+  unit: crypto
+  approval_to_enable: true
+  risk: key lifecycle; keys concentrate in one realm; logout/account-switch termination
+  gated_flows: [open_chat, send_stream, embed_ready]
+  loc_moved: 5700
+  owns:
+  - frontend/packages/ui/src/services/encryption/{ChatKeyManager,MessageEncryptor,MetadataEncryptor,mediaEncryption}.ts
+  - frontend/packages/ui/src/services/db/chatKeyManagement.ts
+  - frontend/packages/ui/src/services/{cryptoKeyStorage,cryptoService}.ts
+  - frontend/packages/ui/src/services/rustCore/crypto/keyOps.ts
+  - packages/openmates-browser-bindings/src/browser_keys.rs
+  hot: [cryptoUnitInstaller.ts, browser-bindings lib.rs, sdk-capabilities.json]
+  e2e: [web-rust-core-crypto.spec.ts, web-rust-core-chat.spec.ts, web-rust-core-auth.spec.ts, cross-client-draft-sync.spec.ts,
+    recovery-key-login-flow.spec.ts]
+  notes: ''
+- rank: 9
+  name: parse
+  kind: wave4
+  status: planned
+  commit: null
+  size: L
+  wave: A
+  deps: []
+  soft_deps: [ai-stream-recovery, persistence]
+  unit: parse
+  installs_namespace: parse
+  approval_to_enable: false
+  pre_bind: true
+  risk: HIGH perf risk on open chat and streaming; WASM size growth
+  gated_flows: [open_chat, send_stream]
+  loc_moved: 10000
+  owns:
+  - frontend/packages/ui/src/message_parsing/* (except assistantActivity*, assistantResponseTurn, streamingRenderScheduler,
+    streamingRenderMetrics, streamingTextFade)
+  - frontend/packages/ui/src/components/enter_message/utils/markdownParser.ts
+  - frontend/packages/ui/src/services/rustCore/parse/*
+  - packages/openmates-rust/src/web_parse/*
+  - packages/openmates-browser-bindings/src/browser_parse.rs
+  hot: [sharedWorkerProtocol.ts, sharedWorkerUnits.ts, browser-bindings lib.rs, sdk-capabilities.json]
+  e2e:
+  - chat-rendering-parity-oracle.spec.ts
+  - chat-streaming-render-performance.spec.ts
+  - chat-scroll-streaming.spec.ts
+  - web-rust-core-chat.spec.ts
+  - web-rust-core-embeds.spec.ts
+  notes: ''
+- rank: 10
+  name: settings-memories
+  kind: wave4
+  status: planned
+  commit: null
+  size: L
+  wave: A
+  deps: []
+  unit: settings
+  installs_namespace: settings
+  approval_to_enable: true
+  risk: encrypted memories/settings; IDB writes
+  gated_flows: [cold_start]
+  loc_moved: 9000
+  owns:
+  - frontend/packages/ui/src/services/{chatSyncServiceHandlersAppSettings,mentionedSettingsMemoriesCleartext,savedEmbedMemoryService,savedPersonalAdmissionHistory,topicPreferencesSync,wikipediaStudyInterest,userDB}.ts
+  - frontend/packages/ui/src/services/db/appSettingsMemories.ts
+  - frontend/packages/ui/src/stores/{appSettingsMemoriesStore,appSettingsMemoriesPermissionStore,personalDataStore,topicPreferencesStore,learningModeStore}.ts
+    (logic hunks)
+  - frontend/packages/ui/src/utils/{settingsHashUtils,appMemoryRequests}.ts
+  - frontend/packages/ui/src/services/rustCore/settings/*
+  - packages/openmates-rust/src/web_settings/*
+  - packages/openmates-browser-bindings/src/browser_settings.rs
+  hot: [sharedWorkerProtocol.ts, sharedWorkerUnits.ts, browser-bindings lib.rs, sdk-capabilities.json]
+  e2e:
+  - mention-dropdown-settings-memory.spec.ts
+  - memories-public-catalog.spec.ts
+  - chat-settings-flow.spec.ts
+  - language-settings-flow.spec.ts
+  - ai-settings-breadcrumb.spec.ts
+  notes: ''
+- rank: 11
+  name: composer
+  kind: wave4
+  status: planned
+  commit: null
+  size: M
+  wave: A
+  deps: [search-snippet-perf]
+  unit: composer
+  installs_namespace: composer
+  approval_to_enable: false
+  pre_bind: true
+  risk: keystroke latency; UTF-16 vs UTF-8 offsets
+  gated_flows: []
+  loc_moved: 9000
+  owns:
+  - frontend/packages/ui/src/components/enter_message/services/{piiDetectionService,webPIIDetectionService,mentionSearchService,pasteClassification,codeEmbedService,urlMetadataService,uploadService}.ts
+  - frontend/packages/ui/src/components/enter_message/{fileHandlers,embedHandlers}.ts
+  - frontend/packages/ui/src/components/enter_message/utils/{xlsxSheetConverter,imageHelpers}.ts
+  - frontend/packages/ui/src/services/{piiDisplayAliases,uploadPrivacy,embedSuggestionSearch,composerGhostSuggestion}.ts
+  - frontend/packages/ui/src/stores/embedPIIStore.ts (logic hunks)
+  - frontend/packages/ui/src/services/rustCore/composer/*
+  - packages/openmates-rust/src/web_composer/*
+  - packages/openmates-browser-bindings/src/browser_composer.rs
+  hot: [sharedWorkerProtocol.ts, sharedWorkerUnits.ts, browser-bindings lib.rs, sdk-capabilities.json]
+  e2e:
+  - pii-detection-flow.spec.ts
+  - pii-placeholder-rewrite.spec.ts
+  - paste-classification.spec.ts
+  - mention-dropdown-settings-memory.spec.ts
+  - focus-mode-mention.spec.ts
+  - office-import-notices.spec.ts
+  notes: ''
+- rank: 12
+  name: auth-rest
+  kind: wave4
+  status: planned
+  commit: null
+  size: M
+  wave: A
+  deps: []
+  unit: auth
+  approval_to_enable: true
+  risk: signup/pair/recovery/passkey; existing accounts must keep working
+  gated_flows: [cold_start]
+  loc_moved: 4000
+  slices:
+  - id: slice-0
+    note: extract passkey/PRF/recovery-key/password derivation from cryptoService.ts into services/authKeyDerivation.ts;
+      pure move; unblocks keys
+  owns:
+  - frontend/packages/ui/src/stores/{authSessionActions,authLoginLogoutActions,authMiscActions,signupState,pairSessionStore}.ts
+  - frontend/packages/ui/src/services/{pairV2,passwordV2,passwordV2Core,passwordV2Worker,authKeyDerivation}.ts
+  - frontend/packages/ui/src/utils/recoveryKeyUtils.ts
+  - frontend/packages/ui/src/config/tfa.ts
+  - frontend/packages/ui/src/components/{PasswordAndTfaOtp,EnterRecoveryKey}.svelte (logic hunks)
+  - frontend/packages/ui/src/services/rustCore/auth/flowOps.ts
+  - packages/openmates-rust/src/{web_auth_signup,web_auth_pair}.rs
+  hot: [authProtocol.ts, browser-bindings lib.rs, sdk-capabilities.json, cryptoService.ts (slice 0 only)]
+  e2e: [web-rust-core-auth.spec.ts, recovery-key-login-flow.spec.ts, recovery-key-settings.spec.ts, account-recovery-flow.spec.ts,
+    pair-web-receiver.spec.ts]
+  notes: ''
+- rank: 13
+  name: chatstate-hidden-fork
+  kind: wave4
+  status: planned
+  commit: null
+  size: L
+  wave: C
+  deps: [chatstate-core]
+  unit: chatState
+  approval_to_enable: true
+  risk: PIN-derived key wrapping; fork re-encryption
+  gated_flows: []
+  loc_moved: 1200
+  owns:
+  - frontend/packages/ui/src/services/{hiddenChatService,forkChatService}.ts
+  - frontend/packages/ui/src/stores/{hiddenChatStore,forkProgressStore}.ts (logic hunks)
+  - frontend/packages/ui/src/services/rustCore/chatState/{hiddenChatAdapter,hiddenOps,forkOps}.ts
+  - packages/openmates-rust/src/chat_state/{hidden,fork}*.rs
+  hot: [chatStateProtocol.ts, sdk-capabilities.json]
+  e2e: [hidden-chats-flow.spec.ts, fork-conversation.spec.ts, web-rust-core-crypto.spec.ts]
+  notes: ''
+- rank: 14
+  name: share-guest-crypto
+  kind: wave4
+  status: planned
+  commit: null
+  size: M
+  wave: C
+  deps: [keys]
+  unit: crypto
+  approval_to_enable: true
+  pre_bind: true
+  risk: existing share links/short URLs must open; guest promotion
+  gated_flows: []
+  loc_moved: 5400
+  note: Rust modules and vectors may start in wave A; land after the keys registry line
+  owns:
+  - frontend/packages/ui/src/services/{shareEncryption,shortUrlEncryption,embedShareEncryption,sharedChatKeyStorage,sharedChatDetailsService,shareMetadataQueue,chatSharing,anonymousChatStorage,anonymousChatKeyWrapping,anonymousChatHistory,anonymousChatIdentity,anonymousChatIds,anonymousChatPromotionService,incognitoChatService}.ts
+  - frontend/apps/web_app/src/routes/share/chat/shareChatEmbedUtils.ts
+  - frontend/apps/web_app/src/routes/share/embed/sharedEmbedGraph.ts
+  - frontend/packages/ui/src/services/rustCore/crypto/shareOps.ts
+  - packages/openmates-rust/src/{web_share,web_guest}/*
+  - packages/openmates-browser-bindings/src/browser_share.rs
+  hot: [cryptoUnitInstaller.ts, browser-bindings lib.rs, sdk-capabilities.json]
+  e2e: [anonymous-free-chat.spec.ts, anonymous-child-embeds.spec.ts, incognito-mode.spec.ts, application-preview-share.spec.ts]
+  notes: ''
+parked_wave5:
+- name: work
+  loc: 15000
+  files: projectService, project*, appsWorkspace*, userTaskService, teamService, userPlanService, workflow*, workflowWorkspaceStore
+  note: reuse CLI Rust; split in 2 lanes; leads wave 5
+- name: suggestions-inspirations
+  loc: 2600
+  files: dailyInspirationDB, dailyInspirationStore, db/newChatSuggestions, continueCarouselService
+  approval_to_enable: true
+- name: navigation-notifications
+  loc: 3500
+  files: deepLinkHandler, chatUrlService, utils/internalLinkValidation, chatNavigationStore, settingsRoutes, pushNotificationService,
+    chatNotificationVisibility, chatMessageNotificationReceipt, teamNotificationPreview, utils/reminderNotificationContext
+- name: voice-speech
+  loc: 6500
+  files: voiceCall*, assistantSpeech*, audioRealtimeTranscription
+  note: media stays; state machines move
+- name: connected-accounts-coderuns
+  loc: 2300
+  files: connectedAccount*, chatSyncServiceHandlersConnectedAccounts, codeRun*, notebookRun*
+  approval_to_enable: true
+- name: telemetry-debug
+  loc: 7700
+  files: debugUtils, clientLogForwarder, logCollector, userActionTracker, issueReportSubmission, e2eTestHooks
+  note: user decision whether dev-only tooling stays TS
+- name: static-catalogs
+  loc: 7700
+  files: data/appsMetadata, data/modelsMetadata, data/embedRegistry.generated
+  note: single generated source with Rust
+stays_ts:
+- '*.svelte UI'
+- TipTap renderers GroupRenderer.ts / AppSkillUseRenderer.ts (logic audit later)
+- reactive stores as view state; i18n setup; theme/uiFont; codeHighlighting
+- streamingRenderScheduler/Metrics/TextFade (frame timing)
+- media/WebRTC, Push API, file pickers, clipboard, WebSocket object, IndexedDB/WebCrypto primitives as thin adapters
+- demo_chats static content; web_app SSR routes (server-side)

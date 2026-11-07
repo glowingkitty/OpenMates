@@ -1,0 +1,68 @@
+# Hand-curated facts for web-app.yml that cannot be derived from code: the E2E
+# specs and shared vector files that prove each Worker unit, and its open gaps.
+# scripts/rust_migration_yaml.py checks that every namespace, spec and vector
+# path exists. Edit this file when a unit gains proof or a gap is closed/found.
+schema_version: 1
+units:
+  core:
+    specs: [web-rust-core-chat.spec.ts, web-rust-core-bench.spec.ts]
+    vectors: []
+    open_gaps:
+      - web-rust-core-chat send-admission gate compares unpaired samples and is red; see performance-history.yml sendToAdmit.
+  crypto:
+    specs: [web-rust-core-crypto.spec.ts]
+    vectors: [packages/openmates-rust/src/crypto/signup_vectors.json]
+    open_gaps: []
+  auth:
+    specs: [web-rust-core-auth.spec.ts]
+    vectors: []
+    open_gaps: []
+  apps:
+    specs: [web-rust-core-apps.spec.ts]
+    vectors:
+      - packages/openmates-rust/src/web_apps_ts_vectors.json
+      - packages/openmates-rust/src/web_apps/request_ts_vectors.json
+      - packages/openmates-rust/src/web_apps/results_ts_vectors.json
+      - packages/openmates-rust/src/web_apps/schema_ts_vectors.json
+    open_gaps: []
+  embedData:
+    specs: [web-rust-core-embeds.spec.ts]
+    vectors: [packages/openmates-rust/src/toon_decode_ts_vectors.json]
+    open_gaps:
+      - Embed RSS +1..+77 MB vs TypeScript in the embeds bench (noisy); see performance-history.yml.
+  embedWrite:
+    specs: [web-rust-core-embeds.spec.ts]
+    vectors: []
+    open_gaps:
+      - Streamed write is wired for send_embed_data only.
+  search:
+    specs: [web-rust-core-search.spec.ts]
+    vectors:
+      - packages/openmates-rust/src/web_search_ts_vectors.json
+      - packages/openmates-rust/src/web_search_chats_ts_vectors.json
+      - packages/openmates-rust/src/web_search_query_ts_vectors.json
+    open_gaps:
+      - Search wall-time gate is inconclusive (12-pair CIs reach 1.149 and 1.215); see performance-history.yml.
+  transfer:
+    specs: [web-rust-core-transfer.spec.ts]
+    vectors:
+      - packages/openmates-rust/src/web_transfer_ts_vectors.json
+      - packages/openmates-rust/src/web_transfer_export_ts_vectors.json
+    open_gaps:
+      - ZIP assembly and account export (scope 3) are not moved.
+      - import-chats.spec is red on the CI stack (import scanner needs provider credentials).
+  sync:
+    specs: [web-rust-core-sync.spec.ts]
+    vectors: [packages/openmates-rust/src/web_sync/ts_vectors.json]
+    open_gaps:
+      - chatKeyWriteGuard, chatKeyConsistency and the ChatUpdates/Recovery helpers are not moved.
+  chatState:
+    specs: []
+    vectors: []
+    open_gaps:
+      - Namespace reserved, no installer yet.
+  ws:
+    specs: []
+    vectors: []
+    open_gaps:
+      - Namespace reserved, no installer yet.
