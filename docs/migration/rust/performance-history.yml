@@ -663,3 +663,20 @@ measurements:
       columnsMs 0.9: ~185 ms is awaiting the worker round trip inside builds, overlapping concurrent builds);
       query.ms 34.1 (workerMs 15.2, roundTrip 32.4). Prior run was 1.132x +81 ms; commonSearchMs 1.085 [1.021,1.134]
       inconclusive, CPU 1.051 rust_not_worse.'
+  - id: 2026-11-07-embedReady-03
+    date: '2026-11-07'
+    flow: embedReady
+    metric: embedReadyMs
+    value_kind: ratio
+    value: 1.055
+    ci95: null
+    n_pairs: 3
+    verdict: rust_not_worse
+    verdict_basis: reported
+    ci_job: 28501abb
+    source_commit: e2397afa873c19ff00f34532592802ab270cc95f
+    evidence: web-rust-core-embeds.spec.ts embed-ready, 3 reloads per arm, medians Rust 1917.6 ms vs TS
+      1817 ms (+101 ms); CPU 3560 vs 4420 ms; RSS 1206 vs 1172 MB (+33 MB); not gross
+    confidence: traced
+    notes: embeds-3 slice 4 (admission); no CI on n=3; advisory, below the gross-regression threshold.
+    ts_value: 1817.0

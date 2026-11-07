@@ -6301,7 +6301,6 @@
             "embed_read",
             "embed_read.EmbedReadError",
             "embed_read.EmbedReadError.reason",
-            "embed_read.admission",
             "embed_read.admission.EmbedEventFacts",
             "embed_read.admission.EmbedEventFacts.current_status",
             "embed_read.admission.EmbedEventFacts.current_version",

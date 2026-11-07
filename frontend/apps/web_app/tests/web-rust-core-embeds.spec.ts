@@ -35,13 +35,13 @@ const CRYPTO_OPT_OUT_KEY = 'openmates_rust_core_crypto';
 const OPT_OUT_KEYS = [HISTORY_OPT_OUT_KEY, CRYPTO_OPT_OUT_KEY];
 
 /**
- * Approved "not noticeable" migration budget (.claude/rules/cli-sdk.md, user decision 2026-11-06):
- * wall time <= max(+10%, +50 ms), CPU <= +15%, memory <= TS + 30 MB (one shared WASM instance).
+ * Gross-regression rule (.claude/rules/cli-sdk.md, user decision 2026-11-07): the perf budget is
+ * advisory; only Rust worse than TS by more than +25% AND more than the absolute floor blocks
+ * (100 ms for time metrics, 30 MiB for memory). Everything else is logged for performance-history.yml.
  */
-function budgetLimit(key: string, ts: number): number {
-	if (key === 'browserCpuMs') return ts * 1.15;
-	if (key === 'browserRssBytes') return ts + 30 * 1024 * 1024;
-	return Math.max(ts * 1.1, ts + 50);
+function isGrossRegression(key: string, rust: number, ts: number): boolean {
+	const floor = key === 'browserRssBytes' ? 30 * 1024 * 1024 : 100;
+	return rust > ts * 1.25 && rust - ts > floor;
 }
 
 // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,apps.results.shared-fullscreen,sdk.web.before-after-performance
@@ -138,11 +138,12 @@ test('Rust core decrypts saved embeds; preview renders and fullscreen opens', as
 	await testInfo.attach('embed-ready-metrics.json', { body: JSON.stringify(metrics, null, 2), contentType: 'application/json' });
 	expect(rustReady, 'embed became ready on every Rust reload').not.toBeNull();
 	expect(tsReady, 'embed became ready on every TS reload').not.toBeNull();
-	// Strict user-facing gate (attached above, so a failing run keeps its numbers).
+	// Advisory budget: hard-fail only on a gross regression (numbers are attached above and logged here).
 	for (const key of ['embedReadyMs', 'browserCpuMs', 'browserRssBytes']) {
 		const rust = median(samples.rust, key), ts = median(samples.ts, key);
 		expect(rust, `embed-ready Rust median ${key}`).not.toBeNull();
 		expect(ts, `embed-ready TS median ${key}`).not.toBeNull();
-		expect.soft(rust!, `embed-ready ${key}: Rust ${rust} vs TS ${ts}`).toBeLessThanOrEqual(budgetLimit(key, ts!));
+		log(`embed-ready ${key}: Rust ${rust} vs TS ${ts} (ratio ${(rust! / ts!).toFixed(3)}, advisory)`);
+		expect(isGrossRegression(key, rust!, ts!), `embed-ready ${key} gross regression: Rust ${rust} vs TS ${ts}`).toBe(false);
 	}
 });
