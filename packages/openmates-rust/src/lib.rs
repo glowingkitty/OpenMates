@@ -27,6 +27,7 @@ pub mod web_search_chats;
 pub mod web_search_corpus;
 pub mod web_search_json;
 pub mod web_search_query;
+pub mod web_send_prep;
 pub mod web_apps;
 pub mod web_parse;
 pub mod web_transfer;

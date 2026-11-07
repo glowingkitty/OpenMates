@@ -308,9 +308,9 @@ Sources: `frontend/apps/web_app/src/lib/rustCore/shared/sharedWorkerUnits.ts` (i
 
 | Metric | Count |
 |---|---|
-| Namespaces in the allowlist | 13 |
-| Units installed (installer registered) | 12 / 13 (92%) |
-| Units planned (namespace reserved, no installer) | 1 / 13 (8%) |
+| Namespaces in the allowlist | 14 |
+| Units installed (installer registered) | 13 / 14 (93%) |
+| Units planned (namespace reserved, no installer) | 1 / 14 (7%) |
 
 Planned: `ws`. A namespace without an installer is refused as `unit_unavailable`.
 
@@ -328,6 +328,7 @@ Planned: `ws`. A namespace without an installer is refused as `unit_unavailable`
 | `sync` | yes | Serves the chat-sync decision policy (syncProtocol.ts) on the unit port from the realm's single WASM binding. It holds no per-account state and does no IO, so it is a pre-bind namespace. | none declared (3 files) | `frontend/packages/ui/src/services/rustCore/sync/syncUnit.ts` | `syncSharedUnit.test.ts` |
 | `drafts` | no | Draft policy (encryption, versioning, closed IndexedDB predicates, durable encrypted sync intent, readback) is shared Rust (`prepare_local_draft_with_preview`, `remote_payload`, `acknowledge_transport`). This unit only marshals: it runs the Rust calls on the ADMITTED client of the bound history `core` lease (borrowed via core... | not declared in unit sources | `frontend/packages/ui/src/services/rustCore/drafts/draftsUnit.ts` | `rustDraftsUnit.test.ts` |
 | `parse` | yes | Serves the render-plan block model (parseProtocol.ts) on the unit port from the realm's single WASM binding. Stateless and IO-free, hence pre-bind. | none declared (2 files) | `frontend/packages/ui/src/services/rustCore/parse/parseUnit.ts` | - |
+| `sendPrep` | yes | Serves the offline-outbox decisions (sendPrepProtocol.ts) on the unit port from the realm's single WASM binding. It holds no account state, so it is a pre-bind namespace. | none declared (2 files) | `frontend/packages/ui/src/services/rustCore/send/sendPrepUnit.ts` | `sendPrepOutboxVectors.test.ts` |
 | `ws` | no | Planned; no installer yet. | - | - | - |
 
 All units run only in builds with `VITE_OPENMATES_RUST_CORE=1`; with the flag off the original TypeScript path is unchanged.

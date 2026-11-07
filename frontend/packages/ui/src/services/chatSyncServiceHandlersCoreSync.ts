@@ -1338,9 +1338,12 @@ export async function handleOfflineSyncCompleteImpl(
   console.info(
     "[ChatSyncService:CoreSync] Received offline_sync_complete",
   );
-  const result = consumeOfflineSyncBatch(payload.batch_id, payload.successful_change_ids ?? [], {
-    processed: payload.processed, errors: payload.errors, conflicts: payload.conflicts,
-  }, true);
+  const receiptCounts = { processed: payload.processed, errors: payload.errors, conflicts: payload.conflicts };
+  // Opt-in shared Rust core build: the receipt is decided in the Worker `sendPrep` unit.
+  const result = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+    ? await (await import("./rustCore/send/rustOutbox")).rustConsumeOfflineSyncBatch(
+      payload.batch_id, payload.successful_change_ids ?? [], receiptCounts)
+    : consumeOfflineSyncBatch(payload.batch_id, payload.successful_change_ids ?? [], receiptCounts, true);
   if (!result) return;
   chatSyncActivity.completeOffline();
   const finish = (allowReplay: boolean) => {

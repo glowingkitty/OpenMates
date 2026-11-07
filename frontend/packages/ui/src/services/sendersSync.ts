@@ -20,6 +20,9 @@ import { resolveDraftChatContext, isDraftChatContextCurrent } from "./drafts/dra
 import { beginOfflineSyncBatch, cancelOfflineSyncBatch, captureOfflineSyncContext,
 	isOfflineSyncContextCurrent, isOfflineSyncWorkspaceCurrent } from "./offlineSyncBatch";
 import { orderOfflineChanges } from "./offlineChangeOrder";
+
+/** Opt-in shared Rust core build: replay order is decided in the Worker `sendPrep` unit. */
+const RUST_SEND_PREP_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1";
 import { isDeferredDraftDeleteFencedNow, mayReplayDeferredDraftDelete,
 	parseDeferredDraftDeleteId } from "./deferredDraftDeleteIntent";
 import { draftEditorUIState } from "./drafts/draftState";
@@ -412,7 +415,9 @@ export async function sendOfflineChangesImpl(): Promise<void> {
 		return !isDeferredDraftDeleteFencedNow(change.change_id, change.chat_id) &&
 			!(editor.currentChatId === change.chat_id && editor.hasUnsavedChanges);
 	});
-	const { ready, retainedCount } = orderOfflineChanges(current);
+	const { ready, retainedCount } = RUST_SEND_PREP_BUILD
+		? await (await import("./rustCore/send/rustOutbox")).rustOrderOfflineChanges(current)
+		: orderOfflineChanges(current);
 	if (retainedCount > 0) console.warn(
 		`[ChatSyncService:Senders] Retaining ${retainedCount} offline changes with ambiguous edit order.`
 	);

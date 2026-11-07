@@ -350,7 +350,7 @@ lanes:
 - rank: 6
   name: send-prep-outbox
   kind: wave4
-  status: planned
+  status: running
   commit: null
   size: L
   wave: B
@@ -377,14 +377,15 @@ lanes:
   - offline-draft-replay.spec.ts
   - focus-mode-mention.spec.ts
   - default-model-settings-proof.spec.ts
-  notes: ''
+  notes: 'Slice 1 (sendPrep unit, flag-gated): offline outbox replay order (offlineChangeOrder) and batch receipt decision (offlineBatchReceipt) in web_send_prep/*.rs with TS-generated vectors; sendersSync and handleOfflineSyncComplete call the unit when the flag is on. Remaining: message build, model choice, preflight modules, queue lifecycle, Worker-side IDB outbox adapter.'
   spec_assertions:
   - chats.send.immediate-admission
   - chats.message.identity-idempotent
   - chat-queued-followups.admission.synced
   - message-input.send.ownership
   spec_gaps:
-  - Offline outbox ordering and replay have no assertion.
+  - Offline outbox ordering and replay have no assertion (a proposed chats.offline-outbox.ordered-replay amendment needs user approval).
+  - Message preparation, preflight refusals and model choice have no dedicated assertion.
 - rank: 7
   name: ws-unit
   kind: wave4

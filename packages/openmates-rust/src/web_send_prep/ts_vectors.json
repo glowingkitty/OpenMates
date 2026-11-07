@@ -1,0 +1,683 @@
+{
+ "order": [
+  {
+   "name": "empty",
+   "changes": [],
+   "ready": [],
+   "retained": 0
+  },
+  {
+   "name": "single ordered",
+   "changes": [
+    {
+     "change_id": "a",
+     "chat_id": "c1",
+     "type": "draft",
+     "queue_order": 1
+    }
+   ],
+   "ready": [
+    0
+   ],
+   "retained": 0
+  },
+  {
+   "name": "sorts by queue order",
+   "changes": [
+    {
+     "change_id": "a",
+     "chat_id": "c1",
+     "type": "draft",
+     "queue_order": 3
+    },
+    {
+     "change_id": "b",
+     "chat_id": "c1",
+     "type": "draft",
+     "queue_order": 1
+    },
+    {
+     "change_id": "c",
+     "chat_id": "c1",
+     "type": "draft",
+     "queue_order": 2
+    }
+   ],
+   "ready": [
+    1,
+    2,
+    0
+   ],
+   "retained": 0
+  },
+  {
+   "name": "single legacy ready",
+   "changes": [
+    {
+     "change_id": "a",
+     "chat_id": "c1",
+     "type": "draft"
+    }
+   ],
+   "ready": [
+    0
+   ],
+   "retained": 0
+  },
+  {
+   "name": "two legacy retained",
+   "changes": [
+    {
+     "change_id": "a",
+     "chat_id": "c1",
+     "type": "draft"
+    },
+    {
+     "change_id": "b",
+     "chat_id": "c1",
+     "type": "draft"
+    }
+   ],
+   "ready": [],
+   "retained": 2
+  },
+  {
+   "name": "legacy plus ordered retained",
+   "changes": [
+    {
+     "change_id": "a",
+     "chat_id": "c1",
+     "type": "draft"
+    },
+    {
+     "change_id": "b",
+     "chat_id": "c1",
+     "type": "draft",
+     "queue_order": 1
+    }
+   ],
+   "ready": [],
+   "retained": 2
+  },
+  {
+   "name": "ordered then legacy retained",
+   "changes": [
+    {
+     "change_id": "b",
+     "chat_id": "c1",
+     "type": "draft",
+     "queue_order": 1
+    },
+    {
+     "change_id": "a",
+     "chat_id": "c1",
+     "type": "draft"
+    }
+   ],
+   "ready": [],
+   "retained": 2
+  },
+  {
+   "name": "duplicate order retained",
+   "changes": [
+    {
+     "change_id": "a",
+     "chat_id": "c1",
+     "type": "draft",
+     "queue_order": 2
+    },
+    {
+     "change_id": "b",
+     "chat_id": "c1",
+     "type": "draft",
+     "queue_order": 2
+    }
+   ],
+   "ready": [],
+   "retained": 2
+  },
+  {
+   "name": "zero order retained",
+   "changes": [
+    {
+     "change_id": "a",
+     "chat_id": "c1",
+     "type": "draft",
+     "queue_order": 0
+    }
+   ],
+   "ready": [],
+   "retained": 1
+  },
+  {
+   "name": "negative retained",
+   "changes": [
+    {
+     "change_id": "a",
+     "chat_id": "c1",
+     "type": "draft",
+     "queue_order": -1
+    }
+   ],
+   "ready": [],
+   "retained": 1
+  },
+  {
+   "name": "fraction retained",
+   "changes": [
+    {
+     "change_id": "a",
+     "chat_id": "c1",
+     "type": "draft",
+     "queue_order": 1.5
+    }
+   ],
+   "ready": [],
+   "retained": 1
+  },
+  {
+   "name": "unsafe retained",
+   "changes": [
+    {
+     "change_id": "a",
+     "chat_id": "c1",
+     "type": "draft",
+     "queue_order": 9007199254740992
+    }
+   ],
+   "ready": [],
+   "retained": 1
+  },
+  {
+   "name": "max safe ready",
+   "changes": [
+    {
+     "change_id": "a",
+     "chat_id": "c1",
+     "type": "draft",
+     "queue_order": 9007199254740991
+    }
+   ],
+   "ready": [
+    0
+   ],
+   "retained": 0
+  },
+  {
+   "name": "null order retained",
+   "changes": [
+    {
+     "change_id": "a",
+     "chat_id": "c1",
+     "type": "draft",
+     "queue_order": null
+    }
+   ],
+   "ready": [],
+   "retained": 1
+  },
+  {
+   "name": "delete_draft groups with draft",
+   "changes": [
+    {
+     "change_id": "a",
+     "chat_id": "c1",
+     "type": "delete_draft",
+     "queue_order": 2
+    },
+    {
+     "change_id": "b",
+     "chat_id": "c1",
+     "type": "draft",
+     "queue_order": 1
+    },
+    {
+     "change_id": "c",
+     "chat_id": "c1",
+     "type": "draft",
+     "queue_order": 3
+    }
+   ],
+   "ready": [
+    1,
+    0,
+    2
+   ],
+   "retained": 0
+  },
+  {
+   "name": "title separate from draft",
+   "changes": [
+    {
+     "change_id": "a",
+     "chat_id": "c1",
+     "type": "title",
+     "queue_order": 2
+    },
+    {
+     "change_id": "b",
+     "chat_id": "c1",
+     "type": "draft",
+     "queue_order": 1
+    },
+    {
+     "change_id": "c",
+     "chat_id": "c1",
+     "type": "title",
+     "queue_order": 1
+    }
+   ],
+   "ready": [
+    2,
+    0,
+    1
+   ],
+   "retained": 0
+  },
+  {
+   "name": "teams separate",
+   "changes": [
+    {
+     "change_id": "a",
+     "chat_id": "c1",
+     "type": "draft",
+     "queue_order": 2,
+     "team_id": "t1"
+    },
+    {
+     "change_id": "b",
+     "chat_id": "c1",
+     "type": "draft",
+     "queue_order": 1,
+     "team_id": "t1"
+    },
+    {
+     "change_id": "c",
+     "chat_id": "c1",
+     "type": "draft",
+     "queue_order": 1,
+     "team_id": null
+    },
+    {
+     "change_id": "d",
+     "chat_id": "c1",
+     "type": "draft",
+     "queue_order": 1
+    }
+   ],
+   "ready": [
+    1,
+    0
+   ],
+   "retained": 2
+  },
+  {
+   "name": "group order first appearance",
+   "changes": [
+    {
+     "change_id": "a",
+     "chat_id": "c2",
+     "type": "draft",
+     "queue_order": 5
+    },
+    {
+     "change_id": "b",
+     "chat_id": "c1",
+     "type": "draft",
+     "queue_order": 1
+    },
+    {
+     "change_id": "c",
+     "chat_id": "c2",
+     "type": "draft",
+     "queue_order": 4
+    }
+   ],
+   "ready": [
+    2,
+    0,
+    1
+   ],
+   "retained": 0
+  },
+  {
+   "name": "mixed groups partial retain",
+   "changes": [
+    {
+     "change_id": "a",
+     "chat_id": "c1",
+     "type": "draft"
+    },
+    {
+     "change_id": "b",
+     "chat_id": "c1",
+     "type": "draft"
+    },
+    {
+     "change_id": "c",
+     "chat_id": "c2",
+     "type": "draft",
+     "queue_order": 1
+    }
+   ],
+   "ready": [
+    2
+   ],
+   "retained": 2
+  },
+  {
+   "name": "quote in chat id",
+   "changes": [
+    {
+     "change_id": "a",
+     "chat_id": "c\"1,",
+     "type": "draft",
+     "queue_order": 2
+    },
+    {
+     "change_id": "b",
+     "chat_id": "c\"1,",
+     "type": "draft",
+     "queue_order": 1
+    }
+   ],
+   "ready": [
+    1,
+    0
+   ],
+   "retained": 0
+  }
+ ],
+ "receipt": [
+  {
+   "name": "all accepted no counts",
+   "ids": [
+    "a",
+    "b"
+   ],
+   "term": [],
+   "ok": [
+    "a",
+    "b"
+   ],
+   "accepted": [
+    "a",
+    "b"
+   ],
+   "retired": []
+  },
+  {
+   "name": "unknown ids dropped",
+   "ids": [
+    "a"
+   ],
+   "term": [],
+   "ok": [
+    "a",
+    "x"
+   ],
+   "accepted": [
+    "a"
+   ],
+   "retired": []
+  },
+  {
+   "name": "duplicates kept in accepted",
+   "ids": [
+    "a",
+    "b"
+   ],
+   "term": [],
+   "ok": [
+    "a",
+    "a"
+   ],
+   "accepted": [
+    "a",
+    "a"
+   ],
+   "retired": []
+  },
+  {
+   "name": "clean receipt",
+   "ids": [
+    "a",
+    "b"
+   ],
+   "term": [],
+   "ok": [
+    "a",
+    "b"
+   ],
+   "counts": {
+    "processed": 2,
+    "errors": 0,
+    "conflicts": 0
+   },
+   "accepted": [
+    "a",
+    "b"
+   ],
+   "retired": []
+  },
+  {
+   "name": "single terminal conflict",
+   "ids": [
+    "a",
+    "b"
+   ],
+   "term": [
+    "b"
+   ],
+   "ok": [
+    "a"
+   ],
+   "counts": {
+    "processed": 1,
+    "errors": 0,
+    "conflicts": 1
+   },
+   "accepted": [
+    "a"
+   ],
+   "retired": [
+    "b"
+   ]
+  },
+  {
+   "name": "conflict not terminal",
+   "ids": [
+    "a",
+    "b"
+   ],
+   "term": [],
+   "ok": [
+    "a"
+   ],
+   "counts": {
+    "processed": 1,
+    "errors": 0,
+    "conflicts": 1
+   },
+   "accepted": [
+    "a"
+   ],
+   "retired": []
+  },
+  {
+   "name": "conflict with errors",
+   "ids": [
+    "a",
+    "b"
+   ],
+   "term": [
+    "b"
+   ],
+   "ok": [
+    "a"
+   ],
+   "counts": {
+    "processed": 1,
+    "errors": 1,
+    "conflicts": 1
+   },
+   "accepted": [
+    "a"
+   ],
+   "retired": []
+  },
+  {
+   "name": "two conflicts",
+   "ids": [
+    "a",
+    "b",
+    "c"
+   ],
+   "term": [
+    "b",
+    "c"
+   ],
+   "ok": [
+    "a"
+   ],
+   "counts": {
+    "processed": 1,
+    "errors": 0,
+    "conflicts": 2
+   },
+   "accepted": [
+    "a"
+   ],
+   "retired": []
+  },
+  {
+   "name": "processed mismatch",
+   "ids": [
+    "a",
+    "b"
+   ],
+   "term": [
+    "b"
+   ],
+   "ok": [
+    "a"
+   ],
+   "counts": {
+    "processed": 2,
+    "errors": 0,
+    "conflicts": 1
+   },
+   "accepted": [
+    "a"
+   ],
+   "retired": []
+  },
+  {
+   "name": "fractional processed",
+   "ids": [
+    "a",
+    "b"
+   ],
+   "term": [
+    "b"
+   ],
+   "ok": [
+    "a"
+   ],
+   "counts": {
+    "processed": 1.5,
+    "errors": 0,
+    "conflicts": 1
+   },
+   "accepted": [
+    "a"
+   ],
+   "retired": []
+  },
+  {
+   "name": "duplicate success",
+   "ids": [
+    "a",
+    "b",
+    "c"
+   ],
+   "term": [
+    "c"
+   ],
+   "ok": [
+    "a",
+    "a"
+   ],
+   "counts": {
+    "processed": 2,
+    "errors": 0,
+    "conflicts": 1
+   },
+   "accepted": [
+    "a",
+    "a"
+   ],
+   "retired": []
+  },
+  {
+   "name": "success outside batch",
+   "ids": [
+    "a",
+    "b"
+   ],
+   "term": [
+    "b"
+   ],
+   "ok": [
+    "x"
+   ],
+   "counts": {
+    "processed": 1,
+    "errors": 0,
+    "conflicts": 1
+   },
+   "accepted": [],
+   "retired": []
+  },
+  {
+   "name": "empty batch",
+   "ids": [],
+   "term": [],
+   "ok": [],
+   "counts": {
+    "processed": 0,
+    "errors": 0,
+    "conflicts": 0
+   },
+   "accepted": [],
+   "retired": []
+  },
+  {
+   "name": "terminal first missing",
+   "ids": [
+    "a",
+    "b",
+    "c"
+   ],
+   "term": [
+    "a"
+   ],
+   "ok": [
+    "b",
+    "c"
+   ],
+   "counts": {
+    "processed": 2,
+    "errors": 0,
+    "conflicts": 1
+   },
+   "accepted": [
+    "b",
+    "c"
+   ],
+   "retired": [
+    "a"
+   ]
+  }
+ ]
+}
