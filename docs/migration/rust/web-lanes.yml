@@ -214,7 +214,7 @@ lanes:
     commit: aa27557
     note: embed_read status machine, link/ref parsing and version patch replay
   - id: slice-4
-    commit: pending
+    commit: f955969624
     note: inbound embed event admission (embed_update and send_embed_data status gates)
   size: M
   wave: A
