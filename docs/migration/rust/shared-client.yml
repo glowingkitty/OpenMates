@@ -172,9 +172,10 @@ shared_vector_files: [packages/openmates-rust/src/chat_state/bookmark_highlight_
   packages/openmates-rust/src/web_parse/blocks_ts_vectors.json, packages/openmates-rust/src/web_parse/voice_cues_ts_vectors.json,
   packages/openmates-rust/src/web_persist/policy_vectors.json, packages/openmates-rust/src/web_persist/ts_vectors.json,
   packages/openmates-rust/src/web_search_chats_ts_vectors.json, packages/openmates-rust/src/web_search_query_ts_vectors.json,
-  packages/openmates-rust/src/web_search_ts_vectors.json, packages/openmates-rust/src/web_send_prep/ts_vectors.json,
-  packages/openmates-rust/src/web_settings_privacy_ts_vectors.json, packages/openmates-rust/src/web_settings_response_ts_vectors.json,
-  packages/openmates-rust/src/web_settings_ts_vectors.json, packages/openmates-rust/src/web_share_state_ts_vectors.json,
+  packages/openmates-rust/src/web_search_ts_vectors.json, packages/openmates-rust/src/web_send_prep/ts_routing_vectors.json,
+  packages/openmates-rust/src/web_send_prep/ts_vectors.json, packages/openmates-rust/src/web_settings_privacy_ts_vectors.json,
+  packages/openmates-rust/src/web_settings_response_ts_vectors.json, packages/openmates-rust/src/web_settings_ts_vectors.json,
+  packages/openmates-rust/src/web_share_state_ts_vectors.json, packages/openmates-rust/src/web_stream/context_frame_ts_vectors.json,
   packages/openmates-rust/src/web_stream/ts_vectors.json, packages/openmates-rust/src/web_stream/ts_vectors_stream.json,
   packages/openmates-rust/src/web_sync/inbound_vectors.json, packages/openmates-rust/src/web_sync/ts_vectors.json,
   packages/openmates-rust/src/web_sync/updates_ts_vectors.json, packages/openmates-rust/src/web_transfer_export_ts_vectors.json,
@@ -188,7 +189,7 @@ capabilities:
   has_fixture: false
   rust:
     status: partial
-    api_symbols: 2508
+    api_symbols: 2519
     conformance: false
     gaps: 16
   npm:
