@@ -1,0 +1,440 @@
+{
+ "keys": [
+  {
+   "in": [],
+   "out": []
+  },
+  {
+   "in": [
+    "code-a"
+   ],
+   "out": [
+    {
+     "key": "code-a",
+     "appId": "code",
+     "itemType": "a",
+     "route": "entries"
+    }
+   ]
+  },
+  {
+   "in": [
+    "memory-m1",
+    "openmates-memories",
+    "openmates-other",
+    "nodash",
+    "-x",
+    "x-",
+    "a-b-c",
+    "travel-trips"
+   ],
+   "out": [
+    {
+     "key": "memory-m1",
+     "appId": "memory",
+     "itemType": "m1",
+     "route": "memory"
+    },
+    {
+     "key": "openmates-memories",
+     "appId": "openmates",
+     "itemType": "memories",
+     "route": "personal_memories"
+    },
+    {
+     "key": "openmates-other",
+     "appId": "openmates",
+     "itemType": "other",
+     "route": "entries"
+    },
+    {
+     "key": "-x",
+     "appId": "",
+     "itemType": "x",
+     "route": "entries"
+    },
+    {
+     "key": "x-",
+     "appId": "x",
+     "itemType": "",
+     "route": "entries"
+    },
+    {
+     "key": "a-b-c",
+     "appId": "a",
+     "itemType": "b-c",
+     "route": "entries"
+    },
+    {
+     "key": "travel-trips",
+     "appId": "travel",
+     "itemType": "trips",
+     "route": "entries"
+    }
+   ]
+  },
+  {
+   "in": [
+    "memory-",
+    "openmates-memories-x"
+   ],
+   "out": [
+    {
+     "key": "memory-",
+     "appId": "memory",
+     "itemType": "",
+     "route": "memory"
+    },
+    {
+     "key": "openmates-memories-x",
+     "appId": "openmates",
+     "itemType": "memories-x",
+     "route": "entries"
+    }
+   ]
+  }
+ ],
+ "select": [
+  {
+   "ids": [
+    "a",
+    "b",
+    "c"
+   ],
+   "sel": null,
+   "out": [
+    "a",
+    "b",
+    "c"
+   ]
+  },
+  {
+   "ids": [
+    "a",
+    "b",
+    "c"
+   ],
+   "sel": [
+    "c",
+    "a",
+    "z"
+   ],
+   "out": [
+    "a",
+    "c"
+   ]
+  },
+  {
+   "ids": [
+    "a",
+    "b"
+   ],
+   "sel": [],
+   "out": []
+  },
+  {
+   "ids": [],
+   "sel": null,
+   "out": []
+  },
+  {
+   "ids": [
+    "a",
+    "a"
+   ],
+   "sel": [
+    "a"
+   ],
+   "out": [
+    "a",
+    "a"
+   ]
+  }
+ ],
+ "categories": [
+  {
+   "cats": [
+    {
+     "appId": "code",
+     "itemType": "tech"
+    },
+    {
+     "appId": "travel",
+     "itemType": "trips"
+    },
+    {
+     "appId": "memory",
+     "itemType": "m1"
+    }
+   ],
+   "released": [],
+   "out": [
+    {
+     "appId": "code",
+     "itemType": "tech",
+     "entryCount": 0
+    },
+    {
+     "appId": "travel",
+     "itemType": "trips",
+     "entryCount": 0
+    },
+    {
+     "appId": "memory",
+     "itemType": "m1",
+     "entryCount": 0
+    }
+   ]
+  },
+  {
+   "cats": [
+    {
+     "appId": "code",
+     "itemType": "tech"
+    },
+    {
+     "appId": "travel",
+     "itemType": "trips"
+    },
+    {
+     "appId": "memory",
+     "itemType": "m1"
+    }
+   ],
+   "released": [
+    {
+     "app_id": "code",
+     "item_key": "tech"
+    },
+    {
+     "app_id": "code",
+     "item_key": "tech"
+    },
+    {
+     "app_id": "memory",
+     "item_key": "m1"
+    },
+    {
+     "app_id": "code",
+     "item_key": "other"
+    }
+   ],
+   "out": [
+    {
+     "appId": "code",
+     "itemType": "tech",
+     "entryCount": 2
+    },
+    {
+     "appId": "travel",
+     "itemType": "trips",
+     "entryCount": 0
+    },
+    {
+     "appId": "memory",
+     "itemType": "m1",
+     "entryCount": 1
+    }
+   ]
+  },
+  {
+   "cats": [
+    {
+     "appId": "code",
+     "itemType": "tech"
+    },
+    {
+     "appId": "travel",
+     "itemType": "trips"
+    },
+    {
+     "appId": "memory",
+     "itemType": "m1"
+    }
+   ],
+   "released": [
+    {
+     "app_id": "memory",
+     "item_key": "m1"
+    },
+    {
+     "app_id": "code",
+     "item_key": "other"
+    }
+   ],
+   "out": [
+    {
+     "appId": "code",
+     "itemType": "tech",
+     "entryCount": 0
+    },
+    {
+     "appId": "travel",
+     "itemType": "trips",
+     "entryCount": 0
+    },
+    {
+     "appId": "memory",
+     "itemType": "m1",
+     "entryCount": 1
+    }
+   ]
+  }
+ ],
+ "categoriesEmpty": {
+  "cats": [],
+  "released": [
+   {
+    "app_id": "code",
+    "item_key": "tech"
+   },
+   {
+    "app_id": "code",
+    "item_key": "tech"
+   },
+   {
+    "app_id": "memory",
+    "item_key": "m1"
+   },
+   {
+    "app_id": "code",
+    "item_key": "other"
+   }
+  ],
+  "out": []
+ },
+ "outcomes": [
+  {
+   "n": 0,
+   "voice": false,
+   "hasId": false,
+   "out": {
+    "kind": "empty",
+    "sendEmpty": false,
+    "saveRejected": false
+   }
+  },
+  {
+   "n": 0,
+   "voice": true,
+   "hasId": false,
+   "out": {
+    "kind": "empty",
+    "sendEmpty": true,
+    "saveRejected": false
+   }
+  },
+  {
+   "n": 0,
+   "voice": true,
+   "hasId": true,
+   "out": {
+    "kind": "empty",
+    "sendEmpty": true,
+    "saveRejected": true
+   }
+  },
+  {
+   "n": 0,
+   "voice": false,
+   "hasId": true,
+   "out": {
+    "kind": "empty",
+    "sendEmpty": false,
+    "saveRejected": false
+   }
+  },
+  {
+   "n": 2,
+   "voice": true,
+   "hasId": true,
+   "out": {
+    "kind": "send"
+   }
+  },
+  {
+   "n": 1,
+   "voice": false,
+   "hasId": false,
+   "out": {
+    "kind": "send"
+   }
+  }
+ ],
+ "content": [
+  {
+   "u": "u1",
+   "action": "included",
+   "categories": [
+    {
+     "appId": "code",
+     "itemType": "tech",
+     "entryCount": 2
+    },
+    {
+     "appId": "travel",
+     "itemType": "trips",
+     "entryCount": 0
+    },
+    {
+     "appId": "memory",
+     "itemType": "m1",
+     "entryCount": 1
+    }
+   ],
+   "out": "{\"type\":\"app_settings_memories_response\",\"user_message_id\":\"u1\",\"action\":\"included\",\"categories\":[{\"appId\":\"code\",\"itemType\":\"tech\",\"entryCount\":2},{\"appId\":\"travel\",\"itemType\":\"trips\",\"entryCount\":0},{\"appId\":\"memory\",\"itemType\":\"m1\",\"entryCount\":1}]}"
+  },
+  {
+   "u": "u1",
+   "action": "included",
+   "categories": [],
+   "out": "{\"type\":\"app_settings_memories_response\",\"user_message_id\":\"u1\",\"action\":\"included\",\"categories\":[]}"
+  },
+  {
+   "u": "u1",
+   "action": "included",
+   "categories": null,
+   "out": "{\"type\":\"app_settings_memories_response\",\"user_message_id\":\"u1\",\"action\":\"included\"}"
+  },
+  {
+   "u": "u2",
+   "action": "rejected",
+   "categories": null,
+   "out": "{\"type\":\"app_settings_memories_response\",\"user_message_id\":\"u2\",\"action\":\"rejected\"}"
+  },
+  {
+   "u": "u2",
+   "action": "rejected",
+   "categories": [
+    {
+     "appId": "code",
+     "itemType": "tech",
+     "entryCount": 2
+    },
+    {
+     "appId": "travel",
+     "itemType": "trips",
+     "entryCount": 0
+    },
+    {
+     "appId": "memory",
+     "itemType": "m1",
+     "entryCount": 1
+    }
+   ],
+   "out": "{\"type\":\"app_settings_memories_response\",\"user_message_id\":\"u2\",\"action\":\"rejected\"}"
+  },
+  {
+   "u": "ü\"\\n",
+   "action": "included",
+   "categories": [
+    {
+     "appId": "a",
+     "itemType": "b",
+     "entryCount": 0
+    }
+   ],
+   "out": "{\"type\":\"app_settings_memories_response\",\"user_message_id\":\"ü\\\"\\\\n\",\"action\":\"included\",\"categories\":[{\"appId\":\"a\",\"itemType\":\"b\",\"entryCount\":0}]}"
+  }
+ ]
+}

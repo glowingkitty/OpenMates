@@ -5,6 +5,7 @@
 use wasm_bindgen::prelude::*;
 
 use openmates_sdk::web_settings;
+use openmates_sdk::web_settings::response;
 
 /// Dialog categories of a server request (`web_settings::category_plan_json`).
 #[wasm_bindgen]
@@ -30,4 +31,34 @@ pub fn settings_build_request_message(
 ) -> Result<String, JsValue> {
     web_settings::build_request_message_json(user_message_id, request_id, requested_keys_json, created_at_json, counts_json, voice)
         .map_err(|e| JsValue::from_str(&e))
+}
+
+/// Routes of the selected dialog keys (`response::plan_selected_keys_json`).
+#[wasm_bindgen]
+pub fn settings_plan_selected_keys(selected_keys_json: &str) -> Result<String, JsValue> {
+    response::plan_selected_keys_json(selected_keys_json).map_err(|e| JsValue::from_str(&e))
+}
+
+/// Entry ids released for a category (`response::select_entry_ids_json`).
+#[wasm_bindgen]
+pub fn settings_select_entry_ids(entry_ids_json: &str, selection_json: &str) -> Result<String, JsValue> {
+    response::select_entry_ids_json(entry_ids_json, selection_json).map_err(|e| JsValue::from_str(&e))
+}
+
+/// Response categories with released counts (`response::response_categories_json`).
+#[wasm_bindgen]
+pub fn settings_response_categories(categories_json: &str, released_json: &str) -> Result<String, JsValue> {
+    response::response_categories_json(categories_json, released_json).map_err(|e| JsValue::from_str(&e))
+}
+
+/// What the confirm handler does after collecting entries (`response::confirm_outcome_json`).
+#[wasm_bindgen]
+pub fn settings_confirm_outcome(released_count: u32, voice: bool, has_message_id: bool) -> String {
+    response::confirm_outcome_json(u64::from(released_count), voice, has_message_id)
+}
+
+/// Content of the persisted response system message (`response::response_content_json`).
+#[wasm_bindgen]
+pub fn settings_response_content(user_message_id: &str, action: &str, categories_json: &str) -> Result<String, JsValue> {
+    response::response_content_json(user_message_id, action, categories_json).map_err(|e| JsValue::from_str(&e))
 }

@@ -1,3 +1,5 @@
+// contract-test-file: tooling
+// spec: specifications/surfaces/sdk#sdk.client.thin-platform-boundary
 // `settings` unit of the shared Rust core Worker: the real router and installer
 // over a scripted binding (the Rust decisions themselves are proven by
 // web_settings_tests.rs over the TS-generated vectors) and the flag-on page
@@ -8,7 +10,8 @@ import { createSharedWorkerRouter } from '../host/sharedWorkerProtocol';
 import { installSettingsUnit } from '../settings/settingsUnit';
 import { rustSettingsStats } from '../settings/settingsClient';
 import {
-  rustBuildRequestMessage, rustIsRequestAnswered, rustPlanRequestCategories,
+  rustBuildRequestMessage, rustConfirmOutcome, rustIsRequestAnswered, rustPlanRequestCategories, rustPlanSelectedKeys,
+  rustResponseCategories, rustResponseContent, rustSelectEntryIds,
 } from '../settings/rustSettingsRequests';
 import type { SettingsBinding } from '../settings/settingsProtocol';
 
@@ -21,6 +24,11 @@ const binding: SettingsBinding = {
     if (!r) return JSON.stringify({ kind: 'error', message: 'Memory requests require stable request and user-message identities' });
     return JSON.stringify({ kind: 'ok', message: { message_id: r, role: 'system', content: keys + counts, created_at: JSON.parse(at), user_message_id: u } });
   },
+  settings_plan_selected_keys: (keys) => (calls.push(`keys ${keys}`), '[]'),
+  settings_select_entry_ids: (ids, selection) => (calls.push(`select ${ids} ${selection}`), '["a"]'),
+  settings_response_categories: (cats, released) => (calls.push(`cats ${cats} ${released}`), '[]'),
+  settings_confirm_outcome: (count, voice, hasId) => (calls.push(`outcome ${count} ${voice} ${hasId}`), JSON.stringify({ kind: 'send' })),
+  settings_response_content: (u, action, cats) => (calls.push(`content ${u} ${action} ${cats}`), `{"u":"${u}"}`),
 };
 
 function fakeWorker() {
@@ -64,6 +72,17 @@ describe('shared settings unit', () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
+  it('serves the response decisions from the Rust binding', async () => {
+    await expect(rustPlanSelectedKeys(['a-b'])).resolves.toEqual([]);
+    await expect(rustSelectEntryIds(['a', 'b'], null)).resolves.toEqual(['a']);
+    await expect(rustResponseCategories([{ appId: 'a', itemType: 'b' }], [])).resolves.toEqual([]);
+    await expect(rustConfirmOutcome(2, true, false)).resolves.toEqual({ kind: 'send' });
+    await expect(rustResponseContent('u1', 'rejected')).resolves.toBe('{"u":"u1"}');
+    expect(calls).toEqual([
+      'keys ["a-b"]', 'select ["a","b"] null', 'cats [{"appId":"a","itemType":"b"}] []', 'outcome 2 true false', 'content u1 rejected null',
+    ]);
+  });
+
   it('returns the Rust request message and rethrows its error text without fallback', async () => {
     const base = { userMessageId: 'u1', createdAt: 5, entryCounts: new Map<string, number | null>([['a-b', null]]), voice: true };
     await expect(rustBuildRequestMessage({ ...base, requestId: 'r1', requestedKeys: ['a-b'] }))

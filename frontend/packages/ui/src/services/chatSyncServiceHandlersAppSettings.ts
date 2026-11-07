@@ -15,7 +15,10 @@
 
 import type { MemoryRequestContent } from "../utils/appMemoryRequests";
 import { formatDisplayName, getAppGradient } from "./appSettingsRequestPolicy";
-import { decideRequestAnswered, decideRequestCategories, decideRequestMessage } from "./appSettingsRequestDecisions";
+import {
+  decideConfirmOutcome, decideRequestAnswered, decideRequestCategories, decideRequestMessage, decideResponseCategories,
+  decideResponseContent, decideSelectedEntryIds, decideSelectedKeys,
+} from "./appSettingsRequestDecisions";
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { notificationStore } from "../stores/notificationStore";
 import { activeChatStore } from "../stores/activeChatStore";
@@ -658,18 +661,13 @@ export async function handlePermissionDialogConfirm(
       selectedKeys.includes(cat.key),
     );
 
-    for (const key of selectedKeys) {
-      const dashIndex = key.indexOf("-");
-      if (dashIndex === -1) continue;
-
-      const appId = key.substring(0, dashIndex);
-      const itemType = key.substring(dashIndex + 1);
+    for (const { key, appId, itemType, route } of await decideSelectedKeys(selectedKeys)) {
 
       // Check if specific entries were selected for this category
       // null means "all entries" (no entry-level filtering)
       const selectedEntryIds = selectedEntryIdsByCategory?.get(key) ?? null;
 
-      const memoryId = appId === MEMORY_RESPONSE_APP_ID ? itemType : null;
+      const memoryId = route === "memory" ? itemType : null;
       if (memoryId !== null) {
         // Re-decide locally at response time: only ask_first, in-window memories may be released.
         const decision = decideMemoryRequest([memoryId], await loadLocalMemoryDocuments());
@@ -682,10 +680,12 @@ export async function handlePermissionDialogConfirm(
         continue;
       }
 
-      if (appId === 'openmates' && itemType === 'memories') {
+      if (route === "personal_memories") {
         const { personalDocumentMemoryEntries } = await import('./ruleDocumentService');
-        for (const entry of await personalDocumentMemoryEntries()) {
-          if (selectedEntryIds === null || selectedEntryIds.includes(entry.id)) {
+        const personalEntries = await personalDocumentMemoryEntries();
+        const releasedIds = new Set(await decideSelectedEntryIds(personalEntries.map((entry) => entry.id), selectedEntryIds));
+        for (const entry of personalEntries) {
+          if (releasedIds.has(entry.id)) {
             appSettingsMemories.push({ app_id: appId, item_key: itemType, content: entry.item_value });
           }
         }
@@ -697,9 +697,10 @@ export async function handlePermissionDialogConfirm(
         itemType,
       );
 
+      const releasedEntryIds = new Set(await decideSelectedEntryIds(entries.map((entry) => entry.id), selectedEntryIds));
       for (const entry of entries) {
-        // If entry-level selection is active, skip entries that weren't selected
-        if (selectedEntryIds !== null && !selectedEntryIds.includes(entry.id)) {
+        // Entry-level selection: skip entries that weren't selected
+        if (!releasedEntryIds.has(entry.id)) {
           continue;
         }
 
@@ -730,13 +731,14 @@ export async function handlePermissionDialogConfirm(
     const autoMemoryEntries = autoMemoryEntriesByRequest.get(requestId) ?? [];
     appSettingsMemories.push(...autoMemoryEntries);
 
-    if (appSettingsMemories.length === 0) {
+    const outcome = await decideConfirmOutcome(appSettingsMemories.length, voiceRequest, !!messageId);
+    if (outcome.kind === "empty") {
       console.warn(
         "[ChatSyncService:AppSettings] No entries to send after decryption",
       );
-      if (voiceRequest) {
+      if (outcome.sendEmpty) {
         await sendPermissionResponse(serviceInstance, chatId, [], responseTransport, true);
-        if (messageId) await saveAppSettingsMemoriesResponseMessage(serviceInstance, chatId, messageId, "rejected");
+        if (outcome.saveRejected && messageId) await saveAppSettingsMemoriesResponseMessage(serviceInstance, chatId, messageId, "rejected");
       }
       removePendingPermissionRequest(requestId);
       dismissPermissionNotification(requestId);
@@ -761,11 +763,7 @@ export async function handlePermissionDialogConfirm(
     if (messageId) {
       try {
         const categoryMetadata: AppSettingsMemoriesResponseCategory[] =
-          selectedCategories.map((cat) => ({
-            appId: cat.appId,
-            itemType: cat.itemType,
-            entryCount: appSettingsMemories.filter(memory => memory.app_id === cat.appId && memory.item_key === cat.itemType).length,
-          }));
+          await decideResponseCategories(selectedCategories, appSettingsMemories);
 
         await saveAppSettingsMemoriesResponseMessage(
           serviceInstance,
@@ -1045,15 +1043,7 @@ async function saveAppSettingsMemoriesResponseMessage(
   const chatIdSuffix = chatId.slice(-10);
   const messageId = `${chatIdSuffix}-${generateUUID()}`;
 
-  // Create system message content
-  const responseContent: AppSettingsMemoriesResponseContent = {
-    type: "app_settings_memories_response",
-    user_message_id: userMessageId,
-    action,
-    categories: action === "included" ? categories : undefined,
-  };
-
-  const contentString = JSON.stringify(responseContent);
+  const contentString = await decideResponseContent(userMessageId, action, categories);
 
   // Get chat key for encryption (zero-knowledge architecture)
   const chatKey = await chatKeyManager.getKey(chatId);

@@ -534,7 +534,11 @@ lanes:
   - chat-settings-flow.spec.ts
   - language-settings-flow.spec.ts
   - ai-settings-breadcrumb.spec.ts
-  notes: ''
+  notes: 'Slice 1 04a644d667 (request policy). Slice 2 (response/confirm: key routing, entry
+    selection, response counts, empty outcome, response content in web_settings_response.rs).
+    Stays in TS by design: appMemoryRequests (synchronous parse/merge used by the CLI and
+    render), appSettingsMemoriesPermissionStore (reactive view state: toggles/selection are
+    synchronous Svelte store updates), appSettingsMemoriesStore (removed upstream 1eb03c4acf).'
   spec_assertions:
   - app-memories.lifecycle.encrypted-crud
   - app-memories.privacy.client-encrypted
@@ -542,6 +546,7 @@ lanes:
   - app-memories.sync.versioned-convergence
   spec_gaps:
   - App-settings sync handler and topic preferences have no assertion.
+  - No dedicated settings-request assertion (request/response policy cites sdk.client.thin-platform-boundary).
 - rank: 11
   name: composer
   kind: wave4

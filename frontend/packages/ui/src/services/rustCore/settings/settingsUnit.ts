@@ -52,6 +52,30 @@ export function createSettingsHandlers(binding: SettingsBinding): UnitHandlers<S
 			const voice = p.voice;
 			return call(() => binding.settings_build_request_message(text(p.userMessageId), text(p.requestId), text(p.requestedKeys), text(p.createdAt), text(p.counts), voice));
 		},
+		planSelectedKeys: (payload) => call(() => binding.settings_plan_selected_keys(text(record(payload).selectedKeys))),
+		selectEntryIds: (payload) => {
+			const p = record(payload);
+			return call(() => binding.settings_select_entry_ids(text(p.entryIds), text(p.selection)));
+		},
+		responseCategories: (payload) => {
+			const p = record(payload);
+			return call(() => binding.settings_response_categories(text(p.categories), text(p.released)));
+		},
+		confirmOutcome: (payload) => {
+			const p = record(payload);
+			if (typeof p.voice !== 'boolean' || typeof p.hasMessageId !== 'boolean' || !Number.isInteger(p.releasedCount) || (p.releasedCount as number) < 0) throw new UnitRefusal('protocol');
+			const { releasedCount, voice, hasMessageId } = p as { releasedCount: number; voice: boolean; hasMessageId: boolean };
+			return call(() => binding.settings_confirm_outcome(releasedCount, voice, hasMessageId));
+		},
+		responseContent: (payload) => {
+			const p = record(payload);
+			// The binding returns the content text itself, not JSON: no parse.
+			try {
+				return binding.settings_response_content(text(p.userMessageId), text(p.action), text(p.categories));
+			} catch {
+				throw new UnitRefusal('protocol');
+			}
+		},
 	};
 }
 

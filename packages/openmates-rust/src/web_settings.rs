@@ -10,6 +10,9 @@
 //! semantics of `appSettingsRequestPolicy.ts` / `appMemoryRequests.ts` (proven by
 //! `web_settings_ts_vectors.json`). Every function takes and returns JSON text;
 //! a malformed input is the stable code `protocol`.
+#[path = "web_settings_response.rs"]
+pub mod response;
+
 use serde::Serialize;
 use serde_json::{json, Map, Value};
 

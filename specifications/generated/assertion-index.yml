@@ -189068,18 +189068,18 @@ assertions:
       surface: gui.web
     - &id24121
       path: frontend/packages/ui/src/services/rustCore/__tests__/settingsSharedUnit.test.ts
-      line: 50
+      line: 58
       name: refuses a binding without the settings exports
       surface: gui.web
     - &id24122
       path: frontend/packages/ui/src/services/rustCore/__tests__/settingsSharedUnit.test.ts
-      line: 57
+      line: 65
       name: serves the request decisions from the Rust binding
       surface: gui.web
     - &id24123
       path: frontend/packages/ui/src/services/rustCore/__tests__/settingsSharedUnit.test.ts
-      line: 67
-      name: returns the Rust request message and rethrows its error text without fallback
+      line: 75
+      name: serves the response decisions from the Rust binding
       surface: gui.web
     - &id24124
       path: frontend/packages/ui/src/services/rustCore/__tests__/syncSharedUnit.test.ts

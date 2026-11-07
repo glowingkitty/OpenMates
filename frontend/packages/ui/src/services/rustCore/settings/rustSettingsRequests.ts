@@ -9,6 +9,7 @@
  * IndexedDB, the decrypted entry store and the dialog.
  */
 import type { RequestCategory } from '../../appSettingsRequestPolicy';
+import type { ConfirmOutcome, ResponseCategory, ResponseKeyPlan } from '../../appSettingsResponsePolicy';
 import type { SettingsRequestMessageOutcome } from './settingsProtocol';
 import { settingsCall } from './settingsClient';
 
@@ -33,4 +34,26 @@ export async function rustBuildRequestMessage(params: {
 	});
 	if (outcome.kind === 'error') throw new Error(outcome.message);
 	return outcome.message;
+}
+
+export function rustPlanSelectedKeys(selectedKeys: string[]): Promise<ResponseKeyPlan[]> {
+	return settingsCall('planSelectedKeys', { selectedKeys: JSON.stringify(selectedKeys) });
+}
+
+export function rustSelectEntryIds(entryIds: string[], selection: string[] | null): Promise<string[]> {
+	return settingsCall('selectEntryIds', { entryIds: JSON.stringify(entryIds), selection: JSON.stringify(selection) });
+}
+
+export function rustResponseCategories(
+	categories: Array<{ appId: string; itemType: string }>, released: Array<{ app_id: string; item_key: string }>,
+): Promise<ResponseCategory[]> {
+	return settingsCall('responseCategories', { categories: JSON.stringify(categories), released: JSON.stringify(released) });
+}
+
+export function rustConfirmOutcome(releasedCount: number, voice: boolean, hasMessageId: boolean): Promise<ConfirmOutcome> {
+	return settingsCall('confirmOutcome', { releasedCount, voice, hasMessageId });
+}
+
+export function rustResponseContent(userMessageId: string, action: 'included' | 'rejected', categories?: ResponseCategory[]): Promise<string> {
+	return settingsCall('responseContent', { userMessageId, action, categories: JSON.stringify(categories ?? null) });
 }
