@@ -56943,18 +56943,18 @@
       ],
       "positionals": [
         {
-          "name": "entry-id",
-          "required": true,
-          "variadic": false,
-          "at": 3,
-          "synopsis": "<entry-id>"
-        },
-        {
           "name": "task-id",
           "required": true,
           "variadic": false,
           "at": 3,
           "synopsis": "<task-id|short-id>"
+        },
+        {
+          "name": "entry-id",
+          "required": true,
+          "variadic": false,
+          "at": 4,
+          "synopsis": "<entry-id>"
         }
       ],
       "flags": [

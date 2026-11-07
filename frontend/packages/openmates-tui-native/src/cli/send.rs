@@ -446,26 +446,33 @@ async fn observe_with_writers_mode(
         options.task_update_jobs = false;
     }
     let text = if interactive {
-        if !invocation.positionals.is_empty()
-            || invocation
-                .text("chat")
-                .is_none_or(|value| value.trim().is_empty())
-        {
-            return Err(CliError::Invalid(
-                "Interactive answers require --chat and no positional message.".into(),
-            ));
-        }
-        let parse = |key: &str| -> Result<serde_json::Value, CliError> {
-            let value = invocation
-                .text(key)
-                .ok_or_else(|| CliError::Invalid(format!("Missing --{key}.")))?;
-            if value.len() > 1_000_000 {
-                return Err(CliError::Invalid(format!("--{key} exceeds 1 MB.")));
+        // npm exits 1 for every invalid interactive answer (not the usage exit code).
+        let answered = (|| -> Result<Zeroizing<String>, CliError> {
+            if !invocation.positionals.is_empty()
+                || invocation
+                    .text("chat")
+                    .is_none_or(|value| value.trim().is_empty())
+            {
+                return Err(CliError::Invalid(
+                    "Interactive answers require --chat and no positional message.".into(),
+                ));
             }
-            serde_json::from_str(value)
-                .map_err(|_| CliError::Invalid(format!("--{key} must be valid JSON.")))
-        };
-        questions::answer(&parse("question-json")?, &parse("answer-json")?)?
+            let parse = |key: &str| -> Result<serde_json::Value, CliError> {
+                let value = invocation
+                    .text(key)
+                    .ok_or_else(|| CliError::Invalid(format!("Missing --{key}.")))?;
+                if value.len() > 1_000_000 {
+                    return Err(CliError::Invalid(format!("--{key} exceeds 1 MB.")));
+                }
+                serde_json::from_str(value)
+                    .map_err(|_| CliError::Invalid(format!("--{key} must be valid JSON.")))
+            };
+            questions::answer(&parse("question-json")?, &parse("answer-json")?)
+        })();
+        answered.map_err(|error| match error {
+            CliError::Invalid(message) => CliError::Contract { code: "invalid_argument", message },
+            other => other,
+        })?
     } else {
         Zeroizing::new(invocation.positionals.join(" ").trim().to_owned())
     };
@@ -1049,7 +1056,10 @@ mod tests {
             &mut err,
         )
         .await;
-        assert!(matches!(result, Err(CliError::Invalid(_))));
+        assert!(matches!(
+            result,
+            Err(CliError::Contract { code: "invalid_argument", .. })
+        ));
         assert!(out.bytes.is_empty() && err.bytes.is_empty());
     }
     #[test]

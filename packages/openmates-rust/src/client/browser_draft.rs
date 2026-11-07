@@ -301,12 +301,15 @@ impl Client {
     pub(super) async fn encrypt_draft_fields(
         &self,
         markdown: &str,
+        preview: Option<&str>,
         scope: &sync_capability::AsyncCryptoScope,
     ) -> Result<(String, String)> {
         let master = self.master_capability()?;
         let encrypted = master.encrypt_server_bytes(markdown.as_bytes()).await?;
         scope.check(self)?;
-        let preview = Zeroizing::new(markdown.chars().take(200).collect::<String>());
+        let preview = Zeroizing::new(
+            preview.map_or_else(|| markdown.chars().take(200).collect::<String>(), str::to_owned),
+        );
         let preview = master.encrypt_server_bytes(preview.as_bytes()).await?;
         scope.check(self)?;
         Ok((encrypted, preview))
@@ -377,7 +380,7 @@ impl Client {
         let (encrypted, preview) = {
             let active = ActiveOwnedClient::enter(self, &operation)?;
             active
-                .encrypt_draft_fields(markdown, &operation.crypto)
+                .encrypt_draft_fields(markdown, None, &operation.crypto)
                 .await?
         };
         check(self)?;

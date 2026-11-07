@@ -1,5 +1,6 @@
 use super::plaintext::{Plain, replace_text};
 use super::transport::{receive, send};
+use crate::sdk_drafts::{DraftRecord, EncryptedDraftRecord};
 use super::*;
 
 #[path="sync_read_phase.rs"]
@@ -1209,6 +1210,16 @@ impl Client {
     /// Save an encrypted draft without invoking inference. Drafts use the account
     /// master key until the first admitted turn establishes a chat key.
     pub async fn save_draft(&mut self, chat_id: Option<&str>, markdown: &str) -> Result<String> {
+        Ok(self.save_draft_record(chat_id, markdown, None).await?.encrypted.chat_id)
+    }
+    /// Saves a draft like `save_draft`, with an explicit preview text, and returns the
+    /// stored draft (ciphertexts, version, plaintext markdown and preview).
+    pub async fn save_draft_record(
+        &mut self,
+        chat_id: Option<&str>,
+        markdown: &str,
+        preview_text: Option<&str>,
+    ) -> Result<DraftRecord> {
         let generation = self.generation;
         let cancel = self.operation_cancel.clone();
         if chat_id.is_some_and(|id| self.is_ephemeral_chat(id)) {
@@ -1232,7 +1243,7 @@ impl Client {
             return Err(Error::Cancelled);
         }
         let crypto_scope=super::sync_capability::AsyncCryptoScope::begin(self)?;
-        let (encrypted, preview) = self.encrypt_draft_fields(markdown, &crypto_scope).await?;
+        let (encrypted, preview) = self.encrypt_draft_fields(markdown, preview_text, &crypto_scope).await?;
         send(
             &mut ws,
             "update_draft",
@@ -1268,7 +1279,16 @@ impl Client {
         row["encrypted_draft_md"] = json!(encrypted);
         row["encrypted_draft_preview"] = json!(preview);
         row["draft_v"] = json!(version);
-        Ok(id)
+        Ok(DraftRecord {
+            encrypted: EncryptedDraftRecord {
+                chat_id: id,
+                encrypted_draft_md: encrypted,
+                encrypted_draft_preview: Some(preview),
+                draft_v: version,
+            },
+            markdown: markdown.to_owned(),
+            preview: Some(preview_text.map_or_else(|| markdown.chars().take(200).collect(), str::to_owned)),
+        })
     }
 }
 

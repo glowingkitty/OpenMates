@@ -5376,6 +5376,7 @@
             "client.Client.rewind_chat",
             "client.Client.run_prepared_saved_send",
             "client.Client.save_draft",
+            "client.Client.save_draft_record",
             "client.Client.saved_embed",
             "client.Client.saved_embed_selector",
             "client.Client.search_chats",

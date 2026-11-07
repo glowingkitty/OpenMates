@@ -138,6 +138,13 @@ impl SendObservations {
             .and_then(|id| chat.messages.iter().find(|m| m.id == id))
             .map(|m| m.content.clone())
             .unwrap_or_default();
+        // Like the npm CLI, the mate comes from the category when the server omits it.
+        let mate_name = self.mate.or_else(|| {
+            self.category
+                .as_deref()
+                .and_then(super::search::mate_name)
+                .map(str::to_owned)
+        });
         SendOutcome {
             chat_id: chat.id.clone(),
             chat,
@@ -149,7 +156,7 @@ impl SendObservations {
             assistant: content,
             category: self.category,
             model_name: self.model,
-            mate_name: self.mate,
+            mate_name,
             follow_up_suggestions: self.suggestions,
             suggested_followup_message: self.suggested,
             task_proposals: self.proposals,

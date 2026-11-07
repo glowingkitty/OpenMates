@@ -1411,24 +1411,7 @@ async fn execute_context_with_inventory(
             // Draft commands retain their legacy unconditional JSON contract.
             CliOutput::json(&json!({"success":true,"chat_id":id}))
         }
-        "drafts create" | "drafts update" => {
-            flags(invocation, &["chat"])?;
-            let (update, offset) = if path == "drafts update" {
-                (Some(positional(invocation, 0, "chat ID")?), 1)
-            } else {
-                (invocation.text("chat"), 0)
-            };
-            let text = invocation
-                .positionals
-                .get(offset..)
-                .unwrap_or(&[])
-                .join(" ");
-            if text.trim().is_empty() {
-                return Err(CliError::Invalid("Provide draft text.".into()));
-            }
-            let id = client.save_draft(update, &text).await?;
-            CliOutput::json(&json!({"chat_id":id,"saved":true}))
-        }
+        "drafts create" | "drafts update" => Box::pin(draft_write(invocation, client, &path)).await,
         "settings interface language set"
         | "settings interface dark-mode set"
         | "settings account timezone set"
@@ -2050,6 +2033,43 @@ mod tests {
 #[cfg(test)]
 #[path = "saved_read_recovery_tests.rs"]
 mod saved_read_recovery_tests;
+
+/// Save a draft (`drafts create`/`drafts update`) in its own boxed future so the
+/// large `execute` state machine does not grow with the encryption call frames.
+async fn draft_write(
+    invocation: &Invocation,
+    client: &mut Client,
+    path: &str,
+) -> Result<CliOutput, CliError> {
+    flags(invocation, &["chat", "preview"])?;
+    let (update, offset) = if path == "drafts update" {
+        (Some(positional(invocation, 0, "chat ID")?), 1)
+    } else {
+        (invocation.text("chat"), 0)
+    };
+    let text = invocation
+        .positionals
+        .get(offset..)
+        .unwrap_or(&[])
+        .join(" ");
+    let text = text.trim();
+    if text.is_empty() {
+        return Err(CliError::Invalid("Provide draft text.".into()));
+    }
+    // The preview defaults to the first 160 characters like the npm CLI.
+    let preview = invocation
+        .text("preview")
+        .map_or_else(|| text.chars().take(160).collect::<String>(), str::to_owned);
+    let draft = client.save_draft_record(update, text, Some(&preview)).await?;
+    CliOutput::json(&json!({
+        "chatId": draft.encrypted.chat_id,
+        "encryptedDraftMd": draft.encrypted.encrypted_draft_md,
+        "encryptedDraftPreview": draft.encrypted.encrypted_draft_preview,
+        "draftV": draft.encrypted.draft_v,
+        "markdown": draft.markdown,
+        "preview": draft.preview,
+    }))
+}
 
 fn paginated_list_output(
     invocation: &Invocation,
