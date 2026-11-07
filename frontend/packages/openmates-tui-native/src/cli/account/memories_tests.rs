@@ -5,11 +5,38 @@ use super::*;
 #[tokio::test]
 async fn typed_commands_point_to_memories_without_network() {
     let (mut client, server) = mock(vec![]).await;
+    // The catalog no longer declares the typed types and create subcommands, so
+    // the parser refuses them before any handler or network access.
     for args in [
-        vec!["openmates", "settings", "memories", "types"],
-        vec!["openmates", "settings", "memories", "create", "--app-id", "books"],
-        vec!["openmates", "settings", "memories", "update", "--id", "typed-1"],
+        ["openmates", "settings", "memories", "types"].as_slice(),
+        [
+            "openmates",
+            "settings",
+            "memories",
+            "create",
+            "--app-id",
+            "books",
+        ]
+        .as_slice(),
     ] {
+        let refusal = crate::cli::parse_from(args.iter().copied())
+            .err()
+            .unwrap_or_else(|| panic!("{args:?} must not parse"));
+        assert!(
+            refusal
+                .to_string()
+                .contains("Unknown subcommand for 'settings memories'"),
+            "{args:?}: {refusal}"
+        );
+    }
+    for args in [vec![
+        "openmates",
+        "settings",
+        "memories",
+        "update",
+        "--id",
+        "typed-1",
+    ]] {
         match execute(&parsed(&args), &mut client).await {
             Err(CliError::Invalid(message)) => assert!(
                 message.starts_with("Typed app memories were replaced by Memories"),
