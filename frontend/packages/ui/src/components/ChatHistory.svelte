@@ -319,6 +319,14 @@ import { storageArchiveFetch } from "../config/api";
   }
 
   const assistantRenderPlans = new Map<string, AssistantRenderPlan>();
+  // Placeholder shown for one frame on the flag-on build before the first Rust plan resolves:
+  // the raw message text as one text node per line, no block decisions.
+  function plainTextDoc(text: string): unknown {
+    const paragraphs = text.split('\n\n').map(chunk => chunk.length > 0
+      ? { type: 'paragraph', content: [{ type: 'text', text: chunk }] }
+      : { type: 'paragraph' });
+    return { type: 'doc', content: paragraphs };
+  }
   let renderPlanVersion = $state(0);
 
   // Helper function to map incoming message structure to InternalMessage
@@ -350,7 +358,7 @@ import { storageArchiveFetch } from "../config/api";
         // show the last resolved document (or none) until onRenderPlanReady remaps.
         processedContent = plan
           ? plan.document
-          : (assistantRenderPlans.get(incomingMessage.message_id)?.document ?? { type: 'doc', content: [] });
+          : (assistantRenderPlans.get(incomingMessage.message_id)?.document ?? plainTextDoc(contentToProcess));
       } else {
         const tiptapJson = parse_message(contentToProcess, 'read', {
           unifiedParsingEnabled: true,

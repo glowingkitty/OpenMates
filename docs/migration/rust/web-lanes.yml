@@ -462,8 +462,8 @@ lanes:
 - rank: 9
   name: parse
   kind: wave4
-  status: planned
-  commit: null
+  status: running
+  commit: 7ee4459ff5
   size: L
   wave: A
   deps: []
@@ -493,7 +493,7 @@ lanes:
   - chat-scroll-streaming.spec.ts
   - web-rust-core-chat.spec.ts
   - web-rust-core-embeds.spec.ts
-  notes: ''
+  notes: 'Slice 1 e4f6092 (web_parse blocks on the parse unit). Slice 2 7ee4459: renderPlanBranch.ts flag branch in ChatHistory G_mapToInternalMessage (flag off unchanged sync; flag on async plan cache + remap on ready, plain-text placeholder before first plan). Remaining: parse_message, serializers, saved-message parse in Worker.'
   spec_assertions:
   - chats.rendering.assistant-document-convergence
   - chats.rendering.inline-entity-interaction
