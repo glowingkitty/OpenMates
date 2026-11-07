@@ -595,7 +595,7 @@ lanes:
 - rank: 11
   name: composer
   kind: wave4
-  status: planned
+  status: running
   commit: null
   size: M
   wave: A
@@ -628,7 +628,7 @@ lanes:
   - mention-dropdown-settings-memory.spec.ts
   - focus-mode-mention.spec.ts
   - office-import-notices.spec.ts
-  notes: ''
+  notes: 'Slice 1 (PII + paste): web_composer Rust (paste, pii_detect, pii_text, rewrite, web_pii) with TS-generated vectors incl. Unicode/emoji offsets; composer unit + adapter wired behind VITE_OPENMATES_RUST_CORE in async callers only (detectPIIForWeb, model window merge, MessageInput async paste, redactEmbedContent). Sync call sites (restorePIIInText in derived values, preparedPrivacyForSend, projectFilePrivacy) stay TypeScript until their callers become async. Slices 2-3 (mentions/suggestions, code/url/upload/xlsx/image helpers) pending.'
   spec_assertions:
   - pii.composer.detect-redact-exclude
   - pii.composer.city-not-personal

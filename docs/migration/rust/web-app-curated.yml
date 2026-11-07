@@ -283,3 +283,21 @@ units:
     rust_paths:
     - packages/openmates-rust/src/web_settings*
     - packages/openmates-browser-bindings/src/browser_settings*.rs
+  composer:
+    specs:
+    - frontend/apps/web_app/tests/web-rust-core-composer.spec.ts
+    vectors:
+    - packages/openmates-rust/src/web_composer/ts_vectors.json
+    open_gaps:
+    - Slice 1 only (PII detect/replace/rewrite, model span merge, paste classification); mentions, suggestions and code/URL/upload helpers are not moved yet.
+    - Sync PII call sites (restorePIIInText in derived values, preparedPrivacyForSend, projectFilePrivacy) stay TypeScript until their callers are async.
+    - The flag-on composer spec records one unpaired keystroke-to-highlight sample; no paired TS arm yet.
+    spec_assertions:
+    - pii.composer.detect-redact-exclude
+    - pii.outbound.known-original-rewrite
+    - pii.message.owner-local-reveal
+    spec_gaps:
+    - Paste classification, code/URL embed services and upload privacy have no assertion.
+    rust_paths:
+    - packages/openmates-rust/src/web_composer/*.rs
+    - packages/openmates-browser-bindings/src/browser_composer.rs

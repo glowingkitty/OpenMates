@@ -227,7 +227,9 @@ export async function redactEmbedContent(
       return { redactedContent, piiMappings };
     }
 
-    redactedContent = replacePIIWithPlaceholders(content, piiMatches);
+    redactedContent = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+      ? await (await import("./rustComposerPII")).rustReplacePIIWithPlaceholders(content, piiMatches)
+      : replacePIIWithPlaceholders(content, piiMatches);
     piiMappings = createPIIMappingsForStorage(piiMatches);
   } catch (error) {
     console.error("[codeEmbedService] PII detection failed for embed content:", error);

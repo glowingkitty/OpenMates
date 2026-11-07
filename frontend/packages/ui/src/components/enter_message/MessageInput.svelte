@@ -4490,12 +4490,15 @@
                 const htmlPasteText = event.clipboardData?.getData('text/html') || null;
                 const vsCodeLanguage = detectLanguageFromVSCode(vsCodeEditorData);
                 const detectedLanguage = detectLanguageFromContent(normalizedPasteText);
-                const pasteClassification = classifyPastedContent({
+                const pasteInput = {
                     text: normalizedPasteText,
                     html: htmlPasteText,
                     vsCodeLanguage,
                     detectedLanguage,
-                });
+                };
+                const pasteClassification = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+                    ? await (await import('./services/rustComposerPII')).rustClassifyPastedContent(pasteInput)
+                    : classifyPastedContent(pasteInput);
 
                 if (pasteClassification.kind !== 'text') {
                     event.preventDefault();

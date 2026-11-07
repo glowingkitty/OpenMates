@@ -159,7 +159,9 @@ function expireScan(scan: Scan): boolean {
  * (and its loaded model) to the deadline timer.
  */
 async function scanWindows(scan: Scan, scanGeneration: number): Promise<{ entities: WebPIIEntity[]; windowsDone: number }> {
-  const windows = buildWebPIIWindows(scan.text);
+  const windows = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+    ? await (await import('./rustComposerPII')).rustBuildWebPIIWindows(scan.text)
+    : buildWebPIIWindows(scan.text);
   const found: WebPIIEntity[] = [];
   let slowestMs = 0;
   let windowsDone = 0;
@@ -179,7 +181,10 @@ async function scanWindows(scan: Scan, scanGeneration: number): Promise<{ entiti
     windowsDone++;
     for (const item of items) found.push({ ...item, start: item.start + window.start, end: item.end + window.start });
   }
-  return { entities: mergeWebPIIWindowEntities(found), windowsDone };
+  const entities = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+    ? await (await import('./rustComposerPII')).rustMergeWebPIIWindowEntities(found)
+    : mergeWebPIIWindowEntities(found);
+  return { entities, windowsDone };
 }
 
 const queue: Scan[] = [];
@@ -204,7 +209,9 @@ async function drain(): Promise<void> {
         if (scanGeneration !== generation) throw new Error('Private data detection was reset');
         // Nothing arrived in time: same fallback as before. Otherwise keep the finished windows.
         if (windowsDone === 0 && expireScan(scan)) continue;
-        scan.resolve(mergeWebPIIMatches(scan.text, entities, scan.options));
+        scan.resolve(import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+          ? await (await import('./rustComposerPII')).rustMergeWebPIIMatches(scan.text, entities, scan.options)
+          : mergeWebPIIMatches(scan.text, entities, scan.options));
       } catch (error) {
         // Invalid model output is an enhanced-detector failure too. Keep the
         // error state until explicit retry; callers retain their basic result.
@@ -216,7 +223,9 @@ async function drain(): Promise<void> {
 }
 
 export async function detectPIIForWeb(text: string, options: PIIDetectionOptions = {}, context: WebPIIScanContext = {}): Promise<PIIMatch[]> {
-  if (!isWebPIIModelSupported()) return detectPII(text, options);
+  if (!isWebPIIModelSupported()) {
+    return import.meta.env.VITE_OPENMATES_RUST_CORE === "1" ? (await import('./rustComposerPII')).rustDetectPII(text, options) : detectPII(text, options);
+  }
   const enhancementEnabled = isWebPIIModelEnabled();
   context.enhancedEnabled ??= enhancementEnabled;
   if (!text) return [];
@@ -229,7 +238,9 @@ export async function detectPIIForWeb(text: string, options: PIIDetectionOptions
   };
   // Capture the complete existing detector result with the same options before
   // asynchronous model work. If basic detection itself fails, propagate it.
-  const basic = mergeWebPIIMatches(text, [], snapshot);
+  const basic = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+    ? await (await import('./rustComposerPII')).rustMergeWebPIIMatches(text, [], snapshot)
+    : mergeWebPIIMatches(text, [], snapshot);
   if (!context.enhancedEnabled || !enhancementEnabled) return basic;
   // Supersede obsolete previews before inference starts; sends are never dropped.
   if (purpose === 'preview') {
