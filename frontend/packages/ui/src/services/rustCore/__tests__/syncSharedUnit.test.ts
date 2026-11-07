@@ -29,6 +29,8 @@ import { installSyncUnit } from '../sync/syncUnit';
 import { rustSyncStats } from '../sync/syncUnitClient';
 import type { SyncBinding } from '../sync/syncProtocol';
 import * as rust from '../sync/rustChatSyncPolicy';
+import * as rustUpdates from '../sync/rustChatUpdatesPolicy';
+import { messagePreview, recoveredThinkingFields } from '../../chatSyncUpdatesLogic';
 import { mergeServerChatWithLocal } from '../../chatSyncMerge';
 import { filterPersistableSyncedMessagesWithSkipped } from '../../chatSyncMessageKeyGuard';
 import type { ChatSynchronizationService } from '../../chatSyncService';
@@ -36,6 +38,7 @@ import type { Chat, Message } from '../../../types/chat';
 
 const VECTORS = resolve(__dirname, '../../../../../../../packages/openmates-rust/src/web_sync/ts_vectors.json');
 const vectors = JSON.parse(readFileSync(VECTORS, 'utf8'));
+const updateVectors = JSON.parse(readFileSync(resolve(__dirname, '../../../../../../../packages/openmates-rust/src/web_sync/updates_ts_vectors.json'), 'utf8'));
 const key = (value: unknown) => JSON.stringify(value ?? null);
 
 function serverChat(name: string): Partial<Chat> & { id: string } {
@@ -65,6 +68,16 @@ const binding: SyncBinding = {
 	sync_chat_admission: (input) => JSON.stringify({ skip: !JSON.parse(input).server.encrypted_chat_key }),
 	sync_metadata_chat: () => { throw new Error('protocol'); },
 	sync_deletion_plan: () => '[]',
+	sync_message_preview: (input) => {
+		const request = JSON.parse(input);
+		const c = updateVectors.preview.find((v: { input: unknown }) => key(v.input) === key(request.content === null ? {} : request));
+		return JSON.stringify({ units: c.units });
+	},
+	sync_thinking_fields: (input) => {
+		const request = JSON.parse(input).payload;
+		const c = updateVectors.thinking.find((v: { request: unknown }) => key(v.request) === key(request));
+		return JSON.stringify(c.out);
+	},
 	sync_message_key_plan: (input) => {
 		const messages = JSON.parse(input).messages;
 		const c = vectors.messageKeys.find((v: { messages: unknown[] }) => v.messages.length === messages.length
@@ -179,5 +192,37 @@ describe('shared sync unit', () => {
 		const before = rustSyncStats.failures;
 		await expect(rust.metadataOnlyChat('Load more', { id: 'c1' }, null)).rejects.toMatchObject({ code: 'protocol' });
 		expect(rustSyncStats.failures).toBe(before + 1);
+	});
+
+	// contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+	it('previews assistant replies exactly like the TypeScript helper, surrogate cuts included', async () => {
+		for (const c of updateVectors.preview) {
+			const content = c.input.content ?? undefined;
+			expect(messagePreview(content).length).toBe(c.units.length);
+			expect(Array.from({ length: c.units.length }, (_, i) => messagePreview(content).charCodeAt(i)), JSON.stringify(c.input)).toEqual(c.units);
+			expect(await rustUpdates.messagePreview(content), JSON.stringify(c.input)).toBe(messagePreview(content));
+		}
+		expect(rustSyncStats.ops.messagePreview).toBeGreaterThanOrEqual(updateVectors.preview.length);
+	});
+
+	// contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+	it('validates recovered thinking fields exactly like the TypeScript helper, error texts included', async () => {
+		for (const c of updateVectors.thinking) {
+			const payload = { ...c.payload } as Record<string, unknown>;
+			let expected: unknown;
+			try {
+				expected = recoveredThinkingFields(payload);
+			} catch (error) {
+				expected = (error as Error).message;
+			}
+			let got: unknown;
+			try {
+				got = await rustUpdates.recoveredThinkingFields(payload);
+			} catch (error) {
+				got = (error as Error).message;
+			}
+			expect(got, JSON.stringify(c.payload)).toStrictEqual(expected);
+			if (typeof expected !== 'string') expect(Object.keys(got as object)).toEqual(Object.keys(expected as object));
+		}
 	});
 });

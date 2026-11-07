@@ -3,7 +3,7 @@
 //! input throws the fixed `protocol` code. Served by the `sync` shared-Worker unit.
 use wasm_bindgen::prelude::*;
 
-use openmates_sdk::web_sync::{merge, message_keys, phased};
+use openmates_sdk::web_sync::{merge, message_keys, phased, updates};
 
 fn js(result: Result<String, String>) -> Result<String, JsValue> {
     result.map_err(|e| JsValue::from_str(&e))
@@ -49,4 +49,16 @@ pub fn sync_deletion_plan(input_json: &str) -> Result<String, JsValue> {
 #[wasm_bindgen]
 pub fn sync_message_key_plan(input_json: &str) -> Result<String, JsValue> {
     js(message_keys::plan_json(input_json))
+}
+
+/// Notification preview of an assistant reply (UTF-16 units).
+#[wasm_bindgen]
+pub fn sync_message_preview(input_json: &str) -> Result<String, JsValue> {
+    js(updates::preview_json(input_json))
+}
+
+/// Validation of the thinking fields of a recovered message.
+#[wasm_bindgen]
+pub fn sync_thinking_fields(input_json: &str) -> Result<String, JsValue> {
+    js(updates::thinking_fields_json(input_json))
 }

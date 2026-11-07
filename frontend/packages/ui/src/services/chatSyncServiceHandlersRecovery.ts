@@ -25,6 +25,7 @@ import { getApiEndpoint, storageArchiveFetch } from "../config/api";
 import { userDB } from "./userDB";
 import { chatKeyManager, computeKeyFingerprint } from "./encryption/ChatKeyManager";
 import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
+import { messagePreview, recoveredThinkingFields, RUST_UPDATES_POLICY, rustUpdatesPolicy } from "./chatSyncUpdatesPolicy";
 import { webSocketService } from "./websocketService";
 import { aiTypingStore } from "../stores/aiTypingStore";
 import { notificationStore } from "../stores/notificationStore";
@@ -75,23 +76,6 @@ function rememberAcknowledgedRecoveryOutput(output: AvailableRecoveryOutput, gen
   if (acknowledgedRecoveryOutputs.size > MAX_ACKNOWLEDGED_RECOVERY_OUTPUTS) {
     acknowledgedRecoveryOutputs.delete(acknowledgedRecoveryOutputs.keys().next().value!);
   }
-}
-
-function buildRecoveryMessagePreview(content: string): string {
-  const plainText = content
-    .replace(/#{1,6}\s+/g, "")
-    .replace(/\*\*(.+?)\*\*/g, "$1")
-    .replace(/\*(.+?)\*/g, "$1")
-    .replace(/`{1,3}[^`]*`{1,3}/g, "")
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
-    .replace(/>\s+/g, "")
-    .replace(/[-*+]\s+/g, "")
-    .replace(/\n+/g, " ")
-    .trim();
-
-  if (!plainText) return "New AI response ready";
-  return plainText.length > 120 ? `${plainText.substring(0, 120)}...` : plainText;
 }
 
 class RecoveryEventTimeoutError extends Error {}
@@ -1122,29 +1106,6 @@ async function requestRecoveryEvent(
   throw lastTimeout ?? new Error(`Recovery request failed for job ${jobId}`);
 }
 
-// Only observed thinking fields cross the sealed-recovery boundary. Plaintext
-// content/signatures are passed to getEncryptedFields, never to the server.
-function recoveredThinkingFields(payload: Record<string, unknown>): Partial<Message> {
-  const fields: Partial<Message> = {};
-  for (const key of ["thinking_content", "thinking_signature"] as const) {
-    if (payload[key] !== undefined) {
-      if (typeof payload[key] !== "string") throw new Error("Recovery thinking content was invalid.");
-      fields[key] = payload[key];
-    }
-  }
-  if (payload.has_thinking !== undefined) {
-    if (typeof payload.has_thinking !== "boolean") throw new Error("Recovery thinking flag was invalid.");
-    fields.has_thinking = payload.has_thinking;
-  }
-  if (payload.thinking_token_count !== undefined) {
-    if (!Number.isSafeInteger(payload.thinking_token_count) || (payload.thinking_token_count as number) < 0) {
-      throw new Error("Recovery thinking token count was invalid.");
-    }
-    fields.thinking_token_count = payload.thinking_token_count as number;
-  }
-  return fields;
-}
-
 function encryptedRecoveryThinkingFields(
   message: Message,
   encrypted: Awaited<ReturnType<typeof chatDB.getEncryptedFields>>,
@@ -1316,7 +1277,9 @@ export async function handleRecoveryJobsAvailableImpl(
         chat_id: job.chat_id,
         role: "assistant",
         content: recovered.content,
-        ...recoveredThinkingFields(recovered),
+        ...(RUST_UPDATES_POLICY
+          ? await (await rustUpdatesPolicy()).recoveredThinkingFields(recovered)
+          : recoveredThinkingFields(recovered)),
         category: recovered.category ?? undefined,
         model_name: recovered.model_name ?? undefined,
         status: "synced",
@@ -1417,7 +1380,9 @@ export async function handleRecoveryJobsAvailableImpl(
         notificationStore.chatMessage(
           job.chat_id,
           updatedChat.title || "New message",
-          buildRecoveryMessagePreview(recovered.content),
+          RUST_UPDATES_POLICY
+            ? await (await rustUpdatesPolicy()).messagePreview(recovered.content)
+            : messagePreview(recovered.content),
           undefined,
           (recovered.category as string | null) || updatedChat.category || undefined,
         );
@@ -1704,7 +1669,11 @@ async function processRecoveryOutputsAvailable(
         ? content.created_at as number : now;
       const aiMessage = {
         message_id: output.subject_id, chat_id: output.target_chat_id, role: output.message_role,
-        content: content.content, ...recoveredThinkingFields(content), category: content.category ?? undefined,
+        content: content.content,
+        ...(RUST_UPDATES_POLICY
+          ? await (await rustUpdatesPolicy()).recoveredThinkingFields(content)
+          : recoveredThinkingFields(content)),
+        category: content.category ?? undefined,
         model_name: content.model_name ?? undefined, status: "synced", created_at: messageCreatedAt,
       } as Message;
       const encryptedFields = await chatDB.getEncryptedFields(aiMessage, output.target_chat_id);

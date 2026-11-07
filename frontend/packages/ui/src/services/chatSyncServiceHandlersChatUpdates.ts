@@ -1,4 +1,5 @@
 import { hasPendingPersonalChatTurn } from './personalChatTurnBarrier';
+import { messagePreview, RUST_UPDATES_POLICY, rustUpdatesPolicy } from './chatSyncUpdatesPolicy';
 // frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { chatDB } from "./db";
@@ -52,7 +53,6 @@ import {
   persistAssistantSpeechPreferenceIntent,
 } from "./assistantSpeechPreference";
 
-const ASSISTANT_NOTIFICATION_PREVIEW_MAX_LENGTH = 120;
 // Keep this aligned with db/messageOperations.ts DEFAULT_MESSAGE_WINDOW_LIMIT.
 const METADATA_MESSAGE_WINDOW_HYDRATION_LIMIT = 30;
 
@@ -396,25 +396,6 @@ function mergePendingMessageFlushSummary(
  */
 const _chatKeyPersistedToIDB: Set<string> = new Set();
 
-function buildAssistantMessagePreview(content: string | undefined): string {
-  const plainText = (content || "")
-    .replace(/#{1,6}\s+/g, "")
-    .replace(/\*\*(.+?)\*\*/g, "$1")
-    .replace(/\*(.+?)\*/g, "$1")
-    .replace(/`{1,3}[^`]*`{1,3}/g, "")
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
-    .replace(/>\s+/g, "")
-    .replace(/[-*+]\s+/g, "")
-    .replace(/\n+/g, " ")
-    .trim();
-
-  if (!plainText) return "New AI response ready";
-  return plainText.length > ASSISTANT_NOTIFICATION_PREVIEW_MAX_LENGTH
-    ? `${plainText.substring(0, ASSISTANT_NOTIFICATION_PREVIEW_MAX_LENGTH)}...`
-    : plainText;
-}
-
 function clearDraftOnlyShellForMessages(chat: Chat, messagesV: number): Chat {
   if (
     messagesV <= 0 ||
@@ -510,7 +491,9 @@ async function notifyBackgroundAssistantBroadcast(
   notificationStore.chatMessage(
     chatId,
     chatTitle,
-    buildAssistantMessagePreview(message.content),
+    RUST_UPDATES_POLICY
+      ? await (await rustUpdatesPolicy()).messagePreview(message.content)
+      : messagePreview(message.content),
     undefined,
     message.category || chat.category || undefined,
   );

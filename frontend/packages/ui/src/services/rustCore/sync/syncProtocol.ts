@@ -18,6 +18,7 @@ export type SyncRetryStep =
 	| { kind: 'exhausted'; maxAttempts: number }
 	| { kind: 'schedule'; attempt: number; delayMs: number; maxAttempts: number };
 export type SyncMetadataChatOutcome = { kind: 'skip' } | { kind: 'chat'; chat: JsonRecord };
+export type SyncThinkingFields = { ok: true; keys: string[] } | { ok: false; code: 'content' | 'flag' | 'count' };
 export interface SyncDeletionStep { chatId: string; explicit: boolean }
 export interface SyncMessageKeyGroup { chatId?: string; indices: number[]; needsKey: boolean; sample: string | null }
 
@@ -39,6 +40,8 @@ export interface SyncUnitProtocol extends UnitProtocol {
 	metadataChat: { request: { chatId: string; server: JsonRecord; local: JsonRecord | null; now: number }; response: SyncMetadataChatOutcome };
 	deletionPlan: { request: { deleted?: unknown; explicit?: unknown }; response: SyncDeletionStep[] };
 	messageKeyPlan: { request: { messages: JsonRecord[] }; response: SyncMessageKeyGroup[] };
+	messagePreview: { request: { content?: string | null }; response: { units: number[] } };
+	thinkingFields: { request: { payload: JsonRecord }; response: SyncThinkingFields };
 }
 
 /** Worker module exports (JSON text in, JSON text out) of browser_sync.rs. */
@@ -50,6 +53,8 @@ export interface SyncBinding {
 	sync_metadata_chat(input: string): string;
 	sync_deletion_plan(input: string): string;
 	sync_message_key_plan(input: string): string;
+	sync_message_preview(input: string): string;
+	sync_thinking_fields(input: string): string;
 }
 
 /** Operation to binding export. */
@@ -61,6 +66,8 @@ export const SYNC_OPS: Readonly<Record<keyof SyncUnitProtocol & string, keyof Sy
 	metadataChat: 'sync_metadata_chat',
 	deletionPlan: 'sync_deletion_plan',
 	messageKeyPlan: 'sync_message_key_plan',
+	messagePreview: 'sync_message_preview',
+	thinkingFields: 'sync_thinking_fields',
 });
 
 export function isSyncBinding(value: unknown): value is SyncBinding {
