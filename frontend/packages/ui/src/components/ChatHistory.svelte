@@ -30,10 +30,13 @@ import { storageArchiveFetch } from "../config/api";
   import type { ChatCompressionCheckpoint, Message as GlobalMessage, MessageRole } from '../types/chat';
   import { preprocessTiptapJsonForEmbeds } from './enter_message/utils/tiptapContentProcessor';
   import { parse_message } from '../message_parsing/parse_message';
+  import type { AssistantRenderPlan } from '../message_parsing/streamingMessageBlocks';
   import {
-    createAssistantRenderPlan,
-    type AssistantRenderPlan,
-  } from '../message_parsing/streamingMessageBlocks';
+    onRenderPlanReady,
+    renderPlansAreAsync,
+    resetRenderPlanState,
+    resolveAssistantRenderPlan,
+  } from '../services/rustCore/parse/renderPlanBranch';
   import { StreamingRenderScheduler } from '../message_parsing/streamingRenderScheduler';
   import { truncateTiptapContent } from '../utils/messageTruncation';
   import { orderSharedInteractiveQuestionMessages } from '../utils/sharedInteractiveQuestionOrdering';
@@ -315,6 +318,7 @@ import { storageArchiveFetch } from "../config/api";
   }
 
   const assistantRenderPlans = new Map<string, AssistantRenderPlan>();
+  let renderPlanVersion = $state(0);
 
   // Helper function to map incoming message structure to InternalMessage
   // IMPORTANT: piiMappings parameter is optional - when provided, PII restoration is applied
@@ -336,13 +340,16 @@ import { storageArchiveFetch } from "../config/api";
       }
       
       if (incomingMessage.role === 'assistant') {
-        const plan = createAssistantRenderPlan(contentToProcess, {
+        if (renderPlansAreAsync()) void renderPlanVersion; // flag-on: re-run when an async plan resolves
+        const plan = resolveAssistantRenderPlan(incomingMessage.message_id, contentToProcess, {
           phase: incomingMessage.status === 'streaming' ? 'streaming' : 'final',
-          previous: assistantRenderPlans.get(incomingMessage.message_id),
           chatId: incomingMessage.chat_id,
-        });
-        assistantRenderPlans.set(incomingMessage.message_id, plan);
-        processedContent = plan.document;
+        }, assistantRenderPlans);
+        // null only on the flag-on build while the Rust parse unit resolves the plan:
+        // show the last resolved document (or none) until onRenderPlanReady remaps.
+        processedContent = plan
+          ? plan.document
+          : (assistantRenderPlans.get(incomingMessage.message_id)?.document ?? { type: 'doc', content: [] });
       } else {
         const tiptapJson = parse_message(contentToProcess, 'read', {
           unifiedParsingEnabled: true,
@@ -423,7 +430,20 @@ import { storageArchiveFetch } from "../config/api";
     streamingRenderSchedulers.clear();
     streamingRenderRevisions.clear();
     assistantRenderPlans.clear();
+    resetRenderPlanState();
   }
+
+  // Flag-on: an async Rust render plan resolved for a message; remap it from its
+  // original message (the mapper now hits the resolved plan) and refresh derived views.
+  onMount(() => onRenderPlanReady((messageId) => {
+    const current = messages.find(m => m.id === messageId);
+    if (current?.original_message) {
+      const originals = messages.map(m => m.original_message).filter((m): m is GlobalMessage => m !== undefined);
+      const remapped = G_mapToInternalMessage(current.original_message, buildCumulativePIIMappings(originals));
+      messages = messages.map(m => m.id === messageId ? remapped : m);
+    }
+    renderPlanVersion++;
+  }));
   let headerImageBubbles = $state<HeaderImageBubble[] | null>(null);
   let headerImageBubbleRequestId = 0;
   let headerImageBubbleCandidateKey = '';
