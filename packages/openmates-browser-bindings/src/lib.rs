@@ -14,6 +14,7 @@ mod browser_crypto;
 #[cfg(target_arch = "wasm32")] pub mod browser_parse;
 #[cfg(target_arch = "wasm32")] pub mod browser_transfer;
 #[cfg(target_arch = "wasm32")] pub mod browser_send_prep;
+#[cfg(target_arch = "wasm32")] pub mod browser_ws;
 #[cfg(target_arch = "wasm32")] pub mod browser_sync;
 #[cfg(target_arch = "wasm32")] pub mod browser_sync_inbound;
 #[cfg(target_arch = "wasm32")] pub mod browser_chat_state_list;

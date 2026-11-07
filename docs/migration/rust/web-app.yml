@@ -9,23 +9,23 @@ flag:
   default: 'off'
   flag_off_behavior: original TypeScript path, byte-identical build output (guarded in CI)
 summary:
-  total: 13
-  done: 12
+  total: 14
+  done: 14
   partial: 0
-  missing: 1
-  percent: 92.3
+  missing: 0
+  percent: 100.0
 e2e_specs_in_repo: [web-rust-core-apps.spec.ts, web-rust-core-auth.spec.ts, web-rust-core-bench.spec.ts, web-rust-core-chat.spec.ts,
   web-rust-core-chatstate.spec.ts, web-rust-core-crypto.spec.ts, web-rust-core-drafts.spec.ts, web-rust-core-embeds.spec.ts,
   web-rust-core-memory-level.spec.ts, web-rust-core-profile.spec.ts, web-rust-core-reload-memory.spec.ts, web-rust-core-search.spec.ts,
-  web-rust-core-send-bench.spec.ts, web-rust-core-sync.spec.ts, web-rust-core-transfer.spec.ts]
+  web-rust-core-send-bench.spec.ts, web-rust-core-sync.spec.ts, web-rust-core-transfer.spec.ts, web-rust-core-ws.spec.ts]
 lanes:
   file: web-lanes.yml
   plan: web-lanes.md
   plan_date: 2026-11-07
   total: 21
   by_status:
-    planned: 12
-    running: 6
+    planned: 11
+    running: 7
     landed: 3
   landed:
   - name: search-snippet-perf
@@ -34,8 +34,9 @@ lanes:
     commit: c577ddd
   - name: memory-rss
     commit: bd07710
-  running: [w3-web-drafts, w3-web-import-export, w3-web-send-perf, send-correctness, chatstate-core, sync-inbound]
-  next_planned_by_rank: [embeds-3, ai-stream-recovery, persistence, send-prep-outbox, ws-unit]
+  running: [w3-web-drafts, w3-web-import-export, w3-web-send-perf, send-correctness, chatstate-core, sync-inbound,
+    send-prep-outbox]
+  next_planned_by_rank: [embeds-3, ai-stream-recovery, persistence, ws-unit, keys]
 units:
 - namespace: core
   status: installed
@@ -95,7 +96,7 @@ units:
     call (Rust `embed_write::read`, its three fields in one batched WebCrypto call). The unit holds no account state,
     so it is a pre-bind namespace like `crypto`: the embed key arrives per request (as the crypto...'
   typescript_fallback: none declared (3 files)
-  unit_tests: [embedKeyResolution.test.ts, embedUnits.test.ts]
+  unit_tests: [embedKeyResolution.test.ts, embedUnits.test.ts, readOps.test.ts]
   e2e_specs: [web-rust-core-embeds.spec.ts]
   vectors: [packages/openmates-rust/src/toon_decode_ts_vectors.json]
   open_gaps: [Embed RSS +1..+77 MB vs TypeScript in the embeds bench (noisy); see performance-history.yml.]
@@ -110,7 +111,7 @@ units:
     and the revision-history decisions (embedWriteAdapter.ts sequences them); this unit persists the prepared rows
     (embe...
   typescript_fallback: none declared (3 files)
-  unit_tests: [embedKeyResolution.test.ts, embedUnits.test.ts]
+  unit_tests: [embedKeyResolution.test.ts, embedUnits.test.ts, readOps.test.ts]
   e2e_specs: [web-rust-core-embeds.spec.ts]
   vectors: []
   open_gaps: [Streamed write is wired for send_embed_data only.]
@@ -141,15 +142,19 @@ units:
       key wrapping) have no assertion., 'Sidebar time-group buckets (today, yesterday, previous 7/30 days, month)
       have no assertion.']
 - namespace: ws
-  status: planned
-  pre_bind: false
-  installer: null
-  what_moved: Planned; no installer yet.
-  typescript_fallback: null
-  unit_tests: []
-  e2e_specs: []
-  vectors: []
-  open_gaps: ['Namespace reserved, no installer yet.']
+  status: installed
+  pre_bind: true
+  installer: frontend/packages/ui/src/services/rustCore/ws/wsUnit.ts
+  what_moved: Serves the WebSocket lifecycle policy (wsProtocol.ts) on the unit port from the realm's single WASM
+    binding. It holds no per-account state and does no IO, so it is a pre-bind namespace.
+  typescript_fallback: none declared (2 files)
+  unit_tests: [wsSharedUnit.test.ts]
+  e2e_specs: [web-rust-core-ws.spec.ts]
+  vectors: [packages/openmates-rust/src/web_ws/ts_vectors.json]
+  open_gaps: ['Only the connection lifecycle policy moved (close codes incl. 1008 and repeated 1006 auth detection,
+      reconnect backoff, pong timeout, online/resume, periodic retry).', 'Frame envelope parse/route, the outgoing
+      queue with ack/retry and the socket itself in the Worker are not moved; the send path (sendOperation, sendProtocol,
+      browserWsLink) belongs to the send-latency lane (TASK-1968).']
   spec_assertions: [owner-consistency.ws.dual-principal, sync.access.first-party-authenticated, chats.send.immediate-admission]
   spec_gaps: ['WebSocket link state machine, router and feedback have no assertion.']
 - namespace: apps
@@ -245,3 +250,16 @@ units:
   open_gaps: [Curated entry added by the chatState lane to unblock the generator; the parse lane owns the details.]
   spec_assertions: [sync.client.shared-rust-policy]
   spec_gaps: []
+- namespace: sendPrep
+  status: installed
+  pre_bind: true
+  installer: frontend/packages/ui/src/services/rustCore/send/sendPrepUnit.ts
+  what_moved: Serves the offline-outbox decisions (sendPrepProtocol.ts) on the unit port from the realm's single
+    WASM binding. It holds no account state, so it is a pre-bind namespace.
+  typescript_fallback: none declared (2 files)
+  unit_tests: [sendPrepOutboxVectors.test.ts]
+  e2e_specs: []
+  vectors: []
+  open_gaps: [Curated entry added by the ws lane so the status generator runs; the sendPrep lane owns the details.]
+  spec_assertions: []
+  spec_gaps: [Unit assertions are not yet mapped.]

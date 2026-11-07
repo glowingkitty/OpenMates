@@ -19,6 +19,7 @@ export const SHARED_UNIT_INSTALLERS: UnitInstallers = Object.freeze({
 	search: (context) => import('@openmates/ui/src/services/rustCore/search/searchUnit').then((unit) => unit.installSearchUnit(context)),
 	transfer: (context) => import('@openmates/ui/src/services/rustCore/transfer/transferUnit').then((unit) => unit.installTransferUnit(context)),
 	sync: (context) => import('@openmates/ui/src/services/rustCore/sync/syncUnit').then((unit) => unit.installSyncUnit(context)),
+	ws: (context) => import('@openmates/ui/src/services/rustCore/ws/wsUnit').then((unit) => unit.installWsUnit(context)),
 	drafts: (context) => import('@openmates/ui/src/services/rustCore/drafts/draftsUnit').then((unit) => unit.installDraftsUnit(context)),
 	parse: (context) => import('@openmates/ui/src/services/rustCore/parse/parseUnit').then((unit) => unit.installParseUnit(context)),
 	chatState: (context) => import('@openmates/ui/src/services/rustCore/chatState/chatListUnit').then((unit) => unit.installChatStateUnit(context)),

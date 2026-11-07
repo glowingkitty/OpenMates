@@ -231,14 +231,28 @@ units:
     - packages/openmates-rust/src/web_chat_state/*.rs
     - packages/openmates-browser-bindings/src/browser_chat_state*.rs
   ws:
-    specs: []
-    vectors: []
+    specs: [web-rust-core-ws.spec.ts]
+    vectors:
+    - packages/openmates-rust/src/web_ws/ts_vectors.json
     open_gaps:
-    - Namespace reserved, no installer yet.
+    - Only the connection lifecycle policy moved (close codes incl. 1008 and repeated 1006 auth detection, reconnect backoff, pong timeout, online/resume, periodic retry).
+    - Frame envelope parse/route, the outgoing queue with ack/retry and the socket itself in the Worker are not moved; the send path (sendOperation, sendProtocol, browserWsLink) belongs to the send-latency lane (TASK-1968).
     spec_assertions: [owner-consistency.ws.dual-principal, sync.access.first-party-authenticated, chats.send.immediate-admission]
     spec_gaps:
     - WebSocket link state machine, router and feedback have no assertion.
     rust_paths:
+    - packages/openmates-rust/src/web_ws/*.rs
+    - packages/openmates-browser-bindings/src/browser_ws.rs
     - packages/openmates-rust/src/ws_link.rs
     - packages/openmates-rust/src/ws_link/*.rs
     - packages/openmates-browser-bindings/src/browser_ws_link.rs
+  sendPrep:
+    specs: []
+    vectors: []
+    open_gaps:
+    - Curated entry added by the ws lane so the status generator runs; the sendPrep lane owns the details.
+    spec_assertions: []
+    spec_gaps:
+    - Unit assertions are not yet mapped.
+    rust_paths:
+    - packages/openmates-rust/src/web_send*

@@ -22,6 +22,14 @@ import {
 import { websocketStatus } from "../stores/websocketStatusStore"; // Import the new shared store
 import { notificationStore } from "../stores/notificationStore"; // Import notification store
 
+/** Opt-in shared Rust core build: lifecycle decisions run in the shared Worker `ws` unit. */
+// Measurement-only opt-out (`openmates_rust_core_ws` = 'ts'), read once per page load.
+const RUST_WS_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+  && !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_ws") === "ts");
+function rustWsPolicy() {
+  return import("./rustCore/ws/rustWsPolicy");
+}
+
 /**
  * Sanitize sensitive data from URLs for logging
  * Removes tokens and session IDs to prevent credential leakage
@@ -311,6 +319,10 @@ class WebSocketService extends EventTarget {
         // 2. reconnectAttempts === 0 but WS is dead: Connection silently died during device sleep/hibernate
         //    without onclose firing, so reconnectAttempts was never incremented
         this.clearStaleLogoutFlags("online");
+        if (RUST_WS_BUILD) {
+          void rustWsPolicy().then((policy) => policy.handleLifecycle(rustWsHost(this), "online"));
+          return;
+        }
         if (
           get(authStore).isAuthenticated &&
           !this.isConnected() &&
@@ -375,6 +387,10 @@ class WebSocketService extends EventTarget {
             "[WebSocketService] Network connection type changed — checking connection",
           );
           this.clearStaleLogoutFlags("connection-change");
+          if (RUST_WS_BUILD) {
+            void rustWsPolicy().then((policy) => policy.handleLifecycle(rustWsHost(this), "connectionChange"));
+            return;
+          }
           if (
             get(authStore).isAuthenticated &&
             !this.isConnected() &&
@@ -419,6 +435,10 @@ class WebSocketService extends EventTarget {
     // Emit "resuming" event so the OfflineBanner can start a grace period
     // and suppress the offline notification during the reconnection attempt.
     this.dispatchEvent(new CustomEvent("resuming"));
+    if (RUST_WS_BUILD) {
+      void rustWsPolicy().then((policy) => policy.handleLifecycle(rustWsHost(this), "resume"));
+      return;
+    }
 
     if (!this.isConnected() && !this.connectionPromise) {
       // WebSocket is dead (either ws is null or readyState is not OPEN).
@@ -1026,6 +1046,11 @@ class WebSocketService extends EventTarget {
             this.dispatchEvent(new CustomEvent("close", { detail: event }));
           }
 
+          if (RUST_WS_BUILD) {
+            await (await rustWsPolicy()).handleClose(rustWsHost(this), event);
+            return;
+          }
+
           // Handle specific close codes
           if (event.code === status.WS_1008_POLICY_VIOLATION) {
             console.error(
@@ -1272,6 +1297,10 @@ class WebSocketService extends EventTarget {
             clearTimeout(this.pongTimeoutId);
           }
           this.pongTimeoutId = setTimeout(() => {
+            if (RUST_WS_BUILD) {
+              void rustWsPolicy().then((policy) => policy.handlePongTimeout(rustWsHost(this)));
+              return;
+            }
             // Before declaring the connection stale, check if we received any
             // real data recently (e.g., AI streaming chunks). If data arrived
             // within the pong timeout window, the connection is alive – the
@@ -1363,6 +1392,10 @@ class WebSocketService extends EventTarget {
       `[WebSocketService] Starting periodic retry every ${this.PERIODIC_RETRY_INTERVAL / 1000}s after max reconnect attempts exhausted`,
     );
     this.periodicRetryIntervalId = setInterval(() => {
+      if (RUST_WS_BUILD) {
+        void rustWsPolicy().then((policy) => policy.handlePeriodicRetry(rustWsHost(this)));
+        return;
+      }
       if (
         get(authStore).isAuthenticated &&
         !this.isConnected() &&
@@ -1697,6 +1730,62 @@ class WebSocketService extends EventTarget {
 }
 
 // Export a singleton instance
+/** Private WebSocketService members the flag-on lifecycle executors drive. */
+interface RustWsInternals {
+  ws: WebSocket | null;
+  reconnectAttempts: number;
+  consecutiveAbnormalClosures: number;
+  connectionPromise: Promise<void> | null;
+  rejectConnectionPromise: ((reason?: unknown) => void) | null;
+  lastActivityTimestamp: number;
+  pongTimeoutId: NodeJS.Timeout | null;
+  connect(): Promise<void>;
+  startPeriodicRetry(): void;
+  stopPeriodicRetry(): void;
+  refreshSessionForWebSocket(reason: string): Promise<boolean>;
+  sendMessage(type: string, payload: unknown): Promise<void>;
+  dispatchEvent(event: Event): boolean;
+}
+
+/** Host bridge of the flag-on `ws` lifecycle executors (rustCore/ws/rustWsPolicy.ts). */
+function rustWsHost(service: WebSocketService): import("./rustCore/ws/rustWsPolicy").RustWsHost {
+  const s = service as unknown as RustWsInternals;
+  const idle = () => Boolean(s.connectionPromise) && !s.ws;
+  return {
+    isAuthenticated: () => get(authStore).isAuthenticated,
+    isConnected: () => service.isConnected(),
+    hasConnectionPromise: () => Boolean(s.connectionPromise),
+    hasSocket: () => Boolean(s.ws),
+    get consecutive() { return s.consecutiveAbnormalClosures; },
+    set consecutive(value: number) { s.consecutiveAbnormalClosures = value; },
+    get reconnectAttempts() { return s.reconnectAttempts; },
+    set reconnectAttempts(value: number) { s.reconnectAttempts = value; },
+    msSinceActivity: () => Date.now() - s.lastActivityTimestamp,
+    setStatus: (value) => websocketStatus.setStatus(value),
+    setError: (message) => websocketStatus.setError(message, "error"),
+    dispatch: (name, detail) => { s.dispatchEvent(detail === undefined ? new CustomEvent(name) : new CustomEvent(name, { detail })); },
+    rejectIfIdle: (reason) => {
+      if (s.rejectConnectionPromise && idle()) {
+        s.rejectConnectionPromise(reason);
+        s.connectionPromise = null;
+      }
+    },
+    clearIdlePromise: () => { if (idle()) s.connectionPromise = null; },
+    clearConnectionPromise: () => { s.connectionPromise = null; },
+    scheduleConnect: (delayMs) => { setTimeout(() => void s.connect().catch((err) => console.warn("[WebSocketService] Rust lifecycle reconnect failed:", err)), delayMs); },
+    connectNow: () => { s.connect().catch((err) => console.warn("[WebSocketService] Rust lifecycle reconnection failed:", err)); },
+    closeSocket: (code, reason) => { s.ws?.close(code, reason); },
+    clearPongTimeout: () => {
+      if (s.pongTimeoutId) clearTimeout(s.pongTimeoutId);
+      s.pongTimeoutId = null;
+    },
+    startPeriodicRetry: () => s.startPeriodicRetry(),
+    stopPeriodicRetry: () => s.stopPeriodicRetry(),
+    refreshSession: (reason) => s.refreshSessionForWebSocket(reason),
+    sendLivenessPing: () => { s.sendMessage("ping", {}).catch(() => console.warn("[WebSocketService] Liveness ping failed to send — connection likely dead")); },
+  };
+}
+
 export const webSocketService = new WebSocketService();
 
 // Add status constants from FastAPI if not already available globally

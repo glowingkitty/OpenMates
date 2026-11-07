@@ -656,6 +656,7 @@
         "web-rust-core-profile.spec.ts",
         "web-rust-core-reload-memory.spec.ts",
         "web-rust-core-memory-level.spec.ts",
+        "web-rust-core-ws.spec.ts",
         "web-rust-core-drafts.spec.ts",
         "chat-unread-read-position.spec.ts",
         "cli-rust-tui-unread.spec.ts",

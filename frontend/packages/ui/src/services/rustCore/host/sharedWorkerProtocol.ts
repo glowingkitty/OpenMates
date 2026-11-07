@@ -20,7 +20,7 @@ export const SHARED_NAMESPACES = ['core', 'crypto', 'auth', 'embedData', 'embedW
 export type SharedNamespace = (typeof SHARED_NAMESPACES)[number];
 
 /** Namespaces that may open before any principal is bound (login, key preparation, guest app skills, stateless embed field decryption, signed-out public chat search, stateless import parsing, stateless sync policy). */
-export const PRE_BIND_NAMESPACES: ReadonlySet<SharedNamespace> = new Set<SharedNamespace>(['crypto', 'auth', 'apps', 'embedData', 'search', 'transfer', 'sync', 'parse', 'chatState', 'sendPrep']);
+export const PRE_BIND_NAMESPACES: ReadonlySet<SharedNamespace> = new Set<SharedNamespace>(['crypto', 'auth', 'apps', 'embedData', 'search', 'transfer', 'sync', 'parse', 'chatState', 'sendPrep', 'ws']);
 
 /** Maximum transferred ports per namespace: ports[0] is the unit port, core may add the recovery port as ports[1]. */
 export const NAMESPACE_MAX_PORTS: Readonly<Record<SharedNamespace, number>> = /* @__PURE__ */ Object.freeze({
