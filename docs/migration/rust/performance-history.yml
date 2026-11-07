@@ -612,9 +612,9 @@ measurements:
     confidence: traced
     notes: 'Advisory (2026-11-07 policy). Slice 2: selection, unread and metadata ops added; one shared
       Worker, no page WASM, zero unit failures.'
-  - id: 2026-11-07-chatStateTransitions-01
+  - id: 2026-11-07-chatRendered-09
     date: '2026-11-07'
-    flow: chatStateTransitions
+    flow: chatRendered
     metric: openChatMs
     value_kind: delta_ms
     value: 103
@@ -627,3 +627,19 @@ measurements:
     evidence: web-rust-core-chatstate.spec.ts 12-pair artifact (run 42371506822), message-list transitions slice
     confidence: traced
     notes: Rust median 1469 ms vs TS 1366 ms (+103 ms, +7.5%), advisory per the 2026-11-07 policy, not gross.
+  - id: 2026-11-07-chatRendered-10
+    date: '2026-11-07'
+    flow: chatRendered
+    metric: chatListRenderedMs
+    value_kind: delta_ms
+    value: 93
+    ci95: null
+    n_pairs: 12
+    verdict: rust_not_worse
+    verdict_basis: reported
+    ci_job: null
+    source_commit: 13c341c23b
+    evidence: web-rust-core-chatstate.spec.ts 12-pair bench (chat list render after reload), chatState slice 4 (encrypted bookmarks and highlights)
+    confidence: uncertain
+    notes: TS median 1663 ms vs Rust 1756 ms (+93 ms, +5.6%), advisory per the 2026-11-07 policy, not gross.
+    ts_value: 1663.0

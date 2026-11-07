@@ -165,6 +165,16 @@ lanes:
   kind: wave4
   status: running
   commit: null
+  slices:
+  - id: slice-2
+    commit: bc77186697
+    note: active-chat selection, unread bookkeeping, chat metadata
+  - id: slice-3
+    commit: 3c5859ad96
+    note: message-list transitions and typing/streaming indicators
+  - id: slice-4
+    commit: 13c341c23b
+    note: encrypted message bookmarks and highlights
   size: M
   wave: A
   deps: []
@@ -183,7 +193,7 @@ lanes:
   - packages/openmates-browser-bindings/src/browser_chat_state*.rs
   hot: [sharedWorkerUnits.ts, chatStateProtocol.ts (creates), sdk-capabilities.json]
   e2e: [message-highlights.spec.ts, message-highlights-touch.spec.ts, web-rust-core-chat.spec.ts]
-  notes: 'Slice 1 landed 6f7afa3, slice 1b (unit prepared at app start, phase marks in rustChatStateStats.phases, 12-pair e2e) follows; perf advisory per the 2026-11-07 policy (12 pairs: +188 ms/+10% then +103 ms/+5%, not gross). First slice installed the chatState namespace: chat list ordering and grouping (sortChats, groupChats, time buckets) in packages/openmates-rust/src/web_chat_state, e2e web-rust-core-chatstate.spec.ts. Slice 2 (CI 78f9a901: rust-check, rust-wasm, sdk-conformance, vitest, flag-off chat-management-flow, flag-on web-rust-core-chatstate green; on the rebased source rust-check green and sdk-conformance red like every other session on dev tip 9f6326e2b2, baseline-red not caused by this diff): active-chat selection plans (activeChatStore URL plan, Chats.svelte global-selection and stale-draft guards), unread bookkeeping reducer and read gate (unreadMessagesStore, chatReadState), shared sub-chat metadata derivation, as ops selection*/unread*/metadata* in web_chat_state/{selection,unread,metadata}.rs with view_ts_vectors.json. Flag on: no TS fallback; the unread store keeps reduced state as view state and mirrors counts asynchronously (getUnreadCount reads the mirror; queryUnread drains the queue). Not moved: initial active chat id at store creation (synchronous module init) and the sidebar unread badge label (inline template expression). Remaining: message-list transitions, typing/streaming indicators and the encrypted bookmark/highlight state. Slice 2 (message-list transitions + typing/streaming indicators, modules web_chat_state/{window,timeline,activity,indicators}.rs, TS vectors transition_vectors.json): decrypted-window pruning and expanded-window preserve, timeline merge/exchange index/response/pairing, running-chat grouping (chatActivityStore) and the ActiveChat composer and Chat title indicator decisions run on the unit with the flag on (ChatHistory timeline, ActiveChat prune/reconcile, chatActivityStore, Chat.svelte). 12-pair advisory e2e: rust median 1469 ms vs ts 1366 ms (rust_not_worse). Slice 4 (session cb4d): encrypted private message bookmarks (account settings decrypt/toggle/encrypt, device and transient toggles, identity and 10 000-limit rules; messageBookmarks.ts) and message highlights (payload encrypt, update stamp, remove frame, inbound decode; sendersMessageHighlights.ts, handlersMessageHighlights.ts) run on the chatState unit with the flag on (ops bookmark*/highlight* in chatState/bookmarkHighlightOps.ts over the existing chat_state_bookmarks_*/chat_state_highlight_* exports plus chat_state_bookmarks_identity). The page keeps the settings POST, owner/epoch/ciphertext scope fences, localStorage, the stores, IndexedDB and the socket send; master/chat keys cross as the CryptoKey/bytes the page already holds (same as hidden/fork). TS-generated vectors: chat_state/bookmark_highlight_ts_vectors.json (30 account toggles, 9 decodes, 12 device toggles, 24 inbound highlights, 9 outbound) generated from the real flag-off services and replayed by bookmark_highlight_vector_tests.rs; bookmarkHighlightVectors.test.ts fails when the TS services drift. Flag-on E2E: web-rust-core-chatstate.spec.ts (bookmark toggle on and off through the unit) and the wrapper web-rust-core-chatstate-message-highlights.spec.ts. Declined with reasons (no async-safe cut): ChatHistory.updateMessages defensive prune (exported synchronous function whose callers read `messages` right after, and per-chunk streaming calls would gain an await window), timelinePreviewText (called inside a Svelte $derived, must stay synchronous), initial active chat id (synchronous module init) and the unread badge label (inline template expression). Not moved by design: the bookmark scope fences and highlight store/IndexedDB writes (platform IO). Advisory 12-pair bench of web-rust-core-chatstate.spec.ts (chat list render after reload): TS median 1663 ms vs Rust 1756 ms (+93 ms, +5.6%), not gross; NOT appended to performance-history.yml because that file already fails validation on origin/dev (entry 2026-11-07-chatStateTransitions-01 uses flow chatStateTransitions, not in the allowed flow list), which blocks record_perf_measurement.py; append once that entry is fixed.'
+  notes: 'Slice 1 landed 6f7afa3, slice 1b (unit prepared at app start, phase marks in rustChatStateStats.phases, 12-pair e2e) follows; perf advisory per the 2026-11-07 policy (12 pairs: +188 ms/+10% then +103 ms/+5%, not gross). First slice installed the chatState namespace: chat list ordering and grouping (sortChats, groupChats, time buckets) in packages/openmates-rust/src/web_chat_state, e2e web-rust-core-chatstate.spec.ts. Slice 2 (CI 78f9a901: rust-check, rust-wasm, sdk-conformance, vitest, flag-off chat-management-flow, flag-on web-rust-core-chatstate green; on the rebased source rust-check green and sdk-conformance red like every other session on dev tip 9f6326e2b2, baseline-red not caused by this diff): active-chat selection plans (activeChatStore URL plan, Chats.svelte global-selection and stale-draft guards), unread bookkeeping reducer and read gate (unreadMessagesStore, chatReadState), shared sub-chat metadata derivation, as ops selection*/unread*/metadata* in web_chat_state/{selection,unread,metadata}.rs with view_ts_vectors.json. Flag on: no TS fallback; the unread store keeps reduced state as view state and mirrors counts asynchronously (getUnreadCount reads the mirror; queryUnread drains the queue). Not moved: initial active chat id at store creation (synchronous module init) and the sidebar unread badge label (inline template expression). Remaining: message-list transitions, typing/streaming indicators and the encrypted bookmark/highlight state. Slice 2 (message-list transitions + typing/streaming indicators, modules web_chat_state/{window,timeline,activity,indicators}.rs, TS vectors transition_vectors.json): decrypted-window pruning and expanded-window preserve, timeline merge/exchange index/response/pairing, running-chat grouping (chatActivityStore) and the ActiveChat composer and Chat title indicator decisions run on the unit with the flag on (ChatHistory timeline, ActiveChat prune/reconcile, chatActivityStore, Chat.svelte). 12-pair advisory e2e: rust median 1469 ms vs ts 1366 ms (rust_not_worse). Slice 4 (session cb4d): encrypted private message bookmarks (account settings decrypt/toggle/encrypt, device and transient toggles, identity and 10 000-limit rules; messageBookmarks.ts) and message highlights (payload encrypt, update stamp, remove frame, inbound decode; sendersMessageHighlights.ts, handlersMessageHighlights.ts) run on the chatState unit with the flag on (ops bookmark*/highlight* in chatState/bookmarkHighlightOps.ts over the existing chat_state_bookmarks_*/chat_state_highlight_* exports plus chat_state_bookmarks_identity). The page keeps the settings POST, owner/epoch/ciphertext scope fences, localStorage, the stores, IndexedDB and the socket send; master/chat keys cross as the CryptoKey/bytes the page already holds (same as hidden/fork). TS-generated vectors: chat_state/bookmark_highlight_ts_vectors.json (30 account toggles, 9 decodes, 12 device toggles, 24 inbound highlights, 9 outbound) generated from the real flag-off services and replayed by bookmark_highlight_vector_tests.rs; bookmarkHighlightVectors.test.ts fails when the TS services drift. Flag-on E2E: web-rust-core-chatstate.spec.ts (bookmark toggle on and off through the unit) and the wrapper web-rust-core-chatstate-message-highlights.spec.ts. Declined with reasons (no async-safe cut): ChatHistory.updateMessages defensive prune (exported synchronous function whose callers read `messages` right after, and per-chunk streaming calls would gain an await window), timelinePreviewText (called inside a Svelte $derived, must stay synchronous), initial active chat id (synchronous module init) and the unread badge label (inline template expression). Not moved by design: the bookmark scope fences and highlight store/IndexedDB writes (platform IO). Advisory 12-pair bench of web-rust-core-chatstate.spec.ts (chat list render after reload): TS median 1663 ms vs Rust 1756 ms (+93 ms, +5.6%), not gross; appended to performance-history.yml as 2026-11-07-chatRendered-10.'
   spec_assertions:
   - chat-unread.reply.read-at-last-line
   - chat-unread.followup.implies-read
@@ -317,6 +327,13 @@ lanes:
   kind: wave4
   status: running
   commit: null
+  slices:
+  - id: slice-1
+    commit: 6798a8d93c
+    note: IndexedDB message row policy
+  - id: slice-2
+    commit: a974897e24
+    note: cache, quota and chat-row policy
   size: L
   wave: B
   deps: [w3-web-drafts, send-correctness]
@@ -427,6 +444,13 @@ lanes:
   kind: wave4
   status: planned
   commit: null
+  slices:
+  - id: K1
+    commit: cc77c3fbe1
+    note: chat-key admission policy
+  - id: K2
+    commit: 5ce60fbeaf
+    note: Worker-resident chat-key state, async key handles, logout termination
   size: L
   wave: B
   deps: [w3-web-sync-policy, w3-web-send-perf, auth-rest-slice-0]
@@ -470,7 +494,11 @@ lanes:
   name: parse
   kind: wave4
   status: running
-  commit: 7ee4459ff5
+  commit: null
+  slices:
+  - id: slice-2
+    commit: 7ee4459ff5
+    note: async assistant render plan wiring behind the flag
   size: L
   wave: A
   deps: []
@@ -512,6 +540,13 @@ lanes:
   kind: wave4
   status: planned
   commit: null
+  slices:
+  - id: slice-1
+    commit: 04a644d667
+    note: app settings/memories permission request policy
+  - id: slice-2
+    commit: 04645295fb
+    note: response/confirm decisions
   size: L
   wave: A
   deps: []
@@ -603,7 +638,7 @@ lanes:
   name: auth-rest
   kind: wave4
   status: running
-  commit: 6df2e95b16
+  commit: null
   size: M
   wave: A
   deps: []
@@ -620,7 +655,8 @@ lanes:
     commit: 6df2e95b16
     note: web_auth_signup/pair/recovery_print/flow in Rust; pairV2.pairRequest errors and printRecoveryKey routed
   - id: slice-2
-    note: push-to-store adapters (services/rustCore/auth/flowPush.ts) for pairSessionState, pairActivate/rehydrate/auto-logout
+    commit: 6f1e36ffd8
+    note: (initial 52e4a2266c, fail-closed follow-up 6f1e36ffd8) push-to-store adapters (services/rustCore/auth/flowPush.ts) for pairSessionState, pairActivate/rehydrate/auto-logout
       tick, pairV2.pairExpired, signup getStepFromPath/isSignupPath (primeSignupLocation in login/session auth actions)
       and config/tfa.ts lists; sync reads return the last pushed value or a neutral default
       Follow-up (same slice) - pair state fails closed (restricted until Rust's view arrives, while activation is pending and when Rust errors
@@ -681,6 +717,13 @@ lanes:
   kind: wave4
   status: planned
   commit: null
+  slices:
+  - id: slice-1
+    commit: 0f2f1c1d81
+    note: hidden-chat vault and fork operations
+  - id: slice-2
+    commit: 4e972b3312
+    note: hide flow, key-update frame, explain selection, logout vault release
   size: L
   wave: C
   deps: [chatstate-core]
@@ -705,6 +748,13 @@ lanes:
   kind: wave4
   status: running
   commit: null
+  slices:
+  - id: slice-1
+    commit: 535f549d0d
+    note: guest chat promotion plan
+  - id: slice-2
+    commit: c89aa32172
+    note: share/guest decisions
   size: M
   wave: C
   deps: [keys]

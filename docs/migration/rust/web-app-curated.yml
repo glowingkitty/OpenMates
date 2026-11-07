@@ -256,3 +256,30 @@ units:
     - Unit assertions are not yet mapped.
     rust_paths:
     - packages/openmates-rust/src/web_send*
+  persist:
+    specs: [web-rust-core-persist.spec.ts]
+    vectors:
+    - packages/openmates-rust/src/web_persist/ts_vectors.json
+    open_gaps:
+    - IndexedDB row-version compatibility and quota recovery have no assertion beyond the policy vectors.
+    spec_assertions:
+    - chats.persistence.client-encrypted
+    - chats.local-state.precedence
+    - sync.status.incomplete-window-rewarms
+    - storage.client.shared-policy-existing-adapters
+    spec_gaps:
+    - Message status priority and duplicate detection have no assertion; parity rests on TS-generated vectors.
+    rust_paths:
+    - packages/openmates-rust/src/web_persist/*.rs
+    - packages/openmates-browser-bindings/src/browser_persist.rs
+  settings:
+    specs: []
+    vectors: []
+    open_gaps:
+    - No flag-on e2e spec exists for the settings unit yet.
+    spec_assertions: []
+    spec_gaps:
+    - App settings/memories permission request and response/confirm decisions have no assertion.
+    rust_paths:
+    - packages/openmates-rust/src/web_settings*
+    - packages/openmates-browser-bindings/src/browser_settings*.rs

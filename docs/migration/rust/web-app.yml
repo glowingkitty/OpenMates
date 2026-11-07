@@ -276,11 +276,12 @@ units:
     namespace.
   typescript_fallback: none declared (4 files)
   unit_tests: [persistSharedUnit.test.ts]
-  e2e_specs: []
-  vectors: []
-  open_gaps: []
-  spec_assertions: []
-  spec_gaps: []
+  e2e_specs: [web-rust-core-persist.spec.ts]
+  vectors: [packages/openmates-rust/src/web_persist/ts_vectors.json]
+  open_gaps: [IndexedDB row-version compatibility and quota recovery have no assertion beyond the policy vectors.]
+  spec_assertions: [chats.persistence.client-encrypted, chats.local-state.precedence, sync.status.incomplete-window-rewarms,
+    storage.client.shared-policy-existing-adapters]
+  spec_gaps: [Message status priority and duplicate detection have no assertion; parity rests on TS-generated vectors.]
 - namespace: settings
   status: installed
   pre_bind: true
@@ -292,6 +293,6 @@ units:
   unit_tests: [settingsSharedUnit.test.ts]
   e2e_specs: []
   vectors: []
-  open_gaps: []
+  open_gaps: [No flag-on e2e spec exists for the settings unit yet.]
   spec_assertions: []
-  spec_gaps: []
+  spec_gaps: [App settings/memories permission request and response/confirm decisions have no assertion.]
