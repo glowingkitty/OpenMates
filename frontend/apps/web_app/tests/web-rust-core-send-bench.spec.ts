@@ -42,6 +42,7 @@ test('interleaved TS vs Rust send benchmark with paired bootstrap verdicts', asy
 	const consoleLines: string[] = [];
 	page.on('console', (msg: any) => { consoleLines.push(`[${msg.type()}] ${msg.text()}`.slice(0, 400)); });
 	page.on('pageerror', (error: Error) => { consoleLines.push(`[pageerror] ${error.message}`.slice(0, 400)); });
+	page.on('response', (response: any) => { const status = response.status(); if (status >= 400 && status !== 404) consoleLines.push(`${new Date().toISOString().slice(11, 23)} [http-${status}] ${response.request().method()} ${new URL(response.url()).pathname}`); });
 	await loginToTestAccount(page, log, screenshot);
 	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
 	const processes = await createBrowserProcessEvidence(page);
@@ -51,7 +52,7 @@ test('interleaved TS vs Rust send benchmark with paired bootstrap verdicts', asy
 		send = await runSendBench(page, { pairs, margin: MARGIN, processes, log, screenshot, profile: true });
 	} catch (error) {
 		console.log('--- browser console (last 40) ---\n' + consoleLines.slice(-40).join('\n'));
-		console.log('--- browser console (rust/403/unit/send, last 80) ---\n' + consoleLines.filter((line) => /403|Forbidden|retire|unit_|Rust|rust|crash|send_failed|pageerror/i.test(line)).slice(-80).join('\n'));
+		console.log('--- browser console (rust/403/unit/send, last 80) ---\n' + consoleLines.filter((line) => /403|http-|Forbidden|retire|unit_|Rust|rust|crash|send_failed|pageerror|handleSend|MessageInput|model selection/i.test(line)).slice(-80).join('\n'));
 		throw error;
 	} finally {
 		await processes.close();

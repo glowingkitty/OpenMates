@@ -134,7 +134,7 @@ wave3_lanes:
   - rustCore/originalSavedChatSender.ts
   - rustCore/browserWsLink.ts
   - crypto send path
-  notes: Paired send bench exists; 12 pairs in one job blocked by sends stalling after about 15 sends.
+  notes: Paired send bench exists. Sends stalling in Sending... were the composer aborting an accepted send when its chat binding moved during model restoration (fixed in sendReadiness.ts, CI send bench 78b3bb15 had no stalled sample); 12 pairs in one job can be retried.
   spec_assertions: [chats.send.immediate-admission, chats.message.identity-idempotent, sdk.web.before-after-performance]
   spec_gaps: []
 - name: send-correctness

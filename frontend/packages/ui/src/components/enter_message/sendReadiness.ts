@@ -48,10 +48,15 @@ export async function resolveSavedModelForAcceptedSend(options: {
     recover: (selection: string) => Promise<string>;
 }): Promise<string> {
     if (!await options.settled) throw new Error('Chat model selection could not be restored');
-    if (!options.stillOwned()) throw new Error('Composer owner changed during model restoration');
+    // A selection that was already restored when the user pressed Send belongs to
+    // that click, so the composer moving to another chat while the click is being
+    // prepared (the history row is already shown) must not abort the accepted send.
+    // Only a restore that was still in flight at the click depends on the composer
+    // still being bound to the same chat.
+    if (!options.readyAtClick && !options.stillOwned()) throw new Error('Composer owner changed during model restoration');
     const selection = options.readyAtClick ? options.selectionAtClick : options.readRestoredSelection();
     if (selection === 'auto') return selection;
     const recoveredSelection = await options.recover(selection);
-    if (!options.stillOwned()) throw new Error('Composer owner changed during model recovery');
+    if (!options.readyAtClick && !options.stillOwned()) throw new Error('Composer owner changed during model recovery');
     return recoveredSelection;
 }

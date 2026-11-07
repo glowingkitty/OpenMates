@@ -962,6 +962,7 @@ export async function handleSend(
   let selectedChatModel = 'auto';
   if (options.resolveModelSelection) {
     selectedChatModel = await options.resolveModelSelection();
+    recordSendDebugStep("model_selection_resolved");
     if (!contextIsCurrent()) return false;
   }
 
@@ -973,6 +974,7 @@ export async function handleSend(
       ? await computeSHA256(senderProfile.user_id)
       : undefined;
     await chatDB.ensureReadyForSend();
+    recordSendDebugStep("local_db_ready_for_send");
   } catch (error) {
     console.error("[handleSend] Local send preparation failed:", error);
     return false;
@@ -2630,6 +2632,7 @@ export async function handleSend(
   }
   } catch (error) {
     if (error instanceof PrivacyScanFailedError || error instanceof PrivacySendContextChangedError) {
+      console.warn("[handleSend] Send stopped before dispatch:", error.name);
       return false;
     }
     throw error;
@@ -2688,7 +2691,12 @@ export async function handleSend(
     // pipeline's rollback block exists. Every acquired guard must be released.
     sendInProgress = false;
     activeSendDebugPhase = null;
-    recordSendDebugStep("send_guard_released");
+    // Name the last step the pipeline reached so a send that ends without a
+    // dispatch or a visible failure can be located from the debug state alone.
+    const lastStepBeforeRelease = (window as Window & {
+      __openmatesLastSendDebug?: { step?: unknown };
+    }).__openmatesLastSendDebug?.step;
+    recordSendDebugStep("send_guard_released", { lastStepBeforeRelease });
   }
 }
 

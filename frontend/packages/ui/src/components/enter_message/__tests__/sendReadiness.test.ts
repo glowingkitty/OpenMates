@@ -60,6 +60,19 @@ describe('composer Send readiness shared by expanded and compact controls', () =
     });
 
     // contract-test: supporting surface=gui.web assertions=message-input.send.ownership
+    it('keeps the click selection when the composer moves after a ready restore', async () => {
+        const recover = vi.fn(async (selection: string) => selection);
+        await expect(resolveSavedModelForAcceptedSend({
+            settled: Promise.resolve(true), readyAtClick: true, selectionAtClick: 'auto',
+            readRestoredSelection: () => 'google/gemini-2.5-pro', stillOwned: () => false, recover,
+        })).resolves.toBe('auto');
+        await expect(resolveSavedModelForAcceptedSend({
+            settled: Promise.resolve(true), readyAtClick: true, selectionAtClick: 'google/gemini-2.5-pro',
+            readRestoredSelection: () => 'auto', stillOwned: () => false, recover,
+        })).resolves.toBe('google/gemini-2.5-pro');
+    });
+
+    // contract-test: supporting surface=gui.web assertions=message-input.send.ownership
     it('rejects restoration after chat ownership changes', async () => {
         await expect(resolveSavedModelForAcceptedSend({
             settled: Promise.resolve(true), readyAtClick: false, selectionAtClick: 'auto',

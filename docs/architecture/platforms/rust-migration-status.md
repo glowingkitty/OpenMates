@@ -348,7 +348,7 @@ The measurement log is `docs/migration/rust/performance-history.yml` (append-onl
 | `rss` | 2026-11-06 | delta_mib_per_reload -0.01 | [-0.34, 0.34] | 16 | rust_not_worse | traced |
 | `search` | 2026-11-07 | ratio 1.132 | [1.02, 1.291] | 30 | rust_worse | traced |
 | `send` | 2026-11-06 | delta_ms -900 | - | 5 | inconclusive | uncertain |
-| `sendToAdmit` | 2026-11-07 | delta_ms 25 | - | 7 | inconclusive | traced |
+| `sendToAdmit` | 2026-11-07 | delta_ms -354 | [0.638, 1.495] | 5 | inconclusive | measured |
 | `wasmInstances` | 2026-11-07 | count 1 | - | - | rust_not_worse | traced |
 
 - Budget and method: `.claude/rules/cli-sdk.md` (web Rust performance gate; paired, interleaved, at least 12 pairs).

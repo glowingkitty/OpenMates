@@ -399,7 +399,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                 assistant_id,
                 key,
                 &task_id,
-                &streamed_embeds,
+                &bind_turn_embeds(&streamed_embeds, message, &task_id),
                 &checkpoints,
             )
             .await?;
@@ -471,7 +471,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                 assistant_id,
                 key,
                 &task_id,
-                &streamed_embeds,
+                &bind_turn_embeds(&streamed_embeds, message, &task_id),
                 &checkpoints,
             )
             .await?;

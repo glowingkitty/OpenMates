@@ -49,7 +49,8 @@ test.afterEach(async ({ page }: { page: any }, testInfo: any) => {
 		const trail = await page.evaluate(() => JSON.stringify((window as unknown as { __sendTrail?: unknown[] }).__sendTrail ?? []).slice(0, 6000)).catch(() => 'unavailable');
 		console.log('--- TS send debug trail ---\n' + trail);
 		console.log('--- browser console (last 80) ---\n' + consoleForFailure.slice(-80).join('\n'));
-		const relevant = consoleForFailure.filter((line) => /error|warn|fail|Senders|handleSend|rust|Rust|session_expired|setup incomplete/i.test(line));
+		console.log('--- failed HTTP responses and send aborts ---\n' + consoleForFailure.filter((line) => /http-|Send stopped before dispatch|\[RustCore\]|MessageInput|handleSend|ChatModelSelection|model selection/i.test(line)).slice(0, 80).join('\n'));
+		const relevant = consoleForFailure.filter((line) => /error|warn|fail|Senders|handleSend|rust|Rust|session_expired|setup incomplete|http-/i.test(line));
 		console.log('--- browser console (errors/warnings/send, first 150) ---\n' + relevant.slice(0, 150).join('\n'));
 	}
 });
@@ -162,6 +163,7 @@ test('opens a saved chat in the normal chat UI from Rust-decrypted history', asy
 	consoleForFailure = consoleLines;
 	page.on('console', (msg: any) => { consoleLines.push(`${new Date().toISOString().slice(11, 23)} [${msg.type()}] ${msg.text()}`.slice(0, 500)); });
 	page.on('pageerror', (error: Error) => { consoleLines.push(`[pageerror] ${error.message}`.slice(0, 400)); });
+	page.on('response', (response: any) => { const status = response.status(); if (status >= 400 && status !== 404) consoleLines.push(`${new Date().toISOString().slice(11, 23)} [http-${status}] ${response.request().method()} ${new URL(response.url()).pathname}`); });
 	page.on('worker', (worker: any) => { consoleLines.push(`[worker] ${worker.url()}`); });
 	await page.addInitScript(installMainThreadTrace);
 	// Keep every TS send debug step (the app only exposes the latest one).

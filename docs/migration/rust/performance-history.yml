@@ -482,3 +482,18 @@ measurements:
     confidence: traced
     notes: 'TS arm failed before pairing (''ts: embed preview finished'' undefined) in both attempts; no
       embed-ready numbers. Patch replay runs only on version-history reads.'
+  - id: 2026-11-07-sendToAdmit-02
+    date: '2026-11-07'
+    flow: sendToAdmit
+    metric: sendToAdmitMs
+    value_kind: delta_ms
+    value: -354
+    ci95: [0.638, 1.495]
+    n_pairs: 5
+    verdict: inconclusive
+    verdict_basis: computed
+    ci_job: 78b3bb15
+    source_commit: 6f02cb5
+    evidence: web-rust-core-send-bench.spec.ts CI job 78b3bb15, TS median 2257 ms vs Rust 1903 ms; ci95 is the paired ratio interval; browser CPU ratio 0.901 [0.821, 0.979] rust_not_worse
+    confidence: measured
+    notes: First bench job with zero stalled sends after the send-ownership fix. Send phases still slow with account chat count (local_message_ready about 2.8 s at the 12th send); not fixed here.

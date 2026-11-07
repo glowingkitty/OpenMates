@@ -867,6 +867,26 @@ fn should_wait_for_ai(message: &str, team: Option<&str>) -> bool {
     })
 }
 
+/// Embeds a turn creates are bound to the user message that started it and carry no task id
+/// (authored results, calendar events); the assistant message id never owns them. They are
+/// already limited to this chat by `capture_artifact`, so once the turn's task is known they are
+/// tagged with it, which is the ownership proof `persist_stream_artifacts` requires.
+fn bind_turn_embeds(
+    embeds: &BTreeMap<String, Value>,
+    user_message: &str,
+    task: &str,
+) -> Plain<BTreeMap<String, Value>> {
+    let mut bound = embeds.clone();
+    if !task.is_empty() {
+        for row in bound.values_mut() {
+            if text(row, "task_id").is_empty() && text(row, "message_id") == user_message {
+                row["task_id"] = Value::String(task.into());
+            }
+        }
+    }
+    Plain::new(bound)
+}
+
 fn capture_artifact(
     kind: &str,
     p: &Value,
@@ -933,6 +953,22 @@ mod consent_fence_tests {
         let valid = json!({"chat_id":"chat","message_id":"human","request_id":"current"});
         assert!(admit_memory_request(&valid, "chat", "human", &mut seen));
         assert!(!admit_memory_request(&valid, "chat", "human", &mut seen));
+    }
+
+    // contract-test: supporting surface=sdks.rust assertions=sdk.surface.semantic-parity,auth.session.isolation
+    #[test]
+    fn turn_embeds_bound_to_the_user_message_receive_the_turn_task() {
+        let embeds = BTreeMap::from([
+            ("own".to_string(), json!({"message_id":"human","task_id":""})),
+            ("foreign".to_string(), json!({"message_id":"other","task_id":""})),
+            ("tasked".to_string(), json!({"message_id":"human","task_id":"old"})),
+        ]);
+        let bound = bind_turn_embeds(&embeds, "human", "task");
+        assert_eq!(bound["own"]["task_id"], "task");
+        assert_eq!(bound["foreign"]["task_id"], "");
+        assert_eq!(bound["tasked"]["task_id"], "old");
+        let unknown = bind_turn_embeds(&embeds, "human", "");
+        assert_eq!(unknown["own"]["task_id"], "");
     }
 }
 

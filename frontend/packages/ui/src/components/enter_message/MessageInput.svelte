@@ -6250,7 +6250,7 @@
                             modelOwner.teamId !== get(activeTeamId) && 'teamId',
                             modelOwner.editor !== editor && 'editor',
                         ].filter(Boolean);
-                        if (changed.length) console.warn('[MessageInput] Send model owner changed:', changed.join(','), { draftAtClick: modelOwner.draftChatId, draftNow: draftChatIdNow });
+                        if (changed.length) console.warn('[MessageInput] Send model owner changed:', changed.join(','), { draftAtClick: modelOwner.draftChatId, draftNow: draftChatIdNow, readyAtClick: modelOwner.wasReady });
                         return changed.length === 0;
                     };
                     return resolveSavedModelForAcceptedSend({
