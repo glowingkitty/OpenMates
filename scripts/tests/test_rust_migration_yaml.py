@@ -166,3 +166,13 @@ def test_spec_header_report_is_non_blocking_and_well_formed() -> None:
     assert all(r["files"] == r["with_header"] + r["without_header"] for r in rows)
     assert headers.HEADER.match("//! spec: specifications/architecture/sync#sync.client.shared-rust-policy")
     assert not headers.HEADER.match("//! spec: specifications/surfaces/cli tasks durable delivery.")
+
+
+# contract-test: tooling
+def test_unit_without_curated_entry_is_a_validation_error_not_a_crash(monkeypatch: pytest.MonkeyPatch) -> None:
+    curated = migration.load_curated()
+    dropped = next(iter(curated))
+    monkeypatch.setattr(migration, "load_curated", lambda: {k: v for k, v in curated.items() if k != dropped})
+    built = migration.build_all()
+    problems = migration.validate(built)
+    assert any(dropped in p and "curated" in p.lower() or "web-app-curated" in p for p in problems)

@@ -221,7 +221,7 @@ def build_web_app() -> dict:
             item["unit_tests"] = [Path(t).name for t in legacy.unit_tests(installer.parent, installer)]
         else:
             item.update({"what_moved": "Planned; no installer yet.", "typescript_fallback": None, "unit_tests": []})
-        extra = curated.get(ns, {"specs": [], "vectors": [], "open_gaps": []})
+        extra = {"specs": [], "vectors": [], "open_gaps": [], "spec_assertions": [], "spec_gaps": [], **curated.get(ns, {})}
         item.update({"e2e_specs": extra["specs"], "vectors": extra["vectors"], "open_gaps": extra["open_gaps"],
                      "spec_assertions": extra["spec_assertions"], "spec_gaps": extra["spec_gaps"]})
         units.append(item)
@@ -308,7 +308,9 @@ def validate_spec_links(files: dict[str, dict], lanes: dict, curated: dict, link
         if not owner["spec_assertions"] and not owner["spec_gaps"]:
             errors.append(f"{label}: needs spec_assertions or a spec_gaps entry")
     for unit in files["web-app.yml"]["units"]:
-        if unit["spec_assertions"] != curated[unit["namespace"]]["spec_assertions"]:
+        if unit["namespace"] not in curated:
+            errors.append(f"web-app.yml unit {unit['namespace']}: no entry in {CURATED}; add one with specs, vectors, open_gaps, spec_assertions and spec_gaps")
+        elif unit["spec_assertions"] != curated[unit["namespace"]]["spec_assertions"]:
             errors.append(f"web-app.yml unit {unit['namespace']}: spec_assertions differ from curated file")
     return errors
 
@@ -363,7 +365,7 @@ def validate(files: dict[str, dict]) -> list[str]:
             errors.append(f"{name}: capabilities must be sorted by domain, id")
     curated = load_curated()
     if set(curated) != {u["namespace"] for u in web["units"]}:
-        errors.append(f"{CURATED}: namespaces differ from the unit allowlist")
+        errors.append(f"{CURATED}: namespaces differ from the unit allowlist (missing: {sorted({u['namespace'] for u in web['units']} - set(curated))}, unknown: {sorted(set(curated) - {u['namespace'] for u in web['units']})})")
     errors += validate_lanes(load_lanes())
     errors += validate_spec_links(files, load_lanes(), load_curated(), load_spec_links())
     if web["lanes"] != lane_summary(load_lanes()):
