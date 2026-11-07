@@ -254,16 +254,14 @@ pub async fn keys_state_encrypt(chat_id: String, plaintext: String) -> Result<St
 /// Bulk chat-key load batches for `count` collected keys as `[[start, end], ...]` (no key material).
 #[wasm_bindgen(js_name = keysBulkBatches)]
 pub fn keys_bulk_batches(count: u32) -> Array {
-    web_key_bulk::batch_ranges(count as usize)
-        .into_iter()
-        .map(|(start, end)| {
-            Array::of2(
-                &JsValue::from_f64(start as f64),
-                &JsValue::from_f64(end as f64),
-            )
-            .into()
-        })
-        .collect()
+    let batches = Array::new();
+    for (start, end) in web_key_bulk::batch_ranges(count as usize) {
+        batches.push(&Array::of2(
+            &JsValue::from_f64(start as f64),
+            &JsValue::from_f64(end as f64),
+        ));
+    }
+    batches
 }
 
 /// Master-key retry step of the bulk load: `decrypt`, `retry` or `give_up`.
