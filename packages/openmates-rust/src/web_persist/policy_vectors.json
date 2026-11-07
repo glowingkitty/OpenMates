@@ -2839,5 +2839,17 @@
 {"input":{"chat":{"team_id":"t","team_draft_pending_sync":"update","draft_v":2,"cleared_draft_v":null},"teamId":"x","pending":"delete","expected":{"kind":"update","clearedDraftVersion":5}},"out":{"apply":false,"patch":{},"undefinedKeys":[]}},
 {"input":{"chat":{"team_id":"t","team_draft_pending_sync":"update","draft_v":2,"cleared_draft_v":null},"teamId":"t","pending":"delete","expected":{"kind":"delete","clearedDraftVersion":0,"cipher":null}},"out":{"apply":false,"patch":{},"undefinedKeys":[]}},
 {"input":{"chat":{"team_id":"t","team_draft_pending_sync":"update","draft_v":2,"cleared_draft_v":null},"teamId":"x","pending":"delete","expected":{"kind":"delete","clearedDraftVersion":0,"cipher":null}},"out":{"apply":false,"patch":{},"undefinedKeys":[]}}
+],
+"duplicateCleanup":[
+{"input":{"messages":[]},"out":{"deleteIds":[]}},
+{"input":{"messages":[{"chat_id":"c1","message_id":"a"}]},"out":{"deleteIds":[]}},
+{"input":{"messages":[{"chat_id":"c1","message_id":"a"},{"chat_id":"c1","message_id":"a"}]},"out":{"deleteIds":["a"]}},
+{"input":{"messages":[{"chat_id":"c1","message_id":"a"},{"chat_id":"c1","message_id":"b"},{"chat_id":"c1","message_id":"b"},{"chat_id":"c1","message_id":"a"}]},"out":{"deleteIds":["a","b"]}},
+{"input":{"messages":[{"chat_id":"c1","message_id":"a"},{"chat_id":"c1","message_id":"a"},{"chat_id":"c1","message_id":"a"}]},"out":{"deleteIds":["a"]}},
+{"input":{"messages":[{"chat_id":"c1","message_id":"a"},{"chat_id":"c2","message_id":"a"}]},"out":{"deleteIds":[]}},
+{"input":{"messages":[{"chat_id":"c1","message_id":"a"},{"chat_id":"c2","message_id":"a"},{"chat_id":"c1","message_id":"a"}]},"out":{"deleteIds":["a"]}},
+{"input":{"messages":[{"chat_id":"c2","message_id":"x"},{"chat_id":"c1","message_id":"y"},{"chat_id":"c2","message_id":"x"},{"chat_id":"c1","message_id":"y"},{"chat_id":"c1","message_id":"z"}]},"out":{"deleteIds":["x","y"]}},
+{"input":{"messages":[{"chat_id":"c1","message_id":""},{"chat_id":"c1","message_id":""}]},"out":{"deleteIds":[""]}},
+{"input":{"messages":[{"chat_id":"c0","message_id":"m0"},{"chat_id":"c1","message_id":"m7"},{"chat_id":"c2","message_id":"m3"},{"chat_id":"c0","message_id":"m10"},{"chat_id":"c1","message_id":"m6"},{"chat_id":"c2","message_id":"m2"},{"chat_id":"c0","message_id":"m9"},{"chat_id":"c1","message_id":"m5"},{"chat_id":"c2","message_id":"m1"},{"chat_id":"c0","message_id":"m8"},{"chat_id":"c1","message_id":"m4"},{"chat_id":"c2","message_id":"m0"},{"chat_id":"c0","message_id":"m7"},{"chat_id":"c1","message_id":"m3"},{"chat_id":"c2","message_id":"m10"},{"chat_id":"c0","message_id":"m6"},{"chat_id":"c1","message_id":"m2"},{"chat_id":"c2","message_id":"m9"},{"chat_id":"c0","message_id":"m5"},{"chat_id":"c1","message_id":"m1"},{"chat_id":"c2","message_id":"m8"},{"chat_id":"c0","message_id":"m4"},{"chat_id":"c1","message_id":"m0"},{"chat_id":"c2","message_id":"m7"},{"chat_id":"c0","message_id":"m3"},{"chat_id":"c1","message_id":"m10"},{"chat_id":"c2","message_id":"m6"},{"chat_id":"c0","message_id":"m2"},{"chat_id":"c1","message_id":"m9"},{"chat_id":"c2","message_id":"m5"},{"chat_id":"c0","message_id":"m1"},{"chat_id":"c1","message_id":"m8"},{"chat_id":"c2","message_id":"m4"},{"chat_id":"c0","message_id":"m0"},{"chat_id":"c1","message_id":"m7"},{"chat_id":"c2","message_id":"m3"},{"chat_id":"c0","message_id":"m10"},{"chat_id":"c1","message_id":"m6"},{"chat_id":"c2","message_id":"m2"},{"chat_id":"c0","message_id":"m9"}]},"out":{"deleteIds":["m0","m10","m9","m7","m6","m3","m2"]}}
 ]
 }

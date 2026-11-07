@@ -348,6 +348,9 @@ lanes:
   - id: slice-2
     commit: a974897e24
     note: cache, quota and chat-row policy
+  - id: slice-3
+    commit: null
+    note: 'duplicate-message cleanup plan (cleanupDuplicateMessages -> web_persist::message_policy::duplicate_cleanup_json, TS-generated policy_vectors.json duplicateCleanup). Declined - decryptionFailureCache, recentChatWindowCache and utils/messageWindowPruning (synchronous callers, ActiveChat/ChatHistory read them without awaiting), pendingEmbedQueue (pure IDB transaction wiring, no decision).'
   size: L
   wave: B
   deps: [w3-web-drafts, send-correctness]

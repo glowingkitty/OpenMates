@@ -8,6 +8,8 @@
 //! numbers or absent in real rows; JS string-to-number coercion is not modelled.
 //!
 //! spec: specifications/architecture/storage-lifecycle#storage.client.shared-policy-existing-adapters
+use std::collections::HashMap;
+
 use serde_json::{json, Value};
 
 use crate::web_sync::{field, num, parse, strict_eq, truthy, PROTOCOL};
@@ -241,4 +243,44 @@ pub fn safe_to_evict_json(input: &str) -> Result<String, String> {
         .map(is_safe_to_evict)
         .collect();
     Ok(json!({ "results": results }).to_string())
+}
+
+/// `{messages: [{chat_id, message_id}]}` -> `{deleteIds}`: the message ids
+/// `cleanupDuplicateMessages` deletes, in order (`planDuplicateCleanup`): every id
+/// stored more than once in a chat, once. The delete is by id, so which copy has
+/// the higher status priority does not change the outcome.
+///
+/// # Errors
+/// `protocol` when the input is not that shape.
+pub fn duplicate_cleanup_json(input: &str) -> Result<String, String> {
+    let input = parse(input)?;
+    // Chats and ids in first-appearance order, with how often each id is stored.
+    let mut chat_slot: HashMap<&str, usize> = HashMap::new();
+    let mut id_slot: HashMap<(&str, &str), (usize, usize)> = HashMap::new();
+    let mut chats: Vec<Vec<(&str, usize)>> = Vec::new();
+    for message in list(&input, "messages")? {
+        let message = object(Some(message))?;
+        let text = |key: &str| {
+            field(message, key)
+                .and_then(Value::as_str)
+                .ok_or_else(protocol_err)
+        };
+        let (chat, id) = (text("chat_id")?, text("message_id")?);
+        let slot = *chat_slot.entry(chat).or_insert_with(|| {
+            chats.push(Vec::new());
+            chats.len() - 1
+        });
+        let (chat_index, id_index) = *id_slot.entry((chat, id)).or_insert_with(|| {
+            chats[slot].push((id, 0));
+            (slot, chats[slot].len() - 1)
+        });
+        chats[chat_index][id_index].1 += 1;
+    }
+    let delete_ids: Vec<&str> = chats
+        .iter()
+        .flatten()
+        .filter(|(_, count)| *count > 1)
+        .map(|(id, _)| *id)
+        .collect();
+    Ok(json!({ "deleteIds": delete_ids }).to_string())
 }

@@ -35,6 +35,12 @@ pub fn persist_message_safe_to_evict(input_json: &str) -> Result<String, JsValue
     js(message_policy::safe_to_evict_json(input_json))
 }
 
+/// `planDuplicateCleanup`: message ids whose stored copy `cleanupDuplicateMessages` deletes.
+#[wasm_bindgen]
+pub fn persist_message_duplicate_cleanup(input_json: &str) -> Result<String, JsValue> {
+    js(message_policy::duplicate_cleanup_json(input_json))
+}
+
 macro_rules! persist_export {
     ($($(#[$doc:meta])* $export:ident => $function:path;)*) => {
         $(

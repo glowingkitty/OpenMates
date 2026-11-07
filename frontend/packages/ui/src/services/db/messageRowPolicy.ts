@@ -234,3 +234,28 @@ export function isContentDuplicate(
 
   return isDuplicate;
 }
+
+/** The fields of a stored message the duplicate-cleanup plan reads. */
+export interface DuplicateCleanupRow {
+  chat_id: string;
+  message_id: string;
+}
+
+/**
+ * `message_id`s `cleanupDuplicateMessages` deletes, in order: per chat (first
+ * appearance order) every id stored more than once, once, by first occurrence. The delete is by id, so
+ * which of the copies has the higher status priority does not change the outcome.
+ */
+export function planDuplicateCleanup(messages: readonly DuplicateCleanupRow[]): string[] {
+  const countsByChat = new Map<string, Map<string, number>>();
+  for (const { chat_id, message_id } of messages) {
+    let counts = countsByChat.get(chat_id);
+    if (!counts) countsByChat.set(chat_id, (counts = new Map()));
+    counts.set(message_id, (counts.get(message_id) ?? 0) + 1);
+  }
+  const deletes: string[] = [];
+  for (const counts of countsByChat.values()) {
+    for (const [messageId, count] of counts) if (count > 1) deletes.push(messageId);
+  }
+  return deletes;
+}

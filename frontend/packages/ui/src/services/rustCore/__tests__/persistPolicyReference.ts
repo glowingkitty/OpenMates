@@ -5,7 +5,7 @@
 // functions; this table lets tests check that and stand in for the WASM binding.
 import * as cache from '../../db/cachePolicy';
 import * as chats from '../../db/chatRowPolicy';
-import { isSafeToEvictMessage } from '../../db/messageRowPolicy';
+import { isSafeToEvictMessage, planDuplicateCleanup } from '../../db/messageRowPolicy';
 import type { Message } from '../../../types/chat';
 
 type Input = any; // eslint-disable-line @typescript-eslint/no-explicit-any -- op inputs are validated JSON of the vectors
@@ -24,6 +24,7 @@ export const referenceOps: Record<string, (input: Input) => unknown> = {
 	budgetAfter: (i) => ({ action: cache.budgetAfterEviction(i) }),
 	quotaStep: (i) => ({ action: cache.quotaStep(i) }),
 	chatsPageSize: (i) => ({ size: cache.chatsPageSize(i.limit) }),
+	duplicateCleanup: (i) => ({ deleteIds: planDuplicateCleanup(i.messages) }),
 	chatDefaults: (i) => chats.chatRowDefaults(i.chat, i.now),
 	keylessDraftOnly: (i) => ({ expected: chats.isExpectedKeylessDraftOnlySyncChat(i.chat, i.existing) }),
 	candidateKeys: (i) => ({ updated: chats.nextCandidateKeys(i.existing, i.blob) }),

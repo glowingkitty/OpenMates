@@ -8,6 +8,7 @@ use serde_json::Value;
 
 use super::cache_policy as cache;
 use super::chat_policy as chat;
+use super::message_policy as message;
 
 fn vectors() -> Value {
     serde_json::from_str(include_str!("policy_vectors.json")).expect("committed vectors are valid JSON")
@@ -59,6 +60,12 @@ fn chat_row_decisions_equal_typescript() {
 
 // contract-test: supporting surface=sdks.rust assertions=storage.client.shared-policy-existing-adapters
 #[test]
+fn duplicate_cleanup_equals_typescript() {
+    replay("duplicateCleanup", message::duplicate_cleanup_json, 10);
+}
+
+// contract-test: supporting surface=sdks.rust assertions=storage.client.shared-policy-existing-adapters
+#[test]
 fn malformed_input_answers_the_protocol_code() {
     let protocol = Err("protocol".to_string());
     for run in [
@@ -79,6 +86,7 @@ fn malformed_input_answers_the_protocol_code() {
         chat::keyless_draft_only_json,
         chat::candidate_keys_json,
         chat::draft_merge_json,
+        message::duplicate_cleanup_json,
     ] {
         for input in ["", "[]", "{}", r#"{"pages":3}"#] {
             assert_eq!(run(input), protocol, "{input}");

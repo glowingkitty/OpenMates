@@ -28,6 +28,7 @@ const ENCRYPTED_FIELDS = [
 const DUPLICATE_FIELDS = [
 	'message_id', 'chat_id', 'role', 'created_at', 'content', 'encrypted_content', 'encrypted_sender_name',
 ] as const;
+const DUPLICATE_CLEANUP_FIELDS = ['chat_id', 'message_id'] as const;
 const EVICT_FIELDS = [
 	'status', 'pending_turn_preflight_v1', 'pending_encrypted_turn_preflight_v1', 'pending_encrypted_embed_bundle_v1',
 ] as const;
@@ -79,4 +80,13 @@ export async function rustFindContentDuplicate(candidates: Message[], message: M
 export async function rustIsSafeToEvictMessage(message: Message | undefined): Promise<boolean> {
 	const { results } = await persistCall('messageSafeToEvict', { messages: [message ? pickFields(message, EVICT_FIELDS) : null] });
 	return results[0];
+}
+
+/** `planDuplicateCleanup`: the `message_id`s whose stored copy `cleanupDuplicateMessages` deletes, in order. */
+export async function rustPlanDuplicateCleanup(messages: Message[]): Promise<string[]> {
+	if (messages.length === 0) return [];
+	const { deleteIds } = await persistCall('duplicateCleanup', {
+		messages: messages.map((message) => pickFields(message, DUPLICATE_CLEANUP_FIELDS) as unknown as { chat_id: string; message_id: string }),
+	});
+	return deleteIds;
 }

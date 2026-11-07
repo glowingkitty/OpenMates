@@ -35,6 +35,11 @@ export interface PersistUnitProtocol extends UnitProtocol {
 		request: { messages: Array<Message | null> };
 		response: { results: boolean[] };
 	};
+	/** `planDuplicateCleanup`: message ids whose stored copy is deleted, in order. */
+	duplicateCleanup: {
+		request: { messages: Array<{ chat_id: string; message_id: string }> };
+		response: { deleteIds: string[] };
+	};
 	/** Window read plan (db/cachePolicy.ts planMessageWindow). */
 	windowPlan: { request: cache.WindowPlanInput; response: cache.WindowPlan };
 	windowResultMeta: { request: cache.WindowResultMetaInput; response: cache.WindowResultMeta };
@@ -96,6 +101,7 @@ export interface PersistBinding {
 	persist_message_save_decision(input: string): string;
 	persist_message_content_duplicate(input: string): string;
 	persist_message_safe_to_evict(input: string): string;
+	persist_message_duplicate_cleanup(input: string): string;
 	persist_window_plan(input: string): string;
 	persist_window_result_meta(input: string): string;
 	persist_window_page_record(input: string): string;
@@ -122,6 +128,7 @@ export const PERSIST_OPS: Readonly<Record<keyof PersistUnitProtocol & string, ke
 	messageSaveDecision: 'persist_message_save_decision',
 	messageContentDuplicate: 'persist_message_content_duplicate',
 	messageSafeToEvict: 'persist_message_safe_to_evict',
+	duplicateCleanup: 'persist_message_duplicate_cleanup',
 	windowPlan: 'persist_window_plan',
 	windowResultMeta: 'persist_window_result_meta',
 	windowPageRecord: 'persist_window_page_record',

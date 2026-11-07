@@ -5,7 +5,7 @@
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as cache from '../../../../frontend/packages/ui/src/services/db/cachePolicy.ts';
-import { isSafeToEvictMessage } from '../../../../frontend/packages/ui/src/services/db/messageRowPolicy.ts';
+import { isSafeToEvictMessage, planDuplicateCleanup } from '../../../../frontend/packages/ui/src/services/db/messageRowPolicy.ts';
 import * as chats from '../../../../frontend/packages/ui/src/services/db/chatRowPolicy.ts';
 
 const vectors = {};
@@ -172,6 +172,16 @@ const expects = [undefined, { kind: 'update' }, { kind: 'delete' }, { kind: 'upd
 for (const chat of teamChats) for (const pending of [undefined, 'update', 'delete']) for (const expected of expects) for (const teamId of ['t', 'x']) {
 	add('teamDraftIntent', { chat, teamId, pending, expected }, chats.applyTeamDraftIntent(chat, teamId, pending, expected));
 }
+
+// ---- duplicate cleanup
+const msg = (chat_id, message_id) => ({ chat_id, message_id });
+const cleanupSets = [
+	[], [msg('c1', 'a')], [msg('c1', 'a'), msg('c1', 'a')], [msg('c1', 'a'), msg('c1', 'b'), msg('c1', 'b'), msg('c1', 'a')],
+	[msg('c1', 'a'), msg('c1', 'a'), msg('c1', 'a')], [msg('c1', 'a'), msg('c2', 'a')], [msg('c1', 'a'), msg('c2', 'a'), msg('c1', 'a')],
+	[msg('c2', 'x'), msg('c1', 'y'), msg('c2', 'x'), msg('c1', 'y'), msg('c1', 'z')], [msg('c1', ''), msg('c1', '')],
+	Array.from({ length: 40 }, (_, i) => msg(`c${i % 3}`, `m${(i * 7) % 11}`)),
+];
+for (const messages of cleanupSets) add('duplicateCleanup', { messages }, { deleteIds: planDuplicateCleanup(messages) });
 
 const target = fileURLToPath(new URL('./policy_vectors.json', import.meta.url));
 const body = Object.entries(vectors).map(([op, cases]) => `${JSON.stringify(op)}:[\n${cases.map((c) => JSON.stringify(c)).join(',\n')}\n]`).join(',\n');

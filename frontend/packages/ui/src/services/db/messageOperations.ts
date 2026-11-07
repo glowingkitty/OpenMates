@@ -20,11 +20,11 @@ import {
 } from "./cachePolicy";
 import { deleteConfirmedMessageAfterDecision } from "./messageEviction";
 import {
-  STATUS_PRIORITY,
   hasNewEncryptedFields,
   hasNewerStoredRevision,
   isContentDuplicate,
   isSafeToEvictMessage,
+  planDuplicateCleanup,
   shouldUpdateMessage,
 } from "./messageRowPolicy";
 
@@ -2022,82 +2022,15 @@ export async function cleanupDuplicateMessages(
   console.debug("[ChatDatabase] Starting duplicate message cleanup...");
 
   try {
-    // Get all messages grouped by chat
     // Pass duringInit=true since this is called from init()
     const allMessages = await getAllMessages(dbInstance, true);
-    const messagesByChat = new Map<string, Message[]>();
-
-    // Group messages by chat_id
-    allMessages.forEach((msg) => {
-      if (!messagesByChat.has(msg.chat_id)) {
-        messagesByChat.set(msg.chat_id, []);
-      }
-      messagesByChat.get(msg.chat_id)!.push(msg);
-    });
-
-    let duplicatesRemoved = 0;
-
-    // Process each chat's messages for duplicates
-    const chatIds = Array.from(messagesByChat.keys());
-    for (const chatId of chatIds) {
-      const messages = messagesByChat.get(chatId)!;
-      const processedMessages = new Set<string>();
-
-      for (let i = 0; i < messages.length; i++) {
-        const currentMessage = messages[i];
-
-        if (processedMessages.has(currentMessage.message_id)) {
-          continue; // Already processed
-        }
-
-        // Find all duplicates of this message (same message_id or content duplicates)
-        const duplicates = [currentMessage];
-
-        for (let j = i + 1; j < messages.length; j++) {
-          const otherMessage = messages[j];
-
-          if (processedMessages.has(otherMessage.message_id)) {
-            continue; // Already processed
-          }
-
-          // Only match on exact message_id — content-based matching was removed because it
-          // could falsely delete legitimate messages that happen to share the same encrypted_content
-          // within a time window, shrinking the local count below server count and triggering
-          // perpetual re-sync loops ("DATA INCONSISTENCY DETECTED" on every reload).
-          if (currentMessage.message_id === otherMessage.message_id) {
-            duplicates.push(otherMessage);
-            processedMessages.add(otherMessage.message_id);
-          }
-        }
-
-        if (duplicates.length > 1) {
-          console.debug(
-            `[ChatDatabase] Found ${duplicates.length} duplicates for message ${currentMessage.message_id} in chat ${chatId}`,
-          );
-
-          // Use the shared STATUS_PRIORITY map (not a local copy) so priority ordering
-          // stays consistent with shouldUpdateMessage() and the rest of the sync pipeline.
-          const bestMessage = duplicates.reduce((best, current) => {
-            const bestPriority = STATUS_PRIORITY[best.status] ?? 0;
-            const currentPriority = STATUS_PRIORITY[current.status] ?? 0;
-            return currentPriority > bestPriority ? current : best;
-          });
-
-          // Delete all duplicates except the best one
-          const toDelete = duplicates.filter((msg) => msg !== bestMessage);
-          for (const duplicate of toDelete) {
-            await deleteMessage(dbInstance, duplicate.message_id);
-            duplicatesRemoved++;
-          }
-
-          console.debug(
-            `[ChatDatabase] Kept message ${bestMessage.message_id} with status '${bestMessage.status}', removed ${toDelete.length} duplicates`,
-          );
-        }
-
-        processedMessages.add(currentMessage.message_id);
-      }
-    }
+    // Which copies go is decided by the row policy (Rust persist unit with the core
+    // flag, db/messageRowPolicy.ts otherwise); the deletes stay here.
+    const deleteIds = RUST_PERSIST_BUILD
+      ? await (await rustMessageRowPolicy()).rustPlanDuplicateCleanup(allMessages)
+      : planDuplicateCleanup(allMessages);
+    for (const messageId of deleteIds) await deleteMessage(dbInstance, messageId);
+    const duplicatesRemoved = deleteIds.length;
 
     console.debug(
       `[ChatDatabase] Duplicate cleanup completed. Removed ${duplicatesRemoved} duplicate messages.`,
