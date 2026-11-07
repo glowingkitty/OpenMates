@@ -7,6 +7,7 @@
 //! spec: specifications/features/auth#auth.pair-login.lifecycle
 use super::pair::{self, ActivateInput, PairSessionData};
 use super::print::{self, PrintTranslations};
+use super::actions;
 use super::signup;
 use crate::error::{Error, Result};
 use serde::de::DeserializeOwned;
@@ -30,6 +31,9 @@ fn out<T: serde::Serialize>(value: &T) -> Result<Value> { serde_json::to_value(v
 /// `Invalid("flow_op")` for an unknown name, `Invalid("flow_args")` for missing
 /// or mistyped arguments.
 pub fn flow_call(name: &str, args: &Value) -> Result<Value> {
+    if let Some(result) = actions::call(name, args) {
+        return result;
+    }
     match name {
         "signup_step_from_path" => Ok(json!(signup::step_from_path(&field::<String>(args, "path")?))),
         "signup_path_from_step" => Ok(json!(signup::path_from_step(&field::<String>(args, "step")?))),

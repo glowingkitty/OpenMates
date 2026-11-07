@@ -1,5 +1,5 @@
 import { writable } from "svelte/store";
-import { authFlowActive, isSignupPathPushed, primeSignupPath, signupStepPushed } from "../services/rustCore/auth/flowPush";
+import { authFlowActive, isSettingsStepPushed, isSignupPathPushed, pathFromStepPushed, primeSignupPath, primeSignupStep, signupStepPushed } from "../services/rustCore/auth/flowPush";
 
 // Step name constants
 export const STEP_ALPHA_DISCLAIMER = "alpha_disclaimer";
@@ -175,6 +175,10 @@ export const isResettingTFA = writable<boolean>(false);
 
 // Helper to determine if we're in settings steps
 export function isSettingsStep(step: string): boolean {
+  // Flag builds: last verdict pushed by the shared Rust core (neutral: false).
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1" && authFlowActive()) {
+    return isSettingsStepPushed(step);
+  }
   const settingsSteps = [
     STEP_SETTINGS,
     STEP_MATE_SETTINGS,
@@ -293,6 +297,11 @@ export function getStepFromPath(path: string): string {
  * @returns The hash-based path format (e.g., '#signup/one-time-codes')
  */
 export function getPathFromStep(stepName: string): string {
+  // Flag builds: location pushed by the shared Rust core; async callers await
+  // `primeSignupStepLocation(stepName)` first (neutral: #signup/basics).
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1" && authFlowActive()) {
+    return pathFromStepPushed(stepName);
+  }
   if (!stepName) return "#signup/basics";
 
   // Map step names to URL slugs (convert underscores to hyphens)
@@ -310,4 +319,12 @@ export function getPathFromStep(stepName: string): string {
  */
 export async function primeSignupLocation(path: string | null | undefined): Promise<void> {
   if (authFlowActive()) await primeSignupPath(path);
+}
+
+/**
+ * Flag builds: lets the shared Rust core answer for `step` so the following
+ * synchronous `getPathFromStep` / `isSettingsStep` reads are exact.
+ */
+export async function primeSignupStepLocation(step: string): Promise<void> {
+  if (authFlowActive()) await primeSignupStep(step);
 }

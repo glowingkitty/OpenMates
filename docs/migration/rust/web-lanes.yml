@@ -630,9 +630,21 @@ lanes:
     ci_note: browser E2E blocked 2026-11-07 by runner image ubuntu26.04 (Playwright chromium unsupported); sdk-conformance red at
       base 6df2e95b16 too (baseline)
     remaining:
-    - getPathFromStep/isSettingsStep/STEP_SEQUENCE and completeSignup (sync, URL-writing) still TS
-    - authSessionActions/authLoginLogoutActions/authMiscActions decision parts beyond the signup-location prime
     - +page.svelte tab-reload read of the stored profile's last_opened is not primed (neutral false until a prior prime)
+  - id: slice-3
+    status: running
+    note: web_auth_actions.rs (login_verdict, debug_session_resume, language_reconcile via the existing web_auth_flow export;
+      no new pub symbol) plus services/rustCore/auth/actionsPush.ts. Wired flag-on in authLoginLogoutActions (login reply
+      classification, debug-session resume, logout cookie decision) and authSessionActions (missing-master-key plan with fail-closed
+      constant, language reconciliation, debug-session resume). getPathFromStep/isSettingsStep push-to-store (flowPush.ts,
+      primeSignupStepLocation awaited in Signup.svelte). Vectors in webAuthFlowVectors.json; login_verdict and debug_session_resume
+      replayed through the deployed login() in stores/__tests__/authActionsVectors.test.ts.
+    remaining:
+    - STEP_SEQUENCE stays a TS constant (only read by the TS getStepFromPath, bypassed when the flag is on)
+    - completeSignup stays TS (sync, store writes; its step reads already come from Rust)
+    - authMiscActions setup2FAProvider is pure IO; session classify result (device_verification/authenticated) is still re-read from data in TS
+    - language_reconcile vectors are Rust-pinned only (checkAuth is not replayable in vitest without the full session mocks)
+    - master-key/password-v2 handling intentionally not in the Worker (keys lane K2)
   blocked:
   - passwordV2 master-key handling in the Worker needs the keys lane K2 protocol
   owns:

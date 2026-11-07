@@ -62,7 +62,8 @@ import {
 // Import auth types
 import type { LoginResult, LogoutCallbacks } from "./authTypes";
 import { getSessionId } from "../utils/sessionId";
-import { rustAnnounceLogout, rustAuthEnabled, rustLogoutServer } from "../services/rustCore/authOperation";
+import { rustAnnounceLogout, rustAuthEnabled, rustLogoutMayDeleteCookies, rustLogoutServer } from "../services/rustCore/authOperation";
+import { loginResultForVerdict, resumeDebugSessionRust, rustLoginVerdict } from "../services/rustCore/auth/actionsPush";
 
 // Login session generation counter.
 // Incremented on every successful login and when explicit logout starts.
@@ -294,6 +295,13 @@ export async function login(
       credentials: "include",
     });
 
+    if (rustAuthEnabled()) {
+      // Flag builds: Rust classifies the reply (429, malformed, 2FA, failure); the
+      // clone leaves the body readable for the success path below.
+      const verdict = await rustLoginVerdict(response.status, await response.clone().text(), !!tfaCode);
+      if (verdict.kind !== "success") return loginResultForVerdict(verdict);
+    }
+
     if (response.status === 429) {
       return {
         success: false,
@@ -510,6 +518,13 @@ export async function login(
         // forwarder from starting — a DB error is non-fatal for log forwarding.
         if (data.user?.is_admin || isDevEnvironment()) {
           clientLogForwarder.start();
+        } else if (rustAuthEnabled()) {
+          // Flag builds: Rust decides whether the stored debug session resumes.
+          try {
+            await resumeDebugSessionRust((id) => clientLogForwarder.startDebugSession(id));
+          } catch {
+            // Non-critical — debug session resume is best-effort
+          }
         } else {
           // Non-admin on prod: resume debug log sharing session if one was active
           try {
@@ -836,7 +851,11 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
         // RACE CONDITION CHECK (post-fetch): A login may have succeeded while the
         // server logout request was in flight. Skip cookie deletion to keep the
         // new session's cookies intact.
-        if (loginSessionGeneration !== logoutGeneration) {
+        if (
+          rustAuthEnabled()
+            ? !(await rustMayDeleteCookies(logoutGeneration))
+            : loginSessionGeneration !== logoutGeneration
+        ) {
           console.warn(
             `[AuthStore] New login detected after server logout fetch (gen ${logoutGeneration} → ${loginSessionGeneration}) — skipping cookie deletion to protect new session`,
           );
@@ -852,7 +871,11 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
         );
         if (callbacks?.onError) await callbacks.onError(serverError);
         // Only delete cookies if no new login happened
-        if (loginSessionGeneration === logoutGeneration) {
+        if (
+          rustAuthEnabled()
+            ? await rustMayDeleteCookies(logoutGeneration)
+            : loginSessionGeneration === logoutGeneration
+        ) {
           deleteAllCookies();
         }
       }
@@ -986,6 +1009,22 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
 
     await downloadPurge;
     return false; // Indicate critical logout failure occurred
+  }
+}
+
+/**
+ * Flag builds: Rust decides whether logout may still delete cookies (no newer
+ * login). A failed Worker call counts as "a newer login exists": cookies stay,
+ * which protects a fresh session and never aborts the cleanup that follows.
+ */
+async function rustMayDeleteCookies(logoutGeneration: number): Promise<boolean> {
+  try {
+    const allowed = await rustLogoutMayDeleteCookies(logoutGeneration, loginSessionGeneration);
+    // A login that completed while Rust answered must still win (fail closed).
+    return allowed && loginSessionGeneration === logoutGeneration;
+  } catch (error) {
+    console.warn("[AuthStore] Rust cookie decision failed; keeping cookies:", error);
+    return false;
   }
 }
 

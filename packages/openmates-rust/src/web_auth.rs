@@ -393,6 +393,8 @@ pub use recovery::{RecoveryKeyLogin, RecoveryKeyLoginInput};
 mod signup;
 #[path = "web_auth_pair.rs"]
 mod pair;
+#[path = "web_auth_actions.rs"]
+mod actions;
 #[path = "web_auth_recovery_print.rs"]
 mod print;
 #[path = "web_auth_flow.rs"]

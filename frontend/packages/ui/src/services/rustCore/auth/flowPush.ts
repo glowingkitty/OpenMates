@@ -125,6 +125,36 @@ export function isSignupPathPushed(path: string | null | undefined): boolean {
 	return signupPathCache.get(key) ?? false;
 }
 
+const pathCache = new Map<string, string>();
+const settingsStepCache = new Map<string, boolean>();
+const NEUTRAL_PATH = '#signup/basics';
+
+/** Awaitable warm-up: after it resolves, `pathFromStepPushed` and `isSettingsStepPushed` are exact for `step`. */
+export async function primeSignupStep(step: string): Promise<void> {
+	try {
+		const [path, settings] = await Promise.all([
+			flow<string>('signup_path_from_step', { step }),
+			flow<boolean>('signup_is_settings_step', { step }),
+		]);
+		remember(pathCache, step, path);
+		remember(settingsStepCache, step, settings);
+	} catch (error) {
+		warn('signup_step', error);
+	}
+}
+
+/** Last pushed hash location for a step (neutral: `#signup/basics`). Async callers prime the step first. */
+export function pathFromStepPushed(step: string): string {
+	if (!pathCache.has(step)) void primeSignupStep(step);
+	return pathCache.get(step) ?? NEUTRAL_PATH;
+}
+
+/** Last pushed settings-layout verdict for a step (neutral: false). */
+export function isSettingsStepPushed(step: string): boolean {
+	if (!settingsStepCache.has(step)) void primeSignupStep(step);
+	return settingsStepCache.get(step) ?? false;
+}
+
 // -------------------------------------------------------------------- 2FA ---
 
 /** Fills the shared 2FA app lists in place from Rust (`apps` is a reactive array); resolves once pushed. */

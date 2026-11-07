@@ -613,6 +613,379 @@
     "auto_top_up",
     "completion"
    ]
+  },
+  {
+   "op": "login_verdict",
+   "args": {
+    "status": 429,
+    "body": null,
+    "tfaCodeGiven": true
+   },
+   "expect": {
+    "kind": "rate_limited",
+    "tfaRequired": true,
+    "message": "Too many login attempts. Please try again later."
+   }
+  },
+  {
+   "op": "login_verdict",
+   "args": {
+    "status": 429,
+    "body": "not json",
+    "tfaCodeGiven": false
+   },
+   "expect": {
+    "kind": "rate_limited",
+    "tfaRequired": false,
+    "message": "Too many login attempts. Please try again later."
+   }
+  },
+  {
+   "op": "login_verdict",
+   "args": {
+    "status": 200,
+    "body": "not json",
+    "tfaCodeGiven": false
+   },
+   "expect": {
+    "kind": "error",
+    "tfaRequired": false,
+    "message": "An error occurred during login"
+   }
+  },
+  {
+   "op": "login_verdict",
+   "args": {
+    "status": 200,
+    "body": "null",
+    "tfaCodeGiven": false
+   },
+   "expect": {
+    "kind": "error",
+    "tfaRequired": false,
+    "message": "An error occurred during login"
+   }
+  },
+  {
+   "op": "login_verdict",
+   "args": {
+    "status": 200,
+    "body": null,
+    "tfaCodeGiven": false
+   },
+   "expect": {
+    "kind": "error",
+    "tfaRequired": false,
+    "message": "An error occurred during login"
+   }
+  },
+  {
+   "op": "login_verdict",
+   "args": {
+    "status": 200,
+    "body": "{\"success\": true, \"tfa_required\": true, \"user\": {\"tfa_app_name\": \"2FAS\"}}",
+    "tfaCodeGiven": false
+   },
+   "expect": {
+    "kind": "tfa_required",
+    "tfaAppName": "2FAS"
+   }
+  },
+  {
+   "op": "login_verdict",
+   "args": {
+    "status": 200,
+    "body": "{\"success\": true, \"tfa_required\": true}",
+    "tfaCodeGiven": false
+   },
+   "expect": {
+    "kind": "tfa_required",
+    "tfaAppName": null
+   }
+  },
+  {
+   "op": "login_verdict",
+   "args": {
+    "status": 200,
+    "body": "{\"success\": true, \"user\": {\"last_opened\": \"#signup/password\"}, \"backup_code_used\": true, \"remaining_backup_codes\": 3}",
+    "tfaCodeGiven": true
+   },
+   "expect": {
+    "kind": "success",
+    "lastOpened": "#signup/password",
+    "backupCodeUsed": true,
+    "remainingBackupCodes": 3
+   }
+  },
+  {
+   "op": "login_verdict",
+   "args": {
+    "status": 200,
+    "body": "{\"success\": true, \"user\": {}}",
+    "tfaCodeGiven": false
+   },
+   "expect": {
+    "kind": "success",
+    "lastOpened": null,
+    "backupCodeUsed": false,
+    "remainingBackupCodes": null
+   }
+  },
+  {
+   "op": "login_verdict",
+   "args": {
+    "status": 200,
+    "body": "{\"success\": true}",
+    "tfaCodeGiven": false
+   },
+   "expect": {
+    "kind": "success",
+    "lastOpened": null,
+    "backupCodeUsed": false,
+    "remainingBackupCodes": null
+   }
+  },
+  {
+   "op": "login_verdict",
+   "args": {
+    "status": 401,
+    "body": "{\"success\": false, \"tfa_required\": true, \"message\": \"Bad code\"}",
+    "tfaCodeGiven": true
+   },
+   "expect": {
+    "kind": "tfa_invalid",
+    "tfaRequired": true,
+    "message": "Bad code"
+   }
+  },
+  {
+   "op": "login_verdict",
+   "args": {
+    "status": 401,
+    "body": "{\"success\": false, \"tfa_required\": true}",
+    "tfaCodeGiven": true
+   },
+   "expect": {
+    "kind": "tfa_invalid",
+    "tfaRequired": true,
+    "message": "Invalid 2FA code"
+   }
+  },
+  {
+   "op": "login_verdict",
+   "args": {
+    "status": 401,
+    "body": "{\"success\": false, \"message\": \"Wrong password\"}",
+    "tfaCodeGiven": false
+   },
+   "expect": {
+    "kind": "failed",
+    "tfaRequired": false,
+    "message": "Wrong password"
+   }
+  },
+  {
+   "op": "login_verdict",
+   "args": {
+    "status": 401,
+    "body": "{\"success\": false, \"message\": \"\"}",
+    "tfaCodeGiven": false
+   },
+   "expect": {
+    "kind": "failed",
+    "tfaRequired": false,
+    "message": "Login failed"
+   }
+  },
+  {
+   "op": "login_verdict",
+   "args": {
+    "status": 500,
+    "body": "5",
+    "tfaCodeGiven": false
+   },
+   "expect": {
+    "kind": "failed",
+    "tfaRequired": false,
+    "message": "Login failed"
+   }
+  },
+  {
+   "op": "login_verdict",
+   "args": {
+    "status": 500,
+    "body": "[]",
+    "tfaCodeGiven": false
+   },
+   "expect": {
+    "kind": "failed",
+    "tfaRequired": false,
+    "message": "Login failed"
+   }
+  },
+  {
+   "op": "debug_session_resume",
+   "args": {
+    "hasExpiry": false,
+    "expiresAtMs": null,
+    "debuggingId": "dbg-1",
+    "nowMs": 1000
+   },
+   "expect": {
+    "action": "start",
+    "debuggingId": "dbg-1"
+   }
+  },
+  {
+   "op": "debug_session_resume",
+   "args": {
+    "hasExpiry": true,
+    "expiresAtMs": 2000,
+    "debuggingId": "dbg-1",
+    "nowMs": 1000
+   },
+   "expect": {
+    "action": "start",
+    "debuggingId": "dbg-1"
+   }
+  },
+  {
+   "op": "debug_session_resume",
+   "args": {
+    "hasExpiry": true,
+    "expiresAtMs": 1000,
+    "debuggingId": "dbg-1",
+    "nowMs": 1000
+   },
+   "expect": {
+    "action": "remove"
+   }
+  },
+  {
+   "op": "debug_session_resume",
+   "args": {
+    "hasExpiry": true,
+    "expiresAtMs": 500,
+    "debuggingId": "dbg-1",
+    "nowMs": 1000
+   },
+   "expect": {
+    "action": "remove"
+   }
+  },
+  {
+   "op": "debug_session_resume",
+   "args": {
+    "hasExpiry": true,
+    "expiresAtMs": null,
+    "debuggingId": "dbg-1",
+    "nowMs": 1000
+   },
+   "expect": {
+    "action": "remove"
+   }
+  },
+  {
+   "op": "debug_session_resume",
+   "args": {
+    "hasExpiry": false,
+    "expiresAtMs": null,
+    "debuggingId": "",
+    "nowMs": 1000
+   },
+   "expect": {
+    "action": "remove"
+   }
+  },
+  {
+   "op": "debug_session_resume",
+   "args": {
+    "hasExpiry": false,
+    "expiresAtMs": null,
+    "debuggingId": null,
+    "nowMs": 1000
+   },
+   "expect": {
+    "action": "remove"
+   }
+  },
+  {
+   "op": "language_reconcile",
+   "args": {
+    "serverLanguage": "en",
+    "defaultLanguage": "en",
+    "localPreferred": "de"
+   },
+   "expect": {
+    "pushLocal": true,
+    "applyAccount": null,
+    "effectiveIsLocal": true
+   }
+  },
+  {
+   "op": "language_reconcile",
+   "args": {
+    "serverLanguage": "en",
+    "defaultLanguage": "en",
+    "localPreferred": "en"
+   },
+   "expect": {
+    "pushLocal": false,
+    "applyAccount": "en",
+    "effectiveIsLocal": false
+   }
+  },
+  {
+   "op": "language_reconcile",
+   "args": {
+    "serverLanguage": "en",
+    "defaultLanguage": "en",
+    "localPreferred": null
+   },
+   "expect": {
+    "pushLocal": false,
+    "applyAccount": "en",
+    "effectiveIsLocal": false
+   }
+  },
+  {
+   "op": "language_reconcile",
+   "args": {
+    "serverLanguage": null,
+    "defaultLanguage": "en",
+    "localPreferred": "de"
+   },
+   "expect": {
+    "pushLocal": false,
+    "applyAccount": "en",
+    "effectiveIsLocal": false
+   }
+  },
+  {
+   "op": "language_reconcile",
+   "args": {
+    "serverLanguage": "",
+    "defaultLanguage": "en",
+    "localPreferred": "de"
+   },
+   "expect": {
+    "pushLocal": false,
+    "applyAccount": "en",
+    "effectiveIsLocal": false
+   }
+  },
+  {
+   "op": "language_reconcile",
+   "args": {
+    "serverLanguage": null,
+    "defaultLanguage": "",
+    "localPreferred": null
+   },
+   "expect": {
+    "pushLocal": false,
+    "applyAccount": null,
+    "effectiveIsLocal": false
+   }
   }
  ],
  "refusals": [
@@ -675,6 +1048,58 @@
    "op": "nope",
    "args": {},
    "expect": "flow_op"
+  },
+  {
+   "op": "login_verdict",
+   "args": {
+    "status": "x",
+    "tfaCodeGiven": false
+   },
+   "expect": "flow_args"
+  },
+  {
+   "op": "login_verdict",
+   "args": {
+    "status": 200
+   },
+   "expect": "flow_args"
+  },
+  {
+   "op": "login_verdict",
+   "args": {
+    "status": 200,
+    "body": 5,
+    "tfaCodeGiven": false
+   },
+   "expect": "flow_args"
+  },
+  {
+   "op": "debug_session_resume",
+   "args": {
+    "hasExpiry": true,
+    "expiresAtMs": "1",
+    "debuggingId": "a",
+    "nowMs": 1
+   },
+   "expect": "flow_args"
+  },
+  {
+   "op": "debug_session_resume",
+   "args": {
+    "hasExpiry": true,
+    "expiresAtMs": 1,
+    "debuggingId": "a"
+   },
+   "expect": "flow_args"
+  },
+  {
+   "op": "language_reconcile",
+   "args": {
+    "serverLanguage": 5,
+    "defaultLanguage": "en",
+    "localPreferred": null
+   },
+   "expect": "flow_args"
   }
  ]
 }

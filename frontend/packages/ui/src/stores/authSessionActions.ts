@@ -80,6 +80,7 @@ import {
 // Import auth types
 import type { SessionCheckResult } from "./authTypes";
 import { installRustCrossTabLogout, prewarmRustAuth, rustAuthEnabled, rustSessionCheck } from "../services/rustCore/authOperation";
+import { missingKeyPlanFailClosed, resumeDebugSessionRust, rustLanguageReconcile } from "../services/rustCore/auth/actionsPush";
 
 // Flag builds: start the Rust auth Worker while the app hydrates so session
 // restore does not wait for WASM start-up (no-op otherwise).
@@ -358,7 +359,23 @@ async function performAuthCheck(
           typeof window !== "undefined" &&
           new URLSearchParams(window.location.search).get("og") === "1";
 
-        if (typeof window !== "undefined") {
+        // Flag builds: Rust plans the rest of the forced logout. The forced flag
+        // above is already set, so no encrypted chat loads while Rust answers.
+        const rustPlan = rustAuthEnabled()
+          ? await missingKeyPlanFailClosed({
+              alreadyForced: alreadyForcedLogout,
+              sharedChatSession: isSharedChatSession,
+              pairLoginPending: isPairLoginPending,
+              ogImageMode: isOgImageMode,
+              hadLocalSession: Boolean(get(userProfile)?.username || get(userProfile)?.user_id),
+              storageEvicted: (await import("../services/cryptoKeyStorage")).wasStayLoggedIn(),
+            })
+          : null;
+        if (rustPlan && !isCurrentSession()) return currentAuthResult();
+
+        if (rustPlan) {
+          if (rustPlan.clearActiveChat) activeChatStore.clearActiveChat();
+        } else if (typeof window !== "undefined") {
           if (isSharedChatSession) {
             console.debug(
               "[AuthSessionActions] Preserving shared chat session (key in URL fragment, not master key)",
@@ -399,15 +416,19 @@ async function performAuthCheck(
           localProfile?.username || localProfile?.user_id;
 
         if (
-          !alreadyForcedLogout &&
-          !isSharedChatSession &&
-          !isPairLoginPending &&
-          hadLocalSession
+          rustPlan
+            ? rustPlan.notify !== null
+            : !alreadyForcedLogout &&
+              !isSharedChatSession &&
+              !isPairLoginPending &&
+              hadLocalSession
         ) {
           const $text = get(text);
           const { wasStayLoggedIn } =
             await import("../services/cryptoKeyStorage");
-          const wasStorageEvicted = wasStayLoggedIn();
+          const wasStorageEvicted = rustPlan
+            ? rustPlan.notify === "storage_evicted"
+            : wasStayLoggedIn();
 
           if (wasStorageEvicted) {
             // User had stayLoggedIn=true but browser evicted IndexedDB (e.g. iOS Safari storage pressure)
@@ -440,7 +461,11 @@ async function performAuthCheck(
         // derives a new master key. The background logout IIFE would race with the new session
         // (POST /auth/logout with credentials: 'include' sends the new session's cookies).
         // Simply clearing auth state is sufficient for both cases.
-        if (!isSharedChatSession && !isPairLoginPending) {
+        if (
+          rustPlan
+            ? rustPlan.destructiveLogout
+            : !isSharedChatSession && !isPairLoginPending
+        ) {
           isLoggingOut.set(true);
           console.debug(
             "[AuthSessionActions] Set isLoggingOut to true for missing master key logout",
@@ -499,7 +524,7 @@ async function performAuthCheck(
         cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
         // Only delete cookies if not a pair login — the user needs the existing session
         // cookies intact so checkAuth() can validate after passkey login succeeds.
-        if (!isPairLoginPending) {
+        if (rustPlan ? rustPlan.deleteCookies : !isPairLoginPending) {
           deleteAllCookies();
         }
         return false;
@@ -602,10 +627,16 @@ async function performAuthCheck(
             ? rawLocalLanguage
             : null;
 
+        const languagePlan = rustAuthEnabled()
+          ? await rustLanguageReconcile(data.user.language, defaultProfile.language, localPreferredLanguage)
+          : null;
+        const accountLanguage = languagePlan ? languagePlan.applyAccount : userLanguage;
         if (
-          localPreferredLanguage &&
-          localPreferredLanguage !== userLanguage &&
-          data.user.language // only reconcile if server has a stored language
+          languagePlan
+            ? languagePlan.pushLocal
+            : localPreferredLanguage &&
+              localPreferredLanguage !== userLanguage &&
+              data.user.language // only reconcile if server has a stored language
         ) {
           console.info(
             `[AuthSessionActions] Language mismatch: server="${userLanguage}", local="${localPreferredLanguage}" — pushing local preference to server`,
@@ -647,15 +678,17 @@ async function performAuthCheck(
             .catch(() => {
               /* non-fatal */
             });
-        } else if (userLanguage) {
-          await applyAccountLanguage(userLanguage);
+        } else if (accountLanguage) {
+          await applyAccountLanguage(accountLanguage);
         }
 
         // Use reconciled language (local takes priority if it differs)
         const effectiveLanguage =
-          localPreferredLanguage &&
-          localPreferredLanguage !== userLanguage &&
-          data.user.language
+          (languagePlan
+            ? languagePlan.effectiveIsLocal
+            : localPreferredLanguage &&
+              localPreferredLanguage !== userLanguage &&
+              data.user.language)
             ? localPreferredLanguage
             : getCurrentLanguage();
 
@@ -742,7 +775,10 @@ async function performAuthCheck(
       } else {
         // Non-admin on prod: resume debug log sharing session if one was active
         try {
-          const debugSession = localStorage.getItem("debug_session");
+          if (rustAuthEnabled()) {
+            await resumeDebugSessionRust((id) => clientLogForwarder.startDebugSession(id));
+          }
+          const debugSession = rustAuthEnabled() ? null : localStorage.getItem("debug_session");
           if (debugSession) {
             const parsed = JSON.parse(debugSession);
             const expiresAt = parsed.expires_at
