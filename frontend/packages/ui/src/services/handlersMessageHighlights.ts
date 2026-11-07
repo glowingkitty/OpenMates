@@ -22,6 +22,49 @@ import type {
   MessageHighlightUpdatedPayload,
 } from "../types/chat";
 
+// Opt-in shared Rust core (build-time VITE_OPENMATES_RUST_CORE === "1"): the chatState unit decrypts
+// and maps inbound highlight payloads; no TypeScript fallback. Default builds keep the code below.
+const RUST_HIGHLIGHTS: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+  && !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_chatstate") === "ts");
+
+/**
+ * KEYS-04: use withKey() so decrypt is buffered until the key is resident in
+ * memory (see decryptInto). Null when no key can be made resident.
+ */
+async function residentChatKey(chat_id: string, id: string): Promise<Uint8Array | null> {
+  let chatKey: Uint8Array | null = null;
+  try {
+    await chatKeyManager.withKey(chat_id, "decrypt-highlight", async (key) => {
+      chatKey = key;
+    });
+  } catch {
+    console.warn(
+      `[handlersMessageHighlights] no chat key for chat ${chat_id} — dropping highlight ${id}`,
+    );
+    return null;
+  }
+  return chatKey;
+}
+
+/** Flag-on inbound decode: Rust decrypts and maps the payload; a drop reason is logged like the web client. */
+async function rustDecodeInto(
+  kind: "added" | "updated",
+  p: MessageHighlightAddedPayload | MessageHighlightUpdatedPayload,
+  cached: MessageHighlight | null,
+): Promise<MessageHighlight | null> {
+  const chatKey = await residentChatKey(p.chat_id, p.id);
+  if (!chatKey) return null;
+  const rust = await import("./rustCore/chatState/rustHighlights");
+  const out = kind === "added"
+    ? await rust.rustDecodeHighlightAdded(p, chatKey)
+    : await rust.rustDecodeHighlightUpdated(p, chatKey, cached);
+  if ("store" in out) return out.store;
+  if (out.drop !== "undecryptable") {
+    console.warn(`[handlersMessageHighlights] dropping highlight ${p.id} — ${out.drop}`);
+  }
+  return null;
+}
+
 async function decryptInto(
   chat_id: string,
   message_id: string,
@@ -120,7 +163,7 @@ export async function handleMessageHighlightAddedImpl(
   payload: unknown,
 ): Promise<void> {
   const p = payload as MessageHighlightAddedPayload;
-  const h = await decryptInto(
+  const h = RUST_HIGHLIGHTS ? await rustDecodeInto("added", p, null) : await decryptInto(
     p.chat_id,
     p.message_id,
     p.id,
@@ -151,7 +194,7 @@ export async function handleMessageHighlightUpdatedImpl(
     .find((h) => h.id === p.id);
   const author_user_id = cached?.author_user_id ?? "";
   const created_at = cached?.created_at ?? p.updated_at;
-  const h = await decryptInto(
+  const h = RUST_HIGHLIGHTS ? await rustDecodeInto("updated", p, cached ?? null) : await decryptInto(
     p.chat_id,
     p.message_id,
     p.id,

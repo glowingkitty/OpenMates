@@ -3,8 +3,9 @@
  * Opt-in shared Rust core (WASM) — web chat-list ordering and grouping and the
  * active-chat URL plan on the shared Worker `chatState` unit, VITE_OPENMATES_RUST_CORE=1 build.
  *
- * Also proves the message-list transitions (window prune, timeline merge/index) and the
- * typing/processing indicator decisions are served by the unit.
+ * Also proves the message-list transitions (window prune, timeline merge/index), the
+ * typing/processing indicator decisions and the private message bookmark toggle
+ * (account settings decrypt, toggle, encrypt) are served by the unit.
  *
  * Engineering migration check (web lane: chatState). A logged-in account sends
  * one message (new chat), then alternating reloads render the sidebar on the
@@ -86,6 +87,20 @@ test('chat list ordering and grouping run on the shared Rust chatState unit and 
 			expect(instances.workers.filter((worker: { name: string }) => worker.name === 'shared.worker').length, `${path}: one shared Rust core Worker`).toBe(1);
 			samples[path].push({ renderMs, stats, ...instances });
 		}
+		// Private bookmark of the first reply: the unit reads the encrypted account settings, applies the
+		// toggle and re-encrypts them (master-key crypto in the Worker); the page only posts the result.
+		const reply = page.getByTestId('message-assistant').first();
+		await reply.hover();
+		const bookmark = reply.getByTestId('message-bookmark-button');
+		await bookmark.click();
+		await expect(bookmark, 'the bookmark is saved').toHaveAttribute('aria-pressed', 'true', { timeout: 30000 });
+		await bookmark.click();
+		await expect(bookmark, 'the bookmark is removed again').toHaveAttribute('aria-pressed', 'false', { timeout: 30000 });
+		const bookmarkStats = await page.evaluate(() => (window as any).__openmatesRustChatStateStats?.() ?? null);
+		for (const op of ['bookmarkIdentity', 'bookmarkReadAccount', 'bookmarkToggleAccount']) {
+			expect(bookmarkStats.ops[op] ?? 0, `Rust arm decided ${op} through the unit`).toBeGreaterThan(0);
+		}
+		expect(bookmarkStats.failures, 'no chatState unit call failed during the bookmark toggles').toBe(0);
 		// Leaving the chat clears the active selection: the URL update is planned by the Rust unit.
 		await startNewChat(page);
 		await expect.poll(async () => (await page.evaluate(() => (window as any).__openmatesRustChatStateStats?.() ?? null))?.ops?.selectionUrlPlan ?? 0,

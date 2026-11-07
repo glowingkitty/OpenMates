@@ -15,18 +15,19 @@ summary:
   missing: 0
   percent: 100.0
 e2e_specs_in_repo: [web-rust-core-apps.spec.ts, web-rust-core-auth.spec.ts, web-rust-core-bench.spec.ts, web-rust-core-chat.spec.ts,
-  web-rust-core-chatstate-fork-conversation.spec.ts, web-rust-core-chatstate-hidden-chats-flow.spec.ts, web-rust-core-chatstate.spec.ts,
-  web-rust-core-crypto.spec.ts, web-rust-core-drafts.spec.ts, web-rust-core-embeds.spec.ts, web-rust-core-memory-level.spec.ts,
-  web-rust-core-persist.spec.ts, web-rust-core-profile.spec.ts, web-rust-core-reload-memory.spec.ts, web-rust-core-search.spec.ts,
-  web-rust-core-send-bench.spec.ts, web-rust-core-sync.spec.ts, web-rust-core-transfer.spec.ts, web-rust-core-ws.spec.ts]
+  web-rust-core-chatstate-fork-conversation.spec.ts, web-rust-core-chatstate-hidden-chats-flow.spec.ts, web-rust-core-chatstate-message-highlights.spec.ts,
+  web-rust-core-chatstate.spec.ts, web-rust-core-crypto.spec.ts, web-rust-core-drafts.spec.ts, web-rust-core-embeds.spec.ts,
+  web-rust-core-memory-level.spec.ts, web-rust-core-persist.spec.ts, web-rust-core-profile.spec.ts, web-rust-core-reload-memory.spec.ts,
+  web-rust-core-search.spec.ts, web-rust-core-send-bench.spec.ts, web-rust-core-sync.spec.ts, web-rust-core-transfer.spec.ts,
+  web-rust-core-ws.spec.ts]
 lanes:
   file: web-lanes.yml
   plan: web-lanes.md
   plan_date: 2026-11-07
   total: 21
   by_status:
-    planned: 6
-    running: 12
+    planned: 5
+    running: 13
     landed: 3
   landed:
   - name: search-snippet-perf
@@ -36,7 +37,7 @@ lanes:
   - name: memory-rss
     commit: bd07710
   running: [w3-web-drafts, w3-web-import-export, w3-web-send-perf, send-correctness, chatstate-core, embeds-3, sync-inbound,
-    ai-stream-recovery, persistence, send-prep-outbox, parse, auth-rest]
+    ai-stream-recovery, persistence, send-prep-outbox, parse, auth-rest, share-guest-crypto]
   next_planned_by_rank: [ws-unit, keys, settings-memories, composer, chatstate-hidden-fork]
 units:
 - namespace: core
@@ -65,7 +66,8 @@ units:
     out). Serves the WebCryptoBatch protocol of webCryptoClient.ts on ports[0] against the realm''s single WASM
     binding.'
   typescript_fallback: none declared (2 files)
-  unit_tests: [chatKeyAdmissionVectors.test.ts, chatKeyHandles.test.ts, cryptoResultMemo.test.ts, cryptoUnit.test.ts]
+  unit_tests: [chatKeyAdmissionVectors.test.ts, chatKeyHandles.test.ts, cryptoResultMemo.test.ts, cryptoUnit.test.ts,
+    guestPromotionVectors.test.ts, shareStateVectors.test.ts]
   e2e_specs: [web-rust-core-crypto.spec.ts]
   vectors: [packages/openmates-rust/src/crypto/signup_vectors.json]
   open_gaps: []
@@ -125,8 +127,9 @@ units:
   installer: frontend/packages/ui/src/services/rustCore/chatState/chatListUnit.ts
   what_moved: Serves the chat-list ordering and grouping policy (chatListProtocol.ts) on the unit port from the
     realm's single WASM binding. It holds no per-account state and does no IO, so it is a pre-bind namespace.
-  typescript_fallback: none declared (6 files)
-  unit_tests: [chatStateAdapter.test.ts, chatStateHiddenForkOps.test.ts, chatStateSharedUnit.test.ts, transitionVectors.test.ts]
+  typescript_fallback: none declared (8 files)
+  unit_tests: [bookmarkHighlightOps.test.ts, chatStateAdapter.test.ts, chatStateHiddenForkOps.test.ts, chatStateSharedUnit.test.ts,
+    transitionVectors.test.ts]
   e2e_specs: [web-rust-core-chatstate.spec.ts]
   vectors: [packages/openmates-rust/src/web_chat_state/ts_vectors.json]
   open_gaps:

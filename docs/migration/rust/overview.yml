@@ -38,13 +38,13 @@ areas:
   priority_rank: 2
   file: cli.yml
   unit: CLI commands
-  total: 724
-  done: 249
+  total: 722
+  done: 247
   partial: 469
   missing: 6
-  percent: 34.4
+  percent: 34.2
   done_definition: command is differential-verified against the npm CLI
-  blockers: [6 unsupported commands without native handler, 715 commands not verified on Linux]
+  blockers: [6 unsupported commands without native handler, 713 commands not verified on Linux]
 - id: sdk_rust
   title: Rust SDK (operation capabilities)
   priority_rank: 3

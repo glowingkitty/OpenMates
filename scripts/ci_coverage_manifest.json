@@ -665,7 +665,8 @@
         "web-rust-core-transfer.spec.ts",
         "web-rust-core-chatstate.spec.ts",
         "web-rust-core-chatstate-hidden-chats-flow.spec.ts",
-        "web-rust-core-chatstate-fork-conversation.spec.ts"
+        "web-rust-core-chatstate-fork-conversation.spec.ts",
+        "web-rust-core-chatstate-message-highlights.spec.ts"
       ]
     },
     "external_integration": {

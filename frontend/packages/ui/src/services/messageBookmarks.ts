@@ -6,6 +6,11 @@ import { getApiEndpoint } from '../config/api';
 import { decryptWithMasterKey, encryptWithMasterKey } from './encryption/MetadataEncryptor';
 import { getWorkspaceCacheEpoch, registerWorkspaceCacheClear } from './workspaceCacheLifecycle';
 
+// Opt-in shared Rust core (build-time VITE_OPENMATES_RUST_CORE === '1'): the chatState unit decides
+// identities, decoding, the alias-aware toggle and the limit, and does the master-key crypto; no
+// TypeScript fallback. Default builds keep the code below unchanged.
+const RUST_BOOKMARKS: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1'
+  && !(typeof localStorage !== 'undefined' && localStorage.getItem('openmates_rust_core_chatstate') === 'ts');
 export type BookmarkMode = 'account' | 'device' | 'transient';
 type Bookmarks = Map<string, Set<string>>;
 type AccountSnapshot = { owner: string; ciphertext: string | null; bookmarks: Bookmarks };
@@ -67,12 +72,18 @@ export function getMessageBookmarkIds(chatId: string, mode: BookmarkMode): Set<s
 }
 
 export async function loadMessageBookmarks(chatId: string, mode: BookmarkMode): Promise<void> {
-  if (!identity(chatId)) throw new Error('Bookmark identity unavailable');
+  if (RUST_BOOKMARKS ? !(await (await import('./rustCore/chatState/rustBookmarks')).rustBookmarkIdentity(chatId)) : !identity(chatId)) throw new Error('Bookmark identity unavailable');
   if (mode !== 'account') {
     const key = localKey(chatId, mode);
     if (local.has(key)) return;
     let ids: Set<string> = new Set();
-    if (mode === 'device') {
+    if (RUST_BOOKMARKS) {
+      ids = mode === 'device'
+        ? await (await import('./rustCore/chatState/rustBookmarks')).rustDecodeDeviceBookmarks(localStorage.getItem(DEVICE_PREFIX + chatId))
+        : ids;
+      // A toggle of this chat may have stored fresher ids while the decode was in flight.
+      if (local.has(key)) return;
+    } else if (mode === 'device') {
       const raw = localStorage.getItem(DEVICE_PREFIX + chatId);
       if (raw) {
         let value: unknown;
@@ -89,17 +100,19 @@ export async function loadMessageBookmarks(chatId: string, mode: BookmarkMode): 
   const snapshot = get(messageBookmarksStore).account;
   if (snapshot?.owner === account && snapshot.ciphertext === ciphertext) return;
   if (pending?.owner === account && pending.ciphertext === ciphertext && pending.epoch === epoch) return pending.promise;
-  const promise = settings(ciphertext).then(value => {
-    const bookmarks = decode(value[SETTINGS_KEY]);
+  const apply = (bookmarks: Bookmarks): void => {
     if (!scopeMatches(account, epoch) || (get(userProfile).encrypted_settings ?? null) !== ciphertext) throw new Error('Bookmark scope changed');
     messageBookmarksStore.update(state => ({ ...state, account: { owner: account, ciphertext, bookmarks } }));
-  });
+  };
+  const promise = RUST_BOOKMARKS
+    ? import('./rustCore/chatState/rustBookmarks').then(rust => rust.rustReadAccountBookmarks(ciphertext)).then(apply)
+    : settings(ciphertext).then(value => apply(decode(value[SETTINGS_KEY])));
   pending = { owner: account, ciphertext, epoch, promise };
   try { await promise; } finally { if (pending?.promise === promise) pending = null; }
 }
 
 export function toggleMessageBookmark(chatId: string, messageId: string, mode: BookmarkMode, legacyIds: readonly string[] = []): Promise<void> {
-  if (!identity(chatId) || !identity(messageId) || legacyIds.length > 2 || !legacyIds.every(identity)) return Promise.reject(new Error('Bookmark identity unavailable'));
+  if (!RUST_BOOKMARKS && (!identity(chatId) || !identity(messageId) || legacyIds.length > 2 || !legacyIds.every(identity))) return Promise.reject(new Error('Bookmark identity unavailable'));
   const aliases = new Set([messageId, ...legacyIds]);
   const toggle = (ids: Set<string>): void => {
     if ([...aliases].some(id => ids.has(id))) aliases.forEach(id => ids.delete(id));
@@ -111,6 +124,12 @@ export function toggleMessageBookmark(chatId: string, messageId: string, mode: B
     if (getWorkspaceCacheEpoch() !== epoch || owner() !== account) throw new Error('Bookmark scope changed');
     await loadMessageBookmarks(chatId, mode);
     if (getWorkspaceCacheEpoch() !== epoch || owner() !== account) throw new Error('Bookmark scope changed');
+    if (RUST_BOOKMARKS && mode !== 'account') {
+      const toggled = await (await import('./rustCore/chatState/rustBookmarks')).rustToggleLocalBookmark(getMessageBookmarkIds(chatId, mode), chatId, messageId, legacyIds);
+      if (getWorkspaceCacheEpoch() !== epoch || owner() !== account) throw new Error('Bookmark scope changed');
+      if (mode === 'device') localStorage.setItem(DEVICE_PREFIX + chatId, toggled.stored);
+      local.set(localKey(chatId, mode), toggled.ids); changed(); return;
+    }
     if (mode !== 'account') {
       const ids = getMessageBookmarkIds(chatId, mode);
       toggle(ids);
@@ -120,14 +139,20 @@ export function toggleMessageBookmark(chatId: string, messageId: string, mode: B
     }
     if (!account) throw new Error('Bookmark account unavailable');
     const ciphertext = get(userProfile).encrypted_settings ?? null;
-    const value = await settings(ciphertext);
-    const bookmarks = decode(value[SETTINGS_KEY]);
-    const ids = new Set(bookmarks.get(chatId) ?? []);
-    toggle(ids);
-    if (ids.size) bookmarks.set(chatId, ids); else bookmarks.delete(chatId);
-    if ([...bookmarks.values()].reduce((total, saved) => total + saved.size, 0) > 10000) throw new Error('Bookmark limit reached');
-    value[SETTINGS_KEY] = { version: 1, chats: Object.fromEntries([...bookmarks].map(([chat, saved]) => [chat, [...saved]])) };
-    const encrypted = await encryptWithMasterKey(JSON.stringify(value));
+    let bookmarks: Bookmarks;
+    let encrypted: string | null;
+    if (RUST_BOOKMARKS) {
+      ({ encrypted, bookmarks } = await (await import('./rustCore/chatState/rustBookmarks')).rustToggleAccountBookmark(ciphertext, chatId, messageId, legacyIds));
+    } else {
+      const value = await settings(ciphertext);
+      bookmarks = decode(value[SETTINGS_KEY]);
+      const ids = new Set(bookmarks.get(chatId) ?? []);
+      toggle(ids);
+      if (ids.size) bookmarks.set(chatId, ids); else bookmarks.delete(chatId);
+      if ([...bookmarks.values()].reduce((total, saved) => total + saved.size, 0) > 10000) throw new Error('Bookmark limit reached');
+      value[SETTINGS_KEY] = { version: 1, chats: Object.fromEntries([...bookmarks].map(([chat, saved]) => [chat, [...saved]])) };
+      encrypted = await encryptWithMasterKey(JSON.stringify(value));
+    }
     if (!encrypted || !scopeMatches(account, epoch) || (get(userProfile).encrypted_settings ?? null) !== ciphertext) throw new Error('Bookmark scope changed');
     const response = await fetch(getApiEndpoint('/v1/settings/encrypted-account'), {
       method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
