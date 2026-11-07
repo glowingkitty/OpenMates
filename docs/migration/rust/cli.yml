@@ -4,6 +4,13 @@ schema_version: 1
 area: cli
 source: config/cli-command-catalog.json
 typescript_cli_version: 0.28.0
+spec_assertions: [cli.runtime.native-rust, cli.distribution.cargo-prereleases, cli.validation.linux-mac-windows-waiver,
+  cli.migration.complete-compatible, cli.migration.transition-acceptance, cli.slugs.encrypted-stable, cli.slugs.local-resolution-id-transport,
+  cli.output.actionable-readable, cli.surface.semantic-parity, cli.work-structure.complete, cli.plan-approval.web-only,
+  cli.recovery.yaml-explicit, cli.credentials.storage-mode, cli.pairing.expiry-upgrade, cli.generated-files.cwd-default,
+  cli.generated-files.destination, cli.generated-files.safe-visible, cli.generated-files.help]
+spec_gaps: ['Differential parity with the npm CLI per command is tracked in config/cli-command-catalog.json, not
+    in an assertion.']
 summary:
   total: 724
   done: 249

@@ -4,6 +4,11 @@ schema_version: 1
 area: sdk
 scope: SDK capabilities in the operations domain (public API operations), counted per language. Priority 3.
 source: config/sdk-capabilities.json
+spec_assertions: [sdk.library.explicit-headless, sdk.client.thin-platform-boundary, sdk.migration.ordered-client-rollout,
+  sdk.web.before-after-performance, sdk.distribution.separate-rust-crate, sdk.parity.executable-release-gate, sdk.auth.approved-api-key-device,
+  sdk.encryption.local-only, sdk.auth.api-key-only, sdk.auth.credential-separation, sdk.auth.limited-resource-keys,
+  sdk.auth.legacy-key-migration, sdk.surface.semantic-parity, sdk.anonymous.execution, sdk.anonymous.signup-required]
+spec_gaps: []
 summaries:
   sdk_rust:
     total: 53

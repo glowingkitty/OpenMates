@@ -135,3 +135,34 @@ def test_landed_lane_needs_commit_and_status_is_required() -> None:
     assert any("status must be one of" in e for e in migration.validate_lanes(lanes))
     lanes["lanes"][2]["deps"] = ["no-such-lane"]
     assert any("unknown dependency" in e for e in migration.validate_lanes(lanes))
+
+
+# contract-test: tooling
+def test_spec_links_exist_in_assertion_index() -> None:
+    files = load_committed()
+    problems = migration.validate_spec_links(files, migration.load_lanes(), migration.load_curated(), migration.load_spec_links())
+    assert problems == []
+
+
+# contract-test: tooling
+def test_unknown_assertion_and_missing_links_are_rejected() -> None:
+    files = load_committed()
+    lanes = copy.deepcopy(migration.load_lanes())
+    lanes["lanes"][0]["spec_assertions"] = ["no.such.assertion"]
+    del lanes["lanes"][1]["spec_gaps"]
+    lanes["lanes"][2]["spec_assertions"], lanes["lanes"][2]["spec_gaps"] = [], []
+    problems = migration.validate_spec_links(files, lanes, migration.load_curated(), migration.load_spec_links())
+    assert any("unknown assertion id no.such.assertion" in p for p in problems)
+    assert any("required" in p for p in problems)
+    assert any("needs spec_assertions" in p for p in problems)
+
+
+# contract-test: tooling
+def test_spec_header_report_is_non_blocking_and_well_formed() -> None:
+    import report_rust_spec_headers as headers
+
+    rows = headers.report()
+    assert {r["unit"] for r in rows} == set(migration.load_curated())
+    assert all(r["files"] == r["with_header"] + r["without_header"] for r in rows)
+    assert headers.HEADER.match("//! spec: specifications/architecture/sync#sync.client.shared-rust-policy")
+    assert not headers.HEADER.match("//! spec: specifications/surfaces/cli tasks durable delivery.")

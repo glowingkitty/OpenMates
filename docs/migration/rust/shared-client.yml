@@ -50,6 +50,9 @@ domains:
     partial: 2
     missing: 0
     percent: 33.3
+  spec_assertions: &id001 [sdk.auth.api-key-only, sdk.auth.credential-separation, auth.pair-login.single-use-zk,
+    auth.session.lifecycle]
+  spec_gaps: []
 - domain: configuration
   rust:
     total: 8
@@ -69,6 +72,8 @@ domains:
     partial: 5
     missing: 0
     percent: 37.5
+  spec_assertions: &id002 [cli.credentials.storage-mode, sdk.library.explicit-headless, sdk.auth.legacy-key-migration]
+  spec_gaps: []
 - domain: encryption
   rust:
     total: 5
@@ -88,6 +93,8 @@ domains:
     partial: 2
     missing: 0
     percent: 60.0
+  spec_assertions: &id003 [sdk.encryption.local-only, auth.keys.client-wrapped, chats.persistence.client-encrypted]
+  spec_gaps: [AES-GCM combined format and legacy OM header fallback have no assertion.]
 - domain: errors
   rust:
     total: 1
@@ -107,6 +114,8 @@ domains:
     partial: 1
     missing: 0
     percent: 0.0
+  spec_assertions: &id004 [cli.output.actionable-readable]
+  spec_gaps: [SDK transport error classification and HTTP error text parity have no assertion.]
 - domain: recovery
   rust:
     total: 9
@@ -126,6 +135,9 @@ domains:
     partial: 5
     missing: 3
     percent: 11.1
+  spec_assertions: &id005 [chats.completion.recovery-takeover, chats.sync.key-gated-recovery, sync.delta.reset,
+    sync.startup.bounded-phases]
+  spec_gaps: [Initial-startup sync replay and settings-reminders recovery vectors have no assertion.]
 - domain: streaming
   rust:
     total: 2
@@ -145,6 +157,8 @@ domains:
     partial: 2
     missing: 0
     percent: 0.0
+  spec_assertions: &id006 [chats.streaming.ordered-final]
+  spec_gaps: [SDK streaming cancellation before IO has no assertion.]
 shared_vector_files: [packages/openmates-rust/src/client/direct_ts_vectors.json, packages/openmates-rust/src/client/draft_preview_vectors.json,
   packages/openmates-rust/src/crypto/signup_vectors.json, packages/openmates-rust/src/mentions_ts_vectors.json,
   packages/openmates-rust/src/toon_decode_ts_vectors.json, packages/openmates-rust/src/web_apps/request_ts_vectors.json,
@@ -161,7 +175,7 @@ capabilities:
   has_fixture: false
   rust:
     status: partial
-    api_symbols: 2277
+    api_symbols: 2278
     conformance: false
     gaps: 16
   npm:
@@ -174,6 +188,7 @@ capabilities:
     api_symbols: 18
     conformance: false
     gaps: 14
+  spec_assertions: *id001
 - id: session.native-boundary.v1
   domain: auth
   has_fixture: false
@@ -192,6 +207,7 @@ capabilities:
     api_symbols: 0
     conformance: true
     gaps: 0
+  spec_assertions: *id001
 - id: session.password-totp-rotation.v1
   domain: auth
   has_fixture: true
@@ -210,6 +226,7 @@ capabilities:
     api_symbols: 0
     conformance: true
     gaps: 2
+  spec_assertions: *id001
 - id: local.privacy.v1
   domain: configuration
   has_fixture: true
@@ -228,6 +245,7 @@ capabilities:
     api_symbols: 3
     conformance: true
     gaps: 0
+  spec_assertions: *id002
 - id: sdk.configuration
   domain: configuration
   has_fixture: true
@@ -246,6 +264,7 @@ capabilities:
     api_symbols: 4
     conformance: true
     gaps: 1
+  spec_assertions: *id002
 - id: sdk.models
   domain: configuration
   has_fixture: false
@@ -264,6 +283,7 @@ capabilities:
     api_symbols: 10
     conformance: false
     gaps: 1
+  spec_assertions: *id002
 - id: sdk.models.layout.v1
   domain: configuration
   has_fixture: true
@@ -282,6 +302,7 @@ capabilities:
     api_symbols: 0
     conformance: true
     gaps: 0
+  spec_assertions: *id002
 - id: sdk.native-artifacts
   domain: configuration
   has_fixture: false
@@ -300,6 +321,7 @@ capabilities:
     api_symbols: 0
     conformance: false
     gaps: 1
+  spec_assertions: *id002
 - id: sdk.privacy-policy
   domain: configuration
   has_fixture: false
@@ -318,6 +340,7 @@ capabilities:
     api_symbols: 0
     conformance: false
     gaps: 1
+  spec_assertions: *id002
 - id: sdk.public-utilities
   domain: configuration
   has_fixture: false
@@ -336,6 +359,7 @@ capabilities:
     api_symbols: 14
     conformance: false
     gaps: 1
+  spec_assertions: *id002
 - id: sdk.public-utilities-helpers.v1
   domain: configuration
   has_fixture: true
@@ -354,6 +378,7 @@ capabilities:
     api_symbols: 0
     conformance: true
     gaps: 0
+  spec_assertions: *id002
 - id: crypto.aes-gcm-combined.v1
   domain: encryption
   has_fixture: false
@@ -372,6 +397,7 @@ capabilities:
     api_symbols: 0
     conformance: true
     gaps: 0
+  spec_assertions: *id003
 - id: crypto.slug-lookup.v1
   domain: encryption
   has_fixture: false
@@ -390,6 +416,7 @@ capabilities:
     api_symbols: 0
     conformance: true
     gaps: 0
+  spec_assertions: *id003
 - id: protocol.project-remote-crypto.v1
   domain: encryption
   has_fixture: true
@@ -408,6 +435,7 @@ capabilities:
     api_symbols: 14
     conformance: true
     gaps: 2
+  spec_assertions: *id003
 - id: sdk.key-management
   domain: encryption
   has_fixture: false
@@ -426,6 +454,7 @@ capabilities:
     api_symbols: 9
     conformance: false
     gaps: 1
+  spec_assertions: *id003
 - id: sdk.key-management.primitives.v1
   domain: encryption
   has_fixture: true
@@ -444,6 +473,7 @@ capabilities:
     api_symbols: 0
     conformance: true
     gaps: 0
+  spec_assertions: *id003
 - id: sdk.errors
   domain: errors
   has_fixture: false
@@ -462,6 +492,7 @@ capabilities:
     api_symbols: 15
     conformance: false
     gaps: 1
+  spec_assertions: *id004
 - id: browser.main-metadata-native.v1
   domain: recovery
   has_fixture: false
@@ -480,6 +511,7 @@ capabilities:
     api_symbols: 0
     conformance: false
     gaps: 2
+  spec_assertions: *id005
 - id: browser.recovered-selected-code-embed-native.v1
   domain: recovery
   has_fixture: false
@@ -498,6 +530,7 @@ capabilities:
     api_symbols: 0
     conformance: false
     gaps: 2
+  spec_assertions: *id005
 - id: browser.recovered-selected-reply-native.v1
   domain: recovery
   has_fixture: false
@@ -516,6 +549,7 @@ capabilities:
     api_symbols: 0
     conformance: false
     gaps: 2
+  spec_assertions: *id005
 - id: crypto.recovery-envelope.v1
   domain: recovery
   has_fixture: false
@@ -534,6 +568,7 @@ capabilities:
     api_symbols: 0
     conformance: true
     gaps: 0
+  spec_assertions: *id005
 - id: protocol.project-task-sync.v1
   domain: recovery
   has_fixture: false
@@ -552,6 +587,7 @@ capabilities:
     api_symbols: 13
     conformance: false
     gaps: 1
+  spec_assertions: *id005
 - id: session.chat-change-monitor.v1
   domain: recovery
   has_fixture: true
@@ -570,6 +606,7 @@ capabilities:
     api_symbols: 14
     conformance: true
     gaps: 4
+  spec_assertions: *id005
 - id: session.foreground-completion-recovery.v1
   domain: recovery
   has_fixture: true
@@ -588,6 +625,7 @@ capabilities:
     api_symbols: 16
     conformance: true
     gaps: 4
+  spec_assertions: *id005
 - id: session.project-task-watch.v1
   domain: recovery
   has_fixture: true
@@ -606,6 +644,7 @@ capabilities:
     api_symbols: 0
     conformance: true
     gaps: 1
+  spec_assertions: *id005
 - id: session.recovery-replay.v1
   domain: recovery
   has_fixture: true
@@ -624,6 +663,7 @@ capabilities:
     api_symbols: 0
     conformance: true
     gaps: 1
+  spec_assertions: *id005
 - id: sdk.chats
   domain: streaming
   has_fixture: true
@@ -642,6 +682,7 @@ capabilities:
     api_symbols: 34
     conformance: true
     gaps: 5
+  spec_assertions: *id006
 - id: session.anonymous-stream.v1
   domain: streaming
   has_fixture: true
@@ -660,3 +701,4 @@ capabilities:
     api_symbols: 4
     conformance: true
     gaps: 1
+  spec_assertions: *id006

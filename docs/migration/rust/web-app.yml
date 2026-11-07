@@ -50,6 +50,10 @@ units:
   vectors: []
   open_gaps: [web-rust-core-chat send-admission gate compares unpaired samples and is red; see performance-history.yml
       sendToAdmit.]
+  spec_assertions: [sdk.web.before-after-performance, sdk.client.thin-platform-boundary, chats.send.immediate-admission,
+    chats.message.identity-idempotent, chats.local-state.precedence]
+  spec_gaps: ['Shared Worker host lifecycle (single worker, single WASM instance, supervisor retire/respawn) has
+      no assertion; only the performance rule in .claude/rules/cli-sdk.md covers it.']
 - namespace: crypto
   status: installed
   pre_bind: true
@@ -62,6 +66,10 @@ units:
   e2e_specs: [web-rust-core-crypto.spec.ts]
   vectors: [packages/openmates-rust/src/crypto/signup_vectors.json]
   open_gaps: []
+  spec_assertions: [auth.keys.client-wrapped, auth.keys.independent-unlock, chats.persistence.client-encrypted,
+    sdk.encryption.local-only, drafts.persistence.local-first-encrypted]
+  spec_gaps: [AES-GCM combined format with legacy OM header decrypt fallback has no assertion., Share-link and short-URL
+      encryption has no assertion.]
 - namespace: auth
   status: installed
   pre_bind: true
@@ -75,6 +83,9 @@ units:
   e2e_specs: [web-rust-core-auth.spec.ts]
   vectors: []
   open_gaps: []
+  spec_assertions: [auth.signup.current-flow, auth.keys.client-wrapped, auth.login.method-convergence, auth.passkey.origin-prf-bound,
+    auth.pair-login.single-use-zk, auth.pair-login.session-grant, auth.session.lifecycle, owner-consistency.ws.dual-principal]
+  spec_gaps: []
 - namespace: embedData
   status: installed
   pre_bind: true
@@ -87,6 +98,8 @@ units:
   e2e_specs: [web-rust-core-embeds.spec.ts]
   vectors: [packages/openmates-rust/src/toon_decode_ts_vectors.json]
   open_gaps: [Embed RSS +1..+77 MB vs TypeScript in the embeds bench (noisy); see performance-history.yml.]
+  spec_assertions: [chats.persistence.client-encrypted, chats.rendering.assistant-document-convergence]
+  spec_gaps: ['Embed resolve, version reconstruction and TOON decode behavior have no assertion.']
 - namespace: embedWrite
   status: installed
   pre_bind: false
@@ -100,6 +113,9 @@ units:
   e2e_specs: [web-rust-core-embeds.spec.ts]
   vectors: []
   open_gaps: [Streamed write is wired for send_embed_data only.]
+  spec_assertions: [chats.persistence.client-encrypted, chats.streaming.ordered-final]
+  spec_gaps: ['Streamed embed write ordering and key resolution (master/chat wrapper, legacy child inheritance)
+      have no assertion.']
 - namespace: chatState
   status: planned
   pre_bind: false
@@ -110,6 +126,10 @@ units:
   e2e_specs: []
   vectors: []
   open_gaps: ['Namespace reserved, no installer yet.']
+  spec_assertions: [chat-unread.reply.read-at-last-line, chat-unread.followup.implies-read, chat-unread.surfaces.sidebar-and-continue,
+    chat-unread.persistence.cross-device, chat-unread.manual.mark-unread, chat-message-timeline.bookmarks]
+  spec_gaps: ['Message highlights, chat deletion queue and project placement have no assertion.', Hidden chats (PIN-derived
+      key wrapping) have no assertion.]
 - namespace: ws
   status: planned
   pre_bind: false
@@ -120,6 +140,8 @@ units:
   e2e_specs: []
   vectors: []
   open_gaps: ['Namespace reserved, no installer yet.']
+  spec_assertions: [owner-consistency.ws.dual-principal, sync.access.first-party-authenticated, chats.send.immediate-admission]
+  spec_gaps: ['WebSocket link state machine, router and feedback have no assertion.']
 - namespace: apps
   status: installed
   pre_bind: true
@@ -133,6 +155,9 @@ units:
   vectors: [packages/openmates-rust/src/web_apps_ts_vectors.json, packages/openmates-rust/src/web_apps/request_ts_vectors.json,
     packages/openmates-rust/src/web_apps/results_ts_vectors.json, packages/openmates-rust/src/web_apps/schema_ts_vectors.json]
   open_gaps: []
+  spec_assertions: [apps.execution.direct-shared-contract, apps.forms.metadata-driven, apps.results.web-retained-graph,
+    apps.library.embeds-account-paginated]
+  spec_gaps: []
 - namespace: search
   status: installed
   pre_bind: true
@@ -146,6 +171,8 @@ units:
   vectors: [packages/openmates-rust/src/web_search_ts_vectors.json, packages/openmates-rust/src/web_search_chats_ts_vectors.json,
     packages/openmates-rust/src/web_search_query_ts_vectors.json]
   open_gaps: [Search wall-time gate is inconclusive (12-pair CIs reach 1.149 and 1.215); see performance-history.yml.]
+  spec_assertions: [chat-awareness.search.device-executed]
+  spec_gaps: ['Local chat/embed/settings search ranking, snippets and catalog filters have no assertion.']
 - namespace: transfer
   status: installed
   pre_bind: true
@@ -158,6 +185,10 @@ units:
   vectors: [packages/openmates-rust/src/web_transfer_ts_vectors.json, packages/openmates-rust/src/web_transfer_export_ts_vectors.json]
   open_gaps: [ZIP assembly and account export (scope 3) are not moved., import-chats.spec is red on the CI stack
       (import scanner needs provider credentials).]
+  spec_assertions: [account-import.source.explicit-selection, account-import.review.confirmed-results, account-import.persistence.client-encrypted,
+    pii.message.owner-local-reveal]
+  spec_gaps: ['Chat export (YAML layout, filenames, PII restore, draft kind) and ZIP assembly have no assertion.',
+    Import ZIP/batch planning and cost estimate have no assertion.]
 - namespace: sync
   status: installed
   pre_bind: true
@@ -169,3 +200,9 @@ units:
   e2e_specs: [web-rust-core-sync.spec.ts]
   vectors: [packages/openmates-rust/src/web_sync/ts_vectors.json]
   open_gaps: ['chatKeyWriteGuard, chatKeyConsistency and the ChatUpdates/Recovery helpers are not moved.']
+  spec_assertions: [sync.client.shared-rust-policy, sync.access.first-party-authenticated, sync.status.startup-window-ready,
+    sync.status.incomplete-window-rewarms, sync.startup.bounded-phases, sync.phase2.metadata-only, sync.phase2.drafts.authoritative-encrypted,
+    sync.deletion.partial-window-not-authoritative, sync.delta.cursor-gap-free, sync.delta.metadata-only, sync.delta.reset,
+    sync.delta.scope-revocation, sync.delta.live-hint, sync.open.not-gated, sync.overview.priority-order, sync.overview.cross-device,
+    sync.overview.ready-fast, sync.surface.semantic-parity, drafts.sync.version-authoritative, chats.sync.key-gated-recovery]
+  spec_gaps: [Message key-mismatch guard and chat key write guard behavior has no assertion beyond key-gated recovery.]

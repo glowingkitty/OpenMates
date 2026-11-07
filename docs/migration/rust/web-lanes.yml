@@ -4,6 +4,8 @@
 # a commit; ranks are 1..N; deps resolve to a lane or a slice id.
 # status: planned | running | landed.  commit: lowercase hex, required when landed.
 # Narrative plan: web-lanes.md. Lane briefs were working files and are not kept in the repo.
+# spec_assertions: ids from specifications/generated/assertion-index.yml (validated). spec_gaps: behavior the
+# lane moves to Rust that no assertion covers. Specification files are never edited from here.
 schema_version: 1
 plan_date: 2026-11-07
 base_commit: f725997112
@@ -48,7 +50,13 @@ landing_protocol:
 - simultaneous readiness lands in rank order; new namespaces appended to SHARED_NAMESPACES
 - each new namespace proves it does not leak into the flag-off build
 gates:
-  ci: [rust-check, rust-wasm, vitest, sdk-conformance, lane e2e flag-on, flag-off byte-identical]
+  ci:
+  - rust-check
+  - rust-wasm
+  - vitest
+  - sdk-conformance
+  - lane e2e flag-on
+  - flag-off byte-identical
   bench:
     workers: 1
     wasm_instances: 1
@@ -61,49 +69,96 @@ wave3_lanes:
   kind: wave3
   status: running
   commit: null
-  owns: [services/drafts/*, rustCore/browserDraft*, rustCore/draftEditorAdapter.ts, rustCore/productionDraftBinding.ts]
+  owns:
+  - services/drafts/*
+  - rustCore/browserDraft*
+  - rustCore/draftEditorAdapter.ts
+  - rustCore/productionDraftBinding.ts
   notes: Drafts save rust-synced; visible-editor E2E rerun pending.
+  spec_assertions:
+  - drafts.persistence.local-first-encrypted
+  - drafts.sync.version-authoritative
+  - drafts.draft-only.lifecycle
+  - message-input.drafts.preview-persistence
+  spec_gaps: []
 - name: search-snippet-perf
   kind: wave3
   status: landed
   commit: bc918c7
-  owns: [web_search*.rs, browser_search_pii.rs]
+  owns:
+  - web_search*.rs
+  - browser_search_pii.rs
   notes: Pipelined worker ingests; search bench still inconclusive, see performance-history.yml.
+  spec_assertions: [chat-awareness.search.device-executed]
+  spec_gaps:
+  - Search ranking, snippets and the performance budget have no assertion.
 - name: w3-web-sync-policy
   kind: wave3
   status: landed
   commit: c577ddd
-  owns: [chatSyncMerge.ts, chatSyncPhasedRetry.ts, chatSyncMessageKeyGuard.ts, chatKeyWriteGuard.ts, chatKeyConsistency.ts,
-    rustCore/sync/*]
+  owns:
+  - chatSyncMerge.ts
+  - chatSyncPhasedRetry.ts
+  - chatSyncMessageKeyGuard.ts
+  - chatKeyWriteGuard.ts
+  - chatKeyConsistency.ts
+  - rustCore/sync/*
   notes: 'Gap: chatKeyWriteGuard/chatKeyConsistency and ChatUpdates/Recovery helpers not moved.'
+  spec_assertions:
+  - sync.client.shared-rust-policy
+  - sync.delta.cursor-gap-free
+  - sync.deletion.partial-window-not-authoritative
+  - chats.sync.key-gated-recovery
+  spec_gaps: []
 - name: w3-web-import-export
   kind: wave3
   status: running
   commit: null
-  owns: [zipExportService.ts, accountExportService.ts, chatExportService.ts, chatImportService.ts, rustCore/transfer/*]
+  owns:
+  - zipExportService.ts
+  - accountExportService.ts
+  - chatExportService.ts
+  - chatImportService.ts
+  - rustCore/transfer/*
   notes: Scopes 1 (b33404b) and 2 (f7259971) landed; scope 3 zip/account export unverified.
+  spec_assertions: [account-import.source.explicit-selection, account-import.review.confirmed-results, account-import.persistence.client-encrypted]
+  spec_gaps:
+  - Chat export YAML, filenames and ZIP/account export have no assertion.
 - name: w3-web-send-perf
   kind: wave3
   status: running
   commit: null
-  owns: [rustCore/sendOperation.ts, rustCore/sendProtocol.ts, rustCore/originalSavedChatSender.ts, rustCore/browserWsLink.ts,
-    crypto send path]
+  owns:
+  - rustCore/sendOperation.ts
+  - rustCore/sendProtocol.ts
+  - rustCore/originalSavedChatSender.ts
+  - rustCore/browserWsLink.ts
+  - crypto send path
   notes: Paired send bench exists; 12 pairs in one job blocked by sends stalling after about 15 sends.
+  spec_assertions: [chats.send.immediate-admission, chats.message.identity-idempotent, sdk.web.before-after-performance]
+  spec_gaps: []
 - name: send-correctness
   kind: wave3
   status: running
   commit: null
-  owns:
-  - lib/rustCore/rustChatHistoryBootstrap.ts
-  - lib/rustCore/shared/coreUnit.ts
-  - rustCore/host/sessionBroker.ts
+  owns: [lib/rustCore/rustChatHistoryBootstrap.ts, lib/rustCore/shared/coreUnit.ts, rustCore/host/sessionBroker.ts]
   notes: 403/core-retire fix and session broker work.
+  spec_assertions: [owner-consistency.ws.dual-principal, owner-consistency.http.refuse-before-effect, chats.send.immediate-admission]
+  spec_gaps: []
 - name: memory-rss
   kind: wave3
   status: landed
   commit: bd07710
-  owns: [build-rust-core-web.mjs, vite rust plugin, Cargo profiles, browser-bindings lib.rs exports, bench helpers]
+  owns:
+  - build-rust-core-web.mjs
+  - vite rust plugin
+  - Cargo profiles
+  - browser-bindings lib.rs exports
+  - bench helpers
   notes: Reload-memory gate rust_not_worse (CI 348d19f1).
+  spec_assertions: [sdk.web.before-after-performance]
+  spec_gaps:
+  - Memory budget (one WASM instance, no per-reload growth) is only in .claude/rules/cli-sdk.md.
 lanes:
 - rank: 1
   name: chatstate-core
@@ -129,6 +184,15 @@ lanes:
   hot: [sharedWorkerUnits.ts, chatStateProtocol.ts (creates), sdk-capabilities.json]
   e2e: [message-highlights.spec.ts, message-highlights-touch.spec.ts, web-rust-core-chat.spec.ts]
   notes: ''
+  spec_assertions:
+  - chat-unread.reply.read-at-last-line
+  - chat-unread.followup.implies-read
+  - chat-unread.surfaces.sidebar-and-continue
+  - chat-unread.persistence.cross-device
+  - chat-unread.manual.mark-unread
+  - chat-message-timeline.bookmarks
+  spec_gaps:
+  - Message highlights, deletion queue and project placement have no assertion.
 - rank: 2
   name: embeds-3
   kind: wave4
@@ -151,9 +215,18 @@ lanes:
   - packages/openmates-rust/src/embed_read/*
   - packages/openmates-browser-bindings/src/browser_embed_read.rs
   hot: [embedDataProtocol.ts, browser-bindings lib.rs, sdk-capabilities.json]
-  e2e: [web-rust-core-embeds.spec.ts, embed-fullscreen-followup, anonymous-child-embeds.spec.ts, historical-image-child-recovery.spec.ts,
-    draft-embed-preview.spec.ts]
+  e2e:
+  - web-rust-core-embeds.spec.ts
+  - embed-fullscreen-followup
+  - anonymous-child-embeds.spec.ts
+  - historical-image-child-recovery.spec.ts
+  - draft-embed-preview.spec.ts
   notes: ''
+  spec_assertions:
+  - chats.persistence.client-encrypted
+  - chats.rendering.assistant-document-convergence
+  spec_gaps:
+  - Embed resolve/version reconstruction and audio embed crypto have no assertion.
 - rank: 3
   name: sync-inbound
   kind: wave4
@@ -173,7 +246,11 @@ lanes:
   - frontend/packages/ui/src/services/rustCore/sync/inboundOps.ts
   - packages/openmates-rust/src/web_sync/inbound*.rs
   - packages/openmates-browser-bindings/src/browser_sync_inbound.rs
-  hot: [syncProtocol.ts SYNC_OPS, web_sync/mod.rs, browser-bindings lib.rs, sdk-capabilities.json]
+  hot:
+  - syncProtocol.ts SYNC_OPS
+  - web_sync/mod.rs
+  - browser-bindings lib.rs
+  - sdk-capabilities.json
   e2e:
   - web-rust-core-sync.spec.ts
   - web-rust-core-chat.spec.ts
@@ -181,6 +258,20 @@ lanes:
   - chat-metadata-recovery.spec.ts
   - cross-client-draft-sync.spec.ts
   notes: ''
+  spec_assertions:
+  - sync.delta.cursor-gap-free
+  - sync.delta.metadata-only
+  - sync.delta.reset
+  - sync.delta.scope-revocation
+  - sync.delta.live-hint
+  - sync.phase2.metadata-only
+  - sync.phase2.drafts.authoritative-encrypted
+  - sync.startup.bounded-phases
+  - sync.open.not-gated
+  - sync.status.startup-window-ready
+  - sync.status.incomplete-window-rewarms
+  - chats.local-state.precedence
+  spec_gaps: []
 - rank: 4
   name: ai-stream-recovery
   kind: wave4
@@ -211,6 +302,15 @@ lanes:
   - chat-followup-recovery-disabled.spec.ts
   - historical-image-child-recovery.spec.ts
   notes: ''
+  spec_assertions:
+  - chats.streaming.ordered-final
+  - chats.streaming.progressive-presentation
+  - chats.completion.recovery-takeover
+  - chats.completion.pending-delivery
+  - chats.completion.lease-fenced
+  - chats.sync.key-gated-recovery
+  spec_gaps:
+  - Heartbeat latency under long WASM batches has no assertion.
 - rank: 5
   name: persistence
   kind: wave4
@@ -232,7 +332,11 @@ lanes:
   - frontend/packages/ui/src/services/rustCore/persist/*
   - packages/openmates-rust/src/web_persist/*
   - packages/openmates-browser-bindings/src/browser_persist.rs
-  hot: [coreUnit.ts, workerDispatch.ts, browser-bindings lib.rs, sdk-capabilities.json]
+  hot:
+  - coreUnit.ts
+  - workerDispatch.ts
+  - browser-bindings lib.rs
+  - sdk-capabilities.json
   e2e:
   - web-rust-core-chat.spec.ts
   - web-rust-core-reload-memory.spec.ts
@@ -240,6 +344,9 @@ lanes:
   - persisted-draft-discovery.spec.ts
   - web-rust-core-sync.spec.ts
   notes: ''
+  spec_assertions: [chats.persistence.client-encrypted, chats.local-state.precedence, sync.status.incomplete-window-rewarms]
+  spec_gaps:
+  - IndexedDB row-version compatibility and quota recovery have no assertion.
 - rank: 6
   name: send-prep-outbox
   kind: wave4
@@ -260,9 +367,24 @@ lanes:
   - frontend/packages/ui/src/services/rustCore/send/*
   - packages/openmates-rust/src/web_send_prep/*
   - packages/openmates-browser-bindings/src/browser_send_prep.rs
-  hot: [coreUnit.ts, workerDispatch.ts, browser-bindings lib.rs, sdk-capabilities.json]
-  e2e: [web-rust-core-chat.spec.ts, offline-draft-replay.spec.ts, focus-mode-mention.spec.ts, default-model-settings-proof.spec.ts]
+  hot:
+  - coreUnit.ts
+  - workerDispatch.ts
+  - browser-bindings lib.rs
+  - sdk-capabilities.json
+  e2e:
+  - web-rust-core-chat.spec.ts
+  - offline-draft-replay.spec.ts
+  - focus-mode-mention.spec.ts
+  - default-model-settings-proof.spec.ts
   notes: ''
+  spec_assertions:
+  - chats.send.immediate-admission
+  - chats.message.identity-idempotent
+  - chat-queued-followups.admission.synced
+  - message-input.send.ownership
+  spec_gaps:
+  - Offline outbox ordering and replay have no assertion.
 - rank: 7
   name: ws-unit
   kind: wave4
@@ -293,6 +415,9 @@ lanes:
   - sdk-capabilities.json
   e2e: [web-rust-core-chat.spec.ts, web-rust-core-sync.spec.ts, web-rust-core-auth.spec.ts]
   notes: ''
+  spec_assertions: [owner-consistency.ws.dual-principal, sync.access.first-party-authenticated, chats.send.immediate-admission]
+  spec_gaps:
+  - Session token confined to the Worker and supervisor respawn have no assertion.
 - rank: 8
   name: keys
   kind: wave4
@@ -313,9 +438,20 @@ lanes:
   - frontend/packages/ui/src/services/rustCore/crypto/keyOps.ts
   - packages/openmates-browser-bindings/src/browser_keys.rs
   hot: [cryptoUnitInstaller.ts, browser-bindings lib.rs, sdk-capabilities.json]
-  e2e: [web-rust-core-crypto.spec.ts, web-rust-core-chat.spec.ts, web-rust-core-auth.spec.ts, cross-client-draft-sync.spec.ts,
-    recovery-key-login-flow.spec.ts]
+  e2e:
+  - web-rust-core-crypto.spec.ts
+  - web-rust-core-chat.spec.ts
+  - web-rust-core-auth.spec.ts
+  - cross-client-draft-sync.spec.ts
+  - recovery-key-login-flow.spec.ts
   notes: ''
+  spec_assertions:
+  - auth.keys.client-wrapped
+  - auth.keys.independent-unlock
+  - chats.persistence.client-encrypted
+  - sdk.encryption.local-only
+  spec_gaps:
+  - Key lifecycle and logout/account-switch termination of the Worker have no assertion.
 - rank: 9
   name: parse
   kind: wave4
@@ -339,7 +475,11 @@ lanes:
   - frontend/packages/ui/src/services/rustCore/parse/*
   - packages/openmates-rust/src/web_parse/*
   - packages/openmates-browser-bindings/src/browser_parse.rs
-  hot: [sharedWorkerProtocol.ts, sharedWorkerUnits.ts, browser-bindings lib.rs, sdk-capabilities.json]
+  hot:
+  - sharedWorkerProtocol.ts
+  - sharedWorkerUnits.ts
+  - browser-bindings lib.rs
+  - sdk-capabilities.json
   e2e:
   - chat-rendering-parity-oracle.spec.ts
   - chat-streaming-render-performance.spec.ts
@@ -347,6 +487,12 @@ lanes:
   - web-rust-core-chat.spec.ts
   - web-rust-core-embeds.spec.ts
   notes: ''
+  spec_assertions:
+  - chats.rendering.assistant-document-convergence
+  - chats.rendering.inline-entity-interaction
+  - chats.streaming.progressive-presentation
+  spec_gaps:
+  - Markdown/block-model parse equivalence with the TypeScript parser has no assertion.
 - rank: 10
   name: settings-memories
   kind: wave4
@@ -370,7 +516,11 @@ lanes:
   - frontend/packages/ui/src/services/rustCore/settings/*
   - packages/openmates-rust/src/web_settings/*
   - packages/openmates-browser-bindings/src/browser_settings.rs
-  hot: [sharedWorkerProtocol.ts, sharedWorkerUnits.ts, browser-bindings lib.rs, sdk-capabilities.json]
+  hot:
+  - sharedWorkerProtocol.ts
+  - sharedWorkerUnits.ts
+  - browser-bindings lib.rs
+  - sdk-capabilities.json
   e2e:
   - mention-dropdown-settings-memory.spec.ts
   - memories-public-catalog.spec.ts
@@ -378,6 +528,13 @@ lanes:
   - language-settings-flow.spec.ts
   - ai-settings-breadcrumb.spec.ts
   notes: ''
+  spec_assertions:
+  - app-memories.lifecycle.encrypted-crud
+  - app-memories.privacy.client-encrypted
+  - app-memories.access.owner-scoped
+  - app-memories.sync.versioned-convergence
+  spec_gaps:
+  - App-settings sync handler and topic preferences have no assertion.
 - rank: 11
   name: composer
   kind: wave4
@@ -402,7 +559,11 @@ lanes:
   - frontend/packages/ui/src/services/rustCore/composer/*
   - packages/openmates-rust/src/web_composer/*
   - packages/openmates-browser-bindings/src/browser_composer.rs
-  hot: [sharedWorkerProtocol.ts, sharedWorkerUnits.ts, browser-bindings lib.rs, sdk-capabilities.json]
+  hot:
+  - sharedWorkerProtocol.ts
+  - sharedWorkerUnits.ts
+  - browser-bindings lib.rs
+  - sdk-capabilities.json
   e2e:
   - pii-detection-flow.spec.ts
   - pii-placeholder-rewrite.spec.ts
@@ -411,6 +572,14 @@ lanes:
   - focus-mode-mention.spec.ts
   - office-import-notices.spec.ts
   notes: ''
+  spec_assertions:
+  - pii.composer.detect-redact-exclude
+  - pii.composer.city-not-personal
+  - pii.outbound.known-original-rewrite
+  - wikipedia-mentions.syntax.explicit-trigger
+  - message-input.suggestions.contextual
+  spec_gaps:
+  - Paste classification, code/URL embed services and upload privacy have no assertion.
 - rank: 12
   name: auth-rest
   kind: wave4
@@ -436,10 +605,26 @@ lanes:
   - frontend/packages/ui/src/components/{PasswordAndTfaOtp,EnterRecoveryKey}.svelte (logic hunks)
   - frontend/packages/ui/src/services/rustCore/auth/flowOps.ts
   - packages/openmates-rust/src/{web_auth_signup,web_auth_pair}.rs
-  hot: [authProtocol.ts, browser-bindings lib.rs, sdk-capabilities.json, cryptoService.ts (slice 0 only)]
-  e2e: [web-rust-core-auth.spec.ts, recovery-key-login-flow.spec.ts, recovery-key-settings.spec.ts, account-recovery-flow.spec.ts,
-    pair-web-receiver.spec.ts]
+  hot:
+  - authProtocol.ts
+  - browser-bindings lib.rs
+  - sdk-capabilities.json
+  - cryptoService.ts (slice 0 only)
+  e2e:
+  - web-rust-core-auth.spec.ts
+  - recovery-key-login-flow.spec.ts
+  - recovery-key-settings.spec.ts
+  - account-recovery-flow.spec.ts
+  - pair-web-receiver.spec.ts
   notes: ''
+  spec_assertions:
+  - auth.signup.current-flow
+  - auth.login.method-convergence
+  - auth.passkey.origin-prf-bound
+  - auth.pair-login.single-use-zk
+  - auth.session.lifecycle
+  - auth.recovery.email-delay
+  spec_gaps: []
 - rank: 13
   name: chatstate-hidden-fork
   kind: wave4
@@ -461,6 +646,9 @@ lanes:
   hot: [chatStateProtocol.ts, sdk-capabilities.json]
   e2e: [hidden-chats-flow.spec.ts, fork-conversation.spec.ts, web-rust-core-crypto.spec.ts]
   notes: ''
+  spec_assertions: [chats.fork.non-destructive-boundary]
+  spec_gaps:
+  - Hidden chats with PIN-derived key wrapping have no assertion.
 - rank: 14
   name: share-guest-crypto
   kind: wave4
@@ -484,8 +672,15 @@ lanes:
   - packages/openmates-rust/src/{web_share,web_guest}/*
   - packages/openmates-browser-bindings/src/browser_share.rs
   hot: [cryptoUnitInstaller.ts, browser-bindings lib.rs, sdk-capabilities.json]
-  e2e: [anonymous-free-chat.spec.ts, anonymous-child-embeds.spec.ts, incognito-mode.spec.ts, application-preview-share.spec.ts]
+  e2e:
+  - anonymous-free-chat.spec.ts
+  - anonymous-child-embeds.spec.ts
+  - incognito-mode.spec.ts
+  - application-preview-share.spec.ts
   notes: ''
+  spec_assertions: [chat-share-settings.generated-link-controls, chat-share-settings.shared-link-open, apps.anonymous.local-results-and-promotion]
+  spec_gaps:
+  - Share, short-URL and embed-share encryption and guest chat promotion have no assertion.
 parked_wave5:
 - name: work
   loc: 15000
