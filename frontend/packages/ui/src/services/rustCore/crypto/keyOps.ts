@@ -11,13 +11,32 @@
 // fingerprints and decision strings only, never key bytes.
 import type { WebCryptoOp } from './webCryptoClient';
 
-export type KeyOp = 'keysFingerprint' | 'keysEqual' | 'keysInjectDecision';
+export type KeyStateOp =
+  | 'keysStateOffer' | 'keysStateHandle' | 'keysStateState' | 'keysStateSetState' | 'keysStateEnqueue'
+  | 'keysStateCancel' | 'keysStatePending' | 'keysStateMarkPersisted' | 'keysStateReset' | 'keysStateRemove'
+  | 'keysStateClear' | 'keysStateStats' | 'keysStateDecrypt' | 'keysStateEncrypt';
+
+export type KeyOp = 'keysFingerprint' | 'keysEqual' | 'keysInjectDecision' | KeyStateOp;
 
 /** Worker export behind each op; spread into the crypto unit's async export table. */
 export const KEY_ASYNC_EXPORTS: Record<KeyOp, string> = {
   keysFingerprint: 'keysFingerprint',
   keysEqual: 'keysEqual',
   keysInjectDecision: 'keysInjectDecision',
+  keysStateOffer: 'keysStateOffer',
+  keysStateHandle: 'keysStateHandle',
+  keysStateState: 'keysStateState',
+  keysStateSetState: 'keysStateSetState',
+  keysStateEnqueue: 'keysStateEnqueue',
+  keysStateCancel: 'keysStateCancel',
+  keysStatePending: 'keysStatePending',
+  keysStateMarkPersisted: 'keysStateMarkPersisted',
+  keysStateReset: 'keysStateReset',
+  keysStateRemove: 'keysStateRemove',
+  keysStateClear: 'keysStateClear',
+  keysStateStats: 'keysStateStats',
+  keysStateDecrypt: 'keysStateDecrypt',
+  keysStateEncrypt: 'keysStateEncrypt',
 };
 
 export type KeySourceName =
@@ -51,4 +70,87 @@ export function keyInjectDecision(
   force: boolean,
 ): Promise<InjectDecision> {
   return client.call<InjectDecision>('keysInjectDecision', existing ?? undefined, currentSource ?? undefined, key, source, force);
+}
+
+export type KeyLoadState = 'unloaded' | 'loading' | 'ready' | 'failed';
+
+/** What the page may hold about a Worker-resident key: no key bytes. */
+export interface KeyHandle {
+  fingerprint: string;
+  source: KeySourceName;
+  timestamp: number;
+  persisted: boolean;
+  state: KeyLoadState;
+}
+
+export interface OfferOutcome {
+  decision: InjectDecision;
+  notifyReady: boolean;
+  /** Waiter tickets to run now, in arrival order. */
+  flushed: number[];
+}
+
+export type EnqueueOutcome = { kind: 'ready' } | { kind: 'queued'; ticket: number };
+
+/** Offers a key to the Worker key store; the Worker keeps it, the reply carries no key bytes. */
+export function keyStateOffer(client: KeyOpsClient, chatId: string, key: Uint8Array, source: KeySourceName, force: boolean): Promise<OfferOutcome> {
+  return client.call<OfferOutcome>('keysStateOffer', chatId, new Uint8Array(key), source, force);
+}
+
+/** The handle of the chat's key, or null when the Worker holds none. */
+export function keyStateHandle(client: KeyOpsClient, chatId: string): Promise<KeyHandle | null> {
+  return client.call<KeyHandle | null>('keysStateHandle', chatId);
+}
+
+export function keyStateState(client: KeyOpsClient, chatId: string): Promise<KeyLoadState> {
+  return client.call<KeyLoadState>('keysStateState', chatId);
+}
+
+export function keyStateSetState(client: KeyOpsClient, chatId: string, state: Exclude<KeyLoadState, 'ready'>): Promise<void> {
+  return client.call<void>('keysStateSetState', chatId, state);
+}
+
+/** Parks a waiter; rejects with `rust_keys_queue_full` at the per-chat bound. */
+export function keyStateEnqueue(client: KeyOpsClient, chatId: string): Promise<EnqueueOutcome> {
+  return client.call<EnqueueOutcome>('keysStateEnqueue', chatId);
+}
+
+export function keyStateCancel(client: KeyOpsClient, chatId: string, ticket: number): Promise<boolean> {
+  return client.call<boolean>('keysStateCancel', chatId, ticket);
+}
+
+export function keyStatePending(client: KeyOpsClient, chatId: string): Promise<number> {
+  return client.call<number>('keysStatePending', chatId);
+}
+
+export function keyStateMarkPersisted(client: KeyOpsClient, chatId: string): Promise<boolean> {
+  return client.call<boolean>('keysStateMarkPersisted', chatId);
+}
+
+/** Forgets the chat's key for a retry load; parked waiters stay. */
+export function keyStateReset(client: KeyOpsClient, chatId: string): Promise<void> {
+  return client.call<void>('keysStateReset', chatId);
+}
+
+/** Removes the chat's key; resolves the waiter tickets to reject. */
+export function keyStateRemove(client: KeyOpsClient, chatId: string): Promise<number[]> {
+  return client.call<number[]>('keysStateRemove', chatId);
+}
+
+/** Terminates all Worker key state (logout, account switch); resolves the waiter tickets to reject. */
+export function keyStateClear(client: KeyOpsClient): Promise<number[]> {
+  return client.call<number[]>('keysStateClear');
+}
+
+export function keyStateStats(client: KeyOpsClient): Promise<{ keys: number; unpersisted: number }> {
+  return client.call<{ keys: number; unpersisted: number }>('keysStateStats');
+}
+
+/** `decryptWithChatKey` result shape; rejects `rust_keys_no_key` when the Worker holds no key. */
+export function keyStateDecrypt<T>(client: KeyOpsClient, chatId: string, ciphertext: string): Promise<T> {
+  return client.call<T>('keysStateDecrypt', chatId, ciphertext);
+}
+
+export function keyStateEncrypt(client: KeyOpsClient, chatId: string, plaintext: string): Promise<string> {
+  return client.call<string>('keysStateEncrypt', chatId, plaintext);
 }

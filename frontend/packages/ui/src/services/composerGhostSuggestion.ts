@@ -9,6 +9,7 @@ import { userProfile } from '../stores/userProfile';
 import { activeTeamId } from '../stores/teamStore';
 import { chatDB } from './db';
 import { chatKeyManager } from './encryption/ChatKeyManager';
+import { getKeyHandle } from './encryption/chatKeyHandles';
 import { encryptWithChatKey, decryptWithChatKey } from './encryption/MessageEncryptor';
 import { ensureChatKeySafeForWrite } from './chatKeyWriteGuard';
 import { webSocketService } from './websocketService';
@@ -45,6 +46,13 @@ export function chatAllowsComposerGhostSuggestion(chat: Chat): boolean {
 
 export async function decryptComposerGhostSuggestion(chat: Chat): Promise<ComposerGhostSuggestion | null> {
   if (!chat.encrypted_suggested_followup_message || !chatAllowsComposerGhostSuggestion(chat)) return null;
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') {
+    // Flag on: the Worker decrypts with its stored key; the page holds a handle only.
+    const handle = await getKeyHandle(chat.chat_id);
+    if (!handle) return null;
+    const text = await handle.decrypt(chat.encrypted_suggested_followup_message);
+    return text ? decodeComposerGhostSuggestion(text) : null;
+  }
   const key = await chatKeyManager.getKey(chat.chat_id);
   if (!key) return null;
   const plaintext = await decryptWithChatKey(chat.encrypted_suggested_followup_message, key);

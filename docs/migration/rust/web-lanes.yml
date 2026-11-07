@@ -448,10 +448,16 @@ lanes:
   - cross-client-draft-sync.spec.ts
   - recovery-key-login-flow.spec.ts
   notes: 'K1 landed behind the flag: web_keys.rs (fingerprint, key equality, KeySource priority, injectKey admission) with TS vectors
-    (chatKeyAdmissionVectors.test.ts), browser_keys.rs and rustCore/crypto/keyOps.ts served by the crypto unit. ChatKeyManager.ts is
-    unchanged (its injectKey is synchronous; the async handle API of K2 is the first caller). K2 (Rust-owned key state in the Worker,
-    additive handle API next to getKeySync/getKey, terminate on logout/account switch, first one or two callers) and K3 (needs
-    auth-rest slice 0) remain; remaining callers get listed here as K2 migrates them.'
+    (chatKeyAdmissionVectors.test.ts), browser_keys.rs and rustCore/crypto/keyOps.ts served by the crypto unit. K2 (flag-gated, default
+    off): web_key_state.rs KeyStore in the Worker (keys, provenance, load states, FIFO waiter tickets bounded at 50, provisional/unpersisted
+    flag, remove/clear returning tickets to reject), keysState* exports and keyOps helpers, encryption/chatKeyStateMirror.ts (ChatKeyManager
+    offers every accepted key, forwards removeKey/reloadKey/clearAll so logout and account switch terminate Worker key state; unit disposal
+    clears too) and encryption/chatKeyHandles.ts (async getKeyHandle with the flag branch; flag-on decrypt/encrypt run in the Worker with the
+    stored key). First migrated caller: composerGhostSuggestion.decryptComposerGhostSuggestion. Remaining callers (~180 getKey/getKeySync
+    sites, e.g. sendersMessageHighlights, voiceCallMessages, userTaskService, userPlanService, voiceCallVisuals, ChatMessage/ChatHistory,
+    sendHandlers, sync handlers) migrate to getKeyHandle; ChatKeyManager still loads/wraps/persists and holds the TS copy (K3), and pending
+    operation closures stay in TS (the Rust ticket queue is ready, not yet wired). K3 (needs auth-rest slice 0): chatKeyManagement.ts,
+    cryptoKeyStorage.ts, cryptoService master-key parts, MessageEncryptor/MetadataEncryptor/mediaEncryption page-side key material.'
   spec_assertions:
   - auth.keys.client-wrapped
   - auth.keys.independent-unlock

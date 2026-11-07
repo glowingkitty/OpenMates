@@ -70,8 +70,15 @@ export function createCryptoUnit(raw: unknown): CryptoUnit {
     if (typeof binding?.[name] !== 'function') throw new Error(`rust_web_crypto_export_missing:${name}`);
   }
   const fn = (name: string) => binding[name] as Fn;
-  const clear = () => {
+  const clearCiphers = () => {
     fn('webCryptoClearChatKeys')();
+  };
+  // Unit disposal terminates the Worker key state too; the `clearChatKeys` op only
+  // drops cached ciphers (it also runs on single-key removal), so the key store
+  // is cleared by the explicit `keysStateClear` op or by disposal.
+  const clear = () => {
+    clearCiphers();
+    fn('keysStateClear')();
   };
 
   const runBulk: (args: unknown[]) => Promise<WebCryptoBulkResult> = createBulkRunner(binding);
@@ -79,7 +86,7 @@ export function createCryptoUnit(raw: unknown): CryptoUnit {
   async function run(op: WebCryptoOp, args: unknown[]): Promise<unknown> {
     switch (op) {
       case 'bulk': return runBulk(args);
-      case 'clearChatKeys': clear(); return undefined;
+      case 'clearChatKeys': clearCiphers(); return undefined;
       case 'chatKeyCacheSize': return fn('webCryptoChatKeyCacheSize')() as number;
       case 'echo': return args[0];
       case 'profileChatDecrypt': return profileChatDecrypt(binding, runBulk, args[0], args[1], args[2]);
