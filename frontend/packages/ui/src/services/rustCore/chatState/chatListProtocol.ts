@@ -8,12 +8,17 @@
  * answers index lists into the request.
  */
 import type { UnitProtocol } from '../host/unitPort';
+import type { HiddenForkUnitProtocol } from './hiddenForkProtocol';
 import type { GroupChatsInput, SortChatsInput } from '../../../components/chats/utils/chatListInput';
 
-export interface ChatStateUnitProtocol extends UnitProtocol {
+/** Chat-list ordering and grouping operations. */
+export interface ChatListUnitProtocol extends UnitProtocol {
 	sort: { request: SortChatsInput; response: number[] };
 	group: { request: GroupChatsInput; response: [string, number[]][] };
 }
+
+/** Every operation of the `chatState` unit: list policy, hidden chats and forks. */
+export interface ChatStateUnitProtocol extends ChatListUnitProtocol, HiddenForkUnitProtocol {}
 
 /** Worker module exports (JSON text in, JSON text out) of browser_chat_state_list.rs. */
 export interface ChatListBinding {
@@ -22,7 +27,7 @@ export interface ChatListBinding {
 }
 
 /** Operation to binding export. */
-export const CHAT_STATE_OPS: Readonly<Record<keyof ChatStateUnitProtocol & string, keyof ChatListBinding>> = Object.freeze({
+export const CHAT_STATE_OPS: Readonly<Record<keyof ChatListUnitProtocol & string, keyof ChatListBinding>> = Object.freeze({
 	sort: 'chat_state_sort',
 	group: 'chat_state_group',
 });

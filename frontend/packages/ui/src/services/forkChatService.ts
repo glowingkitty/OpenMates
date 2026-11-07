@@ -51,6 +51,11 @@ import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "./drafts/draftConstants";
 // Keeps the UI responsive during large chats.
 const BATCH_SIZE = 10;
 
+// Compile-time flag: default builds fold this to false and drop the Rust adapter.
+// The measurement-only opt-out `openmates_rust_core_chatstate=ts` keeps the TS arm (same switch as the chat list).
+const RUST_FORK: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+  && !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_chatstate") === "ts");
+
 // Delay between batches (ms) to allow the UI to breathe.
 const BATCH_DELAY_MS = 0; // Use microtask-level yield (requestAnimationFrame below)
 const EXPLAIN_SELECTION_MAX_CHARS = 500;
@@ -106,6 +111,12 @@ export async function startFork(
     throw err;
   }
 
+  let messagesToCopy: Message[];
+  if (RUST_FORK) {
+    // Rust selects (stable created_at sort, up to and including the fork point).
+    const rust = await import("./rustCore/chatState/rustFork");
+    messagesToCopy = await rust.rustForkSelect(messages, upToMessageId);
+  } else {
   // Sort by created_at ascending (IndexedDB returns them sorted already, but be safe)
   messages.sort((a, b) => (a.created_at ?? 0) - (b.created_at ?? 0));
 
@@ -118,7 +129,8 @@ export async function startFork(
     );
     throw new Error("Fork point message not found");
   }
-  const messagesToCopy = messages.slice(0, forkIndex + 1);
+  messagesToCopy = messages.slice(0, forkIndex + 1);
+  }
 
   // Register in the progress store — UI components can now render progress
   forkProgressStore.start(
@@ -187,6 +199,10 @@ async function runForkAsync(
     `[ForkChatService] Starting fork: ${sourceChatId} → ${newChatId} ` +
       `(${messagesToCopy.length} messages)`,
   );
+
+  if (RUST_FORK) {
+    return runRustForkAsync(sourceChatId, newChatId, forkTitle, messagesToCopy, options);
+  }
 
   // Step 1+2: Atomically create and persist the chat key through ChatKeyManager.
   // This ensures the key is tracked with provenance and persisted to IDB before
@@ -346,6 +362,59 @@ async function runForkAsync(
   }
 
   // Show a "fork complete" notification that opens the forked chat on click
+  const $text = get(text);
+  notificationStore.addNotificationWithOptions("success", {
+    message: $text("chats.fork.complete_notification"),
+    duration: 12000,
+    dismissible: true,
+    onAction: () => {
+      void openChatWhenAvailable(newChatId).finally(() => {
+        forkProgressStore.reset();
+      });
+    },
+    actionLabel: $text("chats.fork.complete_notification"),
+  });
+}
+
+/**
+ * Flag-on fork: Rust re-encrypts the messages and builds the chat record and the
+ * `encrypted_chat_metadata` payload; the page keeps key creation, IndexedDB,
+ * progress, the socket send and the notification.
+ */
+async function runRustForkAsync(
+  sourceChatId: string,
+  newChatId: string,
+  forkTitle: string,
+  messagesToCopy: Message[],
+  options: StartForkOptions,
+): Promise<void> {
+  const rust = await import("./rustCore/chatState/rustFork");
+  const { chatKey: newChatKey, encryptedChatKey: encryptedNewChatKey } =
+    await chatKeyManager.createAndPersistKey(newChatId);
+  const nowTimestamp = Math.floor(Date.now() / 1000);
+  const sourceChat = await chatDB.getChat(sourceChatId);
+  const sourceChatKey = await chatKeyManager.getKey(sourceChatId);
+  const built = await rust.rustForkBuild({
+    sourceChat, sourceChatKey, newChatId, newChatKey, encryptedNewChatKey, forkTitle,
+    messages: messagesToCopy, nowSeconds: nowTimestamp,
+    onProgress: (processed) => forkProgressStore.updateProgress(processed),
+    yieldToEventLoop,
+  });
+
+  chatDB.setChatKey(newChatId, newChatKey);
+  await chatDB.addChat(built.record);
+  await chatDB.batchSaveMessages(built.rows);
+
+  const storageSync = get(websocketStatus).status === "connected"
+    ? webSocketService.sendMessage("encrypted_chat_metadata", built.payload).catch((err) => {
+        console.warn("[ForkChatService] Encrypted storage sync failed (will reconcile via phased_sync):", err);
+      })
+    : Promise.resolve();
+  if (options.awaitStorageSync) await storageSync;
+  if (options.afterForkComplete) await options.afterForkComplete(newChatId);
+
+  forkProgressStore.complete();
+  if (options.suppressCompleteNotification) return;
   const $text = get(text);
   notificationStore.addNotificationWithOptions("success", {
     message: $text("chats.fork.complete_notification"),

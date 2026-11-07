@@ -657,7 +657,7 @@ lanes:
   - packages/openmates-rust/src/chat_state/{hidden,fork}*.rs
   hot: [chatStateProtocol.ts, sdk-capabilities.json]
   e2e: [hidden-chats-flow.spec.ts, fork-conversation.spec.ts, web-rust-core-crypto.spec.ts]
-  notes: ''
+  notes: 'Slice 1 (running, session 2f02): hidden-vault ops (unlock/wrap/unwrap/classify/plan_hide/unhide/lock/key-update) and fork ops (select/re-encrypt/copy/title/finalize) served by the chatState unit (hiddenOps.ts, forkOps.ts); hiddenChatService and forkChatService branch on the flag with no TS fallback; lock mirror in hiddenLockMirror.ts. Remaining: callers still compose hide (plan_hide op is served but Chat.svelte/chatMenuActionService not rewired), hiddenChatStore auto-lock timer stays TS, key-update frame builder not wired, no explicit stale-version refusal vectors.'
   spec_assertions: [chats.fork.non-destructive-boundary]
   spec_gaps:
   - Hidden chats with PIN-derived key wrapping have no assertion.
