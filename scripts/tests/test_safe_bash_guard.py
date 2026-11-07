@@ -198,3 +198,31 @@ def test_chained_commands_are_all_checked_but_quoted_data_is_not_executed() -> N
     assert quoted_substitution.returncode == 0
     quoted_shell = run_guard("printf '%s' \"sh -c 'git reset --hard HEAD'\"")
     assert quoted_shell.returncode == 0
+
+
+def test_worktree_may_cd_to_canonical_checkout_and_sibling_worktrees(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    """Session worktrees run scripts/sessions.py from the canonical checkout via cd."""
+    guard = load_guard()
+    canonical = tmp_path / "OpenMates"
+    worktree = canonical / ".openmates-agent-worktrees" / "agent-aaaa"
+    sibling = canonical / ".openmates-agent-worktrees" / "agent-bbbb"
+    gitdir = canonical / ".git" / "worktrees" / "agent-aaaa"
+    for directory in (gitdir, worktree, sibling, canonical / "test-results"):
+        directory.mkdir(parents=True)
+    (worktree / ".git").write_text(f"gitdir: {gitdir}\n", encoding="utf-8")
+    outside = tmp_path / "elsewhere"
+    outside.mkdir()
+    monkeypatch.setattr(guard, "REPO_ROOT", worktree)
+
+    assert guard._canonical_root() == canonical.resolve()
+    for allowed in (canonical, sibling, canonical / "test-results"):
+        assert guard._resolved_repo_path(worktree, str(allowed)) == allowed.resolve()
+    assert guard._resolved_repo_path(worktree, str(outside)) is None
+    assert guard._resolved_repo_path(worktree, "/tmp") is None
+
+
+def test_cd_outside_repository_is_still_blocked() -> None:
+    assert run_guard("cd /tmp && ls").returncode == 2
+    assert run_guard(f"cd {PROJECT_ROOT} && ls").returncode == 0

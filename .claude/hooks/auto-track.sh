@@ -31,9 +31,10 @@ if [ -n "$SESSION_REPO_ROOT" ]; then
 fi
 [ -z "$ALLOWED_FILE" ] && exit 0
 
-# Skip plan files and session files themselves
+# Skip plan files and session files themselves. Hook scripts are real source:
+# skipping them shipped settings.json wiring without its script.
 case "$FILE" in
-  */.claude/plans/*|*/.claude/sessions*|*/.claude/hooks/*) exit 0 ;;
+  */.claude/plans/*|*/.claude/sessions*) exit 0 ;;
 esac
 
 if [ -n "$SESSION_ID" ]; then

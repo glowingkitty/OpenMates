@@ -51,6 +51,11 @@ when a skill or this file points to it.
   executable Plans pass `plan_verify.py --phase complete`. Say plainly what was
   not run; queued, stale or mocked runs are not proof. Edited demo videos
   (`/create-demo-video`) only when requested.
+- UI work: restate the user's UI requirements as a checklist and show proof
+  (CI screenshot/recording) for each item before saying done; the user should
+  not be the one finding the defects.
+- When the user names a top priority, work only on it until it ships; log side
+  findings as Tasks (`/new-task`) instead of detouring.
 
 ## Focus (Marketing Week / Build Week)
 - Before any task read `FOCUS.md` in the canonical checkout (private and gitignored,

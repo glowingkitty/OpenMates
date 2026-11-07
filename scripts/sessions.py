@@ -12296,6 +12296,29 @@ def _deploy_external_repo_locked(
     print(f"Branch: {branch}")
 
 
+def _require_tracked_deploy_files(dirty_but_untracked, file_tracking, allow_untracked: bool) -> None:
+    """Stop a deploy that would silently leave dirty files out of the commit.
+
+    A wired hook shipped without its script is the failure this prevents.
+    ``--allow-untracked`` leaves them out on purpose.
+    """
+    if not dirty_but_untracked:
+        return
+    print("Dirty files NOT tracked by this session (they would not be committed):", file=sys.stderr)
+    for f in sorted(dirty_but_untracked):
+        tracked_session = file_tracking.get(f)
+        tag = f"  [also tracked by: {tracked_session}; advisory]" if tracked_session else ""
+        print(f"  ? {f}{tag}", file=sys.stderr)
+    if not allow_untracked:
+        print(
+            "DEPLOY BLOCKED — track them with: sessions.py track --session <ID> --file <path>, "
+            "or rerun with --allow-untracked to leave them out on purpose.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    print("--allow-untracked: leaving them out of this deploy.", file=sys.stderr)
+
+
 def cmd_deploy(args: argparse.Namespace) -> None:
     """Execute deployment: lint, git add, commit, push."""
     data = _load_sessions()
@@ -12519,14 +12542,7 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             print("No files to commit.")
         sys.exit(2)
 
-    # Warn about dirty files that will be left out
-    if dirty_but_untracked:
-        print("Warning — dirty files NOT tracked by this session (will not be committed):")
-        for f in sorted(dirty_but_untracked):
-            tracked_session = file_tracking.get(f)
-            tag = f"  [also tracked by: {tracked_session}; advisory]" if tracked_session else ""
-            print(f"  ? {f}{tag}")
-        print()
+    _require_tracked_deploy_files(dirty_but_untracked, file_tracking, getattr(args, "allow_untracked", False))
 
     if worktree_metadata and to_commit:
         validate_worktree_binding_mode(session)
@@ -15187,6 +15203,12 @@ def main() -> None:
         dest="skip_visual_smoke_reason",
         metavar="REASON",
         help="Skip the deployed visual-smoke end gate with an explicit reason. Only applies with --end.",
+    )
+    p_deploy.add_argument(
+        "--allow-untracked",
+        action="store_true",
+        dest="allow_untracked",
+        help="Deploy even though dirty files are not tracked by the session (they stay out of the commit).",
     )
     p_deploy.add_argument(
         "--require-parity",
