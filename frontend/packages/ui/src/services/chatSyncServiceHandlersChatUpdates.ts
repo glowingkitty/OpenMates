@@ -1,5 +1,12 @@
 import { hasPendingPersonalChatTurn } from './personalChatTurnBarrier';
-import { clearDraftOnlyShellForMessages } from "./chatInboundDecisions";
+import {
+  clearDraftOnlyShellForMessages,
+  draftApplyRust,
+  draftApplyTs,
+  INBOUND_FRAMES_IN_RUST,
+  updateFrameInvalidRust,
+  updateFrameInvalidTs,
+} from "./chatInboundDecisions";
 import { messagePreview, RUST_UPDATES_POLICY, rustUpdatesPolicy } from './chatSyncUpdatesPolicy';
 // frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
 import type { ChatSynchronizationService } from "./chatSyncService";
@@ -33,7 +40,6 @@ import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "./drafts/draftConstants";
 import { isChatVisiblyActive } from "./chatNotificationVisibility";
 import { claimChatMessageNotification, isFinalizedChatMessage } from "./chatMessageNotificationReceipt";
-import { isDraftUpdateBlockedByLocalDeletion } from "./chatSyncMerge";
 import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat } from "../utils/chatDraftState";
 import { get } from "svelte/store";
 import { draftEditorUIState } from "./drafts/draftState";
@@ -555,7 +561,10 @@ export async function handleChatTitleUpdatedImpl(
   );
 
   // Validate payload has required properties
-  if (!payload || !payload.chat_id) {
+  const invalidTitleFrame = INBOUND_FRAMES_IN_RUST
+    ? await updateFrameInvalidRust("title", payload)
+    : updateFrameInvalidTs("title", payload);
+  if (invalidTitleFrame === "chat_id") {
     console.error(
       "[ChatSyncService:ChatUpdates] Invalid payload in handleChatTitleUpdatedImpl: missing chat_id",
       payload,
@@ -563,7 +572,7 @@ export async function handleChatTitleUpdatedImpl(
     return;
   }
 
-  if (!payload.data || payload.data.encrypted_title === undefined) {
+  if (invalidTitleFrame === "data") {
     console.error(
       `[ChatSyncService:ChatUpdates] Invalid payload in handleChatTitleUpdatedImpl: missing data.encrypted_title for chat_id ${payload.chat_id}`,
       payload,
@@ -571,7 +580,7 @@ export async function handleChatTitleUpdatedImpl(
     return;
   }
 
-  if (!payload.versions || payload.versions.title_v === undefined) {
+  if (invalidTitleFrame === "versions") {
     console.error(
       `[ChatSyncService:ChatUpdates] Invalid payload in handleChatTitleUpdatedImpl: missing versions.title_v for chat_id ${payload.chat_id}`,
       payload,
@@ -642,7 +651,10 @@ export async function handleChatDraftUpdatedImpl(
   );
 
   // Validate payload has required properties
-  if (!payload || !payload.chat_id) {
+  const invalidDraftFrame = INBOUND_FRAMES_IN_RUST
+    ? await updateFrameInvalidRust("draft", payload)
+    : updateFrameInvalidTs("draft", payload);
+  if (invalidDraftFrame === "chat_id") {
     console.error(
       "[ChatSyncService:ChatUpdates] Invalid payload in handleChatDraftUpdatedImpl: missing chat_id",
       payload,
@@ -650,7 +662,7 @@ export async function handleChatDraftUpdatedImpl(
     return;
   }
 
-  if (!payload.data || payload.data.encrypted_draft_md === undefined) {
+  if (invalidDraftFrame === "data") {
     console.error(
       `[ChatSyncService:ChatUpdates] Invalid payload in handleChatDraftUpdatedImpl: missing data.encrypted_draft_md for chat_id ${payload.chat_id}`,
       payload,
@@ -658,7 +670,7 @@ export async function handleChatDraftUpdatedImpl(
     return;
   }
 
-  if (!payload.versions || payload.versions.draft_v === undefined) {
+  if (invalidDraftFrame === "versions") {
     console.error(
       `[ChatSyncService:ChatUpdates] Invalid payload in handleChatDraftUpdatedImpl: missing versions.draft_v for chat_id ${payload.chat_id}`,
       payload,
@@ -683,10 +695,10 @@ export async function handleChatDraftUpdatedImpl(
       console.debug(
         `[ChatSyncService:ChatUpdates] Existing chat ${payload.chat_id} found for draft update. Local draft_v: ${chat.draft_v}, Incoming draft_v: ${payload.versions.draft_v}.`,
       );
-      if (
-        (chat.draft_v ?? 0) > payload.versions.draft_v ||
-        isDraftUpdateBlockedByLocalDeletion(chat, payload.versions.draft_v)
-      ) {
+      const draftApply = INBOUND_FRAMES_IN_RUST
+        ? await draftApplyRust(chat, payload.versions.draft_v, payload.data.encrypted_draft_md === null)
+        : draftApplyTs(chat, payload.versions.draft_v, payload.data.encrypted_draft_md === null);
+      if (draftApply.stale) {
         console.info(
           `[ChatSyncService:ChatUpdates] Ignoring stale chat_draft_updated for chat ${payload.chat_id}. Local draft_v=${chat.draft_v ?? 0}, cleared_draft_v=${chat.cleared_draft_v ?? 0}, incoming draft_v=${payload.versions.draft_v}.`,
         );
@@ -698,11 +710,7 @@ export async function handleChatDraftUpdatedImpl(
         console.debug(
           `[ChatSyncService:ChatUpdates] Received draft deletion for chat ${payload.chat_id}`,
         );
-        chat.cleared_draft_v = Math.max(
-          chat.cleared_draft_v ?? 0,
-          chat.draft_v ?? 0,
-          payload.versions.draft_v,
-        );
+        chat.cleared_draft_v = draftApply.clearedDraftV ?? chat.cleared_draft_v;
       }
 
       chat.encrypted_draft_md = payload.data.encrypted_draft_md;

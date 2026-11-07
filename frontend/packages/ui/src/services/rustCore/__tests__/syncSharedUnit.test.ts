@@ -74,6 +74,15 @@ const binding: SyncBinding = {
 		return JSON.stringify({ units: c.units });
 	},
 	sync_draft_shell: () => { throw new Error('protocol'); },
+	sync_update_frame: () => { throw new Error('protocol'); },
+	sync_draft_apply: () => { throw new Error('protocol'); },
+	stream_recovery_apply: () => { throw new Error('protocol'); },
+	stream_recovery_window_version: () => { throw new Error('protocol'); },
+	stream_recovery_assistant_version: () => { throw new Error('protocol'); },
+	stream_recovery_initial_diff: () => { throw new Error('protocol'); },
+	stream_recovery_catalog: () => { throw new Error('protocol'); },
+	stream_recovery_history_source: () => { throw new Error('protocol'); },
+	stream_recovery_context_frame: () => { throw new Error('protocol'); },
 	sync_thinking_fields: (input) => {
 		const request = JSON.parse(input).payload;
 		const c = updateVectors.thinking.find((v: { request: unknown }) => key(v.request) === key(request));

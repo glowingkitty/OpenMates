@@ -19,3 +19,20 @@ export function draftShell(chat: Chat, messagesV: number) {
 		},
 	});
 }
+
+export function updateFrame(kind: 'title' | 'draft', payload: unknown) {
+	return syncCall('updateFrame', { kind, payload });
+}
+
+export function draftApply(local: Chat, incomingDraftV: number, deletion: boolean) {
+	return syncCall('draftApply', {
+		local: {
+			draft_v: local.draft_v,
+			cleared_draft_v: local.cleared_draft_v,
+			encrypted_draft_md: local.encrypted_draft_md,
+			encrypted_draft_preview: local.encrypted_draft_preview,
+		},
+		incomingDraftV,
+		deletion,
+	});
+}

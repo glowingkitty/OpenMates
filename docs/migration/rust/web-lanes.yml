@@ -250,6 +250,10 @@ lanes:
   kind: wave4
   status: running
   commit: null
+  slices:
+  - id: slice-1
+    commit: 9150b5601a
+    note: draft-only shell clearing and CoreSync batch preview reuse
   size: L
   wave: B
   deps: [w3-web-sync-policy]
@@ -275,7 +279,7 @@ lanes:
   - chat-sync-empty-indexeddb-recovery.spec.ts
   - chat-metadata-recovery.spec.ts
   - cross-client-draft-sync.spec.ts
-  notes: 'Slice 1: draft-only shell clearing (web_sync/inbound.rs, chatInboundDecisions.ts) and CoreSync batch preview reuse the updates.rs preview. Remaining: version-wins/apply plans of ChatUpdates and CoreSync, frame routing, guards (IDB-callback and stateful guards need async redesign).'
+  notes: 'Slice 1: draft-only shell clearing (web_sync/inbound.rs, chatInboundDecisions.ts) and CoreSync batch preview reuse the updates.rs preview. Slice 2: title/draft frame admission (updateFrame) and draft stale/cleared-version decision (draftApply). Declined: unread/pinned/read-status handlers (no decision beyond IDB writes), ChatDeleted/NewChatMessage/MessageReceived (interleave awaited IDB and key unwrapping with decisions; need the async plan/apply redesign). Remaining: version-wins/apply plans of ChatUpdates and CoreSync, frame routing, guards (IDB-callback and stateful guards need async redesign).'
   spec_assertions:
   - sync.delta.cursor-gap-free
   - sync.delta.metadata-only
