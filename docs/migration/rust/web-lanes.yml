@@ -610,7 +610,7 @@ lanes:
     commit: 5643d35c26
     note: mention and saved-embed ranking, ghost-suggestion validation
   - id: slice-3
-    commit: null
+    commit: 0e54730b8a
     note: 'code-language detection (VS Code clipboard mode, content heuristics) and URL kinds (YouTube, GitHub repo, video id) as ops languageDetect/urlClassify in web_composer/{code_language,url_kinds}.rs; TS-generated vectors language_url_ts_vectors.json (350 language, 93 URL cases) replayed by language_url_tests.rs and languageUrlVectors.test.ts. Flag-on callers (async only): MessageInput DOM paste listener (reached only when the editor handler leaves the paste unhandled, so not E2E-proven), embedHandlers code-file embeds (not E2E-proven), createEmbedFromUrl (E2E web-rust-core-composer URL case, CI 9e72364f). Declined: the ProseMirror handlePaste prop in MessageInput (synchronous, must return a boolean), the URL helpers are not used by other sync callers; xlsxSheetConverter/imageHelpers are platform-bound (SheetJS, canvas/Blob). Known JSON.parse differences: numbers beyond f64, nesting beyond 128 levels and lone-surrogate escapes in pasted JSON (heuristic only).'
   size: M
   wave: A
