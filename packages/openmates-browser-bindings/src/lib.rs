@@ -31,6 +31,7 @@ pub use browser_web_crypto::*;
 #[cfg(target_arch = "wasm32")] pub mod browser_embed_write;
 #[cfg(target_arch = "wasm32")] pub mod browser_embed_read;
 #[cfg(target_arch = "wasm32")] pub mod browser_toon;
+#[cfg(target_arch = "wasm32")] pub mod browser_auth_flow;
 
 #[cfg(target_arch = "wasm32")]
 mod browser_chat_state;

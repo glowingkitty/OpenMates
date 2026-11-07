@@ -389,6 +389,19 @@ pub fn accept_logout_frame(frame: &Value, own_tab_id: &str) -> bool {
 mod recovery;
 pub use recovery::{RecoveryKeyLogin, RecoveryKeyLoginInput};
 
+#[path = "web_auth_signup.rs"]
+mod signup;
+#[path = "web_auth_pair.rs"]
+mod pair;
+#[path = "web_auth_recovery_print.rs"]
+mod print;
+#[path = "web_auth_flow.rs"]
+mod flow;
+pub use flow::flow_call;
+
 #[cfg(test)]
 #[path = "web_auth_tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "web_auth_flow_tests.rs"]
+mod flow_tests;

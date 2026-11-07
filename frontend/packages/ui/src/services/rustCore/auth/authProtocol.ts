@@ -37,7 +37,8 @@ export type AuthCall =
 	| { op: 'logout_server_step'; captured: number; current: number; skipServerLogout: boolean; policyViolation: boolean }
 	| { op: 'logout_may_delete_cookies'; captured: number; current: number }
 	| { op: 'logout_frame'; tabId: string }
-	| { op: 'accept_logout_frame'; frame: string; ownTabId: string };
+	| { op: 'accept_logout_frame'; frame: string; ownTabId: string }
+	| { op: 'flow'; name: string; args: string };
 
 /** page → worker */
 export type AuthToWorker =

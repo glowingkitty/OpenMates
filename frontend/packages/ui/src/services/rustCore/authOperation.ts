@@ -340,3 +340,18 @@ export function installRustCrossTabLogout(onPeerLogout: () => void): void {
 			.finally(retire);
 	});
 }
+
+// ------------------------------------------------------------- flow policy ---
+
+/**
+ * Signup step routing, pair-session policy and the recovery-key print page,
+ * evaluated by shared Rust (`web_auth_flow`) on the shared Worker. Flag builds
+ * only: callers branch on `rustAuthEnabled()` and never fall back to TS here.
+ */
+export async function rustAuthFlow<T>(name: string, args: Record<string, unknown> = {}): Promise<T> {
+	try {
+		return await (await core()).call<T>({ op: 'flow', name, args: JSON.stringify(args) });
+	} finally {
+		retire();
+	}
+}

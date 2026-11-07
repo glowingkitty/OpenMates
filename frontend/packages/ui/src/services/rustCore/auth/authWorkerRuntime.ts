@@ -4,6 +4,7 @@
  * be unit tested with a synthetic binding. Rust error values are fixed codes;
  * arbitrary exception text never crosses back to the page.
  */
+import { runFlowOp } from './flowOps';
 import { AUTH_PROTOCOL_VERSION, isAuthHttpRequest, type AuthCall, type AuthHttpReply, type AuthToWorker } from './authProtocol';
 
 export interface RustPasswordLogin {
@@ -105,6 +106,7 @@ export function installAuthWorker(scope: AuthWorkerScope, binding: RustWebAuthBi
 			case 'logout_may_delete_cookies': return binding.web_auth_logout_may_delete_cookies(call.captured, call.current);
 			case 'logout_frame': return binding.web_auth_logout_frame(call.tabId);
 			case 'accept_logout_frame': return binding.web_auth_accept_logout_frame(call.frame, call.ownTabId);
+				case 'flow': return runFlowOp(binding, call.name, call.args);
 		}
 	}
 
