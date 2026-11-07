@@ -7483,7 +7483,9 @@ def cmd_start(args: argparse.Namespace) -> None:
             state["sessions"][stale_sid]["agent_task_id"] = None
         _mutate_sessions(detach)
         existing = None
-    elif existing:
+    elif existing and not getattr(args, "skip_binding_guard", False):
+        # Read-only/maintenance callers (debug-vercel, verification handoff)
+        # set skip_binding_guard: only write-workspace starts must be fresh.
         problem = _binding_problem(existing[1])
         if problem:
             print(
@@ -14516,7 +14518,7 @@ def cmd_debug_vercel(args: argparse.Namespace) -> None:
         run_id=None,
         since_last_deploy=False,
         task_id=None,
-
+        skip_binding_guard=True,
     )
     cmd_start(start_args)
 
@@ -14570,7 +14572,7 @@ def _maybe_start_verification_session(args: argparse.Namespace, source_session_i
         run_id=None,
         since_last_deploy=False,
         task_id=None,
-
+        skip_binding_guard=True,
     ))
     print(f"Next test commands should use --expected-commit {commit_sha or '<commit>'}.")
 
