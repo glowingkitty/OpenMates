@@ -101,7 +101,9 @@ from backend.shared.python_utils.tracing.ai_observability import (
     record_ai_completion_timing,
     record_ai_queue_span,
 )
-from .stream_consumer import _consume_main_processing_stream, _persist_sealed_typed_output
+from .stream_consumer import (
+    _consume_main_processing_stream, _persist_sealed_typed_output, publish_instant_voice_acknowledgement,
+)
 
 # Import override parser for @ mentioning syntax (e.g., @ai-model:claude-opus-4-5)
 from backend.core.api.app.utils.override_parser import parse_overrides, parse_overrides_from_messages, UserOverrides
@@ -3643,6 +3645,11 @@ async def _async_process_ai_skill_ask_task(
                         await summary_task
 
                 await require_active_voice_dispatch(cache_service_instance, request_data)
+                # The call turn is accepted: acknowledge before slow routing starts.
+                await publish_instant_voice_acknowledgement(
+                    task_id=task_id, request_data=request_data, all_mates_configs=all_mates_configs,
+                    cache_service=cache_service_instance, log_prefix=f"[Task ID: {task_id}] ",
+                )
                 with ai_phase_span("preprocess"):
                     _log_team_ai_pipeline_stage(request_data, task_id, "preprocess", "started")
                     try:

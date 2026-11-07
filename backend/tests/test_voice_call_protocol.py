@@ -971,7 +971,27 @@ async def test_late_intent_result_cannot_interrupt_newer_canonical_answer(runtim
     provider.push("turn.end")
     gate.set()
     await socket.until(lambda _: socket.finals())
-    assert not any(event["type"] == "audio.interrupted" for event in socket.sent)
+    # The first words legitimately took the floor from the answer playing then;
+    # the late verdict must never reach the newer answer.
+    interrupted = [event for event in socket.sent if event["type"] == "audio.interrupted"]
+    assert [event["assistant_message_id"] for event in interrupted] == ["old-answer"]
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.intentional-interruption
+async def test_first_words_interrupt_assistant_before_endpoint_and_resumed_speech_does_not_repeat(runtime, monkeypatch):
+    async def never(*args):
+        await asyncio.Event().wait()
+    monkeypatch.setattr(route, "_classify", never)
+    socket, provider, _ = await runtime.start()
+    assistant(socket, text="Here is a long explanation of the answer.")
+    await socket.until(lambda events: any(event.get("processing") for event in events))
+    provider.push("turn.start")
+    provider.push("transcription.text.delta", text="Actually wait")
+    interrupted = await socket.event("audio.interrupted")
+    assert interrupted["assistant_message_id"] == "canonical-assistant" and not socket.finals()
+    provider.push("transcription.text.delta", text=" I meant Paris")
+    await socket.until(lambda events: any(event.get("text") == "Actually wait I meant Paris" for event in events))
+    assert len([event for event in socket.sent if event["type"] == "audio.interrupted"]) == 1
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.audio.intentional-interruption
@@ -1010,7 +1030,9 @@ async def test_late_intent_cannot_cancel_replaced_task_when_both_message_ids_are
     provider.push("turn.end")
     gate.set()
     await socket.until(lambda _: socket.finals())
-    assert not any(event["type"] == "audio.interrupted" for event in socket.sent)
+    # Only the task running when the first words arrived may be cancelled.
+    interrupted = [event for event in socket.sent if event["type"] == "audio.interrupted"]
+    assert [event["assistant_task_id"] for event in interrupted] == ["old-task"]
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.chat.launch-and-provider,video-call.provider.boundary,video-call.privacy

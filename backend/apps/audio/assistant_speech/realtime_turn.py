@@ -89,7 +89,7 @@ class RealtimeSpeechTurn:
         self._publish, self._finalize = publish_event, finalize
         # Each span carries its already-running safety decision, so the semantic
         # check overlaps earlier synthesis instead of serializing after it.
-        self._queue: asyncio.Queue[tuple[str, asyncio.Task[bool]] | None] = asyncio.Queue(MAX_PENDING_SPANS + 1)
+        self._queue: asyncio.Queue[tuple[str, asyncio.Task[bool], bool] | None] = asyncio.Queue(MAX_PENDING_SPANS + 1)
         self._prepare_task: asyncio.Task[int] | None = None
         self._task: asyncio.Task[None] | None = None
         self._provider: Any = None
@@ -113,6 +113,7 @@ class RealtimeSpeechTurn:
         # Display-only word progress: exact submitted text, a cursor matching
         # provider alignment characters into it, and the running timeline.
         self._spoken_source = ""
+        self._hidden_spans: list[tuple[int, int]] = []
         self._event_audio_bytes = 0
         self._alignment_cursor = 0
         self._alignment_words = 0
@@ -175,7 +176,10 @@ class RealtimeSpeechTurn:
             raise RealtimeTurnUnavailable("Speech input bound exceeded")
         self._seen.add(identity)
         self._queued_characters += len(submitted)
-        self._queue.put_nowait((submitted, asyncio.create_task(self._safety_check(submitted))))
+        # Status lines (acknowledgements, recaps) are spoken but are not part of
+        # the written answer, so they never advance its word highlighting.
+        hidden = segment.get("kind") == "voice_status"
+        self._queue.put_nowait((submitted, asyncio.create_task(self._safety_check(submitted)), hidden))
         if self._task is None:
             self._task = asyncio.create_task(self._run())
 
@@ -218,13 +222,15 @@ class RealtimeSpeechTurn:
                 await self._ensure_active()
                 await self._provider.finish_input()
                 return
-            text, safety = item
+            text, safety, hidden = item
             await self._ensure_recently_active()
             if not await safety:
                 raise RealtimeTurnUnavailable("Speech safeguard denied")
             await self._credit_check(count + len(text))
             await self._ensure_active()
             await self._provider.append_text(text)
+            if hidden:
+                self._hidden_spans.append((len(self._spoken_source), len(self._spoken_source) + len(text)))
             self._spoken_source += text
             count += len(text)
             await self._provider.flush()
@@ -280,6 +286,8 @@ class RealtimeSpeechTurn:
             if position < 0:
                 continue
             for index in range(cursor, position + len(char)):
+                if any(begin <= index < end for begin, end in self._hidden_spans):
+                    continue
                 if not source[index].isspace() and (index == 0 or source[index - 1].isspace()):
                     if index == position and len(rows) < MAX_WORD_STARTS_PER_EVENT:
                         rows.append([self._alignment_words, int(self._alignment_timeline_ms + start)])

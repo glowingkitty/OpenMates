@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from backend.shared.python_utils.voice_call_intent import (
-    classify_voice_interruption, is_explicit_voice_stop, is_listener_acknowledgement,
+    classify_voice_interruption, is_explicit_voice_stop, is_immediate_barge_in, is_listener_acknowledgement,
 )
 from backend.shared.providers.typesafe.models import ChoiceAnswer, DecisionResponse
 
@@ -128,3 +128,19 @@ async def test_matching_words_never_override_semantic_deliberate_interruption(te
     with patch('backend.shared.python_utils.voice_call_intent.JevDecisionClient') as client:
         assert await classify_voice_interruption('Stop!', 'You can say stop.', None, assistant_speaking=True) == 'interrupt'
         client.assert_not_called()
+
+
+# contract-test: direct surface=rest_api assertions=video-call.audio.intentional-interruption
+@pytest.mark.parametrize("text", ["wait", "Berlin instead", "Okay, but show Berlin instead", "what about prices"])
+def test_first_words_of_real_speech_take_the_floor(text):
+    assert is_immediate_barge_in(text, "Here is how the plan works for Paris.", assistant_speaking=True)
+
+
+# contract-test: direct surface=rest_api assertions=video-call.audio.intentional-interruption
+def test_listener_cues_and_microphone_recapture_do_not_interrupt():
+    spoken = "First we compare the three hotels near the station and then pick one."
+    assert not is_immediate_barge_in("mhm okay", spoken, assistant_speaking=True)
+    assert not is_immediate_barge_in("compare the three hotels", spoken, assistant_speaking=True)
+    assert not is_immediate_barge_in("", spoken, assistant_speaking=True)
+    # A cue answering an assistant question is an answer, not a listening cue.
+    assert is_immediate_barge_in("yes", "Should I book it?", assistant_speaking=True)

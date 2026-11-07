@@ -286,6 +286,81 @@ def _assistant_message_id(task_id: str, request_data: AskSkillRequest) -> str:
     return getattr(request_data, "continuation_message_id", None) or task_id
 
 
+# Messages whose instant call acknowledgement already went out, so the later
+# speech setup does not play a second one. Bounded: entries are consumed per turn.
+_INSTANT_ACK_SENT: dict[str, None] = {}
+_INSTANT_ACK_SENT_LIMIT = 256
+
+
+async def publish_instant_voice_acknowledgement(
+    *,
+    task_id: str,
+    request_data: AskSkillRequest,
+    all_mates_configs: Any,
+    preprocessing_result: Any = None,
+    cache_service: Any,
+    log_prefix: str,
+) -> bool:
+    """Play a pre-recorded "I'm on it" clip the moment a call turn starts processing."""
+    if not (request_data.voice_mode and request_data.auto_speak_response) \
+            or request_data.is_external or request_data.is_incognito:
+        return False
+    from backend.apps.ai.assistant_speech.voice_status import select_instant_acknowledgement
+
+    mates = list(all_mates_configs or [])
+    mate_id = getattr(preprocessing_result, "selected_mate_id", None) or request_data.mate_id
+    if not mate_id and cache_service is not None and request_data.voice_call_id:
+        # Routing has not chosen a Mate yet: keep the voice this call already used.
+        cached = await cache_service.get(f"voice_call_last_mate:{request_data.voice_call_id}")
+        mate_id = cached if isinstance(cached, str) else None
+    mate = next((item for item in mates if item.id == mate_id), None)
+    if mate is None and not mate_id:
+        mate = next((item for item in mates if item.category == "general_knowledge"), None)
+    if mate is None:
+        return False
+    language = getattr(preprocessing_result, "output_language", None)
+    if not language:
+        # Before preprocessing only the turn text and the preference are known.
+        from backend.apps.ai.assistant_speech.voice_status import detect_turn_language
+
+        turn_text = request_data.current_user_content or next(
+            (str(item.get("content") or "") for item in reversed(request_data.message_history or [])
+             if isinstance(item, dict) and item.get("role") == "user"), "",
+        )
+        language = detect_turn_language(turn_text, (request_data.user_preferences or {}).get("language", "en"))
+    message_id = _assistant_message_id(task_id, request_data)
+    acknowledgement = select_instant_acknowledgement(
+        voice_profile_id=mate.voice_profile.key,
+        voice_profile_version=mate.voice_profile.version,
+        language=language,
+        seed=message_id,
+    )
+    if acknowledgement is None:
+        return False
+    await _publish_to_redis(
+        cache_service,
+        f"chat_stream::{request_data.chat_id}",
+        {
+            "type": "assistant_speech_acknowledgement",
+            "chat_id": request_data.chat_id,
+            "user_id_hash": request_data.user_id_hash,
+            "message_id": message_id,
+            "payload": {
+                "chat_id": request_data.chat_id,
+                "message_id": message_id,
+                "clip_id": acknowledgement["clip_id"],
+                "audio_url": acknowledgement["asset_url"],
+            },
+        },
+        log_prefix,
+        "instant voice acknowledgement",
+    )
+    if len(_INSTANT_ACK_SENT) >= _INSTANT_ACK_SENT_LIMIT:
+        _INSTANT_ACK_SENT.pop(next(iter(_INSTANT_ACK_SENT)))
+    _INSTANT_ACK_SENT[message_id] = None
+    return True
+
+
 async def _dispatch_automatic_assistant_speech_segment(
     *,
     segment: dict[str, object],
@@ -6490,6 +6565,8 @@ async def _consume_main_processing_stream(
     speech_tracker: Optional[ImmutableSpeechBoundaryTracker] = None
     voice_waiting = None
     realtime_speech_turn = None
+    voice_status_language = "en"
+    voice_app_use_announced = False
     if _should_prepare_assistant_speech(request_data, preprocessing_result, user_overrides):
         selected_mate = next(
             (
@@ -6530,6 +6607,23 @@ async def _consume_main_processing_stream(
                 preprocessing_result.output_language
                 or (request_data.user_preferences or {}).get("language", "en")
             )
+            voice_status_language = speech_language
+            if request_data.voice_mode and request_data.voice_call_id and cache_service is not None:
+                await cache_service.set(
+                    f"voice_call_last_mate:{request_data.voice_call_id}", selected_mate.id, ttl=6 * 3600,
+                )
+            instant_ack_played = False
+            if request_data.voice_mode and request_data.auto_speak_response:
+                # Normally already played when the turn started; this covers a
+                # turn whose Mate was only chosen by preprocessing.
+                instant_ack_played = (
+                    _INSTANT_ACK_SENT.pop(assistant_message_id, 0) is None
+                    or await publish_instant_voice_acknowledgement(
+                        task_id=task_id, request_data=request_data, all_mates_configs=all_mates_configs,
+                        preprocessing_result=preprocessing_result, cache_service=cache_service,
+                        log_prefix=log_prefix,
+                    )
+                )
             if request_data.auto_speak_response and not request_data.voice_mode:
                 from backend.apps.audio.assistant_speech.acknowledgements import build_acknowledgement_clips
 
@@ -6616,6 +6710,12 @@ async def _consume_main_processing_stream(
 
             async def dispatch_speech_segment(segment):
                 nonlocal waiting_speech_segment
+                if segment.get("kind") == "voice_status":
+                    # Spoken in order on the call track; no stored row, no transcript text.
+                    if realtime_speech_turn is not None:
+                        await realtime_speech_turn.prepare()
+                        await realtime_speech_turn.enqueue(segment)
+                    return
                 if int(segment["sequence"]) == -1:
                     waiting_speech_segment = segment
                 continuous = realtime_speech_turn is not None and int(segment["sequence"]) >= 0
@@ -6676,7 +6776,7 @@ async def _consume_main_processing_stream(
                 finalize_speech=finalize_speech_segments,
                 sequence_offset=1 if app_use_announcement else 0,
             )
-            if request_data.voice_mode and request_data.auto_speak_response:
+            if request_data.voice_mode and request_data.auto_speak_response and not instant_ack_played:
                 from backend.apps.ai.assistant_speech.voice_waiting import DelayedVoiceWaiting
 
                 voice_waiting = DelayedVoiceWaiting(
@@ -6824,7 +6924,7 @@ async def _consume_main_processing_stream(
                 "__debug_metadata__", "__suggested_followup_message__",
                 "__tool_calls_info__", "__failed_embed_ids__",
                 "__authored_inline_outputs__",
-                "__cumulative_llm_usage__",
+                "__cumulative_llm_usage__", "__voice_skill_phase__",
             ))):
                 await first_chunk_barrier.wait()
             if pre_main_open:
@@ -6882,6 +6982,25 @@ async def _consume_main_processing_stream(
                     log_prefix,
                     failure_reason,
                 )
+                continue
+
+            if isinstance(chunk, dict) and "__voice_skill_phase__" in chunk:
+                if speech_tracker is not None and request_data.voice_mode:
+                    from backend.apps.ai.assistant_speech.voice_status import (
+                        build_skill_recap, build_voice_app_use_announcement,
+                    )
+
+                    if chunk["__voice_skill_phase__"] == "started" and not voice_app_use_announced:
+                        voice_app_use_announced = True
+                        announcement = build_voice_app_use_announcement(voice_status_language, assistant_message_id)
+                        if announcement:
+                            speech_tracker.dispatch_status_utterance(announcement)
+                    elif chunk["__voice_skill_phase__"] == "finished":
+                        recap = build_skill_recap(
+                            [tuple(item) for item in chunk.get("skills", [])], voice_status_language,
+                        )
+                        if recap:
+                            speech_tracker.dispatch_status_utterance(recap)
                 continue
 
             # Check for tool calls info marker (special dict at end of stream)

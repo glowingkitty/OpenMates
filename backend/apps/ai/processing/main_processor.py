@@ -8489,6 +8489,14 @@ async def handle_main_processing(
         )
 
         logger.info(f"{log_prefix} Processing {len(tool_calls_for_this_turn)} tool call(s).")
+        voice_skill_ids = [
+            tool_resolver_map[call.function_name] for call in tool_calls_for_this_turn
+            if call.function_name in tool_resolver_map
+            and tool_resolver_map[call.function_name][1] != "activate_focus_mode"
+        ]
+        if voice_skill_ids:
+            # Speech-only signal: the consumer may announce app use during a call.
+            yield {"__voice_skill_phase__": "started", "skills": voice_skill_ids}
         
         # Append valid tool calls plus rejected hallucinated calls as matched
         # tool_use/tool_result pairs. Rejected calls are hidden protocol
@@ -12418,6 +12426,9 @@ async def handle_main_processing(
         ):
             force_no_tools = True
             continue_published_answer = bool(published_answer_text)
+
+        if voice_skill_ids and not async_batch_jobs:
+            yield {"__voice_skill_phase__": "finished", "skills": voice_skill_ids}
 
         if async_batch_jobs:
             checkpoint = {

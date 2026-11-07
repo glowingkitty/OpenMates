@@ -48,6 +48,7 @@ interface SocketObservation {
   speaking?: boolean;
   kind?: string;
   speechStatus?: string;
+  clipId?: string;
   speechErrorCode?: string;
   speechAction?: 'request'|'generate'|'retry'|'cancel'|'delete';
   recoveryOperation?: string;
@@ -473,6 +474,7 @@ async function observeRealTransport(page: Page, deferReady = false, bootstrapCon
           ...(event.type==='assistant_state'?{speaking:payload.speaking,language:payload.language}:{}),
           ...(sent&&event.type==='assistant_speech'?{
             speechAction:speechActions.has(payload.action)?payload.action:undefined}:{}),
+          ...(event.type==='assistant_speech_acknowledgement'&&typeof payload.clip_id==='string'&&/^[A-Za-z0-9._-]{1,128}$/.test(payload.clip_id)?{clipId:payload.clip_id}:{}),
           ...(event.type==='assistant_speech_status'?{kind:payload.kind,speechStatus:payload.status,language:payload.language,
             speechErrorCode:payload.error!==undefined||payload.status==='error'
               ?speechErrorCodes.has(payload.error)?payload.error:'unknown':undefined,
@@ -2654,7 +2656,10 @@ test.describe('Voice mode through ordinary chat', () => {
     await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
     await page.getByTestId('voice-call-mute').click();
     const id=await sendCameraCallText(page,'Bitte prüfe das gründlich');
-    await expect.poll(async()=>(await evidence(page)).received.filter(frame=>frame.type==='assistant_speech_status'&&frame.kind==='waiting_confirmation'&&frame.speechStatus==='queued'&&frame.language==='de').length,{timeout:30_000}).toBe(1);
+    // The pre-recorded, localized acknowledgement is sent when processing starts,
+    // before any generated speech, and replaces the delayed generated waiting line.
+    await expect.poll(async()=>(await evidence(page)).received.filter(frame=>frame.type==='assistant_speech_acknowledgement'&&/-de-DE-/.test(frame.clipId??'')).length,{timeout:30_000}).toBe(1);
+    expect((await evidence(page)).received.filter(frame=>frame.type==='assistant_speech_status'&&frame.kind==='waiting_confirmation')).toHaveLength(0);
     await waitForCanonicalAssistant(page,id);
     const reply=page.getByTestId('message-assistant').filter({hasText:'Ich habe das geprüft. Hier ist das Ergebnis.'});
     await expect(reply).toHaveCount(1);await expect(page.getByTestId('message-assistant')).toHaveCount(1);
@@ -2908,8 +2913,11 @@ test.describe('Voice mode through ordinary chat', () => {
       await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));
       const browser=window as unknown as {__voiceCallEvidence:CallEvidence;__voiceSpeechHeld:HeldSpeechEvidence};
       const audio=browser.__voiceSpeechHeld.audio!;
-      return {held:browser.__voiceCallEvidence.heldSpeechAudio,hasSourceAttribute:audio.hasAttribute('src'),
-        networkEmpty:audio.networkState===HTMLMediaElement.NETWORK_EMPTY,errorCode:audio.error?.code??null,
+      // The pre-recorded processing acknowledgement may already occupy the shared
+      // player; only a generated stream source before release would be a defect.
+      const staticAcknowledgement=(audio.getAttribute('src')??'').includes('/audio/assistant-acknowledgements/');
+      return {held:browser.__voiceCallEvidence.heldSpeechAudio,hasSourceAttribute:audio.hasAttribute('src')&&!staticAcknowledgement,
+        networkEmpty:staticAcknowledgement||audio.networkState===HTMLMediaElement.NETWORK_EMPTY,errorCode:audio.error?.code??null,
         nativeErrors:browser.__voiceSpeechHeld.nativeErrors,
         nextStreamDelivered:browser.__voiceCallEvidence.received.some(frame=>frame.type==='assistant_speech_audio'
           &&frame.messageId===browser.__voiceCallEvidence.heldSpeechAudio?.messageId)};

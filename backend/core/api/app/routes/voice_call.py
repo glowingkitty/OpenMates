@@ -616,6 +616,22 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
             turn.classifier = asyncio.create_task(_classify(
                 turn.text, turn.assistant_text, websocket, language, turn.assistant_speaking))
 
+    async def barge_in(turn: _SpeechTurn) -> None:
+        """Yield to real user speech on its first words, not at turn end."""
+        from backend.shared.python_utils.voice_call_intent import is_immediate_barge_in
+        if turn.interrupted:
+            return
+        if not turn.assistant_active and (assistant["speaking"] or assistant["generating"]):
+            # Assistant state can arrive after the first user words were heard.
+            turn.assistant_active = True
+            turn.assistant_id = assistant["assistant_message_id"]
+            turn.assistant_task_id = assistant["assistant_task_id"]
+            turn.assistant_text = assistant["text"]
+            turn.assistant_speaking = bool(assistant["speaking"])
+        if turn.assistant_active and is_immediate_barge_in(
+                turn.text, turn.assistant_text, assistant_speaking=turn.assistant_speaking):
+            await interrupt(turn, "barge_in")
+
     def invalidate_completion(turn: _SpeechTurn) -> None:
         # Cancel without waiting on network work: resumed speech must continue
         # to arrive. Retired checks remain tracked until they settle or hangup.
@@ -881,6 +897,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                         current.text = _bounded_transcript(current.text + separator + delta)
                         language = event.get("language") if isinstance(event.get("language"), str) and len(event["language"]) <= 32 else language
                         await transcript(current, final=False)
+                        await barge_in(current)
                         await classify_latest(current)
                 elif kind == "turn.end":
                     if current is not None:

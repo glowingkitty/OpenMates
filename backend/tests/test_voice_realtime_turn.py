@@ -563,3 +563,19 @@ async def test_alignment_becomes_display_only_word_starts_on_the_track_timeline(
     assert "cat" not in str(words)
     assert all(row["payload"]["chunk_index"] >= 0 for row in events)
     finalize.assert_awaited_once_with(True, sum(map(len, provider.inputs)))
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.audio.spoken-rich-response
+async def test_status_lines_are_spoken_in_order_without_advancing_answer_word_highlighting():
+    provider = AlignedProvider([[(b"x" * 160, "Okay. I used web search. ")], [(b"y" * 160, "The big cat. ")]])
+    owner, provider, events, first, finalize, _credits = make_turn(provider)
+    await owner.enqueue({"segment_id": "status-0", "sequence": -2, "kind": "voice_status",
+                         "speakable_text": "Okay. I used web search."})
+    await owner.enqueue(span(0, "The big cat."))
+    owner.finish_input()
+    await owner.wait()
+    words = [row["payload"]["word_starts"] for row in events if row["payload"]["phase"] == "words"]
+    # Status words are voiced first, yet the answer's own words are counted from zero.
+    assert provider.inputs == ["Okay. I used web search. ", "The big cat. "]
+    assert words[0][0][0] == 0
+    assert [index for batch in words for index, _ in batch] == [0, 1, 2]
