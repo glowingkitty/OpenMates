@@ -40,6 +40,11 @@
         "hooks": [
           {
             "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/session-edit-gate.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
             "command": "$(git rev-parse --show-toplevel)/.claude/hooks/e2e-encryption-guard.sh",
             "timeout": 5
           },
@@ -76,6 +81,31 @@
           {
             "type": "command",
             "command": "$(git rev-parse --show-toplevel)/.claude/hooks/analytics-sdk-forbidden.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/privacy-promise-guard.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/cookie-consent-gate.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/external-resources-guard.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/cli-credential-prompt-guard.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/donation-language-guard.sh",
             "timeout": 5
           }
         ]

@@ -16,8 +16,8 @@ FAILS=()
 run_case() {
   local name="$1" hook="$2" input="$3" exp_exit="$4" exp_pattern="$5"
   local stderr rc
-  stderr=$(echo "$input" | bash ".claude/hooks/$hook" 2>&1 >/dev/null)
-  rc=$?
+  rc=0
+  stderr=$(echo "$input" | bash ".claude/hooks/$hook" 2>&1 >/dev/null) || rc=$?
   if [ "$rc" -ne "$exp_exit" ]; then
     echo -e "${RED}FAIL${NC} $name — expected exit $exp_exit, got $rc"
     FAILS+=("$name (exit $rc vs $exp_exit)"); FAIL=$((FAIL+1)); return
@@ -177,6 +177,25 @@ run_case "auto-rebuild: non-yml silent" \
 run_case "auto-rebuild: random yml silent" \
   "auto-rebuild-translations.sh" \
   '{"tool_name":"Edit","tool_input":{"file_path":"/tmp/foo.yml"}}' \
+  0 ""
+
+echo ""
+echo "=== session-edit-gate ==="
+run_case "session-gate: tracked file in canonical checkout blocked" \
+  "session-edit-gate.sh" \
+  '{"session_id":"none","cwd":"/home/superdev/projects/OpenMates","tool_input":{"file_path":"/home/superdev/projects/OpenMates/CLAUDE.md"}}' \
+  2 "canonical checkout"
+run_case "session-gate: unbound conversation in session worktree blocked" \
+  "session-edit-gate.sh" \
+  '{"session_id":"none","cwd":"/home/superdev/projects/OpenMates","tool_input":{"file_path":"/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-b4d8/CLAUDE.md"}}' \
+  2 "owns no sessions.py session"
+run_case "session-gate: gitignored private file allowed" \
+  "session-edit-gate.sh" \
+  '{"session_id":"none","cwd":"/home/superdev/projects/OpenMates","tool_input":{"file_path":"/home/superdev/projects/OpenMates/FOCUS.md"}}' \
+  0 ""
+run_case "session-gate: file outside the repository allowed" \
+  "session-edit-gate.sh" \
+  '{"session_id":"none","cwd":"/tmp","tool_input":{"file_path":"/tmp/foo.txt"}}' \
   0 ""
 
 echo ""

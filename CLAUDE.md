@@ -17,7 +17,8 @@ when a skill or this file points to it.
    `python3 scripts/sessions.py start --mode <bug|feature|docs|testing> --task "<outcome>"`
    and edit only in the returned worktree. Never borrow another task's workspace.
    Sub-agents share the parent's workspace; pass `--session <id>` when the
-   binding cannot be inferred.
+   binding cannot be inferred. Reuse that session for follow-ups after deploy.
+   A hook blocks edits in the canonical checkout and in other tasks' worktrees.
 2. Read relevant source and tests first; reuse existing utilities, helpers,
    fixtures and `data-testid` selectors. Keep patches focused.
 3. Publish with `python3 scripts/sessions.py deploy --title "type: description"
@@ -31,6 +32,25 @@ when a skill or this file points to it.
    worktrees inactive >7 days is pre-approved; preserve active/unfinished work.
 6. Wait on processes (`ci_coordinator.py wait`, `sessions.py wait-deploy`), not
    repeated sleep/poll turns. Report outcome, commit and verification.
+
+## Discover, specify, prove
+- Discover first: source, tests, Specifications, `docs/architecture/`, prior
+  decisions. Never ask what the repo can answer. When a material decision
+  remains, ask one question per message with `Recommendation:` (evidence-based,
+  else the safest reversible default) and `Examples:`. Clear requests: just do it.
+- Size the record to the risk: trivial → none; ordinary → inline goal + acceptance
+  criteria; auth, encryption, billing, privacy, teams/sharing, permissions, sync,
+  AI pipeline, provider integrations, migrations, new API routes, app skills,
+  embed types, background jobs, Directus schema → durable Plan (`/create-plan`,
+  `scripts/plan_validate.py`) plus the owning Specification (`/define-specification`).
+- Shared features go API/WebSocket → CLI/SDK (real stack in isolated CI, never
+  mocks) → web → Apple, touching only affected clients. Classify each new
+  endpoint's access model; client-encrypted data stays first-party/internal.
+- Done means fresh evidence for the exact deployed commit: relevant E2E green in
+  CI; visible UI checked with `/verify-component-preview` or `/verify-ui-change`;
+  executable Plans pass `plan_verify.py --phase complete`. Say plainly what was
+  not run; queued, stale or mocked runs are not proof. Edited demo videos
+  (`/create-demo-video`) only when requested.
 
 ## Focus (Marketing Week / Build Week)
 - Before any task read `FOCUS.md` in the canonical checkout (private and gitignored,
