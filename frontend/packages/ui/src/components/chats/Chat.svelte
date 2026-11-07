@@ -2,6 +2,8 @@
   import { isCreditRejection } from '../../utils/creditRejection';
   import type { Chat, TiptapJSON, Message } from '../../types/chat';
   import { onMount, onDestroy, tick } from 'svelte';
+  import { localizeIndicatorLine } from './utils/chatIndicatorLines'; // Localises indicator lines decided by the Rust chatState unit when the flag is on
+  import type { IndicatorLine } from '../../services/rustCore/chatState/transitionProtocol';
   import { chatSyncService } from '../../services/chatSyncService';
   import { chatDB } from '../../services/db';
   import { chatKeyManager } from '../../services/encryption/ChatKeyManager';
@@ -422,7 +424,22 @@
   // 1. App skill usage: "Using Search..." (when an app skill is actively processing)
   // 2. Thinking model: "{mate} is thinking..." (when a reasoning model is in thinking phase)
   // 3. Default: "{mate} is typing..." (standard typing indicator)
+  // Flag on (VITE_OPENMATES_RUST_CORE): the chatState unit decides the title indicator; the page localises it.
+  const RUST_CHAT_INDICATORS: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1'
+    && !(typeof localStorage !== 'undefined' && localStorage.getItem('openmates_rust_core_chatstate') === 'ts');
+  let rustTitleIndicator = $state<IndicatorLine | null>(null);
+  if (RUST_CHAT_INDICATORS) $effect(() => {
+    const typing = currentTypingMateInfo ? { isTyping: currentTypingMateInfo.isTyping, category: currentTypingMateInfo.category } : null;
+    const skill = activeSkillInfo ? { appId: activeSkillInfo.appId, skillId: activeSkillInfo.skillId } : null;
+    const reasoning = isReasoningModel;
+    let stale = false;
+    void import('../../services/rustCore/chatState/rustTransitions')
+      .then((rust) => rust.rustTitleIndicator(typing, skill, reasoning))
+      .then((line) => { if (!stale) rustTitleIndicator = line; });
+    return () => { stale = true; };
+  });
   let typingIndicatorInTitleView = $derived((() => {
+    if (RUST_CHAT_INDICATORS) return rustTitleIndicator ? localizeIndicatorLine(rustTitleIndicator, $text) : null;
     if (currentTypingMateInfo?.isTyping && currentTypingMateInfo.category) {
       const mateName = $text(`mates.${currentTypingMateInfo.category}`);
       

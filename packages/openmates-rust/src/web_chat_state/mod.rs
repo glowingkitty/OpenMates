@@ -10,10 +10,15 @@
 //! spec: specifications/architecture/sync/specification.yml#sync.client.shared-rust-policy
 use serde_json::Value;
 
+pub mod activity;
+mod args;
+pub mod indicators;
 pub mod list;
 pub mod metadata;
 pub mod selection;
 pub mod unread;
+pub mod timeline;
+pub mod window;
 
 /// Stable error code of every malformed-input refusal (the unit's only code).
 pub const PROTOCOL: &str = "protocol";
@@ -32,3 +37,5 @@ fn parse(text: &str) -> Result<Value, String> {
 mod tests;
 #[cfg(test)]
 mod view_tests;
+#[cfg(test)]
+mod transition_tests;

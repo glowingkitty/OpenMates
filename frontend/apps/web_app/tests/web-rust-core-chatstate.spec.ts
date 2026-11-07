@@ -3,6 +3,9 @@
  * Opt-in shared Rust core (WASM) — web chat-list ordering and grouping and the
  * active-chat URL plan on the shared Worker `chatState` unit, VITE_OPENMATES_RUST_CORE=1 build.
  *
+ * Also proves the message-list transitions (window prune, timeline merge/index) and the
+ * typing/processing indicator decisions are served by the unit.
+ *
  * Engineering migration check (web lane: chatState). A logged-in account sends
  * one message (new chat), then alternating reloads render the sidebar on the
  * TypeScript sort/grouping (measurement opt-out `openmates_rust_core_chatstate=ts`)
@@ -71,7 +74,10 @@ test('chat list ordering and grouping run on the shared Rust chatState unit and 
 			if (path === 'rust') {
 				expect(stats.ops.sort ?? 0, 'Rust arm sorted the chat list through the unit').toBeGreaterThan(0);
 				expect(stats.ops.group ?? 0, 'Rust arm grouped the chat list through the unit').toBeGreaterThan(0);
-				expect(stats.failures, 'no chatState unit call failed').toBe(0);
+				for (const op of ['windowPrune', 'timelineMerge', 'timelineIndex', 'indicatorComposer', 'indicatorTitle']) {
+					await expect.poll(async () => (await readStats())?.ops?.[op] ?? 0, { message: `Rust arm decided ${op} through the unit`, timeout: 30000 }).toBeGreaterThan(0);
+				}
+				expect((await readStats()).failures, 'no chatState unit call failed').toBe(0);
 			} else {
 				expect(stats, 'TS arm never loaded the Rust chatState adapter').toBeNull();
 			}

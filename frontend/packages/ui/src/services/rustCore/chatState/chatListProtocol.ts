@@ -9,11 +9,12 @@
  */
 import type { UnitProtocol } from '../host/unitPort';
 import type { HiddenForkUnitProtocol } from './hiddenForkProtocol';
+import { TRANSITION_OPS, type TransitionBinding, type TransitionUnitProtocol } from './transitionProtocol';
 import type { GroupChatsInput, SortChatsInput } from '../../../components/chats/utils/chatListInput';
 import { CHAT_VIEW_OPS, type ChatViewBinding, type ChatViewOps } from './chatViewProtocol';
 
-/** Chat-list ordering and grouping, selection, unread and metadata operations. */
-export interface ChatListUnitProtocol extends UnitProtocol, ChatViewOps {
+/** Chat-list ordering and grouping, selection, unread and metadata operations plus message-list transitions and indicators. */
+export interface ChatListUnitProtocol extends UnitProtocol, ChatViewOps, TransitionUnitProtocol {
 	sort: { request: SortChatsInput; response: number[] };
 	group: { request: GroupChatsInput; response: [string, number[]][] };
 }
@@ -22,7 +23,7 @@ export interface ChatListUnitProtocol extends UnitProtocol, ChatViewOps {
 export interface ChatStateUnitProtocol extends ChatListUnitProtocol, HiddenForkUnitProtocol {}
 
 /** Worker module exports (JSON text in, JSON text out) of browser_chat_state_list.rs. */
-export interface ChatListBinding extends ChatViewBinding {
+export interface ChatListBinding extends ChatViewBinding, TransitionBinding {
 	chat_state_sort(input: string): string;
 	chat_state_group(input: string): string;
 }
@@ -32,6 +33,7 @@ export const CHAT_STATE_OPS: Readonly<Record<keyof ChatListUnitProtocol & string
 	sort: 'chat_state_sort',
 	group: 'chat_state_group',
 	...CHAT_VIEW_OPS,
+	...TRANSITION_OPS,
 });
 
 export function isChatListBinding(value: unknown): value is ChatListBinding {

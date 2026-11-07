@@ -12,6 +12,7 @@ import { createSharedWorkerRouter } from '../host/sharedWorkerProtocol';
 import { installChatStateUnit } from '../chatState/chatListUnit';
 import { prepareChatStateUnit, rustChatStateStats } from '../chatState/chatListUnitClient';
 import type { ChatListBinding } from '../chatState/chatListProtocol';
+import { TRANSITION_OPS, type TransitionBinding } from '../chatState/transitionProtocol';
 import { rustGroupChats, rustSortChats } from '../chatState/rustChatList';
 import { buildGroupInput, buildSortInput } from '../../../components/chats/utils/chatListInput';
 import type { Chat } from '../../../types/chat';
@@ -23,9 +24,12 @@ const key = (value: unknown) => JSON.stringify(value);
 const sortOut = new Map<string, number[]>(vectors.sort.map((c: { input: unknown; out: number[] }) => [key(c.input), c.out]));
 const groupOut = new Map<string, unknown>(vectors.group.map((c: { input: unknown; out: unknown }) => [key(c.input), c.out]));
 const ops: string[] = [];
+/** The transition exports are covered by transitionVectors.test.ts; here they only have to exist. */
+const transitionStubs = Object.fromEntries(Object.values(TRANSITION_OPS).map((name) => [name, () => { throw new Error('protocol'); }])) as unknown as TransitionBinding;
 // The view ops (selection, unread, metadata) are proven in chatViewVectors.test.ts.
 const unusedView = () => { throw new Error('protocol'); };
 const binding: ChatListBinding = {
+	...transitionStubs,
 	chat_state_selection_url_plan: unusedView,
 	chat_state_selection_global_selected: unusedView,
 	chat_state_selection_draft_activation: unusedView,

@@ -883,7 +883,13 @@ import { storageArchiveFetch } from "../config/api";
       do {
         const page = await fetchTimelinePage(chatId, shared, timelineCursor, signal);
         if (generation !== timelineGeneration || signal.aborted) return;
-        timelineCatalogue = mergeTimelineEntries(page.entries, timelineCatalogue);
+        if (RUST_CHAT_TRANSITIONS) {
+          const merged = await rustTransitions().then(rust => rust.rustMergeTimelineEntries(page.entries, timelineCatalogue));
+          if (generation !== timelineGeneration || signal.aborted) return;
+          timelineCatalogue = merged;
+        } else {
+          timelineCatalogue = mergeTimelineEntries(page.entries, timelineCatalogue);
+        }
         timelineCursor = page.before;
         timelineCatalogueIncomplete = page.has_more;
       } while (timelineCatalogueIncomplete);
@@ -900,10 +906,14 @@ import { storageArchiveFetch } from "../config/api";
 
   async function readTimelineSection(entry: TimelineEntry): Promise<GlobalMessage[]> {
     if (!currentChatId) throw new Error('No active timeline');
-    const responseId = timelineResponseId(timelineAllEntries, entry.message_id);
+    const responseId = RUST_CHAT_TRANSITIONS
+      ? await rustTransitions().then(rust => rust.rustTimelineResponseId(timelineAllEntries, entry.message_id))
+      : timelineResponseId(timelineAllEntries, entry.message_id);
     for (const rows of [sourceMessages, oldCompressedMessages]) {
       if (rows.some(message => message.message_id === entry.message_id)) {
-        const pair = pairTimelineExchange(rows, entry.message_id, pendingAssistantResponse?.userMessageId);
+        const pair = RUST_CHAT_TRANSITIONS
+          ? await rustTransitions().then(rust => rust.rustPairTimelineExchange(rows, entry.message_id, pendingAssistantResponse?.userMessageId))
+          : pairTimelineExchange(rows, entry.message_id, pendingAssistantResponse?.userMessageId);
         if (pair.assistant || (!responseId && entry.message_id === timelineUserEntries[timelineUserEntries.length - 1]?.message_id)) return rows;
       }
     }
@@ -915,6 +925,7 @@ import { storageArchiveFetch } from "../config/api";
     const generation = timelineGeneration;
     const operation = fetchTimelineSection(chatId, entry.message_id, isSharedChat, responseId).then(rows => {
       if (scope !== timelineScopeKey || epoch !== getWorkspaceCacheEpoch() || generation !== timelineGeneration) throw new Error('Timeline scope changed');
+      if (RUST_CHAT_TRANSITIONS) return rustTransitions().then(rust => rust.rustPairTimelineExchange(rows, entry.message_id)).then(() => rows);
       pairTimelineExchange(rows, entry.message_id);
       return rows;
     });
@@ -925,7 +936,10 @@ import { storageArchiveFetch } from "../config/api";
   }
 
   async function previewTimelineExchange(entry: TimelineEntry): Promise<TimelinePreview> {
-    return pairTimelineExchange(await readTimelineSection(entry), entry.message_id, pendingAssistantResponse?.userMessageId);
+    const section = await readTimelineSection(entry);
+    return RUST_CHAT_TRANSITIONS
+      ? (await rustTransitions()).rustPairTimelineExchange(section, entry.message_id, pendingAssistantResponse?.userMessageId)
+      : pairTimelineExchange(section, entry.message_id, pendingAssistantResponse?.userMessageId);
   }
 
   function timelineTarget(id: string): HTMLElement | undefined {
@@ -1675,13 +1689,34 @@ import { storageArchiveFetch } from "../config/api";
 
   let timelineScopeKey = $derived(`${currentChatId ?? ''}:${$activeTeamId ?? ''}:${$userProfile.user_id ?? ''}`);
   let timelineRemoteEnabled = $derived(!!currentChatId && !isExampleChat && !isIncognito && (isSharedChat || $authStore.isAuthenticated));
-  let timelineAllEntries = $derived(mergeTimelineEntries(timelineCatalogue, sourceMessages, oldCompressedMessages));
+  // Flag on (VITE_OPENMATES_RUST_CORE): the chatState unit merges and pairs the timeline; no TypeScript fallback.
+  const RUST_CHAT_TRANSITIONS: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1'
+    && !(typeof localStorage !== 'undefined' && localStorage.getItem('openmates_rust_core_chatstate') === 'ts');
+  const rustTransitions = () => import('../services/rustCore/chatState/rustTransitions');
+  let rustTimelineAll = $state<TimelineEntry[]>([]);
+  if (RUST_CHAT_TRANSITIONS) $effect(() => {
+    const pages = [timelineCatalogue, sourceMessages, oldCompressedMessages];
+    let stale = false;
+    void rustTransitions().then(rust => rust.rustMergeTimelineEntries(...pages)).then(merged => { if (!stale) rustTimelineAll = merged; });
+    return () => { stale = true; };
+  });
+  let timelineAllEntries = $derived(RUST_CHAT_TRANSITIONS ? rustTimelineAll : mergeTimelineEntries(timelineCatalogue, sourceMessages, oldCompressedMessages));
   const bookmarkMode = $derived<BookmarkMode>(isIncognito ? 'transient' : $authStore.isAuthenticated ? 'account' : 'device');
   const bookmarkedIds = $derived.by(() => {
     void $messageBookmarksStore; void $userProfile.encrypted_settings;
     return currentChatId ? getMessageBookmarkIds(currentChatId, bookmarkMode) : new Set<string>();
   });
-  const timelineIndex = $derived(buildTimelineExchangeIndex(timelineAllEntries, bookmarkedIds));
+  let rustTimelineIndex = $state<ReturnType<typeof buildTimelineExchangeIndex>>({
+    entries: [], answeredCount: 0, assistantBookmarks: new Set(), legacyAliases: new Map(), assistantUsers: new Map(), bookmarkedExchanges: new Set(),
+  });
+  if (RUST_CHAT_TRANSITIONS) $effect(() => {
+    const entries = timelineAllEntries;
+    const bookmarks = bookmarkedIds;
+    let stale = false;
+    void rustTransitions().then(rust => rust.rustTimelineExchangeIndex(entries, bookmarks)).then(index => { if (!stale) rustTimelineIndex = index; });
+    return () => { stale = true; };
+  });
+  const timelineIndex = $derived(RUST_CHAT_TRANSITIONS ? rustTimelineIndex : buildTimelineExchangeIndex(timelineAllEntries, bookmarkedIds));
   const timelineUserEntries = $derived(timelineIndex.entries);
   const timelineEnabled = $derived(timelineIndex.answeredCount >= 2);
   $effect(() => {

@@ -193,6 +193,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { dailyInspirationStore, type DailyInspiration, type DailyInspirationSurface } from '../stores/dailyInspirationStore'; // Type/store for inspiration handler
     import { chatListCache } from '../services/chatListCache'; // For invalidating stale 'sending' status in sidebar cache
     import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
+    import { localizeIndicatorLine } from './chats/utils/chatIndicatorLines'; // Localises indicator lines decided by the Rust chatState unit when the flag is on
+    import type { IndicatorLine } from '../services/rustCore/chatState/transitionProtocol';
     import { sortChatsForList } from './chats/utils/chatSortForList'; // Same order, via the Rust chatState unit when the flag is on
     import { chatMetadataCache, CHAT_METADATA_KEY_READY_EVENT } from '../services/chatMetadataCache'; // For decrypting recent chat titles
     import { activeTeam, activeTeamId, getActiveTeamContextSnapshot, isActiveTeamContext, TEAM_CONTEXT_CHANGED_EVENT } from '../stores/teamStore';
@@ -5565,6 +5567,15 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         }
         return prunedWindow.messages;
       }
+      // Flag on: the chatState unit prunes the window (no TypeScript fallback); the callers await it.
+      async function pruneCurrentDecryptedMessageWindowRust(messages: ChatMessageModel[]): Promise<ChatMessageModel[]> {
+        const rust = await import('../services/rustCore/chatState/rustTransitions');
+        const prunedWindow = await rust.rustPruneWindow(messages, { compressionCheckpoints: currentCompressionCheckpoints });
+        if (prunedWindow.prunedCount > 0) {
+            console.debug(`[ActiveChat] Pruned ${prunedWindow.prunedCount} decrypted normal message(s) from active window`);
+        }
+        return prunedWindow.messages;
+      }
 
       function cacheDisplayedChatWindow(chatId: string, epoch: number, revision: number, fallbackChat?: Chat): void {
         const draftOnly = isPersistedDraftOnlyChat(currentChat);
@@ -6534,10 +6545,39 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         ))
     );
 
+    // Flag on: the chatState unit decides the composer indicator; the page resolves its state into the
+    // request (buildComposerIndicatorInput) and localises the answer in the deriveds below.
+    const RUST_CHAT_TRANSITIONS: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1'
+        && !(typeof localStorage !== 'undefined' && localStorage.getItem('openmates_rust_core_chatstate') === 'ts');
+    let rustComposerIndicator = $state<{ lines: IndicatorLine[]; statusType: 'typing' | 'processing' | null }>({ lines: [], statusType: null });
+    if (RUST_CHAT_TRANSITIONS) $effect(() => {
+        void _aiTaskStateTrigger;
+        const typing = currentTypingStatus;
+        const state = {
+            projectKey: projectFileProgressMatchesChat(projectFileProgress, currentChat?.chat_id) ? projectFileProgressKey(projectFileProgress) : null,
+            chatId: currentChat?.chat_id,
+            anonymous: !!currentChat?.is_anonymous,
+            typing,
+            turn: processingFeedbackTurn,
+            terminal: typingStatusIsTerminal,
+            activeTaskMatches: typing?.chatId != null && chatSyncService.getActiveAIUserMessageIdForChat(typing.chatId) === typing.userMessageId,
+            phase: processingPhase,
+            reasoning: !!typing?.modelName && modelsMetadata.find(m => m.name === typing.modelName || m.id === typing.modelName)?.reasoning === true,
+            displayModelName: typing?.modelName ? getModelDisplayName(typing.modelName) : null,
+        };
+        let stale = false;
+        void import('../services/rustCore/chatState/rustTransitions')
+            .then((rust) => rust.rustComposerIndicator(state))
+            .then((answer) => { if (!stale) rustComposerIndicator = answer; });
+        return () => { stale = true; };
+    });
+
     let typingIndicatorLines = $derived((() => {
         // _aiTaskStateTrigger is a top-level reactive variable.
         // Its change will trigger re-evaluation of this derived value.
         void _aiTaskStateTrigger;
+
+        if (RUST_CHAT_TRANSITIONS) return rustComposerIndicator.lines.map((line) => localizeIndicatorLine(line, $text));
 
         if (projectFileProgressMatchesChat(projectFileProgress, currentChat?.chat_id)) {
             return [$text(`embeds.projects.progress.${projectFileProgressKey(projectFileProgress)}`)];
@@ -6637,6 +6677,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     // 'sending', 'processing', and 'waiting_for_user' are no longer shown at the bottom.
     let typingIndicatorStatusType = $derived.by(() => {
         void _aiTaskStateTrigger;
+
+        if (RUST_CHAT_TRANSITIONS) return rustComposerIndicator.statusType;
 
         if (projectFileProgressMatchesChat(projectFileProgress, currentChat?.chat_id)) return 'processing';
 
@@ -9595,7 +9637,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
                 // Refresh same-ID edits/status changes as well as membership. A full
                 // latest window is authoritative; a partial page retains older rows.
-                const reconciledMessages = reconcileRecentChatMessages(currentMessages, freshMessages, freshHasMoreBefore);
+                const reconciledMessages = RUST_CHAT_TRANSITIONS
+                    ? await (await import('../services/rustCore/chatState/rustTransitions')).rustReconcileRecentChatMessages(currentMessages, freshMessages, freshHasMoreBefore)
+                    : reconcileRecentChatMessages(currentMessages, freshMessages, freshHasMoreBefore);
                 if (JSON.stringify(currentMessages) !== JSON.stringify(reconciledMessages)) {
                     console.info(`[ActiveChat] handleChatUpdated: Message set changed after IndexedDB reload (${currentMessages.length} → ${freshMessages.length}). Updating display.`);
                     currentMessages = reconciledMessages;
@@ -10023,10 +10067,17 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 return;
             }
             const existingIds = new Set(currentMessages.map((message) => message.message_id));
-            currentMessages = pruneCurrentDecryptedMessageWindow([
+            const olderWindowRows = [
                 ...olderWindow.messages.filter((message) => !existingIds.has(message.message_id)),
                 ...currentMessages,
-            ]);
+            ];
+            if (RUST_CHAT_TRANSITIONS) {
+                const prunedRows = await pruneCurrentDecryptedMessageWindowRust(olderWindowRows);
+                if (currentChat?.chat_id !== openedChatId || openedEpoch !== getWorkspaceCacheEpoch() || windowRevision !== getRecentChatRevision(openedChatId)) return;
+                currentMessages = prunedRows;
+            } else {
+                currentMessages = pruneCurrentDecryptedMessageWindow(olderWindowRows);
+            }
             currentMessageWindowHasMoreBefore = olderWindow.hasMoreBefore;
             chatHistoryRef?.updateMessages(currentMessages);
             cacheDisplayedChatWindow(openedChatId, openedEpoch, windowRevision);
@@ -11033,7 +11084,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
         if (backgroundMessageWindowRepair && currentChat?.chat_id) {
             const repairChatId = currentChat.chat_id;
-            void backgroundMessageWindowRepair.then((repairedWindow) => {
+            void backgroundMessageWindowRepair.then(async (repairedWindow) => {
                 if (!isCurrentLoadTarget() || currentChat?.chat_id !== repairChatId) {
                     return;
                 }
@@ -11060,7 +11111,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     left.created_at - right.created_at || left.message_id.localeCompare(right.message_id),
                 );
                 currentMessageWindowHasMoreBefore = repairedWindow.hasMoreBefore;
-                currentMessages = pruneCurrentDecryptedMessageWindow(mergedMessages);
+                const prunedMergedMessages = RUST_CHAT_TRANSITIONS ? await pruneCurrentDecryptedMessageWindowRust(mergedMessages) : pruneCurrentDecryptedMessageWindow(mergedMessages);
+                if (RUST_CHAT_TRANSITIONS && (!isCurrentLoadTarget() || currentChat?.chat_id !== repairChatId)) return;
+                currentMessages = prunedMergedMessages;
                 chatLoadState = 'ready';
                 chatHistoryRef?.updateMessages(currentMessages);
                 cacheDisplayedChatWindow(repairChatId, thisLoadEpoch, getRecentChatRevision(repairChatId), chat);
@@ -11244,6 +11297,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             return;
         }
 
+        // Flag on: prune with the chatState unit before the revision guard so nothing awaits between the guard and the commit.
+        let rustPrunedNewMessages: ChatMessageModel[] | null = null;
+        if (RUST_CHAT_TRANSITIONS && currentChat?.chat_id && !isPublicChat(currentChat.chat_id) && !currentChat.is_incognito && !currentChat.is_anonymous) {
+            rustPrunedNewMessages = await pruneCurrentDecryptedMessageWindowRust(newMessages);
+        }
         if (thisLoadRevision !== getRecentChatRevision(chat.chat_id)) {
             // A canonical write landed during this read. Retry after the transaction
             // settles so an older window cannot revive edited or deleted content.
@@ -11256,7 +11314,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             return;
         }
 
-        currentMessages = currentChat?.chat_id && !isPublicChat(currentChat.chat_id) && !currentChat.is_incognito && !currentChat.is_anonymous
+        currentMessages = RUST_CHAT_TRANSITIONS
+            ? (rustPrunedNewMessages ?? newMessages)
+            : currentChat?.chat_id && !isPublicChat(currentChat.chat_id) && !currentChat.is_incognito && !currentChat.is_anonymous
             ? pruneCurrentDecryptedMessageWindow(newMessages)
             : newMessages;
         // Commit the canonical window to ChatHistory before the follow-up
@@ -13450,7 +13510,10 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     direction: 'latest',
                     compressedUpToTimestamp: latestCheckpoint?.compressed_up_to_timestamp,
                 });
-                currentMessages = shouldPreserveExpandedMessageWindow(currentMessages, messageWindow.messages)
+                const preserveExpanded = RUST_CHAT_TRANSITIONS
+                    ? await (await import('../services/rustCore/chatState/rustTransitions')).rustPreserveExpandedWindow(currentMessages, messageWindow.messages)
+                    : shouldPreserveExpandedMessageWindow(currentMessages, messageWindow.messages);
+                currentMessages = preserveExpanded
                     ? currentMessages
                     : messageWindow.messages;
                 currentMessageWindowHasMoreBefore = messageWindow.hasMoreBefore;
