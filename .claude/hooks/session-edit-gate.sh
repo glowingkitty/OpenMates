@@ -45,6 +45,15 @@ case "$FILE" in
         | .key] | if length == 1 then .[0] else empty end
     ' "$SESSIONS_FILE" 2>/dev/null)
     [ -n "$OWNER" ] || exit 0 # not a registered session worktree: cannot judge
+    # Parallel sub-agents share the parent's conversation id, so the id match
+    # below can name only one session. An edit from inside the owning session's
+    # own worktree (cwd within it) is that session's own workspace: allow it.
+    OWNER_PATH=$(jq -r --arg o "$OWNER" '.sessions[$o].worktree.path // empty' "$SESSIONS_FILE" 2>/dev/null)
+    if [ -n "$OWNER_PATH" ] && [ -n "$CWD" ]; then
+      case "$CWD" in
+        "$OWNER_PATH"|"$OWNER_PATH"/*) exit 0 ;;
+      esac
+    fi
     if [ -z "$CURRENT" ]; then
       deny "this conversation owns no sessions.py session, but $FILE is in session $OWNER's worktree. Never borrow another task's workspace. $START_HINT"
     fi
