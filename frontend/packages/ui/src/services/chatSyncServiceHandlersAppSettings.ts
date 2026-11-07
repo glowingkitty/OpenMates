@@ -13,7 +13,7 @@
  * The request is stored in chat history so users can respond hours/days later.
  */
 
-import type { MemoryRequestContent } from "../utils/appMemoryRequests";
+import { withAutoMemoryIds, type MemoryRequestContent } from "../utils/appMemoryRequests";
 import { formatDisplayName, getAppGradient } from "./appSettingsRequestPolicy";
 import {
   decideConfirmOutcome, decideRequestAnswered, decideRequestCategories, decideRequestMessage, decideResponseCategories,
@@ -144,6 +144,8 @@ export interface PendingPermissionRequest {
   chatId: string;
   messageId?: string; // User message ID that triggered this request (for UI display)
   categories: AppSettingsMemoriesCategory[];
+  /** Auto-include memory ids to answer with the decision; persisted so a recovered dialog can re-resolve them. */
+  autoMemoryIds?: string[];
   yamlContent: string;
   createdAt: number;
 }
@@ -164,6 +166,20 @@ export type MemoryPermissionResponse = Array<{
 // the consent dialog; they are answered together with the user's choices.
 const autoMemoryEntriesByRequest = new Map<string, MemoryPermissionResponse>();
 const answeredMemoryRequests = new Set<string>();
+
+/**
+ * Auto-include entries to answer with the user's decision. Fresh requests use the
+ * in-memory entries; a recovered dialog (reload, other device) re-resolves them
+ * from the persisted ids against the local documents (current load_mode/window).
+ */
+async function resolveAutoMemoryEntries(requestId: string, pending?: PendingPermissionRequest): Promise<MemoryPermissionResponse> {
+  const known = autoMemoryEntriesByRequest.get(requestId);
+  if (known) return known;
+  if (!pending?.autoMemoryIds?.length) return [];
+  const decision = decideMemoryRequest(pending.autoMemoryIds, await loadLocalMemoryDocuments());
+  const readers = await defaultReferenceReaders();
+  return Promise.all(decision.auto.map((memory) => memoryEntryWithReferences(memoryResponseEntry(memory), readers)));
+}
 const permissionResponseTransports = new Map<string, (entries: MemoryPermissionResponse) => Promise<void>>();
 export function registerMemoryPermissionResponseTransport(requestId: string,
   transport: (entries: MemoryPermissionResponse) => Promise<void>): void {
@@ -340,6 +356,7 @@ export async function handleRequestAppSettingsMemoriesImpl(
     // Memory documents (`memory:<id>`): decide from LOCAL load_mode, never from the server.
     const memoryIds = memoryIdsFromRequestedKeys(requested_keys);
     const memoryCategories: AppSettingsMemoriesCategory[] = [];
+    const autoMemoryIds: string[] = [];
     if (memoryIds.length > 0) {
       if (answeredMemoryRequests.has(request_id)) return;
       const decision = decideMemoryRequest(memoryIds, await loadLocalMemoryDocuments(), Date.now(), payload.memory_titles);
@@ -356,6 +373,7 @@ export async function handleRequestAppSettingsMemoriesImpl(
           })) } : {}),
         });
       }
+      autoMemoryIds.push(...decision.auto.map((memory) => memory.id));
       if (autoEntries.length > 0) autoMemoryEntriesByRequest.set(request_id, autoEntries);
       const needsDialog = memoryCategories.length > 0 || requested_keys.some((key) => !isMemoryRequestKey(key));
       if (!needsDialog) {
@@ -513,6 +531,7 @@ export async function handleRequestAppSettingsMemoriesImpl(
             entryCount: cat.entryCount,
           })),
           responseTransportKind,
+          autoMemoryIds,
         );
         console.info(
           `[ChatSyncService:AppSettings] Persisted request ${request_id} as system message for message ${payload.message_id}`,
@@ -728,7 +747,7 @@ export async function handlePermissionDialogConfirm(
       }
     }
 
-    const autoMemoryEntries = autoMemoryEntriesByRequest.get(requestId) ?? [];
+    const autoMemoryEntries = await resolveAutoMemoryEntries(requestId, pendingRequest);
     appSettingsMemories.push(...autoMemoryEntries);
 
     const outcome = await decideConfirmOutcome(appSettingsMemories.length, voiceRequest, !!messageId);
@@ -853,7 +872,7 @@ export async function handlePermissionDialogExclude(
   if (pendingRequest?.chatId) {
     try {
       // Rejected ask_first memories send no content; auto_include ones were already approved by their mode.
-      const autoEntries = autoMemoryEntriesByRequest.get(requestId) ?? [];
+      const autoEntries = await resolveAutoMemoryEntries(requestId, pendingRequest);
       await sendPermissionResponse(serviceInstance, pendingRequest.chatId, autoEntries, responseTransport, voiceRequest);
       autoMemoryEntriesByRequest.delete(requestId);
       answeredMemoryRequests.add(requestId);
@@ -1187,6 +1206,7 @@ export async function saveAppSettingsMemoriesRequestMessage(
   requestedKeys: string[],
   categories: AppSettingsMemoriesRequestCategory[],
   responseTransport?: "voice",
+  autoMemoryIds: readonly string[] = [],
 ): Promise<void> {
   const { webSocketService } = await import("./websocketService");
   const requestMessage = await decideRequestMessage({
@@ -1198,7 +1218,7 @@ export async function saveAppSettingsMemoriesRequestMessage(
     entryCounts: new Map(categories.map(category => [`${category.appId}-${category.itemType}`, category.entryCount])),
   });
   const messageId = requestMessage.message_id;
-  const contentString = requestMessage.content;
+  const contentString = withAutoMemoryIds(requestMessage.content, autoMemoryIds);
 
   // Get chat key for encryption (zero-knowledge architecture)
   const chatKey = await chatKeyManager.getKey(chatId);

@@ -23,6 +23,8 @@ export interface MemoryRequestContent {
   categories: MemoryRequestCategory[];
   count_semantics_version?: number;
   response_transport?: "voice";
+  /** Ids of auto-include memories answered together with this request's decision (ids only, no content). */
+  auto_memory_ids?: string[];
 }
 
 export function buildMemoryRequestMessage(params: {
@@ -105,8 +107,10 @@ export function mergeMemoryRequests(first: MemoryRequestContent, second: MemoryR
       categories.set(key, category);
     }
   }
+  const autoMemoryIds = Array.from(new Set([...(first.auto_memory_ids ?? []), ...(second.auto_memory_ids ?? [])])).sort();
   return {
     ...first,
+    ...(autoMemoryIds.length ? { auto_memory_ids: autoMemoryIds } : {}),
     count_semantics_version: COUNT_SEMANTICS_VERSION,
     requested_keys: Array.from(new Set([...first.requested_keys, ...second.requested_keys])).sort(),
     categories: Array.from(categories.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([, category]) => category),
@@ -129,4 +133,16 @@ export function coalesceMemoryRequestMessages<T extends {
     requests.set(key, { index, content: merged });
   }
   return result;
+}
+
+/**
+ * Attach the auto-include memory ids (ids only, never content) to a built
+ * request message so a recovered dialog can re-resolve them from local documents.
+ * Applied after the request is built so every build path (TypeScript or the
+ * shared Rust unit) persists them identically.
+ */
+export function withAutoMemoryIds(content: string, autoMemoryIds: readonly string[]): string {
+  if (!autoMemoryIds.length) return content;
+  const parsed = JSON.parse(content) as MemoryRequestContent;
+  return JSON.stringify({ ...parsed, auto_memory_ids: Array.from(new Set(autoMemoryIds)).sort() });
 }

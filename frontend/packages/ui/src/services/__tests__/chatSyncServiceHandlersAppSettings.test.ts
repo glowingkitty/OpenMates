@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   },
   privateMemories: { decrypt: vi.fn(), send: vi.fn() },
   permission: { request: null as null | Record<string, unknown> },
+  localMemories: { load: vi.fn() },
   chatKeyManager: {
     createAndPersistKeyLocked: vi.fn(),
     getKey: vi.fn(),
@@ -68,6 +69,10 @@ vi.mock("../../stores/appSettingsMemoriesPermissionStore", () => ({ appSettingsM
   subscribe: (run: (value: unknown) => void) => { run({ currentRequest: mocks.permission.request }); return () => {}; },
   clear: vi.fn(),
 } }));
+vi.mock("../memoryDocumentRequest", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../memoryDocumentRequest")>()),
+  loadLocalMemoryDocuments: mocks.localMemories.load,
+}));
 vi.mock("../embedStore", () => ({ embedStore: { get: vi.fn() } }));
 vi.mock("../db", () => ({ chatDB: mocks.chatDB }));
 vi.mock("../encryption/ChatKeyManager", () => ({
@@ -1457,6 +1462,41 @@ describe("memory consent request persistence", () => {
 });
 
 
+describe("recovered mixed auto/ask memory approval", () => {
+  const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+  const doc = (id: string, load_mode: string) => ({
+    id, source: "personal", document: `---\ntitle: ${id}\nload_mode: ${load_mode}\n---\nBody of ${id}`,
+  });
+  beforeEach(() => {
+    resetHoistedMocks();
+    mocks.localMemories.load.mockResolvedValue([doc("personal:auto", "auto_include"), doc("personal:ask", "ask_first")]);
+    mocks.permission.request = {
+      requestId: "mixed-request", chatId: "chat-1", autoMemoryIds: ["personal:auto"],
+      categories: [{ key: "memory-personal:ask", appId: "memory", itemType: "personal:ask" }],
+    };
+    mocks.chatDB.saveMessage.mockResolvedValue(undefined);
+  });
+  afterEach(() => { removePendingPermissionRequest("mixed-request"); mocks.permission.request = null; });
+
+  // contract-test: direct surface=gui.web assertions=app-memories.load-modes,app-memories.conversation.explicit-approval
+  it("answers auto entries together with the approved ask-first entry after recovery", async () => {
+    const response = vi.fn(async (_entries: unknown) => {});
+    registerMemoryPermissionResponseTransport("mixed-request", response);
+    await handlePermissionDialogConfirm(service, "mixed-request", ["memory-personal:ask"]);
+    const sent = response.mock.calls[0][0] as Array<{ item_key: string }>;
+    expect(sent.map((entry) => entry.item_key).sort()).toEqual(["personal:ask", "personal:auto"]);
+  });
+
+  // contract-test: direct surface=gui.web assertions=app-memories.load-modes,app-memories.conversation.explicit-approval
+  it("still answers the auto entry, and no ask-first content, when the recovered dialog is rejected", async () => {
+    const response = vi.fn(async (_entries: unknown) => {});
+    registerMemoryPermissionResponseTransport("mixed-request", response);
+    await handlePermissionDialogExclude(service, "mixed-request");
+    const sent = response.mock.calls[0][0] as Array<{ item_key: string }>;
+    expect(sent.map((entry) => entry.item_key)).toEqual(["personal:auto"]);
+  });
+});
+
 describe("voice memory permission continuation", () => {
   const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
   beforeEach(() => {
@@ -1474,7 +1514,7 @@ describe("voice memory permission continuation", () => {
 
   // contract-test: supporting surface=gui.web assertions=video-call.chat.memories-and-focus,video-call.privacy
   it("decrypts only approved entries and resumes the issuing call transport", async () => {
-    const response = vi.fn(async () => {});
+    const response = vi.fn(async (_entries: unknown) => {});
     registerMemoryPermissionResponseTransport("voice-request", response);
     await handlePermissionDialogConfirm(service, "voice-request", ["health-medical_history"],
       new Map([["health-medical_history", ["allowed"]]]));
@@ -1495,7 +1535,7 @@ describe("voice memory permission continuation", () => {
 
   // contract-test: supporting surface=gui.web assertions=video-call.chat.memories-and-focus,video-call.privacy
   it("continues rejection without decrypting private data or starting ordinary inference", async () => {
-    const response = vi.fn(async () => {});
+    const response = vi.fn(async (_entries: unknown) => {});
     registerMemoryPermissionResponseTransport("voice-request", response);
     await handlePermissionDialogExclude(service, "voice-request");
     expect(response).toHaveBeenCalledExactlyOnceWith([]);
@@ -1505,7 +1545,7 @@ describe("voice memory permission continuation", () => {
 
   // contract-test: supporting surface=gui.web assertions=video-call.chat.memories-and-focus,video-call.privacy
   it("resumes the call safely when selected memory entries are no longer available", async () => {
-    const response = vi.fn(async () => {});
+    const response = vi.fn(async (_entries: unknown) => {});
     registerMemoryPermissionResponseTransport("voice-request", response);
     mocks.chatDB.getAppSettingsMemoriesEntriesByAppAndType.mockResolvedValue([]);
     await handlePermissionDialogConfirm(service, "voice-request", ["health-medical_history"]);

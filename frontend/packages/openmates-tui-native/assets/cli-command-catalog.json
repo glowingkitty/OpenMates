@@ -55087,7 +55087,7 @@
         "settings",
         "memories"
       ],
-      "summary": "List or delete Memories (typed app memories were replaced; create in the web app under Settings > Memories)",
+      "summary": "Manage Memories (personal documents)",
       "usages": [
         "settings memories"
       ],
@@ -55117,52 +55117,6 @@
       },
       "gaps": [
         "Bare root prints the legacy memories help; subcommands are tracked on their own records.",
-        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-settings-extra.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
-      ],
-      "platforms": {
-        "linux": "not_verified",
-        "macos": "not_verified",
-        "windows": "not_verified"
-      }
-    },
-    {
-      "path": [
-        "settings",
-        "memories",
-        "create"
-      ],
-      "summary": "settings memories create",
-      "usages": [
-        "settings memories create --app-id <id> --item-type <type> --data '<json>'"
-      ],
-      "positionals": [],
-      "flags": [
-        "api-key",
-        "api-url",
-        "app-id",
-        "data",
-        "help",
-        "item-type",
-        "json",
-        "profile"
-      ],
-      "source_locations": [
-        {
-          "path": "frontend/packages/openmates-cli/src/cli.ts",
-          "line": 15454,
-          "symbol": "printMemoriesHelp"
-        }
-      ],
-      "implementation": {
-        "parser": "native_clap",
-        "handler": "sdk.account.memories",
-        "status": "partial",
-        "module": "frontend/packages/openmates-tui-native/src/cli/account/memories.rs"
-      },
-      "gaps": [
-        "Personal context only; Team Memories fail explicitly.",
-        "Account Memory documents (account-memory-*) are listed read-only; editing/deleting them is not ported.",
-        "Human output renders data fields in sorted key order and timestamps in UTC; JSON keeps the npm shape.",
         "Differential-verified against the npm CLI on the isolated CI backend (cli-native-settings-extra.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
@@ -55272,55 +55226,11 @@
       "path": [
         "settings",
         "memories",
-        "types"
-      ],
-      "summary": "settings memories types",
-      "usages": [
-        "settings memories types [--app-id <id>] [--json]"
-      ],
-      "positionals": [],
-      "flags": [
-        "api-key",
-        "api-url",
-        "app-id",
-        "help",
-        "json",
-        "profile"
-      ],
-      "source_locations": [
-        {
-          "path": "frontend/packages/openmates-cli/src/cli.ts",
-          "line": 15453,
-          "symbol": "printMemoriesHelp"
-        }
-      ],
-      "implementation": {
-        "parser": "native_clap",
-        "handler": "sdk.account.memories",
-        "status": "partial",
-        "module": "frontend/packages/openmates-tui-native/src/cli/account/memories.rs"
-      },
-      "gaps": [
-        "Personal context only; Team Memories fail explicitly.",
-        "Account Memory documents (account-memory-*) are listed read-only; editing/deleting them is not ported.",
-        "Human output renders data fields in sorted key order and timestamps in UTC; JSON keeps the npm shape.",
-        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-settings-extra.spec.ts): exit code, normalized stdout and stderr class match. Linux dev and macOS platform verification remains open."
-      ],
-      "platforms": {
-        "linux": "not_verified",
-        "macos": "not_verified",
-        "windows": "not_verified"
-      }
-    },
-    {
-      "path": [
-        "settings",
-        "memories",
         "update"
       ],
       "summary": "settings memories update",
       "usages": [
-        "settings memories update --id account-memory-<id> --data '<json>'"
+        "settings memories update --id account-memory-<id> --data '{\"title\":\"...\",\"document\":\"...\"}'"
       ],
       "positionals": [],
       "flags": [
@@ -62785,9 +62695,9 @@
     "Remote command protection is Linux-specific; unsupported hosts must fail closed."
   ],
   "coverage": {
-    "command_patterns": 724,
+    "command_patterns": 722,
     "flags": 608,
-    "native_handlers_partial": 718,
+    "native_handlers_partial": 716,
     "unsupported": 6,
     "feature_complete": false
   },

@@ -1887,6 +1887,7 @@ import { storageArchiveFetch } from "../config/api";
       requestId: unpairedRequest.request_id,
       responseTransport: unpairedRequest.response_transport,
       chatId: currentChatId,
+      autoMemoryIds: unpairedRequest.auto_memory_ids,
       messageId: unpairedRequest.user_message_id,
       categories: fullCategories,
       yamlContent: '', // YAML content not stored in system message (not needed for dialog)
