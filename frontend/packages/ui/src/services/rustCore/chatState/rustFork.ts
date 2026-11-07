@@ -17,6 +17,11 @@ const BATCH_SIZE = 10;
 /** Web error text the legacy code threw when the fork point is missing. */
 export const FORK_POINT_NOT_FOUND = 'Fork point message not found';
 
+/** `normalizeExplainSelection`: collapse whitespace, trim, cap at 500 UTF-16 units (Rust). */
+export async function rustNormalizeExplainSelection(selectedText: string): Promise<string> {
+	return (await chatStateCall('forkNormalizeSelection', { selectedText })).value;
+}
+
 /** Messages to copy, in fork order (stable `created_at` sort, up to and including the fork point). */
 export async function rustForkSelect(messages: Message[], upToMessageId: string): Promise<Message[]> {
 	const sources = messages.map(forkSourceFromMessage);

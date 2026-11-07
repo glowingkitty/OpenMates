@@ -1536,6 +1536,25 @@
         return;
       }
       
+      if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') {
+        // Shared Rust core decides (needs unlock / already hidden / missing key / hide) and
+        // syncs the key-update frame; this component only shows the notices.
+        const { rustHideChat } = await import('../../services/rustCore/chatState/rustHideFlow');
+        const outcome = await rustHideChat(chat);
+        if (outcome === 'needs_unlock') {
+          window.dispatchEvent(new CustomEvent('showOverscrollUnlockForHide', { detail: { chatId: chatIdToHide } }));
+          showContextMenu = false;
+        } else if (outcome === 'already_hidden') {
+          notificationStore.success('Chat is already hidden');
+          showContextMenu = false;
+        } else if (outcome === 'missing_key') {
+          notificationStore.error('Failed to hide chat. Chat key not found.');
+        } else {
+          await finishHideChat(chatIdToHide);
+        }
+        return;
+      }
+
       // Hidden chats are already unlocked - we can use the current combined secret
       // Get the current chat key (decrypted with master key)
       // First try: Check cache (fast path for chats that have been accessed)
@@ -1598,28 +1617,32 @@
       // Sync to server (the encrypted_chat_key will be synced)
       await chatSyncService.sendUpdateEncryptedChatKey(chatIdToHide, encryptedChatKey);
       
-      console.debug('[Chat] Chat hidden successfully:', chatIdToHide);
-      notificationStore.success('Chat hidden successfully');
-      showContextMenu = false;
-
-      // Hide associated new chat suggestions
-      try {
-        await chatDB.hideNewChatSuggestionsForChat(chatIdToHide);
-        console.debug('[Chat] Hidden associated chat suggestions for:', chatIdToHide);
-      } catch (error) {
-        console.warn('[Chat] Failed to hide chat suggestions:', error);
-        // Continue anyway - chat hiding succeeded
-      }
-
-      // Dispatch event to update UI (chat will disappear from main list and move to hidden section)
-      // Chats.svelte listens on `window` and will refresh the chat list
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('chatHidden', { detail: { chat_id: chatIdToHide } }));
-      }
-      
+      await finishHideChat(chatIdToHide);
     } catch (error) {
       console.error('[Chat] Error hiding chat:', chatIdToHide, error);
       notificationStore.error('Failed to hide chat. Please try again.');
+    }
+  }
+
+  /** Notices, suggestion hiding and list refresh after a chat was hidden. */
+  async function finishHideChat(chatIdToHide: string) {
+    console.debug('[Chat] Chat hidden successfully:', chatIdToHide);
+    notificationStore.success('Chat hidden successfully');
+    showContextMenu = false;
+
+    // Hide associated new chat suggestions
+    try {
+      await chatDB.hideNewChatSuggestionsForChat(chatIdToHide);
+      console.debug('[Chat] Hidden associated chat suggestions for:', chatIdToHide);
+    } catch (error) {
+      console.warn('[Chat] Failed to hide chat suggestions:', error);
+      // Continue anyway - chat hiding succeeded
+    }
+
+    // Dispatch event to update UI (chat will disappear from main list and move to hidden section)
+    // Chats.svelte listens on `window` and will refresh the chat list
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('chatHidden', { detail: { chat_id: chatIdToHide } }));
     }
   }
 

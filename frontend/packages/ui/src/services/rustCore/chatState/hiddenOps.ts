@@ -12,7 +12,7 @@ import type { HiddenForkUnitProtocol, HiddenLockView } from './hiddenForkProtoco
 import { bindingCode, type HiddenChatVaultBinding } from './chatStateBinding';
 
 type HiddenOpName = 'hiddenState' | 'hiddenUnlock' | 'hiddenWrapWithCode' | 'hiddenWrap' | 'hiddenUnwrap' | 'hiddenClassify'
-	| 'hiddenPlanHide' | 'hiddenUnhide' | 'hiddenLock' | 'hiddenKeyUpdate';
+	| 'hiddenPlanHide' | 'hiddenUnhide' | 'hiddenLock' | 'hiddenRelease' | 'hiddenKeyUpdate';
 
 interface HiddenBinding {
 	BrowserHiddenChatVault?: new (masterKey: CryptoKey) => HiddenChatVaultBinding;
@@ -98,6 +98,16 @@ export function createHiddenHandlers(raw: object): Pick<UnitHandlers<HiddenForkU
 				vault = null;
 			}
 			return state;
+		},
+		hiddenRelease() {
+			// Logout and account switch: the secret, the master-key handle and any lockout
+			// belong to the previous account, so nothing may survive (unlike hiddenLock).
+			if (vault) {
+				vault.lock();
+				vault.free();
+				vault = null;
+			}
+			return { unlocked: false, lockoutSeconds: 0 };
 		},
 		hiddenKeyUpdate(request) {
 			if (typeof binding.chat_state_hidden_key_update_payload !== 'function') throw new UnitRefusal('protocol');

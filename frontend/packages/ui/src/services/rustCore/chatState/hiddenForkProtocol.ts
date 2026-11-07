@@ -38,10 +38,13 @@ export type HiddenForkUnitProtocol = {
 	};
 	hiddenUnhide: { request: { masterKey: CryptoKey; encryptedChatKey: string }; response: { encryptedChatKey: string | null } };
 	hiddenLock: { request: { nowMs: number }; response: HiddenLockView };
+	/** Drops the vault and its lockout unconditionally (logout, account switch). */
+	hiddenRelease: { request: Record<string, never>; response: HiddenLockView };
 	hiddenKeyUpdate: {
 		request: { chatId: string; encryptedChatKey: string; messagesV?: number; titleV?: number; lastEdited?: number; nowSeconds: number };
 		response: { payload: Record<string, unknown> };
 	};
+	forkNormalizeSelection: { request: { selectedText: string }; response: { value: string } };
 	forkSelect: { request: { messagesJson: string; upToMessageId: string }; response: { ids: string[] } };
 	forkReencryptBatch: { request: { messagesJson: string; newChatId: string; chatKey: Uint8Array }; response: { rows: Record<string, unknown>[] } };
 	forkCopyField: { request: { sourceCiphertext: string | null; sourceKey: Uint8Array; newKey: Uint8Array }; response: { value: string | null } };

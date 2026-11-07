@@ -154,6 +154,13 @@ export function resetLocalLogoutState(): void {
     } catch { /* Storage may be unavailable in a restricted browser context. */ }
   }
   clearProjectFilePrivacyStorage();
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") {
+    // The Worker hidden vault (secret, master-key handle, lockout) belongs to this
+    // account and is dropped even while a lockout is active.
+    void import("../services/rustCore/chatState/rustHiddenChat").then((rust) => rust.rustHiddenRelease()).catch((error) => {
+      console.error("[AuthStore] Failed to release the Rust hidden-chat vault:", error);
+    });
+  }
   chatDB.clearAllChatKeys();
   resetChatNavigationList();
   const isOgImageModeLogout =
@@ -251,6 +258,12 @@ export async function login(
   stayLoggedIn: boolean = false,
   loginMethod?: string, // e.g. "pair" — signals to backend to bypass 2FA for strong auth methods
 ): Promise<LoginResult> {
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") {
+    // A new login may be a different account: never reuse the previous vault.
+    await import("../services/rustCore/chatState/rustHiddenChat").then((rust) => rust.rustHiddenRelease()).catch((error) => {
+      console.error("[AuthStore] Failed to release the Rust hidden-chat vault before login:", error);
+    });
+  }
   try {
     const requestBody: Record<string, string | boolean> = {
       hashed_email,
@@ -878,6 +891,13 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
       invalidateWorkspaceCaches();
       chatMetadataCache.clearAll();
       chatDB.clearAllChatKeys();
+      if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") {
+        // The Worker hidden vault (secret, master-key handle, lockout) belongs to this
+        // account and is dropped even while a lockout is active.
+        void import("../services/rustCore/chatState/rustHiddenChat").then((rust) => rust.rustHiddenRelease()).catch((error) => {
+          console.error("[AuthStore] Failed to release the Rust hidden-chat vault:", error);
+        });
+      }
       clearAllSharedChatKeys().catch(() => {});
       // CRITICAL: Clear session_id from sessionStorage for security
       // This ensures session_id is removed even if logout fails

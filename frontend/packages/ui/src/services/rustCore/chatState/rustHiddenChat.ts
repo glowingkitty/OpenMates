@@ -89,3 +89,20 @@ export async function rustHiddenUnhide(encryptedChatKey: string): Promise<string
 export async function rustHiddenLock(): Promise<void> {
 	mirror(await chatStateCall('hiddenLock', { nowMs: Date.now() }), Date.now());
 }
+
+/** Logout / account switch: drops the Worker vault and any lockout, whatever the lock state. */
+export async function rustHiddenRelease(): Promise<void> {
+	mirror(await chatStateCall('hiddenRelease', {}), Date.now());
+}
+
+/** `encrypted_chat_metadata` payload for a hide/unhide key rotation (versions default in Rust). */
+export async function rustHiddenKeyUpdatePayload(
+	chatId: string,
+	encryptedChatKey: string,
+	chat: { messages_v?: number; title_v?: number; last_edited_overall_timestamp?: number },
+): Promise<Record<string, unknown>> {
+	return (await chatStateCall('hiddenKeyUpdate', {
+		chatId, encryptedChatKey, messagesV: chat.messages_v, titleV: chat.title_v,
+		lastEdited: chat.last_edited_overall_timestamp, nowSeconds: Math.floor(Date.now() / 1000),
+	})).payload;
+}

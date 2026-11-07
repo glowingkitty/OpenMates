@@ -249,6 +249,10 @@ export async function sendDeleteMessageImpl(
 	}
 }
 
+// Compile-time flag: default builds fold this to false and drop the Rust adapter.
+const RUST_KEY_UPDATE: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+	&& !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_chatstate") === "ts");
+
 /**
  * Send encrypted_chat_key update to server for chat metadata sync
  * Used for hiding/unhiding chats by updating the encryption wrapper
@@ -282,7 +286,7 @@ export async function sendUpdateChatKeyImpl(
 		// Create payload for encrypted_chat_metadata handler
 		// This handler accepts encrypted_chat_key and updates it in Directus
 		// message_id is optional - we omit it since we're only updating metadata
-		const payload = {
+		const legacyPayload = {
 			chat_id,
 			encrypted_chat_key,
 			// Explicitly allow chat key rotation for hidden chat hide/unhide flows.
@@ -297,6 +301,10 @@ export async function sendUpdateChatKeyImpl(
 					chat.last_edited_overall_timestamp || Math.floor(Date.now() / 1000)
 			}
 		};
+		// Flag on: the shared Rust core builds the frame (versions default there).
+		const payload = RUST_KEY_UPDATE
+			? ((await (await import("./rustCore/chatState/rustHiddenChat")).rustHiddenKeyUpdatePayload(chat_id, encrypted_chat_key, chat)) as unknown as typeof legacyPayload)
+			: legacyPayload;
 
 		console.debug(
 			`[ChatSyncService:Senders] Sending encrypted_chat_key update for chat ${chat_id}`,

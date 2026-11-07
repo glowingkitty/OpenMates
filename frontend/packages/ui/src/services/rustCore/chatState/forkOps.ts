@@ -10,9 +10,10 @@ import { UnitRefusal, type UnitHandlers } from '../host/unitPort';
 import type { HiddenForkUnitProtocol } from './hiddenForkProtocol';
 import { bindingCode } from './chatStateBinding';
 
-type ForkOpName = 'forkSelect' | 'forkReencryptBatch' | 'forkCopyField' | 'forkEncryptTitle' | 'forkFinalize';
+type ForkOpName = 'forkNormalizeSelection' | 'forkSelect' | 'forkReencryptBatch' | 'forkCopyField' | 'forkEncryptTitle' | 'forkFinalize';
 
 interface ForkBinding {
+	chat_state_normalize_explain_selection?(selected: string): string;
 	chat_state_fork_select?(messagesJson: string, upTo: string): string[];
 	chat_state_fork_reencrypt_batch?(messagesJson: string, newChatId: string, chatKey: Uint8Array): string;
 	chat_state_fork_copy_field?(source: string | undefined, sourceKey: Uint8Array, newKey: Uint8Array): string | undefined;
@@ -41,6 +42,7 @@ function need<K extends keyof ForkBinding>(binding: ForkBinding, name: K): NonNu
 export function createForkHandlers(raw: object): Pick<UnitHandlers<HiddenForkUnitProtocol>, ForkOpName> {
 	const binding = raw as ForkBinding;
 	return {
+		forkNormalizeSelection: ({ selectedText }) => ({ value: guarded(() => need(binding, 'chat_state_normalize_explain_selection')(selectedText)) }),
 		forkSelect: ({ messagesJson, upToMessageId }) => ({ ids: guarded(() => need(binding, 'chat_state_fork_select')(messagesJson, upToMessageId)) }),
 		forkReencryptBatch: ({ messagesJson, newChatId, chatKey }) =>
 			({ rows: guarded(() => JSON.parse(need(binding, 'chat_state_fork_reencrypt_batch')(messagesJson, newChatId, chatKey))) }),

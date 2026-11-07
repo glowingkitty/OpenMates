@@ -155,7 +155,9 @@ export async function startFork(
 export async function startExplainInNewChat({
   selectedText,
 }: ExplainInNewChatOptions): Promise<string> {
-  const normalizedSelection = normalizeExplainSelection(selectedText);
+  const normalizedSelection = RUST_FORK
+    ? await (await import("./rustCore/chatState/rustFork")).rustNormalizeExplainSelection(selectedText)
+    : normalizeExplainSelection(selectedText);
   if (!normalizedSelection) {
     throw new Error("Selected text is required to start an explanation chat");
   }
