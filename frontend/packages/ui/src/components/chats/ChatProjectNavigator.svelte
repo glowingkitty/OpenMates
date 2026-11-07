@@ -9,7 +9,7 @@
   import { text } from '@repo/ui';
   import { ChevronLeft, ChevronRight, Folder, MoreHorizontal, Plus, ExternalLink } from '@lucide/svelte';
   import ProcessingWheel from './ProcessingWheel.svelte';
-  import { projectBreadcrumbs, locationHasRunningChats, type ChatProjectLocation, type SidebarProject } from '../../utils/chatProjectNavigation';
+  import { projectBreadcrumbs, projectHasChats, locationHasRunningChats, type ChatProjectLocation, type SidebarProject } from '../../utils/chatProjectNavigation';
   let { projects, location = $bindable(null), runningIds, onNavigate = next => location = next, onDropChat, onCreateFolder, onOpenProject }: {
     projects: SidebarProject[];
     location?: ChatProjectLocation | null;
@@ -24,6 +24,8 @@
   let creatingFolder = $state(false);
   let busy = $state(false);
   let error = $state('');
+  // Root level lists only projects that actually contain chats; empty projects stay out of the chat sidebar.
+  const rootProjects = $derived(projects.filter(projectHasChats));
   const project = $derived(projects.find(project => project.id === location?.projectId));
   const crumbs = $derived(project ? projectBreadcrumbs(project, location?.folderId ?? null) : []);
   const currentHash = $derived(project?.folders.find(folder => folder.id === location?.folderId)?.hash ?? null);
@@ -88,7 +90,7 @@
       </button>
     {/each}
   {:else}
-    {#each projects as root (root.id)}
+    {#each rootProjects as root (root.id)}
       <button type="button" class="folder-row" data-testid="chat-project-root" onclick={() => go({ projectId: root.id, folderId: null })}
         ondragover={event => { if (event.dataTransfer?.types.includes('application/x-openmates-chat')) event.preventDefault(); }}
         ondrop={event => drop(event, { projectId: root.id, folderId: null })}>

@@ -160,6 +160,14 @@ assertions:
     row.
   depends_on:
   - examples.nested_projects
+- id: chat-navigation.projects.only-with-chats
+  type: behavior
+  must: The sidebar root lists a Project only when at least one chat is linked at
+    its root or inside one of its existing folders; Projects without chats never appear
+    there. A chat linked inside a folder appears only when that folder is open, under
+    its Project and folder path.
+  depends_on:
+  - examples.sidebar_projects_with_chats
 - id: chat-navigation.activity.global-running
   type: behavior
   must: Chats processing themselves or through active descendants appear globally
@@ -230,6 +238,7 @@ examples:
   - empty_shells
   - local_first_chat_open
   - nested_projects
+  - sidebar_projects_with_chats
   - running_chats
   - chat_organization
   - chat_menus

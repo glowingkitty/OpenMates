@@ -12,4 +12,9 @@ export default fixture;
 export const variants = {
   deep: { ...fixture, location: { projectId: 'launch', folderId: 'copy' } },
   direct: { ...fixture, location: { projectId: 'launch', folderId: 'marketing' } },
+  // Root list must hide projects without chats (Empty archive) and keep the one with chats.
+  withEmptyProject: { ...fixture, projects: [
+    { id: 'empty', name: 'Empty archive', folders: [{ id: 'unused', hash: 'unused-hash', parentHash: null, name: 'Unused' }], chats: [] },
+    project,
+  ], location: null },
 };

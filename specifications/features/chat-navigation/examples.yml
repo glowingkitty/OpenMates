@@ -140,6 +140,14 @@ nested_projects:
   given: Marketing is directly inside Website launch.
   when: The user opens Marketing.
   then: The breadcrumb shows Website launch and Marketing with no middle overflow.
+sidebar_projects_with_chats:
+- id: empty-project-hidden
+  assertion_ids:
+  - chat-navigation.projects.only-with-chats
+  given: Website launch has a chat in its Drafts folder; Empty archive has no chats.
+  when: The user opens the sidebar.
+  then: Only Website launch is listed. Opening it and then Drafts shows the chat under
+    that path.
 running_chats:
 - id: parent-count
   assertion_ids:

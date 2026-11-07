@@ -546,7 +546,7 @@ specifications:
     version: 3
     status: draft
     path: features/chat-navigation
-    fingerprint: ea41d9d871655da20efdebe42b6b954f3ffbdc75271787d5e89b5c898b5c9a8b
+    fingerprint: 9b2a86648814262bbf19e071e996ae6c19d023f286548c389625473a2e604155
     required_applies_to:
     - cli
     - gui.web
@@ -7281,6 +7281,15 @@ assertions:
     specification_id: feature.chat-navigation
     type: behavior
     fingerprint: 0eacedb712902bc183c65f60b87f01fd1ed1d389fcff8786cbefc3e252dc8a20
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
+  chat-navigation.projects.only-with-chats:
+    specification: feature.chat-navigation@3
+    specification_id: feature.chat-navigation
+    type: behavior
+    fingerprint: 023b43690d9f595b06d05de9378b5ab8f1f305b41244fc1ddf16044eab892d45
     required_applies_to:
     - cli
     - gui.web

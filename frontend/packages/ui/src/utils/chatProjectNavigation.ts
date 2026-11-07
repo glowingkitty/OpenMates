@@ -40,3 +40,9 @@ export function projectFolderChatIds(project: SidebarProject, folderId: string |
 export function locationHasRunningChats(project: SidebarProject, folderId: string | null, runningIds: ReadonlySet<string>): boolean {
   return [...projectFolderChatIds(project, folderId, true)].some(id => runningIds.has(id));
 }
+
+/** A project belongs in the sidebar root only when a chat lives at its root or in one of its existing folders. */
+export function projectHasChats(project: SidebarProject): boolean {
+  const folderHashes = new Set(project.folders.map(folder => folder.hash));
+  return project.chats.some(chat => chat.folderHash === null || folderHashes.has(chat.folderHash));
+}
