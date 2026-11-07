@@ -48,7 +48,7 @@
 	// --- Search imports ---
 	import SearchBar from './search/SearchBar.svelte';
 	import SearchResults from './search/SearchResults.svelte';
-	import { search as performSearch, warmUpSearchIndex, invalidateChatSearchIndex, type SearchResults as SearchResultsType } from '../../services/searchService';
+	import { search as performSearch, prepareSearchBackend, warmUpSearchIndex, invalidateChatSearchIndex, type SearchResults as SearchResultsType } from '../../services/searchService';
 	import { searchStore, openSearch, closeSearch, setSearchQuery, setSearching } from '../../stores/searchStore';
 	import { navigateToSettings } from '../../stores/settingsNavigationStore';
 	import { messageHighlightStore, searchTextHighlightStore } from '../../stores/messageHighlightStore';
@@ -344,6 +344,11 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	// --- Search State ---
 	// Reactive subscription to search store for template rendering
 	let searchState = $derived($searchStore);
+	// Opening the search bar starts loading the search backend while the user types.
+	let searchBarOpen = $derived($searchStore.isActive);
+	$effect(() => {
+		if (searchBarOpen) prepareSearchBackend();
+	});
 	// Search results from the last completed search
 	let searchResults: SearchResultsType | null = $state(null);
 	// Reference to the SearchResults component for keyboard navigation

@@ -954,6 +954,14 @@ export function invalidateChatSearchIndex(chatId: string): void {
 }
 let indexGeneration = 0;
 
+/** buildChatMessageIndex plus a performance measure (both arms of the paired search bench read it). */
+async function measuredBuild(chatId: string, generation: number): Promise<SearchEntries> {
+  const start = performance.now();
+  const entries = await buildChatMessageIndex(chatId, generation);
+  performance.measure("openmates:search:build", { start, end: performance.now(), detail: { entries: entries.length } });
+  return entries;
+}
+
 // Share decryption across warm-up and overlapping searches, with one global limit.
 async function indexChatMessages(chatId: string): Promise<SearchEntries> {
   const cached = messageIndex.get(chatId);
@@ -967,7 +975,7 @@ async function indexChatMessages(chatId: string): Promise<SearchEntries> {
     } else { activeIndexJobs++; }
     try {
       if (generation !== indexGeneration) return [];
-      return await buildChatMessageIndex(chatId, generation);
+      return await measuredBuild(chatId, generation);
     } finally {
       const next = indexWaiters.shift();
       if (next) next(); else activeIndexJobs--;
@@ -1152,6 +1160,7 @@ export async function warmUpSearchIndex(chatIds: string[]): Promise<void> {
     }
 
     const elapsed = performance.now() - startTime;
+    performance.measure("openmates:search:warmup", { start: startTime, end: performance.now(), detail: { chats: chatIds.length } });
     console.debug(
       `[SearchService] Search index warmed up in ${elapsed.toFixed(0)}ms (${messageIndex.size} chats)`,
     );
@@ -1618,6 +1627,18 @@ async function loadRustSearch() {
   return rustSearch;
 }
 
+/**
+ * Called when the search bar opens, before the first query: Rust-core builds load the
+ * search unit while the user types, so the first warm-up ingest does not wait for it.
+ * No-op in default builds. A failed open is reported by the search that needs the unit.
+ */
+export function prepareSearchBackend(): void {
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE !== "1" || !rustSearchOwnsIndex()) return;
+  loadRustSearch().then((rust) => rust.prepareRustChatSearch()).catch((error: unknown) => {
+    console.warn("[SearchService] Preparing the search unit failed:", error instanceof Error ? error.message : "unknown");
+  });
+}
+
 /** indexChatMessages for the Worker index: same dedupe and global concurrency limit. */
 async function indexChatInRustUnit(chatId: string): Promise<void> {
   const rust = await loadRustSearch();
@@ -1633,7 +1654,7 @@ async function indexChatInRustUnit(chatId: string): Promise<void> {
     let entries: SearchEntries;
     try {
       if (generation !== indexGeneration) return;
-      entries = await buildChatMessageIndex(chatId, generation);
+      entries = await measuredBuild(chatId, generation);
     } finally {
       const next = indexWaiters.shift();
       if (next) next(); else activeIndexJobs--;

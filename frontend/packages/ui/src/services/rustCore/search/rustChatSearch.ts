@@ -205,28 +205,59 @@ export function ingestColumns(handle: number, entries: readonly RustSearchEntry[
 	return { handle, messageIds, contents, createdAt, metaEntries: Uint32Array.from(metaEntries), metaMasks: Uint16Array.from(metaMasks), metaValues };
 }
 
+/** Replies of ingests posted but not yet answered; `settleRustIngests` waits for them. */
+const inflightIngests = new Set<Promise<void>>();
+let ingestFailure: unknown = null;
+
+/** Records one search phase as a performance measure (read by the paired bench; no behavior). */
+function recordPhase(name: string, start: number, end: number, detail: Record<string, number>): void {
+	performance.measure(`openmates:rust:search:${name}`, { start, end, detail });
+}
+
 /**
- * Transfers `chatId`'s freshly built entries to the Worker index (the page keeps
- * no copy). Skipped when the chat was invalidated after `epoch` was read.
+ * Posts `chatId`'s freshly built entries to the Worker index (the page keeps no
+ * copy) and returns once the request is on the port, not when the Worker has
+ * answered: the next chat's page-side build overlaps the Worker's ingest instead
+ * of waiting a round trip per warm-up batch. Requests on one port are served in
+ * order, so a later query always sees the ingest; `queryRustSearch` still settles
+ * every reply first, so budget evictions are known before it names handles.
+ * Skipped when the chat was invalidated after `epoch` was read.
  */
 export async function ingestRustChat(chatId: string, entries: readonly RustSearchEntry[], epoch: number): Promise<void> {
 	if (rustChatEpoch(chatId) !== epoch) return;
 	const target = await currentUnit();
+	if (rustChatEpoch(chatId) !== epoch) return;
 	forget(chatId);
 	const handle = nextHandle++;
+	const started = performance.now();
 	const chat = ingestColumns(handle, entries);
-	const { evicted } = await send(target, 'ingest', { removes: takeRemoves(), chat }, { transfer: [chat.createdAt.buffer, chat.metaEntries.buffer, chat.metaMasks.buffer] });
-	if (unit !== target) return;
-	for (const gone of evicted) {
-		const evictedChat = chatOfHandle.get(gone);
-		if (evictedChat !== undefined) { indexed.delete(evictedChat); chatOfHandle.delete(gone); }
-	}
-	const kept = !evicted.includes(handle);
-	if (kept && rustChatEpoch(chatId) === epoch && !indexed.has(chatId)) {
-		indexed.set(chatId, handle);
-		chatOfHandle.set(handle, chatId);
-	} else if (kept) {
-		removes.push(handle);
+	const posted = performance.now();
+	indexed.set(chatId, handle);
+	chatOfHandle.set(handle, chatId);
+	const reply = send(target, 'ingest', { removes: takeRemoves(), chat }, { transfer: [chat.createdAt.buffer, chat.metaEntries.buffer, chat.metaMasks.buffer] })
+		.then(({ evicted, workerMs }) => {
+			recordPhase('ingest', started, performance.now(), { entries: entries.length, columnsMs: posted - started, workerMs: workerMs ?? 0 });
+			if (unit !== target) return;
+			for (const gone of evicted) {
+				const evictedChat = chatOfHandle.get(gone);
+				if (evictedChat !== undefined) { indexed.delete(evictedChat); chatOfHandle.delete(gone); }
+			}
+		})
+		.catch((error: unknown) => {
+			ingestFailure ??= error;
+			console.warn('[RustSearch] indexing a chat in the search unit failed:', error instanceof Error ? error.message : 'unknown');
+		})
+		.finally(() => { inflightIngests.delete(reply); });
+	inflightIngests.add(reply);
+}
+
+/** Waits for every posted ingest and rethrows the first ingest failure (the search must not run on an unknown index). */
+export async function settleRustIngests(): Promise<void> {
+	while (inflightIngests.size > 0) await Promise.all([...inflightIngests]);
+	if (ingestFailure !== null) {
+		const failure = ingestFailure;
+		ingestFailure = null;
+		throw failure;
 	}
 }
 
@@ -334,13 +365,19 @@ export function decodeSearchReply(reply: SearchQueryReply, chatIds: readonly str
 export async function queryRustSearch(input: RustQueryInput, signal?: AbortSignal): Promise<RustSearchResult> {
 	const target = await currentUnit();
 	signal?.throwIfAborted();
+	await settleRustIngests();
+	signal?.throwIfAborted();
+	const columnsStart = performance.now();
 	const columns = queryColumns(input, (chatId) => indexed.get(chatId) ?? 0);
 	performance.mark('openmates:rust:search-start');
+	const sent = performance.now();
 	const reply = await send(target, 'query', { removes: takeRemoves(), ...columns }, {
 		signal,
 		transfer: [columns.handles.buffer, columns.chatMasks.buffer, columns.tagCounts.buffer, columns.lastEdited.buffer, columns.catalogFlags.buffer, columns.catalogKeywordCounts.buffer],
 	});
+	const replied = performance.now();
 	const decoded = decodeSearchReply(reply, input.chats.map((chat) => chat.chatId), input.settings.length);
+	recordPhase('query', columnsStart, performance.now(), { columnsMs: sent - columnsStart, roundTripMs: replied - sent, workerMs: reply.workerMs ?? 0, decodeMs: performance.now() - replied, chats: input.chats.length });
 	served += 1;
 	performance.measure('openmates:rust:search', 'openmates:rust:search-start');
 	if (typeof document !== 'undefined') document.documentElement.dataset.rustCoreSearch = `rust:${served}`;
@@ -350,6 +387,7 @@ export async function queryRustSearch(input: RustQueryInput, signal?: AbortSigna
 /** Logout: drop the Worker index and the page's handles. */
 export function clearRustChatSearch(): void {
 	epochs.clear();
+	ingestFailure = null;
 	if (unit) dropUnit(unit, true);
 	indexed.clear();
 	chatOfHandle.clear();

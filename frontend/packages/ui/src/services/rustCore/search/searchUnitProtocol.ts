@@ -62,10 +62,11 @@ export interface SearchQueryRequest {
 	catalogKeywords: string[];
 }
 
-export interface SearchQueryReply { rows: Uint32Array; texts: string[]; numbers: Float64Array }
+/** `workerMs`: Worker-side time of the binding call (telemetry for the paired bench). */
+export interface SearchQueryReply { rows: Uint32Array; texts: string[]; numbers: Float64Array; workerMs?: number }
 
 export interface SearchUnitProtocol extends UnitProtocol {
-	ingest: { request: { removes: number[]; chat: SearchIngestChat }; response: { evicted: Uint32Array } };
+	ingest: { request: { removes: number[]; chat: SearchIngestChat }; response: { evicted: Uint32Array; workerMs?: number } };
 	query: { request: SearchQueryRequest; response: SearchQueryReply };
 	clear: { request: Record<string, never>; response: { chats: number } };
 	/** Frees the index and closes the unit after replying (the page reopens under a new generation). */

@@ -64,17 +64,21 @@ export function installSearchUnit(context: UnitInstallContext): () => void {
 			const target = live();
 			for (const handle of payload.removes) target.remove_chat(handle);
 			const { chat } = payload;
+			const started = performance.now();
 			const evicted = bindingCall(() => target.ingest_chat(chat.handle, chat.messageIds, chat.contents, chat.createdAt, chat.metaEntries, chat.metaMasks, chat.metaValues));
-			return { evicted };
+			return { evicted, workerMs: performance.now() - started };
 		},
 		query(payload) {
 			if (!isQueryRequest(payload)) throw new UnitRefusal('protocol');
 			const target = live();
 			for (const handle of payload.removes) target.remove_chat(handle);
-			return bindingCall(() => target.query(
+			const started = performance.now();
+			const reply = bindingCall(() => target.query(
 				payload.query, payload.flags, payload.handles, payload.chatMasks, payload.chatValues, payload.tagCounts, payload.lastEdited,
 				payload.catalogFlags, payload.catalogLabels, payload.catalogKeywordCounts, payload.catalogKeywords,
 			));
+			reply.workerMs = performance.now() - started;
+			return reply;
 		},
 		clear() {
 			const target = live();
