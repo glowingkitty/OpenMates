@@ -15,9 +15,6 @@ vi.mock('../../../services/chatSyncService', () => ({ chatSyncService: new Event
 vi.mock('../../../services/directChatService', () => ({ startDirectChatIdentityEnrollment: vi.fn() }));
 vi.mock('../BasicInfosBar.svelte', () => ({ default: () => {} }));
 vi.mock('../../Icon.svelte', () => ({ default: () => {} }));
-vi.mock('../../../stores/appSettingsMemoriesStore', () => ({ appSettingsMemoriesStore: {
-  subscribe: (run: (value: unknown) => void) => { run({ entriesByApp: new Map() }); return () => {}; },
-} }));
 
 const eventId = 'deferred-event-reference';
 const event = { type: 'event_result', title: 'Community AI Hack', date_start: '2026-11-14T09:00:00Z',

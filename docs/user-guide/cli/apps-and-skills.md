@@ -17,17 +17,6 @@ claims:
       command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli
       assertion: cli-apps-code-run-uses-app-skill-endpoint
     verified: '2026-06-11'
-  - id: cli-apps-memory-type-registry-is-available
-    type: unit
-    claim: CLI app and memory docs are grounded in the exported memory type registry.
-    source:
-      - frontend/packages/openmates-cli/src/cli.ts
-      - frontend/packages/openmates-cli/src/client.ts
-    test:
-      file: frontend/packages/openmates-cli/tests/cli.test.ts
-      command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli
-      assertion: cli-apps-memory-type-registry-is-available
-    verified: '2026-06-11'
   - id: cli-apps-docs-cover-code-run-commands
     type: unit
     claim: Apps docs cover the Code Run command forms exposed by CLI help.
@@ -168,47 +157,18 @@ Or set the `OPENMATES_API_KEY` environment variable.
 
 Memories are per-app key-value entries stored in Memories. They are encrypted and synced via WebSocket.
 
-### Listing Memories
+### Memories
+
+Typed app memories (per-app categories with field schemas) were replaced by Memories: personal documents you create and organize in the web app under Settings > Memories. The CLI no longer creates typed entries.
 
 ```
 openmates settings memories list
-openmates settings memories list --app-id code
-openmates settings memories list --app-id code --item-type preferred_tech
 openmates settings memories list --json
-```
-
-### Listing Memory Types
-
-Shows available memory types and their field schemas for a given app:
-
-```
-openmates settings memories types
-openmates settings memories types --app-id code
-openmates settings memories types --json
-```
-
-### Creating a Memory
-
-```
-openmates settings memories create --app-id code --item-type preferred_tech --data '{"name":"Python","proficiency":"advanced"}'
-```
-
-Field values are validated against the `MEMORY_TYPE_REGISTRY` in the CLI before sending. See the `types` command to discover required fields.
-
-### Updating a Memory
-
-```
-openmates settings memories update --id <uuid> --app-id code --item-type preferred_tech --data '{"name":"Python","proficiency":"expert"}'
-openmates settings memories update --id <uuid> --app-id code --item-type preferred_tech --data '...' --version 2
-```
-
-The `--version` flag enables optimistic concurrency control.
-
-### Deleting a Memory
-
-```
+openmates settings memories update --id account-memory-<id> --data '{"title":"...","document":"..."}'
 openmates settings memories delete --id <uuid>
 ```
+
+`list` and `delete` also cover legacy typed entries until the web app has migrated them. `settings memories create` and `settings memories types` print a pointer to Settings > Memories and exit with an error. Mention a Memory document with `@OpenMates-Memories-<title>`.
 
 ## Key Files
 

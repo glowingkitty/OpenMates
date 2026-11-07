@@ -955,7 +955,6 @@ function readExistingMetadata(slug) {
       order: null,
       appSkillExamples: [],
       appFocusModeExamples: [],
-      appSettingsMemoryExamples: [],
       contentEmbedExamples: [],
       activeFocusId: null,
     };
@@ -963,7 +962,6 @@ function readExistingMetadata(slug) {
   const source = readFileSync(filePath, 'utf8');
   const appSkillMatch = source.match(/app_skill_examples:\s*(\[[^\]]*\])/);
   const appFocusMatch = source.match(/app_focus_mode_examples:\s*(\[[^\]]*\])/);
-  const appMemoryMatch = source.match(/app_settings_memory_examples:\s*(\[[^\]]*\])/);
   const contentEmbedMatch = source.match(/content_embed_examples:\s*(\[[^\]]*\])/);
   const activeFocusMatch = source.match(/active_focus_id:\s*"((?:\\.|[^"])*)"/);
   function parseArray(match) {
@@ -978,7 +976,6 @@ function readExistingMetadata(slug) {
     order: generatedMetadataOrder(source),
     appSkillExamples: parseArray(appSkillMatch),
     appFocusModeExamples: parseArray(appFocusMatch),
-    appSettingsMemoryExamples: parseArray(appMemoryMatch),
     contentEmbedExamples: parseArray(contentEmbedMatch),
     activeFocusId: activeFocusMatch ? JSON.parse(`"${activeFocusMatch[1]}"`) : null,
   };
@@ -1373,9 +1370,6 @@ export function formatTs(chat, metadata) {
   const appSkillLine = metadata.appSkillExamples.length > 0
     ? `\n    app_skill_examples: ${tsArray(metadata.appSkillExamples)},`
     : '';
-  const appMemoryLine = metadata.appSettingsMemoryExamples.length > 0
-    ? `\n    app_settings_memory_examples: ${tsArray(metadata.appSettingsMemoryExamples)},`
-    : '';
   const contentEmbedLine = metadata.contentEmbedExamples.length > 0
     ? `\n    content_embed_examples: ${tsArray(metadata.contentEmbedExamples)},`
     : '';
@@ -1406,7 +1400,7 @@ export const ${varName}: ExampleChat = {
   embeds: ${JSON.stringify(embeds, null, 4)},${usageEntriesLine}${subChatsLine}${publicSpeechLine}
   metadata: {
     featured: ${metadata.featured},
-    order: ${metadata.order},${appSkillLine}${appFocusLine}${appMemoryLine}${contentEmbedLine}${activeFocusLine}
+    order: ${metadata.order},${appSkillLine}${appFocusLine}${contentEmbedLine}${activeFocusLine}
   },
 };
 `;
@@ -1678,7 +1672,6 @@ async function main() {
     appFocusModeExamples: args.appFocusModeExamples.length > 0
       ? args.appFocusModeExamples
       : existingMetadata.appFocusModeExamples,
-    appSettingsMemoryExamples: existingMetadata.appSettingsMemoryExamples,
     contentEmbedExamples: existingMetadata.contentEmbedExamples,
     activeFocusId: args.activeFocusId || existingMetadata.activeFocusId,
     order: existingMetadata.order ?? nextOrder(slug),

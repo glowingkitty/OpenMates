@@ -40,8 +40,8 @@ def main() -> int:
 
     if ai_metadata.get("settings_and_memories"):
         errors.append("backend/apps/ai/app.yml still defines memory categories")
-    if not travel_metadata.get("settings_and_memories"):
-        errors.append("non-AI app-memory control is missing from Travel metadata")
+    if travel_metadata.get("settings_and_memories"):
+        errors.append("backend/apps/travel/app.yml still defines typed memory categories (removed)")
 
     for path in SURFACES:
         content = path.read_text(encoding="utf-8")

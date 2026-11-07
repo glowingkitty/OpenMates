@@ -539,8 +539,10 @@
                 // parts[0]="focus", parts[1]=appId, parts[2]=focusModeId
                 deepLinkPath = `apps/${parts[1]}/focus/${parts[2]}`;
             } else if ((mentionType === 'settings_memory' || mentionType === 'settings_memory_entry') && parts.length >= 3) {
-                // parts[0]="memory", parts[1]=appId, parts[2]=categoryId
-                deepLinkPath = `apps/${parts[1]}/settings_memories/${parts[2]}`;
+                // parts[0]="memory", parts[1]=appId, parts[2]=categoryId, parts[3]=entry id (entry mentions)
+                deepLinkPath = mentionType === 'settings_memory_entry' && parts[3]
+                    ? `memories/${encodeURIComponent(parts[3].replace(/^account-memory-/, ''))}`
+                    : 'settings_memories';
             }
         }
 

@@ -2547,7 +2547,7 @@ def _can_overlap_first_turn_reads(request_data, stage_one_snapshot, user_overrid
     if not isinstance(admission, dict) or admission.get("scope_complete") is True:
         return False
     if any(getattr(request_data, key, None) for key in (
-        "accepted_plan_context", "custom_rule_documents", "project_focus_documents",
+        "accepted_plan_context", "custom_rule_documents", "memory_catalog", "project_focus_documents",
         "project_context_documents", "mentioned_settings_memories_cleartext",
     )):
         return False
@@ -5046,6 +5046,7 @@ async def _async_process_ai_skill_ask_task(
                         ),
                         decision_model_id=getattr(skill_config.default_llms, "decision_model", None),
                         voice_mode=request_data.voice_mode,
+                        memory_catalog=[e for e in request_data.memory_catalog if e.source == "personal"],
                     )
                 _log_team_ai_pipeline_stage(request_data, task_id, "postprocess", "completed")
 
@@ -5112,6 +5113,7 @@ async def _async_process_ai_skill_ask_task(
                 "harmful_response": postprocessing_result.harmful_response,
                 "top_recommended_apps_for_user": postprocessing_result.top_recommended_apps_for_user,
                 "quick_tip_slugs": postprocessing_result.quick_tip_slugs,
+                "context_suggestion": postprocessing_result.context_suggestion,
                 "task_proposals": [proposal.model_dump() for proposal in postprocessing_result.task_proposals],
                 "task_update_proposals": [proposal.model_dump() for proposal in postprocessing_result.task_update_proposals],
                 "source_title_v": source_title_v,

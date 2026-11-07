@@ -42,7 +42,9 @@ from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.shared.python_utils.app_memory_policy import (
     REMOVED_APP_MEMORY_ERROR,
+    TYPED_MEMORY_REMOVED_ERROR,
     is_removed_app_memory,
+    is_typed_memory_write_rejected,
 )
 
 logger = logging.getLogger(__name__)
@@ -139,6 +141,16 @@ async def handle_store_app_settings_memories_entry(
                 logger.warning("[StoreAppSettingsMemories] Rejected removed app-memory owner '%s'", app_id)
                 await manager.send_personal_message(
                     {"type": "error", "payload": {"message": REMOVED_APP_MEMORY_ERROR}},
+                    user_id,
+                    device_fingerprint_hash,
+                )
+                return
+
+            if is_typed_memory_write_rejected(app_id):
+                # App-specific typed memories were removed; rejected before persistence.
+                logger.info("[StoreAppSettingsMemories] Rejected typed memory write for app '%s'", app_id)
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": TYPED_MEMORY_REMOVED_ERROR}},
                     user_id,
                     device_fingerprint_hash,
                 )

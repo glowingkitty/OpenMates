@@ -442,7 +442,7 @@ def test_tv_registrations_are_direct_admissions_without_discovery_or_memory_acti
     app = yaml.safe_load((root / "backend/apps/tv/app.yml").read_text())
     from backend.shared.python_schemas.app_metadata_schemas import EmbedTypeDefinition
     assert app["skills"] == [] and "providers" not in app
-    assert [memory["id"] for memory in app["settings_and_memories"]] == ["watched_movies", "watched_tv_shows", "to_watch_list"]
+    assert "settings_and_memories" not in app
     assert [entry["id"] for entry in app["embed_types"]] == ["movie", "series"]
     for entry in app["embed_types"]:
         validated = EmbedTypeDefinition.model_validate(entry)

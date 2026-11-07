@@ -45,7 +45,7 @@ export interface AppCatalogEntry {
   /** Keywords for fuzzy matching */
   keywords: string[];
   /** The type of this entry for display grouping */
-  entryType: "app" | "skill" | "focus_mode" | "memory";
+  entryType: "app" | "skill" | "focus_mode";
   /** The app ID this entry belongs to */
   appId: string;
 }
@@ -454,19 +454,6 @@ function buildAppSearchCatalog(): AppCatalogEntry[] {
         icon: null,
         keywords: ["focus", "focus mode", app.id, focusMode.id],
         entryType: "focus_mode",
-        appId: app.id,
-      });
-    }
-
-    // Memories
-    for (const memory of app.settings_and_memories || []) {
-      entries.push({
-        path: `apps/${app.id}/settings_memories/${memory.id}`,
-        nameTranslationKey: memory.name_translation_key,
-        descriptionTranslationKey: memory.description_translation_key,
-        icon: null,
-        keywords: ["memory", "memories", "settings", app.id, memory.id],
-        entryType: "memory",
         appId: app.id,
       });
     }

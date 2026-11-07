@@ -91,6 +91,8 @@ export async function sendAppSettingsMemoriesConfirmedImpl(
 		app_id: string;
 		item_key: string;
 		content: unknown; // Decrypted content (will be JSON stringified by server)
+		references_unavailable?: boolean;
+		approved_search_chat_ids?: string[];
 	}>
 ): Promise<void> {
 	if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
@@ -110,14 +112,20 @@ export async function sendAppSettingsMemoriesConfirmedImpl(
 		return;
 	}
 
+	// Chats referenced by approved Memories (cap 10): the only extra chats searchable this turn.
+	const approvedSearchChatIds = Array.from(
+		new Set(appSettingsMemories.flatMap((item) => item.approved_search_chat_ids ?? []))
+	).slice(0, 10);
 	const payload = {
 		chat_id: chatId,
 		// Empty array signals rejection - server will continue processing without data
 		app_settings_memories: appSettingsMemories.map((item) => ({
 			app_id: item.app_id,
 			item_key: item.item_key,
-			content: item.content // Decrypted content - server will encrypt with vault key
-		}))
+			content: item.content, // Decrypted content - server will encrypt with vault key
+			...(item.references_unavailable ? { references_unavailable: true } : {})
+		})),
+		...(approvedSearchChatIds.length ? { approved_search_chat_ids: approvedSearchChatIds } : {})
 	};
 
 	try {

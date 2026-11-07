@@ -49,9 +49,9 @@
     showMove?: boolean;
     /** Whether to show Download action */
     showDownload?: boolean;
-    /** Whether to show Add memory / Forget action */
+    /** Whether to show Save / Saved action */
     showAddMemory?: boolean;
-    /** Add memory / Forget label */
+    /** Save / Saved label */
     addMemoryLabel?: string;
     /** Whether to show Deactivate action (for focus mode embeds) */
     showDeactivate?: boolean;
@@ -71,7 +71,7 @@
     onMove?: () => void;
     /** Callback when Download action is triggered */
     onDownload?: () => void;
-    /** Callback when Add memory / Forget action is triggered */
+    /** Callback when Save / Saved action is triggered */
     onAddMemory?: () => void;
     /** Callback when Deactivate action is triggered (focus mode) */
     onDeactivate?: () => void;
@@ -92,7 +92,7 @@
     showMove = false,
     showDownload = false,
     showAddMemory = false,
-    addMemoryLabel = 'Add memory',
+    addMemoryLabel = 'Save',
     showDeactivate = false,
     showDetails = false,
     messageId = undefined,
@@ -431,7 +431,7 @@
       </button>
     {/if}
 
-    <!-- Add memory action - saves supported embeds to settings memories -->
+    <!-- Add memory action - toggles the saved flag on supported embeds -->
     {#if showAddMemory}
       <button
         class="menu-item add-memory"

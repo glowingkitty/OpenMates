@@ -726,7 +726,7 @@ export class ChatSynchronizationService extends EventTarget {
 
     // Defer websocketStatus subscription to avoid a Temporal Dead Zone (TDZ) crash
     // when this module is loaded as part of a circular import chain:
-    //   authStore → authSessionActions → appSettingsMemoriesStore → chatSyncService → authStore
+    //   authStore → authSessionActions → chatSyncService → authStore
     // In that chain, authStore's const binding hasn't been initialized yet when the
     // ChatSynchronizationService constructor runs. queueMicrotask defers until after
     // the synchronous module-evaluation stack completes, at which point authStore is

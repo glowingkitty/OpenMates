@@ -21,7 +21,6 @@ from backend.shared.python_schemas.app_metadata_schemas import (
     AppYAML,
     AppSkillDefinition,
     AppFocusDefinition,
-    AppMemoryFieldDefinition,
     skill_has_provider_support,
 )
 from backend.core.api.app.services.translations import TranslationService
@@ -1082,14 +1081,6 @@ class BaseApp:
     def focus_modes(self) -> List[AppFocusDefinition]:
         return self.focuses
 
-    @property
-    def memory_fields(self) -> List[AppMemoryFieldDefinition]:
-        return self.app_config.memory_fields if self.app_config else []
-    
-    @property
-    def memory(self) -> List[AppMemoryFieldDefinition]:
-        return self.memory_fields
-
     def get_skill_by_id(self, skill_id: str) -> Optional[AppSkillDefinition]:
         for skill in self.skills:
             if skill.id == skill_id:
@@ -1100,12 +1091,6 @@ class BaseApp:
         for focus in self.focuses:
             if focus.id == focus_id:
                 return focus
-        return None
-    
-    def get_memory_field_by_id(self, memory_field_id: str) -> Optional[AppMemoryFieldDefinition]:
-        for mem_field in self.memory_fields:
-            if mem_field.id == memory_field_id:
-                return mem_field
         return None
     
     def _resolve_translation_key(self, translation_key: str, lang: str = "en") -> str:

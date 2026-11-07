@@ -10917,32 +10917,32 @@ watch_sheet_cells:
   de: "{count} Zellen"
   verified_by_human: []
 
-add_memory:
-  context: "Fullscreen embed memory action or saved memory fallback label"
-  en: "Add memory"
-  de: "Erinnerung hinzufügen"
+save_item:
+  context: "Save action on a result embed (events, stays, connections, listings)"
+  en: "Save"
+  de: "Speichern"
   verified_by_human: []
 
-forget_memory:
-  context: "Fullscreen embed memory action or saved memory fallback label"
-  en: "Forget"
-  de: "Vergessen"
+saved_item:
+  context: "Saved state of a result embed; tapping it removes the saved flag"
+  en: "Saved"
+  de: "Gespeichert"
   verified_by_human: []
 
 event:
-  context: "Fullscreen embed memory action or saved memory fallback label"
+  context: "Fallback label for a saved result embed"
   en: "Event"
   de: "Veranstaltung"
   verified_by_human: []
 
 online_event:
-  context: "Fullscreen embed memory action or saved memory fallback label"
+  context: "Fallback label for a saved result embed"
   en: "Online event"
   de: "Online-Veranstaltung"
   verified_by_human: []
 
 travel_connection:
-  context: "Fullscreen embed memory action or saved memory fallback label"
+  context: "Fallback label for a saved result embed"
   en: "Travel connection"
   de: "Reiseverbindung"
   verified_by_human: []

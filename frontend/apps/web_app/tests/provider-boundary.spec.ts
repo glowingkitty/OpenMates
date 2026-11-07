@@ -46,16 +46,14 @@ test('catalog omits every source-free skill and retains supported metadata', asy
 });
 
 // contract-test: direct surface=gui.web assertions=app-skills.history.renderable,app-skills.providers.permitted-only
-test('raw durable memory schemas survive discovery retirement while removed Health focuses stay absent', async () => {
+test('typed memory declarations are gone and removed Health focuses stay absent', async () => {
   // Discovery metadata is a projection, not the durable schema registry.
   // Read the exact candidate's authored definitions without a production call.
   const health = parse(readFileSync(resolve(REPO_ROOT, 'backend/apps/health/app.yml'), 'utf8'));
   const home = parse(readFileSync(resolve(REPO_ROOT, 'backend/apps/home/app.yml'), 'utf8'));
   expect(health.focuses).toEqual([]);
-  const savedListings = home.settings_and_memories.find((entry: any) => entry.id === 'saved_listings');
-  expect(savedListings.schema.properties.embed_id.type).toBe('string');
-  expect(savedListings.schema.properties.notes.type).toBe('string');
-  expect(savedListings.schema.required).toContain('title');
+  expect(home.settings_and_memories).toBeUndefined();
+  expect(health.settings_and_memories).toBeUndefined();
 });
 
 for (const [app, skill] of unavailableSkills) registerUnavailableSkillCoverage(app, skill);

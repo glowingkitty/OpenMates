@@ -59,7 +59,6 @@ import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage"; // Im
 import { workflowWorkspaceStore } from "./workflowWorkspaceStore";
 import { isValidLocale } from "../i18n/types"; // Import to validate localStorage language values (OPE-39)
 import { clientLogForwarder } from "../services/clientLogForwarder"; // Admin live log streaming to OpenObserve
-import { appSettingsMemoriesStore } from "./appSettingsMemoriesStore"; // Import to pre-load entries for @ mention dropdown
 import { applyServerDarkMode } from "./theme"; // Apply server dark mode preference on session restore
 import { applyServerUiFont } from "./uiFont"; // Apply server UI font preference on session restore
 import { promoteGuestTopicPreferencesIfNeeded } from "../services/topicPreferencesSync";
@@ -806,18 +805,6 @@ async function performAuthCheck(
           }
         })();
       }
-
-      // Pre-load all settings/memories entries from IndexedDB so they are immediately
-      // available when the user types @ in the message editor.
-      // Without this, the @ mention dropdown shows no settings_memory results because
-      // the store is empty until the user manually opens the Settings panel.
-      // Non-blocking: errors here must never prevent login from completing.
-      appSettingsMemoriesStore.loadEntries().catch((err) => {
-        console.warn(
-          "[AuthSessionActions] Failed to pre-load settings/memories entries (non-fatal):",
-          err,
-        );
-      });
 
       void submitPendingReferralCode();
 

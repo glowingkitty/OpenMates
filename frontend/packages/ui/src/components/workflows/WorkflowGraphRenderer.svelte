@@ -15,6 +15,9 @@
   import WorkflowMessageEditor from './WorkflowMessageEditor.svelte';
   import WorkflowVariablePicker, { type VariableSource } from './WorkflowVariablePicker.svelte';
   import WorkflowAskAiTestPreview from './WorkflowAskAiTestPreview.svelte';
+  import WorkflowMemorySnapshotNotice from './WorkflowMemorySnapshotNotice.svelte';
+  import WorkflowMemoryPicker from './WorkflowMemoryPicker.svelte';
+  import { mentionedMemoryIds, stepsNeedingMemoryAttention } from './workflowMemorySnapshots';
   import type { WorkflowPreviewEmbed } from '../../services/workflowStepTestStream';
   import ComposerModelSelector from '../enter_message/ComposerModelSelector.svelte';
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
@@ -72,6 +75,8 @@
   const visibleChats = $derived(chatSearch.trim() ? chats.filter(chat => (chat.title ?? '').toLowerCase().includes(chatSearch.trim().toLowerCase())) : chats.slice(0, 6));
   let chooseChat = $state(false);
   let showReferences = $state(false);
+  let memoryTitles = $state<Record<string, string>>({});
+  const attentionSteps = $derived(stepsNeedingMemoryAttention(graph));
   let mentionQuery = $state('');
   let selectedVariableSource = $state<string | null>(null);
   let streamedTestAnswer = $state('');
@@ -139,7 +144,7 @@
   const messageTemplate = $derived(String(draft?.config?.message ?? draft?.config?.summary ?? ''));
   const missingEarlierActionReference = $derived(!!draft && (
     (isMessage(draft) && !hasEarlierActionReference(messageTemplate))
-    || (isAskAi(draft) && !hasEarlierActionReference(askInstruction()))
+    || (isAskAi(draft) && !hasAskReference(askInstruction()))
     || (isCheck(draft) && draft.config?.mode === 'ai' && !hasEarlierActionReference(String(draft.config?.question ?? ''), selectedAiInputs(draft)))
   ));
   const loopCanSave = $derived(!draft || draft.type !== 'for_each' || (
@@ -190,7 +195,7 @@
   function appMetadata(appId: string, capability?: Capability): AppMetadata {
     const app = (appsMetadata as Record<string, AppMetadata>)[appId];
     const skill = app?.skills.find(item => item.id === capability?.metadata.skill_id);
-    if (!capability) return app ?? { id: appId, name: label(appId), icon_image: `${appId}.svg`, skills: [], focus_modes: [], settings_and_memories: [] };
+    if (!capability) return app ?? { id: appId, name: label(appId), icon_image: `${appId}.svg`, skills: [], focus_modes: [] };
     return { ...appMetadata(appId), name: capability.title, name_translation_key: skill?.name_translation_key, description: '', description_translation_key: skill?.description_translation_key, icon_image: skill?.icon_image ?? `${appId}.svg` };
   }
   function sameSlot(slot: Insertion): boolean { return insertion.after === slot.after && (insertion.branch ?? '') === (slot.branch ?? ''); }
@@ -377,6 +382,7 @@
   function inputValue(node: WorkflowNode, run?: WorkflowNodeRun): Record<string, unknown> { if (Object.keys(run?.input_summary ?? {}).length) return run!.input_summary!; if (isMessage(node)) return { title: node.config?.title, message: node.config?.message ?? node.config?.summary, destination: node.config?.chat_id ? tr('existing_chat') : $text('common.new_chat') }; if (isCheck(node) && node.config?.mode === 'ai') return { question: node.config?.question, selected_inputs: node.config?.selected_inputs }; return record(node.config?.input ?? node.config?.inputs ?? node.config?.input_mapping ?? node.config?.schedule ?? node.config?.predicate); }
   function outputValue(node: WorkflowNode, run: WorkflowNodeRun): Record<string, unknown> {
     const data = record(run.output_summary);
+    if (isAskAi(node) && Array.isArray(data.memory_snapshot_revisions)) return { answer: data.answer, memory_snapshot_revisions: data.memory_snapshot_revisions };
     const fields = capabilityFor(node, capabilities)?.metadata.output_schema?.properties;
     if (fields) return Object.fromEntries(outputFields(fields).filter(([key]) => key in data).map(([key]) => [key, data[key]]));
     const keys = String(node.config?.app_id) === 'weather' ? ['summary','rain_probability','max_temperature_c','rain_expected','rain_summary','forecast_day','forecast_days','rain_periods'] : data.results ? ['result_count','results','warnings','partial'] : null;
@@ -484,6 +490,7 @@
     return Array.isArray(explicit) ? explicit.filter((reference): reference is string => typeof reference === 'string' && outputs.some(output => output.reference === reference)).slice(0, 24) : [];
   }
   function hasTemplateText(value: string): boolean { return value.replace(/\{\{\s*[^{}]+?\s*\}\}/g, '').trim().length > 0; }
+  function hasAskReference(value: string): boolean { return mentionedMemoryIds(value).length > 0 || hasEarlierActionReference(value); }
   function hasEarlierActionReference(value: string, explicit: string[] = []): boolean { return !earlierActionOutputs.length || [...templateReferences(value), ...explicit].some(reference => earlierActionOutputs.some(output => output.reference === reference) || reference.startsWith('$items.')); }
   function updateAiCheckQuestion(value: string): void { nodeError = ''; const references = templateReferences(value); patch({ question: value, selected_inputs: references.length ? references : draft && isOptionsCheck(draft) ? selectedAiInputs(draft) : [] }); }
   function addAiCheckReference(output: Output): void { messageEditor?.insertReference(output); showReferences = false; }
@@ -514,7 +521,7 @@
     if (isCheck(draft) && draft.config?.mode !== 'ai' && !exactCheckCanSave) { nodeError = tr('check_required'); return; }
     if (draft.type === 'for_each' && !loopCanSave) { nodeError = tr('for_each_array_required'); return; }
     if (isAskAi(draft) && !askInstruction().trim()) { nodeError = tr('ask_ai_instruction_required'); return; }
-    if ((isMessage(draft) && !hasEarlierActionReference(messageTemplate)) || (isAskAi(draft) && !hasEarlierActionReference(askInstruction())) || (isCheck(draft) && draft.config?.mode === 'ai' && !hasEarlierActionReference(String(draft.config?.question ?? ''), selectedAiInputs(draft)))) { nodeError = tr('earlier_action_variable_required'); return; }
+    if ((isMessage(draft) && !hasEarlierActionReference(messageTemplate)) || (isAskAi(draft) && !hasAskReference(askInstruction())) || (isCheck(draft) && draft.config?.mode === 'ai' && !hasEarlierActionReference(String(draft.config?.question ?? ''), selectedAiInputs(draft)))) { nodeError = tr('earlier_action_variable_required'); return; }
     busy = true; nodeError = '';
     const saved = structuredClone($state.snapshot(draft)); recoverAskModel(saved); saved.title ||= summary(saved);
     try {
@@ -787,9 +794,11 @@
         <WorkflowVariablePicker outputs={eligibleOutputs} sources={variableSources} selectedSourceId={selectedVariableSource}
           query={showReferences ? mentionQuery : ''} disabled={readOnly || busy || testStatus === 'processing'}
           onSelectSource={selectVariableSource} onInsert={addAskReference}/>
+        {#if !readOnly}<WorkflowMemoryPicker query={showReferences ? mentionQuery : ''} disabled={busy || testStatus === 'processing'} onInsert={memory => { memoryTitles = { ...memoryTitles, [memory.id]: memory.title }; messageEditor?.insertMemory(memory); }} onLoaded={list => { memoryTitles = { ...Object.fromEntries(list.map(item => [item.id, item.title])), ...memoryTitles }; }}/>{/if}
         <div class="ask-ai-input" data-testid="workflow-ask-ai-input">
-          <WorkflowMessageEditor bind:this={messageEditor} value={askInstruction()} {outputs} placeholder={tr('ask_ai_placeholder')} disabled={readOnly || busy || testStatus === 'processing'} onChange={updateAskInstruction} onMentionTrigger={updateMention}/>
+          <WorkflowMessageEditor bind:this={messageEditor} value={askInstruction()} {outputs} {memoryTitles} placeholder={tr('ask_ai_placeholder')} disabled={readOnly || busy || testStatus === 'processing'} onChange={updateAskInstruction} onMentionTrigger={updateMention}/>
         </div>
+        <WorkflowMemorySnapshotNotice prompt={askInstruction()} memory={record(draft.config?.input)}/>
         <div class="ask-ai-actions">
           <fieldset class="ask-ai-model" data-testid="workflow-ask-ai-model" disabled={readOnly || busy || testStatus === 'processing'}>
             <ComposerModelSelector selection={String(record(draft.config?.input).model ?? 'auto')} onSelect={updateAskModel} onOpenDetails={openAskModelDetails}/>
@@ -908,6 +917,7 @@
     {@const rawRunStatus = run ? workflowNodePresentationStatus(run, isMessage(node), executionStatus) : ''}
     {@const runStatus = ['acknowledged','completed','no_new_results'].includes(rawRunStatus) ? 'completed' : rawRunStatus === 'expired' ? 'failed' : ['failed','cancelled','skipped','queued','running','cancellation_requested'].includes(rawRunStatus) ? rawRunStatus : 'waiting'}
     <article class="flow-node" class:ai-added={aiAddedNodeIds.includes(node.id)} class:ai-edited={aiEditedNodeIds.includes(node.id)} data-ai-change={aiAddedNodeIds.includes(node.id) ? 'added' : aiEditedNodeIds.includes(node.id) ? 'edited' : undefined} data-node-id={node.id} data-node-type={node.type} data-testid="workflow-node-card" style={`view-transition-name:${viewTransitionName(node.id)}`}>
+      {#if attentionSteps.has(node.id)}<p class="memory-attention-badge" role="status" data-testid="workflow-memory-attention-badge">{tr('memory_needs_attention_badge')}</p>{/if}
       {#if draft?.id === node.id}{#if picker}{@render pickerPanel()}{:else}{@render editor()}{/if}{:else}
         <button type="button" class="node-summary" class:branded={node.type === 'app_skill_action' || node.type === 'for_each' || isTrigger(node) || isMessage(node) || isCheck(node)} class:expanded={readOnly && expandedReadOnly === node.id} class:dragging={draggingNodeId === node.id} style={style(node)} data-ai-label={aiAddedNodeIds.includes(node.id) ? $text('workflows.builder.ai_node_added') : aiEditedNodeIds.includes(node.id) ? $text('workflows.builder.ai_node_edited') : undefined} data-testid="workflow-node-summary" aria-expanded={expandedReadOnly === node.id} data-can-drag={!readOnly && !!onSave && (canMoveWorkflowNode(graph, node.id, 'up') || canMoveWorkflowNode(graph, node.id, 'down'))} onpointerdown={event => startPointerDrag(event, node.id)} onclick={() => { if (!suppressNodeClick && !draggingNodeId) edit(node); }}><span class="node-app-icon" data-testid="workflow-node-primary-icon"><span class="workflow-icon" style={primaryNodeIconStyle(node)} aria-hidden="true"></span></span><span class="kind">{kind(node)}</span>{#if isCheck(node) && checkSource(node)}<span class="check-source">{summary(checkSource(node)!)}</span>{/if}<strong data-testid="workflow-node-title-label">{summary(node)}</strong>{#if node.type === 'app_skill_action' && skillInputSummary(node)}<span class="location" data-testid="workflow-node-input-summary">{skillInputSummary(node)}</span>{/if}{#if run}<span class="run-status" class:success={runStatus === 'completed'} class:failed={runStatus === 'failed'} data-testid="workflow-run-node-status" data-node-status={rawRunStatus} role="img" aria-label={$text(`workflows.runs.status_${runStatus}`)}>{#if runStatus === 'completed'}<span class="workflow-icon" style={assetIconStyle('check', 16, 'var(--color-font-button)')} aria-hidden="true"></span>{:else}{$text(`workflows.runs.status_${runStatus}`)}{/if}</span>{/if}</button>
         {#if readOnly && isMessage(node) && rawRunStatus === 'acknowledged' && run?.output_summary?.chat_id && expandedReadOnly !== node.id}<a class="quiet" data-testid="workflow-run-open-chat" href={`/#chat-id=${encodeURIComponent(String(run.output_summary.chat_id))}`}>{tr('output_open_chat')}</a>{/if}
@@ -968,6 +978,7 @@
   @media(max-width:550px){.check-option{grid-template-columns:minmax(0,1fr) auto auto auto}.check-option input:nth-child(2){grid-column:1/-1;grid-row:2}}
   .validation-cost{text-align:center}
 
+  .memory-attention-badge{margin:0 0 .25rem;font-size:var(--font-size-small);color:var(--color-error)}
   .editor.ask-ai-editor{background:var(--color-grey-10);gap:1rem;overflow:visible}
   .ask-ai-content,.message-content{display:grid;gap:.65rem;min-width:0;width:min(31.7rem,100%);justify-self:center;padding-top:.3rem}
   .ask-ai-input,.message-input{min-width:0}

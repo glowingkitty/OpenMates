@@ -33,8 +33,7 @@
   import NewChatSuggestionContextMenu from './NewChatSuggestionContextMenu.svelte';
   import Icon from './Icon.svelte';
   import { search as performSearch, type EmbedSearchResult } from '../services/searchService';
-  import { searchSavedEmbedMemories, type SavedEmbedSuggestion } from '../services/embedSuggestionSearch';
-  import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
+  import { searchSavedEmbeds, type SavedEmbedSuggestion } from '../services/embedSuggestionSearch';
   import { activeTeamId } from '../stores/teamStore';
   import { chatMetadataCache } from '../services/chatMetadataCache';
   import { getLucideIcon, getValidIconName, getFallbackIconForCategory, getCategoryGradientColors } from '../utils/categoryUtils';
@@ -228,9 +227,13 @@
    */
   $effect(() => {
     const query = filterQuery;
-    savedEmbedResults = query && $authStore.isAuthenticated
-      ? searchSavedEmbedMemories($appSettingsMemoriesStore, query)
-      : [];
+    if (!query || !$authStore.isAuthenticated) {
+      savedEmbedResults = [];
+      return;
+    }
+    let cancelled = false;
+    void searchSavedEmbeds(query).then((results) => { if (!cancelled) savedEmbedResults = results; });
+    return () => { cancelled = true; };
   });
 
   $effect(() => {

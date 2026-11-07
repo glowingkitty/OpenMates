@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { setContextSuggestion } from '../stores/contextSuggestionStore';
     import { authoredResultMetadata } from '../utils/authoredResultPresentation';
 import { storageArchiveFetch } from "../config/api";
 import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
@@ -156,7 +157,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { buildChatMenuItems, type ChatMenuAction } from './chats/chatMenuItems';
     import { chatMenuUsageStore, hydrateChatMenuUsage, rankChatMenuItems, recordChatMenuUsage } from '../services/chatMenuUsage';
     import { notificationStore } from '../stores/notificationStore'; // For context menu action feedback
-    import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
     import { findWikipediaStudyInterest, saveWikipediaStudyInterest } from '../services/wikipediaStudyInterest';
     import type { WikipediaArticleIdentity, WikipediaRelatedArticle } from '../utils/wikipediaLearning';
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
@@ -225,8 +225,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { getApiEndpoint } from '../config/api';
     import {
         getReminderByTargetChatId,
-        getReminderByTargetEmbedId,
-        getSavedEmbedContinueCandidates,
+        getSavedFlagContinueCandidates,
         sortContinuePriorityItems,
         type ActiveReminderForContinue,
         type ContinuePriority,
@@ -1832,7 +1831,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             || wikiFullscreenData !== openingArticle || currentChat?.chat_id !== openingChatId) return;
         showWikiFullscreen = false;
         wikiFullscreenData = null;
-        settingsDeepLink.set(`apps/study/settings_memories/learning_goals/entry/${id}/edit`);
+        settingsDeepLink.set(`memories/${encodeURIComponent(id.replace(/^account-memory-/, ''))}`);
         panelState.openSettings();
     }
 
@@ -2819,6 +2818,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // Always try to reload from database if it's the current chat, even if suggestions aren't in event
         // This handles cases where the event arrives before database is updated
         if (isCurrentChat) {
+            setContextSuggestion(chatId, isPublicChat(chatId) ? null : (event.detail.contextSuggestion ?? null));
             pendingTaskProposals = Array.isArray(taskProposals) && !isPublicChat(chatId) ? taskProposals : [];
             pendingTaskUpdateProposals = Array.isArray(taskUpdateProposals) && !isPublicChat(chatId) ? taskUpdateProposals : [];
             try {
@@ -3544,7 +3544,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             const nowMs = Date.now();
             const reminders = await fetchContinueReminders();
             const remindersByChatId = getReminderByTargetChatId(reminders, nowMs);
-            const remindersByEmbedId = getReminderByTargetEmbedId(reminders, nowMs);
 
             const chatItems: PriorityChatContinueItem[] = [];
             await chatDB.init();
@@ -3561,7 +3560,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
             const embedItems = contextTeamId
                 ? []
-                : getSavedEmbedContinueCandidates($appSettingsMemoriesStore, remindersByEmbedId, nowMs);
+                : getSavedFlagContinueCandidates(await (await import('../services/savedEmbedService')).listSavedEmbeds(), nowMs);
             priorityContinueItems = sortContinuePriorityItems([...chatItems, ...embedItems], nowMs).slice(0, RECENT_CHATS_TOTAL);
         } catch (err) {
             console.warn('[ActiveChat] Failed to load priority continue items:', err);
@@ -3716,7 +3715,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         void $phasedSyncState.initialSyncCompleted;
         void $userProfile.last_opened;
         void $userProfile.total_chat_count;
-        void $appSettingsMemoriesStore.entriesByApp;
         const guestTags = selectedGuestInterestTagIds;
         const guestTagsConfirmed = guestInterestContinueConfirmed;
         const preserveGuestInterestRanking = guestInterestRankingConfirmed;
@@ -13381,8 +13379,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 loadPriorityContinueItemsDebounced();
             }
         }) as EventListenerCallback;
-        window.addEventListener('savedEmbedMemorySaved', priorityCarouselInvalidatedHandler);
-        window.addEventListener('savedEmbedMemoryForgotten', priorityCarouselInvalidatedHandler);
+        window.addEventListener('savedEmbedChanged', priorityCarouselInvalidatedHandler);
         chatSyncService.addEventListener('reminderFiredInChat', priorityCarouselInvalidatedHandler);
 
         const teamContextChangedHandler = (() => {
@@ -13957,8 +13954,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             chatSyncService.removeEventListener('phase_1b_chat_content_ready', phase1bContentReadyHandler);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('focus', handleWindowFocus);
-            window.removeEventListener('savedEmbedMemorySaved', priorityCarouselInvalidatedHandler);
-            window.removeEventListener('savedEmbedMemoryForgotten', priorityCarouselInvalidatedHandler);
+            window.removeEventListener('savedEmbedChanged', priorityCarouselInvalidatedHandler);
             chatSyncService.removeEventListener('reminderFiredInChat', priorityCarouselInvalidatedHandler);
             window.removeEventListener(TEAM_CONTEXT_CHANGED_EVENT, teamContextChangedHandler);
             if (_visibilityTimer) clearTimeout(_visibilityTimer);

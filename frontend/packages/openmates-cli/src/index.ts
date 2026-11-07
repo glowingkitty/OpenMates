@@ -15,7 +15,6 @@ export type { OpenMatesClientOptions } from "./sdkRootClient.js";
 export {
   deriveAppUrl,
   INTEREST_TAG_IDS,
-  MEMORY_TYPE_REGISTRY,
   MATE_NAMES,
   normalizeInterestTagIds,
   reconcileAuthoritativeChats,
@@ -83,8 +82,6 @@ export type {
   EncryptedDraft,
   AuthoritativeChatReconciliation,
   ChatListPage,
-  MemoryTypeDef,
-  MemoryFieldDef,
   BankTransferOrderDetails,
   BankTransferStatus,
   GiftCardBankTransferStatus,

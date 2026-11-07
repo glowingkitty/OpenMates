@@ -13,6 +13,7 @@
     isAppsWorkspaceHandoffCurrent, appsWorkflowInstruction, queueAppsWorkspaceChatHandoff } from '@repo/ui/services/appsWorkspaceChatHandoffService';
 	import { onMount, untrack } from 'svelte';
 	import { workspacePaneMotion } from '@repo/ui/utils/workspacePaneMotion';
+	import { graphWithMemorySnapshots, refreshWorkflowMemorySnapshots } from '@repo/ui/services/workflowMemorySnapshotService';
 	import { derived, get } from 'svelte/store';
 	import { goto, pushState, replaceState } from '$app/navigation';
 	import {
@@ -606,6 +607,7 @@
 	$effect(() => {
 		if (!canLoadWorkflows) return;
 		const generation = $workflowWorkspaceStore.generation;
+		void refreshWorkflowMemorySnapshots().catch((refreshError) => console.error('[WorkflowsRoute] Memory snapshot refresh failed:', refreshError));
 		void workflowWorkspaceStore.loadWorkflows().catch((loadError) => {
 			if (!workflowWorkspaceStore.isCurrentGeneration(generation)) return;
 			console.error('[WorkflowsRoute] Failed to warm workflow cache:', loadError);
@@ -1488,7 +1490,7 @@
 		authoringReminder = null;
 		try {
 			const workflow = await workflowWorkspaceStore.patchWorkflow(selectedWorkflow.id, {
-				graph,
+				graph: await graphWithMemorySnapshots(graph),
 				title: editorTitle.trim() || selectedWorkflow.title,
 				description: editorDescription,
 				icon: workflowIcon(editorTitle, selectedWorkflow.icon, graph)

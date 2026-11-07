@@ -15,7 +15,6 @@ import { aiModelSelectionValue } from "../../../utils/aiModelSelection";
 import { appSkillsStore } from "../../../stores/appSkillsStore";
 import { get } from "svelte/store";
 import { currentPersonalDocumentMemories } from '../../../stores/personalDocumentMemories';
-import { appSettingsMemoriesStore } from "../../../stores/appSettingsMemoriesStore";
 import { isProviderHealthy } from "../../../stores/appHealthStore";
 import { text } from "../../../i18n/translations";
 import { userProfile } from "../../../stores/userProfile";
@@ -857,91 +856,61 @@ function getFocusModeMentionResults(): FocusModeMentionResult[] {
   return results;
 }
 
-/**
- * Convert settings/memories metadata to mention results.
- * Only includes memory types that the user has entries for.
- * Includes translated names in search terms for localized search.
- */
-function getSettingsMemoryMentionResults(): SettingsMemoryMentionResult[] {
-  const results: SettingsMemoryMentionResult[] = [];
-  const apps = appSkillsStore.apps;
-  const $text = get(text);
+const PERSONAL_MEMORIES_APP_ID = "openmates";
+const PERSONAL_MEMORIES_CATEGORY_ID = "memories";
 
-  // Get user's settings/memories entries grouped by app
-  const storeState = get(appSettingsMemoriesStore);
-
-  // Count entries per app:item_type for entry counts
-  const entryCountMap = new Map<string, number>();
-  storeState.entries.forEach((entry: { app_id: string; item_type: string }) => {
-    const key = `${entry.app_id}:${entry.item_type}`;
-    entryCountMap.set(key, (entryCountMap.get(key) || 0) + 1);
-  });
-  for (const entry of currentPersonalDocumentMemories()) {
-    const key = `${entry.app_id}:${entry.settings_group}`;
-    entryCountMap.set(key, (entryCountMap.get(key) ?? 0) + 1);
-  }
-
-  for (const [appId, app] of Object.entries(apps)) {
-    const appIcon = app.icon_image || "default-app.svg";
-    // Capitalize app name: "code" -> "Code"
-    const appDisplayName = capitalizeWords(appId);
-
-    for (const memory of app.settings_and_memories) {
-      // Only include if user has entries for this memory type
-      const categoryKey = `${appId}:${memory.id}`;
-      const entryCount = entryCountMap.get(categoryKey) || 0;
-      if (entryCount === 0) continue;
-
-      // Hyphenated: "Code-Projects" (app name + memory id with hyphens)
-      const memoryDisplayName = capitalizeWords(memory.id.replace(/_/g, "-"));
-
-      // Resolve translated name and description for search indexing
-      const translatedName = $text(memory.name_translation_key);
-      const translatedDescription = $text(memory.description_translation_key);
-
-      results.push({
-        id: `${appId}:${memory.id}`,
-        type: "settings_memory" as const,
-        displayName: memory.name_translation_key,
-        // Format: "App-MemoryName" e.g., "Code-Projects"
-        mentionDisplayName: `${appDisplayName}-${memoryDisplayName}`,
-        subtitle: memory.description_translation_key,
-        icon: appIcon,
-        iconStyle: app.icon_colorgradient
-          ? `linear-gradient(135deg, ${app.icon_colorgradient.start} 9.04%, ${app.icon_colorgradient.end} 90.06%)`
-          : undefined,
-        // Include memory type in syntax so backend knows the specific type
-        // Format: @memory:app_id:memory_id:memory_type
-        mentionSyntax: `@memory:${appId}:${memory.id}:${memory.type}`,
-        searchTerms: buildSearchTerms(
-          memory.id,
-          appId,
-          app.name,
-          // Include translated names for localized search
-          translatedName,
-          translatedDescription,
-        ),
-        appId,
-        appIcon,
-        memoryCategoryId: memory.id,
-        memoryType: memory.type,
-        entryCount,
-        colorStart: app.icon_colorgradient?.start,
-        colorEnd: app.icon_colorgradient?.end,
-      });
-    }
-  }
-
-  return results;
+function personalMemoryEntries() {
+  return currentPersonalDocumentMemories().filter(
+    (entry) =>
+      entry.app_id === PERSONAL_MEMORIES_APP_ID &&
+      entry.settings_group === PERSONAL_MEMORIES_CATEGORY_ID,
+  );
 }
 
 /**
- * Get individual entry mention results for a specific settings/memory category.
- * Returns decrypted entries with their title/subtitle fields extracted from schema.
- * Used by the dropdown to show expandable entries under a category.
+ * Personal Memory documents as one category mention result (`@memory:openmates:memories:list`).
+ * Only present when the user has at least one Memory. App-specific typed memories no longer exist.
+ */
+function getSettingsMemoryMentionResults(): SettingsMemoryMentionResult[] {
+  const entryCount = personalMemoryEntries().length;
+  if (entryCount === 0) return [];
+  const app = appSkillsStore.apps[PERSONAL_MEMORIES_APP_ID];
+  const appIcon = app?.icon_image || "default-app.svg";
+  return [
+    {
+      id: `${PERSONAL_MEMORIES_APP_ID}:${PERSONAL_MEMORIES_CATEGORY_ID}`,
+      type: "settings_memory" as const,
+      displayName: "memories.manage",
+      mentionDisplayName: "Openmates-Memories",
+      subtitle: "memories.source_personal",
+      icon: appIcon,
+      iconStyle: app?.icon_colorgradient
+        ? `linear-gradient(135deg, ${app.icon_colorgradient.start} 9.04%, ${app.icon_colorgradient.end} 90.06%)`
+        : undefined,
+      mentionSyntax: `@memory:${PERSONAL_MEMORIES_APP_ID}:${PERSONAL_MEMORIES_CATEGORY_ID}:list`,
+      searchTerms: buildSearchTerms(
+        PERSONAL_MEMORIES_CATEGORY_ID,
+        PERSONAL_MEMORIES_APP_ID,
+        "memory",
+        "memories",
+      ),
+      appId: PERSONAL_MEMORIES_APP_ID,
+      appIcon,
+      memoryCategoryId: PERSONAL_MEMORIES_CATEGORY_ID,
+      memoryType: "list",
+      entryCount,
+      colorStart: app?.icon_colorgradient?.start,
+      colorEnd: app?.icon_colorgradient?.end,
+    },
+  ];
+}
+
+/**
+ * Individual personal Memory mention results (by title; `@memory-entry:openmates:memories:<id>`).
+ * Used by the dropdown to show expandable entries under the Memories category.
  *
- * @param appId - App ID (e.g., "code")
- * @param memoryCategoryId - Category ID (e.g., "preferred_technologies")
+ * @param appId - Must be "openmates"; other apps have no memory entries
+ * @param memoryCategoryId - Must be "memories"
  * @param limit - Maximum entries to return (default 5)
  */
 export function getSettingsMemoryEntryResults(
@@ -949,96 +918,39 @@ export function getSettingsMemoryEntryResults(
   memoryCategoryId: string,
   limit: number = 5,
 ): { entries: SettingsMemoryEntryMentionResult[]; totalCount: number } {
-  const storeState = get(appSettingsMemoriesStore);
-  const apps = appSkillsStore.apps;
-  const app = apps[appId];
-  if (!app) return { entries: [], totalCount: 0 };
-
-  const appIcon = app.icon_image || "default-app.svg";
-  const appDisplayName = capitalizeWords(appId);
-
-  // Find the memory field metadata to get schema (for title/subtitle fields)
-  const memoryMeta = app.settings_and_memories.find(
-    (m) => m.id === memoryCategoryId,
-  );
-  const schema = memoryMeta?.schema_definition;
-
-  // Identify which properties are is_title and is_subtitle
-  let titleField: string | null = null;
-  let subtitleField: string | null = null;
-  if (schema?.properties) {
-    for (const [key, prop] of Object.entries(schema.properties)) {
-      if (prop.is_title) titleField = key;
-      if (prop.is_subtitle) subtitleField = key;
-    }
+  if (appId !== PERSONAL_MEMORIES_APP_ID || memoryCategoryId !== PERSONAL_MEMORIES_CATEGORY_ID) {
+    return { entries: [], totalCount: 0 };
   }
-
-  // Get decrypted entries for this app + category
-  const allDecryptedEntries = [...storeState.decryptedEntries.values(), ...currentPersonalDocumentMemories()];
-  const categoryEntries = allDecryptedEntries
-    .filter(
-      (entry) =>
-        entry.app_id === appId && entry.settings_group === memoryCategoryId,
-    )
-    .sort((a, b) => b.updated_at - a.updated_at);
-
-  const totalCount = categoryEntries.length;
-  const limitedEntries = categoryEntries.slice(0, limit);
-
-  const results: SettingsMemoryEntryMentionResult[] = limitedEntries.map(
-    (entry) => {
-      // Extract title and subtitle from item_value based on schema
-      // Falls back to common field names, then to item_key
-      let entryTitle: string = entry.item_key;
-      if (titleField && entry.item_value[titleField]) {
-        entryTitle = String(entry.item_value[titleField]);
-      } else {
-        // Schema title field missing or its value is falsy — try common field names
-        for (const field of ["name", "title", "label"]) {
-          const val = entry.item_value[field];
-          if (val && typeof val === "string" && val.trim()) {
-            entryTitle = val;
-            break;
-          }
-        }
-      }
-      const entrySubtitle = subtitleField
-        ? String(entry.item_value[subtitleField] || "")
-        : undefined;
-
-      const entryDisplayName = capitalizeWords(entryTitle.replace(/\s+/g, "-"));
-      // Category display name: e.g., "trips" → "Trips"
-      const categoryDisplayName = capitalizeWords(
-        memoryCategoryId.replace(/_/g, "-"),
-      );
-
-      return {
-        id: `${appId}:${memoryCategoryId}:${entry.id}`,
-        type: "settings_memory_entry" as const,
-        displayName: entryTitle,
-        // Format: "App-Category-EntryTitle" e.g., "Travel-Trips-London"
-        mentionDisplayName: `${appDisplayName}-${categoryDisplayName}-${entryDisplayName}`,
-        subtitle: entrySubtitle || "",
-        icon: appIcon,
-        iconStyle: app.icon_colorgradient
-          ? `linear-gradient(135deg, ${app.icon_colorgradient.start} 9.04%, ${app.icon_colorgradient.end} 90.06%)`
-          : undefined,
-        // Individual entry syntax: @memory-entry:app_id:category_id:entry_id
-        mentionSyntax: `@memory-entry:${appId}:${memoryCategoryId}:${entry.id}`,
-        searchTerms: buildSearchTerms(entryTitle, entrySubtitle),
-        appId,
-        appIcon,
-        memoryCategoryId,
-        entryId: entry.id,
-        entryTitle,
-        entrySubtitle: entrySubtitle || undefined,
-        colorStart: app.icon_colorgradient?.start,
-        colorEnd: app.icon_colorgradient?.end,
-      };
-    },
-  );
-
-  return { entries: results, totalCount };
+  const app = appSkillsStore.apps[appId];
+  const appIcon = app?.icon_image || "default-app.svg";
+  const categoryEntries = personalMemoryEntries().sort((a, b) => b.updated_at - a.updated_at);
+  const results: SettingsMemoryEntryMentionResult[] = categoryEntries.slice(0, limit).map((entry) => {
+    const rawTitle = entry.item_value.title;
+    const entryTitle =
+      typeof rawTitle === "string" && rawTitle.trim() ? rawTitle : entry.item_key;
+    const entryDisplayName = capitalizeWords(entryTitle.replace(/\s+/g, "-"));
+    return {
+      id: `${appId}:${memoryCategoryId}:${entry.id}`,
+      type: "settings_memory_entry" as const,
+      displayName: entryTitle,
+      mentionDisplayName: `Openmates-Memories-${entryDisplayName}`,
+      subtitle: "",
+      icon: appIcon,
+      iconStyle: app?.icon_colorgradient
+        ? `linear-gradient(135deg, ${app.icon_colorgradient.start} 9.04%, ${app.icon_colorgradient.end} 90.06%)`
+        : undefined,
+      mentionSyntax: `@memory-entry:${appId}:${memoryCategoryId}:${entry.id}`,
+      searchTerms: buildSearchTerms(entryTitle),
+      appId,
+      appIcon,
+      memoryCategoryId,
+      entryId: entry.id,
+      entryTitle,
+      colorStart: app?.icon_colorgradient?.start,
+      colorEnd: app?.icon_colorgradient?.end,
+    };
+  });
+  return { entries: results, totalCount: categoryEntries.length };
 }
 
 /**

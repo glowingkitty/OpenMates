@@ -84,19 +84,6 @@ describe("appSkillsStore", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=settings-ui.navigation.contextual-availability
-  it("filters disabled settings and memory fields", () => {
-    featureAvailabilityStore.set({
-      initialized: true,
-      loading: false,
-      disabledById: { "memory:ai:communication_style": true },
-    });
-
-    const ai = appSkillsStore.getState().apps.ai;
-
-    expect(ai.settings_and_memories.some((memory) => memory.id === "communication_style")).toBe(false);
-  });
-
-  // contract-test: supporting surface=gui.web assertions=settings-ui.navigation.contextual-availability
   it("overlays runtime provider and model availability from app metadata", () => {
     userAvailableSkillsStore.set({
       initialized: true,
@@ -117,7 +104,6 @@ describe("appSkillsStore", () => {
             } as any,
           ],
           focus_modes: [],
-          settings_and_memories: [],
           providers: [{ id: "openai", name: "OpenAI" }] as any,
         },
       },
@@ -134,7 +120,7 @@ describe("appSkillsStore", () => {
 const fixtureApp = (id: string, skills: string[] = [], focuses: string[] = []): AppMetadata => ({
   id, skills: skills.map(id => ({ id, name_translation_key: id, description_translation_key: id })),
   focus_modes: focuses.map(id => ({ id, name_translation_key: id, description_translation_key: id })),
-  settings_and_memories: [{ id: 'saved', name_translation_key: 'saved' }] as AppMetadata['settings_and_memories'],
+  memories: [{ id: 'app:memory:saved' }] as AppMetadata['memories'],
 });
 
 describe('discoverable Apps projection', () => {
@@ -142,7 +128,7 @@ describe('discoverable Apps projection', () => {
   it('requires usable capabilities while preserving raw memory metadata', () => {
     const apps = { memory: fixtureApp('memory'), skill: fixtureApp('skill', ['run']), focus: fixtureApp('focus', [], ['research']) };
     expect(Object.keys(selectDiscoverableApps(apps))).toEqual(['skill', 'focus']);
-    expect(apps.memory.settings_and_memories).toHaveLength(1);
+    expect(apps.memory.memories).toHaveLength(1);
   });
 
   // contract-test: supporting surface=gui.web assertions=apps.discovery.public-catalog,settings-ui.navigation.contextual-availability

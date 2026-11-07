@@ -190,7 +190,8 @@ async def create_app_settings_memories_request_message(
     connection_manager: Optional[ConnectionManager],
     user_id: str,
     device_fingerprint_hash: Optional[str],
-    message_id: Optional[str] = None
+    message_id: Optional[str] = None,
+    memory_titles: Optional[Dict[str, str]] = None,
 ) -> Optional[str]:
     """
     Creates a system message request for app settings/memories in chat history.
@@ -209,6 +210,8 @@ async def create_app_settings_memories_request_message(
         user_id: User ID
         device_fingerprint_hash: Device fingerprint hash (optional)
         message_id: The user's message ID that triggered this request (for UI display)
+        memory_titles: Optional {memory_id: title} for "memory:<id>" keys (Ask first
+            Memories), shown in the approval request; bodies are never included.
     
     Returns:
         Request ID if successful, None otherwise
@@ -251,7 +254,8 @@ async def create_app_settings_memories_request_message(
                                 "chat_id": chat_id,
                                 "requested_keys": client_format_keys,  # Client expects hyphen format
                                 "yaml_content": yaml_content,
-                                "message_id": message_id  # User message that triggered this request
+                                "message_id": message_id,  # User message that triggered this request
+                                "memory_titles": memory_titles or {},
                             }
                         },
                         user_id,
@@ -273,7 +277,8 @@ async def create_app_settings_memories_request_message(
                             "chat_id": chat_id,
                             "requested_keys": client_format_keys,  # Client expects hyphen format
                             "yaml_content": yaml_content,
-                            "message_id": message_id  # User message that triggered this request
+                            "message_id": message_id,  # User message that triggered this request
+                            "memory_titles": memory_titles or {},
                         }
                     }
                     await redis_client.publish(channel, json.dumps(pubsub_message))

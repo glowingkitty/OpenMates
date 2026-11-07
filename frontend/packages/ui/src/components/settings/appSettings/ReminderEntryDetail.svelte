@@ -2,7 +2,7 @@
   frontend/packages/ui/src/components/settings/appSettings/ReminderEntryDetail.svelte
 
   View/edit detail page for a single active reminder.
-  Similar to AppSettingsMemoriesEntryDetail — shows reminder fields in view mode
+  Shows reminder fields in view mode
   with an Edit button, and inline form inputs in edit mode.
 
   Route: apps/reminder/entry/{reminder_id}[/edit]

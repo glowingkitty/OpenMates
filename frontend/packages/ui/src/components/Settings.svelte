@@ -89,7 +89,6 @@ changes to the documentation (to keep the documentation up to date).
     import ChatSettingsPage from './chats/ChatSettingsPage.svelte';
     import { matesMetadata } from '../data/matesMetadata';
     import { appSkillsStore, featureAvailabilityStore } from '../stores/appSkillsStore';
-    import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
     import { allAppsInitialFilter, type AllAppsFilterType } from '../stores/allAppsFilterStore';
     import { modelsMetadata } from '../data/modelsMetadata';
     import { providersMetadata, findProviderByName } from '../data/providersMetadata';
@@ -268,7 +267,6 @@ changes to the documentation (to keep the documentation up to date).
      * - apps/{app_id} routes for each available app
      * - apps/{app_id}/skill/{skill_id} routes for each skill
      * - apps/{app_id}/focus/{focus_mode_id} routes for each focus mode
-     * - apps/{app_id}/settings_memories routes for apps with settings/memories
      */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     function buildSettingsViews(): Record<string, any> {
@@ -322,17 +320,6 @@ changes to the documentation (to keep the documentation up to date).
                 }
             }
             
-            // Add settings/memories category routes if app has settings_and_memories
-            if (app.settings_and_memories && app.settings_and_memories.length > 0) {
-                for (const category of app.settings_and_memories) {
-                    const categoryRoute = `apps/${appId}/settings_memories/${category.id}`;
-                    views[categoryRoute] = AppDetailsWrapper;
-                    
-                    // Add create entry route for each category
-                    const createRoute = `apps/${appId}/settings_memories/${category.id}/create`;
-                    views[createRoute] = AppDetailsWrapper;
-                }
-            }
         }
 
         // Add mates detail routes dynamically (mates/{mateId})
@@ -362,8 +349,7 @@ changes to the documentation (to keep the documentation up to date).
         const views = buildSettingsViews();
         
         // Add any dynamically registered entry detail routes
-        // These are routes like: apps/{app_id}/settings_memories/{category_id}/entry/{entry_id}
-        // or: ai/model/{model_id} (top-level AI settings model detail)
+        // These are routes like: ai/model/{model_id} (top-level AI settings model detail)
         for (const route of dynamicEntryRoutes) {
             if (/^ai\/model\//.test(route)) {
                 views[route] = AiModelDetailsWrapper;
@@ -373,6 +359,8 @@ changes to the documentation (to keep the documentation up to date).
                 views[route] = AiTierSettings;
             } else if (/^chats\/[^/]+(?:\/[^/]+)?$/.test(route)) {
                 views[route] = ChatSettingsPage;
+            } else if (/^(?:settings_memories|memories)\/[^/&]+/.test(route)) {
+                views[route] = views.settings_memories;
             } else if (/^projects\/[^/]+$/.test(route)) {
                 views[route] = SettingsProjects;
             } else if (/^teams\/invites\/[^/]+$/.test(route)) {
@@ -869,30 +857,9 @@ changes to the documentation (to keep the documentation up to date).
                     appNameAdded = true;
                 }
                 
-                // Handle nested routes (skill, focus, settings_memories)
+                // Handle nested routes (skill, focus)
                 // Only process if this segment contains the nested route info
-                if (pathParts.length === 3 && pathParts[1] === 'settings_memories') {
-                    // This is the category page segment
-                    const categoryId = pathParts[2];
-                    const category = app?.settings_and_memories?.find(c => c.id === categoryId);
-                    if (category && category.name_translation_key) {
-                        pathLabels.push($text(category.name_translation_key));
-                    }
-                } else if (pathParts.length === 4 && pathParts[1] === 'settings_memories' && pathParts[3] === 'create') {
-                    // This is the create page segment - add category name
-                    const categoryId = pathParts[2];
-                    const category = app?.settings_and_memories?.find(c => c.id === categoryId);
-                    if (category && category.name_translation_key) {
-                        pathLabels.push($text(category.name_translation_key));
-                    }
-                } else if ((pathParts.length === 5 || (pathParts.length === 6 && pathParts[5] === 'edit')) && pathParts[1] === 'settings_memories' && pathParts[3] === 'entry') {
-                    // This is the entry detail or edit page segment - add category name
-                    const categoryId = pathParts[2];
-                    const category = app?.settings_and_memories?.find(c => c.id === categoryId);
-                    if (category && category.name_translation_key) {
-                        pathLabels.push($text(category.name_translation_key));
-                    }
-                } else if (pathParts.length === 2 && pathParts[0] === 'reminder' && pathParts[1] === 'create') {
+                if (pathParts.length === 2 && pathParts[0] === 'reminder' && pathParts[1] === 'create') {
                     // Reminder create page: add "Create reminder" to breadcrumb
                     pathLabels.push($text('reminder.settings.create_title'));
                 } else if (pathParts.length === 3 && pathParts[1] === 'skill') {
@@ -1132,7 +1099,7 @@ changes to the documentation (to keep the documentation up to date).
 
     /**
      * True when we're on the TOP-LEVEL app details page (apps/{appId} only,
-     * NOT deeper sub-pages like skill/focus/settings_memories).
+     * NOT deeper sub-pages like skill/focus).
      * Explicitly excludes 'apps/all' which is the "Show all apps" list view —
      * that page uses the normal submenu-info header, NOT the gradient AppDetailsHeader banner.
      * When true the AppDetailsHeader banner takes over the header area, so:
@@ -1151,7 +1118,7 @@ changes to the documentation (to keep the documentation up to date).
      * instead of the top-level app description + capability counts.
      */
     let isAppSubPage = $derived(
-        (/^apps\/[^/]+\/(skill|focus|settings_memories)\//.test(activeSettingsView) ||
+        (/^apps\/[^/]+\/(skill|focus)\//.test(activeSettingsView) ||
          activeSettingsView === 'apps/reminder/create' ||
          /^apps\/reminder\/entry\//.test(activeSettingsView)) &&
         !isModelDetailPage &&
@@ -1255,7 +1222,7 @@ changes to the documentation (to keep the documentation up to date).
         const totalApps = allApps.length;
         const totalSkills = allApps.reduce((sum, app) => sum + (app.skills?.length ?? 0), 0);
         const totalFocusModes = allApps.reduce((sum, app) => sum + (app.focus_modes?.length ?? 0), 0);
-        const totalMemories = allApps.reduce((sum, app) => sum + (app.settings_and_memories?.length ?? 0), 0);
+        const totalMemories = allApps.reduce((sum, app) => sum + (app.memories?.length ?? 0), 0);
         return [
             { count: totalApps,      iconClass: 'apps' },
             { count: totalSkills,    iconClass: 'skill' },
@@ -1344,7 +1311,7 @@ changes to the documentation (to keep the documentation up to date).
 
         // Parse the route: apps/{appId}/{type}/{itemId}
         const match = activeSettingsView.match(
-            /^apps\/([^/]+)\/(skill|focus|settings_memories)\/([^/]+)/
+            /^apps\/([^/]+)\/(skill|focus)\/([^/]+)/
         );
         if (!match) return null;
 
@@ -1387,130 +1354,6 @@ changes to the documentation (to keep the documentation up to date).
                 iconName,
                 iconType: 'focus',
                 mentionSyntax: `@focus:${appId}:${itemId}`,
-            };
-        }
-
-        if (type === 'settings_memories') {
-            const cat = appMeta.settings_and_memories.find(c => c.id === itemId);
-            if (!cat) return null;
-            const rawIcon = cat.icon_image || appMeta.icon_image;
-            const iconName = rawIcon ? resolveIconName(rawIcon.replace(/\.svg$/, '').trim()) : undefined;
-            
-            // Check for deeper sub-routes: create or entry detail
-            const subRoute = activeSettingsView.replace(
-                `apps/${appId}/settings_memories/${itemId}`, ''
-            );
-            const categoryName = cat.name_translation_key ? $text(cat.name_translation_key) : itemId;
-            
-            if (subRoute === '/create') {
-                // Create entry sub-page: show "Add entry" title with category context
-                return {
-                    appId,
-                    itemName: $text('common.add_entry'),
-                    itemTypeLabel: categoryName,
-                    description: cat.description_translation_key
-                        ? $text(cat.description_translation_key)
-                        : '',
-                    iconName,
-                    iconType: 'memory',
-                    mentionSyntax: `@memory:${appId}:${itemId}:${cat.type}`,
-                };
-            }
-            
-            if (subRoute.startsWith('/entry/')) {
-                // Entry detail sub-page: show entry title on line 1, category name on line 2.
-                // The typeLabel is the category name (e.g. "Trips"), not "Memories Entry".
-                // Clicking the header copies a @memory-entry mention for real entries (or @memory for examples).
-                const rawEntryId = subRoute.replace('/entry/', '').replace('/edit', '');
-                const entryId = rawEntryId;
-                let entryTitle = categoryName;
-                let mentionSyntax = `@memory:${appId}:${itemId}:${cat.type}`;
-                
-                if (entryId.startsWith('example_')) {
-                    // Example entry: get title from example_translation_keys or example_entries
-                    const exIdx = parseInt(entryId.replace('example_', ''), 10);
-                    const exEntries = cat.example_entries ?? [];
-                    const exKeys = cat.example_translation_keys ?? [];
-                    
-                    if (exEntries[exIdx]) {
-                        // Try to get title from example_entries (use is_title field)
-                        const titleField = cat.schema_definition?.properties
-                            ? Object.entries(cat.schema_definition.properties).find(
-                                ([, p]) => p.is_title
-                            )?.[0]
-                            : undefined;
-                        if (titleField && exEntries[exIdx][titleField] !== undefined) {
-                            const titleVal = exEntries[exIdx][titleField];
-                            // Resolve translation key if applicable
-                            if (typeof titleVal === 'string' && titleVal.includes('.') && !titleVal.includes(' ') && !titleVal.startsWith('http')) {
-                                const resolved = $text(titleVal);
-                                entryTitle = resolved !== titleVal ? resolved : String(titleVal);
-                            } else {
-                                entryTitle = String(titleVal);
-                            }
-                        }
-                    } else if (exKeys[exIdx]) {
-                        // Fallback to legacy title-only key
-                        entryTitle = $text(exKeys[exIdx]);
-                    }
-                    // Examples use category-level mention (no real entry ID to reference)
-                    mentionSyntax = `@memory:${appId}:${itemId}:${cat.type}`;
-                } else {
-                    // Real entry: look up title from the store (already decrypted in entriesByApp).
-                    // appSettingsMemoriesStore state is a plain Svelte store — read via $appSettingsMemoriesStore.
-                    const storeState = $appSettingsMemoriesStore;
-                    const appEntriesByGroup = storeState.entriesByApp.get(appId) || {};
-                    const categoryEntries = appEntriesByGroup[itemId] ?? [];
-                    const found = categoryEntries.find((e: { id: string }) => e.id === entryId);
-                    if (found) {
-                        // Find is_title field to display as entry title
-                        const titleField = cat.schema_definition?.properties
-                            ? Object.entries(cat.schema_definition.properties).find(
-                                ([, p]) => p.is_title
-                            )?.[0]
-                            : undefined;
-                        const entryValue = (found as { item_value?: Record<string, unknown> }).item_value;
-                        if (titleField && entryValue?.[titleField]) {
-                            entryTitle = String(entryValue[titleField]);
-                        } else if (entryValue) {
-                            // Fallback: use first non-internal string value
-                            for (const [key, value] of Object.entries(entryValue)) {
-                                if (!key.startsWith('_') && key !== 'settings_group' && typeof value === 'string' && value.trim()) {
-                                    entryTitle = value;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    // Real entry uses @memory-entry mention for direct reference
-                    mentionSyntax = `@memory-entry:${appId}:${itemId}:${entryId}`;
-                }
-                
-                return {
-                    appId,
-                    itemName: entryTitle,
-                    // Line 2 in header = category name (e.g. "Trips"), not "Memories Entry"
-                    itemTypeLabel: categoryName,
-                    description: cat.description_translation_key
-                        ? $text(cat.description_translation_key)
-                        : '',
-                    iconName,
-                    iconType: 'memory',
-                    mentionSyntax,
-                };
-            }
-            
-            // Default: category list page
-            return {
-                appId,
-                itemName: categoryName,
-                itemTypeLabel: $text('settings.app_store.settings_memories'),
-                description: cat.description_translation_key
-                    ? $text(cat.description_translation_key)
-                    : '',
-                iconName,
-                iconType: 'memory',
-                mentionSyntax: `@memory:${appId}:${itemId}:${cat.type}`,
             };
         }
 
@@ -1636,17 +1479,6 @@ changes to the documentation (to keep the documentation up to date).
             }
         }
 
-        // Check if this is a dynamic entry detail route that needs to be registered
-        // Pattern: apps/{app_id}/settings_memories/{category_id}/entry/{entry_id}[/edit]
-        const entryDetailPattern = /^apps\/[^/]+\/settings_memories\/[^/]+\/entry\/[^/]+(\/edit)?$/;
-        if (entryDetailPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
-            // Add this entry detail route dynamically
-            dynamicEntryRoutes.add(settingsPath);
-            // Trigger reactivity by reassigning the Set
-            dynamicEntryRoutes = new Set(dynamicEntryRoutes);
-            // Dynamically registered entry detail route: settingsPath
-        }
-        
         // Check if this is a dynamic AI model detail route that needs to be registered
         // Pattern: apps/{app_id}/skill/{skill_id}/model/{model_id}
         const modelDetailPattern = /^apps\/[^/]+\/skill\/[^/]+\/model\/[^/]+$/;
@@ -1676,6 +1508,13 @@ changes to the documentation (to keep the documentation up to date).
 
         const aiTierPattern = /^ai\/tier\/(simple|complex|most-demanding)(?:\/provider\/[^/]+)?$/;
         if (aiTierPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
+            dynamicEntryRoutes.add(settingsPath);
+            dynamicEntryRoutes = new Set(dynamicEntryRoutes);
+        }
+
+        // Deep link settings/memories/<id>: opens that memory in the Memories hub.
+        const memoryDeepLinkPattern = /^(?:settings_memories|memories)\/[^/]+$/;
+        if (memoryDeepLinkPattern.test(settingsPath.split('&')[0]) && !dynamicEntryRoutes.has(settingsPath)) {
             dynamicEntryRoutes.add(settingsPath);
             dynamicEntryRoutes = new Set(dynamicEntryRoutes);
         }
@@ -1795,25 +1634,6 @@ changes to the documentation (to keep the documentation up to date).
                     } else {
                         activeSubMenuTitleKey = `apps.${appId}`;
                     }
-                } else if (pathParts.length === 3 && pathParts[1] === 'settings_memories') {
-                    // Settings/memories category route
-                    const categoryId = pathParts[2];
-                    const category = app.settings_and_memories?.find(c => c.id === categoryId);
-                    if (category && category.name_translation_key) {
-                        activeSubMenuTitleKey = category.name_translation_key;
-                    } else {
-                        activeSubMenuTitleKey = `apps.${appId}`;
-                    }
-                } else if (pathParts.length === 4 && pathParts[1] === 'settings_memories' && pathParts[3] === 'create') {
-                    // Settings/memories create entry route
-                    // Note: category lookup removed as it's not currently used
-                    // Use "Add entry" translation for the create page
-                    activeSubMenuTitleKey = 'settings.app_settings_memories.add_entry';
-                } else if (pathParts.length === 5 && pathParts[1] === 'settings_memories' && pathParts[3] === 'entry') {
-                    // Settings/memories entry detail route
-                    // The title is passed from the category page, use it directly
-                    // The title is already set in the event detail.title
-                    activeSubMenuTitleKey = ''; // Will be set from title below
                 } else {
                     // Regular app details route
                     activeSubMenuTitleKey = `apps.${appId}`;
@@ -2000,7 +1820,7 @@ changes to the documentation (to keep the documentation up to date).
         }
         
         if (navigationPath.length > 1) {
-            // Check if we're on a nested Apps route (skill, focus, settings_memories)
+            // Check if we're on a nested Apps route (skill, focus)
             // If so, go back to the app details page (apps/{appId}) instead of just removing the last segment
             const currentPath = navigationPath.join('/');
             
@@ -2034,27 +1854,15 @@ changes to the documentation (to keep the documentation up to date).
                 const pathParts = currentPath.replace('apps/', '').split('/');
                 const appId = pathParts[0];
                 
-                // Check if this is an entry detail route - go back to category page
-                if (pathParts.length === 5 && pathParts[1] === 'settings_memories' && pathParts[3] === 'entry') {
-                    // This is the entry detail route - go back to the category page
-                    previousPath = `apps/${appId}/settings_memories/${pathParts[2]}`;
-                    previousPathSegments = ['apps', appId, 'settings_memories', pathParts[2]];
-                } else if (pathParts.length === 5 && pathParts[1] === 'skill' && pathParts[3] === 'model') {
+                if (pathParts.length === 5 && pathParts[1] === 'skill' && pathParts[3] === 'model') {
                     // Model detail route - go back to the skill settings page
                     previousPath = `apps/${appId}/skill/${pathParts[2]}`;
                     previousPathSegments = ['apps', appId, 'skill', pathParts[2]];
-                } else if (pathParts.length === 4 && pathParts[1] === 'settings_memories' && pathParts[3] === 'create') {
-                    // This is the create entry route - go back to the category page
-                    previousPath = `apps/${appId}/settings_memories/${pathParts[2]}`;
-                    previousPathSegments = ['apps', appId, 'settings_memories', pathParts[2]];
-                } else if (pathParts.length >= 3 && (pathParts[1] === 'skill' || pathParts[1] === 'focus' || pathParts[1] === 'settings_memories')) {
+                } else if (pathParts.length >= 3 && (pathParts[1] === 'skill' || pathParts[1] === 'focus')) {
                     // This is a nested route (category page, skill, focus).
                     // If the user arrived here from the Memories hub, go back there.
                     // Otherwise go back to the app details page.
-                    if (pathParts[1] === 'settings_memories' && cameFromPath === 'settings_memories') {
-                        previousPath = 'settings_memories';
-                        previousPathSegments = ['settings_memories'];
-                    } else if (cameFromPath === 'ai') {
+                    if (cameFromPath === 'ai') {
                         // Arrived from top-level AI settings — go back there, not to apps/ai
                         previousPath = 'ai';
                         previousPathSegments = ['ai'];
@@ -2160,15 +1968,6 @@ changes to the documentation (to keep the documentation up to date).
                         const focusMode = app.focus_modes?.find(f => f.id === focusModeId);
                         if (focusMode && focusMode.name_translation_key) {
                             title = $text(focusMode.name_translation_key);
-                        } else {
-                            title = app.name_translation_key ? $text(app.name_translation_key) : appId;
-                        }
-                    } else if (pathParts.length === 3 && pathParts[1] === 'settings_memories') {
-                        // Settings memories category route - use category name
-                        const categoryId = pathParts[2];
-                        const category = app.settings_and_memories?.find(c => c.id === categoryId);
-                        if (category && category.name_translation_key) {
-                            title = $text(category.name_translation_key);
                         } else {
                             title = app.name_translation_key ? $text(app.name_translation_key) : appId;
                         }
@@ -2952,6 +2751,8 @@ changes to the documentation (to keep the documentation up to date).
                     activeSubMenuTitleKey = 'settings.incognito';
                 } else if (cleanPath === 'learning-mode/setup') {
                     translationKey = 'settings.learning_mode';
+                } else if (/^(?:settings_memories|memories)\//.test(cleanPath)) {
+                    translationKey = 'settings.settings_memories';
                 } else if (cleanPath.startsWith('projects/')) {
                     translationKey = 'settings.projects.project_settings';
                 } else if (cleanPath.startsWith('account/storage/')) {
@@ -3370,7 +3171,7 @@ changes to the documentation (to keep the documentation up to date).
 
     <!-- App details gradient banner — shown on:
          1. apps/{appId} top-level pages (full description + capability counts)
-         2. apps/{appId}/skill|focus|settings_memories/{itemId} sub-pages
+         2. apps/{appId}/skill|focus/{itemId} sub-pages
             (same gradient, but shows item name + type label instead of description/counts)
          Placed outside the content-wrapper so it's not clipped by the slider's overflow:hidden.
          sticky positioning works here because this element is a direct flex child of .settings-menu. -->

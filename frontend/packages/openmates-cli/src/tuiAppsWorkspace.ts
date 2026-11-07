@@ -258,7 +258,6 @@ function parseApp(value: Record<string, unknown>, idHint = ""): TuiApp | null {
     }),
     focusModes: rows(value.focus_modes).map((entry) => ({ id: string(entry.id), name: string(entry.name), description: string(entry.description) })),
     settingsMemories: [
-      ...rows(value.settings_and_memories).map((entry) => ({ id: string(entry.id), name: string(entry.name), description: string(entry.description) })),
       ...rows(value.memories).map((entry) => ({ id: string(entry.id), name: string(entry.title),
         description: `App-provided · Read-only · Loads automatically when relevant. ${string(entry.description)}`, body: string(entry.body) })),
     ],

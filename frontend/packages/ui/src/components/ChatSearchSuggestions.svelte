@@ -20,14 +20,13 @@
 -->
 <script lang="ts">
   import { search as performSearch, type EmbedSearchResult } from '../services/searchService';
-  import { searchSavedEmbedMemories, type SavedEmbedSuggestion } from '../services/embedSuggestionSearch';
+  import { searchSavedEmbeds, type SavedEmbedSuggestion } from '../services/embedSuggestionSearch';
   import { chatDB } from '../services/db';
   import { chatMetadataCache } from '../services/chatMetadataCache';
   import { getLucideIcon, getValidIconName, getFallbackIconForCategory, getCategoryGradientColors } from '../utils/categoryUtils';
   import { getAppGradientBackground } from './activeChatUtils';
   import { authStore } from '../stores/authStore';
   import { activeTeamId } from '../stores/teamStore';
-  import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
   import { text } from '@repo/ui';
   import { get } from 'svelte/store';
   import {
@@ -130,9 +129,13 @@
    */
   $effect(() => {
     const query = filterQuery;
-    savedEmbedResults = query && $authStore.isAuthenticated
-      ? searchSavedEmbedMemories($appSettingsMemoriesStore, query)
-      : [];
+    if (!query || !$authStore.isAuthenticated) {
+      savedEmbedResults = [];
+      return;
+    }
+    let cancelled = false;
+    void searchSavedEmbeds(query).then((results) => { if (!cancelled) savedEmbedResults = results; });
+    return () => { cancelled = true; };
   });
 
   $effect(() => {

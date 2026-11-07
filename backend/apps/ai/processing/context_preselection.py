@@ -13,7 +13,8 @@ from typing import Any
 from backend.apps.ai.processing.agentic_context import first_party, fresh_project
 from backend.apps.ai.processing.rule_context import (
     MAX_APPLIED_RULE_CHARS, MAX_DISCOVERY_CHARS, MAX_RULE_CANDIDATES,
-    authorized_project_memory_documents, eligible_rule_catalog, parse_custom_rule_documents,
+    authorized_project_memory_documents, bound_always_on, catalog_discovery,
+    eligible_rule_catalog, parse_custom_rule_documents, personal_catalog, request_memory_catalog, rule_discovery,
 )
 from backend.shared.python_utils.rule_loader import rules_prompt
 
@@ -75,14 +76,19 @@ async def discover_rule_metadata(request: Any, directus: Any, cache: Any,
         binding = await fresh_project(request, directus, cache)
         request._preselected_rule_project_activation = (binding or {}).get("activation_id")
         catalog = await _rules(request, directus, cache, eligible_app_ids)
+        # Personal Memories are catalog-only: just title and when-to-use reach the
+        # decision provider, for Auto include and Ask first alike. No body exists here.
+        private_rows = [rule_discovery(rule) for rule in catalog if rule.source != "app"] + [
+            catalog_discovery(entry) for entry in personal_catalog(request_memory_catalog(request))
+        ]
+        app_rows = [rule_discovery(rule) for rule in catalog if rule.source == "app"]
         result = []
-        # Newly authorized Project guides must not be displaced by the bounded
-        # public app catalogue. Stable sorting preserves order within each scope.
-        for rule in sorted(catalog, key=lambda item: item.source != "project"):
+        # Newly authorized Project/personal Memories must not be displaced by the
+        # bounded public app catalogue; blank-when rows have a small own budget.
+        ordered = sorted(bound_always_on(private_rows), key=lambda row: row["source"] != "project") + app_rows
+        for entry in ordered:
             if len(result) >= MAX_RULE_CANDIDATES:
                 break
-            entry = {key: getattr(rule, key) for key in
-                     ("id", "title", "description", "when_to_use", "revision", "source", "app_id", "project_id")}
             if len(json.dumps([*result, entry], ensure_ascii=True)) <= MAX_DISCOVERY_CHARS:
                 result.append(entry)
         request._rule_metadata_discovery_complete = True

@@ -257,16 +257,7 @@
     
     // Replace @memory:{app_id}:{memory_id}:{type} with @App-Memory-Name
     text = text.replace(/@memory:([^:]+):([^:]+):([^\s]+)/g, (match, appId, memoryId) => {
-      const apps = appSkillsStore.apps;
-      const app = apps[appId];
-      if (app) {
-        const memory = app.settings_and_memories.find(m => m.id === memoryId);
-        if (memory) {
-          const appDisplayName = capitalizeWords(appId);
-          const memoryDisplayName = capitalizeWords(memoryId.replace(/_/g, '-'));
-          return `@${appDisplayName}-${memoryDisplayName}`;
-        }
-      }
+      if (appId === 'openmates' && memoryId === 'memories') return '@Openmates-Memories';
       return match;
     });
     

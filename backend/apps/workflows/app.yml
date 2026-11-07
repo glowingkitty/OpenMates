@@ -3,7 +3,6 @@ description_translation_key: workflows.description
 icon_image: workflow.svg
 category: productivity
 last_updated: "2026-06-24"
-settings_and_memories: []
 embed_types:
   - id: create-or-modify
     category: app-skill-use

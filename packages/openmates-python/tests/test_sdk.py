@@ -2075,7 +2075,6 @@ def test_previously_blocked_sdk_surfaces_route_to_concrete_endpoints(monkeypatch
     client.chats.follow_ups(CHAT_ID)
     client.chats.export(CHAT_ID)
     client.account.list_interests()
-    client.memories.types(app_id="code")
     client.billing.usage_overview(granularity="monthly", months=2)
     client.billing.usage_details(type="chat", identifier="chat-1", year_month="2026-08")
     client.billing.chat_total("chat-1")
@@ -2094,7 +2093,6 @@ def test_previously_blocked_sdk_surfaces_route_to_concrete_endpoints(monkeypatch
         {"method": "GET", "url": f"https://api.openmates.org/v1/sdk/chats/{CHAT_ID}"},
         {"method": "POST", "url": f"https://api.openmates.org/v1/sdk/chats/{CHAT_ID}/export"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/account/topic-preferences"},
-        {"method": "GET", "url": "https://api.openmates.org/v1/sdk/memories/types?app_id=code"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/billing/usage/overview?granularity=monthly&months=2"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/billing/usage/details?type=chat&identifier=chat-1&year_month=2026-08"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/billing/usage/chat-total?chat_id=chat-1"},

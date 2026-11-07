@@ -241,3 +241,188 @@ app_loading:
   en: Public · Provided by the app · Read-only · Loads automatically when relevant
   de: Öffentlich · Von der App bereitgestellt · Schreibgeschützt · Wird bei Bedarf automatisch geladen
   verified_by_human: []
+load_mode:
+  context: Label of the Memory load mode selector
+  en: Load mode
+  de: Lademodus
+  verified_by_human: []
+load_mode_auto_include:
+  context: Memory load mode - always added when it fits the request
+  en: Auto include
+  de: Automatisch einbeziehen
+  verified_by_human: []
+load_mode_ask_first:
+  context: Memory load mode - AI asks before using it
+  en: Ask first
+  de: Erst fragen
+  verified_by_human: []
+load_mode_mention_only:
+  context: Memory load mode - used only when the user mentions it
+  en: Only when mentioned
+  de: Nur bei Erwähnung
+  verified_by_human: []
+when_to_use_optional:
+  context: Heading of the optional when-to-use Memory field
+  en: When to use (optional)
+  de: Wann anwenden (optional)
+  verified_by_human: []
+when_to_use_hint:
+  context: Hint under the when-to-use field explaining blank and AI visibility
+  en: Leave blank to always consider this Memory. The title and when-to-use text are visible to AI processing stages for Auto include and Ask first memories.
+  de: Leer lassen, damit diese Erinnerung immer berücksichtigt wird. Titel und Anwendungsbereich sind für KI-Verarbeitungsstufen bei den Modi Automatisch einbeziehen und Erst fragen sichtbar.
+  verified_by_human: []
+valid_from:
+  context: Optional start date of a Memory
+  en: Start date (optional)
+  de: Startdatum (optional)
+  verified_by_human: []
+valid_until:
+  context: Optional expiry date of a Memory
+  en: Expiry date (optional)
+  de: Ablaufdatum (optional)
+  verified_by_human: []
+expired:
+  context: Badge on a Memory whose expiry date has passed
+  en: Expired
+  de: Abgelaufen
+  verified_by_human: []
+renew:
+  context: Button that extends an expired Memory
+  en: Renew
+  de: Verlängern
+  verified_by_human: []
+character_budget:
+  context: Character budget used by saved Memories
+  en: '{used} / {max} characters used'
+  de: '{used} / {max} Zeichen verwendet'
+  verified_by_human: []
+draft_unsaved:
+  context: Banner for a suggested Memory change that is not saved yet
+  en: This is an unsaved suggestion. Review the changes and save to apply them.
+  de: Dies ist ein ungespeicherter Vorschlag. Prüfe die Änderungen und speichere, um sie zu übernehmen.
+  verified_by_human: []
+draft_conflict:
+  context: Error when saving a suggested Memory change after the Memory was edited elsewhere
+  en: This memory changed since the suggestion was made. Nothing was overwritten. Reopen the suggestion to review the latest version.
+  de: Diese Erinnerung wurde seit dem Vorschlag geändert. Es wurde nichts überschrieben. Öffne den Vorschlag erneut, um die aktuelle Version zu prüfen.
+  verified_by_human: []
+suggestion_update:
+  context: Title line of a suggestion to update an existing Memory, shown below the chat
+  en: 'Update {title}'
+  de: '{title} aktualisieren'
+  verified_by_human: []
+suggestion_create:
+  context: Title line of a suggestion to create a new Memory, shown below the chat
+  en: 'Save {title}'
+  de: '{title} speichern'
+  verified_by_human: []
+suggestion_preview:
+  context: Button that previews a suggested Memory change without saving it
+  en: Preview
+  de: Vorschau
+  verified_by_human: []
+suggestion_dismiss:
+  context: Accessible label of the button that dismisses a suggestion
+  en: Dismiss suggestion
+  de: Vorschlag verwerfen
+  verified_by_human: []
+suggestion_previewing:
+  context: Status while a suggested Memory update is being prepared
+  en: Preparing preview…
+  de: Vorschau wird vorbereitet…
+  verified_by_human: []
+suggestion_up_to_date:
+  context: Message when a suggested Memory update found nothing to change
+  en: This memory already looks up to date.
+  de: Diese Erinnerung scheint bereits aktuell zu sein.
+  verified_by_human: []
+suggestion_failed:
+  context: Error toast when a suggested Memory update preview failed
+  en: The preview could not be created. Please try again.
+  de: Die Vorschau konnte nicht erstellt werden. Bitte versuche es erneut.
+  verified_by_human: []
+suggestion_not_found:
+  context: Error toast when the Memory of a suggestion no longer exists
+  en: This memory no longer exists.
+  de: Diese Erinnerung existiert nicht mehr.
+  verified_by_human: []
+suggestion_insufficient_credits:
+  context: Error toast when a suggested Memory update preview needs more credits than available
+  en: Not enough credits for this preview.
+  de: Nicht genug Credits für diese Vorschau.
+  verified_by_human: []
+suggestion_workflow_create:
+  context: Button that creates a suggested Workflow in the Workflow workspace
+  en: Create
+  de: Erstellen
+  verified_by_human: []
+suggestion_workflow_prompt:
+  context: Instruction sent to the Workflow builder when the user creates a suggested Workflow
+  en: 'Create a workflow: {title}. {summary}'
+  de: 'Erstelle einen Workflow: {title}. {summary}'
+  verified_by_human: []
+draft_current:
+  context: Label above the current saved value in a Memory suggestion diff
+  en: current
+  de: aktuell
+  verified_by_human: []
+project_memories:
+  context: Tab label for the Memories of a Project
+  en: Project Memories
+  de: Projekt-Erinnerungen
+  verified_by_human: []
+private_memories:
+  context: Heading of the Private free-form Memories list in Settings
+  en: Your Memories
+  de: Deine Erinnerungen
+  verified_by_human: []
+references:
+  context: Heading of the references field in the Memory editor
+  en: References
+  de: Verweise
+  verified_by_human: []
+references_hint:
+  context: Explains that referenced embeds load with the Memory and referenced chats only share metadata and become searchable
+  en: Embeds load with this Memory. For chats only the title, summary and last update are shared, and the assistant may search those chats while this Memory is loaded.
+  de: Embeds werden mit dieser Erinnerung geladen. Bei Chats werden nur Titel, Zusammenfassung und letzte Änderung geteilt, und der Assistent darf diese Chats durchsuchen, solange diese Erinnerung geladen ist.
+  verified_by_human: []
+reference_chat:
+  context: Badge on a referenced chat chip
+  en: Chat
+  de: Chat
+  verified_by_human: []
+reference_embed:
+  context: Badge on a referenced embed chip
+  en: Embed
+  de: Embed
+  verified_by_human: []
+reference_unavailable:
+  context: Marker shown for a Memory reference that is missing, deleted or not readable
+  en: Reference unavailable
+  de: Verweis nicht verfügbar
+  verified_by_human: []
+reference_remove:
+  context: Button label to remove a reference from a Memory
+  en: Remove reference
+  de: Verweis entfernen
+  verified_by_human: []
+reference_add_chat:
+  context: Label of the chat picker in the Memory references field
+  en: Add a chat
+  de: Chat hinzufügen
+  verified_by_human: []
+reference_add_embed:
+  context: Label and button to add an embed reference by id
+  en: Add embed by ID
+  de: Embed per ID hinzufügen
+  verified_by_human: []
+references_limit:
+  context: Error when a Memory has the maximum number of references
+  en: A Memory can have at most 50 references.
+  de: Eine Erinnerung kann höchstens 50 Verweise haben.
+  verified_by_human: []
+references_embed_not_found:
+  context: Error when the embed id typed in the Memory editor cannot be read
+  en: This embed could not be found or read.
+  de: Dieses Embed wurde nicht gefunden oder kann nicht gelesen werden.
+  verified_by_human: []

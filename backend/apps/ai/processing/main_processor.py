@@ -90,7 +90,11 @@ from backend.apps.ai.processing.native_history_cache import (
 )
 from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
 from backend.apps.ai.processing import agentic_context
-from backend.apps.ai.processing.rule_context import applied_rule_receipt
+from backend.apps.ai.processing.rule_context import (
+    applied_rule_receipt, approved_memory_definitions, memory_catalog_snapshot, personal_catalog,
+    request_memory_catalog,
+)
+from backend.shared.python_utils.rule_loader import rules_prompt
 from backend.apps.ai.processing.memory_tools import (
     MEMORY_TOOL_INSTRUCTION, MEMORY_TOOL_NAMES, MemoryToolRuntime, NativeDiagramContextGuard,
     NATIVE_MEMORY_FINGERPRINT_KEY, authorized_memory_catalog, has_memory_catalog,
@@ -426,7 +430,7 @@ def _omit_fact_question_format_guidance(
     # documents, binding, and routing state explicitly below.
     if any(getattr(request, key, None) for key in (
         "historical_artifact_context", "embed_file_path_index", "has_image_upload_embed",
-        "custom_rule_documents", "project_focus_documents", "project_context_documents",
+        "custom_rule_documents", "memory_catalog", "project_focus_documents", "project_context_documents",
         "project_routing_focus_id",
         "mentioned_settings_memories_cleartext", "focus_phase_state",
         "connected_account_directory", "connected_account_token_refs",
@@ -513,7 +517,7 @@ def _trusted_focus_override(overrides: UserOverrides | None, focus_id: str) -> b
 
 def _forward_agentic_context(request: AskSkillRequest) -> dict:
     return {field: getattr(request, field, []) for field in (
-        "accepted_plan_context", "custom_rule_documents", "project_focus_catalog", "project_focus_documents",
+        "accepted_plan_context", "custom_rule_documents", "memory_catalog", "project_focus_catalog", "project_focus_documents",
         "project_context_documents", "related_task_candidates",
     )}
 
@@ -4241,7 +4245,12 @@ async def handle_main_processing(
                     connection_manager=None,  # Celery tasks run in separate processes, can't access WebSocket manager directly
                     user_id=request_data.user_id,
                     device_fingerprint_hash=None,  # Will use first available device connection
-                    message_id=request_data.message_id  # User message that triggered this request (for UI display)
+                    message_id=request_data.message_id,  # User message that triggered this request (for UI display)
+                    memory_titles={
+                        entry.id: entry.title
+                        for entry in personal_catalog(request_memory_catalog(request_data))
+                        if f"memory:{entry.id}" in missing_keys
+                    },
                 )
                 
                 if request_id:
@@ -4269,6 +4278,20 @@ async def handle_main_processing(
                             missing_keys=missing_keys,
                             task_id=task_id,
                         )
+                        # Metadata-only catalog snapshot (no bodies), vault-encrypted,
+                        # so the continuation never depends on the client resending it.
+                        if user_vault_key_id and encryption_service and any(
+                            key.startswith("memory:") for key in missing_keys
+                        ):
+                            snapshot_json = json.dumps(
+                                memory_catalog_snapshot(personal_catalog(request_memory_catalog(request_data))),
+                                separators=(",", ":"), ensure_ascii=True,
+                            )
+                            pending_context["memory_catalog_ciphertext"], _ = (
+                                await encryption_service.encrypt_with_user_key(
+                                    plaintext=snapshot_json, key_id=user_vault_key_id,
+                                )
+                            )
                         await cache_service.store_pending_app_settings_memories_request(
                             chat_id=request_data.chat_id,
                             context=pending_context,
@@ -4294,6 +4317,30 @@ async def handle_main_processing(
         except Exception as e:
             logger.error(f"{log_prefix} Error handling app settings/memories requests: {e}", exc_info=True)
             # Continue without app settings/memories - don't fail the entire request
+
+    # Returned personal Memories (keys "memory:<id>") become Memory sections; they
+    # never reach the typed-category prompt block below. The client decided consent
+    # (automatic for Auto include, approval UI for Ask first); the server only
+    # accepts ids requested for this turn that exist in the catalog snapshot.
+    approved_memories_prompt = ""
+    approved_memories: list = []
+    if any(isinstance(key, str) and key.startswith("memory:") for key in loaded_app_settings_and_memories_content):
+        try:
+            approved_memories, loaded_app_settings_and_memories_content = approved_memory_definitions(
+                loaded_app_settings_and_memories_content, request_memory_catalog(request_data),
+                requested_keys=[key for key in (preprocessing_results.load_app_settings_and_memories or [])
+                                if isinstance(key, str) and key.startswith("memory:")],
+                mentioned_keys=(getattr(request_data, "mentioned_settings_memories_cleartext", None) or {}).keys(),
+            )
+            approved_memories_prompt = rules_prompt(approved_memories)
+            logger.info("%s Applied %d personal Memories", log_prefix, len(approved_memories))
+        except ValueError:
+            logger.warning("%s Returned Memory content rejected; none applied", log_prefix)
+            approved_memories = []
+            loaded_app_settings_and_memories_content = {
+                key: value for key, value in loaded_app_settings_and_memories_content.items()
+                if not (isinstance(key, str) and key.startswith("memory:"))
+            }
 
     # Require a valid preprocessor selection before prompt construction so the
     # creator/model instruction and actual inference model use the same choice.
@@ -5189,6 +5236,8 @@ async def handle_main_processing(
             value_str = json.dumps(processed_value) if not isinstance(processed_value, str) else processed_value
             settings_and_memories_prompt_section.append(f"- {key}: {value_str}")
         prompt_parts.append("\n".join(settings_and_memories_prompt_section))
+    if approved_memories_prompt:
+        prompt_parts.append(approved_memories_prompt)
 
     active_focus_definition = None
     active_focus_prompt_text: Optional[str] = None
@@ -6991,6 +7040,8 @@ async def handle_main_processing(
                         on_demand_memory_prompt = next_memory_prompt
                 if not agentic_section or agentic_section in iteration_system_prompt:
                     receipt_guides = [*applied_guides]
+                    if approved_memories and approved_memories_prompt in iteration_system_prompt:
+                        receipt_guides.extend(approved_memories)
                     if diagram_prompt and diagram_prompt in iteration_system_prompt:
                         receipt_guides.extend(diagram_receipt_memories)
                     if memory_runtime and memory_runtime.prompt and memory_runtime.prompt in iteration_system_prompt:
@@ -7023,6 +7074,8 @@ async def handle_main_processing(
                 effective_memory_context = on_demand_memory_prompt
                 if applied_guides and agentic_section and agentic_section in iteration_system_prompt:
                     effective_memory_context += applied_rule_set_key(applied_guides)
+                if approved_memories and approved_memories_prompt in iteration_system_prompt:
+                    effective_memory_context += applied_rule_set_key(approved_memories)
                 if diagram_prompt and diagram_prompt in iteration_system_prompt:
                     effective_memory_context += diagram_prompt
                 if (not native_memory_context_matches(native_state, effective_memory_context)

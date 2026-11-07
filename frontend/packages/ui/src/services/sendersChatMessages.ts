@@ -74,6 +74,19 @@ import { observePersonalChatCanonicalVersion, awaitPersonalChatPredecessor, bind
 import { isDraftContextDispatchActive, reserveDraftContextDispatch } from "./draftContextDispatchBarrier";
 export { isPreflightAcknowledgementTimeout } from "./preflightAcknowledgement";
 
+/** Metadata-only Memory catalog; a catalog failure must not block sending the message. */
+async function collectMemoryCatalogForSend(
+	projectDocuments: ReadonlyArray<import("../utils/ruleDocuments").CustomRuleDocument>,
+): Promise<Array<Record<string, unknown>>> {
+	try {
+		const { collectMemoryCatalog } = await import("./ruleDocumentService");
+		return (await collectMemoryCatalog(projectDocuments)) as unknown as Array<Record<string, unknown>>;
+	} catch (error) {
+		console.warn("[ChatSyncService:Senders] Memory catalog unavailable", error);
+		return [];
+	}
+}
+
 function isReceiptConnectionMismatch(error: unknown): boolean {
   return !!error && typeof error === 'object'
     && (error as { code?: string }).code === 'websocket_receipt_connection_changed';
@@ -1157,6 +1170,7 @@ async function publishPostAdmissionContext(input: {
 						context.collectProjectReferenceDocuments({ chatId: message.chat_id, text: message.content ?? "", initialFocus }),
 					]),
 				]);
+				const memoryCatalog = await collectMemoryCatalogForSend(memoryDocs);
 				if (!isV2Current()) throw new Error("Post-admission details owner changed.");
 				detailsFrame = await retainContextPhaseFrame(message, chatKey, identity, "details", {
 					...identity, phase: "details",
@@ -1166,6 +1180,7 @@ async function publishPostAdmissionContext(input: {
 						...(plan ? { accepted_plan_context: plan } : {}),
 						connected_account_directory: routedAccounts?.directory ?? [],
 						custom_memory_documents: memoryDocs.slice(0, 24),
+						memory_catalog: memoryCatalog,
 						project_focus_documents: focusDocs.slice(0, 8),
 						project_context_documents: projectDocs.slice(0, 20),
 						connected_account_token_refs: routedAccounts?.tokenRefs ?? [],
@@ -1226,11 +1241,13 @@ async function publishPostAdmissionContext(input: {
 			context.collectProjectReferenceDocuments({ chatId: message.chat_id, text: message.content ?? "", initialFocus }),
 			accounts,
 		]);
+		const memoryCatalog = await collectMemoryCatalogForSend(memoryDocs);
 		if (!isCurrent()) return;
 		detailsFrame = await retainContextPhaseFrame(message, chatKey, identity, "details", {
 			...identity, phase: "details",
 			context: {
 				custom_memory_documents: memoryDocs.slice(0, 24),
+				memory_catalog: memoryCatalog,
 				project_focus_documents: focusDocs.slice(0, 8),
 				project_context_documents: projectDocs.slice(0, 20),
 				connected_account_token_refs: detailedAccounts?.tokenRefs ?? [],
@@ -2434,6 +2451,8 @@ export async function sendNewMessageImpl(
 		active_focus_id?: string | null; // Plaintext focus mode ID for AI processing (decrypted from E2E encrypted field)
 		project_focus_candidates?: ProjectFocusRoutingCandidate[];
 		custom_memory_documents?: Array<Record<string, unknown>>;
+		/** Metadata only: {id,title,when_to_use,load_mode,source}; mention_only/out-of-window memories excluded. */
+		memory_catalog?: Array<Record<string, unknown>>;
 		project_focus_catalog?: Array<Record<string, unknown>>;
 		project_focus_documents?: Array<Record<string, unknown>>;
 		project_context_documents?: Array<Record<string, unknown>>;
@@ -2581,6 +2600,10 @@ export async function sendNewMessageImpl(
 				payload[fields[index]] = result.value as unknown as Array<Record<string, unknown>>;
 			}
 		}
+		const projectMemoryDocs = collected[0].status === 'fulfilled' ? collected[0].value : [];
+		const memoryCatalog = await collectMemoryCatalogForSend(projectMemoryDocs);
+		if (!sendContextStillCurrent()) return;
+		if (memoryCatalog.length) payload.memory_catalog = memoryCatalog as unknown as Array<Record<string, unknown>>;
 		const acceptedPlan = collected[fields.length];
 		if (acceptedPlan.status === 'fulfilled' && acceptedPlan.value) {
 			payload.accepted_plan_context = acceptedPlan.value as import('./acceptedPlanContext').AcceptedPlanContext;

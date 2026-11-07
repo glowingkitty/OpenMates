@@ -2256,7 +2256,7 @@ def _simple_context_fast_path(request_data: AskSkillRequest, early_routing: Dict
         return False
     if any(getattr(request_data, key, None) for key in (
         "active_project_focus", "current_project", "active_focus_id", "accepted_plan_context",
-        "custom_rule_documents", "project_focus_documents", "project_context_documents",
+        "custom_rule_documents", "memory_catalog", "project_focus_documents", "project_context_documents",
         "mentioned_settings_memories_cleartext", "project_routing_focus_id",
     )):
         return False
@@ -3508,6 +3508,22 @@ async def handle_preprocessing(
     # Live inference snapshots must not enter durable summaries, recorder dumps,
     # logs or raw preprocessing receipts.
     preselected_rule_snapshots = llm_analysis_args.pop("relevant_rules", None)
+    # Selected personal Memories (Auto include and Ask first alike) carry no body:
+    # they become requests for the existing conversation flow (key "memory:<id>"),
+    # answered by the client per its LOCAL load mode. Ids must be in the catalog.
+    memory_request_keys: List[str] = []
+    if isinstance(preselected_rule_snapshots, list):
+        from backend.apps.ai.processing.rule_context import personal_catalog, request_memory_catalog
+        catalog_ids = {entry.id for entry in personal_catalog(request_memory_catalog(request_data))}
+        memory_request_keys = list(dict.fromkeys(
+            f"memory:{row['id']}" for row in preselected_rule_snapshots
+            if isinstance(row, dict) and row.get("source") == "personal" and row.get("id") in catalog_ids
+        ))
+        preselected_rule_snapshots = [
+            row for row in preselected_rule_snapshots
+            if isinstance(row, dict) and row.get("source") != "personal"
+            and row.get("load_mode", "auto_include") == "auto_include"
+        ]
     preselected_workflow_snapshots = llm_analysis_args.pop("relevant_workflows", None)
     preselected_diagram_types = llm_analysis_args.pop("relevant_diagram_types", None)
     preselected_diagram_variant = llm_analysis_args.pop("relevant_diagram_variant", None)
@@ -3757,6 +3773,13 @@ async def handle_preprocessing(
         load_app_settings_and_memories_val = []
         llm_analysis_args["load_app_settings_and_memories"] = load_app_settings_and_memories_val
     else:
+        # Personal Memory keys come only from validated catalog selections below,
+        # never from free-form model output.
+        load_app_settings_and_memories_val = [
+            key for key in load_app_settings_and_memories_val
+            if not (isinstance(key, str) and key.strip().lower().startswith(("memory:", "memory-", "memory ")))
+        ]
+        llm_analysis_args["load_app_settings_and_memories"] = load_app_settings_and_memories_val
         # Validate each key against available metadata
         if user_app_settings_and_memories_metadata:
             # Build a set of all available keys (format: "app_id:item_key" using colon for cache mixin compatibility)
@@ -3820,6 +3843,14 @@ async def handle_preprocessing(
             llm_analysis_args["load_app_settings_and_memories"] = load_app_settings_and_memories_val
         # If user_app_settings_and_memories_metadata is None/empty, we can't validate, so keep as-is
         # (The system will handle missing keys gracefully)
+
+    # Personal Memories selected by relevance (ids validated against the client catalog).
+    for memory_key in memory_request_keys:
+        if memory_key not in load_app_settings_and_memories_val:
+            load_app_settings_and_memories_val.append(memory_key)
+    if memory_request_keys:
+        llm_analysis_args["load_app_settings_and_memories"] = load_app_settings_and_memories_val
+        logger.info("%s Memory request issued for %d selection(s)", log_prefix, len(memory_request_keys))
 
     # --- Force-include @memory / @memory-entry mentioned keys ---
     # When the user explicitly mentions a settings/memory category or entry via @memory or

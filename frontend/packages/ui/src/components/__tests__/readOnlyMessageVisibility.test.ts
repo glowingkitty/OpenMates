@@ -36,7 +36,6 @@ vi.mock("../../stores/panelStateStore", () => ({ panelState: {} }));
 vi.mock("../../data/modelsMetadata", () => ({ modelsMetadata: [] }));
 vi.mock("../../data/matesMetadata", () => ({ matesMetadata: [] }));
 vi.mock("../../data/providersMetadata", () => ({ providersMetadata: {} }));
-vi.mock("../../stores/appSettingsMemoriesStore", () => ({ appSettingsMemoriesStore: { subscribe: () => () => undefined } }));
 vi.mock("../../stores/appSkillsStore", () => ({ appSkillsStore: { apps: {}, subscribe: () => () => undefined } }));
 
 import ReadOnlyMessage from "../ReadOnlyMessage.svelte";

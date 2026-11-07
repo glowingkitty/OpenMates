@@ -43,7 +43,7 @@ async function fetchMentionData(client: OpenMatesClient, previous: TuiMentionDat
   if (!current()) throw new Error('Mention context changed.');
   return { context: { models: [], mates: MATE_NAMES,
     apps: appsResult.status === 'fulfilled' ? appsResult.value.map(app => ({ id: app.id, name: app.name, skills: app.skills,
-      focus_modes: app.focusModes, settings_and_memories: app.settingsMemories })) : previous.context.apps,
+      focus_modes: app.focusModes })) : previous.context.apps,
     memoryEntries: memoriesResult.status === 'fulfilled' ? memoriesResult.value.sort((a,b)=>b.updated_at-a.updated_at).map(entry => ({ id: entry.id, app_id: entry.app_id, item_type: entry.item_type,
       title: [entry.data?.title, entry.data?.name, entry.data?.label, entry.data?._original_item_key].find(value => typeof value === 'string' && value.trim()) as string | undefined })) : previous.context.memoryEntries,
   }, projects: choices, incomplete: [appsResult, memoriesResult, projectsResult].some(result => result.status === 'rejected') };

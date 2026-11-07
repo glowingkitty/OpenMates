@@ -3,7 +3,6 @@ description_translation_key: projects.description
 icon_image: project.svg
 category: productivity
 last_updated: "2026-07-25"
-settings_and_memories: []
 embed_types:
   - id: search
     category: app-skill-use

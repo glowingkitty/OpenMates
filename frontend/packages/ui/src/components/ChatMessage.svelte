@@ -54,9 +54,7 @@
   import { chatSyncService } from '../services/chatSyncService';
   import { clearSubChatsForParentCache, loadSubChatPreviews } from '../services/subChatPreviewService';
   import type { AppSettingsMemoriesResponseContent, AppSettingsMemoriesResponseCategory } from '../services/chatSyncServiceHandlersAppSettings';
-  import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
-  import { appSkillsStore } from '../stores/appSkillsStore';
-  import { buildSavedEmbedConfigFromDecodedContent, findSavedEmbedMemoryEntry, forgetEmbedMemory, saveEmbedMemory } from '../services/savedEmbedMemoryService';
+      import { savedEmbedIds, toggleEmbedSaved, loadEmbedSaved } from '../services/savedEmbedService';
   import { tipTapToCanonicalMarkdown, writeEmbedToClipboard, writeMessageWithEmbedsToClipboard } from '../message_parsing/serializers';
   import { copyImageEmbed, downloadImageEmbed } from './embeds/images/imageEmbedActions';
   import type { TipTapDoc, TipTapNode } from '../message_parsing/types';
@@ -928,22 +926,9 @@
   
   /**
    * Get display name for an app settings/memories category.
-   * Loads from app metadata using appId and itemType.
-   * Returns the translated name if available, otherwise a formatted fallback.
+   * Returns a readable name formatted from the category's itemType (typed app memories no longer exist).
    */
   function getCategoryDisplayName(cat: AppSettingsMemoriesResponseCategory): string {
-    const app = appSkillsStore.apps[cat.appId];
-    if (app?.settings_and_memories) {
-      const category = app.settings_and_memories.find(sm => sm.id === cat.itemType);
-      if (category?.name_translation_key) {
-        // Use the translation key to get localized name
-        // Guard: $text() returns the key itself when no translation is found
-        const translated = $text(category.name_translation_key);
-        if (translated && translated !== category.name_translation_key) {
-          return translated;
-        }
-      }
-    }
     // Fallback: format itemType as readable string (e.g., "preferred_technologies" -> "Preferred Technologies")
     return cat.itemType.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   }
@@ -975,11 +960,9 @@
     '[[app_store_group]]',
     '[[skills_group]]',
     '[[focus_modes_group]]',
-    '[[settings_memories_group]]',
     '[[dev_app_store_group]]',
     '[[dev_skills_group]]',
     '[[dev_focus_modes_group]]',
-    '[[dev_settings_memories_group]]',
     '[[for_developers_embed]]',
   ];
   let hasExampleChatsPlaceholder = $derived((() => {
@@ -2162,6 +2145,7 @@
       embedType = 'default';
     }
 
+    if (selectedDomEmbedId) void loadEmbedSaved(selectedDomEmbedId);
     showMenu = true;
   }
 
@@ -2191,53 +2175,16 @@
     );
   }
 
-  function isSelectedEmbedSavedToMemory(): boolean {
+  function isSelectedEmbedSaved(): boolean {
     if (!selectedDomEmbedId) return false;
-    for (const appGroups of $appSettingsMemoriesStore.entriesByApp.values()) {
-      for (const entries of Object.values(appGroups)) {
-        if (entries.some((entry) => entry.item_value?.embed_id === selectedDomEmbedId)) return true;
-      }
-    }
-    return false;
+    return $savedEmbedIds.has(selectedDomEmbedId);
   }
 
-  async function handleToggleSelectedEmbedMemory() {
+  async function handleToggleSelectedEmbedSaved() {
     const embedId = selectedDomEmbedId;
-    const appId = selectedAppId;
-    const skillId = selectedSkillId;
-    if (!embedId || !appId || !skillId) return;
-
+    if (!embedId) return;
     try {
-      const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
-      const embedData = await resolveEmbed(embedId);
-      const decodedContent = embedData?.content
-        ? (typeof embedData.content === 'string'
-            ? await decodeToonContent(embedData.content)
-            : embedData.content as Record<string, unknown>)
-        : null;
-
-      if (!decodedContent) {
-        const { notificationStore } = await import('../stores/notificationStore');
-        notificationStore.error('Unable to save this embed. Missing embed content.');
-        return;
-      }
-
-      const config = buildSavedEmbedConfigFromDecodedContent({ appId, skillId, embedId, decodedContent });
-      if (!config) {
-        const { notificationStore } = await import('../stores/notificationStore');
-        notificationStore.error('This embed cannot be saved to memories.');
-        return;
-      }
-
-      if (findSavedEmbedMemoryEntry($appSettingsMemoriesStore, config)) {
-        await forgetEmbedMemory(config);
-      } else {
-        await saveEmbedMemory(config);
-      }
-    } catch (error) {
-      console.error('[ChatMessage] Error toggling saved embed memory:', error);
-      const { notificationStore } = await import('../stores/notificationStore');
-      notificationStore.error('Failed to update saved memory.');
+      await toggleEmbedSaved(embedId);
     } finally {
       showMenu = false;
       selectedNode = null;
@@ -3796,7 +3743,7 @@
           (selectedAppId === 'sheets')
         )}
         {@const showAddMemoryAction = !isFocusMode && $authStore.isAuthenticated && isSelectedEmbedMemorySupported()}
-        {@const addMemoryActionLabel = isSelectedEmbedSavedToMemory() ? 'Forget' : 'Add memory'}
+        {@const addMemoryActionLabel = isSelectedEmbedSaved() ? 'Saved' : 'Save'}
         <!-- 
           EmbedContextMenu uses callback props instead of Svelte events because
           the menu element is moved to document.body to escape stacking contexts,
@@ -3825,7 +3772,7 @@
           onShare={() => handleMenuAction('share')}
           onCopy={() => handleMenuAction('copy')}
           onDownload={() => handleMenuAction('download')}
-          onAddMemory={handleToggleSelectedEmbedMemory}
+          onAddMemory={handleToggleSelectedEmbedSaved}
           onDeactivate={() => handleMenuAction('deactivate')}
           onDetails={() => handleMenuAction('details')}
         />
@@ -3963,8 +3910,8 @@
                 class="category-badge"
                 data-testid="app-settings-memory-category-badge"
                 onclick={() => {
-                  // Navigate to app settings/memories category via deep link
-                  const path = `apps/${cat.appId}/settings_memories/${cat.itemType}`;
+                  // Personal memories open the Memories hub; other categories open their app.
+                  const path = cat.appId === 'openmates' ? 'settings_memories' : `apps/${cat.appId}`;
                   settingsDeepLink.set(path);
                   panelState.openSettings();
                 }}

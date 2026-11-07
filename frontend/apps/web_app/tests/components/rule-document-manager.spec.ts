@@ -4,7 +4,11 @@ import { waitForComponentPreview } from '../helpers/component-preview';
 // playwright-account: not_required reason=isolated_component_preview
 const PREVIEW = '/dev/preview/projects/RuleDocumentManager?chrome=0&theme=light&background=%23dbeafe';
 
+// First preview load in a fresh CI Vite server compiles and optimizes dependencies on demand.
+const COLD_START_MS = 75_000;
+
 test.beforeEach(async ({ page }) => {
+  test.setTimeout(COLD_START_MS + 30_000);
   await page.addInitScript(() => {
     window.addEventListener('rule-preview-saved', (event) => {
       const saved = (event as CustomEvent<{ source: string; document: string }>).detail;
@@ -17,7 +21,7 @@ test.beforeEach(async ({ page }) => {
 // contract-test: supporting surface=gui.web assertions=app-memories.definition.context-documents,app-memories.privacy.client-encrypted
 test('edits one coherent personal guide and saves all practices together', async ({ page }, testInfo) => {
   await page.goto(`${PREVIEW}&width=650`);
-  await waitForComponentPreview(page);
+  await waitForComponentPreview(page, COLD_START_MS);
   const manager = page.getByTestId('rule-document-manager');
   await page.getByTestId('rule-document-edit').click();
   await expect(page.getByTestId('rule-title')).toHaveValue('Testing best practices');
@@ -36,7 +40,7 @@ test('edits one coherent personal guide and saves all practices together', async
 test('keeps scope, labels and fields usable on a narrow Project layout', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${PREVIEW}&variant=project&width=350`);
-  await waitForComponentPreview(page);
+  await waitForComponentPreview(page, COLD_START_MS);
   const manager = page.getByTestId('rule-document-manager');
   await expect(page.getByTestId('rule-scope-project')).toHaveAttribute('aria-pressed', 'true');
   await expect(manager).toContainText('Project Memories are encrypted Markdown files and load when relevant while this chat has active Project access.');
@@ -51,10 +55,37 @@ test('keeps scope, labels and fields usable on a narrow Project layout', async (
 // contract-test: supporting surface=gui.web assertions=app-memories.privacy.client-encrypted
 test('shows failed persistence without a false saved notice', async ({ page }) => {
   await page.goto(`${PREVIEW}&variant=error&width=650`);
-  await waitForComponentPreview(page);
+  await waitForComponentPreview(page, COLD_START_MS);
   await page.getByTestId('rule-document-edit').click();
   await page.getByTestId('rule-save').click();
-  await expect(page.getByRole('alert')).toHaveText('Could not load or save the Memories. Please try again.');
+  await expect(page.getByTestId('memory-error')).toHaveText('Could not load or save the Memories. Please try again.');
   await expect(page.getByTestId('rule-saved-notice')).toHaveCount(0);
   await expect(page.getByTestId('rule-save')).toBeEnabled();
+});
+
+// contract-test: supporting surface=gui.web assertions=app-memories.load-modes,app-memories.expiry.client-enforced
+test('edits load mode and expiry, shows Private label, budget and a Renew action for expired memories', async ({ page }) => {
+  await page.goto(`${PREVIEW}&variant=expired&width=650`);
+  await waitForComponentPreview(page, COLD_START_MS);
+  await expect(page.getByTestId('memory-char-budget')).toContainText('/ 64000 characters used');
+  const rows = page.getByTestId('memory-row');
+  await expect(rows.first()).toContainText('Private');
+  await expect(rows.nth(1)).toHaveAttribute('data-expired', 'true');
+  await page.getByTestId('memory-renew').click();
+  await expect(page.locator('html')).toHaveAttribute('data-rule-saved-document', /title: Old travel plan\nload_mode: ask_first\nvalid_until: 20\d\d-/);
+  await page.getByTestId('rule-document-edit').first().click();
+  await page.getByTestId('memory-load-mode').selectOption('mention_only');
+  await page.getByTestId('memory-valid-until').fill('2099-01-31');
+  await page.getByTestId('rule-save').click();
+  await expect(page.locator('html')).toHaveAttribute('data-rule-saved-document', /load_mode: mention_only\nvalid_until: 2099-01-31T23:59:59/);
+});
+
+// contract-test: supporting surface=gui.web assertions=app-memories.definition.context-documents
+test('deep link draft is shown as an unsaved diff and not saved automatically', async ({ page }) => {
+  await page.goto(`${PREVIEW}&variant=deeplink&width=650`);
+  await waitForComponentPreview(page, COLD_START_MS);
+  await expect(page.getByTestId('memory-draft-banner')).toBeVisible();
+  await expect(page.getByTestId('rule-title')).toHaveValue('Testing habits');
+  await expect(page.getByTestId('memory-draft-diff-title')).toContainText('Testing best practices');
+  await expect(page.locator('html')).not.toHaveAttribute('data-rule-saved-document', /.+/);
 });

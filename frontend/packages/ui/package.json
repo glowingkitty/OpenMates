@@ -89,6 +89,10 @@
       "types": "./src/services/workflowFileService.ts",
       "default": "./src/services/workflowFileService.ts"
     },
+    "./services/workflowMemorySnapshotService": {
+      "types": "./src/services/workflowMemorySnapshotService.ts",
+      "default": "./src/services/workflowMemorySnapshotService.ts"
+    },
     "./utils/appsWorkspaceRoute": {
       "types": "./src/utils/appsWorkspaceRoute.ts",
       "default": "./src/utils/appsWorkspaceRoute.ts"

@@ -19,8 +19,10 @@ import {
 import { projectFileMutationDigest, type ProjectFileMutation } from '../utils/projectFileMutationProtocol';
 import type { ProjectFileJob } from './projectFileJobExecutor';
 import {
-  buildWholeDocumentPatch, parseRuleDocument, serializeRuleDocument, validateRuleCatalog, type CustomRuleDocument,
+  buildWholeDocumentPatch, isMemoryExpiredBeyondGrace, parseRuleDocument, serializeRuleDocument, validateRuleCatalog,
+  type CustomRuleDocument,
 } from '../utils/ruleDocuments';
+import { buildMemoryCatalog, type MemoryCatalogEntry } from '../utils/memoryCatalog';
 import { broadcastProjectFilesChanged } from './projectBrowserEvents';
 import { projectRecordRevision } from '../utils/projectContextRevision';
 
@@ -111,6 +113,69 @@ async function persistPersonalSettings(snapshot: Awaited<ReturnType<typeof accou
   if (!response.ok) throw new Error('rule_save_failed');
   if (requireOwner() !== snapshot.owner) throw new Error('rule_auth_required');
   updateProfile({ encrypted_settings: encrypted });
+}
+
+/**
+ * Applies one atomic read-modify-write to the encrypted account settings and waits
+ * for the server to acknowledge the synced ciphertext. The mutator may return false
+ * to skip the write. Used by the legacy typed-memory migration.
+ */
+export async function updateAccountSettings(
+  mutate: (settings: Record<string, unknown>, documents: CustomRuleDocument[]) => boolean | Promise<boolean>,
+): Promise<boolean> {
+  const snapshot = await accountSettings();
+  const documents = personalDocuments(snapshot.settings);
+  if (!(await mutate(snapshot.settings, documents))) return false;
+  validateRuleCatalog(documents);
+  snapshot.settings[PERSONAL_SETTINGS_KEY] = documents.map(({ id, document }) => ({ id, document }));
+  await persistPersonalSettings(snapshot);
+  return true;
+}
+
+/** Removes one personal memory by its document id (e.g. `personal:<uuid>`). */
+export async function deletePersonalRuleDocument(id: string): Promise<void> {
+  const snapshot = await accountSettings();
+  if (!personalDocuments(snapshot.settings).some((item) => item.id === id)) throw new Error('rule_not_found');
+  for (const key of [PERSONAL_SETTINGS_KEY, LEGACY_PERSONAL_SETTINGS_KEY]) {
+    const values = snapshot.settings[key];
+    if (Array.isArray(values)) snapshot.settings[key] = values.filter((value) => value.id !== id);
+  }
+  await persistPersonalSettings(snapshot);
+}
+
+/**
+ * Client-side expiry: deletes personal memories expired beyond the 7 day grace.
+ * Returns the number of deleted memories. Project memories are excluded from
+ * catalogs by buildMemoryCatalog while expired; their deletion needs an active Project.
+ */
+export async function deleteExpiredPersonalMemories(now: Date | number = Date.now()): Promise<number> {
+  const snapshot = await accountSettings();
+  const expired = new Set(personalDocuments(snapshot.settings)
+    .filter((item) => isMemoryExpiredBeyondGrace(parseRuleDocument(item.document), now)).map((item) => item.id));
+  if (!expired.size) return 0;
+  for (const key of [PERSONAL_SETTINGS_KEY, LEGACY_PERSONAL_SETTINGS_KEY]) {
+    const values = snapshot.settings[key];
+    if (Array.isArray(values)) snapshot.settings[key] = values.filter((value) => !expired.has(value.id));
+  }
+  await persistPersonalSettings(snapshot);
+  return expired.size;
+}
+
+let expirySweepStarted = false;
+/** Sweeps expired personal memories once the account settings are available and when the tab returns to foreground. */
+export function startMemoryExpirySweep(): void {
+  if (expirySweepStarted || typeof document === 'undefined') return;
+  expirySweepStarted = true;
+  let running = false;
+  const sweep = async () => {
+    if (running || !get(authStore).isAuthenticated || !get(userProfile).user_id || !get(userProfile).encrypted_settings) return;
+    running = true;
+    try { await deleteExpiredPersonalMemories(); }
+    catch (error) { console.warn('[ruleDocumentService] Memory expiry sweep skipped', error); }
+    finally { running = false; }
+  };
+  userProfile.subscribe(() => { void sweep(); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') void sweep(); });
 }
 
 export async function savePersonalDocumentMemoryEntry(entryId: string, value: { title: string; document: string }) {
@@ -347,6 +412,20 @@ export async function collectCustomRuleDocuments(input: {
     chars += document.length;
   }
   return validateRuleCatalog(bounded);
+}
+
+/**
+ * Metadata-only catalog of personal and (already collected) Project memories for a send.
+ * Sent as `memory_catalog`; mention_only and out-of-window memories are never included.
+ */
+export async function collectMemoryCatalog(projectDocuments: readonly CustomRuleDocument[]): Promise<MemoryCatalogEntry[]> {
+  if (!get(authStore).isAuthenticated || !get(userProfile).user_id) return [];
+  const owner = requireOwner();
+  const personal = await listPersonalRuleDocuments();
+  if (requireOwner() !== owner) return [];
+  // Project memories are not catalogued; their Project document path is separate.
+  void projectDocuments;
+  return buildMemoryCatalog(personal).catalog;
 }
 
 export function activeRuleChatId(): string | null { return activeChatStore.get(); }

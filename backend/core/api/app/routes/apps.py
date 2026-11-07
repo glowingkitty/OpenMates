@@ -444,17 +444,6 @@ class ModelMetadataItem(BaseModel):
     active_temporary_price: Optional[Dict[str, Any]] = None
 
 
-class MemoryMetadataItem(BaseModel):
-    """Browsable memory category metadata; user entries are never included."""
-
-    id: str
-    name: str
-    description: str
-    icon_image: Optional[str] = None
-    type: str = ""
-    example_translation_keys: List[str] = Field(default_factory=list)
-
-
 class ContentMetadataItem(BaseModel):
     """Browsable durable content metadata from the shared embed catalog source."""
 
@@ -486,7 +475,6 @@ class AppMetadataItem(BaseModel):
     last_updated: Optional[str] = None
     skills: List[SkillMetadataItem]
     focus_modes: List[FocusModeMetadataItem] = Field(default_factory=list)
-    settings_and_memories: List[MemoryMetadataItem] = Field(default_factory=list)
     memories: List[Dict[str, Any]] = Field(default_factory=list, description="Read-only public app-provided Memory documents.")
     content_types: List[ContentMetadataItem] = Field(default_factory=list)
 
@@ -752,28 +740,6 @@ def build_app_metadata_item(
             ),
         ))
 
-    memories = [
-        MemoryMetadataItem(
-            id=field.id,
-            name=resolve_translation(
-                translation_service,
-                field.name_translation_key,
-                namespace="app_settings_memories",
-                fallback=field.id,
-            ),
-            description=resolve_translation(
-                translation_service,
-                field.description_translation_key,
-                namespace="app_settings_memories",
-                fallback="",
-            ),
-            icon_image=field.icon_image,
-            type=field.type,
-            example_translation_keys=field.example_translation_keys or [],
-        )
-        for field in app_metadata.memory_fields
-    ]
-
     content_types: List[ContentMetadataItem] = []
     for embed in app_metadata.embed_types:
         catalog = embed.content_catalog or {}
@@ -814,7 +780,6 @@ def build_app_metadata_item(
         last_updated=app_metadata.last_updated,
         skills=skills,
         focus_modes=focus_modes,
-        settings_and_memories=memories,
         content_types=sorted(content_types, key=lambda content: (content.order, content.name.lower())),
     )
 
@@ -918,7 +883,7 @@ async def get_apps_metadata(
         if app_id in EXCLUDED_DISCOVERY_APPS:
             continue
         # Log what we're processing for debugging
-        logger.info(f"Processing app '{app_id}': {len(app_metadata.skills)} skills, {len(app_metadata.focuses)} focus modes, {len(app_metadata.memory_fields) if app_metadata.memory_fields else 0} memory fields")
+        logger.info(f"Processing app '{app_id}': {len(app_metadata.skills)} skills, {len(app_metadata.focuses)} focus modes")
         
         if not app_metadata.description_translation_key:
             logger.error(f"App '{app_id}' is missing required description_translation_key, skipping")

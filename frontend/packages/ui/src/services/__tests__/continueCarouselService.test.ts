@@ -12,6 +12,7 @@ import {
   getReminderByTargetChatId,
   getReminderByTargetEmbedId,
   getSavedEmbedContinueCandidates,
+  getSavedFlagContinueCandidates,
   sortContinuePriorityItems,
   type ActiveReminderForContinue,
 } from '../continueCarouselService';
@@ -200,5 +201,20 @@ describe('continueCarouselService', () => {
     ], NOW_MS);
 
     expect(sorted.map((item) => item.id)).toEqual(['due', 'reminder', 'upcoming-date']);
+  });
+});
+
+describe('saved embed flag candidates', () => {
+  // contract-test: direct surface=gui.web assertions=app-memories.saved-items.not-memories
+  it('highlights a saved event starting tomorrow as upcoming', () => {
+    const candidates = getSavedFlagContinueCandidates([
+      { embedId: 'event-tomorrow', appId: 'events', title: 'Tomorrow event',
+        itemValue: { title: 'Tomorrow event', date_start: new Date(NOW_MS + 20 * 60 * 60 * 1000).toISOString() } },
+      { embedId: 'event-far', appId: 'events', title: 'Far event',
+        itemValue: { title: 'Far event', date_start: new Date(NOW_MS + 10 * 24 * 60 * 60 * 1000).toISOString() } },
+    ], NOW_MS);
+    expect(candidates.map(c => c.embedId)).toEqual(['event-tomorrow']);
+    expect(candidates[0].priority.reason).toBe('upcoming_saved_item');
+    expect(candidates[0].priority.label).toBe('Event in 20h');
   });
 });

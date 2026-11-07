@@ -10,50 +10,57 @@
 -->
 
 <script lang="ts">
-    import { onMount } from 'svelte';
     import { createEventDispatcher } from 'svelte';
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import { authStore } from '../../stores/authStore';
-    import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
     import SettingsItem from './elements/SettingsItem.svelte';
     import { SettingsSectionHeading, SettingsPageContainer } from './elements';
     import AppStoreCard from './AppStoreCard.svelte';
-    import type { AppMetadata, MemoryFieldMetadata } from '../../types/apps';
+    import type { AppMetadata } from '../../types/apps';
     import { text } from '@repo/ui';
     import { allAppsInitialFilter } from '../../stores/allAppsFilterStore';
+
+    import MemoriesEditor from './MemoriesEditor.svelte';
+    import { defaultMemoryEditorService } from '../../services/memoryEditorService';
+    import { memoryDraftSuggestion } from '../../stores/memoryDraftSuggestionStore';
+
+    /** Route: settings_memories or settings_memories/<memory id> (deep link). */
+    let { activeSettingsView = 'settings_memories' }: { activeSettingsView?: string } = $props();
+    let deepLinkMemoryId = $derived(
+        decodeURIComponent(activeSettingsView.split('&')[0].match(/^(?:settings_memories|memories)\/([^/]+)$/)?.[1] ?? '') || null,
+    );
+    // Only a draft addressed to the opened memory is shown; it stays unsaved.
+    let deepLinkSuggestion = $derived(
+        $memoryDraftSuggestion && $memoryDraftSuggestion.id === deepLinkMemoryId
+            ? { title: $memoryDraftSuggestion.title, memory: $memoryDraftSuggestion.memory, when_to_use: $memoryDraftSuggestion.when_to_use,
+                load_mode: $memoryDraftSuggestion.load_mode, valid_from: $memoryDraftSuggestion.valid_from, valid_until: $memoryDraftSuggestion.valid_until,
+                is_new: $memoryDraftSuggestion.is_new, base_document: $memoryDraftSuggestion.base_document }
+            : null,
+    );
 
     const dispatch = createEventDispatcher();
 
     // Authenticated users see encrypted entries; guests see read-only examples.
     let isAuthenticated = $derived($authStore.isAuthenticated);
 
-    import { userProfile } from '../../stores/userProfile';
-    let personalMemories = $state<Awaited<ReturnType<typeof import('../../services/ruleDocumentService').personalDocumentMemoryEntries>>>([]);
-    $effect(() => {
-        const owner = $userProfile.user_id;
-        const revision = $userProfile.encrypted_settings;
-        let cancelled = false;
-        personalMemories = [];
-        if (isAuthenticated) {
-            void import('../../services/ruleDocumentService').then(module => module.personalDocumentMemoryEntries())
-                .then(entries => { if (!cancelled && owner === $userProfile.user_id && revision === $userProfile.encrypted_settings) personalMemories = entries; }).catch(() => {});
-        }
-        return () => { cancelled = true; };
-    });
-
     // Store state
     let storeState = $state(appSkillsStore.getState());
-    let memoriesStoreState = $derived($appSettingsMemoriesStore);
-    let isLoading = $state(false);
 
     /**
      * Build a flat list of app+category combinations.
      * Authenticated users see categories with saved entries. Guests see categories
      * that ship example entries, so the Memories menu can be explored read-only.
      */
+    interface HubCategory {
+        id: string;
+        name_translation_key: string;
+        description_translation_key: string;
+        icon_image?: string;
+    }
+
     interface HubEntry {
         app: AppMetadata;
-        category: MemoryFieldMetadata;
+        category: HubCategory;
         published?: import('../../types/apps').PublishedAppMemory;
         entryCount: number;
         lastUpdated: number; // Unix seconds for sorting
@@ -62,60 +69,16 @@
     let hubEntries = $derived.by((): HubEntry[] => {
         const result: HubEntry[] = [];
         const apps = storeState.apps;
-        const entriesByApp = memoriesStoreState.entriesByApp;
 
+        // Only public app Memories are listed here; app-specific typed memories were removed.
         for (const appId of Object.keys(apps)) {
             const app = apps[appId];
             for (const memory of app.memories ?? []) {
                 result.push({ app, published: memory, category: { id: `published_${memory.id.split(':').at(-1)}`,
-                    name_translation_key: '', description_translation_key: '', type: 'published' }, entryCount: 1, lastUpdated: 0 });
-            }
-            if (!app.settings_and_memories || app.settings_and_memories.length === 0) continue;
-
-            if (!isAuthenticated) {
-                for (const category of app.settings_and_memories) {
-                    const exampleCount = Math.max(
-                        category.example_entries?.length ?? 0,
-                        category.example_translation_keys?.length ?? 0,
-                    );
-                    if (exampleCount === 0) continue;
-                    result.push({
-                        app,
-                        category,
-                        entryCount: exampleCount,
-                        lastUpdated: 0,
-                    });
-                }
-                continue;
-            }
-
-            const appEntriesMap = {...(entriesByApp.get(appId) ?? {})};
-            if (appId === 'openmates' && personalMemories.length) appEntriesMap.memories = [...(appEntriesMap.memories ?? []), ...personalMemories];
-
-            for (const category of app.settings_and_memories) {
-                const categoryEntries = appEntriesMap[category.id];
-                if (!categoryEntries || categoryEntries.length === 0) continue;
-
-                // Find the most recently updated entry in this category
-                const lastUpdated = categoryEntries.reduce(
-                    (max, e) => Math.max(max, (e as { updated_at: number }).updated_at ?? 0),
-                    0
-                );
-
-                result.push({
-                    app,
-                    category,
-                    entryCount: categoryEntries.length,
-                    lastUpdated,
-                });
+                    name_translation_key: '', description_translation_key: '' }, entryCount: 1, lastUpdated: 0 });
             }
         }
 
-        // Authenticated: most recently updated category first.
-        // Guests: stable app/category order from app metadata.
-        if (isAuthenticated) {
-            result.sort((a, b) => b.lastUpdated - a.lastUpdated);
-        }
         return result;
     });
 
@@ -140,22 +103,6 @@
         }
 
         return Array.from(byApp.values());
-    });
-
-    /**
-     * Load all app settings/memories entries on mount.
-     * Uses loadEntries() (not loadEntriesForApp) to fetch across all apps at once.
-     */
-    onMount(async () => {
-        if (!isAuthenticated) return;
-        isLoading = true;
-        try {
-            await appSettingsMemoriesStore.loadEntries();
-        } catch (err) {
-            console.error('[SettingsMemoriesHub] Error loading entries:', err);
-        } finally {
-            isLoading = false;
-        }
     });
 
     /**
@@ -207,11 +154,15 @@
 <div class="settings-memories-hub">
     <p class="encryption-notice">{$text('memories.sources_help')}</p>
 
-    {#if isLoading}
-        <div class="loading-state">
-            <p>{$text('settings.app_settings_memories.loading')}</p>
+    {#if isAuthenticated}
+        <div class="private-memories" data-testid="settings-memories-private">
+            <SettingsSectionHeading title={$text('memories.private_memories')} icon="app" />
+            <MemoriesEditor source="personal" projectId={null} service={defaultMemoryEditorService}
+                initialMemoryId={deepLinkMemoryId} suggestion={deepLinkSuggestion} />
         </div>
-    {:else if appSections.length === 0}
+    {/if}
+
+    {#if appSections.length === 0}
         <!-- No entries yet -->
         <div class="empty-state">
             <p class="empty-text">{$text('settings.app_store.settings_memories.hub_no_entries')}</p>
@@ -245,8 +196,7 @@
                                 icon_colorgradient: entry.app.icon_colorgradient,
                                 providers: [],
                                 skills: [],
-                                focus_modes: [],
-                                settings_and_memories: []
+                                focus_modes: []
                             }}
                             <AppStoreCard
                                 app={categoryApp}
@@ -292,6 +242,10 @@
         padding: 0 0.5rem;
     }
 
+    .private-memories {
+        margin-bottom: 1.5rem;
+    }
+
     .empty-state {
         padding: 1.5rem 0.5rem;
     }
@@ -303,11 +257,6 @@
         margin: 0;
     }
 
-    .loading-state {
-        padding: 1rem 0.5rem;
-        color: var(--color-font-secondary);
-        font-size: 0.9rem;
-    }
 
 
     .items-scroll-container {

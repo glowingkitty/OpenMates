@@ -19,7 +19,7 @@ mod revolut;
 #[path = "utility/self_update.rs"]
 mod self_update;
 
-const MEMORIES_HELP: &str = "Memories commands:\n  openmates settings memories list [--app-id <id>] [--item-type <type>] [--json]\n  openmates settings memories types [--app-id <id>] [--json]\n  openmates settings memories create --app-id <id> --item-type <type> --data '<json>'\n  openmates settings memories update --id <id> --app-id <id> --item-type <type> --data '<json>' [--version <n>]\n  openmates settings memories delete --id <entry-id>\n\nExamples:\n  openmates settings memories types --app-id code\n  openmates settings memories list --app-id code\n  openmates settings memories create --app-id code --item-type preferred_tech --data '{\"name\":\"Python\",\"proficiency\":\"advanced\"}'\n  openmates settings memories delete --id <uuid>";
+const MEMORIES_HELP: &str = "Memories commands:\n  openmates settings memories list [--app-id <id>] [--item-type <type>] [--json]\n  openmates settings memories update --id account-memory-<id> --data '{\"title\":\"...\",\"document\":\"...\"}'\n  openmates settings memories delete --id <entry-id>\n\nTyped app memories were replaced by Memories (personal documents).\nCreate and organize Memories in the web app under Settings > Memories.";
 
 fn local(i: &Invocation) -> bool {
     matches!(

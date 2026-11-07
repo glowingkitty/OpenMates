@@ -79,3 +79,39 @@ export function searchSavedEmbedMemories(
   });
   return matches.slice(0, limit).map(({ searchText: _searchText, ...result }) => result);
 }
+
+/** Minimal shape of a saved embed (see savedEmbedService.SavedEmbed). */
+export interface SavedEmbedSearchSource {
+  embedId: string;
+  appId: string;
+  title: string;
+  savedAt: number;
+  itemValue: Record<string, unknown>;
+}
+
+/** Adapts saved-flag embeds to the searchable shape. Entries carry no id, so no settings path is produced. */
+export function savedEmbedsToMemoriesLike(items: SavedEmbedSearchSource[]): SavedMemoriesLike {
+  const entriesByApp: SavedMemoriesLike['entriesByApp'] = new Map();
+  for (const item of items) {
+    const groups = entriesByApp.get(item.appId) ?? {};
+    (groups.saved ??= []).push({
+      item_value: { ...item.itemValue, title: item.title || item.itemValue.title, embed_id: item.embedId },
+      updated_at: item.savedAt,
+    });
+    entriesByApp.set(item.appId, groups);
+  }
+  return { entriesByApp };
+}
+
+let cachedSaved: Promise<SavedMemoriesLike> | null = null;
+
+/** Searches embeds the user saved (encrypted `saved` flag); the list is cached until a save changes. */
+export async function searchSavedEmbeds(query: string, limit = 6): Promise<SavedEmbedSuggestion[]> {
+  if (!cachedSaved) {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('savedEmbedChanged', () => { cachedSaved = null; }, { once: true });
+    }
+    cachedSaved = import('./savedEmbedService').then(async (module) => savedEmbedsToMemoriesLike(await module.listSavedEmbeds()));
+  }
+  return searchSavedEmbedMemories(await cachedSaved, query, limit);
+}

@@ -51,8 +51,7 @@
   import { resolveEmbed, decodeToonContent, requestEmbedFromServerOnce } from '../../services/embedResolver';
   import { CONTENT_EMBED_CATALOG } from '../../data/embedRegistry.generated';
   import { EMBED_PREVIEW_PRESENTATION_CONTEXT, getStandalonePreviewPresentation, type EmbedPreviewPresentationContext } from '../../types/embedPreviewPresentation';
-  import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
-  import { findSavedEmbedMemoryReference } from '../../services/savedEmbedMemoryService';
+  import { savedEmbedIds, loadEmbedSaved, SAVEABLE_EMBED_APP_IDS } from '../../services/savedEmbedService';
   
   /**
    * Props interface for unified embed preview
@@ -197,7 +196,10 @@
     ? getStandalonePreviewPresentation(appId, skillId)
     : typeof previewPresentation === 'string' ? previewPresentation : previewPresentation.presentation) !== 'execution');
 
-  let savedEmbedMemory = $derived(findSavedEmbedMemoryReference($appSettingsMemoriesStore, id));
+  let isSavedEmbed = $derived($savedEmbedIds.has(id));
+  $effect(() => {
+    if (id && appId && (SAVEABLE_EMBED_APP_IDS as readonly string[]).includes(appId)) void loadEmbedSaved(id);
+  });
 
   // Stale-embed recovery: if still "processing" after STALE_CHECK_MS, send a
   // request_embed to the server. Redis pub/sub is fire-and-forget — if the
@@ -936,7 +938,7 @@
 {#snippet previewToolbar(inFlow: boolean)}
   <div class="result-tools" class:flow-tools={inFlow} data-testid="preview-tools">
         {#if resultPrimaryAction}{@render resultPrimaryAction()}{/if}
-        <SavedEmbedPreviewAction memory={savedEmbedMemory} onMore={handleContextMenu} />
+        <SavedEmbedPreviewAction embedId={id} saved={isSavedEmbed} onMore={handleContextMenu} />
         <button type="button" aria-label={$text('common.details')} onclick={(event) => { event.stopPropagation(); onFullscreen(); }} data-testid="result-preview-expand"><span class="clickable-icon icon_fullscreen" aria-hidden="true"></span></button>
       </div>
 {/snippet}
@@ -957,7 +959,7 @@
   class:intrinsic-preview={isAssistantResult && !resultPreview}
   class:plain-content-preview={isPlainTextResult}
   class:chat-result={isChatResult}
-  class:saved-grid-result={!isChatResult && !!savedEmbedMemory}
+  class:saved-grid-result={!isChatResult && isSavedEmbed}
   class:tools-preview={previewTools}
   data-testid="embed-preview"
   class:mobile={useMobileLayout}
@@ -991,7 +993,7 @@
   ontouchmove={handleTouchMove}
   ontouchend={handleTouchEnd}
 >
-  {#if !isChatResult && savedEmbedMemory}<SavedEmbedPreviewAction memory={savedEmbedMemory} onMore={handleContextMenu} decorative />{/if}
+  {#if !isChatResult && isSavedEmbed}<SavedEmbedPreviewAction embedId={id} saved={isSavedEmbed} onMore={handleContextMenu} decorative />{/if}
   {#if resultPreview && isChatResult}{@render previewToolbar(false)}{/if}
   {#if usesResultShell}
     <EmbedPreviewCorner background={`var(--color-app-${appId}, var(--color-primary))`} iconUrl={`var(--icon-url-${resolveIconName(appIconName ?? appId)})`} />

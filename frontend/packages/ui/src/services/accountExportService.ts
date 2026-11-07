@@ -989,7 +989,7 @@ async function _decryptUserProfile(
 
 /**
  * Decrypt app settings/memories entries.
- * Uses the same decryptWithMasterKey approach as appSettingsMemoriesStore.
+ * Uses decryptWithMasterKey for client-side decryption.
  * The original item_key is stored inside the encrypted JSON as _original_item_key.
  */
 async function _decryptAppSettings(

@@ -2973,9 +2973,6 @@ def _generate_share_blob(kind: str, item_id: str, item_key: bytes, *, expires: i
     return _encrypt_share_blob(serialized.encode("utf-8"), _derive_share_key(item_id))
 
 
-def _hash_item_key(app_id: str, item_type: str) -> str:
-    return hashlib.sha256(f"{app_id}-{item_type}-{int(time.time() * 1000)}".encode("utf-8")).hexdigest()[:32]
-
 
 def _decrypt_connected_account_payload(encrypted_payload: str, passcode: str) -> dict[str, Any]:
     if not encrypted_payload.startswith(CONNECTED_ACCOUNT_TRANSFER_PREFIX):
@@ -3903,24 +3900,9 @@ class OpenMatesIdeaBucket:
         )
 
     def save_settings(self, input_data: dict[str, Any]) -> dict[str, Any]:
-        current = self.settings()
-        settings = self._normalize_settings(
-            {
-                "processing_prompt": input_data.get("processingPrompt") or input_data.get("processing_prompt") or current["processingPrompt"],
-                "processing_times": input_data.get("processingTimes") or input_data.get("processing_times") or current["processingTimes"],
-            },
-            current.get("entryId"),
-            current.get("itemVersion"),
+        raise OpenMatesConfigError(
+            "Typed app memories were replaced by Memories; Idea Bucket settings are no longer stored as a typed memory."
         )
-        item_version = int(settings.get("itemVersion") or 0) + 1 if settings.get("entryId") else 1
-        result = self._client.memories.create({
-            "id": settings.get("entryId"),
-            "appId": IDEABUCKET_APP_ID,
-            "itemType": IDEABUCKET_SETTINGS_ITEM_TYPE,
-            "itemVersion": item_version,
-            "data": self._settings_to_memory_value(settings),
-        })
-        return {**settings, "entryId": str(result.get("id") or settings.get("entryId") or ""), "itemVersion": item_version, "source": "account"}
 
     def add(self, payload: dict[str, Any]) -> dict[str, Any]:
         encrypted_payload = self._build_encrypted_add_payload(payload)
@@ -3947,12 +3929,6 @@ class OpenMatesIdeaBucket:
             "entryId": entry_id,
             "itemVersion": item_version,
             "source": "account" if entry_id else "default",
-        }
-
-    def _settings_to_memory_value(self, settings: dict[str, Any]) -> dict[str, Any]:
-        return {
-            "processing_prompt": settings["processingPrompt"],
-            "processing_times": ",".join(settings["processingTimes"]),
         }
 
     def _build_encrypted_add_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -6202,7 +6178,11 @@ class OpenMatesApiKeys:
 
 
 class OpenMatesMemories:
-    """Public app guidance discovery and encrypted private memory entries."""
+    """Public app guidance discovery plus deprecated legacy typed-entry read/delete.
+
+    Typed app memories were replaced by Memories (personal documents, managed in
+    the web app under Settings > Memories). create/update/types were removed.
+    """
 
     def __init__(self, client: OpenMates):
         self._client = client
@@ -6216,6 +6196,7 @@ class OpenMatesMemories:
         return {"memories": [memory for app in metadata.get("apps", {}).values() for memory in app.get("memories", [])]}
 
     def list(self, **query: Any) -> dict[str, Any]:
+        """Deprecated: legacy typed entries, read-only transitional path."""
         data = self._client._get(_with_query("/v1/sdk/memories", **query))
         memories = []
         for memory in data.get("memories", []):
@@ -6229,39 +6210,10 @@ class OpenMatesMemories:
             memories.append(decrypted)
         return {"memories": memories}
 
-    def types(self, **query: Any) -> dict[str, Any]:
-        return self._client._get(_with_query("/v1/sdk/memories/types", **query))
-
-    def create(self, input_data: dict[str, Any]) -> dict[str, Any]:
-        return self._store_memory(input_data)
-
-    def update(self, memory_id: str, input_data: dict[str, Any]) -> dict[str, Any]:
-        return self._store_memory({**input_data, "id": memory_id})
-
     def delete(self, memory_id: str, *, confirmed: bool = False) -> dict[str, Any]:
+        """Deprecated: transitional delete of legacy typed entries."""
         _require_confirmed(confirmed, "Deleting a memory")
         return self._client._delete(f"/v1/sdk/memories/{_quote(memory_id)}")
-
-    def _store_memory(self, input_data: dict[str, Any]) -> dict[str, Any]:
-        app_id = str(input_data.get("appId") or input_data.get("app_id") or "")
-        item_type = str(input_data.get("itemType") or input_data.get("item_type") or "")
-        raw_item_value = input_data.get("itemValue") or input_data.get("item_value") or input_data.get("data") or {}
-        item_value = raw_item_value if isinstance(raw_item_value, dict) else {"value": raw_item_value}
-        if not app_id or not item_type:
-            raise OpenMatesConfigError("Memory create/update requires appId and itemType")
-        now = int(time.time())
-        entry = {
-            "id": str(input_data.get("id") or uuid.uuid4()),
-            "app_id": app_id,
-            "item_key": _hash_item_key(app_id, item_type),
-            "item_type": item_type,
-            "encrypted_item_json": _encrypt_aes_gcm_text(json.dumps({**item_value, "settings_group": app_id, "_original_item_key": item_type, "added_date": now}), self._client._get_master_key()),
-            "encrypted_app_key": "",
-            "created_at": int(input_data.get("created_at") or now),
-            "updated_at": now,
-            "item_version": int(input_data.get("itemVersion") or input_data.get("item_version") or 1),
-        }
-        return self._client._post("/v1/sdk/memories", {"entry": entry})
 
 
 class OpenMatesBilling:

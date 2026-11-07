@@ -90,7 +90,6 @@ export interface AppInfo {
   name: string;
   skills?: Array<{ id: string; name: string }>;
   focus_modes?: Array<{ id: string; name: string }>;
-  settings_and_memories?: Array<{ id: string; name: string; type?: string }>;
 }
 
 /** Minimal memory entry info */
@@ -534,48 +533,35 @@ function resolveToken(
     }
   }
 
-  // 6. Memory category (@Code-Projects → @memory:code:projects:list)
-  for (const app of context.apps) {
-    if (!app.settings_and_memories) continue;
-    for (const mem of app.settings_and_memories) {
-      const displayForm = normalize(`${app.name}-${mem.name}`);
-      const directForm = normalize(`${app.id}-${mem.id}`);
-      if (normalized === displayForm || normalized === directForm) {
-        const memType = mem.type || "list";
-        return {
-          original: `@${token}`,
-          type: "settings_memory",
-          wireSyntax: `@memory:${app.id}:${mem.id}:${memType}`,
-          displayName: `@${capitalize(app.name)}-${capitalize(mem.name).replace(/\s+/g, "-")}`,
-        };
-      }
-    }
+  // 6. Memories category (@OpenMates-Memories → @memory:openmates:memories:list).
+  //    Typed per-app memory categories were removed; only personal Memory
+  //    documents (app "openmates", category "memories") remain mentionable.
+  if (
+    (normalized === normalize("OpenMates-Memories") || normalized === normalize("openmates-memories")) &&
+    context.memoryEntries.some((entry) => entry.app_id === "openmates" && entry.item_type === "memories")
+  ) {
+    return {
+      original: `@${token}`,
+      type: "settings_memory",
+      wireSyntax: "@memory:openmates:memories:list",
+      displayName: "@OpenMates-Memories",
+    };
   }
 
   // 7. Memory entry (@Code-Projects-React → @memory-entry:code:projects:abc123)
   //    This is the trickiest: App-Category-EntryTitle
   for (const entry of context.memoryEntries) {
-    const app = context.apps.find((a) => a.id === entry.app_id);
-    if (!app) continue;
-
+    if (entry.app_id !== "openmates" || entry.item_type !== "memories") continue;
     const entryTitle = entry.title || entry.id;
-    // Match full path: App-Category-Title
-    const displayForm = normalize(`${app.name}-${entry.item_type}-${entryTitle}`);
-    // Also try with just App-Title (user might omit category)
-    const shortForm = normalize(`${app.name}-${entryTitle}`);
+    const displayForm = normalize(`OpenMates-Memories-${entryTitle}`);
+    const shortForm = normalize(`OpenMates-${entryTitle}`);
 
     if (normalized === displayForm || normalized === shortForm) {
-      // Need to find the memory category id for the wire format
-      const category = app.settings_and_memories?.find(
-        (m) => m.id === entry.item_type || normalize(m.name) === normalize(entry.item_type),
-      );
-      const categoryId = category?.id || entry.item_type;
-
       return {
         original: `@${token}`,
         type: "settings_memory_entry",
-        wireSyntax: `@memory-entry:${app.id}:${categoryId}:${entry.id}`,
-        displayName: `@${capitalize(app.name)}-${capitalize(entry.item_type).replace(/\s+/g, "-")}-${capitalize(entryTitle).replace(/\s+/g, "-")}`,
+        wireSyntax: `@memory-entry:openmates:memories:${entry.id}`,
+        displayName: `@OpenMates-Memories-${capitalize(entryTitle).replace(/\s+/g, "-")}`,
       };
     }
   }
@@ -605,7 +591,7 @@ function getAllKnownMentions(context: MentionContext): string[] {
     mentions.push(name);
   }
 
-  // Skills, focus modes, memory categories
+  // Skills, focus modes
   for (const app of context.apps) {
     if (app.skills) {
       for (const skill of app.skills) {
@@ -615,11 +601,6 @@ function getAllKnownMentions(context: MentionContext): string[] {
     if (app.focus_modes) {
       for (const fm of app.focus_modes) {
         mentions.push(`${capitalize(app.name)}-${capitalize(fm.name).replace(/\s+/g, "-")}`);
-      }
-    }
-    if (app.settings_and_memories) {
-      for (const mem of app.settings_and_memories) {
-        mentions.push(`${capitalize(app.name)}-${capitalize(mem.name).replace(/\s+/g, "-")}`);
       }
     }
   }
@@ -786,18 +767,16 @@ export function listMentionOptions(
     }
   }
 
-  // Memory categories
-  if (!filter || filter === "settings_memory") {
-    for (const app of context.apps) {
-      if (!app.settings_and_memories) continue;
-      for (const mem of app.settings_and_memories) {
-        options.push({
-          type: "settings_memory",
-          displayName: `@${capitalize(app.name)}-${capitalize(mem.name).replace(/\s+/g, "-")}`,
-          description: `Memory: ${capitalize(app.name)} → ${capitalize(mem.name)}`,
-        });
-      }
-    }
+  // Memories (personal documents)
+  if (
+    (!filter || filter === "settings_memory") &&
+    context.memoryEntries.some((entry) => entry.app_id === "openmates" && entry.item_type === "memories")
+  ) {
+    options.push({
+      type: "settings_memory",
+      displayName: "@OpenMates-Memories",
+      description: "Memories: OpenMates → Memories",
+    });
   }
 
   return options;

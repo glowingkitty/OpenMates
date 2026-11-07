@@ -438,13 +438,11 @@
                 return `apps/${focusResult.appId}/focus/${focusModeId}`;
             }
             case 'settings_memory': {
-                const memoryResult = result as SettingsMemoryMentionResult;
-                const memoryId = result.id.split(':')[1] || result.id;
-                return `apps/${memoryResult.appId}/settings_memories/${memoryId}`;
+                return 'settings_memories';
             }
             case 'settings_memory_entry': {
                 const entryResult = result as SettingsMemoryEntryMentionResult;
-                return `apps/${entryResult.appId}/settings_memories/${entryResult.memoryCategoryId}`;
+                return `memories/${encodeURIComponent(entryResult.entryId.replace(/^account-memory-/, ''))}`;
             }
             case 'project':
             case 'project_folder':

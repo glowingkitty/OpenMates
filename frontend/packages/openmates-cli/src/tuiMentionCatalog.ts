@@ -96,20 +96,17 @@ export function buildTuiMentionCatalog(
         description: `Focus mode · ${appName}`, wireSyntax: `@focus:${app.id}:${focus.id}`,
         searchTerms: [app.id, appName, focus.id, focus.name] });
     }
-    for (const memory of app.settings_and_memories ?? []) {
-      const entries = context.memoryEntries.filter(entry => entry.app_id === app.id && entry.item_type === memory.id);
-      if (!entries.length) continue;
-      const memoryName = safe(memory.name) || displayId(memory.id);
-      choices.push({ id: `memory:${app.id}:${memory.id}`, type: "settings_memory", label: label(`${appName}-${memoryName}`),
-        description: `Memory · ${entries.length} entries`, wireSyntax: `@memory:${app.id}:${memory.id}:${memory.type || "list"}`,
-        searchTerms: [app.id, appName, memory.id, memoryName] });
-      for (const entry of entries) {
-        const title = safe(entry.title) || entry.id;
-        choices.push({ id: `memory-entry:${app.id}:${memory.id}:${entry.id}`, type: "settings_memory_entry",
-          label: label(`${appName}-${memoryName}-${title}`), description: `Memory entry · ${memoryName}`,
-          wireSyntax: `@memory-entry:${app.id}:${memory.id}:${entry.id}`,
-          searchTerms: [title, memoryName, appName] });
-      }
+  }
+  const memoryDocuments = context.memoryEntries.filter(entry => entry.app_id === "openmates" && entry.item_type === "memories");
+  if (memoryDocuments.length) {
+    choices.push({ id: "memory:openmates:memories", type: "settings_memory", label: label("OpenMates-Memories"),
+      description: `Memories · ${memoryDocuments.length} documents`, wireSyntax: "@memory:openmates:memories:list",
+      searchTerms: ["openmates", "memories", "memory"] });
+    for (const entry of memoryDocuments) {
+      const title = safe(entry.title) || entry.id;
+      choices.push({ id: `memory-entry:openmates:memories:${entry.id}`, type: "settings_memory_entry",
+        label: label(`OpenMates-Memories-${title}`), description: "Memory document",
+        wireSyntax: `@memory-entry:openmates:memories:${entry.id}`, searchTerms: [title, "memories", "openmates"] });
     }
   }
   for (const project of projects) {

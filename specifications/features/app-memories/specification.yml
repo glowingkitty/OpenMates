@@ -1,54 +1,31 @@
 schema_version: 1
 id: feature.app-memories
-version: 3
+version: 4
 status: draft
 title: Memories
-summary: 'Memories provide facts, preferences and reusable guidance with source-scoped loading: relevant public
-  app and authorized active Project memories load automatically; encrypted personal/team memories require conversation
-  approval or an explicit mention.'
+summary: Memories are free-form documents (title, memory, when to use, optional start and expiry, load mode) that replace
+  every app-specific typed memory. Public app memories and authorized Project memories load automatically; private personal/team
+  memories load automatically, after conversation approval, or only when mentioned, according to their load mode.
 scope:
   includes:
-  - App-owned memory type declarations and discoverable field schemas.
+  - One free-form Memory document shape for personal, team and Project memories, with load modes, optional start and expiry,
+    and embed and chat references.
   - Personal and team-owned encrypted memory entry lifecycle operations.
   - Authenticated REST, CLI, npm SDK, pip SDK, web, and Apple access.
   - Versioned multi-device synchronization and pending user review.
   - Explicit selection and transient use of approved memories in a conversation.
-  - Rejection of undeclared or removed app-memory owners and types.
   - Public app-provided and client-encrypted Project Memory documents with inspectable loaded receipts.
-  - Encrypted custom personal guidance, legacy document compatibility and one Memories concept without content-kind
-    subcategories.
+  - Encrypted custom personal guidance, legacy document compatibility and one Memories concept without content-kind subcategories.
+  - Removal of all app-specific typed memory types and their automatic client-side migration to Memory documents.
+  - Post-processor create and update suggestions with billed previews and unsaved drafts.
   excludes:
-  - Chat history, account profile fields, tasks, plans, connected-account credentials, Focus procedures and required
-    Specifications.
-  - App-specific meaning beyond each declared memory type schema.
+  - Chat history, account profile fields, tasks, plans, connected-account credentials, Focus procedures and required Specifications.
   - Retained backup expiry and account-wide deletion policy owned by storage lifecycle Specifications.
-  - Automatic inference access to personal/team memory content without current conversation approval or a specific
-    explicit mention.
+  - Automatic inference access to personal/team memory content without current conversation approval or a specific explicit
+    mention.
+  - Saved events, stays, connections and listings, reminder defaults and appointments, which belong to their own features,
+    not to Memories.
 models:
-  AppMemoryType:
-    app_id:
-      type: app_id
-      required: true
-      constraints:
-        declared_app_owner: true
-        removed_owner: forbidden
-    item_type:
-      type: memory_type_id
-      required: true
-      constraints:
-        unique_within_app: true
-        declared_in_app_metadata: true
-    entry_type:
-      type: enum
-      values:
-      - single
-      - list
-    field_schema:
-      type: object_schema
-      required: true
-      constraints:
-        required_fields_enforced: true
-        enum_values_enforced: true
   AppMemoryEntry:
     id:
       type: uuid
@@ -64,15 +41,6 @@ models:
         - personal
         - team
         cross_owner_access: forbidden
-    app_id:
-      type: app_id
-      required: true
-    item_type:
-      type: memory_type_id
-      required: true
-    item_key:
-      type: opaque_or_hashed_key
-      required: true
     encrypted_item_json:
       type: client_ciphertext
       required: true
@@ -129,12 +97,6 @@ models:
         known_counts: accurate_nonnegative_integers
         unknown_counts: explicitly_unknown
         unknown_is_not_zero: true
-    requested_types:
-      type: app_memory_type_set
-      required: true
-      constraints:
-        specific: true
-        declared_only: true
     approved_entries:
       type: user_selected_entry_set
       required: true
@@ -148,6 +110,12 @@ models:
       constraints:
         durable_storage: forbidden
         logging: forbidden
+    requested_memories:
+      type: memory_id_set
+      required: true
+      constraints:
+        specific: true
+        ask_first_only: true
   MemoryDocument:
     identity:
       type: source_scoped_stable_id
@@ -173,146 +141,337 @@ models:
         app: authoritative published app catalog, read-only
         personal: existing client-encrypted private storage
         project: existing client-encrypted Project files, fresh active access required
+    title:
+      type: short_text
+      required: true
+    when_to_use:
+      type: short_text_or_null
+      nullable: true
+      constraints:
+        blank_means_always_considered: true
+    load_mode:
+      type: enum
+      values:
+      - auto_include
+      - ask_first
+      - mention_only
+      required: true
+      constraints:
+        default: auto_include
+        mention_only_hidden_from_preprocessor_and_postprocessor: true
+        public_app_source: auto_include_only
+    valid_from:
+      type: timestamp_or_null
+      nullable: true
+    valid_until:
+      type: timestamp_or_null
+      nullable: true
+      constraints:
+        outside_window_never_sent_to_server: true
+        expired_deleted_by_client_after_grace: true
+    references:
+      type: typed_reference_list
+      constraints:
+        kinds:
+        - embed
+        - chat
+        resolution: client_side_with_reader_keys
+        depth: 1
+  MemoryReference:
+    kind:
+      type: enum
+      values:
+      - embed
+      - chat
+      required: true
+    target_id:
+      type: stable_id
+      required: true
+    resolved_content:
+      type: policy
+      constraints:
+        embed: complete_content_up_to_budget
+        chat: title_id_summary_and_last_updated_only
+        unavailable_target: visible_marker_never_failure
+  MemorySuggestion:
+    kind:
+      type: enum
+      values:
+      - create
+      - update
+      required: true
+    visible_before_preview:
+      type: policy
+      constraints:
+        title_only: true
+    source_text:
+      type: policy
+      constraints:
+        user_and_assistant_messages_only: true
+        tool_and_external_results_as_instructions: forbidden
+    persistence:
+      type: policy
+      constraints:
+        server_durable_storage: forbidden
+        write_requires_explicit_user_save: true
+  LegacyTypedMemory:
+    app_id:
+      type: app_id
+      required: true
+    item_type:
+      type: string
+      required: true
+    migration_state:
+      type: enum
+      values:
+      - pending
+      - migrated_verified
+      - removed
+      required: true
+      constraints:
+        deterministic_target_document_id: true
+        delete_only_after_verified_synced_write: true
+        default_load_mode: ask_first
 assertions:
-- id: app-memories.catalog.declared-types-only
+- id: app-memories.catalog.no-typed-types
   type: invariant
-  must: Every discoverable memory type is owned by an app and declared in that app's authoritative metadata; undeclared
-    types and removed owners are absent from metadata, client registries, and graphical settings, and create or
-    update attempts for them are rejected before persistence. Public app-provided Memory documents come only from
-    the authoritative published catalog of a registered eligible app, are discoverable as read-only Memories, and
-    cannot be forged by private client content.
+  must: 'No app declares private memory types: app metadata contains no settings_and_memories declarations, clients, REST,
+    CLI, SDKs and settings expose no app-specific memory types, and create attempts for them are rejected before persistence.
+    The only app-owned memories are public documents from the authoritative published catalog of a registered eligible app,
+    which are read-only and cannot be forged by private client content.'
   depends_on:
-  - models.AppMemoryType
   - models.MemoryDocument
-  - examples.catalog_sources
-  - examples.removed_owner
+  - examples.catalog
 - id: app-memories.lifecycle.encrypted-crud
   type: behavior
-  must: Authenticated clients can list, create, update, and delete declared personal or team app memories; clients
-    validate declared required and enum fields, encrypt entry content before transport, and return decrypted content
-    only after local decryption by an authorized client.
+  must: Authenticated clients can list, create, update and delete personal or team Memory documents; clients validate the
+    required title and memory, encrypt content before transport and return decrypted content only after local decryption by
+    an authorized client.
   depends_on:
-  - models.AppMemoryType
   - models.AppMemoryEntry
   - examples.lifecycle
 - id: app-memories.privacy.client-encrypted
   type: privacy
-  must: Private personal/team and Project Memory content retains existing client-encryption boundaries in durable
-    stores, caches, backups and logs; backend plaintext is transient approved processing only, never durable. Public
-    app-provided Memory definitions may be published in their authoritative repository/catalog and are never mislabeled
-    as user-owned private content.
+  must: Private personal/team and Project Memory content retains existing client-encryption boundaries in durable stores,
+    caches, backups and logs; backend plaintext is transient approved processing only, never durable. Public app-provided
+    Memory definitions may be published in their authoritative repository/catalog and are never mislabeled as user-owned private
+    content.
   depends_on:
   - models.AppMemoryEntry
   - models.MemoryDocument
   - examples.privacy_sources
 - id: app-memories.access.owner-scoped
   type: security
-  must: Memory operations require an authenticated first-party session or an approved API key with the matching
-    memory read or write scope; personal rows remain isolated by user and team rows by team, team writes require
-    a write-capable member role, and memory CRUD consumes no inference credits.
+  must: Memory operations require an authenticated first-party session or an approved API key with the matching memory read
+    or write scope; personal rows remain isolated by user and team rows by team, team writes require a write-capable member
+    role, and memory CRUD consumes no inference credits.
   depends_on:
   - models.AppMemoryAccess
   - models.AppMemoryEntry.owner_context
   - examples.access
 - id: app-memories.sync.versioned-convergence
   type: invariant
-  must: Accepted memory mutations synchronize to the owner's other active clients, preserve stable entry identity,
-    advance item versions monotonically, and prevent an older write from replacing a newer accepted version.
+  must: Accepted memory mutations synchronize to the owner's other active clients, preserve stable entry identity, advance
+    item versions monotonically, and prevent an older write from replacing a newer accepted version.
   depends_on:
   - models.AppMemoryEntry.id
   - models.AppMemoryEntry.item_version
   - examples.sync
 - id: app-memories.conversation.explicit-approval
   type: behavior
-  must: Before a mate uses saved encrypted personal/team memory content, including custom personal guidance, the
-    existing conversation request lets the user approve specific entries or reject. Supply only approved content
-    transiently. An explicit memory-type or entry mention includes only that specified content without another request
-    and never grants other types. Relevant public app-provided Memories need no user-memory permission; Project
-    Memories require current authorized active Project Focus rather than a personal-memory consent request.
+  must: Before a mate uses a saved encrypted personal/team memory set to Ask first, the existing conversation request lets
+    the user approve specific memories or reject; supply only approved content transiently. A mention includes only that memory
+    without another request and never grants others. Auto include and public app memories need no request; Project Memories
+    require current authorized active Project Focus.
   depends_on:
   - models.ConversationMemoryApproval
   - examples.private_consent
 - id: app-memories.conversation.request-convergence
   type: invariant
-  must: Delivery, retries, and concurrent authorized clients of one conversation memory request converge on one
-    logical request and one durably stored request message using a stable shared identity. Known category entry
-    counts reflect the available-entry snapshot; unknown counts are explicitly unknown rather than fabricated zeroes.
-    Historical duplicate request records are presented as one request without changing an approval decision or expanding
-    approved entries, and known counts take precedence over unknown counts independently of delivery order. Memory
-    content and request messages retain their existing client-encryption boundaries.
+  must: Delivery, retries, and concurrent authorized clients of one conversation memory request converge on one logical request
+    and one durably stored request message using a stable shared identity. Known category entry counts reflect the available-entry
+    snapshot; unknown counts are explicitly unknown rather than fabricated zeroes. Historical duplicate request records are
+    presented as one request without changing an approval decision or expanding approved entries, and known counts take precedence
+    over unknown counts independently of delivery order. Memory content and request messages retain their existing client-encryption
+    boundaries.
   depends_on:
   - models.ConversationMemoryApproval
   - examples.conversation_request_convergence
 - id: app-memories.surface.semantic-parity
   type: parity
-  must: REST, CLI, npm SDK, pip SDK, web, and Apple preserve the same declared-type, encrypted-lifecycle, owner-isolation,
-    versioning, removed-owner rejection, and visible-failure semantics wherever each surface exposes app memories;
-    conversation approval is required only on mate-interaction surfaces.
+  must: REST, CLI, npm SDK, pip SDK, web, and Apple preserve the same Memory-document, load-mode, encrypted-lifecycle, owner-isolation,
+    versioning, removed-owner rejection, and visible-failure semantics wherever each surface exposes app memories; conversation
+    approval is required only on mate-interaction surfaces.
   depends_on:
   - models
-  - examples
+  - examples.surface_parity
   - applies_to
 - id: app-memories.definition.context-documents
   type: validation
-  must: A Memory can contain project facts, user preferences or coherent reusable practices; expose one Memories
-    concept without Facts, Rules or Instructions subcategories. Preserve stable source identity and exact source
-    revision. Focus modes describe the active way of working, with optional phases; Specifications remain required
-    outcomes.
+  must: A Memory can contain project facts, user preferences or coherent reusable practices; expose one Memories concept without
+    Facts, Rules or Instructions subcategories. Preserve stable source identity and exact source revision. Focus modes describe
+    the active way of working, with optional phases; Specifications remain required outcomes.
   depends_on:
   - models.MemoryDocument
   - examples.context_documents
 - id: app-memories.selection.source-scoped
   type: security
-  must: Automatically select relevant published app Memories from eligible registered apps and relevant Project
-    Memories only under fresh authoritative active Project access. Refresh relevance on Focus or phase changes;
-    recheck activation/access and exact revisions after selection before inclusion, rejecting invented IDs, forged
-    app ownership and stale or revoked Project content. Personal/team content stays on its existing consent or explicit-mention
-    path, even when it describes a Project.
+  must: Automatically select relevant published app Memories from eligible registered apps and relevant Project Memories only
+    under fresh authoritative active Project access. Refresh relevance on Focus or phase changes; recheck activation/access
+    and exact revisions after selection before inclusion, rejecting invented IDs, forged app ownership and stale or revoked
+    Project content. Personal/team content stays on its existing consent or explicit-mention path, even when it describes
+    a Project.
   depends_on:
   - models.MemoryDocument
   - examples.source_selection
 - id: app-memories.precedence.obligations
   type: invariant
-  must: Memories inform practice and context without granting permissions, approving requirements or changing scope.
-    Preserve explicit user intent and required approved Specification obligations independently of optional Memory
-    selection; treat source text as untrusted data under deterministic tool/access controls.
+  must: Memories inform practice and context without granting permissions, approving requirements or changing scope. Preserve
+    explicit user intent and required approved Specification obligations independently of optional Memory selection; treat
+    source text as untrusted data under deterministic tool/access controls.
   depends_on:
   - models.MemoryDocument
   - examples.obligations
 - id: app-memories.transparency.loaded-set
   type: parity
-  must: Successfully applied public app and Project Memories produce a quiet expandable Loaded N memories receipt
-    when the applied set first appears or materially changes. Show actual titles, sources and complete applied bodies
-    at their exact revisions; count documents, not bullets. Reuse chat context display on web, CLI and Apple; do
-    not imply a personal-memory permission decision. Preserve encrypted private receipt storage, unchanged-set deduplication
-    and content-free history replay.
+  must: Successfully applied public app and Project Memories produce a quiet expandable Loaded N memories receipt when the
+    applied set first appears or materially changes. Show actual titles, sources and complete applied bodies at their exact
+    revisions; count documents, not bullets. Reuse chat context display on web, CLI and Apple; do not imply a personal-memory
+    permission decision. Preserve encrypted private receipt storage, unchanged-set deduplication and content-free history
+    replay.
   depends_on:
   - models.MemoryDocument
   - examples.loaded_set
 - id: app-memories.discovery.visibility-cards
   type: parity
-  must: Public app-provided Memories and private user-created Memories use the same Memory card layout. Show a
-    small Public label with a white web icon or Private label with a white lock icon in the top left; label text
-    uses the description color. Public documents are read-only and load when relevant. Private content stays encrypted;
-    explain personal approval or explicit mentions separately from active Project access, without implying that
-    visibility grants access or changes loading policy.
+  must: Public app-provided Memories and private user-created Memories use the same Memory card layout. Show a small Public
+    label with a white web icon or Private label with a white lock icon in the top left; label text uses the description color.
+    Public documents are read-only and load when relevant. Private content stays encrypted; explain personal approval or explicit
+    mentions separately from active Project access, without implying that visibility grants access or changes loading policy.
   depends_on:
   - models.MemoryDocument
   - examples.visibility_cards
 - id: app-memories.compatibility.legacy-documents
   type: invariant
-  must: Preserve existing encrypted personal/Project Rule documents and app memory entries. Present legacy Rules
-    as Memories and use canonical Memory representation for new writes, reading compatible legacy documents without
-    duplication or data loss. Never promote private content into the public automatic path or bulk rewrite encrypted
-    chat history; legacy receipts remain readable.
+  must: Preserve existing encrypted personal/Project Rule documents and app memory entries. Present legacy Rules as Memories
+    and use canonical Memory representation for new writes, reading compatible legacy documents without duplication or data
+    loss. Never promote private content into the public automatic path or bulk rewrite encrypted chat history; legacy receipts
+    remain readable.
   depends_on:
   - models.MemoryDocument
   - examples.legacy_documents
+- id: app-memories.document.canonical-shape
+  type: behavior
+  must: Personal, Team, Project and public Memories share one document shape with title, free-form memory body, optional when-to-use,
+    optional start and expiry times, and a load mode. Settings has a root-level Memories entry independent of apps, and Projects
+    expose the same editor. A blank when-to-use makes a memory always considered within a small bounded always-on budget.
+    No app-specific typed memory exists.
+  depends_on:
+  - models.MemoryDocument
+  - examples.canonical_shape
+- id: app-memories.load-modes
+  type: privacy
+  must: Each private Memory has exactly one load mode. Auto include and Ask first expose only title and when-to-use to the
+    preprocessor and post-processor; Mention only exposes nothing to any model stage until the user mentions it. Memory bodies
+    are never sent with a chat request. After the preprocessor selects a memory by title and when-to-use, the server asks
+    the client for just that body using the existing memory request; the client answers automatically for Auto include and
+    only after user approval for Ask first, and a mention supplies only that memory. Received bodies are used transiently
+    and may be cached only vault-encrypted for the lifetime of the chat, never stored durably or logged. Memories outside
+    their start/expiry window, and Mention only memories, are excluded from catalogs by the client. Public app Memories always
+    auto include.
+  depends_on:
+  - models.MemoryDocument.load_mode
+  - examples.load_modes
+- id: app-memories.expiry.client-enforced
+  type: invariant
+  must: Start and expiry times are enforced by the client, which omits out-of-window memories from every catalog, and expired
+    memories are deleted by a client after a short renewal grace period. The server needs no plaintext expiry for ordinary
+    memories. A Workflow snapshot stores its expiry in Automation Vault metadata and the runtime enforces it, so an unattended
+    run never uses an expired snapshot.
+  depends_on:
+  - models.MemoryDocument.valid_until
+  - examples.expiry
+- id: app-memories.references.embeds-and-chats
+  type: privacy
+  must: A Memory may reference embeds and chats. References resolve only on a client holding the reader's keys, to one level.
+    Loading a memory automatically includes referenced embed content within the loading budget and, for chats, only title,
+    id, summary and last-updated time, never messages. Referencing a chat is the user's clear consent for the main processor
+    to search that chat while the memory is loaded, and only that chat is added to the approved searchable set. Ask first
+    approval lists referenced items. Unavailable or unauthorized references show a marker and never fail the memory; budget
+    overflow is marked, never silently truncated. Team readers resolve only references they are authorized for.
+  depends_on:
+  - models.MemoryReference
+  - examples.references
+- id: app-memories.suggestions.post-processor
+  type: behavior
+  must: After a turn the post-processor, seeing only titles and when-to-use of Auto include and Ask first memories, may propose
+    creating or updating a memory in the existing container between chat history and follow-up suggestions. The container
+    shows titles only. Preview of an update sends the memory body and the user/assistant chat messages to a separate model
+    request and shows a diff, or tells the user the memory already looks up to date. Preview of a new memory shows the already
+    generated body. Selecting either opens Settings Memories deep-linked to an unsaved draft; nothing changes until the user
+    saves, and a revision change since preview is reported as a conflict. Tool and external results are never a suggestion
+    source. At most one suggestion appears per turn and dismissals are remembered locally. Memories explicitly loaded in the
+    chat are eligible even when Mention only. The same container may instead propose creating a Workflow, which shows only a
+    title and a short summary, offers Create instead of Preview, and nothing is generated or saved until the user chooses
+    Create, which opens the Workflow workspace and generates the Workflow visibly, as when asking AI there. Workflow
+    suggestions follow the same one-per-turn, local dismissal and no-tool-source rules.
+  depends_on:
+  - models.MemorySuggestion
+  - examples.suggestions
+- id: app-memories.suggestions.billing
+  type: behavior
+  must: The update preview model request is charged normally and appears in billing and usage attributed to the chat where
+    the suggestion was made, without private memory or chat text in the billing record. A false-positive preview that finds
+    nothing to update is still a charged request.
+  depends_on:
+  - models.MemorySuggestion
+  - examples.suggestion_billing
+- id: app-memories.workflows.explicit-snapshots
+  type: privacy
+  must: Unattended Workflows have no Memory access unless the author explicitly mentions a memory in an Ask AI step. Saving
+    then stores a snapshot of that memory in Automation Vault, with references unresolved unless the author selects specific
+    ones to include. Whenever a client reconnects it refreshes the snapshot of each mentioned memory in the background, removes
+    it when the memory is deleted or expired and marks the step as needing attention. Refresh never adds other memories. Run
+    detail records the memory revision used. The author sees that the snapshot is readable by the server at run time.
+  depends_on:
+  - models.MemoryDocument
+  - examples.workflow_snapshots
+- id: app-memories.typed.removed
+  type: invariant
+  must: All app-specific typed memory types are removed from app metadata, registries, settings screens, REST, CLI, SDKs,
+    Apple and the Rust clients after the migration has shipped. Embeds and skills no longer read typed memory entries.
+  depends_on:
+  - models.LegacyTypedMemory
+  - examples.typed_removal
+- id: app-memories.migration.client-auto
+  type: behavior
+  must: Existing typed memory entries migrate automatically and in the background by the first authorized client to connect.
+    Each becomes a Memory document whose title names the type and entry, whose body renders its fields as readable Markdown,
+    whose when-to-use comes from the type description and whose load mode is Ask first, preserving today's consent behavior.
+    The target document id derives deterministically from the entry id, so concurrent devices create no duplicates. An entry
+    is deleted only after its document is written and synced, and a short encrypted export is kept for recovery. Entries that
+    are saved items or settings migrate to their own features instead. Transitional, until clients have migrated, the backend
+    keeps only a read and delete path for legacy entries (SDK memories list and delete, and the delete WebSocket event) and
+    the Directus collection, which also stores first-party privacy data. Create and update are rejected with a message to
+    create a Memory instead. The transitional path and legacy collection entries are removed once migration has shipped.
+  depends_on:
+  - models.LegacyTypedMemory
+  - examples.migration
+- id: app-memories.saved-items.not-memories
+  type: behavior
+  must: Saving an event, stay, connection or listing sets an encrypted saved flag on the embed data itself and creates no
+    memory entry. Embeds offer Save and show Saved, never save to memory wording, and clients can list all saved embeds. Upcoming
+    saved items are highlighted in the continue-where-you-left-off section. Existing saved typed entries migrate to the saved
+    flag on their embeds, not to Memory documents. Saving an item that has an actual date and time still schedules a reminder,
+    as before.
+  depends_on:
+  - models.LegacyTypedMemory
+  - examples.saved_items
 applies_to:
   rest_api:
     required: true
-    role: Authenticated session or scoped API-key access to encrypted memory discovery and lifecycle operations;
-      standard platform rate limits apply and memory CRUD has no credit charge.
+    role: Authenticated session or scoped API-key access to encrypted memory discovery and lifecycle operations; standard
+      platform rate limits apply and memory CRUD has no credit charge.
   cli:
     required: true
     parity: semantic
@@ -354,3 +513,13 @@ examples:
   - loaded_set
   - legacy_documents
   - visibility_cards
+  - canonical_shape
+  - load_modes
+  - expiry
+  - references
+  - suggestions
+  - suggestion_billing
+  - workflow_snapshots
+  - typed_removal
+  - migration
+  - saved_items

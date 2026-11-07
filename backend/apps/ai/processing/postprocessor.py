@@ -31,6 +31,7 @@ from backend.apps.ai.processing.task_proposals import (
     sanitize_task_proposals,
     sanitize_task_update_proposals,
 )
+from backend.apps.ai.processing.postprocessing_context_suggestions import generate_context_suggestion
 from backend.apps.ai.processing.learning_followups import filter_learning_followups
 from backend.shared.python_utils.learning_mode import (
     filter_learning_mode_suggestions,
@@ -312,6 +313,7 @@ class PostProcessingResult(BaseModel):
     top_recommended_apps_for_user: List[str] = Field(default_factory=list, description="Top 5 recommended app IDs for this user based on conversation context")
     chat_summary: Optional[str] = Field(None, description="Updated chat summary (max 20 words) including the latest exchange")
     usage_telemetry: Optional[Dict[str, Any]] = Field(default=None, exclude=True, repr=False)
+    context_suggestion: Optional[Dict[str, Any]] = Field(default=None, repr=False, description="At most one transient Memory/Workflow suggestion; never persisted server-side")
     chat_tags: List[str] = Field(default_factory=list, description="Up to 10 search and categorization tags for the completed conversation")
     share_cta_text: Optional[str] = Field(None, description="Short call-to-open text for shared chat previews and OG images")
     # Updated chat title: only set when the conversation has evolved significantly beyond the original title.
@@ -365,6 +367,7 @@ async def handle_postprocessing(
     allow_model_fallbacks: bool = True,
     max_output_tokens: Optional[int] = None,
     voice_mode: bool = False,
+    memory_catalog: Optional[List[Any]] = None,
 ) -> Optional[PostProcessingResult]:
     """
     Generate post-processing suggestions using LLM.
@@ -850,6 +853,18 @@ async def handle_postprocessing(
         task_proposals=task_proposals,
         task_update_proposals=task_update_proposals,
     )
+
+    if not is_sub_chat:
+        result.context_suggestion = await generate_context_suggestion(
+            task_id=task_id,
+            model_id=model_id,
+            message_history=message_history,
+            user_message=user_message,
+            assistant_response=assistant_response,
+            memory_catalog=memory_catalog or [],
+            secrets_manager=secrets_manager,
+            usage_callback=usage_callback,
+        )
 
     # Validate that we have the required number of suggestions
     if len(result.follow_up_request_suggestions) < 6:

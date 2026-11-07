@@ -91,8 +91,7 @@ The CLI listens for and emits specific WebSocket event `type` strings. These mus
 | Streaming chat responses     | `ai_message_update`                  |
 | Background response complete | `ai_background_response_completed`   |
 | Typing indicator             | `ai_typing_started`                  |
-| Create/update memory         | `store_app_settings_memories_entry`  |
-| Delete memory                | `delete_app_settings_memories_entry` |
+| Delete legacy typed memory   | `delete_app_settings_memories_entry` |
 
 Before adding a new WebSocket event handler, **search `websocketService.ts` and the backend** for the canonical event name. Never invent a new event type without a matching server-side emission.
 

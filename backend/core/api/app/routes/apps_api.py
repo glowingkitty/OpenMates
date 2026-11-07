@@ -249,13 +249,6 @@ class FocusModeMetadata(BaseModel):
     description: str
 
 
-class SettingsAndMemoryMetadata(BaseModel):
-    """Metadata for a settings/memory field"""
-    id: str
-    name: str
-    description: str
-
-
 class AppMetadata(BaseModel):
     """Metadata for an app"""
     id: str
@@ -263,7 +256,6 @@ class AppMetadata(BaseModel):
     description: str
     skills: List[SkillMetadata]
     focus_modes: List[FocusModeMetadata] = []
-    settings_and_memories: List[SettingsAndMemoryMetadata] = []
     content_types: List[Dict[str, Any]] = Field(default_factory=list)
     memories: List[Dict[str, Any]] = Field(default_factory=list)
 
@@ -1970,28 +1962,6 @@ async def list_apps(
                     description=focus_description
                 ))
             
-            # Convert settings_and_memories
-            settings_and_memories = []
-            if app_metadata.memory_fields:
-                for field in app_metadata.memory_fields:
-                    field_name = resolve_translation(
-                        translation_service,
-                        field.name_translation_key,
-                        namespace="app_settings_memories",
-                        fallback=field.id
-                    )
-                    field_description = resolve_translation(
-                        translation_service,
-                        field.description_translation_key,
-                        namespace="app_settings_memories",
-                        fallback=""
-                    )
-                    settings_and_memories.append(SettingsAndMemoryMetadata(
-                        id=field.id,
-                        name=field_name,
-                        description=field_description
-                    ))
-            
             # Durable memory definitions do not qualify an app for discovery.
             if app_is_discoverable(app_id, skills, focus_modes, app_metadata.embed_types):
                 apps.append(AppMetadata(
@@ -2000,7 +1970,6 @@ async def list_apps(
                     description=app_description,
                     skills=skills,
                     focus_modes=focus_modes,
-                    settings_and_memories=settings_and_memories,
                     content_types=creation_content_types(app_id, app_metadata.embed_types),
                     memories=[memory.model_dump() for memory in load_app_memories([app_id])],
                 ))
@@ -2728,28 +2697,6 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             description=focus_description
                         ))
                     
-                    # Convert settings_and_memories
-                    settings_and_memories = []
-                    if captured_app_metadata.memory_fields:
-                        for field in captured_app_metadata.memory_fields:
-                            field_name = resolve_translation(
-                                trans_service,
-                                field.name_translation_key,
-                                namespace="app_settings_memories",
-                                fallback=field.id
-                            )
-                            field_description = resolve_translation(
-                                trans_service,
-                                field.description_translation_key,
-                                namespace="app_settings_memories",
-                                fallback=""
-                            )
-                            settings_and_memories.append(SettingsAndMemoryMetadata(
-                                id=field.id,
-                                name=field_name,
-                                description=field_description
-                            ))
-                    
                     if not app_is_discoverable(captured_app_id, skills, focus_modes, captured_app_metadata.embed_types):
                         raise HTTPException(status_code=404, detail="App not found")
                     return AppMetadata(
@@ -2758,7 +2705,6 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                         description=resolved_description,
                         skills=skills,
                         focus_modes=focus_modes,
-                        settings_and_memories=settings_and_memories,
                         content_types=creation_content_types(captured_app_id, captured_app_metadata.embed_types),
                     memories=[memory.model_dump() for memory in load_app_memories([app_id])],
                     )

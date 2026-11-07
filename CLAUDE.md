@@ -79,6 +79,13 @@ when a skill or this file points to it.
 - Ordinary work: inline goal + acceptance criteria. Durable `docs/plans/<slug>/plan.yml`
   only for material architecture/risk or multi-session work (`/create-plan`).
   Product contract changes use Specifications (`/define-specification`).
+- Specifications are the source of truth. Before changing behavior, read the
+  owning Specification and keep it, its examples and the tests in sync with the
+  change. Create and update draft Specifications yourself, with no approval
+  rounds or PDFs before or during the work. When the work is done and deployed,
+  present the final updated Specification once and ask for approval so it can
+  go from draft to approved together with the deployed changes. Never edit an
+  approved Specification without that confirmation.
 - OpenMates Tasks (installed `openmates` CLI) owns status. Reuse linked Tasks;
   create with `/new-task` (links `claude:$CLAUDE_CODE_SESSION_ID`). Whenever the
   user gives a new work item (bug, feature, change) that needs edits, create its

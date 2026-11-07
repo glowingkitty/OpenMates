@@ -63,7 +63,6 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("../encryption/MetadataEncryptor", () => ({ decryptWithMasterKey: mocks.privateMemories.decrypt }));
 vi.mock("../workspaceQueryCache", () => ({ getWorkspaceCacheIdentity: () => mocks.workspace.identity }));
-vi.mock("../../stores/appSettingsMemoriesStore", () => ({ appSettingsMemoriesStore: mocks.memoryStore }));
 vi.mock("../chatSyncServiceSenders", () => ({ sendAppSettingsMemoriesConfirmedImpl: mocks.privateMemories.send }));
 vi.mock("../../stores/appSettingsMemoriesPermissionStore", () => ({ appSettingsMemoriesPermissionStore: {
   subscribe: (run: (value: unknown) => void) => { run({ currentRequest: mocks.permission.request }); return () => {}; },

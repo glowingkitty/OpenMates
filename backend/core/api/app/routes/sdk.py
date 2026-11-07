@@ -57,7 +57,7 @@ from backend.core.api.app.services.team_member_mention_service import TeamMember
 from backend.core.api.app.services.team_realtime_service import broadcast_team_event
 from backend.shared.python_utils.client_ciphertext import validate_client_encrypted_chat_payload
 from backend.shared.python_utils.app_memory_policy import (
-    REMOVED_APP_MEMORY_ERROR,
+    TYPED_MEMORY_REMOVED_ERROR,
     is_removed_app_memory,
 )
 from backend.shared.providers.google_calendar.oauth import GoogleOAuthTokenExchangeError
@@ -1134,56 +1134,11 @@ async def _dispatch_sdk_surface(
             if isinstance(serialized_apps, dict) and isinstance(serialized_apps.get("apps"), list):
                 return serialized_apps
             return {"apps": serialized_apps}
-        if not parts and request.method == "POST":
-            entry = (body or {}).get("entry") or body or {}
-            if is_removed_app_memory(entry.get("app_id")):
-                raise HTTPException(status_code=410, detail=REMOVED_APP_MEMORY_ERROR)
-            team_id = team_id or entry.get("team_id")
-            if team_id:
-                try:
-                    await directus_service.team.require_team_role(str(team_id), str(user.id), {"owner", "admin", "member"})
-                except TeamPermissionError as exc:
-                    raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
-            entry_id = str(entry.get("id") or "")
-            if not entry_id or not entry.get("app_id") or not entry.get("item_key"):
-                raise HTTPException(status_code=400, detail="Missing memory entry fields")
-            memory_context_filter = {"hashed_team_id": {"_eq": hashlib.sha256(str(team_id).encode()).hexdigest()}} if team_id else {"hashed_user_id": {"_eq": hashed_user_id}, "hashed_team_id": {"_null": True}}
-            payload = {
-                **{key: value for key, value in entry.items() if key != "team_id"},
-                "hashed_user_id": hashed_user_id,
-                "hashed_team_id": hashlib.sha256(str(team_id).encode()).hexdigest() if team_id else None,
-                "encrypted_app_key": entry.get("encrypted_app_key", ""),
-            }
-            existing = await directus_service.get_items(
-                "user_app_settings_and_memories",
-                params={"filter": {"id": {"_eq": entry_id}, **memory_context_filter}, "limit": 1},
-            )
-            if existing:
-                await directus_service.update_item("user_app_settings_and_memories", entry_id, payload)
-            else:
-                await directus_service.create_item("user_app_settings_and_memories", payload)
-            return {"success": True, "id": entry_id}
-        if len(parts) == 1 and request.method == "PATCH":
-            if is_removed_app_memory((body or {}).get("app_id")):
-                raise HTTPException(status_code=410, detail=REMOVED_APP_MEMORY_ERROR)
-            if team_id:
-                try:
-                    await directus_service.team.require_team_role(str(team_id), str(user.id), {"owner", "admin", "member"})
-                except TeamPermissionError as exc:
-                    raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
-            existing = await directus_service.get_items(
-                "user_app_settings_and_memories",
-                params={"filter": {"id": {"_eq": parts[0]}, **memory_context_filter}, "limit": 1},
-            )
-            if not existing:
-                raise HTTPException(status_code=404, detail="Memory not found")
-            if is_removed_app_memory(existing[0].get("app_id")):
-                raise HTTPException(status_code=410, detail=REMOVED_APP_MEMORY_ERROR)
-            payload = {**{key: value for key, value in (body or {}).items() if key != "team_id"}, "hashed_user_id": hashed_user_id, "hashed_team_id": hashlib.sha256(str(team_id).encode()).hexdigest() if team_id else None}
-            updated = await directus_service.update_item("user_app_settings_and_memories", parts[0], payload)
-            if not updated:
-                raise HTTPException(status_code=404, detail="Memory not found")
-            return {"success": True, "id": parts[0]}
+        # Typed app memories were removed: creating or updating them is rejected before persistence.
+        # GET (list) and DELETE below stay only as the transitional legacy read+delete path used by the
+        # client migration to Memory documents; remove both once clients migrated.
+        if (not parts and request.method == "POST") or (len(parts) == 1 and request.method == "PATCH"):
+            raise HTTPException(status_code=410, detail=TYPED_MEMORY_REMOVED_ERROR)
         if len(parts) == 1 and request.method == "DELETE":
             if team_id:
                 try:

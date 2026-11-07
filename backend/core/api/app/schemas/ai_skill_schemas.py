@@ -6,6 +6,7 @@ from typing import List, Dict, Any, Optional, Literal, Annotated
 from pydantic import AliasChoices, BaseModel, Field, field_validator, field_serializer, ConfigDict, StringConstraints
 from backend.core.api.app.schemas.chat import AIHistoryMessage
 from backend.shared.python_utils.voice_playback_boundary import VoiceHeardBoundary
+from backend.shared.python_utils.memory_loader import MemoryCatalogEntry, parse_memory_catalog
 
 RoutingModelId = Annotated[str, StringConstraints(strict=True, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,159}$")]
 RoutingServerId = Annotated[str, StringConstraints(strict=True, pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")]
@@ -71,6 +72,13 @@ class AskSkillRequest(BaseModel):
     agentic_context_request_id: Optional[str] = Field(default=None, description="Server handoff binding.")
     accepted_plan_context: Optional[Dict[str, Any]] = Field(default=None, repr=False, description="Bounded client-decrypted accepted existing Plan snapshot; fresh server approval/version/linkage required.")
     custom_rule_documents: List[Dict[str, Any]] = Field(validation_alias=AliasChoices("custom_memory_documents", "custom_rule_documents"), default_factory=list, repr=False, max_length=24, description="Transient client-decrypted Project Memory Markdown (legacy Rule alias accepted); fresh first-party and Project authority required before selection.")
+    memory_catalog: List[MemoryCatalogEntry] = Field(default_factory=list, repr=False, max_length=24, description="Metadata-only (title, when-to-use, load mode) private Memory catalog built by the client after removing Mention only and out-of-window Memories; bodies never travel with a chat request; the server requests a selected body through the app-settings-memories flow.")
+    @field_validator("memory_catalog", mode="after")
+    @classmethod
+    def _unique_memory_catalog(cls, value: List[MemoryCatalogEntry]) -> List[MemoryCatalogEntry]:
+        return list(parse_memory_catalog(value))
+
+    approved_search_chat_ids: List[str] = Field(default_factory=list, max_length=10, description="Chats the user referenced from an approved Memory; the only extra chats the main processor may search this turn. Server-derived from the confirmation handler, never from the chat request.")
     project_focus_catalog: List[Dict[str, Any]] = Field(default_factory=list, repr=False, max_length=20, description="Private Project Focus metadata only; full definitions are loaded separately after selection.")
     project_focus_documents: List[Dict[str, Any]] = Field(default_factory=list, repr=False, max_length=8, description="Selected client-decrypted Project Focus documents with fresh item revisions; never Project consent.")
     project_context_documents: List[Dict[str, Any]] = Field(default_factory=list, repr=False, max_length=20, description="Transient authorized Project Specification, fact and folder context; data never grants access.")

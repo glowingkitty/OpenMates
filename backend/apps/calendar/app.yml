@@ -6,7 +6,6 @@ description_translation_key: calendar.description
 icon_image: |
   calendar.svg
 category: work
-settings_and_memories: []
 instructions:
   - for_embed_types: [calendar_event]
     instruction: |

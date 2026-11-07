@@ -4,7 +4,7 @@ import { waitForComponentPreview } from '../helpers/component-preview';
 // playwright-account: not_required reason=isolated_component_preview
 const DETAIL = '/dev/preview/settings/PublishedMemoryDetail?chrome=0&theme=light&background=%23dbeafe&width=350';
 
-// contract-test: supporting surface=gui.web assertions=app-memories.catalog.declared-types-only,app-memories.transparency.loaded-set
+// contract-test: supporting surface=gui.web assertions=app-memories.catalog.no-typed-types,app-memories.transparency.loaded-set
 test('shows the exact read-only app Memory with its automatic loading scope at phone width', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(DETAIL);
@@ -25,7 +25,7 @@ test('shows the exact read-only app Memory with its automatic loading scope at p
   await testInfo.attach('published-memory-phone', { body: await page.screenshot(), contentType: 'image/png' });
 });
 
-// contract-test: supporting surface=gui.web assertions=app-memories.catalog.declared-types-only,app-memories.discovery.visibility-cards
+// contract-test: supporting surface=gui.web assertions=app-memories.catalog.no-typed-types,app-memories.discovery.visibility-cards
 test('discovers the actual Code and Design Memory catalogs in the existing Memories hub', async ({ page }, testInfo) => {
   await page.setViewportSize({width: 900, height: 1400});
   await page.goto('/dev/preview/settings/SettingsMemoriesHub?chrome=0&theme=light&background=%23dbeafe&width=700');
@@ -50,7 +50,7 @@ test('discovers the actual Code and Design Memory catalogs in the existing Memor
   await testInfo.attach('published-memory-hub', { body: await page.screenshot(), contentType: 'image/png' });
 });
 
-// contract-test: supporting surface=gui.web assertions=app-memories.catalog.declared-types-only,app-memories.discovery.visibility-cards
+// contract-test: supporting surface=gui.web assertions=app-memories.catalog.no-typed-types,app-memories.discovery.visibility-cards
 test('shows published Code Memories beside existing private memory types in app details', async ({ page }, testInfo) => {
   await page.goto('/dev/preview/settings/AppDetails?chrome=0&theme=light&background=%23dbeafe&width=700');
   await waitForComponentPreview(page);
@@ -87,19 +87,17 @@ test('keeps public and private Memory cards and their explanation inside the pho
   await publicCard.scrollIntoViewIfNeeded();
   await expect(publicCard).toBeInViewport();
   await expect(publicCard.getByTestId('memory-card-visibility')).toHaveText('Public');
-  const privateCard = page.getByTestId('settings-memory-cards-scroll').getByTestId('app-store-card').first();
-  await privateCard.scrollIntoViewIfNeeded();
-  await expect(privateCard).toBeInViewport();
-  await expect(privateCard.getByTestId('memory-card-visibility')).toHaveText('Private');
+  // Typed app memories were removed: the carousel lists only public app Memories.
+  await expect(page.getByTestId('settings-memory-cards-scroll').getByTestId('memory-card-visibility').filter({hasText: 'Private'})).toHaveCount(0);
   await testInfo.attach('private-memory-app-details-phone', {body: await page.screenshot(), contentType: 'image/png'});
 });
 
-// contract-test: supporting surface=gui.web assertions=app-memories.catalog.declared-types-only
+// contract-test: supporting surface=gui.web assertions=app-memories.catalog.no-typed-types
 test('renders an actual published category through the existing memory route component', async ({page}) => {
   await page.setViewportSize({width: 390, height: 844});
-  await page.goto('/dev/preview/settings/AppSettingsMemoriesCategory?chrome=0&theme=light&background=%23dbeafe&width=350');
+  await page.goto('/dev/preview/settings/PublishedMemoryRoute?chrome=0&theme=light&background=%23dbeafe&width=350');
   await waitForComponentPreview(page);
-  await expect(page.getByTestId('app-settings-memories-category')).toHaveAttribute('data-app-id', 'design');
+  await expect(page.getByTestId('published-memory-route')).toHaveAttribute('data-app-id', 'design');
   await expect(page.getByText('Mobile first design', {exact: true})).toBeInViewport();
   await expect(page.getByTestId('published-memory-body')).toContainText('Begin with the smallest intended layout');
   const bounds = await page.getByTestId('published-memory-body').boundingBox();

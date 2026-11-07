@@ -628,7 +628,7 @@ async def test_sdk_dispatch_ai_memories_are_absent_and_rejected():
         )
 
     assert exc.value.status_code == 410
-    assert exc.value.detail == "AI memories are no longer supported"
+    assert exc.value.detail == "App-specific typed memories were removed; create a Memory instead."
 
 
 @pytest.mark.asyncio

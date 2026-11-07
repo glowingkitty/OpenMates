@@ -3,133 +3,29 @@ use super::super::settings_more::tests::{mock, parsed};
 use super::*;
 
 #[tokio::test]
-async fn types_and_validation_match_the_legacy_registry_without_network() {
+async fn typed_commands_point_to_memories_without_network() {
     let (mut client, server) = mock(vec![]).await;
-    let types = execute(
-        &parsed(&[
-            "openmates",
-            "settings",
-            "memories",
-            "types",
-            "--app-id",
-            "books",
-            "--json",
-        ]),
-        &mut client,
-    )
-    .await
-    .ok()
-    .unwrap();
-    let value: Value = serde_json::from_str(&types.stdout).unwrap();
-    assert!(
-        value
-            .as_array()
-            .unwrap()
-            .iter()
-            .all(|t| t["app_id"] == "books")
-    );
-    assert_eq!(value[0]["key"], "books/favorite_books");
-    let human = execute(
-        &parsed(&[
-            "openmates",
-            "settings",
-            "memories",
-            "types",
-            "--app-id",
-            "books",
-        ]),
-        &mut client,
-    )
-    .await
-    .ok()
-    .unwrap();
-    assert!(human.stdout.starts_with("\x1b[1mMemory types  ("));
-    assert!(
-        human
-            .stdout
-            .contains("\x1b[1mbooks\x1b[0m\n  \x1b[36mfavorite_books\x1b[0m  \x1b[2mlist\x1b[0m\n")
-    );
-    for (args, prefix) in [
-        (
-            vec![
-                "openmates",
-                "settings",
-                "memories",
-                "create",
-                "--app-id",
-                "books",
-            ],
-            "Missing required flags.",
-        ),
-        (
-            vec![
-                "openmates",
-                "settings",
-                "memories",
-                "create",
-                "--app-id",
-                "books",
-                "--item-type",
-                "favorite_books",
-            ],
-            "Missing --data '<json>'.",
-        ),
-        (
-            vec![
-                "openmates",
-                "settings",
-                "memories",
-                "create",
-                "--app-id",
-                "nope",
-                "--item-type",
-                "x",
-                "--data",
-                "{}",
-            ],
-            "Unknown memory type 'nope/x'.",
-        ),
-        (
-            vec![
-                "openmates",
-                "settings",
-                "memories",
-                "create",
-                "--app-id",
-                "books",
-                "--item-type",
-                "favorite_books",
-                "--data",
-                "{}",
-            ],
-            "Missing required fields for 'books/favorite_books': title",
-        ),
-        (
-            vec![
-                "openmates",
-                "settings",
-                "memories",
-                "update",
-                "--app-id",
-                "books",
-                "--item-type",
-                "favorite_books",
-                "--data",
-                "{}",
-            ],
-            "Missing required flags.",
-        ),
-        (
-            vec!["openmates", "settings", "memories", "delete"],
-            "Missing entry ID.",
-        ),
+    for args in [
+        vec!["openmates", "settings", "memories", "types"],
+        vec!["openmates", "settings", "memories", "create", "--app-id", "books"],
+        vec!["openmates", "settings", "memories", "update", "--id", "typed-1"],
     ] {
         match execute(&parsed(&args), &mut client).await {
-            Err(CliError::Invalid(message)) => {
-                assert!(message.starts_with(prefix), "{args:?}: {message}")
-            }
+            Err(CliError::Invalid(message)) => assert!(
+                message.starts_with("Typed app memories were replaced by Memories"),
+                "{args:?}: {message}"
+            ),
             _ => panic!("expected invalid input for {args:?}"),
         }
+    }
+    match execute(
+        &parsed(&["openmates", "settings", "memories", "delete"]),
+        &mut client,
+    )
+    .await
+    {
+        Err(CliError::Invalid(message)) => assert!(message.starts_with("Missing entry ID.")),
+        _ => panic!("expected invalid input"),
     }
     assert!(matches!(
         execute(

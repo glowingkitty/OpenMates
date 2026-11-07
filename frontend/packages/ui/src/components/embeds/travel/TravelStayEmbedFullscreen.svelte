@@ -27,8 +27,7 @@
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
   import { text } from '@repo/ui';
   import { authStore } from '../../../stores/authStore';
-  import { appSettingsMemoriesStore } from '../../../stores/appSettingsMemoriesStore';
-  import { findSavedEmbedMemoryEntry, forgetEmbedMemory, getEmbedIdFromContentRef, promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
+  import { savedEmbedIds, loadEmbedSaved, toggleEmbedSaved, getEmbedIdFromContentRef } from '../../../services/savedEmbedService';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   interface NearbyPlace {
@@ -191,42 +190,18 @@
   
   function handleBooking() {
     if (bookingUrl) window.open(bookingUrl, '_blank', 'noopener,noreferrer');
-    promptToSaveEmbedMemory(buildSaveConfig());
   }
 
-  function buildSaveConfig() {
-    const title = name || 'Stay';
-    return {
-      kind: 'travel_stay' as const,
-      appId: 'travel',
-      itemType: 'saved_stays',
-      itemKey: `saved_stays.${stay.hash || bookingUrl || title}`,
-      title,
-      reminderDateTime: null,
-      reminderPromptTitle: title,
-      itemValue: {
-        embed_id: embedId || data.focusChildEmbedId || getEmbedIdFromContentRef(data.attrs?.contentRef),
-        name: title,
-        property_type: propertyType,
-        url: bookingUrl,
-        price: totalPrice != null ? `${currency} ${totalPrice}` : (pricePerNight != null ? `${currency} ${pricePerNight}/night` : ''),
-        rating: stay.overall_rating ?? undefined,
-        location: nearbyPlaces.map((place) => place.name).filter(Boolean).join(', '),
-        notes: amenities.slice(0, 8).join(', '),
-      },
-    };
+
+  // Save / Saved: encrypted `saved` flag on the embed itself (no memory entry).
+  const savedTargetId = $derived(embedId || data.focusChildEmbedId || getEmbedIdFromContentRef(data.attrs?.contentRef));
+  let isSaved = $derived($savedEmbedIds.has(savedTargetId));
+  $effect(() => { if (savedTargetId) void loadEmbedSaved(savedTargetId); });
+
+  function handleToggleSaved() {
+    if (savedTargetId) void toggleEmbedSaved(savedTargetId);
   }
 
-  let saveConfig = $derived(buildSaveConfig());
-  let savedMemoryEntry = $derived(findSavedEmbedMemoryEntry($appSettingsMemoriesStore, saveConfig));
-
-  function handleToggleSavedStay() {
-    if (savedMemoryEntry) {
-      forgetEmbedMemory(saveConfig);
-      return;
-    }
-    saveEmbedMemory(saveConfig);
-  }
 </script>
 
 {#if stay}
@@ -265,7 +240,7 @@
   {#snippet embedHeaderCta()}
     <div class="embed-header-cta-group">
       {#if $authStore.isAuthenticated}
-        <EmbedHeaderCtaButton label={savedMemoryEntry ? 'Forget' : 'Add memory'} variant="secondary" iconName="heart" iconOnly pressed={!!savedMemoryEntry} onclick={handleToggleSavedStay} testId="save-embed-cta" />
+        <EmbedHeaderCtaButton label={$text(isSaved ? 'embeds.saved_item' : 'embeds.save_item')} variant="secondary" iconName="heart" iconOnly pressed={isSaved} onclick={handleToggleSaved} testId="save-embed-cta" />
       {/if}
       {#if bookingUrl}
         <EmbedHeaderCtaButton label={isAuthored ? $text('embeds.authoring.open_source') : $text('embeds.open_on_provider').replace('{provider}', 'Google Hotels')} onclick={handleBooking} testId="external-provider-cta" />

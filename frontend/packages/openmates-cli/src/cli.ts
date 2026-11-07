@@ -17,7 +17,6 @@ import { codexResumeArguments, assertCodexClaimCaller, assertClaudeClaimCaller, 
 import {
   OpenMatesClient,
   INTEREST_TAG_IDS,
-  MEMORY_TYPE_REGISTRY,
   MATE_NAMES,
   deriveAppUrl,
   type ChatListPage,
@@ -70,6 +69,7 @@ import {
   type TeamRole,
   type WorkspaceMoveType,
   type DecryptedConnectedAccountForSkill,
+  TYPED_MEMORIES_REMOVED_MESSAGE,
 } from "./client.js";
 import { OpenMates, OpenMatesApiError, type ChatResponse, type EncryptedChatMetadata } from "./sdk.js";
 import { WebSocketProtocolError, type PendingTaskUpdateJobFrame, type StreamEvent, type SubChatEvent, type TaskEventFrame } from "./ws.js";
@@ -9414,7 +9414,7 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["newsletter", "subscribe"], description: "Subscribe an email to the newsletter", examples: ["openmates settings newsletter subscribe you@example.com --language en"] },
   { path: ["newsletter", "confirm"], description: "Confirm newsletter subscription token", examples: ["openmates settings newsletter confirm <token>"] },
   { path: ["newsletter", "unsubscribe"], description: "Unsubscribe with newsletter token", examples: ["openmates settings newsletter unsubscribe <token>"] },
-  { path: ["memories"], description: "Manage encrypted memories", examples: ["openmates settings memories list", "openmates settings memories create --app-id code --item-type projects --data '{\"name\":\"OpenMates\"}'"] },
+  { path: ["memories"], description: "List or delete Memories (typed app memories were replaced; create in the web app under Settings > Memories)", examples: ["openmates settings memories list", "openmates settings memories delete --id <entry-id>"] },
 ];
 
 const SETTINGS_INFO_COMMANDS: SettingsInfoCommand[] = [
@@ -11649,90 +11649,28 @@ async function handleMemories(
     return;
   }
 
-  if (action === "types") {
-    const types = Object.entries(MEMORY_TYPE_REGISTRY).map(([key, def]) => ({
-      key,
-      app_id: def.appId,
-      item_type: def.itemType,
-      entry_type: def.entryType,
-      required: def.required,
-      properties: Object.keys(def.properties),
-    }));
-    const appFilter =
-      typeof flags["app-id"] === "string" ? flags["app-id"] : null;
-    const filtered = appFilter
-      ? types.filter((t) => t.app_id === appFilter)
-      : types;
-    if (flags.json === true) {
-      printJson(filtered);
-    } else {
-      printMemoryTypes(filtered);
-    }
-    return;
-  }
-
-  if (action === "create") {
-    const appId = typeof flags["app-id"] === "string" ? flags["app-id"] : "";
-    const itemType =
-      typeof flags["item-type"] === "string" ? flags["item-type"] : "";
-    const dataRaw = typeof flags.data === "string" ? flags.data : null;
-
-    if (!appId || !itemType) {
-      console.error(
-        "Missing required flags.\n\n" +
-          "Usage: openmates settings memories create --app-id <id> --item-type <type> --data '<json>'\n\n" +
-          "Run 'openmates settings memories types' to see all available types.",
-      );
-      process.exit(1);
-    }
-    if (!dataRaw) {
-      console.error(
-        "Missing --data '<json>'. Provide the memory field values as a JSON object.\n\n" +
-          `Example: --data '{"name":"Python","proficiency":"advanced"}'`,
-      );
-      process.exit(1);
-    }
-
-    const itemValue = JSON.parse(dataRaw) as Record<string, unknown>;
-    const result = await client.createMemory({ appId, itemType, itemValue, ...teamContextFromFlags(flags) });
-    if (flags.json === true) {
-      printJson(result);
-    } else {
-      console.log(
-        `\x1b[32m✓\x1b[0m Memory created  \x1b[2mid: ${result.id}\x1b[0m`,
-      );
-    }
-    return;
+  if (action === "types" || action === "create") {
+    console.error(TYPED_MEMORIES_REMOVED_MESSAGE);
+    process.exit(1);
   }
 
   if (action === "update") {
     const entryId = typeof flags.id === "string" ? flags.id : "";
-    const appId = typeof flags["app-id"] === "string" ? flags["app-id"] : "";
-    const itemType =
-      typeof flags["item-type"] === "string" ? flags["item-type"] : "";
     const dataRaw = typeof flags.data === "string" ? flags.data : null;
-    const currentVersion =
-      typeof flags.version === "string" ? parseInt(flags.version, 10) : 1;
-
-    if (!entryId || !appId || !itemType) {
+    if (!entryId.startsWith("account-memory-") || !dataRaw) {
       console.error(
-        "Missing required flags.\n\n" +
-          "Usage: openmates settings memories update --id <entry-id> --app-id <id> --item-type <type> --data '<json>' [--version <n>]",
+        TYPED_MEMORIES_REMOVED_MESSAGE +
+          "\n\nOnly Memory documents can be edited here: openmates settings memories update --id account-memory-<id> --data '{\"title\":\"...\",\"document\":\"...\"}'",
       );
       process.exit(1);
     }
-    if (!dataRaw) {
-      console.error("Missing --data '<json>'.");
-      process.exit(1);
-    }
-
     const itemValue = JSON.parse(dataRaw) as Record<string, unknown>;
     const result = await client.updateMemory({
       entryId,
-      appId,
-      itemType,
+      appId: "openmates",
+      itemType: "memories",
       itemValue,
-      currentVersion,
+      currentVersion: 1,
       ...teamContextFromFlags(flags),
     });
     if (flags.json === true) {
@@ -11763,7 +11701,7 @@ async function handleMemories(
   }
 
   console.error(
-    `Unknown memories action '${action}'.\n\nUsage: openmates settings memories <list|types|create|update|delete>`,
+    `Unknown memories action '${action}'.\n\nUsage: openmates settings memories <list|update|delete>`,
   );
   process.exit(1);
 }
@@ -14085,40 +14023,6 @@ function printMemoriesList(
   }
 }
 
-function printMemoryTypes(
-  types: Array<{
-    key: string;
-    app_id: string;
-    item_type: string;
-    entry_type: string;
-    required: string[];
-    properties: string[];
-  }>,
-): void {
-  if (types.length === 0) {
-    console.log("No memory types found.");
-    return;
-  }
-  header(`Memory types  (${types.length})\n`);
-  let lastApp = "";
-  for (const t of types) {
-    if (t.app_id !== lastApp) {
-      if (lastApp !== "") console.log();
-      process.stdout.write(`\x1b[1m${t.app_id}\x1b[0m\n`);
-      lastApp = t.app_id;
-    }
-    process.stdout.write(
-      `  \x1b[36m${t.item_type}\x1b[0m  \x1b[2m${t.entry_type}\x1b[0m\n`,
-    );
-    kv("required", t.required.join(", ") || "none", 12);
-    kv("fields", t.properties.join(", "), 12);
-  }
-  console.log();
-  console.log(
-    `\x1b[2mCreate: openmates settings memories create --app-id <id> --item-type <type> --data '<json>'\x1b[0m`,
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Utilities
 // ---------------------------------------------------------------------------
@@ -15503,16 +15407,11 @@ Examples:
 function printMemoriesHelp(): void {
   console.log(`Memories commands:
   openmates settings memories list [--app-id <id>] [--item-type <type>] [--json]
-  openmates settings memories types [--app-id <id>] [--json]
-  openmates settings memories create --app-id <id> --item-type <type> --data '<json>'
-  openmates settings memories update --id <id> --app-id <id> --item-type <type> --data '<json>' [--version <n>]
+  openmates settings memories update --id account-memory-<id> --data '{"title":"...","document":"..."}'
   openmates settings memories delete --id <entry-id>
 
-Examples:
-  openmates settings memories types --app-id code
-  openmates settings memories list --app-id code
-  openmates settings memories create --app-id code --item-type preferred_tech --data '{"name":"Python","proficiency":"advanced"}'
-  openmates settings memories delete --id <uuid>`);
+Typed app memories were replaced by Memories (personal documents).
+Create and organize Memories in the web app under Settings > Memories.`);
 }
 
 // ---------------------------------------------------------------------------

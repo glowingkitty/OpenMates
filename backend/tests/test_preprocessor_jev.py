@@ -408,7 +408,7 @@ async def test_maps_bounded_decisions_without_generating_title(monkeypatch: pyte
     assert result["load_app_settings_and_memories"] == ["code:preferred_technologies"]
     assert result["title"] is None
     assert result["icon_names"] == ["code"]
-    assert result["relevant_rules"] == [{"id": "app:code:python", "revision": "a" * 64}]
+    assert result["relevant_rules"] == [{"id": "app:code:python", "revision": "a" * 64, "load_mode": "auto_include"}]
     assert result["relevant_workflows"] == [{"workflow_id": "workflow-1", "current_version_id": "v1"}]
     assert captured_state["effective_focus"] == {"id": "code-debug", "phase": "investigate"}
     assert captured_state["conversation_summary"]["source"] == "client_authorized_fresh_chat_summary"
@@ -517,7 +517,7 @@ async def test_app_shortlist_selects_multiple_apps_without_unrelated_stage_two_c
     result = await jev_preprocessing.decide_preprocessing_with_jev(**kwargs)
     assert result["selected_app_ids"] == ["news", "web", "images"]
     assert loaded_rule_apps == [["news", "web", "images"]]
-    assert result["relevant_rules"] == [{"id": "news-guide", "revision": "v1"}]
+    assert result["relevant_rules"] == [{"id": "news-guide", "revision": "v1", "load_mode": "auto_include"}]
     assert result["relevant_app_skills"] == ["news-search", "web-search", "images-search"]
     assert set(calls[0]["questions"]) == {
         "app_0", "app_1", "app_2", "app_3", "reasoning_level", "complexity", "task_area",
@@ -665,7 +665,7 @@ async def test_project_consent_refresh_keeps_readme_request_as_stage_two_intent(
     assert "Access granted" not in repr(calls[0]["state"])
     assert result["relevant_app_skills"] == []
     assert result["relevant_focus_modes"] == ["project-focus:p1:readme"]
-    assert result["relevant_rules"] == [{"id": "project-readme-rule", "revision": "v1"}]
+    assert result["relevant_rules"] == [{"id": "project-readme-rule", "revision": "v1", "load_mode": "auto_include"}]
 
 
 @pytest.mark.asyncio

@@ -652,66 +652,15 @@ test.describe('Apps bare component previews', () => {
     });
     await page.goto(preview('apps/AppsWorkspace',1100,'teamLibrarySidebar'),{waitUntil:'domcontentloaded'});await waitForComponentPreview(page);
     await page.getByTestId('apps-tab-saved').click();await expect(page.getByTestId('apps-saved-search-query')).toContainText('Personal garden');
-    // A synthetic encrypted Personal memory exercises the actual snapshot reader,
-    // rather than treating a server saved-search row as a decrypted memory.
-    await page.evaluate(async () => {
-      const browser = window as Window & {
-        appsBlockMemoryRead?: boolean;
-        appsMemoryReadStarted?: number;
-        appsMemoryReadReleased?: number;
-        appsReleaseMemoryReads?: Array<() => void>;
-      };
-      const open = (name: string, version?: number) => new Promise<IDBDatabase>((resolve, reject) => {
-        const request = version ? indexedDB.open(name, version) : indexedDB.open(name);
-        request.onupgradeneeded = () => { if (name === 'openmates_crypto' && !request.result.objectStoreNames.contains('keys')) request.result.createObjectStore('keys'); };
-        request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
-      });
-      const write = (db: IDBDatabase, store: string, value: unknown, key?: IDBValidKey) => new Promise<void>((resolve, reject) => {
-        const transaction = db.transaction(store, 'readwrite');
-        if (key === undefined) transaction.objectStore(store).put(value); else transaction.objectStore(store).put(value, key);
-        transaction.oncomplete = () => resolve(); transaction.onerror = () => reject(transaction.error);
-      });
-      const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
-      const iv = crypto.getRandomValues(new Uint8Array(12));
-      const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify({
-        embed_id: '72000000-0000-4000-8000-000000000001', title: 'Personal encrypted memory marker', skill_id: 'search', _original_item_key: 'personal-memory',
-      }))));
-      const combined = new Uint8Array(iv.length + ciphertext.length); combined.set(iv); combined.set(ciphertext, iv.length);
-      const keyDb = await open('openmates_crypto', 1);
-      try { await write(keyDb, 'keys', key, 'master_key'); } finally { keyDb.close(); }
-      const chatDb = await open('chats_db');
-      try { await write(chatDb, 'app_settings_memories', {
-        id: '72000000-0000-4000-8000-000000000002', app_id: 'web', item_key: 'synthetic-personal-hash', item_type: 'read_later',
-        encrypted_item_json: btoa(String.fromCharCode(...combined)), encrypted_app_key: '', created_at: 1, updated_at: 1, item_version: 1,
-      }); } finally { chatDb.close(); }
-      const expected = btoa(String.fromCharCode(...ciphertext));
-      const decrypt = crypto.subtle.decrypt.bind(crypto.subtle);
-      browser.appsReleaseMemoryReads = [];
-      browser.appsMemoryReadStarted = 0; browser.appsMemoryReadReleased = 0;
-      crypto.subtle.decrypt = (async (...args: Parameters<SubtleCrypto['decrypt']>) => {
-        const decrypted = await decrypt(...args);
-        const data = args[2];
-        const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
-        if (!browser.appsBlockMemoryRead || btoa(String.fromCharCode(...bytes)) !== expected) return decrypted;
-        browser.appsMemoryReadStarted = (browser.appsMemoryReadStarted ?? 0) + 1;
-        return new Promise<ArrayBuffer>(resolve => browser.appsReleaseMemoryReads!.push(() => {
-          browser.appsMemoryReadReleased = (browser.appsMemoryReadReleased ?? 0) + 1; resolve(decrypted);
-        }));
-      }) as SubtleCrypto['decrypt'];
-      window.dispatchEvent(new Event('appsWorkspaceLibraryUpdated'));
-    });
-    await expect(page.getByTestId('apps-sidebar').getByText('Personal encrypted memory marker', { exact: true })).toBeVisible();
 
-    blockPersonal=true;await page.evaluate(()=>{(window as Window & {appsBlockMemoryRead?:boolean}).appsBlockMemoryRead=true;window.dispatchEvent(new Event('appsWorkspaceLibraryUpdated'));});
-    await page.waitForFunction(() => ((window as Window & {appsMemoryReadStarted?:number}).appsMemoryReadStarted ?? 0) > 0);await expect.poll(()=>queries.filter(value=>value==='personal').length).toBeGreaterThan(1);
+    blockPersonal=true;await page.evaluate(()=>{window.dispatchEvent(new Event('appsWorkspaceLibraryUpdated'));});
+    await expect.poll(()=>queries.filter(value=>value==='personal').length).toBeGreaterThan(1);
     await page.evaluate(()=>window.dispatchEvent(new CustomEvent('apps-preview-set-team',{detail:'preview-studio'})));await expect.poll(()=>queries.at(-1)).toBe('preview-studio');
-    await expect(page.getByText('Personal garden',{exact:true})).toHaveCount(0);await expect(page.getByText('Personal encrypted memory marker',{exact:true})).toHaveCount(0);releaseTeam();
+    await expect(page.getByText('Personal garden',{exact:true})).toHaveCount(0);releaseTeam();
     await page.getByTestId('apps-tab-saved').click();await expect(page.getByTestId('apps-saved-search-query')).toContainText('Team garden');
     const lateResponse=page.waitForResponse(response=>response.url().endsWith('/v1/apps/workspace/library/web'));releasePersonal();
-    await page.evaluate(() => {const browser=window as Window & {appsBlockMemoryRead?:boolean;appsReleaseMemoryReads?:Array<()=>void>};browser.appsBlockMemoryRead=false;for(const release of browser.appsReleaseMemoryReads??[])release();});
-    await page.waitForFunction(() => ((window as Window & {appsMemoryReadReleased?:number}).appsMemoryReadReleased ?? 0) > 0);
-    await lateResponse;await expect(page.getByText('Personal encrypted memory marker',{exact:true})).toHaveCount(0);await expect(page.getByTestId('apps-saved-search-query')).toContainText('Team garden');await expect(page.getByText('Personal garden',{exact:true})).toHaveCount(0);
-    blockPersonal=false;await page.evaluate(()=>window.dispatchEvent(new CustomEvent('apps-preview-set-team',{detail:null})));await page.getByTestId('apps-tab-saved').click();await expect(page.getByTestId('apps-saved-search-query')).toContainText('Personal garden');await expect(page.getByText('Team garden',{exact:true})).toHaveCount(0);expect(queries.at(-1)).toBe('personal');await expect(page.getByTestId('apps-sidebar').getByText('Personal encrypted memory marker',{exact:true})).toBeVisible();
+    await lateResponse;await expect(page.getByTestId('apps-saved-search-query')).toContainText('Team garden');await expect(page.getByText('Personal garden',{exact:true})).toHaveCount(0);
+    blockPersonal=false;await page.evaluate(()=>window.dispatchEvent(new CustomEvent('apps-preview-set-team',{detail:null})));await page.getByTestId('apps-tab-saved').click();await expect(page.getByTestId('apps-saved-search-query')).toContainText('Personal garden');await expect(page.getByText('Team garden',{exact:true})).toHaveCount(0);expect(queries.at(-1)).toBe('personal');
   });
 
 });

@@ -93,11 +93,11 @@ Tools are generated from discovered, feature-enabled app `app.yml` metadata by `
 Filters tools during pre-processing to avoid sending all tools to the LLM:
 
 1. Pre-processing LLM receives a simplified list of skill names and focus mode names
-2. Outputs `relevant_app_skills`, `relevant_app_focus_modes`, and `relevant_app_settings_and_memories` (all in `app_id-item_id` format)
+2. Outputs `relevant_app_skills` and `relevant_app_focus_modes` (both in `app_id-item_id` format); typed app settings/memories no longer exist (see [memories.md](./memories.md))
 3. Each preselected tool is validated (exists, available, not deactivated by user)
 4. Only validated tools get full definitions loaded for main processing
 
-**Benefits:** Scalable to hundreds of skills, reduced token usage, better LLM accuracy, privacy (only relevant settings/memories requested from client).
+**Benefits:** Scalable to hundreds of skills, reduced token usage, better LLM accuracy, privacy.
 
 ### Skill Execution
 

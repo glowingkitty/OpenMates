@@ -47,7 +47,7 @@ async function withServer(
 }
 
 describe("OpenMates SDK", () => {
-  // contract-test: supporting surface=sdks.npm assertions=app-memories.catalog.declared-types-only,app-memories.surface.semantic-parity
+  // contract-test: supporting surface=sdks.npm assertions=app-memories.catalog.no-typed-types,app-memories.surface.semantic-parity
   it("discovers public app Memories without sending private credentials", async () => {
     const memory = {id: 'app:code:svelte', source: 'app', app_id: 'code', revision: 'a'.repeat(64), body: 'Exact published guidance'};
     await withServer((request, response) => {
@@ -1407,7 +1407,6 @@ describe("OpenMates SDK", () => {
       await client.chats.followUps(CHAT_ID);
       await client.chats.export(CHAT_ID);
       await client.account.listInterests();
-      await client.memories.types({ query: { app_id: "code" } });
       await client.billing.usageOverview({ query: { granularity: "monthly", months: 2 } });
       await client.billing.usageDetails({ type: "chat", identifier: CHAT_ID, yearMonth: "2026-08" });
       await client.billing.chatTotal(CHAT_ID);
@@ -1425,7 +1424,6 @@ describe("OpenMates SDK", () => {
       { method: "GET", url: `/v1/sdk/chats/${CHAT_ID}` },
       { method: "POST", url: `/v1/sdk/chats/${CHAT_ID}/export` },
       { method: "GET", url: "/v1/sdk/account/topic-preferences" },
-      { method: "GET", url: "/v1/sdk/memories/types?app_id=code" },
       { method: "GET", url: "/v1/sdk/billing/usage/overview?granularity=monthly&months=2" },
       { method: "GET", url: `/v1/sdk/billing/usage/details?type=chat&identifier=${CHAT_ID}&year_month=2026-08` },
       { method: "GET", url: `/v1/sdk/billing/usage/chat-total?chat_id=${CHAT_ID}` },

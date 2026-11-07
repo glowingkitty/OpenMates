@@ -693,7 +693,7 @@ async function loginViaPair(page: any, apiUrl: string, logCheckpoint: (msg: stri
 		await runCli(apiUrl, ['logout']);
 	});
 
-	// contract-test: direct surface=cli assertions=app-memories.catalog.declared-types-only,app-memories.surface.semantic-parity
+	// contract-test: direct surface=cli assertions=app-memories.catalog.no-typed-types,app-memories.surface.semantic-parity
 	test('AI memory types are absent and creation is rejected', async ({
 		page
 	}: {

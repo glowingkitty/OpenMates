@@ -1,7 +1,7 @@
 from openmates import OpenMates
 
 
-# contract-test: supporting surface=sdks.pip assertions=app-memories.catalog.declared-types-only,app-memories.surface.semantic-parity
+# contract-test: supporting surface=sdks.pip assertions=app-memories.catalog.no-typed-types,app-memories.surface.semantic-parity
 def test_public_memories_preserve_exact_context_without_private_credentials(monkeypatch):
     memory = {"id": "app:code:svelte", "source": "app", "app_id": "code", "revision": "a" * 64, "body": "Exact published guidance"}
     seen = []

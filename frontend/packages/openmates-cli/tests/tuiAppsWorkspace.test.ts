@@ -150,13 +150,13 @@ test("saved result keeps child embed actions visible when parent response is lon
   assert.doesNotMatch(rendered, /Response|Result 200/);
 });
 
-// contract-test: supporting surface=cli assertions=app-memories.catalog.declared-types-only,app-memories.transparency.loaded-set
+// contract-test: supporting surface=cli assertions=app-memories.catalog.no-typed-types,app-memories.transparency.loaded-set
 test('published Memories are read-only catalog guidance, separate from private category definitions', async () => {
   const apps = await loadTuiApps({getAppsWorkspaceCatalog: async () => ({apps: {code: {
-    id: 'code', name: 'Code', settings_and_memories: [{id: 'preferred_tech', name: 'Preferred technologies'}],
+    id: 'code', name: 'Code',
     memories: [{id: 'app:code:svelte', title: 'Svelte best practices', description: 'Reactive components.', body: 'Keep user intent clear.'}],
   }}})} as unknown as OpenMatesClient);
-  assert.equal(apps[0].settingsMemories.length, 2);
+  assert.equal(apps[0].settingsMemories.length, 1);
   const screen = renderTuiApp(apps[0], {width: 80, tab: 'settings_memories', selectedId: 'app:code:svelte'}).join('\n');
   assert.match(screen, /Svelte best practices/);
   assert.match(screen, /App-provided · Read-only/);

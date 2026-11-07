@@ -249,21 +249,4 @@ def collect_feature_definitions_from_app_config(
             )
         )
 
-    for memory in (raw_config.get("settings_and_memories") or raw_config.get("memory_fields") or raw_config.get("memory") or []):
-        if not isinstance(memory, dict) or not memory.get("schema"):
-            continue
-        memory_id = str(memory.get("id") or "").strip()
-        if not memory_id:
-            continue
-        definitions.append(
-            FeatureDefinition(
-                id=memory_feature_id(app_id, memory_id),
-                kind="memory",
-                default_enabled=not is_sparse_default_enabled_false(memory),
-                parent_id=app_parent_id,
-                app_id=app_id,
-                source=source,
-            )
-        )
-
     return definitions

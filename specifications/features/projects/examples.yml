@@ -746,3 +746,7 @@ project_memories:
   given: The user saved a private personal memory about Acme outside Project files.
   when: The user works on Acme.
   then: Project access does not approve that personal memory; its existing request or explicit mention is required.
+- id: project-memory-same-fields
+  given: Acme's Memories tab is open.
+  when: The user creates a memory with a title, text, when-to-use, an expiry date and Only when mentioned.
+  then: It is stored under .openmates/memories with those fields and stays hidden from model stages until mentioned.

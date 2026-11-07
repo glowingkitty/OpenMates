@@ -3,7 +3,6 @@ description_translation_key: plans.description
 icon_image: planning.svg
 category: productivity
 last_updated: "2026-07-25"
-settings_and_memories: []
 instructions:
   - instruction: |
       **Plan Skills**

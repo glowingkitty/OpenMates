@@ -14,7 +14,6 @@ description_translation_key: electronics.description
 icon_image: pcbdesign.svg
 category: work
 last_updated: "2026-05-23"
-settings_and_memories: []
 instructions:
   - for_embed_types:
       - schematic

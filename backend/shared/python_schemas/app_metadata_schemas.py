@@ -275,53 +275,6 @@ class AppFocusDefinition(BaseModel):
         values = _reject_removed_stage(values, "AppFocusDefinition")
         return _reject_default_enabled_true(values, "AppFocusDefinition")
 
-class AppMemoryFieldDefinition(BaseModel):
-    """Defines the structure for a memory field within an app's metadata."""
-    id: str
-    name_translation_key: str  # Required: Translation key for memory field name (e.g., "app_translations.web.settings_memories.bookmarks.name")
-    description_translation_key: str  # Required: Translation key for memory field description (e.g., "app_translations.web.settings_memories.bookmarks.description")
-    type: str # e.g., "string", "number", "boolean", "json_object", "list_of_strings"
-    schema_definition: Optional[Dict[str, Any]] = Field(default=None, alias="schema") # Optional JSON schema
-    default_enabled: Optional[Literal[False]] = Field(default=None, description="Set to false only when this implemented memory field ships off by default.")
-    # Full example entries with all field values populated.
-    # Each entry is a dict mapping field names to values. String field values
-    # that should be translated are stored as translation keys (looked up via $text() on frontend).
-    # Enum values, booleans, and numbers are stored as raw values.
-    # Replaces the older example_translation_keys (title-only strings).
-    example_entries: Optional[List[Dict[str, Any]]] = Field(default=None, description="Full example entries with all field values for UI display.")
-    example_translation_keys: Optional[List[str]] = Field(default=None, description="Legacy translated example labels retained for settings clients.")
-    icon_image: Optional[str] = Field(default=None, description="Filename of the memory category icon shown in Apps settings.")
-
-    @model_validator(mode='after')
-    def inject_added_date(self):
-        """
-        Automatically injects 'added_date' into every settings/memories schema.
-        
-        added_date is a universal field that records when a user created an entry.
-        It's auto_generated (hidden from UI forms, auto-populated by the client)
-        and converted to human-readable format before being included in LLM prompts.
-        
-        This removes the need to define added_date in every app.yml file,
-        preventing misconfiguration (e.g., forgetting auto_generated: true).
-        """
-        if self.schema_definition is not None:
-            properties = self.schema_definition.get("properties", {})
-            if "added_date" not in properties:
-                properties["added_date"] = {
-                    "type": "integer",
-                    "description": "Unix timestamp when added",
-                    "auto_generated": True
-                }
-                self.schema_definition["properties"] = properties
-        return self
-
-    @model_validator(mode='before')
-    @classmethod
-    def reject_removed_availability_fields(cls, values):
-        values = _reject_removed_stage(values, "AppMemoryFieldDefinition")
-        return _reject_default_enabled_true(values, "AppMemoryFieldDefinition")
-
-
 class EmbedTypeDefinition(BaseModel):
     """
     Defines an embed type within an app's metadata.
@@ -449,7 +402,6 @@ class AppYAML(BaseModel):
     provider_display_order: Optional[List[str]] = Field(default=None, description="Preferred provider badge order in Apps settings.")
     skills: List[AppSkillDefinition] = []
     focuses: List[AppFocusDefinition] = Field(default=[], alias="focus_modes") # Allow 'focus_modes' as alias
-    memory_fields: List[AppMemoryFieldDefinition] = Field(default=[], alias="memory") # Allow 'memory' as alias
     # App-specific instructions that are dynamically loaded into the system prompt
     # ONLY when this app is available. This prevents the AI from being instructed about
     # capabilities that don't exist (e.g., instructing about web search when web app is down)
@@ -487,37 +439,11 @@ class AppYAML(BaseModel):
 
     @model_validator(mode='before')
     @classmethod
-    def map_aliases(cls, values):
-        """
-        Maps various field aliases from app.yml for compatibility.
-        - Maps 'settings_and_memories' to 'memory' if 'memory'/'memory_fields' don't exist
-        - Ensures 'focus_modes' is mapped to 'focuses' field
-        - Ensures 'memory' is available for 'memory_fields' field
-        """
-        if isinstance(values, dict):
-            # Map 'settings_and_memories' to 'memory' if needed
-            if 'settings_and_memories' in values and 'memory_fields' not in values and 'memory' not in values:
-                values['memory'] = values['settings_and_memories']
-            
-            # Ensure 'focus_modes' alias is handled (Pydantic will handle this via Field alias, but ensure it's present)
-            if 'focus_modes' in values and 'focuses' not in values:
-                # The alias will be handled by Field, but we ensure the value is there
-                pass
-            
-            # Ensure 'memory' alias is handled for 'memory_fields'
-            if 'memory' in values and 'memory_fields' not in values:
-                # The alias will be handled by Field, but we ensure the value is there
-                pass
+    def reject_removed_typed_memories(cls, values):
+        """App-specific typed memories were removed; app.yml must not declare them."""
+        if isinstance(values, dict) and any(k in values for k in ('settings_and_memories', 'memory', 'memory_fields')):
+            raise ValueError("app-specific typed memories were removed; use Memory documents")
         return values
-
-
-    @field_validator('memory_fields', mode='before')
-    @classmethod
-    def set_memory_fields_default(cls, v):
-        """Ensures memory_fields list is initialized even if 'memory' is missing or None."""
-        # Return the value if it's not None, otherwise return empty list
-        # The alias 'memory' is handled by the Field definition
-        return v if v is not None else []
     
     @field_validator('instructions', mode='before')
     @classmethod

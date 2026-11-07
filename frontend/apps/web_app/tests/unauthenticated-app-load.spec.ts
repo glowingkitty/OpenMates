@@ -647,7 +647,7 @@ test.describe('Unauthenticated app load', () => {
 		await expect(skillCardsScroll).toBeVisible();
 	});
 
-	// contract-test: direct surface=gui.web assertions=app-memories.catalog.declared-types-only
+	// contract-test: direct surface=gui.web assertions=app-memories.catalog.no-typed-types
 	test('guest app memories only show categories with examples', async ({
 		page
 	}: {
@@ -668,15 +668,8 @@ test.describe('Unauthenticated app load', () => {
 		await expect(page).toHaveURL(/#apps\/travel(?:&|$)/);
 		await page.getByTestId('apps-tab-settings_memories').click();
 
-		const memoryCards = page.locator('[data-testid="settings-memory-cards-scroll"]:visible');
-		await expect(memoryCards).toBeVisible({ timeout: 10000 });
-		await expect(memoryCards.getByTestId('app-card-name').filter({ hasText: /^Trips$/i })).toBeVisible();
-		await expect(memoryCards.getByTestId('app-card-name').filter({ hasText: /^Saved connections$/i })).toHaveCount(0);
-		await expect(memoryCards.getByTestId('app-card-name').filter({ hasText: /^Saved stays$/i })).toHaveCount(0);
-
-		await memoryCards.getByTestId('app-card-name').filter({ hasText: /^Trips$/i }).click();
-		await expect(page).toHaveURL(/#apps\/travel\/memory\/trips/, { timeout: 10000 });
-		await expect(page.getByText('Examples').first()).toBeVisible({ timeout: 10000 });
+		// Typed app memories were removed: no app-specific memory categories are listed.
+		await expect(page.getByTestId('app-card-name').filter({ hasText: /^Trips$/i })).toHaveCount(0);
 	});
 
 	// contract-test: supporting surface=gui.web assertions=landing-onboarding.uses-real-chat-shell

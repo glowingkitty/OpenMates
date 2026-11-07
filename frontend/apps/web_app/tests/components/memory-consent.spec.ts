@@ -6,6 +6,7 @@
  * Architecture: docs/plans/memory-consent-convergence/plan.yml
  */
 import { expect, test } from '../helpers/cookie-audit';
+import { waitForComponentPreview } from '../helpers/component-preview';
 // playwright-account: not_required reason=isolated_component_preview
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { createVideoProofRuntime, defineVideoProof } = require('../helpers/video-proof');
@@ -14,14 +15,14 @@ const device = Number(process.env.PLAYWRIGHT_VIDEO_WIDTH) === 390 ? 'web-phone' 
 const proofContract = defineVideoProof({
   id: 'memory-consent-convergence', title: 'One memory permission request', surface: 'web', devices, domain: 'app.dev.openmates.org',
   transcript: [
-    { id: 'known', text: 'The permission card shows one available writing style.', checkpoint: 'known', devices },
+    { id: 'known', text: 'The permission card shows one available memory.', checkpoint: 'known', devices },
     { id: 'unknown', text: 'An unknown count is not shown as zero.', checkpoint: 'unknown', devices },
     { id: 'merged', text: 'Duplicate historical requests become one permission dialog with the known count.', checkpoint: 'merged', devices },
     { id: 'selection', text: 'You can change the selection before giving permission.', checkpoint: 'selection', devices },
   ],
   assertions: [
-    { id: 'known-count', checkpoint: 'known', visual: 'The writing-style card shows 1/1 entry.', devices },
-    { id: 'unknown-count', checkpoint: 'unknown', visual: 'The writing-style card has no fabricated zero count.', devices },
+    { id: 'known-count', checkpoint: 'known', visual: 'The Memories card shows 1/1 entry.', devices },
+    { id: 'unknown-count', checkpoint: 'unknown', visual: 'The Memories card has no fabricated zero count.', devices },
     { id: 'one-request', checkpoint: 'merged', visual: 'One permission dialog shows 1/1 entry in either history order.', devices },
     { id: 'selection-control', checkpoint: 'selection', visual: 'The category can be deselected and reselected before the Include action.', devices },
   ], tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 5000 },
@@ -32,10 +33,12 @@ const preview = (component: string, variant?: string) => `/dev/preview/${compone
 test('shows honest counts and merges legacy requests without granting consent', async ({ page }, testInfo) => {
   const proof = createVideoProofRuntime(proofContract, { device, attach: testInfo.attach.bind(testInfo) });
   await page.goto(preview('AppSettingsMemoriesPermissionDialog'));
+  await waitForComponentPreview(page);
   await proof.assert('known-count', async () => { await expect(page.getByTestId('memory-category-count')).toContainText('1/1'); });
   await proof.checkpoint('known');
   await page.waitForTimeout(proofContract.tutorial.minimumHoldMs);
   await page.goto(preview('AppSettingsMemoriesPermissionDialog', 'unknown'));
+  await waitForComponentPreview(page);
   await proof.assert('unknown-count', async () => {
     await expect(page.getByTestId('app-settings-memories-permission-card')).toBeVisible();
     await expect(page.getByTestId('memory-category-count')).toHaveCount(0);
@@ -44,6 +47,7 @@ test('shows honest counts and merges legacy requests without granting consent', 
   await page.waitForTimeout(proofContract.tutorial.minimumHoldMs);
   for (const variant of [undefined, 'reversed']) {
     await page.goto(preview('MemoryConsentHistoryPreview', variant));
+    await waitForComponentPreview(page);
     await expect(page.getByTestId('app-settings-memories-permission-dialog')).toHaveCount(1);
     await expect(page.getByTestId('memory-category-count')).toContainText('1/1');
     const dialog = page.getByTestId('app-settings-memories-permission-dialog');
@@ -59,7 +63,7 @@ test('shows honest counts and merges legacy requests without granting consent', 
   });
   await proof.checkpoint('merged');
   await page.waitForTimeout(proofContract.tutorial.minimumHoldMs);
-  const toggle = page.getByTestId('memory-category-toggle-mail-writing_styles');
+  const toggle = page.getByTestId('memory-category-toggle-openmates-memories');
   await toggle.hover();
   await toggle.click();
   await expect(page.getByTestId('btn-include')).toBeDisabled();

@@ -46,7 +46,7 @@
   let tripPreviewCategories = $derived([{
     key: 'travel.trips',
     appId: 'travel',
-    displayName: $text('app_settings_memories.travel.trips'),
+    displayName: $text('memories.manage'),
     entryCount: 2,
     selected: true,
     entries: [

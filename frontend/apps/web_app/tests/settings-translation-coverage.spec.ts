@@ -54,7 +54,7 @@ const SETTINGS_EVENT_LINKS = {
 	meetup: 'https://www.meetup.com/openmates-meetup-group/'
 };
 const REQUIRED_NON_EMPTY_TRANSLATION_KEYS = [
-	'app_settings_memories.mail.writing_styles.example_2.footer'
+	'memories.manage'
 ];
 
 function repoPath(...segments: string[]): string {

@@ -5,7 +5,7 @@
  * Interactive consent recovery is covered by the ChatHistory fixture.
  * Architecture: docs/plans/memory-consent-convergence/plan.yml
  */
-const category = { key: "mail-writing_styles", appId: "mail", displayName: "Writing styles", entryCount: 1, selected: true };
+const category = { key: "openmates-memories", appId: "openmates", displayName: "Memories", entryCount: 1, selected: true };
 export default { previewMode: true, previewCategories: [category] };
 export const variants = {
   unknown: { previewMode: true, previewCategories: [{ ...category, entryCount: null }] },

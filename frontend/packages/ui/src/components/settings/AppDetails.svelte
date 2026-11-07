@@ -19,7 +19,7 @@
     import AppEmbedsPanel from './appSettings/AppEmbedsPanel.svelte';
     import ActiveRemindersList from './appSettings/ActiveRemindersList.svelte';
     import { SettingsButton, SettingsCard, SettingsConsentToggle, SettingsDetailRow, SettingsInfoBox, SettingsSectionHeading } from './elements';
-    import type { AppMetadata, MemoryFieldMetadata, SkillMetadata } from '../../types/apps';
+    import type { AppMetadata, SkillMetadata } from '../../types/apps';
     import { CONTENT_EMBED_CATALOG, type ContentEmbedCatalogItem } from '../../data/embedRegistry.generated';
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
@@ -58,7 +58,6 @@
     let skills = $derived(app?.skills || []);
     let contentTypes = $derived(CONTENT_EMBED_CATALOG.filter((item) => item.appId === appId));
     let focusModes = $derived(app?.focus_modes || []);
-    let memoryFields = $derived(app?.settings_and_memories || []);
     let connectedCalendarAccounts = $state<EncryptedConnectedAccountRow[]>([]);
     let connectedCalendarAccountSummaries = $state<ConnectedAccountSummary[]>([]);
     let connectedAccountsLoading = $state(false);
@@ -75,16 +74,6 @@
     type CalendarCapability = 'read' | 'write' | 'delete';
 
     const CALENDAR_CAPABILITIES: CalendarCapability[] = ['read', 'write', 'delete'];
-
-    function hasGuestExamples(category: MemoryFieldMetadata): boolean {
-        return (category.example_entries?.length ?? 0) > 0 || (category.example_translation_keys?.length ?? 0) > 0;
-    }
-
-    // Guests can only explore read-only example data. Hide categories that would
-    // open to an empty page because they only support authenticated saved entries.
-    let visibleMemoryFields = $derived.by(() => (
-        isAuthenticated ? memoryFields : memoryFields.filter(hasGuestExamples)
-    ));
 
     let calendarCapabilityOptions = $derived(CALENDAR_CAPABILITIES.map((capability) => ({
         id: capability,
@@ -138,8 +127,7 @@
             icon_colorgradient: app.icon_colorgradient,
             providers: skill.providers || [],
             skills: [],
-            focus_modes: [],
-            settings_and_memories: []
+            focus_modes: []
         };
     }
 
@@ -152,8 +140,7 @@
             icon_colorgradient: app.icon_colorgradient,
             providers: [],
             skills: [],
-            focus_modes: [],
-            settings_and_memories: []
+            focus_modes: []
         };
     }
     
@@ -211,18 +198,6 @@
             direction: 'forward',
             icon: getIconName(app?.icon_image),
             title: $text(focusModes.find(f => f.id === focusModeId)?.name_translation_key || focusModeId)
-        });
-    }
-    
-    /**
-     * Handle memories category selection - navigate to category details page.
-     */
-    function handleSettingsMemoriesCategorySelect(categoryId: string) {
-        dispatch('openSettings', {
-            settingsPath: `apps/${appId}/settings_memories/${categoryId}`,
-            direction: 'forward',
-            icon: getIconName(app?.icon_image),
-            title: $text(visibleMemoryFields.find(c => c.id === categoryId)?.name_translation_key || categoryId)
         });
     }
     
@@ -399,8 +374,8 @@
             </div>
         {/if}
 
-        <!-- Memories section - always show cards for each category -->
-        {#if (section === 'all' || section === 'settings_memories') && (visibleMemoryFields.length > 0 || (app.memories?.length ?? 0) > 0)}
+        <!-- Memories section: public app Memories only (typed memories were removed) -->
+        {#if (section === 'all' || section === 'settings_memories') && (app.memories?.length ?? 0) > 0}
             <div class="section">
                 <SettingsSectionHeading title={$text('settings.app_store.settings_memories.title')} icon="settings" />
                 <p class="section-description">{$text('memories.sources_help')}</p>
@@ -411,7 +386,7 @@
                             {@const memoryApp: AppMetadata = {
                                 id: appId, name: memory.title, description: memory.description,
                                 icon_image: app.icon_image, icon_colorgradient: app.icon_colorgradient,
-                                providers: [], skills: [], focus_modes: [], settings_and_memories: []
+                                providers: [], skills: [], focus_modes: []
                             }}
                             <AppStoreCard app={memoryApp} cardIconType="memory" memoryVisibility="public"
                                 testId={`published-memory-${memory.id.split(':').at(-1)}`}
@@ -419,25 +394,6 @@
                                     settingsPath: `apps/${appId}/settings_memories/published_${memory.id.split(':').at(-1)}`,
                                     direction: 'forward', title: memory.title, icon: 'settings_memories'
                                 })} />
-                        {/each}
-                        {#each visibleMemoryFields as category (category.id)}
-                            {@const categoryApp: AppMetadata = {
-                                id: appId,
-                                name_translation_key: category.name_translation_key,
-                                description_translation_key: category.description_translation_key,
-                                // Use category's own icon_image if available; fall back to app icon
-                                icon_image: category.icon_image || app.icon_image,
-                                icon_colorgradient: app.icon_colorgradient,
-                                providers: [],
-                                skills: [],
-                                focus_modes: [],
-                                settings_and_memories: []
-                            }}
-                            <AppStoreCard
-                                app={categoryApp}
-                                cardIconType="memory"
-                                onSelect={() => handleSettingsMemoriesCategorySelect(category.id)}
-                            />
                         {/each}
                     </div>
                 </div>
@@ -461,8 +417,7 @@
                                 icon_colorgradient: app.icon_colorgradient,
                                 providers: [],
                                 skills: [],
-                                focus_modes: [],
-                                settings_and_memories: []
+                                focus_modes: []
                             }}
                             <AppStoreCard
                                 app={focusModeApp}

@@ -14,7 +14,7 @@ def test_legacy_personal_payload_never_bypasses_private_memory_consent():
     assert parse_custom_rule_documents([{"id":"personal:private", "source":"personal", "document":DOCUMENT}],
         authenticated_first_party=True, active_project_id="acme") == []
 
-# contract-test: supporting surface=rest_api assertions=app-memories.catalog.declared-types-only
+# contract-test: supporting surface=rest_api assertions=app-memories.catalog.no-typed-types
 def test_client_cannot_claim_published_app_memory():
     with pytest.raises(ValueError):
         parse_custom_rule_documents([{"id":"app:code:svelte", "source":"app", "document":DOCUMENT}],
@@ -48,9 +48,9 @@ def test_actual_loaded_receipt_is_distinct_from_consent_and_history_is_content_f
 
 # contract-test: supporting surface=rest_api assertions=app-memories.conversation.explicit-approval
 @pytest.mark.asyncio
-async def test_personal_memory_is_ineligible_even_with_a_refresh_callback():
+async def test_personal_ask_first_memory_is_ineligible_for_automatic_selection():
     from backend.shared.python_utils.memory_loader import parse_memory_md
-    personal = parse_memory_md(DOCUMENT, memory_id="personal:private", source="personal")
+    personal = parse_memory_md(DOCUMENT.replace("---\n", "---\nload_mode: ask_first\n", 1), memory_id="personal:private", source="personal")
     refresh = AsyncMock(return_value=[personal])
     assert await select_rules_with_jev(model_id="test", secrets_manager=None, rules=[personal], request_text="Python", refresh_catalog=refresh) == []
     refresh.assert_not_awaited()

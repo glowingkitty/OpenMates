@@ -132,7 +132,7 @@ def _eligible_for_early_active_summary(request: Any, overrides: Any,
     if any(getattr(request, field, None) for field in (
         "team_id", "team_id_hash", "user_task_id", "active_project_focus", "current_project",
         "active_focus_id", "accepted_plan_context", "current_chat_summary",
-        "current_chat_summary_v", "custom_rule_documents", "project_focus_documents",
+        "current_chat_summary_v", "custom_rule_documents", "memory_catalog", "project_focus_documents",
         "project_context_documents", "mentioned_settings_memories_cleartext",
         "legacy_cutover_task_id", "preprocessing_resume_ref", "embed_file_path_index",
         "is_external", "is_anonymous", "is_incognito", "is_sub_chat",

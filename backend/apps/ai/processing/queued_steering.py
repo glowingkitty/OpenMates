@@ -233,7 +233,7 @@ def _compatible(preflight: Any, current: Any, queued: AskSkillRequest,
     # Jev selected no new key, the active run cannot silently adopt a revision
     # that was not in its original authorized snapshot.
     private_context_fields = (
-        "active_project_focus", "custom_rule_documents", "project_focus_documents",
+        "active_project_focus", "custom_rule_documents", "memory_catalog", "project_focus_documents",
         "project_context_documents", "related_task_candidates", "accepted_plan_context",
         "connected_account_directory", "connected_account_token_refs",
         "focus_phase_state",

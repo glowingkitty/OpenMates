@@ -105,6 +105,8 @@ export async function initializeApp(
     // This listens for "showAppSettingsMemoriesPermissionDialog" events from the WebSocket handler
     initPermissionDialogListener();
     initConnectedAccountPermissionListener();
+    void import("./services/ruleDocumentService").then((module) => module.startMemoryExpirySweep());
+    void import("./services/legacyTypedMemoryMigration").then((module) => module.startLegacyTypedMemoryMigration());
 
     // Check authentication only if not skipped
     if (!options.skipAuthInitialization) {

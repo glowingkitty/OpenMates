@@ -257,7 +257,6 @@ class AppSkillsStore {
             const hasSkills = appMetadata.skills && appMetadata.skills.length > 0;
             const filteredSkills = (appMetadata.skills ?? []).filter(skill => featureEnabled(`skill:${appId}:${skill.id}`));
             const filteredFocusModes = (appMetadata.focus_modes ?? []).filter(focus => featureEnabled(`focus:${appId}:${focus.id}`));
-            const filteredMemories = (appMetadata.settings_and_memories ?? []).filter(memory => featureEnabled(`memory:${appId}:${memory.id}`));
             const providerSet = new Set<string>();
             for (const skill of filteredSkills) {
                 skill.providers?.forEach(provider => providerSet.add(provider));
@@ -280,7 +279,6 @@ class AppSkillsStore {
                 ...appMetadata,
                 skills: filteredSkills,
                 focus_modes: filteredFocusModes,
-                settings_and_memories: filteredMemories,
                 providers: Array.from(providerSet),
                 healthStatus: status === 'healthy' ? undefined : status,
             };
@@ -299,7 +297,7 @@ class AppSkillsStore {
                     const hasNoSkills = (appMetadata.skills?.length ?? 0) === 0;
                     const hasNonSkillComponents =
                         (appMetadata.focus_modes?.length ?? 0) > 0 ||
-                        ((appMetadata.settings_and_memories?.length ?? 0) + (appMetadata.memories?.length ?? 0)) > 0;
+                        (appMetadata.memories?.length ?? 0) > 0;
 
                     if (hasNoSkills || hasNonSkillComponents) {
                         userFilteredApps[appId] = {

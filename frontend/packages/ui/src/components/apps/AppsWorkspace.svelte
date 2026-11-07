@@ -32,7 +32,7 @@
   import AppsResultPreviewGroup from './AppsResultPreviewGroup.svelte';
   import { recommendationPreviewItems } from '../../services/appsWorkspacePreviewService';
   import { loadAppsRecentChats } from '../../services/appsWorkspaceRecentChatsService';
-  import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
+  import { listSavedEmbeds } from '../../services/savedEmbedService';
 
   let { hash, onNavigate, onSignup, onSettings, sidebarOpen = false, onSidebarClose }: {
     hash: string; onNavigate: (hash: string) => void; onSignup: () => void; onSettings: (path: string) => void;
@@ -113,7 +113,7 @@
   const catalogItems = $derived.by(() => Object.values(apps).filter(item => item.id !== 'ai'
     && (catalogFilter !== 'skills' || item.skills.length > 0)
     && (catalogFilter !== 'focus_modes' || (item.focus_modes?.length ?? 0) > 0)
-    && (catalogFilter !== 'settings_memories' || (item.settings_and_memories?.length ?? 0) > 0)
+    && (catalogFilter !== 'settings_memories' || (item.memories?.length ?? 0) > 0)
     && (!catalogSearchQuery.trim() || [appItem(item).title, item.id, appItem(item).summary, ...(item.providers ?? [])]
       .join(' ').toLowerCase().includes(catalogSearchQuery.trim().toLowerCase())))
     .sort((a, b) => catalogSort === 'newest' ? (b.last_updated ? Date.parse(b.last_updated) : 0) - (a.last_updated ? Date.parse(a.last_updated) : 0)
@@ -199,7 +199,7 @@
       listPendingAppsResultItems(selectedApp, selectedTeam),
       getPublicAppsRecommendations(selectedApp),
       loadAppsRecentChats(selectedApp, selectedTeam),
-      authenticatedOwner && !selectedTeam ? appSettingsMemoriesStore.readEntriesForApp(selectedApp) : Promise.resolve([]),
+      authenticatedOwner && !selectedTeam ? listSavedEmbeds() : Promise.resolve([]),
     ]);
     if (current !== generation || context !== accountKey || selectedApp !== appId) return;
     const pending = page[2].status === 'fulfilled' ? page[2].value : [];
@@ -212,9 +212,8 @@
     if (page[3].status === 'fulfilled') publicRecommendations = page[3].value;
     if (page[4].status === 'fulfilled') recentChats = page[4].value;
     if (page[5].status === 'fulfilled') savedEmbedSnapshot = { owner: context, items: page[5].value
-      .filter(entry => typeof entry.item_value.embed_id === 'string')
-      .map(entry => ({ id: entry.item_value.embed_id as string,
-        title: String(entry.item_value.title || entry.item_value.name || entry.item_key), skillId: String(entry.item_value.skill_id || '') })) };
+      .filter(entry => entry.appId === selectedApp)
+      .map(entry => ({ id: entry.embedId, title: entry.title, skillId: '' })) };
     if (temporaryResult && ![...library.recommendations, ...publicRecommendations].some(item => item.id === temporaryResult?.batch.id)) temporaryResult = null;
     const failed = page.slice(0, 2).some(result => result.status === 'rejected');
     if (failed && !libraryFailureNotified) notificationStore.error(tr('library_error'));

@@ -7,10 +7,8 @@ vi.mock('../../../../utils/aiModelSelection', () => ({aiModelSelectionValue: () 
 vi.mock('../../../../stores/personalDocumentMemories', () => ({currentPersonalDocumentMemories: () => fixture.entries}));
 vi.mock('../../../../stores/userProfile', async () => ({userProfile: (await import('svelte/store')).writable({disabled_ai_models: []})}));
 vi.mock('../../../../stores/appHealthStore', async () => ({isProviderHealthy: (await import('svelte/store')).writable(() => true)}));
-vi.mock('../../../../stores/appSettingsMemoriesStore', async () => ({appSettingsMemoriesStore: (await import('svelte/store')).writable({entries: [], decryptedEntries: new Map()})}));
 vi.mock('../../../../stores/appSkillsStore', () => ({appSkillsStore: {apps: {openmates: {
   id: 'openmates', name: 'OpenMates', skills: [], focus_modes: [],
-  settings_and_memories: [{id: 'memories', type: 'list', name_translation_key: 'Memories', description_translation_key: 'Your saved memories', schema_definition: {properties: {title: {is_title: true}, document: {type: 'string'}}}}],
 }}}}));
 vi.mock('../../../../services/projectService', () => ({listProjects: async () => [], getProjectSettings: vi.fn(), listProjectSources: vi.fn()}));
 vi.mock('../../../../i18n/translations', async () => ({text: (await import('svelte/store')).writable((key: string) => key)}));

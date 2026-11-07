@@ -9,11 +9,11 @@
   import { GenericMentionNode } from '../enter_message/extensions/GenericMentionNode';
   import { resolveIconName } from '../../utils/iconNameResolver';
   import type { Output } from './workflowBuilder';
-  import { documentToTemplate, templateToDocument, outputToken, WORKFLOW_OUTPUT_NODE } from './workflowMessageTokens';
+  import { documentToTemplate, templateToDocument, outputToken, memoryToken, WORKFLOW_OUTPUT_NODE } from './workflowMessageTokens';
   import { workflowMentionQuery } from './workflowMentionQuery';
 
-  let { value = '', outputs = [], placeholder = '', id = undefined, ariaLabel = placeholder, dataTestid = 'workflow-message-template', compact = false, disabled = false, onChange, onMentionTrigger }: {
-    value?: string; outputs?: Output[]; placeholder?: string; id?: string; ariaLabel?: string; dataTestid?: string; compact?: boolean; disabled?: boolean;
+  let { value = '', outputs = [], memoryTitles = {}, placeholder = '', id = undefined, ariaLabel = placeholder, dataTestid = 'workflow-message-template', compact = false, disabled = false, onChange, onMentionTrigger }: {
+    value?: string; outputs?: Output[]; memoryTitles?: Record<string, string>; placeholder?: string; id?: string; ariaLabel?: string; dataTestid?: string; compact?: boolean; disabled?: boolean;
     onChange: (value: string) => void; onMentionTrigger: (visible: boolean, query: string) => void;
   } = $props();
   let element: HTMLDivElement | undefined = $state();
@@ -72,6 +72,16 @@
     onMentionTrigger(false, '');
   }
 
+  export function insertMemory(memory: { id: string; title: string }): void {
+    if (!editor || disabled) return;
+    const cursor = editor.state.selection.from;
+    const mention = mentionAtCursor(editor);
+    const chain = editor.chain().focus();
+    if (mention) chain.deleteRange({ from: cursor - mention.length, to: cursor });
+    chain.insertContent(memoryToken(memory.id, memory.title)).run();
+    onMentionTrigger(false, '');
+  }
+
   onMount(() => {
     if (!element) return;
     const instance = new Editor({
@@ -89,7 +99,7 @@
           })];
         },
       })],
-      content: templateToDocument(value, outputs),
+      content: templateToDocument(value, outputs, memoryTitles),
       editable: !disabled,
       onUpdate: ({ editor: updated }) => { onChange(documentToTemplate(updated.getJSON())); notifyMention(updated); },
       onSelectionUpdate: ({ editor: updated }) => notifyMention(updated),
@@ -103,7 +113,7 @@
           const pasted = event.clipboardData?.getData('text/plain');
           if (!pasted || (!compact && !pasted.includes('{{'))) return false;
           const inserted = compact ? pasted.replace(/\s*\n+\s*/g, ' ') : pasted;
-          instance.commands.insertContent(templateToDocument(inserted, outputs).content ?? []);
+          instance.commands.insertContent(templateToDocument(inserted, outputs, memoryTitles).content ?? []);
           return true;
         },
       },
@@ -119,7 +129,7 @@
     if (!editor) return;
     if (editor.isEditable === disabled) editor.setEditable(!disabled, false);
     if (documentToTemplate(editor.getJSON()) !== value) {
-      editor.commands.setContent(templateToDocument(value, outputs), { emitUpdate: false });
+      editor.commands.setContent(templateToDocument(value, outputs, memoryTitles), { emitUpdate: false });
     }
     const transaction = editor.state.tr;
     editor.state.doc.descendants((node, position) => {

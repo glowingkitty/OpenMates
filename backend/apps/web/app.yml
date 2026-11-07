@@ -15,69 +15,6 @@ icon_image: |
   web.svg
 category: work
 last_updated: "2025-11-12"
-settings_and_memories:
-  # Bookmarks: Simple URL storage, just need the URL
-  - id: bookmarks
-    name_translation_key: web.bookmarks
-    description_translation_key: web.bookmarks.description
-    icon_image: web.svg
-    type: list
-    example_translation_keys:
-      - "web.bookmarks.example_1"
-      - "web.bookmarks.example_2"
-    example_entries:
-      - url: "https://github.com"
-      - url: "https://stackoverflow.com"
-    schema:
-      type: object
-      properties:
-        url:
-          type: string
-          description: Website URL to bookmark
-      required:
-        - url
-  # Favorite websites: Just URL, can be expanded later
-  - id: favorite_websites
-    name_translation_key: web.favorite_websites
-    description_translation_key: web.favorite_websites.description
-    type: list
-    example_translation_keys:
-      - "web.favorite_websites.example_1"
-      - "web.favorite_websites.example_2"
-    schema:
-      type: object
-      properties:
-        url:
-          type: string
-          description: Website URL to save as favorite
-      required:
-        - url
-  # Read later: URL + optional notes
-  - id: read_later
-    name_translation_key: web.read_later
-    description_translation_key: web.read_later.description
-    icon_image: task.svg
-    type: list
-    example_translation_keys:
-      - "web.read_later.example_1"
-      - "web.read_later.example_2"
-    example_entries:
-      - url: "https://example.com/article"
-        notes: "web.read_later.example_1.notes"
-      - url: "https://blog.example.com/post"
-        notes: "web.read_later.example_2.notes"
-    schema:
-      type: object
-      properties:
-        url:
-          type: string
-          description: Website URL to read later
-        notes:
-          type: string
-          description: Optional notes about why this was saved
-          multiline: true
-      required:
-        - url
 # Embed type definitions — single source of truth for frontend embed routing.
 # Read by generate-embed-registry.js to auto-generate TypeScript routing files.
 embed_types:

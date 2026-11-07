@@ -218,7 +218,7 @@
 
   let skillCount  = $derived(app?.skills?.length ?? 0);
   let focusCount  = $derived(app?.focus_modes?.length ?? 0);
-  let memoryCount = $derived(app?.settings_and_memories?.length ?? 0);
+  let memoryCount = $derived(app?.memories?.length ?? 0);
 
   // ─── settingsPage mode helpers (declared before displayName / appColorId) ──
 

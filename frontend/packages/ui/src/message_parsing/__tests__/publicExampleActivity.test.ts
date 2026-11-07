@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../../data/modelsMetadata', () => ({ modelsMetadata: [] }));
 vi.mock('../../data/matesMetadata', () => ({ matesMetadata: [] }));
 vi.mock('../../data/providersMetadata', () => ({ providersMetadata: {} }));
-vi.mock('../../stores/appSettingsMemoriesStore', () => ({ appSettingsMemoriesStore: { subscribe: () => () => undefined } }));
 vi.mock('../../stores/appSkillsStore', () => ({ appSkillsStore: { apps: {}, subscribe: () => () => undefined } }));
 import { parse_message } from '../parse_message';
 import { splitAssistantActivityRuns } from '../assistantActivityRuns';

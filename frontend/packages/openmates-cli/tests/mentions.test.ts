@@ -51,31 +51,25 @@ const testContext: MentionContext = {
         { id: "research", name: "Research" },
         { id: "deep_web_research", name: "Deep Research" },
       ],
-      settings_and_memories: [],
     },
     {
       id: "code",
       name: "Code",
       skills: [{ id: "get_docs", name: "Get Docs" }],
       focus_modes: [],
-      settings_and_memories: [
-        { id: "projects", name: "Projects", type: "list" },
-        { id: "preferred_tech", name: "Preferred Tech", type: "list" },
-      ],
     },
     {
       id: "ai",
       name: "AI",
       skills: [{ id: "ask", name: "Ask" }],
       focus_modes: [{ id: "deep_think", name: "Deep Think" }],
-      settings_and_memories: [],
     },
   ],
   memoryEntries: [
     {
       id: "entry-abc123",
-      app_id: "code",
-      item_type: "projects",
+      app_id: "openmates",
+      item_type: "memories",
       title: "MyApp",
     },
   ],
@@ -441,16 +435,16 @@ describe("parseMentions", () => {
   });
 
   describe("memory categories", () => {
-    it("resolves memory category", () => {
+    it("resolves the Memories category", () => {
       const result = parseMentions(
-        "@Code-Projects review architecture",
+        "@OpenMates-Memories review architecture",
         testContext,
       );
       assert.equal(result.resolved.length, 1);
       assert.equal(result.resolved[0].type, "settings_memory");
       assert.equal(
         result.resolved[0].wireSyntax,
-        "@memory:code:projects:list",
+        "@memory:openmates:memories:list",
       );
     });
   });

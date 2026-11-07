@@ -382,35 +382,18 @@ test.describe('Example chats loading for new users', () => {
 		await expect(settingsMenu).not.toContainText(/\[T:settings\.chats\]/i);
 	});
 
-	// contract-test: direct surface=gui.web assertions=public-example-chats.catalog.discoverable
-	test('memory settings keep sample entries without retired public memory chats', async ({
-		page
-	}: {
-		page: any;
-	}) => {
+	// contract-test: direct surface=gui.web assertions=app-memories.catalog.no-typed-types,app-memories.typed.removed
+	test('typed app memory category routes no longer exist', async ({ page }: { page: any }) => {
 		test.setTimeout(90000);
 		await page.setViewportSize({ width: 1600, height: 900 });
-
 		await page.goto(getE2EDebugUrl('/#settings/apps/books/settings_memories/currently_reading'), {
 			waitUntil: 'domcontentloaded'
 		});
 		await page.waitForLoadState('networkidle');
-
 		const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
 		await expect(settingsMenu).toBeVisible({ timeout: 15000 });
-		const memoryCategory = settingsMenu.getByTestId('app-settings-memories-category');
-		await expect(memoryCategory).toHaveAttribute('data-app-id', 'books');
-		await expect(memoryCategory).toHaveAttribute('data-category-id', 'currently_reading');
-		await expect(memoryCategory.getByTestId('app-store-memory-example-chats')).toHaveCount(0);
-		const sampleEntries = memoryCategory.locator('.examples-list');
-		await expect(sampleEntries).toBeVisible({ timeout: 15000 });
-		await expect(sampleEntries.locator('.settings-item')).toHaveCount(2);
-		await sampleEntries.locator('.settings-item').first().click();
-		await expect(settingsMenu).toHaveAttribute(
-			'data-active-view',
-			'apps/books/settings_memories/currently_reading/entry/example_0',
-			{ timeout: 10000 }
-		);
+		await expect(settingsMenu.getByTestId('app-settings-memories-category')).toHaveCount(0);
+		await expect(settingsMenu.getByTestId('published-memory-route')).toHaveCount(0);
 	});
 
 	// contract-test: direct surface=gui.web assertions=public-example-chats.history.explicit-forgotten-reveal,public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity

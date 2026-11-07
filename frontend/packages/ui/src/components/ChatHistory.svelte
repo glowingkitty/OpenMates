@@ -19,6 +19,7 @@ import { storageArchiveFetch } from "../config/api";
   import { associateLoadedMemories } from '../utils/associateLoadedMemories';
   import { projectAuthoringJobs, saveProjectAuthoring } from '../services/projectAuthoringClientService';
   import FollowUpSuggestions from './FollowUpSuggestions.svelte';
+  import ContextSuggestionContainer from './ContextSuggestionContainer.svelte';
   import QuickTipsCard from './QuickTipsCard.svelte';
   import { fade, slide } from "svelte/transition";
   import type { MessageStatus, ProcessingPhase, ResumeCardImageBubble } from '../types/chat'; // Import global MessageStatus and ProcessingPhase
@@ -3589,6 +3590,10 @@ import { storageArchiveFetch } from "../config/api";
                         on:action={(event) => handleQuickTipAction(event.detail)}
                     />
                 </div>
+            {/if}
+
+            {#if currentChatId && !timelineSection && !isPublicChat(currentChatId)}
+                <ContextSuggestionContainer chatId={currentChatId} />
             {/if}
 
             {#if showFollowUpSuggestionsInHistory && onSuggestionClick && !timelineSection}

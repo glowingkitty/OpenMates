@@ -14,7 +14,6 @@ description_translation_key: business.description
 icon_image: business.svg
 category: work
 last_updated: "2026-10-12"
-settings_and_memories: []
 embed_types:
   - id: search_trademarks
     preview_component: business/BusinessTrademarkSearchEmbedPreview.svelte

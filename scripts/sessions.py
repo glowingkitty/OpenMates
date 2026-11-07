@@ -10568,7 +10568,9 @@ def _run_lint(files: list[str], *, checkout_root: Path | None = None) -> tuple[i
     for f in files:
         path_args += ["--path", f]
     cmd = ["./scripts/lint_changed.sh"] + lint_flags + path_args
-    return _run_cmd(cmd, cwd=str(checkout_root or CONTROL_PLANE_ROOT), timeout=LINT_TIMEOUT)
+    # Large diffs (hundreds of files) legitimately need more than the base budget.
+    timeout = int(os.environ.get("OPENMATES_LINT_TIMEOUT", LINT_TIMEOUT + 4 * len(files)))
+    return _run_cmd(cmd, cwd=str(checkout_root or CONTROL_PLANE_ROOT), timeout=timeout)
 
 
 

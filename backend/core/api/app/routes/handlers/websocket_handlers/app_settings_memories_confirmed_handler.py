@@ -23,6 +23,7 @@ from typing import Dict, Any, List
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
+from backend.shared.python_utils import memory_chat_grants as grants
 from backend.shared.python_utils.app_memory_policy import (
     REMOVED_APP_MEMORY_ERROR,
     is_removed_app_memory,
@@ -336,6 +337,31 @@ async def _cache_app_settings_memories(
     return cached_count
 
 
+async def _requested_memory_catalog(
+    pending_context: Dict[str, Any],
+    requested_keys: List[str],
+    encryption_service: EncryptionService,
+    user_vault_key_id: str,
+) -> List[Dict[str, Any]]:
+    """Decrypt the stored metadata snapshot and keep only requested ``memory:<id>`` rows."""
+    ciphertext = pending_context.get("memory_catalog_ciphertext")
+    requested = {key for key in requested_keys if isinstance(key, str) and key.startswith("memory:")}
+    if not ciphertext or not requested:
+        return []
+    plaintext = await encryption_service.decrypt_with_user_key(ciphertext, user_vault_key_id)
+    if not plaintext:
+        logger.warning("Memory catalog snapshot could not be decrypted; no Memories will apply")
+        return []
+    try:
+        rows = json.loads(plaintext)
+    except json.JSONDecodeError:
+        logger.warning("Memory catalog snapshot is malformed; no Memories will apply")
+        return []
+    if not isinstance(rows, list):
+        return []
+    return [row for row in rows if isinstance(row, dict) and f"memory:{row.get('id')}" in requested]
+
+
 async def _trigger_continuation(
     cache_service: CacheService,
     directus_service: DirectusService,
@@ -343,7 +369,9 @@ async def _trigger_continuation(
     user_id: str,
     chat_id: str,
     device_fingerprint_hash: str,
-    is_rejection: bool
+    is_rejection: bool,
+    confirmed_entries: Any = None,
+    approved_search_chat_ids_raw: Any = None,
 ) -> None:
     """
     Load pending request context and trigger a new ask_skill task.
@@ -495,7 +523,18 @@ async def _trigger_continuation(
             logger.info(f"Passing {len(app_settings_memories_metadata)} app_settings_memories_metadata keys to continuation task.")
             logger.debug(f"App settings/memories metadata keys for continuation: {app_settings_memories_metadata}")
         
+        approved_search_chat_ids: List[str] = [] if is_rejection else await grants.approved_search_chat_ids(
+            approved_search_chat_ids_raw, entries=confirmed_entries, requested_keys=requested_keys,
+            current_chat_id=chat_id,
+            is_owned=lambda other_chat_id: directus_service.chat.check_chat_ownership(other_chat_id, user_id),
+        )
         request_data_dict = {
+            "approved_search_chat_ids": approved_search_chat_ids,
+            # Body-free catalog snapshot restricted to ids requested in this pending
+            # request; the continuation accepts memory content for these ids only.
+            "memory_catalog": await _requested_memory_catalog(
+                pending_context, requested_keys, encryption_service, user_vault_key_id,
+            ),
             "chat_id": chat_id,
             "message_id": message_id,
             "user_id": user_id,

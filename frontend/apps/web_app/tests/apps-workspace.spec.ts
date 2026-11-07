@@ -666,8 +666,8 @@ test.describe('Apps workspace', () => {
     await page.goto(getE2EDebugUrl('/#apps/health/focus/prepare_doctor_appointment'), { waitUntil: 'domcontentloaded' });
     await expect(page.getByTestId('focus-mode-details')).toBeVisible({ timeout: 30000 });
     await page.goto(getE2EDebugUrl('/#apps/health/memory/medical_history'), { waitUntil: 'domcontentloaded' });
-    await expect(page.getByTestId('app-settings-memories-category')).toBeVisible({ timeout: 30000 });
-    await expect(page.getByTestId('app-settings-memories-category')).toHaveAttribute('data-category-id', 'medical_history');
+    // Typed memory categories were removed; the old route no longer opens a category page.
+    await expect(page.getByTestId('app-settings-memories-category')).toHaveCount(0);
   });
 
   // contract-test: supporting surface=gui.web assertions=apps.anonymous.cli-equivalent-gate

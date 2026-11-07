@@ -644,7 +644,7 @@ assertions:
   must: Project Memories provide relevant facts, preferences and reusable guidance automatically only within current authoritative
     active Project Focus/access. Deactivation prevents future inclusion, while already included conversation content keeps
     existing chat-history behavior. Personal memories about a Project retain personal consent. New Project Memory documents
-    use .openmates/memories; compatible legacy rules and facts documents remain readable without duplication.
+    use .openmates/memories with the same title, memory, when-to-use, optional start/expiry and load-mode fields as personal Memories and are edited in a Project Memories tab; compatible legacy rules and facts documents remain readable without duplication.
   depends_on:
   - examples.project_memories
 applies_to:

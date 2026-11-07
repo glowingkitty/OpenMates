@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { embedStore } from "../../services/embedStore";
 import { ALL_EXAMPLE_CHATS, INTERNAL_EXAMPLE_CHATS } from "../exampleChatData";
-import { getAllExampleChats, getAllExampleChatData, getRecentExampleChats, getFeaturedExampleChats, getExampleChat, getExampleChatBySlug, getExampleChatsForSkill, getExampleChatsForFocusMode, getExampleChatsForContentEmbed, getExampleChatsForSettingsMemory, getExampleChatMessages, getExampleChatEmbed, getExampleChatEmbedPiiMappings, resolveExampleChatEmbedRef, resolveExampleFullscreenTarget } from "../exampleChatStore";
+import { getAllExampleChats, getAllExampleChatData, getRecentExampleChats, getFeaturedExampleChats, getExampleChat, getExampleChatBySlug, getExampleChatsForSkill, getExampleChatsForFocusMode, getExampleChatsForContentEmbed, getExampleChatMessages, getExampleChatEmbed, getExampleChatEmbedPiiMappings, resolveExampleChatEmbedRef, resolveExampleFullscreenTarget } from "../exampleChatStore";
 import { clearEmbedError, markEmbedAsError, resolveEmbed } from "../../services/embedResolver";
 
 vi.mock('../exampleChatData', async (importOriginal) => {
@@ -30,7 +30,6 @@ describe("example embed registration", () => {
       [example.metadata.app_skill_examples, getExampleChatsForSkill],
       [example.metadata.app_focus_mode_examples, getExampleChatsForFocusMode],
       [example.metadata.content_embed_examples, getExampleChatsForContentEmbed],
-      [example.metadata.app_settings_memory_examples, getExampleChatsForSettingsMemory],
     ] as const;
     for (const [keys, lookup] of selectors) {
       for (const key of keys ?? []) {

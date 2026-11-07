@@ -33,7 +33,6 @@ def test_retired_execution_is_filtered_but_saved_content_contracts_remain(app_id
     filtered = filter_app_components_by_availability(app_id, source, availability)
     assert skill_id not in {skill["id"] for skill in filtered["skills"]}
     assert filtered["embed_types"] == source["embed_types"]
-    assert filtered["settings_and_memories"] == source.get("settings_and_memories", [])
     # Keep the implementation schema for saved results and compatibility callers;
     # runtime registration, rather than deleting historical contracts, gates execution.
     assert next(skill for skill in source["skills"] if skill["id"] == skill_id)["tool_schema"]
@@ -46,10 +45,6 @@ def test_removed_health_focuses_cannot_be_rediscovered_from_authored_sources():
     assert not retired.intersection(focus["id"] for focus in source.get("focuses", []))
     for directory in ("prepare-doctor-report", "health-insights", "prepare-doctor-appointment"):
         assert not (APPS_ROOT / "health" / "focus_modes" / directory).exists()
-    # Retirement must not erase the schemas needed to retain private saved data.
-    assert {item["id"] for item in source["settings_and_memories"]} >= {
-        "appointments", "medical_history", "symptoms_log", "sleep_diary",
-    }
     assert {item["id"] for item in source["embed_types"]} >= {"search_appointments", "create_report"}
 
 

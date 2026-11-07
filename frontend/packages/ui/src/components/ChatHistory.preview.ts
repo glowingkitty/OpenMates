@@ -17,9 +17,9 @@ const chatId = "preview-memory-consent";
 const requestId = "preview-memory-request";
 const userId = "preview-memory-user";
 const timestamp = 1788870532;
-const user = { message_id: userId, chat_id: chatId, role: "user", content: "Help me reply to a photography enquiry using my saved writing preferences.", created_at: timestamp, status: "synced" };
+const user = { message_id: userId, chat_id: chatId, role: "user", content: "Help me reply to a photography enquiry using my saved memories.", created_at: timestamp, status: "synced" };
 function request(messageId: string, entryCount: number) {
-  return { message_id: messageId, chat_id: chatId, role: "system", created_at: timestamp, status: "synced", content: JSON.stringify({ type: "app_settings_memories_request", request_id: requestId, user_message_id: userId, requested_keys: ["mail-writing_styles"], categories: [{ appId: "mail", itemType: "writing_styles", entryCount }] }) };
+  return { message_id: messageId, chat_id: chatId, role: "system", created_at: timestamp, status: "synced", content: JSON.stringify({ type: "app_settings_memories_request", request_id: requestId, user_message_id: userId, requested_keys: ["openmates-memories"], categories: [{ appId: "openmates", itemType: "memories", entryCount }] }) };
 }
 const unknown = request(requestId, 0);
 const known = request("preview-web-request", 1);

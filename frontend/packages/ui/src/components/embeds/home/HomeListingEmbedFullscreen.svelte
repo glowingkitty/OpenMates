@@ -28,14 +28,7 @@
   } from "./homeListingData";
   import { handleImageError } from "../../../utils/offlineImageHandler";
   import { authStore } from "../../../stores/authStore";
-  import { appSettingsMemoriesStore } from "../../../stores/appSettingsMemoriesStore";
-  import {
-    findSavedEmbedMemoryEntry,
-    forgetEmbedMemory,
-    getEmbedIdFromContentRef,
-    promptToSaveEmbedMemory,
-    saveEmbedMemory,
-  } from "../../../services/savedEmbedMemoryService";
+  import { savedEmbedIds, loadEmbedSaved, toggleEmbedSaved, getEmbedIdFromContentRef } from '../../../services/savedEmbedService';
   import type { EmbedFullscreenRawData } from "../../../types/embedFullscreen";
 
   /**
@@ -295,7 +288,6 @@
     if (url) {
       window.open(url, "_blank", "noopener,noreferrer");
     }
-    promptToSaveEmbedMemory(buildSaveConfig());
   }
 
   function parseAvailableFromDate(value: string | undefined): string | null {
@@ -309,46 +301,16 @@
     return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
   }
 
-  function buildSaveConfig() {
-    const saveTitle = displayTitle || "Listing";
-    return {
-      kind: "home_listing" as const,
-      appId: "home",
-      itemType: "saved_listings",
-      itemKey: `saved_listings.${url || saveTitle}`,
-      title: saveTitle,
-      reminderDateTime: parseAvailableFromDate(available_from),
-      reminderPromptTitle: saveTitle,
-      itemValue: {
-        embed_id:
-          embedId ||
-          data.focusChildEmbedId ||
-          getEmbedIdFromContentRef(data.attrs?.contentRef),
-        title: saveTitle,
-        url,
-        provider: provider || hostname,
-        price_label: price_label || "",
-        address: address || "",
-        available_from: available_from || "",
-        notes: [sizeDisplay, roomsDisplay, typeDisplay]
-          .filter(Boolean)
-          .join(" · "),
-      },
-    };
+
+  // Save / Saved: encrypted `saved` flag on the embed itself (no memory entry).
+  const savedTargetId = $derived(embedId || data.focusChildEmbedId || getEmbedIdFromContentRef(data.attrs?.contentRef));
+  let isSaved = $derived($savedEmbedIds.has(savedTargetId));
+  $effect(() => { if (savedTargetId) void loadEmbedSaved(savedTargetId); });
+
+  function handleToggleSaved() {
+    if (savedTargetId) void toggleEmbedSaved(savedTargetId);
   }
 
-  let saveConfig = $derived(buildSaveConfig());
-  let savedMemoryEntry = $derived(
-    findSavedEmbedMemoryEntry($appSettingsMemoriesStore, saveConfig),
-  );
-
-  function handleToggleSavedListing() {
-    if (savedMemoryEntry) {
-      forgetEmbedMemory(saveConfig);
-      return;
-    }
-    saveEmbedMemory(saveConfig);
-  }
 </script>
 
   {#snippet listingGallery()}
@@ -443,9 +405,9 @@
     <div class="embed-header-cta-group">
       {#if $authStore.isAuthenticated}
         <EmbedHeaderCtaButton
-          label={savedMemoryEntry ? "Forget" : "Add memory"}
-          variant="secondary" iconName="heart" iconOnly pressed={!!savedMemoryEntry}
-          onclick={handleToggleSavedListing}
+          label={$text(isSaved ? "embeds.saved_item" : "embeds.save_item")}
+          variant="secondary" iconName="heart" iconOnly pressed={isSaved}
+          onclick={handleToggleSaved}
           testId="save-embed-cta"
         />
       {/if}

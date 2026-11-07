@@ -1,7 +1,7 @@
 <!--
-  Isolated interaction evidence for the production memory header button.
+  Isolated interaction evidence for the production Save / Saved header button.
   The fixture owns only a reversible saved flag; styling and icon rendering
-  come from EmbedHeaderCtaButton itself. No account or memory API is used.
+  come from EmbedHeaderCtaButton itself. No account, embed or storage API is used.
   Both states retain their accessible label while omitting visible copy.
 -->
 <script lang="ts">
@@ -12,7 +12,7 @@
 
 <div class="memory-cta-fixture" data-testid="memory-cta-fixture">
   <EmbedHeaderCtaButton
-    label={saved ? 'Forget' : 'Add memory'}
+    label={saved ? 'Saved' : 'Save'}
     iconName="heart"
     iconOnly
     pressed={saved}

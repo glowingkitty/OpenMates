@@ -92,7 +92,6 @@ function normalizeTranslationKey(key, prefix) {
   const knownNamespaces = [
     "apps.",
     "app_skills.",
-    "app_settings_memories.",
     "focus_modes.",
     "mates.",
     "mate_descriptions.",
@@ -571,7 +570,6 @@ function parseAppYaml(appId, filePath) {
         : undefined,
       skills: [],
       focus_modes: [],
-      settings_and_memories: [],
       memories: [],
       providers: [], // Will be populated from skills
       category: appData.category ? (appData.category || "").trim() : undefined,
@@ -869,126 +867,13 @@ function parseAppYaml(appId, filePath) {
         }
       }
 
-    // Process settings_and_memories. Implemented fields are enabled by default
-    // unless they explicitly declare default_enabled: false.
-    // Note: settings_and_memories is the field name in app.yml and is used consistently in the frontend
-    const settingsAndMemories = appData.settings_and_memories || [];
-    if (Array.isArray(settingsAndMemories)) {
-      for (const item of settingsAndMemories) {
-        if (!isDefaultEnabled(item)) {
-          continue;
-        }
-
-        // Auto-prepend "app_settings_memories." prefix to settings/memory translation keys if not already present
-        const memoryMetadata = {
-          id: (item.id || "").trim(),
-          name_translation_key: normalizeTranslationKey(
-            (item.name_translation_key || "").trim(),
-            "app_settings_memories.",
-          ),
-          description_translation_key: normalizeTranslationKey(
-            (item.description_translation_key || "").trim(),
-            "app_settings_memories.",
-          ),
-          type: (item.type || "single").trim(),
-          // Include icon_image if present (used for type-specific icons in Apps cards)
-          icon_image: item.icon_image
-            ? (item.icon_image || "").trim()
-            : undefined,
-          // Include schema_definition if present (for dynamic form generation)
-          schema_definition: item.schema || item.schema_definition || undefined,
-          // Include example translation keys if present (shown to non-authenticated users to illustrate the category)
-          // These are translation key suffixes that get prefixed with "app_settings_memories." for lookup via $text()
-          example_translation_keys: Array.isArray(item.example_translation_keys)
-            ? item.example_translation_keys
-                .map((e) =>
-                  normalizeTranslationKey(
-                    (e || "").trim(),
-                    "app_settings_memories.",
-                  ),
-                )
-                .filter((e) => e.length > 0)
-            : undefined,
-          // Full example entries with all field values populated.
-          // String field values that are translation keys get prefixed with "app_settings_memories."
-          // Enum values, booleans, and numbers are kept as raw values.
-          example_entries: Array.isArray(item.example_entries)
-            ? item.example_entries.map((entry) => {
-                const normalizedEntry = {};
-                for (const [key, value] of Object.entries(entry)) {
-                  if (typeof value === "string" && value.includes(".")) {
-                    // Looks like a translation key — normalize it
-                    normalizedEntry[key] = normalizeTranslationKey(
-                      value.trim(),
-                      "app_settings_memories.",
-                    );
-                  } else {
-                    // Raw value (enum, boolean, number, or simple string)
-                    normalizedEntry[key] = value;
-                  }
-                }
-                return normalizedEntry;
-              })
-            : undefined,
-        };
-
-        // Auto-inject 'added_date' into every settings/memories schema.
-        // This is a universal field that records when a user created an entry.
-        // It's auto_generated (hidden from UI forms, auto-populated by the client)
-        // and converted to human-readable format before being included in LLM prompts.
-        // Injecting it here prevents the need to define it in every app.yml file.
-        if (
-          memoryMetadata.schema_definition &&
-          memoryMetadata.schema_definition.properties
-        ) {
-          if (!memoryMetadata.schema_definition.properties.added_date) {
-            memoryMetadata.schema_definition.properties.added_date = {
-              type: "integer",
-              description: "Unix timestamp when added",
-              auto_generated: true,
-            };
-          }
-        }
-
-        if (
-          memoryMetadata.id &&
-          memoryMetadata.name_translation_key &&
-          memoryMetadata.description_translation_key
-        ) {
-          appMetadata.settings_and_memories.push(memoryMetadata);
-        }
-      }
-    }
-
-    // Also process legacy memory_fields/memory for backward compatibility
-    const memoryFields = appData.memory_fields || appData.memory || [];
-    if (Array.isArray(memoryFields)) {
-      for (const memory of memoryFields) {
-        if (!isDefaultEnabled(memory)) {
-          continue;
-        }
-
-        // Auto-prepend "app_settings_memories." prefix to legacy memory field translation keys if not already present
-        const memoryMetadata = {
-          id: (memory.id || "").trim(),
-          name_translation_key: normalizeTranslationKey(
-            (memory.name_translation_key || "").trim(),
-            "app_settings_memories.",
-          ),
-          description_translation_key: normalizeTranslationKey(
-            (memory.description_translation_key || "").trim(),
-            "app_settings_memories.",
-          ),
-          type: (memory.type || "single").trim(),
-        };
-
-        if (
-          memoryMetadata.id &&
-          memoryMetadata.name_translation_key &&
-          memoryMetadata.description_translation_key
-        ) {
-          appMetadata.settings_and_memories.push(memoryMetadata);
-        }
+    // App-specific typed memories were removed (specification app-memories typed.removed):
+    // app.yml must not declare them. Public app Memories come from the published catalog.
+    for (const removedKey of ["settings_and_memories", "memory_fields", "memory"]) {
+      if (appData[removedKey] !== undefined) {
+        throw new Error(
+          `[generate-apps-metadata] ${appId}: '${removedKey}' was removed; app-specific typed memories no longer exist`,
+        );
       }
     }
 
@@ -999,17 +884,16 @@ function parseAppYaml(appId, filePath) {
       Array.isArray(appData.instructions) && appData.instructions.length > 0;
 
     // Only include apps that have at least one default-enabled skill, focus mode,
-    // settings_and_memories entry, or instructions.
+    // memory, or instructions.
     const hasContent =
       appMetadata.skills.length > 0 ||
       appMetadata.focus_modes.length > 0 ||
-      appMetadata.settings_and_memories.length > 0 ||
       appMetadata.memories.length > 0 ||
       hasInstructions;
 
     if (!hasContent) {
       console.warn(
-        `[generate-apps-metadata] ${appId}: No default-enabled skills, focus modes, settings_and_memories, or instructions found. Excluding from Apps.`,
+        `[generate-apps-metadata] ${appId}: No default-enabled skills, focus modes, memories, or instructions found. Excluding from Apps.`,
       );
       return null;
     }
@@ -1196,102 +1080,6 @@ function generateTypeScript(appsMetadata) {
 
       lines.push(`        memories: ${JSON.stringify(app.memories)},`);
 
-      // Settings and memories array (maps to 'settings_and_memories' in app.yml)
-      lines.push(`        settings_and_memories: [`);
-      if (
-        app.settings_and_memories &&
-        Array.isArray(app.settings_and_memories)
-      ) {
-        for (const memory of app.settings_and_memories) {
-          lines.push(`            {`);
-          lines.push(`                id: ${JSON.stringify(memory.id)},`);
-          lines.push(
-            `                name_translation_key: ${JSON.stringify(memory.name_translation_key)},`,
-          );
-          lines.push(
-            `                description_translation_key: ${JSON.stringify(memory.description_translation_key)},`,
-          );
-          if (memory.icon_image) {
-            lines.push(
-              `                icon_image: ${JSON.stringify(memory.icon_image)},`,
-            );
-          }
-          // Include schema_definition if present (for dynamic form generation)
-          if (memory.schema_definition) {
-            lines.push(`                type: ${JSON.stringify(memory.type)},`);
-            const schemaStr = JSON.stringify(
-              memory.schema_definition,
-              null,
-              16,
-            );
-            // Indent each line of the schema to match the indentation level
-            const indentedSchema = schemaStr
-              .split("\n")
-              .map((line, index) => {
-                if (index === 0) {
-                  return `                schema_definition: ${line}`;
-                }
-                return `                ${line}`;
-              })
-              .join("\n");
-            // Check if there are trailing properties after schema
-            const hasExampleKeys =
-              memory.example_translation_keys &&
-              memory.example_translation_keys.length > 0;
-            const hasExampleEntries =
-              memory.example_entries && memory.example_entries.length > 0;
-            const hasTrailingProps = hasExampleKeys || hasExampleEntries;
-            if (hasTrailingProps) {
-              lines.push(indentedSchema + ",");
-            } else {
-              lines.push(indentedSchema);
-            }
-          } else {
-            // Check if there are trailing properties after type
-            const hasExampleKeys =
-              memory.example_translation_keys &&
-              memory.example_translation_keys.length > 0;
-            const hasExampleEntries =
-              memory.example_entries && memory.example_entries.length > 0;
-            const hasTrailingProps = hasExampleKeys || hasExampleEntries;
-            if (hasTrailingProps) {
-              lines.push(
-                `                type: ${JSON.stringify(memory.type)},`,
-              );
-            } else {
-              lines.push(
-                `                type: ${JSON.stringify(memory.type)}`,
-              );
-            }
-          }
-          // Include example translation keys if present (resolved via $text() in the frontend)
-          if (
-            memory.example_translation_keys &&
-            memory.example_translation_keys.length > 0
-          ) {
-            const hasExampleEntries =
-              memory.example_entries && memory.example_entries.length > 0;
-            if (hasExampleEntries) {
-              lines.push(
-                `                example_translation_keys: ${JSON.stringify(memory.example_translation_keys)},`,
-              );
-            } else {
-              lines.push(
-                `                example_translation_keys: ${JSON.stringify(memory.example_translation_keys)}`,
-              );
-            }
-          }
-          // Include full example entries if present (all field values populated)
-          if (memory.example_entries && memory.example_entries.length > 0) {
-            lines.push(
-              `                example_entries: ${JSON.stringify(memory.example_entries)}`,
-            );
-          }
-          lines.push(`            },`);
-        }
-      }
-      lines.push(`        ]`);
-
       lines.push(`    },`);
       return lines.join("\n");
     })
@@ -1380,9 +1168,9 @@ function main() {
       appsMetadata[appId] = appMetadata;
       const skillsCount = appMetadata.skills.length;
       const focusCount = appMetadata.focus_modes.length;
-      const memoryCount = appMetadata.settings_and_memories.length;
+      const memoryCount = appMetadata.memories.length;
       console.log(
-        `[generate-apps-metadata]   ✓ ${appId}: ${skillsCount} skill(s), ${focusCount} focus mode(s), ${memoryCount} settings/memory field(s)`,
+        `[generate-apps-metadata]   ✓ ${appId}: ${skillsCount} skill(s), ${focusCount} focus mode(s), ${memoryCount} memory document(s)`,
       );
     } else {
       console.warn(

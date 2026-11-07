@@ -1,70 +1,33 @@
 schema_version: 1
-specification: feature.app-memories@3
+specification: feature.app-memories@4
 catalog:
-- id: declared-code-memory
-  given:
-    app_id: code
-    item_type: preferred_tech
-    declared_in_app_metadata: true
-  when:
-    discover_memory_types: true
-  expect:
-    type_visible: true
-    field_schema_visible: true
-- id: app-without-memory-types
-  given:
-    app_id: projects
-    declared_memory_types: []
-  when:
-    discover_memory_types: true
-  expect:
-    types: []
+- id: no-typed-types
+  given: The Code and Travel apps previously declared preferred_tech and trips types.
+  when: A client discovers memory types after the migration shipped.
+  then: No app-specific types are listed anywhere; only public documents and the user's own Memories appear.
+- id: create-typed-rejected
+  given: An older client tries to create a code/preferred_tech entry.
+  when: The request is sent.
+  then: It is rejected before persistence with a message to create a Memory instead.
 lifecycle:
-- id: personal-create-update-delete
-  given:
-    authenticated: true
-    owner_context: personal
-    type: code/preferred_tech
-  when:
-    create:
-      name: Python
-      proficiency: advanced
-    update:
-      proficiency: expert
-    delete: true
-  expect:
-    created_encrypted: true
-    update_visible_after_local_decryption: true
-    final_list_contains_entry: false
-- id: invalid-declared-value
-  given:
-    authenticated: true
-    type: code/preferred_tech
-    proficiency: unsupported
-  when:
-    create: true
-  expect:
-    rejected_before_persistence: true
-    visible_validation_error: true
+- id: create-update-delete
+  given: An authenticated user.
+  when: They create the Memory "Prefer Python", edit its text and delete it.
+  then: Each step is stored as client ciphertext, the edit shows after local decryption, and the final list no longer contains
+    it.
+- id: missing-title
+  given: An authenticated user.
+  when: They save a Memory with no title.
+  then: A visible validation error appears and nothing is stored.
 privacy:
 - id: durable-row-boundary
-  given:
-    memory_data:
-      name: Python
-      proficiency: expert
-  when:
-    persist_and_sync: true
-  expect:
-    encrypted_item_json: ciphertext
-    plaintext_in_database: false
-    plaintext_in_logs: false
-    usable_key_on_server: false
+  given: A Memory "Prefer Python" with a body.
+  when: It is stored and synced.
+  then: Only ciphertext is durable; the database and logs contain no plaintext and the server holds no usable key.
 - id: backup-boundary
-  given:
-    encrypted_memory_row_in_backup: true
-  expect:
-    plaintext_content_present: false
-    normal_backup_expiry_applies: true
+  given: A backup contains a Memory row.
+  when: It is inspected.
+  then: It holds ciphertext only and normal backup expiry applies.
 access:
 - id: scoped-api-key-read
   given:
@@ -119,79 +82,28 @@ sync:
     newer_content_preserved: true
     stale_write_accepted: false
 conversation_approval:
-- id: selected-entry-use
-  given:
-    requested_types:
-    - travel/trips
-    saved_entries:
-    - trip-a
-    - trip-b
-  when:
-    user_approves:
-    - trip-b
-  expect:
-    supplied_to_conversation:
-    - trip-b
-    trip_a_supplied: false
-    plaintext_durably_stored: false
+- id: selected-memory-use
+  given: Two Ask first memories, "Trip to Paris" and "Trip to Rome", both match the request.
+  when: The user approves only Rome.
+  then: Only Rome is supplied to the answer, Paris is not, and nothing is stored in plaintext.
 - id: rejected-request
-  given:
-    requested_types:
-    - health/medical_history
-  when:
-    user_rejects: true
-  expect:
-    memory_plaintext_supplied: false
-    conversation_continues_without_memory: true
+  given: An Ask first memory "Medical history" matches the request.
+  when: The user rejects the request.
+  then: The answer continues without it and no content is supplied.
 conversation_request_convergence:
 - id: concurrent-cli-and-web-request
-  given:
-    conversation: chat-a
-    request_id: request-a
-    authorized_clients:
-    - cli
-    - web
-    requested_types:
-    - mail/writing_styles
-    available_entries: 1
-  when:
-    same_request_delivered_to_both_clients: true
-    delivery_retried: true
-  expect:
-    logical_request_count: 1
-    durable_request_message_count: 1
-    shared_stable_message_identity: true
-    known_entry_count: 1
-    approval_automatic: false
-    request_content_persisted_as: client_ciphertext
+  given: The CLI and web are both connected to one conversation that needs the Ask first memory "Email style".
+  when: The same request reaches both and delivery is retried.
+  then: One logical request and one request message exist, with a stable shared identity, no automatic approval, and content
+    stored only as client ciphertext.
 - id: unknown-count-is-not-empty
-  given:
-    request_id: request-a
-    requested_types:
-    - mail/writing_styles
-    local_entry_count_unavailable: true
-  when:
-    request_metadata_recorded: true
-  expect:
-    entry_count: explicitly_unknown
-    falsely_reported_zero: false
-    approval_automatic: false
+  given: A client cannot count the available memories.
+  when: The request is recorded.
+  then: The count is shown as unknown, not zero, and nothing is approved automatically.
 - id: legacy-duplicate-request-history
-  given:
-    conversation: chat-a
-    same_request_id: request-a
-    historical_request_message_count: 2
-    counts:
-    - unknown
-    - 1
-  when:
-    history_loaded_in_either_order: true
-  expect:
-    presented_request_count: 1
-    displayed_known_entry_count: 1
-    approval_decision_changed: false
-    approved_entries_expanded: false
-    history_rewritten_on_server: false
+  given: History contains two records of one request, one with an unknown count and one with count 1.
+  when: History loads in either order.
+  then: One request shows count 1, no approval changes, and the server rewrites no history.
 removed_owner:
 - id: removed-ai-owner
   given:
@@ -218,30 +130,14 @@ removed_owner:
     retained_app_rows_unchanged: true
     historical_chat_messages_unchanged: true
 surface_parity:
-- id: declared-type-lifecycle
-  given:
-    type: travel/trips
-    surfaces:
-    - rest_api
-    - cli
-    - sdks.npm
-    - sdks.pip
-    - gui.web
-    - gui.apple
-  expect:
-    discovery_semantics_match: true
-    encrypted_crud_semantics_match: true
-    owner_isolation_matches: true
-    visible_failures_match: true
+- id: document-lifecycle
+  given: REST, CLI, npm, pip, web and Apple.
+  when: A user creates, edits and deletes a Memory on each.
+  then: Fields, load modes, validation, owner isolation, versioning and visible failures behave the same.
 - id: mate-use-surfaces
-  given:
-    surfaces:
-    - gui.web
-    - gui.apple
-    - cli
-    mate_requests_memory: true
-  expect:
-    explicit_conversation_approval_required: true
+  given: Web, Apple and the CLI.
+  when: A mate wants an Ask first memory.
+  then: Each requires the explicit conversation approval.
 catalog_sources:
 - id: published-mobile-design
   given: Design publishes Mobile first design; the user also has an encrypted Travel trip.
@@ -262,13 +158,13 @@ privacy_sources:
   then: Its public text may be published; it is labeled app-provided rather than a personal preference.
 private_consent:
 - id: personal-project-preference
-  given: A personal encrypted memory says the Acme project uses Svelte.
-  when: A chat about Acme needs that memory.
-  then: The usual permission request appears; rejecting continues without its content.
-- id: explicit-entry
-  given: Two saved Travel trips exist.
-  when: The user explicitly mentions the Paris trip entry.
-  then: Only that entry is included without another request; the other trip is not approved.
+  given: An Ask first memory says the Acme project uses Svelte.
+  when: A chat about Acme needs it.
+  then: The usual request appears; rejecting continues without its content.
+- id: explicit-memory
+  given: Two memories, "Paris trip" and "Rome trip".
+  when: The user mentions @Paris trip.
+  then: Only that memory is included without another request.
 context_documents:
 - id: three-distinct-concepts
   given: A Project has a memory saying most customers use phones, a Review accessibility Focus, and a required keyboard-navigation
@@ -305,8 +201,7 @@ loaded_set:
 - id: history-replay
   given: An encrypted loaded receipt contains a private Project memory.
   when: The conversation is reopened and sent to inference.
-  then: The UI still permits inspection; inference history contains only receipt identity/revision, never stale
-    private text.
+  then: The UI still permits inspection; inference history contains only receipt identity/revision, never stale private text.
 legacy_documents:
 - id: legacy-project-guide
   given: An encrypted Project guide exists under .openmates/rules.
@@ -315,16 +210,112 @@ legacy_documents:
 - id: legacy-personal-guide
   given: Encrypted account settings contain a custom Rule document.
   when: The user continues a conversation using the updated client.
-  then: It is presented as a personal Memory and supplied only after the normal memory request or a specific explicit
-    mention.
+  then: It is presented as a personal Memory and supplied only after the normal memory request or a specific explicit mention.
 visibility_cards:
 - id: public-app-practices
   given: Design provides a published Mobile first design Memory.
   when: The user opens Memories or Design app details.
-  then: The regular Memory card shows Public and a white web icon at the top left, with description-colored label
-    text. Opening it shows the read-only document and explains relevant automatic loading.
+  then: The regular Memory card shows Public and a white web icon at the top left, with description-colored label text. Opening
+    it shows the read-only document and explains relevant automatic loading.
 - id: private-user-context
   given: The user has encrypted personal preferences and an encrypted Project Memory.
   when: The user browses their Memories.
-  then: User-created Memory cards show Private and a white lock icon in the same layout. The wording distinguishes
-    personal approval or explicit mentions from automatic relevant Project loading with active Project access.
+  then: User-created Memory cards show Private and a white lock icon in the same layout. The wording distinguishes personal
+    approval or explicit mentions from automatic relevant Project loading with active Project access.
+canonical_shape:
+- id: root-level-free-form-memory
+  given: The user opens Settings and chooses Memories, which is a root entry outside any app.
+  when: They create "Prefer TypeScript" with the text "Use TypeScript, never plain JavaScript, in new code", the when-to-use
+    "when writing code", no dates and the default load mode.
+  then: The memory is saved as one encrypted document and appears on its card with Private and the Auto include mode.
+- id: project-uses-same-editor
+  given: The user opens the Memories tab of the Acme Project.
+  when: They create "Staging API" with when-to-use "when calling the API".
+  then: The same editor and fields are used, and the document is stored encrypted with the Project.
+load_modes:
+- id: auto-and-ask
+  given: The memory "Prefer TypeScript" is Auto include and "Treatment schedule" is Ask first; both match the request.
+  when: The user sends a message.
+  then: The server receives only the two titles and when-to-use lines, never the bodies; the client answers the request for
+    Prefer TypeScript automatically and shows the approval card for Treatment schedule.
+- id: mention-only-hidden
+  given: A memory "Therapy notes" is set to Only when mentioned.
+  when: The user sends an unrelated message, then later types @Therapy notes.
+  then: No model stage sees it in the first message; after the mention only that body is sent.
+expiry:
+- id: client-deletes-after-grace
+  given: A memory expired on Monday and has a seven day renewal grace period.
+  when: A client connects the next Tuesday week.
+  then: The client deletes it; during the grace period it showed as expired with a Renew button.
+- id: workflow-snapshot-expiry
+  given: A Workflow step has a memory snapshot expiring on 1 December.
+  when: The scheduler runs the Workflow on 2 December with no client online.
+  then: The snapshot is not used and the run detail says the memory expired.
+references:
+- id: embed-auto-included
+  given: A memory references an embed holding the API contract.
+  when: The memory is loaded.
+  then: The embed content is included automatically up to the loading budget.
+- id: chat-metadata-only
+  given: A memory references the chat "Auth decision".
+  when: The memory is loaded.
+  then: Only its title, id, summary and last-updated time are supplied; the main processor may search that chat, and no other
+    chat becomes searchable.
+suggestions:
+- id: update-title-only
+  given: The memory "Staging API" says port 8001 and the chat reveals port 8002.
+  when: The post-processor proposes updating it.
+  then: Below the chat the container shows "Update Staging API"; no memory text is shown.
+- id: draft-not-saved
+  given: The user previews an update and opens it in Settings.
+  when: They leave without choosing Save, or choose Save after the memory changed on another device.
+  then: The memory is unchanged; if it was edited elsewhere meanwhile, pressing Save reports a conflict and overwrites nothing.
+- id: workflow-title-and-summary
+  given: The user repeatedly asked for a weekly summary of new events in their city.
+  when: The post-processor proposes a Workflow.
+  then: The container shows only a title and a short summary with a Create button; pressing Create opens the Workflow workspace and builds the Workflow visibly, and nothing exists before that.
+suggestion_billing:
+- id: attributed-to-originating-chat
+  given: A suggestion was made in the chat "Release planning".
+  when: The user previews an update.
+  then: Billing and usage list the request under that chat and contain no memory or chat text.
+- id: preview-already-current
+  given: The user taps Preview on a false-positive update suggestion.
+  when: The separate request finds nothing to change.
+  then: The user sees that the memory looks already up to date, and is charged for the request.
+workflow_snapshots:
+- id: explicit-mention
+  given: The author mentions @Writing style in a Workflow Ask AI step and saves.
+  when: The Workflow runs overnight with no client online.
+  then: The step uses the snapshot taken at save, and the author was told the server can read it at run time.
+- id: background-refresh
+  given: The author later edits Writing style on a laptop.
+  when: The laptop client reconnects, or the memory was deleted before it reconnects.
+  then: The snapshot is refreshed in the background and the next run records the new revision; if the memory was deleted the
+    snapshot is removed and the step is marked as needing attention.
+typed_removal:
+- id: metadata-clean
+  given: All app.yml files after the release.
+  when: Their metadata is validated.
+  then: None contains settings_and_memories and no client lists typed memory screens.
+migration:
+- id: ask-first-default
+  given: 'A user has the Travel entry "preferred airlines: Lufthansa".'
+  when: Their web client connects after the release.
+  then: 'A Memory "Travel: preferred airlines" with the airline text appears set to Ask first, and the old entry is removed
+    after it synced.'
+- id: two-devices
+  given: The laptop and phone connect at the same moment.
+  when: Both migrate.
+  then: One Memory exists, because both derive the same document id.
+saved_items:
+- id: save-label
+  given: An event embed.
+  when: The user taps Save on an event that has a date and time; separately, an event previously stored as a typed memory
+    entry is migrated.
+  then: The embed shows Saved, a reminder is scheduled, and nowhere says save to memory; the migrated event becomes a Saved
+    item, not a Memory.
+- id: upcoming-highlight
+  given: A saved event starts tomorrow.
+  when: The user opens the continue-where-you-left-off section.
+  then: The event appears highlighted as upcoming.

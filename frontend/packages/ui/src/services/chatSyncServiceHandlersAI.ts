@@ -1,4 +1,5 @@
 import { getWorkspaceCacheIdentity } from "./workspaceQueryCache";
+import { parseContextSuggestion } from "./contextSuggestionWire";
 import { persistGeneratedChatMetadata } from "./generatedChatMetadataPersistence";
 import { getWorkspaceCacheEpoch } from "./workspaceCacheLifecycle";
 import { noteChatMetadataTurn, completeChatMetadataTurn, isChatMetadataTurnCurrent } from "./lateChatMetadataGuard";
@@ -2991,6 +2992,7 @@ export async function handlePostProcessingCompletedImpl(
         quickTipSlugs: payload.quick_tip_slugs || [],
         taskProposals: payload.task_proposals || [],
         taskUpdateProposals: payload.task_update_proposals || [],
+        contextSuggestion: parseContextSuggestion(payload),
         harmfulResponse: payload.harmful_response,
       },
     });

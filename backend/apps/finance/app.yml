@@ -7,7 +7,6 @@ description_translation_key: finance.description
 icon_image: finance.svg
 category: personal
 last_updated: "2026-07-20"
-settings_and_memories: []
 embed_types:
   - id: check_accounts
     category: app-skill-use

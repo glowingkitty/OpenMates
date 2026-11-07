@@ -51,7 +51,6 @@ import {
 } from "./accountImport.js";
 import {
   deriveChatCompletionRecoveryKeypair,
-  hashItemKey,
   openChatCompletionRecoveryEnvelope,
   splitApiKeyCredential,
   type ChatCompletionRecoveryEnvelope,
@@ -2908,21 +2907,8 @@ export class OpenMatesIdeaBucket {
     );
   }
 
-  async saveSettings(input: IdeaBucketSettingsInput): Promise<IdeaBucketSettings> {
-    const current = await this.settings();
-    const settings = this.normalizeSettings({
-      processing_prompt: input.processingPrompt ?? current.processingPrompt,
-      processing_times: input.processingTimes ?? current.processingTimes,
-    }, current.entryId, current.itemVersion);
-    const data = this.settingsToMemoryValue(settings);
-    const result = await this.client.memories.create({
-      id: settings.entryId,
-      appId: IDEABUCKET_APP_ID,
-      itemType: IDEABUCKET_SETTINGS_ITEM_TYPE,
-      itemVersion: settings.itemVersion ? settings.itemVersion + 1 : 1,
-      data,
-    });
-    return { ...settings, entryId: String(result.id ?? settings.entryId ?? ""), itemVersion: settings.itemVersion ? settings.itemVersion + 1 : 1, source: "account" };
+  async saveSettings(_input: IdeaBucketSettingsInput): Promise<IdeaBucketSettings> {
+    throw new Error("Typed app memories were replaced by Memories; Idea Bucket settings are no longer stored as a typed memory.");
   }
 
   async add(input: IdeaBucketAddInput): Promise<IdeaBucketResult> {
@@ -2962,13 +2948,6 @@ export class OpenMatesIdeaBucket {
       entryId,
       itemVersion,
       source: entryId ? "account" : "default",
-    };
-  }
-
-  private settingsToMemoryValue(settings: IdeaBucketSettings): Record<string, unknown> {
-    return {
-      processing_prompt: settings.processingPrompt,
-      processing_times: settings.processingTimes.join(","),
     };
   }
 
@@ -3565,6 +3544,7 @@ export class OpenMatesMemories {
     return { memories: Object.values(metadata.apps).flatMap(app => app.memories ?? []) };
   }
 
+  /** @deprecated Legacy typed entries; read-only transitional path. */
   async list(options: RequestOptions = {}): Promise<Record<string, unknown>> {
     const data = await this.client.get<{ memories?: Array<Record<string, unknown>> }>(withQuery("/v1/sdk/memories", options.query));
     const memories = await Promise.all((data.memories ?? []).map(async (memory) => {
@@ -3578,49 +3558,10 @@ export class OpenMatesMemories {
     return { memories };
   }
 
-  async types(options: RequestOptions = {}): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(withQuery("/v1/sdk/memories/types", options.query));
-  }
-
-  async create(input: Record<string, unknown>): Promise<Record<string, unknown>> {
-    return this.storeMemory(input);
-  }
-
-  async update(id: string, input: Record<string, unknown>): Promise<Record<string, unknown>> {
-    return this.storeMemory({ ...input, id });
-  }
-
+  /** @deprecated Legacy typed entries; transitional delete only. */
   async delete(id: string, options: ConfirmedMutationOptions): Promise<Record<string, unknown>> {
     requireConfirmed(options, "Deleting a memory");
     return this.client.delete<Record<string, unknown>>(`/v1/sdk/memories/${encodeURIComponent(id)}`);
-  }
-
-  private async storeMemory(input: Record<string, unknown>): Promise<Record<string, unknown>> {
-    const appId = String(input.appId ?? input.app_id ?? "");
-    const itemType = String(input.itemType ?? input.item_type ?? "");
-    const rawItemValue = input.itemValue ?? input.item_value ?? input.data ?? {};
-    const itemValue = rawItemValue && typeof rawItemValue === "object" && !Array.isArray(rawItemValue)
-      ? rawItemValue as Record<string, unknown>
-      : { value: rawItemValue };
-    if (!appId || !itemType) {
-      throw new OpenMatesConfigError("Memory create/update requires appId and itemType");
-    }
-    const now = Math.floor(Date.now() / 1000);
-    const entry = {
-      id: String(input.id ?? randomUUID()),
-      app_id: appId,
-      item_key: hashItemKey(appId, itemType),
-      item_type: itemType,
-      encrypted_item_json: await encryptWithAesGcmCombined(
-        JSON.stringify({ ...itemValue, settings_group: appId, _original_item_key: itemType, added_date: now }),
-        await this.client.masterKey(),
-      ),
-      encrypted_app_key: "",
-      created_at: Number(input.created_at ?? now),
-      updated_at: now,
-      item_version: Number(input.itemVersion ?? input.item_version ?? 1),
-    };
-    return this.client.request<Record<string, unknown>>("/v1/sdk/memories", { entry });
   }
 }
 

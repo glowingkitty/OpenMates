@@ -241,35 +241,6 @@ embed_types:
         description: "Source domain name"
       - name: favicon_url
         type: string
-settings_and_memories:
-  # Preferred styles: Image styles and aesthetics the user prefers
-  - id: preferred_styles
-    name_translation_key: images.preferred_styles
-    description_translation_key: images.preferred_styles.description
-    icon_image: image.svg
-    type: list
-    example_translation_keys:
-      - "images.preferred_styles.example_1"
-      - "images.preferred_styles.example_2"
-      - "images.preferred_styles.example_3"
-    example_entries:
-      - name: "images.preferred_styles.example_1.name"
-        description: "images.preferred_styles.example_1.description"
-      - name: "images.preferred_styles.example_2.name"
-        description: "images.preferred_styles.example_2.description"
-    schema:
-      type: object
-      properties:
-        name:
-          type: string
-          description: Style name (e.g., Watercolor, Minimalist, Cyberpunk, Art Deco)
-          is_title: true
-        description:
-          type: string
-          description: Optional description of the style or when to use it
-          multiline: true
-      required:
-        - name
 instructions:
   - instruction: |
       After image generation or vectorization completes, describe the actual
