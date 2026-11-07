@@ -25,7 +25,8 @@
 
 <script lang="ts">
   import { text } from '../../i18n/translations';
-  import MemoryReferencesField from './MemoryReferencesField.svelte';
+  import MemoryBodyEditor from './MemoryBodyEditor.svelte';
+  import { bodyWithLegacyReferences, referencesFromBody } from '../../utils/memoryBodyDocument';
   import {
     SettingsInput, SettingsTextarea, SettingsDropdown, SettingsButton, SettingsButtonGroup,
     SettingsInfoBox, SettingsBadge, SettingsItem, SettingsQuote,
@@ -127,12 +128,33 @@
     notice = '';
   }
 
+  async function embedTypeOf(id: string): Promise<string | null> {
+    const { resolveEmbed } = await import('../../services/embedResolver');
+    const embed = await resolveEmbed(id);
+    return embed && typeof embed.type === 'string' ? embed.type : null;
+  }
+
   function edit(document: EditableRuleDocument) {
     selected = document;
     const fields = parseRuleDocument(document.document);
     original = { ...fields };
     draft = { ...fields, load_mode: fields.load_mode ?? 'auto_include' };
     error = ''; notice = '';
+    void showLegacyReferences(document, fields);
+  }
+
+  /** Memories saved with a separate reference list show those embeds inline. */
+  async function showLegacyReferences(document: EditableRuleDocument, fields: RuleDocumentFields) {
+    if (!fields.references?.length) return;
+    const body = await bodyWithLegacyReferences(fields.body, fields.references, embedTypeOf);
+    if (selected !== document || body === fields.body || draft.body !== fields.body) return;
+    setBody(body);
+  }
+
+  function setBody(body: string) {
+    const references = referencesFromBody(body);
+    const { references: _previous, ...rest } = draft;
+    draft = { ...rest, body, ...(references.length ? { references } : {}) };
   }
 
   function setDate(field: 'valid_from' | 'valid_until', value: string) {
@@ -233,7 +255,9 @@
       <SettingsItem type="heading" title={$text('memories.title')} />
       <SettingsInput bind:value={draft.title} maxlength={180} disabled={saving} ariaLabel={$text('memories.title')} dataTestid="rule-title" />
       <SettingsItem type="heading" title={$text('memories.practices')} />
-      <SettingsTextarea bind:value={draft.body} maxlength={20000} rows={7} disabled={saving} ariaLabel={$text('memories.practices')} dataTestid="rule-body" />
+      <MemoryBodyEditor value={draft.body} disabled={saving} ariaLabel={$text('memories.practices')} placeholder={$text('memories.body_placeholder')}
+        dataTestid="rule-body" onChange={setBody} onLimit={() => { error = $text('memories.references_limit'); }} />
+      <SettingsInfoBox type="info"><p>{$text('memories.references_hint')}</p></SettingsInfoBox>
       <SettingsItem type="heading" title={$text('memories.when_to_use_optional')} />
       <SettingsTextarea bind:value={draft.when_to_use} maxlength={1200} rows={2} disabled={saving} ariaLabel={$text('memories.when_to_use')} dataTestid="rule-when-to-use" />
       <SettingsInfoBox type="info"><p>{$text('memories.when_to_use_hint')}</p></SettingsInfoBox>
@@ -241,8 +265,6 @@
       <SettingsDropdown value={draft.load_mode ?? 'auto_include'} options={loadModeOptions} disabled={saving}
         ariaLabel={$text('memories.load_mode')} dataTestid="memory-load-mode"
         onChange={(value) => { draft = { ...draft, load_mode: value as MemoryLoadMode }; }} />
-      <MemoryReferencesField references={draft.references ?? []} disabled={saving}
-        onChange={(references) => { draft = { ...draft, references }; }} />
       <SettingsItem type="heading" title={$text('memories.valid_from')} />
       <SettingsInput type="date" value={dateOnly(draft.valid_from)} disabled={saving} ariaLabel={$text('memories.valid_from')} dataTestid="memory-valid-from" onInput={(value) => setDate('valid_from', value)} />
       <SettingsItem type="heading" title={$text('memories.valid_until')} />

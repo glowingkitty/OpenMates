@@ -376,43 +376,18 @@ private_memories:
   en: Your Memories
   de: Deine Erinnerungen
   verified_by_human: []
-references:
-  context: Heading of the references field in the Memory editor
-  en: References
-  de: Verweise
-  verified_by_human: []
 references_hint:
-  context: Explains that referenced embeds load with the Memory
-  en: Embeds load with this Memory.
-  de: Embeds werden mit dieser Erinnerung geladen.
-  verified_by_human: []
-reference_embed:
-  context: Badge on a referenced embed chip
-  en: Embed
-  de: Embed
-  verified_by_human: []
-reference_unavailable:
-  context: Marker shown for a Memory reference that is missing, deleted or not readable
-  en: Reference unavailable
-  de: Verweis nicht verfügbar
-  verified_by_human: []
-reference_remove:
-  context: Button label to remove a reference from a Memory
-  en: Remove reference
-  de: Verweis entfernen
-  verified_by_human: []
-reference_add_embed:
-  context: Label and button to add an embed reference by id
-  en: Add embed by ID
-  de: Embed per ID hinzufügen
+  context: Explains how to reference an embed inline in the Memory text
+  en: Paste an embed copied from a chat into the text to load it with this Memory.
+  de: Füge ein aus einem Chat kopiertes Embed in den Text ein, damit es mit dieser Erinnerung geladen wird.
   verified_by_human: []
 references_limit:
-  context: Error when a Memory has the maximum number of references
+  context: Error when a Memory already has the maximum number of embeds
   en: A Memory can have at most 50 references.
   de: Eine Erinnerung kann höchstens 50 Verweise haben.
   verified_by_human: []
-references_embed_not_found:
-  context: Error when the embed id typed in the Memory editor cannot be read
-  en: This embed could not be found or read.
-  de: Dieses Embed wurde nicht gefunden oder kann nicht gelesen werden.
+body_placeholder:
+  context: Placeholder of the Memory text editor
+  en: Write the Memory. Paste an embed from a chat to include it.
+  de: Schreibe die Erinnerung. Füge ein Embed aus einem Chat ein, um es einzubinden.
   verified_by_human: []

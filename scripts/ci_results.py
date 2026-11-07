@@ -1737,9 +1737,9 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
                 and "self-hosted" not in labels
                 and entry.get("runner_name", "").startswith("GitHub Actions")
             )
-        return "ubuntu-latest" in labels and entry.get("runner_name", "").startswith(
-            "GitHub Actions"
-        )
+        return bool(labels & {"ubuntu-latest", "ubuntu-24.04"}) and entry.get(
+            "runner_name", ""
+        ).startswith("GitHub Actions")
 
     if not runner_jobs or any(not admitted_runner(entry) for entry in runner_jobs):
         raise RuntimeError(

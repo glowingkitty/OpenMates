@@ -256,6 +256,10 @@ references:
   given: A memory references an embed holding the API contract.
   when: The memory is loaded.
   then: The embed content is included automatically up to the loading budget.
+- id: embed-referenced-inline
+  given: The user copies an embed from a chat and pastes it into the text of a Memory.
+  when: The Memory editor shows the text.
+  then: The embed appears inline as a preview between the surrounding text, with no separate reference field; removing it from the Memory leaves the embed in its chat.
 - id: chat-reference-unavailable
   given: Older data has a memory reference to the chat "Auth decision".
   when: The memory is loaded.

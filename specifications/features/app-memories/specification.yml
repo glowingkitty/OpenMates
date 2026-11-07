@@ -391,11 +391,13 @@ assertions:
   - examples.expiry
 - id: app-memories.references.embeds
   type: privacy
-  must: A Memory may reference embeds; chats cannot be referenced. References resolve only on a client holding the reader's
+  must: A Memory references embeds inline in its text, the way a chat message does, and the editor shows each as an embed preview;
+    there is no separate reference field. Embeds are added by pasting an embed copied from a chat, and removing one from a Memory
+    never deletes the embed itself. Chats cannot be referenced. References resolve only on a client holding the reader's
     keys, to one level. Loading a memory automatically includes referenced embed content within the loading budget. Ask first
     approval lists referenced items. Unavailable or unauthorized references show a marker and never fail the memory; budget
     overflow is marked, never silently truncated. Team readers resolve only references they are authorized for. A reference
-    to a chat found in older data is ignored.
+    to a chat found in older data is ignored. A Memory saved with a separate reference list shows those embeds inline when opened.
   depends_on:
   - models.MemoryReference
   - examples.references

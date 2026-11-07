@@ -125,7 +125,7 @@ test('wiki actions save one encrypted Study interest and submit in the same chat
   await page.getByRole('button', { name: 'Edit learning goal', exact: true }).click();
   await expect(page.getByTestId('rule-title')).toHaveValue(`Study interest: ${title}`);
   await recordDraftCheckpoint(page, 'study-editor-open');
-  await expect(page.getByTestId('rule-body')).toHaveValue(new RegExp(sourceUrl));
+  await expect(page.getByTestId('rule-body')).toHaveText(new RegExp(sourceUrl));
   await page.getByTestId('memory-delete').click();
   await expect(page.getByTestId('rule-title')).not.toHaveValue(`Study interest: ${title}`);
   await recordDraftCheckpoint(page, 'study-editor-cleanup');

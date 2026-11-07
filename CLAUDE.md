@@ -78,7 +78,12 @@ when a skill or this file points to it.
 - Existing logs/screenshots/failures are enough to start a fix. After two
   failed attempts with the same approach, reassess; ask before unrelated
   infrastructure repair or material scope growth.
-- Final reply links the latest successful E2E recording per requested flow.
+- Final reply shows proof for the exact deployed commit: per requested flow, the
+  latest successful E2E video link plus 1-3 screenshots attached with
+  `SendUserFile` (view them first and name visible defects). Never substitute
+  recordings from older commits. If browser CI cannot run or fails for infra
+  reasons, fix the blocker or say plainly the flow is unproven; never present
+  deployed work as verified without this, and run the E2E before deploying.
 
 ## Planning and Tasks
 - Ordinary work: inline goal + acceptance criteria. Durable `docs/plans/<slug>/plan.yml`

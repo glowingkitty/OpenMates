@@ -57,7 +57,7 @@ test.describe('Context suggestion container', () => {
 		await openSeededChat(page, { kind: 'memory_create', title: 'Release notes tone', body: '---\ntitle: Release notes tone\nwhen_to_use: writing release notes\nload_mode: ask_first\n---\n\nKeep release notes short.\n' });
 		await page.getByTestId('context-suggestion-preview').click();
 		await expect(page.getByTestId('memory-draft-banner')).toBeVisible();
-		await expect(page.getByTestId('rule-body')).toHaveValue('Keep release notes short.');
+		await expect(page.getByTestId('rule-body')).toContainText('Keep release notes short.');
 	});
 
 	// contract-test: supporting surface=gui.web assertions=app-memories.suggestions.post-processor

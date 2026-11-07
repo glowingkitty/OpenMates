@@ -70,6 +70,9 @@ behavior or material scope growth; keep the patch and evidence.
    recording (or, if it never passed, the latest failed one), labelled with test
    and result. Include extra device/participant views only when required. No
    appendix of attempts.
+3b. Videos must come from a run whose source is the deployed commit. Older-commit
+   recordings are never proof for the current change. Download or open the
+   screenshots, inspect them, and send them to the user with `SendUserFile`.
 4. Report missing capture, expiry or upload failure beside the test result.
    Retry uploads or renew signed links from S3; never rerun a test just for
    media. Do not pass `--ack` (Claude has no delivered-message ID).

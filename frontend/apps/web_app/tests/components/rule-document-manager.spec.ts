@@ -25,8 +25,15 @@ test('edits one coherent personal guide and saves all practices together', async
   const manager = page.getByTestId('rule-document-manager');
   await page.getByTestId('rule-document-edit').click();
   await expect(page.getByTestId('rule-title')).toHaveValue('Testing best practices');
-  await expect(page.getByTestId('rule-body')).toHaveValue('- Assert caller-visible outcomes.\n- Keep disposable test data separate.');
-  await page.getByTestId('rule-body').fill('- Assert caller-visible outcomes.\n- Exercise error paths.\n- Keep disposable test data separate.');
+  const body = page.getByTestId('rule-body');
+  await expect(body).toContainText('Assert caller-visible outcomes.');
+  await expect(body).toContainText('Keep disposable test data separate.');
+  await body.click();
+  await page.keyboard.press('Control+A');
+  for (const [index, line] of ['- Assert caller-visible outcomes.', '- Exercise error paths.', '- Keep disposable test data separate.'].entries()) {
+    if (index) await page.keyboard.press('Enter');
+    await page.keyboard.type(line);
+  }
   await page.getByTestId('rule-save').focus();
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('rule-saved-notice')).toHaveText('Memory saved.');
@@ -88,4 +95,22 @@ test('deep link draft is shown as an unsaved diff and not saved automatically', 
   await expect(page.getByTestId('rule-title')).toHaveValue('Testing habits');
   await expect(page.getByTestId('memory-draft-diff-title')).toContainText('Testing best practices');
   await expect(page.locator('html')).not.toHaveAttribute('data-rule-saved-document', /.+/);
+});
+
+// contract-test: direct surface=gui.web assertions=app-memories.references.embeds
+test('references embeds inline in the Memory text, with no separate reference field', async ({ page }, testInfo) => {
+  await page.goto(`${PREVIEW}&variant=embed&width=650`);
+  await waitForComponentPreview(page, COLD_START_MS);
+  const manager = page.getByTestId('rule-document-manager');
+  await page.getByTestId('rule-document-edit').filter({ hasText: 'Launch plan' }).click();
+  const body = page.getByTestId('rule-body');
+  await expect(body).toContainText('Check the launch page:');
+  await expect(body).toContainText('Then announce it.');
+  await expect(body.getByRole('button')).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Add embed by ID' })).toHaveCount(0);
+  await expect(manager).not.toContainText('[T:');
+  await page.getByTestId('rule-save').click();
+  await expect(page.getByTestId('rule-saved-notice')).toHaveText('Memory saved.');
+  await expect(page.locator('html')).toHaveAttribute('data-rule-saved-document', /references:\s+- kind: embed\s+id: preview-embed/);
+  await testInfo.attach('memory-inline-embed', { body: await manager.screenshot(), contentType: 'image/png' });
 });
