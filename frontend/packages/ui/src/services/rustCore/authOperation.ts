@@ -14,10 +14,10 @@
  */
 import { getApiEndpoint } from '../../config/api';
 import type { RustAuthClient } from './auth/authClient';
+import { authFlowActive, RUST_AUTH_SELECT_KEY as SELECT_KEY } from './auth/flowPush';
 import { PAGE_ORIGIN_PLACEHOLDER, type AuthHttpReply, type AuthHttpRequest, type PasswordLoginResult } from './auth/authProtocol';
 
-const RUST_AUTH_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1';
-export const RUST_AUTH_SELECT_KEY = 'openmates_rust_auth';
+export const RUST_AUTH_SELECT_KEY = SELECT_KEY;
 const LOGOUT_CHANNEL = 'openmates-auth-v1';
 
 let testClient: RustAuthClient | null = null;
@@ -27,8 +27,7 @@ let client: Promise<RustAuthClient> | null = null;
 /** True when this page runs auth through the Rust core. */
 export function rustAuthEnabled(): boolean {
 	if (testEnabled !== null) return testEnabled;
-	if (!RUST_AUTH_BUILD || typeof window === 'undefined') return false;
-	return window.localStorage?.getItem(RUST_AUTH_SELECT_KEY) !== 'ts';
+	return authFlowActive();
 }
 
 /** Test seam: inject a synthetic client and force the routing decision. */

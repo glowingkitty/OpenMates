@@ -11,6 +11,7 @@ import {
   getStepFromPath,
   STEP_ALPHA_DISCLAIMER,
   isSignupPath,
+  primeSignupLocation,
 } from "./signupState";
 import { requireInviteCode } from "./signupRequirements";
 import { userDB } from "../services/userDB";
@@ -96,10 +97,10 @@ let sessionReadTail: Promise<void> = Promise.resolve();
 /** All first-party session POSTs share cookie-rotation ordering. A privacy read
  * stays fresh rather than reusing an initialized authentication boolean. */
 export function serializeAuthSessionRead<T>(read: () => Promise<T>, signal?: AbortSignal): Promise<T> {
-  const run = () => {
+  const run = (): Promise<T> => {
     if (signal?.aborted) throw signal.reason ?? new Error('Session read aborted');
     return typeof navigator !== 'undefined' && navigator.locks
-      ? navigator.locks.request('openmates:auth-session-refresh', signal ? { signal } : {}, read)
+      ? navigator.locks.request('openmates:auth-session-refresh', signal ? { signal } : {}, read) as Promise<T>
       : read();
   };
   const operation = sessionReadTail.then(run, run);
@@ -534,6 +535,7 @@ async function performAuthCheck(
       // A validated account's persisted stage is authoritative. A signup URL
       // can start the guest flow, but must never reopen signup for a completed
       // account or move an unfinished account away from its saved stage.
+      if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") await primeSignupLocation(data.user.last_opened);
       if (isSignupPath(data.user.last_opened)) {
         currentSignupStep.set(getStepFromPath(data.user.last_opened));
         isInSignupProcess.set(true);
@@ -1235,6 +1237,7 @@ async function performAuthCheck(
         // Check if user is in signup flow (offline-first mode)
         // A user is in signup flow only if last_opened explicitly indicates signup
         // Avoid using tfa_enabled=false to keep passkey-only users out of OTP setup
+        if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") await primeSignupLocation(localProfile.last_opened);
         const inSignupFlow = isSignupPath(localProfile.last_opened);
 
         if (inSignupFlow) {

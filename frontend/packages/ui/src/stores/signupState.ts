@@ -1,4 +1,5 @@
 import { writable } from "svelte/store";
+import { authFlowActive, isSignupPathPushed, primeSignupPath, signupStepPushed } from "../services/rustCore/auth/flowPush";
 
 // Step name constants
 export const STEP_ALPHA_DISCLAIMER = "alpha_disclaimer";
@@ -197,6 +198,10 @@ export const showSignupFooter = writable(true);
  * @returns True if the path indicates signup flow
  */
 export function isSignupPath(path: string | null | undefined): boolean {
+  // Flag builds: last verdict pushed by the shared Rust core (neutral: false).
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1" && authFlowActive()) {
+    return isSignupPathPushed(path);
+  }
   if (!path) return false;
   // Support both /signup/ and #signup/ formats
   return path.startsWith("/signup/") || path.startsWith("#signup/");
@@ -209,6 +214,10 @@ export const hasGiftForSignup = writable<boolean>(false); // Track if user has a
 // Parse step name from last_opened path
 // Supports both /signup/ and #signup/ formats for backward compatibility
 export function getStepFromPath(path: string): string {
+  // Flag builds: last step pushed by the shared Rust core (neutral: basics).
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1" && authFlowActive()) {
+    return signupStepPushed(path);
+  }
   if (!path) return STEP_BASICS;
 
   // Normalize path: remove leading # if present, and handle both /signup/ and #signup/ formats
@@ -291,4 +300,14 @@ export function getPathFromStep(stepName: string): string {
 
   // Return the hash-based path format for consistency with other deep linking
   return `#signup/${stepSlug}`;
+}
+
+/**
+ * Flag builds: lets the shared Rust core answer for `path` so the following
+ * synchronous `isSignupPath` / `getStepFromPath` reads are exact. Async
+ * callers await it behind an `import.meta.env.VITE_OPENMATES_RUST_CORE`
+ * guard; it does nothing when the TypeScript path is selected.
+ */
+export async function primeSignupLocation(path: string | null | undefined): Promise<void> {
+  if (authFlowActive()) await primeSignupPath(path);
 }

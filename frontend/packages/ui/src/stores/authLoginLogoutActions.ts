@@ -12,6 +12,7 @@ import {
   getStepFromPath,
   isResettingTFA,
   isSignupPath,
+  primeSignupLocation,
 } from "./signupState";
 import { userDB } from "../services/userDB";
 import { chatDB, IndexedDbDeleteBlockedError } from "../services/db";
@@ -305,6 +306,7 @@ export async function login(
         // Check if user exists before accessing last_opened
         // A user is in signup flow only if last_opened explicitly indicates signup
         // Do not infer signup from tfa_enabled=false (passkey users may not use OTP)
+        if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") await primeSignupLocation(data.user?.last_opened);
         const inSignupFlow = isSignupPath(data.user?.last_opened);
 
         if (inSignupFlow) {

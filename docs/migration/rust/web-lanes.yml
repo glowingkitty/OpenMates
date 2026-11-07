@@ -595,8 +595,8 @@ lanes:
 - rank: 12
   name: auth-rest
   kind: wave4
-  status: planned
-  commit: null
+  status: running
+  commit: 6df2e95b16
   size: M
   wave: A
   deps: []
@@ -609,6 +609,18 @@ lanes:
   - id: slice-0
     note: extract passkey/PRF/recovery-key/password derivation from cryptoService.ts into services/authKeyDerivation.ts;
       pure move; unblocks keys
+  - id: slice-1
+    commit: 6df2e95b16
+    note: web_auth_signup/pair/recovery_print/flow in Rust; pairV2.pairRequest errors and printRecoveryKey routed
+  - id: slice-2
+    note: push-to-store adapters (services/rustCore/auth/flowPush.ts) for pairSessionState, pairActivate/rehydrate/auto-logout
+      tick, pairV2.pairExpired, signup getStepFromPath/isSignupPath (primeSignupLocation in login/session auth actions)
+      and config/tfa.ts lists; sync reads return the last pushed value or a neutral default
+    remaining:
+    - getPathFromStep/isSettingsStep/STEP_SEQUENCE and completeSignup (sync, URL-writing) still TS
+    - authSessionActions/authLoginLogoutActions/authMiscActions decision parts beyond the signup-location prime
+  blocked:
+  - passwordV2 master-key handling in the Worker needs the keys lane K2 protocol
   owns:
   - frontend/packages/ui/src/stores/{authSessionActions,authLoginLogoutActions,authMiscActions,signupState,pairSessionStore}.ts
   - frontend/packages/ui/src/services/{pairV2,passwordV2,passwordV2Core,passwordV2Worker,authKeyDerivation}.ts

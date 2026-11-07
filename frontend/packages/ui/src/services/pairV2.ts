@@ -1,5 +1,6 @@
 import { getApiEndpoint } from '../config/api';
 import { hashEmail } from './cryptoService';
+import { authFlowActive, pairExpiredPushed } from './rustCore/auth/flowPush';
 import { decryptWithMasterKeyDirect, encryptWithMasterKeyDirect } from './encryption/MetadataEncryptor';
 
 export const PAIR_POLL_MS = 1500;
@@ -99,5 +100,7 @@ export function isPairTerminal(status: PairStatus): boolean {
 }
 
 export function pairExpired(expiresAt: number): boolean {
+  // Flag builds: last answer pushed by the shared Rust core (neutral: not expired).
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1' && authFlowActive()) return pairExpiredPushed(expiresAt);
   return !Number.isFinite(expiresAt) || Date.now() >= expiresAt * 1000;
 }

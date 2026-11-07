@@ -27,6 +27,16 @@
  */
 
 import { writable, derived, get } from "svelte/store";
+import {
+  authFlowActive,
+  NEUTRAL_PAIR_STATE,
+  pairActivate,
+  pairAutoLogoutDue,
+  pushPairView,
+} from "../services/rustCore/auth/flowPush";
+
+/** Flag builds: pair policy runs in the shared Rust core (see flowPush.ts). */
+const RUST_FLOW: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1";
 
 // ---------------------------------------------------------------------------
 // Persistence keys
@@ -115,7 +125,9 @@ _pairSessionData.subscribe((data) => {
         _now.set(Date.now());
         // Check if expired — trigger logout
         const d = get(_pairSessionData);
-        if (d?.autoLogoutAt && Date.now() >= d.autoLogoutAt) {
+        if (RUST_FLOW && authFlowActive()) {
+          if (d) void pairAutoLogoutDue(d, Date.now()).then((due) => { if (due) void _handleAutoLogout(); });
+        } else if (d?.autoLogoutAt && Date.now() >= d.autoLogoutAt) {
           _handleAutoLogout();
         }
       }, 1000);
@@ -173,7 +185,15 @@ async function _handleAutoLogout(): Promise<void> {
 // Exported derived store
 // ---------------------------------------------------------------------------
 
-export const pairSessionState = derived(
+export const pairSessionState = RUST_FLOW && authFlowActive()
+  ? derived(
+      [_pairSessionData, _now],
+      ([$data, $now], set: (value: PairSessionState) => void) => {
+        pushPairView($data, $now, set);
+      },
+      NEUTRAL_PAIR_STATE,
+    )
+  : derived(
   [_pairSessionData, _now],
   ([$data, $now]): PairSessionState => {
     if (!$data?.isPairSession) {
@@ -227,8 +247,12 @@ export function activatePairSession(opts: {
   autoLogoutMinutes?: number | null;
   /** Absolute server deadline in Unix seconds. Numeric pair lifetimes must use this. */
   pairExpiresAt?: number | null;
-}): void {
+}): void | Promise<void> {
   const now = Date.now();
+  if (RUST_FLOW && authFlowActive()) {
+    // The record is built in Rust and stored when the answer arrives.
+    return pairActivate(opts, now).then((data) => { _pairSessionData.set(data); });
+  }
   const autoLogoutAt =
     opts.pairExpiresAt != null
       ? opts.pairExpiresAt * 1000
@@ -257,7 +281,10 @@ export async function rehydratePairSession(): Promise<void> {
   if (!data?.isPairSession) return;
 
   // If auto-logout already expired while the page was reloading → logout immediately
-  if (data.autoLogoutAt && Date.now() >= data.autoLogoutAt) {
+  const due = RUST_FLOW && authFlowActive()
+    ? await pairAutoLogoutDue(data, Date.now())
+    : !!data.autoLogoutAt && Date.now() >= data.autoLogoutAt;
+  if (due) {
     await _handleAutoLogout();
     return;
   }
