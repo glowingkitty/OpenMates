@@ -269,6 +269,11 @@ export class WebCryptoClient {
     });
   }
 
+  /** Benchmark only: forgets memoized decrypt results so the next calls take the batched Worker path. */
+  dropResultMemo(): void {
+    this.memo.clear();
+  }
+
   /**
    * Drops every cached chat-key cipher in the crypto unit. A unit that never
    * started holds none and is not started for this.
