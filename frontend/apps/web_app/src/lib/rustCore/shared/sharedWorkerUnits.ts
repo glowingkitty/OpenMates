@@ -19,4 +19,5 @@ export const SHARED_UNIT_INSTALLERS: UnitInstallers = Object.freeze({
 	search: (context) => import('@openmates/ui/src/services/rustCore/search/searchUnit').then((unit) => unit.installSearchUnit(context)),
 	transfer: (context) => import('@openmates/ui/src/services/rustCore/transfer/transferUnit').then((unit) => unit.installTransferUnit(context)),
 	sync: (context) => import('@openmates/ui/src/services/rustCore/sync/syncUnit').then((unit) => unit.installSyncUnit(context)),
+	drafts: (context) => import('@openmates/ui/src/services/rustCore/drafts/draftsUnit').then((unit) => unit.installDraftsUnit(context)),
 });

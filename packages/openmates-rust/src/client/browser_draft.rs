@@ -10,6 +10,7 @@ use std::future::Future;
 use zeroize::Zeroizing;
 const MAX_SAFE: u64 = 9_007_199_254_740_991;
 const MAX_PACKET: usize = 2 * 1024 * 1024;
+const MAX_DISPLAY_PREVIEW: usize = 4 * 1024;
 pub(super) fn validate_draft_markdown(markdown: &str) -> Result<()> {
     if markdown.trim().is_empty() || markdown.len() > 1_000_000 {
         return Err(Error::Invalid("Enter a nonempty draft of at most 1 MB."));
@@ -242,6 +243,49 @@ impl BrowserDraftWrite {
         {
             return Err(Error::Forbidden);
         }
+        self.remove_intent(c, &io).await
+    }
+    /// Exact `update_draft` payload of this ORIGINAL local write, for a platform
+    /// that delivers it over its own authenticated socket (the web page's
+    /// existing connection). Ciphertext and version only; never plaintext. A
+    /// local-only profile has no server authority and is refused.
+    pub fn remote_payload(&self, c: &Client) -> Result<Zeroizing<String>> {
+        self.check(c)?;
+        if c.is_local_browser_profile() {
+            return Err(Error::Forbidden);
+        }
+        Ok(Zeroizing::new(serde_json::to_string(&json!({
+            "chat_id": self.admission.chat,
+            "encrypted_draft_md": self.patch["encrypted_draft_md"],
+            "encrypted_draft_preview": self.patch["encrypted_draft_preview"],
+            "draft_v": self.version,
+        }))?))
+    }
+    /// The platform transport confirmed delivery of `remote_payload` at this
+    /// exact version (or took over its own durable replay). Removes only this
+    /// write's encrypted intent through the closed `ack_draft` plan.
+    pub async fn acknowledge_transport<F, Fut>(
+        self,
+        c: &mut Client,
+        io: F,
+    ) -> Result<BrowserDraftPublication>
+    where
+        F: Fn(String) -> Fut,
+        Fut: Future<Output = Result<String>>,
+    {
+        self.check(c)?;
+        let mut active = ActiveOwnedClient::enter(c, &self.operation)?;
+        let c = &mut *active;
+        if c.is_local_browser_profile() {
+            return Err(Error::Forbidden);
+        }
+        self.remove_intent(c, &io).await
+    }
+    async fn remove_intent<F, Fut>(self, c: &Client, io: &F) -> Result<BrowserDraftPublication>
+    where
+        F: Fn(String) -> Fut,
+        Fut: Future<Output = Result<String>>,
+    {
         let output = io(serde_json::to_string(&self.plan("ack_draft"))?).await?;
         self.check(c)?;
         let stored = packet(
@@ -327,7 +371,37 @@ impl Client {
         F: Fn(String) -> Fut,
         Fut: Future<Output = Result<String>>,
     {
+        self.prepare_browser_draft_with_preview_io_json(
+            owner, id, markdown, None, scope_json, now, io,
+        )
+        .await
+    }
+    /// Like `prepare_browser_draft_with_io_json`, with the chat-list preview the
+    /// platform UI rendered from its editor document (mention display names,
+    /// embed labels). The preview is presentation only; Rust still encrypts it
+    /// with the same master capability and owns every version/queue decision.
+    /// `None` keeps the shared 200-scalar markdown preview.
+    #[allow(clippy::too_many_arguments)] // Mirrors the browser binding's positional ABI.
+    pub async fn prepare_browser_draft_with_preview_io_json<F, Fut>(
+        &mut self,
+        owner: &str,
+        id: &str,
+        markdown: &str,
+        display_preview: Option<&str>,
+        scope_json: &str,
+        now: u64,
+        io: F,
+    ) -> Result<BrowserDraftWrite>
+    where
+        F: Fn(String) -> Fut,
+        Fut: Future<Output = Result<String>>,
+    {
         validate_draft_markdown(markdown)?;
+        if display_preview.is_some_and(|p| p.trim().is_empty() || p.len() > MAX_DISPLAY_PREVIEW) {
+            return Err(Error::Invalid(
+                "Enter a nonempty draft preview of at most 4 KB.",
+            ));
+        }
         if now > MAX_SAFE || scope_json.len() > 256 {
             return Err(Error::Protocol);
         }
@@ -380,7 +454,7 @@ impl Client {
         let (encrypted, preview) = {
             let active = ActiveOwnedClient::enter(self, &operation)?;
             active
-                .encrypt_draft_fields(markdown, None, &operation.crypto)
+                .encrypt_draft_fields(markdown, display_preview, &operation.crypto)
                 .await?
         };
         check(self)?;

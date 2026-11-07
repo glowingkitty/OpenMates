@@ -1184,6 +1184,108 @@ export const saveDraftDebounced = debounce(
       isSaveInProgress: true,
     }));
 
+    // Rust-core build: an existing saved Personal chat is saved by shared Rust in
+    // the core Worker (encryption, version, chats_db row and durable sync intent);
+    // this branch only keeps the editor state and sends Rust's ciphertext on the
+    // existing socket. Every other shape is routed to the TS writer below with a
+    // marked reason (rustDraftRoute.ts).
+    if (
+      import.meta.env.VITE_OPENMATES_RUST_CORE === "1" &&
+      currentChatIdForOperation &&
+      !draftTeamContext.teamId &&
+      previewText
+    ) {
+      if (
+        currentState.currentChatId === currentChatIdForOperation &&
+        currentState.lastSavedContentMarkdown &&
+        contentMarkdown === currentState.lastSavedContentMarkdown
+      ) {
+        draftEditorUIState.update((s) => ({ ...s, hasUnsavedChanges: false, isSaveInProgress: false }));
+        notifyQueuedEditDraftSavedLocally(editor, currentChatIdForOperation);
+        return;
+      }
+      const rustChatId = currentChatIdForOperation;
+      const rustSave = { editor, chatId: rustChatId, suppressResaveForQueuedEdit: false };
+      activeDraftSaves.add(rustSave);
+      let routedToRust = false;
+      try {
+        const { saveDraftWithRustCore } = await import("../rustCore/drafts/rustDraftRoute");
+        const outcome = await saveDraftWithRustCore({
+          chatId: rustChatId,
+          markdown: contentMarkdown,
+          preview: previewText,
+          workspaceEpoch: draftTeamContext.epoch,
+          send: (payload) =>
+            chatSyncService.sendUpdateDraft(
+              payload.chat_id,
+              payload.encrypted_draft_md,
+              payload.encrypted_draft_preview,
+              payload.draft_v,
+            ),
+        });
+        if (outcome.kind !== "legacy") {
+          routedToRust = true;
+          if (outcome.kind === "failed") {
+            draftEditorUIState.update((s) => ({ ...s, hasUnsavedChanges: true }));
+            return;
+          }
+          if (lifecycleRevisionAtStart !== draftLifecycleRevision || !isActiveTeamContext(draftTeamContext.teamId, draftTeamContext.epoch)) {
+            await discardStaleDraftWrite(rustChatId);
+            return;
+          }
+          draftEditorUIState.update((s) => ({
+            ...s,
+            currentUserDraftVersion: outcome.version,
+            hasUnsavedChanges: false,
+            lastSavedContentMarkdown: contentMarkdown,
+            isSaveInProgress: false,
+          }));
+          notifyQueuedEditDraftSavedLocally(editor, rustChatId);
+          chatMetadataCache.invalidateDraftProjection(rustChatId);
+          window.dispatchEvent(
+            new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, { detail: { chat_id: rustChatId } }),
+          );
+          try {
+            await outcome.synced;
+          } catch (wsError) {
+            if (!isActiveTeamContext(draftTeamContext.teamId, draftTeamContext.epoch)) return;
+            console.error(
+              `[DraftService] Error sending Rust draft update for chat ${rustChatId}; its durable intent replays offline:`,
+              wsError,
+            );
+            scheduleOfflineDraftFlush();
+            draftEditorUIState.update((s) => ({ ...s, hasUnsavedChanges: true }));
+          }
+          return;
+        }
+      } finally {
+        activeDraftSaves.delete(rustSave);
+        if (routedToRust) {
+          // Same lock release and follow-up save as the TS writer's finally block
+          // (kept inside this build-time branch so the flag-off bundle is unchanged).
+          draftEditorUIState.update((s) => ({ ...s, isSaveInProgress: false }));
+          if (resaveNeeded) {
+            resaveNeeded = false;
+            if (!rustSave.suppressResaveForQueuedEdit) {
+              const pendingResave = {
+                timer: null as unknown as ReturnType<typeof setTimeout>,
+                editor: editorOverride ?? getEditorInstance(),
+                chatId: chatIdFromMessageInput,
+              };
+              pendingResave.timer = setTimeout(() => {
+                pendingResaves.delete(pendingResave);
+                const followUpEditor = editorOverride ?? getEditorInstance();
+                if (followUpEditor && !followUpEditor.isDestroyed) {
+                  saveDraftDebounced(chatIdFromMessageInput, followUpEditor);
+                }
+              }, 100);
+              pendingResaves.add(pendingResave);
+            }
+          }
+        }
+      }
+    }
+
     // CRITICAL FIX: await encryptWithMasterKey since it's async to prevent TypeError when calling substring
     const encryptedMarkdown = await encryptWithMasterKey(contentMarkdown);
     const encryptedPreview = previewText

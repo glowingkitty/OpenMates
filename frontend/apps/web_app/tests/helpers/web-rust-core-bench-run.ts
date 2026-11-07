@@ -20,6 +20,7 @@ const { createBrowserProcessEvidence } = require('./browser-process-evidence.cjs
 const { summarizePaired, markdownTable, pairOrder, interpolatedBaselinePairs, transitionIncrements } = require('./bench-stats');
 const { createBenchProfiler } = require('./bench-profile');
 const { runSendBench } = require('./web-rust-core-bench-send');
+const { measureDraftSaves } = require('./draft-save-metrics');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 /** Measurement-only opt-out of the Rust history source (rustChatHistoryBootstrap.ts). */
@@ -78,6 +79,12 @@ async function reloadSample(page: any, chatId: string, path: 'ts' | 'rust', proc
 	sample.browserRssBeforeBytes = process.available ? process.before.summedReportedProcessRssBytes : null;
 	sample.mainHeapBytes = await page.evaluate(() => (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? null);
 	Object.assign(sample, await rustCoreInstances(page));
+	if (!profiler) {
+		// Draft save (draft-save-metrics.ts) after the reload window, outside the CPU/RSS evidence.
+		Object.assign(sample, await measureDraftSaves(page, chatId, path === 'rust'));
+		if (path === 'rust') expect(String(sample.draftSaveMarker), 'Rust saved the draft').toMatch(/^rust-(local|synced)$/);
+		else expect(sample.draftSaveMarker === null || String(sample.draftSaveMarker).startsWith('ts-'), 'TS arm used the TS draft writer').toBe(true);
+	}
 	expect(sample.chatRenderedMs, `${path}: saved chat rendered`).toBeDefined();
 	expect(sample.embedReadyMs, `${path}: embed preview finished`).toBeDefined();
 	expect(sample.wasmMainThreadInstantiations, `${path}: no WASM on the page realm`).toBe(0);
@@ -164,6 +171,7 @@ async function runWebRustCoreBench(page: any, testInfo: any, options: { pairs: n
 	summary.browserRssBytes = summarizePaired(interpolatedBaselinePairs(measured.map((entry) => ({ arm: entry.arm, value: entry.sample.browserRssBytes }))), { mode: 'difference', limit: RSS_LIMIT_BYTES });
 	summary.browserRssBytesAdjacentPair = summarizePaired(column('browserRssBytes'), { mode: 'difference', gate: false });
 	for (const metric of REPORTED_METRICS) summary[metric] = summarizePaired(column(metric), { mode: 'difference', gate: false });
+	summary.draftSaveP95Ms = summarizePaired(column('draftSaveP95Ms'), { mode: 'ratio', margin: MARGIN });
 	// More than one WASM instance in a Rust load is an automatic failure, whatever the statistics say.
 	const maxRustWasm = Math.max(...pairs.map((pair) => Number(pair.rust.wasmInstantiations)));
 	summary.wasmInstantiations = { ...summarizePaired(column('wasmInstantiations'), { mode: 'difference' }), verdict: maxRustWasm > 1 ? 'rust_worse' : 'rust_not_worse', maxRustInstances: maxRustWasm };
