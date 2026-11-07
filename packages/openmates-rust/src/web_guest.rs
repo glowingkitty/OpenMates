@@ -57,7 +57,7 @@ pub struct PromotionPlan {
 }
 
 /// JS `String.prototype.trim` whitespace set, which differs from Rust's `char::is_whitespace`.
-fn is_js_space(c: char) -> bool {
+pub(crate) fn is_js_space(c: char) -> bool {
     matches!(
         c,
         '\t' | '\n' | '\u{b}' | '\u{c}' | '\r' | ' ' | '\u{a0}' | '\u{1680}'

@@ -21,12 +21,13 @@
 
 import { rustWebCrypto } from "./rustCore/crypto/webCryptoClient";
 import { rustDecryptShareUrl, rustEncryptShareUrl } from "./rustCore/crypto/webCryptoFacades";
+import * as policy from "./shareState/shortUrlPolicy";
+import { decideShareState } from "./shareState/decide";
 
 // Base62 alphabet for URL-safe token/key generation
 const BASE62_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 const TOKEN_LENGTH = 8;
 const SHORT_KEY_LENGTH = 22;
-const MAX_SHORT_KEY_LENGTH = 22;
 
 // PBKDF2 iterations — 2x the existing shareEncryption.ts pattern (100k)
 // to compensate for the shorter key length (6 chars vs full encryption keys)
@@ -208,27 +209,14 @@ export async function decryptShareUrl(
 export function parseShortUrlFragment(
   fragment: string,
 ): { token: string; shortKey: string } | null {
-  // Remove leading # if present
-  const clean = fragment.startsWith("#") ? fragment.slice(1) : fragment;
+  return policy.parseShortUrlFragment({ fragment });
+}
 
-  const dashIndex = clean.indexOf("-");
-  if (dashIndex === -1) return null;
-
-  const token = clean.slice(0, dashIndex);
-  const shortKey = clean.slice(dashIndex + 1);
-
-  // Legacy keys start at four characters; current keys carry 128+ random bits.
-  const base62Pattern = /^[A-Za-z0-9]+$/;
-  if (
-    token.length < 6 || token.length > 12 ||
-    shortKey.length < 4 || shortKey.length > MAX_SHORT_KEY_LENGTH ||
-    !base62Pattern.test(token) ||
-    !base62Pattern.test(shortKey)
-  ) {
-    return null;
-  }
-
-  return { token, shortKey };
+/** Same rule as `parseShortUrlFragment`; with the Rust core flag on the Worker decides. */
+export function parseShortUrlFragmentDecided(
+  fragment: string,
+): Promise<{ token: string; shortKey: string } | null> {
+  return decideShareState("shortUrlParseFragment", { fragment });
 }
 
 /**
@@ -241,23 +229,15 @@ export function parseShortUrlParts(
   pathname: string,
   fragment: string,
 ): { token: string; shortKey: string } | null {
-  const cleanHash = fragment.startsWith("#") ? fragment.slice(1) : fragment;
-  const pathMatch = pathname.match(/^\/s\/([A-Za-z0-9]{6,12})\/?$/);
-  const base62Pattern = /^[A-Za-z0-9]+$/;
+  return policy.parseShortUrlParts({ pathname, fragment });
+}
 
-  if (pathMatch) {
-    const token = pathMatch[1];
-    if (
-      cleanHash.length >= 4 &&
-      cleanHash.length <= MAX_SHORT_KEY_LENGTH &&
-      base62Pattern.test(cleanHash)
-    ) {
-      return { token, shortKey: cleanHash };
-    }
-    return null;
-  }
-
-  return parseShortUrlFragment(cleanHash);
+/** Same rule as `parseShortUrlParts`; with the Rust core flag on the Worker decides. */
+export function parseShortUrlPartsDecided(
+  pathname: string,
+  fragment: string,
+): Promise<{ token: string; shortKey: string } | null> {
+  return decideShareState("shortUrlParseParts", { pathname, fragment });
 }
 
 /**
@@ -270,23 +250,29 @@ export function parseShortUrlParts(
  * @param shortKey - The decryption key
  * @returns The complete short URL (e.g., "https://omts.io/#token-shortKey")
  */
+function shortUrlBuildInput(token: string, shortKey: string, originOverride?: string) {
+  const shortDomain = typeof import.meta !== "undefined"
+    ? import.meta.env?.VITE_SHORT_URL_DOMAIN
+    : undefined;
+  const origin = originOverride ?? (typeof window !== "undefined"
+    ? window.location.origin
+    : "https://openmates.org");
+  return { token, short_key: shortKey, short_domain: shortDomain || undefined, origin };
+}
+
 export function buildShortUrl(
   token: string,
   shortKey: string,
   originOverride?: string,
 ): string {
-  const shortDomain = typeof import.meta !== "undefined"
-    ? import.meta.env?.VITE_SHORT_URL_DOMAIN
-    : undefined;
+  return policy.buildShortUrl(shortUrlBuildInput(token, shortKey, originOverride));
+}
 
-  if (shortDomain) {
-    // Custom short domain: omts.io/s/token#shortKey
-    return `https://${shortDomain}/s/${token}#${shortKey}`;
-  }
-
-  // Fallback: current domain + /s/ path
-  const origin = originOverride ?? (typeof window !== "undefined"
-    ? window.location.origin
-    : "https://openmates.org");
-  return `${origin}/s/${token}#${shortKey}`;
+/** Same rule as `buildShortUrl`; with the Rust core flag on the Worker decides. */
+export function buildShortUrlDecided(
+  token: string,
+  shortKey: string,
+  originOverride?: string,
+): Promise<string> {
+  return decideShareState("shortUrlBuild", shortUrlBuildInput(token, shortKey, originOverride));
 }

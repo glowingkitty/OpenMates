@@ -6,7 +6,7 @@
 
 import { getApiEndpoint } from "../config/api";
 import { decryptChatKeyWithMasterKey, encryptChatKeyWithMasterKey } from "./cryptoService";
-import { buildShortUrl, encryptShareUrl, generateShortUrlParts } from "./shortUrlEncryption";
+import { buildShortUrlDecided, encryptShareUrl, generateShortUrlParts } from "./shortUrlEncryption";
 import { workflowTemplateProjectionStore, type WorkflowTemplateProjectionLocalRecord } from "../stores/workflowTemplateProjectionStore";
 import type { WorkflowDetail, WorkflowGraph, WorkflowNode } from "../stores/workflowWorkspaceStore";
 
@@ -355,7 +355,7 @@ export async function createWorkflowTemplateShare(workflow: WorkflowDetail): Pro
     }),
   });
   workflowTemplateProjectionStore.upsert({ ...record, shortToken: token, revokedAt: null, updatedAt: Date.now() });
-  return { shortUrl: buildShortUrl(token, shortKey), longUrl, token };
+  return { shortUrl: await buildShortUrlDecided(token, shortKey), longUrl, token };
 }
 
 export async function buildWorkflowTemplateLongUrl(record: WorkflowTemplateProjectionLocalRecord): Promise<string> {

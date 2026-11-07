@@ -29,6 +29,8 @@
  *   4. This provides better UX for users exploring shared chats before signup
  */
 
+import { decideShareState } from './shareState/decide';
+
 const DB_NAME = 'openmates_shared_keys';
 const DB_VERSION = 2;
 const STORE_NAME = 'shared_chat_keys';
@@ -95,7 +97,9 @@ async function openDB(): Promise<IDBDatabase> {
  */
 export async function saveSharedChatKey(chatId: string, keyBytes: Uint8Array, shareUrl?: string | null): Promise<void> {
     console.debug(`[SharedChatKeyStorage] Saving key for chat: ${chatId}`);
-    
+
+    // Rust (flag on) or the TS rule builds the entry metadata; the key bytes stay on the page.
+    const meta = await decideShareState('sharedKeyEntryMeta', { chat_id: chatId, share_url: shareUrl, now_ms: Date.now() });
     const db = await openDB();
 
     return new Promise((resolve, reject) => {
@@ -103,10 +107,10 @@ export async function saveSharedChatKey(chatId: string, keyBytes: Uint8Array, sh
         const store = transaction.objectStore(STORE_NAME);
         
         const entry: SharedChatKeyEntry = {
-            chat_id: chatId,
+            chat_id: meta.chat_id,
             key_bytes: keyBytes,
-            created_at: Math.floor(Date.now() / 1000),
-            share_url: shareUrl ?? null
+            created_at: meta.created_at,
+            share_url: meta.share_url
         };
         
         const request = store.put(entry);
@@ -141,7 +145,7 @@ export async function saveSharedChatKey(chatId: string, keyBytes: Uint8Array, sh
 export async function getSharedChatUrl(chatId: string): Promise<string | null> {
     const db = await openDB();
 
-    return new Promise((resolve, reject) => {
+    const entry = await new Promise<SharedChatKeyEntry | null>((resolve, reject) => {
         const transaction = db.transaction([STORE_NAME], 'readonly');
         const store = transaction.objectStore(STORE_NAME);
         const request = store.get(chatId);
@@ -153,12 +157,12 @@ export async function getSharedChatUrl(chatId: string): Promise<string | null> {
         };
 
         request.onsuccess = () => {
-            const result = request.result as SharedChatKeyEntry | undefined;
-            resolve(result?.share_url || null);
+            resolve((request.result as SharedChatKeyEntry | undefined) ?? null);
         };
 
         transaction.oncomplete = () => db.close();
     });
+    return decideShareState('sharedKeyEntryUrl', { entry });
 }
 
 /**
@@ -215,7 +219,9 @@ export async function getAllSharedChatKeys(): Promise<Map<string, Uint8Array>> {
         return keys;
     }
 
-    return new Promise((resolve, reject) => {
+    // The cursor only collects rows; which of them are loadable is decided afterwards.
+    const rows = await new Promise<SharedChatKeyEntry[]>((resolve, reject) => {
+        const collected: SharedChatKeyEntry[] = [];
         const transaction = db.transaction([STORE_NAME], 'readonly');
         const store = transaction.objectStore(STORE_NAME);
         const request = store.openCursor();
@@ -229,19 +235,20 @@ export async function getAllSharedChatKeys(): Promise<Map<string, Uint8Array>> {
         request.onsuccess = (event) => {
             const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
             if (cursor) {
-                const entry = cursor.value as SharedChatKeyEntry;
-                if (entry.chat_id && entry.key_bytes) {
-                    keys.set(entry.chat_id, entry.key_bytes);
-                }
+                collected.push(cursor.value as SharedChatKeyEntry);
                 cursor.continue();
             } else {
-                // Cursor is done
                 db.close();
-                console.debug(`[SharedChatKeyStorage] Loaded ${keys.size} shared chat keys`);
-                resolve(keys);
+                resolve(collected);
             }
         };
     });
+    const loadable = await decideShareState('sharedKeyLoadable', {
+        entries: rows.map((entry) => ({ chat_id: entry.chat_id, has_key: !!entry.key_bytes })),
+    });
+    for (const index of loadable) keys.set(rows[index].chat_id, rows[index].key_bytes);
+    console.debug(`[SharedChatKeyStorage] Loaded ${keys.size} shared chat keys`);
+    return keys;
 }
 
 /**

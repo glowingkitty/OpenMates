@@ -16,7 +16,7 @@
     import { onMount } from 'svelte';
     import { getApiEndpoint } from '@repo/ui';
     import {
-        parseShortUrlFragment,
+        parseShortUrlFragmentDecided,
         decryptShareUrl,
     } from '@repo/ui/services/shortUrlEncryption';
 
@@ -36,7 +36,7 @@
                 return;
             }
 
-            const parsed = parseShortUrlFragment(hash);
+            const parsed = await parseShortUrlFragmentDecided(hash);
             if (!parsed) {
                 status = 'error';
                 errorMessage = 'Invalid short link';

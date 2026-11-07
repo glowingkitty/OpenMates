@@ -25,11 +25,12 @@ import {
   wrapAnonymousChatKey,
 } from "./anonymousChatKeyWrapping";
 import { ANONYMOUS_CHAT_PREFIX, isAnonymousChatId } from "./anonymousChatIds";
+import { decideShareState, shareStateClient } from "./shareState/decide";
+import { anonymousStripPlain } from "./shareState/anonymousChatPolicy";
 
 const LEGACY_ANONYMOUS_PAYLOAD_STORAGE = "openmates_anonymous_chats_v1";
 const DEFAULT_ANONYMOUS_CATEGORY = "general_knowledge";
 const DEFAULT_ANONYMOUS_ICON = "sparkles";
-const ANONYMOUS_STREAM_ADAPTER_MAX_CHUNKS = 18;
 const MESSAGE_ROLE_ORDER: Record<string, number> = {
   system: 0,
   user: 1,
@@ -65,16 +66,10 @@ function buildAnonymousTaskId(userMessageId: string): string {
   return `anonymous-task-${userMessageId}`;
 }
 
-function splitAnonymousResponseForAdapter(content: string): string[] {
-  if (!content) return [""];
-  const chunkCount = Math.min(ANONYMOUS_STREAM_ADAPTER_MAX_CHUNKS, Math.max(1, Math.ceil(content.length / 48)));
-  const chunkSize = Math.ceil(content.length / chunkCount);
-  const chunks: string[] = [];
-  for (let end = chunkSize; end < content.length; end += chunkSize) {
-    chunks.push(content.slice(0, end));
-  }
-  chunks.push(content);
-  return chunks;
+/** Progressive prefixes of the response; the chunk boundaries come from the shared decision. */
+async function splitAnonymousResponseForAdapter(content: string): Promise<string[]> {
+  const ends = await decideShareState("anonymousChunkEnds", { length: content.length });
+  return ends.map((end) => content.slice(0, end));
 }
 
 export interface AnonymousSendResult {
@@ -99,24 +94,21 @@ function assistantMessageIdFromResponse(
   response: AnonymousChatResponse,
   chatId: string,
   userMessageId: string,
-): string {
-  if (!response.messageId || response.messageId === userMessageId) {
-    return createMessageId(chatId);
-  }
-  // Stream chunks are persisted under the server's message ID by ActiveChat.
-  // Reuse that ID when saving the final response so reload cannot show both rows.
-  if (response.streamed) return response.messageId;
-  return response.messageId.startsWith(`${chatId}-`)
-    ? response.messageId
-    : `${chatId}-${response.messageId}`;
+): Promise<string> {
+  return decideShareState("anonymousAssistantMessageId", {
+    response_message_id: response.messageId,
+    streamed: response.streamed,
+    chat_id: chatId,
+    user_message_id: userMessageId,
+    new_uuid: crypto.randomUUID(),
+  });
 }
 
-function nextAnonymousMessageTimestamp(messages: Message[], fallback: number): number {
-  const latestMessageTimestamp = messages.reduce((latest, message) => {
-    const createdAt = Number(message.created_at ?? 0);
-    return Number.isFinite(createdAt) ? Math.max(latest, createdAt) : latest;
-  }, 0);
-  return latestMessageTimestamp > 0 ? Math.max(fallback, latestMessageTimestamp + 1) : fallback;
+function nextAnonymousMessageTimestamp(messages: Message[], fallback: number): Promise<number> {
+  return decideShareState("anonymousNextTimestamp", {
+    created_ats: messages.map((message) => message.created_at ?? null),
+    fallback,
+  });
 }
 
 function isEventStreamResponse(response: Response): boolean {
@@ -130,14 +122,8 @@ function normalizeStreamPayload(raw: AnonymousStreamPayload): AnonymousStreamPay
   return { ...raw, type };
 }
 
-function titleFromMarkdown(markdown: string): string {
-  const firstLine = markdown
-    .replace(/```json[\s\S]*?```/g, "")
-    .split("\n")
-    .map((line) => line.trim())
-    .find(Boolean);
-  if (!firstLine) return "Anonymous chat";
-  return firstLine.length > 50 ? `${firstLine.slice(0, 50)}...` : firstLine;
+function titleFromMarkdown(markdown: string): Promise<string> {
+  return decideShareState("anonymousTitle", { markdown });
 }
 
 function createFeatureNoticeMessage(chatId: string, createdAt: number): Message {
@@ -152,13 +138,12 @@ function createFeatureNoticeMessage(chatId: string, createdAt: number): Message 
   };
 }
 
-function isConversationMessage(message: Message): boolean {
-  return (
-    message.status !== "failed" &&
-    (message.role === "user" || message.role === "assistant") &&
-    typeof message.content === "string" &&
-    message.content.trim().length > 0
-  );
+/** Messages that belong to the conversation history sent to the model. */
+async function conversationMessages(messages: Message[]): Promise<Message[]> {
+  const indexes = await decideShareState("anonymousConversationRows", {
+    rows: messages.map((message) => ({ status: message.status, role: message.role, content: message.content })),
+  });
+  return indexes.map((index) => messages[index]);
 }
 
 function sortAnonymousMessages(messages: Message[]): Message[] {
@@ -173,13 +158,14 @@ function sortAnonymousMessages(messages: Message[]): Message[] {
   });
 }
 
+/** Synchronous, as before: the flag-off path of every call site. */
 function stripPlainChatFields(chat: Chat): Chat {
-  const chatToStore = { ...chat };
-  delete chatToStore.title;
-  delete chatToStore.category;
-  delete chatToStore.icon;
-  delete chatToStore.chat_summary;
-  return chatToStore;
+  return anonymousStripPlain({ chat: chat as unknown as Record<string, unknown> }) as unknown as Chat;
+}
+
+/** Flag on: the shared Rust core answers which plaintext fields to drop. */
+async function stripPlainChatFieldsInWorker(chat: Chat): Promise<Chat> {
+  return (await decideShareState("anonymousStripPlain", { chat: chat as unknown as Record<string, unknown> })) as unknown as Chat;
 }
 
 class AnonymousChatStorage {
@@ -298,7 +284,7 @@ class AnonymousChatStorage {
     if (isNewChat && params.sourceDemoId) {
       previousMessages = await this.getPublicSourceMessages(params.sourceDemoId, chatId);
     }
-    const userCreatedAt = nextAnonymousMessageTimestamp(previousMessages, now);
+    const userCreatedAt = await nextAnonymousMessageTimestamp(previousMessages, now);
     const featureNoticeMessage = isNewChat ? createFeatureNoticeMessage(chatId, userCreatedAt) : null;
     const userMessage: Message = {
       message_id: createMessageId(chatId),
@@ -318,7 +304,7 @@ class AnonymousChatStorage {
           updated_at: now,
         });
 
-    await chatDB.addChat(stripPlainChatFields(chat));
+    await chatDB.addChat((shareStateClient() ? await stripPlainChatFieldsInWorker(chat) : stripPlainChatFields(chat)));
     const pendingMessages = featureNoticeMessage
       ? [...previousMessages, featureNoticeMessage, userMessage]
       : [...previousMessages, userMessage];
@@ -343,7 +329,7 @@ class AnonymousChatStorage {
           await chatDB.deleteChat(chatId);
         } else {
           await chatDB.deleteMessage(userMessage.message_id);
-          await chatDB.addChat(stripPlainChatFields(existingChat));
+          await chatDB.addChat((shareStateClient() ? await stripPlainChatFieldsInWorker(existingChat) : stripPlainChatFields(existingChat)));
         }
         chatSyncService.activeAITasks.delete(chatId);
         aiTypingStore.clearTypingForChat(chatId);
@@ -360,12 +346,12 @@ class AnonymousChatStorage {
     }
 
     const assistantMessage: Message = {
-      message_id: assistantMessageIdFromResponse(response, chatId, userMessage.message_id),
+      message_id: await assistantMessageIdFromResponse(response, chatId, userMessage.message_id),
       chat_id: chatId,
       role: "assistant",
       content: response.assistant ?? "",
       status: response.status === "failed" ? "failed" : "synced",
-      created_at: nextAnonymousMessageTimestamp(pendingMessages, Math.floor(Date.now() / 1000)),
+      created_at: await nextAnonymousMessageTimestamp(pendingMessages, Math.floor(Date.now() / 1000)),
       user_message_id: userMessage.message_id,
       category: response.category ?? undefined,
       model_name: response.modelName ?? undefined,
@@ -383,7 +369,7 @@ class AnonymousChatStorage {
     });
 
     await chatDB.saveMessage(syncedUserMessage);
-    await chatDB.addChat(stripPlainChatFields(updatedChat));
+    await chatDB.addChat((shareStateClient() ? await stripPlainChatFieldsInWorker(updatedChat) : stripPlainChatFields(updatedChat)));
     await chatDB.saveMessage(assistantMessage);
     window.dispatchEvent(new CustomEvent("anonymousChatsUpdated"));
 
@@ -428,7 +414,7 @@ class AnonymousChatStorage {
     sourceDemoId: string | null,
   ): Promise<Chat> {
     const chatKey = chatKeyManager.createKeyForNewChat(chatId);
-    const title = titleFromMarkdown(markdown);
+    const title = await titleFromMarkdown(markdown);
     const encryptedTitle = await encryptWithChatKey(title, chatKey);
     return {
       chat_id: chatId,
@@ -550,7 +536,7 @@ class AnonymousChatStorage {
   ): Promise<AnonymousChatResponse> {
     let activeChat = chat;
     const learningModeContext = getAnonymousLearningModeContext();
-    const messageHistory = await Promise.all(previousMessages.filter(isConversationMessage).map(async (message) => {
+    const messageHistory = await Promise.all((await conversationMessages(previousMessages)).map(async (message) => {
       let content = message.content ?? "";
       if (message.role === "assistant" && content.includes("```json")) {
         const { projectAnonymousChatHistory } = await import("./anonymousChatHistory");
@@ -770,7 +756,7 @@ class AnonymousChatStorage {
       processing_metadata: false,
       updated_at: Math.floor(Date.now() / 1000),
     });
-    await chatDB.addChat(stripPlainChatFields(updatedChat));
+    await chatDB.addChat((shareStateClient() ? await stripPlainChatFieldsInWorker(updatedChat) : stripPlainChatFields(updatedChat)));
     const hydratedChat = await this.hydrateAnonymousChat(updatedChat);
     chatSyncService.dispatchEvent(new CustomEvent("chatUpdated", {
       detail: { chat_id: hydratedChat.chat_id, chat: hydratedChat, type: "metadata_updated" },
@@ -810,7 +796,7 @@ class AnonymousChatStorage {
       ...(encryptedFollowUps ? { encrypted_follow_up_request_suggestions: encryptedFollowUps } : {}),
       updated_at: Math.floor(Date.now() / 1000),
     });
-    await chatDB.addChat(stripPlainChatFields(updatedChat));
+    await chatDB.addChat((shareStateClient() ? await stripPlainChatFieldsInWorker(updatedChat) : stripPlainChatFields(updatedChat)));
     const hydratedChat = await this.hydrateAnonymousChat(updatedChat);
     chatSyncService.dispatchEvent(new CustomEvent("chatUpdated", {
       detail: { chat_id: hydratedChat.chat_id, chat: hydratedChat, type: "post_processing_metadata" },
@@ -924,7 +910,7 @@ class AnonymousChatStorage {
 
     this.dispatchAnonymousTypingStarted(typingPayload);
 
-    const chunks = splitAnonymousResponseForAdapter(params.assistantMessage.content ?? "");
+    const chunks = await splitAnonymousResponseForAdapter(params.assistantMessage.content ?? "");
     for (let index = 0; index < chunks.length; index += 1) {
       const isFinal = index === chunks.length - 1;
       const payload: AIMessageUpdatePayload = {
