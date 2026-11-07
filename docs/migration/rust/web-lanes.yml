@@ -452,7 +452,7 @@ lanes:
     commit: 5ce60fbeaf
     note: Worker-resident chat-key state, async key handles, logout termination
   - id: K3
-    commit: pending
+    commit: b4e558abb6
     note: bulk chat-key load plan (batch ranges, master-key retry step)
   size: L
   wave: B
