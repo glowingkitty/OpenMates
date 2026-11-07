@@ -42,7 +42,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import type { Chat, ChatCompressionCheckpoint, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult, ResumeCardImageBubble } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
-    import { markChatRead, markReadIfLatestReplySeen, hasUnread } from '../services/chatReadState';
+    import { markChatRead, markReadIfLatestReplySeen, hasUnread, hasUnreadRust, RUST_READ_STATE } from '../services/chatReadState';
     import { unreadMessagesStore } from '../stores/unreadMessagesStore';
     import ContinueCardUnreadBadge from './workspace/ContinueCardUnreadBadge.svelte';
     import { isChatMetadataTurnCurrent, getChatMetadataTurnKey } from '../services/lateChatMetadataGuard';
@@ -7461,7 +7461,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // Answering a reply implies it was read, even if not scrolled to its end;
         // the follow-up reply then counts as a single new unread message.
         if (!newChat && currentChat?.chat_id === message.chat_id && $authStore.isAuthenticated
-            && !isPublicChat(message.chat_id) && hasUnread(message.chat_id, currentChat.unread_count)) {
+            && !isPublicChat(message.chat_id)
+            && (RUST_READ_STATE ? await hasUnreadRust(message.chat_id, currentChat.unread_count) : hasUnread(message.chat_id, currentChat.unread_count))) {
             currentChat = { ...currentChat, unread_count: 0 };
             void markChatRead(message.chat_id, 'follow-up sent').catch((error) =>
                 console.error('[ActiveChat] Error marking chat read on send:', error));

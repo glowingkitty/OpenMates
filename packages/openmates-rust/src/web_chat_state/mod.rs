@@ -11,6 +11,9 @@
 use serde_json::Value;
 
 pub mod list;
+pub mod metadata;
+pub mod selection;
+pub mod unread;
 
 /// Stable error code of every malformed-input refusal (the unit's only code).
 pub const PROTOCOL: &str = "protocol";
@@ -27,3 +30,5 @@ fn parse(text: &str) -> Result<Value, String> {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod view_tests;

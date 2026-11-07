@@ -9,23 +9,24 @@ flag:
   default: 'off'
   flag_off_behavior: original TypeScript path, byte-identical build output (guarded in CI)
 summary:
-  total: 14
-  done: 14
+  total: 16
+  done: 16
   partial: 0
   missing: 0
   percent: 100.0
 e2e_specs_in_repo: [web-rust-core-apps.spec.ts, web-rust-core-auth.spec.ts, web-rust-core-bench.spec.ts, web-rust-core-chat.spec.ts,
   web-rust-core-chatstate.spec.ts, web-rust-core-crypto.spec.ts, web-rust-core-drafts.spec.ts, web-rust-core-embeds.spec.ts,
-  web-rust-core-memory-level.spec.ts, web-rust-core-profile.spec.ts, web-rust-core-reload-memory.spec.ts, web-rust-core-search.spec.ts,
-  web-rust-core-send-bench.spec.ts, web-rust-core-sync.spec.ts, web-rust-core-transfer.spec.ts, web-rust-core-ws.spec.ts]
+  web-rust-core-memory-level.spec.ts, web-rust-core-persist.spec.ts, web-rust-core-profile.spec.ts, web-rust-core-reload-memory.spec.ts,
+  web-rust-core-search.spec.ts, web-rust-core-send-bench.spec.ts, web-rust-core-sync.spec.ts, web-rust-core-transfer.spec.ts,
+  web-rust-core-ws.spec.ts]
 lanes:
   file: web-lanes.yml
   plan: web-lanes.md
   plan_date: 2026-11-07
   total: 21
   by_status:
-    planned: 9
-    running: 9
+    planned: 7
+    running: 11
     landed: 3
   landed:
   - name: search-snippet-perf
@@ -35,8 +36,8 @@ lanes:
   - name: memory-rss
     commit: bd07710
   running: [w3-web-drafts, w3-web-import-export, w3-web-send-perf, send-correctness, chatstate-core, embeds-3, sync-inbound,
-    ai-stream-recovery, send-prep-outbox]
-  next_planned_by_rank: [persistence, ws-unit, keys, parse, settings-memories]
+    ai-stream-recovery, persistence, send-prep-outbox, parse]
+  next_planned_by_rank: [ws-unit, keys, settings-memories, composer, auth-rest]
 units:
 - namespace: core
   status: installed
@@ -64,7 +65,7 @@ units:
     out). Serves the WebCryptoBatch protocol of webCryptoClient.ts on ports[0] against the realm''s single WASM
     binding.'
   typescript_fallback: none declared (2 files)
-  unit_tests: [cryptoResultMemo.test.ts, cryptoUnit.test.ts]
+  unit_tests: [chatKeyAdmissionVectors.test.ts, cryptoResultMemo.test.ts, cryptoUnit.test.ts]
   e2e_specs: [web-rust-core-crypto.spec.ts]
   vectors: [packages/openmates-rust/src/crypto/signup_vectors.json]
   open_gaps: []
@@ -81,7 +82,7 @@ units:
     generation (login runs before a principal exists), so the router never hands it a principal and unbind does
     not close it.'
   typescript_fallback: none declared (1 file)
-  unit_tests: [auth.test.ts, authSharedUnit.test.ts]
+  unit_tests: [auth.test.ts, authSharedUnit.test.ts, webAuthFlow.test.ts]
   e2e_specs: [web-rust-core-auth.spec.ts]
   vectors: []
   open_gaps: []
@@ -124,8 +125,8 @@ units:
   installer: frontend/packages/ui/src/services/rustCore/chatState/chatListUnit.ts
   what_moved: Serves the chat-list ordering and grouping policy (chatListProtocol.ts) on the unit port from the
     realm's single WASM binding. It holds no per-account state and does no IO, so it is a pre-bind namespace.
-  typescript_fallback: none declared (2 files)
-  unit_tests: [chatStateAdapter.test.ts, chatStateSharedUnit.test.ts]
+  typescript_fallback: none declared (4 files)
+  unit_tests: [chatStateAdapter.test.ts, chatStateHiddenForkOps.test.ts, chatStateSharedUnit.test.ts]
   e2e_specs: [web-rust-core-chatstate.spec.ts]
   vectors: [packages/openmates-rust/src/web_chat_state/ts_vectors.json]
   open_gaps:
@@ -243,7 +244,7 @@ units:
   installer: frontend/packages/ui/src/services/rustCore/parse/parseUnit.ts
   what_moved: Serves the render-plan block model (parseProtocol.ts) on the unit port from the realm's single WASM
     binding. Stateless and IO-free, hence pre-bind.
-  typescript_fallback: none declared (2 files)
+  typescript_fallback: none declared (3 files)
   unit_tests: []
   e2e_specs: []
   vectors: []
@@ -263,3 +264,31 @@ units:
   open_gaps: [Curated entry added by the ws lane so the status generator runs; the sendPrep lane owns the details.]
   spec_assertions: []
   spec_gaps: [Unit assertions are not yet mapped.]
+- namespace: persist
+  status: installed
+  pre_bind: true
+  installer: frontend/packages/ui/src/services/rustCore/persist/persistUnit.ts
+  what_moved: Serves the IndexedDB row policy (persistProtocol.ts) on the unit port from the realm's single WASM
+    binding. It holds no account state and does no IO (rows are passed in, decisions come back), so it is a pre-bind
+    namespace.
+  typescript_fallback: none declared (4 files)
+  unit_tests: [persistSharedUnit.test.ts]
+  e2e_specs: []
+  vectors: []
+  open_gaps: []
+  spec_assertions: []
+  spec_gaps: []
+- namespace: settings
+  status: installed
+  pre_bind: true
+  installer: frontend/packages/ui/src/services/rustCore/settings/settingsUnit.ts
+  what_moved: Serves the app settings/memories request policy (settingsProtocol.ts) on the unit port from the realm's
+    single WASM binding. It holds no per-account state and does no IO (the page owns IndexedDB and the decrypted
+    entries), so it is a pre-bind namespace.
+  typescript_fallback: none declared (1 file)
+  unit_tests: [settingsSharedUnit.test.ts]
+  e2e_specs: []
+  vectors: []
+  open_gaps: []
+  spec_assertions: []
+  spec_gaps: []

@@ -13,8 +13,8 @@ areas:
   priority_rank: 1
   file: web-app.yml
   unit: Worker namespaces
-  total: 14
-  done: 14
+  total: 16
+  done: 16
   partial: 0
   missing: 0
   percent: 100.0

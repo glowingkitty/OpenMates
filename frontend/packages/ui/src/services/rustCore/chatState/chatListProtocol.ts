@@ -10,9 +10,10 @@
 import type { UnitProtocol } from '../host/unitPort';
 import type { HiddenForkUnitProtocol } from './hiddenForkProtocol';
 import type { GroupChatsInput, SortChatsInput } from '../../../components/chats/utils/chatListInput';
+import { CHAT_VIEW_OPS, type ChatViewBinding, type ChatViewOps } from './chatViewProtocol';
 
-/** Chat-list ordering and grouping operations. */
-export interface ChatListUnitProtocol extends UnitProtocol {
+/** Chat-list ordering and grouping, selection, unread and metadata operations. */
+export interface ChatListUnitProtocol extends UnitProtocol, ChatViewOps {
 	sort: { request: SortChatsInput; response: number[] };
 	group: { request: GroupChatsInput; response: [string, number[]][] };
 }
@@ -21,7 +22,7 @@ export interface ChatListUnitProtocol extends UnitProtocol {
 export interface ChatStateUnitProtocol extends ChatListUnitProtocol, HiddenForkUnitProtocol {}
 
 /** Worker module exports (JSON text in, JSON text out) of browser_chat_state_list.rs. */
-export interface ChatListBinding {
+export interface ChatListBinding extends ChatViewBinding {
 	chat_state_sort(input: string): string;
 	chat_state_group(input: string): string;
 }
@@ -30,6 +31,7 @@ export interface ChatListBinding {
 export const CHAT_STATE_OPS: Readonly<Record<keyof ChatListUnitProtocol & string, keyof ChatListBinding>> = Object.freeze({
 	sort: 'chat_state_sort',
 	group: 'chat_state_group',
+	...CHAT_VIEW_OPS,
 });
 
 export function isChatListBinding(value: unknown): value is ChatListBinding {

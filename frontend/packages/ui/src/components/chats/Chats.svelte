@@ -13,7 +13,9 @@
 	import { chatDB } from '../../services/db';
 	import { chatKeyManager } from '../../services/encryption/ChatKeyManager';
 	import { getSharedChatUrl, saveSharedChatKey } from '../../services/sharedChatKeyStorage';
-	import { loadSharedSubChatPage, type SharedChatCursor, type SharedSubChatRow } from '../../services/sharedChatDetailsService';
+	import { sharedSubChatForList, rustGlobalSelectedPlan, rustSkipDraftActivation, RUST_CHAT_VIEW } from './utils/chatViewForList';
+	import { planGlobalSelected, skipDraftActivation } from './utils/chatSelectionPlan';
+	import { loadSharedSubChatPage, type SharedChatCursor } from '../../services/sharedChatDetailsService';
 	import SharedAuxiliaryLoadButton from '../SharedAuxiliaryLoadButton.svelte';
 	import { draftEditorUIState } from '../../services/drafts/draftState'; // Renamed import
 	import { isPersistedDraftOnlyChat } from '../../utils/chatDraftState';
@@ -234,32 +236,6 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	};
 	let sharedSubChatLoads = $state<Record<string, SharedSubChatLoadState>>({});
 
-	function sharedSubChatToChat(row: SharedSubChatRow, parent: ChatType): ChatType {
-		const createdAt = row.created_at;
-		return {
-			chat_id: row.id,
-			encrypted_title: row.encrypted_title ?? null,
-			messages_v: row.messages_v ?? 0,
-			title_v: row.title_v ?? 0,
-			metadata_v: row.metadata_v,
-			last_edited_overall_timestamp: row.last_edited_overall_timestamp ?? row.updated_at ?? createdAt,
-			unread_count: row.unread_count ?? 0,
-			created_at: createdAt,
-			updated_at: row.updated_at ?? createdAt,
-			encrypted_chat_summary: row.encrypted_chat_summary ?? null,
-			encrypted_icon: row.encrypted_icon ?? null,
-			encrypted_category: row.encrypted_category ?? null,
-			parent_id: parent.chat_id,
-			is_sub_chat: true,
-			is_shared_by_others: true,
-			share_pii: parent.share_pii ?? false,
-			share_highlights: parent.share_highlights ?? true,
-			group_key: 'shared_by_others',
-			budget_limit: row.budget_limit ?? null,
-			budget_spent: row.budget_spent ?? 0
-		};
-	}
-
 	async function loadSharedSubChats(parent: ChatType): Promise<void> {
 		const chatId = parent.chat_id;
 		const current = sharedSubChatLoads[chatId];
@@ -282,7 +258,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 					upsertLocalChatList(existing);
 					continue;
 				}
-				const child = sharedSubChatToChat(row, parent);
+				const child = await sharedSubChatForList(row, parent);
 				await saveSharedChatKey(row.id, key, originalShareUrl);
 				await chatDB.addChat(child);
 				upsertLocalChatList(child);
@@ -2110,7 +2086,10 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 				console.debug(`[Chats] draftEditorUIState signals new chat to select: ${persistedChatId}`);
 				draftEditorUIState.update(s => ({ ...s, newlyCreatedChatIdToSelect: null })); // Use renamed store; Reset trigger
 				const selectedChatId = activeChatStore.get();
-				if (selectedChatId && selectedChatId !== persistedChatId) {
+				const skipStaleDraft = RUST_CHAT_VIEW
+					? await rustSkipDraftActivation(selectedChatId, persistedChatId)
+					: skipDraftActivation(selectedChatId, persistedChatId);
+				if (skipStaleDraft) {
 					recordE2EDraftSelectionDecision({ chatId: persistedChatId, consumer: 'chat_list', result: 'skipped' });
 					console.debug('[Chats] Skipping stale persisted draft activation because another chat is selected:', {
 						persistedChatId,
@@ -2140,24 +2119,31 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 			const customEvent = event as CustomEvent<{ chat: ChatType }>;
 			if (customEvent.detail?.chat?.chat_id) {
 				const newChatId = customEvent.detail.chat.chat_id;
-				if (selectedChatId !== newChatId) {
+				const applyPlan = (plan: { setSelected: boolean; writeStore: boolean }) => {
+					if (!plan.setSelected) return;
 					console.debug(`[Chats] Global chat selected event received, updating selectedChatId to: ${newChatId}`);
 					selectedChatId = newChatId;
 					setLastActiveChatIdForDisplay(newChatId);
-					
+
 					// Update the persistent store so the selection survives component unmount/remount.
 					// CRITICAL: Skip if activeChatStore is already null — that means the user
 					// navigated to "new chat" mode AFTER the globalChatSelected event was dispatched
 					// (async race). Writing the old chat ID back here would trigger hashchange →
 					// handleChatDeepLink → loadChat, auto-reopening the previous chat.
-					const activeChatId = activeChatStore.get();
 					// This event mirrors an already committed selection. Rewriting
 					// the same chat would erase its pending embed/message deep link.
-					if (activeChatId !== null && activeChatId !== newChatId) {
+					if (plan.writeStore) {
 						activeChatStore.setActiveChat(newChatId);
-					} else if (activeChatId === null) {
+					} else if (activeChatStore.get() === null) {
 						console.debug(`[Chats] Skipping activeChatStore.setActiveChat — user is in new-chat mode (store is null)`);
 					}
+				};
+				const facts = { selected: selectedChatId, newId: newChatId, active: activeChatStore.get() };
+				if (RUST_CHAT_VIEW) {
+					void rustGlobalSelectedPlan(facts).then(applyPlan)
+						.catch((error) => console.error('[Chats] Rust selection plan failed', error));
+				} else {
+					applyPlan(planGlobalSelected(facts));
 				}
 			}
 		};

@@ -595,3 +595,20 @@ measurements:
     notes: Rust per-reload retained-heap slope +0.24 MiB [-0.43,0.90] vs TS -0.77 [-1.46,-0.09]; total RSS
       Rust +0.39 [-0.09,0.89] vs TS -0.34 [-0.84,0.15] (n=16). Within the +1 MiB gate; no growth beyond
       noise.
+  - id: 2026-11-07-chatRendered-08
+    date: '2026-11-07'
+    flow: chatRendered
+    metric: chatListRenderedMs
+    value_kind: delta_ms
+    value: -89.0
+    ci95: null
+    n_pairs: 12
+    verdict: rust_not_worse
+    verdict_basis: reported
+    ci_job: bb2a8971
+    source_commit: 78f9a90142
+    evidence: web-rust-core-chatstate.spec.ts CI bb2a8971 (12 pairs), TS median 1614 ms vs Rust 1525 ms,
+      with selection/unread/metadata ops in the unit
+    confidence: traced
+    notes: 'Advisory (2026-11-07 policy). Slice 2: selection, unread and metadata ops added; one shared
+      Worker, no page WASM, zero unit failures.'

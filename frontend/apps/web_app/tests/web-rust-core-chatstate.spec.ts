@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Playwright helpers expose CommonJS exports. */
 /**
- * Opt-in shared Rust core (WASM) — web chat-list ordering and grouping on the
- * shared Worker `chatState` unit, VITE_OPENMATES_RUST_CORE=1 build.
+ * Opt-in shared Rust core (WASM) — web chat-list ordering and grouping and the
+ * active-chat URL plan on the shared Worker `chatState` unit, VITE_OPENMATES_RUST_CORE=1 build.
  *
  * Engineering migration check (web lane: chatState). A logged-in account sends
  * one message (new chat), then alternating reloads render the sidebar on the
@@ -18,7 +18,7 @@ export {};
 const { test, expect } = require('./helpers/cookie-audit');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { createSignupLogger, createStepScreenshotter, getTestAccount, getE2EDebugUrl, withMockMarker } = require('./signup-flow-helpers');
-const { loginToTestAccount, sendMessage, deleteActiveChat, setChatSidebarOpen } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, sendMessage, deleteActiveChat, setChatSidebarOpen, startNewChat } = require('./helpers/chat-test-helpers');
 const { rustCoreInstances } = require('./helpers/rust-core-instances');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -45,7 +45,7 @@ test('chat list ordering and grouping run on the shared Rust chatState unit and 
 	const unitErrors: string[] = [];
 	page.on('console', (msg: any) => {
 		const text = msg.text();
-		if (/Rust chat-list (sort|grouping) failed|UnitPortError/.test(text)) unitErrors.push(text.slice(0, 300));
+		if (/Rust (chat-list (sort|grouping)|selection plan|URL plan|unread update) failed|UnitPortError/.test(text)) unitErrors.push(text.slice(0, 300));
 	});
 	await page.goto(getE2EDebugUrl('/'));
 	await loginToTestAccount(page, log, screenshot);
@@ -80,6 +80,11 @@ test('chat list ordering and grouping run on the shared Rust chatState unit and 
 			expect(instances.workers.filter((worker: { name: string }) => worker.name === 'shared.worker').length, `${path}: one shared Rust core Worker`).toBe(1);
 			samples[path].push({ renderMs, stats, ...instances });
 		}
+		// Leaving the chat clears the active selection: the URL update is planned by the Rust unit.
+		await startNewChat(page);
+		await expect.poll(async () => (await page.evaluate(() => (window as any).__openmatesRustChatStateStats?.() ?? null))?.ops?.selectionUrlPlan ?? 0,
+			{ message: 'Rust arm planned the active-chat URL update through the unit', timeout: 20000 }).toBeGreaterThan(0);
+		await page.goto(getE2EDebugUrl(`/#chat-id=${chatId}`));
 		expect(unitErrors, 'no chatState unit errors in either arm').toEqual([]);
 	} finally {
 		await page.evaluate((key: string) => localStorage.removeItem(key), CHATSTATE_OPT_OUT_KEY);

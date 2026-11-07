@@ -23,7 +23,16 @@ const key = (value: unknown) => JSON.stringify(value);
 const sortOut = new Map<string, number[]>(vectors.sort.map((c: { input: unknown; out: number[] }) => [key(c.input), c.out]));
 const groupOut = new Map<string, unknown>(vectors.group.map((c: { input: unknown; out: unknown }) => [key(c.input), c.out]));
 const ops: string[] = [];
+// The view ops (selection, unread, metadata) are proven in chatViewVectors.test.ts.
+const unusedView = () => { throw new Error('protocol'); };
 const binding: ChatListBinding = {
+	chat_state_selection_url_plan: unusedView,
+	chat_state_selection_global_selected: unusedView,
+	chat_state_selection_draft_activation: unusedView,
+	chat_state_unread_reduce: unusedView,
+	chat_state_unread_query: unusedView,
+	chat_state_unread_read_gate: unusedView,
+	chat_state_metadata_shared_sub_chat: unusedView,
 	chat_state_sort: (input) => {
 		ops.push('sort');
 		const out = sortOut.get(key(JSON.parse(input)));

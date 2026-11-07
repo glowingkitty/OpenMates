@@ -21,6 +21,7 @@ import { replaceState } from "$app/navigation";
 import { isOnSemanticChatPath } from "../services/chatUrlService";
 import { getHashParam, updateHashParams } from "../utils/settingsHashUtils";
 import { readAppsWorkspaceRoute } from "../utils/appsWorkspaceRoute";
+import { planUrlUpdate, type UrlPlan, type UrlPlanFacts } from "./activeChatUrlPlan";
 
 /**
  * Store to track when deep link processing is happening
@@ -36,74 +37,90 @@ export const deepLinkProcessing = writable(false);
 let lastProgrammaticHashUpdate = 0;
 const PROGRAMMATIC_UPDATE_WINDOW_MS = 100; // Window to ignore hashchange events after programmatic update
 
+const CLEARED_HASH_PARAMS = {
+  "chat-id": null,
+  "message-id": null,
+  messageid: null,
+  scroll: null,
+  "embed-id": null,
+  embed_id: null,
+};
+
+// Opt-in shared Rust core (build-time VITE_OPENMATES_RUST_CORE === '1'): the chatState unit
+// plans the URL update; there is no TypeScript fallback. Default builds keep the sync plan.
+const RUST_URL_PLAN: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1" &&
+  !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_chatstate") === "ts");
+/** Serialises Rust-planned updates so facts are read in call order. */
+let rustUrlQueue: Promise<void> = Promise.resolve();
+
+/**
+ * Facts of one URL update, read from the current location. Chat navigation uses
+ * the hash fragment so no SvelteKit route change occurs (see updateUrlHash).
+ * Chat startup and logout can clear a stale selection while Apps owns the URL
+ * (its embed-id is a result route), and startup resets can overlap a Workflow
+ * completion deep link whose exact delivery target must be kept.
+ */
+function urlPlanFacts(chatId: string | null): UrlPlanFacts {
+  const hash = window.location.hash;
+  const targetHash = updateHashParams(
+    hash,
+    chatId ? { ...CLEARED_HASH_PARAMS, "chat-id": chatId } : CLEARED_HASH_PARAMS,
+  );
+  return {
+    chatId,
+    appsRoute: !!readAppsWorkspaceRoute(hash),
+    hasChatIdParam: !!getHashParam(hash, "chat-id"),
+    workflowHandoff: !!(
+      getHashParam(hash, "workflow-id") &&
+      getHashParam(hash, "run-id") &&
+      getHashParam(hash, "chat-id") &&
+      getHashParam(hash, "message-id") &&
+      getHashParam(hash, "delivery-id")
+    ),
+    onSemanticPath: isOnSemanticChatPath(),
+    currentHash: hash,
+    targetHash,
+  };
+}
+
+function applyUrlPlan(plan: UrlPlan, targetHash: string) {
+  if (plan.action === "none") return;
+  if (plan.action === "replace_root") {
+    replaceState("/", {});
+    return;
+  }
+  if (plan.action === "replace_root_hash") {
+    // Currently on a semantic path (e.g. user arrived via /intro/who-develops-openmates).
+    // Move back to root with the hash so it doesn't get appended to the semantic path.
+    replaceState(`/${targetHash}`, {});
+    return;
+  }
+  if (plan.programmatic) lastProgrammaticHashUpdate = Date.now();
+  replaceState(window.location.pathname + window.location.search + targetHash, {});
+}
+
 /**
  * Update the browser URL to reflect the active chat.
  * All in-session navigation uses the hash fragment so no SvelteKit route change occurs.
  * Always uses replaceState or hash assignment — no browser history entries are added.
+ * Hash-based navigation avoids any route change (a semantic path like
+ * /intro/... is a real prerendered (seo) route, and SvelteKit navigating to it
+ * could interrupt loadChat mid-flight and leave the UI unresponsive).
  */
 function updateUrlHash(chatId: string | null) {
   if (!browser) return;
-
-  // Chat startup and logout can clear a stale chat selection while Apps owns
-  // the URL. Its embed-id is a result route, not an active chat embed.
-  if (!chatId && readAppsWorkspaceRoute(window.location.hash) &&
-    !getHashParam(window.location.hash, "chat-id")) return;
-
-  // Startup chat resets can overlap a Workflow completion deep link. Keep its
-  // exact delivery target until the Workflow route verifies and opens the chat.
-  if (!chatId && getHashParam(window.location.hash, "workflow-id") &&
-    getHashParam(window.location.hash, "run-id") &&
-    getHashParam(window.location.hash, "chat-id") &&
-    getHashParam(window.location.hash, "message-id") &&
-    getHashParam(window.location.hash, "delivery-id")) return;
-
-  if (chatId) {
-    // Always use hash fragment for in-session navigation (public and private chats alike).
-    // Using replaceState to a semantic path like /intro/who-develops-openmates risks triggering
-    // SvelteKit's client router because those paths exist as real prerendered (seo) routes.
-    // If SvelteKit navigates to the SEO page, its onMount fires window.location.replace
-    // which can interrupt loadChat mid-flight and leave the UI unresponsive.
-    // Hash-based navigation avoids any route change and is consistent for all chat types.
-    const expectedHash = updateHashParams(window.location.hash, {
-      "chat-id": chatId,
-      "message-id": null,
-      messageid: null,
-      scroll: null,
-      "embed-id": null,
-      embed_id: null,
-    });
-    if (isOnSemanticChatPath()) {
-      // Currently on a semantic path (e.g. user arrived via /intro/who-develops-openmates).
-      // Move back to root with the hash so it doesn't get appended to the semantic path.
-      replaceState(`/${expectedHash}`, {});
-      return;
-    }
-
-    const currentHash = window.location.hash;
-    if (currentHash !== expectedHash) {
-      lastProgrammaticHashUpdate = Date.now();
-      replaceState(window.location.pathname + window.location.search + expectedHash, {});
-    }
+  if (RUST_URL_PLAN) {
+    rustUrlQueue = rustUrlQueue
+      .then(async () => {
+        const facts = urlPlanFacts(chatId);
+        const { chatStateCall } = await import("../services/rustCore/chatState/chatListUnitClient");
+        applyUrlPlan(await chatStateCall("selectionUrlPlan", facts), facts.targetHash);
+      })
+      .catch((error) => console.error("[activeChatStore] Rust URL plan failed", error));
     return;
   }
-
-  // Clearing: go back to root (no hash, no semantic path)
-  if (isOnSemanticChatPath()) {
-    replaceState("/", {});
-    return;
-  }
-  const nextHash = updateHashParams(window.location.hash, {
-    "chat-id": null,
-    "message-id": null,
-    messageid: null,
-    scroll: null,
-    "embed-id": null,
-    embed_id: null,
-  });
-  if (window.location.hash !== nextHash) {
-    lastProgrammaticHashUpdate = Date.now();
-    replaceState(window.location.pathname + window.location.search + nextHash, {});
-  }
+  const facts = urlPlanFacts(chatId);
+  applyUrlPlan(planUrlUpdate(facts), facts.targetHash);
 }
 
 /**
