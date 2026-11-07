@@ -6,6 +6,13 @@ use wasm_bindgen::prelude::*;
 
 use openmates_sdk::web_settings;
 use openmates_sdk::web_settings::response;
+use openmates_sdk::web_settings_privacy;
+
+/// Hydration plan of one decrypted privacy entry (`web_settings_privacy::plan_privacy_entry_json`).
+#[wasm_bindgen]
+pub fn settings_plan_privacy_entry(item_type: &str, data_json: &str, default_categories_json: &str) -> Result<String, JsValue> {
+    web_settings_privacy::plan_privacy_entry_json(item_type, data_json, default_categories_json).map_err(|e| JsValue::from_str(&e))
+}
 
 /// Dialog categories of a server request (`web_settings::category_plan_json`).
 #[wasm_bindgen]

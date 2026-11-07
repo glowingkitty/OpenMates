@@ -11,7 +11,7 @@ import { installSettingsUnit } from '../settings/settingsUnit';
 import { rustSettingsStats } from '../settings/settingsClient';
 import {
   rustBuildRequestMessage, rustConfirmOutcome, rustIsRequestAnswered, rustPlanRequestCategories, rustPlanSelectedKeys,
-  rustResponseCategories, rustResponseContent, rustSelectEntryIds,
+  rustPlanPrivacyEntry, rustResponseCategories, rustResponseContent, rustSelectEntryIds,
 } from '../settings/rustSettingsRequests';
 import type { SettingsBinding } from '../settings/settingsProtocol';
 
@@ -29,6 +29,7 @@ const binding: SettingsBinding = {
   settings_response_categories: (cats, released) => (calls.push(`cats ${cats} ${released}`), '[]'),
   settings_confirm_outcome: (count, voice, hasId) => (calls.push(`outcome ${count} ${voice} ${hasId}`), JSON.stringify({ kind: 'send' })),
   settings_response_content: (u, action, cats) => (calls.push(`content ${u} ${action} ${cats}`), `{"u":"${u}"}`),
+  settings_plan_privacy_entry: (type, data, defaults) => (calls.push(`privacy ${type} ${data} ${defaults}`), JSON.stringify({ kind: 'other' })),
 };
 
 function fakeWorker() {
@@ -81,6 +82,12 @@ describe('shared settings unit', () => {
     expect(calls).toEqual([
       'keys ["a-b"]', 'select ["a","b"] null', 'cats [{"appId":"a","itemType":"b"}] []', 'outcome 2 true false', 'content u1 rejected null',
     ]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
+  it('serves the privacy entry plan from the Rust binding', async () => {
+    await expect(rustPlanPrivacyEntry('location_settings', { impreciseByDefault: false }, { a: true })).resolves.toEqual({ kind: 'other' });
+    expect(calls).toEqual(['privacy location_settings {"impreciseByDefault":false} {"a":true}']);
   });
 
   it('returns the Rust request message and rethrows its error text without fallback', async () => {

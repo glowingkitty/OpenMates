@@ -67,6 +67,10 @@ export function createSettingsHandlers(binding: SettingsBinding): UnitHandlers<S
 			const { releasedCount, voice, hasMessageId } = p as { releasedCount: number; voice: boolean; hasMessageId: boolean };
 			return call(() => binding.settings_confirm_outcome(releasedCount, voice, hasMessageId));
 		},
+		planPrivacyEntry: (payload) => {
+			const p = record(payload);
+			return call(() => binding.settings_plan_privacy_entry(text(p.itemType), text(p.data), text(p.defaultCategories)));
+		},
 		responseContent: (payload) => {
 			const p = record(payload);
 			// The binding returns the content text itself, not JSON: no parse.

@@ -33,6 +33,7 @@ pub mod web_search_query;
 pub mod web_send_prep;
 pub mod web_apps;
 pub mod web_settings;
+pub mod web_settings_privacy;
 pub mod web_parse;
 pub mod web_transfer;
 pub mod web_keys;

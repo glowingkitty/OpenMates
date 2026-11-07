@@ -581,6 +581,12 @@ lanes:
   - ai-settings-breadcrumb.spec.ts
   notes: 'Slice 1 04a644d667 (request policy). Slice 2 04645295fb (response/confirm: key routing, entry
     selection, response counts, empty outcome, response content in web_settings_response.rs).
+    Slice 3 (this commit): personalDataStore hydration defaults per privacy entry type
+    (pii/location/personal/other) in web_settings_privacy.rs, mirrored by privacyEntryPolicy.ts;
+    flag-off stays synchronous, flag-on awaits the unit and re-checks current(). Declared
+    difference: a non-object `categories` is ignored by Rust (JS would spread string/array
+    indices). Stays in TS: topicPreferencesStore, userDB, personalDataStore owner guards,
+    mutation epoch and encrypt/save/sync paths.
     Stays in TS by design: appMemoryRequests (synchronous parse/merge used by the CLI and
     render), appSettingsMemoriesPermissionStore (reactive view state: toggles/selection are
     synchronous Svelte store updates), appSettingsMemoriesStore (removed upstream 1eb03c4acf).'

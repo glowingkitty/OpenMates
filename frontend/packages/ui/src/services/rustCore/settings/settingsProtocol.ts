@@ -9,6 +9,7 @@
  */
 import type { UnitProtocol } from '../host/unitPort';
 import type { RequestCategory } from '../../appSettingsRequestPolicy';
+import type { PrivacyEntryPlan } from '../../privacyEntryPolicy';
 import type { ConfirmOutcome, ResponseCategory, ResponseKeyPlan } from '../../appSettingsResponsePolicy';
 
 export interface SettingsCategoryPlan { categories: RequestCategory[]; validKeys: string[] }
@@ -28,6 +29,7 @@ export interface SettingsUnitProtocol extends UnitProtocol {
 	responseCategories: { request: { categories: string; released: string }; response: ResponseCategory[] };
 	confirmOutcome: { request: { releasedCount: number; voice: boolean; hasMessageId: boolean }; response: ConfirmOutcome };
 	responseContent: { request: { userMessageId: string; action: string; categories: string }; response: string };
+	planPrivacyEntry: { request: { itemType: string; data: string; defaultCategories: string }; response: PrivacyEntryPlan };
 }
 
 /** Worker module exports (snake_case, JSON strings) of browser_settings.rs. */
@@ -40,11 +42,13 @@ export interface SettingsBinding {
 	settings_response_categories(categoriesJson: string, releasedJson: string): string;
 	settings_confirm_outcome(releasedCount: number, voice: boolean, hasMessageId: boolean): string;
 	settings_response_content(userMessageId: string, action: string, categoriesJson: string): string;
+	settings_plan_privacy_entry(itemType: string, dataJson: string, defaultCategoriesJson: string): string;
 }
 
 const BINDING_EXPORTS: readonly (keyof SettingsBinding)[] = [
 	'settings_category_plan', 'settings_request_answered', 'settings_build_request_message',
 	'settings_plan_selected_keys', 'settings_select_entry_ids', 'settings_response_categories', 'settings_confirm_outcome', 'settings_response_content',
+	'settings_plan_privacy_entry',
 ];
 
 export function isSettingsBinding(value: unknown): value is SettingsBinding {

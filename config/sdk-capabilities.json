@@ -7035,6 +7035,8 @@
             "web_settings.category_plan_json",
             "web_settings.format_display_name",
             "web_settings.is_request_answered_json",
+            "web_settings_privacy",
+            "web_settings_privacy.plan_privacy_entry_json",
             "web_share_state",
             "web_share_state.run_json",
             "web_stream",

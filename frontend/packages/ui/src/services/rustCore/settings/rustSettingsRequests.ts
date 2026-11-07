@@ -10,6 +10,7 @@
  */
 import type { RequestCategory } from '../../appSettingsRequestPolicy';
 import type { ConfirmOutcome, ResponseCategory, ResponseKeyPlan } from '../../appSettingsResponsePolicy';
+import type { PrivacyEntryPlan } from '../../privacyEntryPolicy';
 import type { SettingsRequestMessageOutcome } from './settingsProtocol';
 import { settingsCall } from './settingsClient';
 
@@ -56,4 +57,9 @@ export function rustConfirmOutcome(releasedCount: number, voice: boolean, hasMes
 
 export function rustResponseContent(userMessageId: string, action: 'included' | 'rejected', categories?: ResponseCategory[]): Promise<string> {
 	return settingsCall('responseContent', { userMessageId, action, categories: JSON.stringify(categories ?? null) });
+}
+
+/** Hydration plan of one decrypted privacy entry (personalDataStore); rejects `protocol` where the TS policy throws. */
+export function rustPlanPrivacyEntry(itemType: string, data: unknown, defaultCategories: Record<string, boolean>): Promise<PrivacyEntryPlan> {
+	return settingsCall('planPrivacyEntry', { itemType, data: JSON.stringify(data), defaultCategories: JSON.stringify(defaultCategories) });
 }

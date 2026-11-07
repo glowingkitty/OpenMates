@@ -1,0 +1,20 @@
+{
+ "defaults": {"email_addresses": true, "phone_numbers": true},
+ "cases": [
+  {"type": "pii_detection_settings", "data": {}, "out": {"kind": "pii", "masterEnabled": true, "enhancedEnabled": true, "categories": {"email_addresses": true, "phone_numbers": true}}},
+  {"type": "pii_detection_settings", "data": {"masterEnabled": false, "enhancedEnabled": false, "categories": {"email_addresses": false, "custom_x": true}}, "out": {"kind": "pii", "masterEnabled": false, "enhancedEnabled": false, "categories": {"email_addresses": false, "phone_numbers": true, "custom_x": true}}},
+  {"type": "pii_detection_settings", "data": {"masterEnabled": null, "enhancedEnabled": null, "categories": null}, "out": {"kind": "pii", "masterEnabled": true, "enhancedEnabled": true, "categories": {"email_addresses": true, "phone_numbers": true}}},
+  {"type": "pii_detection_settings", "data": {"categories": {"phone_numbers": null}}, "out": {"kind": "pii", "masterEnabled": true, "enhancedEnabled": true, "categories": {"email_addresses": true, "phone_numbers": null}}},
+  {"type": "location_settings", "data": {}, "out": {"kind": "location", "impreciseByDefault": true}},
+  {"type": "location_settings", "data": {"impreciseByDefault": false}, "out": {"kind": "location", "impreciseByDefault": false}},
+  {"type": "location_settings", "data": {"impreciseByDefault": null}, "out": {"kind": "location", "impreciseByDefault": true}},
+  {"type": "personal_data_entry", "data": {}, "out": {"kind": "personal", "type": "custom", "title": "", "textToHide": "", "replaceWith": "", "enabled": true}},
+  {"type": "personal_data_entry", "data": {"type": "address", "title": "Home", "textToHide": "1 Main St", "replaceWith": "[ADDRESS]", "enabled": false, "addressLines": {"street": "1 Main St"}}, "out": {"kind": "personal", "type": "address", "title": "Home", "textToHide": "1 Main St", "replaceWith": "[ADDRESS]", "enabled": false, "addressLines": {"street": "1 Main St"}}},
+  {"type": "personal_data_entry", "data": {"type": "", "title": 0, "textToHide": null, "replaceWith": false, "enabled": null, "addressLines": null}, "out": {"kind": "personal", "type": "custom", "title": "", "textToHide": "", "replaceWith": "", "enabled": true, "addressLines": null}},
+  {"type": "personal_data_entry", "data": {"enabled": 0, "title": 7}, "out": {"kind": "personal", "type": "custom", "title": 7, "textToHide": "", "replaceWith": "", "enabled": 0}},
+  {"type": "mystery_type", "data": {"a": 1}, "out": {"kind": "other"}},
+  {"type": "mystery_type", "data": null, "out": {"kind": "other"}},
+  {"type": "location_settings", "data": "text", "out": {"kind": "location", "impreciseByDefault": true}}
+ ],
+ "nullDataThrows": ["pii_detection_settings", "location_settings", "personal_data_entry"]
+}

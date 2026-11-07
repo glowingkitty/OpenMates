@@ -10,6 +10,7 @@ import {
   confirmOutcome, planSelectedKeys, responseCategories, responseContent, selectEntryIds,
   type ConfirmOutcome, type ResponseCategory, type ResponseKeyPlan,
 } from './appSettingsResponsePolicy';
+import { planPrivacyEntry, type PrivacyEntryPlan } from './privacyEntryPolicy';
 import { isRequestAnswered, planRequestCategories, type RequestCategory } from './appSettingsRequestPolicy';
 
 const RUST_SETTINGS_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1';
@@ -69,4 +70,21 @@ export async function decideResponseContent(
 ): Promise<string> {
   const adapter = rust();
   return adapter ? (await adapter).rustResponseContent(userMessageId, action, categories) : responseContent(userMessageId, action, categories);
+}
+
+/** Whether privacy entry hydration is decided by the Rust Worker (flag-on builds only). */
+export const privacyEntryPlanIsAsync: boolean = RUST_SETTINGS_BUILD;
+
+/** Flag-off: the synchronous TypeScript plan (no await window). */
+export function decidePrivacyEntrySync(itemType: string, data: Record<string, unknown>, defaultCategories: Record<string, boolean>): PrivacyEntryPlan {
+  return planPrivacyEntry(itemType, data, defaultCategories);
+}
+
+/** Flag-on: the Rust plan; rejects where the TypeScript plan would throw. */
+export async function decidePrivacyEntry(
+  itemType: string, data: unknown, defaultCategories: Record<string, boolean>,
+): Promise<PrivacyEntryPlan> {
+  const adapter = rust();
+  if (!adapter) return planPrivacyEntry(itemType, data as Record<string, unknown>, defaultCategories);
+  return (await adapter).rustPlanPrivacyEntry(itemType, data, defaultCategories);
 }
