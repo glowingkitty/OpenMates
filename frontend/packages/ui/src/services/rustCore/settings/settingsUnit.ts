@@ -1,0 +1,71 @@
+/**
+ * `settings` namespace installer of the shared Rust core Worker.
+ *
+ * Serves the app settings/memories request policy (settingsProtocol.ts) on the
+ * unit port from the realm's single WASM binding. It holds no per-account state
+ * and does no IO (the page owns IndexedDB and the decrypted entries), so it is a
+ * pre-bind namespace. A malformed payload, or any binding rejection, answers the
+ * fixed code `protocol` (the Rust boundary's only code).
+ */
+import { serveUnitPort, UnitRefusal, type UnitHandlers } from '../host/unitPort';
+import type { UnitInstallContext } from '../host/sharedWorkerProtocol';
+import { isSettingsBinding, type SettingsBinding, type SettingsUnitProtocol } from './settingsProtocol';
+
+function record(payload: unknown): Record<string, unknown> {
+	if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) throw new UnitRefusal('protocol');
+	return payload as Record<string, unknown>;
+}
+function text(value: unknown): string {
+	if (typeof value !== 'string') throw new UnitRefusal('protocol');
+	return value;
+}
+/** Binding results are JSON text; a thrown JsValue is the Rust `protocol` code. */
+function call<T>(run: () => string): T {
+	let json: string;
+	try {
+		json = run();
+	} catch {
+		throw new UnitRefusal('protocol');
+	}
+	return JSON.parse(json) as T;
+}
+
+export function createSettingsHandlers(binding: SettingsBinding): UnitHandlers<SettingsUnitProtocol> {
+	return {
+		categoryPlan: (payload) => {
+			const p = record(payload);
+			return call(() => binding.settings_category_plan(text(p.requestedKeys), text(p.counts)));
+		},
+		requestAnswered: (payload) => {
+			const p = record(payload);
+			const contents = text(p.systemContents);
+			const id = text(p.userMessageId);
+			try {
+				return binding.settings_request_answered(contents, id);
+			} catch {
+				throw new UnitRefusal('protocol');
+			}
+		},
+		buildRequestMessage: (payload) => {
+			const p = record(payload);
+			if (typeof p.voice !== 'boolean') throw new UnitRefusal('protocol');
+			const voice = p.voice;
+			return call(() => binding.settings_build_request_message(text(p.userMessageId), text(p.requestId), text(p.requestedKeys), text(p.createdAt), text(p.counts), voice));
+		},
+	};
+}
+
+export function installSettingsUnit(context: UnitInstallContext): () => void {
+	if (context.ports.length !== 1 || !isSettingsBinding(context.binding)) throw new Error('unavailable');
+	const port = context.ports[0];
+	const stop = serveUnitPort<SettingsUnitProtocol>(port, createSettingsHandlers(context.binding));
+	let disposed = false;
+	const dispose = () => {
+		if (disposed) return;
+		disposed = true;
+		stop();
+		port.close();
+	};
+	context.signal.addEventListener('abort', dispose, { once: true });
+	return dispose;
+}

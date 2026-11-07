@@ -13,7 +13,9 @@
  * The request is stored in chat history so users can respond hours/days later.
  */
 
-import { buildMemoryRequestMessage, type MemoryRequestContent } from "../utils/appMemoryRequests";
+import type { MemoryRequestContent } from "../utils/appMemoryRequests";
+import { formatDisplayName, getAppGradient } from "./appSettingsRequestPolicy";
+import { decideRequestAnswered, decideRequestCategories, decideRequestMessage } from "./appSettingsRequestDecisions";
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { notificationStore } from "../stores/notificationStore";
 import { activeChatStore } from "../stores/activeChatStore";
@@ -240,45 +242,7 @@ export function removePendingPermissionRequest(requestId: string): void {
   permissionResponseTransports.delete(requestId);
 }
 
-/**
- * Generate a human-readable display name from an item_type
- * Converts "preferred_technologies" -> "Preferred technologies"
- */
-export function formatDisplayName(itemType: string): string {
-  return itemType
-    .split("_")
-    .map((word, index) =>
-      index === 0 ? word.charAt(0).toUpperCase() + word.slice(1) : word,
-    )
-    .join(" ");
-}
-
-/**
- * Get CSS gradient for an app ID from theme variables
- */
-export function getAppGradient(appId: string): string {
-  const gradientMap: Record<string, string> = {
-    code: "linear-gradient(135deg, #4A90D9 9.04%, #7B68EE 90.06%)",
-    travel: "linear-gradient(135deg, #059DB3 9.04%, #13DAF5 90.06%)",
-    finance: "linear-gradient(135deg, #119106 9.04%, #15780D 90.06%)",
-    health: "linear-gradient(135deg, #FD50A0 9.04%, #F42C2D 90.06%)",
-    news: "linear-gradient(135deg, #F53F5B 9.04%, #DD0B2B 90.06%)",
-    weather: "linear-gradient(135deg, #005BA5 9.04%, #00A7C9 90.06%)",
-    jobs: "linear-gradient(135deg, #049363 9.04%, #00C382 90.06%)",
-    legal: "linear-gradient(135deg, #239CFF 9.04%, #005BA5 90.06%)",
-    files: "linear-gradient(135deg, #1E3A8A 9.04%, #29BEFB 90.06%)",
-    ai: "linear-gradient(135deg, #CB7D5D 9.04%, #CB685D 90.06%)",
-    tv: "linear-gradient(135deg, #8B5CF6 9.04%, #6D28D9 90.06%)",
-    videos: "linear-gradient(135deg, #EF4444 9.04%, #DC2626 90.06%)",
-    maps: "linear-gradient(135deg, #10B981 9.04%, #059669 90.06%)",
-    study: "linear-gradient(135deg, #F59E0B 9.04%, #D97706 90.06%)",
-    plants: "linear-gradient(135deg, #22C55E 9.04%, #16A34A 90.06%)",
-  };
-  return (
-    gradientMap[appId] ||
-    "linear-gradient(135deg, #4A90D9 9.04%, #7B68EE 90.06%)"
-  );
-}
+export { formatDisplayName, getAppGradient };
 
 /**
  * Populate individual entry info for categories so the permission dialog
@@ -348,23 +312,12 @@ export async function handleRequestAppSettingsMemoriesImpl(
     if (payload.message_id) {
       try {
         const existingMessages = await chatDB.getMessagesForChat(chat_id);
-        const alreadyAnswered = existingMessages.some((msg) => {
-          if (
-            msg.role !== "system" ||
-            !msg.content ||
-            typeof msg.content !== "string"
-          )
-            return false;
-          try {
-            const parsed = JSON.parse(msg.content);
-            return (
-              parsed.type === "app_settings_memories_response" &&
-              parsed.user_message_id === payload.message_id
-            );
-          } catch {
-            return false;
-          }
-        });
+        const alreadyAnswered = await decideRequestAnswered(
+          existingMessages
+            .filter((msg) => msg.role === "system" && !!msg.content && typeof msg.content === "string")
+            .map((msg) => msg.content as string),
+          payload.message_id,
+        );
         if (alreadyAnswered) {
           console.info(
             `[ChatSyncService:AppSettings] Dropping request ${request_id}: a response already exists for ` +
@@ -423,51 +376,10 @@ export async function handleRequestAppSettingsMemoriesImpl(
       entryCounts.set('openmates-memories', (entryCounts.get('openmates-memories') ?? 0) + count);
     }
 
-    // Build categories from requested keys
-    const categories: AppSettingsMemoriesCategory[] = [];
-    const validKeys: string[] = [];
-
-    for (const key of requested_keys.filter((requested) => !isMemoryRequestKey(requested))) {
-      // Parse "app_id-item_type" format
-      const dashIndex = key.indexOf("-");
-      if (dashIndex === -1) {
-        console.warn(
-          `[ChatSyncService:AppSettings] Invalid key format (missing hyphen): ${key}`,
-        );
-        continue;
-      }
-
-      const appId = key.substring(0, dashIndex);
-      const itemType = key.substring(dashIndex + 1);
-
-      if (!appId || !itemType) {
-        console.warn(
-          `[ChatSyncService:AppSettings] Invalid key format (empty parts): ${key}`,
-        );
-        continue;
-      }
-
-      // Check if this category exists in IndexedDB
-      const entryCount = entryCounts.get(key) || 0;
-
-      if (entryCount === 0) {
-        console.warn(
-          `[ChatSyncService:AppSettings] No entries found for key: ${key}, skipping`,
-        );
-        continue;
-      }
-
-      validKeys.push(key);
-      categories.push({
-        key,
-        appId,
-        itemType,
-        displayName: formatDisplayName(itemType),
-        entryCount,
-        iconGradient: getAppGradient(appId),
-        selected: true, // Default to selected
-      });
-    }
+    // Categories for well-formed keys that have stored entries (memory-document keys are handled above).
+    const plan = await decideRequestCategories(requested_keys.filter((requested) => !isMemoryRequestKey(requested)), entryCounts);
+    const categories: AppSettingsMemoriesCategory[] = plan.categories;
+    const validKeys = plan.validKeys;
 
     for (const category of memoryCategories) { categories.push(category); validKeys.push(category.key); }
 
@@ -1287,7 +1199,7 @@ export async function saveAppSettingsMemoriesRequestMessage(
   responseTransport?: "voice",
 ): Promise<void> {
   const { webSocketService } = await import("./websocketService");
-  const requestMessage = buildMemoryRequestMessage({
+  const requestMessage = await decideRequestMessage({
     requestId,
     userMessageId,
     requestedKeys,

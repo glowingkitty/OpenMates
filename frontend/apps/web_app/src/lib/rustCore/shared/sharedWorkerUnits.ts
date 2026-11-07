@@ -25,4 +25,5 @@ export const SHARED_UNIT_INSTALLERS: UnitInstallers = Object.freeze({
 	chatState: (context) => import('@openmates/ui/src/services/rustCore/chatState/chatListUnit').then((unit) => unit.installChatStateUnit(context)),
 	persist: (context) => import('@openmates/ui/src/services/rustCore/persist/persistUnit').then((unit) => unit.installPersistUnit(context)),
 	sendPrep: (context) => import('@openmates/ui/src/services/rustCore/send/sendPrepUnit').then((unit) => unit.installSendPrepUnit(context)),
+	settings: (context) => import('@openmates/ui/src/services/rustCore/settings/settingsUnit').then((unit) => unit.installSettingsUnit(context)),
 });
