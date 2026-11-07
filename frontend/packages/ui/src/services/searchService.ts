@@ -817,6 +817,10 @@ let metadataWarmUpInProgress = false;
  */
 async function buildChatMessageIndex(chatId: string, generation: number): Promise<SearchEntries> {
 
+  // Rust-core builds: the Worker index lowercases the contents itself (ingestColumns sends
+  // contents only), so the page skips the unused per-entry toLowerCase copy.
+  const workerOwnsIndex = import.meta.env.VITE_OPENMATES_RUST_CORE === "1" && rustSearchOwnsIndex();
+  const lower = (text: string): string => (workerOwnsIndex ? "" : text.toLowerCase());
   try {
     let messages: Message[];
 
@@ -842,7 +846,7 @@ async function buildChatMessageIndex(chatId: string, generation: number): Promis
         entries.push({
           messageId: msg.message_id,
           content: messageText,
-          normalizedContent: messageText.toLowerCase(),
+          normalizedContent: lower(messageText),
           createdAt: msg.created_at,
           // No embedSourceLabel — this is the base message text
         });
@@ -867,7 +871,7 @@ async function buildChatMessageIndex(chatId: string, generation: number): Promis
           entries.push({
             messageId: msg.message_id,
             content: result.text,
-            normalizedContent: result.text.toLowerCase(),
+            normalizedContent: lower(result.text),
             createdAt: msg.created_at,
             embedSourceLabel: result.sourceLabel,
             // Store embed ID and type so clicking the search result can open the embed
@@ -884,7 +888,7 @@ async function buildChatMessageIndex(chatId: string, generation: number): Promis
             entries.push({
               messageId: msg.message_id,
               content: child.text,
-              normalizedContent: child.text.toLowerCase(),
+              normalizedContent: lower(child.text),
               createdAt: msg.created_at,
               embedSourceLabel: EMBED_TYPE_LABELS[child.embedType] || result.sourceLabel,
               embedId: child.embedId,

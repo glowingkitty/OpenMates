@@ -643,3 +643,23 @@ measurements:
     confidence: uncertain
     notes: TS median 1663 ms vs Rust 1756 ms (+93 ms, +5.6%), advisory per the 2026-11-07 policy, not gross.
     ts_value: 1663.0
+  - id: 2026-11-07-search-04
+    date: '2026-11-07'
+    flow: search
+    metric: searchRenderedMs
+    value_kind: ratio
+    value: 1.014
+    ci95: [1.003, 1.04]
+    n_pairs: 30
+    verdict: rust_not_worse
+    verdict_basis: derived
+    ci_job: 3ef5c0fa
+    source_commit: b0244edf0f3e
+    evidence: web-rust-core-bench search 30 pairs (default; no env override in CI), candidate with normalizedContent
+      skip
+    confidence: traced
+    notes: 'Median +14 ms (585.25 vs 571.2), p95 rust 633 vs ts 751. search:build.ms summed per sample 633.5
+      rust vs 641.8 ts (no build gap; 33 builds, 294 entries); rust ingest.ms 195.4 summed (workerMs 9.9,
+      columnsMs 0.9: ~185 ms is awaiting the worker round trip inside builds, overlapping concurrent builds);
+      query.ms 34.1 (workerMs 15.2, roundTrip 32.4). Prior run was 1.132x +81 ms; commonSearchMs 1.085 [1.021,1.134]
+      inconclusive, CPU 1.051 rust_not_worse.'

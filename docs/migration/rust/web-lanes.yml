@@ -88,7 +88,7 @@ wave3_lanes:
   owns:
   - web_search*.rs
   - browser_search_pii.rs
-  notes: Pipelined worker ingests; 30-pair search bench searchRenderedMs 1.132x [1.02,1.291] rust_worse (+81 ms); query and CPU not worse; extra cost sits in the flag-on chat decrypt/index build, see performance-history.yml.
+  notes: Pipelined worker ingests; 30-pair search bench searchRenderedMs 1.132x [1.02,1.291] rust_worse (+81 ms); query and CPU not worse; extra cost sits in the flag-on chat decrypt/index build, see performance-history.yml. Follow-up from session 8aea - the flag-on page build no longer computes the unused per-entry normalizedContent toLowerCase (the Worker index lowercases itself; flag-off unchanged, no new await). After it, the 30-pair bench measured searchRenderedMs 1.014x [1.003,1.04] rust_not_worse and search:build.ms 633 vs 642 TS (see performance-history.yml 2026-11-07-search-04). Decrypt is already coalesced into crypto-unit batches. Declined - moving stripMarkdown/embed resolution into the Worker (embed resolution is async page IO) and batching ingests across chats (would add an await window).
   spec_assertions: [chat-awareness.search.device-executed]
   spec_gaps:
   - Search ranking, snippets and the performance budget have no assertion.
