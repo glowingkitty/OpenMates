@@ -13,6 +13,12 @@ import type { Message } from "../../types/chat";
 import { writeWithQuotaRetry } from "./quotaRecovery";
 import { chatKeyManager } from "../encryption/ChatKeyManager";
 import { invalidateRecentChatWindow, invalidateRecentChatWindowForMessage } from "../recentChatWindowCache";
+import { cacheDecisions, RUST_PERSIST_BUILD } from "./cacheDecisions";
+import {
+  MESSAGE_WINDOW_PAGE_CACHE_GENERATION,
+  offlineCacheTargetBytes as cacheTargetBytes,
+} from "./cachePolicy";
+import { deleteConfirmedMessageAfterDecision } from "./messageEviction";
 import {
   STATUS_PRIORITY,
   hasNewEncryptedFields,
@@ -26,12 +32,10 @@ import {
 export { hasNewEncryptedFields, isContentDuplicate, isSafeToEvictMessage, shouldUpdateMessage };
 
 /**
- * Opt-in shared Rust core build: save/duplicate/eviction decisions run in the
- * shared Worker `persist` unit (measurement-only opt-out `openmates_rust_core_persist` = 'ts').
+ * Opt-in shared Rust core build (RUST_PERSIST_BUILD): save/duplicate/eviction,
+ * window, cache-budget and quota decisions run in the shared Worker `persist` unit.
  * IndexedDB reads, writes and encryption stay here.
  */
-const RUST_PERSIST_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
-  && !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_persist") === "ts");
 function rustMessageRowPolicy() {
   return import("../rustCore/persist/rustMessageRowPolicy");
 }
@@ -54,13 +58,8 @@ interface ChatDatabaseInstance {
 // Store name constant (must match the one in db.ts)
 const MESSAGES_STORE_NAME = "messages";
 const MESSAGE_WINDOW_PAGES_STORE_NAME = "message_window_pages";
-const DEFAULT_MESSAGE_WINDOW_LIMIT = 30;
-const MAX_MESSAGE_WINDOW_LIMIT = 100;
-const MESSAGE_WINDOW_PAGE_CACHE_GENERATION = 1;
-const DEFAULT_MESSAGE_WINDOW_PAGE_CACHE_LIMIT = 12;
 const DEFAULT_OFFLINE_CACHE_BUDGET_BYTES = 100 * 1024 * 1024;
 const MAX_BUDGET_SCAN_PAGES = 4096;
-const MAX_BUDGET_EVICTIONS = 32;
 let configuredOfflineCacheBudgetBytes = DEFAULT_OFFLINE_CACHE_BUDGET_BYTES;
 let lastBudgetCheckAt = 0;
 let budgetTrim: Promise<number> | null = null;
@@ -134,13 +133,6 @@ function requestToPromise<T>(request: IDBRequest<T>): Promise<T> {
   });
 }
 
-function clampWindowLimit(limit?: number): number {
-  if (!Number.isFinite(limit) || !limit || limit < 1) {
-    return DEFAULT_MESSAGE_WINDOW_LIMIT;
-  }
-  return Math.min(Math.floor(limit), MAX_MESSAGE_WINDOW_LIMIT);
-}
-
 function chatRange(
   chatId: string,
   lowerTimestamp: number = -Infinity,
@@ -195,23 +187,31 @@ async function decryptWindow(
   return Promise.all(records.map((msg) => dbInstance.decryptMessageFields(msg, chatId)));
 }
 
-function windowResult(
+async function windowResult(
   messages: Message[],
-  hasMoreBefore: boolean,
-  hasMoreAfter: boolean,
-  anchorFound = true,
-): MessageWindowResult {
-  return {
-    messages,
-    hasMoreBefore,
-    hasMoreAfter,
-    startCursor: messages[0]?.created_at ?? null,
-    startCursorMessageId: messages[0]?.message_id ?? null,
-    endCursor: messages[messages.length - 1]?.created_at ?? null,
-    endCursorMessageId: messages[messages.length - 1]?.message_id ?? null,
-    anchorFound,
-  };
+  flags: {
+    direction: MessageWindowDirection;
+    hasMore: boolean;
+    beforeHasMore?: boolean;
+    afterHasMore?: boolean;
+    anchorFound?: boolean;
+  },
+): Promise<MessageWindowResult> {
+  const meta = await (await cacheDecisions()).windowResultMeta({
+    direction: flags.direction,
+    hasMore: flags.hasMore,
+    beforeHasMore: flags.beforeHasMore ?? false,
+    afterHasMore: flags.afterHasMore ?? false,
+    anchorFound: flags.anchorFound ?? true,
+    first: messages[0] ?? null,
+    last: messages[messages.length - 1] ?? null,
+  });
+  return { messages, ...meta };
 }
+
+/** The window the request names no cursor for: no messages, no more pages, no anchor. */
+const emptyWindow = (): Promise<MessageWindowResult> =>
+  windowResult([], { direction: "latest", hasMore: false, anchorFound: false });
 
 function compareMessageCursorPosition(message: Message, timestamp: number, messageId?: string): number {
   if (message.created_at !== timestamp) {
@@ -219,24 +219,6 @@ function compareMessageCursorPosition(message: Message, timestamp: number, messa
   }
   if (!messageId) return 0;
   return message.message_id.localeCompare(messageId);
-}
-
-function buildMessageWindowPageId(
-  chatId: string,
-  pageKind: MessageWindowPageKind,
-  direction: MessageWindowDirection,
-  result: MessageWindowResult,
-): string {
-  return [
-    chatId,
-    pageKind,
-    direction,
-    result.startCursor ?? "start",
-    result.startCursorMessageId ?? "start-id",
-    result.endCursor ?? "end",
-    result.endCursorMessageId ?? "end-id",
-    MESSAGE_WINDOW_PAGE_CACHE_GENERATION,
-  ].join("|");
 }
 
 /** Configure the whole-origin cache target; protected data may exceed it. */
@@ -247,15 +229,19 @@ export function configureOfflineCacheBudget(bytes: number): void {
 }
 
 export function offlineCacheTargetBytes(quota?: number): number {
-  return quota && Number.isFinite(quota) && quota > 0
-    ? Math.min(configuredOfflineCacheBudgetBytes, Math.floor(quota / 2))
-    : configuredOfflineCacheBudgetBytes;
+  return cacheTargetBytes(configuredOfflineCacheBudgetBytes, quota);
 }
 
 async function deleteConfirmedMessage(
   dbInstance: ChatDatabaseInstance,
   messageId: string,
 ): Promise<boolean> {
+  if (RUST_PERSIST_BUILD) {
+    // The Rust verdict arrives outside the transaction: decide on a snapshot, then delete only if the row is unchanged.
+    return deleteConfirmedMessageAfterDecision(
+      dbInstance, messageId, (row) => rustMessageRowPolicy().then((policy) => policy.rustIsSafeToEvictMessage(row)),
+    );
+  }
   const transaction = await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readwrite");
   return new Promise((resolve, reject) => {
     const store = transaction.objectStore(MESSAGES_STORE_NAME);
@@ -456,22 +442,37 @@ export async function getMessageWindowForChat(
   transaction?: IDBTransaction,
 ): Promise<MessageWindowResult> {
   await dbInstance.init();
-  const limit = clampWindowLimit(options.limit);
-  const direction = options.direction ?? "latest";
+  const decisions = await cacheDecisions();
+  const planInput = {
+    chatId: chat_id,
+    direction: options.direction,
+    limit: options.limit,
+    anchorMessageId: options.anchorMessageId,
+    anchorCreatedAt: options.anchorCreatedAt,
+    beforeTimestamp: options.beforeTimestamp,
+    afterTimestamp: options.afterTimestamp,
+    compressedUpToTimestamp: options.compressedUpToTimestamp,
+  };
+  let plan = await decisions.windowPlan(planInput);
 
   let anchorRecord: Message | null = null;
-  if (direction === "around" && options.anchorMessageId) {
+  if (plan.needsAnchorRead) {
     const anchorTransaction = await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readonly");
     anchorRecord = await new Promise<Message | null>((resolve, reject) => {
       const request = anchorTransaction.objectStore(MESSAGES_STORE_NAME).get(options.anchorMessageId!);
       request.onsuccess = () => resolve((request.result as Message | undefined) ?? null);
       request.onerror = () => reject(request.error);
     });
-    if (anchorRecord?.chat_id !== chat_id) {
-      anchorRecord = null;
-    }
+    plan = await decisions.windowPlan({
+      ...planInput,
+      anchorRecord: anchorRecord ? { chat_id: anchorRecord.chat_id, created_at: anchorRecord.created_at } : null,
+    });
+    if (!plan.keepAnchor) anchorRecord = null;
   }
+  if (plan.empty) return emptyWindow();
 
+  const { direction, limit } = plan;
+  const lowerBound = plan.lowerBound ?? -Infinity;
   const currentTransaction =
     transaction ||
     (await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readonly"));
@@ -479,28 +480,22 @@ export async function getMessageWindowForChat(
   const index = store.index("chat_id_created_at");
 
   if (direction === "around") {
-    const anchorCreatedAt = anchorRecord?.created_at ?? options.anchorCreatedAt;
-    if (!anchorCreatedAt) {
-      return windowResult([], false, false, false);
-    }
-
-    const beforeLimit = Math.floor((limit - 1) / 2);
-    const afterLimit = limit - 1 - beforeLimit;
-    const before = beforeLimit > 0
+    const anchorCreatedAt = plan.anchorCreatedAt!;
+    const before = plan.beforeLimit > 0
       ? await readCursorWindow(
           index,
-          chatRange(chat_id, options.compressedUpToTimestamp ?? -Infinity, anchorCreatedAt, !!options.compressedUpToTimestamp, false),
+          chatRange(chat_id, lowerBound, anchorCreatedAt, plan.lowerOpen, false),
           "prev",
-          beforeLimit,
+          plan.beforeLimit,
           (message) => compareMessageCursorPosition(message, anchorCreatedAt, options.anchorMessageId) < 0,
         )
       : { records: [], hasMore: false };
-    const after = afterLimit > 0
+    const after = plan.afterLimit > 0
       ? await readCursorWindow(
           index,
           chatRange(chat_id, anchorCreatedAt, Infinity, true, false),
           "next",
-          afterLimit,
+          plan.afterLimit,
           (message) => compareMessageCursorPosition(message, anchorCreatedAt, options.anchorMessageId) > 0,
         )
       : { records: [], hasMore: false };
@@ -510,26 +505,26 @@ export async function getMessageWindowForChat(
       ...after.records,
     ];
     const messages = await decryptWindow(dbInstance, encryptedMessages, chat_id);
-    return windowResult(messages, before.hasMore, after.hasMore, !!anchorRecord || !!options.anchorCreatedAt);
+    return windowResult(messages, {
+      direction, hasMore: false, beforeHasMore: before.hasMore, afterHasMore: after.hasMore, anchorFound: plan.anchorFound,
+    });
   }
 
   if (direction === "before") {
-    const beforeTimestamp = options.beforeTimestamp ?? options.anchorCreatedAt;
-    if (!beforeTimestamp) return windowResult([], false, false, false);
+    const beforeTimestamp = plan.timestamp!;
     const { records, hasMore } = await readCursorWindow(
       index,
-      chatRange(chat_id, options.compressedUpToTimestamp ?? -Infinity, beforeTimestamp, !!options.compressedUpToTimestamp, false),
+      chatRange(chat_id, lowerBound, beforeTimestamp, plan.lowerOpen, false),
       "prev",
       limit,
       (message) => compareMessageCursorPosition(message, beforeTimestamp, options.beforeMessageId) < 0,
     );
     const messages = await decryptWindow(dbInstance, records.reverse(), chat_id);
-    return windowResult(messages, hasMore, true);
+    return windowResult(messages, { direction, hasMore });
   }
 
   if (direction === "after") {
-    const afterTimestamp = options.afterTimestamp ?? options.anchorCreatedAt;
-    if (!afterTimestamp) return windowResult([], false, false, false);
+    const afterTimestamp = plan.timestamp!;
     const { records, hasMore } = await readCursorWindow(
       index,
       chatRange(chat_id, afterTimestamp, Infinity, false, false),
@@ -538,17 +533,17 @@ export async function getMessageWindowForChat(
       (message) => compareMessageCursorPosition(message, afterTimestamp, options.afterMessageId) > 0,
     );
     const messages = await decryptWindow(dbInstance, records, chat_id);
-    return windowResult(messages, true, hasMore);
+    return windowResult(messages, { direction, hasMore });
   }
 
   const { records, hasMore } = await readCursorWindow(
     index,
-    chatRange(chat_id, options.compressedUpToTimestamp ?? -Infinity, Infinity, !!options.compressedUpToTimestamp, false),
+    chatRange(chat_id, lowerBound, Infinity, plan.lowerOpen, false),
     "prev",
     limit,
   );
   const messages = await decryptWindow(dbInstance, records.reverse(), chat_id);
-  return windowResult(messages, hasMore, false);
+  return windowResult(messages, { direction: "latest", hasMore });
 }
 
 /**
@@ -568,7 +563,24 @@ export async function recordMessageWindowPage(
   const direction = options.direction ?? "latest";
   const pageKind = options.pageKind ?? "normal";
   const now = options.now ?? Date.now();
-  const id = buildMessageWindowPageId(chat_id, pageKind, direction, result);
+  const decisions = await cacheDecisions();
+  const pageInput = {
+    chatId: chat_id,
+    pageKind,
+    direction,
+    result: {
+      startCursor: result.startCursor,
+      startCursorMessageId: result.startCursorMessageId,
+      endCursor: result.endCursor,
+      endCursorMessageId: result.endCursorMessageId,
+      hasMoreBefore: result.hasMoreBefore,
+      hasMoreAfter: result.hasMoreAfter,
+    },
+    messageIds: result.messages.map((message) => message.message_id),
+    now,
+  };
+  // The record id names the page; it is built before the stored copy (and its first-cached time) is read.
+  const { id } = await decisions.windowPageRecord({ ...pageInput, existingCachedAt: null });
   const readTransaction = await dbInstance.getTransaction(
     MESSAGE_WINDOW_PAGES_STORE_NAME,
     "readonly",
@@ -576,22 +588,10 @@ export async function recordMessageWindowPage(
   const existing = await requestToPromise<MessageWindowPageCacheRecord | undefined>(
     readTransaction.objectStore(MESSAGE_WINDOW_PAGES_STORE_NAME).get(id),
   );
-  const record: MessageWindowPageCacheRecord = {
-    id,
-    chat_id,
-    page_kind: pageKind,
-    direction,
-    start_cursor: result.startCursor,
-    start_cursor_message_id: result.startCursorMessageId,
-    end_cursor: result.endCursor,
-    end_cursor_message_id: result.endCursorMessageId,
-    has_more_before: result.hasMoreBefore,
-    has_more_after: result.hasMoreAfter,
-    message_ids: result.messages.map((message) => message.message_id),
-    cached_at: existing?.cached_at ?? now,
-    last_accessed_at: now,
-    cache_generation: MESSAGE_WINDOW_PAGE_CACHE_GENERATION,
-  };
+  const record: MessageWindowPageCacheRecord = await decisions.windowPageRecord({
+    ...pageInput,
+    existingCachedAt: existing?.cached_at ?? null,
+  });
   const writeTransaction = await dbInstance.getTransaction(
     MESSAGE_WINDOW_PAGES_STORE_NAME,
     "readwrite",
@@ -632,55 +632,49 @@ export async function evictStaleMessageWindowPages(
   chat_id: string,
   options: EvictMessageWindowPagesOptions = {},
 ): Promise<EvictMessageWindowPagesResult> {
-  const maxPagesPerChat = Math.max(1, Math.floor(options.maxPagesPerChat ?? DEFAULT_MESSAGE_WINDOW_PAGE_CACHE_LIMIT));
-  const protectedPageIds = new Set(options.protectedPageIds ?? []);
-  const protectedMessageIds = new Set(options.protectedMessageIds ?? []);
+  const decisions = await cacheDecisions();
   const pages = await getMessageWindowPagesForChat(dbInstance, chat_id);
-  const normalPages = pages
-    .filter((page) => page.page_kind === "normal" && !protectedPageIds.has(page.id))
-    .sort((a, b) => a.last_accessed_at - b.last_accessed_at);
-  const deleteCount = Math.max(0, pages.filter((page) => page.page_kind === "normal").length - maxPagesPerChat);
+  const { deleteCount, candidates } = await decisions.evictPlan({
+    pages,
+    maxPagesPerChat: options.maxPagesPerChat,
+    protectedPageIds: options.protectedPageIds,
+    protectedMessageIds: options.protectedMessageIds,
+  });
   const pagesToDelete: MessageWindowPageCacheRecord[] = [];
-  for (const page of normalPages) {
+  for (const pageId of candidates) {
     if (pagesToDelete.length >= deleteCount) break;
-    if (page.message_ids.some((id) => protectedMessageIds.has(id))) continue;
-    let confirmed = true;
+    const page = pages.find((candidate) => candidate.id === pageId)!;
+    const stored: Array<Message | undefined> = [];
     for (const messageId of page.message_ids) {
       const readTransaction = await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readonly");
-      const message = await requestToPromise<Message | undefined>(
+      stored.push(await requestToPromise<Message | undefined>(
         readTransaction.objectStore(MESSAGES_STORE_NAME).get(messageId),
-      );
-      if (!(RUST_PERSIST_BUILD ? await (await rustMessageRowPolicy()).rustIsSafeToEvictMessage(message) : isSafeToEvictMessage(message))) {
-        confirmed = false;
-        break;
-      }
+      ));
     }
-    if (confirmed) pagesToDelete.push(page);
+    if (await decisions.pageConfirmed(stored)) pagesToDelete.push(page);
   }
   if (pagesToDelete.length === 0) {
     return { deletedPageIds: [], deletedMessageIds: [] };
   }
   invalidateRecentChatWindow(chat_id, 'message');
 
-  const deletingPageIds = new Set(pagesToDelete.map((page) => page.id));
-  const retainedMessageIds = new Set<string>();
-  for (const page of pages) {
-    if (deletingPageIds.has(page.id)) continue;
-    for (const messageId of page.message_ids) retainedMessageIds.add(messageId);
-  }
+  const deletePlan = await decisions.evictDeletePlan({
+    pages,
+    deletingPageIds: pagesToDelete.map((page) => page.id),
+    protectedMessageIds: options.protectedMessageIds,
+  });
 
   const deletedPageIds: string[] = [];
   const deletedMessageIds: string[] = [];
-  for (const page of pagesToDelete) {
+  for (const { pageId, messageIds } of deletePlan) {
     const pageTransaction = await dbInstance.getTransaction(
       MESSAGE_WINDOW_PAGES_STORE_NAME,
       "readwrite",
     );
-    await requestToPromise(pageTransaction.objectStore(MESSAGE_WINDOW_PAGES_STORE_NAME).delete(page.id));
-    deletedPageIds.push(page.id);
+    await requestToPromise(pageTransaction.objectStore(MESSAGE_WINDOW_PAGES_STORE_NAME).delete(pageId));
+    deletedPageIds.push(pageId);
 
-    for (const messageId of page.message_ids) {
-      if (retainedMessageIds.has(messageId) || protectedMessageIds.has(messageId)) continue;
+    for (const messageId of messageIds) {
       if (await deleteConfirmedMessage(dbInstance, messageId)) deletedMessageIds.push(messageId);
     }
   }
@@ -698,7 +692,8 @@ export async function enforceOfflineCacheBudget(
   dbInstance: ChatDatabaseInstance,
   force = false,
 ): Promise<number> {
-  if (!force && Date.now() - lastBudgetCheckAt < 30_000) return 0;
+  const decisions = await cacheDecisions();
+  if (await decisions.budgetThrottled({ force, now: Date.now(), lastCheckAt: lastBudgetCheckAt })) return 0;
   if (budgetTrim) {
     if (!force || budgetTrimForced) return budgetTrim;
     await budgetTrim.catch(() => 0);
@@ -709,33 +704,36 @@ export async function enforceOfflineCacheBudget(
   budgetTrim = (async () => {
     const storage = typeof navigator !== "undefined" ? navigator.storage : undefined;
     const estimate = await storage?.estimate?.().catch(() => undefined);
-    const target = offlineCacheTargetBytes(estimate?.quota);
-    if (!force && (estimate?.usage === undefined || estimate.usage <= target)) return 0;
+    const { target, trim } = await decisions.budgetTarget({
+      force,
+      configuredBytes: configuredOfflineCacheBudgetBytes,
+      quota: estimate?.quota,
+      usage: estimate?.usage,
+    });
+    if (!trim) return 0;
 
     await dbInstance.init();
     const transaction = await dbInstance.getTransaction(MESSAGE_WINDOW_PAGES_STORE_NAME, "readonly");
     const pages = await requestToPromise<MessageWindowPageCacheRecord[]>(
       transaction.objectStore(MESSAGE_WINDOW_PAGES_STORE_NAME).getAll(undefined, MAX_BUDGET_SCAN_PAGES),
     );
-    const normalPages = pages
-      .filter((page) => page.page_kind === "normal" &&
-        page.cache_generation === MESSAGE_WINDOW_PAGE_CACHE_GENERATION)
-      .sort((a, b) => a.last_accessed_at - b.last_accessed_at);
     let removed = 0;
-    for (const page of normalPages) {
-      if (removed >= MAX_BUDGET_EVICTIONS) break;
+    for (const page of await decisions.budgetCandidates(pages)) {
       const count = (await getMessageWindowPagesForChat(dbInstance, page.chat_id))
         .filter((candidate) => candidate.page_kind === "normal").length;
-      if (count <= 1) continue;
+      const step = await decisions.budgetChatStep(count);
+      if (step.skip) continue;
       const result = await evictStaleMessageWindowPages(dbInstance, page.chat_id, {
-        maxPagesPerChat: count - 1,
+        maxPagesPerChat: step.maxPagesPerChat,
       });
       if (result.deletedPageIds.length === 0) continue;
       removed += result.deletedPageIds.length;
-      if (!force && removed % 4 === 0) {
+      let action = await decisions.budgetAfter({ force, removed, target });
+      if (action === "need_usage") {
         const current = await storage?.estimate?.().catch(() => undefined);
-        if (current?.usage !== undefined && current.usage <= target) break;
+        action = await decisions.budgetAfter({ force, removed, target, usage: current?.usage ?? null });
       }
+      if (action === "stop_max" || action === "stop_under_target") break;
     }
     return removed;
   })().finally(() => { budgetTrim = null; budgetTrimForced = false; });

@@ -10,6 +10,10 @@ import { installPersistUnit } from '../persist/persistUnit';
 import { rustPersistStats } from '../persist/persistUnitClient';
 import type { PersistBinding } from '../persist/persistProtocol';
 import * as rust from '../persist/rustMessageRowPolicy';
+import { rustCacheDecisions } from '../persist/rustCachePolicy';
+import { rustChatRowDecisions } from '../persist/rustChatRowPolicy';
+import { PERSIST_OPS } from '../persist/persistProtocol';
+import { referenceOps } from './persistPolicyReference';
 import { hasNewEncryptedFields, isContentDuplicate, isSafeToEvictMessage, shouldUpdateMessage } from '../../db/messageRowPolicy';
 import type { Message } from '../../../types/chat';
 
@@ -37,6 +41,15 @@ const binding: PersistBinding = {
 		return JSON.stringify({ results: (JSON.parse(input).messages as Array<Message | null>).map((m) => isSafeToEvictMessage(m ?? undefined)) });
 	},
 };
+
+// The cache and chat-row ops answer with the TypeScript reference of the same policy.
+for (const [op, exportName] of Object.entries(PERSIST_OPS)) {
+	if (!(op in referenceOps)) continue;
+	(binding as unknown as Record<string, (input: string) => string>)[exportName] = (input) => {
+		seen.push(input);
+		return JSON.stringify(referenceOps[op](JSON.parse(input)));
+	};
+}
 
 function fakeWorker() {
 	const listeners: Record<string, ((event: Event) => void)[]> = { message: [], error: [], messageerror: [] };
@@ -115,5 +128,57 @@ describe('shared persist unit', () => {
 		const failures = rustPersistStats.failures;
 		await expect(rust.rustIsSafeToEvictMessage(message({}))).rejects.toBeDefined();
 		expect(rustPersistStats.failures - failures).toBe(1);
+	});
+});
+
+describe('shared persist unit: cache and chat-row decisions', () => {
+	// contract-test: supporting surface=gui.web assertions=storage.client.shared-policy-existing-adapters
+	it('answers window, budget and quota decisions from the unit', async () => {
+		const plan = await rustCacheDecisions.windowPlan({ chatId: 'c1', limit: 500, direction: 'before', beforeTimestamp: 90 });
+		expect(plan).toMatchObject({ limit: 100, direction: 'before', timestamp: 90, empty: false });
+		expect(await rustCacheDecisions.quotaStep({ stage: 'write', canRetry: true, errorName: 'QuotaExceededError' })).toBe('trim_retry');
+		expect(await rustCacheDecisions.quotaStep({ stage: 'retry', canRetry: true, errorName: 'AbortError' })).toBe('rethrow');
+		expect(await rustCacheDecisions.budgetTarget({ force: false, configuredBytes: 100, quota: 120, usage: 70 })).toEqual({ target: 60, trim: true });
+		expect(await rustCacheDecisions.chatsPageSize(500)).toBe(50);
+		expect(await rustCacheDecisions.pageConfirmed([message({ status: 'synced' }), undefined])).toBe(false);
+		expect(await rustCacheDecisions.pageConfirmed([message({ status: 'synced' })])).toBe(true);
+	});
+
+	// contract-test: supporting surface=gui.web assertions=storage.client.shared-policy-existing-adapters
+	it('sends only the page fields the eviction decisions read', async () => {
+		await rustCacheDecisions.evictPlan({
+			pages: [{ id: 'p1', chat_id: 'c1', page_kind: 'normal', last_accessed_at: 1, message_ids: ['a'], cache_generation: 1, direction: 'latest', cached_at: 9 } as never],
+			maxPagesPerChat: 1,
+		});
+		expect(Object.keys(JSON.parse(seen[seen.length - 1]).pages[0]).sort())
+			.toEqual(['cache_generation', 'chat_id', 'id', 'last_accessed_at', 'message_ids', 'page_kind']);
+	});
+
+	// contract-test: supporting surface=gui.web assertions=storage.client.shared-policy-existing-adapters
+	it('merges draft fields as a patch and keeps explicitly undefined fields apart', async () => {
+		const decision = await rustChatRowDecisions.draftMerge({
+			chatId: 'c1',
+			current: { chat_id: 'c1', draft_v: 2, cleared_draft_v: 0, team_id: null, heavy: 'x'.repeat(500) } as never,
+			fields: { draft_v: 3, encrypted_draft_md: 'cipher', encrypted_draft_preview: undefined, cleared_draft_v: 1 },
+			missingRow: null,
+		});
+		expect(decision).toEqual({
+			action: 'put',
+			patch: { draft_v: 3, encrypted_draft_md: 'cipher', cleared_draft_v: 1 },
+			undefinedKeys: ['encrypted_draft_preview'],
+		});
+		const sent = JSON.parse(seen[seen.length - 1]);
+		expect(sent.current).toEqual({ chat_id: 'c1', draft_v: 2, cleared_draft_v: 0, team_id: null });
+		expect(sent.undefinedKeys).toEqual(['encrypted_draft_preview']);
+	});
+
+	// contract-test: supporting surface=gui.web assertions=storage.client.shared-policy-existing-adapters
+	it('decides chat defaults, candidate keys and the keyless draft shell from the unit', async () => {
+		expect(await rustChatRowDecisions.chatDefaults({ updated_at: 7 }, 99)).toEqual({
+			draft_v: 0, title_v: 0, messages_v: 0, last_edited_overall_timestamp: 7,
+		});
+		expect(await rustChatRowDecisions.candidateKeys(['a'], 'a')).toBeNull();
+		expect(await rustChatRowDecisions.candidateKeys(['a'], 'b')).toEqual(['a', 'b']);
+		expect(await rustChatRowDecisions.keylessDraftOnly({ messages_v: 0, draft_v: 1, encrypted_draft_md: 'c' }, null)).toBe(true);
 	});
 });

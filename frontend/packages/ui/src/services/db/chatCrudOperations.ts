@@ -27,6 +27,9 @@ import { isAnonymousChatId } from "../anonymousChatIds";
 import { wrapTeamChatKey } from "../teamService";
 import { invalidateRecentChatWindow } from "../recentChatWindowCache";
 import { computeSHA256 } from "../../message_parsing/utils";
+import { chatRowDecisions } from "./chatRowDecisions";
+import { applyRowPatch, applyTeamDraftIntent, mergeDraftFields } from "./chatRowPolicy";
+import { rewriteChatRow } from "./chatRowRewrite";
 
 // Type for ChatDatabase instance to avoid circular import
 // Only includes properties/methods needed by this module.
@@ -310,9 +313,6 @@ async function deleteChatConditionally(
   });
 }
 
-// Maximum candidate keys stored per chat — prevents unbounded IDB growth
-const MAX_CANDIDATE_KEYS = 5;
-
 const SHARED_CHAT_KEY_SOURCES = new Set(["share_link", "shared_storage"]);
 
 function isSharedChatKeySource(chatId: string): boolean {
@@ -368,10 +368,9 @@ export async function addCandidateKey(
     const chat = await dbInstance.getChat(chatId);
     if (!chat) return;
 
-    const existing = chat.candidate_encrypted_keys ?? [];
-    if (existing.includes(encryptedKeyBlob)) return; // already stored
-
-    const updated = [...existing, encryptedKeyBlob].slice(-MAX_CANDIDATE_KEYS);
+    // Deduplicates and keeps the newest MAX_CANDIDATE_KEYS entries (chatRowPolicy.ts).
+    const updated = await (await chatRowDecisions()).candidateKeys(chat.candidate_encrypted_keys, encryptedKeyBlob);
+    if (!updated) return; // already stored
     // Use a minimal update object — only touch the candidate_encrypted_keys field
     const transaction = await dbInstance.getTransaction(
       dbInstance.CHATS_STORE_NAME,
@@ -412,22 +411,6 @@ function _extractTitleFromContent(content: TiptapJSON): string {
 // ============================================================================
 // CHAT ENCRYPTION/DECRYPTION
 // ============================================================================
-
-function isExpectedKeylessDraftOnlySyncChat(chat: Chat, existingChat: Chat | null): boolean {
-  // Personal draft ciphertext uses the account master key. A new draft-only
-  // shell has no chat key or messages yet; a real chat must retain the guard.
-  return !chat.team_id && !chat.chat_visibility &&
-    !chat.is_anonymous && !chat.anonymous_encrypted_chat_key &&
-    !chat.is_shared && !chat.is_shared_by_others &&
-    !chat.encrypted_chat_key && !chat.encrypted_title &&
-    chat.messages_v === 0 && (chat.draft_v ?? 0) > 0 &&
-    !!chat.encrypted_draft_md && chat.encrypted_draft_md !== "null" &&
-    (!existingChat || (
-      !existingChat.encrypted_chat_key && !existingChat.encrypted_title &&
-      !existingChat.team_id && !existingChat.chat_visibility &&
-      existingChat.messages_v === 0
-    ));
-}
 
 /**
  * Encrypt chat data before storing in IndexedDB
@@ -631,7 +614,7 @@ export async function encryptChatForStorage(
       );
     }
     if (options?.isFromSync) {
-      if (!isExpectedKeylessDraftOnlySyncChat(chat, existingChatWithoutKey)) {
+      if (!(await (await chatRowDecisions()).keylessDraftOnly(chat as unknown as Record<string, unknown>, existingChatWithoutKey as unknown as Record<string, unknown> | null))) {
         console.error(
           `[ChatDatabase] ⚠️ SYNC GUARD: No chat key available for synced chat ${chat.chat_id}. ` +
             `Refusing to create a new key — this would corrupt existing messages. ` +
@@ -863,20 +846,11 @@ export async function addChat(
   // This prevents warnings during decryption and ensures consistency
   // CRITICAL FIX: Ensure last_edited_overall_timestamp exists for getAllChats index query
   // If missing, fall back to updated_at (which always exists from server)
+  // Fall back through updated_at → created_at before using Date.now(); a new
+  // chat is stamped with the current time only when it has no timestamps at all.
   const chatWithDefaults: Chat = {
     ...chat,
-    draft_v: chat.draft_v ?? 0, // Default to 0 if undefined
-    title_v: chat.title_v ?? 0, // Also ensure title_v has a default
-    messages_v: chat.messages_v ?? 0, // And messages_v
-    // Fall back through updated_at → created_at before using Date.now().
-    // Date.now() would stamp a new chat with the current time and push it to the
-    // top of the sort order — only acceptable for genuinely brand-new chats that
-    // have no timestamps at all yet.
-    last_edited_overall_timestamp:
-      chat.last_edited_overall_timestamp ??
-      chat.updated_at ??
-      chat.created_at ??
-      Math.floor(Date.now() / 1000),
+    ...(await (await chatRowDecisions()).chatDefaults(chat, Math.floor(Date.now() / 1000))),
   };
 
   // CRITICAL FIX: For external transactions, we need to do async work BEFORE checking transaction state
@@ -1577,6 +1551,17 @@ export async function setTeamDraftPendingSync(
   if (get(forcedLogoutInProgress) || get(isLoggingOut) || !writeGuard()) return null;
   await dbInstance.init();
   if (!writeGuard()) return null;
+  const decisions = await chatRowDecisions();
+  if (decisions.deferred) {
+    // Rust decides on a snapshot; the write re-checks that the row is unchanged.
+    return rewriteChatRow(dbInstance, chatId, async (chat) => {
+      if (!writeGuard()) return { kind: "skip", value: null };
+      const decision = await decisions.teamDraftIntent({ chat: chat ?? null, teamId, pending, expected });
+      return decision.apply
+        ? { kind: "write", next: applyRowPatch({ ...chat! }, decision) }
+        : { kind: "skip", value: null };
+    }, writeGuard);
+  }
   const transaction = await dbInstance.getTransaction(dbInstance.CHATS_STORE_NAME, "readwrite");
   return new Promise((resolve, reject) => {
     let updated: Chat | null = null;
@@ -1588,14 +1573,9 @@ export async function setTeamDraftPendingSync(
     request.onerror = () => reject(request.error ?? new Error("Team draft intent read failed"));
     request.onsuccess = () => {
       const chat = request.result as Chat | undefined;
-      if (!chat || chat.team_id !== teamId || !writeGuard()) return;
-      if (expected && (chat.team_draft_pending_sync !== expected.kind ||
-        (expected.cipher !== undefined && chat.encrypted_draft_md !== expected.cipher) ||
-        (expected.version !== undefined && (chat.draft_v ?? 0) !== expected.version))) return;
-      updated = { ...chat, team_draft_pending_sync: pending,
-        cleared_draft_v: expected?.clearedDraftVersion === undefined
-          ? chat.cleared_draft_v
-          : Math.max(chat.cleared_draft_v ?? 0, expected.clearedDraftVersion) };
+      const decision = applyTeamDraftIntent(chat ?? null, teamId, pending, expected);
+      if (!decision.apply || !writeGuard()) return;
+      updated = applyRowPatch({ ...chat! }, decision);
       store.put(updated);
     };
   });
@@ -1622,6 +1602,19 @@ export async function saveChatDraftFields(
     throw new Error("Cannot write chat draft during logout");
   }
   if (!dbInstance.db) await dbInstance.init();
+  const decisions = await chatRowDecisions();
+  if (decisions.deferred) {
+    // Rust decides on a snapshot; the write re-checks that the row is unchanged.
+    return rewriteChatRow(dbInstance, chatId, async (current) => {
+      const decision = await decisions.draftMerge({ chatId, current: current ?? null, fields, missingRow: missingRow ?? null });
+      if (decision.action === "none") return { kind: "skip", value: null };
+      if (decision.action === "abort") return { kind: "abort", message: "Draft transaction aborted" };
+      if (decision.action === "keep") return { kind: "skip", value: current! };
+      const saved = applyRowPatch({ ...(current ?? missingRow!) }, decision);
+      delete saved.messages;
+      return { kind: "write", next: saved };
+    });
+  }
   const transaction = await dbInstance.getTransaction(dbInstance.CHATS_STORE_NAME, "readwrite");
   return new Promise((resolve, reject) => {
     let saved: Chat | null = null;
@@ -1633,32 +1626,19 @@ export async function saveChatDraftFields(
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const current = request.result as Chat | undefined;
-      if (!current && !missingRow) return;
-      if (missingRow && (missingRow.chat_id !== chatId ||
-          (current && (current.team_id ?? null) !== (missingRow.team_id ?? null)))) {
+      // Recheck draft ordering under the write lock, rather than trusting the
+      // caller's earlier read while a send or deletion was committing.
+      const decision = mergeDraftFields(chatId, current ?? null, fields, missingRow ?? null);
+      if (decision.action === "none") return;
+      if (decision.action === "abort") {
         transaction.abort();
         return;
       }
-      const base = current ?? missingRow!;
-      // Recheck draft ordering under the write lock, rather than trusting the
-      // caller's earlier read while a send or deletion was committing.
-      const clearsCurrentDraft = fields.encrypted_draft_md === null && fields.draft_v === 0 &&
-        (fields.cleared_draft_v ?? -1) >= (base.draft_v ?? 0);
-      if (current && !clearsCurrentDraft && fields.draft_v !== undefined &&
-          (fields.draft_v < (current.draft_v ?? 0) ||
-            (fields.encrypted_draft_md != null && fields.draft_v <= (current.cleared_draft_v ?? -1)))) {
-        saved = current;
+      if (decision.action === "keep") {
+        saved = current!;
         return;
       }
-      saved = { ...base };
-      for (const key of ["encrypted_draft_md", "encrypted_draft_preview", "draft_v",
-        "ideabucket", "ideabucket_processing_window_id"] as const) {
-        if (Object.prototype.hasOwnProperty.call(fields, key)) {
-          Object.assign(saved, { [key]: fields[key] });
-        }
-      }
-      if (fields.cleared_draft_v !== undefined) saved.cleared_draft_v = Math.max(base.cleared_draft_v ?? 0, fields.cleared_draft_v);
-      if (fields.updated_at !== undefined) saved.updated_at = Math.max(base.updated_at ?? 0, fields.updated_at);
+      saved = applyRowPatch({ ...(current ?? missingRow!) }, decision);
       delete saved.messages;
       store.put(saved);
     };
@@ -1692,14 +1672,7 @@ export async function upsertRawChat(
   }
   const chatToSave: Chat = {
     ...chat,
-    draft_v: chat.draft_v ?? 0,
-    title_v: chat.title_v ?? 0,
-    messages_v: chat.messages_v ?? 0,
-    last_edited_overall_timestamp:
-      chat.last_edited_overall_timestamp ??
-      chat.updated_at ??
-      chat.created_at ??
-      Math.floor(Date.now() / 1000),
+    ...(await (await chatRowDecisions()).chatDefaults(chat, Math.floor(Date.now() / 1000))),
   };
   delete chatToSave.messages;
 
@@ -2226,14 +2199,7 @@ export async function batchSaveMetadataChats(
         {
           ...chat,
           is_metadata_only: true,
-          draft_v: chat.draft_v ?? 0,
-          title_v: chat.title_v ?? 0,
-          messages_v: chat.messages_v ?? 0,
-          last_edited_overall_timestamp:
-            chat.last_edited_overall_timestamp ??
-            chat.updated_at ??
-            chat.created_at ??
-            Math.floor(Date.now() / 1000),
+          ...(await (await chatRowDecisions()).chatDefaults(chat, Math.floor(Date.now() / 1000))),
         },
         { isFromSync: true, forceIncomingEncryptedChatKey: false },
       );

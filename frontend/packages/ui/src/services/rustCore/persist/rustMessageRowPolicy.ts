@@ -33,7 +33,7 @@ const EVICT_FIELDS = [
 ] as const;
 
 /** The listed fields of `message` that are present (a missing field is JS `undefined`). */
-function pick(message: Message, fields: readonly string[]): Message {
+export function pickFields(message: Message, fields: readonly string[]): Message {
 	const source = message as unknown as Row;
 	const out: Row = {};
 	for (const field of fields) if (source[field] !== undefined) out[field] = source[field];
@@ -45,7 +45,7 @@ export async function rustShouldUpdateMessages(pairs: Array<{ existing: Message;
 	if (pairs.length === 0) return [];
 	const fields = [...UPDATE_FIELDS];
 	const { results } = await persistCall('messageShouldUpdate', {
-		pairs: pairs.map(({ existing, incoming }) => ({ existing: pick(existing, fields), incoming: pick(incoming, fields) })),
+		pairs: pairs.map(({ existing, incoming }) => ({ existing: pickFields(existing, fields), incoming: pickFields(incoming, fields) })),
 	});
 	return results;
 }
@@ -59,9 +59,9 @@ export function rustSaveDecision(
 	existing: Message, incoming: Message, incomingEncrypted: Message,
 ): Promise<{ shouldUpdate: boolean; fillsEncrypted: boolean }> {
 	return persistCall('messageSaveDecision', {
-		existing: pick(existing, [...UPDATE_FIELDS, ...ENCRYPTED_FIELDS]),
-		incoming: pick(incoming, UPDATE_FIELDS),
-		incomingEncrypted: pick(incomingEncrypted, ENCRYPTED_FIELDS),
+		existing: pickFields(existing, [...UPDATE_FIELDS, ...ENCRYPTED_FIELDS]),
+		incoming: pickFields(incoming, UPDATE_FIELDS),
+		incomingEncrypted: pickFields(incomingEncrypted, ENCRYPTED_FIELDS),
 	});
 }
 
@@ -69,14 +69,14 @@ export function rustSaveDecision(
 export async function rustFindContentDuplicate(candidates: Message[], message: Message): Promise<Message | null> {
 	if (candidates.length === 0) return null;
 	const { index } = await persistCall('messageContentDuplicate', {
-		candidates: candidates.map((candidate) => pick(candidate, DUPLICATE_FIELDS)),
-		message: pick(message, DUPLICATE_FIELDS),
+		candidates: candidates.map((candidate) => pickFields(candidate, DUPLICATE_FIELDS)),
+		message: pickFields(message, DUPLICATE_FIELDS),
 	});
 	return index === null ? null : candidates[index];
 }
 
 /** `isSafeToEvictMessage` for a stored row (`undefined` is a missing row). */
 export async function rustIsSafeToEvictMessage(message: Message | undefined): Promise<boolean> {
-	const { results } = await persistCall('messageSafeToEvict', { messages: [message ? pick(message, EVICT_FIELDS) : null] });
+	const { results } = await persistCall('messageSafeToEvict', { messages: [message ? pickFields(message, EVICT_FIELDS) : null] });
 	return results[0];
 }

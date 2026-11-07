@@ -56,6 +56,7 @@ test('message row decisions run on the shared Rust persist unit and stored chats
 	const sendStats = await page.evaluate(() => (window as any).__openmatesRustPersistStats?.() ?? null);
 	expect(sendStats, 'the first (flag-on) send routed message save decisions through the unit').not.toBeNull();
 	expect(sendStats.failures, 'no persist unit call failed while sending').toBe(0);
+	expect(Object.keys(sendStats.ops), 'the new chat row defaults were decided by the unit').toContain('chatDefaults');
 
 	try {
 		for (let i = 0; i < RELOADS; i++) {
