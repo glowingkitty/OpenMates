@@ -131,9 +131,13 @@ changes to the documentation (to keep the documentation up to date).
     const SETTINGS_ROUTE_TITLE_KEY_OVERRIDES: Record<string, string> = {
         'learning-mode': 'settings.learning_mode',
         'learning-mode/setup': 'settings.learning_mode',
+        // Alias of settings_memories used by Memory deep links.
+        'memories': 'settings.settings_memories',
     };
 
     function getSettingsRouteTitleKey(settingsPath: string): string | undefined {
+        // Memory deep links (settings_memories/<id>) open the Memories hub, so they share its title.
+        if (/^(?:settings_memories|memories)\/[^/]+$/.test(settingsPath.split('&')[0])) return 'settings.settings_memories';
         return SETTINGS_ROUTE_TITLE_KEY_OVERRIDES[settingsPath] ?? getGiftCardTitleKeyForPath(settingsPath);
     }
 

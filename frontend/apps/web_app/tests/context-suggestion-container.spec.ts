@@ -58,6 +58,9 @@ test.describe('Context suggestion container', () => {
 		await page.getByTestId('context-suggestion-preview').click();
 		await expect(page.getByTestId('memory-draft-banner')).toBeVisible();
 		await expect(page.getByTestId('rule-body')).toContainText('Keep release notes short.');
+		// The Memories deep-link header and breadcrumb must show translated text, never a raw key.
+		await expect(page.locator('body')).not.toContainText('[T:');
+		await expect(page.locator('body')).not.toContainText('settings.memories.');
 	});
 
 	// contract-test: supporting surface=gui.web assertions=app-memories.suggestions.post-processor

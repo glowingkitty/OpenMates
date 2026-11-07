@@ -32622,7 +32622,7 @@ assertions:
       surface: gui.web
     - &id4175
       path: frontend/apps/web_app/tests/context-suggestion-container.spec.ts
-      line: 64
+      line: 67
       name: workflow suggestion shows title and summary with Create instead of Preview
       surface: gui.web
     - &id4176
