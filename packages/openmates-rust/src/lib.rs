@@ -23,6 +23,7 @@ pub mod session;
 pub mod task_order;
 pub mod toon_decode;
 pub mod upload_privacy;
+pub mod web_persist;
 pub mod web_ws;
 pub mod web_search;
 pub mod web_search_chats;

@@ -531,3 +531,18 @@ measurements:
     confidence: traced
     notes: 'Advisory under the 2026-11-07 policy: +103 ms is not gross (needs >+25% and >+100 ms). Prepare-early
       applied; the median delta fell from +354/+306 to roughly +100-190 ms.'
+  - id: 2026-11-07-chatRendered-persist-01
+    date: '2026-11-07'
+    flow: chatRendered
+    metric: chatRenderedMs
+    value_kind: ratio
+    value: null
+    ci95: null
+    n_pairs: null
+    verdict: invalid_measurement
+    verdict_basis: reported
+    ci_job: 6c58976e
+    source_commit: 207bf804d0
+    evidence: web-rust-core-bench reload CI job 6c58976e (run 42365398525), persist opt-out added to the TS arm
+    confidence: traced
+    notes: 'TS arm failed before pairing (''ts: embed preview finished'' undefined; embed_write_not_bound in the console), the same embed blocker as the embeds-3 attempts; web-rust-core-reload-memory fails the same way. No paired persist numbers: an unchanged-chat reload makes no row-policy writes. The persist send phase is asserted by web-rust-core-persist.spec (job 023db33c, success).'

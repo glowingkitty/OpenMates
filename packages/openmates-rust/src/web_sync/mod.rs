@@ -25,12 +25,12 @@ fn protocol<E>(_: E) -> String {
 }
 
 /// Parses one JSON argument of a wasm entry point.
-fn parse(text: &str) -> Result<Value, String> {
+pub(crate) fn parse(text: &str) -> Result<Value, String> {
     serde_json::from_str(text).map_err(protocol)
 }
 
 /// JS truthiness of a JSON value (`undefined` is an absent field).
-fn truthy(value: Option<&Value>) -> bool {
+pub(crate) fn truthy(value: Option<&Value>) -> bool {
     match value {
         None | Some(Value::Null) => false,
         Some(Value::Bool(b)) => *b,
@@ -52,7 +52,7 @@ fn or(value: Option<&Value>) -> Option<&Value> {
 
 /// JS `ToNumber` for the values chat records carry (numbers, booleans, null);
 /// `undefined`, strings and containers are `NaN`, so every comparison is false.
-fn num(value: Option<&Value>) -> f64 {
+pub(crate) fn num(value: Option<&Value>) -> f64 {
     match value {
         Some(Value::Number(n)) => n.as_f64().unwrap_or(f64::NAN),
         Some(Value::Bool(b)) => f64::from(u8::from(*b)),
@@ -76,12 +76,12 @@ fn number(value: f64) -> Value {
 }
 
 /// Property read on a JSON object; anything else has no named fields.
-fn field<'a>(value: &'a Value, key: &str) -> Option<&'a Value> {
+pub(crate) fn field<'a>(value: &'a Value, key: &str) -> Option<&'a Value> {
     value.as_object().and_then(|object| object.get(key))
 }
 
 /// Strict equality (`===`) of two optional JSON primitives.
-fn strict_eq(a: Option<&Value>, b: Option<&Value>) -> bool {
+pub(crate) fn strict_eq(a: Option<&Value>, b: Option<&Value>) -> bool {
     match (a, b) {
         (None, None) => true,
         (Some(Value::Number(x)), Some(Value::Number(y))) => x.as_f64() == y.as_f64(),

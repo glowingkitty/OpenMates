@@ -308,9 +308,9 @@ Sources: `frontend/apps/web_app/src/lib/rustCore/shared/sharedWorkerUnits.ts` (i
 
 | Metric | Count |
 |---|---|
-| Namespaces in the allowlist | 14 |
-| Units installed (installer registered) | 14 / 14 (100%) |
-| Units planned (namespace reserved, no installer) | 0 / 14 (0%) |
+| Namespaces in the allowlist | 15 |
+| Units installed (installer registered) | 15 / 15 (100%) |
+| Units planned (namespace reserved, no installer) | 0 / 15 (0%) |
 
 Planned: none. A namespace without an installer is refused as `unit_unavailable`.
 
@@ -330,9 +330,10 @@ Planned: none. A namespace without an installer is refused as `unit_unavailable`
 | `drafts` | no | Draft policy (encryption, versioning, closed IndexedDB predicates, durable encrypted sync intent, readback) is shared Rust (`prepare_local_draft_with_preview`, `remote_payload`, `acknowledge_transport`). This unit only marshals: it runs the Rust calls on the ADMITTED client of the bound history `core` lease (borrowed via core... | not declared in unit sources | `frontend/packages/ui/src/services/rustCore/drafts/draftsUnit.ts` | `rustDraftsUnit.test.ts` |
 | `parse` | yes | Serves the render-plan block model (parseProtocol.ts) on the unit port from the realm's single WASM binding. Stateless and IO-free, hence pre-bind. | none declared (2 files) | `frontend/packages/ui/src/services/rustCore/parse/parseUnit.ts` | - |
 | `sendPrep` | yes | Serves the offline-outbox decisions (sendPrepProtocol.ts) on the unit port from the realm's single WASM binding. It holds no account state, so it is a pre-bind namespace. | none declared (2 files) | `frontend/packages/ui/src/services/rustCore/send/sendPrepUnit.ts` | `sendPrepOutboxVectors.test.ts` |
+| `persist` | yes | Serves the IndexedDB row policy (persistProtocol.ts) on the unit port from the realm's single WASM binding. It holds no account state and does no IO (rows are passed in, decisions come back), so it is a pre-bind namespace. | none declared (2 files) | `frontend/packages/ui/src/services/rustCore/persist/persistUnit.ts` | `persistSharedUnit.test.ts` |
 
 All units run only in builds with `VITE_OPENMATES_RUST_CORE=1`; with the flag off the original TypeScript path is unchanged.
-Web Rust core E2E specs in `frontend/apps/web_app/tests`: `web-rust-core-apps.spec.ts`, `web-rust-core-auth.spec.ts`, `web-rust-core-bench.spec.ts`, `web-rust-core-chat.spec.ts`, `web-rust-core-chatstate.spec.ts`, `web-rust-core-crypto.spec.ts`, `web-rust-core-drafts.spec.ts`, `web-rust-core-embeds.spec.ts`, `web-rust-core-memory-level.spec.ts`, `web-rust-core-profile.spec.ts`, `web-rust-core-reload-memory.spec.ts`, `web-rust-core-search.spec.ts`, `web-rust-core-send-bench.spec.ts`, `web-rust-core-sync.spec.ts`, `web-rust-core-transfer.spec.ts`, `web-rust-core-ws.spec.ts`.
+Web Rust core E2E specs in `frontend/apps/web_app/tests`: `web-rust-core-apps.spec.ts`, `web-rust-core-auth.spec.ts`, `web-rust-core-bench.spec.ts`, `web-rust-core-chat.spec.ts`, `web-rust-core-chatstate.spec.ts`, `web-rust-core-crypto.spec.ts`, `web-rust-core-drafts.spec.ts`, `web-rust-core-embeds.spec.ts`, `web-rust-core-memory-level.spec.ts`, `web-rust-core-persist.spec.ts`, `web-rust-core-profile.spec.ts`, `web-rust-core-reload-memory.spec.ts`, `web-rust-core-search.spec.ts`, `web-rust-core-send-bench.spec.ts`, `web-rust-core-sync.spec.ts`, `web-rust-core-transfer.spec.ts`, `web-rust-core-ws.spec.ts`.
 
 ## Performance verdicts
 

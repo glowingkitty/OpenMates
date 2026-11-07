@@ -649,6 +649,7 @@
         "chat-menu-parity.spec.ts",
         "web-rust-core-chat.spec.ts",
         "web-rust-core-sync.spec.ts",
+        "web-rust-core-persist.spec.ts",
         "web-rust-core-embeds.spec.ts",
         "web-rust-core-search.spec.ts",
         "web-rust-core-send-bench.spec.ts",

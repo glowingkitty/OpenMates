@@ -34,6 +34,7 @@ pub use browser_web_crypto::*;
 mod browser_chat_state;
 #[cfg(target_arch = "wasm32")]
 mod browser_auth;
+#[cfg(target_arch = "wasm32")] pub mod browser_persist;
 #[cfg(target_arch = "wasm32")] pub mod browser_ws_link;
 #[cfg(target_arch = "wasm32")]
 pub use browser_auth::*;

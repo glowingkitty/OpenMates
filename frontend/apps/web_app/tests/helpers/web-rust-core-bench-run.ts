@@ -25,6 +25,8 @@ const { measureDraftSaves } = require('./draft-save-metrics');
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 /** Measurement-only opt-out of the Rust history source (rustChatHistoryBootstrap.ts). */
 const HISTORY_OPT_OUT_KEY = 'openmates_rust_core_history';
+/** Measurement-only opt-out of the Rust IndexedDB message-row policy (db/messageOperations.ts). */
+const PERSIST_OPT_OUT_KEY = 'openmates_rust_core_persist';
 const MARGIN = Number.parseFloat(process.env.OPENMATES_BENCH_MARGIN ?? '0.1') || 0.1;
 const CPU_MARGIN = 0.15;
 const WALL_FLOOR_MS = 50;
@@ -65,7 +67,8 @@ function waitAllReady(wantRust: boolean): Promise<Record<string, any>> {
 }
 
 async function reloadSample(page: any, chatId: string, path: 'ts' | 'rust', processes: any, profiler: any = null): Promise<Record<string, any>> {
-	await page.evaluate(([key, ts]: [string, boolean]) => { if (ts) localStorage.setItem(key, 'ts'); else localStorage.removeItem(key); }, [HISTORY_OPT_OUT_KEY, path === 'ts']);
+	await page.evaluate(([keys, ts]: [string[], boolean]) => { for (const key of keys) { if (ts) localStorage.setItem(key, 'ts'); else localStorage.removeItem(key); } },
+		[[HISTORY_OPT_OUT_KEY, PERSIST_OPT_OUT_KEY], path === 'ts']);
 	// The URL already carries this chat id, so goto alone is a same-document hash change.
 	await page.goto(getE2EDebugUrl(`/#chat-id=${chatId}`));
 	await processes.begin();
@@ -156,7 +159,7 @@ async function runWebRustCoreBench(page: any, testInfo: any, options: { pairs: n
 		if (process.env.OPENMATES_BENCH_SEND === '1') send = await runSendBench(page, { pairs: Number.parseInt(process.env.OPENMATES_BENCH_SEND_PAIRS ?? '', 10) || PAIRS, margin: MARGIN, processes, log, screenshot, profile: options.profile });
 	} finally {
 		await processes.close();
-		await page.evaluate((key: string) => localStorage.removeItem(key), HISTORY_OPT_OUT_KEY).catch(() => undefined);
+		await page.evaluate((keys: string[]) => keys.forEach((key) => localStorage.removeItem(key)), [HISTORY_OPT_OUT_KEY, PERSIST_OPT_OUT_KEY]).catch(() => undefined);
 	}
 
 	const column = (metric: string) => pairs.map((pair) => ({ ts: pair.ts[metric], rust: pair.rust[metric] }));

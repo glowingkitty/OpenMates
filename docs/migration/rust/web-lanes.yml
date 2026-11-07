@@ -314,7 +314,7 @@ lanes:
 - rank: 5
   name: persistence
   kind: wave4
-  status: planned
+  status: running
   commit: null
   size: L
   wave: B
@@ -343,10 +343,12 @@ lanes:
   - chat-sync-empty-indexeddb-recovery.spec.ts
   - persisted-draft-discovery.spec.ts
   - web-rust-core-sync.spec.ts
-  notes: ''
-  spec_assertions: [chats.persistence.client-encrypted, chats.local-state.precedence, sync.status.incomplete-window-rewarms]
+  - web-rust-core-persist.spec.ts
+  notes: 'Slice 1 (message row policy): shouldUpdate/hasNewEncryptedFields/contentDuplicate/safeToEvict decisions of db/messageOperations.ts run in web_persist::message_policy on the persist unit (flag on, CI-proven only); IndexedDB IO stays on the page. CI: rust-check, rust-wasm, sdk-conformance and web-rust-core-persist/-sync green; reload-memory and the reload bench are red for the TS-arm embed preview (embed_write_not_bound) blocker shared with embeds-3, chat-sync-empty-indexeddb-recovery fails on baseline runs too; no paired persist bench numbers yet (performance-history.yml 2026-11-07-chatRendered-persist-01 invalid_measurement). Not yet moved: chatCrudOperations, db.ts, quota recovery, caches, windows and pruning, the transaction-internal recheck and eviction callbacks of messageOperations.ts, cleanupDuplicateMessages.'
+  spec_assertions: [chats.persistence.client-encrypted, chats.local-state.precedence, sync.status.incomplete-window-rewarms, storage.client.shared-policy-existing-adapters]
   spec_gaps:
   - IndexedDB row-version compatibility and quota recovery have no assertion.
+  - Row policy parity is proven by TS-generated vectors (web_persist/ts_vectors.json) under storage.client.shared-policy-existing-adapters; no assertion names message status priority or duplicate detection.
 - rank: 6
   name: send-prep-outbox
   kind: wave4
