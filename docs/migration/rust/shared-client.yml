@@ -167,6 +167,7 @@ shared_vector_files: [packages/openmates-rust/src/client/direct_ts_vectors.json,
   packages/openmates-rust/src/web_chat_state/ts_vectors.json, packages/openmates-rust/src/web_parse/blocks_ts_vectors.json,
   packages/openmates-rust/src/web_search_chats_ts_vectors.json, packages/openmates-rust/src/web_search_query_ts_vectors.json,
   packages/openmates-rust/src/web_search_ts_vectors.json, packages/openmates-rust/src/web_send_prep/ts_vectors.json,
+  packages/openmates-rust/src/web_stream/ts_vectors.json, packages/openmates-rust/src/web_stream/ts_vectors_stream.json,
   packages/openmates-rust/src/web_sync/inbound_vectors.json, packages/openmates-rust/src/web_sync/ts_vectors.json,
   packages/openmates-rust/src/web_sync/updates_ts_vectors.json, packages/openmates-rust/src/web_transfer_export_ts_vectors.json,
   packages/openmates-rust/src/web_transfer_ts_vectors.json, packages/openmates-rust/src/web_transfer_zip_ts_vectors.json,
@@ -179,7 +180,7 @@ capabilities:
   has_fixture: false
   rust:
     status: partial
-    api_symbols: 2337
+    api_symbols: 2351
     conformance: false
     gaps: 16
   npm:

@@ -19,9 +19,8 @@ areas:
   missing: 0
   percent: 100.0
   done_definition: installer registered for the namespace
-  blockers: ['perf gate not cleared: chatRendered is rust_worse (2026-11-07-chatRendered-03)', 'perf gate not cleared:
-      search is rust_worse (2026-11-07-search-03)', 'perf gate not cleared: send is inconclusive (2026-11-06-send-01)',
-    'perf gate not cleared: sendToAdmit is inconclusive (2026-11-07-sendToAdmit-01)']
+  blockers: ['perf gate not cleared: search is rust_worse (2026-11-07-search-03)', 'perf gate not cleared: send
+      is inconclusive (2026-11-06-send-01)', 'perf gate not cleared: sendToAdmit is inconclusive (2026-11-07-sendToAdmit-02)']
 - id: shared_client
   title: Shared client-side code (Rust, non-operation SDK capabilities)
   priority_rank: 1

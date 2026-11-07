@@ -24,8 +24,8 @@ lanes:
   plan_date: 2026-11-07
   total: 21
   by_status:
-    planned: 11
-    running: 7
+    planned: 9
+    running: 9
     landed: 3
   landed:
   - name: search-snippet-perf
@@ -34,9 +34,9 @@ lanes:
     commit: c577ddd
   - name: memory-rss
     commit: bd07710
-  running: [w3-web-drafts, w3-web-import-export, w3-web-send-perf, send-correctness, chatstate-core, sync-inbound,
-    send-prep-outbox]
-  next_planned_by_rank: [embeds-3, ai-stream-recovery, persistence, ws-unit, keys]
+  running: [w3-web-drafts, w3-web-import-export, w3-web-send-perf, send-correctness, chatstate-core, embeds-3, sync-inbound,
+    ai-stream-recovery, send-prep-outbox]
+  next_planned_by_rank: [persistence, ws-unit, keys, parse, settings-memories]
 units:
 - namespace: core
   status: installed
@@ -210,7 +210,7 @@ units:
   installer: frontend/packages/ui/src/services/rustCore/sync/syncUnit.ts
   what_moved: Serves the chat-sync decision policy (syncProtocol.ts) on the unit port from the realm's single WASM
     binding. It holds no per-account state and does no IO, so it is a pre-bind namespace.
-  typescript_fallback: none declared (3 files)
+  typescript_fallback: none declared (4 files)
   unit_tests: [syncSharedUnit.test.ts]
   e2e_specs: [web-rust-core-sync.spec.ts]
   vectors: [packages/openmates-rust/src/web_sync/ts_vectors.json]

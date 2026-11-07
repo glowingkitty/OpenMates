@@ -183,7 +183,7 @@ lanes:
   - packages/openmates-browser-bindings/src/browser_chat_state*.rs
   hot: [sharedWorkerUnits.ts, chatStateProtocol.ts (creates), sdk-capabilities.json]
   e2e: [message-highlights.spec.ts, message-highlights-touch.spec.ts, web-rust-core-chat.spec.ts]
-  notes: 'First slice installed the chatState namespace: chat list ordering and grouping (sortChats, groupChats, time buckets) in packages/openmates-rust/src/web_chat_state, e2e web-rust-core-chatstate.spec.ts. Remaining: unread, metadata derivation, message-list transitions, typing/streaming indicators and the encrypted bookmark/highlight state.'
+  notes: 'Slice 1 landed 6f7afa3, slice 1b (unit prepared at app start, phase marks in rustChatStateStats.phases, 12-pair e2e) follows; perf advisory per the 2026-11-07 policy (12 pairs: +188 ms/+10% then +103 ms/+5%, not gross). First slice installed the chatState namespace: chat list ordering and grouping (sortChats, groupChats, time buckets) in packages/openmates-rust/src/web_chat_state, e2e web-rust-core-chatstate.spec.ts. Remaining: unread, metadata derivation, message-list transitions, typing/streaming indicators and the encrypted bookmark/highlight state.'
   spec_assertions:
   - chat-unread.reply.read-at-last-line
   - chat-unread.followup.implies-read

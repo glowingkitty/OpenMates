@@ -341,14 +341,14 @@ The measurement log is `docs/migration/rust/performance-history.yml` (append-onl
 | Flow | Date | Value | 95% CI | Pairs | Verdict | Confidence |
 |---|---|---|---|---|---|---|
 | `apps` | 2026-11-06 | ratio 0.985 | [0.92, 1.05] | - | rust_not_worse | uncertain |
-| `chatRendered` | 2026-11-07 | delta_ms 306.0 | - | 3 | rust_worse | traced |
+| `chatRendered` | 2026-11-07 | delta_ms 103.0 | - | 12 | rust_not_worse | traced |
 | `cpu` | 2026-11-07 | ratio - | - | 12 | rust_not_worse | traced |
 | `embedReady` | 2026-11-06 | ratio 1.0 | [0.909, 1.045] | - | rust_not_worse | uncertain |
 | `reloadMemory` | 2026-11-06 | delta_mib_per_reload -0.05 | [-0.7, 0.59] | 20 | rust_not_worse | traced |
 | `rss` | 2026-11-06 | delta_mib_per_reload -0.01 | [-0.34, 0.34] | 16 | rust_not_worse | traced |
 | `search` | 2026-11-07 | ratio 1.132 | [1.02, 1.291] | 30 | rust_worse | traced |
 | `send` | 2026-11-06 | delta_ms -900 | - | 5 | inconclusive | uncertain |
-| `sendToAdmit` | 2026-11-07 | delta_ms -354 | [0.638, 1.495] | 5 | inconclusive | measured |
+| `sendToAdmit` | 2026-11-07 | ratio 0.843 | [0.638, 1.495] | 5 | inconclusive | traced |
 | `wasmInstances` | 2026-11-07 | count 1 | - | - | rust_not_worse | traced |
 
 - Budget and method: `.claude/rules/cli-sdk.md` (web Rust performance gate; paired, interleaved, at least 12 pairs).

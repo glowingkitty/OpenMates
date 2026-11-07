@@ -10,7 +10,7 @@ import { VECTOR_TIME_ZONE } from './helpers/chatListCases';
 import { createSharedCoreClient, registerSharedRustCore, type SharedWorkerEndpoint } from '../host/sharedCoreRegistry';
 import { createSharedWorkerRouter } from '../host/sharedWorkerProtocol';
 import { installChatStateUnit } from '../chatState/chatListUnit';
-import { rustChatStateStats } from '../chatState/chatListUnitClient';
+import { prepareChatStateUnit, rustChatStateStats } from '../chatState/chatListUnitClient';
 import type { ChatListBinding } from '../chatState/chatListProtocol';
 import { rustGroupChats, rustSortChats } from '../chatState/rustChatList';
 import { buildGroupInput, buildSortInput } from '../../../components/chats/utils/chatListInput';
@@ -99,5 +99,14 @@ describe('shared chatState unit', () => {
 		const before = rustChatStateStats.failures;
 		await expect(rustSortChats([], { chats: [], serverOrder: ['unknown-request'] })).rejects.toMatchObject({ code: 'protocol' });
 		expect(rustChatStateStats.failures).toBe(before + 1);
+	});
+
+	// contract-test: supporting surface=gui.web assertions=sync.client.shared-rust-policy
+	it('prepares the unit ahead of the first decision and records the phase marks', async () => {
+		await prepareChatStateUnit();
+		const opens = rustChatStateStats.opens;
+		expect(rustChatStateStats.phases).toMatchObject({ prepareStart: expect.any(Number), coreReady: expect.any(Number), opened: expect.any(Number) });
+		await rustSortChats([], { chats: [], serverOrder: [] }).catch(() => undefined);
+		expect(rustChatStateStats.opens, 'the first call reuses the prepared port').toBe(opens);
 	});
 });

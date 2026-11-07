@@ -486,14 +486,48 @@ measurements:
     date: '2026-11-07'
     flow: sendToAdmit
     metric: sendToAdmitMs
-    value_kind: delta_ms
-    value: -354
+    value_kind: ratio
+    value: 0.843
     ci95: [0.638, 1.495]
     n_pairs: 5
     verdict: inconclusive
-    verdict_basis: computed
+    verdict_basis: reported
     ci_job: 78b3bb15
     source_commit: 6f02cb5
     evidence: web-rust-core-send-bench.spec.ts CI job 78b3bb15, TS median 2257 ms vs Rust 1903 ms; ci95 is the paired ratio interval; browser CPU ratio 0.901 [0.821, 0.979] rust_not_worse
-    confidence: measured
+    confidence: traced
     notes: First bench job with zero stalled sends after the send-ownership fix. Send phases still slow with account chat count (local_message_ready about 2.8 s at the 12th send); not fixed here.
+  - id: 2026-11-07-chatRendered-04
+    date: '2026-11-07'
+    flow: chatRendered
+    metric: chatListRenderedMs
+    value_kind: delta_ms
+    value: 188.0
+    ci95: null
+    n_pairs: 12
+    verdict: rust_worse
+    verdict_basis: reported
+    ci_job: 61f8f84b
+    source_commit: cebf30292d
+    evidence: web-rust-core-chatstate.spec.ts CI 61f8f84b (first-attempt, 12 pairs), TS median 1868 ms vs
+      Rust 2056 ms, unit prepared at app start
+    confidence: traced
+    notes: 'Advisory under the 2026-11-07 policy: +188 ms is not gross (needs >+25% and >+100 ms). Prepare-early
+      applied; the median delta fell from +354/+306 to roughly +100-190 ms.'
+  - id: 2026-11-07-chatRendered-05
+    date: '2026-11-07'
+    flow: chatRendered
+    metric: chatListRenderedMs
+    value_kind: delta_ms
+    value: 103.0
+    ci95: null
+    n_pairs: 12
+    verdict: rust_not_worse
+    verdict_basis: reported
+    ci_job: 61f8f84b
+    source_commit: cebf30292d
+    evidence: web-rust-core-chatstate.spec.ts CI 61f8f84b (retry, 12 pairs), TS median 1940 ms vs Rust 2043
+      ms, unit prepared at app start
+    confidence: traced
+    notes: 'Advisory under the 2026-11-07 policy: +103 ms is not gross (needs >+25% and >+100 ms). Prepare-early
+      applied; the median delta fell from +354/+306 to roughly +100-190 ms.'

@@ -23,7 +23,7 @@ const { rustCoreInstances } = require('./helpers/rust-core-instances');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const CHATSTATE_OPT_OUT_KEY = 'openmates_rust_core_chatstate';
-const PAIRS = 3;
+const PAIRS = Number(process.env.CHATSTATE_PAIRS || 12);
 
 async function reloadAndRenderSidebar(page: any, chatId: string): Promise<number> {
 	await page.goto(getE2EDebugUrl(`/#chat-id=${chatId}`));
@@ -38,7 +38,7 @@ async function reloadAndRenderSidebar(page: any, chatId: string): Promise<number
 // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,sdk.web.before-after-performance
 test('chat list ordering and grouping run on the shared Rust chatState unit and the sidebar renders the same chats', async ({ page }: { page: any }, testInfo: any) => {
 	test.slow();
-	test.setTimeout(420000);
+	test.setTimeout(1500000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 	const log = createSignupLogger('WEB_RUST_CORE_CHATSTATE');
 	const screenshot = createStepScreenshotter(log);
