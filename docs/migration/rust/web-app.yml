@@ -9,22 +9,23 @@ flag:
   default: 'off'
   flag_off_behavior: original TypeScript path, byte-identical build output (guarded in CI)
 summary:
-  total: 11
-  done: 9
+  total: 13
+  done: 12
   partial: 0
-  missing: 2
-  percent: 81.8
+  missing: 1
+  percent: 92.3
 e2e_specs_in_repo: [web-rust-core-apps.spec.ts, web-rust-core-auth.spec.ts, web-rust-core-bench.spec.ts, web-rust-core-chat.spec.ts,
-  web-rust-core-crypto.spec.ts, web-rust-core-embeds.spec.ts, web-rust-core-memory-level.spec.ts, web-rust-core-profile.spec.ts,
-  web-rust-core-reload-memory.spec.ts, web-rust-core-search.spec.ts, web-rust-core-sync.spec.ts, web-rust-core-transfer.spec.ts]
+  web-rust-core-chatstate.spec.ts, web-rust-core-crypto.spec.ts, web-rust-core-drafts.spec.ts, web-rust-core-embeds.spec.ts,
+  web-rust-core-memory-level.spec.ts, web-rust-core-profile.spec.ts, web-rust-core-reload-memory.spec.ts, web-rust-core-search.spec.ts,
+  web-rust-core-send-bench.spec.ts, web-rust-core-sync.spec.ts, web-rust-core-transfer.spec.ts]
 lanes:
   file: web-lanes.yml
   plan: web-lanes.md
   plan_date: 2026-11-07
   total: 21
   by_status:
-    planned: 14
-    running: 4
+    planned: 12
+    running: 6
     landed: 3
   landed:
   - name: search-snippet-perf
@@ -33,8 +34,8 @@ lanes:
     commit: c577ddd
   - name: memory-rss
     commit: bd07710
-  running: [w3-web-drafts, w3-web-import-export, w3-web-send-perf, send-correctness]
-  next_planned_by_rank: [chatstate-core, embeds-3, sync-inbound, ai-stream-recovery, persistence]
+  running: [w3-web-drafts, w3-web-import-export, w3-web-send-perf, send-correctness, chatstate-core, sync-inbound]
+  next_planned_by_rank: [embeds-3, ai-stream-recovery, persistence, send-prep-outbox, ws-unit]
 units:
 - namespace: core
   status: installed
@@ -117,19 +118,28 @@ units:
   spec_gaps: ['Streamed embed write ordering and key resolution (master/chat wrapper, legacy child inheritance)
       have no assertion.']
 - namespace: chatState
-  status: planned
-  pre_bind: false
-  installer: null
-  what_moved: Planned; no installer yet.
-  typescript_fallback: null
-  unit_tests: []
-  e2e_specs: []
-  vectors: []
-  open_gaps: ['Namespace reserved, no installer yet.']
-  spec_assertions: [chat-unread.reply.read-at-last-line, chat-unread.followup.implies-read, chat-unread.surfaces.sidebar-and-continue,
-    chat-unread.persistence.cross-device, chat-unread.manual.mark-unread, chat-message-timeline.bookmarks]
+  status: installed
+  pre_bind: true
+  installer: frontend/packages/ui/src/services/rustCore/chatState/chatListUnit.ts
+  what_moved: Serves the chat-list ordering and grouping policy (chatListProtocol.ts) on the unit port from the
+    realm's single WASM binding. It holds no per-account state and does no IO, so it is a pre-bind namespace.
+  typescript_fallback: none declared (2 files)
+  unit_tests: [chatStateAdapter.test.ts, chatStateSharedUnit.test.ts]
+  e2e_specs: [web-rust-core-chatstate.spec.ts]
+  vectors: [packages/openmates-rust/src/web_chat_state/ts_vectors.json]
+  open_gaps:
+  - Installed with the chat-list ordering and grouping slice only; unread decisions, chat metadata derivation, message-list
+    transitions and typing/streaming indicator logic are not moved.
+  - The encrypted bookmark, highlight, hidden-chat and project state in chat_state/ is served by the core dispatcher,
+    not by this unit.
+  - Performance gate red on 2 of 3 runs (reload to sidebar rendered, 3 pairs: +354, +24, +306 ms); see performance-history.yml
+      chatRendered. The first sort waits for the shared Worker.
+  spec_assertions: [sync.client.shared-rust-policy, sync.overview.priority-order, chat-unread.reply.read-at-last-line,
+    chat-unread.followup.implies-read, chat-unread.surfaces.sidebar-and-continue, chat-unread.persistence.cross-device,
+    chat-unread.manual.mark-unread, chat-message-timeline.bookmarks]
   spec_gaps: ['Message highlights, chat deletion queue and project placement have no assertion.', Hidden chats (PIN-derived
-      key wrapping) have no assertion.]
+      key wrapping) have no assertion., 'Sidebar time-group buckets (today, yesterday, previous 7/30 days, month)
+      have no assertion.']
 - namespace: ws
   status: planned
   pre_bind: false
@@ -179,8 +189,8 @@ units:
   installer: frontend/packages/ui/src/services/rustCore/transfer/transferUnit.ts
   what_moved: Serves chat import routing/parsing (transferProtocol.ts) on the unit port from the realm's single
     WASM binding. It holds no account state and does no IO, so it is a pre-bind namespace.
-  typescript_fallback: none declared (1 file)
-  unit_tests: [transferExportVectors.test.ts, transferSharedUnit.test.ts]
+  typescript_fallback: none declared (2 files)
+  unit_tests: [transferExportVectors.test.ts, transferSharedUnit.test.ts, transferZipVectors.test.ts]
   e2e_specs: [web-rust-core-transfer.spec.ts]
   vectors: [packages/openmates-rust/src/web_transfer_ts_vectors.json, packages/openmates-rust/src/web_transfer_export_ts_vectors.json]
   open_gaps: [ZIP assembly and account export (scope 3) are not moved., import-chats.spec is red on the CI stack
@@ -195,7 +205,7 @@ units:
   installer: frontend/packages/ui/src/services/rustCore/sync/syncUnit.ts
   what_moved: Serves the chat-sync decision policy (syncProtocol.ts) on the unit port from the realm's single WASM
     binding. It holds no per-account state and does no IO, so it is a pre-bind namespace.
-  typescript_fallback: none declared (2 files)
+  typescript_fallback: none declared (3 files)
   unit_tests: [syncSharedUnit.test.ts]
   e2e_specs: [web-rust-core-sync.spec.ts]
   vectors: [packages/openmates-rust/src/web_sync/ts_vectors.json]
@@ -206,3 +216,32 @@ units:
     sync.delta.scope-revocation, sync.delta.live-hint, sync.open.not-gated, sync.overview.priority-order, sync.overview.cross-device,
     sync.overview.ready-fast, sync.surface.semantic-parity, drafts.sync.version-authoritative, chats.sync.key-gated-recovery]
   spec_gaps: [Message key-mismatch guard and chat key write guard behavior has no assertion beyond key-gated recovery.]
+- namespace: drafts
+  status: installed
+  pre_bind: false
+  installer: frontend/packages/ui/src/services/rustCore/drafts/draftsUnit.ts
+  what_moved: 'Draft policy (encryption, versioning, closed IndexedDB predicates, durable encrypted sync intent,
+    readback) is shared Rust (`prepare_local_draft_with_preview`, `remote_payload`, `acknowledge_transport`). This
+    unit only marshals: it runs the Rust calls on the ADMITTED client of the bound history `core` lease (borrowed
+    via core...'
+  typescript_fallback: not declared in unit sources
+  unit_tests: [rustDraftsUnit.test.ts]
+  e2e_specs: [web-rust-core-drafts.spec.ts]
+  vectors: []
+  open_gaps: [Curated entry added by the chatState lane to unblock the generator; the drafts lane owns the proof
+      and gap text.]
+  spec_assertions: [drafts.persistence.local-first-encrypted, drafts.sync.version-authoritative]
+  spec_gaps: []
+- namespace: parse
+  status: installed
+  pre_bind: true
+  installer: frontend/packages/ui/src/services/rustCore/parse/parseUnit.ts
+  what_moved: Serves the render-plan block model (parseProtocol.ts) on the unit port from the realm's single WASM
+    binding. Stateless and IO-free, hence pre-bind.
+  typescript_fallback: none declared (2 files)
+  unit_tests: []
+  e2e_specs: []
+  vectors: []
+  open_gaps: [Curated entry added by the chatState lane to unblock the generator; the parse lane owns the details.]
+  spec_assertions: [sync.client.shared-rust-policy]
+  spec_gaps: []

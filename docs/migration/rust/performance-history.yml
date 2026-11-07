@@ -414,3 +414,55 @@ measurements:
       1 WASM, RSS flat. search:build.ms summed TS 677 vs Rust 781 (main-thread decrypt/index build under
       flag-on), warm-up +9 ms, query round trip 35 ms.
     ts_value: 552.95
+  - id: 2026-11-07-chatRendered-01
+    date: '2026-11-07'
+    flow: chatRendered
+    metric: chatListRenderedMs
+    value_kind: delta_ms
+    value: 354.0
+    ci95: null
+    n_pairs: 3
+    verdict: rust_worse
+    verdict_basis: reported
+    ci_job: e9eae5b5
+    source_commit: f0856309
+    evidence: web-rust-core-chatstate 3 pairs, attempt 1 (soft gate failed)
+    confidence: traced
+    notes: 'Median reload to chat-list sidebar rendered: Rust 1991 ms vs TS 1637 ms. Only 3 pairs; the rerun
+      was within budget.'
+    ts_value: 1637.0
+  - id: 2026-11-07-chatRendered-02
+    date: '2026-11-07'
+    flow: chatRendered
+    metric: chatListRenderedMs
+    value_kind: delta_ms
+    value: 24.0
+    ci95: null
+    n_pairs: 3
+    verdict: rust_not_worse
+    verdict_basis: reported
+    ci_job: adf9b05e
+    source_commit: f0856309
+    evidence: web-rust-core-chatstate 3 pairs, attempt 2
+    confidence: traced
+    notes: 'Median reload to chat-list sidebar rendered: Rust 1883 ms vs TS 1859 ms (limit 2045). Only 3
+      pairs; attempt 1 was +354 ms, so the result is noisy and needs the 12-pair bench.'
+    ts_value: 1859.0
+  - id: 2026-11-07-chatRendered-03
+    date: '2026-11-07'
+    flow: chatRendered
+    metric: chatListRenderedMs
+    value_kind: delta_ms
+    value: 306.0
+    ci95: null
+    n_pairs: 3
+    verdict: rust_worse
+    verdict_basis: reported
+    ci_job: 8e983ca3
+    source_commit: a1f0f181
+    evidence: web-rust-core-chatstate 3 pairs on the rebased candidate
+    confidence: traced
+    notes: 'Median reload to chat-list sidebar rendered: Rust 1376 ms vs TS 1070 ms. Second of three runs
+      over the gate (+354, +24, +306 ms): the first sort/group waits for the shared Worker to be ready.
+      Needs the 12-pair bench and a decision before the flag is enabled.'
+    ts_value: 1070.0

@@ -13,16 +13,15 @@ areas:
   priority_rank: 1
   file: web-app.yml
   unit: Worker namespaces
-  total: 11
-  done: 9
+  total: 13
+  done: 12
   partial: 0
-  missing: 2
-  percent: 81.8
+  missing: 1
+  percent: 92.3
   done_definition: installer registered for the namespace
-  blockers: ['planned units without installer: chatState, ws', 'perf gate not cleared: chatRendered is inconclusive
-      (2026-11-06-chatRendered-01)', 'perf gate not cleared: search is inconclusive (2026-11-07-search-02)', 'perf
-      gate not cleared: send is inconclusive (2026-11-06-send-01)', 'perf gate not cleared: sendToAdmit is inconclusive
-      (2026-11-07-sendToAdmit-01)']
+  blockers: ['planned units without installer: ws', 'perf gate not cleared: chatRendered is rust_worse (2026-11-07-chatRendered-03)',
+    'perf gate not cleared: search is rust_worse (2026-11-07-search-03)', 'perf gate not cleared: send is inconclusive
+      (2026-11-06-send-01)', 'perf gate not cleared: sendToAdmit is inconclusive (2026-11-07-sendToAdmit-01)']
 - id: shared_client
   title: Shared client-side code (Rust, non-operation SDK capabilities)
   priority_rank: 1

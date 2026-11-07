@@ -39,7 +39,7 @@ Read from `docs/migration/rust/overview.yml` (machine-readable; sub-files hold t
 
 | Priority | Area | Scope | Done | Partial | Missing | Detail file |
 |---|---|---|---|---|---|---|
-| 1 | `web_app` | Web app (shared Rust core Worker units) | 9 / 11 (81.8%) | 0 | 2 | `web-app.yml` |
+| 1 | `web_app` | Web app (shared Rust core Worker units) | 12 / 13 (92.3%) | 0 | 1 | `web-app.yml` |
 | 1 | `shared_client` | Shared client-side code (Rust, non-operation SDK capabilities) | 8 / 28 (28.6%) | 20 | 0 | `shared-client.yml` |
 | 2 | `cli` | CLI (native Rust, command catalog) | 249 / 724 (34.4%) | 469 | 6 | `cli.yml` |
 | 3 | `sdk_rust` | Rust SDK (operation capabilities) | 4 / 53 (7.5%) | 49 | 0 | `sdk.yml` |
@@ -309,10 +309,10 @@ Sources: `frontend/apps/web_app/src/lib/rustCore/shared/sharedWorkerUnits.ts` (i
 | Metric | Count |
 |---|---|
 | Namespaces in the allowlist | 13 |
-| Units installed (installer registered) | 11 / 13 (85%) |
-| Units planned (namespace reserved, no installer) | 2 / 13 (15%) |
+| Units installed (installer registered) | 12 / 13 (92%) |
+| Units planned (namespace reserved, no installer) | 1 / 13 (8%) |
 
-Planned: `chatState`, `ws`. A namespace without an installer is refused as `unit_unavailable`.
+Planned: `ws`. A namespace without an installer is refused as `unit_unavailable`.
 
 | Unit | Pre-bind | What moves to Rust (from the unit header) | TypeScript fallback | Installer | Unit tests |
 |---|---|---|---|---|---|
@@ -321,17 +321,17 @@ Planned: `chatState`, `ws`. A namespace without an installer is refused as `unit
 | `auth` | yes | Runs login/session/logout policy on the realm's single WASM binding; it performs no Fetch, cookie or storage IO itself (the page executes the requests Rust describes). Pre-bind: the page opens it outside any generation (login runs before a principal exists), so the router never hands it a principal and unbind does not close it. | none declared (1 file) | `frontend/packages/ui/src/services/rustCore/auth/authUnit.ts` | `auth.test.ts`, `authSharedUnit.test.ts` |
 | `embedData` | yes | Decrypts stored embed rows next to the realm's single WASM binding: every requested row is one `embed_open_row_fields` call (Rust `embed_write::read`, its three fields in one batched WebCrypto call). The unit holds no account state, so it is a pre-bind namespace like `crypto`: the embed key arrives per request (as the crypto... | none declared (3 files) | `frontend/packages/ui/src/services/rustCore/embeds/embedDataUnit.ts` | `embedKeyResolution.test.ts`, `embedUnits.test.ts` |
 | `embedWrite` | no | One installer call = one Rust embed write session (`BrowserEmbedWriter`) under the bound generation, next to the Worker-side `chats_db` rows it writes. Rust owns key choice, every ciphertext, row/payload shapes and the revision-history decisions (embedWriteAdapter.ts sequences them); this unit persists the prepared rows (embe... | none declared (3 files) | `frontend/packages/ui/src/services/rustCore/embeds/embedWriteUnit.ts` | `embedKeyResolution.test.ts`, `embedUnits.test.ts` |
+| `chatState` | yes | Serves the chat-list ordering and grouping policy (chatListProtocol.ts) on the unit port from the realm's single WASM binding. It holds no per-account state and does no IO, so it is a pre-bind namespace. | none declared (2 files) | `frontend/packages/ui/src/services/rustCore/chatState/chatListUnit.ts` | `chatStateAdapter.test.ts`, `chatStateSharedUnit.test.ts` |
 | `apps` | yes | Serves the Apps skill execution policy (appsProtocol.ts) on the unit port from the realm's single WASM binding. It holds no per-account state and does no IO, so it is a pre-bind namespace: guests run app skills before any principal exists. | none declared (1 file) | `frontend/packages/ui/src/services/rustCore/apps/appsUnit.ts` | `appsPolicyVectors.test.ts`, `appsRequestUnit.test.ts`, `appsSharedUnit.test.ts` |
 | `search` | yes | Owns the chat message search index in the realm's single WASM binding (`ChatSearchIndex`: packages/openmates-rust/src/web_search_chats.rs and web_search_query.rs). The page transfers each chat's entries once when it (re)indexes the chat from its source (decrypted IndexedDB rows) and keeps no copy; a query runs titles, snippet... | none declared (1 file) | `frontend/packages/ui/src/services/rustCore/search/searchUnit.ts` | `chatSearchVectors.test.ts`, `rustChatSearchPipeline.test.ts`, `searchPiiVectors.test.ts` |
 | `transfer` | yes | Serves chat import routing/parsing (transferProtocol.ts) on the unit port from the realm's single WASM binding. It holds no account state and does no IO, so it is a pre-bind namespace. | none declared (2 files) | `frontend/packages/ui/src/services/rustCore/transfer/transferUnit.ts` | `transferExportVectors.test.ts`, `transferSharedUnit.test.ts`, `transferZipVectors.test.ts` |
 | `sync` | yes | Serves the chat-sync decision policy (syncProtocol.ts) on the unit port from the realm's single WASM binding. It holds no per-account state and does no IO, so it is a pre-bind namespace. | none declared (3 files) | `frontend/packages/ui/src/services/rustCore/sync/syncUnit.ts` | `syncSharedUnit.test.ts` |
 | `drafts` | no | Draft policy (encryption, versioning, closed IndexedDB predicates, durable encrypted sync intent, readback) is shared Rust (`prepare_local_draft_with_preview`, `remote_payload`, `acknowledge_transport`). This unit only marshals: it runs the Rust calls on the ADMITTED client of the bound history `core` lease (borrowed via core... | not declared in unit sources | `frontend/packages/ui/src/services/rustCore/drafts/draftsUnit.ts` | `rustDraftsUnit.test.ts` |
 | `parse` | yes | Serves the render-plan block model (parseProtocol.ts) on the unit port from the realm's single WASM binding. Stateless and IO-free, hence pre-bind. | none declared (2 files) | `frontend/packages/ui/src/services/rustCore/parse/parseUnit.ts` | - |
-| `chatState` | no | Planned; no installer yet. | - | - | - |
 | `ws` | no | Planned; no installer yet. | - | - | - |
 
 All units run only in builds with `VITE_OPENMATES_RUST_CORE=1`; with the flag off the original TypeScript path is unchanged.
-Web Rust core E2E specs in `frontend/apps/web_app/tests`: `web-rust-core-apps.spec.ts`, `web-rust-core-auth.spec.ts`, `web-rust-core-bench.spec.ts`, `web-rust-core-chat.spec.ts`, `web-rust-core-crypto.spec.ts`, `web-rust-core-drafts.spec.ts`, `web-rust-core-embeds.spec.ts`, `web-rust-core-memory-level.spec.ts`, `web-rust-core-profile.spec.ts`, `web-rust-core-reload-memory.spec.ts`, `web-rust-core-search.spec.ts`, `web-rust-core-send-bench.spec.ts`, `web-rust-core-sync.spec.ts`, `web-rust-core-transfer.spec.ts`.
+Web Rust core E2E specs in `frontend/apps/web_app/tests`: `web-rust-core-apps.spec.ts`, `web-rust-core-auth.spec.ts`, `web-rust-core-bench.spec.ts`, `web-rust-core-chat.spec.ts`, `web-rust-core-chatstate.spec.ts`, `web-rust-core-crypto.spec.ts`, `web-rust-core-drafts.spec.ts`, `web-rust-core-embeds.spec.ts`, `web-rust-core-memory-level.spec.ts`, `web-rust-core-profile.spec.ts`, `web-rust-core-reload-memory.spec.ts`, `web-rust-core-search.spec.ts`, `web-rust-core-send-bench.spec.ts`, `web-rust-core-sync.spec.ts`, `web-rust-core-transfer.spec.ts`.
 
 ## Performance verdicts
 
@@ -340,12 +340,12 @@ The measurement log is `docs/migration/rust/performance-history.yml` (append-onl
 | Flow | Date | Value | 95% CI | Pairs | Verdict | Confidence |
 |---|---|---|---|---|---|---|
 | `apps` | 2026-11-06 | ratio 0.985 | [0.92, 1.05] | - | rust_not_worse | uncertain |
-| `chatRendered` | 2026-11-06 | ratio 1.039 | [0.983, 1.142] | - | inconclusive | uncertain |
+| `chatRendered` | 2026-11-07 | delta_ms 306.0 | - | 3 | rust_worse | traced |
 | `cpu` | 2026-11-07 | ratio - | - | 12 | rust_not_worse | traced |
 | `embedReady` | 2026-11-06 | ratio 1.0 | [0.909, 1.045] | - | rust_not_worse | uncertain |
 | `reloadMemory` | 2026-11-06 | delta_mib_per_reload -0.05 | [-0.7, 0.59] | 20 | rust_not_worse | traced |
 | `rss` | 2026-11-06 | delta_mib_per_reload -0.01 | [-0.34, 0.34] | 16 | rust_not_worse | traced |
-| `search` | 2026-11-07 | ratio 1.076 | [0.913, 1.215] | 12 | inconclusive | traced |
+| `search` | 2026-11-07 | ratio 1.132 | [1.02, 1.291] | 30 | rust_worse | traced |
 | `send` | 2026-11-06 | delta_ms -900 | - | 5 | inconclusive | uncertain |
 | `sendToAdmit` | 2026-11-07 | delta_ms 25 | - | 7 | inconclusive | traced |
 | `wasmInstances` | 2026-11-07 | count 1 | - | - | rust_not_worse | traced |

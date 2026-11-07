@@ -26,6 +26,7 @@
   import ChatComponent from '../Chat.svelte';
   import Icon from '../../Icon.svelte';
   import { groupChats, getLocalizedGroupTitle } from '../utils/chatGroupUtils';
+  import { buildGroupInput } from '../utils/chatListInput'; // Opt-in Rust chat-list policy input (flag-on only)
   import type { ChatSearchResult, AppCatalogSearchResult, SearchResults as SearchResultsType } from '../../../services/searchService';
   import type { Chat as ChatType } from '../../../types/chat';
   import { appSkillsStore } from '../../../stores/appSkillsStore';
@@ -64,12 +65,30 @@
     onAppCatalogClick,
   }: Props = $props();
 
+  // Measurement-only opt-out (`openmates_rust_core_chatstate` = 'ts'), read once per page load.
+  const RUST_CHAT_LIST: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1'
+    && !(typeof localStorage !== 'undefined' && localStorage.getItem('openmates_rust_core_chatstate') === 'ts');
+  // Opt-in shared Rust core (build-time VITE_OPENMATES_RUST_CORE === '1'): the chatState unit groups the results.
+  let rustGroupedChatResults = $state.raw<Record<string, ChatType[]>>({});
+  if (RUST_CHAT_LIST) {
+    $effect(() => {
+      const chats = (results.chats ?? []).map(r => r.chat);
+      const input = buildGroupInput(chats);
+      let stale = false;
+      void import('../../../services/rustCore/chatState/rustChatList')
+        .then((rust) => rust.rustGroupChats(chats, input))
+        .then((groups) => { if (!stale) rustGroupedChatResults = groups; })
+        .catch((error) => console.error('[SearchResults] Rust chat-list grouping failed', error));
+      return () => { stale = true; };
+    });
+  }
+
   // Group chat results by time period (reusing existing grouping logic)
   let groupedChatResults = $derived((() => {
     if (!results.chats || results.chats.length === 0) return [];
 
     const chats = results.chats.map(r => r.chat);
-    const grouped = groupChats(chats);
+    const grouped = RUST_CHAT_LIST ? rustGroupedChatResults : groupChats(chats);
 
     const timeGroups = ['today', 'yesterday', 'previous_7_days', 'previous_30_days'];
     const staticGroups = ['shared_by_others', 'intro', 'examples', 'legal'];

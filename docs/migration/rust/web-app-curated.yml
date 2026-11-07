@@ -183,12 +183,39 @@ units:
     - packages/openmates-browser-bindings/src/browser_phased_monitor.rs
     - packages/openmates-browser-bindings/src/browser_recovery_*.rs
     - packages/openmates-browser-bindings/src/browser_owned_recovery.rs
-  chatState:
+  drafts:
+    specs: [web-rust-core-drafts.spec.ts]
+    vectors: []
+    open_gaps:
+    - Curated entry added by the chatState lane to unblock the generator; the drafts lane owns the proof and gap text.
+    spec_assertions:
+    - drafts.persistence.local-first-encrypted
+    - drafts.sync.version-authoritative
+    spec_gaps: []
+    rust_paths:
+    - packages/openmates-browser-bindings/src/browser_draft.rs
+    - packages/openmates-rust/src/client/browser_draft.rs
+  parse:
     specs: []
     vectors: []
     open_gaps:
-    - Namespace reserved, no installer yet.
+    - Curated entry added by the chatState lane to unblock the generator; the parse lane owns the details.
     spec_assertions:
+    - sync.client.shared-rust-policy
+    spec_gaps: []
+    rust_paths:
+    - packages/openmates-rust/src/web_parse/*.rs
+  chatState:
+    specs: [web-rust-core-chatstate.spec.ts]
+    vectors:
+    - packages/openmates-rust/src/web_chat_state/ts_vectors.json
+    open_gaps:
+    - Installed with the chat-list ordering and grouping slice only; unread decisions, chat metadata derivation, message-list transitions and typing/streaming indicator logic are not moved.
+    - The encrypted bookmark, highlight, hidden-chat and project state in chat_state/ is served by the core dispatcher, not by this unit.
+    - Performance gate red on 2 of 3 runs (reload to sidebar rendered, 3 pairs: +354, +24, +306 ms); see performance-history.yml chatRendered. The first sort waits for the shared Worker.
+    spec_assertions:
+    - sync.client.shared-rust-policy
+    - sync.overview.priority-order
     - chat-unread.reply.read-at-last-line
     - chat-unread.followup.implies-read
     - chat-unread.surfaces.sidebar-and-continue
@@ -198,8 +225,10 @@ units:
     spec_gaps:
     - Message highlights, chat deletion queue and project placement have no assertion.
     - Hidden chats (PIN-derived key wrapping) have no assertion.
+    - Sidebar time-group buckets (today, yesterday, previous 7/30 days, month) have no assertion.
     rust_paths:
     - packages/openmates-rust/src/chat_state/*.rs
+    - packages/openmates-rust/src/web_chat_state/*.rs
     - packages/openmates-browser-bindings/src/browser_chat_state*.rs
   ws:
     specs: []

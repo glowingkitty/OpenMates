@@ -193,7 +193,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { dailyInspirationStore, type DailyInspiration, type DailyInspirationSurface } from '../stores/dailyInspirationStore'; // Type/store for inspiration handler
     import { chatListCache } from '../services/chatListCache'; // For invalidating stale 'sending' status in sidebar cache
     import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
-    import { sortChats } from './chats/utils/chatSortUtils'; // For recent-chats horizontal scroll sort order
+    import { sortChatsForList } from './chats/utils/chatSortForList'; // Same order, via the Rust chatState unit when the flag is on
     import { chatMetadataCache, CHAT_METADATA_KEY_READY_EVENT } from '../services/chatMetadataCache'; // For decrypting recent chat titles
     import { activeTeam, activeTeamId, getActiveTeamContextSnapshot, isActiveTeamContext, TEAM_CONTEXT_CHANGED_EVENT } from '../stores/teamStore';
     import TeamWorkspaceIdentity from './teams/TeamWorkspaceIdentity.svelte';
@@ -3493,7 +3493,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 !c.is_sub_chat &&
                 isChatInActiveTeamContext(c, contextTeamId)
             );
-            const sorted = sortChats(filteredChats, []);
+            const sorted = await sortChatsForList(filteredChats, []);
 
             // Exclude the primary resume chat (it's rendered separately)
             // and the currently active/open chat (avoid showing a draft that's
@@ -3605,10 +3605,10 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         try {
             await chatDB.init();
             const chats = await chatDB.getAllChats();
-            const sharedChats = sortChats(
+            const sharedChats = (await sortChatsForList(
                 chats.filter((chat) => chat.is_shared_by_others && !chat.parent_id && !chat.is_sub_chat),
                 []
-            ).slice(0, RECENT_CHATS_TOTAL);
+            )).slice(0, RECENT_CHATS_TOTAL);
 
             return Promise.all(sharedChats.map((chat) => buildRecentChatMeta(chat)));
         } catch (err) {
@@ -3631,7 +3631,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     ): Promise<RecentChatMeta[]> {
         let anonymousMetas: RecentChatMeta[] = [];
         try {
-            const anonymousChats = sortChats(await anonymousChatStorage.getAllChats(), []);
+            const anonymousChats = await sortChatsForList(await anonymousChatStorage.getAllChats(), []);
             anonymousMetas = await Promise.all(
                 anonymousChats.slice(0, RECENT_CHATS_TOTAL).map(buildRecentChatMeta)
             );
@@ -13280,7 +13280,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         await chatDB.init();
                         const chats = await chatDB.getAllChats();
                         const filtered = chats.filter(c => !isPublicChat(c.chat_id) && c.chat_id !== chat_id);
-                        const sorted = sortChats(filtered, []);
+                        const sorted = await sortChatsForList(filtered, []);
                         if (sorted.length > 0) {
                             const nextBest = sorted[0];
                             const found = await loadResumeChatFromDB(nextBest.chat_id);

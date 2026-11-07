@@ -659,7 +659,8 @@
         "web-rust-core-drafts.spec.ts",
         "chat-unread-read-position.spec.ts",
         "cli-rust-tui-unread.spec.ts",
-        "web-rust-core-transfer.spec.ts"
+        "web-rust-core-transfer.spec.ts",
+        "web-rust-core-chatstate.spec.ts"
       ]
     },
     "external_integration": {

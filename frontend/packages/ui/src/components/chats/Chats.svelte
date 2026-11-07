@@ -26,6 +26,7 @@
 	import { dispatchEmbedFullscreen } from '../../services/embedFullscreenController';
 	import { sortChats } from './utils/chatSortUtils'; // Refactored sorting logic
 	import { groupChats, getLocalizedGroupTitle } from './utils/chatGroupUtils'; // Refactored grouping logic
+	import { buildGroupInput, buildSortInput } from './utils/chatListInput'; // Opt-in Rust chat-list policy input (flag-on only)
 	import { locale as svelteLocaleStore } from 'svelte-i18n'; // For date formatting in getLocalizedGroupTitle and reactivity in visiblePublicChats
 	import { chatMetadataCache } from '../../services/chatMetadataCache'; // For cache invalidation
 	import { chatListCache } from '../../services/chatListCache'; // Global cache for chat list
@@ -829,7 +830,25 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	});
 
 	// Sort all chats (demo + real) using the utility function
-	let sortedAllChats = $derived(sortChats(allChats, currentServerSortOrder));
+	// Measurement-only opt-out (`openmates_rust_core_chatstate` = 'ts'), read once per page load.
+	const RUST_CHAT_LIST: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1'
+	  && !(typeof localStorage !== 'undefined' && localStorage.getItem('openmates_rust_core_chatstate') === 'ts');
+	// Opt-in shared Rust core (build-time VITE_OPENMATES_RUST_CORE === '1'): the chatState unit
+	// decides the order and grouping; the result arrives one render after its inputs change.
+	let rustSortedAllChats = $state.raw<ChatType[]>([]);
+	if (RUST_CHAT_LIST) {
+		$effect(() => {
+			const chats = allChats;
+			const input = buildSortInput(chats, currentServerSortOrder);
+			let stale = false;
+			void import('../../services/rustCore/chatState/rustChatList')
+				.then((rust) => rust.rustSortChats(chats, input))
+				.then((sorted) => { if (!stale) rustSortedAllChats = sorted; })
+				.catch((error) => console.error('[Chats] Rust chat-list sort failed', error));
+			return () => { stale = true; };
+		});
+	}
+	let sortedAllChats = $derived(RUST_CHAT_LIST ? rustSortedAllChats : sortChats(allChats, currentServerSortOrder));
 
 	// CRITICAL CHANGE: Show all chats immediately, even those waiting for metadata
 	// Chats with waiting_for_metadata will display with status indicators (Sending/Processing)
@@ -862,7 +881,20 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	})());
 
 	// Group hidden chats for display
-	let groupedHiddenChats = $derived(groupChats(hiddenChats));
+	let rustGroupedHiddenChats = $state.raw<Record<string, ChatType[]>>({});
+	if (RUST_CHAT_LIST) {
+		$effect(() => {
+			const chats = hiddenChats;
+			const input = buildGroupInput(chats);
+			let stale = false;
+			void import('../../services/rustCore/chatState/rustChatList')
+				.then((rust) => rust.rustGroupChats(chats, input))
+				.then((groups) => { if (!stale) rustGroupedHiddenChats = groups; })
+				.catch((error) => console.error('[Chats] Rust chat-list grouping failed', error));
+			return () => { stale = true; };
+		});
+	}
+	let groupedHiddenChats = $derived(RUST_CHAT_LIST ? rustGroupedHiddenChats : groupChats(hiddenChats));
 	let orderedGroupedHiddenChats = $derived((() => {
 		const groups = groupedHiddenChats;
 		const orderedEntries: [string, ChatType[]][] = [];
@@ -957,7 +989,20 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 
 	// Group the chats intended for display using Svelte 5 runes
 	// The `$_` (translation function) is passed to `getLocalizedGroupTitle` when it's called in the template
-	let groupedChatsForDisplay = $derived(groupChats(chatsForDisplay));
+	let rustGroupedChatsForDisplay = $state.raw<Record<string, ChatType[]>>({});
+	if (RUST_CHAT_LIST) {
+		$effect(() => {
+			const chats = chatsForDisplay;
+			const input = buildGroupInput(chats);
+			let stale = false;
+			void import('../../services/rustCore/chatState/rustChatList')
+				.then((rust) => rust.rustGroupChats(chats, input))
+				.then((groups) => { if (!stale) rustGroupedChatsForDisplay = groups; })
+				.catch((error) => console.error('[Chats] Rust chat-list grouping failed', error));
+			return () => { stale = true; };
+		});
+	}
+	let groupedChatsForDisplay = $derived(RUST_CHAT_LIST ? rustGroupedChatsForDisplay : groupChats(chatsForDisplay));
 	
 	// Get ordered group entries for display
 	// Split grouped chats into user groups (time-based) and static groups (intro, examples, legal).
