@@ -184,6 +184,9 @@ export async function runBenchmarkArm(arm: BenchArm, mode: BenchMode, unwraps: n
 	};
 	const body = async (): Promise<BenchArmResult> => {
 		let failures = 0;
+		// The page-side decrypt memo (a7776007ad) would answer repeat decrypts/unwraps without the
+		// Worker, so the benchmark would stop measuring (and coalescing) them; start each arm cold.
+		if (arm === 'rust') rustWebCrypto()?.dropResultMemo();
 		const expectedKey = hex(current.chatKey);
 		const unwrapStart = performance.now();
 		const keys = await each(Array.from({ length: unwraps }), () => decryptChatKeyWithMasterKey(current.wrapped, current.masterKey));
