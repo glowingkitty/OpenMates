@@ -1,9 +1,10 @@
 //! Worker exports for the shared `composer` unit (paste classification, PII
 //! detect/redact/restore, known-original rewrite, local-model span merge,
-//! mention/saved-embed ranking, ghost-suggestion validation).
+//! mention/saved-embed ranking, ghost-suggestion validation, code-language and
+//! URL-kind detection).
 //! Pure string-in/string-out JSON text functions; a malformed payload rejects
 //! with the stable code `protocol` (`invalid_offsets` for model offset breaks).
-use openmates_sdk::web_composer::{mentions, paste, pii_detect, pii_text, rewrite, suggestions, web_pii};
+use openmates_sdk::web_composer::{code_language, mentions, paste, pii_detect, pii_text, rewrite, suggestions, url_kinds, web_pii};
 use wasm_bindgen::prelude::*;
 
 fn js(result: Result<String, String>) -> Result<String, JsValue> {
@@ -98,4 +99,16 @@ pub fn composer_saved_embeds_rank(input: &str) -> Result<String, JsValue> {
 #[wasm_bindgen]
 pub fn composer_ghost_validate(input: &str) -> Result<String, JsValue> {
     js(suggestions::ghost_validate_json(input))
+}
+
+/// `detectLanguageFromVSCode` / `detectLanguageFromContent`.
+#[wasm_bindgen]
+pub fn composer_language_detect(input: &str) -> Result<String, JsValue> {
+    js(code_language::language_detect_json(input))
+}
+
+/// `isYouTubeUrl` / `isGitHubRepoUrl` / `extractYouTubeVideoId`.
+#[wasm_bindgen]
+pub fn composer_url_classify(input: &str) -> Result<String, JsValue> {
+    js(url_kinds::url_classify_json(input))
 }

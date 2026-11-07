@@ -4488,8 +4488,11 @@
                 const normalizedPasteText = text.replace(/\r\n?/g, '\n');
                 const vsCodeEditorData = event.clipboardData?.getData('vscode-editor-data') || null;
                 const htmlPasteText = event.clipboardData?.getData('text/html') || null;
-                const vsCodeLanguage = detectLanguageFromVSCode(vsCodeEditorData);
-                const detectedLanguage = detectLanguageFromContent(normalizedPasteText);
+                const detectedLanguages = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+                    ? await (await import('./services/rustComposerCode')).rustDetectLanguages(normalizedPasteText, vsCodeEditorData)
+                    : { vsCode: detectLanguageFromVSCode(vsCodeEditorData), content: detectLanguageFromContent(normalizedPasteText) };
+                const vsCodeLanguage = detectedLanguages.vsCode;
+                const detectedLanguage = detectedLanguages.content;
                 const pasteInput = {
                     text: normalizedPasteText,
                     html: htmlPasteText,

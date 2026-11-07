@@ -11,11 +11,11 @@ import { createUnitPort, type UnitPort, type UnitRequestOptions } from '../host/
 import type { ComposerUnitProtocol } from './composerProtocol';
 
 /** Read-only diagnostics (E2E asserts the unit served the flow). */
-export const rustComposerStats = { calls: 0, failures: 0, opens: 0 };
+export const rustComposerStats = { calls: 0, failures: 0, opens: 0, ops: {} as Record<string, number> };
 // Test-only read hook: installed only under browser automation (Playwright sets
 // navigator.webdriver), so user sessions never expose it.
 if (typeof navigator !== 'undefined' && navigator.webdriver) {
-	(globalThis as { __openmatesRustComposerStats?: () => typeof rustComposerStats }).__openmatesRustComposerStats = () => ({ ...rustComposerStats });
+	(globalThis as { __openmatesRustComposerStats?: () => typeof rustComposerStats }).__openmatesRustComposerStats = () => ({ ...rustComposerStats, ops: { ...rustComposerStats.ops } });
 }
 
 let port: UnitPort<ComposerUnitProtocol> | null = null;
@@ -46,6 +46,7 @@ export async function composerCall<K extends keyof ComposerUnitProtocol & string
 	const core = await whenSharedRustCore();
 	const release = core.hold();
 	rustComposerStats.calls++;
+	rustComposerStats.ops[op] = (rustComposerStats.ops[op] ?? 0) + 1;
 	try {
 		return await (await unit(core)).request(op, payload, options);
 	} catch (error) {

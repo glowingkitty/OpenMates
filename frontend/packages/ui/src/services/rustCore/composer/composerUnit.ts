@@ -43,6 +43,8 @@ export function createComposerHandlers(binding: ComposerBinding): UnitHandlers<C
 		mentionsRank: (p) => call(p, (j) => binding.composer_mentions_rank(j)),
 		savedEmbedsRank: (p) => call(p, (j) => binding.composer_saved_embeds_rank(j)),
 		ghostValidate: (p) => call(p, (j) => binding.composer_ghost_validate(j)),
+		languageDetect: (p) => call(p, (j) => binding.composer_language_detect(j)),
+		urlClassify: (p) => call(p, (j) => binding.composer_url_classify(j)),
 	};
 }
 

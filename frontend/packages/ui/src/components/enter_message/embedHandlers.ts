@@ -975,9 +975,12 @@ export async function createCodeFileEmbedNode(
   }
 
   // Detect language: prefer filename extension, fall back to content heuristics
+  const filenameLanguage = getLanguageFromFilename(file.name);
   const language =
-    getLanguageFromFilename(file.name) ||
-    detectLanguageFromContent(fileContent) ||
+    filenameLanguage ||
+    (import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+      ? await (await import("./services/rustComposerCode")).rustDetectLanguageFromContent(fileContent)
+      : detectLanguageFromContent(fileContent)) ||
     "text";
 
   if (!isAuthenticated) {

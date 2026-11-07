@@ -8,7 +8,8 @@
  * those three spans, with the detection served by the Rust composer unit (zero
  * failures, one shared Worker, no WASM on the page). Records keystroke ->
  * highlight latency as an advisory metric. A second case types an @-mention query
- * and asserts the mention ranking (project mention search) is served by the unit. Runs only in the CI lane that builds
+ * and asserts the mention ranking (project mention search) is served by the unit. A third case types a closed YouTube URL
+ * and asserts the URL-kind op is served by the unit. Runs only in the CI lane that builds
  * the Rust core package (web-rust-core-* specs).
  */
 export {};
@@ -88,4 +89,33 @@ test('composer mention ranking is served by the shared Rust composer unit', asyn
 	expect(stats.failures, 'no composer unit call failed').toBe(0);
 	expect(unitErrors, 'no composer unit or mention search errors').toEqual([]);
 	await screenshot(page, 'composer-mention-dropdown');
+});
+
+// contract-test: supporting surface=gui.web assertions=message-input.suggestions.contextual
+test('composer URL classification is served by the shared Rust composer unit', async ({ page }: { page: any }) => {
+	test.slow();
+	test.setTimeout(300000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	const log = createSignupLogger('WEB_RUST_CORE_COMPOSER_URL');
+	const screenshot = createStepScreenshotter(log);
+	const unitErrors: string[] = [];
+	page.on('console', (msg: any) => {
+		const text = msg.text();
+		if (/UnitPortError/.test(text)) unitErrors.push(text.slice(0, 300));
+	});
+	await loginToTestAccount(page, log, screenshot);
+	await startNewChat(page, log);
+	const editor = page.getByTestId('message-editor');
+	await expect(editor).toBeVisible({ timeout: 15000 });
+	await editor.click({ position: { x: 12, y: 12 }, force: true });
+	const opCount = (op: string) => page.evaluate((name: string) => (window as any).__openmatesRustComposerStats?.()?.ops?.[name] ?? 0, op);
+
+	// A closed YouTube URL is classified by the unit before its embed is created.
+	const urlBefore = await opCount('urlClassify');
+	await page.keyboard.type(' https://youtu.be/dQw4w9WgXcQ ', { delay: 20 });
+	await expect.poll(() => opCount('urlClassify'), { timeout: 30000 }).toBeGreaterThan(urlBefore);
+	const stats = await page.evaluate(() => (window as any).__openmatesRustComposerStats?.() ?? null);
+	expect(stats.failures, 'no composer unit call failed').toBe(0);
+	expect(unitErrors, 'no composer unit errors').toEqual([]);
+	await screenshot(page, 'composer-url-classified');
 });

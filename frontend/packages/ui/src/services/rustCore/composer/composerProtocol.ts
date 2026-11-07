@@ -3,7 +3,8 @@
  *
  * The message composer's non-UI logic (paste classification, PII detection,
  * redaction, restore, known-original rewrite, local-model span merge, mention and
- * saved-embed ranking, ghost-suggestion validation) runs in
+ * saved-embed ranking, ghost-suggestion validation, code-language and URL-kind
+ * detection) runs in
  * shared Rust (packages/openmates-rust/src/web_composer/*.rs). TipTap and the
  * editor DOM stay in Svelte. Matches carry no matched text: the page slices its
  * own string by the UTF-16 offsets. The unit holds no account state and does no IO.
@@ -54,6 +55,12 @@ export interface ComposerUnitProtocol extends UnitProtocol {
 		response: number[];
 	};
 	ghostValidate: { request: { value: string }; response: { valid: boolean } };
+	/** Either field may be omitted; a missing `text` answers `content: null`. */
+	languageDetect: {
+		request: { text?: string; vsCodeEditorData?: string | null };
+		response: { vsCode: string | null; content: string | null };
+	};
+	urlClassify: { request: { url: string }; response: { youtube: boolean; githubRepo: boolean; videoId: string | null } };
 }
 
 /** Worker module exports (snake_case, JSON text) of browser_composer.rs. */
@@ -73,6 +80,8 @@ export interface ComposerBinding {
 	composer_mentions_rank(input: string): string;
 	composer_saved_embeds_rank(input: string): string;
 	composer_ghost_validate(input: string): string;
+	composer_language_detect(input: string): string;
+	composer_url_classify(input: string): string;
 }
 
 const BINDING_EXPORTS: readonly (keyof ComposerBinding)[] = [
@@ -80,6 +89,7 @@ const BINDING_EXPORTS: readonly (keyof ComposerBinding)[] = [
 	'composer_pii_restore', 'composer_pii_replace_originals', 'composer_pii_find_restored', 'composer_pii_summary',
 	'composer_pii_rewrite', 'composer_pii_windows', 'composer_pii_merge_window_entities', 'composer_pii_merge_matches',
 	'composer_mentions_rank', 'composer_saved_embeds_rank', 'composer_ghost_validate',
+	'composer_language_detect', 'composer_url_classify',
 ];
 
 export function isComposerBinding(value: unknown): value is ComposerBinding {

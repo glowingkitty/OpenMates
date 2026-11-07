@@ -303,7 +303,7 @@ units:
   what_moved: Serves the composer operations (composerProtocol.ts) on the unit port from the realm's single WASM
     binding. It holds no account state, so it is a pre-bind namespace.
   typescript_fallback: none declared (1 file)
-  unit_tests: [composerVectors.test.ts, suggestionVectors.test.ts]
+  unit_tests: [composerVectors.test.ts, languageUrlVectors.test.ts, suggestionVectors.test.ts]
   e2e_specs: [web-rust-core-composer.spec.ts]
   vectors: [packages/openmates-rust/src/web_composer/ts_vectors.json, packages/openmates-rust/src/web_composer/suggestion_ts_vectors.json]
   open_gaps: ['Slices 1-2 only (PII, paste, mention/saved-embed ranking, ghost-suggestion validation); sync mention

@@ -65,6 +65,8 @@ describe('composer handlers', () => {
 		composer_mentions_rank: () => '[]',
 		composer_saved_embeds_rank: () => '[]',
 		composer_ghost_validate: () => JSON.stringify({ valid: true }),
+		composer_language_detect: () => JSON.stringify({ vsCode: null, content: null }),
+		composer_url_classify: () => JSON.stringify({ youtube: false, githubRepo: false, videoId: null }),
 	} as ComposerBinding;
 	// contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude
 	it('forwards JSON text and maps binding rejection to its code', async () => {
