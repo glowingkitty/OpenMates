@@ -187,6 +187,22 @@ def main():
                 invoke(argv, {"endpoint": peer.endpoint, "suite": s, "vector": v})
             )
             results.append({"id": v["id"], "status": "passed"})
+        except Exception:
+            # Exact failed vector id for the driver's closed attribution; the
+            # original exception still ends the run.
+            results.append({"id": v["id"], "status": "failed"})
+            print(
+                json.dumps(
+                    {
+                        "capability": CAPABILITY,
+                        "language": a.language,
+                        "status": "failed",
+                        "fixtureSha256": hashlib.sha256(raw).hexdigest(),
+                        "results": results,
+                    }
+                )
+            )
+            raise
         finally:
             peer.close()
     print(

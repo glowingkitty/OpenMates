@@ -199,6 +199,23 @@ def main():
             )
         except Exception as error:
             _probe_failed(error)
+            # Exact failed vector id for the driver's closed attribution; the
+            # original exception still ends the run.
+            print(
+                json.dumps(
+                    {
+                        "capability": suite["capability"],
+                        "language": args.language,
+                        "status": "failed",
+                        "fixtureSha256": hashlib.sha256(fixture.read_bytes()).hexdigest(),
+                        "results": [
+                            {"id": row["id"], "status": row["status"]}
+                            for row in results
+                        ]
+                        + [{"id": vector["id"], "status": "failed"}],
+                    }
+                )
+            )
             raise
         finally:
             _probe_mark("peer_cleanup", vector["id"])
