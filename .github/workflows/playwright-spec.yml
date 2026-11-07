@@ -166,7 +166,7 @@ permissions:
 
 jobs:
   migration-guard:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
       - name: Reject retired shared-dev test execution

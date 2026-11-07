@@ -33,7 +33,7 @@ permissions:
 jobs:
   smoke:
     name: Run prod smoke suite
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
       PROD_API_URL: https://api.openmates.org
