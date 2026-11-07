@@ -220,6 +220,15 @@ conversation_fork:
     source_messages_unchanged: true
     active_chat_replaced_automatically: false
     open_action_available: true
+hidden_chats:
+- id: hide-first-chat-with-vault-password
+  given: The vault is locked and the user has a chat about the capital of France.
+  when: The user chooses Hide in the chat menu and submits their vault password in the inline form.
+  then: The form closes and the chat appears in the hidden chats section instead of the regular list.
+- id: hide-second-chat-while-unlocked
+  given: The vault is already unlocked with one hidden chat.
+  when: The user hides another chat.
+  then: No password form appears and the chat shows up in the hidden chats section.
 streaming_delivery:
 - id: bounded-content-coalescing
   given:

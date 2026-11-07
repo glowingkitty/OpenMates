@@ -16,6 +16,7 @@ scope:
   - Local message status precedence for visible user gates and provisional assistant states.
   - Chat-key readiness and missing local chat-shell hydration before encrypted writes.
   - Non-destructive conversation forks through a selected message boundary.
+  - Hiding chats behind a user vault password and the unlocked hidden chats section.
   - Ordered bounded streaming delivery, transient presentation, and terminal flush semantics.
   - Non-destructive follow-up suggestion reconciliation after post-processing.
   - Assistant render-document convergence, authored embed/wiki link behavior, and responsive chat-history layout.
@@ -314,6 +315,14 @@ assertions:
   depends_on:
   - models.ChatFork
   - examples.conversation_fork
+- id: chats.hidden.unlocked-section
+  type: behavior
+  must: Hiding a chat requires the user's vault password when the vault is locked and re-wraps the chat key so the
+    chat leaves the regular chat list; once the vault is unlocked the hidden chat is listed in a dedicated hidden
+    chats section, and hiding further chats while unlocked needs no password prompt. A too-short password cannot be
+    submitted, and unhiding returns the chat to the regular list.
+  depends_on:
+  - examples.hidden_chats
 - id: chats.streaming.ordered-final
   type: behavior
   must: Streaming preserves provider chunk order and exact final content; ordinary content updates may be coalesced

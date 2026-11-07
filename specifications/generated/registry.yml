@@ -601,7 +601,7 @@ specifications:
     version: 7
     status: draft
     path: features/chats
-    fingerprint: 659267dd53fe09460570f606aa402859199126c23cc796c1153440aaca3019f3
+    fingerprint: 0939127fec6c1c9027b6dd3f09ff95c53aefbdd0b56eb3f35d499c93d72570aa
     required_applies_to:
     - cli
     - gui.web
@@ -7649,6 +7649,15 @@ assertions:
     - cli
     - gui.web
     - gui.apple
+  chats.hidden.unlocked-section:
+    specification: feature.chats@7
+    specification_id: feature.chats
+    type: behavior
+    fingerprint: cf5f54e1308538fb7a2123ca0cc355c23b3141c5056b7d467d704326dff4a683
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
   chats.streaming.ordered-final:
     specification: feature.chats@7
     specification_id: feature.chats
@@ -7707,7 +7716,7 @@ assertions:
     specification: feature.chats@7
     specification_id: feature.chats
     type: parity
-    fingerprint: 91755d09d45f56bd0cfe13fdf5072dee6419d8a41652b4ea3cd910d252d806bd
+    fingerprint: be47c280c6c791a05806e98434b87c1ce8ffa7489e96896c586780fcb045a09b
     required_applies_to:
     - cli
     - gui.web
