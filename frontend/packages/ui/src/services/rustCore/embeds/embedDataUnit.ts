@@ -21,8 +21,9 @@ import {
 	type EmbedFieldsResult,
 	type OpenedEmbedFields
 } from './embedDataProtocol';
+import { createEmbedReadHandlers, type EmbedReadBinding } from './readOps';
 
-export interface EmbedDataBinding {
+export interface EmbedDataBinding extends Partial<EmbedReadBinding> {
 	embed_open_row_fields(
 		key: Uint8Array,
 		encryptedContent: string | undefined,
@@ -70,6 +71,7 @@ function rejection(error: unknown): string {
 export function createEmbedDataHandlers(binding: EmbedDataBinding): UnitHandlers<EmbedDataProtocol> {
 	const text = (value: string | null) => value ?? undefined;
 	return {
+		...createEmbedReadHandlers(binding),
 		async openFields(payload) {
 			const items = (payload as { items?: unknown } | null)?.items;
 			if (!Array.isArray(items) || items.length > EMBED_DATA_MAX_ITEMS || !items.every(validItem)) {

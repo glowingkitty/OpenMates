@@ -68,6 +68,23 @@ export class EmbedDataClient {
 		});
 	}
 
+	/** Rust replay of one legacy version patch; rejects with `version_patch_refused` where Rust refuses it. */
+	async applyVersionPatch(content: string, patch: string): Promise<string> {
+		const release = this.core.hold();
+		try {
+			const { unit } = await this.open();
+			const [result] = await unit.request('applyVersionPatches', { items: [{ content, patch }] });
+			if (!result) throw new RustEmbedDataError('embed_data_bad_reply');
+			if ('code' in result) throw new RustEmbedDataError(result.code);
+			return result.content;
+		} catch (error) {
+			this.stats.failures += 1;
+			throw error;
+		} finally {
+			release();
+		}
+	}
+
 	/** Rust TOON decode of one text: its JSON text, or null when TOON refused it. */
 	async decodeToon(text: string): Promise<string | null> {
 		const release = this.core.hold();
@@ -198,6 +215,16 @@ export async function decodeToonInRust(text: string): Promise<unknown> {
 		if (error instanceof SyntaxError) return null;
 		throw error;
 	}
+}
+
+/**
+ * Version-history hook: replays a legacy artifact patch in the Worker's Rust
+ * `embed_read::patch`. Null only when the Rust crypto arm is inactive (the
+ * documented TS arm); a Rust refusal rejects like the TS replay threw.
+ */
+export async function applyVersionPatchInRust(content: string, patch: string): Promise<string | null> {
+	const client = rustEmbedData();
+	return client ? client.applyVersionPatch(content, patch) : null;
 }
 
 declare global {

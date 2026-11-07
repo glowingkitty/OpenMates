@@ -13,6 +13,7 @@
  * - `embedWrite` (bound to a generation): the Rust embed write session
  *   (`BrowserEmbedWriter`) next to the Worker-side IndexedDB rows it writes.
  */
+import type { EmbedReadProtocol } from './readOps';
 import type { EmbedKeyWrapperRow, EncryptedDiffRow, PreparedEmbedWrite, StreamCompletionInput } from '../embedWriteAdapter';
 
 export const EMBED_UNIT_CLOSE = /* @__PURE__ */ Object.freeze({ embedUnitClose: 1 as const });
@@ -49,7 +50,7 @@ export type EmbedDataProtocol = {
 	/** Rust TOON decode (non-strict, as `@toon-format/toon` `decode(text, {strict:false})`):
 	 * JSON text per input, or null where TOON refused it (`toon_decode_failed`). */
 	decodeToon: { request: { texts: string[] }; response: (string | null)[] };
-};
+} & EmbedReadProtocol;
 
 /** One stored `embeds` row whose key the Worker resolves itself (embedKeyResolution.ts). */
 export interface StoredRowRequest {

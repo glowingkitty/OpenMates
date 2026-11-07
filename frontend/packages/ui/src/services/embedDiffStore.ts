@@ -8,7 +8,7 @@
  * Architecture: docs/architecture/messaging/embed-diff-editing.md
  */
 
-import { reconstructVersionRows } from '../utils/embedVersionReconstruction';
+import { applyVersionPatch, reconstructVersionRows } from '../utils/embedVersionReconstruction';
 import { chatDB } from './db';
 import { getApiEndpoint, storageArchiveFetch } from '../config/api';
 import { decryptWithEmbedKey, encryptWithEmbedKey } from './encryption/MetadataEncryptor';
@@ -319,7 +319,12 @@ async function reconstructEncryptedVersion(embedId: string, rows: EmbedVersionMe
 }
 
 export async function reconstructEncryptedVersionRows(rows: EmbedVersionMeta[], embedKey: Uint8Array): Promise<string> {
-	return reconstructVersionRows(rows, (ciphertext) => decryptWithEmbedKey(ciphertext, embedKey));
+	const decrypt = (ciphertext: string) => decryptWithEmbedKey(ciphertext, embedKey);
+	if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') {
+		const { reconstructVersionRowsInRust } = await import('./rustCore/embeds/versionOps');
+		return reconstructVersionRowsInRust(rows, decrypt, applyVersionPatch);
+	}
+	return reconstructVersionRows(rows, decrypt);
 }
 
 /**

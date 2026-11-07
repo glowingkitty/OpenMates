@@ -25,6 +25,7 @@ pub use browser_web_crypto::*;
 #[cfg(target_arch = "wasm32")] mod browser_crypto_batch;
 #[cfg(target_arch = "wasm32")] pub use browser_crypto_batch::{bulk_decrypt_chat, bulk_encrypt_chat, bulk_master_decrypt};
 #[cfg(target_arch = "wasm32")] pub mod browser_embed_write;
+#[cfg(target_arch = "wasm32")] pub mod browser_embed_read;
 #[cfg(target_arch = "wasm32")] pub mod browser_toon;
 
 #[cfg(target_arch = "wasm32")]

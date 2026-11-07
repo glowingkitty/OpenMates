@@ -6,6 +6,7 @@ pub mod account;
 pub mod chat_state;
 pub mod client;
 pub mod crypto;
+pub mod embed_read;
 pub mod error;
 pub mod mentions;
 pub mod mentions_list;
