@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseEmbedLinkTarget, generateDirectEmbedRef } from '../../../utils/embedFragmentUtils';
 import { applyVersionPatch } from '../../../utils/embedVersionReconstruction';
-import { isTerminalStatus, normalizeEmbedStatus, validateEmbedTransition } from '../../embedStateMachine';
+import { isEmbedEventAdmitted, isTerminalStatus, normalizeEmbedStatus, validateEmbedTransition } from '../../embedStateMachine';
 
 type Vector = Record<string, string | null | undefined> & { kind: string };
 
@@ -19,6 +19,10 @@ function run(v: Vector): { json: string } | { error: string } {
 			case 'link': return { json: JSON.stringify(parseEmbedLinkTarget(v.input as string)) };
 			case 'ref': return { json: JSON.stringify(generateDirectEmbedRef(v.embed_type as string, v.embed_id as string,
 				{ filename: v.filename, title: v.title, subject: v.subject })) };
+			case 'admission': return { json: JSON.stringify(isEmbedEventAdmitted({
+				currentStatus: v.current as string, incomingStatus: v.status,
+				currentVersion: (v.current_version as unknown as number | null) ?? undefined,
+				incomingVersion: (v.incoming_version as unknown as number | null) ?? undefined, versionExempt: v.exempt as unknown as boolean })) };
 			default: return { json: JSON.stringify(applyVersionPatch(v.content as string, v.patch as string)) };
 		}
 	} catch (error) {

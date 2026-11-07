@@ -85,5 +85,22 @@ const patches = [
 for (const [content, patch] of patches) {
 	vectors.push({ kind: 'patch', content, patch, ...run(() => version.applyVersionPatch(content, patch)) });
 }
+// Inbound event admission (send_embed_data / embed_update gates).
+const admissionStatuses = [...Object.values(status.EmbedStatus), 'bogus', '', 'completed', null, 7];
+const versions = [undefined, 1, 2];
+for (const currentStatus of [...Object.values(status.EmbedStatus), 'bogus']) {
+	for (const incomingStatus of admissionStatuses) {
+		for (const versionExempt of [false, true]) {
+			for (const [currentVersion, incomingVersion] of versionExempt ? versions.flatMap((c) => versions.map((i) => [c, i])) : [[undefined, undefined]]) {
+				const input = { currentStatus, incomingStatus, currentVersion, incomingVersion, versionExempt };
+				vectors.push({
+					kind: 'admission', current: currentStatus, status: typeof incomingStatus === 'string' ? incomingStatus : null,
+					current_version: currentVersion ?? null, incoming_version: incomingVersion ?? null, exempt: versionExempt,
+					json: JSON.stringify(status.isEmbedEventAdmitted(input))
+				});
+			}
+		}
+	}
+}
 console.warn = warn;
 process.stdout.write(`${JSON.stringify({ generator: 'frontend/packages/ui/scripts/generate-embed-read-vectors.mjs', vectors }, null, 1)}\n`);

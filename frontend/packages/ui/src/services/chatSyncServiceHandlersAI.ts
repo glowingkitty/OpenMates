@@ -3426,11 +3426,28 @@ export async function handleEmbedUpdateImpl(
             normalizeEmbedStatus: normalizeStatus,
           } = await import("./embedStateMachine");
           const incomingStatus = normalizeStatus(payload.status);
+          // Flag on: the Rust admission decision (TS only when the Rust crypto arm is inactive).
+          const rustAdmitted =
+            import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+              ? await (
+                  await import("./rustCore/embeds/embedDataClient")
+                ).admitEmbedEventInRust({
+                  currentStatus: existingEmbed.status,
+                  incomingStatus:
+                    typeof payload.status === "string" ? payload.status : null,
+                  currentVersion: null,
+                  incomingVersion: null,
+                  versionExempt: false,
+                })
+              : null;
           if (
-            !validateEmbedTransition(
-              existingEmbed.status,
-              incomingStatus,
-              payload.embed_id,
+            !(
+              rustAdmitted ??
+              validateEmbedTransition(
+                existingEmbed.status,
+                incomingStatus,
+                payload.embed_id,
+              )
             )
           ) {
             console.warn(
@@ -3948,18 +3965,38 @@ export async function handleSendEmbedDataImpl(
         typeof existingEntry.version_number === "number"
           ? existingEntry.version_number
           : undefined;
+      // Flag on: the Rust admission decision (TS only when the Rust crypto arm is inactive).
+      const rustAdmitted =
+        import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+          ? await (
+              await import("./rustCore/embeds/embedDataClient")
+            ).admitEmbedEventInRust({
+              currentStatus,
+              incomingStatus:
+                typeof embedData.status === "string" ? embedData.status : null,
+              currentVersion: existingVersion ?? null,
+              incomingVersion:
+                typeof embedData.version_number === "number"
+                  ? embedData.version_number
+                  : null,
+              versionExempt: true,
+            })
+          : null;
       const isNewerEmbedVersion =
         typeof embedData.version_number === "number" &&
         embedData.version_number > (existingVersion ?? 0);
       const isFinalizedContentRefresh =
         currentStatus === incomingStatus && incomingStatus === EmbedStatus.FINISHED;
       if (
-        !isNewerEmbedVersion &&
-        !isFinalizedContentRefresh &&
-        !validateEmbedTransition(
-          currentStatus,
-          incomingStatus,
-          embedData.embed_id,
+        !(
+          rustAdmitted ??
+          (isNewerEmbedVersion ||
+            isFinalizedContentRefresh ||
+            validateEmbedTransition(
+              currentStatus,
+              incomingStatus,
+              embedData.embed_id,
+            ))
         )
       ) {
         console.warn(

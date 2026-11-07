@@ -28,6 +28,7 @@ import {
 	type EmbedFieldsResult,
 	type OpenedEmbedFields
 } from './embedDataProtocol';
+import type { EmbedEventAdmissionRequest } from './readOps';
 
 export class RustEmbedDataError extends Error {
 	constructor(readonly code: string) {
@@ -44,7 +45,7 @@ export class EmbedDataClient {
 	private queue: Queued[] = [];
 	private scheduled = false;
 	private stopCrashWatch: (() => void) | null = null;
-	readonly stats = { requests: 0, rows: 0, failures: 0, toonDecodes: 0, streamedWrites: 0 };
+	readonly stats = { requests: 0, rows: 0, failures: 0, toonDecodes: 0, streamedWrites: 0, admissions: 0 };
 
 	constructor(private readonly core: SharedRustCore) {}
 
@@ -77,6 +78,23 @@ export class EmbedDataClient {
 			if (!result) throw new RustEmbedDataError('embed_data_bad_reply');
 			if ('code' in result) throw new RustEmbedDataError(result.code);
 			return result.content;
+		} catch (error) {
+			this.stats.failures += 1;
+			throw error;
+		} finally {
+			release();
+		}
+	}
+
+	/** Rust admission decision for one inbound embed event (`embed_read::admission`). */
+	async admitEmbedEvent(request: EmbedEventAdmissionRequest): Promise<boolean> {
+		const release = this.core.hold();
+		this.stats.admissions += 1;
+		try {
+			const { unit } = await this.open();
+			const decision = await unit.request('admitEmbedEvent', request);
+			if (typeof decision !== 'boolean') throw new RustEmbedDataError('embed_data_bad_reply');
+			return decision;
 		} catch (error) {
 			this.stats.failures += 1;
 			throw error;
@@ -225,6 +243,16 @@ export async function decodeToonInRust(text: string): Promise<unknown> {
 export async function applyVersionPatchInRust(content: string, patch: string): Promise<string | null> {
 	const client = rustEmbedData();
 	return client ? client.applyVersionPatch(content, patch) : null;
+}
+
+/**
+ * AI-stream embed event gate: the Rust admission decision. Null only when the
+ * Rust crypto arm is inactive (measurement opt-out), the documented TS arm; a
+ * Rust failure rejects (the handlers' existing non-blocking catch applies).
+ */
+export async function admitEmbedEventInRust(request: EmbedEventAdmissionRequest): Promise<boolean | null> {
+	const client = rustEmbedData();
+	return client ? client.admitEmbedEvent(request) : null;
 }
 
 declare global {

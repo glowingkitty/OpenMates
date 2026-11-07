@@ -3,8 +3,9 @@
 //! `browser_embed_read`): the embed status state machine, `embed:` link targets
 //! and direct embed refs, and exact replay of legacy artifact version patches.
 //! Ports `embedStateMachine.ts`, `embedFragmentUtils.ts`, `embedVersionReconstruction.ts`
-//! and `projectFilePatch.ts`; byte parity is proven by `embed_read_ts_vectors.json`
+//! and `projectFilePatch.ts`, plus inbound event admission (`embedStateMachine.ts`); byte parity is proven by `embed_read_ts_vectors.json`
 //! (generated from those TS sources). Spec: specifications feature.chats.
+pub mod admission;
 pub mod link;
 pub mod patch;
 pub mod status;

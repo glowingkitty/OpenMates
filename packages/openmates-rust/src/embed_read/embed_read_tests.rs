@@ -1,5 +1,6 @@
 //! Replays `embed_read_ts_vectors.json`, generated from the TS sources
 //! (frontend/packages/ui/scripts/generate-embed-read-vectors.mjs).
+use super::admission::{is_embed_event_admitted, EmbedEventFacts};
 use super::link::{generate_direct_embed_ref, parse_embed_link_target};
 use super::patch::apply_version_patch;
 use super::status::{is_terminal, normalize_status, validate_transition};
@@ -43,6 +44,14 @@ fn matches_every_ts_generated_vector() {
                 opt(v, "title"),
                 opt(v, "subject")
             ))
+            .to_string()),
+            "admission" => Ok(is_embed_event_admitted(&EmbedEventFacts {
+                current_status: s(v, "current"),
+                incoming_status: opt(v, "status"),
+                current_version: v["current_version"].as_f64(),
+                incoming_version: v["incoming_version"].as_f64(),
+                version_exempt: v["exempt"].as_bool().expect("exempt flag"),
+            })
             .to_string()),
             "patch" => apply_version_patch(s(v, "content"), s(v, "patch"))
                 .map(|t| json!(t).to_string())

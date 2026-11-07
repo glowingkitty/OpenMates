@@ -69,6 +69,9 @@ test('Rust core decrypts saved embeds; preview renders and fullscreen opens', as
 	// The finalized streamed code embed was chosen, encrypted and stored by the Rust embedWrite unit.
 	await expect.poll(() => page.evaluate(() => (window as any).__openmatesRustEmbedStats?.()?.streamedWrites ?? 0),
 		{ message: 'streamed embed written by the Rust embedWrite unit', timeout: 30000 }).toBeGreaterThan(0);
+	// The embed status gate of the AI-stream handlers ran its decision in the Rust embedData unit.
+	await expect.poll(() => page.evaluate(() => (window as any).__openmatesRustEmbedStats?.()?.admissions ?? 0),
+		{ message: 'embed event admitted by the Rust embedData unit', timeout: 30000 }).toBeGreaterThan(0);
 
 	await page.goto(getE2EDebugUrl(`/#chat-id=${chatId}`));
 	await page.reload();

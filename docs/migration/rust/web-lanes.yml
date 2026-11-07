@@ -209,6 +209,13 @@ lanes:
   kind: wave4
   status: running
   commit: null
+  slices:
+  - id: slice-3
+    commit: aa27557
+    note: embed_read status machine, link/ref parsing and version patch replay
+  - id: slice-4
+    commit: pending
+    note: inbound embed event admission (embed_update and send_embed_data status gates)
   size: M
   wave: A
   deps: []
@@ -232,7 +239,7 @@ lanes:
   - anonymous-child-embeds.spec.ts
   - historical-image-child-recovery.spec.ts
   - draft-embed-preview.spec.ts
-  notes: 'Slice 3 landed in aa27557: Rust embed_read (status machine, link/ref parsing, version patch replay; 172 TS vectors) and the embedData applyVersionPatches op with flag-on reconstruct via versionOps.ts. Status machine, link parser and ref generator are not yet called from web (their TS callers are synchronous). Remaining: embedResolver, embedStore read paths, sheet/mindmap/docs content, embedSenders, audioEmbedCrypto. embed-ready bench not measured (TS arm fails in the bench).'
+  notes: 'Slice 3 landed in aa27557: Rust embed_read (status machine, link/ref parsing, version patch replay; 172 TS vectors) and the embedData applyVersionPatches op with flag-on reconstruct via versionOps.ts. Status machine, link parser and ref generator are not yet called from web (their TS callers are synchronous). Remaining: embedResolver, embedStore read paths, sheet/mindmap/docs content, embedSenders, audioEmbedCrypto. embed-ready bench not measured (TS arm fails in the bench). Slice 4: the inbound embed event admission decision (status transition plus the send_embed_data newer-version and finalized-refresh exemptions; embedStateMachine isEmbedEventAdmitted -> embed_read::admission, admitEmbedEvent op, 770 TS-generated vectors in embed_read_ts_vectors.json) runs on the embedData unit with the flag on at both chatSyncServiceHandlersAI gates (already async handlers; no new await flag-off, no TS fallback flag on except the inactive-crypto-arm TS arm). Declined: embedStateMachine validate/normalize at other callers and parseEmbedLinkTarget/generateDirectEmbedRef (synchronous callers: embedLinkUtils markdown/HTML builders, codeEmbedService and projectService ref builders that use the result inline), embedResolver.resolveEmbed (page IO and memory-cache hits, a new await would delay embed render).'
   spec_assertions:
   - chats.persistence.client-encrypted
   - chats.rendering.assistant-document-convergence
