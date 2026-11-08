@@ -308,17 +308,17 @@ capabilities:
     status: partial
     api_symbols: 28
     conformance: true
-    gaps: 6
+    gaps: 4
   npm:
     status: partial
     api_symbols: 15
     conformance: true
-    gaps: 6
+    gaps: 4
   python:
     status: partial
     api_symbols: 10
     conformance: true
-    gaps: 6
+    gaps: 4
 - id: sdk.drafts
   domain: operations
   has_fixture: true
@@ -326,17 +326,17 @@ capabilities:
     status: partial
     api_symbols: 22
     conformance: true
-    gaps: 4
+    gaps: 3
   npm:
     status: partial
     api_symbols: 15
     conformance: true
-    gaps: 3
+    gaps: 2
   python:
     status: partial
     api_symbols: 10
     conformance: true
-    gaps: 3
+    gaps: 2
 - id: sdk.embeds
   domain: operations
   has_fixture: true
@@ -344,17 +344,17 @@ capabilities:
     status: partial
     api_symbols: 26
     conformance: true
-    gaps: 4
+    gaps: 3
   npm:
     status: partial
     api_symbols: 44
     conformance: true
-    gaps: 4
+    gaps: 3
   python:
     status: partial
     api_symbols: 31
     conformance: true
-    gaps: 4
+    gaps: 3
 - id: sdk.embeds.family
   domain: operations
   has_fixture: true
@@ -362,17 +362,17 @@ capabilities:
     status: partial
     api_symbols: 0
     conformance: true
-    gaps: 4
+    gaps: 3
   npm:
     status: partial
     api_symbols: 0
     conformance: true
-    gaps: 4
+    gaps: 3
   python:
     status: partial
     api_symbols: 0
     conformance: true
-    gaps: 4
+    gaps: 3
 - id: sdk.embeds.version-content
   domain: operations
   has_fixture: true
@@ -434,17 +434,17 @@ capabilities:
     status: partial
     api_symbols: 17
     conformance: true
-    gaps: 4
+    gaps: 3
   npm:
     status: partial
     api_symbols: 12
     conformance: true
-    gaps: 3
+    gaps: 2
   python:
     status: partial
     api_symbols: 8
     conformance: true
-    gaps: 3
+    gaps: 2
 - id: sdk.ideabucket
   domain: operations
   has_fixture: false
@@ -686,17 +686,17 @@ capabilities:
     status: partial
     api_symbols: 36
     conformance: true
-    gaps: 8
+    gaps: 7
   npm:
     status: partial
     api_symbols: 15
     conformance: true
-    gaps: 8
+    gaps: 7
   python:
     status: partial
     api_symbols: 10
     conformance: true
-    gaps: 8
+    gaps: 7
 - id: sdk.workflows
   domain: operations
   has_fixture: false

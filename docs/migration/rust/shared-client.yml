@@ -686,17 +686,17 @@ capabilities:
     status: partial
     api_symbols: 16
     conformance: true
-    gaps: 5
+    gaps: 4
   npm:
     status: partial
     api_symbols: 51
     conformance: true
-    gaps: 5
+    gaps: 4
   python:
     status: partial
     api_symbols: 34
     conformance: true
-    gaps: 5
+    gaps: 4
   spec_assertions: *id006
 - id: session.anonymous-stream.v1
   domain: streaming

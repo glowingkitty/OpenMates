@@ -1448,7 +1448,6 @@
             "tests/sdk-conformance/runners/sdk-api-key-chats.mjs"
           ],
           "gaps": [
-            "Managed isolated CI must execute these authored direct adapters on exact reviewed source; registration alone implies no runtime pass.",
             "Send, streaming, cancellation, recovery, message pagination (messages/messagePages), export, fork, share, delete, retry, rewind, follow-ups, incognito and Project link/unlink have no cross-SDK conformance vectors yet.",
             "Direct (two-participant) chats and TOON-encoded embed content are not covered by the shared vectors.",
             "List/search/load decryption still runs in language-local code rather than the shared Rust core (npm WASM, Python PyO3).",
@@ -1498,7 +1497,6 @@
             "tests/sdk-conformance/runners/sdk-api-key-chats.py"
           ],
           "gaps": [
-            "Managed isolated CI must execute these authored direct adapters on exact reviewed source; registration alone implies no runtime pass.",
             "Send, streaming, cancellation, recovery, message pagination (messages/messagePages), export, fork, share, delete, retry, rewind, follow-ups, incognito and Project link/unlink have no cross-SDK conformance vectors yet.",
             "Direct (two-participant) chats and TOON-encoded embed content are not covered by the shared vectors.",
             "List/search/load decryption still runs in language-local code rather than the shared Rust core (npm WASM, Python PyO3).",
@@ -1530,7 +1528,6 @@
             "packages/openmates-rust/examples/sdk-api-key-chats-conformance.rs"
           ],
           "gaps": [
-            "Managed isolated CI must execute these authored direct adapters on exact reviewed source; registration alone implies no runtime pass.",
             "Send, streaming, cancellation, recovery, message pagination (messages/messagePages), export, fork, share, delete, retry, rewind, follow-ups, incognito and Project link/unlink have no cross-SDK conformance vectors yet.",
             "Direct (two-participant) chats and TOON-encoded embed content are not covered by the shared vectors.",
             "Rust implements list/search/load plus personal-chat fork/rewind/retry (sdk_chat_rewrite, unit-tested against the shared rewrite builders and a loopback /v1/sdk/chats route; retry returns the prompt for the caller to resend). Every other npm/Python chat method, including API-key send/stream/cancel, is missing, so Rust retry cannot resend by itself.",
@@ -1795,8 +1792,6 @@
             "tests/sdk-conformance/runners/sdk-api-key-docs.mjs"
           ],
           "gaps": [
-            "Managed isolated CI must execute these authored direct adapters on exact reviewed source; offline oracle/mocked observations do not establish runtime or release acceptance.",
-            "All actual direct SDK adapters and Rust compile remain unrun; pure oracle tests are not SDK execution.",
             "Existing SDK /v1/sdk/docs route availability/server behavior is not established by synthetic fixture; no server route/protocol added.",
             "Shared Rust slug safety rejects traversal/control/colon/oversized slugs before transport whereas existing npm/Python facade passes those inputs; complete malformed-input parity unproved.",
             "Malformed successful JSON, redirect, transport cancellation, oversize response and live error/ACL behavior inherit existing transport policies and are not full cross-language proved by this fixture.",
@@ -1822,8 +1817,6 @@
             "tests/sdk-conformance/runners/sdk-api-key-docs.py"
           ],
           "gaps": [
-            "Managed isolated CI must execute these authored direct adapters on exact reviewed source; offline oracle/mocked observations do not establish runtime or release acceptance.",
-            "All actual direct SDK adapters and Rust compile remain unrun; pure oracle tests are not SDK execution.",
             "Existing SDK /v1/sdk/docs route availability/server behavior is not established by synthetic fixture; no server route/protocol added.",
             "Shared Rust slug safety rejects traversal/control/colon/oversized slugs before transport whereas existing npm/Python facade passes those inputs; complete malformed-input parity unproved.",
             "Malformed successful JSON, redirect, transport cancellation, oversize response and live error/ACL behavior inherit existing transport policies and are not full cross-language proved by this fixture.",
@@ -1867,8 +1860,6 @@
             "packages/openmates-rust/examples/sdk-api-key-docs-conformance.rs"
           ],
           "gaps": [
-            "Managed isolated CI must execute these authored direct adapters on exact reviewed source; offline oracle/mocked observations do not establish runtime or release acceptance.",
-            "All actual direct SDK adapters and Rust compile remain unrun; pure oracle tests are not SDK execution.",
             "Existing SDK /v1/sdk/docs route availability/server behavior is not established by synthetic fixture; no server route/protocol added.",
             "Shared Rust slug safety rejects traversal/control/colon/oversized slugs before transport whereas existing npm/Python facade passes those inputs; complete malformed-input parity unproved.",
             "Malformed successful JSON, redirect, transport cancellation, oversize response and live error/ACL behavior inherit existing transport policies and are not full cross-language proved by this fixture.",
@@ -1907,7 +1898,6 @@
             "tests/sdk-conformance/runners/api-key-drafts.mjs"
           ],
           "gaps": [
-            "Authored direct-library synthetic coverage requires managed isolated CI execution on exact reviewed source; no runtime pass is implied by registration.",
             "Matching direct SDK CPU-processing benchmark against TypeScript is absent; Rust must be at least as fast for comparable work. Network/process latency cannot satisfy this blocker.",
             "Astral fallback-preview and empty encrypted-preview divergences remain open; complete key, error, race and account parity is unproved."
           ],
@@ -1931,7 +1921,6 @@
             "tests/sdk-conformance/runners/api-key-drafts.py"
           ],
           "gaps": [
-            "Authored direct-library synthetic coverage requires managed isolated CI execution on exact reviewed source; no runtime pass is implied by registration.",
             "Matching direct SDK CPU-processing benchmark against TypeScript is absent; Rust must be at least as fast for comparable work. Network/process latency cannot satisfy this blocker.",
             "Astral fallback-preview and empty encrypted-preview divergences remain open; complete key, error, race and account parity is unproved."
           ],
@@ -1967,7 +1956,6 @@
             "packages/openmates-rust/examples/sdk-api-key-drafts-conformance.rs"
           ],
           "gaps": [
-            "Authored direct-library synthetic coverage requires managed isolated CI execution on exact reviewed source; no runtime pass is implied by registration.",
             "Matching direct SDK CPU-processing benchmark against TypeScript is absent; Rust must be at least as fast for comparable work. Network/process latency cannot satisfy this blocker.",
             "Astral fallback-preview and empty encrypted-preview divergences remain open; complete key, error, race and account parity is unproved.",
             "Opaque final-output/credential-scope assertions remain Rust platform glue; Cookie operations move to session.drafts.v1. Foreign bindings use the same EssentialGuard authority, but exposing standalone platform admission receipts and durable cache publication remains unfinished."
@@ -2034,7 +2022,6 @@
             "tests/sdk-conformance/runners/sdk-api-key-embeds.mjs"
           ],
           "gaps": [
-            "Managed isolated CI must execute these authored direct adapters on exact reviewed source; offline oracle/mocked observations do not establish runtime or release acceptance.",
             "All Rust typechecks, unit tests, direct-library execution and matching CPU/end-to-end performance remain unproved; measured slowdown blocks acceptance.",
             "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. Python non-UUID add selector behavior differs from npm; canonical UUID fixture coverage does not prove selector parity.",
             "Read and family synthetic vectors do not establish real backend owner/ACL enforcement, project mutation operability, full transport cancellation/redirect/oversize behavior, account races, or npm/Python public local cancellation parity."
@@ -2080,7 +2067,6 @@
             "tests/sdk-conformance/runners/sdk-api-key-embeds.py"
           ],
           "gaps": [
-            "Managed isolated CI must execute these authored direct adapters on exact reviewed source; offline oracle/mocked observations do not establish runtime or release acceptance.",
             "All Rust typechecks, unit tests, direct-library execution and matching CPU/end-to-end performance remain unproved; measured slowdown blocks acceptance.",
             "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. Python non-UUID add selector behavior differs from npm; canonical UUID fixture coverage does not prove selector parity.",
             "Read and family synthetic vectors do not establish real backend owner/ACL enforcement, project mutation operability, full transport cancellation/redirect/oversize behavior, account races, or npm/Python public local cancellation parity."
@@ -2121,7 +2107,6 @@
             "packages/openmates-rust/examples/sdk-api-key-embeds-conformance.rs"
           ],
           "gaps": [
-            "Managed isolated CI must execute these authored direct adapters on exact reviewed source; offline oracle/mocked observations do not establish runtime or release acceptance.",
             "All Rust typechecks, unit tests, direct-library execution and matching CPU/end-to-end performance remain unproved; measured slowdown blocks acceptance.",
             "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. Python non-UUID add selector behavior differs from npm; canonical UUID fixture coverage does not prove selector parity.",
             "Read and family synthetic vectors do not establish real backend owner/ACL enforcement, project mutation operability, full transport cancellation/redirect/oversize behavior, account races, or npm/Python public local cancellation parity."
@@ -2143,7 +2128,6 @@
             "tests/sdk-conformance/runners/sdk-api-key-embeds-family.mjs"
           ],
           "gaps": [
-            "Managed isolated CI must execute these authored direct adapters on exact reviewed source; offline oracle/mocked observations do not establish runtime or release acceptance.",
             "All Rust typechecks, unit tests, direct-library execution and matching CPU/end-to-end performance remain unproved; measured slowdown blocks acceptance.",
             "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. Python non-UUID add selector behavior differs from npm; canonical UUID fixture coverage does not prove selector parity.",
             "Read and family synthetic vectors do not establish real backend owner/ACL enforcement, project mutation operability, full transport cancellation/redirect/oversize behavior, account races, or npm/Python public local cancellation parity."
@@ -2157,7 +2141,6 @@
             "tests/sdk-conformance/runners/sdk-api-key-embeds-family.py"
           ],
           "gaps": [
-            "Managed isolated CI must execute these authored direct adapters on exact reviewed source; offline oracle/mocked observations do not establish runtime or release acceptance.",
             "All Rust typechecks, unit tests, direct-library execution and matching CPU/end-to-end performance remain unproved; measured slowdown blocks acceptance.",
             "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. Python non-UUID add selector behavior differs from npm; canonical UUID fixture coverage does not prove selector parity.",
             "Read and family synthetic vectors do not establish real backend owner/ACL enforcement, project mutation operability, full transport cancellation/redirect/oversize behavior, account races, or npm/Python public local cancellation parity."
@@ -2171,7 +2154,6 @@
             "packages/openmates-rust/examples/sdk-api-key-embeds-family-conformance.rs"
           ],
           "gaps": [
-            "Managed isolated CI must execute these authored direct adapters on exact reviewed source; offline oracle/mocked observations do not establish runtime or release acceptance.",
             "All Rust typechecks, unit tests, direct-library execution and matching CPU/end-to-end performance remain unproved; measured slowdown blocks acceptance.",
             "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. Python non-UUID add selector behavior differs from npm; canonical UUID fixture coverage does not prove selector parity.",
             "Read and family synthetic vectors do not establish real backend owner/ACL enforcement, project mutation operability, full transport cancellation/redirect/oversize behavior, account races, or npm/Python public local cancellation parity."
@@ -2424,7 +2406,6 @@
             "tests/sdk-conformance/runners/sdk-api-key-history.mjs"
           ],
           "gaps": [
-            "Authored direct-library synthetic coverage requires managed isolated CI execution on exact reviewed source; no runtime pass is implied by registration.",
             "Matching direct SDK CPU-processing benchmark against TypeScript is absent; Rust must be at least as fast for comparable work. Network/process latency cannot satisfy this blocker.",
             "Numeric input and error-boundary parity remain incomplete; synthetic history does not establish live ACL enforcement, transactional undo safety or full race/cancellation behavior."
           ],
@@ -2446,7 +2427,6 @@
             "tests/sdk-conformance/runners/sdk-api-key-history.py"
           ],
           "gaps": [
-            "Authored direct-library synthetic coverage requires managed isolated CI execution on exact reviewed source; no runtime pass is implied by registration.",
             "Matching direct SDK CPU-processing benchmark against TypeScript is absent; Rust must be at least as fast for comparable work. Network/process latency cannot satisfy this blocker.",
             "Numeric input and error-boundary parity remain incomplete; synthetic history does not establish live ACL enforcement, transactional undo safety or full race/cancellation behavior."
           ],
@@ -2477,7 +2457,6 @@
             "packages/openmates-rust/examples/sdk-api-key-history-conformance.rs"
           ],
           "gaps": [
-            "Authored direct-library synthetic coverage requires managed isolated CI execution on exact reviewed source; no runtime pass is implied by registration.",
             "Matching direct SDK CPU-processing benchmark against TypeScript is absent; Rust must be at least as fast for comparable work. Network/process latency cannot satisfy this blocker.",
             "Numeric input and error-boundary parity remain incomplete; synthetic history does not establish live ACL enforcement, transactional undo safety or full race/cancellation behavior.",
             "Rust CLI request-local HTTP status compatibility helpers remain partial; shared runtime, error, ACL, undo and performance proof is still required."
@@ -8269,7 +8248,6 @@
             "tests/sdk-conformance/runners/sdk-api-key-wikipedia.mjs"
           ],
           "gaps": [
-            "Managed isolated CI must execute these authored direct adapters on exact reviewed source; offline oracle/mocked observations do not establish runtime or release acceptance.",
             "All Rust/npm real direct-library runtime and matched CPU/performance proof remain unrun.",
             "Empty language differs in existing Python(en fallback) vs npm/Rust(empty retained); explicit fixture records this divergence instead of claiming equivalence.",
             "Fractional/non-string dynamic inputs, truthy non-string summary-title coercion and malformed guide response/error types remain incomplete cross-language parity.",
@@ -8298,7 +8276,6 @@
             "tests/sdk-conformance/runners/sdk-api-key-wikipedia.py"
           ],
           "gaps": [
-            "Managed isolated CI must execute these authored direct adapters on exact reviewed source; offline oracle/mocked observations do not establish runtime or release acceptance.",
             "All Rust/npm real direct-library runtime and matched CPU/performance proof remain unrun.",
             "Empty language differs in existing Python(en fallback) vs npm/Rust(empty retained); explicit fixture records this divergence instead of claiming equivalence.",
             "Fractional/non-string dynamic inputs, truthy non-string summary-title coercion and malformed guide response/error types remain incomplete cross-language parity.",
@@ -8353,7 +8330,6 @@
             "packages/openmates-rust/examples/sdk-api-key-wikipedia-conformance.rs"
           ],
           "gaps": [
-            "Managed isolated CI must execute these authored direct adapters on exact reviewed source; offline oracle/mocked observations do not establish runtime or release acceptance.",
             "All Rust/npm real direct-library runtime and matched CPU/performance proof remain unrun.",
             "Empty language differs in existing Python(en fallback) vs npm/Rust(empty retained); explicit fixture records this divergence instead of claiming equivalence.",
             "Fractional/non-string dynamic inputs, truthy non-string summary-title coercion and malformed guide response/error types remain incomplete cross-language parity.",
