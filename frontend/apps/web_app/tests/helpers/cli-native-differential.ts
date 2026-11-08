@@ -37,6 +37,14 @@
  *     fixture (e.g. delete the entry it created); ids are normalized before comparing.
  *   - between: async hook run after the npm run and before the native run, to restore
  *     state a mutating command changed (e.g. disable learning mode again).
+ *   - before(side): restores the precondition before EACH CLI run (e.g. reset an
+ *     appended section), so a mutating command starts from the same state twice.
+ *   - argsFor(side): per-CLI argument vector, evaluated after before(side), for state
+ *     transitions that cannot be reset (start/complete/delete): each CLI acts on its
+ *     own identical fixture created by before(side).
+ *
+ * `setupDifferential(page, testInfo, group, { paceMs })` waits that long before every check, for groups
+ * whose npm commands hit per-minute rate limits.
  *
  * Adding a group: create a new cli-native-<group>.spec.ts, call setupDifferential
  * once per test (it logs both CLIs in with isolated HOME/state dirs through browser
@@ -68,8 +76,11 @@ const { buildRustCli, createRustHome, recordRust, runRust, rustEnv } = require('
 
 type RunResult = { code: number | null; stdout: string; stderr: string };
 type Mode = 'json' | 'text' | 'exit';
+type Side = 'npm' | 'native';
 
 interface CheckOptions {
+	before?: (side: Side) => Promise<void>;
+	argsFor?: (side: Side) => string[];
 	catalog?: string[];
 	mode?: Mode;
 	structureOnly?: boolean;
@@ -113,6 +124,8 @@ interface Differential {
 }
 
 const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+/** History change-set (`chg_`) and entry (`che_`) ids differ per run, also inside printed undo commands. */
+const HISTORY_ID_RE = /\b(chg|che)_[0-9a-f]{32}\b/g;
 const ISO_TS_RE = /\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?/g;
 const VOLATILE_KEY_RE = /(^|_)(at|time|timestamp|date|expires|expiry|created|updated|ts)$|^(created|updated|last)[A-Z_]|At$|Timestamp$/;
 // eslint-disable-next-line no-control-regex -- matching terminal escape sequences requires control characters
@@ -151,6 +164,7 @@ function normalizeString(value: string, homes: string[]): string {
 	for (const home of homes) if (home) out = out.split(home).join('<home>');
 	return out
 		.replace(UUID_RE, '<uuid>')
+		.replace(HISTORY_ID_RE, '<$1_id>')
 		.replace(ISO_TS_RE, '<ts>')
 		.replace(os.tmpdir(), '<tmp>')
 		.replace(/[ \t]+$/gm, '')
@@ -213,7 +227,7 @@ function toOutcome(result: RunResult, mode: Mode, homes: string[], options: Chec
 }
 
 /** Build the binary, create isolated homes and pair-log BOTH CLIs into the page's account. */
-async function setupDifferential(page: any, testInfo: TestInfo, groupName: string): Promise<Differential> {
+async function setupDifferential(page: any, testInfo: TestInfo, groupName: string, setup: { paceMs?: number } = {}): Promise<Differential> {
 	testInfo.setTimeout(2_700_000);
 	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || '';
 	const apiUrl = process.env.PLAYWRIGHT_TEST_API_URL || deriveApiUrl(baseUrl);
@@ -258,11 +272,16 @@ async function setupDifferential(page: any, testInfo: TestInfo, groupName: strin
 		async check(label, args, options = {}) {
 			const mode: Mode = options.mode ?? 'json';
 			const withJson = (argv: string[]) => (mode === 'json' && !argv.includes('--json') ? [...argv, '--json'] : argv);
-			const fullArgs = withJson(args);
 			const timeout = options.timeoutMs ?? 60_000;
+			// Backend endpoints are rate limited per minute (e.g. 60/minute for Plan lists, which npm queries per command).
+			if (setup.paceMs) await new Promise((resolve) => setTimeout(resolve, setup.paceMs));
+			if (options.before) await options.before('npm');
+			const fullArgs = withJson(options.argsFor ? options.argsFor('npm') : args);
 			const npmResult = await runNpm(fullArgs, timeout);
 			if (options.between) await options.between();
-			const nativeResult = await runNative(options.nativeArgs ? withJson(options.nativeArgs) : fullArgs, timeout);
+			if (options.before) await options.before('native');
+			const nativeArgv = options.argsFor ? options.argsFor('native') : (options.nativeArgs ?? args);
+			const nativeResult = await runNative(withJson(nativeArgv), timeout);
 			const npmOutcome = toOutcome(npmResult, mode, homes, options);
 			const nativeOutcome = toOutcome(nativeResult, mode, homes, options);
 			const diffs: string[] = [];

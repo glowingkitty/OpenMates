@@ -362,6 +362,22 @@ fn render(plan: &Value) -> String {
     }
     text
 }
+/// npm `planToJson` projection: approval bookkeeping and the mutation `history`
+/// receipt stay in the shared core (revision submission reads the former) but are
+/// not part of the CLI Plan JSON contract.
+pub(super) fn npm_plan(mut plan: Value) -> Value {
+    if let Some(fields) = plan.as_object_mut() {
+        for field in [
+            "approval_state",
+            "submitted_revision_id",
+            "approved_revision_id",
+            "history",
+        ] {
+            fields.remove(field);
+        }
+    }
+    plan
+}
 fn output(invocation: &Invocation, value: Value, text: String) -> Result<CliOutput, CliError> {
     if invocation.boolean("json") {
         CliOutput::json(&value)
@@ -562,7 +578,7 @@ async fn execute_service(
             current[section.replace('-', "_")].as_str().unwrap_or(""),
             text,
         )?;
-        let plan = service.update(id, patch).await?;
+        let plan = npm_plan(service.update(id, patch).await?);
         return output(invocation, json!({"plan":plan}), render(&plan));
     }
     let id = || input::positional(invocation, 0, "Plan ID");
@@ -570,10 +586,15 @@ async fn execute_service(
         "plans list" | "plans status" => {
             check(invocation, &["status", "active", "chat", "project"])?;
             if path == "plans status" && !invocation.positionals.is_empty() {
-                let plan = service.show(id()?).await?;
+                let plan = npm_plan(service.show(id()?).await?);
                 return output(invocation, json!({"plan":plan}), render(&plan));
             }
-            let plans = service.list().await?;
+            let plans = service
+                .list()
+                .await?
+                .into_iter()
+                .map(npm_plan)
+                .collect::<Vec<_>>();
             let text = if plans.is_empty() {
                 "No Plans found.".into()
             } else {
@@ -708,6 +729,7 @@ async fn execute_service(
             });
         }
     };
+    let value = npm_plan(value);
     let text = render(&value);
     output(invocation, json!({"plan":value}), text)
 }

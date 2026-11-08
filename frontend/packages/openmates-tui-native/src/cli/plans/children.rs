@@ -500,7 +500,13 @@ pub(super) async fn execute(
             check(i, &["target", "project", "chat", "active"])?;
             match action {
                 "list" => service.list_dependencies(plan).await?,
-                "add" => service.add_dependency(plan, &dependency(i)?).await?,
+                // npm prints the created edge itself, not the server's {dependency, plan} envelope.
+                "add" => service
+                    .add_dependency(plan, &dependency(i)?)
+                    .await?
+                    .get("dependency")
+                    .cloned()
+                    .ok_or(CliError::Client(Error::Protocol))?,
                 _ => service.remove_dependency(plan, &dependency(i)?).await?,
             }
         }
@@ -598,8 +604,25 @@ pub(super) async fn execute(
             }
         }
     };
+    let value = npm_learning_shape(value);
     let text = render(i, &value);
     output(i, value, text)
+}
+/// npm `planLearningToJson` omits the server row id and parent Plan id.
+fn npm_learning_shape(mut value: Value) -> Value {
+    let strip = |learning: &mut Value| {
+        if let Some(fields) = learning.as_object_mut() {
+            fields.remove("id");
+            fields.remove("plan_id");
+        }
+    };
+    if let Some(learning) = value.get_mut("learning") {
+        strip(learning);
+    }
+    if let Some(learnings) = value.get_mut("learnings").and_then(Value::as_array_mut) {
+        learnings.iter_mut().for_each(strip);
+    }
+    value
 }
 fn render(i: &Invocation, value: &Value) -> String {
     if let Some(url) = value["review_url"].as_str() {
