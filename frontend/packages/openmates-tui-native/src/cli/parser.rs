@@ -430,11 +430,22 @@ where
             && !flags.contains_key("followup")
             && !project_source_selector
         {
-            return Err(parse_error(format!(
-                "Missing positional argument for '{}'. Run 'openmates {} --help'.",
-                path.join(" "),
-                path.join(" ")
-            )));
+            // Distinct kind so main.rs can exit 1 like the npm CLI (clap would use 2).
+            // npm spells out the usage line for these two commands only.
+            let message = match path.as_slice() {
+                [a, b] if a == "chats" && b == "search" => {
+                    "Missing search query. Usage: openmates chats search <query>".to_string()
+                }
+                [a, b] if a == "chats" && b == "delete" => {
+                    "Missing chat IDs. Usage: openmates chats delete <id1> [id2] [id3] ...".to_string()
+                }
+                _ => format!(
+                    "Missing positional argument for '{}'. Run 'openmates {} --help'.",
+                    path.join(" "),
+                    path.join(" ")
+                ),
+            };
+            return Err(clap::Error::raw(ErrorKind::MissingRequiredArgument, message));
         }
         // A bare `...` usage token repeats the preceding positional, as in
         // `chats delete <id1> [id2] [id3] ... [--yes]` (TS accepts any count).

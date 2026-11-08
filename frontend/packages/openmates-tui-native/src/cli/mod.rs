@@ -84,6 +84,7 @@ pub async fn execute_sdk_key_command(
 }
 pub mod trusted_account;
 pub mod private_path;
+pub mod npm_wording;
 use crate::error::Error;
 pub use handlers::{
     ApplicationRecoveryContext, ListReadDiagnosticStage, execute, execute_public, execute_with_delivery,

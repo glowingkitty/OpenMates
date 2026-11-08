@@ -25,7 +25,15 @@ struct Args {
 fn main() {
     // Before any thread exists: the OS refuses the offset afterwards.
     openmates::local_zone::capture();
-    let parsed = cli::parse_from(std::env::args_os()).unwrap_or_else(|error| error.exit());
+    let parsed = cli::parse_from(std::env::args_os()).unwrap_or_else(|error| {
+        // The npm CLI reports a missing positional ("Missing chat ID. Usage: ...")
+        // as a runtime error with exit code 1; clap would exit 2.
+        if error.kind() == clap::error::ErrorKind::MissingRequiredArgument {
+            let _ = error.print();
+            std::process::exit(1);
+        }
+        error.exit()
+    });
     if parsed.version_requested {
         // The global flag is the package identity probe; the public `version`
         // command retains update availability details and its JSON contract.
@@ -104,10 +112,16 @@ fn main() {
                 .map_err(CliError::from)
         }
     } else {
-        runtime.block_on(command_runtime::run(
-            parsed.globals,
-            parsed.invocation.expect("command mode"),
-        ))
+        let invocation = parsed.invocation.expect("command mode");
+        let path = invocation.command_path();
+        let chat_id = invocation.positionals.first().cloned();
+        let result = runtime.block_on(command_runtime::run(parsed.globals, invocation));
+        // npm says "Chat '<id>' not found" for unknown ids; keep that wording in text mode.
+        if json {
+            result
+        } else {
+            result.map_err(|error| cli::npm_wording::chat_not_found(&path, chat_id.as_deref(), error))
+        }
     };
     // A stuck OS keyring call must not prevent returning the restored terminal.
     // In-flight filesystem publication remains atomic even if shutdown times out.

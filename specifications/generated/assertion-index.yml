@@ -187291,7 +187291,7 @@ assertions:
       surface: cli
     - &id23861
       path: frontend/apps/web_app/tests/cli-native-chats.spec.ts
-      line: 39
+      line: 38
       name: chats reads, drafts CRUD and embeds reads match the npm CLI
       surface: cli
     - &id23862
