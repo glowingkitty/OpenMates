@@ -721,6 +721,18 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.pdf-processing:
+    version: 1
+    status: draft
+    path: features/pdf-processing
+    fingerprint: 33796e42a6a990e7c103cb96ae4448c261db933bfaaed7ba1dfe6ff654a6b638
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   feature.pii-protection:
     version: 4
     status: draft
@@ -9166,6 +9178,198 @@ assertions:
     specification_id: feature.notifications
     type: behavior
     fingerprint: 8534bce7bfd4c59a859e32eb9703047d948a91f9faccfbaca4905dd7ba6d2c50
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  pdf-processing.triage.per-page-route:
+    specification: feature.pdf-processing@1
+    specification_id: feature.pdf-processing
+    type: behavior
+    fingerprint: b55facbf97903fcfcd7bb1ce04e95d39d02e2364ebcc5e36434905a681b4abaa
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  pdf-processing.triage.borderline-defaults-to-ocr:
+    specification: feature.pdf-processing@1
+    specification_id: feature.pdf-processing
+    type: invariant
+    fingerprint: 258f3b6388a372f2034d196d0a88d1bdc6e306d096acc32b65eb62e3868084c7
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  pdf-processing.readiness.complete-before-answer:
+    specification: feature.pdf-processing@1
+    specification_id: feature.pdf-processing
+    type: invariant
+    fingerprint: 8d027605bd0611e11f740c850849119ccf2e2de3b696b1d5575379e5161487b3
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  pdf-processing.ocr.parallel-chunks:
+    specification: feature.pdf-processing@1
+    specification_id: feature.pdf-processing
+    type: behavior
+    fingerprint: e773267f1f76b9d0e51ec6af82f67f21fbdca2cae0d787a40022e139a0bf93ef
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  pdf-processing.safety.text-injection-score:
+    specification: feature.pdf-processing@1
+    specification_id: feature.pdf-processing
+    type: security
+    fingerprint: 4803c7fd74e50eca5a8db8d833194631bea7ec43c21c74705e478f69942ac0b9
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  pdf-processing.safety.image-decision:
+    specification: feature.pdf-processing@1
+    specification_id: feature.pdf-processing
+    type: security
+    fingerprint: 2d2bbe1cd0a916ad33152eea5b21e25184cbe4b96da47e84fe59edb3cf15a4ce
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  pdf-processing.safety.unsafe-image-rejects-pdf:
+    specification: feature.pdf-processing@1
+    specification_id: feature.pdf-processing
+    type: security
+    fingerprint: 1282f042ed1040a6d902626907573b1c3a1c2be2bee1ab0faff50178f1093501
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  pdf-processing.safety.image-fail-closed:
+    specification: feature.pdf-processing@1
+    specification_id: feature.pdf-processing
+    type: security
+    fingerprint: 6fd5e58b4648eb879903a8bd0a014a1857a4473ddab9db66c1bebb4ff0091b46
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  pdf-processing.view.on-demand-render:
+    specification: feature.pdf-processing@1
+    specification_id: feature.pdf-processing
+    type: behavior
+    fingerprint: e4cc3c224a1cba79c554c975d2a6953684d8d2923cdb365403682e355d62af39
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  pdf-processing.toc.outline-first:
+    specification: feature.pdf-processing@1
+    specification_id: feature.pdf-processing
+    type: behavior
+    fingerprint: 9ee07e0877353a0fbc8c343b62ef686185efd7ebbc57c5c32080e9f7e00b6b0e
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  pdf-processing.search.ranked-pages:
+    specification: feature.pdf-processing@1
+    specification_id: feature.pdf-processing
+    type: behavior
+    fingerprint: f67debafa5877b83eb9d0a81bad12b400cec90038b1379e17d7495ae87e2fe8a
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  pdf-processing.read.small-document:
+    specification: feature.pdf-processing@1
+    specification_id: feature.pdf-processing
+    type: behavior
+    fingerprint: c8982cdf3aeb6458d0f82c7821d9f787265df03425d80d51650aea33fc616649
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  pdf-processing.billing.exact-price:
+    specification: feature.pdf-processing@1
+    specification_id: feature.pdf-processing
+    type: invariant
+    fingerprint: df73165697ed22158ab9c32d02b49b46a659e3675bec5f7586b99a19b979cb38
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  pdf-processing.billing.refund-on-failure:
+    specification: feature.pdf-processing@1
+    specification_id: feature.pdf-processing
+    type: invariant
+    fingerprint: 17a3479c7803fbbdcae6509fa66abcf4fcf940e31536fd0213af5156b851e10e
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  pdf-processing.privacy.encrypted-artefacts:
+    specification: feature.pdf-processing@1
+    specification_id: feature.pdf-processing
+    type: privacy
+    fingerprint: 29018d7172eaa2cedbd638a5126a5323f48be6af4f181454277793ca55417333
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  pdf-processing.surface.semantic-parity:
+    specification: feature.pdf-processing@1
+    specification_id: feature.pdf-processing
+    type: parity
+    fingerprint: 88f70936985196143f7624917ddfd1ffb56b2f44ce7dc5d88ec381f993ab8a90
     required_applies_to:
     - rest_api
     - cli

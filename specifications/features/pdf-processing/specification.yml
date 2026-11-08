@@ -1,0 +1,191 @@
+schema_version: 1
+id: feature.pdf-processing
+version: 1
+status: draft
+title: PDF Processing
+summary: >
+  An uploaded PDF becomes readable quickly and cheaply: every page takes the cheapest correct path
+  (embedded text, or OCR only where text is missing), images are safety-checked only where a decision
+  model says it matters, and users are charged for the work actually done. The assistant never answers
+  about a PDF before that PDF has finished processing.
+
+inherits:
+  - architecture.app-skill-execution@1
+
+scope:
+  includes:
+    - Processing of PDFs attached in first-party chats from CLI, npm SDK, pip SDK, web, and Apple, from upload to a ready PDF embed.
+    - Per-page routing between the embedded text layer and OCR, with a decision-model check for borderline pages.
+    - Processing state, the hold on assistant answers until processing has finished, OCR fan-out, retries and fallbacks, explicit unreadable-page results.
+    - Prompt-injection scoring of PDF page text and decision-model image safety for images taken from a PDF.
+    - On-demand page renders for pdf.view, table-of-contents extraction, ranked pdf.search, and whole-document reading of small PDFs.
+    - Pricing and refunds for PDF processing.
+  excludes:
+    - Image, audio, DOCX, XLSX and PPTX uploads, which keep their own pipelines, including the image upload safety provider.
+    - Search across several PDFs or a vector database (a separate memory and Projects feature).
+    - Editing, generating or exporting PDFs.
+    - Changing the 100 MB and 1000-page upload limits.
+
+models:
+  PdfPageRoute:
+    page_number: {type: integer, required: true}
+    route:
+      type: enum
+      required: true
+      values: [text_layer, ocr, undecided_borderline]
+    decided_by:
+      type: enum
+      required: true
+      values: [rules, decision_model, default_to_ocr]
+  PdfReadiness:
+    processing_state: {type: enum, required: true, values: [processing, ready, failed]}
+    page_state: {type: enum, required: true, values: [ready, ocr_pending, unreadable]}
+    assistant_may_answer: {type: boolean, required: true, constraints: {true_only_when: processing_state_ready}}
+  PdfImageDecision:
+    harmless_confidence: {type: number, required: false, constraints: {minimum_to_allow: 0.95}}
+    outcome:
+      type: enum
+      required: true
+      values: [allowed, withheld, pdf_rejected]
+  PdfPriceQuote:
+    per_file_credits: {type: integer, required: true, constraints: {value: 2}}
+    per_ocr_page_credits: {type: integer, required: true, constraints: {value: 2}}
+    text_layer_page_credits: {type: integer, required: true, constraints: {value: 0}}
+
+assertions:
+  - id: pdf-processing.triage.per-page-route
+    type: behavior
+    must: >
+      Every page is classified on its own. A page with a usable embedded text layer uses that text with no paid
+      OCR. A page with no usable text, or text that is garbled, is sent to OCR. A borderline page is decided by the
+      decision model, and an unsure or unavailable decision sends it to OCR. A mixed PDF therefore uses each
+      page's best source, and the resulting page list looks identical to the assistant either way.
+    depends_on: [models.PdfPageRoute, examples.page_routing]
+  - id: pdf-processing.triage.borderline-defaults-to-ocr
+    type: invariant
+    must: >
+      When the decision model is unsure, errors or is unavailable for a borderline page, the page is sent to OCR.
+      A garbled or doubtful text layer is never trusted by default.
+    depends_on: [examples.borderline_routing]
+  - id: pdf-processing.readiness.complete-before-answer
+    type: invariant
+    must: >
+      The assistant never answers a question about an attached PDF before that PDF has finished processing: page
+      routing, OCR of every page that needs it, and the text and image safety decisions are all final. A chat turn
+      that refers to a PDF still processing is held, the user sees a visible processing status, and the assistant
+      then answers only from the finished document. The assistant never answers from general knowledge or from a
+      partly processed document, and never claims the document is still being processed in place of an answer. If
+      processing fails, the turn ends with an explicit failure message and the refunded charge, not an answer.
+      The same hold applies to every first-party surface and to every PDF tool call.
+    depends_on: [models.PdfReadiness, examples.readiness]
+  - id: pdf-processing.ocr.parallel-chunks
+    type: behavior
+    must: >
+      Pages needing OCR are processed in page chunks of at most twenty pages, concurrently. A failed chunk is
+      retried and falls back to the secondary OCR provider on its own, without restarting other chunks. A page that
+      still cannot be read gets an explicit unreadable marker that the assistant sees; it is never silently empty.
+    depends_on: [models.PdfReadiness, examples.ocr_chunks]
+  - id: pdf-processing.safety.text-injection-score
+    type: security
+    must: >
+      The final text of every page receives a stored prompt-injection score from the decision model. Pages with high
+      risk are returned to the assistant labelled as untrusted or redacted, with the existing secondary safeguard
+      deciding unclear cases. An unavailable decision model never makes a page trusted; it is labelled unchecked.
+    depends_on: [examples.injection_scoring]
+  - id: pdf-processing.safety.image-decision
+    type: security
+    must: >
+      Unique images extracted from the PDF, scanned pages, and every page render sent to a vision model are judged by
+      the decision model for sexual content, graphic violence or gore, and other unsafe content. The image is allowed
+      only when every category is rated harmless with confidence of at least 0.95. Any uncertain rating withholds
+      that image from previews, vision models and the assistant, while the PDF's text stays usable. The PDF image
+      safety path does not call the image safety provider used by image uploads.
+    depends_on: [models.PdfImageDecision, examples.image_decision]
+  - id: pdf-processing.safety.unsafe-image-rejects-pdf
+    type: security
+    must: An image the decision model rates as clearly unsafe rejects the whole PDF with a safety message.
+    depends_on: [examples.unsafe_image]
+  - id: pdf-processing.safety.image-fail-closed
+    type: security
+    must: >
+      If the decision model is unavailable, errors, or returns an unusable answer for an image, that image is
+      withheld exactly like an uncertain one and the user sees that its safety check could not be completed. An
+      image is never allowed because a check failed.
+    depends_on: [examples.image_fail_closed]
+  - id: pdf-processing.view.on-demand-render
+    type: behavior
+    must: >
+      Page screenshots are rendered only when pdf.view needs them (or a user opens the page), at a resolution
+      suitable for reading small print, cached encrypted for reuse, and judged by the decision model before they
+      reach a vision model. No screenshots are rendered or scanned for pages nobody views.
+    depends_on: [examples.on_demand_view]
+  - id: pdf-processing.toc.outline-first
+    type: behavior
+    must: >
+      The table of contents comes from the PDF's own outline when it has one. Without an outline, the decision
+      model finds candidate table-of-contents pages and a small text model extracts the chapters only from those
+      pages. The table of contents never blocks readiness.
+    depends_on: [examples.table_of_contents]
+  - id: pdf-processing.search.ranked-pages
+    type: behavior
+    must: >
+      pdf.search ranks pages by keyword relevance and returns the best matches with page numbers and context. The
+      decision model may re-rank the top candidate pages; if it is unavailable the keyword ranking is returned
+      unchanged. Matching is no longer a plain case-insensitive substring match.
+    depends_on: [examples.ranked_search]
+  - id: pdf-processing.read.small-document
+    type: behavior
+    must: >
+      For a PDF whose full text fits within about 30,000 tokens, the assistant is told it can read the whole
+      document and pdf.read returns all pages in one result instead of requiring page-by-page retrieval.
+    depends_on: [examples.small_document]
+  - id: pdf-processing.billing.exact-price
+    type: invariant
+    must: >
+      The price is computed after page triage and before any charge: 2 credits per file plus 2 credits per page
+      that needs OCR, and nothing for text-layer pages. The user sees the exact price, is charged exactly once for
+      it. Pages that did not need OCR are never charged as OCR pages.
+    depends_on: [models.PdfPriceQuote, examples.pricing]
+  - id: pdf-processing.billing.refund-on-failure
+    type: invariant
+    must: The charge is refunded in full if processing fails after it was taken.
+    depends_on: [examples.pricing_refund]
+  - id: pdf-processing.privacy.encrypted-artefacts
+    type: privacy
+    must: >
+      Stored PDFs, page text, extracted images and cached renders stay encrypted at rest with per-artefact keys, and
+      plaintext exists only transiently while processing. Page text and images may be sent to the documented
+      processors (the OCR provider and the decision model) only for the steps above, and the privacy policy lists
+      each of them.
+    depends_on: [examples.privacy]
+  - id: pdf-processing.surface.semantic-parity
+    type: parity
+    must: >
+      PDFs attached from CLI, npm SDK, pip SDK, web and Apple share the same routing, readiness, safety, pricing and
+      tool semantics, because processing is server-side after upload.
+    depends_on: [examples.page_routing]
+
+applies_to:
+  rest_api:
+    required: true
+    role: The existing first-party PDF upload and internal processing routes change behavior; no new public or developer endpoint is added, and encrypted artefact routes stay first-party only.
+  cli:
+    required: true
+    parity: semantic
+    role: CLI attachments receive the same processing, price and tool results as other first-party surfaces.
+  sdks:
+    required: true
+    parity: semantic
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: true}
+
+examples:
+  file: examples.yml
+  required_groups: [page_routing, borderline_routing, readiness, ocr_chunks, injection_scoring, image_decision, unsafe_image, image_fail_closed, on_demand_view, table_of_contents, ranked_search, small_document, pricing, pricing_refund, privacy]

@@ -2788,6 +2788,26 @@ async def _async_process_ai_skill_ask_task(
         from backend.shared.python_utils.focus_continuation_history import bind_focus_execution
         await bind_focus_execution(cache_service_instance, request_data, task_id)
 
+        # The assistant never answers about a PDF before it finished processing
+        # (feature.pdf-processing: readiness.complete-before-answer).
+        if request_data.embed_file_path_index:
+            from backend.shared.python_utils.pdf_turn_gate import wait_for_pdfs_final
+
+            _last_user = next(
+                (m.content for m in reversed(request_data.message_history) if m.role == "user"), ""
+            )
+            await wait_for_pdfs_final(
+                cache_service=cache_service_instance,
+                encryption_service=encryption_service_instance,
+                user_id=request_data.user_id,
+                embed_ids=list(request_data.embed_file_path_index.values()),
+                current_turn_embed_ids=[
+                    embed_id for ref, embed_id in request_data.embed_file_path_index.items()
+                    if isinstance(_last_user, str) and ref in _last_user
+                ],
+                log_prefix=f"[Task ID: {task_id}] [pdf.gate]",
+            )
+
         stage_one_snapshot = await _time_setup_stage("stage_one_load", task_id, load_stage_one(
             cache=cache_service_instance, encryption=encryption_service_instance,
             request=request_data, directus=directus_service_instance, task_id=task_id, fingerprint=routing_fingerprint,

@@ -139,7 +139,9 @@ ALLOWED_MIMES = ALLOWED_IMAGE_MIMES | ALLOWED_PDF_MIMES | ALLOWED_AUDIO_MIMES
 MAX_PDF_PAGES = 1000
 
 # Credits charged per PDF page (3 credits/page)
-PDF_CREDITS_PER_PAGE = 3
+# PDF pricing v2: 2 credits per file + 2 per OCR page, nothing for text-layer pages
+# (backend/apps/pdf/services/pdf_triage.py price_for; spec feature.pdf-processing billing.exact-price).
+PDF_CREDITS_PER_OCR_PAGE = 2
 
 # Maximum upload size: 100 MB
 MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024  # 100 MB
@@ -1416,6 +1418,9 @@ async def _handle_pdf_dedup(
     core_api_url: str,
     internal_token: str,
     log_prefix: str,
+    credits_to_charge: int,
+    ocr_page_count: int,
+    page_routes: list,
     target_env: str = "prod",
 ) -> UploadFileResponse:
     """
@@ -1451,7 +1456,6 @@ async def _handle_pdf_dedup(
 
     # Always charge credits — every PDF upload costs credits regardless of dedup.
     # The OCR cache copy is our internal cost optimization, not a user discount.
-    credits_to_charge = page_count * PDF_CREDITS_PER_PAGE
     logger.info(
         f"{log_prefix} [PDF-dedup] Fresh embed_id={embed_id} | "
         f"reusing S3 key={pdf_s3_key} | pages={page_count} | "
@@ -1467,7 +1471,8 @@ async def _handle_pdf_dedup(
                     embed_id=embed_id,
                     credits_to_charge=credits_to_charge,
                     page_count=page_count,
-                    credits_per_page=PDF_CREDITS_PER_PAGE,
+                    credits_per_page=PDF_CREDITS_PER_OCR_PAGE,
+                    ocr_pages=ocr_page_count,
                     filename=filename,
                     deduplicated=True,
                 ),
@@ -1548,6 +1553,7 @@ async def _handle_pdf_dedup(
                         "page_count": page_count,
                         "credits_charged": credits_to_charge,
                         "user_id_hash": user_id_hash,
+                        "page_routes": page_routes,
                         # Pass old embed_id so OCR task can copy cache instead of re-running
                         "source_embed_id": reuse_s3_data.get("embed_id"),
                     },
@@ -1603,7 +1609,7 @@ async def _handle_pdf_upload(
     """
     Handle the PDF-specific upload pipeline:
       1. Extract page count via pymupdf (no rendering)
-      2. Charge credits upfront (3 credits/page) via core API billing
+      2. Triage pages, charge the exact price (2/file + 2 per OCR page) via core API billing
       3. Encrypt PDF with AES-256-GCM
       4. Vault-wrap the AES key
       5. Upload to S3
@@ -1660,6 +1666,26 @@ async def _handle_pdf_upload(
         logger.warning(f"{log_prefix} [PDF-1/7] REJECTED — PDF has no pages")
         raise HTTPException(status_code=422, detail="PDF has no pages.")
 
+    # --- PDF 1b. Per-page triage (rules only, ~1-2 s) → exact price ---
+    # Borderline pages are billed as OCR here; the processing task asks the decision model about
+    # them and refunds the difference for every page it proves to be text-layer.
+    from backend.apps.pdf.services.pdf_triage import price_for, triage_pages_sync
+
+    try:
+        triage = await asyncio.to_thread(triage_pages_sync, file_bytes)
+    except (RuntimeError, ValueError) as e:
+        logger.error(f"{log_prefix} [PDF-1b] Triage FAILED — unreadable PDF: {e}", exc_info=True)
+        raise HTTPException(status_code=422, detail=f"Invalid or corrupt PDF file: {e}")
+    page_routes = [
+        {**p.to_route_dict(), "borderline": p.borderline} for p in triage.pages
+    ]
+    ocr_page_count = len(triage.ocr_pages) + sum(1 for p in triage.pages if p.borderline)
+    credits_to_charge = price_for(ocr_page_count).credits
+    logger.info(
+        f"{log_prefix} [PDF-1b] Triage: {len(triage.text_layer_pages)} text-layer, "
+        f"{ocr_page_count} OCR pages → price {credits_to_charge} credits"
+    )
+
     # ── Safe PDF dedup shortcut: reuse S3 object, fresh embed_id ──
     # When reuse_s3_data is provided, the S3 object already exists. Skip
     # encryption, vault wrap, S3 upload, and credit charging. Just create
@@ -1677,18 +1703,20 @@ async def _handle_pdf_upload(
             core_api_url=core_api_url,
             internal_token=internal_token,
             log_prefix=log_prefix,
+            credits_to_charge=credits_to_charge,
+            ocr_page_count=ocr_page_count,
+            page_routes=page_routes,
             target_env=target_env,
         )
 
-    # --- PDF 2. Charge credits upfront (3 credits/page) ---
+    # --- PDF 2. Charge the exact price (2 credits/file + 2 per OCR page) ---
     import hashlib as _hashlib
-    credits_to_charge = page_count * PDF_CREDITS_PER_PAGE
     user_id_hash = _hashlib.sha256(user_id.encode("utf-8")).hexdigest()
     embed_id = str(uuid.uuid4())
 
     logger.info(
         f"{log_prefix} [PDF-2/7] Charging {credits_to_charge} credits "
-        f"({page_count} pages × {PDF_CREDITS_PER_PAGE} credits/page)..."
+        f"(2 per file + {PDF_CREDITS_PER_OCR_PAGE} × {ocr_page_count} OCR pages)..."
     )
     try:
         async with httpx.AsyncClient(timeout=15) as client:
@@ -1700,7 +1728,8 @@ async def _handle_pdf_upload(
                     embed_id=embed_id,
                     credits_to_charge=credits_to_charge,
                     page_count=page_count,
-                    credits_per_page=PDF_CREDITS_PER_PAGE,
+                    credits_per_page=PDF_CREDITS_PER_OCR_PAGE,
+                    ocr_pages=ocr_page_count,
                     filename=filename,
                 ),
                 headers={"X-Internal-Service-Token": internal_token},
@@ -1863,6 +1892,7 @@ async def _handle_pdf_upload(
                         "page_count": page_count,
                         "credits_charged": credits_to_charge,
                         "user_id_hash": user_id_hash,
+                        "page_routes": page_routes,
                     },
                     headers={"X-Internal-Service-Token": internal_token},
                 )

@@ -73,3 +73,38 @@ def render_pdf_pages(pdf_bytes: bytes, log_prefix: str = "[Screenshot]") -> Dict
     doc.close()
     logger.info(f"{log_prefix} All {page_count} pages rendered successfully")
     return pages
+
+
+# DPI for on-demand renders that a vision model or a user reads (small print).
+ON_DEMAND_DPI = 200
+# DPI for pages rendered only to be safety-judged (scanned pages).
+SAFETY_JUDGE_DPI = 110
+
+
+def render_selected_pages(
+    pdf_bytes: bytes,
+    page_numbers: "list[int]",
+    dpi: int = ON_DEMAND_DPI,
+    log_prefix: str = "[Screenshot]",
+) -> Dict[int, bytes]:
+    """Render only ``page_numbers`` (1-based) to PNG. CPU-bound: call via asyncio.to_thread().
+
+    Raises RuntimeError for an unreadable PDF or an out-of-range page.
+    """
+    import fitz  # type: ignore[import]  # pymupdf
+
+    try:
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    except Exception as e:
+        raise RuntimeError(f"Failed to open PDF for rendering: {e}") from e
+    try:
+        matrix = fitz.Matrix(dpi / 72.0, dpi / 72.0)
+        rendered: Dict[int, bytes] = {}
+        for page_number in sorted(set(page_numbers)):
+            if not 1 <= page_number <= len(doc):
+                raise RuntimeError(f"Page {page_number} is outside the document ({len(doc)} pages)")
+            rendered[page_number] = doc[page_number - 1].get_pixmap(matrix=matrix, alpha=False).tobytes("png")
+        logger.info(f"{log_prefix} Rendered {len(rendered)} page(s) at {dpi} DPI")
+        return rendered
+    finally:
+        doc.close()

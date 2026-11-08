@@ -34,7 +34,6 @@ from urllib.parse import quote as url_quote
 
 import httpx
 import redis.asyncio as aioredis
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from pydantic import BaseModel, Field
 from toon_format import decode as toon_decode
 
@@ -240,6 +239,54 @@ class ViewSkill(BaseSkill):
 
         return resp.content
 
+    async def _upload_artefact(self, s3_key: str, content: bytes) -> None:
+        """Store an already-encrypted page render through the internal S3 upload endpoint."""
+        url = f"{os.environ.get('INTERNAL_API_BASE_URL', 'http://api:8000')}/internal/s3/upload-pdf-artefact"
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.put(
+                url, params={"s3_key": s3_key}, content=content,
+                headers={"X-Internal-Service-Token": os.environ.get("INTERNAL_API_SHARED_TOKEN", "")},
+            )
+        if resp.status_code != 200:
+            raise RuntimeError(f"S3 artefact upload failed for {s3_key}: HTTP {resp.status_code} — {resp.text[:200]}")
+
+    async def _record_screenshot_key(
+        self, embed_id: str, vault_key_id: str, page_number: int, s3_key: str
+    ) -> None:
+        """Remember a rendered page in the cached embed so later requests reuse it."""
+        from toon_format import encode as toon_encode
+
+        content = await self._lookup_embed_content(embed_id, vault_key_id)
+        keys = dict(content.get("screenshot_s3_keys") or {})
+        keys[str(page_number)] = s3_key
+        content["screenshot_s3_keys"] = keys
+        token = self._load_vault_token()
+        vault_url = os.environ.get("VAULT_URL", "http://vault:8200")
+        context = base64.b64encode(vault_key_id.encode()).decode("utf-8")
+        plaintext = base64.b64encode(toon_encode(content).encode("utf-8")).decode("utf-8")
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                f"{vault_url}/v1/transit/encrypt/{vault_key_id}",
+                json={"plaintext": plaintext, "context": context},
+                headers={"X-Vault-Token": token},
+            )
+        if resp.status_code != 200:
+            raise RuntimeError(f"Vault encrypt failed for embed update: HTTP {resp.status_code}")
+        ciphertext = resp.json()["data"]["ciphertext"]
+        redis_password = os.environ.get("DRAGONFLY_PASSWORD", "")
+        redis_client = aioredis.from_url(
+            f"redis://default:{url_quote(redis_password, safe='')}@cache:6379/0", decode_responses=True
+        )
+        try:
+            raw = await redis_client.get(f"embed:{embed_id}")
+            if not raw:
+                return
+            data = json.loads(raw)
+            data["encrypted_content"] = ciphertext
+            await redis_client.set(f"embed:{embed_id}", json.dumps(data), keepttl=True)
+        finally:
+            await redis_client.aclose()
+
     async def execute(
         self,
         file_path: str,
@@ -317,67 +364,75 @@ class ViewSkill(BaseSkill):
             # --- Step 2: Look up all crypto fields from Redis embed cache ---
             logger.info(f"{log_prefix} Looking up embed content from cache")
             embed_content = await self._lookup_embed_content(embed_id, resolved_vault_key_id)
-            # The assistant often calls this while processing is still running; wait for it.
+            # The assistant's turn is held until processing is final; this only guards a stale lookup.
             embed_content = await wait_for_pdf_artefacts(
                 lambda: self._lookup_embed_content(embed_id, resolved_vault_key_id),
-                ("vault_wrapped_aes_key", "screenshot_s3_keys"),
+                ("vault_wrapped_aes_key", "ocr_data_s3_key"),
                 initial=embed_content,
                 log_prefix=log_prefix,
             )
 
-            vault_wrapped_aes_key = embed_content.get("vault_wrapped_aes_key")
-            screenshot_s3_keys: Dict[str, str] = embed_content.get("screenshot_s3_keys") or {}
             filename = embed_content.get("filename") or file_path
-
-            if not vault_wrapped_aes_key:
+            total_pages = int(embed_content.get("page_count") or len(embed_content.get("screenshot_s3_keys") or {}))
+            if not embed_content.get("vault_wrapped_aes_key"):
                 raise RuntimeError("PDF embed cache missing vault_wrapped_aes_key")
-            if not screenshot_s3_keys:
-                raise RuntimeError("PDF embed cache missing screenshot_s3_keys")
-            # Note: aes_nonce is no longer validated here — each screenshot S3 object
-            # has its nonce prepended as the first 12 bytes of its ciphertext.
 
-            # Determine total page count for labels (from screenshot_s3_keys keys)
-            total_pages = len(screenshot_s3_keys)
+            from backend.apps.pdf.services.page_render_service import get_page_render
 
-            # --- Step 3: Unwrap AES key once ---
-            logger.info(f"{log_prefix} Unwrapping AES key")
-            aes_key_bytes = await self._unwrap_aes_key(vault_wrapped_aes_key, resolved_vault_key_id)
-            aesgcm = AESGCM(aes_key_bytes)
+            secrets_manager, _ = await self._get_or_create_secrets_manager(
+                secrets_manager=kwargs.get("secrets_manager"),
+                skill_name="pdf.view",
+                error_response_factory=lambda message: message,
+                logger=logger,
+            )
+            if secrets_manager is None:
+                raise RuntimeError("Secrets manager unavailable for the page safety check")
 
-            # --- Step 4: Build multimodal content blocks ---
-            # Each screenshot has its own nonce prepended as the first 12 bytes of the
-            # ciphertext (set during PDF processing in process_task.py step 6).
-            # aes_nonce in the embed content is "" for new artefacts; extract per-blob.
+            async def _unwrap(wrapped: str) -> bytes:
+                return await self._unwrap_aes_key(wrapped, resolved_vault_key_id)
+
+            async def _upload(s3_key: str, content: bytes) -> None:
+                await self._upload_artefact(s3_key, content)
+
+            async def _record(page_number: int, s3_key: str) -> None:
+                await self._record_screenshot_key(embed_id, resolved_vault_key_id, page_number, s3_key)
+
             content_blocks: List[Dict[str, Any]] = []
             pages_viewed: List[int] = []
+            withheld_pages: List[int] = []
 
             for page_num in pages_to_view:
-                s3_key = screenshot_s3_keys.get(str(page_num))
-                if not s3_key:
-                    logger.warning(f"{log_prefix} No screenshot S3 key for page {page_num}")
+                if not 1 <= page_num <= max(total_pages, 1):
+                    logger.warning(f"{log_prefix} Page {page_num} is outside the document")
                     continue
-
-                logger.info(f"{log_prefix} Downloading screenshot for page {page_num}")
-                encrypted_with_nonce = await self._download_from_s3(s3_key)
-                nonce_bytes = encrypted_with_nonce[:12]
-                encrypted = encrypted_with_nonce[12:]
-                plaintext = aesgcm.decrypt(nonce_bytes, encrypted, None)
-
-                page_b64 = base64.b64encode(plaintext).decode("utf-8")
-
-                # Page label so LLM knows which page it is looking at
-                content_blocks.append({
-                    "type": "text",
-                    "text": f"[Page {page_num} of {total_pages}]",
-                })
+                render = await get_page_render(
+                    embed_content=embed_content,
+                    page_number=page_num,
+                    unwrap_key=_unwrap,
+                    download=self._download_from_s3,
+                    upload=_upload,
+                    record_key=_record,
+                    secrets_manager=secrets_manager,
+                    user_id=str(kwargs.get("user_id") or ""),
+                    embed_id=embed_id,
+                    log_prefix=log_prefix,
+                )
+                if render.status != "ok" or render.png is None:
+                    withheld_pages.append(page_num)
+                    continue
+                page_b64 = base64.b64encode(render.png).decode("utf-8")
+                content_blocks.append({"type": "text", "text": f"[Page {page_num} of {total_pages}]"})
                 content_blocks.append({
                     "type": "image_url",
-                    "image_url": {
-                        "url": f"data:image/png;base64,{page_b64}",
-                        "detail": "high",
-                    },
+                    "image_url": {"url": f"data:image/png;base64,{page_b64}", "detail": "high"},
                 })
                 pages_viewed.append(page_num)
+
+            if withheld_pages:
+                content_blocks.append({"type": "text", "text": (
+                    f"Pages {', '.join(str(p) for p in withheld_pages)} could not be shown: their image safety "
+                    "check was not passed or could not be completed. Use pdf.read for their text."
+                )})
 
             if not pages_viewed:
                 return [{"type": "text", "text": f"Error: No valid screenshots found for the requested pages in PDF '{file_path}'."}]

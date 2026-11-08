@@ -2650,6 +2650,9 @@ class PdfProcessPayload(BaseModel):
     user_id_hash: str = Field(default="", description="SHA256 hash of user_id for billing.")
     chat_id: Optional[str] = Field(None, description="Chat ID (may be available from context).")
     message_id: Optional[str] = Field(None, description="Message ID (may be available from context).")
+    page_routes: Optional[List[Dict[str, Any]]] = Field(
+        None, description="Per-page triage routes decided (and priced) at upload time."
+    )
 
 
 @router.post("/pdf/process", status_code=202)
@@ -3224,6 +3227,34 @@ async def download_s3_file(
     except Exception as e:
         logger.error(f"[S3 Download] Failed for {bucket_key}/{s3_key}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"S3 download failed: {str(e)}")
+
+
+@router.put("/s3/upload-pdf-artefact")
+async def upload_pdf_artefact(
+    request: Request,
+    s3_key: str = Query(..., description="Object key under chatfiles/ for an already-encrypted PDF artefact"),
+    s3_service: S3UploadService = Depends(get_s3_service),
+):
+    """
+    Store one already-encrypted PDF artefact (an on-demand page render) in the chatfiles bucket.
+
+    API surface: internal-only (service token, router-level). Used by the pdf.view skill, which runs
+    outside the Celery worker and has no S3 credentials. The body is ciphertext only; the key must
+    live under ``chatfiles/`` and the size is capped.
+    """
+    if not s3_key.startswith("chatfiles/") or ".." in s3_key or "://" in s3_key:
+        raise HTTPException(status_code=400, detail="Invalid s3_key")
+    content = await request.body()
+    if not content or len(content) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Artefact body is empty or too large")
+    try:
+        await s3_service.upload_file(
+            bucket_key="chatfiles", file_key=s3_key, content=content, content_type="application/octet-stream"
+        )
+    except RuntimeError as e:
+        logger.error(f"[S3 Upload] Failed for {s3_key}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="S3 upload failed") from e
+    return {"status": "stored", "s3_key": s3_key}
 
 
 

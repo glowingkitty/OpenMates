@@ -124,6 +124,7 @@ async def _run_mistral_ocr(
     pdf_bytes: bytes,
     secrets_manager: Any,
     log_prefix: str,
+    include_image_base64: bool = True,
 ) -> List[Dict[str, Any]]:
     """
     Call the Mistral OCR API and return per-page results.
@@ -144,7 +145,7 @@ async def _run_mistral_ocr(
             "type": "document_url",
             "document_url": document_url,
         },
-        "include_image_base64": True,
+        "include_image_base64": include_image_base64,
         "table_format": "html",
         "extract_header": True,
         "extract_footer": True,
