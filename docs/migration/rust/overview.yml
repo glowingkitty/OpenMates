@@ -39,10 +39,10 @@ areas:
   file: cli.yml
   unit: CLI commands
   total: 722
-  done: 270
-  partial: 446
+  done: 280
+  partial: 436
   missing: 6
-  percent: 37.4
+  percent: 38.8
   done_definition: command is differential-verified against the npm CLI
   blockers: [6 unsupported commands without native handler, 713 commands not verified on Linux]
 - id: sdk_rust

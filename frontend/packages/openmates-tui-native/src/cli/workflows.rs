@@ -364,7 +364,31 @@ pub async fn execute_sdk_workflows(
     )
     .await
 }
+/// Runs a Workflow command and keeps the HTTP 404 class visible: the SDK folds
+/// 404 into a generic "unavailable" error, while npm reports the HTTP status.
 async fn execute_service(
+    i: &Invocation,
+    service: Workflows<'_>,
+    cancel: CancellationToken,
+) -> Result<CliOutput, CliError> {
+    match execute_service_inner(i, service, cancel).await {
+        Err(CliError::Client(Error::Invalid("The requested item is unavailable."))) => {
+            Err(CliError::Contract {
+                code: "workflow_not_found",
+                message: "Workflow resource not found (HTTP 404).".into(),
+            })
+        }
+        // npm reports "failed with HTTP 4xx" for rejected requests.
+        Err(CliError::Client(Error::Invalid("The server rejected the requested operation."))) => {
+            Err(CliError::Contract {
+                code: "workflow_request_rejected",
+                message: "Workflow request rejected by the server (HTTP 400).".into(),
+            })
+        }
+        other => other,
+    }
+}
+async fn execute_service_inner(
     i: &Invocation,
     mut service: Workflows<'_>,
     cancel: CancellationToken,
@@ -449,12 +473,19 @@ async fn execute_service(
         "workflows delete" => {
             check(i, &["yes"])?;
             if !i.boolean("yes") {
-                return Err(CliError::Invalid(
-                    "Refusing to delete Workflow without --yes.".into(),
-                ));
+                // npm throws a plain Error (exit 1), not a usage error (exit 2).
+                return Err(CliError::Contract {
+                    code: "confirmation_required",
+                    message: "Refusing to delete Workflow without --yes.".into(),
+                });
             }
             let value = service.delete(id()?, true).await?;
-            output(i, value, "Workflow deleted.".into())
+            // npm prints only {deleted}; the server's history payload stays SDK-side.
+            output(
+                i,
+                json!({"deleted": value["deleted"] == true}),
+                "Workflow deleted.".into(),
+            )
         }
         "workflows create" => {
             if i.has("file") {

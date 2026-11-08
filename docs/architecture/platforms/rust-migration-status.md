@@ -41,10 +41,10 @@ Read from `docs/migration/rust/overview.yml` (machine-readable; sub-files hold t
 |---|---|---|---|---|---|---|
 | 1 | `web_app` | Web app (shared Rust core Worker units) | 17 / 17 (100.0%) | 0 | 0 | `web-app.yml` |
 | 1 | `shared_client` | Shared client-side code (Rust, non-operation SDK capabilities) | 8 / 28 (28.6%) | 20 | 0 | `shared-client.yml` |
-| 2 | `cli` | CLI (native Rust, command catalog) | 250 / 722 (34.6%) | 466 | 6 | `cli.yml` |
-| 3 | `sdk_rust` | Rust SDK (operation capabilities) | 4 / 53 (7.5%) | 49 | 0 | `sdk.yml` |
-| 3 | `sdk_npm` | npm SDK (operation capabilities) | 4 / 53 (7.5%) | 47 | 2 | `sdk.yml` |
-| 3 | `sdk_python` | Python SDK (operation capabilities) | 4 / 53 (7.5%) | 47 | 2 | `sdk.yml` |
+| 2 | `cli` | CLI (native Rust, command catalog) | 280 / 722 (38.8%) | 436 | 6 | `cli.yml` |
+| 3 | `sdk_rust` | Rust SDK (operation capabilities) | 5 / 53 (9.4%) | 48 | 0 | `sdk.yml` |
+| 3 | `sdk_npm` | npm SDK (operation capabilities) | 5 / 53 (9.4%) | 46 | 2 | `sdk.yml` |
+| 3 | `sdk_python` | Python SDK (operation capabilities) | 5 / 53 (9.4%) | 46 | 2 | `sdk.yml` |
 
 ## Legend
 
@@ -66,11 +66,11 @@ Source: `config/sdk-capabilities.json` (81 capabilities, schema 1).
 
 | Language | (a) Public API | (b) Shared conformance | (c) Implemented | (d) Partial, one gap left | Partial total | Missing |
 |---|---|---|---|---|---|---|
-| **rust** | 65 / 81 (80%) | 45 / 81 (56%) | 12 / 81 (15%) | 32 / 81 (40%) | 69 | 0 |
-| **npm** | 58 / 81 (72%) | 45 / 81 (56%) | 12 / 81 (15%) | 42 / 81 (52%) | 64 | 5 |
-| **python** | 58 / 81 (72%) | 45 / 81 (56%) | 12 / 81 (15%) | 42 / 81 (52%) | 64 | 5 |
+| **rust** | 65 / 81 (80%) | 47 / 81 (58%) | 13 / 81 (16%) | 33 / 81 (41%) | 68 | 0 |
+| **npm** | 58 / 81 (72%) | 47 / 81 (58%) | 13 / 81 (16%) | 41 / 81 (51%) | 63 | 5 |
+| **python** | 58 / 81 (72%) | 47 / 81 (58%) | 13 / 81 (16%) | 41 / 81 (51%) | 63 | 5 |
 
-40 of 81 capabilities carry a shared conformance fixture file; the conformance column counts capabilities whose conformance flag is set for that language.
+42 of 81 capabilities carry a shared conformance fixture file; the conformance column counts capabilities whose conformance flag is set for that language.
 
 ### Per-capability matrix
 
@@ -106,21 +106,21 @@ Each cell is `status · vectors · gaps` (see the legend). Capabilities are sort
 | `sdk.api-keys` | operations | P · - · 1 | P · - · 1 | P · - · 1 |
 | `sdk.apps` | operations | P · vec · 4 | P · vec · 3 | P · vec · 3 |
 | `sdk.benchmark` | operations | P · - · 2 | P · - · 1 | P · - · 1 |
-| `sdk.billing` | operations | P · - · 4 | P · - · 1 | P · - · 1 |
+| `sdk.billing` | operations | I · vec · 0 | I · vec · 0 | I · vec · 0 |
 | `sdk.connected-accounts` | operations | P · - · 5 | P · - · 1 | P · - · 1 |
 | `sdk.design` | operations | P · - · 2 | P · - · 1 | P · - · 1 |
-| `sdk.docs` | operations | P · vec · 6 | P · vec · 6 | P · vec · 6 |
-| `sdk.drafts` | operations | P · vec · 4 | P · vec · 3 | P · vec · 3 |
-| `sdk.embeds` | operations | P · vec · 4 | P · vec · 4 | P · vec · 4 |
-| `sdk.embeds.family` | operations | P · vec · 4 | P · vec · 4 | P · vec · 4 |
+| `sdk.docs` | operations | P · vec · 4 | P · vec · 4 | P · vec · 4 |
+| `sdk.drafts` | operations | P · vec · 3 | P · vec · 2 | P · vec · 2 |
+| `sdk.embeds` | operations | P · vec · 3 | P · vec · 3 | P · vec · 3 |
+| `sdk.embeds.family` | operations | P · vec · 3 | P · vec · 3 | P · vec · 3 |
 | `sdk.embeds.version-content` | operations | P · vec · 8 | P · vec · 8 | P · vec · 8 |
 | `sdk.feedback` | operations | P · - · 1 | P · - · 1 | P · - · 1 |
 | `sdk.finance` | operations | P · - · 3 | P · - · 1 | P · - · 1 |
-| `sdk.history` | operations | P · vec · 4 | P · vec · 3 | P · vec · 3 |
+| `sdk.history` | operations | P · vec · 3 | P · vec · 2 | P · vec · 2 |
 | `sdk.ideabucket` | operations | P · - · 2 | P · - · 1 | P · - · 1 |
 | `sdk.inspirations` | operations | P · - · 1 | P · - · 1 | P · - · 1 |
 | `sdk.learning-mode` | operations | P · - · 1 | P · - · 1 | P · - · 1 |
-| `sdk.memories` | operations | P · - · 2 | P · - · 1 | P · - · 1 |
+| `sdk.memories` | operations | P · vec · 1 | P · vec · 1 | P · vec · 1 |
 | `sdk.new-chat-suggestions` | operations | P · - · 2 | P · - · 1 | P · - · 1 |
 | `sdk.notifications` | operations | P · - · 3 | P · - · 1 | P · - · 1 |
 | `sdk.plans` | operations | P · - · 2 | P · - · 1 | P · - · 1 |
@@ -130,7 +130,7 @@ Each cell is `status · vectors · gaps` (see the legend). Capabilities are sort
 | `sdk.tasks` | operations | P · - · 1 | P · - · 1 | P · - · 1 |
 | `sdk.teams` | operations | P · - · 1 | P · - · 1 | P · - · 1 |
 | `sdk.transport` | operations | P · - · 2 | P · - · 1 | P · - · 1 |
-| `sdk.wikipedia` | operations | P · vec · 8 | P · vec · 8 | P · vec · 8 |
+| `sdk.wikipedia` | operations | P · vec · 7 | P · vec · 7 | P · vec · 7 |
 | `sdk.workflows` | operations | P · - · 1 | P · - · 1 | P · - · 1 |
 | `session.cache-preferred-settlement.v1` | operations | P · vec · 1 | P · vec · 1 | P · vec · 1 |
 | `session.chat-first-page-continuation.v1` | operations | P · vec · 1 | P · vec · 1 | P · vec · 1 |
@@ -143,10 +143,10 @@ Each cell is `status · vectors · gaps` (see the legend). Capabilities are sort
 | `session.plans-workflows.v1` | operations | P · vec · 1 | P · vec · 1 | P · vec · 1 |
 | `session.project-items.v1` | operations | P · vec · 1 | P · vec · 1 | P · vec · 1 |
 | `session.project-source-authoring.v1` | operations | P · vec · 1 | P · vec · 1 | P · vec · 1 |
-| `session.saved-chat-read.v1` | operations | P · vec · 5 | P · vec · 5 | P · vec · 5 |
+| `session.saved-chat-read.v1` | operations | P · vec · 5 | P · vec · 4 | P · vec · 4 |
 | `session.settings-reminders-read` | operations | P · vec · 1 | P · vec · 1 | P · vec · 1 |
 | `session.source-host-lifecycle.v1` | operations | P · - · 1 | M · - · 2 | M · - · 2 |
-| `session.work-crud.v1` | operations | P · vec · 2 | P · vec · 3 | P · vec · 3 |
+| `session.work-crud.v1` | operations | P · vec · 2 | P · vec · 2 | P · vec · 2 |
 | `work.project-workflow-file-sync.v1` | operations | P · vec · 1 | P · vec · 1 | P · vec · 1 |
 | `browser.main-metadata-native.v1` | recovery | P · - · 1 | M · - · 2 | M · - · 2 |
 | `browser.recovered-selected-code-embed-native.v1` | recovery | P · - · 1 | M · - · 2 | M · - · 2 |
@@ -157,7 +157,7 @@ Each cell is `status · vectors · gaps` (see the legend). Capabilities are sort
 | `session.foreground-completion-recovery.v1` | recovery | P · vec · 4 | P · vec · 4 | P · vec · 4 |
 | `session.project-task-watch.v1` | recovery | P · vec · 1 | P · vec · 1 | P · vec · 1 |
 | `session.recovery-replay.v1` | recovery | P · vec · 1 | P · vec · 1 | P · vec · 1 |
-| `sdk.chats` | streaming | P · vec · 5 | P · vec · 5 | P · vec · 5 |
+| `sdk.chats` | streaming | P · vec · 4 | P · vec · 4 | P · vec · 4 |
 | `session.anonymous-stream.v1` | streaming | P · vec · 1 | P · vec · 1 | P · vec · 1 |
 
 ### Remaining Rust gaps
@@ -183,21 +183,20 @@ First recorded gap per capability whose Rust entry is not implemented (full text
 | `sdk.api-keys` | 1 | Cookie-auth typed list/create-full-access-unlimited-no-expiration/revoke and one-time secret-safe output exist with focused mocked tests. Limited grants/policies, interactive reauthentication, bear... |
 | `sdk.apps` | 4 | Native public APIs exist, but complete cross-language behavioral conformance is not established for this family. |
 | `sdk.benchmark` | 2 | Rust API-key facade is covered by Rust unit tests only; a shared cross-language conformance runner executing the actual npm, Python and Rust adapters against one fixture is not yet authored. |
-| `sdk.billing` | 4 | Shared wire vectors cover the JSON routes; raw download behaviour (invoices, credit notes, usage export) is covered by Rust-only tests, and Python returns a dict where Rust returns RawDownload. |
 | `sdk.connected-accounts` | 5 | Import re-encryption is proven with a local synthetic OMCA1 payload; the backend validation route and real provider tokens are not exercised. |
 | `sdk.design` | 2 | Rust API-key facade is covered by Rust unit tests only; a shared cross-language conformance runner executing the actual npm, Python and Rust adapters against one fixture is not yet authored. |
-| `sdk.docs` | 6 | Managed isolated CI must execute these authored direct adapters on exact reviewed source; offline oracle/mocked observations do not establish runtime or release acceptance. |
-| `sdk.drafts` | 4 | Authored direct-library synthetic coverage requires managed isolated CI execution on exact reviewed source; no runtime pass is implied by registration. |
-| `sdk.embeds` | 4 | Managed isolated CI must execute these authored direct adapters on exact reviewed source; offline oracle/mocked observations do not establish runtime or release acceptance. |
-| `sdk.embeds.family` | 4 | Managed isolated CI must execute these authored direct adapters on exact reviewed source; offline oracle/mocked observations do not establish runtime or release acceptance. |
+| `sdk.docs` | 4 | Existing SDK /v1/sdk/docs route availability/server behavior is not established by synthetic fixture; no server route/protocol added. |
+| `sdk.drafts` | 3 | Matching direct SDK CPU-processing benchmark against TypeScript is absent; Rust must be at least as fast for comparable work. Network/process latency cannot satisfy this blocker. |
+| `sdk.embeds` | 3 | All Rust typechecks, unit tests, direct-library execution and matching CPU/end-to-end performance remain unproved; measured slowdown blocks acceptance. |
+| `sdk.embeds.family` | 3 | All Rust typechecks, unit tests, direct-library execution and matching CPU/end-to-end performance remain unproved; measured slowdown blocks acceptance. |
 | `sdk.embeds.version-content` | 8 | Matching native Rust/NAPI/PyO3 artifacts compile and102actualvectors all3SDKs |
 | `sdk.feedback` | 1 | Rust API-key facade is covered by Rust unit tests only; a shared cross-language conformance runner executing the actual npm, Python and Rust adapters against one fixture is not yet authored. |
 | `sdk.finance` | 3 | Rust API-key facade is exercised only against a loopback fixture server; no live backend, purchase, refund or deletion route has been executed. |
-| `sdk.history` | 4 | Authored direct-library synthetic coverage requires managed isolated CI execution on exact reviewed source; no runtime pass is implied by registration. |
+| `sdk.history` | 3 | Matching direct SDK CPU-processing benchmark against TypeScript is absent; Rust must be at least as fast for comparable work. Network/process latency cannot satisfy this blocker. |
 | `sdk.ideabucket` | 2 | Rust API-key facade is covered by Rust unit tests only; a shared cross-language conformance runner executing the actual npm, Python and Rust adapters against one fixture is not yet authored. |
 | `sdk.inspirations` | 1 | Rust API-key facade is covered by Rust unit tests only; a shared cross-language conformance runner executing the actual npm, Python and Rust adapters against one fixture is not yet authored. |
 | `sdk.learning-mode` | 1 | Rust API-key facade is covered by Rust unit tests only; a shared cross-language conformance runner executing the actual npm, Python and Rust adapters against one fixture is not yet authored. |
-| `sdk.memories` | 2 | Rust API-key facade is covered by Rust unit tests only; a shared cross-language conformance runner executing the actual npm, Python and Rust adapters against one fixture is not yet authored. |
+| `sdk.memories` | 1 | Memories.create/update/types remain Rust-only: npm and Python removed them on 2026-11-07, the backend answers 410 for those routes, and sdk_ideabucket save_settings still calls Memories.create. Ret... |
 | `sdk.new-chat-suggestions` | 2 | Rust API-key facade is covered by Rust unit tests only; a shared cross-language conformance runner executing the actual npm, Python and Rust adapters against one fixture is not yet authored. |
 | `sdk.notifications` | 3 | Rust API-key facade is exercised only against a loopback fixture server; no live backend, purchase, refund or deletion route has been executed. |
 | `sdk.plans` | 2 | Shared Rust service APIs exist, but complete equivalent operation coverage, request/state/error semantics and cross-language fixture evidence are not yet established. |
@@ -207,7 +206,7 @@ First recorded gap per capability whose Rust entry is not implemented (full text
 | `sdk.tasks` | 1 | Shared Rust service APIs exist, but complete equivalent operation coverage, request/state/error semantics and cross-language fixture evidence are not yet established. |
 | `sdk.teams` | 1 | Cookie-session Team management (list, show, create, update, delete with 2FA/email verification, invites, access requests, roles, members, profiles, billing, storage, usage) is native; move, export/... |
 | `sdk.transport` | 2 | Rust API-key facade is covered by Rust unit tests only; a shared cross-language conformance runner executing the actual npm, Python and Rust adapters against one fixture is not yet authored. |
-| `sdk.wikipedia` | 8 | Managed isolated CI must execute these authored direct adapters on exact reviewed source; offline oracle/mocked observations do not establish runtime or release acceptance. |
+| `sdk.wikipedia` | 7 | All Rust/npm real direct-library runtime and matched CPU/performance proof remain unrun. |
 | `sdk.workflows` | 1 | Typed graph/CRUD/YAML/run/input/ask/template/project-link APIs and focused mocked tests exist; shared cross-language Workflow family conformance, live execution and complete encryption/error/recove... |
 | `session.cache-preferred-settlement.v1` | 1 | Private source implementation and fake-native facade wrapper checks are not compiled direct-Rust/NAPI/PyO3 execution or three-SDK behavior proof. Genuine cross-SDK saved-state CAS/ACK races, cancel... |
 | `session.chat-first-page-continuation.v1` | 1 | Required partial: the same original Rust read, explicit prospective-total store capacity, exact durable checkpoint/credential CAS receipt and ACK, callback-before-next-pull ordering, and distinct i... |
@@ -223,7 +222,7 @@ First recorded gap per capability whose Rust entry is not implemented (full text
 | `session.saved-chat-read.v1` | 5 | Source-only draft: compiled adapters, actual backend and CLI/TUI integration, terminal JSON projection, follow-up suggestions, packaged binaries, platform and E2E acceptance remain pending; no broa... |
 | `session.settings-reminders-read` | 1 | Authored shared 28-vector settings reminders read coverage and gate adapter require actual synchronized Rust/npm/Python execution, real retry/cancellation, platform, security and comparable perform... |
 | `session.source-host-lifecycle.v1` | 1 | Required parked source-host binding/facade/protocol conformance is not implemented or executed in this slice; Rust public transport API alone does not establish three-language or production-host re... |
-| `session.work-crud.v1` | 2 | Ten synthetic-peer vectors cover this bounded cookie CRUD slice; live backend compatibility, complete selectors/conflicts/pagination/references, AI execution, Plans/Workflows session operations, al... |
+| `session.work-crud.v1` | 2 | Twenty-six synthetic-peer vectors (including saved-pre-effect-abort) pass in Rust, npm and Python (strict gate CI run 42460432184, source a3c6451c99); live backend compatibility, complete selectors... |
 | `work.project-workflow-file-sync.v1` | 1 | Actual compiled native update/Project Source relay/metadata acknowledgement, terminal approval/cancellation and CPU/whole-lifecycle peak/applicable steady RAM UNRUN; API-key combined update, Team Y... |
 | `browser.main-metadata-native.v1` | 1 | Partial Main metadata native prerequisite only; original journal retained, transcript/artifact durability, exact retirement and full-hint ACK remain unfinished; actual browser/native/compiler and p... |
 | `browser.recovered-selected-code-embed-native.v1` | 1 | Selected canonical Main-linked root code embed only; original journal retained, no output-completeness or full-hint ACK. Core acquisition/native-policy unit suites are authored UNRUN and not admitt... |
@@ -233,7 +232,7 @@ First recorded gap per capability whose Rust entry is not implemented (full text
 | `session.foreground-completion-recovery.v1` | 4 | Private actual-call draft, uncompiled/unrun; paired native artifacts, all shared vectors, lifecycle/storage races and live backend compatibility remain unverified. Existing147 release obligations r... |
 | `session.project-task-watch.v1` | 1 | Bounded synthetic-peer registration only. Live backend Personal/Team watch compatibility, all authority/recovery/control race timings, complete foreground host integration and platform artifacts re... |
 | `session.recovery-replay.v1` | 1 | Eleven synthetic peer vectors cover bounded client recovery. Live backend transactions/lease expiry, typed-output and artifact dependency replay, Team recipients, pagination/compression and durable... |
-| `sdk.chats` | 5 | Managed isolated CI must execute these authored direct adapters on exact reviewed source; registration alone implies no runtime pass. |
+| `sdk.chats` | 4 | Send, streaming, cancellation, recovery, message pagination (messages/messagePages), export, fork, share, delete, retry, rewind, follow-ups, incognito and Project link/unlink have no cross-SDK conf... |
 | `session.anonymous-stream.v1` | 1 | Nine synthetic-peer vectors establish signed/unsigned public header isolation, volatile identity, local PII restoration, allowance/redirect/SSE/private-context refusal and scoped cancel-then-fresh-... |
 
 ## CLI commands
@@ -247,7 +246,7 @@ Source: `config/cli-command-catalog.json` (TypeScript CLI 0.28.0, 722 command re
 | Status `partial` (native handler exists, parity not complete) | 716 |
 | Status `unsupported` (no native handler) | 6 |
 | With a named native handler | 712 / 722 (99%) |
-| Differential-verified against the npm CLI | 250 / 722 (35%) |
+| Differential-verified against the npm CLI | 280 / 722 (39%) |
 | With recorded real-CI E2E evidence | 9 / 722 (1%) |
 | Linux verified | 9 / 722 (1%) |
 | macOS verified | 0 / 722 (0%) |
@@ -261,12 +260,12 @@ Largest groups first. `Top gap` is the most common first gap text in the group.
 |---|---|---|---|---|---|---|---|
 | `plans` | 197 | 0 | 197 | 0 | 0 | 0 | Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_pl... |
 | `settings` | 103 | 0 | 103 | 0 | 90 | 0 | Differential-verified against the npm CLI on the isolated CI backend (cli-native-settings-extra.spec.ts): e... |
-| `apps` | 72 | 0 | 72 | 0 | 11 | 0 | Formatting, option variants, and complete protocol parity require validation. |
-| `server` | 57 | 0 | 57 | 0 | 19 | 0 | Differential-verified against the npm CLI on the isolated CI backend (cli-native-server.spec.ts): exit code... |
+| `apps` | 72 | 0 | 72 | 0 | 12 | 0 | Formatting, option variants, and complete protocol parity require validation. |
+| `server` | 57 | 0 | 57 | 0 | 22 | 0 | Differential-verified against the npm CLI on the isolated CI backend (cli-native-server.spec.ts): exit code... |
 | `teams` | 41 | 0 | 41 | 0 | 34 | 1 | Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code,... |
 | `projects` | 35 | 0 | 35 | 0 | 28 | 3 | Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit co... |
-| `workflows` | 34 | 0 | 34 | 0 | 3 | 0 | Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now ob... |
-| `tasks` | 31 | 0 | 31 | 0 | 0 | 4 | Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --d... |
+| `workflows` | 34 | 0 | 34 | 0 | 13 | 0 | Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now ob... |
+| `tasks` | 31 | 0 | 31 | 0 | 16 | 4 | Differential-verified against the npm CLI (cli-native-tasks.spec.ts): exit code, normalized JSON stdout and... |
 | `account` | 29 | 0 | 29 | 0 | 10 | 0 | Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit cod... |
 | `chats` | 28 | 0 | 28 | 0 | 0 | 0 | Syntax delegates to the existing typed Tasks/Plans handler, retaining its option, output, scope and platfor... |
 | `embeds` | 12 | 0 | 12 | 0 | 0 | 0 | Explicit API-key-only native adapter is authored; Cookie/Team auth parity, actual backend authorization, co... |
