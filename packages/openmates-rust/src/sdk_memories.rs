@@ -1,52 +1,12 @@
 //! API-key Memories (npm `client.memories`). Entries are user-private: item JSON is
 //! encrypted and decrypted locally with the API-key-wrapped account master key; the
 //! server only sees the hashed item key, ciphertext and version metadata.
+//!
+//! Create, update and types were removed on 2026-11-07 (the backend answers 410),
+//! matching npm and Python: only list, published and delete remain.
 use crate::{Error, OpenMates, Result, crypto, sdk_ops::segment, sdk_transport::with_query};
-use serde_json::{Map, Value, json};
-use sha2::{Digest, Sha256};
+use serde_json::{Value, json};
 use zeroize::Zeroizing;
-
-/// Create/update input. `item_value` that is not a JSON object is stored as `{"value": ...}`.
-#[derive(Clone, Default)]
-pub struct MemoryInput {
-    pub id: Option<String>,
-    pub app_id: String,
-    pub item_type: String,
-    pub item_value: Value,
-    pub item_version: Option<u64>,
-    pub created_at: Option<i64>,
-}
-
-/// npm `hashItemKey`: first 32 hex chars of sha256("{app}-{type}-{millis}").
-pub fn hash_item_key(app_id: &str, item_type: &str, millis: u128) -> String {
-    let digest = Sha256::digest(format!("{app_id}-{item_type}-{millis}").as_bytes());
-    digest
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect::<String>()[..32]
-        .to_owned()
-}
-
-/// Item plaintext exactly as npm `storeMemory` builds it.
-pub fn memory_plaintext(
-    app_id: &str,
-    item_type: &str,
-    value: &Value,
-    added_date: u64,
-) -> Zeroizing<String> {
-    let mut item: Map<String, Value> = match value {
-        Value::Object(map) => map.clone(),
-        other => {
-            let mut map = Map::new();
-            map.insert("value".into(), other.clone());
-            map
-        }
-    };
-    item.insert("settings_group".into(), json!(app_id));
-    item.insert("_original_item_key".into(), json!(item_type));
-    item.insert("added_date".into(), json!(added_date));
-    Zeroizing::new(Value::Object(item).to_string())
-}
 
 /// Decrypted memory plaintext exactly like npm `memories.list` (`parseMaybeJson`):
 /// empty plaintext is `null`, JSON wins, then the shared non-strict TOON decoder
@@ -148,18 +108,6 @@ impl<'a> Memories<'a> {
         }
         Ok(json!({"memories": memories}))
     }
-    pub async fn types(&self, query: &[(&str, Option<String>)]) -> Result<Value> {
-        self.client
-            .get(&with_query("/v1/sdk/memories/types", query))
-            .await
-    }
-    pub async fn create(&mut self, input: MemoryInput) -> Result<Value> {
-        self.store(input).await
-    }
-    pub async fn update(&mut self, id: &str, mut input: MemoryInput) -> Result<Value> {
-        input.id = Some(id.to_owned());
-        self.store(input).await
-    }
     /// Transitional delete of one legacy typed entry; needs `confirmed = true`.
     /// The id is one `encodeURIComponent`-style path segment (npm/Python parity).
     ///
@@ -173,34 +121,6 @@ impl<'a> Memories<'a> {
         let encoded = segment(id)?;
         self.client
             .delete(&format!("/v1/sdk/memories/{encoded}"))
-            .await
-    }
-    async fn store(&mut self, input: MemoryInput) -> Result<Value> {
-        if input.app_id.is_empty() || input.item_type.is_empty() {
-            return Err(Error::Invalid(
-                "Memory create/update requires appId and itemType",
-            ));
-        }
-        self.client.verify_private_operation()?;
-        let elapsed = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_err(|_| Error::Protocol)?;
-        let now = elapsed.as_secs();
-        let master = self.client.master_key().await?;
-        let plaintext = memory_plaintext(&input.app_id, &input.item_type, &input.item_value, now);
-        let entry = json!({
-            "id": input.id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
-            "app_id": input.app_id,
-            "item_key": hash_item_key(&input.app_id, &input.item_type, elapsed.as_millis()),
-            "item_type": input.item_type,
-            "encrypted_item_json": crypto::encrypt_combined(&plaintext, &master)?,
-            "encrypted_app_key": "",
-            "created_at": input.created_at.unwrap_or(now as i64),
-            "updated_at": now,
-            "item_version": input.item_version.unwrap_or(1),
-        });
-        self.client
-            .post("/v1/sdk/memories", json!({"entry": entry}))
             .await
     }
 }

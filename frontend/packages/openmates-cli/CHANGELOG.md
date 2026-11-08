@@ -5,6 +5,14 @@ the product line (`0.29.x` alpha prereleases from `dev`, stable from `main`).
 
 ## Unreleased
 
+### Breaking
+
+- Rust SDK: `Memories::create`, `update` and `types`, `MemoryInput`,
+  `hash_item_key` and `memory_plaintext` are removed, matching npm and Python
+  (removed 2026-11-07; the backend answers 410). `IdeaBucket::save_settings` now
+  returns the same refusal as npm/Python. `sdk.memories` is implemented in all
+  three SDKs.
+
 ### Changed
 
 - `billing.downloadInvoice`, `billing.downloadCreditNote` and

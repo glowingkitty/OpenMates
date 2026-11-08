@@ -12,42 +12,42 @@ spec_gaps: []
 summaries:
   sdk_rust:
     total: 53
-    done: 5
-    partial: 48
+    done: 6
+    partial: 47
     missing: 0
-    percent: 9.4
+    percent: 11.3
   sdk_npm:
     total: 53
-    done: 5
-    partial: 46
+    done: 6
+    partial: 45
     missing: 2
-    percent: 9.4
+    percent: 11.3
   sdk_python:
     total: 53
-    done: 5
-    partial: 46
+    done: 6
+    partial: 45
     missing: 2
-    percent: 9.4
+    percent: 11.3
 domains:
 - domain: operations
   rust:
     total: 53
-    done: 5
-    partial: 48
+    done: 6
+    partial: 47
     missing: 0
-    percent: 9.4
+    percent: 11.3
   npm:
     total: 53
-    done: 5
-    partial: 46
+    done: 6
+    partial: 45
     missing: 2
-    percent: 9.4
+    percent: 11.3
   python:
     total: 53
-    done: 5
-    partial: 46
+    done: 6
+    partial: 45
     missing: 2
-    percent: 9.4
+    percent: 11.3
 capabilities:
 - id: cli.native-personal-embed-share.v1
   domain: operations
@@ -503,20 +503,20 @@ capabilities:
   domain: operations
   has_fixture: true
   rust:
-    status: partial
-    api_symbols: 18
+    status: implemented
+    api_symbols: 6
     conformance: true
-    gaps: 1
+    gaps: 0
   npm:
-    status: partial
+    status: implemented
     api_symbols: 12
     conformance: true
-    gaps: 1
+    gaps: 0
   python:
-    status: partial
+    status: implemented
     api_symbols: 8
     conformance: true
-    gaps: 1
+    gaps: 0
 - id: sdk.new-chat-suggestions
   domain: operations
   has_fixture: false

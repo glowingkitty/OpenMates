@@ -7,7 +7,6 @@ use crate::{
         IDEABUCKET_DEFAULT_PROCESSING_PROMPT, next_send_at, normalize_processing_times, today,
     },
     crypto,
-    sdk_memories::MemoryInput,
 };
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -108,44 +107,16 @@ impl<'a> IdeaBucket<'a> {
             None => settings_value(data, None),
         }
     }
-    pub async fn save_settings(&mut self, input: IdeaBucketSettingsInput) -> Result<Value> {
-        let current = self.settings().await?;
-        let times = input
-            .processing_times
-            .map(|t| json!(t))
-            .unwrap_or_else(|| current["processingTimes"].clone());
-        let data = json!({"processing_prompt": input.processing_prompt.map(Value::from).unwrap_or_else(|| current["processingPrompt"].clone()), "processing_times": times});
-        let entry_id = current["entryId"].as_str().map(str::to_owned);
-        let version = current["itemVersion"].as_u64();
-        let mut settings =
-            settings_value(Some(&data), entry_id.as_deref().map(|id| (id, version)))?;
-        let joined = settings["processingTimes"]
-            .as_array()
-            .map(|t| {
-                t.iter()
-                    .filter_map(Value::as_str)
-                    .collect::<Vec<_>>()
-                    .join(",")
-            })
-            .unwrap_or_default();
-        let next_version = version.map_or(1, |v| v + 1);
-        let result = self.client.memories().create(MemoryInput {
-            id: entry_id,
-            app_id: APP_ID.into(),
-            item_type: SETTINGS_TYPE.into(),
-            item_value: json!({"processing_prompt": settings["processingPrompt"], "processing_times": joined}),
-            item_version: Some(next_version),
-            created_at: None,
-        }).await?;
-        settings["entryId"] = json!(
-            result["id"]
-                .as_str()
-                .or(settings["entryId"].as_str())
-                .unwrap_or("")
-        );
-        settings["itemVersion"] = json!(next_version);
-        settings["source"] = json!("account");
-        Ok(settings)
+    /// Refused like npm/Python: typed app memories were replaced by Memories
+    /// (create/update removed 2026-11-07, backend answers 410), so settings are
+    /// no longer written through the SDK.
+    ///
+    /// # Errors
+    /// Always [`Error::Invalid`]; nothing is sent.
+    pub async fn save_settings(&mut self, _input: IdeaBucketSettingsInput) -> Result<Value> {
+        Err(Error::Invalid(
+            "Typed app memories were replaced by Memories; Idea Bucket settings are no longer stored as a typed memory.",
+        ))
     }
     pub async fn add(&mut self, input: IdeaBucketAddInput) -> Result<Value> {
         let payload = self.encrypted_add_payload(input).await?;

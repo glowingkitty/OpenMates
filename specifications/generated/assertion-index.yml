@@ -32922,7 +32922,7 @@ assertions:
     current_direct_proof: false
   app-memories.migration.client-auto:
     specification: feature.app-memories@4
-    fingerprint: b8b6829338eceb75de496c38314f73fd97cc8198eb69c530021f29d9ee662615
+    fingerprint: 8a17f806faad16a9619c836433e9f3fbd81b91be65a2f946703ebf98575d0fbc
     direct_tests: []
     supporting_tests:
     - &id4207
@@ -191574,7 +191574,7 @@ assertions:
     current_direct_proof: false
   sdk.surface.semantic-parity:
     specification: surface.sdk@1
-    fingerprint: 8119623afb44ff612c51ad4c0421590961f5d156eb42fcafb5fd7859d351b951
+    fingerprint: 022e3117b0f30c400783e42d3c241ee9d651c97c9aa18412f29f9e13906635bc
     direct_tests:
     - &id24401
       path: backend/tests/test_sdk_chat_fork_rewind.py

@@ -234,7 +234,7 @@ sdk_parity:
       notification_streaming_exposed: false
   - id: previously-blocked-safe-surfaces-have-routes
     given:
-      calls: [chats.followUps, chats.export, account.listInterests, memories.types, billing.usageOverview, billing.usageExport, embeds.show, feedback.assistantResponse, benchmark.estimate]
+      calls: [chats.followUps, chats.export, account.listInterests, memories.published, billing.usageOverview, billing.usageExport, embeds.show, feedback.assistantResponse, benchmark.estimate]
     expect:
       concrete_sdk_endpoints: true
       connected_account_import_rejects_invalid_prefix_locally: true

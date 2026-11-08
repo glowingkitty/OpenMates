@@ -450,7 +450,8 @@ assertions:
     The target document id derives deterministically from the entry id, so concurrent devices create no duplicates. An entry
     is deleted only after its document is written and synced, and a short encrypted export is kept for recovery. Entries that
     are saved items or settings migrate to their own features instead. Transitional, until clients have migrated, the backend
-    keeps only a read and delete path for legacy entries (SDK memories list and delete, and the delete WebSocket event) and
+    keeps only a read and delete path for legacy entries (SDK memories list and delete in npm, Python and Rust, whose public
+    create, update and types calls were removed together on 2026-11-07, and the delete WebSocket event) and
     the Directus collection, which also stores first-party privacy data. Create and update are rejected with a message to
     create a Memory instead. The transitional path and legacy collection entries are removed once migration has shipped.
   depends_on:

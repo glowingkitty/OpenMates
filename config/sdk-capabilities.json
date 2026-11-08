@@ -2975,10 +2975,8 @@
             "tests/sdk-conformance/runners/npm.mjs",
             "frontend/packages/openmates-cli/tests/sdk-conformance.test.ts"
           ],
-          "gaps": [
-            "The family stays partial only because the Rust SDK still exposes Memories.create/update/types, which npm and Python removed on 2026-11-07 (the backend answers 410 for those routes) and which the Rust ideabucket save_settings still calls; list/published/delete are proved in all three SDKs by the shared wire vectors."
-          ],
-          "status": "partial"
+          "gaps": [],
+          "status": "implemented"
         },
         "python": {
           "api": [
@@ -2995,31 +2993,17 @@
           "evidence": [
             "tests/sdk-conformance/runners/sdk-api-key-wire.py"
           ],
-          "gaps": [
-            "Python list/published/delete pass the shared wire vectors; the family stays partial until the Rust-only Memories.create/update/types surface is retired or re-admitted in all three SDKs."
-          ],
-          "status": "partial"
+          "gaps": [],
+          "status": "implemented"
         },
         "rust": {
           "api": [
             "sdk_memories",
             "sdk_memories.Memories",
-            "sdk_memories.Memories.create",
             "sdk_memories.Memories.delete",
             "sdk_memories.Memories.list",
             "sdk_memories.Memories.published",
-            "sdk_memories.Memories.types",
-            "sdk_memories.Memories.update",
-            "sdk_memories.MemoryInput",
-            "sdk_memories.MemoryInput.app_id",
-            "sdk_memories.MemoryInput.created_at",
-            "sdk_memories.MemoryInput.id",
-            "sdk_memories.MemoryInput.item_type",
-            "sdk_memories.MemoryInput.item_value",
-            "sdk_memories.MemoryInput.item_version",
-            "sdk_memories.OpenMates.memories",
-            "sdk_memories.hash_item_key",
-            "sdk_memories.memory_plaintext"
+            "sdk_memories.OpenMates.memories"
           ],
           "conformance": true,
           "evidence": [
@@ -3027,10 +3011,8 @@
             "tests/sdk-conformance/generate_sdk_api_key_memories.mjs",
             "packages/openmates-rust/tests/sdk_api_key_domains_b.rs"
           ],
-          "gaps": [
-            "Memories.create/update/types remain Rust-only: npm and Python removed them on 2026-11-07, the backend answers 410 for those routes, and sdk_ideabucket save_settings still calls Memories.create. Retiring them is a public Rust API removal that needs an explicit decision; list/published/delete (now with the shared non-strict TOON decoder) pass the shared wire vectors."
-          ],
-          "status": "partial"
+          "gaps": [],
+          "status": "implemented"
         }
       }
     },

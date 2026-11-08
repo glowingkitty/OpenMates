@@ -51,10 +51,10 @@ areas:
   file: sdk.yml
   unit: capabilities
   total: 53
-  done: 5
-  partial: 48
+  done: 6
+  partial: 47
   missing: 0
-  percent: 9.4
+  percent: 11.3
   done_definition: capability status implemented in Rust (domain operations)
   blockers: []
 - id: sdk_npm
@@ -63,10 +63,10 @@ areas:
   file: sdk.yml
   unit: capabilities
   total: 53
-  done: 5
-  partial: 46
+  done: 6
+  partial: 45
   missing: 2
-  percent: 9.4
+  percent: 11.3
   done_definition: capability status implemented in npm (domain operations)
   blockers: [2 capabilities missing]
 - id: sdk_python
@@ -75,9 +75,9 @@ areas:
   file: sdk.yml
   unit: capabilities
   total: 53
-  done: 5
-  partial: 46
+  done: 6
+  partial: 45
   missing: 2
-  percent: 9.4
+  percent: 11.3
   done_definition: capability status implemented in Python (domain operations)
   blockers: [2 capabilities missing]

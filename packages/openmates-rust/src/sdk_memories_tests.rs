@@ -67,42 +67,12 @@ fn memory_plaintext_decodes_like_npm_parse_maybe_json() {
     );
 }
 #[test]
-fn item_key_hash_and_plaintext_match_npm() {
-    let f = fixture();
-    for case in f["hashes"].as_array().unwrap() {
-        assert_eq!(
-            hash_item_key(
-                case["app"].as_str().unwrap(),
-                case["type"].as_str().unwrap(),
-                case["millis"].as_u64().unwrap().into()
-            ),
-            case["hash"].as_str().unwrap()
-        );
-    }
-    let plain = memory_plaintext(
-        "books",
-        "favorite_books",
-        &json!({"title":"Dune \u{754c}"}),
-        1_700_000_000,
-    );
-    let expected: Value =
-        serde_json::from_str(f["vectors"][0]["plaintext"].as_str().unwrap()).unwrap();
-    assert_eq!(serde_json::from_str::<Value>(&plain).unwrap(), expected);
-    let scalar = memory_plaintext("a", "b", &json!(5), 1);
-    assert_eq!(serde_json::from_str::<Value>(&scalar).unwrap()["value"], 5);
-}
-
-#[test]
 fn rust_ciphertext_round_trips_with_the_npm_chat_key_wrapper() {
     let f = fixture();
     let master = key(&f, "master_key_b64");
     let chat = crypto::decrypt_bytes(f["wrapped_chat_key"].as_str().unwrap(), &master).unwrap();
     assert_eq!(chat.as_slice(), key(&f, "chat_key_b64"));
-    let written = crypto::encrypt_combined(
-        &memory_plaintext("books", "x", &json!({"k":"v"}), 1),
-        &master,
-    )
-    .unwrap();
+    let written = crypto::encrypt_combined(r#"{"k":"v"}"#, &master).unwrap();
     assert_eq!(
         decrypt_row(&json!({"encrypted_item_json":written}), &master).unwrap()["data"]["k"],
         "v"
@@ -110,13 +80,9 @@ fn rust_ciphertext_round_trips_with_the_npm_chat_key_wrapper() {
 }
 
 #[tokio::test]
-async fn validation_confirmation_anonymous_and_privacy_gate_precede_transport() {
+async fn confirmation_and_anonymous_refusals_precede_transport() {
     let mut api = client(SdkCredentials::ApiKey(
         ApiKey::new("sk-api-memoriesOwnerA.localSetupSuffix").unwrap(),
-    ));
-    assert!(matches!(
-        api.memories().create(MemoryInput::default()).await,
-        Err(Error::Invalid(_))
     ));
     assert!(matches!(
         api.memories().delete("m1", false).await,
@@ -126,27 +92,8 @@ async fn validation_confirmation_anonymous_and_privacy_gate_precede_transport() 
         anonymous_id: "synthetic-memories-anon".into(),
     });
     assert_eq!(anon.memories().list(&[]).await, Err(Error::Authentication));
-    let denied = ClientOptions {
-        private_operation_gate: Some(std::sync::Arc::new(|| Err(Error::Forbidden))),
-        ..Default::default()
-    };
-    let mut gated = OpenMates::new(SdkOptions {
-        api_url: "http://127.0.0.1:1".into(),
-        credentials: SdkCredentials::ApiKey(
-            ApiKey::new("sk-api-memoriesOwnerA.localSetupSuffix").unwrap(),
-        ),
-        device_id: "synthetic-memories-device".into(),
-        client_options: denied,
-    })
-    .unwrap();
-    let input = MemoryInput {
-        app_id: "books".into(),
-        item_type: "favorite_books".into(),
-        ..Default::default()
-    };
-    assert_eq!(gated.memories().create(input).await, Err(Error::Forbidden));
     let cancel = tokio_util::sync::CancellationToken::new();
     cancel.cancel();
     api.set_operation_cancel(cancel);
-    assert_eq!(api.memories().types(&[]).await, Err(Error::Cancelled));
+    assert_eq!(api.memories().list(&[]).await, Err(Error::Cancelled));
 }

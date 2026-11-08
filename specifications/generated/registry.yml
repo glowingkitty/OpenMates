@@ -148,7 +148,7 @@ specifications:
     version: 4
     status: draft
     path: features/app-memories
-    fingerprint: 4328f30c2a48017be40cc372888145d992d28adf85a1b3540934bf4ef314f358
+    fingerprint: 7d267813307a9c1815160bd4345910498318cde6aa03217dd3481370e932f3c7
     required_applies_to:
     - rest_api
     - cli
@@ -928,7 +928,7 @@ specifications:
     version: 1
     status: draft
     path: surfaces/sdk
-    fingerprint: 254f665b47ef57ed7f60702d46c0509cd7978298b35f7e02a6c59f28d521748f
+    fingerprint: 5b9e1e41231e4a4dd0a933895993721df2d6c4a7f808e5b4913357a4fef0e88e
     required_applies_to:
     - rest_api
     - cli
@@ -3154,7 +3154,7 @@ assertions:
     specification: feature.app-memories@4
     specification_id: feature.app-memories
     type: behavior
-    fingerprint: b8b6829338eceb75de496c38314f73fd97cc8198eb69c530021f29d9ee662615
+    fingerprint: 8a17f806faad16a9619c836433e9f3fbd81b91be65a2f946703ebf98575d0fbc
     required_applies_to:
     - rest_api
     - cli
@@ -12953,7 +12953,7 @@ assertions:
     specification: surface.sdk@1
     specification_id: surface.sdk
     type: parity
-    fingerprint: 8119623afb44ff612c51ad4c0421590961f5d156eb42fcafb5fd7859d351b951
+    fingerprint: 022e3117b0f30c400783e42d3c241ee9d651c97c9aa18412f29f9e13906635bc
     required_applies_to:
     - rest_api
     - cli
