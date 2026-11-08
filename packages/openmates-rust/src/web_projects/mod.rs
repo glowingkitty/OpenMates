@@ -4,13 +4,18 @@
 //!
 //! Mirrors the pure rules of `frontend/packages/ui/src/services/projectState/*Policy.ts`
 //! (`PROJECT_STATE_POLICY`): remote source access, Project records, focus, README,
-//! connected-source files and workflow binding. The page keeps fetch, IndexedDB and
+//! connected-source files and workflow binding, plus the hosted file job decisions of
+//! `projectFilePolicy.ts` (`PROJECT_FILE_POLICY`, vectors in `hosted_files_ts_vectors.json`).
+//! The page keeps fetch, IndexedDB and
 //! WebCrypto and only asks "what next?"; every op is JSON in, JSON out and never sees
 //! key bytes. A rule that throws an `Error` in TS answers `{"error": "<same message>"}`;
 //! refusals (`{remoteError}`, `{focusError}`) are plain data. Parity is proven by
 //! `web_projects_ts_vectors.json` (`web_projects_tests.rs`, `projectStateVectors.test.ts`).
 
 mod focus;
+mod hosted_files;
+#[cfg(test)]
+mod hosted_files_tests;
 mod js;
 mod readme;
 mod readme_images;
@@ -19,6 +24,7 @@ mod records_views;
 mod remote_access;
 mod remote_access_results;
 mod remote_files;
+mod search_request;
 mod workflow;
 
 use serde_json::{Value, json};
@@ -64,6 +70,10 @@ pub(crate) const OPS: &[&str] = &[
     "projectWorkflowRemoteGate",
     "projectAuthoringHistory",
     "projectAuthoringCatalog",
+    // Hosted file job decisions (`projectFilePolicy.ts`, `PROJECT_FILE_POLICY`).
+    "projectHostedPaths",
+    "projectHostedList",
+    "projectHostedSearchPlan",
 ];
 
 /// Why a rule did not produce its normal document.
@@ -156,6 +166,9 @@ fn dispatch(op: &str, input: &Value) -> Outcome {
         "projectWorkflowRemoteGate" => workflow::remote_gate(input),
         "projectAuthoringHistory" => workflow::authoring_history(input),
         "projectAuthoringCatalog" => workflow::authoring_catalog(input),
+        "projectHostedPaths" => hosted_files::paths(input),
+        "projectHostedList" => hosted_files::list(input),
+        "projectHostedSearchPlan" => hosted_files::search_plan(input),
         _ => Err(Fault::Malformed(format!("unknown_op:{op}"))),
     }
 }

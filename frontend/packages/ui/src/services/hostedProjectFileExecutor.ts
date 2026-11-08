@@ -2,9 +2,12 @@
 import { applyProjectFilePatch } from "../utils/projectFilePatch";
 import { projectFileMutationDigest, type ProjectFileMutation } from "../utils/projectFileMutationProtocol";
 import type { ProjectFileJob } from "./projectFileJobExecutor";
-import { isProtectedProjectReadPath, normalizeProjectSearchRequest, matchesProjectSearchGlob, matchesProjectSearchQuery, PROJECT_SEARCH_CONTENT_MAX_FILES, PROJECT_SEARCH_CONTENT_MAX_FILE_BYTES, PROJECT_SEARCH_CONTENT_MAX_TOTAL_BYTES } from "../utils/projectSearchProtocol";
+import { matchesProjectSearchQuery, PROJECT_SEARCH_CONTENT_MAX_FILES, PROJECT_SEARCH_CONTENT_MAX_FILE_BYTES, PROJECT_SEARCH_CONTENT_MAX_TOTAL_BYTES } from "../utils/projectSearchProtocol";
 import { createProjectPathPolicy, type ProjectIgnoreFile, type ProjectPathPolicy } from "../utils/projectPathPolicy";
+import { normalizeHostedProjectPath, projectFileRule, settleHostedPath, settleProjectFileDecision, type ProjectFileDecider } from "./projectState/projectFilePolicy";
 import { parse } from "yaml";
+
+export { normalizeHostedProjectPath };
 
 export interface HostedProjectFile {
   embedId: string;
@@ -32,6 +35,11 @@ export interface HostedProjectFileAdapter {
   privatePaths?: readonly string[];
   /** Validates a caller-owned, ephemeral grant for this exact ignored-file read. */
   isIgnoredReadApproved?: (path: string, job: ProjectFileJob) => boolean | Promise<boolean>;
+  /**
+   * Flag-on web builds answer the pure path/list/search decisions in the shared Rust
+   * Worker; absent, the TypeScript rules run synchronously (flag-off and npm CLI).
+   */
+  decidePolicy?: ProjectFileDecider;
 }
 
 const bytes = (value: string) => new TextEncoder().encode(value);
@@ -41,21 +49,6 @@ const MAX_CONTROL_FILE_BYTES = 64 * 1024;
 const MAX_CONTROL_BYTES = 256 * 1024;
 const MAX_PRIVATE_PATHS = 256;
 function failure(code: string): never { throw Object.assign(new Error(code), { code }); }
-function hasControlCharacters(value: string): boolean {
-  for (const character of value) {
-    const codePoint = character.codePointAt(0) ?? 0;
-    if (codePoint <= 0x1f || codePoint === 0x7f) return true;
-  }
-  return false;
-}
-export function normalizeHostedProjectPath(value: unknown): string {
-  if (typeof value !== "string" || !value || value.length > 4096 || value.includes("\\") || hasControlCharacters(value)
-      || value.startsWith("/") || /^[a-z]:/i.test(value)) failure("invalid_path");
-  const parts = value.split("/");
-  if (parts.some((part) => !part || part === "." || part === "..")) failure("invalid_path");
-  if (parts.includes(".git") || isProtectedProjectReadPath(value)) failure("protected_path");
-  return value;
-}
 export async function projectFileContentHash(content: string): Promise<string> {
   return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes(content))), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
@@ -110,17 +103,22 @@ async function loadProjectPolicy(adapter: HostedProjectFileAdapter, listed: Host
   const files: HostedProjectFile[] = [];
   const privateEmbedIds = new Set<string>();
   let excluded = 0;
-  for (const file of listed) {
-    let path: string;
-    try { path = normalizeHostedProjectPath(file.path); }
-    catch {
+  const pathsInput = { paths: listed.map((file) => file.path) };
+  // Flag-on: the hop follows the caller's listFiles() await with no work in between.
+  const normalized = (adapter.decidePolicy
+    ? await adapter.decidePolicy("projectHostedPaths", pathsInput)
+    : projectFileRule("projectHostedPaths", pathsInput)).results;
+  for (const [index, file] of listed.entries()) {
+    const result = normalized[index];
+    if (result === undefined) failure("protected_path");
+    if (!("path" in result)) {
       // A protected or malformed metadata link taints the ciphertext target. An
       // otherwise innocuous alias must not make the same embed readable.
       privateEmbedIds.add(file.embedId);
       excluded++;
       continue;
     }
-    files.push({ ...file, path });
+    files.push({ ...file, path: result.path });
   }
 
   const ignoreControls = files
@@ -232,26 +230,22 @@ async function assertDirectPathAllowed(
 export async function executeHostedProjectFileJob(adapter: HostedProjectFileAdapter, job: ProjectFileJob, mutation?: ProjectFileMutation): Promise<Record<string, unknown>> {
   const loaded = await loadProjectPolicy(adapter, await adapter.listFiles());
   const { files, policy } = loaded;
+  // The Git-ignore/private matcher stays here; the pure list/search shaping sees only hidden flags.
+  const marked = () => files.map((file) => ({ path: file.path, hidden: isPrivate(policy, file.path) || policy.isIgnored(file.path, false) }));
   if (job.operation === "list") {
-    const prefix = job.arguments.path === undefined || job.arguments.path === "." || job.arguments.path === "" ? "" : `${normalizeHostedProjectPath(job.arguments.path)}/`;
-    const matched = files.filter((file) => file.path.startsWith(prefix)
-      && !isPrivate(policy, file.path) && !policy.isIgnored(file.path, false));
-    return { entries: matched.slice(0, 500).map((file) => ({ path: file.path, kind: "file" })), truncated: matched.length > 500 };
+    const listInput = { path: job.arguments.path, files: marked() };
+    return settleProjectFileDecision(adapter.decidePolicy
+      ? await adapter.decidePolicy("projectHostedList", listInput)
+      : projectFileRule("projectHostedList", listInput));
   }
   if (job.operation === "search") {
-    // Hosted search is bounded before decryption; large Projects require narrower paths.
-    const search = normalizeProjectSearchRequest(job.arguments);
-    if (search.mode === "regex") failure("regex_search_unavailable");
-    const prefix = search.path === "." ? "" : normalizeHostedProjectPath(search.path);
-    let excluded = loaded.excluded;
-    const candidates: HostedProjectFile[] = [];
-    for (const file of files) {
-      const path = file.path;
-      if (isPrivate(policy, path) || policy.isIgnored(path, false)) { excluded++; continue; }
-      if ((!prefix || path === prefix || path.startsWith(`${prefix}/`)) && matchesProjectSearchGlob(path, search.glob)) {
-        candidates.push({ ...file, path });
-      }
-    }
+    const planInput = { args: job.arguments, files: marked(), excluded: loaded.excluded };
+    const plan = settleProjectFileDecision(adapter.decidePolicy
+      ? await adapter.decidePolicy("projectHostedSearchPlan", planInput)
+      : projectFileRule("projectHostedSearchPlan", planInput));
+    const { search } = plan;
+    let excluded = plan.excluded;
+    const candidates: HostedProjectFile[] = plan.candidates.map((index) => ({ ...files[index]! }));
     const matches: Record<string, unknown>[] = [];
     const contents: Record<string, unknown>[] = [];
     const contentOmissions: Record<string, string>[] = [];
@@ -317,7 +311,9 @@ export async function executeHostedProjectFileJob(adapter: HostedProjectFileAdap
       truncated: omitted > 0 || incomplete || candidates.length > examined,
     };
   }
-  const path = normalizeHostedProjectPath(job.arguments.path);
+  const path = adapter.decidePolicy
+    ? settleHostedPath((await adapter.decidePolicy("projectHostedPaths", { paths: [job.arguments.path] })).results[0])
+    : normalizeHostedProjectPath(job.arguments.path);
   await assertDirectPathAllowed(adapter, policy, job, path);
   const found = files.filter((file) => file.path === path);
   if (found.length > 1) failure("ambiguous_file_path");

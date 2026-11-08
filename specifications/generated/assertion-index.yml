@@ -138484,13 +138484,13 @@ assertions:
       surface: cli
     - &id17713
       path: frontend/packages/ui/src/services/__tests__/hostedProjectPathPolicy.test.ts
-      line: 60
+      line: 61
       name: applies nested ignore negation and hides private metadata before content
         search
       surface: cli
     - &id17714
       path: frontend/packages/ui/src/services/__tests__/hostedProjectPathPolicy.test.ts
-      line: 161
+      line: 162
       name: requires an exact ephemeral grant for an ignored direct read without exposing
         siblings
       surface: cli
@@ -138604,24 +138604,24 @@ assertions:
       surface: cli
     - &id17727
       path: frontend/packages/ui/src/services/__tests__/hostedProjectPathPolicy.test.ts
-      line: 60
+      line: 61
       name: applies nested ignore negation and hides private metadata before content
         search
       surface: cli
     - &id17728
       path: frontend/packages/ui/src/services/__tests__/hostedProjectPathPolicy.test.ts
-      line: 126
+      line: 127
       name: taints every alias of an embed linked through protected metadata
       surface: cli
     - &id17729
       path: frontend/packages/ui/src/services/__tests__/hostedProjectPathPolicy.test.ts
-      line: 189
+      line: 190
       name: denies private reads and writes before decrypting the target or invoking
         mutation services
       surface: cli
     - &id17730
       path: frontend/packages/ui/src/services/__tests__/hostedProjectPathPolicy.test.ts
-      line: 234
+      line: 235
       name: fails closed for ambiguous or malformed encrypted policy controls
       surface: cli
     - &id17731
@@ -190080,807 +190080,823 @@ assertions:
       name: decides stale draft frames and cleared versions exactly as committed
       surface: gui.web
     - &id24215
+      path: frontend/packages/ui/src/services/__tests__/hostedProjectPathPolicy.test.ts
+      line: 255
+      name: answers the same path, list and search outcomes through an off-page decidePolicy
+      surface: gui.web
+    - &id24216
       path: frontend/packages/ui/src/services/__tests__/incognitoShareStateOrdering.test.ts
       line: 38
       name: flag off replaces the row in the same tick it was read, so concurrent
         updates chain
       surface: gui.web
-    - &id24216
+    - &id24217
       path: frontend/packages/ui/src/services/__tests__/incognitoShareStateOrdering.test.ts
       line: 56
       name: flag on re-finds the row after the Worker answer and reports a removed
         row as not updated
       surface: gui.web
-    - &id24217
+    - &id24218
       path: frontend/packages/ui/src/services/__tests__/incognitoShareStateOrdering.test.ts
       line: 69
       name: flag on shares one load between concurrent callers
       surface: gui.web
-    - &id24218
+    - &id24219
       path: frontend/packages/ui/src/services/__tests__/incognitoShareStateOrdering.test.ts
       line: 83
       name: flag off loads without any await window
       surface: gui.web
-    - &id24219
+    - &id24220
       path: frontend/packages/ui/src/services/rustCore/__tests__/appsPolicyVectors.test.ts
       line: 17
       name: validateSkillInput matches the committed schema vectors
       surface: gui.web
-    - &id24220
+    - &id24221
       path: frontend/packages/ui/src/services/rustCore/__tests__/appsPolicyVectors.test.ts
       line: 24
       name: freshness and outbox ids match the committed results vectors
       surface: gui.web
-    - &id24221
+    - &id24222
       path: frontend/packages/ui/src/services/rustCore/__tests__/appsRequestUnit.test.ts
       line: 84
       name: sends the Rust body, restores and validates the interpreted input, then
         executes
       surface: gui.web
-    - &id24222
+    - &id24223
       path: frontend/packages/ui/src/services/rustCore/__tests__/appsRequestUnit.test.ts
       line: 100
       name: follows Rust handoffs and errors without a TypeScript fallback
       surface: gui.web
-    - &id24223
+    - &id24224
       path: frontend/packages/ui/src/services/rustCore/__tests__/appsRequestUnit.test.ts
       line: 122
       name: checks the outbox scope and recommendation freshness in Rust
       surface: gui.web
-    - &id24224
+    - &id24225
       path: frontend/packages/ui/src/services/rustCore/__tests__/appsSharedUnit.test.ts
       line: 80
       name: refuses a binding without the apps exports
       surface: gui.web
-    - &id24225
+    - &id24226
       path: frontend/packages/ui/src/services/rustCore/__tests__/appsSharedUnit.test.ts
       line: 87
       name: executes a synchronous skill from the unit decisions and returns the parsed
         body
       surface: gui.web
-    - &id24226
+    - &id24227
       path: frontend/packages/ui/src/services/rustCore/__tests__/appsSharedUnit.test.ts
       line: 100
       name: polls accepted tasks until Rust reports completion and returns the Rust-assembled
         envelope
       surface: gui.web
-    - &id24227
+    - &id24228
       path: frontend/packages/ui/src/services/rustCore/__tests__/appsSharedUnit.test.ts
       line: 112
       name: surfaces Rust failures and refusals without a TypeScript fallback
       surface: gui.web
-    - &id24228
+    - &id24229
       path: frontend/packages/ui/src/services/rustCore/__tests__/appsSharedUnit.test.ts
       line: 121
       name: caches public details only when Rust marks them cacheable
       surface: gui.web
-    - &id24229
+    - &id24230
       path: frontend/packages/ui/src/services/rustCore/__tests__/appsSkillVectors.test.ts
       line: 60
       name: error detail, skill failure and accepted task ids match the committed
         vectors
       surface: gui.web
-    - &id24230
+    - &id24231
       path: frontend/packages/ui/src/services/rustCore/__tests__/appsSkillVectors.test.ts
       line: 71
       name: skill details and anonymous quotes match the committed vectors
       surface: gui.web
-    - &id24231
+    - &id24232
       path: frontend/packages/ui/src/services/rustCore/__tests__/appsSkillVectors.test.ts
       line: 87
       name: direct execution, polling and resolution match the committed vectors
       surface: gui.web
-    - &id24232
+    - &id24233
       path: frontend/packages/ui/src/services/rustCore/__tests__/bookmarkHighlightOps.test.ts
       line: 28
       name: passes null settings as absent and parses the binding answers
       surface: gui.web
-    - &id24233
+    - &id24234
       path: frontend/packages/ui/src/services/rustCore/__tests__/bookmarkHighlightOps.test.ts
       line: 39
       name: answers the fixed bookmark messages as stable codes and never leaks other
         text
       surface: gui.web
-    - &id24234
+    - &id24235
       path: frontend/packages/ui/src/services/rustCore/__tests__/bookmarkHighlightOps.test.ts
       line: 59
       name: refuses a chat key that is not bytes and a missing binding export
       surface: gui.web
-    - &id24235
+    - &id24236
       path: frontend/packages/ui/src/services/rustCore/__tests__/bookmarkHighlightVectors.test.ts
       line: 49
       name: the TypeScript bookmark and highlight services match the committed vectors
       surface: gui.web
-    - &id24236
+    - &id24237
       path: frontend/packages/ui/src/services/rustCore/__tests__/browserLocalCursorPlan.test.ts
       line: 81
       name: pipelines row reads and keeps cursor order, limit and next key
       surface: gui.web
-    - &id24237
+    - &id24238
       path: frontend/packages/ui/src/services/rustCore/__tests__/browserLocalCursorPlan.test.ts
       line: 95
       name: reports an exhausted range when every row fits
       surface: gui.web
-    - &id24238
+    - &id24239
       path: frontend/packages/ui/src/services/rustCore/__tests__/browserLocalCursorPlan.test.ts
       line: 104
       name: refuses a packet over its byte budget instead of truncating
       surface: gui.web
-    - &id24239
+    - &id24240
       path: frontend/packages/ui/src/services/rustCore/__tests__/browserLocalCursorPlan.test.ts
       line: 111
       name: refuses a held connection combined with routed cursor IO
       surface: gui.web
-    - &id24240
+    - &id24241
       path: frontend/packages/ui/src/services/rustCore/__tests__/chatListVectors.test.ts
       line: 37
       name: sortChats and the page sort input match the committed vectors
       surface: gui.web
-    - &id24241
+    - &id24242
       path: frontend/packages/ui/src/services/rustCore/__tests__/chatListVectors.test.ts
       line: 45
       name: groupChats and the page group input match the committed vectors
       surface: gui.web
-    - &id24242
+    - &id24243
       path: frontend/packages/ui/src/services/rustCore/__tests__/chatSearchVectors.test.ts
       line: 93
       name: matches the committed TypeScript-generated vectors
       surface: gui.web
-    - &id24243
+    - &id24244
       path: frontend/packages/ui/src/services/rustCore/__tests__/chatSearchVectors.test.ts
       line: 100
       name: encodes ingest and query columns and decodes Worker rows into searchService
         results
       surface: gui.web
-    - &id24244
+    - &id24245
       path: frontend/packages/ui/src/services/rustCore/__tests__/chatSearchVectors.test.ts
       line: 152
       name: search unit applies removes before ingest and query, refuses bad payloads
         and frees the index on close
       surface: gui.web
-    - &id24245
+    - &id24246
       path: frontend/packages/ui/src/services/rustCore/__tests__/chatStateHiddenForkOps.test.ts
       line: 39
       name: maps the vault outcomes to the legacy service results and echoes the lock
         state
       surface: gui.web
-    - &id24246
+    - &id24247
       path: frontend/packages/ui/src/services/rustCore/__tests__/chatStateHiddenForkOps.test.ts
       line: 60
       name: keeps the vault through a lockout and drops it once idle
       surface: gui.web
-    - &id24247
+    - &id24248
       path: frontend/packages/ui/src/services/rustCore/__tests__/chatStateHiddenForkOps.test.ts
       line: 74
       name: refuses with protocol when the binding or master key is missing
       surface: gui.web
-    - &id24248
+    - &id24249
       path: frontend/packages/ui/src/services/rustCore/__tests__/chatStateHiddenForkOps.test.ts
       line: 85
       name: releases the vault on logout or account switch even while a lockout is
         active
       surface: gui.web
-    - &id24249
+    - &id24250
       path: frontend/packages/ui/src/services/rustCore/__tests__/chatStateHiddenForkOps.test.ts
       line: 104
       name: refuses the key-update frame with protocol when the export is missing
         and zeroes stale versions to undefined
       surface: gui.web
-    - &id24250
+    - &id24251
       path: frontend/packages/ui/src/services/rustCore/__tests__/chatStateHiddenForkOps.test.ts
       line: 119
       name: answers null or missing_key when the wrapper is missing or unreadable
       surface: gui.web
-    - &id24251
+    - &id24252
       path: frontend/packages/ui/src/services/rustCore/__tests__/chatStateHiddenForkOps.test.ts
       line: 137
       name: marshals select, re-encrypt and finalize through the binding
       surface: gui.web
-    - &id24252
+    - &id24253
       path: frontend/packages/ui/src/services/rustCore/__tests__/chatStateHiddenForkOps.test.ts
       line: 158
       name: refuses a missing selection export with protocol
       surface: gui.web
-    - &id24253
+    - &id24254
       path: frontend/packages/ui/src/services/rustCore/__tests__/chatStateHiddenForkOps.test.ts
       line: 164
       name: answers stable Rust codes and collapses web error text to fork_refused
       surface: gui.web
-    - &id24254
+    - &id24255
       path: frontend/packages/ui/src/services/rustCore/__tests__/chatStateSharedUnit.test.ts
       line: 84
       name: refuses a binding without the chat-state exports
       surface: gui.web
-    - &id24255
+    - &id24256
       path: frontend/packages/ui/src/services/rustCore/__tests__/chatStateSharedUnit.test.ts
       line: 91
       name: orders every vector chat list exactly like the TypeScript sort
       surface: gui.web
-    - &id24256
+    - &id24257
       path: frontend/packages/ui/src/services/rustCore/__tests__/chatStateSharedUnit.test.ts
       line: 101
       name: groups every vector chat list like the TypeScript grouping, key order
         included
       surface: gui.web
-    - &id24257
+    - &id24258
       path: frontend/packages/ui/src/services/rustCore/__tests__/chatStateSharedUnit.test.ts
       line: 113
       name: rejects with the fixed protocol code instead of falling back to TypeScript
       surface: gui.web
-    - &id24258
+    - &id24259
       path: frontend/packages/ui/src/services/rustCore/__tests__/chatViewVectors.test.ts
       line: 30
       name: the TypeScript selection, unread, read-gate and metadata code matches
         the committed vectors
       surface: gui.web
-    - &id24259
+    - &id24260
       path: frontend/packages/ui/src/services/rustCore/__tests__/connectedAccountWritesVectors.test.ts
       line: 89
       name: keeps the OAuth handoff row, its await order and the storage guard
       surface: gui.web
-    - &id24260
+    - &id24261
       path: frontend/packages/ui/src/services/rustCore/__tests__/connectedAccountWritesVectors.test.ts
       line: 110
       name: keeps the CLI transfer payload, its key order and the command shape
       surface: gui.web
-    - &id24261
+    - &id24262
       path: frontend/packages/ui/src/services/rustCore/__tests__/connectedAccountsSharedUnit.test.ts
       line: 95
       name: answers unavailable for a binding without the connected-account exports
       surface: gui.web
-    - &id24262
+    - &id24263
       path: frontend/packages/ui/src/services/rustCore/__tests__/connectedAccountsSharedUnit.test.ts
       line: 108
       name: decrypts only selected rows and attaches envelopes the Worker never sees
       surface: gui.web
-    - &id24263
+    - &id24264
       path: frontend/packages/ui/src/services/rustCore/__tests__/connectedAccountsSharedUnit.test.ts
       line: 131
       name: rethrows Rust outcomes as the TypeScript errors without fallback
       surface: gui.web
-    - &id24264
+    - &id24265
       path: frontend/packages/ui/src/services/rustCore/__tests__/connectedAccountsSharedUnit.test.ts
       line: 143
       name: rethrows the page decrypt error the summary plan names
       surface: gui.web
-    - &id24265
+    - &id24266
       path: frontend/packages/ui/src/services/rustCore/__tests__/connectedAccountsSharedUnit.test.ts
       line: 152
       name: sends broker inputs without refresh-token envelopes
       surface: gui.web
-    - &id24266
+    - &id24267
       path: frontend/packages/ui/src/services/rustCore/__tests__/connectedAccountsSharedUnit.test.ts
       line: 164
       name: runs the OAuth row steps in order and fills the bundle the Worker never
         sees
       surface: gui.web
-    - &id24267
+    - &id24268
       path: frontend/packages/ui/src/services/rustCore/__tests__/connectedAccountsSharedUnit.test.ts
       line: 200
       name: assembles the CLI transfer payload in TypeScript key order without sending
         the bundle
       surface: gui.web
-    - &id24268
+    - &id24269
       path: frontend/packages/ui/src/services/rustCore/__tests__/connectedAccountsVectors.test.ts
       line: 50
       name: keeps send-context selection, directory and token-ref inputs
       surface: gui.web
-    - &id24269
+    - &id24270
       path: frontend/packages/ui/src/services/rustCore/__tests__/connectedAccountsVectors.test.ts
       line: 60
       name: keeps account summaries and local-connector fallbacks
       surface: gui.web
-    - &id24270
+    - &id24271
       path: frontend/packages/ui/src/services/rustCore/__tests__/connectedAccountsVectors.test.ts
       line: 70
       name: keeps the broker turn-token ref merge
       surface: gui.web
-    - &id24271
+    - &id24272
       path: frontend/packages/ui/src/services/rustCore/__tests__/contextFrameVectors.test.ts
       line: 23
       name: matches the committed outcomes
       surface: gui.web
-    - &id24272
+    - &id24273
       path: frontend/packages/ui/src/services/rustCore/__tests__/embedReadVectors.test.ts
       line: 35
       name: has broad coverage
       surface: gui.web
-    - &id24273
+    - &id24274
       path: frontend/packages/ui/src/services/rustCore/__tests__/embedReadVectors.test.ts
       line: 37
       name: TS still produces every committed outcome
       surface: gui.web
-    - &id24274
+    - &id24275
       path: frontend/packages/ui/src/services/rustCore/__tests__/guestPromotionVectors.test.ts
       line: 37
       name: TypeScript promotion decisions match the vectors
       surface: gui.web
-    - &id24275
+    - &id24276
       path: frontend/packages/ui/src/services/rustCore/__tests__/guestPromotionVectors.test.ts
       line: 65
       name: routes guestPromotionPlan to the Rust export and decodes the plan
       surface: gui.web
-    - &id24276
+    - &id24277
       path: frontend/packages/ui/src/services/rustCore/__tests__/heldExistingDatabase.test.ts
       line: 46
       name: reuses one databases() lookup and one open for repeated reads
       surface: gui.web
-    - &id24277
+    - &id24278
       path: frontend/packages/ui/src/services/rustCore/__tests__/heldExistingDatabase.test.ts
       line: 62
       name: a versionchange closes the connection and invalidates later reads without
         reopening
       surface: gui.web
-    - &id24278
+    - &id24279
       path: frontend/packages/ui/src/services/rustCore/__tests__/heldExistingDatabase.test.ts
       line: 74
       name: a forced close invalidates later reads
       surface: gui.web
-    - &id24279
+    - &id24280
       path: frontend/packages/ui/src/services/rustCore/__tests__/heldExistingDatabase.test.ts
       line: 84
       name: the caller
       surface: gui.web
-    - &id24280
+    - &id24281
       path: frontend/packages/ui/src/services/rustCore/__tests__/heldExistingDatabase.test.ts
       line: 95
       name: refuses a database that does not exist yet (no create)
       surface: gui.web
-    - &id24281
+    - &id24282
       path: frontend/packages/ui/src/services/rustCore/__tests__/localFirstSavedChatSession.test.ts
       line: 47
       name: admits local-only without a server call; a cache miss keeps the session
       surface: gui.web
-    - &id24282
+    - &id24283
       path: frontend/packages/ui/src/services/rustCore/__tests__/localFirstSavedChatSession.test.ts
       line: 58
       name: upgrades on the SAME Worker with the normal server check
       surface: gui.web
-    - &id24283
+    - &id24284
       path: frontend/packages/ui/src/services/rustCore/__tests__/localFirstSavedChatSession.test.ts
       line: 73
       name: a revoked session (failed restore_existing) tears down all local state
       surface: gui.web
-    - &id24284
+    - &id24285
       path: frontend/packages/ui/src/services/rustCore/__tests__/localFirstSavedChatSession.test.ts
       line: 84
       name: the upgrade handover keeps the caller\
       surface: gui.web
-    - &id24285
+    - &id24286
       path: frontend/packages/ui/src/services/rustCore/__tests__/localFirstSavedChatSession.test.ts
       line: 114
       name: closing a local session without handover still revokes the shared lifecycle
       surface: gui.web
-    - &id24286
+    - &id24287
+      path: frontend/packages/ui/src/services/rustCore/__tests__/projectFilePolicyVectors.test.ts
+      line: 134
+      name: committed vectors equal the TypeScript rule outcomes
+      surface: gui.web
+    - &id24288
+      path: frontend/packages/ui/src/services/rustCore/__tests__/projectFilePolicyVectors.test.ts
+      line: 145
+      name: length limits count UTF-16 units (mirrored by hosted_length_limits_count_utf16_units
+        in Rust)
+      surface: gui.web
+    - &id24289
       path: frontend/packages/ui/src/services/rustCore/__tests__/projectStateVectors.test.ts
       line: 21
       name: TypeScript rules reproduce every recorded vector outcome
       surface: gui.web
-    - &id24287
+    - &id24290
       path: frontend/packages/ui/src/services/rustCore/__tests__/projectStateVectors.test.ts
       line: 34
       name: forwards op and JSON input to the Rust export and refuses with protocol
         on failure
       surface: gui.web
-    - &id24288
+    - &id24291
       path: frontend/packages/ui/src/services/rustCore/__tests__/rustChatSearchPipeline.test.ts
       line: 37
       name: posts ingests without waiting for replies, then the query names only surviving
         handles
       surface: gui.web
-    - &id24289
+    - &id24292
       path: frontend/packages/ui/src/services/rustCore/__tests__/rustChatSearchPipeline.test.ts
       line: 63
       name: drops an invalidated chat with the next request and keeps request order
       surface: gui.web
-    - &id24290
+    - &id24293
       path: frontend/packages/ui/src/services/rustCore/__tests__/rustChatSearchPipeline.test.ts
       line: 87
       name: rejects the query when a posted ingest failed instead of searching an
         unknown index
       surface: gui.web
-    - &id24291
+    - &id24294
       path: frontend/packages/ui/src/services/rustCore/__tests__/rustDraftsUnit.test.ts
       line: 45
       name: lends the admitted client only while the dispatcher is idle and restores
         it on release
       surface: gui.web
-    - &id24292
+    - &id24295
       path: frontend/packages/ui/src/services/rustCore/__tests__/rustDraftsUnit.test.ts
       line: 65
       name: holds a dispatcher request that arrives during a borrow and delivers it
         in order on release
       surface: gui.web
-    - &id24293
+    - &id24296
       path: frontend/packages/ui/src/services/rustCore/__tests__/rustDraftsUnit.test.ts
       line: 82
       name: refuses other principals, local-only admissions and unregistered dispatchers
       surface: gui.web
-    - &id24294
+    - &id24297
       path: frontend/packages/ui/src/services/rustCore/__tests__/rustDraftsUnit.test.ts
       line: 98
       name: frees a client retired during the borrow only on release
       surface: gui.web
-    - &id24295
+    - &id24298
       path: frontend/packages/ui/src/services/rustCore/__tests__/rustDraftsUnit.test.ts
       line: 110
       name: waits a bounded time for a busy dispatcher
       surface: gui.web
-    - &id24296
+    - &id24299
       path: frontend/packages/ui/src/services/rustCore/__tests__/rustDraftsUnit.test.ts
       line: 182
       name: saves through Rust, returns only version and ciphertext payload, then
         acknowledges
       surface: gui.web
-    - &id24297
+    - &id24300
       path: frontend/packages/ui/src/services/rustCore/__tests__/rustDraftsUnit.test.ts
       line: 197
       name: routes shape refusals decided before any write and fails refusals after
         a write
       surface: gui.web
-    - &id24298
+    - &id24301
       path: frontend/packages/ui/src/services/rustCore/__tests__/rustDraftsUnit.test.ts
       line: 210
       name: refuses not_admitted / core_busy without a client and rejects malformed
         requests
       surface: gui.web
-    - &id24299
+    - &id24302
       path: frontend/packages/ui/src/services/rustCore/__tests__/rustDraftsUnit.test.ts
       line: 224
       name: frees prepared writes on release and when the generation ends
       surface: gui.web
-    - &id24300
+    - &id24303
       path: frontend/packages/ui/src/services/rustCore/__tests__/rustDraftsUnit.test.ts
       line: 255
       name: routes to the TS writer, marked, when no shared core is registered or
         bound
       surface: gui.web
-    - &id24301
+    - &id24304
       path: frontend/packages/ui/src/services/rustCore/__tests__/rustDraftsUnit.test.ts
       line: 263
       name: saves through the unit, sends the ciphertext and acknowledges it
       surface: gui.web
-    - &id24302
+    - &id24305
       path: frontend/packages/ui/src/services/rustCore/__tests__/rustDraftsUnit.test.ts
       line: 281
       name: routes shape refusals to TS and keeps failures and send errors explicit
       surface: gui.web
-    - &id24303
+    - &id24306
       path: frontend/packages/ui/src/services/rustCore/__tests__/rustDraftsUnit.test.ts
       line: 313
       name: projects undefined fields left by a TS draft clear as absent so the JSON
         packet keeps {present, value}
       surface: gui.web
-    - &id24304
+    - &id24307
       path: frontend/packages/ui/src/services/rustCore/__tests__/savedChatMessageRows.test.ts
       line: 42
       name: maps Rust decrypted rows to the existing Message rows
       surface: gui.web
-    - &id24305
+    - &id24308
       path: frontend/packages/ui/src/services/rustCore/__tests__/savedChatMessageRows.test.ts
       line: 53
       name: keeps meaningful stored states and queue fields
       surface: gui.web
-    - &id24306
+    - &id24309
       path: frontend/packages/ui/src/services/rustCore/__tests__/savedChatMessageRows.test.ts
       line: 63
       name: refuses shapes it cannot represent with fixed codes
       surface: gui.web
-    - &id24307
+    - &id24310
       path: frontend/packages/ui/src/services/rustCore/__tests__/savedChatMessageRows.test.ts
       line: 76
       name: treats identity mismatches as errors, not refusals
       surface: gui.web
-    - &id24308
+    - &id24311
       path: frontend/packages/ui/src/services/rustCore/__tests__/savedChatMessageRows.test.ts
       line: 86
       name: maps the page window cursors
       surface: gui.web
-    - &id24309
+    - &id24312
       path: frontend/packages/ui/src/services/rustCore/__tests__/savedChatMessageRows.test.ts
       line: 92
       name: maps a Rust cache-first page to the same rows as the server page
       surface: gui.web
-    - &id24310
+    - &id24313
       path: frontend/packages/ui/src/services/rustCore/__tests__/savedChatMessageRows.test.ts
       line: 114
       name: is inert without an installed source (default builds)
       surface: gui.web
-    - &id24311
+    - &id24314
       path: frontend/packages/ui/src/services/rustCore/__tests__/savedChatMessageRows.test.ts
       line: 119
       name: falls back only on typed refusals and rethrows errors
       surface: gui.web
-    - &id24312
+    - &id24315
       path: frontend/packages/ui/src/services/rustCore/__tests__/savedChatMessageRows.test.ts
       line: 136
       name: waits for a declared source instead of racing its install
       surface: gui.web
-    - &id24313
+    - &id24316
       path: frontend/packages/ui/src/services/rustCore/__tests__/savedChatMessageRows.test.ts
       line: 150
       name: keeps the TS path when a declared install provides no source
       surface: gui.web
-    - &id24314
+    - &id24317
       path: frontend/packages/ui/src/services/rustCore/__tests__/searchQueryVectors.test.ts
       line: 153
       name: matches the committed TypeScript-generated vectors
       surface: gui.web
-    - &id24315
+    - &id24318
       path: frontend/packages/ui/src/services/rustCore/__tests__/secondDeviceSavedChatSession.test.ts
       line: 42
       name: a failed saved read ends the session instead of leaving a closed host
         behind
       surface: gui.web
-    - &id24316
+    - &id24319
       path: frontend/packages/ui/src/services/rustCore/__tests__/sendPrepOutboxVectors.test.ts
       line: 53
       name: equal the TypeScript service
       surface: gui.web
-    - &id24317
+    - &id24320
       path: frontend/packages/ui/src/services/rustCore/__tests__/sessionBroker.test.ts
       line: 56
       name: admits a principal once and ref-counts leases on one Worker and one binding
       surface: gui.web
-    - &id24318
+    - &id24321
       path: frontend/packages/ui/src/services/rustCore/__tests__/sessionBroker.test.ts
       line: 86
       name: loses the old leases and unbinds before admitting a different principal
       surface: gui.web
-    - &id24319
+    - &id24322
       path: frontend/packages/ui/src/services/rustCore/__tests__/sessionBroker.test.ts
       line: 106
       name: loses every lease on a Worker crash and re-admits on a fresh Worker
       surface: gui.web
-    - &id24320
+    - &id24323
       path: frontend/packages/ui/src/services/rustCore/__tests__/sessionBroker.test.ts
       line: 121
       name: refuses malformed principals and aborted admissions with fixed codes
       surface: gui.web
-    - &id24321
+    - &id24324
       path: frontend/packages/ui/src/services/rustCore/__tests__/settingsPolicyVectors.test.ts
       line: 21
       name: keeps display names, gradients and category plans
       surface: gui.web
-    - &id24322
+    - &id24325
       path: frontend/packages/ui/src/services/rustCore/__tests__/settingsPolicyVectors.test.ts
       line: 28
       name: keeps the answered guard
       surface: gui.web
-    - &id24323
+    - &id24326
       path: frontend/packages/ui/src/services/rustCore/__tests__/settingsPolicyVectors.test.ts
       line: 33
       name: keeps the persisted request message
       surface: gui.web
-    - &id24324
+    - &id24327
       path: frontend/packages/ui/src/services/rustCore/__tests__/settingsSharedUnit.test.ts
       line: 59
       name: refuses a binding without the settings exports
       surface: gui.web
-    - &id24325
+    - &id24328
       path: frontend/packages/ui/src/services/rustCore/__tests__/settingsSharedUnit.test.ts
       line: 66
       name: serves the request decisions from the Rust binding
       surface: gui.web
-    - &id24326
+    - &id24329
       path: frontend/packages/ui/src/services/rustCore/__tests__/settingsSharedUnit.test.ts
       line: 76
       name: serves the response decisions from the Rust binding
       surface: gui.web
-    - &id24327
+    - &id24330
       path: frontend/packages/ui/src/services/rustCore/__tests__/settingsSharedUnit.test.ts
       line: 88
       name: serves the privacy entry plan from the Rust binding
       surface: gui.web
-    - &id24328
+    - &id24331
       path: frontend/packages/ui/src/services/rustCore/__tests__/shareStateVectors.test.ts
       line: 20
       name: TypeScript rules reproduce every recorded vector outcome
       surface: gui.web
-    - &id24329
+    - &id24332
       path: frontend/packages/ui/src/services/rustCore/__tests__/shareStateVectors.test.ts
       line: 31
       name: TypeScript share-link and short-URL decryption accept the TS-produced
         fixtures
       surface: gui.web
-    - &id24330
+    - &id24333
       path: frontend/packages/ui/src/services/rustCore/__tests__/shareStateVectors.test.ts
       line: 50
       name: routes shareState to the Rust export and rethrows an error answer
       surface: gui.web
-    - &id24331
+    - &id24334
       path: frontend/packages/ui/src/services/rustCore/__tests__/syncSharedUnit.test.ts
       line: 127
       name: refuses a binding without the sync exports
       surface: gui.web
-    - &id24332
+    - &id24335
       path: frontend/packages/ui/src/services/rustCore/__tests__/syncSharedUnit.test.ts
       line: 201
       name: rejects with the fixed protocol code instead of falling back to TypeScript
       surface: gui.web
-    - &id24333
+    - &id24336
       path: frontend/packages/ui/src/services/rustCore/__tests__/toonDecodeVectors.test.ts
       line: 20
       name: pins the library version the web client ships
       surface: gui.web
-    - &id24334
+    - &id24337
       path: frontend/packages/ui/src/services/rustCore/__tests__/toonDecodeVectors.test.ts
       line: 29
       name: '%s'
       surface: gui.web
-    - &id24335
+    - &id24338
       path: frontend/packages/ui/src/services/rustCore/__tests__/transferExportVectors.test.ts
       line: 122
       name: TypeScript exporter and request builder match the committed vectors
       surface: gui.web
-    - &id24336
+    - &id24339
       path: frontend/packages/ui/src/services/rustCore/__tests__/transferExportVectors.test.ts
       line: 131
       name: covers the odd inputs the Rust port must reproduce
       surface: gui.web
-    - &id24337
+    - &id24340
       path: frontend/packages/ui/src/services/rustCore/__tests__/transferImportVectors.test.ts
       line: 38
       name: JSON exports parse to the committed vectors
       surface: gui.web
-    - &id24338
+    - &id24341
       path: frontend/packages/ui/src/services/rustCore/__tests__/transferImportVectors.test.ts
       line: 45
       name: ZIP exports parse to the committed vectors with the recorded entry order
       surface: gui.web
-    - &id24339
+    - &id24342
       path: frontend/packages/ui/src/services/rustCore/__tests__/transferImportVectors.test.ts
       line: 57
       name: scan batch boundaries match the committed vectors
       surface: gui.web
-    - &id24340
+    - &id24343
       path: frontend/packages/ui/src/services/rustCore/__tests__/transferSharedUnit.test.ts
       line: 88
       name: refuses a binding without the transfer exports
       surface: gui.web
-    - &id24341
+    - &id24344
       path: frontend/packages/ui/src/services/rustCore/__tests__/transferSharedUnit.test.ts
       line: 95
       name: parses a JSON export in Rust and estimates selected chats from the Rust
         per-chat inputs
       surface: gui.web
-    - &id24342
+    - &id24345
       path: frontend/packages/ui/src/services/rustCore/__tests__/transferSharedUnit.test.ts
       line: 107
       name: surfaces Rust errors verbatim and rethrows the browser JSON syntax error
       surface: gui.web
-    - &id24343
+    - &id24346
       path: frontend/packages/ui/src/services/rustCore/__tests__/transferSharedUnit.test.ts
       line: 116
       name: reads the ZIP entries Rust plans and passes page-parsed YAML for OpenMates
         archives
       surface: gui.web
-    - &id24344
+    - &id24347
       path: frontend/packages/ui/src/services/rustCore/__tests__/transferSharedUnit.test.ts
       line: 132
       name: slices scan batches at the Rust boundaries and refuses invalid sizes
       surface: gui.web
-    - &id24345
+    - &id24348
       path: frontend/packages/ui/src/services/rustCore/__tests__/transferSharedUnit.test.ts
       line: 142
       name: builds export filenames in Rust and throws the RangeError for an invalid
         creation time
       surface: gui.web
-    - &id24346
+    - &id24349
       path: frontend/packages/ui/src/services/rustCore/__tests__/transferSharedUnit.test.ts
       line: 149
       name: sends page-resolved chat values to Rust and returns its YAML unchanged
       surface: gui.web
-    - &id24347
+    - &id24350
       path: frontend/packages/ui/src/services/rustCore/__tests__/transferSharedUnit.test.ts
       line: 181
       name: serializes export payloads with well-formed strings and raw non-finite
         markers
       surface: gui.web
-    - &id24348
+    - &id24351
       path: frontend/packages/ui/src/services/rustCore/__tests__/transferZipVectors.test.ts
       line: 227
       name: TypeScript exporters and request builders match the committed vectors
       surface: gui.web
-    - &id24349
+    - &id24352
       path: frontend/packages/ui/src/services/rustCore/__tests__/transferZipVectors.test.ts
       line: 242
       name: covers the odd inputs the Rust port must reproduce
       surface: gui.web
-    - &id24350
+    - &id24353
       path: frontend/packages/ui/src/services/rustCore/__tests__/transferZipVectors.test.ts
       line: 252
       name: resolves every plan source to the page data it names
       surface: gui.web
-    - &id24351
+    - &id24354
       path: frontend/packages/ui/src/services/rustCore/__tests__/transitionVectors.test.ts
       line: 37
       name: window pruning and preservation match the committed vectors
       surface: gui.web
-    - &id24352
+    - &id24355
       path: frontend/packages/ui/src/services/rustCore/__tests__/transitionVectors.test.ts
       line: 53
       name: timeline merge, exchange index, response and pairing match the committed
         vectors
       surface: gui.web
-    - &id24353
+    - &id24356
       path: frontend/packages/ui/src/services/rustCore/__tests__/transitionVectors.test.ts
       line: 72
       name: activity grouping matches the committed vectors
       surface: gui.web
-    - &id24354
+    - &id24357
       path: frontend/packages/ui/src/services/rustCore/__tests__/transitionVectors.test.ts
       line: 81
       name: indicator decisions match the committed vectors
       surface: gui.web
-    - &id24355
+    - &id24358
       path: frontend/packages/ui/src/services/rustCore/__tests__/transitionVectors.test.ts
       line: 141
       name: prunes, merges, indexes, pairs and groups like the TypeScript it replaces
       surface: gui.web
-    - &id24356
+    - &id24359
       path: frontend/packages/ui/src/services/rustCore/__tests__/transitionVectors.test.ts
       line: 178
       name: answers the indicator decisions of every vector
       surface: gui.web
-    - &id24357
+    - &id24360
       path: frontend/packages/ui/src/services/rustCore/__tests__/wsPolicyVectors.test.ts
       line: 157
       name: close events behave as the committed close and session vectors
       surface: gui.web
-    - &id24358
+    - &id24361
       path: frontend/packages/ui/src/services/rustCore/__tests__/wsPolicyVectors.test.ts
       line: 191
       name: reconnect backoff matches the committed vectors
       surface: gui.web
-    - &id24359
+    - &id24362
       path: frontend/packages/ui/src/services/rustCore/__tests__/wsPolicyVectors.test.ts
       line: 201
       name: pong timeouts behave as the committed vectors
       surface: gui.web
-    - &id24360
+    - &id24363
       path: frontend/packages/ui/src/services/rustCore/__tests__/wsPolicyVectors.test.ts
       line: 230
       name: online, connection change, resume and periodic retry behave as the committed
         vectors
       surface: gui.web
-    - &id24361
+    - &id24364
       path: frontend/packages/ui/src/services/rustCore/__tests__/wsSharedUnit.test.ts
       line: 90
       name: refuses a binding without the ws exports
       surface: gui.web
-    - &id24362
+    - &id24365
       path: frontend/packages/ui/src/services/rustCore/__tests__/wsSharedUnit.test.ts
       line: 97
       name: applies every close vector to the host as the TypeScript onclose does
       surface: gui.web
-    - &id24363
+    - &id24366
       path: frontend/packages/ui/src/services/rustCore/__tests__/wsSharedUnit.test.ts
       line: 119
       name: checks the REST session on repeated 1006 closures and ends in an auth
         error or a fresh reconnect
       surface: gui.web
-    - &id24364
+    - &id24367
       path: frontend/packages/ui/src/services/rustCore/__tests__/wsSharedUnit.test.ts
       line: 130
       name: applies pong, lifecycle and periodic vectors
       surface: gui.web
-    - &id24365
+    - &id24368
       path: frontend/packages/ui/src/services/rustCore/__tests__/wsSharedUnit.test.ts
       line: 155
       name: rejects with the fixed protocol code instead of falling back to TypeScript
       surface: gui.web
-    - &id24366
+    - &id24369
       path: frontend/packages/ui/src/services/rustCore/embeds/__tests__/readOps.test.ts
       line: 24
       name: applies patches per item and maps a Rust refusal to a fixed code
       surface: gui.web
-    - &id24367
+    - &id24370
       path: frontend/packages/ui/src/services/rustCore/embeds/__tests__/readOps.test.ts
       line: 30
       name: refuses malformed requests and protocol faults
       surface: gui.web
-    - &id24368
+    - &id24371
       path: frontend/packages/ui/src/services/rustCore/embeds/__tests__/readOps.test.ts
       line: 38
       name: marshals embed event admission facts to the binding and refuses malformed
@@ -191062,6 +191078,9 @@ assertions:
     - *id24366
     - *id24367
     - *id24368
+    - *id24369
+    - *id24370
+    - *id24371
     surfaces:
       gui.web:
         direct_tests: []
@@ -191241,6 +191260,9 @@ assertions:
         - *id24366
         - *id24367
         - *id24368
+        - *id24369
+        - *id24370
+        - *id24371
     current_direct_proof: false
   sdk.migration.ordered-client-rollout:
     specification: surface.sdk@1
@@ -191255,84 +191277,81 @@ assertions:
     fingerprint: 07669ea25a158a0413532fdbad626763e36749f766d764ac5a04914134c61717
     direct_tests: []
     supporting_tests:
-    - &id24369
+    - &id24372
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
       line: 1106
       name: authenticated startup observes HTTP-cache cold fill and two same-route
         warm reloads
       surface: gui.web
-    - &id24370
+    - &id24373
       path: frontend/apps/web_app/tests/web-rust-core-apps.spec.ts
       line: 69
       name: guest Apps skill runs on the shared Rust apps unit with one Worker and
         one WASM instance
       surface: gui.web
-    - &id24371
+    - &id24374
       path: frontend/apps/web_app/tests/web-rust-core-auth.spec.ts
       line: 217
       name: Rust login, restore and logout match the TypeScript requests and cookies
       surface: gui.web
-    - &id24372
+    - &id24375
       path: frontend/apps/web_app/tests/web-rust-core-chat.spec.ts
       line: 157
       name: opens a saved chat in the normal chat UI from Rust-decrypted history
       surface: gui.web
-    - &id24373
+    - &id24376
       path: frontend/apps/web_app/tests/web-rust-core-chatstate.spec.ts
       line: 46
       name: chat list ordering and grouping run on the shared Rust chatState unit
         and the sidebar renders the same chats
       surface: gui.web
-    - &id24374
+    - &id24377
       path: frontend/apps/web_app/tests/web-rust-core-crypto.spec.ts
       line: 117
       name: TS-created chats, embeds and share links decrypt through the Rust web
         crypto core
       surface: gui.web
-    - &id24375
+    - &id24378
       path: frontend/apps/web_app/tests/web-rust-core-embeds.spec.ts
       line: 57
       name: Rust core decrypts saved embeds; preview renders and fullscreen opens
       surface: gui.web
-    - &id24376
+    - &id24379
       path: frontend/apps/web_app/tests/web-rust-core-search.spec.ts
       line: 56
       name: Rust search unit finds saved chat messages with the same snippets as TS
       surface: gui.web
-    - &id24377
+    - &id24380
       path: frontend/apps/web_app/tests/web-rust-core-sync.spec.ts
       line: 40
       name: phased sync decisions run on the shared Rust sync unit and existing chats
         still sync and decrypt
       surface: gui.web
-    - &id24378
+    - &id24381
       path: frontend/apps/web_app/tests/web-rust-core-transfer.spec.ts
       line: 81
       name: account import parses every export format identically on the shared Rust
         transfer unit
       surface: gui.web
-    - &id24379
+    - &id24382
       path: frontend/apps/web_app/tests/web-rust-core-transfer.spec.ts
       line: 195
       name: chat download builds the identical YAML file on the shared Rust transfer
         unit
       surface: gui.web
-    - &id24380
+    - &id24383
       path: frontend/apps/web_app/tests/web-rust-core-transfer.spec.ts
       line: 285
       name: account export builds the identical archive on the shared Rust transfer
         unit
       surface: gui.web
-    - &id24381
+    - &id24384
       path: frontend/apps/web_app/tests/web-rust-core-ws.spec.ts
       line: 30
       name: websocket close and reconnect decisions run on the shared Rust ws unit
         and the connection recovers
       surface: gui.web
     tests:
-    - *id24369
-    - *id24370
-    - *id24371
     - *id24372
     - *id24373
     - *id24374
@@ -191343,13 +191362,13 @@ assertions:
     - *id24379
     - *id24380
     - *id24381
+    - *id24382
+    - *id24383
+    - *id24384
     surfaces:
       gui.web:
         direct_tests: []
         supporting_tests:
-        - *id24369
-        - *id24370
-        - *id24371
         - *id24372
         - *id24373
         - *id24374
@@ -191360,6 +191379,9 @@ assertions:
         - *id24379
         - *id24380
         - *id24381
+        - *id24382
+        - *id24383
+        - *id24384
     current_direct_proof: false
   sdk.distribution.separate-rust-crate:
     specification: surface.sdk@1
@@ -191381,250 +191403,247 @@ assertions:
     specification: surface.sdk@1
     fingerprint: 45db2d9b1bcb7840262ebf0b0581fafcc8cd5684cc9ad21ff8f3c6b6f40dcc72
     direct_tests:
-    - &id24382
+    - &id24385
       path: backend/tests/test_account_export_security.py
       line: 30
       name: test_account_export_api_key_access_requires_approved_device_and_export_scope
       surface: rest_api
-    - &id24384
+    - &id24387
       path: backend/tests/test_account_import_security.py
       line: 41
       name: test_account_import_api_key_access_requires_import_scope
       surface: rest_api
-    - &id24385
+    - &id24388
       path: backend/tests/test_account_import_security.py
       line: 67
       name: test_account_import_api_key_access_requires_approved_device
       surface: rest_api
-    - &id24388
+    - &id24391
       path: backend/tests/test_api_key_authoritative_auth.py
       line: 54
       name: test_sdk_device_identity_is_stable_and_never_bypasses_approval
       surface: rest_api
-    - &id24389
+    - &id24392
       path: backend/tests/test_api_key_authoritative_auth.py
       line: 76
       name: test_unknown_sdk_header_stays_ip_scoped_rest_access
       surface: rest_api
-    - &id24390
+    - &id24393
       path: backend/tests/test_api_key_scopes.py
       line: 29
       name: test_full_access_default_allows_chat_and_any_skill
       surface: rest_api
-    - &id24391
+    - &id24394
       path: backend/tests/test_api_key_scopes.py
       line: 40
       name: test_direct_app_skill_dispatch_rejects_unselected_ai_ask_scope
       surface: rest_api
-    - &id24392
+    - &id24395
       path: backend/tests/test_api_key_scopes.py
       line: 60
       name: test_openai_ai_dispatch_rejects_unselected_ai_ask_scope
       surface: rest_api
-    - &id24393
+    - &id24396
       path: backend/tests/test_api_key_scopes.py
       line: 79
       name: test_app_skill_scope_can_allow_one_skill_only
       surface: rest_api
-    - &id24394
+    - &id24397
       path: backend/tests/test_api_key_scopes.py
       line: 100
       name: test_chat_scopes_are_enforced_independently
       surface: rest_api
-    - &id24395
+    - &id24398
       path: backend/tests/test_api_key_scopes.py
       line: 119
       name: test_scope_payload_validation_accepts_canonical_scopes_and_rejects_unknown_values
       surface: rest_api
-    - &id24396
+    - &id24399
       path: backend/tests/test_api_key_scopes.py
       line: 141
       name: test_scope_payload_validation_deduplicates_selected_values
       surface: rest_api
-    - &id24397
+    - &id24400
       path: backend/tests/test_api_key_scopes.py
       line: 171
       name: test_one_period_credit_budget_blocks_when_request_would_exceed_limit
       surface: rest_api
-    - &id24398
+    - &id24401
       path: backend/tests/test_api_key_scopes.py
       line: 184
       name: test_multiple_credit_periods_are_rejected
       surface: rest_api
-    - &id24399
+    - &id24402
       path: backend/tests/test_api_key_scopes.py
       line: 199
       name: test_owned_api_key_device_verification_uses_device_owner_hash
       surface: rest_api
-    - &id24400
+    - &id24403
       path: backend/tests/test_api_key_scopes.py
       line: 212
       name: test_owned_api_key_device_verification_rejects_other_users
       surface: rest_api
-    - &id24401
+    - &id24404
       path: backend/tests/test_api_key_scopes.py
       line: 224
       name: test_api_key_device_dedupe_prefers_approved_duplicate
       surface: rest_api
-    - &id24402
+    - &id24405
       path: backend/tests/test_api_key_scopes.py
       line: 282
       name: test_approve_api_key_device_invalidates_injected_cache
       surface: rest_api
-    - &id24403
+    - &id24406
       path: backend/tests/test_sdk_chat_fork_rewind.py
       line: 410
       name: test_chat_rewind_scope_requires_read_and_delete
       surface: rest_api
-    - &id24408
+    - &id24411
       path: backend/tests/test_workflows_routes_security.py
       line: 213
       name: test_limited_workflow_api_keys_need_read_write_and_execute_scopes
       surface: rest_api
-    - &id24409
+    - &id24412
       path: backend/tests/test_workflows_routes_security.py
       line: 232
       name: test_user_task_and_plan_content_routes_reject_developer_api_keys
       surface: rest_api
-    - &id24410
+    - &id24413
       path: backend/tests/test_workflows_routes_security.py
       line: 268
       name: test_approved_api_key_device_can_use_encrypted_task_and_plan_routes_with_scopes
       surface: rest_api
-    - &id24411
+    - &id24414
       path: backend/tests/test_workflows_routes_security.py
       line: 297
       name: test_approved_api_key_device_project_crud_requires_project_scopes
       surface: rest_api
-    - &id24412
+    - &id24415
       path: backend/tests/test_workflows_routes_security.py
       line: 323
       name: test_create_only_product_scopes_do_not_grant_read_or_modify_access
       surface: rest_api
-    - &id24413
+    - &id24416
       path: backend/tests/test_workflows_routes_security.py
       line: 368
       name: test_full_access_approved_device_bypasses_supported_product_scope_checks
       surface: rest_api
-    - &id24414
+    - &id24417
       path: backend/tests/test_workflows_routes_security.py
       line: 385
       name: test_unmapped_api_key_routes_fail_closed_except_app_routes
       surface: rest_api
-    - &id24416
+    - &id24419
       path: backend/tests/test_workflows_routes_security.py
       line: 504
       name: test_ask_step_stream_uses_owner_scoped_workflow_and_emits_saved_run
       surface: rest_api
-    - &id24425
+    - &id24428
       path: frontend/apps/web_app/tests/device-approval-sensitive-flow.spec.ts
       line: 13
       name: API-key device approval retries against the server after same-session
         TOTP proof
       surface: gui.web
-    - &id24426
+    - &id24429
       path: frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts
       line: 306
       name: Rust-written Projects, Tasks and Plans are decrypted, updated and deleted
         by npm and pip
       surface: sdks.rust
-    - &id24427
+    - &id24430
       path: frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts
       line: 313
       name: npm-written Projects, Tasks and Plans are decrypted, updated and deleted
         by pip and Rust
       surface: sdks.npm
-    - &id24428
+    - &id24431
       path: frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts
       line: 320
       name: pip-written Projects, Tasks and Plans are decrypted, updated and deleted
         by Rust and npm
       surface: sdks.pip
     supporting_tests:
-    - &id24383
+    - &id24386
       path: backend/tests/test_account_import_security.py
       line: 26
       name: test_account_import_routes_have_explicit_slowapi_limits
       surface: rest_api
-    - &id24386
+    - &id24389
       path: backend/tests/test_account_import_security.py
       line: 83
       name: test_account_import_plaintext_and_completion_payloads_are_size_limited
       surface: rest_api
-    - &id24387
+    - &id24390
       path: backend/tests/test_account_import_security.py
       line: 101
       name: test_plaintext_scan_route_does_not_write_client_chats_to_request_state
       surface: rest_api
-    - &id24404
+    - &id24407
       path: backend/tests/test_sdk_chat_recovery.py
       line: 141
       name: test_api_key_or_device_revocation_between_claim_and_persist_is_rejected
       surface: rest_api
-    - &id24405
+    - &id24408
       path: backend/tests/test_sdk_chat_recovery.py
       line: 165
       name: test_claim_rejects_missing_saved_chat_scope
       surface: rest_api
-    - &id24406
+    - &id24409
       path: backend/tests/test_sdk_cli_parity_api_key_auth.py
       line: 1030
       name: test_sdk_exact_message_requires_owner_and_caps_selected_ciphertext
       surface: rest_api
-    - &id24407
+    - &id24410
       path: backend/tests/test_workflows_routes_security.py
       line: 26
       name: test_workflow_routes_have_explicit_slowapi_limits
       surface: rest_api
-    - &id24415
+    - &id24418
       path: backend/tests/test_workflows_routes_security.py
       line: 408
       name: test_project_remote_source_routes_remain_session_only
       surface: rest_api
-    - &id24417
+    - &id24420
       path: frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
       line: 85
       name: switches from full access to independent scope toggles
       surface: gui.web
-    - &id24418
+    - &id24421
       path: frontend/apps/web_app/tests/api-keys-flow.spec.ts
       line: 405
       name: creates an API key, verifies format, and deletes it
       surface: gui.web
-    - &id24419
+    - &id24422
       path: frontend/apps/web_app/tests/api-keys-flow.spec.ts
       line: 519
       name: create button is disabled when API key name is empty
       surface: gui.web
-    - &id24420
+    - &id24423
       path: frontend/apps/web_app/tests/api-keys-flow.spec.ts
       line: 615
       name: creates a limited API key with individual scope toggles
       surface: gui.web
-    - &id24421
+    - &id24424
       path: frontend/apps/web_app/tests/api-keys-flow.spec.ts
       line: 757
       name: creates API key, verifies device approval flow, and saves working key
       surface: gui.web
-    - &id24422
+    - &id24425
       path: frontend/apps/web_app/tests/api-keys-flow.spec.ts
       line: 969
       name: shows limit warning and disabled create button when 5 API keys exist
       surface: gui.web
-    - &id24423
+    - &id24426
       path: frontend/apps/web_app/tests/components/settings-devices-sensitive.spec.ts
       line: 32
       name: device approval verifies the session and retries the captured action once
       surface: gui.web
-    - &id24424
+    - &id24427
       path: frontend/apps/web_app/tests/components/settings-devices-sensitive.spec.ts
       line: 118
       name: revoke confirmation is not repeated after proof, and denied retries stop
       surface: gui.web
     tests:
-    - *id24382
-    - *id24383
-    - *id24384
     - *id24385
     - *id24386
     - *id24387
@@ -191669,15 +191688,15 @@ assertions:
     - *id24426
     - *id24427
     - *id24428
+    - *id24429
+    - *id24430
+    - *id24431
     surfaces:
       rest_api:
         direct_tests:
-        - *id24382
-        - *id24384
         - *id24385
+        - *id24387
         - *id24388
-        - *id24389
-        - *id24390
         - *id24391
         - *id24392
         - *id24393
@@ -191691,193 +191710,193 @@ assertions:
         - *id24401
         - *id24402
         - *id24403
-        - *id24408
-        - *id24409
-        - *id24410
+        - *id24404
+        - *id24405
+        - *id24406
         - *id24411
         - *id24412
         - *id24413
         - *id24414
-        - *id24416
-        supporting_tests:
-        - *id24383
-        - *id24386
-        - *id24387
-        - *id24404
-        - *id24405
-        - *id24406
-        - *id24407
         - *id24415
+        - *id24416
+        - *id24417
+        - *id24419
+        supporting_tests:
+        - *id24386
+        - *id24389
+        - *id24390
+        - *id24407
+        - *id24408
+        - *id24409
+        - *id24410
+        - *id24418
       gui.web:
         direct_tests:
-        - *id24425
+        - *id24428
         supporting_tests:
-        - *id24417
-        - *id24418
-        - *id24419
         - *id24420
         - *id24421
         - *id24422
         - *id24423
         - *id24424
+        - *id24425
+        - *id24426
+        - *id24427
       sdks.rust:
         direct_tests:
-        - *id24426
+        - *id24429
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id24427
+        - *id24430
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id24428
+        - *id24431
         supporting_tests: []
     current_direct_proof: false
   sdk.encryption.local-only:
     specification: surface.sdk@1
     fingerprint: ceef05fbcbd968d06fd076d15893102a7c3ede31baca500763ce682c8d86aac3
     direct_tests:
-    - &id24429
+    - &id24432
       path: backend/tests/test_sdk_chat_fork_rewind.py
       line: 237
       name: test_fork_persists_client_encrypted_chat_and_messages
       surface: rest_api
-    - &id24430
+    - &id24433
       path: backend/tests/test_sdk_chat_fork_rewind.py
       line: 254
       name: test_fork_rejects_plaintext_or_unsupported_chat
       surface: rest_api
-    - &id24431
+    - &id24434
       path: backend/tests/test_sdk_session.py
       line: 29
       name: test_sdk_session_returns_api_key_wrapper_without_plaintext_master_key
       surface: rest_api
-    - &id24432
+    - &id24435
       path: frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts
       line: 306
       name: Rust-written Projects, Tasks and Plans are decrypted, updated and deleted
         by npm and pip
       surface: sdks.rust
-    - &id24433
+    - &id24436
       path: frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts
       line: 313
       name: npm-written Projects, Tasks and Plans are decrypted, updated and deleted
         by pip and Rust
       surface: sdks.npm
-    - &id24434
+    - &id24437
       path: frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts
       line: 320
       name: pip-written Projects, Tasks and Plans are decrypted, updated and deleted
         by Rust and npm
       surface: sdks.pip
-    - &id24435
+    - &id24438
       path: frontend/packages/openmates-cli/tests/key-wrappers.test.ts
       line: 46
       name: decrypts loaded chats using master wrapper rows before row-level fallback
       surface: sdks.npm
-    - &id24436
+    - &id24439
       path: frontend/packages/openmates-cli/tests/sdk-projects.test.ts
       line: 89
       name: provides explicit Personal and Team encrypted CRUD without live file methods
       surface: sdks.npm
-    - &id24437
+    - &id24440
       path: frontend/packages/openmates-cli/tests/sdk-projects.test.ts
       line: 174
       name: links and unlinks embeds, chats, and workflows as OpenMates-only Project
         items
       surface: sdks.npm
-    - &id24441
+    - &id24444
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
       line: 128
       name: manages workflows through the shared API contract
       surface: sdks.npm
-    - &id24442
+    - &id24445
       path: frontend/packages/openmates-cli/tests/sdk.test.ts
       line: 972
       name: lazily unwraps API-key session material and decrypts listed chat metadata
       surface: sdks.npm
-    - &id24443
+    - &id24446
       path: frontend/packages/openmates-cli/tests/sdk.test.ts
       line: 1016
       name: searches decrypted chat metadata locally without a server plaintext search
         endpoint
       surface: sdks.npm
-    - &id24444
+    - &id24447
       path: frontend/packages/openmates-cli/tests/sdk.test.ts
       line: 1064
       name: resolves encrypted saved chat slugs locally before loading a chat
       surface: sdks.npm
-    - &id24445
+    - &id24448
       path: packages/openmates-python/tests/test_key_wrappers.py
       line: 29
       name: test_pip_sdk_decrypts_chat_with_master_wrapper_before_row_key
       surface: sdks.pip
-    - &id24446
+    - &id24449
       path: packages/openmates-python/tests/test_plans.py
       line: 278
       name: test_pip_sdk_plan_show_resolves_encrypted_slug_from_raw_list
       surface: sdks.pip
-    - &id24447
+    - &id24450
       path: packages/openmates-python/tests/test_projects.py
       line: 51
       name: test_pip_sdk_project_links_are_openmates_only
       surface: sdks.pip
-    - &id24448
+    - &id24451
       path: packages/openmates-python/tests/test_projects.py
       line: 156
       name: test_pip_sdk_projects_explicit_personal_and_team_crud
       surface: sdks.pip
-    - &id24449
+    - &id24452
       path: packages/openmates-python/tests/test_sdk.py
       line: 971
       name: test_workflow_workspace_methods_match_npm_sdk_contract
       surface: sdks.pip
-    - &id24450
+    - &id24453
       path: packages/openmates-python/tests/test_sdk.py
       line: 1566
       name: test_lazily_unwraps_api_key_session_and_decrypts_chat_metadata
       surface: sdks.pip
-    - &id24451
+    - &id24454
       path: packages/openmates-python/tests/test_sdk.py
       line: 1618
       name: test_searches_decrypted_chat_metadata_locally
       surface: sdks.pip
-    - &id24454
+    - &id24457
       path: packages/openmates-python/tests/test_workflows.py
       line: 59
       name: test_pip_sdk_workflow_methods_use_shared_workflows_api
       surface: sdks.pip
     supporting_tests:
-    - &id24438
+    - &id24441
       path: frontend/packages/openmates-cli/tests/sdk-session-app-skill.test.ts
       line: 28
       name: actual supported toJSON cancellation rejects original call before any
         native prepare
       surface: sdks.npm
-    - &id24439
+    - &id24442
       path: frontend/packages/openmates-cli/tests/sdk-session-app-skill.test.ts
       line: 36
       name: actual serialization getter retirement rejects before native dispatch
       surface: sdks.npm
-    - &id24440
+    - &id24443
       path: frontend/packages/openmates-cli/tests/sdk-session-drafts.test.ts
       line: 8
       name: draft wrappers forward closed Rust options, preserve null and remain read-only
       surface: sdks.npm
-    - &id24452
+    - &id24455
       path: packages/openmates-python/tests/test_session_app_skill.py
       line: 136
       name: test_actual_stdlib_dict_items_hook_cancels_before_native_prepare
       surface: sdks.pip
-    - &id24453
+    - &id24456
       path: packages/openmates-python/tests/test_session_app_skill.py
       line: 160
       name: test_scheduled_encoder_hook_cancel_is_checked_inside_actual_native_callable
       surface: sdks.pip
     tests:
-    - *id24429
-    - *id24430
-    - *id24431
     - *id24432
     - *id24433
     - *id24434
@@ -191901,167 +191920,167 @@ assertions:
     - *id24452
     - *id24453
     - *id24454
+    - *id24455
+    - *id24456
+    - *id24457
     surfaces:
       rest_api:
         direct_tests:
-        - *id24429
-        - *id24430
-        - *id24431
+        - *id24432
+        - *id24433
+        - *id24434
         supporting_tests: []
       sdks.rust:
         direct_tests:
-        - *id24432
+        - *id24435
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id24433
-        - *id24435
         - *id24436
-        - *id24437
-        - *id24441
-        - *id24442
-        - *id24443
-        - *id24444
-        supporting_tests:
         - *id24438
         - *id24439
         - *id24440
-      sdks.pip:
-        direct_tests:
-        - *id24434
+        - *id24444
         - *id24445
         - *id24446
         - *id24447
+        supporting_tests:
+        - *id24441
+        - *id24442
+        - *id24443
+      sdks.pip:
+        direct_tests:
+        - *id24437
         - *id24448
         - *id24449
         - *id24450
         - *id24451
-        - *id24454
-        supporting_tests:
         - *id24452
         - *id24453
+        - *id24454
+        - *id24457
+        supporting_tests:
+        - *id24455
+        - *id24456
     current_direct_proof: false
   sdk.auth.api-key-only:
     specification: surface.sdk@1
     fingerprint: 444b0a7216cd664c530e090e222cf24599f65f8effc207b085d062ed116b81ef
     direct_tests:
-    - &id24455
+    - &id24458
       path: packages/openmates-python/tests/test_root_client_api_key_only.py
       line: 20
       name: test_missing_api_key_is_typed_construction_error_without_env_fallback
       surface: sdks.pip
-    - &id24456
+    - &id24459
       path: packages/openmates-python/tests/test_root_client_api_key_only.py
       line: 39
       name: test_shared_missing_key_vectors_match_npm_and_rust
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id24455
-    - *id24456
+    - *id24458
+    - *id24459
     surfaces:
       sdks.pip:
         direct_tests:
-        - *id24455
-        - *id24456
+        - *id24458
+        - *id24459
         supporting_tests: []
     current_direct_proof: false
   sdk.auth.credential-separation:
     specification: surface.sdk@1
     fingerprint: 7284685ec1554b83e97bfaf7cb97de8796d9de9f1267dda81c6508310fc97ab5
     direct_tests:
-    - &id24457
+    - &id24460
       path: backend/tests/test_sdk_session.py
       line: 29
       name: test_sdk_session_returns_api_key_wrapper_without_plaintext_master_key
       surface: rest_api
-    - &id24458
+    - &id24461
       path: frontend/packages/openmates-cli/tests/crypto.test.ts
       line: 348
       name: creates web-compatible API key material without exposing plaintext fields
       surface: cli
-    - &id24459
+    - &id24462
       path: frontend/packages/openmates-cli/tests/key-wrappers.test.ts
       line: 46
       name: decrypts loaded chats using master wrapper rows before row-level fallback
       surface: sdks.npm
-    - &id24464
+    - &id24467
       path: frontend/packages/openmates-cli/tests/sdk-credential-separation.test.ts
       line: 10
       name: sends only the bearer and cannot unwrap the account key with that bearer
       surface: sdks.npm
-    - &id24465
+    - &id24468
       path: frontend/packages/openmates-cli/tests/sdk-root-client-api-key-only.test.ts
       line: 32
       name: root OpenMatesClient requires an explicit API key and never uses the CLI
         login
       surface: sdks.npm
-    - &id24466
+    - &id24469
       path: packages/openmates-python/tests/test_key_wrappers.py
       line: 29
       name: test_pip_sdk_decrypts_chat_with_master_wrapper_before_row_key
       surface: sdks.pip
-    - &id24472
+    - &id24475
       path: packages/openmates-python/tests/test_sdk_cli_login_isolation.py
       line: 39
       name: test_api_key_sdk_never_reads_or_sends_cli_login
       surface: sdks.pip
-    - &id24473
+    - &id24476
       path: packages/openmates-python/tests/test_sdk_credential_separation.py
       line: 13
       name: test_python_sdk_sends_bearer_only_and_bearer_cannot_unwrap
       surface: sdks.pip
     supporting_tests:
-    - &id24460
+    - &id24463
       path: frontend/packages/openmates-cli/tests/sdk-api-key-rust.test.ts
       line: 8
       name: original request precedes native startup and synchronous release; cleanup
         exact
       surface: sdks.npm
-    - &id24461
+    - &id24464
       path: frontend/packages/openmates-cli/tests/sdk-api-key-rust.test.ts
       line: 10
       name: serialization side effect cannot replace original admitted request
       surface: sdks.npm
-    - &id24462
+    - &id24465
       path: frontend/packages/openmates-cli/tests/sdk-api-key-rust.test.ts
       line: 12
       name: A abort drains real pending promise and leaves successor B untouched
       surface: sdks.npm
-    - &id24463
+    - &id24466
       path: frontend/packages/openmates-cli/tests/sdk-api-key-rust.test.ts
       line: 14
       name: raw native failures are fixed safe errors
       surface: sdks.npm
-    - &id24467
+    - &id24470
       path: packages/openmates-python/tests/test_root_credential_boundary.py
       line: 13
       name: test_root_api_key_credentials_ignore_cli_state
       surface: sdks.pip
-    - &id24468
+    - &id24471
       path: packages/openmates-python/tests/test_rust_api_key.py
       line: 17
       name: test_original_request_before_scheduled_call_and_allocation
       surface: sdks.pip
-    - &id24469
+    - &id24472
       path: packages/openmates-python/tests/test_rust_api_key.py
       line: 50
       name: test_cancelled_a_drains_and_b_uses_own_request
       surface: sdks.pip
-    - &id24470
+    - &id24473
       path: packages/openmates-python/tests/test_rust_api_key.py
       line: 107
       name: test_serialization_after_original_admission
       surface: sdks.pip
-    - &id24471
+    - &id24474
       path: packages/openmates-python/tests/test_rust_api_key.py
       line: 133
       name: test_raw_native_failure_is_safe
       surface: sdks.pip
     tests:
-    - *id24457
-    - *id24458
-    - *id24459
     - *id24460
     - *id24461
     - *id24462
@@ -192076,797 +192095,797 @@ assertions:
     - *id24471
     - *id24472
     - *id24473
+    - *id24474
+    - *id24475
+    - *id24476
     surfaces:
       rest_api:
         direct_tests:
-        - *id24457
+        - *id24460
         supporting_tests: []
       cli:
         direct_tests:
-        - *id24458
+        - *id24461
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id24459
-        - *id24464
-        - *id24465
-        supporting_tests:
-        - *id24460
-        - *id24461
         - *id24462
-        - *id24463
-      sdks.pip:
-        direct_tests:
-        - *id24466
-        - *id24472
-        - *id24473
-        supporting_tests:
         - *id24467
         - *id24468
+        supporting_tests:
+        - *id24463
+        - *id24464
+        - *id24465
+        - *id24466
+      sdks.pip:
+        direct_tests:
         - *id24469
+        - *id24475
+        - *id24476
+        supporting_tests:
         - *id24470
         - *id24471
+        - *id24472
+        - *id24473
+        - *id24474
     current_direct_proof: false
   sdk.auth.limited-resource-keys:
     specification: surface.sdk@1
     fingerprint: 920b91920ebf305e09e8518d5aaa6e9a6dd221b2fa590f07e8e1288977c4e6d7
     direct_tests:
-    - &id24474
+    - &id24477
       path: backend/tests/test_sdk_session.py
       line: 76
       name: test_limited_sdk_session_never_exports_account_master_wrapper
       surface: rest_api
-    - &id24475
+    - &id24478
       path: backend/tests/test_sdk_session.py
       line: 102
       name: test_limited_sdk_session_returns_only_still_owned_project_grants
       surface: rest_api
-    - &id24476
+    - &id24479
       path: backend/tests/test_sdk_session.py
       line: 137
       name: test_project_grant_creation_rejects_foreign_resource_and_root_scope
       surface: rest_api
-    - &id24477
+    - &id24480
       path: frontend/packages/openmates-cli/tests/sdk-projects.test.ts
       line: 54
       name: decrypts only selected personal Projects with a limited key
       surface: sdks.npm
-    - &id24478
+    - &id24481
       path: packages/openmates-python/tests/test_projects.py
       line: 25
       name: test_limited_pip_project_key_grant_cannot_decrypt_unrelated_project
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id24474
-    - *id24475
-    - *id24476
     - *id24477
     - *id24478
+    - *id24479
+    - *id24480
+    - *id24481
     surfaces:
       rest_api:
         direct_tests:
-        - *id24474
-        - *id24475
-        - *id24476
+        - *id24477
+        - *id24478
+        - *id24479
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id24477
+        - *id24480
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id24478
+        - *id24481
         supporting_tests: []
     current_direct_proof: false
   sdk.auth.legacy-key-migration:
     specification: surface.sdk@1
     fingerprint: 3c7c28ddef81a1933f48d2441a96050c6398085cd6dc07ea9c84fd6a19326ad1
     direct_tests:
-    - &id24479
+    - &id24482
       path: frontend/packages/openmates-cli/tests/sdk-credential-separation.test.ts
       line: 40
       name: returns a typed first-party verification exclusion for key management
       surface: sdks.npm
-    - &id24480
+    - &id24483
       path: packages/openmates-python/tests/test_sdk_credential_separation.py
       line: 39
       name: test_python_sdk_key_management_requires_first_party_verification
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id24479
-    - *id24480
+    - *id24482
+    - *id24483
     surfaces:
       sdks.npm:
         direct_tests:
-        - *id24479
+        - *id24482
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id24480
+        - *id24483
         supporting_tests: []
     current_direct_proof: false
   sdk.surface.semantic-parity:
     specification: surface.sdk@1
     fingerprint: 022e3117b0f30c400783e42d3c241ee9d651c97c9aa18412f29f9e13906635bc
     direct_tests:
-    - &id24481
+    - &id24484
       path: backend/tests/test_sdk_chat_fork_rewind.py
       line: 254
       name: test_fork_rejects_plaintext_or_unsupported_chat
       surface: rest_api
-    - &id24482
+    - &id24485
       path: backend/tests/test_sdk_chat_fork_rewind.py
       line: 275
       name: test_rewind_requires_confirmation_then_deletes_tail_and_versions
       surface: rest_api
-    - &id24483
+    - &id24486
       path: backend/tests/test_sdk_chat_fork_rewind.py
       line: 314
       name: test_rewind_dry_run_and_version_conflict
       surface: rest_api
-    - &id24484
+    - &id24487
       path: backend/tests/test_sdk_chat_fork_rewind.py
       line: 410
       name: test_chat_rewind_scope_requires_read_and_delete
       surface: rest_api
-    - &id24485
+    - &id24488
       path: frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts
       line: 306
       name: Rust-written Projects, Tasks and Plans are decrypted, updated and deleted
         by npm and pip
       surface: sdks.rust
-    - &id24486
+    - &id24489
       path: frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts
       line: 313
       name: npm-written Projects, Tasks and Plans are decrypted, updated and deleted
         by pip and Rust
       surface: sdks.npm
-    - &id24487
+    - &id24490
       path: frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts
       line: 320
       name: pip-written Projects, Tasks and Plans are decrypted, updated and deleted
         by Rust and npm
       surface: sdks.pip
-    - &id24488
+    - &id24491
       path: frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts
       line: 327
       name: SDK docs list has the same live outcome in Rust, npm and pip
       surface: sdks.rust
-    - &id24547
+    - &id24550
       path: frontend/packages/openmates-cli/tests/sdk-credential-separation.test.ts
       line: 40
       name: returns a typed first-party verification exclusion for key management
       surface: sdks.npm
-    - &id24553
+    - &id24556
       path: frontend/packages/openmates-cli/tests/sdk-projects.test.ts
       line: 89
       name: provides explicit Personal and Team encrypted CRUD without live file methods
       surface: sdks.npm
-    - &id24554
+    - &id24557
       path: frontend/packages/openmates-cli/tests/sdk-projects.test.ts
       line: 174
       name: links and unlinks embeds, chats, and workflows as OpenMates-only Project
         items
       surface: sdks.npm
-    - &id24561
+    - &id24564
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
       line: 128
       name: manages workflows through the shared API contract
       surface: sdks.npm
-    - &id24563
+    - &id24566
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
       line: 396
       name: manages workflow template sharing transport through the shared API contract
       surface: sdks.npm
-    - &id24564
+    - &id24567
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
       line: 442
       name: manages durable workflow input sessions
       surface: sdks.npm
-    - &id24566
+    - &id24569
       path: frontend/packages/openmates-cli/tests/sdk.test.ts
       line: 972
       name: lazily unwraps API-key session material and decrypts listed chat metadata
       surface: sdks.npm
-    - &id24567
+    - &id24570
       path: frontend/packages/openmates-cli/tests/sdk.test.ts
       line: 1016
       name: searches decrypted chat metadata locally without a server plaintext search
         endpoint
       surface: sdks.npm
-    - &id24568
+    - &id24571
       path: frontend/packages/openmates-cli/tests/sdk.test.ts
       line: 1064
       name: resolves encrypted saved chat slugs locally before loading a chat
       surface: sdks.npm
-    - &id24569
+    - &id24572
       path: frontend/packages/openmates-cli/tests/workflows-real-sdk-dev.test.ts
       line: 20
       name: creates a blank draft and runs it only after it becomes ready
       surface: sdks.npm
-    - &id24587
+    - &id24590
       path: packages/openmates-python/tests/test_projects.py
       line: 51
       name: test_pip_sdk_project_links_are_openmates_only
       surface: sdks.pip
-    - &id24588
+    - &id24591
       path: packages/openmates-python/tests/test_projects.py
       line: 156
       name: test_pip_sdk_projects_explicit_personal_and_team_crud
       surface: sdks.pip
-    - &id24589
+    - &id24592
       path: packages/openmates-python/tests/test_sdk.py
       line: 971
       name: test_workflow_workspace_methods_match_npm_sdk_contract
       surface: sdks.pip
-    - &id24590
+    - &id24593
       path: packages/openmates-python/tests/test_sdk.py
       line: 1566
       name: test_lazily_unwraps_api_key_session_and_decrypts_chat_metadata
       surface: sdks.pip
-    - &id24591
+    - &id24594
       path: packages/openmates-python/tests/test_sdk.py
       line: 1618
       name: test_searches_decrypted_chat_metadata_locally
       surface: sdks.pip
-    - &id24592
+    - &id24595
       path: packages/openmates-python/tests/test_sdk_anonymous.py
       line: 25
       name: test_keyless_skill_and_status_share_persisted_identity
       surface: sdks.pip
-    - &id24593
+    - &id24596
       path: packages/openmates-python/tests/test_sdk_anonymous.py
       line: 90
       name: test_authenticated_failures_never_fall_back_to_guest
       surface: sdks.pip
-    - &id24594
+    - &id24597
       path: packages/openmates-python/tests/test_sdk_credential_separation.py
       line: 39
       name: test_python_sdk_key_management_requires_first_party_verification
       surface: sdks.pip
-    - &id24603
+    - &id24606
       path: packages/openmates-python/tests/test_work_control.py
       line: 9
       name: test_pip_work_control_facades_exclude_plan_approval
       surface: sdks.pip
-    - &id24604
+    - &id24607
       path: packages/openmates-python/tests/test_workflows.py
       line: 59
       name: test_pip_sdk_workflow_methods_use_shared_workflows_api
       surface: sdks.pip
-    - &id24606
+    - &id24609
       path: packages/openmates-python/tests/test_workflows.py
       line: 288
       name: test_pip_sdk_workflow_template_sharing_transport_uses_shared_api
       surface: sdks.pip
-    - &id24609
+    - &id24612
       path: packages/openmates-python/tests/test_workflows_real_dev.py
       line: 24
       name: test_pip_sdk_real_dev_workflow_execution
       surface: sdks.pip
     supporting_tests:
-    - &id24489
+    - &id24492
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 289
       name: shares original PII only with an explicit opt-in
       surface: sdks.npm
-    - &id24490
+    - &id24493
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 312
       name: keeps authentication capability discovery out of payment routes
       surface: sdks.npm
-    - &id24491
+    - &id24494
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 490
       name: manages application preview lifecycle through authenticated embed preview
         endpoints
       surface: sdks.npm
-    - &id24492
+    - &id24495
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 552
       name: uses the persisted session API URL when no override is set
       surface: sdks.npm
-    - &id24493
+    - &id24496
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 558
       name: routes deterministic Project CRUD, children, source removal, and remote
         requests through one explicit context
       surface: sdks.npm
-    - &id24494
+    - &id24497
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 718
       name: keeps explicit API URL overrides higher priority than the persisted session
       surface: sdks.npm
-    - &id24495
+    - &id24498
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 724
       name: uses installed self-host server API when no override or session exists
       surface: sdks.npm
-    - &id24496
+    - &id24499
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 740
       name: persists an ordinary API cookie rotation for the next CLI process
       surface: sdks.npm
-    - &id24497
+    - &id24500
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 857
       name: persists rotated auth cookies and ws tokens after whoami
       surface: sdks.npm
-    - &id24498
+    - &id24501
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 996
       name: purges local private data when session refresh is explicitly invalid
       surface: sdks.npm
-    - &id24499
+    - &id24502
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1032
       name: uses destructive local purge for manual logout
       surface: sdks.npm
-    - &id24500
+    - &id24503
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1066
       name: uses destructive local purge after account deletion
       surface: sdks.npm
-    - &id24501
+    - &id24504
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1100
       name: returns the current rotated cookie jar for upload authentication
       surface: sdks.npm
-    - &id24502
+    - &id24505
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1129
       name: includes session_id when refreshing the WebSocket token
       surface: sdks.npm
-    - &id24503
+    - &id24506
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1160
       name: creates API keys through the audited typed path while generic settings
         POST stays blocked
       surface: sdks.npm
-    - &id24504
+    - &id24507
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1206
       name: lists API keys with decrypted display fields and pending device counts
       surface: sdks.npm
-    - &id24505
+    - &id24508
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1243
       name: sends stable CLI API-key device headers for app-skill execution
       surface: sdks.npm
-    - &id24506
+    - &id24509
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1274
       name: rejects app-skill responses that carry skill-level errors
       surface: sdks.npm
-    - &id24507
+    - &id24510
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1302
       name: uses action-code and TOTP endpoints for destructive CLI step-up
       surface: sdks.npm
-    - &id24508
+    - &id24511
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1338
       name: keeps polling app-skill tasks after transient task status failures
       surface: sdks.npm
-    - &id24509
+    - &id24512
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1383
       name: persists pending AI responses during CLI sync
       surface: sdks.npm
-    - &id24510
+    - &id24513
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1477
       name: refreshes exact chat messages before showing a selected chat
       surface: sdks.npm
-    - &id24511
+    - &id24514
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1564
       name: persists passive task update jobs advertised during CLI reconnect sync
       surface: sdks.npm
-    - &id24512
+    - &id24515
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1721
       name: skips passive task update jobs that do not include source chat context
       surface: sdks.npm
-    - &id24513
+    - &id24516
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1808
       name: skips passive task update jobs already leased by another device
       surface: sdks.npm
-    - &id24514
+    - &id24517
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 2261
       name: requests a full UUID missing from sync windows, decrypts its chat wrapper,
         and saves ciphertext
       surface: sdks.npm
-    - &id24515
+    - &id24518
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 2313
       name: uses an explicit Team chat scope to decrypt an authorized on-demand embed
       surface: sdks.npm
-    - &id24516
+    - &id24519
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 2357
       name: preserves authorized lookup failures and does not cache a missing or denied
         embed
       surface: sdks.npm
-    - &id24517
+    - &id24520
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 2408
       name: uses the same deterministic parent embed key across version updates
       surface: sdks.npm
-    - &id24518
+    - &id24521
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 2639
       name: rejects token or plaintext identity fields in the chat-visible directory
       surface: sdks.npm
-    - &id24519
+    - &id24522
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 2656
       name: builds token-broker requests without putting refresh tokens in chat payloads
       surface: sdks.npm
-    - &id24520
+    - &id24523
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 2689
       name: posts connected-account cancel requests without token refs
       surface: sdks.npm
-    - &id24521
+    - &id24524
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 2724
       name: posts connected-account undo requests with only the opaque turn token
         ref
       surface: sdks.npm
-    - &id24522
+    - &id24525
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 2833
       name: builds the request artifact without approving memory content
       surface: sdks.npm
-    - &id24523
+    - &id24526
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 2859
       name: builds an included response artifact only for explicit approval
       surface: sdks.npm
-    - &id24524
+    - &id24527
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 2885
       name: builds encrypted task event system messages without plaintext leakage
       surface: sdks.npm
-    - &id24525
+    - &id24528
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 2913
       name: builds task update job persist payloads with only encrypted task content
       surface: sdks.npm
-    - &id24526
+    - &id24529
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 2990
       name: keeps task update jobs only when the current response emitted a matching
         event
       surface: sdks.npm
-    - &id24527
+    - &id24530
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 3047
       name: detects explicit Tasks app-skill messages
       surface: sdks.npm
-    - &id24528
+    - &id24531
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 3578
       name: owns the recovery fixture
       surface: cli
-    - &id24529
+    - &id24532
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 4458
       name: stops before inference when saved-chat preflight requires a client update
       surface: sdks.npm
-    - &id24530
+    - &id24533
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 4990
       name: 'persists terminal recovery embeds including missing children: ${missingChild}'
       surface: sdks.npm
-    - &id24531
+    - &id24534
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 5540
       name: returns after confirmation for saved team messages that do not mention
         OpenMates
       surface: sdks.npm
-    - &id24532
+    - &id24535
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 5807
       name: preserves only assistant categories in inference history
       surface: sdks.npm
-    - &id24533
+    - &id24536
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 5839
       name: can include known Learning Mode context without changing incognito state
       surface: sdks.npm
-    - &id24534
+    - &id24537
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 5920
       name: sends current message history with incognito messages
       surface: sdks.npm
-    - &id24535
+    - &id24538
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 5999
       name: prepends provided benchmark history before the current incognito message
       surface: sdks.npm
-    - &id24536
+    - &id24539
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 6072
       name: encrypts child first-message metadata with the parent chat key
       surface: sdks.npm
-    - &id24537
+    - &id24540
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 6115
       name: uses a neutral fallback while generated metadata is pending instead of
         exposing a truncated prompt
       surface: sdks.npm
-    - &id24538
+    - &id24541
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 6123
       name: builds approval and cancellation payloads only from explicit decisions
       surface: sdks.npm
-    - &id24539
+    - &id24542
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 6157
       name: forces a message refresh when cached metadata has no local messages
       surface: sdks.npm
-    - &id24540
+    - &id24543
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 6168
       name: caps the cached messages version to the local message count
       surface: sdks.npm
-    - &id24541
+    - &id24544
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 6179
       name: keeps the cached messages version when it matches the local message count
       surface: sdks.npm
-    - &id24542
+    - &id24545
       path: frontend/packages/openmates-cli/tests/directChatsSdk.test.ts
       line: 56
       name: rejects wrong visibility, Team, chat ID and participant pair before any
         decryption
       surface: sdks.npm
-    - &id24543
+    - &id24546
       path: frontend/packages/openmates-cli/tests/sdk-anonymous.test.ts
       line: 31
       name: anonymous generated skills, chat and status share a persistent identity
         without credentials or preflights
       surface: sdks.npm
-    - &id24544
+    - &id24547
       path: frontend/packages/openmates-cli/tests/sdk-anonymous.test.ts
       line: 87
       name: automatic keyless mode and explicit free-only mode preserve credential
         boundaries
       surface: sdks.npm
-    - &id24545
+    - &id24548
       path: frontend/packages/openmates-cli/tests/sdk-anonymous.test.ts
       line: 111
       name: anonymous chat rejects private options, invalid histories and private
         account routes before sending
       surface: sdks.npm
-    - &id24546
+    - &id24549
       path: frontend/packages/openmates-cli/tests/sdk-anonymous.test.ts
       line: 156
       name: anonymous network failures are not signup errors
       surface: sdks.npm
-    - &id24548
+    - &id24551
       path: frontend/packages/openmates-cli/tests/sdk-project-sources.test.ts
       line: 9
       name: source DTO maps outer fields while complete metadata stays exact
       surface: sdks.npm
-    - &id24549
+    - &id24552
       path: frontend/packages/openmates-cli/tests/sdk-project-sources.test.ts
       line: 22
       name: source malformed/non-JSON/oversized metadata fails statically before native
       surface: sdks.npm
-    - &id24550
+    - &id24553
       path: frontend/packages/openmates-cli/tests/sdk-project-sources.test.ts
       line: 31
       name: API key source authoring refuses both methods without transport
       surface: sdks.npm
-    - &id24551
+    - &id24554
       path: frontend/packages/openmates-cli/tests/sdk-project-sources.test.ts
       line: 37
       name: bounded compact numeric metadata is not rejected by an inflated estimate
       surface: sdks.npm
-    - &id24552
+    - &id24555
       path: frontend/packages/openmates-cli/tests/sdk-project-task-watch-unavailable.test.ts
       line: 6
       name: API-key Project watch refuses with canonical reason before transport
       surface: sdks.npm
-    - &id24555
+    - &id24558
       path: frontend/packages/openmates-cli/tests/sdk-session-apps-inventory.test.ts
       line: 8
       name: Apps list uses opaque fixed native inventory and preserves JSON items
         with final synchronous release
       surface: sdks.npm
-    - &id24556
+    - &id24559
       path: frontend/packages/openmates-cli/tests/sdk-session-apps-inventory.test.ts
       line: 14
       name: queued Apps output is discarded without allocation when original epoch
         retires
       surface: sdks.npm
-    - &id24557
+    - &id24560
       path: frontend/packages/openmates-cli/tests/sdk-session-apps-inventory.test.ts
       line: 20
       name: pre-aborted Apps signal performs no original native dispatch or global
         cancellation
       surface: sdks.npm
-    - &id24558
+    - &id24561
       path: frontend/packages/openmates-cli/tests/sdk-session-apps-inventory.test.ts
       line: 26
       name: Apps AbortSignal cancels only its original opaque operation while native
         return remains awaited
       surface: sdks.npm
-    - &id24559
+    - &id24562
       path: frontend/packages/openmates-cli/tests/sdk-session-apps-inventory.test.ts
       line: 33
       name: Apps signal input getter cannot retire original epoch then dispatch a
         replacement native operation
       surface: sdks.npm
-    - &id24560
+    - &id24563
       path: frontend/packages/openmates-cli/tests/sdk-session-apps-inventory.test.ts
       line: 39
       name: actual pre-aborted AbortSignal state cannot be hidden by a caller property
         override
       surface: sdks.npm
-    - &id24562
+    - &id24565
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
       line: 321
       name: exposes workflow search child embeds without an agent-only creation wrapper
       surface: sdks.npm
-    - &id24565
+    - &id24568
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
       line: 509
       name: previews unsaved messages and deletes run-owned history through owner
         workflow routes
       surface: sdks.npm
-    - &id24570
+    - &id24573
       path: frontend/packages/openmates-cli/tests/workspace-history.test.ts
       line: 83
       name: uses global and namespace-specific history endpoints
       surface: sdks.npm
-    - &id24571
+    - &id24574
       path: frontend/packages/openmates-cli/tests/workspace-history.test.ts
       line: 137
       name: uses namespace-specific ask endpoints
       surface: sdks.npm
-    - &id24572
+    - &id24575
       path: frontend/packages/openmates-cli/tests/ws.test.ts
       line: 284
       name: tracks connection-local capabilities before recovery and defaults older
         servers to no support
       surface: cli
-    - &id24573
+    - &id24576
       path: packages/openmates-python/tests/test_direct_chat_crypto.py
       line: 72
       name: test_two_recipient_roundtrip_fresh_ephemerals_and_exact_binding
       surface: sdks.pip
-    - &id24574
+    - &id24577
       path: packages/openmates-python/tests/test_direct_chat_crypto.py
       line: 102
       name: test_public_directory_and_backup_recovery_reject_mismatch_and_weak_keys
       surface: sdks.pip
-    - &id24575
+    - &id24578
       path: packages/openmates-python/tests/test_direct_chat_crypto.py
       line: 123
       name: test_malformed_envelope_is_rejected_without_fallback
       surface: sdks.pip
-    - &id24576
+    - &id24579
       path: packages/openmates-python/tests/test_direct_chat_crypto.py
       line: 149
       name: test_typescript_seal_opens_in_python
       surface: sdks.pip
-    - &id24577
+    - &id24580
       path: packages/openmates-python/tests/test_direct_chat_crypto.py
       line: 169
       name: test_python_seal_opens_in_typescript
       surface: sdks.pip
-    - &id24578
+    - &id24581
       path: packages/openmates-python/tests/test_owned_apps_inventory.py
       line: 17
       name: test_apps_list_uses_fixed_native_output_and_synchronous_final_release
       surface: sdks.pip
-    - &id24579
+    - &id24582
       path: packages/openmates-python/tests/test_owned_apps_inventory.py
       line: 50
       name: test_cancel_apps_list_retires_only_original_operation_and_drains_native_result
       surface: sdks.pip
-    - &id24580
+    - &id24583
       path: packages/openmates-python/tests/test_project_source_types.py
       line: 10
       name: test_project_source_required_and_optional_key_contract
       surface: sdks.pip
-    - &id24581
+    - &id24584
       path: packages/openmates-python/tests/test_project_source_types.py
       line: 40
       name: test_actual_ai_model_defaults_optional_key_contract
       surface: sdks.pip
-    - &id24582
+    - &id24585
       path: packages/openmates-python/tests/test_project_sources.py
       line: 42
       name: test_source_metadata_and_legacy_capabilities_are_preserved
       surface: sdks.pip
-    - &id24583
+    - &id24586
       path: packages/openmates-python/tests/test_project_sources.py
       line: 88
       name: test_source_invalid_metadata_is_static_and_pre_native
       surface: sdks.pip
-    - &id24584
+    - &id24587
       path: packages/openmates-python/tests/test_project_sources.py
       line: 125
       name: test_key_source_authoring_refuses_without_transport
       surface: sdks.pip
-    - &id24585
+    - &id24588
       path: packages/openmates-python/tests/test_project_sources.py
       line: 144
       name: test_compact_numeric_metadata_is_not_rejected_by_inflated_estimate
       surface: sdks.pip
-    - &id24586
+    - &id24589
       path: packages/openmates-python/tests/test_project_task_watch_unavailable.py
       line: 5
       name: test_api_key_watch_unavailable_before_transport
       surface: sdks.pip
-    - &id24595
+    - &id24598
       path: packages/openmates-python/tests/test_sdk_team_direct_chats.py
       line: 44
       name: test_member_chat_encryption_key_validates_canonical_directory_key
       surface: sdks.pip
-    - &id24596
+    - &id24599
       path: packages/openmates-python/tests/test_sdk_team_direct_chats.py
       line: 61
       name: test_member_chat_encryption_key_reports_missing_enrollment
       surface: sdks.pip
-    - &id24597
+    - &id24600
       path: packages/openmates-python/tests/test_sdk_team_direct_chats.py
       line: 71
       name: test_chat_identity_enrolls_and_recovers_its_encrypted_backup
       surface: sdks.pip
-    - &id24598
+    - &id24601
       path: packages/openmates-python/tests/test_sdk_team_direct_chats.py
       line: 95
       name: test_chat_identity_enrolls_encrypted_backup_and_recovers_winner_on_race
       surface: sdks.pip
-    - &id24599
+    - &id24602
       path: packages/openmates-python/tests/test_sdk_team_direct_chats.py
       line: 126
       name: test_chat_identity_rejects_wrong_private_backup
       surface: sdks.pip
-    - &id24600
+    - &id24603
       path: packages/openmates-python/tests/test_sdk_team_direct_chats.py
       line: 140
       name: test_open_direct_chat_seals_both_participants_and_decrypts_response
       surface: sdks.pip
-    - &id24601
+    - &id24604
       path: packages/openmates-python/tests/test_sdk_team_direct_chats.py
       line: 176
       name: test_direct_chat_key_resolution_never_falls_back_to_master_or_team_key
       surface: sdks.pip
-    - &id24602
+    - &id24605
       path: packages/openmates-python/tests/test_sdk_team_direct_chats.py
       line: 195
       name: test_open_direct_chat_rejects_mismatched_server_metadata_before_decrypt
       surface: sdks.pip
-    - &id24605
+    - &id24608
       path: packages/openmates-python/tests/test_workflows.py
       line: 281
       name: test_pip_sdk_workflows_require_api_key
       surface: sdks.pip
-    - &id24607
+    - &id24610
       path: packages/openmates-python/tests/test_workflows.py
       line: 347
       name: test_pip_sdk_workflow_delete_requires_confirmation
       surface: sdks.pip
-    - &id24608
+    - &id24611
       path: packages/openmates-python/tests/test_workflows.py
       line: 354
       name: test_pip_sdk_workflow_template_import_rejects_malformed_response
       surface: sdks.pip
     tests:
-    - *id24481
-    - *id24482
-    - *id24483
     - *id24484
     - *id24485
     - *id24486
@@ -192993,36 +193012,36 @@ assertions:
     - *id24607
     - *id24608
     - *id24609
+    - *id24610
+    - *id24611
+    - *id24612
     surfaces:
       rest_api:
         direct_tests:
-        - *id24481
-        - *id24482
-        - *id24483
         - *id24484
+        - *id24485
+        - *id24486
+        - *id24487
         supporting_tests: []
       sdks.rust:
         direct_tests:
-        - *id24485
         - *id24488
+        - *id24491
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id24486
-        - *id24547
-        - *id24553
-        - *id24554
-        - *id24561
-        - *id24563
+        - *id24489
+        - *id24550
+        - *id24556
+        - *id24557
         - *id24564
         - *id24566
         - *id24567
-        - *id24568
         - *id24569
+        - *id24570
+        - *id24571
+        - *id24572
         supporting_tests:
-        - *id24489
-        - *id24490
-        - *id24491
         - *id24492
         - *id24493
         - *id24494
@@ -193059,9 +193078,9 @@ assertions:
         - *id24525
         - *id24526
         - *id24527
+        - *id24528
         - *id24529
         - *id24530
-        - *id24531
         - *id24532
         - *id24533
         - *id24534
@@ -193077,40 +193096,40 @@ assertions:
         - *id24544
         - *id24545
         - *id24546
+        - *id24547
         - *id24548
         - *id24549
-        - *id24550
         - *id24551
         - *id24552
+        - *id24553
+        - *id24554
         - *id24555
-        - *id24556
-        - *id24557
         - *id24558
         - *id24559
         - *id24560
+        - *id24561
         - *id24562
+        - *id24563
         - *id24565
-        - *id24570
-        - *id24571
+        - *id24568
+        - *id24573
+        - *id24574
       sdks.pip:
         direct_tests:
-        - *id24487
-        - *id24587
-        - *id24588
-        - *id24589
+        - *id24490
         - *id24590
         - *id24591
         - *id24592
         - *id24593
         - *id24594
-        - *id24603
-        - *id24604
+        - *id24595
+        - *id24596
+        - *id24597
         - *id24606
+        - *id24607
         - *id24609
+        - *id24612
         supporting_tests:
-        - *id24573
-        - *id24574
-        - *id24575
         - *id24576
         - *id24577
         - *id24578
@@ -193122,87 +193141,87 @@ assertions:
         - *id24584
         - *id24585
         - *id24586
-        - *id24595
-        - *id24596
-        - *id24597
+        - *id24587
+        - *id24588
+        - *id24589
         - *id24598
         - *id24599
         - *id24600
         - *id24601
         - *id24602
+        - *id24603
+        - *id24604
         - *id24605
-        - *id24607
         - *id24608
+        - *id24610
+        - *id24611
       cli:
         direct_tests: []
         supporting_tests:
-        - *id24528
-        - *id24572
+        - *id24531
+        - *id24575
     current_direct_proof: false
   sdk.anonymous.execution:
     specification: surface.sdk@1
     fingerprint: a4616ae2aa786317b2cac24d47060c6d72fbbf19c97ec13acbf0c18411039007
     direct_tests:
-    - &id24615
+    - &id24618
       path: packages/openmates-python/tests/test_sdk_anonymous.py
       line: 25
       name: test_keyless_skill_and_status_share_persisted_identity
       surface: sdks.pip
-    - &id24616
+    - &id24619
       path: packages/openmates-python/tests/test_sdk_anonymous.py
       line: 45
       name: test_anonymous_chat_is_plaintext_ephemeral_and_normalizes_history
       surface: sdks.pip
-    - &id24617
+    - &id24620
       path: packages/openmates-python/tests/test_sdk_anonymous.py
       line: 63
       name: test_private_options_rejected_before_request
       surface: sdks.pip
-    - &id24618
+    - &id24621
       path: packages/openmates-python/tests/test_sdk_anonymous.py
       line: 90
       name: test_authenticated_failures_never_fall_back_to_guest
       surface: sdks.pip
-    - &id24619
+    - &id24622
       path: packages/openmates-python/tests/test_sdk_anonymous.py
       line: 165
       name: test_anonymous_decide_forwards_inline_images_state_and_questions
       surface: sdks.pip
     supporting_tests:
-    - &id24610
+    - &id24613
       path: frontend/packages/openmates-cli/tests/anonymous-free-usage.test.ts
       line: 174
       name: forwards generated ai.decide --input image assets unchanged without auth
         or allowance preflights
       surface: cli
-    - &id24611
+    - &id24614
       path: frontend/packages/openmates-cli/tests/sdk-anonymous.test.ts
       line: 31
       name: anonymous generated skills, chat and status share a persistent identity
         without credentials or preflights
       surface: sdks.npm
-    - &id24612
+    - &id24615
       path: frontend/packages/openmates-cli/tests/sdk-anonymous.test.ts
       line: 59
       name: anonymous generated ai.decide forwards inline image assets unchanged without
         preflights
       surface: sdks.npm
-    - &id24613
+    - &id24616
       path: frontend/packages/openmates-cli/tests/sdk-anonymous.test.ts
       line: 87
       name: automatic keyless mode and explicit free-only mode preserve credential
         boundaries
       surface: sdks.npm
-    - &id24614
+    - &id24617
       path: frontend/packages/openmates-cli/tests/sdk-anonymous.test.ts
       line: 111
       name: anonymous chat rejects private options, invalid histories and private
         account routes before sending
       surface: sdks.npm
     tests:
-    - *id24610
-    - *id24611
-    - *id24612
     - *id24613
     - *id24614
     - *id24615
@@ -193210,71 +193229,74 @@ assertions:
     - *id24617
     - *id24618
     - *id24619
+    - *id24620
+    - *id24621
+    - *id24622
     surfaces:
       cli:
         direct_tests: []
         supporting_tests:
-        - *id24610
+        - *id24613
       sdks.npm:
         direct_tests: []
         supporting_tests:
-        - *id24611
-        - *id24612
-        - *id24613
         - *id24614
-      sdks.pip:
-        direct_tests:
         - *id24615
         - *id24616
         - *id24617
+      sdks.pip:
+        direct_tests:
         - *id24618
         - *id24619
+        - *id24620
+        - *id24621
+        - *id24622
         supporting_tests: []
     current_direct_proof: false
   sdk.anonymous.signup-required:
     specification: surface.sdk@1
     fingerprint: 3f9ad3f15ba28b82dad73930b7e4306caa3ec82ada4f5530c3799fc23f2f9155
     direct_tests:
-    - &id24620
+    - &id24623
       path: frontend/apps/web_app/tests/anonymous-cli-skill.spec.ts
       line: 56
       name: disabled isolated free budget reports signup required for skills and JSON
         or SSE chat
       surface: rest_api
-    - &id24621
+    - &id24624
       path: frontend/packages/openmates-cli/tests/sdk-anonymous.test.ts
       line: 132
       name: quota denials require signup while provider failures remain distinguishable
       surface: sdks.npm
-    - &id24622
+    - &id24625
       path: packages/openmates-python/tests/test_sdk_anonymous.py
       line: 106
       name: test_free_allowance_exhaustion_is_actionable_typed_error
       surface: sdks.pip
-    - &id24623
+    - &id24626
       path: packages/openmates-python/tests/test_sdk_anonymous.py
       line: 145
       name: test_non_json_failures_preserve_api_error_status
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id24620
-    - *id24621
-    - *id24622
     - *id24623
+    - *id24624
+    - *id24625
+    - *id24626
     surfaces:
       rest_api:
         direct_tests:
-        - *id24620
+        - *id24623
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id24621
+        - *id24624
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id24622
-        - *id24623
+        - *id24625
+        - *id24626
         supporting_tests: []
     current_direct_proof: false
   rules.definition.guide-format:
@@ -193282,149 +193304,149 @@ assertions:
     fingerprint: 9e4d86a35db1caf6d8676684bbc0bb1bc62f1eb82c62823399875f4b480b7dbc
     direct_tests: []
     supporting_tests:
-    - &id24624
+    - &id24627
       path: frontend/packages/ui/src/utils/__tests__/ruleDocuments.test.ts
       line: 9
       name: round-trips a coherent guide without separate bullet records
       surface: gui.web
-    - &id24625
+    - &id24628
       path: frontend/packages/ui/src/utils/__tests__/ruleDocuments.test.ts
       line: 17
       name: rejects malformed or ambiguous document %#
       surface: gui.web
     tests:
-    - *id24624
-    - *id24625
+    - *id24627
+    - *id24628
     surfaces:
       gui.web:
         direct_tests: []
         supporting_tests:
-        - *id24624
-        - *id24625
+        - *id24627
+        - *id24628
     current_direct_proof: false
   rules.ownership.encrypted-custom:
     specification: feature.rules@1
     fingerprint: 2e5cd6fd6015fd319e517748a6e92def9bf96b9c1c00ecae9b69b6cf147fffc0
     direct_tests:
-    - &id24632
+    - &id24635
       path: frontend/apps/web_app/tests/jev-project-context-api.spec.ts
       line: 14
       name: public requests cannot access memory-only context or background private
         jobs
       surface: rest_api
     supporting_tests:
-    - &id24626
+    - &id24629
       path: backend/tests/test_agent_context_history.py
       line: 10
       name: test_receipt_replay_strips_bodies_and_preserves_dedup_without_mutating_client_transcript
       surface: rest_api
-    - &id24627
+    - &id24630
       path: backend/tests/test_agent_context_history.py
       line: 25
       name: test_malformed_and_oversized_receipts_fail_closed_but_actual_messages_survive
       surface: rest_api
-    - &id24628
+    - &id24631
       path: backend/tests/test_agentic_context.py
       line: 14
       name: test_private_rule_decision_is_discarded_after_same_project_reactivation
       surface: rest_api
-    - &id24629
+    - &id24632
       path: backend/tests/test_agentic_context.py
       line: 33
       name: test_preselected_rule_reload_rechecks_activation_after_body_resolution
       surface: rest_api
-    - &id24630
+    - &id24633
       path: backend/tests/test_context_preselection.py
       line: 30
       name: test_discovery_contains_no_rule_body_and_reload_after_revocation_is_empty
       surface: rest_api
-    - &id24631
+    - &id24634
       path: backend/tests/test_context_preselection.py
       line: 44
       name: test_authorized_project_guide_survives_bounded_app_rule_catalog
       surface: rest_api
-    - &id24633
+    - &id24636
       path: frontend/packages/ui/src/utils/__tests__/ruleDocuments.test.ts
       line: 30
       name: rejects duplicate identities and invalid source binding
       surface: gui.web
-    - &id24634
+    - &id24637
       path: frontend/packages/ui/src/utils/__tests__/ruleDocuments.test.ts
       line: 94
       name: preserves exact final-newline semantics %#
       surface: gui.web
     tests:
-    - *id24626
-    - *id24627
-    - *id24628
     - *id24629
     - *id24630
     - *id24631
     - *id24632
     - *id24633
     - *id24634
+    - *id24635
+    - *id24636
+    - *id24637
     surfaces:
       rest_api:
         direct_tests:
-        - *id24632
+        - *id24635
         supporting_tests:
-        - *id24626
-        - *id24627
-        - *id24628
         - *id24629
         - *id24630
         - *id24631
+        - *id24632
+        - *id24633
+        - *id24634
       gui.web:
         direct_tests: []
         supporting_tests:
-        - *id24633
-        - *id24634
+        - *id24636
+        - *id24637
     current_direct_proof: false
   rules.selection.focus-aware:
     specification: feature.rules@1
     fingerprint: 366a4b15ed7cb3d881b058efb2d97a7939f103fd0744f69ad4e315e1608d3b0d
     direct_tests: []
     supporting_tests:
-    - &id24635
+    - &id24638
       path: backend/tests/test_agentic_context.py
       line: 14
       name: test_private_rule_decision_is_discarded_after_same_project_reactivation
       surface: rest_api
-    - &id24636
+    - &id24639
       path: backend/tests/test_agentic_context.py
       line: 33
       name: test_preselected_rule_reload_rechecks_activation_after_body_resolution
       surface: rest_api
-    - &id24637
+    - &id24640
       path: backend/tests/test_context_preselection.py
       line: 13
       name: test_rules_reload_exact_revision_and_fresh_selected_mate_catalog
       surface: rest_api
-    - &id24638
+    - &id24641
       path: backend/tests/test_context_preselection.py
       line: 123
       name: test_empty_selection_does_not_reload_unselected_private_catalogues
       surface: rest_api
-    - &id24639
+    - &id24642
       path: backend/tests/test_context_preselection.py
       line: 137
       name: test_failed_discovery_is_not_confirmed_empty
       surface: rest_api
     tests:
-    - *id24635
-    - *id24636
-    - *id24637
     - *id24638
     - *id24639
+    - *id24640
+    - *id24641
+    - *id24642
     surfaces:
       rest_api:
         direct_tests: []
         supporting_tests:
-        - *id24635
-        - *id24636
-        - *id24637
         - *id24638
         - *id24639
+        - *id24640
+        - *id24641
+        - *id24642
     current_direct_proof: false
   rules.precedence.obligations:
     specification: feature.rules@1
@@ -193439,76 +193461,73 @@ assertions:
     fingerprint: 68d3459efcdc65864ac24f746b66726b6fbf0979f263fee81e418204f3003639
     direct_tests: []
     supporting_tests:
-    - &id24640
+    - &id24643
       path: apple/OpenMatesTests/FocusPhaseTests.swift
       line: 239
       name: testAppliedRulesRetainOnlyValidatedExactGuides
       surface: gui.apple
-    - &id24641
+    - &id24644
       path: apple/OpenMatesTests/FocusPhaseTests.swift
       line: 253
       name: testLiveContextReceiptRequiresMatchingChatAndStableEventIdentity
       surface: gui.apple
-    - &id24642
+    - &id24645
       path: apple/OpenMatesUITests/ProgressiveMessagePreviewUITests.swift
       line: 105
       name: testAppliedRulesAreQuietUntilExpandedAndShowExactGuideAndRevision
       surface: gui.apple
-    - &id24643
+    - &id24646
       path: backend/tests/test_agent_context_history.py
       line: 36
       name: test_pydantic_history_keeps_message_identity_and_drops_private_details
       surface: rest_api
-    - &id24644
+    - &id24647
       path: backend/tests/test_agentic_context.py
       line: 50
       name: test_rule_receipts_deduplicate_retries_but_preserve_returning_phase_sets
       surface: rest_api
-    - &id24645
+    - &id24648
       path: frontend/packages/openmates-cli/tests/chatContextEvents.test.ts
       line: 20
       name: persists actual delivery exactly once as encrypted system history, ignoring
         unrelated and malformed frames
       surface: cli
-    - &id24646
+    - &id24649
       path: frontend/packages/openmates-cli/tests/chatContextEvents.test.ts
       line: 46
       name: does not interpret pending/incomplete correction or inspection tokens
         as an applied notice/button
       surface: cli
-    - &id24647
+    - &id24650
       path: frontend/packages/openmates-cli/tests/chatContextEvents.test.ts
       line: 54
       name: suppresses unchanged applied rule sets across reconnects and keeps an
         actual changed set
       surface: cli
-    - &id24648
+    - &id24651
       path: frontend/packages/openmates-cli/tests/chatContextTui.test.ts
       line: 25
       name: renders quiet summaries and reveals complete applied Rule/correction details
         only on inspection
       surface: cli
-    - &id24649
+    - &id24652
       path: frontend/packages/openmates-cli/tests/chatContextTui.test.ts
       line: 39
       name: starts one idempotent background job only from an explicit control and
         keeps the same chat
       surface: cli
-    - &id24650
+    - &id24653
       path: frontend/packages/openmates-cli/tests/focus-phases.test.ts
       line: 48
       name: 'restores encrypted phase progress and persists live history for saved
         chats (${restoredFocus ?? '
       surface: cli
-    - &id24651
+    - &id24654
       path: frontend/packages/ui/src/utils/__tests__/agentContextEvents.test.ts
       line: 6
       name: requires count to match whole applied guides with exact revisions
       surface: gui.web
     tests:
-    - *id24640
-    - *id24641
-    - *id24642
     - *id24643
     - *id24644
     - *id24645
@@ -193518,56 +193537,59 @@ assertions:
     - *id24649
     - *id24650
     - *id24651
+    - *id24652
+    - *id24653
+    - *id24654
     surfaces:
       gui.apple:
         direct_tests: []
         supporting_tests:
-        - *id24640
-        - *id24641
-        - *id24642
+        - *id24643
+        - *id24644
+        - *id24645
       rest_api:
         direct_tests: []
         supporting_tests:
-        - *id24643
-        - *id24644
+        - *id24646
+        - *id24647
       cli:
         direct_tests: []
         supporting_tests:
-        - *id24645
-        - *id24646
-        - *id24647
         - *id24648
         - *id24649
         - *id24650
+        - *id24651
+        - *id24652
+        - *id24653
       gui.web:
         direct_tests: []
         supporting_tests:
-        - *id24651
+        - *id24654
     current_direct_proof: false
   video-call.experiment.live-voice:
     specification: feature.video-call-experiment@1
     fingerprint: dc231149233cc0a337899ac9d1fbfd254d090474b4e63811191365e67ba37a25
     direct_tests:
-    - &id24652
+    - &id24655
       path: frontend/packages/ui/src/components/videocall/callAudio.test.ts
       line: 75
       name: requests echo cancellation and releases microphone, graph and playback
         on hangup
       surface: gui.web
-    - &id24653
+    - &id24656
       path: frontend/packages/ui/src/components/videocall/callAudio.test.ts
       line: 221
       name: encodes clipped little-endian PCM and downsamples to the 16 kHz budget
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id24652
-    - *id24653
+    - *id24655
+    - *id24656
     surfaces:
       gui.web:
         direct_tests:
-        - *id24652
-        - *id24653
+        - *id24655
+        - *id24656
         supporting_tests: []
     current_direct_proof: false
   video-call.experiment.generated-visuals:
@@ -193582,40 +193604,6 @@ assertions:
     specification: feature.video-call-experiment@1
     fingerprint: 78008a107f39b27ce891d9ace7c7ef83a2e36457a6acc190a78487ff8e9d87ae
     direct_tests:
-    - &id24654
-      path: frontend/packages/ui/src/components/videocall/callAudio.test.ts
-      line: 75
-      name: requests echo cancellation and releases microphone, graph and playback
-        on hangup
-      surface: gui.web
-    - &id24655
-      path: frontend/packages/ui/src/components/videocall/callAudio.test.ts
-      line: 95
-      name: unlocks audio before microphone permission and releases a late grant after
-        hangup
-      surface: gui.web
-    - &id24656
-      path: frontend/packages/ui/src/components/videocall/callAudio.test.ts
-      line: 202
-      name: aborts old clip reads when the visual changes or the call ends
-      surface: gui.web
-    supporting_tests: []
-    tests:
-    - *id24654
-    - *id24655
-    - *id24656
-    surfaces:
-      gui.web:
-        direct_tests:
-        - *id24654
-        - *id24655
-        - *id24656
-        supporting_tests: []
-    current_direct_proof: false
-  video-call.experiment.audio-mix:
-    specification: feature.video-call-experiment@1
-    fingerprint: ac3ff5cdc76069bdbd493b1f7638950557ef1b06fe94a8e358e2291a6e4e8b7d
-    direct_tests:
     - &id24657
       path: frontend/packages/ui/src/components/videocall/callAudio.test.ts
       line: 75
@@ -193624,19 +193612,53 @@ assertions:
       surface: gui.web
     - &id24658
       path: frontend/packages/ui/src/components/videocall/callAudio.test.ts
+      line: 95
+      name: unlocks audio before microphone permission and releases a late grant after
+        hangup
+      surface: gui.web
+    - &id24659
+      path: frontend/packages/ui/src/components/videocall/callAudio.test.ts
+      line: 202
+      name: aborts old clip reads when the visual changes or the call ends
+      surface: gui.web
+    supporting_tests: []
+    tests:
+    - *id24657
+    - *id24658
+    - *id24659
+    surfaces:
+      gui.web:
+        direct_tests:
+        - *id24657
+        - *id24658
+        - *id24659
+        supporting_tests: []
+    current_direct_proof: false
+  video-call.experiment.audio-mix:
+    specification: feature.video-call-experiment@1
+    fingerprint: ac3ff5cdc76069bdbd493b1f7638950557ef1b06fe94a8e358e2291a6e4e8b7d
+    direct_tests:
+    - &id24660
+      path: frontend/packages/ui/src/components/videocall/callAudio.test.ts
+      line: 75
+      name: requests echo cancellation and releases microphone, graph and playback
+        on hangup
+      surface: gui.web
+    - &id24661
+      path: frontend/packages/ui/src/components/videocall/callAudio.test.ts
       line: 111
       name: resumes a suspended output context in the Start gesture and keeps decoded
         ambience independent of interrupted voice
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id24657
-    - *id24658
+    - *id24660
+    - *id24661
     surfaces:
       gui.web:
         direct_tests:
-        - *id24657
-        - *id24658
+        - *id24660
+        - *id24661
         supporting_tests: []
     current_direct_proof: false
   video-call.experiment.responsive:
@@ -193667,32 +193689,32 @@ assertions:
     specification: feature.video-call-experiment@1
     fingerprint: 684bc5f353ff807f1957231aa8e0fdd62a01e753cba7ecb3f238a21b791f52fe
     direct_tests:
-    - &id24659
+    - &id24662
       path: frontend/packages/ui/src/components/videocall/callAudio.test.ts
       line: 95
       name: unlocks audio before microphone permission and releases a late grant after
         hangup
       surface: gui.web
-    - &id24660
+    - &id24663
       path: frontend/packages/ui/src/components/videocall/callAudio.test.ts
       line: 202
       name: aborts old clip reads when the visual changes or the call ends
       surface: gui.web
     supporting_tests:
-    - &id24661
+    - &id24664
       path: frontend/packages/ui/src/components/videocall/callAudio.test.ts
       line: 251
       name: records only known actual processing settings (%s), never device metadata
       surface: gui.web
     tests:
-    - *id24659
-    - *id24660
-    - *id24661
+    - *id24662
+    - *id24663
+    - *id24664
     surfaces:
       gui.web:
         direct_tests:
-        - *id24659
-        - *id24660
+        - *id24662
+        - *id24663
         supporting_tests:
-        - *id24661
+        - *id24664
     current_direct_proof: false

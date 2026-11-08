@@ -18,6 +18,8 @@ import {
 } from './hostedProjectFileExecutor';
 import { projectFileMutationDigest, type ProjectFileMutation } from '../utils/projectFileMutationProtocol';
 import type { ProjectFileJob } from './projectFileJobExecutor';
+import { PROJECT_RUST_CORE } from './projectState/decide';
+import { decideProjectFile } from './projectState/projectFileDecide';
 import {
   buildWholeDocumentPatch, isMemoryExpired, parseRuleDocument, serializeRuleDocument, validateRuleCatalog,
   type CustomRuleDocument,
@@ -262,6 +264,7 @@ async function activeProjectAdapter(chatId: string, projectId: string): Promise<
   return {
     projectId, projectKey: project.projectKey, chatKey, teamId: focus.team_id,
     privatePaths: privatePaths as string[] | undefined,
+    decidePolicy: PROJECT_RUST_CORE ? decideProjectFile : undefined,
     writeMode: settings.writeMode ?? null,
     itemIdsByPath: new Map(contents.items.map((item) => [String(item.metadata.path ?? item.metadata.display_path ?? item.metadata.file_path ?? item.metadata.filename ?? item.displayName), item.project_item_id])),
     itemsByPath: new Map(contents.items.map((item) => [String(item.metadata.path ?? item.metadata.display_path ?? item.metadata.file_path ?? item.metadata.filename ?? item.displayName), item])),
