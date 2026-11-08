@@ -2101,6 +2101,13 @@ class UploadCacheEmbedRequest(BaseModel):
     content_type: str = Field(..., description="MIME type of the uploaded file (e.g. image/webp)")
     original_filename: str = Field(..., description="Original uploaded filename")
     ai_detection: Optional[Dict[str, Any]] = Field(None, description="AI-generated detection result")
+    pdf_billing: Optional[Dict[str, Any]] = Field(
+        None,
+        description="PDFs only: credits charged at upload and the per-page routes they were priced from.",
+    )
+
+
+PDF_BILLING_RECORD_TTL_SECONDS = 259200  # 72 hours, like the embed cache
 
 
 @router.post("/uploads/cache-embed")
@@ -2133,6 +2140,18 @@ async def cache_upload_embed(
         if not client:
             logger.warning(f"{log_prefix} Redis client not available — skipping embed cache")
             return {"status": "skipped", "reason": "redis_unavailable"}
+
+        if payload.pdf_billing is not None:
+            # Kept apart from the embed entry, which the chat message later replaces. Whichever
+            # PDF processing dispatch wins for this embed reads it to refund an over-charge or a
+            # failure (a dispatch from the message handler knows nothing about the charge).
+            billing_written = await client.set(
+                f"pdf:{payload.embed_id}:billing",
+                json_lib.dumps({"user_id": payload.user_id, **payload.pdf_billing}),
+                ex=PDF_BILLING_RECORD_TTL_SECONDS,
+            )
+            if not billing_written:
+                logger.warning("%s Redis did not acknowledge the PDF billing record", log_prefix)
 
         cache_key = f"embed:{payload.embed_id}"
         existing_embed_json = await client.get(cache_key)

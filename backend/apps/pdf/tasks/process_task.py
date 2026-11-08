@@ -34,6 +34,7 @@
 
 import asyncio
 import base64
+import json
 import logging
 import os
 from datetime import datetime, timezone
@@ -108,6 +109,35 @@ async def _claim_pdf_processing(cache_service: Any, embed_id: str, task_id: str)
     return holder == task_id
 
 
+async def _load_upload_billing(cache_service: Any, embed_id: str, user_id: str) -> Dict[str, Any]:
+    """The charge and page routes recorded when the PDF was uploaded, or {} when none exist.
+
+    The upload route and the message handler can both dispatch processing; only the upload route
+    knows what was charged. The record is trusted only for the user who uploaded the embed.
+    """
+    client = await cache_service.client
+    if client is None:
+        return {}
+    raw = await client.get(f"pdf:{embed_id}:billing")
+    if isinstance(raw, bytes):
+        raw = raw.decode("utf-8")
+    if not raw:
+        return {}
+    try:
+        record = json.loads(raw)
+    except json.JSONDecodeError:
+        logger.warning("[pdf.process] [embed:%s] Ignoring unreadable upload billing record", embed_id[:8])
+        return {}
+    if not isinstance(record, dict) or record.get("user_id") != user_id:
+        return {}
+    credits = record.get("credits_charged")
+    routes = record.get("page_routes")
+    return {
+        "credits_charged": credits if isinstance(credits, int) and credits >= 0 else 0,
+        "page_routes": routes if isinstance(routes, list) else None,
+    }
+
+
 async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -> Dict[str, Any]:
     """
     Main async implementation of the PDF processing pipeline.
@@ -143,6 +173,15 @@ async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -
         if not await _claim_pdf_processing(task._cache_service, embed_id, task_id):
             logger.info(f"{log_prefix} Another task already processes this embed — skipping duplicate dispatch")
             return {"embed_id": embed_id, "status": "duplicate_skipped"}
+
+        # A dispatch from the message handler carries no charge or routes; take what the upload
+        # recorded so the refund and price adjustment do not depend on which dispatch won.
+        if not credits_charged and not arguments.get("page_routes"):
+            recorded = await _load_upload_billing(task._cache_service, embed_id, user_id)
+            if recorded:
+                credits_charged = recorded["credits_charged"]
+                arguments = {**arguments, "credits_charged": credits_charged, "page_routes": recorded["page_routes"]}
+                logger.info(f"{log_prefix} Upload billing record applied: {credits_charged} credits charged")
 
         # -----------------------------------------------------------------------
         # Dedup shortcut: if source_embed_id is provided, try to copy the OCR

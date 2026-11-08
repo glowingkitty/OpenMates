@@ -35,7 +35,9 @@ except ModuleNotFoundError as exc:
     toon_stub.decode = lambda _value: {}  # lookup is isolated below
     sys.modules["toon_format"] = toon_stub
 
-from backend.apps.pdf.skills.read_skill import ReadSkill, _candidate_pdf_upload_refs
+from backend.apps.pdf.skills.read_skill import ReadSkill
+from backend.apps.pdf.skills.search_skill import SearchSkill
+from backend.apps.pdf.utils.upload_alias import candidate_pdf_upload_refs
 from backend.shared.python_utils.pdf_ocr_readiness import (
     PdfNotReadyError,
     PdfProcessingFailedError,
@@ -183,11 +185,56 @@ async def test_two_verified_uploads_with_same_filename_are_ambiguous(monkeypatch
 
 
 # contract-test: supporting surface=cli assertions=app-skills.execution.registered-validated
+def _search_skill_with_embeds(monkeypatch: pytest.MonkeyPatch, embeds: dict[str, dict]):
+    skill, looked_up = _skill_with_embeds(monkeypatch, embeds)
+    search = object.__new__(SearchSkill)
+    for name in ("_lookup_embed_content", "_unwrap_aes_key", "_download_from_s3"):
+        monkeypatch.setattr(search, name, getattr(skill, name))
+    return search, looked_up
+
+# contract-test: supporting surface=rest_api assertions=pdf-processing.surface.semantic-parity
+@pytest.mark.asyncio
+async def test_search_resolves_unique_cli_filename_alias_from_owned_upload(monkeypatch):
+    skill, looked_up = _search_skill_with_embeds(monkeypatch, {"owned-pdf": _pdf_content(PDF_REF)})
+
+    result = await skill.execute(
+        PDF_NAME,
+        "budget total",
+        file_path_index={PDF_REF: "owned-pdf"},
+        user_vault_key_id="owner-key",
+    )
+
+    assert result["success"] is True
+    assert [match["page_num"] for match in result["matches"]] == [1]
+    assert looked_up == [("owned-pdf", "owner-key")]
+
+# contract-test: supporting surface=rest_api assertions=pdf-processing.surface.semantic-parity
+@pytest.mark.asyncio
+async def test_search_alias_is_refused_when_ambiguous_wrong_owner_or_wrong_type(monkeypatch):
+    skill, _ = _search_skill_with_embeds(
+        monkeypatch, {"first": _pdf_content(PDF_REF), "second": _pdf_content(SECOND_PDF_REF)}
+    )
+    both = {PDF_REF: "first", SECOND_PDF_REF: "second"}
+    ambiguous = await skill.execute(PDF_NAME, "budget", file_path_index=both, user_vault_key_id="owner-key")
+    assert ambiguous["success"] is False and "ambiguous" in ambiguous["error"]
+
+    other_owner = await skill.execute(
+        PDF_NAME, "budget", file_path_index={PDF_REF: "first"}, user_vault_key_id="other-key"
+    )
+    assert other_owner["success"] is False
+
+    typed, _ = _search_skill_with_embeds(monkeypatch, {"not-pdf": {**_pdf_content(PDF_REF), "type": "code"}})
+    wrong_type = await typed.execute(
+        PDF_NAME, "budget", file_path_index={PDF_REF: "not-pdf"}, user_vault_key_id="owner-key"
+    )
+    assert wrong_type["success"] is False
+
+# contract-test: supporting surface=rest_api assertions=pdf-processing.surface.semantic-parity
 def test_alias_candidates_require_cli_pdf_slug_and_plain_filename():
-    assert _candidate_pdf_upload_refs(PDF_NAME, {PDF_REF: "owned-pdf"}) == [(PDF_REF, "owned-pdf")]
-    assert _candidate_pdf_upload_refs("../community-garden-budget.pdf", {PDF_REF: "owned-pdf"}) == []
-    assert _candidate_pdf_upload_refs("community-garden-budget.docx", {PDF_REF: "owned-pdf"}) == []
-    assert _candidate_pdf_upload_refs(PDF_NAME, {"unrelated-pdf-deadbeef-123456": "owned-pdf"}) == []
+    assert candidate_pdf_upload_refs(PDF_NAME, {PDF_REF: "owned-pdf"}) == [(PDF_REF, "owned-pdf")]
+    assert candidate_pdf_upload_refs("../community-garden-budget.pdf", {PDF_REF: "owned-pdf"}) == []
+    assert candidate_pdf_upload_refs("community-garden-budget.docx", {PDF_REF: "owned-pdf"}) == []
+    assert candidate_pdf_upload_refs(PDF_NAME, {"unrelated-pdf-deadbeef-123456": "owned-pdf"}) == []
 
 
 # --- OCR readiness wait and single-flight OCR task ---

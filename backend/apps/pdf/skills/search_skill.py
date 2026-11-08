@@ -33,6 +33,7 @@ from toon_format import decode as toon_decode
 from backend.apps.base_skill import BaseSkill
 from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
 from backend.apps.pdf.utils.bm25 import RankedPage, rank_pages
+from backend.apps.pdf.utils.upload_alias import ALIAS_ERROR, candidate_pdf_upload_refs, resolve_pdf_alias
 from backend.apps.pdf.utils.final_gate import (
     LABEL_UNTRUSTED,
     injection_label,
@@ -392,7 +393,8 @@ class SearchSkill(BaseSkill):
         # --- Step 1: Resolve file_path → embed_id via file_path_index ---
         file_path_index: Dict[str, str] = kwargs.get("file_path_index") or {}
         embed_id = file_path_index.get(file_path)
-        if not embed_id:
+        alias_candidates = candidate_pdf_upload_refs(file_path, file_path_index) if not embed_id else []
+        if not embed_id and not alias_candidates:
             logger.error(
                 f"{log_prefix} No embed found for file_path. "
                 f"Available keys: {list(file_path_index.keys())}"
@@ -407,7 +409,7 @@ class SearchSkill(BaseSkill):
                 ),
             ).dict()
 
-        log_prefix = f"[pdf.search] [embed:{embed_id[:8]}...]"
+        log_prefix = f"[pdf.search] [embed:{embed_id[:8]}...]" if embed_id else log_prefix
 
         resolved_vault_key_id = kwargs.get("user_vault_key_id")
         if not resolved_vault_key_id:
@@ -432,7 +434,16 @@ class SearchSkill(BaseSkill):
         try:
             # --- Step 2: Look up all crypto fields from Redis embed cache ---
             logger.info(f"{log_prefix} Looking up embed content from cache")
-            embed_content = await self._lookup_embed_content(embed_id, resolved_vault_key_id)
+            if alias_candidates:
+                resolved = await resolve_pdf_alias(
+                    file_path, file_path_index, resolved_vault_key_id, self._lookup_embed_content, log_prefix
+                )
+                if resolved is None:
+                    return SearchResponse(success=False, file_path=file_path, query=query, error=ALIAS_ERROR).dict()
+                embed_id, embed_content = resolved
+                log_prefix = f"[pdf.search] [embed:{embed_id[:8]}...]"
+            else:
+                embed_content = await self._lookup_embed_content(embed_id, resolved_vault_key_id)
             # The assistant often calls this while OCR is still running; wait for it.
             require_final_pdf(embed_content, ("vault_wrapped_aes_key", "ocr_data_s3_key"))
 

@@ -23,6 +23,7 @@ import httpx
 from fastapi import HTTPException
 
 from backend.apps.ai.processing.skill_executor import execute_skill
+from backend.apps.pdf.utils.upload_alias import CLI_PDF_REF
 
 logger = logging.getLogger(__name__)
 
@@ -35,9 +36,6 @@ MIN_JEV_RELEVANCE = 0.5          # "somewhat relevant" or better when the decisi
 MIN_QUERY_CHARS = 3
 SKILL_TIMEOUT_SECONDS = 20.0
 
-# CLI uploads are referenced by a slug of the file name plus a 6-character digest (same format
-# pdf.read accepts), not by the file name, so a ".pdf" suffix alone does not identify a PDF there.
-_CLI_UPLOAD_REF = re.compile(r"^[a-z0-9-]{1,40}-[a-f0-9]{6}$")
 _FENCED_BLOCK = re.compile(r"```.*?```", re.DOTALL)
 _PAGE_SEPARATOR = re.compile(r"\n\n---\n\n(?=### Page \d+\n)")
 
@@ -62,13 +60,14 @@ def question_from_message(content: str, refs: List[str]) -> str:
 def current_message_pdf_refs(content: str, file_path_index: Dict[str, str]) -> List[str]:
     """References in the current user message that can be PDFs, in message order.
 
-    Web and app uploads use the file name; CLI uploads use a slug. A reference that turns out not
+    Web and app uploads use the file name; CLI uploads use a slug (a name prefix plus a 6-character
+    digest), so a ".pdf" suffix alone does not identify a PDF there. A reference that turns out not
     to be a PDF (an image slug) fails its search and is skipped.
     """
     found = [
         (content.index(ref), ref) for ref in file_path_index
         if isinstance(ref, str) and ref in content
-        and (ref.casefold().strip().endswith(".pdf") or _CLI_UPLOAD_REF.fullmatch(ref))
+        and (ref.casefold().strip().endswith(".pdf") or CLI_PDF_REF.fullmatch(ref))
     ]
     return [ref for _position, ref in sorted(found)][:MAX_CANDIDATE_REFS]
 

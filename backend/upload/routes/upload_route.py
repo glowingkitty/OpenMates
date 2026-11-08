@@ -705,6 +705,7 @@ async def _cache_embed_via_api(
     content_type: str,
     original_filename: str,
     ai_detection: Optional[Dict[str, Any]] = None,
+    pdf_billing: Optional[Dict[str, Any]] = None,
 ) -> bool:
     """
     Cache an upload embed in Redis via the core API's /internal/uploads/cache-embed endpoint.
@@ -726,6 +727,7 @@ async def _cache_embed_via_api(
             "content_type": content_type,
             "original_filename": original_filename,
             "ai_detection": ai_detection,
+            "pdf_billing": pdf_billing,
         }
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
@@ -1532,6 +1534,7 @@ async def _handle_pdf_dedup(
         content_type=content_type,
         original_filename=filename,
         ai_detection=None,
+        pdf_billing={"credits_charged": credits_to_charge, "page_routes": page_routes},
     )
 
     # Trigger OCR for the new embed_id (always — even if the old embed's OCR
@@ -1867,6 +1870,7 @@ async def _handle_pdf_upload(
         content_type=content_type,
         original_filename=filename,
         ai_detection=None,
+        pdf_billing={"credits_charged": credits_to_charge, "page_routes": page_routes},
     )
 
     # --- PDF 7. Trigger background OCR processing (fire-and-forget) ---
