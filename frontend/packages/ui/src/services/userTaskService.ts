@@ -21,6 +21,14 @@ import { getTeamKey } from "./teamService";
 import { getActiveTeamContextSnapshot, isActiveTeamContext } from "../stores/teamStore";
 import { getWorkspaceCacheIdentity, WorkspaceQueryCache } from "./workspaceQueryCache";
 import { registerWorkspaceCacheClear } from "./workspaceCacheLifecycle";
+import { buildWorkBody, decryptWorkFields, workClient, workDecide, type WorkRequest } from "./work/workRust";
+import type { WorkClient } from "./rustCore/crypto/workOps";
+
+// Flag-on builds run this service's pure logic (key-envelope choice, views,
+// external-chat checks, paths, bodies) in the shared Rust core Worker (`work`
+// op, web_work tasks); the constant folds to false otherwise, so flag-off keeps
+// the original paths. The page keeps fetch, key unwrap/wrap, encrypt/decrypt.
+const RUST_WORK = import.meta.env.VITE_OPENMATES_RUST_CORE === "1";
 
 export type UserTaskStatus = "backlog" | "todo" | "in_progress" | "blocked" | "done";
 export type UserTaskAssigneeType = "user" | "openmates" | "external_ai" | "unassigned";
@@ -414,6 +422,15 @@ function taskContextPath(path: string, teamId?: string | null): string {
 }
 
 async function taskKeyEnvelope(record: EncryptedUserTaskRecord, teamId?: string | null): Promise<string | null> {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const decided = await workDecide<{ envelope: string | null }>(work, "taskKeyEnvelope", {
+      record: { task_id: record.task_id, encrypted_task_key: record.encrypted_task_key, key_wrappers: record.key_wrappers },
+      team_id: teamId ?? null,
+      team_hash: teamId ? await computeSHA256(teamId) : null,
+    });
+    return decided.envelope;
+  }
   if (!teamId) return record.encrypted_task_key ?? null;
   const teamHash = await computeSHA256(teamId);
   const wrappers = record.key_wrappers?.filter((wrapper) =>
@@ -525,6 +542,13 @@ async function decryptTask(record: EncryptedUserTaskRecord): Promise<UserTaskVie
     : await decryptChatKeyWithMasterKey(envelope);
   if (!taskKey) return null;
   const encrypted = teamId ? { ...record, encrypted_task_key: envelope } : record;
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const view = await workDecide<Omit<UserTaskViewModel, "encrypted">>(work, "taskView", {
+      record: encrypted, fields: await decryptWorkFields(encrypted, taskKey), team_id: teamId ?? null,
+    });
+    return { ...view, encrypted };
+  }
   const tagsText = await decryptOptional(record.encrypted_tags, taskKey);
   let tags: string[] = [];
   try {
@@ -647,6 +671,21 @@ async function buildTaskKeyWrappers(
   return wrappers;
 }
 
+/** Flag on: asks the Worker for one request (path, method, ordered body steps) and sends it. */
+async function sendTaskWork<T>(
+  work: WorkClient, op: string, input: Record<string, unknown>, source: object,
+  keys: Record<string, Uint8Array | null>, slots?: (request: WorkRequest) => Record<string, () => unknown>,
+): Promise<T> {
+  const request = await workDecide<WorkRequest>(work, op, input);
+  const body = await buildWorkBody(request.steps, source, keys, slots?.(request));
+  return requestJson<T>(request.path, { method: request.method, body: JSON.stringify(body) });
+}
+
+/** The task facts the path/body decisions read (the view without plaintexts or records). */
+function taskWorkFacts(task: UserTaskViewModel): Record<string, unknown> {
+  return { task_id: task.task_id, version: task.version, teamId: task.teamId, primaryChatId: task.primaryChatId, linkedProjectIds: task.linkedProjectIds };
+}
+
 export async function getTaskAssignmentEligibility(): Promise<boolean> {
   return taskEligibilityCache.load("owner", async () => {
     const data = await requestJson<{ eligible_external_ai?: string[] }>("/v1/user-tasks/assignment-eligibility");
@@ -662,12 +701,20 @@ export async function listTaskBoardItems(filters: ListUserTasksFilters = {}, opt
   knownTaskFilters.set(key, { ...filters });
   if (knownTaskFilters.size > 32) knownTaskFilters.delete(knownTaskFilters.keys().next().value!);
   return taskBoardCache.load(key, async () => {
-    const data = await requestJson<{ tasks: Array<EncryptedUserTaskRecord | WorkflowRunTaskProjectionRecord>; eligible_external_ai?: string[] }>(`/v1/user-tasks${await buildQuery(filters)}`);
+    const work = RUST_WORK ? workClient() : null;
+    const path = work
+      ? await workDecide<string>(work, "taskListPath", {
+        filters, external_chat_lookup_hash: filters.externalChat ? await externalChatLookupHash(filters.externalChat) : null,
+      })
+      : `/v1/user-tasks${await buildQuery(filters)}`;
+    const data = await requestJson<{ tasks: Array<EncryptedUserTaskRecord | WorkflowRunTaskProjectionRecord>; eligible_external_ai?: string[] }>(path);
     if (cacheScope && cacheScope === getWorkspaceCacheIdentity() && Array.isArray(data.eligible_external_ai)) {
       taskEligibilityCache.set("owner", data.eligible_external_ai.includes("codex"));
     }
     const decrypted = await Promise.all(data.tasks.map(async (task) => {
-      if (isWorkflowRunTaskProjection(task)) return workflowRunTaskProjection(task);
+      if (isWorkflowRunTaskProjection(task)) {
+        return work ? workDecide<WorkflowRunTaskProjectionViewModel>(work, "taskWorkflowRunView", { record: task }) : workflowRunTaskProjection(task);
+      }
       return decryptTask(task);
     }));
     return decrypted.filter((task): task is TasksBoardItem => task !== null);
@@ -685,7 +732,11 @@ export async function getUserTask(taskId: string): Promise<UserTaskViewModel> {
   const load = () => taskEntityCache.load(taskId, async () => {
     let data: { task: EncryptedUserTaskRecord; eligible_external_ai?: string[] };
     try {
-      data = await requestJson<{ task: EncryptedUserTaskRecord; eligible_external_ai?: string[] }>(taskContextPath(`/v1/user-tasks/${encodeURIComponent(taskId)}`, getActiveTeamContextSnapshot().teamId));
+      const work = RUST_WORK ? workClient() : null;
+      const path = work
+        ? await workDecide<string>(work, "taskItemPath", { task_id: taskId, team_id: getActiveTeamContextSnapshot().teamId })
+        : taskContextPath(`/v1/user-tasks/${encodeURIComponent(taskId)}`, getActiveTeamContextSnapshot().teamId);
+      data = await requestJson<{ task: EncryptedUserTaskRecord; eligible_external_ai?: string[] }>(path);
     } catch (error) {
       if (error instanceof Error && error.message.includes('Tasks API failed (404)')) forgetTask(taskId, cacheScope);
       throw error;
@@ -725,7 +776,28 @@ async function taskKeyForActivity(task: UserTaskViewModel): Promise<Uint8Array> 
   return taskKey;
 }
 
+/** One AAD-bound Activity decrypt the Worker asks the page to perform with the task key. */
+interface TaskActivityDecrypt {
+  name: "message" | "embedKeyMaterial";
+  member: "encrypted_message" | "encrypted_embed_key_material";
+  aad: string;
+  failure: string;
+}
+
 async function decryptTaskActivityEntry(task: UserTaskViewModel, record: UserTaskActivityRecord): Promise<UserTaskActivityEntry> {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const decided = await workDecide<{ entry: UserTaskActivityEntry; decrypts: TaskActivityDecrypt[] }>(work, "taskActivityView", { task_id: task.task_id, record });
+    if (decided.decrypts.length === 0) return decided.entry;
+    const taskKey = await taskKeyForActivity(task);
+    const entry: UserTaskActivityEntry = { ...decided.entry };
+    for (const step of decided.decrypts) {
+      const plaintext = await decryptWithEmbedKey(record[step.member] as string, taskKey, { associatedData: step.aad });
+      if (plaintext === null) throw new Error(step.failure);
+      entry[step.name] = plaintext;
+    }
+    return entry;
+  }
   const entry: UserTaskActivityEntry = {
     entryId: record.entry_id,
     taskId: record.task_id,
@@ -765,8 +837,12 @@ async function decryptTaskActivityEntry(task: UserTaskViewModel, record: UserTas
 export async function listUserTaskActivity(task: UserTaskViewModel, teamId?: string): Promise<UserTaskActivityEntry[]> {
   const entries: UserTaskActivityEntry[] = [];
   let cursor: string | undefined;
+  const work = RUST_WORK ? workClient() : null;
   do {
-    const page = await requestJson<{ entries: UserTaskActivityRecord[]; next_cursor: string | null }>(taskActivityPath(task.task_id, teamId ?? task.teamId ?? undefined, cursor));
+    const path = work
+      ? await workDecide<string>(work, "taskActivityPath", { task_id: task.task_id, team_id: teamId ?? null, task_team_id: task.teamId ?? null, cursor: cursor ?? null })
+      : taskActivityPath(task.task_id, teamId ?? task.teamId ?? undefined, cursor);
+    const page = await requestJson<{ entries: UserTaskActivityRecord[]; next_cursor: string | null }>(path);
     entries.push(...await Promise.all(page.entries.map((record) => decryptTaskActivityEntry(task, record))));
     cursor = page.next_cursor ?? undefined;
   } while (cursor);
@@ -775,6 +851,19 @@ export async function listUserTaskActivity(task: UserTaskViewModel, teamId?: str
 
 export async function createUserTaskActivity(task: UserTaskViewModel, input: CreateUserTaskActivityInput): Promise<UserTaskActivityEntry> {
   const taskKey = await taskKeyForActivity(task);
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const request = await workDecide<WorkRequest>(work, "taskActivityCreateBody", {
+      task_id: task.task_id, input, fresh_id: crypto.randomUUID(), timestamp: nowSeconds(), team_id: input.teamId ?? null, task_team_id: task.teamId ?? null,
+    });
+    const body = await buildWorkBody(request.steps, input, { task: taskKey });
+    const created = await requestJson<{ entry: UserTaskActivityRecord }>(request.path, {
+      method: request.method,
+      headers: { "X-OpenMates-Client": "web" },
+      body: JSON.stringify(body),
+    });
+    return decryptTaskActivityEntry(task, created.entry);
+  }
   const entryId = input.entryId ?? crypto.randomUUID();
   const body = {
     entry_id: entryId,
@@ -792,6 +881,12 @@ export async function createUserTaskActivity(task: UserTaskViewModel, input: Cre
 }
 
 export async function deleteUserTaskActivity(task: UserTaskViewModel, entryId: string, teamId?: string): Promise<UserTaskActivityEntry> {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const path = await workDecide<string>(work, "taskActivityDeletePath", { task_id: task.task_id, entry_id: entryId, team_id: teamId ?? null, task_team_id: task.teamId ?? null });
+    const deleted = await requestJson<{ entry: UserTaskActivityRecord }>(path, { method: "DELETE", headers: { "X-OpenMates-Client": "web" } });
+    return decryptTaskActivityEntry(task, deleted.entry);
+  }
   const params = new URLSearchParams();
   if (teamId ?? task.teamId) params.set("team_id", (teamId ?? task.teamId)!);
   const query = params.toString();
@@ -807,6 +902,14 @@ export function isWorkflowRunTaskProjectionViewModel(task: TasksBoardItem): task
 }
 
 export async function cancelWorkflowRunTaskProjection(task: WorkflowRunTaskProjectionViewModel): Promise<void> {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const path = await workDecide<string>(work, "taskWorkflowCancelPath", { workflow_id: task.workflowId, workflow_run_id: task.workflowRunId });
+    const cacheScope = getWorkspaceCacheIdentity();
+    await requestJson(path, { method: "POST" });
+    if (cacheScope && cacheScope === getWorkspaceCacheIdentity()) taskBoardCache.invalidate();
+    return;
+  }
   if (!task.workflowRunId) throw new Error("Workflow run projection has no run id to cancel");
   const cacheScope = getWorkspaceCacheIdentity();
   await requestJson(`/v1/workflows/${encodeURIComponent(task.workflowId)}/runs/${encodeURIComponent(task.workflowRunId)}/cancel`, {
@@ -820,6 +923,26 @@ export async function createUserTask(input: CreateUserTaskInput): Promise<UserTa
   const context = getActiveTeamContextSnapshot();
   const teamId = input.teamId === undefined ? context.teamId : input.teamId;
   if (!isActiveTeamContext(teamId, context.epoch)) throw new Error("Task workspace changed");
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    // Rust checks the chat context first (the TS refusal precedence), then the page makes and wraps the key.
+    const timestamp = nowSeconds();
+    const request = await workDecide<WorkRequest>(work, "taskCreateBody", { input, team_id: teamId ?? null, task_id: crypto.randomUUID(), timestamp });
+    const taskKey = generateEmbedKey();
+    const encryptedTaskKey = teamId ? null : await encryptChatKeyWithMasterKey(taskKey);
+    if (!teamId && !encryptedTaskKey) throw new Error("Could not wrap task key with master key");
+    const workspaceTaskKey = teamId ? await wrapEmbedKeyWithChatKey(taskKey, await getTeamKey(teamId)) : encryptedTaskKey!;
+    const body = await buildWorkBody(request.steps, input, { task: taskKey }, {
+      encrypted_task_key: () => workspaceTaskKey,
+      external_chat_lookup_hash: () => externalChatLookupHash(input.externalChat!),
+      key_wrappers: () => buildTaskKeyWrappers(taskKey, encryptedTaskKey, timestamp, request.wrapper_chat_id ?? null, request.wrapper_project_ids ?? [], teamId),
+    }) as Partial<EncryptedUserTaskRecord>;
+    if (!isActiveTeamContext(teamId, context.epoch)) throw new Error("Task workspace changed");
+    const created = await requestJson<{ task: EncryptedUserTaskRecord }>(request.path, { method: request.method, body: JSON.stringify(body) });
+    const view = await decryptTask(teamId ? { ...created.task, key_wrappers: created.task.key_wrappers ?? body.key_wrappers } : created.task);
+    if (!view) throw new Error("Created task could not be decrypted");
+    return rememberTask(view, cacheScope);
+  }
   if (input.primaryChatId && input.externalChat) throw new Error("A task cannot use both native chat and external chat context.");
   if (input.externalChat) assertExternalChatContext(input.externalChat);
   const taskKey = generateEmbedKey();
@@ -870,11 +993,20 @@ export async function createUserTask(input: CreateUserTaskInput): Promise<UserTa
 }
 
 export async function listUserTaskKeyWrappers(taskId: string, teamId?: string | null): Promise<UserTaskKeyWrapperRecord[]> {
-  const data = await requestJson<{ key_wrappers: UserTaskKeyWrapperRecord[] }>(taskContextPath(`/v1/user-tasks/${taskId}/key-wrappers`, teamId));
+  const work = RUST_WORK ? workClient() : null;
+  const path = work
+    ? await workDecide<string>(work, "taskKeyWrappersPath", { task_id: taskId, team_id: teamId ?? null })
+    : taskContextPath(`/v1/user-tasks/${taskId}/key-wrappers`, teamId);
+  const data = await requestJson<{ key_wrappers: UserTaskKeyWrapperRecord[] }>(path);
   return data.key_wrappers;
 }
 
 export async function listUserTaskDependencies(taskId: string): Promise<UserTaskDependencyViewModel[]> {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const data = await requestJson<{ dependencies: unknown[] }>(await workDecide<string>(work, "taskDependenciesPath", { task_id: taskId }));
+    return workDecide<UserTaskDependencyViewModel[]>(work, "taskDependenciesView", { dependencies: data.dependencies });
+  }
   const data = await requestJson<{
     dependencies: Array<{
       edge_id?: string | null;
@@ -896,6 +1028,12 @@ export async function listUserTaskDependencies(taskId: string): Promise<UserTask
 }
 
 export async function addUserTaskKeyWrappers(taskId: string, version: number, keyWrappers: UserTaskKeyWrapperRecord[]): Promise<UserTaskKeyWrapperRecord[]> {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const added = await sendTaskWork<{ key_wrappers: UserTaskKeyWrapperRecord[] }>(work, "taskKeyWrappersAddBody",
+      { task_id: taskId, version, key_wrappers: keyWrappers }, {}, {});
+    return added.key_wrappers;
+  }
   const data = await requestJson<{ key_wrappers: UserTaskKeyWrapperRecord[] }>(`/v1/user-tasks/${taskId}/key-wrappers`, {
     method: "POST",
     body: JSON.stringify({ version, key_wrappers: keyWrappers }),
@@ -904,6 +1042,8 @@ export async function addUserTaskKeyWrappers(taskId: string, version: number, ke
 }
 
 export async function extractUserTaskProposals(input: ExtractUserTaskProposalsInput): Promise<UserTaskProposal[]> {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) return (await sendTaskWork<{ proposed_tasks: UserTaskProposal[] }>(work, "taskExtractBody", { input }, {}, {})).proposed_tasks;
   const data = await requestJson<{ proposed_tasks: UserTaskProposal[] }>("/v1/user-tasks/extract", {
     method: "POST",
     body: JSON.stringify({
@@ -918,6 +1058,27 @@ export async function extractUserTaskProposals(input: ExtractUserTaskProposalsIn
 
 export async function updateUserTask(task: UserTaskViewModel, patch: Partial<CreateUserTaskInput> & { status?: UserTaskStatus }): Promise<UserTaskViewModel> {
   const cacheScope = getWorkspaceCacheIdentity();
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    // Rust checks the chat context first (the TS refusal precedence), then the page unwraps the key.
+    const request = await workDecide<WorkRequest>(work, "taskUpdateBody", { task: taskWorkFacts(task), patch, timestamp: nowSeconds() });
+    const taskKey = await taskKeyForRecord(task.encrypted, task.teamId);
+    if (!taskKey) throw new Error("Could not decrypt task key");
+    const encryptedTaskKey = task.encrypted.encrypted_task_key;
+    if (!encryptedTaskKey) throw new Error("Missing encrypted task key");
+    const body = await buildWorkBody(request.steps, patch, { task: taskKey }, {
+      external_chat_lookup_hash: () => externalChatLookupHash(patch.externalChat!),
+      key_wrappers: async () => {
+        const masterTaskKey = task.teamId ? await encryptChatKeyWithMasterKey(taskKey) : encryptedTaskKey;
+        if (!masterTaskKey) throw new Error("Could not wrap task key with master key");
+        return buildTaskKeyWrappers(taskKey, masterTaskKey, nowSeconds(), request.wrapper_chat_id ?? null, request.wrapper_project_ids ?? [], task.teamId);
+      },
+    });
+    const updated = await requestJson<{ task: EncryptedUserTaskRecord }>(request.path, { method: request.method, body: JSON.stringify(body) });
+    const view = await decryptTask(withPreviousTeamWrapper(updated.task, task));
+    if (!view) throw new Error("Updated task could not be decrypted");
+    return rememberTask(view, cacheScope);
+  }
   if (patch.primaryChatId && patch.externalChat) throw new Error("A task cannot use both native chat and external chat context.");
   if (patch.externalChat) assertExternalChatContext(patch.externalChat);
   const taskKey = await taskKeyForRecord(task.encrypted, task.teamId);
@@ -974,8 +1135,15 @@ async function decryptTaskActionResponse(data: { task: EncryptedUserTaskRecord }
   return rememberTask(decrypted, cacheScope);
 }
 
+/** Flag on: the `{version, team_id}` lifecycle action bodies decided by the Worker. */
+function sendTaskAction(work: WorkClient, action: "complete" | "unblock" | "skip", task: UserTaskViewModel): Promise<{ task: EncryptedUserTaskRecord }> {
+  return sendTaskWork<{ task: EncryptedUserTaskRecord }>(work, "taskActionBody", { action, task: taskWorkFacts(task) }, {}, {});
+}
+
 export async function completeUserTask(task: UserTaskViewModel): Promise<UserTaskViewModel> {
   const cacheScope = getWorkspaceCacheIdentity();
+  const work = RUST_WORK ? workClient() : null;
+  if (work) return decryptTaskActionResponse(await sendTaskAction(work, "complete", task), cacheScope, task);
   return decryptTaskActionResponse(await requestJson<{ task: EncryptedUserTaskRecord }>(`/v1/user-tasks/${task.task_id}/complete`, {
     method: "POST",
     body: JSON.stringify({ version: task.version, team_id: task.teamId }),
@@ -990,6 +1158,11 @@ export async function blockUserTask(
   const cacheScope = getWorkspaceCacheIdentity();
   const taskKey = await taskKeyForRecord(task.encrypted, task.teamId);
   if (!taskKey) throw new Error("Could not decrypt task key");
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    return decryptTaskActionResponse(await sendTaskWork<{ task: EncryptedUserTaskRecord }>(work, "taskBlockBody",
+      { task: taskWorkFacts(task), blocked_reason_code: blockedReasonCode, blocked_reason: blockedReason }, {}, { task: taskKey }), cacheScope, task);
+  }
   return decryptTaskActionResponse(await requestJson<{ task: EncryptedUserTaskRecord }>(`/v1/user-tasks/${task.task_id}/block`, {
     method: "POST",
     body: JSON.stringify({
@@ -1003,6 +1176,8 @@ export async function blockUserTask(
 
 export async function unblockUserTask(task: UserTaskViewModel): Promise<UserTaskViewModel> {
   const cacheScope = getWorkspaceCacheIdentity();
+  const work = RUST_WORK ? workClient() : null;
+  if (work) return decryptTaskActionResponse(await sendTaskAction(work, "unblock", task), cacheScope, task);
   return decryptTaskActionResponse(await requestJson<{ task: EncryptedUserTaskRecord }>(`/v1/user-tasks/${task.task_id}/unblock`, {
     method: "POST",
     body: JSON.stringify({ version: task.version, team_id: task.teamId }),
@@ -1011,6 +1186,8 @@ export async function unblockUserTask(task: UserTaskViewModel): Promise<UserTask
 
 export async function skipUserTask(task: UserTaskViewModel): Promise<UserTaskViewModel> {
   const cacheScope = getWorkspaceCacheIdentity();
+  const work = RUST_WORK ? workClient() : null;
+  if (work) return decryptTaskActionResponse(await sendTaskAction(work, "skip", task), cacheScope, task);
   return decryptTaskActionResponse(await requestJson<{ task: EncryptedUserTaskRecord }>(`/v1/user-tasks/${task.task_id}/skip`, {
     method: "POST",
     body: JSON.stringify({ version: task.version, team_id: task.teamId }),
@@ -1019,6 +1196,18 @@ export async function skipUserTask(task: UserTaskViewModel): Promise<UserTaskVie
 
 export async function reorderUserTasks(moves: ReorderUserTaskMoveInput[]): Promise<UserTaskViewModel[]> {
   const cacheScope = getWorkspaceCacheIdentity();
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const reordered = await sendTaskWork<{ tasks: EncryptedUserTaskRecord[] }>(work, "taskReorderBody", {
+      moves: moves.map((move) => ({
+        task_id: move.task.task_id, team_id: move.task.teamId, version: move.task.version,
+        beforeTaskId: move.beforeTaskId, afterTaskId: move.afterTaskId, status: move.status, position: move.position,
+      })),
+    }, {}, {});
+    const previous = new Map(moves.map((move) => [move.task.task_id, move.task]));
+    const views = await Promise.all(reordered.tasks.map((record) => decryptTask(withPreviousTeamWrapper(record, previous.get(record.task_id)))));
+    return views.filter((task): task is UserTaskViewModel => task !== null).map((task) => rememberTask(task, cacheScope));
+  }
   const teamId = moves[0]?.task.teamId ?? null;
   if (moves.some((move) => (move.task.teamId ?? null) !== teamId)) throw new Error("Cannot reorder tasks across workspaces");
   const data = await requestJson<{ tasks: EncryptedUserTaskRecord[] }>("/v1/user-tasks/reorder", {
@@ -1042,6 +1231,13 @@ export async function reorderUserTasks(moves: ReorderUserTaskMoveInput[]): Promi
 
 export async function deleteUserTask(task: UserTaskViewModel | WorkflowRunTaskProjectionViewModel): Promise<void> {
   const cacheScope = getWorkspaceCacheIdentity();
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const facts = { task_id: task.task_id, version: task.version, source: "source" in task ? task.source : null, teamId: "teamId" in task ? task.teamId : null };
+    await requestJson(await workDecide<string>(work, "taskDeletePath", { task: facts }), { method: "DELETE" });
+    forgetTask(task.task_id, cacheScope);
+    return;
+  }
   const params = new URLSearchParams({ version: String(task.version) });
   if (!isWorkflowRunTaskProjectionViewModel(task) && task.teamId) params.set("team_id", task.teamId);
   await requestJson(`/v1/user-tasks/${task.task_id}?${params.toString()}`, {
@@ -1052,6 +1248,17 @@ export async function deleteUserTask(task: UserTaskViewModel | WorkflowRunTaskPr
 
 export async function startUserTaskWithAI(task: UserTaskViewModel): Promise<UserTaskViewModel> {
   const cacheScope = getWorkspaceCacheIdentity();
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    // The plaintext prompt context is sent by design; the Worker only orders it.
+    const facts = {
+      ...taskWorkFacts(task), title: task.title, description: task.description, latestInstruction: task.latestInstruction, externalChat: task.externalChat,
+    };
+    const started = await sendTaskWork<{ task: EncryptedUserTaskRecord }>(work, "taskStartAiBody", { task: facts, timestamp: nowSeconds() }, {}, {});
+    const view = await decryptTask(withPreviousTeamWrapper(started.task, task));
+    if (!view) throw new Error("Started task could not be decrypted");
+    return rememberTask(view, cacheScope);
+  }
   const body: Record<string, unknown> = {
     version: task.version,
     team_id: task.teamId,

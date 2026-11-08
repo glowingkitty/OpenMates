@@ -18,9 +18,13 @@
 mod plan_bodies;
 mod plan_flows;
 mod plans;
+mod task_bodies;
+mod tasks;
 
 #[cfg(test)]
 mod plans_tests;
+#[cfg(test)]
+mod tasks_tests;
 
 use serde_json::{Map, Value, json};
 
@@ -37,6 +41,7 @@ pub fn run_json(op: &str, input: &str) -> Result<String, String> {
     let output = match op {
         o if o.starts_with("plan") && o.ends_with("View") => plans::run(o, &input),
         o if o.starts_with("plan") => plan_bodies::run(o, &input),
+        o if o.starts_with("task") => tasks::run(o, &input),
         _ => Err(format!("unknown_op:{op}")),
     }?;
     serde_json::to_string(&output).map_err(|e| e.to_string())

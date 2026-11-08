@@ -39,8 +39,8 @@ pub(crate) fn run(op: &str, input: &Value) -> Decision {
     }
 }
 
-/// `planContextRoute(path, teamId)`.
-fn context_route(path: String, team_id: Option<&Value>) -> String {
+/// `planContextRoute(path, teamId)` (also the Tasks `taskContextPath`).
+pub(super) fn context_route(path: String, team_id: Option<&Value>) -> String {
     if !truthy(team_id) {
         return path;
     }

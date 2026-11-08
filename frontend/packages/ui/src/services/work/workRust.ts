@@ -16,7 +16,7 @@ import { workCall, type WorkClient } from "../rustCore/crypto/workOps";
 /** One ordered body step answered by a `*Body` op. */
 export type WorkBodyStep =
   | { value: unknown }
-  | { encrypt: string; key: string }
+  | { encrypt: string; key: string; aad?: string }
   | { encrypt_input: string; key: string }
   | { slot: string };
 
@@ -79,7 +79,7 @@ export async function buildWorkBody(
   };
   for (const [name, step] of steps) {
     if ("value" in step) body[name] = step.value;
-    else if ("encrypt" in step) body[name] = await encryptWithEmbedKey(step.encrypt, sealWith(step.key));
+    else if ("encrypt" in step) body[name] = await encryptWithEmbedKey(step.encrypt, sealWith(step.key), step.aad);
     else if ("encrypt_input" in step) {
       const member = (source as Record<string, unknown>)[step.encrypt_input];
       body[name] = await encryptWithEmbedKey(JSON.stringify(member ?? []), sealWith(step.key));
