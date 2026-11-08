@@ -1,4 +1,12 @@
 import { apiEndpoints, getApiEndpoint } from '../config/api';
+import { buildWorkBody, workClient, workDecide, type WorkRequest } from './work/workRust';
+
+// Flag-on builds decide the async buyer-address requests (path, body, refusals)
+// in the shared Rust core Worker (`work` op, web_work/billing.rs); the constant
+// folds to false otherwise, so flag-off keeps the original paths. The page keeps
+// fetch and the address itself (a body slot), and the synchronous billingPath /
+// resolveBillingSettingsPath stay TypeScript (a Worker hop would make them async).
+const RUST_WORK = import.meta.env.VITE_OPENMATES_RUST_CORE === '1';
 
 export type BillingContext = { kind: 'personal' } | { kind: 'team'; teamId: string };
 
@@ -63,6 +71,14 @@ export function billingPath(context: BillingContext, operation: 'address' | 'bal
 }
 
 export async function loadBillingAddress(context: BillingContext): Promise<BillingAddress | null> {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const path = await workDecide<string>(work, 'billingPath', { context, operation: 'address' });
+    const response = await fetch(getApiEndpoint(path), { credentials: 'include' });
+    await workDecide(work, 'billingAddressResult', { action: 'load', ok: response.ok, status: response.status });
+    const data = await response.json();
+    return data.buyer_address ?? null;
+  }
   const response = await fetch(billingPath(context, 'address'), { credentials: 'include' });
   if (!response.ok) throw new Error(`Could not load billing address (${response.status})`);
   const data = await response.json();
@@ -70,6 +86,19 @@ export async function loadBillingAddress(context: BillingContext): Promise<Billi
 }
 
 export async function saveBillingAddress(context: BillingContext, address: BillingAddress | null): Promise<BillingAddress | null> {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const request = await workDecide<WorkRequest>(work, 'billingAddressBody', { context });
+    // The address stays on the page (slot), so its key order on the wire is unchanged.
+    const body = await buildWorkBody(request.steps, {}, {}, { buyer_address: () => address });
+    const response = await fetch(getApiEndpoint(request.path), {
+      method: request.method, headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify(body),
+    });
+    await workDecide(work, 'billingAddressResult', { action: 'save', ok: response.ok, status: response.status });
+    const data = await response.json();
+    return data.buyer_address ?? null;
+  }
   const response = await fetch(billingPath(context, 'address'), {
     method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
     body: JSON.stringify({ buyer_address: address }),

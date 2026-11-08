@@ -15,6 +15,7 @@
 //! `{"error": "<same message>"}`. Parity: `plans_ts_vectors.json`
 //! (`workPlanVectors.test.ts` regenerates it from the real flag-off service).
 
+mod billing;
 mod team_bodies;
 mod teams;
 mod plan_bodies;
@@ -23,6 +24,8 @@ mod plans;
 mod task_bodies;
 mod tasks;
 
+#[cfg(test)]
+mod billing_tests;
 #[cfg(test)]
 mod teams_tests;
 #[cfg(test)]
@@ -45,6 +48,8 @@ pub fn run_json(op: &str, input: &str) -> Result<String, String> {
     let output = match op {
         // Teams slice (teamService.ts): spec specifications/features/teams, vectors teams_ts_vectors.json.
         o if o.starts_with("team") => teams::run(o, &input),
+        // Billing slice (billingContext.ts, referralService.ts): vectors billing_ts_vectors.json.
+        o if o.starts_with("billing") || o.starts_with("referral") => billing::run(o, &input),
         o if o.starts_with("plan") && o.ends_with("View") => plans::run(o, &input),
         o if o.starts_with("plan") => plan_bodies::run(o, &input),
         o if o.starts_with("task") => tasks::run(o, &input),
