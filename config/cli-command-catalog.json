@@ -22934,6 +22934,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-apps.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open.",
         "Formatting, option variants, and complete protocol parity require validation."
       ],
       "platforms": {
@@ -49836,6 +49837,7 @@
         "owner": "native_server_worker"
       },
       "gaps": [
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-server.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open.",
         "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
@@ -50693,6 +50695,7 @@
         "module": "frontend/packages/openmates-tui-native/src/server.rs"
       },
       "gaps": [
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-server.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open.",
         "Focused server unit tests pass; platform and isolated self-host integration coverage pending; unported options fail explicitly."
       ],
       "platforms": {
@@ -51578,6 +51581,7 @@
         "module": "frontend/packages/openmates-tui-native/src/server.rs"
       },
       "gaps": [
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-server.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open.",
         "Focused server unit tests pass; platform and isolated self-host integration coverage pending; unported options fail explicitly."
       ],
       "platforms": {

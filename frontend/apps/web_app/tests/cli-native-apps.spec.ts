@@ -38,6 +38,15 @@ test.describe('CLI native differential: apps', () => {
 			await diff.check('apps images detect_ai (missing file)', ['apps', 'images', 'detect_ai', '--file', path.join(work, 'missing.png')], { catalog: ['apps images detect_ai'] });
 
 			// Cheap skills with deterministic results; ids/timestamps are normalized by the harness.
+			// Documented native gaps (not verified): openmates get-docs maps a backend 404 to invalid_argument instead of
+			// http-not-found; plans/tasks/workflows search report "skill currently unavailable" (exit 1) where npm returns a
+			// pending client search result. pdf view/read need an uploaded chat embed and are not covered here.
+			await diff.check('apps openmates get-docs', ['apps', 'openmates', 'get-docs', '--url', 'architecture/chats'], { expectedGap: 'stderr class: npm=http-not-found', structureOnly: true, catalog: ['apps openmates get-docs'], timeoutMs: 120_000 });
+			await diff.check('apps design search_icons', ['apps', 'design', 'search_icons', '--query', 'home', '--count', '5'], { structureOnly: true, catalog: ['apps design search_icons'], timeoutMs: 120_000 });
+			await diff.check('apps plans search', ['apps', 'plans', 'search', '--query', 'differential'], { expectedGap: 'exit: npm=0 native=1', structureOnly: true, catalog: ['apps plans search'], timeoutMs: 120_000 });
+			await diff.check('apps tasks search', ['apps', 'tasks', 'search', '--query', 'differential'], { expectedGap: 'exit: npm=0 native=1', structureOnly: true, catalog: ['apps tasks search'], timeoutMs: 120_000 });
+			await diff.check('apps workflows search', ['apps', 'workflows', 'search', '--query', 'differential'], { expectedGap: 'exit: npm=0 native=1', structureOnly: true, catalog: ['apps workflows search'], timeoutMs: 120_000 });
+
 			await diff.check('apps math calculate', ['apps', 'math', 'calculate', '--expression', '2+3*4'], { structureOnly: true, catalog: ['apps math calculate'], timeoutMs: 120_000 });
 			// Real diff: npm POSTs /v1/apps/reminder/skills/list-reminders directly (HTTP 200), while the shared
 			// Rust SDK first reads the skill details and refuses with "This App skill is currently unavailable."

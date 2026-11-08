@@ -78,6 +78,23 @@ test.describe('CLI native differential: server', () => {
 			await diff.check('server ai models list', ['server', 'ai', 'models', 'list', ...p], { catalog: ['server ai models list'] });
 			await diff.check('server backup list', ['server', 'backup', 'list', ...p], { catalog: ['server backup list'] });
 			await diff.check('server update status', ['server', 'update', 'status', ...p], { catalog: ['server update status'] });
+
+			// Fixture reads that never start containers or touch the host: planning and state files only.
+			// Documented native gaps (not verified): preflight omits services/updateSteps/healthChecks/caddy/backupName;
+			// monitoring status uses a nested state object; caddy status adds command/status; caddy check and
+			// missing-file diff stderr classes differ; verify stderr class differs.
+			const caddyfile =path.join(work, 'Caddyfile');
+			fs.writeFileSync(caddyfile, ':8080 {\n\trespond "fixture"\n}\n');
+			const caddyIgnore = ['templatePath'];
+			await diff.check('server preflight', ['server', 'preflight', ...p], { expectedGap: '$.caddy: only in npm', catalog: ['server preflight'] });
+			await diff.check('server monitoring status', ['server', 'monitoring', 'status', ...p], { expectedGap: '$.incidentOpen: only in npm', catalog: ['server monitoring status'] });
+			await diff.check('server caddy status', ['server', 'caddy', 'status', '--config', caddyfile], { ignoreKeys: caddyIgnore, expectedGap: '$.command: only in native', catalog: ['server caddy status'] });
+			await diff.check('server caddy diff', ['server', 'caddy', 'diff', '--config', caddyfile], { mode: 'exit', catalog: ['server caddy diff'] });
+			await diff.check('server caddy diff (missing applied file)', ['server', 'caddy', 'diff', '--config', path.join(work, 'missing-Caddyfile')], { mode: 'exit', expectedGap: 'stderr class: npm=http-not-found native=other' });
+			await diff.check('server caddy check', ['server', 'caddy', 'check', '--config', caddyfile], { mode: 'exit', expectedGap: 'stderr class: npm=http-not-found native=other', catalog: ['server caddy check'] });
+			await diff.check('server status', ['server', 'status', ...p], { mode: 'exit', catalog: ['server status'] });
+			await diff.check('server logs', ['server', 'logs', ...p], { mode: 'exit', catalog: ['server logs'] });
+			await diff.check('server verify', ['server', 'verify', ...p], { mode: 'exit', expectedGap: 'stderr class: npm=validation native=other', catalog: ['server verify'] });
 		} finally {
 			fs.rmSync(work, { recursive: true, force: true });
 			await finishDifferential(diff);
