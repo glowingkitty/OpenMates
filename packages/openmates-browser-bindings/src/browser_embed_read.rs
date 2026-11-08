@@ -2,7 +2,9 @@
 //! exact replay of legacy artifact version patches, the Rust replacement for the
 //! web client's `applyVersionPatch` (embedVersionReconstruction.ts). Marshals only:
 //! JS passes the opened text and receives the patched text.
-use openmates_sdk::embed_read::{admission, patch};
+//! Also serves the canonical embed sender decisions (`embed_read::run_json`, op
+//! `decideSender` of the embedData unit) as JSON text in, JSON text out.
+use openmates_sdk::embed_read::{self, admission, patch};
 use wasm_bindgen::{prelude::*, JsCast};
 
 /// Applies one stored version `patch` to `content` (byte-identical to the TS replay).
@@ -41,4 +43,18 @@ pub fn embed_event_admitted(
         incoming_version,
         version_exempt,
     }))
+}
+
+/// Runs one canonical embed sender decision (`embed_read::run_json`): `input`
+/// and the answer are JSON text (no key bytes or plaintext cross).
+///
+/// # Errors
+/// Rejects with `embed_sender:<reason>` for an unknown op or malformed document,
+/// or `unavailable` outside a dedicated Worker.
+#[wasm_bindgen]
+pub fn embed_sender_decide(op: &str, input: &str) -> Result<String, JsValue> {
+    js_sys::global()
+        .dyn_into::<web_sys::DedicatedWorkerGlobalScope>()
+        .map_err(|_| JsValue::from_str("unavailable"))?;
+    embed_read::run_json(op, input).map_err(|reason| JsValue::from_str(&format!("embed_sender:{reason}")))
 }

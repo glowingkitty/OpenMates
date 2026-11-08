@@ -6320,6 +6320,7 @@
             "embed_read.link.parse_embed_link_target",
             "embed_read.patch.apply_project_file_patch",
             "embed_read.patch.apply_version_patch",
+            "embed_read.run_json",
             "embed_read.status.STATUSES",
             "embed_read.status.is_terminal",
             "embed_read.status.is_valid_status",

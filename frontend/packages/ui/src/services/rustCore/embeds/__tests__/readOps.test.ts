@@ -10,6 +10,10 @@ const binding = {
 		if (patch === 'bad') throw 'Version patch has no hunks';
 		if (patch === 'fault') throw new Error('boom');
 		return `${content}+${patch}`;
+	},
+	embed_sender_decide(op: string, input: string): string {
+		if (op === 'senderBroken') throw 'embed_sender:unknown_op:senderBroken';
+		return JSON.stringify({ op, input: JSON.parse(input) });
 	}
 };
 
@@ -39,5 +43,19 @@ describe('embedData read ops', () => {
 			.toThrow(expect.objectContaining({ code: 'embed_data_bad_request' }));
 		expect(() => handlers.admitEmbedEvent({ ...facts, currentStatus: 1 } as never, SIGNAL))
 			.toThrow(expect.objectContaining({ code: 'embed_data_bad_request' }));
+	});
+
+	// contract-test: supporting surface=gui.web assertions=storage.client.shared-policy-existing-adapters
+	it('marshals sender decisions as JSON text and refuses bad ops or Rust refusals', () => {
+		expect(handlers.decideSender({ op: 'senderReceipt', input: '{"kind":"keys"}' }, SIGNAL))
+			.toBe('{"op":"senderReceipt","input":{"kind":"keys"}}');
+		expect(() => handlers.decideSender({ op: 'admitEmbedEvent', input: '{}' }, SIGNAL))
+			.toThrow(expect.objectContaining({ code: 'embed_data_bad_request' }));
+		expect(() => handlers.decideSender({ op: 'senderReceipt', input: {} } as never, SIGNAL))
+			.toThrow(expect.objectContaining({ code: 'embed_data_bad_request' }));
+		expect(() => handlers.decideSender({ op: 'senderBroken', input: '{}' }, SIGNAL))
+			.toThrow(expect.objectContaining({ code: 'embed_sender_refused' }));
+		expect(() => createEmbedReadHandlers({}).decideSender({ op: 'senderReceipt', input: '{}' }, SIGNAL))
+			.toThrow(expect.objectContaining({ code: 'unavailable' }));
 	});
 });

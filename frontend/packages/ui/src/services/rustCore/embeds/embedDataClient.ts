@@ -29,6 +29,7 @@ import {
 	type OpenedEmbedFields
 } from './embedDataProtocol';
 import type { EmbedEventAdmissionRequest } from './readOps';
+import type { EmbedSenderDecisions, EmbedSenderOp } from '../../embedSenderPolicy';
 
 export class RustEmbedDataError extends Error {
 	constructor(readonly code: string) {
@@ -45,7 +46,7 @@ export class EmbedDataClient {
 	private queue: Queued[] = [];
 	private scheduled = false;
 	private stopCrashWatch: (() => void) | null = null;
-	readonly stats = { requests: 0, rows: 0, failures: 0, toonDecodes: 0, streamedWrites: 0, admissions: 0 };
+	readonly stats = { requests: 0, rows: 0, failures: 0, toonDecodes: 0, streamedWrites: 0, admissions: 0, senderDecisions: 0 };
 
 	constructor(private readonly core: SharedRustCore) {}
 
@@ -95,6 +96,23 @@ export class EmbedDataClient {
 			const decision = await unit.request('admitEmbedEvent', request);
 			if (typeof decision !== 'boolean') throw new RustEmbedDataError('embed_data_bad_reply');
 			return decision;
+		} catch (error) {
+			this.stats.failures += 1;
+			throw error;
+		} finally {
+			release();
+		}
+	}
+
+	/** One canonical embed sender decision in Rust (`embed_read::run_json`); the parsed answer document. */
+	async decideSender(op: string, input: unknown): Promise<unknown> {
+		const release = this.core.hold();
+		this.stats.senderDecisions += 1;
+		try {
+			const { unit } = await this.open();
+			const answer = await unit.request('decideSender', { op, input: JSON.stringify(input) });
+			if (typeof answer !== 'string') throw new RustEmbedDataError('embed_data_bad_reply');
+			return JSON.parse(answer) as unknown;
 		} catch (error) {
 			this.stats.failures += 1;
 			throw error;
@@ -253,6 +271,18 @@ export async function applyVersionPatchInRust(content: string, patch: string): P
 export async function admitEmbedEventInRust(request: EmbedEventAdmissionRequest): Promise<boolean | null> {
 	const client = rustEmbedData();
 	return client ? client.admitEmbedEvent(request) : null;
+}
+
+/**
+ * Canonical embed sender hook (embedSenders.ts): the Rust decision for `op`.
+ * Null only when the Rust crypto arm is inactive (measurement opt-out), the
+ * documented TS arm; a Rust failure rejects like the sender's own IO errors.
+ */
+export async function decideEmbedSenderInRust<O extends EmbedSenderOp>(
+	op: O, input: EmbedSenderDecisions[O]['input']
+): Promise<EmbedSenderDecisions[O]['output'] | null> {
+	const client = rustEmbedData();
+	return client ? (client.decideSender(op, input) as Promise<EmbedSenderDecisions[O]['output']>) : null;
 }
 
 declare global {

@@ -1,6 +1,6 @@
 ---
 status: active
-last_verified: 2026-06-07
+last_verified: 2026-11-08
 key_files:
 - backend/apps/*/skills/*/embed*.py
 - frontend/packages/ui/src/components/embeds/**/*.svelte
@@ -9,6 +9,7 @@ key_files:
 - frontend/packages/ui/src/services/embedStore.ts
 - frontend/packages/ui/src/services/embedStateMachine.ts
 - frontend/packages/ui/src/services/embedSenders.ts
+- frontend/packages/ui/src/services/embedSenderPolicy.ts
 - backend/shared/python_schemas/embed*.py
 claims:
 - id: arch-messaging-embeds-behavior
@@ -186,6 +187,15 @@ payloads and wrappers for resolution and do not automatically replay on reconnec
 The sender exposes persisted/adopted/waiting/conflict/denied outcomes; correlated
 protocol responses belong to their requesting operation instead of generating
 one global error notification per retry. Unmatched errors remain visible.
+
+The sender's pure decision rules (availability request and plan, canonical
+identity, history page, wrapper rows, missing keys, receipts and failure
+settlement) live in `embedSenderPolicy.ts`. With `VITE_OPENMATES_RUST_CORE=1`
+the same rules run in shared Rust (`openmates_sdk::embed_read::run_json`,
+embedData Worker op `decideSender`) and receive JSON facts only. Unwraps,
+decryption and ciphertext digests stay on the page, and no key bytes or
+plaintext reach the Worker. Parity vectors generated from the TypeScript rules
+(`sender_ts_vectors.json`) are replayed by both cargo and vitest.
 
 The CLI performs a fresh metadata read after persisting recovered outputs. Within
 one sync operation it remembers only successfully verified record identities,

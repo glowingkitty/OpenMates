@@ -102,7 +102,7 @@ describe('embedData unit', () => {
 		const handlers = createEmbedDataHandlers(dataBinding());
 		await expect(handlers.openFields({ items: [{ key: 'k' }] } as never, SIGNAL)).rejects.toMatchObject({ code: 'embed_data_bad_request' });
 		await expect(handlers.openFields({ items: Array.from({ length: 257 }, () => item('a')) }, SIGNAL)).rejects.toMatchObject({ code: 'embed_data_bad_request' });
-		const broken = createEmbedDataHandlers({ embed_open_row_fields: async () => ({ content: 1 }) });
+		const broken = createEmbedDataHandlers({ embed_open_row_fields: async () => ({ content: 1 }), toon_decode: (text: string) => text });
 		await expect(broken.openFields({ items: [item('a')] }, SIGNAL)).rejects.toMatchObject({ code: 'embed_data_protocol' });
 	});
 
@@ -149,7 +149,7 @@ describe('embedData unit', () => {
 		expect(second.status === 'rejected' && second.reason).toBeInstanceOf(RustEmbedDataError);
 		expect(second.status === 'rejected' && (second.reason as RustEmbedDataError).code).toBe('invalid');
 		expect(third).toMatchObject({ status: 'fulfilled', value: { content: 'plain:y', text_preview: 'p' } });
-		expect(client.stats).toEqual({ requests: 1, rows: 3, failures: 0, toonDecodes: 0, streamedWrites: 0 });
+		expect(client.stats).toEqual({ requests: 1, rows: 3, failures: 0, toonDecodes: 0, streamedWrites: 0, admissions: 0, senderDecisions: 0 });
 		expect(pageKey.every((byte) => byte === 7)).toBe(true);
 		expect(shared.workers).toHaveLength(1);
 		expect(shared.workers[0].posted.find((message) => message.type === 'open')).toMatchObject({ ns: 'embedData', generation: null });

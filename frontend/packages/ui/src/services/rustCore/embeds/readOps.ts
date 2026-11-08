@@ -29,7 +29,14 @@ export type EmbedReadProtocol = {
 	applyVersionPatches: { request: { items: VersionPatchItem[] }; response: VersionPatchResult[] };
 	/** Rust `embed_read::admission`: true when the inbound embed event may be applied. */
 	admitEmbedEvent: { request: EmbedEventAdmissionRequest; response: boolean };
+	/** Rust `embed_read::run_json`: one canonical embed sender decision (embedSenderPolicy.ts), JSON text in and out. */
+	decideSender: { request: { op: string; input: string }; response: string };
 };
+
+/** Sender decision op names (`sender*`, embedSenderPolicy.ts `EmbedSenderOp`). */
+const SENDER_OP = /^sender[A-Z][A-Za-z]{1,40}$/;
+/** Largest sender decision document (a canonical page carries at most 128 wrapper rows). */
+const SENDER_INPUT_MAX = 4 * 1024 * 1024;
 
 export interface EmbedReadBinding {
 	/** Rust `embed_read::patch::apply_version_patch`; throws the TS refusal message. */
@@ -37,6 +44,8 @@ export interface EmbedReadBinding {
 	/** Rust `embed_read::admission::is_embed_event_admitted`. */
 	embed_event_admitted(currentStatus: string, incomingStatus: string | undefined, currentVersion: number | undefined,
 		incomingVersion: number | undefined, versionExempt: boolean): boolean;
+	/** Rust `embed_read::run_json`; throws `embed_sender:<reason>` for an unknown op or malformed document. */
+	embed_sender_decide(op: string, input: string): string;
 }
 
 export function isEmbedReadBinding(value: unknown): value is EmbedReadBinding {
@@ -55,6 +64,24 @@ function validPatchItem(value: unknown): value is VersionPatchItem {
 /** Handlers over `binding`; a binding without the export (older Worker build) refuses with `unavailable`. */
 export function createEmbedReadHandlers(binding: Partial<EmbedReadBinding>): UnitHandlers<EmbedReadProtocol> {
 	return {
+		decideSender(payload) {
+			const r = payload as Partial<{ op: unknown; input: unknown }> | null;
+			if (typeof r !== 'object' || r === null || typeof r.op !== 'string' || !SENDER_OP.test(r.op)
+				|| typeof r.input !== 'string' || r.input.length > SENDER_INPUT_MAX) {
+				throw new UnitRefusal('embed_data_bad_request');
+			}
+			const decide = binding.embed_sender_decide;
+			if (!decide) throw new UnitRefusal('unavailable');
+			let decision: unknown;
+			try {
+				decision = decide.call(binding, r.op, r.input);
+			} catch (error) {
+				// Rust refuses with `embed_sender:<reason>` (a page bug: malformed document); never user content.
+				throw new UnitRefusal(typeof error === 'string' && error.startsWith('embed_sender:') ? 'embed_sender_refused' : 'embed_data_failed');
+			}
+			if (typeof decision !== 'string') throw new UnitRefusal('embed_data_failed');
+			return decision;
+		},
 		admitEmbedEvent(payload) {
 			const r = payload as Partial<EmbedEventAdmissionRequest> | null;
 			if (typeof r !== 'object' || r === null || typeof r.currentStatus !== 'string' || typeof r.versionExempt !== 'boolean'
