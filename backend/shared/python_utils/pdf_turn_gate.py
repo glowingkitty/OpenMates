@@ -19,7 +19,9 @@ logger = logging.getLogger(__name__)
 
 # The AI task has a 300 s soft time limit; the hold must end before it so the turn fails cleanly.
 PDF_TURN_MAX_WAIT_SECONDS = 240.0
-PDF_TURN_POLL_SECONDS = 2.0
+# Polls after the first are plain cache reads, so a short interval adds little load
+# and cuts the delay between "PDF finished" and the answer starting.
+PDF_TURN_POLL_SECONDS = 0.5
 
 _FINAL_STATUSES = {"finished", "error", "cancelled"}
 

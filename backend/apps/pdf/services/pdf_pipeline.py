@@ -19,6 +19,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -27,7 +28,7 @@ from typing import Any, Dict, List, Optional
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from backend.apps.pdf.services.ocr_chunks import run_chunked_ocr
-from backend.apps.pdf.services.pdf_extract import extract_text_layer_markdown, extract_unique_images
+from backend.apps.pdf.services.pdf_extract import extract_unique_images
 from backend.apps.pdf.services.pdf_triage import (
     JevDecider,
     TriageResult,
@@ -131,9 +132,13 @@ async def run_pipeline(
 ) -> PipelineOutput:
     from backend.apps.pdf.services.pdf_safety import judge_images, score_pages_injection
 
-    # 1. Triage (reuse upload-time routes when they fit this document).
-    triage = await asyncio.to_thread(triage_pages_sync, pdf_bytes)
-    _apply_routes(triage, page_routes)
+    # 1. Triage. When the upload already decided (and priced) every route, read only the
+    # text; recompute the signals only if those routes do not fit this document.
+    started = time.monotonic()
+    triage = await asyncio.to_thread(triage_pages_sync, pdf_bytes, signals=not page_routes)
+    if page_routes and not _apply_routes(triage, page_routes):
+        logger.warning("%s Upload routes do not fit this PDF; running full triage", log_prefix)
+        triage = await asyncio.to_thread(triage_pages_sync, pdf_bytes)
 
     async def _decider(page: Any) -> Optional[bool]:
         return await jev_text_layer_is_complete(page, secrets_manager)
@@ -142,16 +147,16 @@ async def run_pipeline(
     await resolve_borderline_pages(triage, decider)
     text_pages, ocr_pages = triage.text_layer_pages, triage.ocr_pages
     price = price_for(len(ocr_pages))
-    logger.info("%s Triage: %d text-layer, %d OCR pages (price %d credits)",
-                log_prefix, len(text_pages), len(ocr_pages), price.credits)
+    logger.info("%s Triage: %d text-layer, %d OCR pages (price %d credits) in %.1fs",
+                log_prefix, len(text_pages), len(ocr_pages), price.credits, time.monotonic() - started)
 
-    # 2. Text, OCR and image extraction in parallel.
-    text_task = asyncio.to_thread(extract_text_layer_markdown, pdf_bytes, text_pages)
-    images_task = asyncio.to_thread(extract_unique_images, pdf_bytes)
-    ocr_task = run_chunked_ocr(pdf_bytes, ocr_pages, secrets_manager, log_prefix)
-    text_by_page, extracted_images, (ocr_by_page, ocr_providers) = await asyncio.gather(
-        text_task, images_task, ocr_task
+    # 2. OCR and image extraction in parallel (text-layer pages use the triage text).
+    started = time.monotonic()
+    extracted_images, (ocr_by_page, ocr_providers) = await asyncio.gather(
+        asyncio.to_thread(extract_unique_images, pdf_bytes),
+        run_chunked_ocr(pdf_bytes, ocr_pages, secrets_manager, log_prefix),
     )
+    logger.info("%s Extraction and OCR finished in %.1fs", log_prefix, time.monotonic() - started)
 
     pages: List[Dict[str, Any]] = []
     for info in triage.pages:
@@ -166,7 +171,7 @@ async def run_pipeline(
             })
         else:
             pages.append({
-                "page_num": n, "markdown": text_by_page.get(n) or info.text, "source": "text_layer",
+                "page_num": n, "markdown": info.text, "source": "text_layer",
                 "unreadable": False, "tables": [], "header": None, "footer": None, "width": 0, "height": 0,
             })
 
@@ -195,11 +200,13 @@ async def run_pipeline(
             return ({"detected": False, "source_pages": [], "chapters": []},
                     {"detected": False, "source_pages": [], "content": "", "chapters": []})
 
+    started = time.monotonic()
     injection, decisions, (toc, legend) = await asyncio.gather(
         score_pages_injection({p["page_num"]: p["markdown"] for p in pages}, secrets_manager, log_prefix=log_prefix),
         judge_images(judge_inputs, secrets_manager, log_prefix=log_prefix),
         _toc(),
     )
+    logger.info("%s Safety decisions and contents finished in %.1fs", log_prefix, time.monotonic() - started)
 
     rejected = [k for k, d in decisions.items() if d.outcome == "pdf_rejected"]
     if rejected:

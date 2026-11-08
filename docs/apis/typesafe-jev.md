@@ -111,6 +111,18 @@ Primary references: [TypeSafe API reference](https://docs.typesafe.ai/api), [Typ
 
 PDF processing v2 uses Jev for: borderline page routing (text layer complete or OCR), per-page prompt-injection scores,
 contents-page detection, search reranking, and image safety decisions on PDF page and embedded images (PNG/JPEG,
-280-1568 px, at most 4 images and 4 MiB per request, direct TypeSafe only). Image decisions fail closed: an image is
-allowed only when every unsafe category is harmless at 0.95 confidence or higher. See
+direct TypeSafe only). Image decisions fail closed: an image is allowed only when every unsafe category is harmless at
+0.95 confidence or higher.
+
+Request sizing, measured against TypeSafe on 2026-11-08:
+
+- Injection scores: up to 24 pages (40,000 characters) share one request, each page with its own `noul` question
+  that names its `pages.<key>` entry. A 653-page datasheet needs about 30 requests (2.6 s at 16 in parallel) instead of
+  653 single-page requests (23 s). Planted injections were still scored 0.97-0.98 with neighbouring pages at 0.07 or
+  less.
+- Images cost about one input token per 85 px² and a request is rejected above roughly 32K input tokens with
+  `400 {"detail": {"error_type": "max_tokens_exceeded"}}`. PDF images are therefore re-encoded to at most 1024 px and
+  batched by an estimated 26K-token budget (at most 4 images and 4 MiB). The client types that response as
+  `DecisionRequestTooLarge`; the PDF checks then split the request in half, and a single image that still does not fit
+  is withheld. See
 `specifications/features/pdf-processing/specification.yml`.

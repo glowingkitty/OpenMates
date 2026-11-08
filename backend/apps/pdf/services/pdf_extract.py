@@ -1,35 +1,20 @@
 # backend/apps/pdf/services/pdf_extract.py
 #
-# pymupdf extraction helpers for PDF processing v2: the embedded text layer as
-# markdown and the unique embedded images. Synchronous and CPU-bound; call via
-# asyncio.to_thread().
+# pymupdf extraction helper for PDF processing v2: the unique embedded images
+# (page text comes from triage, see pdf_triage.page_text_in_reading_order).
+# Synchronous and CPU-bound; call via asyncio.to_thread().
 
 from __future__ import annotations
 
 import hashlib
 import logging
-from typing import Dict, Sequence, Tuple
+from typing import Dict, Tuple
 
 logger = logging.getLogger(__name__)
 
 MIN_IMAGE_SIDE_PX = 80
 MIN_IMAGE_BYTES = 2048
 MAX_UNIQUE_IMAGES = 60
-
-
-def extract_text_layer_markdown(pdf_bytes: bytes, page_numbers: Sequence[int]) -> Dict[int, str]:
-    """Embedded text layer (reading order) for the given 1-based pages; pymupdf has no markdown mode."""
-    import fitz  # type: ignore[import]  # pymupdf
-
-    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-    try:
-        texts: Dict[int, str] = {}
-        for number in page_numbers:
-            page = doc[number - 1]
-            texts[number] = (page.get_text("text", sort=True) or "").strip()
-        return texts
-    finally:
-        doc.close()
 
 
 def extract_unique_images(pdf_bytes: bytes, max_images: int = MAX_UNIQUE_IMAGES) -> Dict[str, Tuple[int, bytes]]:

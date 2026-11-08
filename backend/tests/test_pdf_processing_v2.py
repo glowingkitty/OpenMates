@@ -77,6 +77,49 @@ def test_borderline_unsure_or_failing_decision_defaults_to_ocr_and_confident_tex
     ]
 
 
+def _two_page_pdf() -> bytes:
+    import fitz  # type: ignore[import]  # pymupdf
+
+    doc = fitz.open()
+    page = doc.new_page()
+    # Written bottom-first so the file order differs from the reading order.
+    # Two non-overlapping columns on one baseline, then a line further down.
+    page.insert_text((72, 700), "Bottom line: absolute maximum ratings")
+    page.insert_text((330, 100), "Top right: features")
+    page.insert_text((72, 100), "Top left: quad NAND gate")
+    doc.new_page()  # blank page
+    data = doc.tobytes()
+    doc.close()
+    return data
+
+
+# contract-test: supporting surface=rest_api assertions=pdf-processing.triage.per-page-route
+def test_triage_text_is_in_reading_order():
+    from backend.apps.pdf.services.pdf_triage import triage_pages_sync
+
+    result = triage_pages_sync(_two_page_pdf())
+    text = result.pages[0].text
+    assert text.index("Top left") < text.index("Top right") < text.index("Bottom line")
+    assert result.pages[0].route == "text_layer" and result.pages[1].route == "text_layer"
+
+
+# contract-test: supporting surface=rest_api assertions=pdf-processing.triage.per-page-route
+def test_text_only_triage_keeps_text_and_leaves_routes_to_the_upload():
+    from backend.apps.pdf.services.pdf_pipeline import _apply_routes
+    from backend.apps.pdf.services.pdf_triage import triage_pages_sync
+
+    data = _two_page_pdf()
+    full = triage_pages_sync(data)
+    text_only = triage_pages_sync(data, signals=False)
+    assert [p.text for p in text_only.pages] == [p.text for p in full.pages]
+    assert all(p.borderline and p.route == "ocr" for p in text_only.pages)  # nothing trusted unrouted
+    routes = [p.to_route_dict() for p in full.pages]
+    assert _apply_routes(text_only, routes) is True
+    assert [p.route for p in text_only.pages] == ["text_layer", "text_layer"]
+    assert not any(p.borderline for p in text_only.pages)
+    assert _apply_routes(triage_pages_sync(data, signals=False), routes[:1]) is False
+
+
 # contract-test: supporting surface=rest_api assertions=pdf-processing.billing.exact-price
 def test_price_is_two_per_file_plus_two_per_ocr_page():
     assert price_for(0).credits == 2

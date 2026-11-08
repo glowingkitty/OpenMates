@@ -422,9 +422,10 @@ def _is_context_overflow(response: httpx.Response) -> bool:
         body = response.json()
     except ValueError:
         return False
-    if not isinstance(body, dict) or "error" not in body:
+    # OpenRouter reports {"error": ...}; TypeSafe reports {"detail": {"error_type": ...}}.
+    if not isinstance(body, dict) or not ("error" in body or "detail" in body):
         return False
-    error = json.dumps(body["error"], ensure_ascii=False)[:8_000].lower()
+    error = json.dumps(body.get("error", body.get("detail")), ensure_ascii=False)[:8_000].lower()
     return any(marker in error for marker in (
         "context_length_exceeded", "context_window_exceeded", "input_too_long",
         "request_too_large", "maximum context", "context length", "context window",

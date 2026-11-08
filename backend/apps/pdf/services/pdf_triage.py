@@ -10,10 +10,10 @@
 #     encodings) are decided by the Jev decision model; an unsure, failed or
 #     unavailable decision sends the page to OCR (never trust a doubtful layer).
 #
-# Triage reads only pymupdf page metadata and text, so it takes about 1-2 s for
-# hundreds of pages. The result is used twice: the upload route computes the
-# exact price from it, and the processing task reuses the routes and the
-# extracted text so nothing is read twice.
+# Triage reads only pymupdf page metadata and text (in reading order), so it
+# takes about 2-3 s for 650 pages. The result is used twice: the upload route
+# computes the exact price from it, and the processing task reuses the routes
+# (reading only the text again) and uses the triage text as the page text.
 #
 # See specifications/features/pdf-processing (assertions triage.*).
 
@@ -138,9 +138,42 @@ def _image_coverage(page: Any) -> float:
     return min(1.0, covered / page_area)
 
 
-def triage_pages_sync(pdf_bytes: bytes) -> TriageResult:
+def page_text_in_reading_order(page: Any) -> str:
+    """Text layer of one page in reading order, one output line per visual row.
+
+    Lines are ordered top-to-bottom, then left-to-right, and lines whose vertical
+    middle falls inside the current row (table cells, columns on one baseline) are
+    joined into that row with three spaces, so a table row keeps its label and
+    values together. This is the row structure of pymupdf's
+    ``get_text("text", sort=True)`` without its padding whitespace, and about six
+    times faster (1.5 s instead of 9.2 s for a 653-page datasheet) because it is
+    built from pymupdf's native word list.
+    """
+    lines: Dict[tuple, list] = {}
+    for x0, y0, _x1, y1, word, block, line, _word_no in page.get_text("words"):
+        entry = lines.setdefault((block, line), [x0, y0, y1, []])
+        entry[0] = min(entry[0], x0)
+        entry[1] = min(entry[1], y0)
+        entry[2] = max(entry[2], y1)
+        entry[3].append(word)
+    rows: List[list] = []  # [top, bottom, [(x0, text), ...]]
+    for x0, y0, y1, words in sorted(lines.values(), key=lambda e: (e[2], e[0])):
+        middle = (y0 + y1) / 2
+        if rows and rows[-1][0] <= middle <= rows[-1][1]:
+            rows[-1][2].append((x0, " ".join(words)))
+            rows[-1][1] = max(rows[-1][1], y1)
+        else:
+            rows.append([y0, y1, [(x0, " ".join(words))]])
+    return "\n".join("   ".join(text for _x, text in sorted(cells)) for _top, _bottom, cells in rows)
+
+
+def triage_pages_sync(pdf_bytes: bytes, *, signals: bool = True) -> TriageResult:
     """Read signals and the text layer of every page. Borderline pages are left undecided
-    (``borderline=True``, route preset to ``ocr``) for :func:`resolve_borderline_pages`."""
+    (``borderline=True``, route preset to ``ocr``) for :func:`resolve_borderline_pages`.
+
+    ``signals=False`` reads only the text and outline (routes preset to ``ocr``,
+    undecided); the processing task uses it when the upload already decided every
+    route, and falls back to a full triage if those routes do not fit."""
     import fitz  # type: ignore[import]  # pymupdf
 
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
@@ -148,7 +181,13 @@ def triage_pages_sync(pdf_bytes: bytes) -> TriageResult:
         result = TriageResult(outline=[list(entry[:3]) for entry in doc.get_toc(simple=True)])
         for index in range(len(doc)):
             page = doc[index]
-            text = (page.get_text("text") or "").strip()
+            text = page_text_in_reading_order(page)
+            if not signals:
+                result.pages.append(PageTriage(
+                    page_number=index + 1, route="ocr", decided_by="default_to_ocr",
+                    text=text, text_chars=len(text), borderline=True, reason="routes_from_upload",
+                ))
+                continue
             garbled = garbled_ratio(text)
             coverage = _image_coverage(page)
             drawings = len(page.get_drawings()) if len(text) < MIN_TEXT_CHARS else 0
