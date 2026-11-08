@@ -1794,10 +1794,12 @@
           ],
           "conformance": true,
           "evidence": [
-            "tests/sdk-conformance/runners/sdk-api-key-docs.mjs"
+            "tests/sdk-conformance/runners/sdk-api-key-docs.mjs",
+            "frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts",
+            "tests/sdk-conformance/runners/sdk-live-work.mjs"
           ],
           "gaps": [
-            "Existing SDK /v1/sdk/docs route availability/server behavior is not established by synthetic fixture; no server route/protocol added.",
+            "Live isolated-CI proof (frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts, GitHub run 42467161114): docs.list against the real backend with an approved API-key device succeeds in Rust, npm and Python with the same top-level shape (files, folders). Live show/search/download and live error/ACL behavior remain unproved.",
             "Malformed successful JSON, redirect, transport cancellation, oversize response and live error/ACL behavior inherit existing transport policies and are not full cross-language proved by this fixture.",
             "CPU and runtime performance acceptance mandatory and unrun."
           ],
@@ -1819,10 +1821,12 @@
           ],
           "conformance": true,
           "evidence": [
-            "tests/sdk-conformance/runners/sdk-api-key-docs.py"
+            "tests/sdk-conformance/runners/sdk-api-key-docs.py",
+            "frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts",
+            "tests/sdk-conformance/runners/sdk-live-work.py"
           ],
           "gaps": [
-            "Existing SDK /v1/sdk/docs route availability/server behavior is not established by synthetic fixture; no server route/protocol added.",
+            "Live isolated-CI proof (frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts, GitHub run 42467161114): docs.list against the real backend with an approved API-key device succeeds in Rust, npm and Python with the same top-level shape (files, folders). Live show/search/download and live error/ACL behavior remain unproved.",
             "Malformed successful JSON, redirect, transport cancellation, oversize response and live error/ACL behavior inherit existing transport policies and are not full cross-language proved by this fixture.",
             "CPU and runtime performance acceptance mandatory and unrun."
           ],
@@ -1861,10 +1865,12 @@
           ],
           "conformance": true,
           "evidence": [
-            "packages/openmates-rust/examples/sdk-api-key-docs-conformance.rs"
+            "packages/openmates-rust/examples/sdk-api-key-docs-conformance.rs",
+            "frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts",
+            "packages/openmates-rust/examples/sdk-live-work-conformance.rs"
           ],
           "gaps": [
-            "Existing SDK /v1/sdk/docs route availability/server behavior is not established by synthetic fixture; no server route/protocol added.",
+            "Live isolated-CI proof (frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts, GitHub run 42467161114): docs.list against the real backend with an approved API-key device succeeds in Rust, npm and Python with the same top-level shape (files, folders). Live show/search/download and live error/ACL behavior remain unproved.",
             "Malformed successful JSON, redirect, transport cancellation, oversize response and live error/ACL behavior inherit existing transport policies and are not full cross-language proved by this fixture.",
             "CPU and runtime performance acceptance mandatory and unrun."
           ],
