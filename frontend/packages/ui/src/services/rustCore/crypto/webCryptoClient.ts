@@ -23,6 +23,7 @@ import { CryptoResultMemo, isBytes } from './cryptoResultMemo';
 import type { KeyOp } from './keyOps';
 import type { GuestOp } from './guestOps';
 import type { ShareStateOp } from './shareStateOps';
+import type { WorkOp } from './workOps';
 
 export type WebCryptoOp =
   | 'decryptChatContent' | 'encryptChatContent' | 'masterDecrypt' | 'masterEncrypt'
@@ -34,6 +35,7 @@ export type WebCryptoOp =
   | KeyOp
   | GuestOp
   | ShareStateOp
+  | WorkOp
   | 'bulk';
 
 /** Per-item ops the flush coalesces: `[key, item]` args, one `bulk` request per key. */

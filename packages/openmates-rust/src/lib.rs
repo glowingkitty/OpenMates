@@ -51,6 +51,8 @@ mod web_guest_tests;
 pub mod web_share_state;
 #[cfg(test)]
 mod web_share_state_tests;
+/// User Plans (later Tasks/Teams) decisions of the web `work` op.
+pub mod web_work;
 pub mod web_stream;
 pub mod web_sync;
 pub mod web_chat_state;

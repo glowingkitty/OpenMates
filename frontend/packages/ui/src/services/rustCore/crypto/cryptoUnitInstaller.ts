@@ -23,6 +23,7 @@ import { BULK_EXPORTS, createBulkRunner } from './cryptoUnitBulk';
 import { KEY_ASYNC_EXPORTS } from './keyOps';
 import { GUEST_ASYNC_EXPORTS } from './guestOps';
 import { SHARE_STATE_ASYNC_EXPORTS } from './shareStateOps';
+import { WORK_ASYNC_EXPORTS } from './workOps';
 import type { UnitInstaller } from '../host/sharedWorkerProtocol';
 
 type Fn = (...args: unknown[]) => unknown;
@@ -45,6 +46,7 @@ const ASYNC_EXPORTS: Partial<Record<WebCryptoOp, string>> = {
   ...KEY_ASYNC_EXPORTS,
   ...GUEST_ASYNC_EXPORTS,
   ...SHARE_STATE_ASYNC_EXPORTS,
+  ...WORK_ASYNC_EXPORTS,
 };
 
 const REQUIRED = [

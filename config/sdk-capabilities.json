@@ -7076,6 +7076,8 @@
             "web_transfer",
             "web_transfer.batch_plan_json",
             "web_transfer.chat_estimate",
+            "web_work",
+            "web_work.run_json",
             "web_ws",
             "web_ws.AUTH_FAILURE_THRESHOLD",
             "web_ws.MAX_RECONNECT_ATTEMPTS",

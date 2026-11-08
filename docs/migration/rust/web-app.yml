@@ -67,7 +67,7 @@ units:
     binding.'
   typescript_fallback: none declared (2 files)
   unit_tests: [chatKeyAdmissionVectors.test.ts, chatKeyBulkPlanVectors.test.ts, chatKeyHandles.test.ts, cryptoResultMemo.test.ts,
-    cryptoUnit.test.ts, guestPromotionVectors.test.ts, shareStateVectors.test.ts]
+    cryptoUnit.test.ts, guestPromotionVectors.test.ts, shareStateVectors.test.ts, workPlanVectors.test.ts]
   e2e_specs: [web-rust-core-crypto.spec.ts]
   vectors: [packages/openmates-rust/src/crypto/signup_vectors.json]
   open_gaps: []
