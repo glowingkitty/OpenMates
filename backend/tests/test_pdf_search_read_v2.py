@@ -164,6 +164,24 @@ async def test_search_reranks_with_jev_and_survives_outage(monkeypatch):
 
 @pytest.mark.asyncio
 # contract-test: supporting surface=rest_api assertions=pdf-processing.search.ranked-pages
+async def test_server_side_callers_can_widen_the_reranked_head_but_not_past_the_ceiling(monkeypatch):
+    pages = {str(n): {"markdown": "alpha " * (40 - n)} for n in range(1, 41)}
+    skill = _search(monkeypatch, pages)
+    seen = []
+
+    async def record(self, query, candidates, pages_text, secrets_manager):
+        seen.append(len(candidates))
+        return None
+
+    monkeypatch.setattr(SearchSkill, "_jev_relevance", record)
+    for wanted in (None, 24, 500, True, "24"):
+        extra = {} if wanted is None else {"rerank_candidates": wanted}
+        await skill.execute(REF, "alpha", **_kwargs(secrets_manager=object(), **extra))
+    assert seen == [10, 24, 30, 10, 10]
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=pdf-processing.search.ranked-pages
 async def test_jev_errors_keep_bm25_order(monkeypatch):
     from backend.apps.ai.processing import jev_decisions
     from backend.shared.providers.typesafe.client import DecisionProviderError

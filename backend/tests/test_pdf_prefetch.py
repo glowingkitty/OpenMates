@@ -116,6 +116,7 @@ def test_best_pages_go_into_the_prompt_as_untrusted_data_ranked_best_first(fake_
     search_args = next(a for s, a in fake_skills["calls"] if s == "search")
     assert search_args["query"] == "What is the maximum sewing speed?"
     assert search_args["file_path"] == MANUAL and search_args["_file_path_index"][MANUAL] == "embed-1"
+    assert search_args["_rerank_candidates"] == 24  # rate more keyword hits than a model-driven search does
 
 
 # contract-test: supporting surface=rest_api assertions=pdf-processing.read.prefetch-relevant-pages

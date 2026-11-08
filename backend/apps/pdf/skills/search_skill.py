@@ -46,6 +46,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_CONTEXT_CHARS = 200  # characters of surrounding context per match
 MAX_MATCHES = 50              # cap on number of matches returned
 JEV_RERANK_CANDIDATES = 10    # top BM25 pages the decision model may reorder
+JEV_RERANK_MAX_CANDIDATES = 30  # ceiling when a server-side caller widens the reranked head
 JEV_PAGE_SAMPLE_CHARS = 1500  # untrusted page text shown to the decision model per page
 JEV_RELEVANCE_LEVELS = [
     "Unrelated to the query",
@@ -476,8 +477,16 @@ class SearchSkill(BaseSkill):
             ranked = rank_pages(pages_text, query)
             relevance: Dict[int, float] = {}
             if len(ranked) > 1:
+                # Server-side callers (the prompt prefetch) may widen the reranked head, because a
+                # whole question as query can rank the answer page below the tenth keyword hit.
+                wanted = kwargs.get("rerank_candidates")
+                candidates = (
+                    min(max(wanted, JEV_RERANK_CANDIDATES), JEV_RERANK_MAX_CANDIDATES)
+                    if isinstance(wanted, int) and not isinstance(wanted, bool)
+                    else JEV_RERANK_CANDIDATES
+                )
                 scores = await self._jev_relevance(
-                    query, ranked[:JEV_RERANK_CANDIDATES], pages_text, kwargs.get("secrets_manager")
+                    query, ranked[:candidates], pages_text, kwargs.get("secrets_manager")
                 )
                 if scores:
                     relevance = scores

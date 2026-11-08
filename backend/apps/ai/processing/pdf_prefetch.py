@@ -30,6 +30,7 @@ MAX_PREFETCH_PDFS = 2            # PDFs referenced in the message that get pages
 MAX_CANDIDATE_REFS = 3           # references tried; a non-PDF one just fails its search
 MAX_PREFETCH_PAGES = 3           # best pages per PDF
 MAX_PREFETCH_CHARS = 24_000      # about 6,000 tokens in total across all PDFs
+RERANK_CANDIDATES = 24           # keyword hits the decision model rates (a whole question ranks keywords loosely)
 MIN_JEV_RELEVANCE = 0.5          # "somewhat relevant" or better when the decision model rated the page
 MIN_QUERY_CHARS = 3
 SKILL_TIMEOUT_SECONDS = 20.0
@@ -109,7 +110,7 @@ async def _prefetch_one(
 ) -> Optional[List[str]]:
     search = await execute_skill(
         app_id="pdf", skill_id="search",
-        arguments={**skill_arguments, "file_path": ref, "query": question},
+        arguments={**skill_arguments, "file_path": ref, "query": question, "_rerank_candidates": RERANK_CANDIDATES},
         timeout=SKILL_TIMEOUT_SECONDS, max_retries=0, **skill_kwargs,
     )
     if not search.get("success"):
