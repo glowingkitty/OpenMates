@@ -11307,6 +11307,43 @@ def _enforce_generated_sdk_app_skills(files: list[str], *, checkout_root: Path |
     print("Generated SDK app skills: PASSED")
 
 
+def _should_check_rust_sdk_inventory(files: list[str]) -> bool:
+    """Return True when changed files can alter the Rust public API inventory."""
+    return any(
+        (f.startswith("packages/openmates-rust/src/") and f.endswith(".rs"))
+        or f in {"config/sdk-capabilities.json", "scripts/sdk_rust_inventory.py"}
+        for f in files
+    )
+
+
+def _enforce_rust_sdk_inventory(files: list[str], *, checkout_root: Path | None = None) -> None:
+    """Refuse deploys whose public Rust items are not classified in sdk-capabilities.json.
+
+    Mirrors the strict sdk-conformance inventory-drift check without cargo/node.
+    """
+    if not _should_check_rust_sdk_inventory(files):
+        return
+    root = checkout_root or CONTROL_PLANE_ROOT
+    print("Checking Rust public API inventory against config/sdk-capabilities.json...")
+    result = subprocess.run(
+        [sys.executable, "scripts/sdk_rust_inventory.py", "--check-matrix"],
+        cwd=str(root),
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    if result.returncode != 0:
+        print("RUST SDK INVENTORY DRIFT — aborting deploy:", file=sys.stderr)
+        print((result.stdout + result.stderr).strip(), file=sys.stderr)
+        print(
+            "Classify new names under a capability's languages.rust.api in "
+            "config/sdk-capabilities.json (sorted), or remove stale ones.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    print("Rust SDK inventory: PASSED")
+
+
 def _run_sdk_cleartext_audit(
     command: list[str],
     *,
@@ -11494,6 +11531,7 @@ def _run_deploy_gates(
 
     _enforce_embed_registry_validation(files, checkout_root=checkout_root)
     _enforce_generated_sdk_app_skills(files, checkout_root=checkout_root)
+    _enforce_rust_sdk_inventory(files, checkout_root=checkout_root)
 
     lint_flags = _get_lint_flags(files)
     if lint_flags and not no_verify:
@@ -12924,6 +12962,7 @@ def cmd_deploy(args: argparse.Namespace) -> None:
 
     _enforce_embed_registry_validation(to_commit)
     _enforce_generated_sdk_app_skills(to_commit)
+    _enforce_rust_sdk_inventory(to_commit)
 
     # 1. Run linter (with CSS/HTML support and longer timeout)
     no_verify = getattr(args, "no_verify", False)

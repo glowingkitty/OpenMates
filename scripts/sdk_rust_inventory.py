@@ -343,5 +343,29 @@ def discover(root: Path = ROOT) -> list[str]:
     return sorted(name.lstrip(".") for name in symbols)
 
 
+def matrix_drift(root: Path = ROOT) -> tuple[list[str], list[str]]:
+    """Return (unclassified, removed) Rust APIs versus config/sdk-capabilities.json.
+
+    Needs no cargo, node or built artifacts, so deploy can run it cheaply.
+    """
+    matrix = json.loads((root / "config/sdk-capabilities.json").read_text())
+    classified = {
+        api
+        for capability in matrix["capabilities"]
+        for api in capability["languages"]["rust"]["api"]
+    }
+    actual = set(discover(root))
+    return sorted(actual - classified), sorted(classified - actual)
+
+
 if __name__ == "__main__":
-    print(json.dumps(discover()))
+    import sys
+
+    if "--check-matrix" in sys.argv:
+        missing, stale = matrix_drift()
+        if missing or stale:
+            print(f"Rust public API inventory drift: unclassified={missing}, removed={stale}")
+            sys.exit(1)
+        print("Rust public API inventory matches config/sdk-capabilities.json")
+    else:
+        print(json.dumps(discover()))

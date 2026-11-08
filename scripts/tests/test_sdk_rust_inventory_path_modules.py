@@ -44,3 +44,19 @@ def test_deploy_guard_only_triggers_on_app_metadata_or_generators():
     assert sessions._should_check_generated_sdk_app_skills(["backend/apps/pdf/app.yml"])
     assert sessions._should_check_generated_sdk_app_skills(["scripts/generate_rust_sdk_apps.py"])
     assert not sessions._should_check_generated_sdk_app_skills(["backend/apps/pdf/skills/read.py"])
+
+
+def test_rust_inventory_deploy_guard_triggers_and_detects_drift(tmp_path):
+    assert sessions._should_check_rust_sdk_inventory(["packages/openmates-rust/src/web_continue.rs"])
+    assert sessions._should_check_rust_sdk_inventory(["config/sdk-capabilities.json"])
+    assert not sessions._should_check_rust_sdk_inventory(["frontend/packages/ui/src/a.ts"])
+    write_crate(tmp_path)
+    (tmp_path / "config").mkdir()
+    (tmp_path / "config/sdk-capabilities.json").write_text(
+        '{"capabilities":[{"languages":{"rust":{"api":["accounts","accounts.plan","stale.x"]}}}]}'
+    )
+    from scripts.sdk_rust_inventory import matrix_drift
+
+    missing, stale = matrix_drift(tmp_path)
+    assert "accounts.tokens.merge" in missing
+    assert stale == ["stale.x"]

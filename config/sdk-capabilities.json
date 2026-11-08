@@ -6807,6 +6807,8 @@
             "web_connected_accounts.tokens.merge_turn_token_refs_json",
             "web_connected_accounts.transfer.transfer_command_json",
             "web_connected_accounts.transfer.transfer_plan_json",
+            "web_continue",
+            "web_continue.run_json",
             "web_keys",
             "web_keys.InjectDecision",
             "web_keys.InjectDecision.Keep",
